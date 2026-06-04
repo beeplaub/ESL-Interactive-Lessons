@@ -56,6 +56,7 @@ create table if not exists public.slides (
 
 create table if not exists public.slide_activities (
   id uuid primary key default gen_random_uuid(),
+  lesson_id uuid not null references public.lessons(id) on delete cascade,
   slide_id uuid not null references public.slides(id) on delete cascade,
   activity_type text not null,
   prompt text not null,
@@ -90,6 +91,7 @@ create table if not exists public.learner_responses (
 
 create index if not exists lessons_status_idx on public.lessons(status);
 create index if not exists slides_lesson_order_idx on public.slides(lesson_id, slide_number);
+create index if not exists slide_activities_lesson_idx on public.slide_activities(lesson_id);
 create index if not exists responses_user_lesson_idx on public.learner_responses(user_id, lesson_id);
 
 create or replace function public.touch_updated_at()

@@ -169,6 +169,7 @@ export type Database = {
       slide_activities: {
         Row: {
           id: string;
+          lesson_id: string;
           slide_id: string;
           activity_type: string;
           prompt: string;
@@ -179,6 +180,7 @@ export type Database = {
         };
         Insert: {
           id?: string;
+          lesson_id: string;
           slide_id: string;
           activity_type: string;
           prompt: string;
@@ -189,6 +191,7 @@ export type Database = {
         };
         Update: {
           id?: string;
+          lesson_id?: string;
           slide_id?: string;
           activity_type?: string;
           prompt?: string;
@@ -198,6 +201,13 @@ export type Database = {
           updated_at?: string;
         };
         Relationships: [
+          {
+            foreignKeyName: "slide_activities_lesson_id_fkey";
+            columns: ["lesson_id"];
+            isOneToOne: false;
+            referencedRelation: "lessons";
+            referencedColumns: ["id"];
+          },
           {
             foreignKeyName: "slide_activities_slide_id_fkey";
             columns: ["slide_id"];

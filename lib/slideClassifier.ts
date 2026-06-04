@@ -55,6 +55,7 @@ export async function classifyAndExtractLesson(lessonId: string) {
     const activity = extractActivity(slide);
     if (!activity) return [];
     return [{
+      lesson_id: slide.lesson_id,
       slide_id: slide.id,
       activity_type: activity.activity_type,
       prompt: activity.prompt,
