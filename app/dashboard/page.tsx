@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BookOpen } from "lucide-react";
+import { ArrowRight, BookOpen, Clock3 } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -27,9 +27,12 @@ export default async function DashboardPage() {
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
-      <div className="mb-6">
-        <h1 className="text-3xl font-semibold tracking-tight">Choose a lesson</h1>
-        <p className="mt-2 text-black/60">Pick a topic and move through the activities one slide at a time.</p>
+      <div className="mb-7 rounded-lg border border-black/10 bg-white p-6 shadow-sm">
+        <p className="text-sm font-semibold uppercase tracking-wide text-moss">Learner dashboard</p>
+        <h1 className="mt-2 text-3xl font-semibold tracking-tight">Choose your next lesson</h1>
+        <p className="mt-2 max-w-2xl text-black/60">
+          Published lessons appear here. Start a new topic or continue from your saved progress.
+        </p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -39,8 +42,10 @@ export default async function DashboardPage() {
           const current = Math.min(saved?.current_slide_number ?? 1, totalSlides || 1);
           const percent = totalSlides ? Math.round((current / totalSlides) * 100) : 0;
 
+          const statusText = saved?.completed ? "Completed" : saved ? "In progress" : "Not started";
+
           return (
-            <article key={lesson.id} className="rounded-lg border border-black/10 bg-white p-5 shadow-sm">
+            <article key={lesson.id} className="flex min-h-72 flex-col rounded-lg border border-black/10 bg-white p-5 shadow-sm">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <span className="rounded-full bg-skywash px-2 py-1 text-xs font-medium text-ink">{lesson.level}</span>
@@ -49,8 +54,12 @@ export default async function DashboardPage() {
                 </div>
                 <BookOpen className="text-moss" size={22} />
               </div>
-              <p className="mt-4 min-h-12 text-sm text-black/65">{lesson.description}</p>
-              <div className="mt-5">
+              <p className="mt-4 text-sm leading-6 text-black/65">{lesson.description || "A focused English lesson with interactive practice."}</p>
+              <div className="mt-auto pt-5">
+                <div className="mb-3 flex items-center gap-2 text-xs font-medium text-black/55">
+                  <Clock3 size={14} />
+                  <span>{statusText}</span>
+                </div>
                 <div className="mb-2 flex justify-between text-xs text-black/55">
                   <span>{saved?.completed ? "Completed" : `${current}/${totalSlides || "?"} slides`}</span>
                   <span>{percent}%</span>
@@ -59,8 +68,8 @@ export default async function DashboardPage() {
                   <div className="h-full bg-moss" style={{ width: `${percent}%` }} />
                 </div>
               </div>
-              <Link href={`/lessons/${lesson.id}`} className="mt-5 block rounded-md bg-ink px-4 py-2 text-center text-sm font-medium text-white">
-                {saved ? "Continue" : "Start"}
+              <Link href={`/lessons/${lesson.id}`} className="mt-5 inline-flex items-center justify-center gap-2 rounded-md bg-ink px-4 py-2 text-center text-sm font-medium text-white">
+                {saved ? "Continue" : "Start"} <ArrowRight size={16} />
               </Link>
             </article>
           );
@@ -68,7 +77,11 @@ export default async function DashboardPage() {
       </div>
 
       {!lessons?.length ? (
-        <div className="rounded-lg border border-black/10 bg-white p-8 text-center text-black/60">No published lessons yet.</div>
+        <div className="rounded-lg border border-black/10 bg-white p-8 text-center shadow-sm">
+          <BookOpen className="mx-auto text-moss" size={28} />
+          <h2 className="mt-4 text-lg font-semibold">No published lessons yet</h2>
+          <p className="mt-2 text-sm text-black/60">Once Bren publishes a lesson, it will appear here automatically.</p>
+        </div>
       ) : null}
     </main>
   );

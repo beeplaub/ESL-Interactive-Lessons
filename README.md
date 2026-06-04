@@ -1,4 +1,4 @@
-# ESL Interactive Lessons
+# BrenUp
 
 A Next.js + Supabase app for turning ESL lesson PDFs and audio files into interactive learner slide decks.
 
@@ -55,6 +55,22 @@ Open `http://localhost:3000`.
 5. Fix any activity JSON or audio links that need human judgment.
 6. Publish the lesson.
 7. Sign in as a learner and open `/dashboard`.
+
+## Cleanup duplicate drafts
+
+To inspect draft lessons whose title or topic contains “Beginnings”:
+
+```bash
+npm run cleanup:beginnings-drafts
+```
+
+To delete those draft lessons and their linked storage files:
+
+```bash
+npm run cleanup:beginnings-drafts -- --confirm
+```
+
+The cleanup only targets `DRAFT` lessons and does not touch published lessons.
 
 ## Parsing behavior
 

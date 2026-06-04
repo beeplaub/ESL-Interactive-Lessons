@@ -5,10 +5,10 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ink: "#17201b",
-        moss: "#5f7f64",
-        coral: "#d96c4f",
-        skywash: "#edf7f8"
+        ink: "#111827",
+        moss: "#2563eb",
+        coral: "#f97316",
+        skywash: "#eff6ff"
       }
     }
   },

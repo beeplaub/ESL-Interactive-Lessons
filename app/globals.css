@@ -4,8 +4,8 @@
 
 :root {
   color-scheme: light;
-  background: #f7faf8;
-  color: #17201b;
+  background: #f8fafc;
+  color: #111827;
 }
 
 * {
@@ -16,9 +16,9 @@ body {
   margin: 0;
   min-height: 100vh;
   background:
-    linear-gradient(180deg, rgba(237, 247, 248, 0.9), rgba(247, 250, 248, 1) 340px),
-    #f7faf8;
-  color: #17201b;
+    linear-gradient(180deg, rgba(239, 246, 255, 0.9), rgba(248, 250, 252, 1) 360px),
+    #f8fafc;
+  color: #111827;
 }
 
 button,
