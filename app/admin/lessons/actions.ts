@@ -48,7 +48,20 @@ function getErrorMessage(error: unknown) {
     return error.message;
   }
 
-  return "The upload failed on the server. Check the Vercel function logs for the full error.";
+  if (error && typeof error === "object") {
+    const details = error as { message?: unknown; error?: unknown; details?: unknown; hint?: unknown; code?: unknown; statusCode?: unknown };
+    const parts = [details.message, details.error, details.details, details.hint, details.code, details.statusCode]
+      .map((part) => (typeof part === "string" || typeof part === "number" ? String(part) : ""))
+      .filter(Boolean);
+
+    if (parts.length > 0) return parts.join(" ");
+  }
+
+  return "The upload failed on the server, but no error detail was returned.";
+}
+
+function throwStep(step: string, error: unknown): never {
+  throw new Error(`${step}: ${getErrorMessage(error)}`);
 }
 
 async function createLessonRowsFromPdf(params: {
@@ -72,7 +85,7 @@ async function createLessonRowsFromPdf(params: {
     pdf_path: params.pdfPath,
     status: "DRAFT"
   });
-  if (lessonError) throw lessonError;
+  if (lessonError) throwStep("Create lesson row failed", lessonError);
 
   if (params.audioPaths.length > 0) {
     const { error: audioRowsError } = await supabase.from("lesson_audio_files").insert(
@@ -82,10 +95,16 @@ async function createLessonRowsFromPdf(params: {
         storage_path: audio.path
       }))
     );
-    if (audioRowsError) throw audioRowsError;
+    if (audioRowsError) throwStep("Create audio rows failed", audioRowsError);
   }
 
-  const pages = await parsePdfPages(params.pdfBuffer);
+  let pages: Awaited<ReturnType<typeof parsePdfPages>>;
+  try {
+    pages = await parsePdfPages(params.pdfBuffer);
+  } catch (error) {
+    throwStep("Parse PDF failed", error);
+  }
+
   if (pages.length > 0) {
     const { error: slideError } = await supabase.from("slides").insert(
       pages.map((page) => ({
@@ -97,8 +116,13 @@ async function createLessonRowsFromPdf(params: {
         type: "INFO" as SlideType
       }))
     );
-    if (slideError) throw slideError;
-    await classifyAndExtractLesson(params.lessonId);
+    if (slideError) throwStep("Create slide rows failed", slideError);
+
+    try {
+      await classifyAndExtractLesson(params.lessonId);
+    } catch (error) {
+      throwStep("Classify activities failed", error);
+    }
   }
 }
 
@@ -122,7 +146,7 @@ export async function createLessonFromPaths(formData: FormData): Promise<LessonA
 
     const supabase = createAdminClient();
     const { data: pdfBlob, error: downloadError } = await supabase.storage.from("lessons").download(parsed.pdfPath);
-    if (downloadError) throw downloadError;
+    if (downloadError) throwStep("Read uploaded PDF from storage failed", downloadError);
     if (!pdfBlob) throw new Error("The PDF was uploaded, but the server could not read it from storage.");
 
     await createLessonRowsFromPdf({
@@ -166,7 +190,7 @@ export async function createSignedStorageUpload(input: { bucket: "lessons" | "le
       upsert: true
     });
 
-    if (error) throw error;
+    if (error) throwStep("Create signed upload URL failed", error);
     return { data };
   } catch (error) {
     return { error: getErrorMessage(error) };
