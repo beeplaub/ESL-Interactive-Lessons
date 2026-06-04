@@ -32,7 +32,7 @@ type PdfDocument = {
 
 type PdfJsLib = {
   disableWorker?: boolean;
-  getDocument: (source: { url: string; disableWorker?: boolean }) => { promise: Promise<PdfDocument> };
+  getDocument: (source: { data: Uint8Array; disableWorker?: boolean }) => { promise: Promise<PdfDocument> };
 };
 
 declare global {
@@ -44,6 +44,7 @@ declare global {
 let pdfJsPromise: Promise<PdfJsLib> | null = null;
 const pdfDocumentCache = new Map<string, Promise<PdfDocument>>();
 const slideImageCache = new Map<string, Promise<string>>();
+const pdfBytesCache = new Map<string, Promise<Uint8Array>>();
 
 function loadPdfJs() {
   if (typeof window === "undefined") return Promise.reject(new Error("PDF renderer is browser-only"));
@@ -70,13 +71,26 @@ function loadPdfJs() {
   return pdfJsPromise;
 }
 
+async function loadPdfBytes(sourceUrl: string) {
+  const cachedBytes = pdfBytesCache.get(sourceUrl);
+  if (cachedBytes) return cachedBytes;
+
+  const bytesPromise = fetch(sourceUrl, { credentials: "same-origin" }).then(async (response) => {
+    if (!response.ok) throw new Error(`PDF request failed: ${response.status}`);
+    const buffer = await response.arrayBuffer();
+    return new Uint8Array(buffer);
+  });
+  pdfBytesCache.set(sourceUrl, bytesPromise);
+  return bytesPromise;
+}
+
 async function loadPdfDocument(sourceUrl: string) {
   const cachedDocument = pdfDocumentCache.get(sourceUrl);
   if (cachedDocument) return cachedDocument;
 
-  const documentPromise = loadPdfJs().then((pdfjs) => {
+  const documentPromise = Promise.all([loadPdfJs(), loadPdfBytes(sourceUrl)]).then(([pdfjs, bytes]) => {
     pdfjs.disableWorker = true;
-    return pdfjs.getDocument({ url: sourceUrl, disableWorker: true }).promise;
+    return pdfjs.getDocument({ data: bytes, disableWorker: true }).promise;
   });
   pdfDocumentCache.set(sourceUrl, documentPromise);
   return documentPromise;
@@ -261,11 +275,13 @@ function PdfSlideVisual({ slide, pdfUrl }: { slide: Slide; pdfUrl: string | null
   const stageRef = useRef<HTMLDivElement | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [renderState, setRenderState] = useState<"idle" | "rendering" | "ready" | "failed">("idle");
+  const [renderError, setRenderError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!pdfUrl) {
       setRenderState("failed");
       setImageUrl(null);
+      setRenderError("PDF file is unavailable.");
       return;
     }
 
@@ -278,16 +294,18 @@ function PdfSlideVisual({ slide, pdfUrl }: { slide: Slide; pdfUrl: string | null
       if (!stage) return;
 
       setRenderState("rendering");
+      setRenderError(null);
       try {
         const nextImageUrl = await renderSlideImage(sourceUrl, slide.slide_number, preferredWidth ?? stage.clientWidth);
         if (!cancelled) {
           setImageUrl(nextImageUrl);
           setRenderState("ready");
         }
-      } catch {
+      } catch (error) {
         if (!cancelled) {
           setImageUrl(null);
           setRenderState("failed");
+          setRenderError(error instanceof Error ? error.message : "Unknown rendering error");
         }
       }
     }
@@ -334,7 +352,14 @@ function PdfSlideVisual({ slide, pdfUrl }: { slide: Slide; pdfUrl: string | null
               // eslint-disable-next-line @next/next/no-img-element
               <img src={imageUrl} alt={`Slide ${slide.slide_number}`} className="block h-auto max-w-full bg-white" />
             ) : null}
-            {renderState === "failed" ? <div className="grid aspect-[16/9] w-full place-items-center p-6 text-center text-sm text-slate-600">This slide image could not be created.</div> : null}
+            {renderState === "failed" ? (
+              <div className="grid aspect-[16/9] w-full place-items-center p-6 text-center text-sm text-slate-600">
+                <div>
+                  <p>This slide image could not be created.</p>
+                  {renderError ? <p className="mt-2 text-xs text-slate-500">{renderError}</p> : null}
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
       ) : (
