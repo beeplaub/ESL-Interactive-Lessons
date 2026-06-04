@@ -2,15 +2,28 @@ import Link from "next/link";
 import { BookOpen } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export default async function DashboardPage() {
   const { user } = await requireUser();
   const supabase = await createClient();
+  const adminSupabase = createAdminClient();
 
   const [{ data: lessons }, { data: progress }] = await Promise.all([
-    supabase.from("lessons").select("*, slides(count)").eq("status", "PUBLISHED").order("created_at", { ascending: false }),
+    adminSupabase.from("lessons").select("*").eq("status", "PUBLISHED").order("created_at", { ascending: false }),
     supabase.from("learner_progress").select("*").eq("user_id", user.id)
   ]);
+
+  const lessonIds = (lessons ?? []).map((lesson) => lesson.id);
+  const { data: slides } = lessonIds.length
+    ? await adminSupabase.from("slides").select("lesson_id, type").in("lesson_id", lessonIds)
+    : { data: [] };
+
+  const slideCounts = new Map<string, number>();
+  for (const slide of slides ?? []) {
+    if (slide.type === "ANSWERS") continue;
+    slideCounts.set(slide.lesson_id, (slideCounts.get(slide.lesson_id) ?? 0) + 1);
+  }
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
@@ -22,7 +35,7 @@ export default async function DashboardPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {(lessons ?? []).map((lesson) => {
           const saved = progress?.find((item) => item.lesson_id === lesson.id);
-          const totalSlides = lesson.slides?.[0]?.count ?? 0;
+          const totalSlides = slideCounts.get(lesson.id) ?? 0;
           const current = Math.min(saved?.current_slide_number ?? 1, totalSlides || 1);
           const percent = totalSlides ? Math.round((current / totalSlides) * 100) : 0;
 
