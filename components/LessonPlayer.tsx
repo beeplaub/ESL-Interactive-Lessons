@@ -1,16 +1,72 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, Check, FileText, Headphones, Maximize2, MessageCircle, PenLine, Puzzle, Send } from "lucide-react";
-import { useMemo, useState, useTransition } from "react";
+import { ArrowLeft, ArrowRight, Check, FileText, Headphones, Maximize2, MessageCircle, PenLine, Puzzle } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { Database, Json, SlideType } from "@/types/database.types";
+import type { Database } from "@/types/database.types";
 
 type Lesson = Database["public"]["Tables"]["lessons"]["Row"];
 type Progress = Database["public"]["Tables"]["learner_progress"]["Row"] | null;
-type ResponseRow = Database["public"]["Tables"]["learner_responses"]["Row"];
 type Activity = Database["public"]["Tables"]["slide_activities"]["Row"];
 type Slide = Database["public"]["Tables"]["slides"]["Row"] & { slide_activities?: Activity[] };
 type AudioFile = Database["public"]["Tables"]["lesson_audio_files"]["Row"] & { signed_url: string | null };
+
+type PdfViewport = {
+  width: number;
+  height: number;
+};
+
+type PdfRenderTask = {
+  promise: Promise<void>;
+};
+
+type PdfPage = {
+  getViewport: (scale: number) => PdfViewport;
+  render: (params: { canvasContext: CanvasRenderingContext2D; viewport: PdfViewport }) => PdfRenderTask;
+};
+
+type PdfDocument = {
+  getPage: (pageNumber: number) => Promise<PdfPage>;
+  destroy?: () => void | Promise<void>;
+};
+
+type PdfJsLib = {
+  disableWorker?: boolean;
+  getDocument: (source: { url: string; disableWorker?: boolean }) => { promise: Promise<PdfDocument> };
+};
+
+declare global {
+  interface Window {
+    pdfjsLib?: PdfJsLib;
+  }
+}
+
+let pdfJsPromise: Promise<PdfJsLib> | null = null;
+
+function loadPdfJs() {
+  if (typeof window === "undefined") return Promise.reject(new Error("PDF renderer is browser-only"));
+  if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+  if (pdfJsPromise) return pdfJsPromise;
+
+  pdfJsPromise = new Promise((resolve, reject) => {
+    const existingScript = document.querySelector<HTMLScriptElement>('script[data-pdfjs="legacy"]');
+    if (existingScript) {
+      existingScript.addEventListener("load", () => (window.pdfjsLib ? resolve(window.pdfjsLib) : reject(new Error("PDF renderer unavailable"))), { once: true });
+      existingScript.addEventListener("error", () => reject(new Error("PDF renderer failed to load")), { once: true });
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = "/pdfjs/pdf.js";
+    script.async = true;
+    script.dataset.pdfjs = "legacy";
+    script.onload = () => (window.pdfjsLib ? resolve(window.pdfjsLib) : reject(new Error("PDF renderer unavailable")));
+    script.onerror = () => reject(new Error("PDF renderer failed to load"));
+    document.head.appendChild(script);
+  });
+
+  return pdfJsPromise;
+}
 
 type PlayerProps = {
   userId: string;
@@ -19,26 +75,7 @@ type PlayerProps = {
   audioFiles: AudioFile[];
   pdfUrl: string | null;
   initialProgress: Progress;
-  initialResponses: ResponseRow[];
 };
-
-const gradable = new Set<SlideType>(["MATCHING", "GAP_FILL", "MCQ", "TRUE_FALSE"]);
-const openTypes = new Set(["LISTENING", "DISCUSSION", "WRITING", "GAME", "OPEN_RESPONSE"]);
-
-function asRecord(value: Json | null | undefined): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
-}
-
-function normalize(value: unknown) {
-  return String(value ?? "").trim().toLowerCase();
-}
-
-function grade(activity: Activity, response: Record<string, unknown>) {
-  const answerKey = asRecord(activity.answer_key);
-  if (!Object.keys(answerKey).length) return null;
-
-  return Object.entries(answerKey).every(([key, value]) => normalize(response[key]) === normalize(value));
-}
 
 function templateFor(slide: Slide, activity?: Activity) {
   const type = activity?.activity_type ?? slide.type;
@@ -49,27 +86,16 @@ function templateFor(slide: Slide, activity?: Activity) {
   if (type === "DISCUSSION") return { label: "Speaking", Icon: MessageCircle, band: "bg-moss/10", accent: "text-moss" };
   if (type === "WRITING") return { label: "Writing", Icon: PenLine, band: "bg-coral/10", accent: "text-coral" };
   if (type === "GAME") return { label: "Activity", Icon: Puzzle, band: "bg-skywash", accent: "text-ink" };
-  return { label: "Lesson note", Icon: FileText, band: "bg-black/[0.03]", accent: "text-ink" };
+  return { label: "Slide", Icon: FileText, band: "bg-black/[0.03]", accent: "text-ink" };
 }
 
-export function LessonPlayer({ userId, lesson, slides, audioFiles, pdfUrl, initialProgress, initialResponses }: PlayerProps) {
+export function LessonPlayer({ userId, lesson, slides, audioFiles, pdfUrl, initialProgress }: PlayerProps) {
   const supabase = createClient();
   const initialIndex = Math.max(0, slides.findIndex((slide) => slide.slide_number === (initialProgress?.current_slide_number ?? 1)));
   const [index, setIndex] = useState(initialIndex === -1 ? 0 : initialIndex);
-  const [attempted, setAttempted] = useState(() => new Set(initialResponses.map((response) => response.slide_id)));
-  const [feedback, setFeedback] = useState<Record<string, boolean | null>>({});
-  const [isPending, startTransition] = useTransition();
   const slide = slides[index];
   const activity = slide?.slide_activities?.[0];
   const total = slides.length;
-  const canGoNext = !activity || attempted.has(slide.id);
-  const latestResponses = useMemo(() => {
-    const map = new Map<string, ResponseRow>();
-    for (const response of initialResponses) {
-      if (!map.has(response.activity_id)) map.set(response.activity_id, response);
-    }
-    return map;
-  }, [initialResponses]);
 
   function saveProgress(nextIndex: number) {
     const nextSlide = slides[nextIndex];
@@ -91,23 +117,6 @@ export function LessonPlayer({ userId, lesson, slides, audioFiles, pdfUrl, initi
     saveProgress(nextIndex);
   }
 
-  function submitResponse(response: Record<string, unknown>) {
-    if (!activity || !slide) return;
-    startTransition(async () => {
-      const isCorrect = gradable.has(slide.type) ? grade(activity, response) : null;
-      await supabase.from("learner_responses").insert({
-        user_id: userId,
-        lesson_id: lesson.id,
-        slide_id: slide.id,
-        activity_id: activity.id,
-        response_data: response as Json,
-        is_correct: isCorrect
-      });
-      setAttempted((current) => new Set(current).add(slide.id));
-      setFeedback((current) => ({ ...current, [activity.id]: isCorrect }));
-    });
-  }
-
   if (!slide) {
     return <main className="mx-auto max-w-4xl px-4 py-12">This lesson has no learner slides yet.</main>;
   }
@@ -115,11 +124,11 @@ export function LessonPlayer({ userId, lesson, slides, audioFiles, pdfUrl, initi
   const progressPercent = total ? Math.round(((index + 1) / total) * 100) : 0;
 
   return (
-    <main className="mx-auto flex min-h-[calc(100vh-57px)] max-w-6xl flex-col px-4 py-6">
+    <main className="mx-auto flex min-h-[calc(100vh-57px)] max-w-6xl flex-col px-3 py-4 sm:px-4 sm:py-6">
       <div className="rounded-lg border border-black/10 bg-white p-4 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-xl font-semibold">{lesson.title}</h1>
+            <h1 className="text-lg font-semibold sm:text-xl">{lesson.title}</h1>
             <p className="text-sm text-black/55">
               {lesson.topic} · {lesson.level}
             </p>
@@ -133,16 +142,12 @@ export function LessonPlayer({ userId, lesson, slides, audioFiles, pdfUrl, initi
         </div>
       </div>
 
-      <section className="my-5 flex-1 overflow-hidden rounded-lg border border-black/10 bg-white shadow-sm">
-        <SlideRenderer
+      <section className="my-4 flex-1 overflow-hidden rounded-lg border border-black/10 bg-white shadow-sm sm:my-5">
+        <SlideStage
           slide={slide}
           activity={activity}
           audio={audioFiles.find((file) => file.linked_slide_number === slide.slide_number)}
           pdfUrl={pdfUrl}
-          initialResponse={activity ? latestResponses.get(activity.id) : undefined}
-          feedback={activity ? feedback[activity.id] : undefined}
-          isPending={isPending}
-          onSubmit={submitResponse}
         />
       </section>
 
@@ -157,78 +162,47 @@ export function LessonPlayer({ userId, lesson, slides, audioFiles, pdfUrl, initi
         </button>
         <button
           type="button"
-          disabled={index === total - 1 || !canGoNext}
+          disabled={index === total - 1}
           onClick={() => move(1)}
           className="inline-flex items-center gap-2 rounded-md bg-ink px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
         >
           Next <ArrowRight size={16} />
         </button>
       </div>
-      {!canGoNext ? <p className="mt-3 text-center text-sm text-black/55">Submit this activity to continue.</p> : null}
     </main>
   );
 }
 
-function SlideRenderer({
-  slide,
-  activity,
-  audio,
-  pdfUrl,
-  initialResponse,
-  feedback,
-  isPending,
-  onSubmit
-}: {
-  slide: Slide;
-  activity?: Activity;
-  audio?: AudioFile;
-  pdfUrl: string | null;
-  initialResponse?: ResponseRow;
-  feedback?: boolean | null;
-  isPending: boolean;
-  onSubmit: (response: Record<string, unknown>) => void;
-}) {
+function SlideStage({ slide, activity, audio, pdfUrl }: { slide: Slide; activity?: Activity; audio?: AudioFile; pdfUrl: string | null }) {
   const template = templateFor(slide, activity);
   const Icon = template.Icon;
 
   return (
     <div>
-      <div className={`${template.band} border-b border-black/10 px-5 py-5 md:px-8`}>
-        <div className="mx-auto flex max-w-6xl flex-wrap items-start gap-4">
-          <span className={`grid size-12 shrink-0 place-items-center rounded-md bg-white shadow-sm ${template.accent}`}>
-            <Icon size={24} />
+      <div className={`${template.band} border-b border-black/10 px-4 py-4 sm:px-6`}>
+        <div className="mx-auto flex max-w-6xl flex-wrap items-start gap-3">
+          <span className={`grid size-10 shrink-0 place-items-center rounded-md bg-white shadow-sm sm:size-12 ${template.accent}`}>
+            <Icon size={22} />
           </span>
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-black/55">{slide.section_label ?? template.label}</p>
-            <h2 className="mt-2 text-2xl font-semibold tracking-tight md:text-4xl">{slide.title}</h2>
+            <h2 className="mt-1 text-xl font-semibold tracking-tight sm:text-2xl md:text-3xl">{slide.title}</h2>
           </div>
         </div>
       </div>
 
-      <div className="mx-auto grid max-w-6xl gap-5 px-4 py-5 lg:grid-cols-[minmax(0,1fr)_390px] lg:px-6 lg:py-6">
-        <PdfSlideVisual slide={slide} pdfUrl={pdfUrl} />
-        <aside className="space-y-4">
-          {audio?.signed_url ? (
-            <div className="rounded-lg border border-black/10 bg-ink p-4 text-white">
-              <div className="mb-3 flex items-center gap-2 text-sm font-medium">
-                <Headphones size={18} /> Listen first
-              </div>
-              <audio controls src={audio.signed_url} className="w-full">
-                <track kind="captions" />
-              </audio>
+      <div className="mx-auto max-w-6xl px-3 py-4 sm:px-5 md:px-8 md:py-7">
+        {audio?.signed_url ? (
+          <div className="mx-auto mb-4 max-w-4xl rounded-lg border border-black/10 bg-ink p-3 text-white shadow-sm">
+            <div className="mb-2 flex items-center gap-2 text-sm font-medium">
+              <Headphones size={18} /> Audio for this slide
             </div>
-          ) : null}
-
-          {!activity ? <InfoPanel slide={slide} /> : null}
-          {activity?.activity_type === "MATCHING" ? <MatchingActivity activity={activity} initialResponse={initialResponse} feedback={feedback} isPending={isPending} onSubmit={onSubmit} /> : null}
-          {activity?.activity_type === "GAP_FILL" ? <GapFillActivity activity={activity} initialResponse={initialResponse} feedback={feedback} isPending={isPending} onSubmit={onSubmit} /> : null}
-          {activity?.activity_type === "MCQ" || activity?.activity_type === "TRUE_FALSE" ? (
-            <ChoiceActivity activity={activity} initialResponse={initialResponse} feedback={feedback} isPending={isPending} onSubmit={onSubmit} />
-          ) : null}
-          {activity && openTypes.has(activity.activity_type) ? (
-            <OpenActivity activity={activity} initialResponse={initialResponse} isPending={isPending} onSubmit={onSubmit} />
-          ) : null}
-        </aside>
+            <audio controls src={audio.signed_url} className="w-full">
+              <track kind="captions" />
+            </audio>
+          </div>
+        ) : null}
+        <PdfSlideVisual slide={slide} pdfUrl={pdfUrl} />
       </div>
     </div>
   );
@@ -236,11 +210,72 @@ function SlideRenderer({
 
 function PdfSlideVisual({ slide, pdfUrl }: { slide: Slide; pdfUrl: string | null }) {
   const pageUrl = pdfUrl ? `${pdfUrl}#page=${slide.slide_number}&toolbar=0&navpanes=0&scrollbar=0&view=FitH` : null;
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const stageRef = useRef<HTMLDivElement | null>(null);
+  const [renderState, setRenderState] = useState<"idle" | "rendering" | "ready" | "failed">("idle");
+
+  useEffect(() => {
+    if (!pdfUrl) {
+      setRenderState("failed");
+      return;
+    }
+
+    const sourceUrl = pdfUrl;
+    let cancelled = false;
+    let cleanup: (() => void) | undefined;
+
+    async function renderPage() {
+      const canvas = canvasRef.current;
+      const stage = stageRef.current;
+      if (!canvas || !stage) return;
+
+      setRenderState("rendering");
+      try {
+        const pdfjs = await loadPdfJs();
+        pdfjs.disableWorker = true;
+
+        const pdf = await pdfjs.getDocument({ url: sourceUrl, disableWorker: true }).promise;
+        const page = await pdf.getPage(slide.slide_number);
+        const baseViewport = page.getViewport(1);
+        const stageWidth = Math.max(320, Math.min(stage.clientWidth || 960, 1280));
+        const scale = stageWidth / baseViewport.width;
+        const viewport = page.getViewport(scale * window.devicePixelRatio);
+        const context = canvas.getContext("2d");
+        if (!context) throw new Error("Canvas context unavailable");
+
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        canvas.style.width = `${stageWidth}px`;
+        canvas.style.height = `${viewport.height / window.devicePixelRatio}px`;
+
+        await page.render({ canvasContext: context, viewport }).promise;
+        if (!cancelled) setRenderState("ready");
+
+        cleanup = () => {
+          void pdf.destroy?.();
+        };
+      } catch {
+        if (!cancelled) setRenderState("failed");
+      }
+    }
+
+    renderPage();
+    const observer = new ResizeObserver(() => {
+      if (!cancelled) renderPage();
+    });
+    if (stageRef.current) observer.observe(stageRef.current);
+
+    return () => {
+      cancelled = true;
+      observer.disconnect();
+      cleanup?.();
+    };
+  }, [pdfUrl, slide.slide_number]);
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-slate-100 p-2 shadow-sm">
-      <div className="mb-2 flex items-center justify-between px-2 text-xs font-medium text-slate-600">
-        <span>PDF slide {slide.slide_number}</span>
+    <div className="mx-auto max-w-5xl rounded-xl border border-slate-200 bg-slate-100 p-2 shadow-sm sm:p-4">
+      <div className="mb-2 flex items-center justify-between px-1 text-xs font-medium text-slate-600 sm:px-2">
+        <span>Slide {slide.slide_number}</span>
         {pageUrl ? (
           <a href={pageUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:text-ink">
             <Maximize2 size={13} /> Open
@@ -248,181 +283,22 @@ function PdfSlideVisual({ slide, pdfUrl }: { slide: Slide; pdfUrl: string | null
         ) : null}
       </div>
       {pageUrl ? (
-        <iframe
-          title={`Slide ${slide.slide_number}`}
-          src={pageUrl}
-          className="h-[62vh] min-h-[360px] w-full rounded-md border border-slate-300 bg-white md:h-[72vh]"
-        />
+        <div className="rounded-lg bg-white p-2 shadow-inner sm:p-5">
+          <div ref={stageRef} className="mx-auto grid min-h-[220px] w-full max-w-4xl place-items-center overflow-hidden rounded-md border border-slate-300 bg-white">
+            {renderState === "rendering" || renderState === "idle" ? (
+              <div className="grid aspect-[16/9] w-full place-items-center text-sm text-slate-500">Loading slide...</div>
+            ) : null}
+            <canvas ref={canvasRef} className={renderState === "ready" ? "block max-w-full bg-white" : "hidden"} />
+            {renderState === "failed" ? (
+              <iframe title={`Slide ${slide.slide_number}`} src={pageUrl} className="aspect-[16/9] w-full border-0 bg-white" />
+            ) : null}
+          </div>
+        </div>
       ) : (
-        <div className="grid min-h-[360px] place-items-center rounded-md bg-white p-6 text-center text-sm text-slate-600">
+        <div className="grid aspect-[16/9] place-items-center rounded-md bg-white p-6 text-center text-sm text-slate-600">
           PDF preview is unavailable. The lesson content is still saved.
         </div>
       )}
     </div>
-  );
-}
-
-function InfoPanel({ slide }: { slide: Slide }) {
-  return (
-    <div className="rounded-lg border border-black/10 bg-white p-5">
-      <div className="mb-3 flex items-center gap-2 text-sm font-medium text-moss">
-        <FileText size={18} /> Slide note
-      </div>
-      <p className="text-sm leading-6 text-black/65">
-        Review the PDF slide, then continue when you are ready.
-      </p>
-      {slide.type === "ANSWERS" ? <p className="mt-3 rounded-md bg-blue-50 p-3 text-xs text-blue-700">This page may contain answer feedback from the source PDF.</p> : null}
-    </div>
-  );
-}
-
-function Feedback({ value }: { value?: boolean | null }) {
-  if (value === undefined) return null;
-  if (value === null) return <p className="mt-4 rounded-md bg-skywash p-3 text-sm font-medium">Saved.</p>;
-  return (
-    <p className={`mt-4 rounded-md p-3 text-sm font-medium ${value ? "bg-moss/10 text-moss" : "bg-coral/10 text-coral"}`}>
-      {value ? "Correct. Nicely done." : "Not quite. Adjust your answer and try again."}
-    </p>
-  );
-}
-
-function SubmitButton({ isPending }: { isPending: boolean }) {
-  return (
-    <button disabled={isPending} className="mt-6 inline-flex items-center gap-2 rounded-md bg-ink px-5 py-3 text-sm font-medium text-white disabled:opacity-50">
-      {isPending ? <Check size={16} /> : <Send size={16} />} {isPending ? "Saving..." : "Submit"}
-    </button>
-  );
-}
-
-function MatchingActivity(props: { activity: Activity; initialResponse?: ResponseRow; feedback?: boolean | null; isPending: boolean; onSubmit: (response: Record<string, unknown>) => void }) {
-  const items = asRecord(props.activity.items);
-  const left = Array.isArray(items.left) ? (items.left as Array<{ id: number; text: string }>) : [];
-  const right = Array.isArray(items.right) ? (items.right as Array<{ id: string; text: string }>) : [];
-  const [answers, setAnswers] = useState<Record<string, string>>(() => asRecord(props.initialResponse?.response_data) as Record<string, string>);
-
-  return (
-    <form action={() => props.onSubmit(answers)} className="rounded-lg border border-black/10 bg-white p-5">
-      <p className="text-xl font-semibold">{props.activity.prompt}</p>
-      <p className="mt-2 text-sm text-black/60">Choose the matching letter for each item.</p>
-      <div className="mt-6 grid gap-4 md:grid-cols-2">
-        <div className="space-y-3">
-          {left.map((item) => (
-            <label key={item.id} className="grid min-h-16 grid-cols-[1fr_92px] items-center gap-3 rounded-md border border-black/10 bg-black/[0.02] p-3 text-sm">
-              <span className="font-medium">
-                {item.id}. {item.text}
-              </span>
-              <select value={answers[item.id] ?? ""} onChange={(event) => setAnswers((current) => ({ ...current, [item.id]: event.target.value }))} className="rounded-md border border-black/15 bg-white px-2 py-2">
-                <option value="">-</option>
-                {right.map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.id}
-                  </option>
-                ))}
-              </select>
-            </label>
-          ))}
-        </div>
-        <div className="space-y-3">
-          {right.map((item) => (
-            <div key={item.id} className="min-h-16 rounded-md border border-black/10 bg-skywash p-3 text-sm">
-              <strong className="text-ink">{item.id}.</strong> {item.text}
-            </div>
-          ))}
-        </div>
-      </div>
-      <SubmitButton isPending={props.isPending} />
-      <Feedback value={props.feedback} />
-    </form>
-  );
-}
-
-function GapFillActivity(props: { activity: Activity; initialResponse?: ResponseRow; feedback?: boolean | null; isPending: boolean; onSubmit: (response: Record<string, unknown>) => void }) {
-  const items = asRecord(props.activity.items);
-  const gaps = Array.isArray(items.items) ? (items.items as Array<{ sentence: string; options: string[] }>) : [];
-  const [answers, setAnswers] = useState<Record<string, string>>(() => asRecord(props.initialResponse?.response_data) as Record<string, string>);
-
-  return (
-    <form action={() => props.onSubmit(answers)} className="rounded-lg border border-black/10 bg-white p-5">
-      <p className="text-xl font-semibold">{props.activity.prompt}</p>
-      <div className="mt-5 space-y-4">
-      {gaps.map((gap, index) => (
-        <label key={`${gap.sentence}-${index}`} className="block rounded-md border border-black/10 bg-black/[0.02] p-4">
-          <span className="text-sm font-medium text-black/75">{index + 1}. {gap.sentence}</span>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <input value={answers[String(index + 1)] ?? ""} onChange={(event) => setAnswers((current) => ({ ...current, [String(index + 1)]: event.target.value }))} className="min-w-52 rounded-md border border-black/15 bg-white px-3 py-2" />
-            <span className="rounded-full bg-white px-3 py-1 text-xs text-black/55">{gap.options?.join(" / ")}</span>
-          </div>
-        </label>
-      ))}
-      </div>
-      <SubmitButton isPending={props.isPending} />
-      <Feedback value={props.feedback} />
-    </form>
-  );
-}
-
-function ChoiceActivity(props: { activity: Activity; initialResponse?: ResponseRow; feedback?: boolean | null; isPending: boolean; onSubmit: (response: Record<string, unknown>) => void }) {
-  const items = asRecord(props.activity.items);
-  const questions = Array.isArray(items.questions) ? (items.questions as Array<{ id: number; text: string; options: string[] }>) : [];
-  const [answers, setAnswers] = useState<Record<string, string>>(() => asRecord(props.initialResponse?.response_data) as Record<string, string>);
-
-  return (
-    <form action={() => props.onSubmit(answers)} className="rounded-lg border border-black/10 bg-white p-5">
-      <p className="text-xl font-semibold">{props.activity.prompt}</p>
-      <div className="mt-5 space-y-5">
-      {questions.map((question) => (
-        <fieldset key={question.id} className="rounded-md border border-black/10 bg-black/[0.02] p-4">
-          <legend className="px-1 text-sm font-medium">
-            {question.id}. {question.text}
-          </legend>
-          <div className="mt-3 grid gap-2">
-            {question.options.map((option, index) => {
-              const value = props.activity.activity_type === "TRUE_FALSE" ? option : String.fromCharCode(65 + index);
-              return (
-                <label key={option} className="flex min-h-12 items-center gap-3 rounded-md bg-white p-3 text-sm shadow-sm">
-                  <input type="radio" name={`q-${question.id}`} value={value} checked={answers[question.id] === value} onChange={() => setAnswers((current) => ({ ...current, [question.id]: value }))} />
-                  {option}
-                </label>
-              );
-            })}
-          </div>
-        </fieldset>
-      ))}
-      </div>
-      <SubmitButton isPending={props.isPending} />
-      <Feedback value={props.feedback} />
-    </form>
-  );
-}
-
-function OpenActivity(props: { activity: Activity; initialResponse?: ResponseRow; isPending: boolean; onSubmit: (response: Record<string, unknown>) => void }) {
-  const items = asRecord(props.activity.items);
-  const questions = Array.isArray(items.questions) ? (items.questions as string[]) : [];
-  const checklist = Array.isArray(items.checklist) ? (items.checklist as string[]) : [];
-  const previous = asRecord(props.initialResponse?.response_data).text as string | undefined;
-  const [text, setText] = useState(previous ?? "");
-
-  return (
-    <form action={() => props.onSubmit({ text })} className="rounded-lg border border-black/10 bg-white p-5">
-      <p className="text-xl font-semibold">{props.activity.prompt}</p>
-      {questions.length ? (
-        <ul className="mt-5 grid gap-3 text-black/75">
-          {questions.map((question) => (
-            <li key={question} className="rounded-md bg-skywash p-3 text-sm">{question}</li>
-          ))}
-        </ul>
-      ) : null}
-      {checklist.length ? (
-        <div className="mt-5 rounded-md bg-black/[0.03] p-4 text-sm">
-          {checklist.map((item) => (
-            <label key={item} className="mb-2 flex items-center gap-2 last:mb-0">
-              <input type="checkbox" /> {item}
-            </label>
-          ))}
-        </div>
-      ) : null}
-      <textarea value={text} onChange={(event) => setText(event.target.value)} rows={8} className="mt-5 w-full rounded-md border border-black/15 px-3 py-3 leading-7" placeholder="Write your answer or notes here." />
-      <SubmitButton isPending={props.isPending} />
-    </form>
   );
 }
