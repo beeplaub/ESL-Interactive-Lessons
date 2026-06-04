@@ -27,10 +27,13 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
-  const isPublicPath = pathname.startsWith("/login") || pathname.startsWith("/auth");
+  const isProtectedPath =
+    pathname.startsWith("/dashboard") ||
+    pathname.startsWith("/lessons") ||
+    pathname.startsWith("/admin");
 
-  // Unauthenticated user trying to access a protected route → send to login
-  if (!user && !isPublicPath) {
+  // Unauthenticated user trying to access a protected route -> send to login.
+  if (!user && isProtectedPath) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
