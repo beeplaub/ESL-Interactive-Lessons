@@ -31,8 +31,10 @@ type PdfDocument = {
 };
 
 type PdfJsLib = {
-  disableWorker?: boolean;
-  getDocument: (source: { data: Uint8Array; disableWorker?: boolean }) => { promise: Promise<PdfDocument> };
+  GlobalWorkerOptions?: {
+    workerSrc?: string;
+  };
+  getDocument: (source: { data: Uint8Array }) => { promise: Promise<PdfDocument> };
 };
 
 declare global {
@@ -45,6 +47,22 @@ let pdfJsPromise: Promise<PdfJsLib> | null = null;
 const pdfDocumentCache = new Map<string, Promise<PdfDocument>>();
 const slideImageCache = new Map<string, Promise<string>>();
 const pdfBytesCache = new Map<string, Promise<Uint8Array>>();
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string) {
+  return new Promise<T>((resolve, reject) => {
+    const timeout = window.setTimeout(() => reject(new Error(message)), timeoutMs);
+    promise.then(
+      (value) => {
+        window.clearTimeout(timeout);
+        resolve(value);
+      },
+      (error) => {
+        window.clearTimeout(timeout);
+        reject(error);
+      }
+    );
+  });
+}
 
 function loadPdfJs() {
   if (typeof window === "undefined") return Promise.reject(new Error("PDF renderer is browser-only"));
@@ -89,8 +107,10 @@ async function loadPdfDocument(sourceUrl: string) {
   if (cachedDocument) return cachedDocument;
 
   const documentPromise = Promise.all([loadPdfJs(), loadPdfBytes(sourceUrl)]).then(([pdfjs, bytes]) => {
-    pdfjs.disableWorker = true;
-    return pdfjs.getDocument({ data: bytes, disableWorker: true }).promise;
+    if (pdfjs.GlobalWorkerOptions) {
+      pdfjs.GlobalWorkerOptions.workerSrc = "/api/pdfjs-worker";
+    }
+    return withTimeout(pdfjs.getDocument({ data: bytes }).promise, 15000, "PDF document took too long to load.");
   });
   pdfDocumentCache.set(sourceUrl, documentPromise);
   return documentPromise;
@@ -104,7 +124,7 @@ async function renderSlideImage(sourceUrl: string, pageNumber: number, targetWid
   if (cachedImage) return cachedImage;
 
   const imagePromise = loadPdfDocument(sourceUrl).then(async (pdf) => {
-    const page = await pdf.getPage(pageNumber);
+    const page = await withTimeout(pdf.getPage(pageNumber), 10000, `Slide ${pageNumber} took too long to load.`);
     const baseViewport = page.getViewport(1);
     const scale = width / baseViewport.width;
     const viewport = page.getViewport(scale * pixelRatio);
@@ -114,7 +134,7 @@ async function renderSlideImage(sourceUrl: string, pageNumber: number, targetWid
 
     canvas.width = viewport.width;
     canvas.height = viewport.height;
-    await page.render({ canvasContext: context, viewport }).promise;
+    await withTimeout(page.render({ canvasContext: context, viewport }).promise, 15000, `Slide ${pageNumber} took too long to render.`);
 
     return new Promise<string>((resolve, reject) => {
       canvas.toBlob((blob) => {
