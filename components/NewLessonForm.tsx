@@ -15,6 +15,7 @@ export function NewLessonForm() {
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    const data = new FormData(e.currentTarget);
     setError(null);
 
     if (!pdf) {
@@ -50,8 +51,6 @@ export function NewLessonForm() {
         audioPaths.push({ label: row.label || row.file.name, path: audioPath });
       }
 
-      const form = e.currentTarget;
-      const data = new FormData(form);
       data.set("lessonId", lessonId);
       data.set("pdfPath", pdfPath);
       data.set("audioPaths", JSON.stringify(audioPaths));
