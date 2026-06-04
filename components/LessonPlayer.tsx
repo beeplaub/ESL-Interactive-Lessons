@@ -42,6 +42,8 @@ declare global {
 }
 
 let pdfJsPromise: Promise<PdfJsLib> | null = null;
+const pdfDocumentCache = new Map<string, Promise<PdfDocument>>();
+const slideImageCache = new Map<string, Promise<string>>();
 
 function loadPdfJs() {
   if (typeof window === "undefined") return Promise.reject(new Error("PDF renderer is browser-only"));
@@ -66,6 +68,53 @@ function loadPdfJs() {
   });
 
   return pdfJsPromise;
+}
+
+async function loadPdfDocument(sourceUrl: string) {
+  const cachedDocument = pdfDocumentCache.get(sourceUrl);
+  if (cachedDocument) return cachedDocument;
+
+  const documentPromise = loadPdfJs().then((pdfjs) => {
+    pdfjs.disableWorker = true;
+    return pdfjs.getDocument({ url: sourceUrl, disableWorker: true }).promise;
+  });
+  pdfDocumentCache.set(sourceUrl, documentPromise);
+  return documentPromise;
+}
+
+async function renderSlideImage(sourceUrl: string, pageNumber: number, targetWidth: number) {
+  const width = Math.round(Math.max(320, Math.min(targetWidth || 960, 1280)));
+  const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+  const cacheKey = `${sourceUrl}|${pageNumber}|${width}|${pixelRatio}`;
+  const cachedImage = slideImageCache.get(cacheKey);
+  if (cachedImage) return cachedImage;
+
+  const imagePromise = loadPdfDocument(sourceUrl).then(async (pdf) => {
+    const page = await pdf.getPage(pageNumber);
+    const baseViewport = page.getViewport(1);
+    const scale = width / baseViewport.width;
+    const viewport = page.getViewport(scale * pixelRatio);
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("Canvas context unavailable");
+
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    await page.render({ canvasContext: context, viewport }).promise;
+
+    return new Promise<string>((resolve, reject) => {
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          reject(new Error("Could not create slide image"));
+          return;
+        }
+        resolve(URL.createObjectURL(blob));
+      }, "image/png");
+    });
+  });
+
+  slideImageCache.set(cacheKey, imagePromise);
+  return imagePromise;
 }
 
 type PlayerProps = {
@@ -209,66 +258,59 @@ function SlideStage({ slide, activity, audio, pdfUrl }: { slide: Slide; activity
 }
 
 function PdfSlideVisual({ slide, pdfUrl }: { slide: Slide; pdfUrl: string | null }) {
-  const pageUrl = pdfUrl ? `${pdfUrl}#page=${slide.slide_number}&toolbar=0&navpanes=0&scrollbar=0&view=FitH` : null;
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [renderState, setRenderState] = useState<"idle" | "rendering" | "ready" | "failed">("idle");
 
   useEffect(() => {
     if (!pdfUrl) {
       setRenderState("failed");
+      setImageUrl(null);
       return;
     }
 
     const sourceUrl = pdfUrl;
     let cancelled = false;
-    let cleanup: (() => void) | undefined;
+    let resizeTimer: number | null = null;
 
-    async function renderPage() {
-      const canvas = canvasRef.current;
+    async function renderPage(preferredWidth?: number) {
       const stage = stageRef.current;
-      if (!canvas || !stage) return;
+      if (!stage) return;
 
       setRenderState("rendering");
       try {
-        const pdfjs = await loadPdfJs();
-        pdfjs.disableWorker = true;
-
-        const pdf = await pdfjs.getDocument({ url: sourceUrl, disableWorker: true }).promise;
-        const page = await pdf.getPage(slide.slide_number);
-        const baseViewport = page.getViewport(1);
-        const stageWidth = Math.max(320, Math.min(stage.clientWidth || 960, 1280));
-        const scale = stageWidth / baseViewport.width;
-        const viewport = page.getViewport(scale * window.devicePixelRatio);
-        const context = canvas.getContext("2d");
-        if (!context) throw new Error("Canvas context unavailable");
-
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        canvas.style.width = `${stageWidth}px`;
-        canvas.style.height = `${viewport.height / window.devicePixelRatio}px`;
-
-        await page.render({ canvasContext: context, viewport }).promise;
-        if (!cancelled) setRenderState("ready");
-
-        cleanup = () => {
-          void pdf.destroy?.();
-        };
+        const nextImageUrl = await renderSlideImage(sourceUrl, slide.slide_number, preferredWidth ?? stage.clientWidth);
+        if (!cancelled) {
+          setImageUrl(nextImageUrl);
+          setRenderState("ready");
+        }
       } catch {
-        if (!cancelled) setRenderState("failed");
+        if (!cancelled) {
+          setImageUrl(null);
+          setRenderState("failed");
+        }
       }
     }
 
     renderPage();
     const observer = new ResizeObserver(() => {
-      if (!cancelled) renderPage();
+      if (resizeTimer) window.clearTimeout(resizeTimer);
+      resizeTimer = window.setTimeout(() => {
+        if (!cancelled && stageRef.current) renderPage(stageRef.current.clientWidth);
+      }, 150);
     });
     if (stageRef.current) observer.observe(stageRef.current);
 
+    const stageWidth = stageRef.current?.clientWidth ?? 960;
+    void renderSlideImage(sourceUrl, slide.slide_number + 1, stageWidth).catch(() => undefined);
+    if (slide.slide_number > 1) {
+      void renderSlideImage(sourceUrl, slide.slide_number - 1, stageWidth).catch(() => undefined);
+    }
+
     return () => {
       cancelled = true;
+      if (resizeTimer) window.clearTimeout(resizeTimer);
       observer.disconnect();
-      cleanup?.();
     };
   }, [pdfUrl, slide.slide_number]);
 
@@ -276,22 +318,23 @@ function PdfSlideVisual({ slide, pdfUrl }: { slide: Slide; pdfUrl: string | null
     <div className="mx-auto max-w-5xl rounded-xl border border-slate-200 bg-slate-100 p-2 shadow-sm sm:p-4">
       <div className="mb-2 flex items-center justify-between px-1 text-xs font-medium text-slate-600 sm:px-2">
         <span>Slide {slide.slide_number}</span>
-        {pageUrl ? (
-          <a href={pageUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:text-ink">
+        {pdfUrl ? (
+          <a href={pdfUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:text-ink">
             <Maximize2 size={13} /> Open
           </a>
         ) : null}
       </div>
-      {pageUrl ? (
+      {pdfUrl ? (
         <div className="rounded-lg bg-white p-2 shadow-inner sm:p-5">
           <div ref={stageRef} className="mx-auto grid min-h-[220px] w-full max-w-4xl place-items-center overflow-hidden rounded-md border border-slate-300 bg-white">
             {renderState === "rendering" || renderState === "idle" ? (
               <div className="grid aspect-[16/9] w-full place-items-center text-sm text-slate-500">Loading slide...</div>
             ) : null}
-            <canvas ref={canvasRef} className={renderState === "ready" ? "block max-w-full bg-white" : "hidden"} />
-            {renderState === "failed" ? (
-              <iframe title={`Slide ${slide.slide_number}`} src={pageUrl} className="aspect-[16/9] w-full border-0 bg-white" />
+            {imageUrl && renderState === "ready" ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={imageUrl} alt={`Slide ${slide.slide_number}`} className="block h-auto max-w-full bg-white" />
             ) : null}
+            {renderState === "failed" ? <div className="grid aspect-[16/9] w-full place-items-center p-6 text-center text-sm text-slate-600">This slide image could not be created.</div> : null}
           </div>
         </div>
       ) : (

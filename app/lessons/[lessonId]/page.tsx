@@ -30,8 +30,6 @@ export default async function LessonPage({ params }: { params: Promise<{ lessonI
       return { ...file, signed_url: data?.signedUrl ?? null };
     })
   );
-  const { data: pdfUrl } = await adminSupabase.storage.from("lessons").createSignedUrl(lesson.pdf_path, 60 * 60);
-
   if (!progress) {
     await supabase.from("learner_progress").insert({
       user_id: user.id,
@@ -46,7 +44,7 @@ export default async function LessonPage({ params }: { params: Promise<{ lessonI
       lesson={lesson}
       slides={slides ?? []}
       audioFiles={audioWithUrls}
-      pdfUrl={pdfUrl?.signedUrl ?? null}
+      pdfUrl={`/api/lessons/${lessonId}/pdf`}
       initialProgress={progress}
     />
   );
