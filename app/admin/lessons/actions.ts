@@ -27,6 +27,11 @@ const pathLessonSchema = lessonSchema.extend({
   audioPaths: z.string().default("[]")
 });
 
+const signedUploadSchema = z.object({
+  bucket: z.enum(["lessons", "lesson-audio"]),
+  path: z.string().min(3)
+});
+
 function fileExt(file: File) {
   return file.name.split(".").pop()?.toLowerCase() ?? "bin";
 }
@@ -148,6 +153,23 @@ export async function createLessonFromPaths(formData: FormData): Promise<LessonA
     }
 
     return { message: getErrorMessage(error) };
+  }
+}
+
+export async function createSignedStorageUpload(input: { bucket: "lessons" | "lesson-audio"; path: string }) {
+  await requireAdmin();
+
+  try {
+    const parsed = signedUploadSchema.parse(input);
+    const supabase = createAdminClient();
+    const { data, error } = await supabase.storage.from(parsed.bucket).createSignedUploadUrl(parsed.path, {
+      upsert: true
+    });
+
+    if (error) throw error;
+    return { data };
+  } catch (error) {
+    return { error: getErrorMessage(error) };
   }
 }
 

@@ -3,7 +3,7 @@
 import { Plus, Trash2, Upload } from "lucide-react";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { createLessonFromPaths } from "@/app/admin/lessons/actions";
+import { createLessonFromPaths, createSignedStorageUpload } from "@/app/admin/lessons/actions";
 
 type AudioRow = { id: number; label: string; file: File | null };
 
@@ -27,28 +27,29 @@ export function NewLessonForm() {
     const lessonId = crypto.randomUUID();
 
     try {
-      // Upload PDF directly to Supabase Storage from the browser
       const pdfExt = pdf.name.split(".").pop()?.toLowerCase() ?? "pdf";
       const pdfPath = `${lessonId}/lesson.${pdfExt}`;
+      const pdfSigned = await createSignedStorageUpload({ bucket: "lessons", path: pdfPath });
+      if (pdfSigned.error || !pdfSigned.data) throw new Error(pdfSigned.error ?? "Could not create a signed PDF upload URL.");
       const { error: pdfErr } = await supabase.storage
         .from("lessons")
-        .upload(pdfPath, pdf, { contentType: pdf.type || "application/pdf", upsert: true });
+        .uploadToSignedUrl(pdfPath, pdfSigned.data.token, pdf, { contentType: pdf.type || "application/pdf" });
       if (pdfErr) throw new Error(`PDF upload failed: ${pdfErr.message}`);
 
-      // Upload each audio file directly to Supabase Storage from the browser
       const audioPaths: { label: string; path: string }[] = [];
       for (const row of rows) {
         if (!row.file) continue;
         const ext = row.file.name.split(".").pop()?.toLowerCase() ?? "mp3";
         const audioPath = `${lessonId}/${crypto.randomUUID()}.${ext}`;
+        const audioSigned = await createSignedStorageUpload({ bucket: "lesson-audio", path: audioPath });
+        if (audioSigned.error || !audioSigned.data) throw new Error(audioSigned.error ?? "Could not create a signed audio upload URL.");
         const { error: audioErr } = await supabase.storage
           .from("lesson-audio")
-          .upload(audioPath, row.file, { contentType: row.file.type || "audio/mpeg", upsert: true });
+          .uploadToSignedUrl(audioPath, audioSigned.data.token, row.file, { contentType: row.file.type || "audio/mpeg" });
         if (audioErr) throw new Error(`Audio upload failed: ${audioErr.message}`);
         audioPaths.push({ label: row.label || row.file.name, path: audioPath });
       }
 
-      // Now call the server action with just text/paths — no files
       const form = e.currentTarget;
       const data = new FormData(form);
       data.set("lessonId", lessonId);
