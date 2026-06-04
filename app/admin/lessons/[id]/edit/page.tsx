@@ -2,7 +2,7 @@ import Link from "next/link";
 import { RefreshCw } from "lucide-react";
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { rerunParser, updateLessonStatus, updateSlide } from "@/app/admin/lessons/actions";
 import type { SlideType } from "@/types/database.types";
 
@@ -23,7 +23,7 @@ const slideTypes: SlideType[] = [
 export default async function EditLessonPage({ params }: { params: Promise<{ id: string }> }) {
   await requireAdmin();
   const { id } = await params;
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const { data: lesson } = await supabase.from("lessons").select("*").eq("id", id).single();
   if (!lesson) notFound();

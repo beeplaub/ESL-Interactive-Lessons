@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { Eye, Pencil, Plus, Trash2 } from "lucide-react";
 import { requireAdmin } from "@/lib/auth";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { deleteLesson, updateLessonStatus } from "@/app/admin/lessons/actions";
 
 export default async function AdminLessonsPage() {
   await requireAdmin();
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const { data: lessons } = await supabase.from("lessons").select("*").order("created_at", { ascending: false });
 
   return (
