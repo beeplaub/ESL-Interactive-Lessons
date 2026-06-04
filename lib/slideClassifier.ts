@@ -43,26 +43,29 @@ export async function classifyAndExtractLesson(lessonId: string) {
 
   const classified = slides.map((slide) => ({ ...slide, type: classifySlide(slide) }));
 
-  for (const slide of classified) {
-    await supabase.from("slides").update({ type: slide.type }).eq("id", slide.id);
-  }
+  const { error: slideUpdateError } = await supabase.from("slides").upsert(classified, { onConflict: "id" });
+  if (slideUpdateError) throw slideUpdateError;
 
   await supabase.from("slide_activities").delete().in(
     "slide_id",
     classified.map((slide) => slide.id)
   );
 
-  for (const slide of classified) {
+  const activities = classified.flatMap((slide) => {
     const activity = extractActivity(slide);
-    if (!activity) continue;
-
-    await supabase.from("slide_activities").insert({
+    if (!activity) return [];
+    return [{
       slide_id: slide.id,
       activity_type: activity.activity_type,
       prompt: activity.prompt,
       items: activity.items,
       answer_key: activity.answer_key
-    });
+    }];
+  });
+
+  if (activities.length > 0) {
+    const { error: activityInsertError } = await supabase.from("slide_activities").insert(activities);
+    if (activityInsertError) throw activityInsertError;
   }
 
   for (const answerSlide of classified.filter((slide) => slide.type === "ANSWERS")) {

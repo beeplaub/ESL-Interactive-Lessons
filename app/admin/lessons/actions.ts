@@ -9,6 +9,11 @@ import { parsePdfPages } from "@/lib/pdfParser";
 import { classifyAndExtractLesson } from "@/lib/slideClassifier";
 import type { Json, SlideType } from "@/types/database.types";
 
+export type LessonActionState = {
+  lessonId?: string;
+  message?: string;
+};
+
 const lessonSchema = z.object({
   title: z.string().min(2),
   topic: z.string().min(2),
@@ -16,8 +21,134 @@ const lessonSchema = z.object({
   description: z.string().optional()
 });
 
+const pathLessonSchema = lessonSchema.extend({
+  lessonId: z.string().uuid(),
+  pdfPath: z.string().min(3),
+  audioPaths: z.string().default("[]")
+});
+
 function fileExt(file: File) {
   return file.name.split(".").pop()?.toLowerCase() ?? "bin";
+}
+
+function getErrorMessage(error: unknown) {
+  if (error instanceof z.ZodError) {
+    return error.issues.map((issue) => issue.message).join(" ");
+  }
+
+  if (error instanceof Error) {
+    if (error.message.includes("SUPABASE_SERVICE_ROLE_KEY")) {
+      return "The server is missing SUPABASE_SERVICE_ROLE_KEY in Vercel. Add it to Project Settings > Environment Variables and redeploy.";
+    }
+    return error.message;
+  }
+
+  return "The upload failed on the server. Check the Vercel function logs for the full error.";
+}
+
+async function createLessonRowsFromPdf(params: {
+  lessonId: string;
+  title: string;
+  topic: string;
+  level: string;
+  description?: string;
+  pdfPath: string;
+  pdfBuffer: Buffer;
+  audioPaths: Array<{ label: string; path: string }>;
+}) {
+  const supabase = createAdminClient();
+
+  const { error: lessonError } = await supabase.from("lessons").insert({
+    id: params.lessonId,
+    title: params.title,
+    topic: params.topic,
+    level: params.level,
+    description: params.description,
+    pdf_path: params.pdfPath,
+    status: "DRAFT"
+  });
+  if (lessonError) throw lessonError;
+
+  if (params.audioPaths.length > 0) {
+    const { error: audioRowsError } = await supabase.from("lesson_audio_files").insert(
+      params.audioPaths.map((audio) => ({
+        lesson_id: params.lessonId,
+        label: audio.label,
+        storage_path: audio.path
+      }))
+    );
+    if (audioRowsError) throw audioRowsError;
+  }
+
+  const pages = await parsePdfPages(params.pdfBuffer);
+  if (pages.length > 0) {
+    const { error: slideError } = await supabase.from("slides").insert(
+      pages.map((page) => ({
+        lesson_id: params.lessonId,
+        slide_number: page.pageNumber,
+        title: page.title,
+        section_label: page.sectionLabel,
+        raw_text: page.rawText,
+        type: "INFO" as SlideType
+      }))
+    );
+    if (slideError) throw slideError;
+    await classifyAndExtractLesson(params.lessonId);
+  }
+}
+
+export async function createLessonFromPaths(formData: FormData): Promise<LessonActionState> {
+  await requireAdmin();
+
+  let parsed: z.infer<typeof pathLessonSchema> | null = null;
+  let audioPaths: Array<{ label: string; path: string }> = [];
+
+  try {
+    parsed = pathLessonSchema.parse({
+      lessonId: formData.get("lessonId"),
+      title: formData.get("title"),
+      topic: formData.get("topic"),
+      level: formData.get("level") || "B1",
+      description: formData.get("description") || "",
+      pdfPath: formData.get("pdfPath"),
+      audioPaths: formData.get("audioPaths") || "[]"
+    });
+    audioPaths = JSON.parse(parsed.audioPaths) as Array<{ label: string; path: string }>;
+
+    const supabase = createAdminClient();
+    const { data: pdfBlob, error: downloadError } = await supabase.storage.from("lessons").download(parsed.pdfPath);
+    if (downloadError) throw downloadError;
+    if (!pdfBlob) throw new Error("The PDF was uploaded, but the server could not read it from storage.");
+
+    await createLessonRowsFromPdf({
+      lessonId: parsed.lessonId,
+      title: parsed.title,
+      topic: parsed.topic,
+      level: parsed.level,
+      description: parsed.description,
+      pdfPath: parsed.pdfPath,
+      pdfBuffer: Buffer.from(await pdfBlob.arrayBuffer()),
+      audioPaths
+    });
+
+    revalidatePath("/admin/lessons");
+    return { lessonId: parsed.lessonId };
+  } catch (error) {
+    if (parsed) {
+      try {
+        const supabase = createAdminClient();
+        await supabase.from("lessons").delete().eq("id", parsed.lessonId);
+        await supabase.storage.from("lessons").remove([parsed.pdfPath]);
+        if (audioPaths.length > 0) {
+          await supabase.storage.from("lesson-audio").remove(audioPaths.map((audio) => audio.path));
+        }
+      } catch {
+        // Best-effort cleanup only; show the original failure.
+      }
+    }
+
+    return { message: getErrorMessage(error) };
+  }
 }
 
 export async function createLesson(formData: FormData) {

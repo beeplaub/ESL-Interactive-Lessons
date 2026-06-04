@@ -2,6 +2,8 @@ import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
 import { NewLessonForm } from "@/components/NewLessonForm";
 
+export const maxDuration = 60;
+
 export default async function NewLessonPage() {
   await requireAdmin();
 

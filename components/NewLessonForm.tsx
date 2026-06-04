@@ -55,7 +55,11 @@ export function NewLessonForm() {
       data.set("pdfPath", pdfPath);
       data.set("audioPaths", JSON.stringify(audioPaths));
 
-      await createLessonFromPaths(data);
+      const result = await createLessonFromPaths(data);
+      if (result.message) throw new Error(result.message);
+      if (result.lessonId) {
+        window.location.href = `/admin/lessons/${result.lessonId}/edit`;
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Upload failed.");
       setUploading(false);
@@ -67,11 +71,11 @@ export function NewLessonForm() {
       <div className="grid gap-4 md:grid-cols-2">
         <label className="text-sm">
           Title
-          <input name="title" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+          <input name="title" required className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
         </label>
         <label className="text-sm">
           Topic
-          <input name="topic" placeholder="Rumor" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+          <input name="topic" required placeholder="Rumor" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
         </label>
         <label className="text-sm">
           Level
@@ -136,12 +140,12 @@ export function NewLessonForm() {
       {error && <p className="rounded-md bg-red-50 p-3 text-sm text-red-600">{error}</p>}
 
       <button
-  type="button"
-  onClick={() => alert("clicked!")}
-  className="inline-flex items-center gap-2 rounded-md bg-ink px-4 py-2 text-sm font-medium text-white"
->
-  TEST CLICK
-</button>
+        type="submit"
+        disabled={uploading}
+        className="inline-flex items-center gap-2 rounded-md bg-ink px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+      >
+        <Upload size={16} /> {uploading ? "Uploading..." : "Upload and parse"}
+      </button>
     </form>
   );
 }
