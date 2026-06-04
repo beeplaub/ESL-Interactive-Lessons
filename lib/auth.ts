@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function requireUser() {
   const supabase = await createClient();
@@ -11,7 +12,14 @@ export async function requireUser() {
     redirect("/login");
   }
 
-  const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single();
+  // Use admin client to bypass RLS for the profile lookup
+  const admin = createAdminClient();
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("*")
+    .eq("id", user.id)
+    .single();
+
   return { user, profile };
 }
 
