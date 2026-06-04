@@ -4,6 +4,10 @@ const nextConfig = {
     serverActions: {
       bodySizeLimit: "30mb"
     }
+  },
+  outputFileTracingIncludes: {
+    "/api/pdfjs": ["./node_modules/pdf-parse/lib/pdf.js/v2.0.550/build/pdf.js"],
+    "/pdfjs/[file]": ["./node_modules/pdf-parse/lib/pdf.js/v2.0.550/build/pdf.js"]
   }
 };
 

@@ -60,7 +60,7 @@ function loadPdfJs() {
     }
 
     const script = document.createElement("script");
-    script.src = "/pdfjs/pdf.js";
+    script.src = "/api/pdfjs";
     script.async = true;
     script.dataset.pdfjs = "legacy";
     script.onload = () => (window.pdfjsLib ? resolve(window.pdfjsLib) : reject(new Error("PDF renderer unavailable")));
