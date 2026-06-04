@@ -1,0 +1,38 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  background: #f7faf8;
+  color: #17201b;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    linear-gradient(180deg, rgba(237, 247, 248, 0.9), rgba(247, 250, 248, 1) 340px),
+    #f7faf8;
+  color: #17201b;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+.prose-lite p {
+  margin: 0 0 0.8rem;
+}
+
+.prose-lite ul {
+  margin: 0.5rem 0 1rem 1.25rem;
+  list-style: disc;
+}
