@@ -19,7 +19,6 @@ export default async function LessonPage({ params }: { params: Promise<{ lessonI
       .from("slides")
       .select("*, slide_activities(*)")
       .eq("lesson_id", lessonId)
-      .neq("type", "ANSWERS")
       .order("slide_number", { ascending: true }),
     adminSupabase.from("lesson_audio_files").select("*").eq("lesson_id", lessonId),
     supabase.from("learner_progress").select("*").eq("lesson_id", lessonId).eq("user_id", user.id).maybeSingle(),
@@ -37,6 +36,7 @@ export default async function LessonPage({ params }: { params: Promise<{ lessonI
       return { ...file, signed_url: data?.signedUrl ?? null };
     })
   );
+  const { data: pdfUrl } = await adminSupabase.storage.from("lessons").createSignedUrl(lesson.pdf_path, 60 * 60);
 
   if (!progress) {
     await supabase.from("learner_progress").insert({
@@ -52,6 +52,7 @@ export default async function LessonPage({ params }: { params: Promise<{ lessonI
       lesson={lesson}
       slides={slides ?? []}
       audioFiles={audioWithUrls}
+      pdfUrl={pdfUrl?.signedUrl ?? null}
       initialProgress={progress}
       initialResponses={responses ?? []}
     />

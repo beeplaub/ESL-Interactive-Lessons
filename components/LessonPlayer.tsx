@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, BookOpen, Check, FileText, Headphones, MessageCircle, PenLine, Puzzle, Send } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, FileText, Headphones, Maximize2, MessageCircle, PenLine, Puzzle, Send } from "lucide-react";
 import { useMemo, useState, useTransition } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Database, Json, SlideType } from "@/types/database.types";
@@ -17,6 +17,7 @@ type PlayerProps = {
   lesson: Lesson;
   slides: Slide[];
   audioFiles: AudioFile[];
+  pdfUrl: string | null;
   initialProgress: Progress;
   initialResponses: ResponseRow[];
 };
@@ -39,14 +40,6 @@ function grade(activity: Activity, response: Record<string, unknown>) {
   return Object.entries(answerKey).every(([key, value]) => normalize(response[key]) === normalize(value));
 }
 
-function formattedLines(text: string) {
-  return text
-    .split(/\n+/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .slice(1);
-}
-
 function templateFor(slide: Slide, activity?: Activity) {
   const type = activity?.activity_type ?? slide.type;
   if (type === "MATCHING") return { label: "Vocabulary", Icon: Puzzle, band: "bg-skywash", accent: "text-moss" };
@@ -59,7 +52,7 @@ function templateFor(slide: Slide, activity?: Activity) {
   return { label: "Lesson note", Icon: FileText, band: "bg-black/[0.03]", accent: "text-ink" };
 }
 
-export function LessonPlayer({ userId, lesson, slides, audioFiles, initialProgress, initialResponses }: PlayerProps) {
+export function LessonPlayer({ userId, lesson, slides, audioFiles, pdfUrl, initialProgress, initialResponses }: PlayerProps) {
   const supabase = createClient();
   const initialIndex = Math.max(0, slides.findIndex((slide) => slide.slide_number === (initialProgress?.current_slide_number ?? 1)));
   const [index, setIndex] = useState(initialIndex === -1 ? 0 : initialIndex);
@@ -145,6 +138,7 @@ export function LessonPlayer({ userId, lesson, slides, audioFiles, initialProgre
           slide={slide}
           activity={activity}
           audio={audioFiles.find((file) => file.linked_slide_number === slide.slide_number)}
+          pdfUrl={pdfUrl}
           initialResponse={activity ? latestResponses.get(activity.id) : undefined}
           feedback={activity ? feedback[activity.id] : undefined}
           isPending={isPending}
@@ -179,6 +173,7 @@ function SlideRenderer({
   slide,
   activity,
   audio,
+  pdfUrl,
   initialResponse,
   feedback,
   isPending,
@@ -187,6 +182,7 @@ function SlideRenderer({
   slide: Slide;
   activity?: Activity;
   audio?: AudioFile;
+  pdfUrl: string | null;
   initialResponse?: ResponseRow;
   feedback?: boolean | null;
   isPending: boolean;
@@ -198,7 +194,7 @@ function SlideRenderer({
   return (
     <div>
       <div className={`${template.band} border-b border-black/10 px-5 py-5 md:px-8`}>
-        <div className="mx-auto flex max-w-4xl flex-wrap items-start gap-4">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-start gap-4">
           <span className={`grid size-12 shrink-0 place-items-center rounded-md bg-white shadow-sm ${template.accent}`}>
             <Icon size={24} />
           </span>
@@ -209,42 +205,73 @@ function SlideRenderer({
         </div>
       </div>
 
-      <div className="mx-auto max-w-4xl px-5 py-6 md:px-8 md:py-8">
-        {audio?.signed_url ? (
-          <div className="mb-6 rounded-lg border border-black/10 bg-ink p-4 text-white">
-            <div className="mb-3 flex items-center gap-2 text-sm font-medium">
-              <Headphones size={18} /> Listen first
+      <div className="mx-auto grid max-w-6xl gap-5 px-4 py-5 lg:grid-cols-[minmax(0,1fr)_390px] lg:px-6 lg:py-6">
+        <PdfSlideVisual slide={slide} pdfUrl={pdfUrl} />
+        <aside className="space-y-4">
+          {audio?.signed_url ? (
+            <div className="rounded-lg border border-black/10 bg-ink p-4 text-white">
+              <div className="mb-3 flex items-center gap-2 text-sm font-medium">
+                <Headphones size={18} /> Listen first
+              </div>
+              <audio controls src={audio.signed_url} className="w-full">
+                <track kind="captions" />
+              </audio>
             </div>
-            <audio controls src={audio.signed_url} className="w-full">
-              <track kind="captions" />
-            </audio>
-          </div>
-        ) : null}
+          ) : null}
 
-        {!activity ? <InfoSlide slide={slide} /> : null}
-        {activity?.activity_type === "MATCHING" ? <MatchingActivity activity={activity} initialResponse={initialResponse} feedback={feedback} isPending={isPending} onSubmit={onSubmit} /> : null}
-        {activity?.activity_type === "GAP_FILL" ? <GapFillActivity activity={activity} initialResponse={initialResponse} feedback={feedback} isPending={isPending} onSubmit={onSubmit} /> : null}
-        {activity?.activity_type === "MCQ" || activity?.activity_type === "TRUE_FALSE" ? (
-          <ChoiceActivity activity={activity} initialResponse={initialResponse} feedback={feedback} isPending={isPending} onSubmit={onSubmit} />
-        ) : null}
-        {activity && openTypes.has(activity.activity_type) ? (
-          <OpenActivity activity={activity} initialResponse={initialResponse} isPending={isPending} onSubmit={onSubmit} />
-        ) : null}
+          {!activity ? <InfoPanel slide={slide} /> : null}
+          {activity?.activity_type === "MATCHING" ? <MatchingActivity activity={activity} initialResponse={initialResponse} feedback={feedback} isPending={isPending} onSubmit={onSubmit} /> : null}
+          {activity?.activity_type === "GAP_FILL" ? <GapFillActivity activity={activity} initialResponse={initialResponse} feedback={feedback} isPending={isPending} onSubmit={onSubmit} /> : null}
+          {activity?.activity_type === "MCQ" || activity?.activity_type === "TRUE_FALSE" ? (
+            <ChoiceActivity activity={activity} initialResponse={initialResponse} feedback={feedback} isPending={isPending} onSubmit={onSubmit} />
+          ) : null}
+          {activity && openTypes.has(activity.activity_type) ? (
+            <OpenActivity activity={activity} initialResponse={initialResponse} isPending={isPending} onSubmit={onSubmit} />
+          ) : null}
+        </aside>
       </div>
     </div>
   );
 }
 
-function InfoSlide({ slide }: { slide: Slide }) {
-  const lines = formattedLines(slide.raw_text);
+function PdfSlideVisual({ slide, pdfUrl }: { slide: Slide; pdfUrl: string | null }) {
+  const pageUrl = pdfUrl ? `${pdfUrl}#page=${slide.slide_number}&toolbar=0&navpanes=0&scrollbar=0&view=FitH` : null;
+
+  return (
+    <div className="rounded-lg border border-slate-200 bg-slate-100 p-2 shadow-sm">
+      <div className="mb-2 flex items-center justify-between px-2 text-xs font-medium text-slate-600">
+        <span>PDF slide {slide.slide_number}</span>
+        {pageUrl ? (
+          <a href={pageUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:text-ink">
+            <Maximize2 size={13} /> Open
+          </a>
+        ) : null}
+      </div>
+      {pageUrl ? (
+        <iframe
+          title={`Slide ${slide.slide_number}`}
+          src={pageUrl}
+          className="h-[62vh] min-h-[360px] w-full rounded-md border border-slate-300 bg-white md:h-[72vh]"
+        />
+      ) : (
+        <div className="grid min-h-[360px] place-items-center rounded-md bg-white p-6 text-center text-sm text-slate-600">
+          PDF preview is unavailable. The lesson content is still saved.
+        </div>
+      )}
+    </div>
+  );
+}
+
+function InfoPanel({ slide }: { slide: Slide }) {
   return (
     <div className="rounded-lg border border-black/10 bg-white p-5">
-      <div className="mb-4 flex items-center gap-2 text-sm font-medium text-moss">
-        <BookOpen size={18} /> Read and notice
+      <div className="mb-3 flex items-center gap-2 text-sm font-medium text-moss">
+        <FileText size={18} /> Slide note
       </div>
-      <div className="prose-lite max-w-none text-lg leading-8 text-black/75">
-        {lines.length ? lines.map((line, index) => <p key={`${line}-${index}`}>{line}</p>) : <p>{slide.raw_text}</p>}
-      </div>
+      <p className="text-sm leading-6 text-black/65">
+        Review the PDF slide, then continue when you are ready.
+      </p>
+      {slide.type === "ANSWERS" ? <p className="mt-3 rounded-md bg-blue-50 p-3 text-xs text-blue-700">This page may contain answer feedback from the source PDF.</p> : null}
     </div>
   );
 }

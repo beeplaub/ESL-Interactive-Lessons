@@ -21,7 +21,6 @@ export default async function DashboardPage() {
 
   const slideCounts = new Map<string, number>();
   for (const slide of slides ?? []) {
-    if (slide.type === "ANSWERS") continue;
     slideCounts.set(slide.lesson_id, (slideCounts.get(slide.lesson_id) ?? 0) + 1);
   }
 
