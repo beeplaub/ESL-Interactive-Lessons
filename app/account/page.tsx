@@ -47,7 +47,7 @@ export default async function AccountPage() {
   const firstName = profile?.first_name?.trim();
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-8">
+    <main className="mx-auto w-full max-w-6xl overflow-hidden px-4 py-8">
       {isAdminLearnerView ? (
         <form action={switchToAdminView} className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -90,8 +90,8 @@ export default async function AccountPage() {
         <StatCard icon={ClipboardList} label="Quizzes completed" value={(quizAttempts ?? []).length} />
       </section>
 
-      <section className="mt-6 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-        <div className="space-y-6">
+      <section className="mt-6 grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
+        <div className="min-w-0 space-y-6">
           <Panel title="Current lessons" icon={Clock3}>
             <HorizontalCarousel empty={<EmptyState text="No current lessons yet. Start one from the lessons page." href="/lessons" label="Browse lessons" />}>
               {currentLessons.length ? (
@@ -132,10 +132,10 @@ export default async function AccountPage() {
                   const level = quiz?.level ?? lessonActivity?.lessons?.level ?? "";
                   return (
                     <CarouselItem key={attempt.id}>
-                      <div className="rounded-md border border-slate-200 p-4">
+                      <div className="min-h-40 w-full rounded-md border border-slate-200 p-4">
                         <div className="flex flex-wrap items-start justify-between gap-3">
-                          <div>
-                            <h3 className="font-medium">{title}</h3>
+                          <div className="min-w-0">
+                            <h3 className="break-words font-medium">{title}</h3>
                             <p className="mt-1 text-sm text-slate-600">{new Date(attempt.completed_at).toLocaleDateString()}</p>
                           </div>
                           <span className="rounded-full bg-skywash px-2 py-1 text-xs font-medium text-ink">{level}</span>
@@ -150,7 +150,7 @@ export default async function AccountPage() {
           </Panel>
         </div>
 
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           <Panel title="Wish list" icon={Heart}>
             {wishlistItems?.length ? (
               <div className="grid gap-3">
@@ -197,7 +197,7 @@ function StatCard({ icon: Icon, label, value }: { icon: typeof Clock3; label: st
 
 function Panel({ title, icon: Icon, children }: { title: string; icon: typeof Clock3; children: React.ReactNode }) {
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+    <section className="min-w-0 overflow-hidden rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
       <div className="mb-4 flex items-center gap-2">
         <Icon className="text-moss" size={20} />
         <h2 className="text-lg font-semibold">{title}</h2>
@@ -209,11 +209,11 @@ function Panel({ title, icon: Icon, children }: { title: string; icon: typeof Cl
 
 function LessonRow({ title, meta, percent, href, action }: { title: string; meta: string; percent: number; href: string; action: string }) {
   return (
-    <div className="flex min-h-40 w-full flex-col rounded-md border border-slate-200 p-4">
+    <div className="flex min-h-40 w-full min-w-0 flex-col rounded-md border border-slate-200 p-4">
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <h3 className="font-medium">{title}</h3>
-          <p className="mt-1 text-sm text-slate-600">{meta}</p>
+        <div className="min-w-0">
+          <h3 className="break-words font-medium">{title}</h3>
+          <p className="mt-1 break-words text-sm text-slate-600">{meta}</p>
         </div>
         <Link href={href} className="shrink-0 rounded-md bg-ink px-3 py-2 text-xs font-medium text-white">
           {action}

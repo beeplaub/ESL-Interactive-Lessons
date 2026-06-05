@@ -11,15 +11,15 @@ export default async function ProfilePage() {
   const level = profile?.cefr_level as CefrLevel | null;
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-8">
+    <main className="mx-auto w-full max-w-3xl overflow-hidden px-4 py-8">
       <Link href="/account" className="inline-flex items-center gap-2 text-sm text-black/60 hover:text-black">
         <ArrowLeft size={16} /> Back to My Account
       </Link>
-      <section className="mt-5 rounded-lg border border-black/10 bg-white p-6 shadow-sm">
+      <section className="mt-5 min-w-0 rounded-lg border border-black/10 bg-white p-5 shadow-sm sm:p-6">
         <h1 className="text-3xl font-semibold">Profile</h1>
-        <div className="mt-6 grid gap-8 md:grid-cols-[160px_1fr]">
+        <div className="mt-6 grid min-w-0 gap-8 md:grid-cols-[160px_minmax(0,1fr)]">
           <AvatarUploader initialUrl={profile?.avatar_url ?? null} initials={initials} />
-          <div>
+          <div className="min-w-0">
             <form action={updateProfile} className="grid gap-4">
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="text-sm font-medium">
@@ -32,7 +32,7 @@ export default async function ProfilePage() {
                 </label>
               </div>
               <div className="rounded-md bg-slate-50 p-4">
-                <p className="text-sm font-medium">{user.email}</p>
+                <p className="break-words text-sm font-medium">{user.email}</p>
                 <p className="mt-1 text-xs text-black/50">Email cannot be changed</p>
               </div>
               <button className="rounded-md bg-ink px-4 py-3 text-sm font-semibold text-white">Save profile</button>

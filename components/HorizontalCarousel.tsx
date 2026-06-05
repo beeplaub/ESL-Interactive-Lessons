@@ -44,7 +44,7 @@ export function HorizontalCarousel({
   }, [children]);
 
   return (
-    <div className="relative">
+    <div className="relative min-w-0 overflow-hidden">
       <button
         type="button"
         disabled={!canScrollLeft}
@@ -56,9 +56,9 @@ export function HorizontalCarousel({
       </button>
       <div
         ref={scrollRef}
-        className="flex scroll-smooth gap-3 overflow-x-auto px-11 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex min-w-0 scroll-smooth gap-3 overflow-x-auto px-10 py-1 [scrollbar-width:none] sm:px-11 [&::-webkit-scrollbar]:hidden"
       >
-        {hasChildren ? children : <div className="grid min-h-32 w-full place-items-center text-center">{empty}</div>}
+        {hasChildren ? children : <div className="grid min-h-32 min-w-full place-items-center text-center">{empty}</div>}
       </div>
       <button
         type="button"
@@ -74,5 +74,5 @@ export function HorizontalCarousel({
 }
 
 export function CarouselItem({ children }: { children: React.ReactNode }) {
-  return <div className="flex min-w-full sm:min-w-[calc(50%-0.375rem)]">{children}</div>;
+  return <div className="flex min-w-full max-w-full shrink-0 sm:min-w-[calc(50%-0.375rem)] sm:max-w-[calc(50%-0.375rem)]">{children}</div>;
 }
