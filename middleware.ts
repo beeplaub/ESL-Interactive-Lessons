@@ -28,22 +28,22 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
   const isProtectedPath =
-    pathname.startsWith("/dashboard") ||
     pathname.startsWith("/account") ||
-    pathname.startsWith("/lessons") ||
     pathname.startsWith("/admin");
 
   // Unauthenticated user trying to access a protected route -> send to login.
   if (!user && isProtectedPath) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
+    url.searchParams.set("next", pathname);
     return NextResponse.redirect(url);
   }
 
-  // Authenticated user trying to visit login → send to dashboard
+  // Authenticated user trying to visit login -> send to the intended page or lessons.
   if (user && pathname.startsWith("/login")) {
     const url = request.nextUrl.clone();
-    url.pathname = "/dashboard";
+    url.pathname = request.nextUrl.searchParams.get("next") || "/lessons";
+    url.search = "";
     return NextResponse.redirect(url);
   }
 

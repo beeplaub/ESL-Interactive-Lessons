@@ -130,7 +130,7 @@ export default async function AccountPage() {
                 })}
               </div>
             ) : (
-              <EmptyState text="No current lessons yet. Start one from the lessons page." href="/dashboard" label="Browse lessons" />
+              <EmptyState text="No current lessons yet. Start one from the lessons page." href="/lessons" label="Browse lessons" />
             )}
           </Panel>
 
@@ -142,7 +142,7 @@ export default async function AccountPage() {
                 ))}
               </div>
             ) : (
-              <EmptyState text="Completed lessons will appear here when you finish the final slide." href="/dashboard" label="Start a lesson" />
+              <EmptyState text="Completed lessons will appear here when you finish the final slide." href="/lessons" label="Start a lesson" />
             )}
           </Panel>
         </div>
@@ -162,7 +162,7 @@ export default async function AccountPage() {
             <p className="text-sm leading-6 text-slate-600">
               Save-for-later lessons will appear here. For now, browse published lessons and start the ones you want to study.
             </p>
-            <Link href="/dashboard" className="mt-4 inline-flex items-center gap-2 rounded-md bg-moss px-4 py-2 text-sm font-medium text-white">
+            <Link href="/lessons" className="mt-4 inline-flex items-center gap-2 rounded-md bg-moss px-4 py-2 text-sm font-medium text-white">
               Browse lessons <ArrowRight size={16} />
             </Link>
           </Panel>

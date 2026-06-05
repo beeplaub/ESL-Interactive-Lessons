@@ -33,7 +33,7 @@ export default function HomePage() {
               <Link href="/login" className="inline-flex items-center justify-center gap-2 rounded-md bg-moss px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-700">
                 Create your account <ArrowRight size={16} />
               </Link>
-              <Link href="/dashboard" className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-ink hover:bg-slate-50">
+              <Link href="/lessons" className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-ink hover:bg-slate-50">
                 Go to lessons
               </Link>
             </div>
@@ -110,7 +110,7 @@ export default function HomePage() {
       <section className="border-y border-slate-200 bg-white">
         <div className="mx-auto grid max-w-6xl gap-6 px-4 py-12 md:grid-cols-3 md:py-16">
           {[
-            ["1", "Choose a lesson", "Pick a published topic from your learner dashboard."],
+            ["1", "Choose a lesson", "Pick a published topic from your lesson catalog."],
             ["2", "Work through activities", "Listen, answer, discuss, write, and check your understanding."],
             ["3", "Continue anytime", "Your progress is saved so you can return when you are ready."]
           ].map(([number, title, text]) => (
@@ -129,7 +129,7 @@ export default function HomePage() {
             <div>
               <h2 className="text-3xl font-semibold tracking-tight">Ready to practice English in a more active way?</h2>
               <p className="mt-3 max-w-2xl text-white/70">
-                Create an account, open your dashboard, and start learning through guided interactive lessons.
+                Create an account, open your lessons page, and start learning through guided interactive lessons.
               </p>
             </div>
             <Link href="/login" className="inline-flex items-center justify-center gap-2 rounded-md bg-white px-5 py-3 text-sm font-semibold text-ink hover:bg-blue-50">

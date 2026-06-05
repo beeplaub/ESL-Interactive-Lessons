@@ -12,7 +12,7 @@ export default async function LessonPage({ params }: { params: Promise<{ lessonI
 
   const { data: lesson } = await adminSupabase.from("lessons").select("*").eq("id", lessonId).single();
   if (!lesson) notFound();
-  if (lesson.status !== "PUBLISHED" && profile?.role !== "ADMIN") redirect("/dashboard");
+  if (lesson.status !== "PUBLISHED" && profile?.role !== "ADMIN") redirect("/lessons");
 
   const [{ data: slides }, { data: audioFiles }, { data: progress }] = await Promise.all([
     adminSupabase

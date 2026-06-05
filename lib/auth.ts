@@ -26,7 +26,7 @@ export async function requireUser() {
 export async function requireAdmin() {
   const session = await requireUser();
   if (session.profile?.role !== "ADMIN") {
-    redirect("/dashboard");
+    redirect("/lessons");
   }
   return session;
 }

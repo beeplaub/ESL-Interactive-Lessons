@@ -17,8 +17,11 @@ export async function SiteHeader() {
           <span>BrenUp</span>
         </Link>
         <div className="flex items-center gap-2 text-sm">
-          <Link href="/dashboard" className="hidden rounded-md px-3 py-2 hover:bg-black/5 sm:inline-flex">
+          <Link href="/lessons" className="hidden rounded-md px-3 py-2 hover:bg-black/5 sm:inline-flex">
             Lessons
+          </Link>
+          <Link href="/quizzes" className="hidden rounded-md px-3 py-2 hover:bg-black/5 sm:inline-flex">
+            Quizzes
           </Link>
           {user ? (
             <>

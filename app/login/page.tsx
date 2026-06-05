@@ -2,13 +2,14 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { LoginForm } from "@/components/LoginForm";
 
-export default async function LoginPage() {
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
+  const { next } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user }
   } = await supabase.auth.getUser();
 
-  if (user) redirect("/dashboard");
+  if (user) redirect(next?.startsWith("/") ? next : "/lessons");
 
   return (
     <main className="mx-auto flex min-h-[calc(100vh-57px)] max-w-md items-center px-4">
