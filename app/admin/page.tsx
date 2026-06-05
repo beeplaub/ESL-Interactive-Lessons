@@ -13,12 +13,12 @@ export default async function AdminPage() {
   ]);
 
   return (
-    <main>
+    <main className="min-w-0 overflow-hidden">
       <div className="mb-6">
-        <h1 className="text-3xl font-semibold">Admin overview</h1>
+        <h1 className="text-2xl font-semibold sm:text-3xl">Admin overview</h1>
         <p className="mt-2 text-sm text-black/60">A central hub for managing BrenUp.</p>
       </div>
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+      <section className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <AdminCard href="/admin/lessons" icon={BookOpen} label="Lessons" value={lessons?.length ?? 0} detail={`${countStatus(lessons, "PUBLISHED")} published · ${countStatus(lessons, "DRAFT")} draft`} />
         <AdminCard href="/admin/quizzes" icon={ClipboardList} label="Quizzes" value={quizzes?.length ?? 0} detail={`${countStatus(quizzes, "PUBLISHED")} published · ${countStatus(quizzes, "DRAFT")} draft`} />
         <AdminCard href="/admin/users" icon={UsersRound} label="Users" value={profiles?.length ?? 0} detail="Registered users" />
@@ -35,7 +35,7 @@ function countStatus(rows: Array<{ status: string }> | null, status: string) {
 
 function AdminCard({ href, icon: Icon, label, value, detail }: { href: string; icon: typeof BookOpen; label: string; value: number; detail: string }) {
   return (
-    <Link href={href} className="rounded-lg border border-black/10 bg-white p-5 shadow-sm hover:bg-slate-50">
+    <Link href={href} className="min-w-0 rounded-lg border border-black/10 bg-white p-4 shadow-sm hover:bg-slate-50 sm:p-5">
       <Icon className="text-moss" size={22} />
       <p className="mt-4 text-3xl font-semibold">{value}</p>
       <p className="mt-1 text-sm font-medium">{label}</p>
