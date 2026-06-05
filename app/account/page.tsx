@@ -61,7 +61,7 @@ export default async function AccountPage() {
   const adminSupabase = createAdminClient();
 
   const [{ data: progress }, { data: lessons }] = await Promise.all([
-    supabase.from("learner_progress").select("*").eq("user_id", user.id).order("updated_at", { ascending: false }),
+    supabase.from("lesson_progress").select("*").eq("user_id", user.id).order("updated_at", { ascending: false }),
     adminSupabase.from("lessons").select("*").eq("status", "PUBLISHED").order("created_at", { ascending: false })
   ]);
 

@@ -217,13 +217,14 @@ export type Database = {
           }
         ];
       };
-      learner_progress: {
+      lesson_progress: {
         Row: {
           id: string;
           user_id: string;
           lesson_id: string;
           current_slide_number: number;
           completed: boolean;
+          notes: string;
           created_at: string;
           updated_at: string;
         };
@@ -233,6 +234,7 @@ export type Database = {
           lesson_id: string;
           current_slide_number?: number;
           completed?: boolean;
+          notes?: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -242,19 +244,20 @@ export type Database = {
           lesson_id?: string;
           current_slide_number?: number;
           completed?: boolean;
+          notes?: string;
           created_at?: string;
           updated_at?: string;
         };
         Relationships: [
           {
-            foreignKeyName: "learner_progress_lesson_id_fkey";
+            foreignKeyName: "lesson_progress_lesson_id_fkey";
             columns: ["lesson_id"];
             isOneToOne: false;
             referencedRelation: "lessons";
             referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "learner_progress_user_id_fkey";
+            foreignKeyName: "lesson_progress_user_id_fkey";
             columns: ["user_id"];
             isOneToOne: false;
             referencedRelation: "profiles";
@@ -262,7 +265,7 @@ export type Database = {
           }
         ];
       };
-      learner_responses: {
+      responses: {
         Row: {
           id: string;
           user_id: string;
@@ -298,28 +301,28 @@ export type Database = {
         };
         Relationships: [
           {
-            foreignKeyName: "learner_responses_activity_id_fkey";
+            foreignKeyName: "responses_activity_id_fkey";
             columns: ["activity_id"];
             isOneToOne: false;
             referencedRelation: "slide_activities";
             referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "learner_responses_lesson_id_fkey";
+            foreignKeyName: "responses_lesson_id_fkey";
             columns: ["lesson_id"];
             isOneToOne: false;
             referencedRelation: "lessons";
             referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "learner_responses_slide_id_fkey";
+            foreignKeyName: "responses_slide_id_fkey";
             columns: ["slide_id"];
             isOneToOne: false;
             referencedRelation: "slides";
             referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "learner_responses_user_id_fkey";
+            foreignKeyName: "responses_user_id_fkey";
             columns: ["user_id"];
             isOneToOne: false;
             referencedRelation: "profiles";

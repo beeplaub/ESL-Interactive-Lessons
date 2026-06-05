@@ -21,7 +21,7 @@ export default async function LessonPage({ params }: { params: Promise<{ lessonI
       .eq("lesson_id", lessonId)
       .order("slide_number", { ascending: true }),
     adminSupabase.from("lesson_audio_files").select("*").eq("lesson_id", lessonId),
-    supabase.from("learner_progress").select("*").eq("lesson_id", lessonId).eq("user_id", user.id).maybeSingle()
+    supabase.from("lesson_progress").select("*").eq("lesson_id", lessonId).eq("user_id", user.id).maybeSingle()
   ]);
 
   const audioWithUrls = await Promise.all(
@@ -31,7 +31,7 @@ export default async function LessonPage({ params }: { params: Promise<{ lessonI
     })
   );
   if (!progress) {
-    await supabase.from("learner_progress").insert({
+    await supabase.from("lesson_progress").insert({
       user_id: user.id,
       lesson_id: lessonId,
       current_slide_number: 1

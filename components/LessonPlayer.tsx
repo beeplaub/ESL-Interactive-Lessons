@@ -1,12 +1,12 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, Check, FileText, Headphones, Maximize2, MessageCircle, PenLine, Puzzle } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle2, ChevronDown, Headphones, RotateCcw, Save } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Database } from "@/types/database.types";
 
 type Lesson = Database["public"]["Tables"]["lessons"]["Row"];
-type Progress = Database["public"]["Tables"]["learner_progress"]["Row"] | null;
+type Progress = Database["public"]["Tables"]["lesson_progress"]["Row"] | null;
 type Activity = Database["public"]["Tables"]["slide_activities"]["Row"];
 type Slide = Database["public"]["Tables"]["slides"]["Row"] & { slide_activities?: Activity[] };
 type AudioFile = Database["public"]["Tables"]["lesson_audio_files"]["Row"] & { signed_url: string | null };
@@ -160,38 +160,33 @@ type PlayerProps = {
   initialProgress: Progress;
 };
 
-function templateFor(slide: Slide, activity?: Activity) {
-  const type = activity?.activity_type ?? slide.type;
-  if (type === "MATCHING") return { label: "Vocabulary", Icon: Puzzle, band: "bg-skywash", accent: "text-moss" };
-  if (type === "GAP_FILL") return { label: "Practice", Icon: PenLine, band: "bg-coral/10", accent: "text-coral" };
-  if (type === "MCQ" || type === "TRUE_FALSE") return { label: "Check understanding", Icon: Check, band: "bg-moss/10", accent: "text-moss" };
-  if (type === "LISTENING") return { label: "Listening", Icon: Headphones, band: "bg-skywash", accent: "text-ink" };
-  if (type === "DISCUSSION") return { label: "Speaking", Icon: MessageCircle, band: "bg-moss/10", accent: "text-moss" };
-  if (type === "WRITING") return { label: "Writing", Icon: PenLine, band: "bg-coral/10", accent: "text-coral" };
-  if (type === "GAME") return { label: "Activity", Icon: Puzzle, band: "bg-skywash", accent: "text-ink" };
-  return { label: "Slide", Icon: FileText, band: "bg-black/[0.03]", accent: "text-ink" };
-}
-
 export function LessonPlayer({ userId, lesson, slides, audioFiles, pdfUrl, initialProgress }: PlayerProps) {
   const supabase = createClient();
   const initialIndex = Math.max(0, slides.findIndex((slide) => slide.slide_number === (initialProgress?.current_slide_number ?? 1)));
   const [index, setIndex] = useState(initialIndex === -1 ? 0 : initialIndex);
+  const [isCompleted, setIsCompleted] = useState(initialProgress?.completed ?? false);
+  const [notes, setNotes] = useState(initialProgress?.notes ?? "");
+  const [isNotesOpen, setIsNotesOpen] = useState(false);
+  const [noteStatus, setNoteStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
   const slide = slides[index];
-  const activity = slide?.slide_activities?.[0];
   const total = slides.length;
 
-  function saveProgress(nextIndex: number) {
+  function progressPayload(nextIndex: number, completed = isCompleted) {
     const nextSlide = slides[nextIndex];
-    if (!nextSlide) return;
-    supabase.from("learner_progress").upsert(
-      {
-        user_id: userId,
-        lesson_id: lesson.id,
-        current_slide_number: nextSlide.slide_number,
-        completed: nextIndex === total - 1
-      },
-      { onConflict: "user_id,lesson_id" }
-    );
+    if (!nextSlide) return null;
+    return {
+      user_id: userId,
+      lesson_id: lesson.id,
+      current_slide_number: nextSlide.slide_number,
+      completed,
+      notes
+    };
+  }
+
+  function saveProgress(nextIndex: number, completed = isCompleted) {
+    const payload = progressPayload(nextIndex, completed);
+    if (!payload) return;
+    supabase.from("lesson_progress").upsert(payload, { onConflict: "user_id,lesson_id" });
   }
 
   function move(delta: number) {
@@ -200,27 +195,50 @@ export function LessonPlayer({ userId, lesson, slides, audioFiles, pdfUrl, initi
     saveProgress(nextIndex);
   }
 
+  async function saveNotes() {
+    const payload = progressPayload(index);
+    if (!payload) return;
+    setNoteStatus("saving");
+    const { error } = await supabase.from("lesson_progress").upsert(payload, { onConflict: "user_id,lesson_id" });
+    setNoteStatus(error ? "failed" : "saved");
+  }
+
+  async function completeLesson() {
+    const payload = progressPayload(index, true);
+    if (!payload) return;
+    const { error } = await supabase.from("lesson_progress").upsert(payload, { onConflict: "user_id,lesson_id" });
+    if (!error) setIsCompleted(true);
+  }
+
+  async function retakeLesson() {
+    const firstIndex = 0;
+    const payload = progressPayload(firstIndex, false);
+    if (!payload) return;
+    const { error } = await supabase.from("lesson_progress").upsert(payload, { onConflict: "user_id,lesson_id" });
+    if (!error) {
+      setIsCompleted(false);
+      setIndex(firstIndex);
+    }
+  }
+
   if (!slide) {
     return <main className="mx-auto max-w-4xl px-4 py-12">This lesson has no learner slides yet.</main>;
   }
 
   const progressPercent = total ? Math.round(((index + 1) / total) * 100) : 0;
+  const isLastSlide = index === total - 1;
 
   return (
     <main className="mx-auto flex min-h-[calc(100vh-57px)] max-w-6xl flex-col px-3 py-4 sm:px-4 sm:py-6">
-      <div className="rounded-lg border border-black/10 bg-white p-4 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="text-lg font-semibold sm:text-xl">{lesson.title}</h1>
-            <p className="text-sm text-black/55">
-              {lesson.topic} · {lesson.level}
-            </p>
-          </div>
-          <span className="text-sm font-medium">
+      <div className="rounded-lg border border-black/10 bg-white px-4 py-3 shadow-sm">
+        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
+          <h1 className="min-w-0 truncate text-base font-semibold sm:text-lg">{lesson.title}</h1>
+          <span className="rounded-full bg-skywash px-3 py-1 text-xs font-semibold text-ink">{lesson.level}</span>
+          <span className="justify-self-end text-sm font-medium">
             Slide {index + 1} of {total}
           </span>
         </div>
-        <div className="mt-4 h-2 overflow-hidden rounded-full bg-black/10">
+        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-black/10">
           <div className="h-full bg-moss" style={{ width: `${progressPercent}%` }} />
         </div>
       </div>
@@ -228,11 +246,22 @@ export function LessonPlayer({ userId, lesson, slides, audioFiles, pdfUrl, initi
       <section className="my-4 flex-1 overflow-hidden rounded-lg border border-black/10 bg-white shadow-sm sm:my-5">
         <SlideStage
           slide={slide}
-          activity={activity}
           audio={audioFiles.find((file) => file.linked_slide_number === slide.slide_number)}
           pdfUrl={pdfUrl}
         />
       </section>
+
+      <NotesBar
+        isOpen={isNotesOpen}
+        notes={notes}
+        status={noteStatus}
+        onToggle={() => setIsNotesOpen((current) => !current)}
+        onChange={(value) => {
+          setNotes(value);
+          setNoteStatus("idle");
+        }}
+        onSave={saveNotes}
+      />
 
       <div className="flex items-center justify-between gap-3 rounded-lg border border-black/10 bg-white p-3 shadow-sm">
         <button
@@ -243,37 +272,34 @@ export function LessonPlayer({ userId, lesson, slides, audioFiles, pdfUrl, initi
         >
           <ArrowLeft size={16} /> Previous
         </button>
-        <button
-          type="button"
-          disabled={index === total - 1}
-          onClick={() => move(1)}
-          className="inline-flex items-center gap-2 rounded-md bg-ink px-4 py-2 text-sm font-medium text-white disabled:opacity-40"
-        >
-          Next <ArrowRight size={16} />
-        </button>
+        {isLastSlide ? (
+          isCompleted ? (
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-2 rounded-md bg-moss/10 px-4 py-2 text-sm font-semibold text-moss">
+                <CheckCircle2 size={16} /> Completed
+              </span>
+              <button type="button" onClick={retakeLesson} className="inline-flex items-center gap-2 rounded-md border border-black/15 px-4 py-2 text-sm font-medium">
+                <RotateCcw size={16} /> Retake
+              </button>
+            </div>
+          ) : (
+            <button type="button" onClick={completeLesson} className="inline-flex items-center gap-2 rounded-md bg-coral px-4 py-2 text-sm font-semibold text-white">
+              <CheckCircle2 size={16} /> Complete
+            </button>
+          )
+        ) : (
+          <button type="button" onClick={() => move(1)} className="inline-flex items-center gap-2 rounded-md bg-ink px-4 py-2 text-sm font-medium text-white">
+            Next <ArrowRight size={16} />
+          </button>
+        )}
       </div>
     </main>
   );
 }
 
-function SlideStage({ slide, activity, audio, pdfUrl }: { slide: Slide; activity?: Activity; audio?: AudioFile; pdfUrl: string | null }) {
-  const template = templateFor(slide, activity);
-  const Icon = template.Icon;
-
+function SlideStage({ audio, pdfUrl, slide }: { slide: Slide; audio?: AudioFile; pdfUrl: string | null }) {
   return (
     <div>
-      <div className={`${template.band} border-b border-black/10 px-4 py-4 sm:px-6`}>
-        <div className="mx-auto flex max-w-6xl flex-wrap items-start gap-3">
-          <span className={`grid size-10 shrink-0 place-items-center rounded-md bg-white shadow-sm sm:size-12 ${template.accent}`}>
-            <Icon size={22} />
-          </span>
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-black/55">{slide.section_label ?? template.label}</p>
-            <h2 className="mt-1 text-xl font-semibold tracking-tight sm:text-2xl md:text-3xl">{slide.title}</h2>
-          </div>
-        </div>
-      </div>
-
       <div className="mx-auto max-w-6xl px-3 py-4 sm:px-5 md:px-8 md:py-7">
         {audio?.signed_url ? (
           <div className="mx-auto mb-4 max-w-4xl rounded-lg border border-black/10 bg-ink p-3 text-white shadow-sm">
@@ -288,6 +314,61 @@ function SlideStage({ slide, activity, audio, pdfUrl }: { slide: Slide; activity
         <PdfSlideVisual slide={slide} pdfUrl={pdfUrl} />
       </div>
     </div>
+  );
+}
+
+function NotesBar({
+  isOpen,
+  notes,
+  status,
+  onToggle,
+  onChange,
+  onSave
+}: {
+  isOpen: boolean;
+  notes: string;
+  status: "idle" | "saving" | "saved" | "failed";
+  onToggle: () => void;
+  onChange: (value: string) => void;
+  onSave: () => void;
+}) {
+  return (
+    <section className="mb-4 rounded-lg border border-black/10 bg-white shadow-sm">
+      <button type="button" onClick={onToggle} className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left">
+        <span className="text-sm font-semibold">Study notes</span>
+        <span className="flex items-center gap-3 text-xs text-black/50">
+          {notes.trim() ? "Saved note available" : "Add your note"}
+          <ChevronDown size={16} className={`transition-transform ${isOpen ? "rotate-180" : ""}`} />
+        </span>
+      </button>
+      {isOpen ? (
+        <div className="border-t border-black/10 p-4">
+          <textarea
+            value={notes}
+            onChange={(event) => onChange(event.target.value)}
+            rows={5}
+            className="w-full resize-y rounded-md border border-black/15 px-3 py-3 text-sm leading-6 outline-none focus:border-moss"
+            placeholder="Write useful vocabulary, grammar reminders, or questions from this lesson."
+          />
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-xs text-black/50">
+              {status === "saving" ? "Saving..." : null}
+              {status === "saved" ? "Notes saved." : null}
+              {status === "failed" ? "Could not save notes. Please try again." : null}
+              {status === "idle" ? "Your notes stay with this lesson." : null}
+            </p>
+            <button
+              type="button"
+              onClick={onSave}
+              disabled={status === "saving"}
+              className="inline-flex items-center gap-2 rounded-md bg-moss px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+            >
+              <Save size={16} /> Save
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </section>
   );
 }
 
@@ -356,11 +437,6 @@ function PdfSlideVisual({ slide, pdfUrl }: { slide: Slide; pdfUrl: string | null
     <div className="mx-auto max-w-5xl rounded-xl border border-slate-200 bg-slate-100 p-2 shadow-sm sm:p-4">
       <div className="mb-2 flex items-center justify-between px-1 text-xs font-medium text-slate-600 sm:px-2">
         <span>Slide {slide.slide_number}</span>
-        {pdfUrl ? (
-          <a href={pdfUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:text-ink">
-            <Maximize2 size={13} /> Open
-          </a>
-        ) : null}
       </div>
       {pdfUrl ? (
         <div className="rounded-lg bg-white p-2 shadow-inner sm:p-5">

@@ -11,7 +11,7 @@ export default async function DashboardPage() {
 
   const [{ data: lessons }, { data: progress }] = await Promise.all([
     adminSupabase.from("lessons").select("*").eq("status", "PUBLISHED").order("created_at", { ascending: false }),
-    supabase.from("learner_progress").select("*").eq("user_id", user.id)
+    supabase.from("lesson_progress").select("*").eq("user_id", user.id)
   ]);
 
   const lessonIds = (lessons ?? []).map((lesson) => lesson.id);
@@ -68,7 +68,7 @@ export default async function DashboardPage() {
                 </div>
               </div>
               <Link href={`/lessons/${lesson.id}`} className="mt-5 inline-flex items-center justify-center gap-2 rounded-md bg-ink px-4 py-2 text-center text-sm font-medium text-white">
-                {saved ? "Continue" : "Start"} <ArrowRight size={16} />
+                {saved?.completed ? "Review" : saved ? "Continue" : "Start"} <ArrowRight size={16} />
               </Link>
             </article>
           );
