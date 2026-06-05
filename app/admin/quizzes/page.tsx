@@ -7,12 +7,15 @@ import { createAdminClient } from "@/lib/supabase/admin";
 export default async function AdminQuizzesPage() {
   await requireAdmin();
   const admin = createAdminClient();
-  const [{ data: quizzes }, { data: questions }] = await Promise.all([
+  const [{ data: quizzes }, { data: questions }, { data: attempts }] = await Promise.all([
     admin.from("quizzes").select("*").order("created_at", { ascending: false }),
-    admin.from("quiz_questions").select("quiz_id")
+    admin.from("quiz_questions").select("quiz_id"),
+    admin.from("quiz_attempts").select("quiz_id")
   ]);
   const counts = new Map<string, number>();
   for (const question of questions ?? []) counts.set(question.quiz_id, (counts.get(question.quiz_id) ?? 0) + 1);
+  const attemptCounts = new Map<string, number>();
+  for (const attempt of attempts ?? []) attemptCounts.set(attempt.quiz_id, (attemptCounts.get(attempt.quiz_id) ?? 0) + 1);
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
@@ -28,7 +31,7 @@ export default async function AdminQuizzesPage() {
       <div className="overflow-hidden rounded-lg border border-black/10 bg-white shadow-sm">
         <table className="w-full text-left text-sm">
           <thead className="bg-slate-50 text-xs uppercase text-black/50">
-            <tr><th className="p-3">Title</th><th className="p-3">Level</th><th className="p-3">Topic</th><th className="p-3">Questions</th><th className="p-3">Status</th><th className="p-3">Actions</th></tr>
+            <tr><th className="p-3">Title</th><th className="p-3">Level</th><th className="p-3">Topic</th><th className="p-3">Questions</th><th className="p-3">Attempts</th><th className="p-3">Created</th><th className="p-3">Status</th><th className="p-3">Actions</th></tr>
           </thead>
           <tbody>
             {(quizzes ?? []).map((quiz) => (
@@ -37,6 +40,8 @@ export default async function AdminQuizzesPage() {
                 <td className="p-3">{quiz.level}</td>
                 <td className="p-3">{quiz.topic}</td>
                 <td className="p-3">{counts.get(quiz.id) ?? 0}</td>
+                <td className="p-3">{attemptCounts.get(quiz.id) ?? 0}</td>
+                <td className="p-3">{new Date(quiz.created_at).toLocaleDateString()}</td>
                 <td className="p-3">{quiz.status}</td>
                 <td className="p-3">
                   <div className="flex gap-2">
@@ -51,7 +56,7 @@ export default async function AdminQuizzesPage() {
                 </td>
               </tr>
             ))}
-            {!quizzes?.length ? <tr><td colSpan={6} className="p-6 text-center text-black/55">No quizzes yet.</td></tr> : null}
+            {!quizzes?.length ? <tr><td colSpan={8} className="p-6 text-center text-black/55">No quizzes yet.</td></tr> : null}
           </tbody>
         </table>
       </div>

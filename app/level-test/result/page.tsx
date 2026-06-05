@@ -21,6 +21,7 @@ export default async function LevelTestResultPage({ searchParams }: { searchPara
 
   const level = result.cefr_level as CefrLevel;
   const guidance = levelGuidance[level];
+  const { data: card } = await admin.from("level_test_result_cards").select("guidance_text").eq("cefr_level", level).maybeSingle();
   const sectionScores = result.section_scores as { use_of_english?: number; reading?: number };
 
   return (
@@ -49,7 +50,7 @@ export default async function LevelTestResultPage({ searchParams }: { searchPara
           </div>
           <div>
             <h2 className="text-xl font-semibold">Guidance</h2>
-            <p className="mt-3 leading-7 text-black/70">{guidance.guidance}</p>
+            <p className="mt-3 leading-7 text-black/70">{card?.guidance_text ?? guidance.guidance}</p>
             <p className="mt-4 rounded-md bg-slate-50 p-4 text-sm text-black/60">{guidance.summary}</p>
           </div>
         </div>

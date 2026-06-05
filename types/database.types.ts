@@ -20,6 +20,9 @@ export type Database = {
         Row: {
           id: string;
           full_name: string | null;
+          first_name: string | null;
+          last_name: string | null;
+          avatar_url: string | null;
           role: "ADMIN" | "LEARNER";
           cefr_level: "A1" | "A2" | "B1" | "B2" | "C1" | "C2" | null;
           created_at: string;
@@ -28,6 +31,9 @@ export type Database = {
         Insert: {
           id: string;
           full_name?: string | null;
+          first_name?: string | null;
+          last_name?: string | null;
+          avatar_url?: string | null;
           role?: "ADMIN" | "LEARNER";
           cefr_level?: "A1" | "A2" | "B1" | "B2" | "C1" | "C2" | null;
           created_at?: string;
@@ -35,6 +41,9 @@ export type Database = {
         };
         Update: {
           full_name?: string | null;
+          first_name?: string | null;
+          last_name?: string | null;
+          avatar_url?: string | null;
           role?: "ADMIN" | "LEARNER";
           cefr_level?: "A1" | "A2" | "B1" | "B2" | "C1" | "C2" | null;
           updated_at?: string;

@@ -29,3 +29,16 @@ export async function createLevelTestQuestion(formData: FormData) {
   });
   revalidatePath("/admin/level-test/questions");
 }
+
+export async function saveResultCard(formData: FormData) {
+  await requireAdmin();
+  const cefrLevel = String(formData.get("cefrLevel"));
+  const guidanceText = String(formData.get("guidanceText"));
+  const admin = createAdminClient();
+  await admin.from("level_test_result_cards").upsert({
+    cefr_level: cefrLevel,
+    guidance_text: guidanceText,
+    updated_at: new Date().toISOString()
+  }, { onConflict: "cefr_level" });
+  revalidatePath("/admin/level-test");
+}

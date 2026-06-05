@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, BadgeCheck, BookOpen, CheckCircle2, Clock3, Heart, LogOut, Sparkles, Trophy } from "lucide-react";
+import { ArrowRight, BadgeCheck, BookOpen, CheckCircle2, ClipboardList, Clock3, Heart, LogOut, Sparkles, Trophy, UserRound } from "lucide-react";
 import { signOut } from "@/app/auth/actions";
 import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -60,9 +60,10 @@ export default async function AccountPage() {
   const supabase = await createClient();
   const adminSupabase = createAdminClient();
 
-  const [{ data: progress }, { data: lessons }] = await Promise.all([
+  const [{ data: progress }, { data: lessons }, { data: quizAttempts }] = await Promise.all([
     supabase.from("lesson_progress").select("*").eq("user_id", user.id).order("updated_at", { ascending: false }),
-    adminSupabase.from("lessons").select("*").eq("status", "PUBLISHED").order("created_at", { ascending: false })
+    adminSupabase.from("lessons").select("*").eq("status", "PUBLISHED").order("created_at", { ascending: false }),
+    adminSupabase.from("quiz_attempts").select("*, quizzes(title, level)").eq("user_id", user.id).order("completed_at", { ascending: false })
   ]);
 
   const lessonIds = (lessons ?? []).map((lesson) => lesson.id);
@@ -110,17 +111,23 @@ export default async function AccountPage() {
               </Link>
             </div>
           </div>
-          <form action={signOut}>
-            <button className="inline-flex items-center gap-2 rounded-md border border-slate-300 px-4 py-2 text-sm font-medium hover:bg-slate-50">
-              <LogOut size={16} /> Logout
-            </button>
-          </form>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/profile" className="inline-flex items-center gap-2 rounded-md bg-ink px-4 py-2 text-sm font-medium text-white">
+              <UserRound size={16} /> Profile
+            </Link>
+            <form action={signOut}>
+              <button className="inline-flex items-center gap-2 rounded-md border border-slate-300 px-4 py-2 text-sm font-medium hover:bg-slate-50">
+                <LogOut size={16} /> Logout
+              </button>
+            </form>
+          </div>
         </div>
       </section>
 
-      <section className="mt-5 grid gap-4 md:grid-cols-3">
+      <section className="mt-5 grid gap-4 md:grid-cols-4">
         <StatCard icon={Clock3} label="Current lessons" value={currentLessons.length} />
         <StatCard icon={Trophy} label="Completed lessons" value={completedLessons.length} />
+        <StatCard icon={ClipboardList} label="Quizzes completed" value={(quizAttempts ?? []).length} />
         <StatCard icon={Sparkles} label="Learned items" value={Object.values(learnedItems).reduce((sum, items) => sum + items.length, 0)} />
       </section>
 
@@ -151,6 +158,30 @@ export default async function AccountPage() {
               </div>
             ) : (
               <EmptyState text="Completed lessons will appear here when you finish the final slide." href="/lessons" label="Start a lesson" />
+            )}
+          </Panel>
+
+          <Panel title="Completed quizzes" icon={ClipboardList}>
+            {quizAttempts?.length ? (
+              <div className="grid gap-3">
+                {quizAttempts.map((attempt) => {
+                  const quiz = attempt.quizzes as { title?: string; level?: string } | null;
+                  return (
+                    <div key={attempt.id} className="rounded-md border border-slate-200 p-4">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <h3 className="font-medium">{quiz?.title ?? "Quiz"}</h3>
+                          <p className="mt-1 text-sm text-slate-600">{new Date(attempt.completed_at).toLocaleDateString()}</p>
+                        </div>
+                        <span className="rounded-full bg-skywash px-2 py-1 text-xs font-medium text-ink">{quiz?.level ?? ""}</span>
+                      </div>
+                      <p className="mt-3 text-sm font-semibold">{attempt.score}/{attempt.total}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="rounded-md bg-slate-50 p-4 text-sm text-slate-600">No quizzes completed yet.</p>
             )}
           </Panel>
         </div>

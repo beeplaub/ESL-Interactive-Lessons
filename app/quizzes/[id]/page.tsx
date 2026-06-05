@@ -30,7 +30,7 @@ export default async function QuizPage({ params }: { params: Promise<{ id: strin
         <h1 className="mt-3 text-3xl font-semibold tracking-tight">{quiz.title}</h1>
         <p className="mt-2 text-sm text-black/60">{quiz.topic} · {(questions ?? []).length} questions</p>
       </section>
-      <QuizPlayer questions={(questions ?? []) as Parameters<typeof QuizPlayer>[0]["questions"]} />
+      <QuizPlayer quizId={quiz.id} questions={(questions ?? []) as Parameters<typeof QuizPlayer>[0]["questions"]} />
     </main>
   );
 }

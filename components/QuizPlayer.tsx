@@ -1,7 +1,8 @@
 "use client";
 
 import { CheckCircle2, RotateCcw } from "lucide-react";
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { recordQuizAttempt } from "@/app/quizzes/actions";
 import type { Json } from "@/types/database.types";
 
 type Question = {
@@ -21,15 +22,30 @@ function normalize(value: unknown) {
   return String(value ?? "").trim().toLowerCase();
 }
 
-export function QuizPlayer({ questions }: { questions: Question[] }) {
+export function QuizPlayer({ quizId, questions }: { quizId: string; questions: Question[] }) {
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
   const [submitted, setSubmitted] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
   const answered = questions.every((question) => hasAnswer(question, answers[question.id]));
   const score = submitted ? questions.filter((question) => isCorrect(question, answers[question.id])).length : 0;
 
   function reset() {
     setAnswers({});
     setSubmitted(false);
+  }
+
+  function submit() {
+    const finalScore = questions.filter((question) => isCorrect(question, answers[question.id])).length;
+    setSubmitted(true);
+    startTransition(async () => {
+      try {
+        await recordQuizAttempt(quizId, finalScore, questions.length, answers);
+        setMessage("Quiz attempt saved.");
+      } catch (error) {
+        setMessage(error instanceof Error ? error.message : "Could not save quiz attempt.");
+      }
+    });
   }
 
   return (
@@ -59,13 +75,14 @@ export function QuizPlayer({ questions }: { questions: Question[] }) {
           <button
             type="button"
             disabled={!answered || submitted}
-            onClick={() => setSubmitted(true)}
+            onClick={submit}
             className="inline-flex items-center gap-2 rounded-md bg-moss px-4 py-2 text-sm font-semibold text-white disabled:opacity-45"
           >
-            <CheckCircle2 size={16} /> Submit
+            <CheckCircle2 size={16} /> {isPending ? "Saving..." : "Submit"}
           </button>
         </div>
       </div>
+      {message ? <p className="text-center text-sm text-black/55">{message}</p> : null}
     </div>
   );
 }
