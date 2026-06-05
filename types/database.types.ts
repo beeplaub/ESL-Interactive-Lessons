@@ -21,6 +21,7 @@ export type Database = {
           id: string;
           full_name: string | null;
           role: "ADMIN" | "LEARNER";
+          cefr_level: "A1" | "A2" | "B1" | "B2" | "C1" | "C2" | null;
           created_at: string;
           updated_at: string;
         };
@@ -28,12 +29,14 @@ export type Database = {
           id: string;
           full_name?: string | null;
           role?: "ADMIN" | "LEARNER";
+          cefr_level?: "A1" | "A2" | "B1" | "B2" | "C1" | "C2" | null;
           created_at?: string;
           updated_at?: string;
         };
         Update: {
           full_name?: string | null;
           role?: "ADMIN" | "LEARNER";
+          cefr_level?: "A1" | "A2" | "B1" | "B2" | "C1" | "C2" | null;
           updated_at?: string;
         };
         Relationships: [];

@@ -23,6 +23,9 @@ export async function SiteHeader() {
           <Link href="/quizzes" className="hidden rounded-md px-3 py-2 hover:bg-black/5 sm:inline-flex">
             Quizzes
           </Link>
+          <Link href="/level-test" className="hidden rounded-md px-3 py-2 hover:bg-black/5 sm:inline-flex">
+            Level Test
+          </Link>
           {user ? (
             <>
               <Link href="/account" className="inline-flex items-center gap-2 rounded-md border border-black/15 px-3 py-2 hover:bg-black/5">

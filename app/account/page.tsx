@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, BookOpen, CheckCircle2, Clock3, Heart, LogOut, Sparkles, Trophy } from "lucide-react";
+import { ArrowRight, BadgeCheck, BookOpen, CheckCircle2, Clock3, Heart, LogOut, Sparkles, Trophy } from "lucide-react";
 import { signOut } from "@/app/auth/actions";
 import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -101,6 +101,14 @@ export default async function AccountPage() {
             <p className="text-sm font-semibold uppercase tracking-wide text-moss">My account</p>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight">Welcome back{profile?.full_name ? `, ${profile.full_name}` : ""}</h1>
             <p className="mt-2 text-sm text-slate-600">{user.email}</p>
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <span className="inline-flex items-center gap-2 rounded-md bg-skywash px-3 py-2 text-sm font-semibold text-ink">
+                <BadgeCheck size={16} /> Level: {profile?.cefr_level ?? "Not tested yet"}
+              </span>
+              <Link href="/level-test" className="inline-flex items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm font-medium hover:bg-slate-50">
+                {profile?.cefr_level ? "Retake level test" : "Take level test"}
+              </Link>
+            </div>
           </div>
           <form action={signOut}>
             <button className="inline-flex items-center gap-2 rounded-md border border-slate-300 px-4 py-2 text-sm font-medium hover:bg-slate-50">
