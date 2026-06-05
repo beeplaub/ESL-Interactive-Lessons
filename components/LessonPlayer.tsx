@@ -2,7 +2,6 @@
 
 import { ArrowLeft, ArrowRight, CheckCircle2, ChevronDown, Headphones, RotateCcw, Save } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 import type { Database } from "@/types/database.types";
 
 type Lesson = Database["public"]["Tables"]["lessons"]["Row"];
@@ -152,7 +151,6 @@ async function renderSlideImage(sourceUrl: string, pageNumber: number, targetWid
 }
 
 type PlayerProps = {
-  userId: string;
   lesson: Lesson;
   slides: Slide[];
   audioFiles: AudioFile[];
@@ -160,64 +158,130 @@ type PlayerProps = {
   initialProgress: Progress;
 };
 
-export function LessonPlayer({ userId, lesson, slides, audioFiles, pdfUrl, initialProgress }: PlayerProps) {
-  const supabase = createClient();
+function parseSlideNotes(raw: string | null | undefined) {
+  if (!raw) return {};
+  try {
+    const value = JSON.parse(raw) as unknown;
+    if (!value || typeof value !== "object" || Array.isArray(value)) return { "1": raw };
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([key, note]) => [key, typeof note === "string" ? note : String(note ?? "")])
+    );
+  } catch {
+    return { "1": raw };
+  }
+}
+
+async function saveLessonProgress(lessonId: string, payload: { current_slide_number: number; completed: boolean; notes: string }) {
+  const response = await fetch(`/api/lessons/${lessonId}/progress`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    const error = (await response.json().catch(() => null)) as { error?: string } | null;
+    throw new Error(error?.error ?? "Could not save progress");
+  }
+}
+
+export function LessonPlayer({ lesson, slides, audioFiles, pdfUrl, initialProgress }: PlayerProps) {
   const initialIndex = Math.max(0, slides.findIndex((slide) => slide.slide_number === (initialProgress?.current_slide_number ?? 1)));
   const [index, setIndex] = useState(initialIndex === -1 ? 0 : initialIndex);
+  const [hasStarted, setHasStarted] = useState(Boolean(initialProgress));
   const [isCompleted, setIsCompleted] = useState(initialProgress?.completed ?? false);
-  const [notes, setNotes] = useState(initialProgress?.notes ?? "");
+  const [notesBySlide, setNotesBySlide] = useState<Record<string, string>>(() => parseSlideNotes(initialProgress?.notes));
   const [isNotesOpen, setIsNotesOpen] = useState(false);
   const [noteStatus, setNoteStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
+  const [actionStatus, setActionStatus] = useState<"idle" | "saving" | "failed">("idle");
   const slide = slides[index];
   const total = slides.length;
+  const currentSlideNumber = slide?.slide_number ?? 1;
+  const currentNote = notesBySlide[String(currentSlideNumber)] ?? "";
 
   function progressPayload(nextIndex: number, completed = isCompleted) {
     const nextSlide = slides[nextIndex];
     if (!nextSlide) return null;
     return {
-      user_id: userId,
-      lesson_id: lesson.id,
       current_slide_number: nextSlide.slide_number,
       completed,
-      notes
+      notes: JSON.stringify(notesBySlide)
     };
   }
 
-  function saveProgress(nextIndex: number, completed = isCompleted) {
+  async function saveProgress(nextIndex: number, completed = isCompleted) {
     const payload = progressPayload(nextIndex, completed);
     if (!payload) return;
-    supabase.from("lesson_progress").upsert(payload, { onConflict: "user_id,lesson_id" });
+    await saveLessonProgress(lesson.id, payload);
   }
 
-  function move(delta: number) {
+  async function move(delta: number) {
+    if (!hasStarted) return;
     const nextIndex = Math.min(Math.max(index + delta, 0), total - 1);
+    const previousIndex = index;
     setIndex(nextIndex);
-    saveProgress(nextIndex);
+    try {
+      await saveProgress(nextIndex);
+    } catch {
+      setIndex(previousIndex);
+    }
   }
 
   async function saveNotes() {
     const payload = progressPayload(index);
     if (!payload) return;
     setNoteStatus("saving");
-    const { error } = await supabase.from("lesson_progress").upsert(payload, { onConflict: "user_id,lesson_id" });
-    setNoteStatus(error ? "failed" : "saved");
+    try {
+      await saveLessonProgress(lesson.id, payload);
+      setHasStarted(true);
+      setNoteStatus("saved");
+    } catch {
+      setNoteStatus("failed");
+    }
+  }
+
+  async function startLesson() {
+    const payload = progressPayload(index, false);
+    if (!payload) return;
+    setActionStatus("saving");
+    try {
+      await saveLessonProgress(lesson.id, payload);
+      setHasStarted(true);
+      setIsCompleted(false);
+      setActionStatus("idle");
+    } catch {
+      setActionStatus("failed");
+    }
   }
 
   async function completeLesson() {
     const payload = progressPayload(index, true);
     if (!payload) return;
-    const { error } = await supabase.from("lesson_progress").upsert(payload, { onConflict: "user_id,lesson_id" });
-    if (!error) setIsCompleted(true);
+    setActionStatus("saving");
+    try {
+      await saveLessonProgress(lesson.id, payload);
+      setHasStarted(true);
+      setIsCompleted(true);
+      setActionStatus("idle");
+    } catch {
+      setActionStatus("failed");
+    }
   }
 
   async function retakeLesson() {
     const firstIndex = 0;
     const payload = progressPayload(firstIndex, false);
     if (!payload) return;
-    const { error } = await supabase.from("lesson_progress").upsert(payload, { onConflict: "user_id,lesson_id" });
-    if (!error) {
+    setActionStatus("saving");
+    try {
+      await saveLessonProgress(lesson.id, payload);
+      setHasStarted(true);
       setIsCompleted(false);
       setIndex(firstIndex);
+      setActionStatus("idle");
+    } catch {
+      setActionStatus("failed");
     }
   }
 
@@ -253,11 +317,12 @@ export function LessonPlayer({ userId, lesson, slides, audioFiles, pdfUrl, initi
 
       <NotesBar
         isOpen={isNotesOpen}
-        notes={notes}
+        notes={currentNote}
         status={noteStatus}
+        slideNumber={currentSlideNumber}
         onToggle={() => setIsNotesOpen((current) => !current)}
         onChange={(value) => {
-          setNotes(value);
+          setNotesBySlide((current) => ({ ...current, [String(currentSlideNumber)]: value }));
           setNoteStatus("idle");
         }}
         onSave={saveNotes}
@@ -266,25 +331,34 @@ export function LessonPlayer({ userId, lesson, slides, audioFiles, pdfUrl, initi
       <div className="flex items-center justify-between gap-3 rounded-lg border border-black/10 bg-white p-3 shadow-sm">
         <button
           type="button"
-          disabled={index === 0}
+          disabled={index === 0 || !hasStarted}
           onClick={() => move(-1)}
           className="inline-flex items-center gap-2 rounded-md border border-black/15 px-4 py-2 text-sm disabled:opacity-40"
         >
           <ArrowLeft size={16} /> Previous
         </button>
-        {isLastSlide ? (
+        {!hasStarted ? (
+          <button
+            type="button"
+            onClick={startLesson}
+            disabled={actionStatus === "saving"}
+            className="inline-flex items-center gap-2 rounded-md bg-moss px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+          >
+            <CheckCircle2 size={16} /> {actionStatus === "saving" ? "Starting..." : "Start lesson"}
+          </button>
+        ) : isLastSlide ? (
           isCompleted ? (
             <div className="flex items-center gap-2">
               <span className="inline-flex items-center gap-2 rounded-md bg-moss/10 px-4 py-2 text-sm font-semibold text-moss">
                 <CheckCircle2 size={16} /> Completed
               </span>
-              <button type="button" onClick={retakeLesson} className="inline-flex items-center gap-2 rounded-md border border-black/15 px-4 py-2 text-sm font-medium">
-                <RotateCcw size={16} /> Retake
+              <button type="button" onClick={retakeLesson} disabled={actionStatus === "saving"} className="inline-flex items-center gap-2 rounded-md border border-black/15 px-4 py-2 text-sm font-medium disabled:opacity-50">
+                <RotateCcw size={16} /> {actionStatus === "saving" ? "Resetting..." : "Retake"}
               </button>
             </div>
           ) : (
-            <button type="button" onClick={completeLesson} className="inline-flex items-center gap-2 rounded-md bg-coral px-4 py-2 text-sm font-semibold text-white">
-              <CheckCircle2 size={16} /> Complete
+            <button type="button" onClick={completeLesson} disabled={actionStatus === "saving"} className="inline-flex items-center gap-2 rounded-md bg-coral px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+              <CheckCircle2 size={16} /> {actionStatus === "saving" ? "Completing..." : "Complete"}
             </button>
           )
         ) : (
@@ -293,6 +367,7 @@ export function LessonPlayer({ userId, lesson, slides, audioFiles, pdfUrl, initi
           </button>
         )}
       </div>
+      {actionStatus === "failed" ? <p className="mt-3 text-center text-sm text-coral">Could not save your lesson progress. Please try again.</p> : null}
     </main>
   );
 }
@@ -321,6 +396,7 @@ function NotesBar({
   isOpen,
   notes,
   status,
+  slideNumber,
   onToggle,
   onChange,
   onSave
@@ -328,6 +404,7 @@ function NotesBar({
   isOpen: boolean;
   notes: string;
   status: "idle" | "saving" | "saved" | "failed";
+  slideNumber: number;
   onToggle: () => void;
   onChange: (value: string) => void;
   onSave: () => void;
@@ -335,7 +412,7 @@ function NotesBar({
   return (
     <section className="mb-4 rounded-lg border border-black/10 bg-white shadow-sm">
       <button type="button" onClick={onToggle} className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left">
-        <span className="text-sm font-semibold">Study notes</span>
+        <span className="text-sm font-semibold">Study notes · Slide {slideNumber}</span>
         <span className="flex items-center gap-3 text-xs text-black/50">
           {notes.trim() ? "Saved note available" : "Add your note"}
           <ChevronDown size={16} className={`transition-transform ${isOpen ? "rotate-180" : ""}`} />

@@ -30,17 +30,9 @@ export default async function LessonPage({ params }: { params: Promise<{ lessonI
       return { ...file, signed_url: data?.signedUrl ?? null };
     })
   );
-  if (!progress) {
-    await supabase.from("lesson_progress").insert({
-      user_id: user.id,
-      lesson_id: lessonId,
-      current_slide_number: 1
-    });
-  }
 
   return (
     <LessonPlayer
-      userId={user.id}
       lesson={lesson}
       slides={slides ?? []}
       audioFiles={audioWithUrls}
