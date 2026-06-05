@@ -37,6 +37,22 @@ where id = 'USER_UUID_HERE';
 
 New users default to `LEARNER`.
 
+## Google login setup
+
+The app includes a `Continue with Google` button on `/login`, but Google must also be enabled in Supabase:
+
+1. In Supabase, open Authentication > Providers > Google.
+2. Enable Google and add your Google Client ID and Client Secret.
+3. In Google Cloud Console, add this authorized redirect URL:
+
+```text
+https://YOUR_SUPABASE_PROJECT_REF.supabase.co/auth/v1/callback
+```
+
+4. In Supabase Authentication > Settings, turn off email confirmations if you want new email/password and Google users to sign in immediately.
+
+The OAuth callback creates a `LEARNER` profile automatically for first-time Google users. If that user is later promoted to `ADMIN`, the app reads the fresh role from the database on each protected redirect.
+
 ## Run locally
 
 ```bash

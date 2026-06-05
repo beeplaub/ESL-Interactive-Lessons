@@ -2,6 +2,7 @@
 
 import { ArrowLeft, ArrowRight, CheckCircle2, ChevronDown, Headphones, RotateCcw, Save } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { LessonActivityPanel } from "@/components/LessonActivityPanel";
 import type { Database } from "@/types/database.types";
 
 type Lesson = Database["public"]["Tables"]["lessons"]["Row"];
@@ -9,6 +10,16 @@ type Progress = Database["public"]["Tables"]["lesson_progress"]["Row"] | null;
 type Activity = Database["public"]["Tables"]["slide_activities"]["Row"];
 type Slide = Database["public"]["Tables"]["slides"]["Row"] & { slide_activities?: Activity[] };
 type AudioFile = Database["public"]["Tables"]["lesson_audio_files"]["Row"] & { signed_url: string | null };
+type LessonSlideActivity = {
+  id: string;
+  lesson_id: string;
+  slide_id: string | null;
+  slide_number: number;
+  activity_type: string;
+  activity_data: Database["public"]["Tables"]["slide_activities"]["Row"]["items"] | null;
+  needs_review: boolean;
+  raw_text: string | null;
+};
 
 type PdfViewport = {
   width: number;
@@ -154,6 +165,7 @@ type PlayerProps = {
   lesson: Lesson;
   slides: Slide[];
   audioFiles: AudioFile[];
+  lessonSlideActivities: LessonSlideActivity[];
   pdfUrl: string | null;
   initialProgress: Progress;
 };
@@ -186,7 +198,7 @@ async function saveLessonProgress(lessonId: string, payload: { current_slide_num
   }
 }
 
-export function LessonPlayer({ lesson, slides, audioFiles, pdfUrl, initialProgress }: PlayerProps) {
+export function LessonPlayer({ lesson, slides, audioFiles, lessonSlideActivities, pdfUrl, initialProgress }: PlayerProps) {
   const initialIndex = Math.max(0, slides.findIndex((slide) => slide.slide_number === (initialProgress?.current_slide_number ?? 1)));
   const [index, setIndex] = useState(initialIndex === -1 ? 0 : initialIndex);
   const [hasStarted, setHasStarted] = useState(Boolean(initialProgress));
@@ -197,6 +209,7 @@ export function LessonPlayer({ lesson, slides, audioFiles, pdfUrl, initialProgre
   const [actionStatus, setActionStatus] = useState<"idle" | "saving" | "failed">("idle");
   const [saveError, setSaveError] = useState<string | null>(null);
   const slide = slides[index];
+  const currentActivity = lessonSlideActivities.find((activity) => activity.slide_number === slide?.slide_number && !["INFO", "LISTENING", "DISCUSSION", "WRITING"].includes(activity.activity_type));
   const total = slides.length;
   const currentSlideNumber = slide?.slide_number ?? 1;
   const currentNote = notesBySlide[String(currentSlideNumber)] ?? "";
@@ -304,7 +317,7 @@ export function LessonPlayer({ lesson, slides, audioFiles, pdfUrl, initialProgre
   const isLastSlide = index === total - 1;
 
   return (
-    <main className="mx-auto flex min-h-[calc(100vh-57px)] max-w-6xl flex-col px-3 py-4 sm:px-4 sm:py-6">
+    <main className="mx-auto flex min-h-[calc(100vh-57px)] max-w-7xl flex-col px-3 py-4 sm:px-4 sm:py-6">
       <div className="rounded-lg border border-black/10 bg-white px-4 py-3 shadow-sm">
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
           <h1 className="min-w-0 truncate text-base font-semibold sm:text-lg">{lesson.title}</h1>
@@ -318,26 +331,54 @@ export function LessonPlayer({ lesson, slides, audioFiles, pdfUrl, initialProgre
         </div>
       </div>
 
-      <section className="my-4 flex-1 overflow-hidden rounded-lg border border-black/10 bg-white shadow-sm sm:my-5">
-        <SlideStage
-          slide={slide}
-          audio={audioFiles.find((file) => file.linked_slide_number === slide.slide_number)}
-          pdfUrl={pdfUrl}
-        />
-      </section>
-
-      <NotesBar
-        isOpen={isNotesOpen}
-        notes={currentNote}
-        status={noteStatus}
-        slideNumber={currentSlideNumber}
-        onToggle={() => setIsNotesOpen((current) => !current)}
-        onChange={(value) => {
-          setNotesBySlide((current) => ({ ...current, [String(currentSlideNumber)]: value }));
-          setNoteStatus("idle");
-        }}
-        onSave={saveNotes}
-      />
+      {currentActivity ? (
+        <section className="my-4 grid flex-1 gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(360px,2fr)] sm:my-5">
+          <div className="overflow-hidden rounded-lg border border-black/10 bg-white shadow-sm">
+            <SlideStage
+              slide={slide}
+              audio={audioFiles.find((file) => file.linked_slide_number === slide.slide_number)}
+              pdfUrl={pdfUrl}
+            />
+          </div>
+          <aside className="space-y-4 lg:max-h-[calc(100vh-190px)] lg:overflow-y-auto">
+            <LessonActivityPanel activity={currentActivity} onNext={() => move(1)} />
+            <NotesBar
+              isOpen={isNotesOpen}
+              notes={currentNote}
+              status={noteStatus}
+              slideNumber={currentSlideNumber}
+              onToggle={() => setIsNotesOpen((current) => !current)}
+              onChange={(value) => {
+                setNotesBySlide((current) => ({ ...current, [String(currentSlideNumber)]: value }));
+                setNoteStatus("idle");
+              }}
+              onSave={saveNotes}
+            />
+          </aside>
+        </section>
+      ) : (
+        <>
+          <section className="my-4 flex-1 overflow-hidden rounded-lg border border-black/10 bg-white shadow-sm sm:my-5">
+            <SlideStage
+              slide={slide}
+              audio={audioFiles.find((file) => file.linked_slide_number === slide.slide_number)}
+              pdfUrl={pdfUrl}
+            />
+          </section>
+          <NotesBar
+            isOpen={isNotesOpen}
+            notes={currentNote}
+            status={noteStatus}
+            slideNumber={currentSlideNumber}
+            onToggle={() => setIsNotesOpen((current) => !current)}
+            onChange={(value) => {
+              setNotesBySlide((current) => ({ ...current, [String(currentSlideNumber)]: value }));
+              setNoteStatus("idle");
+            }}
+            onSave={saveNotes}
+          />
+        </>
+      )}
 
       <div className="flex items-center justify-between gap-3 rounded-lg border border-black/10 bg-white p-3 shadow-sm">
         <button

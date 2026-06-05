@@ -5,7 +5,7 @@ import { useState, useTransition } from "react";
 import { recordQuizAttempt } from "@/app/quizzes/actions";
 import type { Json } from "@/types/database.types";
 
-type Question = {
+export type QuizQuestion = {
   id: string;
   question_number: number;
   question_type: "MCQ" | "TRUE_FALSE" | "FILL" | "MATCHING";
@@ -22,7 +22,7 @@ function normalize(value: unknown) {
   return String(value ?? "").trim().toLowerCase();
 }
 
-export function QuizPlayer({ quizId, questions }: { quizId: string; questions: Question[] }) {
+export function QuizPlayer({ quizId, questions }: { quizId: string; questions: QuizQuestion[] }) {
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
   const [submitted, setSubmitted] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -40,7 +40,7 @@ export function QuizPlayer({ quizId, questions }: { quizId: string; questions: Q
     setSubmitted(true);
     startTransition(async () => {
       try {
-        await recordQuizAttempt(quizId, finalScore, questions.length, answers);
+        await recordQuizAttempt({ quizId, score: finalScore, total: questions.length, answers });
         setMessage("Quiz attempt saved.");
       } catch (error) {
         setMessage(error instanceof Error ? error.message : "Could not save quiz attempt.");
@@ -87,7 +87,7 @@ export function QuizPlayer({ quizId, questions }: { quizId: string; questions: Q
   );
 }
 
-function QuestionCard({ question, value, submitted, onChange }: { question: Question; value: unknown; submitted: boolean; onChange: (value: unknown) => void }) {
+export function QuestionCard({ question, value, submitted, onChange }: { question: QuizQuestion; value: unknown; submitted: boolean; onChange: (value: unknown) => void }) {
   const correct = submitted ? isCorrect(question, value) : false;
   const wrong = submitted && !correct;
   return (
@@ -106,7 +106,7 @@ function QuestionCard({ question, value, submitted, onChange }: { question: Ques
   );
 }
 
-function Mcq({ question, value, disabled, onChange }: { question: Question; value?: string; disabled: boolean; onChange: (value: string) => void }) {
+function Mcq({ question, value, disabled, onChange }: { question: QuizQuestion; value?: string; disabled: boolean; onChange: (value: string) => void }) {
   const options = asRecord(question.options);
   return (
     <div className="grid gap-2">
@@ -136,7 +136,7 @@ function Fill({ value, disabled, onChange }: { value?: string; disabled: boolean
   return <input disabled={disabled} value={value ?? ""} onChange={(event) => onChange(event.target.value)} className="w-full rounded-md border border-black/15 px-3 py-2" placeholder="Type your answer" />;
 }
 
-function Matching({ question, value, disabled, onChange }: { question: Question; value: Record<string, string>; disabled: boolean; onChange: (value: Record<string, string>) => void }) {
+function Matching({ question, value, disabled, onChange }: { question: QuizQuestion; value: Record<string, string>; disabled: boolean; onChange: (value: Record<string, string>) => void }) {
   const options = asRecord(question.options) as { a_items?: string[]; b_items?: string[] };
   return (
     <div className="grid gap-4 md:grid-cols-2">
@@ -158,7 +158,7 @@ function Matching({ question, value, disabled, onChange }: { question: Question;
   );
 }
 
-function hasAnswer(question: Question, value: unknown) {
+export function hasAnswer(question: QuizQuestion, value: unknown) {
   if (question.question_type === "MATCHING") {
     const options = asRecord(question.options) as { a_items?: string[] };
     return Object.keys((value as Record<string, string>) ?? {}).length === (options.a_items?.length ?? 0);
@@ -166,7 +166,7 @@ function hasAnswer(question: Question, value: unknown) {
   return value !== undefined && String(value).trim() !== "";
 }
 
-function isCorrect(question: Question, value: unknown) {
+export function isCorrect(question: QuizQuestion, value: unknown) {
   if (question.question_type === "MCQ") return value === question.correct_answer;
   if (question.question_type === "TRUE_FALSE") return value === question.correct_answer;
   if (question.question_type === "FILL") {
@@ -179,7 +179,7 @@ function isCorrect(question: Question, value: unknown) {
   return correct.every((pair) => selected[String(pair.a)] === pair.b);
 }
 
-function answerText(question: Question) {
+function answerText(question: QuizQuestion) {
   if (question.question_type === "TRUE_FALSE") return question.correct_answer ? "TRUE" : "FALSE";
   if (question.question_type === "FILL") return Array.isArray(question.correct_answer) ? question.correct_answer.join(", ") : String(question.correct_answer);
   if (question.question_type === "MATCHING") return JSON.stringify(question.correct_answer);

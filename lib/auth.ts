@@ -2,6 +2,21 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+export async function getFreshProfile(userId: string) {
+  const admin = createAdminClient();
+  const { data: profile } = await admin
+    .from("profiles")
+    .select("*")
+    .eq("id", userId)
+    .maybeSingle();
+
+  return profile;
+}
+
+export function roleHomePath(role?: string | null) {
+  return role === "ADMIN" ? "/admin" : "/lessons";
+}
+
 export async function requireUser() {
   const supabase = await createClient();
   const {
@@ -12,13 +27,7 @@ export async function requireUser() {
     redirect("/login");
   }
 
-  // Use admin client to bypass RLS for the profile lookup
-  const admin = createAdminClient();
-  const { data: profile } = await admin
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .single();
+  const profile = await getFreshProfile(user.id);
 
   return { user, profile };
 }

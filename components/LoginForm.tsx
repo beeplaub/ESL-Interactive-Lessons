@@ -16,6 +16,15 @@ export function LoginForm() {
   const [message, setMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
+  async function redirectForRole() {
+    const response = await fetch(`/auth/role?next=${encodeURIComponent(nextPath)}`, {
+      cache: "no-store"
+    });
+    const data = (await response.json().catch(() => null)) as { redirectTo?: string } | null;
+    router.refresh();
+    router.push(data?.redirectTo && data.redirectTo.startsWith("/") ? data.redirectTo : "/lessons");
+  }
+
   function submit() {
     startTransition(async () => {
       setMessage(null);
@@ -33,13 +42,37 @@ export function LoginForm() {
         return;
       }
 
-      router.refresh();
-      router.push(nextPath.startsWith("/") ? nextPath : "/lessons");
+      await redirectForRole();
+    });
+  }
+
+  function signInWithGoogle() {
+    startTransition(async () => {
+      setMessage(null);
+      const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`;
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo }
+      });
+      if (error) setMessage(error.message);
     });
   }
 
   return (
     <div className="mt-6 space-y-4">
+      <button
+        type="button"
+        disabled={isPending}
+        onClick={signInWithGoogle}
+        className="flex w-full items-center justify-center gap-2 rounded-md border border-black/15 bg-white px-4 py-2 text-sm font-medium text-ink hover:bg-black/[0.03] disabled:opacity-60"
+      >
+        Continue with Google
+      </button>
+      <div className="flex items-center gap-3 text-xs uppercase tracking-wide text-black/40">
+        <span className="h-px flex-1 bg-black/10" />
+        or
+        <span className="h-px flex-1 bg-black/10" />
+      </div>
       <div className="grid grid-cols-2 rounded-md border border-black/10 bg-black/[0.03] p-1 text-sm">
         <button
           type="button"

@@ -14,14 +14,20 @@ export default async function LessonPage({ params }: { params: Promise<{ lessonI
   if (!lesson) notFound();
   if (lesson.status !== "PUBLISHED" && profile?.role !== "ADMIN") redirect("/lessons");
 
-  const [{ data: slides }, { data: audioFiles }, { data: progress }] = await Promise.all([
+  const [{ data: slides }, { data: audioFiles }, { data: progress }, { data: lessonSlideActivities }] = await Promise.all([
     adminSupabase
       .from("slides")
       .select("*, slide_activities(*)")
       .eq("lesson_id", lessonId)
       .order("slide_number", { ascending: true }),
     adminSupabase.from("lesson_audio_files").select("*").eq("lesson_id", lessonId),
-    supabase.from("lesson_progress").select("*").eq("lesson_id", lessonId).eq("user_id", user.id).maybeSingle()
+    supabase.from("lesson_progress").select("*").eq("lesson_id", lessonId).eq("user_id", user.id).maybeSingle(),
+    adminSupabase
+      .from("lesson_slide_activities")
+      .select("*")
+      .eq("lesson_id", lessonId)
+      .eq("needs_review", false)
+      .order("slide_number", { ascending: true })
   ]);
 
   const audioWithUrls = await Promise.all(
@@ -36,6 +42,7 @@ export default async function LessonPage({ params }: { params: Promise<{ lessonI
       lesson={lesson}
       slides={slides ?? []}
       audioFiles={audioWithUrls}
+      lessonSlideActivities={lessonSlideActivities ?? []}
       pdfUrl={`/api/lessons/${lessonId}/pdf`}
       initialProgress={progress}
     />

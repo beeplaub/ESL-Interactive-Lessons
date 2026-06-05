@@ -6,6 +6,7 @@ import { z } from "zod";
 import { requireAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { parsePdfPages } from "@/lib/pdfParser";
+import { parseLessonSlideActivities } from "@/lib/lessonTextParser";
 import { classifyAndExtractLesson } from "@/lib/slideClassifier";
 import type { Json, SlideType } from "@/types/database.types";
 
@@ -282,6 +283,17 @@ export async function createLesson(formData: FormData) {
 export async function updateLessonStatus(lessonId: string, status: "DRAFT" | "PUBLISHED") {
   await requireAdmin();
   const supabase = createAdminClient();
+  if (status === "PUBLISHED") {
+    const { count, error: reviewError } = await supabase
+      .from("lesson_slide_activities")
+      .select("id", { count: "exact", head: true })
+      .eq("lesson_id", lessonId)
+      .eq("needs_review", true);
+    if (reviewError) throw reviewError;
+    if ((count ?? 0) > 0) {
+      throw new Error(`${count} generated lesson activities still need review before publishing.`);
+    }
+  }
   const { error } = await supabase.from("lessons").update({ status }).eq("id", lessonId);
   if (error) throw error;
   revalidatePath("/admin/lessons");
@@ -348,5 +360,81 @@ export async function updateSlide(formData: FormData) {
 export async function rerunParser(lessonId: string) {
   await requireAdmin();
   await classifyAndExtractLesson(lessonId);
+  revalidatePath(`/admin/lessons/${lessonId}/edit`);
+}
+
+export async function generateInLessonQuizzes(lessonId: string, formData: FormData) {
+  await requireAdmin();
+  const fullText = String(formData.get("fullText") || "");
+  const parsedActivities = parseLessonSlideActivities(fullText);
+  const supabase = createAdminClient();
+
+  if (parsedActivities.length === 0) {
+    throw new Error("No [SLIDE N] sections were found. Please paste lesson text with slide markers.");
+  }
+
+  const { data: slides, error: slidesError } = await supabase
+    .from("slides")
+    .select("id, slide_number")
+    .eq("lesson_id", lessonId);
+  if (slidesError) throw slidesError;
+
+  const slideIds = new Map((slides ?? []).map((slide) => [slide.slide_number, slide.id]));
+  const rows = parsedActivities
+    .filter((activity) => slideIds.has(activity.slideNumber))
+    .map((activity) => ({
+      lesson_id: lessonId,
+      slide_id: slideIds.get(activity.slideNumber),
+      slide_number: activity.slideNumber,
+      activity_type: activity.activityType,
+      activity_data: activity.activityData,
+      needs_review: activity.needsReview,
+      raw_text: activity.rawText,
+      updated_at: new Date().toISOString()
+    }));
+
+  if (rows.length === 0) {
+    throw new Error("The pasted slide numbers did not match any slides in this lesson.");
+  }
+
+  const { error } = await supabase
+    .from("lesson_slide_activities")
+    .upsert(rows, { onConflict: "lesson_id,slide_number" });
+  if (error) throw error;
+
+  revalidatePath(`/admin/lessons/${lessonId}/edit`);
+}
+
+export async function updateInLessonActivity(formData: FormData) {
+  await requireAdmin();
+  const supabase = createAdminClient();
+  const id = String(formData.get("activityId"));
+  const lessonId = String(formData.get("lessonId"));
+  const activityType = String(formData.get("activityType"));
+  const rawActivityData = String(formData.get("activityData") || "null");
+  const activityData = JSON.parse(rawActivityData) as Json;
+  const needsReview = formData.get("needsReview") === "on";
+
+  const { error } = await supabase
+    .from("lesson_slide_activities")
+    .update({
+      activity_type: activityType,
+      activity_data: activityData,
+      needs_review: needsReview,
+      updated_at: new Date().toISOString()
+    })
+    .eq("id", id);
+  if (error) throw error;
+
+  revalidatePath(`/admin/lessons/${lessonId}/edit`);
+}
+
+export async function deleteInLessonActivity(formData: FormData) {
+  await requireAdmin();
+  const supabase = createAdminClient();
+  const id = String(formData.get("activityId"));
+  const lessonId = String(formData.get("lessonId"));
+  const { error } = await supabase.from("lesson_slide_activities").delete().eq("id", id);
+  if (error) throw error;
   revalidatePath(`/admin/lessons/${lessonId}/edit`);
 }

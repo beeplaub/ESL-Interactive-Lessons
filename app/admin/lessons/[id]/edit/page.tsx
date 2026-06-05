@@ -1,9 +1,17 @@
 import Link from "next/link";
-import { RefreshCw } from "lucide-react";
+import { AlertTriangle, RefreshCw, Trash2 } from "lucide-react";
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { rerunParser, updateLessonStatus, updateSlide } from "@/app/admin/lessons/actions";
+import {
+  deleteInLessonActivity,
+  generateInLessonQuizzes,
+  rerunParser,
+  updateInLessonActivity,
+  updateLessonStatus,
+  updateSlide
+} from "@/app/admin/lessons/actions";
+import { LessonTextGeneratorForm } from "@/components/LessonTextGeneratorForm";
 import type { SlideType } from "@/types/database.types";
 
 const slideTypes: SlideType[] = [
@@ -28,14 +36,20 @@ export default async function EditLessonPage({ params }: { params: Promise<{ id:
   const { data: lesson } = await supabase.from("lessons").select("*").eq("id", id).single();
   if (!lesson) notFound();
 
-  const [{ data: slides }, { data: audioFiles }] = await Promise.all([
+  const [{ data: slides }, { data: audioFiles }, { data: lessonSlideActivities }] = await Promise.all([
     supabase
       .from("slides")
       .select("*, slide_activities(*)")
       .eq("lesson_id", id)
       .order("slide_number", { ascending: true }),
-    supabase.from("lesson_audio_files").select("*").eq("lesson_id", id).order("created_at", { ascending: true })
+    supabase.from("lesson_audio_files").select("*").eq("lesson_id", id).order("created_at", { ascending: true }),
+    supabase
+      .from("lesson_slide_activities")
+      .select("*")
+      .eq("lesson_id", id)
+      .order("slide_number", { ascending: true })
   ]);
+  const reviewCount = (lessonSlideActivities ?? []).filter((activity) => activity.needs_review).length;
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
@@ -59,12 +73,106 @@ export default async function EditLessonPage({ params }: { params: Promise<{ id:
             </button>
           </form>
           <form action={updateLessonStatus.bind(null, lesson.id, lesson.status === "PUBLISHED" ? "DRAFT" : "PUBLISHED")}>
-            <button className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white">
+            <button
+              disabled={lesson.status !== "PUBLISHED" && reviewCount > 0}
+              title={reviewCount > 0 ? `${reviewCount} generated activities need review before publishing.` : undefined}
+              className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-45"
+            >
               {lesson.status === "PUBLISHED" ? "Unpublish" : "Publish"}
             </button>
           </form>
         </div>
       </div>
+
+      {reviewCount > 0 ? (
+        <div className="mb-5 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          <AlertTriangle className="mt-0.5 shrink-0" size={18} />
+          <p>
+            {reviewCount} slides need review before publishing. Open the generated activity and add missing answers or untick needs review.
+          </p>
+        </div>
+      ) : null}
+
+      <div className="mb-5">
+        <LessonTextGeneratorForm
+          action={generateInLessonQuizzes.bind(null, lesson.id)}
+          hasExistingActivities={(lessonSlideActivities ?? []).length > 0}
+        />
+      </div>
+
+      {(lessonSlideActivities ?? []).length > 0 ? (
+        <section className="mb-6 rounded-lg border border-black/10 bg-white p-5 shadow-sm">
+          <h2 className="text-xl font-semibold">In-Lesson Activities</h2>
+          <p className="mt-1 text-sm text-black/55">
+            These activities appear beside the matching slide image for learners.
+          </p>
+          <div className="mt-4 space-y-3">
+            {(lessonSlideActivities ?? []).map((activity) => (
+              <details key={activity.id} className="rounded-md border border-black/10 p-4">
+                <summary className="cursor-pointer list-none">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-sm font-semibold">Slide {activity.slide_number}</span>
+                      <span className="rounded-full bg-skywash px-3 py-1 text-xs font-semibold text-ink">
+                        {activity.activity_type}
+                      </span>
+                      {activity.needs_review ? (
+                        <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
+                          Needs review
+                        </span>
+                      ) : null}
+                    </div>
+                    <span className="text-xs text-black/45">Expand to edit</span>
+                  </div>
+                </summary>
+                <form action={updateInLessonActivity} className="mt-4 grid gap-4">
+                  <input type="hidden" name="lessonId" value={lesson.id} />
+                  <input type="hidden" name="activityId" value={activity.id} />
+                  <div className="grid gap-4 md:grid-cols-[220px_1fr_auto] md:items-end">
+                    <label className="text-sm">
+                      Activity type
+                      <select
+                        name="activityType"
+                        defaultValue={activity.activity_type}
+                        className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+                      >
+                        {["INFO", "MCQ", "TRUE_FALSE", "GAP_FILL", "MATCHING", "LISTENING", "DISCUSSION", "WRITING"].map((type) => (
+                          <option key={type}>{type}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 md:self-end">
+                      <input name="needsReview" type="checkbox" defaultChecked={activity.needs_review} />
+                      Needs review
+                    </label>
+                    <button className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white">Save activity</button>
+                  </div>
+                  <label className="text-sm">
+                    Activity data JSON
+                    <textarea
+                      name="activityData"
+                      rows={12}
+                      defaultValue={JSON.stringify(activity.activity_data, null, 2)}
+                      className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 font-mono text-xs"
+                    />
+                  </label>
+                  <div className="rounded-md bg-black/[0.03] p-3">
+                    <h3 className="text-sm font-semibold">Original pasted text</h3>
+                    <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap text-xs text-black/65">{activity.raw_text}</pre>
+                  </div>
+                </form>
+                <form action={deleteInLessonActivity} className="mt-3">
+                  <input type="hidden" name="lessonId" value={lesson.id} />
+                  <input type="hidden" name="activityId" value={activity.id} />
+                  <button className="inline-flex items-center gap-2 rounded-md border border-coral/30 px-3 py-2 text-sm font-medium text-coral">
+                    <Trash2 size={15} /> Delete activity
+                  </button>
+                </form>
+              </details>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <div className="space-y-4">
         {(slides ?? []).map((slide) => {

@@ -63,7 +63,11 @@ export default async function AccountPage() {
   const [{ data: progress }, { data: lessons }, { data: quizAttempts }] = await Promise.all([
     supabase.from("lesson_progress").select("*").eq("user_id", user.id).order("updated_at", { ascending: false }),
     adminSupabase.from("lessons").select("*").eq("status", "PUBLISHED").order("created_at", { ascending: false }),
-    adminSupabase.from("quiz_attempts").select("*, quizzes(title, level)").eq("user_id", user.id).order("completed_at", { ascending: false })
+    adminSupabase
+      .from("quiz_attempts")
+      .select("*, quizzes(title, level), lesson_slide_activities(slide_number, activity_type, lessons(title, level))")
+      .eq("user_id", user.id)
+      .order("completed_at", { ascending: false })
   ]);
 
   const lessonIds = (lessons ?? []).map((lesson) => lesson.id);
@@ -166,14 +170,19 @@ export default async function AccountPage() {
               <div className="grid gap-3">
                 {quizAttempts.map((attempt) => {
                   const quiz = attempt.quizzes as { title?: string; level?: string } | null;
+                  const lessonActivity = attempt.lesson_slide_activities as
+                    | { slide_number?: number; activity_type?: string; lessons?: { title?: string; level?: string } | null }
+                    | null;
+                  const title = quiz?.title ?? `${lessonActivity?.lessons?.title ?? "Lesson"} · Slide ${lessonActivity?.slide_number ?? ""}`;
+                  const level = quiz?.level ?? lessonActivity?.lessons?.level ?? "";
                   return (
                     <div key={attempt.id} className="rounded-md border border-slate-200 p-4">
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div>
-                          <h3 className="font-medium">{quiz?.title ?? "Quiz"}</h3>
+                          <h3 className="font-medium">{title}</h3>
                           <p className="mt-1 text-sm text-slate-600">{new Date(attempt.completed_at).toLocaleDateString()}</p>
                         </div>
-                        <span className="rounded-full bg-skywash px-2 py-1 text-xs font-medium text-ink">{quiz?.level ?? ""}</span>
+                        <span className="rounded-full bg-skywash px-2 py-1 text-xs font-medium text-ink">{level}</span>
                       </div>
                       <p className="mt-3 text-sm font-semibold">{attempt.score}/{attempt.total}</p>
                     </div>

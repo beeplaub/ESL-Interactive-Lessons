@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import {
   ArrowRight,
   BarChart3,
@@ -13,8 +14,20 @@ import {
   Trophy,
   UserRound
 } from "lucide-react";
+import { getFreshProfile } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
 
-export default function HomePage() {
+export default async function HomePage() {
+  const supabase = await createClient();
+  const {
+    data: { user }
+  } = await supabase.auth.getUser();
+
+  if (user) {
+    const profile = await getFreshProfile(user.id);
+    if (profile?.role === "ADMIN") redirect("/admin");
+  }
+
   return (
     <main className="bg-slate-50">
       <section className="border-b border-black/10 bg-white">
