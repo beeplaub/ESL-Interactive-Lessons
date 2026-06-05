@@ -14,7 +14,7 @@ export async function getFreshProfile(userId: string) {
 }
 
 export function roleHomePath(role?: string | null) {
-  return role === "ADMIN" ? "/admin" : "/lessons";
+  return role === "ADMIN" ? "/admin" : "/account";
 }
 
 export async function requireUser() {
@@ -35,7 +35,7 @@ export async function requireUser() {
 export async function requireAdmin() {
   const session = await requireUser();
   if (session.profile?.role !== "ADMIN") {
-    redirect("/lessons");
+    redirect("/account");
   }
   return session;
 }

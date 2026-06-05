@@ -47,10 +47,8 @@ export async function uploadAvatar(formData: FormData) {
   if (uploadError) return { error: uploadError.message };
 
   const { data } = supabase.storage.from("avatars").getPublicUrl(path);
-  const { error: profileError } = await supabase
-    .from("profiles")
-    .update({ avatar_url: data.publicUrl })
-    .eq("id", user.id);
+  const admin = createAdminClient();
+  const { error: profileError } = await admin.from("profiles").update({ avatar_url: data.publicUrl }).eq("id", user.id);
   if (profileError) return { error: profileError.message };
 
   revalidatePath("/profile");

@@ -1,61 +1,11 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
-import { ArrowRight, BadgeCheck, BookOpen, CheckCircle2, ClipboardList, Clock3, Heart, LogOut, Sparkles, Trophy, UserRound } from "lucide-react";
+import { ArrowRight, BadgeCheck, CheckCircle2, ClipboardList, Clock3, Heart, LogOut, Trophy, UserRound } from "lucide-react";
 import { signOut, switchToAdminView } from "@/app/auth/actions";
 import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { CarouselItem, HorizontalCarousel } from "@/components/HorizontalCarousel";
-import type { Json } from "@/types/database.types";
-
-function asRecord(value: Json | null | undefined): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
-}
-
-function collectLearnedItems(activities: Array<{ activity_type: string; prompt: string; items: Json }>) {
-  const vocabulary = new Set<string>();
-  const grammar = new Set<string>();
-  const functional = new Set<string>();
-  const idioms = new Set<string>();
-
-  for (const activity of activities) {
-    const items = asRecord(activity.items);
-    const prompt = activity.prompt.toLowerCase();
-    const type = activity.activity_type.toUpperCase();
-
-    if (Array.isArray(items.left)) {
-      for (const item of items.left as Array<{ text?: string }>) {
-        if (item.text) vocabulary.add(item.text);
-      }
-    }
-
-    if (Array.isArray(items.questions)) {
-      for (const question of items.questions as string[]) {
-        if (typeof question === "string" && question.length < 120) functional.add(question.replace(/^\d+[\).]\s*/, ""));
-      }
-    }
-
-    if (Array.isArray(items.checklist)) {
-      for (const item of items.checklist as string[]) {
-        const text = String(item);
-        if (/idiom/i.test(text)) idioms.add(text);
-        else if (/grammar|tense|reported speech|question|sentence/i.test(text)) grammar.add(text);
-        else functional.add(text);
-      }
-    }
-
-    if (/grammar|gap|sentence|reported speech|tense/.test(prompt) || type === "GAP_FILL") grammar.add(activity.prompt);
-    if (/functional|speaking|discussion|real world|polite|conversation/.test(prompt)) functional.add(activity.prompt);
-    if (/idiom/.test(prompt)) idioms.add(activity.prompt);
-  }
-
-  return {
-    vocabulary: [...vocabulary].slice(0, 18),
-    idioms: [...idioms].slice(0, 12),
-    grammar: [...grammar].slice(0, 12),
-    functional: [...functional].slice(0, 12)
-  };
-}
 
 export default async function AccountPage() {
   const { user, profile } = await requireUser();
@@ -64,29 +14,23 @@ export default async function AccountPage() {
   const supabase = await createClient();
   const adminSupabase = createAdminClient();
 
-  const [{ data: progress }, { data: lessons }, { data: quizAttempts }] = await Promise.all([
+  const [{ data: progress }, { data: lessons }, { data: quizAttempts }, { data: wishlistItems }] = await Promise.all([
     supabase.from("lesson_progress").select("*").eq("user_id", user.id).order("updated_at", { ascending: false }),
     adminSupabase.from("lessons").select("*").eq("status", "PUBLISHED").order("created_at", { ascending: false }),
     adminSupabase
       .from("quiz_attempts")
       .select("*, quizzes(title, level), lesson_slide_activities(slide_number, activity_type, lessons(title, level))")
       .eq("user_id", user.id)
-      .order("completed_at", { ascending: false })
+      .order("completed_at", { ascending: false }),
+    adminSupabase
+      .from("wishlist_items")
+      .select("*, lessons(title, topic, level), quizzes(title, topic, level)")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
   ]);
 
   const lessonIds = (lessons ?? []).map((lesson) => lesson.id);
-  const [{ data: slides }, { data: completedActivities }] = await Promise.all([
-    lessonIds.length ? adminSupabase.from("slides").select("lesson_id,type").in("lesson_id", lessonIds) : Promise.resolve({ data: [] }),
-    progress?.some((item) => item.completed)
-      ? adminSupabase
-          .from("slide_activities")
-          .select("activity_type,prompt,items,lesson_id")
-          .in(
-            "lesson_id",
-            progress.filter((item) => item.completed).map((item) => item.lesson_id)
-          )
-      : Promise.resolve({ data: [] })
-  ]);
+  const { data: slides } = lessonIds.length ? await adminSupabase.from("slides").select("lesson_id,type").in("lesson_id", lessonIds) : { data: [] };
 
   const lessonMap = new Map((lessons ?? []).map((lesson) => [lesson.id, lesson]));
   const slideCounts = new Map<string, number>();
@@ -100,7 +44,6 @@ export default async function AccountPage() {
   const completedLessons = (progress ?? [])
     .filter((item) => item.completed && lessonMap.has(item.lesson_id))
     .map((item) => ({ progress: item, lesson: lessonMap.get(item.lesson_id)! }));
-  const learnedItems = collectLearnedItems(completedActivities ?? []);
   const firstName = profile?.first_name?.trim();
 
   return (
@@ -141,11 +84,10 @@ export default async function AccountPage() {
         </div>
       </section>
 
-      <section className="mt-5 grid gap-4 md:grid-cols-4">
+      <section className="mt-5 grid gap-4 md:grid-cols-3">
         <StatCard icon={Clock3} label="Current lessons" value={currentLessons.length} />
         <StatCard icon={Trophy} label="Completed lessons" value={completedLessons.length} />
         <StatCard icon={ClipboardList} label="Quizzes completed" value={(quizAttempts ?? []).length} />
-        <StatCard icon={Sparkles} label="Learned items" value={Object.values(learnedItems).reduce((sum, items) => sum + items.length, 0)} />
       </section>
 
       <section className="mt-6 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
@@ -209,23 +151,33 @@ export default async function AccountPage() {
         </div>
 
         <div className="space-y-6">
-          <Panel title="Learned items" icon={BookOpen}>
-            <LearnedGroup title="Vocabulary" items={learnedItems.vocabulary} />
-            <LearnedGroup title="Idioms" items={learnedItems.idioms} />
-            <LearnedGroup title="Grammar" items={learnedItems.grammar} />
-            <LearnedGroup title="Functional language" items={learnedItems.functional} />
-            {!Object.values(learnedItems).some((items) => items.length) ? (
-              <p className="rounded-md bg-slate-50 p-4 text-sm text-slate-600">Finish a lesson to build your personal learned-items list.</p>
-            ) : null}
-          </Panel>
-
           <Panel title="Wish list" icon={Heart}>
-            <p className="text-sm leading-6 text-slate-600">
-              Save-for-later lessons will appear here. For now, browse published lessons and start the ones you want to study.
-            </p>
-            <Link href="/lessons" className="mt-4 inline-flex items-center gap-2 rounded-md bg-moss px-4 py-2 text-sm font-medium text-white">
-              Browse lessons <ArrowRight size={16} />
-            </Link>
+            {wishlistItems?.length ? (
+              <div className="grid gap-3">
+                {wishlistItems.map((item) => {
+                  const lesson = item.lessons as { title?: string; topic?: string; level?: string } | null;
+                  const quiz = item.quizzes as { title?: string; topic?: string; level?: string } | null;
+                  const href = item.lesson_id ? `/lessons/${item.lesson_id}` : `/quizzes/${item.quiz_id}`;
+                  return (
+                    <LessonRow
+                      key={item.id}
+                      title={lesson?.title ?? quiz?.title ?? "Saved item"}
+                      meta={`${lesson ? "Lesson" : "Quiz"} · ${(lesson ?? quiz)?.level ?? ""}`}
+                      percent={0}
+                      href={href}
+                      action="Open"
+                    />
+                  );
+                })}
+              </div>
+            ) : (
+              <>
+                <p className="text-sm leading-6 text-slate-600">Saved lessons and quizzes will appear here.</p>
+                <Link href="/lessons" className="mt-4 inline-flex items-center gap-2 rounded-md bg-moss px-4 py-2 text-sm font-medium text-white">
+                  Browse lessons <ArrowRight size={16} />
+                </Link>
+              </>
+            )}
           </Panel>
         </div>
       </section>
@@ -257,7 +209,7 @@ function Panel({ title, icon: Icon, children }: { title: string; icon: typeof Cl
 
 function LessonRow({ title, meta, percent, href, action }: { title: string; meta: string; percent: number; href: string; action: string }) {
   return (
-    <div className="rounded-md border border-slate-200 p-4">
+    <div className="flex min-h-40 w-full flex-col rounded-md border border-slate-200 p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="font-medium">{title}</h3>
@@ -267,26 +219,11 @@ function LessonRow({ title, meta, percent, href, action }: { title: string; meta
           {action}
         </Link>
       </div>
-      <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100">
+      <div className="mt-auto pt-4">
+      <div className="h-2 overflow-hidden rounded-full bg-slate-100">
         <div className="h-full bg-moss" style={{ width: `${percent}%` }} />
       </div>
       <p className="mt-2 text-xs text-slate-500">{percent}% complete</p>
-    </div>
-  );
-}
-
-function LearnedGroup({ title, items }: { title: string; items: string[] }) {
-  if (!items.length) return null;
-
-  return (
-    <div className="mb-5 last:mb-0">
-      <h3 className="mb-2 text-sm font-semibold text-slate-700">{title}</h3>
-      <div className="flex flex-wrap gap-2">
-        {items.map((item) => (
-          <span key={item} className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
-            {item}
-          </span>
-        ))}
       </div>
     </div>
   );

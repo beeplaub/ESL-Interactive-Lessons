@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, CheckCircle2, ChevronDown, Headphones, RotateCcw, Save } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle2, ChevronDown, Headphones, Maximize2, RotateCcw, Save, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { LessonActivityPanel } from "@/components/LessonActivityPanel";
 import type { Database } from "@/types/database.types";
@@ -183,6 +183,14 @@ function parseSlideNotes(raw: string | null | undefined) {
   }
 }
 
+function hasGeneratedQuestions(activity: LessonSlideActivity) {
+  if (["INFO", "LISTENING", "DISCUSSION", "WRITING"].includes(activity.activity_type)) return false;
+  const data = activity.activity_data;
+  if (!data || typeof data !== "object" || Array.isArray(data)) return false;
+  const questions = (data as Record<string, unknown>).questions;
+  return Array.isArray(questions) && questions.length > 0;
+}
+
 async function saveLessonProgress(lessonId: string, payload: { current_slide_number: number; completed: boolean; notes: string }) {
   const response = await fetch(`/api/lessons/${lessonId}/progress`, {
     method: "POST",
@@ -209,7 +217,7 @@ export function LessonPlayer({ lesson, slides, audioFiles, lessonSlideActivities
   const [actionStatus, setActionStatus] = useState<"idle" | "saving" | "failed">("idle");
   const [saveError, setSaveError] = useState<string | null>(null);
   const slide = slides[index];
-  const currentActivity = lessonSlideActivities.find((activity) => activity.slide_number === slide?.slide_number && !["INFO", "LISTENING", "DISCUSSION", "WRITING"].includes(activity.activity_type));
+  const currentActivity = lessonSlideActivities.find((activity) => activity.slide_number === slide?.slide_number && hasGeneratedQuestions(activity));
   const total = slides.length;
   const currentSlideNumber = slide?.slide_number ?? 1;
   const currentNote = notesBySlide[String(currentSlideNumber)] ?? "";
@@ -506,6 +514,7 @@ function PdfSlideVisual({ slide, pdfUrl }: { slide: Slide; pdfUrl: string | null
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [renderState, setRenderState] = useState<"idle" | "rendering" | "ready" | "failed">("idle");
   const [renderError, setRenderError] = useState<string | null>(null);
+  const [isLargeViewOpen, setIsLargeViewOpen] = useState(false);
 
   useEffect(() => {
     if (!pdfUrl) {
@@ -566,6 +575,15 @@ function PdfSlideVisual({ slide, pdfUrl }: { slide: Slide; pdfUrl: string | null
     <div className="mx-auto max-w-5xl rounded-xl border border-slate-200 bg-slate-100 p-2 shadow-sm sm:p-4">
       <div className="mb-2 flex items-center justify-between px-1 text-xs font-medium text-slate-600 sm:px-2">
         <span>Slide {slide.slide_number}</span>
+        {imageUrl && renderState === "ready" ? (
+          <button
+            type="button"
+            onClick={() => setIsLargeViewOpen(true)}
+            className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 hover:bg-slate-50"
+          >
+            <Maximize2 size={13} /> Bigger view
+          </button>
+        ) : null}
       </div>
       {pdfUrl ? (
         <div className="rounded-lg bg-white p-2 shadow-inner sm:p-5">
@@ -592,6 +610,21 @@ function PdfSlideVisual({ slide, pdfUrl }: { slide: Slide; pdfUrl: string | null
           PDF preview is unavailable. The lesson content is still saved.
         </div>
       )}
+      {isLargeViewOpen && imageUrl ? (
+        <div className="fixed inset-0 z-50 bg-black/90 p-3 sm:p-6" role="dialog" aria-modal="true">
+          <button
+            type="button"
+            onClick={() => setIsLargeViewOpen(false)}
+            className="absolute right-4 top-4 z-10 inline-flex items-center gap-2 rounded-md bg-white px-3 py-2 text-sm font-medium text-ink"
+          >
+            <X size={16} /> Close
+          </button>
+          <div className="grid h-full w-full place-items-center overflow-auto">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={imageUrl} alt={`Slide ${slide.slide_number} large view`} className="max-h-none w-auto max-w-[1400px] rounded-md bg-white shadow-2xl md:max-h-[calc(100vh-48px)] md:max-w-full" />
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

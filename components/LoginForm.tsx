@@ -8,7 +8,7 @@ export function LoginForm() {
   const supabase = createClient();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const nextPath = searchParams.get("next") || "/lessons";
+  const nextPath = searchParams.get("next") || "/account";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -22,7 +22,7 @@ export function LoginForm() {
     });
     const data = (await response.json().catch(() => null)) as { redirectTo?: string } | null;
     router.refresh();
-    router.push(data?.redirectTo && data.redirectTo.startsWith("/") ? data.redirectTo : "/lessons");
+    router.push(data?.redirectTo && data.redirectTo.startsWith("/") ? data.redirectTo : "/account");
   }
 
   function submit() {

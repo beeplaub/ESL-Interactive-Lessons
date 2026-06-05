@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowRight, BookOpen, CheckCircle2, Clock3, LockKeyhole } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { WishlistButton } from "@/components/WishlistButton";
 
 export default async function LessonsPage() {
   const supabase = await createClient();
@@ -10,10 +11,12 @@ export default async function LessonsPage() {
     data: { user }
   } = await supabase.auth.getUser();
 
-  const [{ data: lessons }, { data: progress }] = await Promise.all([
+  const [{ data: lessons }, { data: progress }, { data: wishlist }] = await Promise.all([
     adminSupabase.from("lessons").select("*").eq("status", "PUBLISHED").order("created_at", { ascending: false }),
-    user ? supabase.from("lesson_progress").select("*").eq("user_id", user.id) : Promise.resolve({ data: [] })
+    user ? supabase.from("lesson_progress").select("*").eq("user_id", user.id) : Promise.resolve({ data: [] }),
+    user ? adminSupabase.from("wishlist_items").select("lesson_id").eq("user_id", user.id).not("lesson_id", "is", null) : Promise.resolve({ data: [] })
   ]);
+  const wishlistLessonIds = new Set((wishlist ?? []).map((item) => item.lesson_id).filter(Boolean));
 
   const lessonIds = (lessons ?? []).map((lesson) => lesson.id);
   const { data: slides } = lessonIds.length
@@ -52,7 +55,12 @@ export default async function LessonsPage() {
                   <h2 className="mt-3 text-xl font-semibold">{lesson.title}</h2>
                   <p className="mt-1 text-sm text-black/55">{lesson.topic}</p>
                 </div>
-                <BookOpen className="text-moss" size={22} />
+                <div className="flex items-center gap-2">
+                  {!saved ? (
+                    <WishlistButton isLoggedIn={Boolean(user)} lessonId={lesson.id} initiallySaved={wishlistLessonIds.has(lesson.id)} loginNext="/lessons" />
+                  ) : null}
+                  <BookOpen className="text-moss" size={22} />
+                </div>
               </div>
               <p className="mt-4 text-sm leading-6 text-black/65">{lesson.description || "A focused English lesson with guided slide practice."}</p>
               <div className="mt-auto pt-5">

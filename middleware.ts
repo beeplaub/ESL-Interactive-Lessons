@@ -79,7 +79,7 @@ export async function middleware(request: NextRequest) {
   if (user && pathname.startsWith("/login")) {
     const url = request.nextUrl.clone();
     const nextPath = request.nextUrl.searchParams.get("next");
-    url.pathname = role === "ADMIN" ? "/admin" : nextPath?.startsWith("/") && !nextPath.startsWith("/admin") ? nextPath : "/lessons";
+    url.pathname = role === "ADMIN" ? "/admin" : nextPath?.startsWith("/") && !nextPath.startsWith("/admin") ? nextPath : "/account";
     url.search = "";
     return NextResponse.redirect(url);
   }

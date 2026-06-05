@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { getFreshProfile, roleHomePath } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { LoginForm } from "@/components/LoginForm";
 
@@ -9,7 +10,10 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
     data: { user }
   } = await supabase.auth.getUser();
 
-  if (user) redirect(next?.startsWith("/") ? next : "/lessons");
+  if (user) {
+    const profile = await getFreshProfile(user.id);
+    redirect(next?.startsWith("/") && !next.startsWith("/admin") ? next : roleHomePath(profile?.role));
+  }
 
   return (
     <main className="mx-auto flex min-h-[calc(100vh-57px)] max-w-md items-center px-4">

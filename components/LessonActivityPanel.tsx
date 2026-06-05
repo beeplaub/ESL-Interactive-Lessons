@@ -52,19 +52,20 @@ export function LessonActivityPanel({
   const [message, setMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const answered = questions.length > 0 && questions.every((question) => hasAnswer(question, answers[question.id]));
-  const score = questions.filter((question) => isCorrect(question, answers[question.id])).length;
+  const score = questions.reduce((sum, question) => sum + questionScore(question, answers[question.id]), 0);
+  const total = questions.reduce((sum, question) => sum + questionTotal(question), 0);
 
   if (questions.length === 0) return null;
 
   function submit() {
-    const finalScore = questions.filter((question) => isCorrect(question, answers[question.id])).length;
+    const finalScore = questions.reduce((sum, question) => sum + questionScore(question, answers[question.id]), 0);
     setSubmitted(true);
     startTransition(async () => {
       try {
         await recordQuizAttempt({
           lessonSlideActivityId: activity.id,
           score: finalScore,
-          total: questions.length,
+          total,
           answers
         });
         setMessage("Activity saved.");
@@ -83,7 +84,7 @@ export function LessonActivityPanel({
         </div>
         {submitted ? (
           <span className="rounded-full bg-moss/10 px-3 py-1 text-xs font-semibold text-moss">
-            {score}/{questions.length}
+            {score}/{total}
           </span>
         ) : null}
       </div>
@@ -128,4 +129,25 @@ export function LessonActivityPanel({
       {message ? <p className="mt-3 text-sm text-black/55">{message}</p> : null}
     </section>
   );
+}
+
+function questionTotal(question: QuizQuestion) {
+  if (question.question_type === "MATCHING" && Array.isArray(question.correct_answer)) {
+    return question.correct_answer.length || 1;
+  }
+  return 1;
+}
+
+function questionScore(question: QuizQuestion, value: unknown) {
+  if (question.question_type !== "MATCHING") return isCorrect(question, value) ? 1 : 0;
+  const correct = Array.isArray(question.correct_answer) ? (question.correct_answer as Array<{ a: number; b: string }>) : [];
+  const selected = (value as Record<string, string>) ?? {};
+  return correct.filter((pair) => normalizeMatchingLabel(selected[String(pair.a)]) === normalizeMatchingLabel(pair.b)).length;
+}
+
+function normalizeMatchingLabel(label: unknown) {
+  const value = String(label ?? "").trim().toUpperCase();
+  const oldStyle = value.match(/^B(\d+)$/);
+  if (oldStyle) return String.fromCharCode(64 + Number(oldStyle[1]));
+  return value;
 }

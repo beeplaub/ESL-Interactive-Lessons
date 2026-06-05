@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { LogOut, UserRound } from "lucide-react";
-import { signOut } from "@/app/auth/actions";
 import { createClient } from "@/lib/supabase/server";
+import { SiteNav } from "@/components/SiteNav";
 
 export async function SiteHeader() {
   const supabase = await createClient();
@@ -16,33 +15,7 @@ export async function SiteHeader() {
           <span className="grid size-8 place-items-center rounded-md bg-moss text-sm text-white">B</span>
           <span>BrenUp</span>
         </Link>
-        <div className="flex items-center gap-2 text-sm">
-          <Link href="/lessons" className="hidden rounded-md px-3 py-2 hover:bg-black/5 sm:inline-flex">
-            Lessons
-          </Link>
-          <Link href="/quizzes" className="hidden rounded-md px-3 py-2 hover:bg-black/5 sm:inline-flex">
-            Quizzes
-          </Link>
-          <Link href="/level-test" className="hidden rounded-md px-3 py-2 hover:bg-black/5 sm:inline-flex">
-            Level Test
-          </Link>
-          {user ? (
-            <>
-              <Link href="/account" className="inline-flex items-center gap-2 rounded-md border border-black/15 px-3 py-2 hover:bg-black/5">
-                <UserRound size={16} /> My Account
-              </Link>
-              <form action={signOut}>
-                <button className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-black/65 hover:bg-black/5 hover:text-black">
-                  <LogOut size={16} /> Logout
-                </button>
-              </form>
-            </>
-          ) : (
-            <Link href="/login" className="inline-flex items-center gap-2 rounded-md bg-moss px-3 py-2 font-medium text-white">
-              <UserRound size={16} /> My Account
-            </Link>
-          )}
-        </div>
+        <SiteNav isLoggedIn={Boolean(user)} />
       </nav>
     </header>
   );

@@ -74,5 +74,5 @@ export function HorizontalCarousel({
 }
 
 export function CarouselItem({ children }: { children: React.ReactNode }) {
-  return <div className="min-w-full sm:min-w-[calc(50%-0.375rem)] lg:min-w-[calc(33.333%-0.5rem)]">{children}</div>;
+  return <div className="flex min-w-full sm:min-w-[calc(50%-0.375rem)]">{children}</div>;
 }

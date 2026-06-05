@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowRight, ClipboardList, LockKeyhole } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { WishlistButton } from "@/components/WishlistButton";
 
 export default async function QuizzesPage() {
   const supabase = await createClient();
@@ -9,19 +10,21 @@ export default async function QuizzesPage() {
   const {
     data: { user }
   } = await supabase.auth.getUser();
-  const [{ data: quizzes }, { data: questions }] = await Promise.all([
+  const [{ data: quizzes }, { data: questions }, { data: wishlist }] = await Promise.all([
     admin.from("quizzes").select("*").eq("status", "PUBLISHED").order("created_at", { ascending: false }),
-    admin.from("quiz_questions").select("quiz_id")
+    admin.from("quiz_questions").select("quiz_id"),
+    user ? admin.from("wishlist_items").select("quiz_id").eq("user_id", user.id).not("quiz_id", "is", null) : Promise.resolve({ data: [] })
   ]);
   const counts = new Map<string, number>();
   for (const question of questions ?? []) counts.set(question.quiz_id, (counts.get(question.quiz_id) ?? 0) + 1);
+  const wishlistQuizIds = new Set((wishlist ?? []).map((item) => item.quiz_id).filter(Boolean));
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-8">
-      <section className="mb-7 rounded-lg border border-black/10 bg-white p-6 shadow-sm">
-        <p className="text-sm font-semibold uppercase tracking-wide text-moss">Quizzes</p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight">Practice with quick checks</h1>
-        <p className="mt-2 max-w-2xl text-black/60">Review grammar, vocabulary, reading, and functional language with short self-check quizzes.</p>
+    <main className="mx-auto max-w-6xl px-4 py-6">
+      <section className="mb-5 rounded-lg border border-black/10 bg-white px-5 py-4 shadow-sm">
+        <p className="text-xs font-semibold uppercase tracking-wide text-moss">Quizzes</p>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight">Practice with quick checks</h1>
+        <p className="mt-1 max-w-4xl text-sm text-black/60">Review grammar, vocabulary, reading, and functional language with short self-check quizzes.</p>
       </section>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -35,7 +38,10 @@ export default async function QuizzesPage() {
                   <h2 className="mt-3 text-xl font-semibold">{quiz.title}</h2>
                   <p className="mt-1 text-sm text-black/55">{quiz.topic}</p>
                 </div>
-                <ClipboardList className="text-moss" size={24} />
+                <div className="flex items-center gap-2">
+                  <WishlistButton isLoggedIn={Boolean(user)} quizId={quiz.id} initiallySaved={wishlistQuizIds.has(quiz.id)} loginNext="/quizzes" />
+                  <ClipboardList className="text-moss" size={24} />
+                </div>
               </div>
               <p className="mt-4 text-sm leading-6 text-black/65">{counts.get(quiz.id) ?? 0} questions · no timer</p>
               {!user ? (
