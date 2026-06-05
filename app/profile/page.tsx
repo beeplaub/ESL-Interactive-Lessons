@@ -18,7 +18,7 @@ export default async function ProfilePage() {
       <section className="mt-5 rounded-lg border border-black/10 bg-white p-6 shadow-sm">
         <h1 className="text-3xl font-semibold">Profile</h1>
         <div className="mt-6 grid gap-8 md:grid-cols-[160px_1fr]">
-          <AvatarUploader userId={user.id} initialUrl={profile?.avatar_url ?? null} initials={initials} />
+          <AvatarUploader initialUrl={profile?.avatar_url ?? null} initials={initials} />
           <div>
             <form action={updateProfile} className="grid gap-4">
               <div className="grid gap-4 sm:grid-cols-2">

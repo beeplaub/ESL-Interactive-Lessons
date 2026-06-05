@@ -1,28 +1,24 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { updateAvatarUrl } from "@/app/profile/actions";
+import { uploadAvatar } from "@/app/profile/actions";
 
-export function AvatarUploader({ userId, initialUrl, initials }: { userId: string; initialUrl: string | null; initials: string }) {
-  const supabase = createClient();
+export function AvatarUploader({ initialUrl, initials }: { initialUrl: string | null; initials: string }) {
   const [url, setUrl] = useState(initialUrl);
   const [message, setMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   async function upload(file: File) {
     setMessage(null);
-    const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-    const path = `${userId}/avatar.${ext}`;
-    const { error } = await supabase.storage.from("avatars").upload(path, file, { upsert: true, contentType: file.type });
-    if (error) {
-      setMessage(error.message);
-      return;
-    }
-    const { data } = supabase.storage.from("avatars").getPublicUrl(path);
-    setUrl(data.publicUrl);
     startTransition(async () => {
-      await updateAvatarUrl(data.publicUrl);
+      const formData = new FormData();
+      formData.append("avatar", file);
+      const result = await uploadAvatar(formData);
+      if (result.error) {
+        setMessage(result.error);
+        return;
+      }
+      if (result.url) setUrl(result.url);
     });
   }
 

@@ -147,15 +147,19 @@ export default async function EditLessonPage({ params }: { params: Promise<{ id:
                     </label>
                     <button className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white">Save activity</button>
                   </div>
-                  <label className="text-sm">
-                    Activity data JSON
-                    <textarea
-                      name="activityData"
-                      rows={12}
-                      defaultValue={JSON.stringify(activity.activity_data, null, 2)}
-                      className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 font-mono text-xs"
-                    />
-                  </label>
+                  {activity.activity_type === "MATCHING" ? (
+                    <MatchingActivityEditor activityData={activity.activity_data} />
+                  ) : (
+                    <label className="text-sm">
+                      Activity data JSON
+                      <textarea
+                        name="activityData"
+                        rows={12}
+                        defaultValue={JSON.stringify(activity.activity_data, null, 2)}
+                        className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 font-mono text-xs"
+                      />
+                    </label>
+                  )}
                   <div className="rounded-md bg-black/[0.03] p-3">
                     <h3 className="text-sm font-semibold">Original pasted text</h3>
                     <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap text-xs text-black/65">{activity.raw_text}</pre>
@@ -273,4 +277,49 @@ export default async function EditLessonPage({ params }: { params: Promise<{ id:
       </div>
     </main>
   );
+}
+
+function MatchingActivityEditor({ activityData }: { activityData: unknown }) {
+  const data = asRecord(activityData);
+  const questions = Array.isArray(data.questions) ? data.questions : [];
+  const question = asRecord(questions[0]);
+  const options = asRecord(question.options);
+  const aItems = Array.isArray(options.a_items) ? options.a_items.map(String) : [];
+  const bItems = Array.isArray(options.b_items) ? options.b_items.map(String) : [];
+  const pairs = Array.isArray(question.correct_answer)
+    ? (question.correct_answer as Array<{ a?: number; b?: string }>).map((pair) => `${pair.a}-${pair.b}`).join(", ")
+    : "";
+  const prompt = String(data.prompt ?? question.question_text ?? "Match the items.");
+
+  return (
+    <div className="rounded-md border border-amber-200 bg-amber-50 p-4">
+      <input type="hidden" name="activityData" value="null" />
+      <p className="text-sm font-semibold text-amber-900">Matching review helper</p>
+      <p className="mt-1 text-sm text-amber-800">
+        Add the left-side items in Column A, the right-side items in Column B, then write pairs like 1-A, 2-B, 3-C.
+      </p>
+      <div className="mt-4 grid gap-4 md:grid-cols-2">
+        <label className="text-sm">
+          Prompt
+          <input name="prompt" defaultValue={prompt} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+        </label>
+        <label className="text-sm">
+          Correct pairs
+          <input name="pairs" defaultValue={pairs} placeholder="1-A, 2-B, 3-C" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+        </label>
+        <label className="text-sm">
+          Column A items, one per line
+          <textarea name="aItems" rows={6} defaultValue={aItems.join("\n")} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+        </label>
+        <label className="text-sm">
+          Column B items, one per line
+          <textarea name="bItems" rows={6} defaultValue={bItems.join("\n")} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+        </label>
+      </div>
+    </div>
+  );
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 }

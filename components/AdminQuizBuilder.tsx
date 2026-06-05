@@ -25,7 +25,7 @@ ANSWER: already, yet
 4. Match the time expression to the tense. (MATCH)
 A: yesterday | last week | in 2010 | when I was young
 B: just | already | ever | since Monday
-PAIRS: 1-B4, 2-B3, 3-B2, 4-B1`;
+PAIRS: 1-D, 2-C, 3-B, 4-A`;
 
 export function AdminQuizBuilder() {
   const router = useRouter();
@@ -43,6 +43,23 @@ export function AdminQuizBuilder() {
     setParsed((current) => {
       if (!current) return current;
       const questions = current.questions.map((question, questionIndex) => (questionIndex === index ? { ...question, ...patch } : question));
+      return { ...current, questions };
+    });
+  }
+
+  function updateFillBlankCount(index: number, blankCount: number) {
+    setParsed((current) => {
+      if (!current) return current;
+      const questions = current.questions.map((question, questionIndex) => {
+        if (questionIndex !== index) return question;
+        const answers = Array.isArray(question.correctAnswer) ? question.correctAnswer.map(String) : [String(question.correctAnswer ?? "")].filter(Boolean);
+        const nextAnswers = Array.from({ length: blankCount }, (_, answerIndex) => answers[answerIndex] ?? "");
+        return {
+          ...question,
+          options: { ...(typeof question.options === "object" && !Array.isArray(question.options) ? question.options : {}), blank_count: blankCount },
+          correctAnswer: nextAnswers
+        };
+      });
       return { ...current, questions };
     });
   }
@@ -88,7 +105,7 @@ export function AdminQuizBuilder() {
           <div className="mt-4 overflow-x-auto">
             <table className="w-full min-w-[860px] text-left text-sm">
               <thead className="bg-slate-50 text-xs uppercase text-black/50">
-                <tr><th className="p-2">#</th><th className="p-2">Type</th><th className="p-2">Question</th><th className="p-2">Options</th><th className="p-2">Answer</th><th className="p-2">Status</th></tr>
+                <tr><th className="p-2">#</th><th className="p-2">Type</th><th className="p-2">Question</th><th className="p-2">Description</th><th className="p-2">Options</th><th className="p-2">Answer</th><th className="p-2">Status</th></tr>
               </thead>
               <tbody>
                 {parsed.questions.map((question, index) => (
@@ -98,9 +115,36 @@ export function AdminQuizBuilder() {
                     <td className="p-2">
                       <input value={question.questionText} onChange={(event) => updateQuestion(index, { questionText: event.target.value, needsReview: false })} className="w-full rounded border border-black/15 px-2 py-1" />
                     </td>
-                    <td className="p-2 text-xs text-black/60">{summarise(question.options)}</td>
                     <td className="p-2">
-                      <input value={summarise(question.correctAnswer)} onChange={(event) => updateQuestion(index, { correctAnswer: event.target.value, needsReview: false })} className="w-full rounded border border-black/15 px-2 py-1" />
+                      <textarea
+                        value={question.description ?? ""}
+                        onChange={(event) => updateQuestion(index, { description: event.target.value })}
+                        rows={2}
+                        className="w-full rounded border border-black/15 px-2 py-1 text-xs"
+                        placeholder="Optional context"
+                      />
+                    </td>
+                    <td className="p-2 text-xs text-black/60">
+                      {question.questionType === "FILL" ? (
+                        <label className="grid gap-1">
+                          <span>Number of answer fields</span>
+                          <input
+                            type="number"
+                            min={1}
+                            max={8}
+                            value={blankCount(question.options)}
+                            onChange={(event) => updateFillBlankCount(index, Math.max(1, Number(event.target.value) || 1))}
+                            className="w-24 rounded border border-black/15 px-2 py-1"
+                          />
+                        </label>
+                      ) : summarise(question.options)}
+                    </td>
+                    <td className="p-2">
+                      <input
+                        value={answerInputValue(question)}
+                        onChange={(event) => updateQuestion(index, { correctAnswer: parseAnswerInput(question.questionType, event.target.value), needsReview: false })}
+                        className="w-full rounded border border-black/15 px-2 py-1"
+                      />
                     </td>
                     <td className="p-2 text-xs">{question.needsReview ? question.reviewNote ?? "Needs review" : "OK"}</td>
                   </tr>
@@ -119,4 +163,29 @@ function summarise(value: unknown) {
   if (typeof value === "string") return value;
   if (typeof value === "boolean") return value ? "TRUE" : "FALSE";
   return JSON.stringify(value);
+}
+
+function blankCount(options: unknown) {
+  return Number(options && typeof options === "object" && !Array.isArray(options) && "blank_count" in options ? (options as { blank_count?: unknown }).blank_count : 1) || 1;
+}
+
+function answerInputValue(question: ParsedQuizQuestion) {
+  if (question.questionType === "FILL" && Array.isArray(question.correctAnswer)) return question.correctAnswer.join(", ");
+  if (question.questionType === "MATCHING" && Array.isArray(question.correctAnswer)) {
+    return (question.correctAnswer as Array<{ a: number; b: string }>).map((pair) => `${pair.a}-${pair.b}`).join(", ");
+  }
+  return summarise(question.correctAnswer);
+}
+
+function parseAnswerInput(type: ParsedQuizQuestion["questionType"], value: string) {
+  if (type === "TRUE_FALSE") return /^true$/i.test(value.trim());
+  if (type === "FILL") return value.split(",").map((item) => item.trim()).filter(Boolean);
+  if (type === "MATCHING") {
+    return value
+      .split(",")
+      .map((pair) => pair.trim().match(/^(\d+)\s*-\s*([A-Z])$/i))
+      .filter(Boolean)
+      .map((match) => ({ a: Number(match![1]), b: match![2].toUpperCase() }));
+  }
+  return value.trim().toUpperCase();
 }

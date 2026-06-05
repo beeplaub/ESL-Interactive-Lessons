@@ -1,9 +1,11 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { ArrowRight, BadgeCheck, BookOpen, CheckCircle2, ClipboardList, Clock3, Heart, LogOut, Sparkles, Trophy, UserRound } from "lucide-react";
-import { signOut } from "@/app/auth/actions";
+import { signOut, switchToAdminView } from "@/app/auth/actions";
 import { requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { CarouselItem, HorizontalCarousel } from "@/components/HorizontalCarousel";
 import type { Json } from "@/types/database.types";
 
 function asRecord(value: Json | null | undefined): Record<string, unknown> {
@@ -57,6 +59,8 @@ function collectLearnedItems(activities: Array<{ activity_type: string; prompt: 
 
 export default async function AccountPage() {
   const { user, profile } = await requireUser();
+  const cookieStore = await cookies();
+  const isAdminLearnerView = profile?.role === "ADMIN" && cookieStore.get("view_mode")?.value === "learner";
   const supabase = await createClient();
   const adminSupabase = createAdminClient();
 
@@ -97,14 +101,23 @@ export default async function AccountPage() {
     .filter((item) => item.completed && lessonMap.has(item.lesson_id))
     .map((item) => ({ progress: item, lesson: lessonMap.get(item.lesson_id)! }));
   const learnedItems = collectLearnedItems(completedActivities ?? []);
+  const firstName = profile?.first_name?.trim();
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
+      {isAdminLearnerView ? (
+        <form action={switchToAdminView} className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span className="font-medium">You are viewing as a Learner</span>
+            <button className="rounded-md bg-amber-900 px-3 py-2 text-xs font-semibold text-white">Switch to Admin</button>
+          </div>
+        </form>
+      ) : null}
       <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-sm font-semibold uppercase tracking-wide text-moss">My account</p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight">Welcome back{profile?.full_name ? `, ${profile.full_name}` : ""}</h1>
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight">Welcome back{firstName ? `, ${firstName}!` : "!"}</h1>
             <p className="mt-2 text-sm text-slate-600">{user.email}</p>
             <div className="mt-4 flex flex-wrap items-center gap-3">
               <span className="inline-flex items-center gap-2 rounded-md bg-skywash px-3 py-2 text-sm font-semibold text-ink">
@@ -138,37 +151,37 @@ export default async function AccountPage() {
       <section className="mt-6 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
         <div className="space-y-6">
           <Panel title="Current lessons" icon={Clock3}>
-            {currentLessons.length ? (
-              <div className="grid gap-3">
-                {currentLessons.map(({ lesson, progress: saved }) => {
+            <HorizontalCarousel empty={<EmptyState text="No current lessons yet. Start one from the lessons page." href="/lessons" label="Browse lessons" />}>
+              {currentLessons.length ? (
+                currentLessons.map(({ lesson, progress: saved }) => {
                   const totalSlides = slideCounts.get(lesson.id) ?? 0;
                   const percent = totalSlides ? Math.round((Math.min(saved.current_slide_number, totalSlides) / totalSlides) * 100) : 0;
                   return (
-                    <LessonRow key={lesson.id} title={lesson.title} meta={`${lesson.topic} · ${lesson.level}`} percent={percent} href={`/lessons/${lesson.id}`} action="Continue" />
+                    <CarouselItem key={lesson.id}>
+                      <LessonRow title={lesson.title} meta={`${lesson.topic} · ${lesson.level}`} percent={percent} href={`/lessons/${lesson.id}`} action="Continue" />
+                    </CarouselItem>
                   );
-                })}
-              </div>
-            ) : (
-              <EmptyState text="No current lessons yet. Start one from the lessons page." href="/lessons" label="Browse lessons" />
-            )}
+                })
+              ) : null}
+            </HorizontalCarousel>
           </Panel>
 
           <Panel title="Completed lessons" icon={CheckCircle2}>
-            {completedLessons.length ? (
-              <div className="grid gap-3">
-                {completedLessons.map(({ lesson }) => (
-                  <LessonRow key={lesson.id} title={lesson.title} meta={`${lesson.topic} · ${lesson.level}`} percent={100} href={`/lessons/${lesson.id}`} action="Review" />
-                ))}
-              </div>
-            ) : (
-              <EmptyState text="Completed lessons will appear here when you finish the final slide." href="/lessons" label="Start a lesson" />
-            )}
+            <HorizontalCarousel empty={<EmptyState text="Completed lessons will appear here when you finish the final slide." href="/lessons" label="Start a lesson" />}>
+              {completedLessons.length
+                ? completedLessons.map(({ lesson }) => (
+                    <CarouselItem key={lesson.id}>
+                      <LessonRow title={lesson.title} meta={`${lesson.topic} · ${lesson.level}`} percent={100} href={`/lessons/${lesson.id}`} action="Review" />
+                    </CarouselItem>
+                  ))
+                : null}
+            </HorizontalCarousel>
           </Panel>
 
           <Panel title="Completed quizzes" icon={ClipboardList}>
-            {quizAttempts?.length ? (
-              <div className="grid gap-3">
-                {quizAttempts.map((attempt) => {
+            <HorizontalCarousel empty={<p className="rounded-md bg-slate-50 p-4 text-sm text-slate-600">No quizzes completed yet.</p>}>
+              {quizAttempts?.length ? (
+                quizAttempts.map((attempt) => {
                   const quiz = attempt.quizzes as { title?: string; level?: string } | null;
                   const lessonActivity = attempt.lesson_slide_activities as
                     | { slide_number?: number; activity_type?: string; lessons?: { title?: string; level?: string } | null }
@@ -176,22 +189,22 @@ export default async function AccountPage() {
                   const title = quiz?.title ?? `${lessonActivity?.lessons?.title ?? "Lesson"} · Slide ${lessonActivity?.slide_number ?? ""}`;
                   const level = quiz?.level ?? lessonActivity?.lessons?.level ?? "";
                   return (
-                    <div key={attempt.id} className="rounded-md border border-slate-200 p-4">
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                          <h3 className="font-medium">{title}</h3>
-                          <p className="mt-1 text-sm text-slate-600">{new Date(attempt.completed_at).toLocaleDateString()}</p>
+                    <CarouselItem key={attempt.id}>
+                      <div className="rounded-md border border-slate-200 p-4">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <h3 className="font-medium">{title}</h3>
+                            <p className="mt-1 text-sm text-slate-600">{new Date(attempt.completed_at).toLocaleDateString()}</p>
+                          </div>
+                          <span className="rounded-full bg-skywash px-2 py-1 text-xs font-medium text-ink">{level}</span>
                         </div>
-                        <span className="rounded-full bg-skywash px-2 py-1 text-xs font-medium text-ink">{level}</span>
+                        <p className="mt-3 text-sm font-semibold">{attempt.score}/{attempt.total}</p>
                       </div>
-                      <p className="mt-3 text-sm font-semibold">{attempt.score}/{attempt.total}</p>
-                    </div>
+                    </CarouselItem>
                   );
-                })}
-              </div>
-            ) : (
-              <p className="rounded-md bg-slate-50 p-4 text-sm text-slate-600">No quizzes completed yet.</p>
-            )}
+                })
+              ) : null}
+            </HorizontalCarousel>
           </Panel>
         </div>
 

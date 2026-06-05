@@ -4,7 +4,8 @@ export type ParsedQuizQuestion = {
   questionNumber: number;
   questionType: QuizQuestionType;
   questionText: string;
-  options: Record<string, string> | { a_items: string[]; b_items: string[] } | null;
+  description?: string;
+  options: Record<string, string | number> | { a_items: string[]; b_items: string[] } | null;
   correctAnswer: string | boolean | string[] | Array<{ a: number; b: string }>;
   needsReview: boolean;
   reviewNote?: string;
@@ -86,10 +87,11 @@ function parseQuestionBlock(block: string): ParsedQuizQuestion {
   }
 
   if (questionType === "FILL") {
+    const answers = (answer ?? "").split(",").map((item) => item.trim()).filter(Boolean);
     return {
       ...base,
-      options: null,
-      correctAnswer: (answer ?? "").split(",").map((item) => item.trim()).filter(Boolean),
+      options: { blank_count: Math.max(1, answers.length) },
+      correctAnswer: answers,
       needsReview: !(answer ?? "").trim(),
       reviewNote: !(answer ?? "").trim() ? "Missing fill answer." : undefined
     };
@@ -102,9 +104,9 @@ function parseQuestionBlock(block: string): ParsedQuizQuestion {
   const bItems = splitItems(bLine);
   const pairs = (pairsLine?.replace(/^PAIRS\s*:\s*/i, "") ?? "")
     .split(",")
-    .map((pair) => pair.trim().match(/^(\d+)\s*-\s*(B?\d+)$/i))
+    .map((pair) => pair.trim().match(/^(\d+)\s*-\s*(B?\d+|[A-Z])$/i))
     .filter(Boolean)
-    .map((match) => ({ a: Number(match![1]), b: match![2].toUpperCase().startsWith("B") ? match![2].toUpperCase() : `B${match![2]}` }));
+    .map((match) => ({ a: Number(match![1]), b: normalizeMatchingLabel(match![2]) }));
 
   return {
     ...base,
@@ -113,6 +115,14 @@ function parseQuestionBlock(block: string): ParsedQuizQuestion {
     needsReview: !aItems.length || !bItems.length || !pairs.length,
     reviewNote: !pairs.length ? "Could not read matching PAIRS." : undefined
   };
+}
+
+function normalizeMatchingLabel(label: string) {
+  const value = label.trim().toUpperCase();
+  const oldStyle = value.match(/^B(\d+)$/);
+  if (oldStyle) return String.fromCharCode(64 + Number(oldStyle[1]));
+  if (/^\d+$/.test(value)) return String.fromCharCode(64 + Number(value));
+  return value;
 }
 
 function parseMcqOptions(lines: string[]) {

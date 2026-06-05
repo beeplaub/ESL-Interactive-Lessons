@@ -10,6 +10,7 @@ export type QuizQuestion = {
   question_number: number;
   question_type: "MCQ" | "TRUE_FALSE" | "FILL" | "MATCHING";
   question_text: string;
+  description?: string | null;
   options: Json | null;
   correct_answer: Json;
 };
@@ -95,10 +96,11 @@ export function QuestionCard({ question, value, submitted, onChange }: { questio
       <legend className="px-1 font-semibold">
         {question.question_number}. {question.question_text}
       </legend>
+      {question.description ? <p className="mt-2 text-sm leading-6 text-black/55">{question.description}</p> : null}
       <div className="mt-4">
         {question.question_type === "MCQ" ? <Mcq question={question} value={value as string | undefined} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "TRUE_FALSE" ? <TrueFalse value={value as boolean | undefined} disabled={submitted} onChange={onChange} /> : null}
-        {question.question_type === "FILL" ? <Fill value={value as string | undefined} disabled={submitted} onChange={onChange} /> : null}
+        {question.question_type === "FILL" ? <Fill question={question} value={value as string[] | undefined} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "MATCHING" ? <Matching question={question} value={(value as Record<string, string>) ?? {}} disabled={submitted} onChange={onChange} /> : null}
       </div>
       {submitted && wrong ? <p className="mt-3 rounded-md bg-coral/10 p-3 text-sm text-coral">Correct answer: {answerText(question)}</p> : null}
@@ -132,8 +134,28 @@ function TrueFalse({ value, disabled, onChange }: { value?: boolean; disabled: b
   );
 }
 
-function Fill({ value, disabled, onChange }: { value?: string; disabled: boolean; onChange: (value: string) => void }) {
-  return <input disabled={disabled} value={value ?? ""} onChange={(event) => onChange(event.target.value)} className="w-full rounded-md border border-black/15 px-3 py-2" placeholder="Type your answer" />;
+function Fill({ question, value, disabled, onChange }: { question: QuizQuestion; value?: string[]; disabled: boolean; onChange: (value: string[]) => void }) {
+  const options = asRecord(question.options);
+  const blankCount = Math.max(1, Number(options.blank_count ?? (Array.isArray(question.correct_answer) ? question.correct_answer.length : 1)) || 1);
+  const answers = Array.from({ length: blankCount }, (_, index) => value?.[index] ?? "");
+  return (
+    <div className="grid gap-2 sm:grid-cols-2">
+      {answers.map((answer, index) => (
+        <input
+          key={index}
+          disabled={disabled}
+          value={answer}
+          onChange={(event) => {
+            const next = [...answers];
+            next[index] = event.target.value;
+            onChange(next);
+          }}
+          className="w-full rounded-md border border-black/15 px-3 py-2"
+          placeholder={`Answer ${index + 1}`}
+        />
+      ))}
+    </div>
+  );
 }
 
 function Matching({ question, value, disabled, onChange }: { question: QuizQuestion; value: Record<string, string>; disabled: boolean; onChange: (value: Record<string, string>) => void }) {
@@ -146,13 +168,16 @@ function Matching({ question, value, disabled, onChange }: { question: QuizQuest
             <span>{index + 1}. {item}</span>
             <select disabled={disabled} value={value[String(index + 1)] ?? ""} onChange={(event) => onChange({ ...value, [String(index + 1)]: event.target.value })} className="rounded-md border border-black/15 px-2 py-2">
               <option value="">-</option>
-              {(options.b_items ?? []).map((bItem, bIndex) => <option key={bItem} value={`B${bIndex + 1}`}>B{bIndex + 1}</option>)}
+              {(options.b_items ?? []).map((bItem, bIndex) => {
+                const label = letterLabel(bIndex);
+                return <option key={bItem} value={label}>{label}</option>;
+              })}
             </select>
           </label>
         ))}
       </div>
       <div className="space-y-2">
-        {(options.b_items ?? []).map((item, index) => <div key={item} className="rounded-md bg-skywash p-3 text-sm">B{index + 1}. {item}</div>)}
+        {(options.b_items ?? []).map((item, index) => <div key={item} className="rounded-md bg-skywash p-3 text-sm">{letterLabel(index)}. {item}</div>)}
       </div>
     </div>
   );
@@ -163,6 +188,12 @@ export function hasAnswer(question: QuizQuestion, value: unknown) {
     const options = asRecord(question.options) as { a_items?: string[] };
     return Object.keys((value as Record<string, string>) ?? {}).length === (options.a_items?.length ?? 0);
   }
+  if (question.question_type === "FILL") {
+    const options = asRecord(question.options);
+    const blankCount = Math.max(1, Number(options.blank_count ?? (Array.isArray(question.correct_answer) ? question.correct_answer.length : 1)) || 1);
+    const answers = Array.isArray(value) ? value : [];
+    return answers.length >= blankCount && answers.slice(0, blankCount).every((answer) => String(answer).trim() !== "");
+  }
   return value !== undefined && String(value).trim() !== "";
 }
 
@@ -171,17 +202,31 @@ export function isCorrect(question: QuizQuestion, value: unknown) {
   if (question.question_type === "TRUE_FALSE") return value === question.correct_answer;
   if (question.question_type === "FILL") {
     const accepted = Array.isArray(question.correct_answer) ? question.correct_answer : [question.correct_answer];
-    const parts = String(value ?? "").split(",").map((item) => normalize(item));
-    return accepted.every((answer) => parts.includes(normalize(answer)));
+    const parts = Array.isArray(value) ? value.map((item) => normalize(item)) : String(value ?? "").split(",").map((item) => normalize(item));
+    return accepted.every((answer, index) => normalize(answer) === parts[index]);
   }
   const correct = Array.isArray(question.correct_answer) ? (question.correct_answer as Array<{ a: number; b: string }>) : [];
   const selected = (value as Record<string, string>) ?? {};
-  return correct.every((pair) => selected[String(pair.a)] === pair.b);
+  return correct.every((pair) => normalizeMatchingLabel(selected[String(pair.a)]) === normalizeMatchingLabel(pair.b));
 }
 
 function answerText(question: QuizQuestion) {
   if (question.question_type === "TRUE_FALSE") return question.correct_answer ? "TRUE" : "FALSE";
   if (question.question_type === "FILL") return Array.isArray(question.correct_answer) ? question.correct_answer.join(", ") : String(question.correct_answer);
-  if (question.question_type === "MATCHING") return JSON.stringify(question.correct_answer);
+  if (question.question_type === "MATCHING") {
+    const correct = Array.isArray(question.correct_answer) ? (question.correct_answer as Array<{ a: number; b: string }>) : [];
+    return correct.map((pair) => `${pair.a} -> ${normalizeMatchingLabel(pair.b)}`).join(", ");
+  }
   return String(question.correct_answer);
+}
+
+function letterLabel(index: number) {
+  return String.fromCharCode(65 + index);
+}
+
+function normalizeMatchingLabel(label: unknown) {
+  const value = String(label ?? "").trim().toUpperCase();
+  const oldStyle = value.match(/^B(\d+)$/);
+  if (oldStyle) return letterLabel(Number(oldStyle[1]) - 1);
+  return value;
 }

@@ -26,11 +26,11 @@ export default async function LessonsPage() {
   }
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-8">
-      <section className="mb-7 rounded-lg border border-black/10 bg-white p-6 shadow-sm">
-        <p className="text-sm font-semibold uppercase tracking-wide text-moss">Lessons</p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight">Choose a BrenUp lesson</h1>
-        <p className="mt-2 max-w-2xl text-black/60">
+    <main className="mx-auto max-w-6xl px-4 py-6">
+      <section className="mb-5 rounded-lg border border-black/10 bg-white px-5 py-4 shadow-sm">
+        <p className="text-xs font-semibold uppercase tracking-wide text-moss">Lessons</p>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight">Choose a BrenUp lesson</h1>
+        <p className="mt-1 max-w-4xl text-sm text-black/60">
           Browse published lessons. Sign in to start, save progress, complete lessons, and keep study notes.
         </p>
       </section>

@@ -154,28 +154,40 @@ function parseMatching(text: string) {
   const aItems: string[] = [];
   const bItems: string[] = [];
   let pairs: Array<{ a: number; b: string }> = [];
+  let bodyMode = false;
 
   for (const line of lines) {
+    if (/^body\s*:/i.test(line)) {
+      bodyMode = true;
+      continue;
+    }
+
     if (/^\d+[.)]\s+/.test(line)) {
       aItems.push(line.replace(/^\d+[.)]\s*/, "").trim());
     } else if (/^[A-Z][.)]\s+/i.test(line)) {
+      bodyMode = false;
       bItems.push(line.replace(/^[A-Z][.)]\s+/, "").trim());
     } else if (/^A\s*:/i.test(line)) {
+      bodyMode = false;
       aItems.push(...line.replace(/^A\s*:/i, "").split("|").map((item) => item.trim()).filter(Boolean));
     } else if (/^B\s*:/i.test(line)) {
+      bodyMode = false;
       bItems.push(...line.replace(/^B\s*:/i, "").split("|").map((item) => item.trim()).filter(Boolean));
     } else if (/^PAIRS\s*:/i.test(line)) {
+      bodyMode = false;
       pairs = line
         .replace(/^PAIRS\s*:/i, "")
         .split(",")
-        .map((pair) => pair.trim().match(/^(\d+)\s*-\s*([A-Z]?\d+|[A-Z])$/i))
+        .map((pair) => pair.trim().match(/^(\d+)\s*-\s*(B?\d+|[A-Z])$/i))
         .filter(Boolean)
-        .map((match) => ({ a: Number(match![1]), b: match![2].toUpperCase().startsWith("B") ? match![2].toUpperCase() : match![2].toUpperCase() }));
+        .map((match) => ({ a: Number(match![1]), b: normalizeMatchingLabel(match![2]) }));
+    } else if (bodyMode) {
+      aItems.push(line);
     }
   }
 
   if (pairs.length === 0 && aItems.length === bItems.length) {
-    pairs = aItems.map((_, index) => ({ a: index + 1, b: `B${index + 1}` }));
+    pairs = aItems.map((_, index) => ({ a: index + 1, b: String.fromCharCode(65 + index) }));
   }
 
   return {
@@ -191,6 +203,14 @@ function parseMatching(text: string) {
     ],
     needsReview: pairs.length === 0 || aItems.length === 0 || bItems.length === 0
   };
+}
+
+function normalizeMatchingLabel(label: string) {
+  const value = label.trim().toUpperCase();
+  const oldStyle = value.match(/^B(\d+)$/);
+  if (oldStyle) return String.fromCharCode(64 + Number(oldStyle[1]));
+  if (/^\d+$/.test(value)) return String.fromCharCode(64 + Number(value));
+  return value;
 }
 
 function extractActivityData(type: LessonSlideActivityType, text: string) {

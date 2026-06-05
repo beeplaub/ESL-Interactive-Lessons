@@ -10,6 +10,7 @@ const questionSchema = z.object({
   questionNumber: z.number(),
   questionType: z.enum(["MCQ", "TRUE_FALSE", "FILL", "MATCHING"]),
   questionText: z.string().min(1),
+  description: z.string().optional(),
   options: z.unknown().nullable(),
   correctAnswer: z.unknown()
 });
@@ -46,6 +47,7 @@ export async function saveQuiz(payload: unknown) {
       question_number: question.questionNumber,
       question_type: question.questionType,
       question_text: question.questionText,
+      description: question.description || null,
       options: question.options as Json,
       correct_answer: question.correctAnswer as Json
     }))
@@ -85,4 +87,53 @@ export async function deleteQuiz(quizId: string) {
   await admin.from("quizzes").delete().eq("id", quizId);
   revalidatePath("/admin/quizzes");
   revalidatePath("/quizzes");
+}
+
+export async function updateQuizQuestion(formData: FormData) {
+  await requireAdmin();
+  const admin = createAdminClient();
+  const questionId = String(formData.get("questionId"));
+  const quizId = String(formData.get("quizId"));
+  const questionType = String(formData.get("questionType")) as "MCQ" | "TRUE_FALSE" | "FILL" | "MATCHING";
+  const questionText = String(formData.get("questionText") ?? "");
+  const description = String(formData.get("description") ?? "").trim() || null;
+  const correctAnswerRaw = String(formData.get("correctAnswer") ?? "");
+  let options: unknown = null;
+  let correctAnswer: unknown = correctAnswerRaw;
+
+  if (questionType === "FILL") {
+    const blankCount = Math.max(1, Number(formData.get("blankCount")) || 1);
+    options = { blank_count: blankCount };
+    correctAnswer = correctAnswerRaw.split(",").map((item) => item.trim()).filter(Boolean).slice(0, blankCount);
+    while ((correctAnswer as string[]).length < blankCount) (correctAnswer as string[]).push("");
+  } else if (questionType === "TRUE_FALSE") {
+    correctAnswer = /^true$/i.test(correctAnswerRaw.trim());
+  } else if (questionType === "MCQ") {
+    options = JSON.parse(String(formData.get("options") || "{}"));
+    correctAnswer = correctAnswerRaw.trim().toUpperCase();
+  } else if (questionType === "MATCHING") {
+    const aItems = String(formData.get("aItems") || "").split("\n").map((item) => item.trim()).filter(Boolean);
+    const bItems = String(formData.get("bItems") || "").split("\n").map((item) => item.trim()).filter(Boolean);
+    options = { a_items: aItems, b_items: bItems };
+    correctAnswer = correctAnswerRaw
+      .split(",")
+      .map((pair) => pair.trim().match(/^(\d+)\s*-\s*([A-Z])$/i))
+      .filter(Boolean)
+      .map((match) => ({ a: Number(match![1]), b: match![2].toUpperCase() }));
+  }
+
+  const { error } = await admin
+    .from("quiz_questions")
+    .update({
+      question_type: questionType,
+      question_text: questionText,
+      description,
+      options: options as Json,
+      correct_answer: correctAnswer as Json
+    })
+    .eq("id", questionId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/admin/quizzes/${quizId}/edit`);
+  revalidatePath(`/quizzes/${quizId}`);
 }

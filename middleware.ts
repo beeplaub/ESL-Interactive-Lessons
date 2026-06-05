@@ -59,8 +59,9 @@ export async function middleware(request: NextRequest) {
   }
 
   const role = user ? await readFreshRole(user.id) : null;
+  const viewMode = request.cookies.get("view_mode")?.value;
 
-  if (user && role === "ADMIN" && pathname.startsWith("/dashboard")) {
+  if (user && role === "ADMIN" && viewMode !== "learner" && (pathname.startsWith("/dashboard") || pathname.startsWith("/account"))) {
     const url = request.nextUrl.clone();
     url.pathname = "/admin";
     url.search = "";

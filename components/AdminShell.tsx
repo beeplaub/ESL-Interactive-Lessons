@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { BarChart3, BookOpen, ClipboardList, FlaskConical, LogOut, UsersRound } from "lucide-react";
-import { signOut } from "@/app/auth/actions";
+import { signOut, switchToLearnerView } from "@/app/auth/actions";
 
 const links = [
   { href: "/admin", label: "Overview", Icon: BarChart3 },
@@ -25,6 +25,11 @@ export function AdminShell({ name, children }: { name: string | null | undefined
             </Link>
           ))}
         </nav>
+        <form action={switchToLearnerView} className="mt-4">
+          <button className="inline-flex w-full items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900 hover:bg-amber-100">
+            Switch to Learner View
+          </button>
+        </form>
         <form action={signOut} className="mt-4 md:absolute md:bottom-3 md:left-3 md:right-3">
           <button className="inline-flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-black/60 hover:bg-black/5">
             <LogOut size={16} /> Sign out

@@ -411,8 +411,30 @@ export async function updateInLessonActivity(formData: FormData) {
   const id = String(formData.get("activityId"));
   const lessonId = String(formData.get("lessonId"));
   const activityType = String(formData.get("activityType"));
-  const rawActivityData = String(formData.get("activityData") || "null");
-  const activityData = JSON.parse(rawActivityData) as Json;
+  let activityData = JSON.parse(String(formData.get("activityData") || "null")) as Json;
+  if (activityType === "MATCHING" && formData.has("aItems")) {
+    const prompt = String(formData.get("prompt") || "Match the items.");
+    const aItems = String(formData.get("aItems") || "").split("\n").map((item) => item.trim()).filter(Boolean);
+    const bItems = String(formData.get("bItems") || "").split("\n").map((item) => item.trim()).filter(Boolean);
+    const correctAnswer = String(formData.get("pairs") || "")
+      .split(",")
+      .map((pair) => pair.trim().match(/^(\d+)\s*-\s*([A-Z])$/i))
+      .filter(Boolean)
+      .map((match) => ({ a: Number(match![1]), b: match![2].toUpperCase() }));
+    activityData = {
+      prompt,
+      questions: [
+        {
+          id: "1",
+          question_number: 1,
+          question_type: "MATCHING",
+          question_text: prompt,
+          options: { a_items: aItems, b_items: bItems },
+          correct_answer: correctAnswer
+        }
+      ]
+    } as Json;
+  }
   const needsReview = formData.get("needsReview") === "on";
 
   const { error } = await supabase
