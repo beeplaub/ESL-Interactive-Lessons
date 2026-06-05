@@ -195,6 +195,7 @@ export function LessonPlayer({ lesson, slides, audioFiles, pdfUrl, initialProgre
   const [isNotesOpen, setIsNotesOpen] = useState(false);
   const [noteStatus, setNoteStatus] = useState<"idle" | "saving" | "saved" | "failed">("idle");
   const [actionStatus, setActionStatus] = useState<"idle" | "saving" | "failed">("idle");
+  const [saveError, setSaveError] = useState<string | null>(null);
   const slide = slides[index];
   const total = slides.length;
   const currentSlideNumber = slide?.slide_number ?? 1;
@@ -223,8 +224,10 @@ export function LessonPlayer({ lesson, slides, audioFiles, pdfUrl, initialProgre
     setIndex(nextIndex);
     try {
       await saveProgress(nextIndex);
+      setSaveError(null);
     } catch {
       setIndex(previousIndex);
+      setSaveError("Could not save your lesson progress. Please try again.");
     }
   }
 
@@ -236,8 +239,10 @@ export function LessonPlayer({ lesson, slides, audioFiles, pdfUrl, initialProgre
       await saveLessonProgress(lesson.id, payload);
       setHasStarted(true);
       setNoteStatus("saved");
-    } catch {
+      setSaveError(null);
+    } catch (error) {
       setNoteStatus("failed");
+      setSaveError(error instanceof Error ? error.message : "Could not save notes.");
     }
   }
 
@@ -250,8 +255,10 @@ export function LessonPlayer({ lesson, slides, audioFiles, pdfUrl, initialProgre
       setHasStarted(true);
       setIsCompleted(false);
       setActionStatus("idle");
-    } catch {
+      setSaveError(null);
+    } catch (error) {
       setActionStatus("failed");
+      setSaveError(error instanceof Error ? error.message : "Could not start this lesson.");
     }
   }
 
@@ -264,8 +271,10 @@ export function LessonPlayer({ lesson, slides, audioFiles, pdfUrl, initialProgre
       setHasStarted(true);
       setIsCompleted(true);
       setActionStatus("idle");
-    } catch {
+      setSaveError(null);
+    } catch (error) {
       setActionStatus("failed");
+      setSaveError(error instanceof Error ? error.message : "Could not complete this lesson.");
     }
   }
 
@@ -280,8 +289,10 @@ export function LessonPlayer({ lesson, slides, audioFiles, pdfUrl, initialProgre
       setIsCompleted(false);
       setIndex(firstIndex);
       setActionStatus("idle");
-    } catch {
+      setSaveError(null);
+    } catch (error) {
       setActionStatus("failed");
+      setSaveError(error instanceof Error ? error.message : "Could not retake this lesson.");
     }
   }
 
@@ -367,7 +378,7 @@ export function LessonPlayer({ lesson, slides, audioFiles, pdfUrl, initialProgre
           </button>
         )}
       </div>
-      {actionStatus === "failed" ? <p className="mt-3 text-center text-sm text-coral">Could not save your lesson progress. Please try again.</p> : null}
+      {saveError ? <p className="mt-3 text-center text-sm text-coral">{saveError}</p> : null}
     </main>
   );
 }

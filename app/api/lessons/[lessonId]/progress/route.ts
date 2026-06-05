@@ -10,6 +10,35 @@ type ProgressBody = {
   notes?: string;
 };
 
+type SavePayload = {
+  user_id: string;
+  lesson_id: string;
+  current_slide_number: number;
+  completed: boolean;
+  notes: string;
+};
+
+function missingColumnHint(message: string) {
+  if (message.includes("notes")) return "The notes column is missing. Run the lesson_progress SQL patch in Supabase.";
+  if (message.includes("current_slide_number")) return "The current_slide_number column is missing. Run the lesson_progress SQL patch in Supabase.";
+  if (message.includes("completed")) return "The completed column is missing. Run the lesson_progress SQL patch in Supabase.";
+  return message;
+}
+
+async function saveProgress(admin: ReturnType<typeof createAdminClient>, existing: { user_id?: string } | null, payload: SavePayload) {
+  if (existing) {
+    return admin
+      .from("lesson_progress")
+      .update(payload)
+      .eq("user_id", payload.user_id)
+      .eq("lesson_id", payload.lesson_id)
+      .select("*")
+      .maybeSingle();
+  }
+
+  return admin.from("lesson_progress").insert(payload).select("*").single();
+}
+
 export async function POST(request: Request, { params }: { params: Promise<{ lessonId: string }> }) {
   const { lessonId } = await params;
   const body = (await request.json().catch(() => ({}))) as ProgressBody;
@@ -43,12 +72,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ les
     notes: body.notes ?? existing?.notes ?? ""
   };
 
-  const result = existing
-    ? await admin.from("lesson_progress").update(payload).eq("id", existing.id).select("*").single()
-    : await admin.from("lesson_progress").insert(payload).select("*").single();
+  const result = await saveProgress(admin, existing, payload);
 
   if (result.error) {
-    return NextResponse.json({ error: result.error.message }, { status: 500 });
+    return NextResponse.json({ error: missingColumnHint(result.error.message), details: result.error }, { status: 500 });
   }
 
   return NextResponse.json({ progress: result.data });
