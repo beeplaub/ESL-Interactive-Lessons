@@ -216,6 +216,9 @@ function ActivityPanel({
     });
   }
 
+  // INFO slides need no editing — show nothing
+  if (activity.activity_type === "INFO") return null;
+
   return (
     <details className="rounded-md border border-black/10 p-4">
       <summary className="cursor-pointer list-none">
