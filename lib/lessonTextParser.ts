@@ -333,24 +333,33 @@ export function parseLessonSlideActivities(fullText: string): ParsedLessonSlideA
     const rawText = fullText.slice(start, end).trim();
     if (!slideNumber || !rawText) continue;
 
-    const activityType = classifySlide(rawText);
-    const extracted = extractActivityData(activityType, rawText);
-    const questions = extracted.questions;
-    const prompt = firstPrompt(rawText);
-    const activityData =
-      questions.length > 0
-        ? activityJsonFor(activityType, prompt, questions)
-        : activityType === "INFO"
-          ? null
-          : activityJsonFor(activityType, prompt, []);
+    const detectedType = classifySlide(rawText);
+const extracted = extractActivityData(detectedType, rawText);
+const questions = extracted.questions;
+const prompt = firstPrompt(rawText);
 
-    slides.push({
-      slideNumber,
-      activityType,
-      activityData,
-      needsReview: extracted.needsReview || (activityType !== "INFO" && questions.length === 0),
-      rawText
-    });
+// If a non-interactive type produced no questions, treat it as INFO
+// This permanently prevents empty DISCUSSION/LISTENING/WRITING records
+const INTERACTIVE_TYPES = ["MCQ", "TRUE_FALSE", "GAP_FILL", "MATCHING"];
+const activityType: LessonSlideActivityType =
+  !INTERACTIVE_TYPES.includes(detectedType) && questions.length === 0
+    ? "INFO"
+    : detectedType;
+
+const activityData =
+  questions.length > 0
+    ? activityJsonFor(activityType, prompt, questions)
+    : activityType === "INFO"
+      ? null
+      : activityJsonFor(activityType, prompt, []);
+
+slides.push({
+  slideNumber,
+  activityType,
+  activityData,
+  needsReview: extracted.needsReview || (INTERACTIVE_TYPES.includes(activityType) && questions.length === 0),
+  rawText
+});
   }
 
   return slides;
