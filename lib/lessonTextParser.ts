@@ -29,6 +29,7 @@ export type ParsedLessonSlideActivity = {
 
 function linesOf(text: string) {
   return text
+    .replace(/\*/g, "")
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean);
@@ -37,7 +38,7 @@ function linesOf(text: string) {
 function classifySlide(text: string): LessonSlideActivityType {
   const lower = text.toLowerCase();
   if (/true\s+or\s+false|t\s*\/\s*f|write\s+t\s+or\s+f/i.test(text)) return "TRUE_FALSE";
-  if (/\n\s*A\)/.test(text) && /\n\s*B\)/.test(text)) return "MCQ";
+  if (/\n\s*A[\).]/.test(text) && /\n\s*B[\).]/.test(text)) return "MCQ";
   if (/___|\(___\)|complete the sentences?|fill in|correct form/i.test(text)) return "GAP_FILL";
   if (/\bmatch\b|column\s+a|column\s+b|match the halves/i.test(text)) return "MATCHING";
   if (/listen|before listening|after listening/i.test(text)) return "LISTENING";
@@ -49,6 +50,10 @@ function classifySlide(text: string): LessonSlideActivityType {
 function firstPrompt(text: string) {
   const firstLine = linesOf(text)[0] ?? "Activity";
   return firstLine.replace(/\s*\((MCQ|T\/F|FILL|MATCH)\)\s*$/i, "").trim();
+}
+
+function cleanText(text: string) {
+  return text.replace(/\*/g, "").trim();
 }
 
 function parseMcq(text: string) {
@@ -71,18 +76,18 @@ function parseMcq(text: string) {
   }
 
   for (const line of slideLines) {
-    if (/^answer\s*:/i.test(line)) continue;
+    if (isAnswerLine(line)) continue;
     const questionMatch = line.match(/^(\d+)[.)]\s+(.+)$/);
-    const optionMatch = line.match(/^([A-D])\)\s*(.+)$/i);
+    const optionMatch = line.match(/^([A-D])[\).]\s*(.+)$/i);
     if (questionMatch) {
       pushCurrent();
       current = {
         number: Number(questionMatch[1]),
-        text: questionMatch[2].replace(/\s*\(MCQ\)\s*$/i, "").trim(),
+        text: cleanText(questionMatch[2].replace(/\s*\(MCQ\)\s*$/i, "")),
         options: {}
       };
     } else if (optionMatch && current) {
-      current.options[optionMatch[1].toUpperCase()] = optionMatch[2].trim();
+      current.options[optionMatch[1].toUpperCase()] = cleanText(optionMatch[2]);
     }
   }
   pushCurrent();
@@ -100,7 +105,7 @@ function parseTrueFalse(text: string) {
   const answerMap = parseBooleanAnswerList(answerLineValue(slideLines));
 
   for (const line of slideLines) {
-    if (/^answer\s*:/i.test(line)) continue;
+    if (isAnswerLine(line)) continue;
     if (!/^\d+[.)]\s+/.test(line)) continue;
     const number = Number(line.match(/^(\d+)/)?.[1] ?? questions.length + 1);
     const answerMatch = line.match(/\b(TRUE|FALSE|T|F)\b\s*$/i);
@@ -114,7 +119,7 @@ function parseTrueFalse(text: string) {
       id: String(number),
       question_number: number,
       question_type: "TRUE_FALSE",
-      question_text: line.replace(/^\d+[.)]\s*/, "").replace(/\b(TRUE|FALSE|T|F)\b\s*$/i, "").trim(),
+      question_text: cleanText(line.replace(/^\d+[.)]\s*/, "").replace(/\b(TRUE|FALSE|T|F)\b\s*$/i, "")),
       options: null,
       correct_answer: answer as Json
     });
@@ -130,7 +135,7 @@ function parseGapFill(text: string) {
   const answerMap = parseGapAnswerList(answerLineValue(slideLines));
 
   for (const line of slideLines) {
-    if (/^answer\s*:/i.test(line)) continue;
+    if (isAnswerLine(line)) continue;
     if (!/^\d+[.)]\s+/.test(line)) continue;
     const number = Number(line.match(/^(\d+)/)?.[1] ?? questions.length + 1);
     const bracketHint = line.match(/\(([^()]+)\)\s*$/)?.[1]?.trim();
@@ -140,11 +145,10 @@ function parseGapFill(text: string) {
       id: String(number),
       question_number: number,
       question_type: "FILL",
-      question_text: line
+      question_text: cleanText(line
         .replace(/^\d+[.)]\s*/, "")
         .replace(/ANSWER\s*:\s*.+$/i, "")
-        .replace(/\(([^()]+)\)\s*$/, bracketHint ? `(${bracketHint})` : "")
-        .trim(),
+        .replace(/\(([^()]+)\)\s*$/, "___")),
       options: ({ blank_count: 1, ...(bracketHint ? { hint: bracketHint } : {}) } as Json),
       correct_answer: answer as Json
     });
@@ -166,16 +170,16 @@ function parseMatching(text: string) {
     }
 
     if (/^\d+[.)]\s+/.test(line)) {
-      aItems.push(line.replace(/^\d+[.)]\s*/, "").trim());
+      aItems.push(cleanText(line.replace(/^\d+[.)]\s*/, "")));
     } else if (/^[A-Z][.)]\s+/i.test(line)) {
       bodyMode = false;
-      bItems.push(line.replace(/^[A-Z][.)]\s+/, "").trim());
+      bItems.push(cleanText(line.replace(/^[A-Z][.)]\s+/, "")));
     } else if (/^A\s*:/i.test(line)) {
       bodyMode = false;
-      aItems.push(...line.replace(/^A\s*:/i, "").split("|").map((item) => item.trim()).filter(Boolean));
+      aItems.push(...line.replace(/^A\s*:/i, "").split("|").map((item) => cleanText(item)).filter(Boolean));
     } else if (/^B\s*:/i.test(line)) {
       bodyMode = false;
-      bItems.push(...line.replace(/^B\s*:/i, "").split("|").map((item) => item.trim()).filter(Boolean));
+      bItems.push(...line.replace(/^B\s*:/i, "").split("|").map((item) => cleanText(item)).filter(Boolean));
     } else if (/^PAIRS\s*:/i.test(line)) {
       bodyMode = false;
       pairs = line
@@ -185,7 +189,7 @@ function parseMatching(text: string) {
         .filter(Boolean)
         .map((match) => ({ a: Number(match![1]), b: normalizeMatchingLabel(match![2]) }));
     } else if (bodyMode) {
-      aItems.push(line);
+      aItems.push(cleanText(line));
     }
   }
 
@@ -209,7 +213,12 @@ function parseMatching(text: string) {
 }
 
 function answerLineValue(lines: string[]) {
-  return lines.find((line) => /^answer\s*:/i.test(line))?.replace(/^answer\s*:\s*/i, "").trim() ?? "";
+  const line = lines.find((item) => isAnswerLine(item));
+  return line?.replace(/^.*answers?\s*\d*\s*:\s*/i, "").trim() ?? "";
+}
+
+function isAnswerLine(line: string) {
+  return /(^|\s)(answers?|vocabulary answers?|grammar answers?|idioms answers?)\s*\d*\s*:/i.test(line);
 }
 
 function parseStringAnswerList(raw: string) {
@@ -220,8 +229,8 @@ function parseStringAnswerList(raw: string) {
     .filter(Boolean)
     .forEach((item, index) => {
       const pair = item.match(/^(\d+)\s*[-:]\s*(.+)$/);
-      if (pair) map.set(Number(pair[1]), pair[2].trim().toUpperCase());
-      else map.set(index + 1, item.trim().toUpperCase());
+      if (pair) map.set(Number(pair[1]), cleanText(pair[2]).toUpperCase());
+      else map.set(index + 1, cleanText(item).toUpperCase());
     });
   return map;
 }
@@ -234,8 +243,8 @@ function parseGapAnswerList(raw: string) {
     .filter(Boolean)
     .forEach((item, index) => {
       const pair = item.match(/^(\d+)\s*[-:]\s*(.+)$/);
-      if (pair) map.set(Number(pair[1]), pair[2].trim());
-      else map.set(index + 1, item);
+      if (pair) map.set(Number(pair[1]), cleanText(pair[2]));
+      else map.set(index + 1, cleanText(item));
     });
   return map;
 }
@@ -249,7 +258,7 @@ function parseBooleanAnswerList(raw: string) {
     .forEach((item, index) => {
       const pair = item.match(/^(\d+)\s*[-:]\s*(.+)$/);
       const key = pair ? Number(pair[1]) : index + 1;
-      const value = (pair ? pair[2] : item).trim().toUpperCase();
+      const value = cleanText(pair ? pair[2] : item).toUpperCase();
       if (["T", "TRUE"].includes(value)) map.set(key, true);
       if (["F", "FALSE"].includes(value)) map.set(key, false);
     });
@@ -276,6 +285,39 @@ function extractActivityData(type: LessonSlideActivityType, text: string) {
   return { questions: [], needsReview: false };
 }
 
+function activityJsonFor(type: LessonSlideActivityType, prompt: string, questions: LessonSlideQuestion[]) {
+  if (type === "MCQ") {
+    return {
+      prompt,
+      questions: questions.map((question) => ({
+        id: Number(question.id),
+        text: question.question_text,
+        options: question.options,
+        answer: question.correct_answer
+      }))
+    } as Json;
+  }
+  if (type === "GAP_FILL") {
+    return {
+      prompt,
+      items: questions.map((question) => ({
+        sentence: question.question_text,
+        answer: question.correct_answer
+      }))
+    } as Json;
+  }
+  if (type === "TRUE_FALSE") {
+    return {
+      prompt,
+      items: questions.map((question) => ({
+        statement: question.question_text,
+        answer: question.correct_answer
+      }))
+    } as Json;
+  }
+  return { prompt, questions } as Json;
+}
+
 export function parseLessonSlideActivities(fullText: string): ParsedLessonSlideActivity[] {
   const markerRegex = /\[SLIDE\s+(\d+)\]/gi;
   const markers = Array.from(fullText.matchAll(markerRegex));
@@ -292,18 +334,19 @@ export function parseLessonSlideActivities(fullText: string): ParsedLessonSlideA
     const activityType = classifySlide(rawText);
     const extracted = extractActivityData(activityType, rawText);
     const questions = extracted.questions;
+    const prompt = firstPrompt(rawText);
     const activityData =
       questions.length > 0
-        ? ({ prompt: firstPrompt(rawText), questions } as Json)
+        ? activityJsonFor(activityType, prompt, questions)
         : activityType === "INFO"
           ? null
-          : ({ prompt: firstPrompt(rawText), questions: [] } as Json);
+          : activityJsonFor(activityType, prompt, []);
 
     slides.push({
       slideNumber,
       activityType,
       activityData,
-      needsReview: extracted.needsReview,
+      needsReview: extracted.needsReview || (activityType !== "INFO" && questions.length === 0),
       rawText
     });
   }

@@ -16,18 +16,67 @@ function asRecord(value: Json | null | undefined): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 }
 
-function questionsFromData(value: Json | null): QuizQuestion[] {
+function questionsFromData(value: Json | null, activityType: string): QuizQuestion[] {
   const data = asRecord(value);
+  if (activityType === "MCQ") {
+    const questions = Array.isArray(data.questions) ? data.questions : [];
+    return questions.map((item, index) => {
+      const question = asRecord(item as Json);
+      return {
+        id: String(question.id ?? index + 1),
+        question_number: Number(question.question_number ?? index + 1),
+        question_type: "MCQ",
+        question_text: String(question.question_text ?? question.text ?? ""),
+        options: asRecord(question.options as Json) as Json,
+        correct_answer: String(question.correct_answer ?? question.answer ?? "").toUpperCase() as Json
+      };
+    });
+  }
+
+  if (activityType === "GAP_FILL") {
+    const items = Array.isArray(data.items) ? data.items : Array.isArray(data.questions) ? data.questions : [];
+    return items.map((item, index) => {
+      const row = asRecord(item as Json);
+      const answer = row.correct_answer ?? row.answer ?? "";
+      const sentence = String(row.question_text ?? row.sentence ?? "");
+      const answers = Array.isArray(answer) ? answer.map(String) : [String(answer)];
+      return {
+        id: String(row.id ?? index + 1),
+        question_number: Number(row.question_number ?? index + 1),
+        question_type: "FILL",
+        question_text: sentence,
+        options: { blank_count: Math.max(1, sentence.match(/___/g)?.length ?? answers.length) } as Json,
+        correct_answer: answers as Json
+      };
+    });
+  }
+
+  if (activityType === "TRUE_FALSE") {
+    const items = Array.isArray(data.items) ? data.items : Array.isArray(data.questions) ? data.questions : [];
+    return items.map((item, index) => {
+      const row = asRecord(item as Json);
+      return {
+        id: String(row.id ?? index + 1),
+        question_number: Number(row.question_number ?? index + 1),
+        question_type: "TRUE_FALSE",
+        question_text: String(row.question_text ?? row.statement ?? ""),
+        options: null,
+        correct_answer: Boolean(row.correct_answer ?? row.answer) as Json
+      };
+    });
+  }
+
   const questions = Array.isArray(data.questions) ? data.questions : [];
-  return questions.filter((question): question is QuizQuestion => {
-    return Boolean(
-      question &&
-        typeof question === "object" &&
-        "id" in question &&
-        "question_number" in question &&
-        "question_type" in question &&
-        "question_text" in question
-    );
+  return questions.map((item, index) => {
+    const question = asRecord(item as Json);
+    return {
+      id: String(question.id ?? index + 1),
+      question_number: Number(question.question_number ?? index + 1),
+      question_type: String(question.question_type ?? "MATCHING") as QuizQuestion["question_type"],
+      question_text: String(question.question_text ?? question.text ?? ""),
+      options: (question.options ?? null) as Json,
+      correct_answer: (question.correct_answer ?? question.answer ?? null) as Json
+    };
   });
 }
 
@@ -46,7 +95,7 @@ export function LessonActivityPanel({
   activity: LessonSlideActivity;
   onNext: () => void;
 }) {
-  const questions = questionsFromData(activity.activity_data);
+  const questions = questionsFromData(activity.activity_data, activity.activity_type);
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
   const [submitted, setSubmitted] = useState(false);
   const [message, setMessage] = useState<string | null>(null);

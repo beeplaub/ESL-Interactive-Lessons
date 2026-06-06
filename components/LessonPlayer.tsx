@@ -187,8 +187,8 @@ function hasGeneratedQuestions(activity: LessonSlideActivity) {
   if (["INFO", "LISTENING", "DISCUSSION", "WRITING"].includes(activity.activity_type)) return false;
   const data = activity.activity_data;
   if (!data || typeof data !== "object" || Array.isArray(data)) return false;
-  const questions = (data as Record<string, unknown>).questions;
-  return Array.isArray(questions) && questions.length > 0;
+  const record = data as Record<string, unknown>;
+  return (Array.isArray(record.questions) && record.questions.length > 0) || (Array.isArray(record.items) && record.items.length > 0);
 }
 
 async function saveLessonProgress(lessonId: string, payload: { current_slide_number: number; completed: boolean; notes: string }) {

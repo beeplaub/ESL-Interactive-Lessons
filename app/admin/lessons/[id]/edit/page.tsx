@@ -1,16 +1,15 @@
 import Link from "next/link";
-import { AlertTriangle, RefreshCw, Trash2 } from "lucide-react";
+import { AlertTriangle, RefreshCw } from "lucide-react";
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
-  deleteInLessonActivity,
   generateInLessonQuizzes,
   rerunParser,
-  updateInLessonActivity,
   updateLessonStatus,
   updateSlide
 } from "@/app/admin/lessons/actions";
+import { InLessonActivitiesEditor } from "@/components/InLessonActivitiesEditor";
 import { LessonTextGeneratorForm } from "@/components/LessonTextGeneratorForm";
 import type { SlideType } from "@/types/database.types";
 
@@ -45,7 +44,7 @@ export default async function EditLessonPage({ params }: { params: Promise<{ id:
     supabase.from("lesson_audio_files").select("*").eq("lesson_id", id).order("created_at", { ascending: true }),
     supabase
       .from("lesson_slide_activities")
-      .select("*")
+      .select("*, slides(title)")
       .eq("lesson_id", id)
       .order("slide_number", { ascending: true })
   ]);
@@ -100,83 +99,7 @@ export default async function EditLessonPage({ params }: { params: Promise<{ id:
         />
       </div>
 
-      {(lessonSlideActivities ?? []).length > 0 ? (
-        <section className="mb-6 rounded-lg border border-black/10 bg-white p-5 shadow-sm">
-          <h2 className="text-xl font-semibold">In-Lesson Activities</h2>
-          <p className="mt-1 text-sm text-black/55">
-            These activities appear beside the matching slide image for learners.
-          </p>
-          <div className="mt-4 space-y-3">
-            {(lessonSlideActivities ?? []).map((activity) => (
-              <details key={activity.id} className="rounded-md border border-black/10 p-4">
-                <summary className="cursor-pointer list-none">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-sm font-semibold">Slide {activity.slide_number}</span>
-                      <span className="rounded-full bg-skywash px-3 py-1 text-xs font-semibold text-ink">
-                        {activity.activity_type}
-                      </span>
-                      {activity.needs_review ? (
-                        <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
-                          Needs review
-                        </span>
-                      ) : null}
-                    </div>
-                    <span className="text-xs text-black/45">Expand to edit</span>
-                  </div>
-                </summary>
-                <form action={updateInLessonActivity} className="mt-4 grid gap-4">
-                  <input type="hidden" name="lessonId" value={lesson.id} />
-                  <input type="hidden" name="activityId" value={activity.id} />
-                  <div className="grid gap-4 md:grid-cols-[220px_1fr_auto] md:items-end">
-                    <label className="text-sm">
-                      Activity type
-                      <select
-                        name="activityType"
-                        defaultValue={activity.activity_type}
-                        className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
-                      >
-                        {["INFO", "MCQ", "TRUE_FALSE", "GAP_FILL", "MATCHING", "LISTENING", "DISCUSSION", "WRITING"].map((type) => (
-                          <option key={type}>{type}</option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 md:self-end">
-                      <input name="needsReview" type="checkbox" defaultChecked={activity.needs_review} />
-                      Needs review
-                    </label>
-                    <button className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white">Save activity</button>
-                  </div>
-                  {activity.activity_type === "MATCHING" ? (
-                    <MatchingActivityEditor activityData={activity.activity_data} />
-                  ) : (
-                    <label className="text-sm">
-                      Activity data JSON
-                      <textarea
-                        name="activityData"
-                        rows={12}
-                        defaultValue={JSON.stringify(activity.activity_data, null, 2)}
-                        className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 font-mono text-xs"
-                      />
-                    </label>
-                  )}
-                  <div className="rounded-md bg-black/[0.03] p-3">
-                    <h3 className="text-sm font-semibold">Original pasted text</h3>
-                    <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap text-xs text-black/65">{activity.raw_text}</pre>
-                  </div>
-                </form>
-                <form action={deleteInLessonActivity} className="mt-3">
-                  <input type="hidden" name="lessonId" value={lesson.id} />
-                  <input type="hidden" name="activityId" value={activity.id} />
-                  <button className="inline-flex items-center gap-2 rounded-md border border-coral/30 px-3 py-2 text-sm font-medium text-coral">
-                    <Trash2 size={15} /> Delete activity
-                  </button>
-                </form>
-              </details>
-            ))}
-          </div>
-        </section>
-      ) : null}
+      <InLessonActivitiesEditor lessonId={lesson.id} initialActivities={lessonSlideActivities ?? []} />
 
       <div className="space-y-4">
         {(slides ?? []).map((slide) => {
@@ -277,49 +200,4 @@ export default async function EditLessonPage({ params }: { params: Promise<{ id:
       </div>
     </main>
   );
-}
-
-function MatchingActivityEditor({ activityData }: { activityData: unknown }) {
-  const data = asRecord(activityData);
-  const questions = Array.isArray(data.questions) ? data.questions : [];
-  const question = asRecord(questions[0]);
-  const options = asRecord(question.options);
-  const aItems = Array.isArray(options.a_items) ? options.a_items.map(String) : [];
-  const bItems = Array.isArray(options.b_items) ? options.b_items.map(String) : [];
-  const pairs = Array.isArray(question.correct_answer)
-    ? (question.correct_answer as Array<{ a?: number; b?: string }>).map((pair) => `${pair.a}-${pair.b}`).join(", ")
-    : "";
-  const prompt = String(data.prompt ?? question.question_text ?? "Match the items.");
-
-  return (
-    <div className="rounded-md border border-amber-200 bg-amber-50 p-4">
-      <input type="hidden" name="activityData" value="null" />
-      <p className="text-sm font-semibold text-amber-900">Matching review helper</p>
-      <p className="mt-1 text-sm text-amber-800">
-        Add the left-side items in Column A, the right-side items in Column B, then write pairs like 1-A, 2-B, 3-C.
-      </p>
-      <div className="mt-4 grid gap-4 md:grid-cols-2">
-        <label className="text-sm">
-          Prompt
-          <input name="prompt" defaultValue={prompt} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
-        </label>
-        <label className="text-sm">
-          Correct pairs
-          <input name="pairs" defaultValue={pairs} placeholder="1-A, 2-B, 3-C" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
-        </label>
-        <label className="text-sm">
-          Column A items, one per line
-          <textarea name="aItems" rows={6} defaultValue={aItems.join("\n")} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
-        </label>
-        <label className="text-sm">
-          Column B items, one per line
-          <textarea name="bItems" rows={6} defaultValue={bItems.join("\n")} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
-        </label>
-      </div>
-    </div>
-  );
-}
-
-function asRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 }

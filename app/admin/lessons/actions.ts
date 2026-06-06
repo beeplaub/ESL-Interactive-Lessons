@@ -406,57 +406,90 @@ export async function generateInLessonQuizzes(lessonId: string, formData: FormDa
 }
 
 export async function updateInLessonActivity(formData: FormData) {
-  await requireAdmin();
-  const supabase = createAdminClient();
-  const id = String(formData.get("activityId"));
-  const lessonId = String(formData.get("lessonId"));
-  const activityType = String(formData.get("activityType"));
-  let activityData = JSON.parse(String(formData.get("activityData") || "null")) as Json;
-  if (activityType === "MATCHING" && formData.has("aItems")) {
-    const prompt = String(formData.get("prompt") || "Match the items.");
-    const aItems = String(formData.get("aItems") || "").split("\n").map((item) => item.trim()).filter(Boolean);
-    const bItems = String(formData.get("bItems") || "").split("\n").map((item) => item.trim()).filter(Boolean);
-    const correctAnswer = String(formData.get("pairs") || "")
-      .split(",")
-      .map((pair) => pair.trim().match(/^(\d+)\s*-\s*([A-Z])$/i))
-      .filter(Boolean)
-      .map((match) => ({ a: Number(match![1]), b: match![2].toUpperCase() }));
-    activityData = {
-      prompt,
-      questions: [
-        {
-          id: "1",
-          question_number: 1,
-          question_type: "MATCHING",
-          question_text: prompt,
-          options: { a_items: aItems, b_items: bItems },
-          correct_answer: correctAnswer
-        }
-      ]
-    } as Json;
+  return updateSlideActivity({
+    activityId: String(formData.get("activityId")),
+    lessonId: String(formData.get("lessonId")),
+    activityType: String(formData.get("activityType")),
+    activityData: String(formData.get("activityData") || "null"),
+    needsReview: formData.get("needsReview") === "on"
+  });
+}
+
+export async function updateSlideActivity(input: {
+  activityId: string;
+  lessonId: string;
+  activityType: string;
+  activityData: Json | string | null;
+  needsReview?: boolean;
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    await requireAdmin();
+    const supabase = createAdminClient();
+    const activityData =
+      typeof input.activityData === "string"
+        ? (JSON.parse(input.activityData || "null") as Json)
+        : input.activityData;
+    const needsReview = input.needsReview ?? hasMissingActivityAnswers(activityData);
+
+    const { error } = await supabase
+      .from("lesson_slide_activities")
+      .update({
+        activity_type: input.activityType,
+        activity_data: activityData,
+        needs_review: needsReview,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", input.activityId);
+
+    if (error) throw error;
+    revalidatePath(`/admin/lessons/${input.lessonId}/edit`);
+    return { success: true };
+  } catch (error) {
+    console.error("updateSlideActivity failed", error);
+    return { success: false, error: getErrorMessage(error) };
   }
-  const needsReview = formData.get("needsReview") === "on";
+}
 
-  const { error } = await supabase
-    .from("lesson_slide_activities")
-    .update({
-      activity_type: activityType,
-      activity_data: activityData,
-      needs_review: needsReview,
-      updated_at: new Date().toISOString()
-    })
-    .eq("id", id);
-  if (error) throw error;
-
-  revalidatePath(`/admin/lessons/${lessonId}/edit`);
+export async function deleteSlideActivity(input: {
+  activityId: string;
+  lessonId: string;
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    await requireAdmin();
+    const supabase = createAdminClient();
+    const { error } = await supabase.from("lesson_slide_activities").delete().eq("id", input.activityId);
+    if (error) throw error;
+    revalidatePath(`/admin/lessons/${input.lessonId}/edit`);
+    return { success: true };
+  } catch (error) {
+    console.error("deleteSlideActivity failed", error);
+    return { success: false, error: getErrorMessage(error) };
+  }
 }
 
 export async function deleteInLessonActivity(formData: FormData) {
-  await requireAdmin();
-  const supabase = createAdminClient();
-  const id = String(formData.get("activityId"));
-  const lessonId = String(formData.get("lessonId"));
-  const { error } = await supabase.from("lesson_slide_activities").delete().eq("id", id);
-  if (error) throw error;
-  revalidatePath(`/admin/lessons/${lessonId}/edit`);
+  return deleteSlideActivity({
+    activityId: String(formData.get("activityId")),
+    lessonId: String(formData.get("lessonId"))
+  });
+}
+
+function hasMissingActivityAnswers(activityData: Json | null) {
+  if (!activityData || typeof activityData !== "object" || Array.isArray(activityData)) return true;
+  const data = activityData as Record<string, unknown>;
+  if (Array.isArray(data.questions)) {
+    return data.questions.length === 0 || data.questions.some((item) => {
+      const question = item as Record<string, unknown>;
+      const answer = question.answer ?? question.correct_answer;
+      return answer === null || answer === undefined || String(answer).trim() === "";
+    });
+  }
+  if (Array.isArray(data.items)) {
+    return data.items.length === 0 || data.items.some((item) => {
+      const answer = (item as Record<string, unknown>).answer;
+      if (Array.isArray(answer)) return answer.some((part) => String(part ?? "").trim() === "");
+      return answer === null || answer === undefined || String(answer).trim() === "";
+    });
+  }
+  return false;
 }
