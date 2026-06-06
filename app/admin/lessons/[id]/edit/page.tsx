@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import {
   generateInLessonQuizzes,
   rerunParser,
+  updateLessonDetails,
   updateLessonStatus,
   updateSlide
 } from "@/app/admin/lessons/actions";
@@ -91,6 +92,38 @@ export default async function EditLessonPage({ params }: { params: Promise<{ id:
           </p>
         </div>
       ) : null}
+
+      <form action={updateLessonDetails.bind(null, lesson.id)} className="mb-5 rounded-lg border border-black/10 bg-white p-5 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-moss">Lesson details</p>
+            <h2 className="mt-1 text-xl font-semibold">Update published lesson information</h2>
+          </div>
+          <button className="rounded-md bg-moss px-4 py-2 text-sm font-semibold text-white">Update</button>
+        </div>
+        <div className="mt-5 grid gap-4 md:grid-cols-[1fr_1fr_140px]">
+          <label className="text-sm">
+            Title
+            <input name="title" defaultValue={lesson.title} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+          </label>
+          <label className="text-sm">
+            Topic
+            <input name="topic" defaultValue={lesson.topic} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+          </label>
+          <label className="text-sm">
+            Level
+            <select name="level" defaultValue={lesson.level} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">
+              {["A1", "A2", "B1", "B2", "C1", "C2"].map((level) => (
+                <option key={level}>{level}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <label className="mt-4 block text-sm">
+          Description
+          <textarea name="description" rows={3} defaultValue={lesson.description ?? ""} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+        </label>
+      </form>
 
       <div className="mb-5">
         <LessonTextGeneratorForm

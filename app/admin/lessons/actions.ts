@@ -300,6 +300,32 @@ export async function updateLessonStatus(lessonId: string, status: "DRAFT" | "PU
   revalidatePath(`/admin/lessons/${lessonId}/edit`);
 }
 
+export async function updateLessonDetails(lessonId: string, formData: FormData) {
+  await requireAdmin();
+  const supabase = createAdminClient();
+  const parsed = lessonSchema.parse({
+    title: formData.get("title"),
+    topic: formData.get("topic"),
+    level: formData.get("level"),
+    description: formData.get("description")
+  });
+
+  const { error } = await supabase
+    .from("lessons")
+    .update({
+      title: parsed.title,
+      topic: parsed.topic,
+      level: parsed.level,
+      description: parsed.description ?? ""
+    })
+    .eq("id", lessonId);
+
+  if (error) throw error;
+  revalidatePath("/admin/lessons");
+  revalidatePath(`/admin/lessons/${lessonId}/edit`);
+  revalidatePath(`/lessons/${lessonId}`);
+}
+
 export async function deleteLesson(lessonId: string) {
   await requireAdmin();
   const supabase = createAdminClient();
