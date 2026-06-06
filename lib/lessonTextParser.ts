@@ -37,10 +37,12 @@ function linesOf(text: string) {
 
 function classifySlide(text: string): LessonSlideActivityType {
   const lower = text.toLowerCase();
+  // PAIRS: is the definitive matching signal — must check before MCQ
+  if (/^PAIRS\s*:/im.test(text)) return "MATCHING";
   if (/true\s+or\s+false|t\s*\/\s*f|write\s+t\s+or\s+f/i.test(text)) return "TRUE_FALSE";
-  if (/\n\s*A[\).]/.test(text) && /\n\s*B[\).]/.test(text)) return "MCQ";
   if (/___|\(___\)|complete the sentences?|fill in|correct form/i.test(text)) return "GAP_FILL";
   if (/\bmatch\b|column\s+a|column\s+b|match the halves/i.test(text)) return "MATCHING";
+  if (/\n\s*A[\).]/.test(text) && /\n\s*B[\).]/.test(text)) return "MCQ";
   if (/listen|before listening|after listening/i.test(text)) return "LISTENING";
   if (/discuss|talk about|what do you think/i.test(lower)) return "DISCUSSION";
   if (/\bwrite\b|homework|exit ticket/i.test(lower)) return "WRITING";
