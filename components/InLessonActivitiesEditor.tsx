@@ -216,8 +216,9 @@ function ActivityPanel({
     });
   }
 
-  // INFO slides need no editing — show nothing
-  if (activity.activity_type === "INFO") return null;
+  // Only show editor for activity types that have interactive content
+  const EDITABLE_TYPES = ["MCQ", "GAP_FILL", "TRUE_FALSE", "MATCHING"];
+  if (!EDITABLE_TYPES.includes(activity.activity_type)) return null;
 
   return (
     <details className="rounded-md border border-black/10 p-4">
