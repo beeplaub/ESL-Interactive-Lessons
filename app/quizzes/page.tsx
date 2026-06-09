@@ -11,7 +11,7 @@ export default async function QuizzesPage() {
 
   const [{ data: quizzes }, { data: questions }, { data: wishlist }, { data: attempts }] = await Promise.all([
     admin.from("quizzes").select("*").eq("status", "PUBLISHED").order("created_at", { ascending: false }),
-    admin.from("quiz_questions").select("quiz_id"),
+    admin.from("quiz_questions").select("quiz_id").limit(5000),
     user
       ? admin.from("wishlist_items").select("quiz_id").eq("user_id", user.id).not("quiz_id", "is", null)
       : Promise.resolve({ data: [] }),
@@ -25,7 +25,6 @@ export default async function QuizzesPage() {
     questionCounts[q.quiz_id] = (questionCounts[q.quiz_id] ?? 0) + 1;
   }
 
-  // Best score per quiz (highest score/total ratio)
   const bestAttempts: Record<string, { score: number; total: number; completedAt: string }> = {};
   for (const a of attempts ?? []) {
     if (!a.quiz_id) continue;
