@@ -4,6 +4,8 @@ import { deleteQuiz, updateQuizStatus } from "@/app/admin/quizzes/actions";
 import { requireAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminQuizzesPage() {
   await requireAdmin();
   const admin = createAdminClient();

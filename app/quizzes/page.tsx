@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { WishlistButton } from "@/components/WishlistButton";
 
+export const dynamic = "force-dynamic";
+
 export default async function QuizzesPage() {
   const supabase = await createClient();
   const admin = createAdminClient();
