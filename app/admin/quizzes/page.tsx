@@ -9,8 +9,8 @@ export default async function AdminQuizzesPage() {
   const admin = createAdminClient();
   const [{ data: quizzes }, { data: questions }, { data: attempts }] = await Promise.all([
     admin.from("quizzes").select("*").order("created_at", { ascending: false }),
-    admin.from("quiz_questions").select("quiz_id"),
-    admin.from("quiz_attempts").select("quiz_id")
+    admin.from("quiz_questions").select("quiz_id").limit(10000),
+    admin.from("quiz_attempts").select("quiz_id").limit(10000)
   ]);
   const counts = new Map<string, number>();
   for (const question of questions ?? []) counts.set(question.quiz_id, (counts.get(question.quiz_id) ?? 0) + 1);

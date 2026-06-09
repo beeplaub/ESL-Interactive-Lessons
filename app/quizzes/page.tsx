@@ -10,13 +10,13 @@ export default async function QuizzesPage() {
   const {
     data: { user }
   } = await supabase.auth.getUser();
-  const [{ data: quizzes }, { data: questions }, { data: wishlist }] = await Promise.all([
+  const [{ data: quizzes }, { data: questionCounts }, { data: wishlist }] = await Promise.all([
     admin.from("quizzes").select("*").eq("status", "PUBLISHED").order("created_at", { ascending: false }),
-    admin.from("quiz_questions").select("quiz_id"),
+    admin.from("quiz_questions").select("quiz_id").limit(10000),
     user ? admin.from("wishlist_items").select("quiz_id").eq("user_id", user.id).not("quiz_id", "is", null) : Promise.resolve({ data: [] })
   ]);
   const counts = new Map<string, number>();
-  for (const question of questions ?? []) counts.set(question.quiz_id, (counts.get(question.quiz_id) ?? 0) + 1);
+  for (const question of questionCounts ?? []) counts.set(question.quiz_id, (counts.get(question.quiz_id) ?? 0) + 1);
   const wishlistQuizIds = new Set((wishlist ?? []).map((item) => item.quiz_id).filter(Boolean));
 
   return (
