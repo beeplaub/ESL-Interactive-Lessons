@@ -9,9 +9,9 @@ export default async function QuizzesPage() {
     data: { user }
   } = await supabase.auth.getUser();
 
-  const [{ data: quizzes }, { data: questions }, { data: wishlist }, { data: attempts }] = await Promise.all([
+  const [{ data: quizzes }, { data: questionCounts }, { data: wishlist }, { data: attempts }] = await Promise.all([
     admin.from("quizzes").select("*").eq("status", "PUBLISHED").order("created_at", { ascending: false }),
-    admin.from("quiz_questions").select("quiz_id").limit(5000),
+    admin.rpc("get_quiz_question_counts"),
     user
       ? admin.from("wishlist_items").select("quiz_id").eq("user_id", user.id).not("quiz_id", "is", null)
       : Promise.resolve({ data: [] }),
@@ -20,9 +20,9 @@ export default async function QuizzesPage() {
       : Promise.resolve({ data: [] })
   ]);
 
-  const questionCounts: Record<string, number> = {};
-  for (const q of questions ?? []) {
-    questionCounts[q.quiz_id] = (questionCounts[q.quiz_id] ?? 0) + 1;
+  const countMap: Record<string, number> = {};
+  for (const row of questionCounts ?? []) {
+    countMap[row.quiz_id] = row.question_count;
   }
 
   const bestAttempts: Record<string, { score: number; total: number; completedAt: string }> = {};
@@ -55,7 +55,7 @@ export default async function QuizzesPage() {
       {(quizzes?.length ?? 0) > 0 ? (
         <QuizzesGrid
           quizzes={quizzes ?? []}
-          questionCounts={questionCounts}
+          questionCounts={countMap}
           wishlistQuizIds={wishlistQuizIds}
           isLoggedIn={Boolean(user)}
           bestAttempts={bestAttempts}
