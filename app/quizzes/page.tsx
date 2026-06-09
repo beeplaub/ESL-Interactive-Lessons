@@ -9,17 +9,36 @@ export default async function QuizzesPage() {
     data: { user }
   } = await supabase.auth.getUser();
 
-  const [{ data: quizzes }, { data: questions }, { data: wishlist }] = await Promise.all([
+  const [{ data: quizzes }, { data: questions }, { data: wishlist }, { data: attempts }] = await Promise.all([
     admin.from("quizzes").select("*").eq("status", "PUBLISHED").order("created_at", { ascending: false }),
     admin.from("quiz_questions").select("quiz_id"),
     user
       ? admin.from("wishlist_items").select("quiz_id").eq("user_id", user.id).not("quiz_id", "is", null)
+      : Promise.resolve({ data: [] }),
+    user
+      ? admin.from("quiz_attempts").select("quiz_id, score, total, completed_at").eq("user_id", user.id).not("quiz_id", "is", null)
       : Promise.resolve({ data: [] })
   ]);
 
   const questionCounts: Record<string, number> = {};
   for (const q of questions ?? []) {
     questionCounts[q.quiz_id] = (questionCounts[q.quiz_id] ?? 0) + 1;
+  }
+
+  // Best score per quiz (highest score/total ratio)
+  const bestAttempts: Record<string, { score: number; total: number; completedAt: string }> = {};
+  for (const a of attempts ?? []) {
+    if (!a.quiz_id) continue;
+    const existing = bestAttempts[a.quiz_id];
+    const ratio = a.total ? a.score / a.total : 0;
+    const existingRatio = existing?.total ? existing.score / existing.total : -1;
+    if (!existing || ratio > existingRatio) {
+      bestAttempts[a.quiz_id] = {
+        score: a.score,
+        total: a.total,
+        completedAt: a.completed_at
+      };
+    }
   }
 
   const wishlistQuizIds = (wishlist ?? []).map((item) => item.quiz_id).filter(Boolean) as string[];
@@ -40,6 +59,7 @@ export default async function QuizzesPage() {
           questionCounts={questionCounts}
           wishlistQuizIds={wishlistQuizIds}
           isLoggedIn={Boolean(user)}
+          bestAttempts={bestAttempts}
         />
       ) : (
         <div className="rounded-lg border border-black/10 bg-white p-8 text-center shadow-sm">

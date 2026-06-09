@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, ClipboardList, LockKeyhole, Search, X } from "lucide-react";
+import { ArrowRight, ClipboardList, LockKeyhole, RotateCcw, Search, X } from "lucide-react";
 import { useState, useMemo } from "react";
 import { WishlistButton } from "@/components/WishlistButton";
 
@@ -15,16 +15,23 @@ type Quiz = {
   time_limit_seconds?: number | null;
 };
 
+type AttemptSummary = {
+  score: number;
+  total: number;
+  completedAt: string;
+};
+
 type Props = {
   quizzes: Quiz[];
   questionCounts: Record<string, number>;
   wishlistQuizIds: string[];
   isLoggedIn: boolean;
+  bestAttempts: Record<string, AttemptSummary>;
 };
 
 const LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"] as const;
 
-export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLoggedIn }: Props) {
+export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLoggedIn, bestAttempts }: Props) {
   const [keyword, setKeyword] = useState("");
   const [selectedLevel, setSelectedLevel] = useState<string>("");
   const [selectedTopic, setSelectedTopic] = useState<string>("");
@@ -32,7 +39,6 @@ export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLogged
 
   const wishlistSet = new Set(wishlistQuizIds);
 
-  // Build distinct sorted topic list from actual data
   const topics = useMemo(() => {
     const set = new Set<string>();
     for (const q of quizzes) {
@@ -71,7 +77,6 @@ export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLogged
       <div className="mb-5 rounded-lg border border-black/10 bg-white px-4 py-3 shadow-sm">
         <div className="flex flex-wrap items-center gap-3">
 
-          {/* Keyword search */}
           <div className="relative flex min-w-[180px] flex-1 items-center">
             <Search size={14} className="pointer-events-none absolute left-3 text-black/40" />
             <input
@@ -83,7 +88,6 @@ export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLogged
             />
           </div>
 
-          {/* Topic dropdown */}
           {topics.length > 0 && (
             <select
               value={selectedTopic}
@@ -97,7 +101,6 @@ export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLogged
             </select>
           )}
 
-          {/* Timer filter */}
           <select
             value={timerFilter}
             onChange={(e) => setTimerFilter(e.target.value as "all" | "timer" | "no-timer")}
@@ -108,7 +111,6 @@ export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLogged
             <option value="no-timer">No timer</option>
           </select>
 
-          {/* Level chips */}
           <div className="flex flex-wrap gap-1.5">
             {LEVELS.map((lvl) => (
               <button
@@ -126,7 +128,6 @@ export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLogged
             ))}
           </div>
 
-          {/* Clear */}
           {hasActiveFilter && (
             <button
               type="button"
@@ -138,7 +139,6 @@ export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLogged
           )}
         </div>
 
-        {/* Result count */}
         <p className="mt-2 text-xs text-black/45">
           {filtered.length === quizzes.length
             ? `${quizzes.length} quiz${quizzes.length !== 1 ? "zes" : ""}`
@@ -155,6 +155,8 @@ export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLogged
               : `/login?next=${encodeURIComponent(`/quizzes/${quiz.id}`)}`;
             const qCount = questionCounts[quiz.id] ?? 0;
             const hasTimer = Boolean(quiz.time_limit_seconds);
+            const attempt = bestAttempts[quiz.id];
+            const percent = attempt?.total ? Math.round((attempt.score / attempt.total) * 100) : null;
 
             return (
               <article
@@ -179,24 +181,42 @@ export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLogged
                     <ClipboardList className="text-moss" size={24} />
                   </div>
                 </div>
+
                 <p className="mt-4 text-sm leading-6 text-black/65">
-                  {qCount} question{qCount !== 1 ? "s" : ""} ·{" "}
-                  {hasTimer ? "timed" : "no timer"}
+                  {qCount} question{qCount !== 1 ? "s" : ""} · {hasTimer ? "timed" : "no timer"}
                 </p>
+
+                {/* Attempt badge */}
+                {isLoggedIn && attempt ? (
+                  <div className={`mt-3 flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium ${
+                    percent !== null && percent >= 80
+                      ? "bg-moss/10 text-moss"
+                      : percent !== null && percent >= 50
+                      ? "bg-skywash text-ink"
+                      : "bg-coral/10 text-coral"
+                  }`}>
+                    <span>Best score: {attempt.score}/{attempt.total} ({percent}%)</span>
+                    <RotateCcw size={14} className="opacity-60" />
+                  </div>
+                ) : null}
+
                 {!isLoggedIn ? (
                   <div className="mt-auto flex items-center gap-2 rounded-md bg-slate-50 p-3 text-sm text-slate-600">
                     <LockKeyhole size={16} /> Sign in to start this quiz.
                   </div>
-                ) : (
+                ) : !attempt ? (
                   <div className="mt-auto rounded-md bg-moss/10 p-3 text-sm font-medium text-moss">
                     Ready to start
                   </div>
+                ) : (
+                  <div className="mt-auto" />
                 )}
+
                 <Link
                   href={href}
                   className="mt-5 inline-flex items-center justify-center gap-2 rounded-md bg-ink px-4 py-2 text-sm font-medium text-white"
                 >
-                  Start quiz <ArrowRight size={16} />
+                  {attempt ? "Retake quiz" : "Start quiz"} <ArrowRight size={16} />
                 </Link>
               </article>
             );
