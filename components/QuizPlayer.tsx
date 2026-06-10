@@ -42,6 +42,15 @@ export function isCorrect(question: QuizQuestion, value: unknown): boolean {
     return correct.every((c, i) => normalize(given[i]) === normalize(c));
   }
   if (question.question_type === "MATCHING") {
+    if (Array.isArray(question.correct_answer)) {
+      const pairs = question.correct_answer as Array<{ a: number; b: string }>;
+      const given = asRecord(value as Json);
+      return pairs.every((pair) => {
+        const selected = String(given[String(pair.a)] ?? "").trim().toUpperCase();
+        const expected = String(pair.b ?? "").trim().toUpperCase();
+        return selected === expected;
+      });
+    }
     const correct = asRecord(question.correct_answer);
     const given = asRecord(value as Json);
     return Object.entries(correct).every(([k, v]) => normalize(given[k]) === normalize(v));
@@ -67,6 +76,11 @@ function answerText(question: QuizQuestion): string {
     return Array.isArray(question.correct_answer) ? question.correct_answer.join(", ") : String(question.correct_answer);
   }
   if (question.question_type === "MATCHING") {
+    if (Array.isArray(question.correct_answer)) {
+      return (question.correct_answer as Array<{ a: number; b: string }>)
+        .map((pair) => `${pair.a} → ${pair.b}`)
+        .join(", ");
+    }
     return Object.entries(asRecord(question.correct_answer))
       .map(([k, v]) => `${k} → ${v}`)
       .join(", ");
@@ -327,25 +341,38 @@ function Fill({ question, value, disabled, onChange }: { question: QuizQuestion;
 }
 
 function Matching({ question, value, disabled, onChange }: { question: QuizQuestion; value: Record<string, string>; disabled: boolean; onChange: (value: Record<string, string>) => void }) {
-  const options = asRecord(question.options);
-  const correct = asRecord(question.correct_answer);
-  const keys = Object.keys(correct);
-  const rightOptions = Object.values(correct).map(String);
+  const opts = asRecord(question.options) as { a_items?: unknown[]; b_items?: unknown[] };
+  const aItems = Array.isArray(opts.a_items) ? opts.a_items.map(String) : [];
+  const bItems = Array.isArray(opts.b_items) ? opts.b_items.map(String) : [];
+  const rows = aItems.map((leftLabel, i) => ({ key: String(i + 1), leftLabel }));
   return (
-    <div className="grid gap-2">
-      {keys.map((key) => (
+    <div className="grid gap-3">
+      {bItems.length > 0 && (
+        <div className="flex flex-wrap gap-2 rounded-md bg-slate-50 p-3 text-sm">
+          {bItems.map((item, i) => {
+            const letter = String.fromCharCode(65 + i);
+            return (
+              <span key={letter} className="rounded border border-black/10 bg-white px-2 py-1 text-xs">
+                <strong>{letter}.</strong> {item}
+              </span>
+            );
+          })}
+        </div>
+      )}
+      {rows.map(({ key, leftLabel }) => (
         <div key={key} className="flex items-center gap-3 text-sm">
-          <span className="w-24 shrink-0 font-medium">{String(options[key] ?? key)}</span>
+          <span className="min-w-[120px] shrink-0 font-medium">{key}. {leftLabel}</span>
           <select
             disabled={disabled}
             value={value[key] ?? ""}
             onChange={(e) => onChange({ ...value, [key]: e.target.value })}
             className="flex-1 rounded-md border border-black/15 px-2 py-1.5 text-sm outline-none focus:border-moss"
           >
-            <option value="">Select…</option>
-            {rightOptions.map((opt) => (
-              <option key={opt} value={opt}>{opt}</option>
-            ))}
+            <option value="">Select...</option>
+            {bItems.map((_, i) => {
+              const letter = String.fromCharCode(65 + i);
+              return <option key={letter} value={letter}>{letter}</option>;
+            })}
           </select>
         </div>
       ))}
