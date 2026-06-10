@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { LessonsGrid } from "@/components/LessonsGrid";
+import Link from "next/link";
+import { ArrowRight, BookOpen } from "lucide-react";
 
 export default async function LessonsPage() {
   const supabase = await createClient();
@@ -29,6 +31,17 @@ export default async function LessonsPage() {
 
   const wishlistLessonIds = (wishlist ?? []).map((item) => item.lesson_id).filter(Boolean) as string[];
 
+  // Find the most recently updated in-progress lesson
+  const inProgressList = (progress ?? [])
+    .filter((p) => !p.completed)
+    .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+
+  const resumeProgress = inProgressList[0] ?? null;
+  const resumeLesson = resumeProgress
+    ? (lessons ?? []).find((l) => l.id === resumeProgress.lesson_id) ?? null
+    : null;
+  const resumeSlideCount = resumeLesson ? (slideCounts[resumeLesson.id] ?? 0) : 0;
+
   return (
     <main className="mx-auto max-w-6xl px-4 py-6">
       <section className="mb-5 rounded-lg border border-black/10 bg-white px-5 py-4 shadow-sm">
@@ -38,6 +51,30 @@ export default async function LessonsPage() {
           Browse published lessons. Sign in to start, save progress, complete lessons, and keep study notes.
         </p>
       </section>
+
+      {/* ── Continue banner ── */}
+      {user && resumeLesson && (
+        <Link
+          href={`/lessons/${resumeLesson.id}`}
+          className="mb-5 flex items-center justify-between gap-4 rounded-lg border border-moss/30 bg-moss/8 px-4 py-3 shadow-sm transition-colors hover:bg-moss/15"
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <BookOpen size={18} className="shrink-0 text-moss" />
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-wide text-moss">Continue where you left off</p>
+              <p className="truncate text-sm font-medium text-ink">
+                {resumeLesson.title}
+                <span className="ml-2 font-normal text-black/55">
+                  — Slide {resumeProgress.current_slide_number} of {resumeSlideCount || "?"}
+                </span>
+              </p>
+            </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-1 text-sm font-semibold text-moss">
+            Continue <ArrowRight size={15} />
+          </div>
+        </Link>
+      )}
 
       {(lessons?.length ?? 0) > 0 ? (
         <LessonsGrid
