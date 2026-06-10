@@ -30,12 +30,16 @@ type Props = {
 };
 
 const LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"] as const;
+const LEVEL_ORDER: Record<string, number> = { A1: 1, A2: 2, B1: 3, B2: 4, C1: 5, C2: 6 };
+
+type SortOption = "newest" | "az" | "level-asc" | "level-desc";
 
 export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLoggedIn, bestAttempts }: Props) {
   const [keyword, setKeyword] = useState("");
   const [selectedLevel, setSelectedLevel] = useState<string>("");
   const [selectedTopic, setSelectedTopic] = useState<string>("");
   const [timerFilter, setTimerFilter] = useState<"all" | "timer" | "no-timer">("all");
+  const [sortBy, setSortBy] = useState<SortOption>("newest");
 
   const wishlistSet = new Set(wishlistQuizIds);
 
@@ -49,7 +53,7 @@ export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLogged
 
   const filtered = useMemo(() => {
     const kw = keyword.trim().toLowerCase();
-    return quizzes.filter((q) => {
+    let result = quizzes.filter((q) => {
       if (selectedLevel && q.level !== selectedLevel) return false;
       if (selectedTopic && q.topic !== selectedTopic) return false;
       if (timerFilter === "timer" && !q.time_limit_seconds) return false;
@@ -60,7 +64,17 @@ export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLogged
       }
       return true;
     });
-  }, [quizzes, keyword, selectedLevel, selectedTopic, timerFilter]);
+
+    result = [...result].sort((a, b) => {
+      if (sortBy === "newest") return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      if (sortBy === "az") return a.title.localeCompare(b.title);
+      if (sortBy === "level-asc") return (LEVEL_ORDER[a.level ?? ""] ?? 0) - (LEVEL_ORDER[b.level ?? ""] ?? 0);
+      if (sortBy === "level-desc") return (LEVEL_ORDER[b.level ?? ""] ?? 0) - (LEVEL_ORDER[a.level ?? ""] ?? 0);
+      return 0;
+    });
+
+    return result;
+  }, [quizzes, keyword, selectedLevel, selectedTopic, timerFilter, sortBy]);
 
   const hasActiveFilter = keyword || selectedLevel || selectedTopic || timerFilter !== "all";
 
@@ -73,10 +87,11 @@ export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLogged
 
   return (
     <>
-      {/* ── Filter bar ── */}
+      {/* ── Filter + Sort bar ── */}
       <div className="mb-5 rounded-lg border border-black/10 bg-white px-4 py-3 shadow-sm">
         <div className="flex flex-wrap items-center gap-3">
 
+          {/* Keyword search */}
           <div className="relative flex min-w-[180px] flex-1 items-center">
             <Search size={14} className="pointer-events-none absolute left-3 text-black/40" />
             <input
@@ -88,6 +103,7 @@ export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLogged
             />
           </div>
 
+          {/* Topic dropdown */}
           {topics.length > 0 && (
             <select
               value={selectedTopic}
@@ -101,6 +117,7 @@ export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLogged
             </select>
           )}
 
+          {/* Timer filter */}
           <select
             value={timerFilter}
             onChange={(e) => setTimerFilter(e.target.value as "all" | "timer" | "no-timer")}
@@ -111,6 +128,19 @@ export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLogged
             <option value="no-timer">No timer</option>
           </select>
 
+          {/* Sort */}
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as SortOption)}
+            className="rounded-md border border-black/15 py-1.5 pl-3 pr-8 text-sm outline-none focus:border-moss"
+          >
+            <option value="newest">Sort: Newest</option>
+            <option value="az">Sort: A–Z</option>
+            <option value="level-asc">Sort: Level ↑</option>
+            <option value="level-desc">Sort: Level ↓</option>
+          </select>
+
+          {/* Level chips */}
           <div className="flex flex-wrap gap-1.5">
             {LEVELS.map((lvl) => (
               <button
@@ -128,6 +158,7 @@ export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLogged
             ))}
           </div>
 
+          {/* Clear */}
           {hasActiveFilter && (
             <button
               type="button"
@@ -186,7 +217,6 @@ export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLogged
                   {qCount} question{qCount !== 1 ? "s" : ""} · {hasTimer ? "timed" : "no timer"}
                 </p>
 
-                {/* Attempt badge */}
                 {isLoggedIn && attempt ? (
                   <div className={`mt-3 flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium ${
                     percent !== null && percent >= 80
