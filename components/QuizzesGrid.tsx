@@ -34,6 +34,30 @@ const LEVEL_ORDER: Record<string, number> = { A1: 1, A2: 2, B1: 3, B2: 4, C1: 5,
 
 type SortOption = "newest" | "az" | "level-asc" | "level-desc";
 
+// Colour palette per level
+const LEVEL_THEME: Record<string, {
+  border: string;       // card left border
+  badge: string;        // level badge background
+  badgeText: string;    // level badge text
+  headerBg: string;     // subtle card header tint
+}> = {
+  A1: { border: "#f59e0b", badge: "#fef3c7", badgeText: "#92400e", headerBg: "#fffbeb" },
+  A2: { border: "#f97316", badge: "#ffedd5", badgeText: "#7c2d12", headerBg: "#fff7ed" },
+  B1: { border: "#0ea5e9", badge: "#e0f2fe", badgeText: "#0c4a6e", headerBg: "#f0f9ff" },
+  B2: { border: "#2563eb", badge: "#dbeafe", badgeText: "#1e3a8a", headerBg: "#eff6ff" },
+  C1: { border: "#7c3aed", badge: "#ede9fe", badgeText: "#4c1d95", headerBg: "#f5f3ff" },
+  C2: { border: "#0f172a", badge: "#e2e8f0", badgeText: "#0f172a", headerBg: "#f8fafc" },
+};
+
+function getLevelTheme(level: string | null) {
+  return LEVEL_THEME[level ?? ""] ?? {
+    border: "#e2e8f0",
+    badge: "#f1f5f9",
+    badgeText: "#475569",
+    headerBg: "#f8fafc"
+  };
+}
+
 export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLoggedIn, bestAttempts }: Props) {
   const [keyword, setKeyword] = useState("");
   const [selectedLevel, setSelectedLevel] = useState<string>("");
@@ -90,8 +114,6 @@ export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLogged
       {/* ── Filter + Sort bar ── */}
       <div className="mb-5 rounded-lg border border-black/10 bg-white px-4 py-3 shadow-sm">
         <div className="flex flex-wrap items-center gap-3">
-
-          {/* Keyword search */}
           <div className="relative flex min-w-[180px] flex-1 items-center">
             <Search size={14} className="pointer-events-none absolute left-3 text-black/40" />
             <input
@@ -103,7 +125,6 @@ export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLogged
             />
           </div>
 
-          {/* Topic dropdown */}
           {topics.length > 0 && (
             <select
               value={selectedTopic}
@@ -117,7 +138,6 @@ export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLogged
             </select>
           )}
 
-          {/* Timer filter */}
           <select
             value={timerFilter}
             onChange={(e) => setTimerFilter(e.target.value as "all" | "timer" | "no-timer")}
@@ -128,7 +148,6 @@ export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLogged
             <option value="no-timer">No timer</option>
           </select>
 
-          {/* Sort */}
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as SortOption)}
@@ -140,25 +159,27 @@ export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLogged
             <option value="level-desc">Sort: Level ↓</option>
           </select>
 
-          {/* Level chips */}
           <div className="flex flex-wrap gap-1.5">
-            {LEVELS.map((lvl) => (
-              <button
-                key={lvl}
-                type="button"
-                onClick={() => setSelectedLevel(selectedLevel === lvl ? "" : lvl)}
-                className={`rounded-full px-2.5 py-1 text-xs font-semibold transition-colors ${
-                  selectedLevel === lvl
-                    ? "bg-moss text-white"
-                    : "bg-skywash text-ink hover:bg-moss/20"
-                }`}
-              >
-                {lvl}
-              </button>
-            ))}
+            {LEVELS.map((lvl) => {
+              const t = getLevelTheme(lvl);
+              return (
+                <button
+                  key={lvl}
+                  type="button"
+                  onClick={() => setSelectedLevel(selectedLevel === lvl ? "" : lvl)}
+                  style={
+                    selectedLevel === lvl
+                      ? { backgroundColor: t.border, color: "#fff", borderColor: t.border }
+                      : { backgroundColor: t.badge, color: t.badgeText, borderColor: "transparent" }
+                  }
+                  className="rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors"
+                >
+                  {lvl}
+                </button>
+              );
+            })}
           </div>
 
-          {/* Clear */}
           {hasActiveFilter && (
             <button
               type="button"
@@ -181,6 +202,7 @@ export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLogged
       {filtered.length > 0 ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {filtered.map((quiz) => {
+            const theme = getLevelTheme(quiz.level);
             const href = isLoggedIn
               ? `/quizzes/${quiz.id}`
               : `/login?next=${encodeURIComponent(`/quizzes/${quiz.id}`)}`;
@@ -192,69 +214,88 @@ export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLogged
             return (
               <article
                 key={quiz.id}
-                className="flex min-h-64 flex-col rounded-lg border border-black/10 bg-white p-5 shadow-sm"
+                className="flex flex-col overflow-hidden rounded-lg border border-black/10 bg-white shadow-sm"
+                style={{ borderLeftColor: theme.border, borderLeftWidth: "4px" }}
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <span className="rounded-full bg-skywash px-2 py-1 text-xs font-medium text-ink">
-                      {quiz.level}
-                    </span>
-                    <h2 className="mt-3 text-xl font-semibold">{quiz.title}</h2>
-                    <p className="mt-1 text-sm text-black/55">{quiz.topic}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <WishlistButton
-                      isLoggedIn={isLoggedIn}
-                      quizId={quiz.id}
-                      initiallySaved={wishlistSet.has(quiz.id)}
-                      loginNext="/quizzes"
-                    />
-                    <ClipboardList className="text-moss" size={24} />
+                {/* Card header with tint */}
+                <div className="px-5 pt-5 pb-3" style={{ backgroundColor: theme.headerBg }}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <span
+                        className="inline-block rounded-full px-2.5 py-1 text-xs font-bold"
+                        style={{ backgroundColor: theme.badge, color: theme.badgeText }}
+                      >
+                        {quiz.level}
+                      </span>
+                      <h2 className="mt-2 text-lg font-semibold leading-snug">{quiz.title}</h2>
+                      <p className="mt-0.5 text-sm text-black/55">{quiz.topic}</p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2 pt-1">
+                      <WishlistButton
+                        isLoggedIn={isLoggedIn}
+                        quizId={quiz.id}
+                        initiallySaved={wishlistSet.has(quiz.id)}
+                        loginNext="/quizzes"
+                      />
+                      <ClipboardList size={20} style={{ color: theme.border }} />
+                    </div>
                   </div>
                 </div>
 
-                <p className="mt-4 text-sm leading-6 text-black/65">
-                  {qCount} question{qCount !== 1 ? "s" : ""} · {hasTimer ? "timed" : "no timer"}
-                </p>
+                {/* Card body */}
+                <div className="flex flex-1 flex-col px-5 pb-5 pt-3">
+                  <p className="text-sm text-black/55">
+                    {qCount} question{qCount !== 1 ? "s" : ""} · {hasTimer ? "timed" : "no timer"}
+                  </p>
 
-                {isLoggedIn && attempt ? (
-                  <div className={`mt-3 flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium ${
-                    percent !== null && percent >= 80
-                      ? "bg-moss/10 text-moss"
-                      : percent !== null && percent >= 50
-                      ? "bg-skywash text-ink"
-                      : "bg-coral/10 text-coral"
-                  }`}>
-                    <span>Best score: {attempt.score}/{attempt.total} ({percent}%)</span>
-                    <RotateCcw size={14} className="opacity-60" />
-                  </div>
-                ) : null}
+                  {isLoggedIn && attempt ? (
+                    <div
+                      className="mt-3 flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium"
+                      style={{
+                        backgroundColor: percent !== null && percent >= 80
+                          ? "#f0fdf4"
+                          : percent !== null && percent >= 50
+                          ? "#eff6ff"
+                          : "#fff7ed",
+                        color: percent !== null && percent >= 80
+                          ? "#166534"
+                          : percent !== null && percent >= 50
+                          ? "#1e3a8a"
+                          : "#9a3412"
+                      }}
+                    >
+                      <span>Best: {attempt.score}/{attempt.total} ({percent}%)</span>
+                      <RotateCcw size={13} className="opacity-60" />
+                    </div>
+                  ) : null}
 
-                {!isLoggedIn ? (
-                  <div className="mt-auto flex items-center gap-2 rounded-md bg-slate-50 p-3 text-sm text-slate-600">
-                    <LockKeyhole size={16} /> Sign in to start this quiz.
-                  </div>
-                ) : !attempt ? (
-                  <div className="mt-auto rounded-md bg-moss/10 p-3 text-sm font-medium text-moss">
-                    Ready to start
-                  </div>
-                ) : (
-                  <div className="mt-auto" />
-                )}
+                  {!isLoggedIn ? (
+                    <div className="mt-auto flex items-center gap-2 rounded-md bg-slate-50 p-3 text-sm text-slate-500">
+                      <LockKeyhole size={15} /> Sign in to start this quiz.
+                    </div>
+                  ) : !attempt ? (
+                    <div className="mt-auto rounded-md p-3 text-sm font-medium" style={{ backgroundColor: theme.badge, color: theme.badgeText }}>
+                      Ready to start
+                    </div>
+                  ) : (
+                    <div className="mt-auto" />
+                  )}
 
-                <Link
-                  href={href}
-                  className="mt-5 inline-flex items-center justify-center gap-2 rounded-md bg-ink px-4 py-2 text-sm font-medium text-white"
-                >
-                  {attempt ? "Retake quiz" : "Start quiz"} <ArrowRight size={16} />
-                </Link>
+                  <Link
+                    href={href}
+                    className="mt-4 inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+                    style={{ backgroundColor: theme.border }}
+                  >
+                    {attempt ? "Retake quiz" : "Start quiz"} <ArrowRight size={15} />
+                  </Link>
+                </div>
               </article>
             );
           })}
         </div>
       ) : (
         <div className="rounded-lg border border-black/10 bg-white p-8 text-center shadow-sm">
-          <ClipboardList className="mx-auto text-moss" size={28} />
+          <ClipboardList className="mx-auto text-black/30" size={28} />
           <h2 className="mt-4 text-lg font-semibold">No quizzes match your filters</h2>
           <p className="mt-2 text-sm text-black/60">Try clearing some filters to see more quizzes.</p>
           <button

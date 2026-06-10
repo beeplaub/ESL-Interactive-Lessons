@@ -34,6 +34,29 @@ const LEVEL_ORDER: Record<string, number> = { A1: 1, A2: 2, B1: 3, B2: 4, C1: 5,
 
 type SortOption = "newest" | "az" | "level-asc" | "level-desc";
 
+const LEVEL_THEME: Record<string, {
+  border: string;
+  badge: string;
+  badgeText: string;
+  headerBg: string;
+}> = {
+  A1: { border: "#f59e0b", badge: "#fef3c7", badgeText: "#92400e", headerBg: "#fffbeb" },
+  A2: { border: "#f97316", badge: "#ffedd5", badgeText: "#7c2d12", headerBg: "#fff7ed" },
+  B1: { border: "#0ea5e9", badge: "#e0f2fe", badgeText: "#0c4a6e", headerBg: "#f0f9ff" },
+  B2: { border: "#2563eb", badge: "#dbeafe", badgeText: "#1e3a8a", headerBg: "#eff6ff" },
+  C1: { border: "#7c3aed", badge: "#ede9fe", badgeText: "#4c1d95", headerBg: "#f5f3ff" },
+  C2: { border: "#0f172a", badge: "#e2e8f0", badgeText: "#0f172a", headerBg: "#f8fafc" },
+};
+
+function getLevelTheme(level: string | null) {
+  return LEVEL_THEME[level ?? ""] ?? {
+    border: "#e2e8f0",
+    badge: "#f1f5f9",
+    badgeText: "#475569",
+    headerBg: "#f8fafc"
+  };
+}
+
 export function LessonsGrid({ lessons, slideCounts, progress, wishlistLessonIds, isLoggedIn }: Props) {
   const [keyword, setKeyword] = useState("");
   const [selectedLevel, setSelectedLevel] = useState<string>("");
@@ -84,23 +107,19 @@ export function LessonsGrid({ lessons, slideCounts, progress, wishlistLessonIds,
 
   return (
     <>
-      {/* ── Filter + Sort bar ── */}
       <div className="mb-5 rounded-lg border border-black/10 bg-white px-4 py-3 shadow-sm">
         <div className="flex flex-wrap items-center gap-3">
-
-          {/* Keyword search */}
           <div className="relative flex min-w-[180px] flex-1 items-center">
             <Search size={14} className="pointer-events-none absolute left-3 text-black/40" />
             <input
               type="search"
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
-              placeholder="Search title or topic…"
+              placeholder="Search title or topic..."
               className="w-full rounded-md border border-black/15 py-1.5 pl-8 pr-3 text-sm outline-none focus:border-moss"
             />
           </div>
 
-          {/* Topic dropdown */}
           {topics.length > 0 && (
             <select
               value={selectedTopic}
@@ -114,37 +133,38 @@ export function LessonsGrid({ lessons, slideCounts, progress, wishlistLessonIds,
             </select>
           )}
 
-          {/* Sort */}
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as SortOption)}
             className="rounded-md border border-black/15 py-1.5 pl-3 pr-8 text-sm outline-none focus:border-moss"
           >
             <option value="newest">Sort: Newest</option>
-            <option value="az">Sort: A–Z</option>
-            <option value="level-asc">Sort: Level ↑</option>
-            <option value="level-desc">Sort: Level ↓</option>
+            <option value="az">Sort: A-Z</option>
+            <option value="level-asc">Sort: Level up</option>
+            <option value="level-desc">Sort: Level down</option>
           </select>
 
-          {/* Level chips */}
           <div className="flex flex-wrap gap-1.5">
-            {LEVELS.map((lvl) => (
-              <button
-                key={lvl}
-                type="button"
-                onClick={() => setSelectedLevel(selectedLevel === lvl ? "" : lvl)}
-                className={`rounded-full px-2.5 py-1 text-xs font-semibold transition-colors ${
-                  selectedLevel === lvl
-                    ? "bg-moss text-white"
-                    : "bg-skywash text-ink hover:bg-moss/20"
-                }`}
-              >
-                {lvl}
-              </button>
-            ))}
+            {LEVELS.map((lvl) => {
+              const t = getLevelTheme(lvl);
+              return (
+                <button
+                  key={lvl}
+                  type="button"
+                  onClick={() => setSelectedLevel(selectedLevel === lvl ? "" : lvl)}
+                  style={
+                    selectedLevel === lvl
+                      ? { backgroundColor: t.border, color: "#fff", borderColor: t.border }
+                      : { backgroundColor: t.badge, color: t.badgeText, borderColor: "transparent" }
+                  }
+                  className="rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors"
+                >
+                  {lvl}
+                </button>
+              );
+            })}
           </div>
 
-          {/* Clear */}
           {hasActiveFilter && (
             <button
               type="button"
@@ -163,10 +183,10 @@ export function LessonsGrid({ lessons, slideCounts, progress, wishlistLessonIds,
         </p>
       </div>
 
-      {/* ── Lessons grid ── */}
       {filtered.length > 0 ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {filtered.map((lesson) => {
+            const theme = getLevelTheme(lesson.level);
             const saved = progressMap.get(lesson.id);
             const totalSlides = slideCounts[lesson.id] ?? 0;
             const current = Math.min(saved?.current_slide_number ?? 1, totalSlides || 1);
@@ -179,64 +199,86 @@ export function LessonsGrid({ lessons, slideCounts, progress, wishlistLessonIds,
               : "Start";
 
             return (
-              <article key={lesson.id} className="flex min-h-72 flex-col rounded-lg border border-black/10 bg-white p-5 shadow-sm">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <span className="rounded-full bg-skywash px-2 py-1 text-xs font-medium text-ink">{lesson.level}</span>
-                    <h2 className="mt-3 text-xl font-semibold">{lesson.title}</h2>
-                    <p className="mt-1 text-sm text-black/55">{lesson.topic}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {!saved ? (
-                      <WishlistButton
-                        isLoggedIn={isLoggedIn}
-                        lessonId={lesson.id}
-                        initiallySaved={wishlistSet.has(lesson.id)}
-                        loginNext="/lessons"
-                      />
-                    ) : null}
-                    <BookOpen className="text-moss" size={22} />
-                  </div>
-                </div>
-                <p className="mt-4 text-sm leading-6 text-black/65">
-                  {lesson.description || "A focused English lesson with guided slide practice."}
-                </p>
-                <div className="mt-auto pt-5">
-                  {isLoggedIn ? (
-                    <>
-                      <div className="mb-3 flex items-center gap-2 text-xs font-medium text-black/55">
-                        {saved?.completed ? <CheckCircle2 size={14} /> : <Clock3 size={14} />}
-                        <span>{saved?.completed ? "Completed" : saved ? "In progress" : "Not started"}</span>
-                      </div>
-                      <div className="mb-2 flex justify-between text-xs text-black/55">
-                        <span>
-                          {saved?.completed ? "Completed" : saved ? `${current}/${totalSlides || "?"} slides` : `${totalSlides || "?"} slides`}
-                        </span>
-                        <span>{saved?.completed ? 100 : percent}%</span>
-                      </div>
-                      <div className="h-2 overflow-hidden rounded-full bg-black/10">
-                        <div className="h-full bg-moss" style={{ width: `${saved?.completed ? 100 : percent}%` }} />
-                      </div>
-                    </>
-                  ) : (
-                    <div className="flex items-center gap-2 rounded-md bg-slate-50 p-3 text-sm text-slate-600">
-                      <LockKeyhole size={16} /> Sign in to save progress and study notes.
+              <article
+                key={lesson.id}
+                className="flex flex-col overflow-hidden rounded-lg border border-black/10 bg-white shadow-sm"
+                style={{ borderLeftColor: theme.border, borderLeftWidth: "4px" }}
+              >
+                <div className="px-5 pt-5 pb-3" style={{ backgroundColor: theme.headerBg }}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <span
+                        className="inline-block rounded-full px-2.5 py-1 text-xs font-bold"
+                        style={{ backgroundColor: theme.badge, color: theme.badgeText }}
+                      >
+                        {lesson.level}
+                      </span>
+                      <h2 className="mt-2 text-lg font-semibold leading-snug">{lesson.title}</h2>
+                      <p className="mt-0.5 text-sm text-black/55">{lesson.topic}</p>
                     </div>
-                  )}
+                    <div className="flex shrink-0 items-center gap-2 pt-1">
+                      {!saved && (
+                        <WishlistButton
+                          isLoggedIn={isLoggedIn}
+                          lessonId={lesson.id}
+                          initiallySaved={wishlistSet.has(lesson.id)}
+                          loginNext="/lessons"
+                        />
+                      )}
+                      <BookOpen size={20} style={{ color: theme.border }} />
+                    </div>
+                  </div>
                 </div>
-                <Link
-                  href={href}
-                  className="mt-5 inline-flex items-center justify-center gap-2 rounded-md bg-ink px-4 py-2 text-center text-sm font-medium text-white"
-                >
-                  {action} <ArrowRight size={16} />
-                </Link>
+
+                <div className="flex flex-1 flex-col px-5 pb-5 pt-3">
+                  <p className="text-sm leading-6 text-black/60">
+                    {lesson.description || "A focused English lesson with guided slide practice."}
+                  </p>
+
+                  <div className="mt-auto pt-4">
+                    {isLoggedIn ? (
+                      <>
+                        <div className="mb-2 flex items-center gap-2 text-xs font-medium text-black/50">
+                          {saved?.completed
+                            ? <CheckCircle2 size={13} style={{ color: theme.border }} />
+                            : <Clock3 size={13} />}
+                          <span>{saved?.completed ? "Completed" : saved ? "In progress" : "Not started"}</span>
+                          <span className="ml-auto">
+                            {saved?.completed ? "100%" : saved ? `${percent}%` : `${totalSlides || "?"} slides`}
+                          </span>
+                        </div>
+                        <div className="h-1.5 overflow-hidden rounded-full bg-black/10">
+                          <div
+                            className="h-full rounded-full transition-all"
+                            style={{
+                              width: `${saved?.completed ? 100 : percent}%`,
+                              backgroundColor: theme.border
+                            }}
+                          />
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex items-center gap-2 rounded-md bg-slate-50 p-3 text-sm text-slate-500">
+                        <LockKeyhole size={15} /> Sign in to save progress.
+                      </div>
+                    )}
+                  </div>
+
+                  <Link
+                    href={href}
+                    className="mt-4 inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+                    style={{ backgroundColor: theme.border }}
+                  >
+                    {action} <ArrowRight size={15} />
+                  </Link>
+                </div>
               </article>
             );
           })}
         </div>
       ) : (
         <div className="rounded-lg border border-black/10 bg-white p-8 text-center shadow-sm">
-          <BookOpen className="mx-auto text-moss" size={28} />
+          <BookOpen className="mx-auto text-black/30" size={28} />
           <h2 className="mt-4 text-lg font-semibold">No lessons match your filters</h2>
           <p className="mt-2 text-sm text-black/60">Try clearing some filters to see more lessons.</p>
           <button
