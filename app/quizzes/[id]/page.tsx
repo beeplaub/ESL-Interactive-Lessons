@@ -14,9 +14,16 @@ export default async function QuizPage({ params }: { params: Promise<{ id: strin
   if (!user) redirect(`/login?next=${encodeURIComponent(`/quizzes/${id}`)}`);
 
   const admin = createAdminClient();
-  const [{ data: quiz }, { data: questions }] = await Promise.all([
+  const [{ data: quiz }, { data: questions }, { data: attempts }] = await Promise.all([
     admin.from("quizzes").select("*").eq("id", id).eq("status", "PUBLISHED").single(),
-    admin.from("quiz_questions").select("*").eq("quiz_id", id).order("question_number", { ascending: true })
+    admin.from("quiz_questions").select("*").eq("quiz_id", id).order("question_number", { ascending: true }),
+    admin
+      .from("quiz_attempts")
+      .select("score, total, completed_at")
+      .eq("quiz_id", id)
+      .eq("user_id", user.id)
+      .order("completed_at", { ascending: true })
+      .limit(10)
   ]);
   if (!quiz) notFound();
 
@@ -30,7 +37,11 @@ export default async function QuizPage({ params }: { params: Promise<{ id: strin
         <h1 className="mt-3 text-3xl font-semibold tracking-tight">{quiz.title}</h1>
         <p className="mt-2 text-sm text-black/60">{quiz.topic} · {(questions ?? []).length} questions</p>
       </section>
-      <QuizPlayer quizId={quiz.id} questions={(questions ?? []) as Parameters<typeof QuizPlayer>[0]["questions"]} />
+      <QuizPlayer
+        quizId={quiz.id}
+        questions={(questions ?? []) as Parameters<typeof QuizPlayer>[0]["questions"]}
+        pastAttempts={(attempts ?? []).map((a) => ({ score: a.score, total: a.total, completedAt: a.completed_at }))}
+      />
     </main>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, RotateCcw } from "lucide-react";
+import { CheckCircle2, RotateCcw, TrendingUp } from "lucide-react";
 import { useState, useTransition } from "react";
 import { recordQuizAttempt } from "@/app/quizzes/actions";
 import type { Json } from "@/types/database.types";
@@ -15,6 +15,12 @@ export type QuizQuestion = {
   correct_answer: Json;
 };
 
+type PastAttempt = {
+  score: number;
+  total: number;
+  completedAt: string;
+};
+
 function asRecord(value: Json | null | undefined): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 }
@@ -23,9 +29,131 @@ function normalize(value: unknown) {
   return String(value ?? "").trim().toLowerCase();
 }
 
-export function QuizPlayer({ quizId, questions }: { quizId: string; questions: QuizQuestion[] }) {
+function isCorrect(question: QuizQuestion, value: unknown): boolean {
+  if (question.question_type === "MCQ") {
+    return normalize(value) === normalize(question.correct_answer);
+  }
+  if (question.question_type === "TRUE_FALSE") {
+    return value === question.correct_answer;
+  }
+  if (question.question_type === "FILL") {
+    const correct = Array.isArray(question.correct_answer) ? question.correct_answer : [question.correct_answer];
+    const given = Array.isArray(value) ? value : [value];
+    return correct.every((c, i) => normalize(given[i]) === normalize(c));
+  }
+  if (question.question_type === "MATCHING") {
+    const correct = asRecord(question.correct_answer);
+    const given = asRecord(value);
+    return Object.entries(correct).every(([k, v]) => normalize(given[k]) === normalize(v));
+  }
+  return false;
+}
+
+function hasAnswer(question: QuizQuestion, value: unknown): boolean {
+  if (value === undefined || value === null) return false;
+  if (question.question_type === "FILL") return Array.isArray(value) && value.some((v) => String(v).trim() !== "");
+  if (question.question_type === "MATCHING") return Object.keys(asRecord(value)).length > 0;
+  return true;
+}
+
+function answerText(question: QuizQuestion): string {
+  if (question.question_type === "MCQ") {
+    const opts = asRecord(question.options);
+    const key = String(question.correct_answer);
+    return `${key}. ${opts[key] ?? ""}`;
+  }
+  if (question.question_type === "TRUE_FALSE") return String(question.correct_answer);
+  if (question.question_type === "FILL") {
+    return Array.isArray(question.correct_answer) ? question.correct_answer.join(", ") : String(question.correct_answer);
+  }
+  if (question.question_type === "MATCHING") {
+    return Object.entries(asRecord(question.correct_answer))
+      .map(([k, v]) => `${k} → ${v}`)
+      .join(", ");
+  }
+  return "";
+}
+
+// ── Score history chart ──
+function ScoreHistory({ attempts, total }: { attempts: PastAttempt[]; total: number }) {
+  if (!attempts.length) return null;
+  const last5 = attempts.slice(-5);
+  const best = Math.max(...last5.map((a) => a.score));
+  const latest = last5[last5.length - 1];
+  const latestPercent = total ? Math.round((latest.score / total) * 100) : 0;
+
+  return (
+    <div className="mb-6 rounded-lg border border-black/10 bg-white p-5 shadow-sm">
+      <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <TrendingUp size={16} className="text-moss" />
+          <h2 className="text-sm font-semibold">Your score history</h2>
+        </div>
+        <span className="text-xs text-black/45">{last5.length} attempt{last5.length !== 1 ? "s" : ""}</span>
+      </div>
+
+      {/* Bar chart */}
+      <div className="flex items-end gap-2 h-16">
+        {last5.map((attempt, i) => {
+          const percent = attempt.total ? (attempt.score / attempt.total) * 100 : 0;
+          const isBest = attempt.score === best;
+          const isLatest = i === last5.length - 1;
+          return (
+            <div key={i} className="flex flex-1 flex-col items-center gap-1">
+              <span className="text-xs font-medium text-black/55">{attempt.score}</span>
+              <div className="w-full rounded-t-sm" style={{
+                height: `${Math.max(percent, 6)}%`,
+                maxHeight: "100%",
+                backgroundColor: isLatest ? "var(--color-moss, #4a7c59)" : isBest ? "var(--color-moss, #4a7c59)" : undefined,
+                opacity: isLatest ? 1 : 0.35,
+                background: isLatest
+                  ? undefined
+                  : "#94a3b8"
+              }} />
+            </div>
+          );
+        })}
+      </div>
+
+      {/* X-axis labels */}
+      <div className="mt-1 flex gap-2">
+        {last5.map((attempt, i) => (
+          <div key={i} className="flex-1 text-center">
+            <span className="text-xs text-black/35">
+              {new Date(attempt.completedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {/* Summary line */}
+      <div className="mt-3 flex items-center gap-3 border-t border-black/8 pt-3 text-xs text-black/55">
+        <span>Latest: <strong className={latestPercent >= 80 ? "text-moss" : latestPercent >= 50 ? "text-ink" : "text-coral"}>{latest.score}/{total} ({latestPercent}%)</strong></span>
+        <span>·</span>
+        <span>Best: <strong className="text-ink">{best}/{total}</strong></span>
+        {last5.length >= 2 && last5[last5.length - 1].score > last5[last5.length - 2].score && (
+          <>
+            <span>·</span>
+            <span className="text-moss font-medium">↑ Improving!</span>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function QuizPlayer({
+  quizId,
+  questions,
+  pastAttempts = []
+}: {
+  quizId: string;
+  questions: QuizQuestion[];
+  pastAttempts?: PastAttempt[];
+}) {
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
   const [submitted, setSubmitted] = useState(false);
+  const [allAttempts, setAllAttempts] = useState<PastAttempt[]>(pastAttempts);
   const [message, setMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const answered = questions.every((question) => hasAnswer(question, answers[question.id]));
@@ -42,6 +170,10 @@ export function QuizPlayer({ quizId, questions }: { quizId: string; questions: Q
     startTransition(async () => {
       try {
         await recordQuizAttempt({ quizId, score: finalScore, total: questions.length, answers });
+        setAllAttempts((prev) => [
+          ...prev,
+          { score: finalScore, total: questions.length, completedAt: new Date().toISOString() }
+        ]);
         setMessage("Quiz attempt saved.");
       } catch (error) {
         setMessage(error instanceof Error ? error.message : "Could not save quiz attempt.");
@@ -51,11 +183,25 @@ export function QuizPlayer({ quizId, questions }: { quizId: string; questions: Q
 
   return (
     <div className="space-y-4">
+      {/* Score history — shown before starting if they have attempts */}
+      {allAttempts.length > 0 && !submitted && (
+        <ScoreHistory attempts={allAttempts} total={questions.length} />
+      )}
+
       {submitted ? (
         <div className="rounded-lg border border-moss/20 bg-moss/10 p-5 text-moss">
           <p className="text-xl font-semibold">Score: {score} out of {questions.length}</p>
+          <p className="mt-1 text-sm opacity-75">
+            {Math.round((score / questions.length) * 100)}% — {score >= questions.length * 0.8 ? "Excellent work!" : score >= questions.length * 0.5 ? "Good effort, keep practising!" : "Keep going — every attempt builds fluency!"}
+          </p>
         </div>
       ) : null}
+
+      {/* Score history — also shown after submitting, now including the new attempt */}
+      {submitted && allAttempts.length > 0 && (
+        <ScoreHistory attempts={allAttempts} total={questions.length} />
+      )}
+
       {questions.map((question) => (
         <QuestionCard
           key={question.id}
@@ -65,11 +211,18 @@ export function QuizPlayer({ quizId, questions }: { quizId: string; questions: Q
           onChange={(value) => setAnswers((current) => ({ ...current, [question.id]: value }))}
         />
       ))}
+
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-black/10 bg-white p-4 shadow-sm">
-        <p className="text-sm text-black/60">{submitted ? "Review your answers below." : "Answer every question to submit."}</p>
+        <p className="text-sm text-black/60">
+          {submitted ? "Review your answers below." : "Answer every question to submit."}
+        </p>
         <div className="flex gap-2">
           {submitted ? (
-            <button type="button" onClick={reset} className="inline-flex items-center gap-2 rounded-md border border-black/15 px-4 py-2 text-sm font-medium">
+            <button
+              type="button"
+              onClick={reset}
+              className="inline-flex items-center gap-2 rounded-md border border-black/15 px-4 py-2 text-sm font-medium"
+            >
               <RotateCcw size={16} /> Retake
             </button>
           ) : null}
@@ -88,7 +241,17 @@ export function QuizPlayer({ quizId, questions }: { quizId: string; questions: Q
   );
 }
 
-export function QuestionCard({ question, value, submitted, onChange }: { question: QuizQuestion; value: unknown; submitted: boolean; onChange: (value: unknown) => void }) {
+export function QuestionCard({
+  question,
+  value,
+  submitted,
+  onChange
+}: {
+  question: QuizQuestion;
+  value: unknown;
+  submitted: boolean;
+  onChange: (value: unknown) => void;
+}) {
   const correct = submitted ? isCorrect(question, value) : false;
   const wrong = submitted && !correct;
   return (
@@ -103,7 +266,11 @@ export function QuestionCard({ question, value, submitted, onChange }: { questio
         {question.question_type === "FILL" ? <Fill question={question} value={value as string[] | undefined} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "MATCHING" ? <Matching question={question} value={(value as Record<string, string>) ?? {}} disabled={submitted} onChange={onChange} /> : null}
       </div>
-      {submitted && wrong ? <p className="mt-3 rounded-md bg-coral/10 p-3 text-sm text-coral">Correct answer: {answerText(question)}</p> : null}
+      {submitted && wrong ? (
+        <p className="mt-3 rounded-md bg-coral/10 p-3 text-sm text-coral">
+          Correct answer: {answerText(question)}
+        </p>
+      ) : null}
     </fieldset>
   );
 }
@@ -124,10 +291,11 @@ function Mcq({ question, value, disabled, onChange }: { question: QuizQuestion; 
 
 function TrueFalse({ value, disabled, onChange }: { value?: boolean; disabled: boolean; onChange: (value: boolean) => void }) {
   return (
-    <div className="flex gap-2">
-      {[true, false].map((option) => (
-        <label key={String(option)} className="flex cursor-pointer items-center gap-2 rounded-md border border-black/10 px-4 py-2 text-sm">
-          <input type="radio" disabled={disabled} checked={value === option} onChange={() => onChange(option)} /> {option ? "True" : "False"}
+    <div className="flex gap-3">
+      {([true, false] as const).map((opt) => (
+        <label key={String(opt)} className="flex cursor-pointer items-center gap-2 rounded-md border border-black/10 px-4 py-2 text-sm">
+          <input type="radio" disabled={disabled} checked={value === opt} onChange={() => onChange(opt)} />
+          {opt ? "True" : "False"}
         </label>
       ))}
     </div>
@@ -135,23 +303,23 @@ function TrueFalse({ value, disabled, onChange }: { value?: boolean; disabled: b
 }
 
 function Fill({ question, value, disabled, onChange }: { question: QuizQuestion; value?: string[]; disabled: boolean; onChange: (value: string[]) => void }) {
-  const options = asRecord(question.options);
-  const blankCount = Math.max(1, Number(options.blank_count ?? (Array.isArray(question.correct_answer) ? question.correct_answer.length : 1)) || 1);
-  const answers = Array.from({ length: blankCount }, (_, index) => value?.[index] ?? "");
+  const correct = Array.isArray(question.correct_answer) ? question.correct_answer : [question.correct_answer];
+  const current = value ?? correct.map(() => "");
   return (
-    <div className="grid gap-2 sm:grid-cols-2">
-      {answers.map((answer, index) => (
+    <div className="grid gap-2">
+      {correct.map((_, i) => (
         <input
-          key={index}
+          key={i}
+          type="text"
           disabled={disabled}
-          value={answer}
-          onChange={(event) => {
-            const next = [...answers];
-            next[index] = event.target.value;
+          value={current[i] ?? ""}
+          onChange={(e) => {
+            const next = [...current];
+            next[i] = e.target.value;
             onChange(next);
           }}
-          className="w-full rounded-md border border-black/15 px-3 py-2"
-          placeholder={`Answer ${index + 1}`}
+          placeholder={`Answer ${correct.length > 1 ? i + 1 : ""}`}
+          className="rounded-md border border-black/15 px-3 py-2 text-sm outline-none focus:border-moss"
         />
       ))}
     </div>
@@ -159,74 +327,28 @@ function Fill({ question, value, disabled, onChange }: { question: QuizQuestion;
 }
 
 function Matching({ question, value, disabled, onChange }: { question: QuizQuestion; value: Record<string, string>; disabled: boolean; onChange: (value: Record<string, string>) => void }) {
-  const options = asRecord(question.options) as { a_items?: string[]; b_items?: string[] };
+  const options = asRecord(question.options);
+  const correct = asRecord(question.correct_answer);
+  const keys = Object.keys(correct);
+  const rightOptions = Object.values(correct).map(String);
   return (
-    <div className="grid gap-4 md:grid-cols-2">
-      <div className="space-y-2">
-        {(options.a_items ?? []).map((item, index) => (
-          <label key={item} className="grid grid-cols-[1fr_120px] items-center gap-3 rounded-md border border-black/10 p-3 text-sm">
-            <span>{index + 1}. {item}</span>
-            <select disabled={disabled} value={value[String(index + 1)] ?? ""} onChange={(event) => onChange({ ...value, [String(index + 1)]: event.target.value })} className="rounded-md border border-black/15 px-2 py-2">
-              <option value="">-</option>
-              {(options.b_items ?? []).map((bItem, bIndex) => {
-                const label = letterLabel(bIndex);
-                return <option key={bItem} value={label}>{label}</option>;
-              })}
-            </select>
-          </label>
-        ))}
-      </div>
-      <div className="space-y-2">
-        {(options.b_items ?? []).map((item, index) => <div key={item} className="rounded-md bg-skywash p-3 text-sm">{letterLabel(index)}. {item}</div>)}
-      </div>
+    <div className="grid gap-2">
+      {keys.map((key) => (
+        <div key={key} className="flex items-center gap-3 text-sm">
+          <span className="w-24 shrink-0 font-medium">{String(options[key] ?? key)}</span>
+          <select
+            disabled={disabled}
+            value={value[key] ?? ""}
+            onChange={(e) => onChange({ ...value, [key]: e.target.value })}
+            className="flex-1 rounded-md border border-black/15 px-2 py-1.5 text-sm outline-none focus:border-moss"
+          >
+            <option value="">Select…</option>
+            {rightOptions.map((opt) => (
+              <option key={opt} value={opt}>{opt}</option>
+            ))}
+          </select>
+        </div>
+      ))}
     </div>
   );
-}
-
-export function hasAnswer(question: QuizQuestion, value: unknown) {
-  if (question.question_type === "MATCHING") {
-    const options = asRecord(question.options) as { a_items?: string[] };
-    return Object.keys((value as Record<string, string>) ?? {}).length === (options.a_items?.length ?? 0);
-  }
-  if (question.question_type === "FILL") {
-    const options = asRecord(question.options);
-    const blankCount = Math.max(1, Number(options.blank_count ?? (Array.isArray(question.correct_answer) ? question.correct_answer.length : 1)) || 1);
-    const answers = Array.isArray(value) ? value : [];
-    return answers.length >= blankCount && answers.slice(0, blankCount).every((answer) => String(answer).trim() !== "");
-  }
-  return value !== undefined && String(value).trim() !== "";
-}
-
-export function isCorrect(question: QuizQuestion, value: unknown) {
-  if (question.question_type === "MCQ") return value === question.correct_answer;
-  if (question.question_type === "TRUE_FALSE") return value === question.correct_answer;
-  if (question.question_type === "FILL") {
-    const accepted = Array.isArray(question.correct_answer) ? question.correct_answer : [question.correct_answer];
-    const parts = Array.isArray(value) ? value.map((item) => normalize(item)) : String(value ?? "").split(",").map((item) => normalize(item));
-    return accepted.every((answer, index) => normalize(answer) === parts[index]);
-  }
-  const correct = Array.isArray(question.correct_answer) ? (question.correct_answer as Array<{ a: number; b: string }>) : [];
-  const selected = (value as Record<string, string>) ?? {};
-  return correct.every((pair) => normalizeMatchingLabel(selected[String(pair.a)]) === normalizeMatchingLabel(pair.b));
-}
-
-function answerText(question: QuizQuestion) {
-  if (question.question_type === "TRUE_FALSE") return question.correct_answer ? "TRUE" : "FALSE";
-  if (question.question_type === "FILL") return Array.isArray(question.correct_answer) ? question.correct_answer.join(", ") : String(question.correct_answer);
-  if (question.question_type === "MATCHING") {
-    const correct = Array.isArray(question.correct_answer) ? (question.correct_answer as Array<{ a: number; b: string }>) : [];
-    return correct.map((pair) => `${pair.a} -> ${normalizeMatchingLabel(pair.b)}`).join(", ");
-  }
-  return String(question.correct_answer);
-}
-
-function letterLabel(index: number) {
-  return String.fromCharCode(65 + index);
-}
-
-function normalizeMatchingLabel(label: unknown) {
-  const value = String(label ?? "").trim().toUpperCase();
-  const oldStyle = value.match(/^B(\d+)$/);
-  if (oldStyle) return letterLabel(Number(oldStyle[1]) - 1);
-  return value;
 }
