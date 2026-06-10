@@ -29,7 +29,7 @@ function normalize(value: unknown) {
   return String(value ?? "").trim().toLowerCase();
 }
 
-function isCorrect(question: QuizQuestion, value: unknown): boolean {
+export function isCorrect(question: QuizQuestion, value: unknown): boolean {
   if (question.question_type === "MCQ") {
     return normalize(value) === normalize(question.correct_answer);
   }
@@ -43,16 +43,16 @@ function isCorrect(question: QuizQuestion, value: unknown): boolean {
   }
   if (question.question_type === "MATCHING") {
     const correct = asRecord(question.correct_answer);
-    const given = asRecord(value);
+    const given = asRecord(value as Json);
     return Object.entries(correct).every(([k, v]) => normalize(given[k]) === normalize(v));
   }
   return false;
 }
 
-function hasAnswer(question: QuizQuestion, value: unknown): boolean {
+export function hasAnswer(question: QuizQuestion, value: unknown): boolean {
   if (value === undefined || value === null) return false;
   if (question.question_type === "FILL") return Array.isArray(value) && value.some((v) => String(v).trim() !== "");
-  if (question.question_type === "MATCHING") return Object.keys(asRecord(value)).length > 0;
+  if (question.question_type === "MATCHING") return Object.keys(asRecord(value as Json)).length > 0;
   return true;
 }
 
