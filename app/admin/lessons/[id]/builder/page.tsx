@@ -17,6 +17,7 @@ import {
   updateLessonBuilderDetails
 } from "@/app/admin/lessons/actions";
 import { InLessonActivitiesEditor } from "@/components/InLessonActivitiesEditor";
+import { LessonBlockPreview } from "@/components/LessonBlockPreview";
 import type { Json, SlideType } from "@/types/database.types";
 
 const slideTypes: SlideType[] = [
@@ -422,6 +423,39 @@ export default async function LessonBuilderPage({ params }: { params: Promise<{ 
                         </form>
                       )}
                     </section>
+
+                    <details className="rounded-md border border-moss/20 bg-moss/5 p-4">
+                      <summary className="cursor-pointer list-none">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div>
+                            <h4 className="font-semibold">Live block preview</h4>
+                            <p className="mt-1 text-xs text-black/55">
+                              Preview of the future LMS-style slide content.
+                            </p>
+                          </div>
+                          <span className="inline-flex items-center gap-1 rounded-md bg-white px-3 py-1 text-xs font-semibold text-moss">
+                            <Eye size={13} /> Preview
+                          </span>
+                        </div>
+                      </summary>
+                      <div className="mt-4">
+                        <div className="mb-3 rounded-lg bg-ink px-4 py-3 text-white">
+                          <p className="text-xs uppercase tracking-wide text-white/55">Slide {slide.slide_number}</p>
+                          <h3 className="mt-1 text-xl font-semibold">{slide.title}</h3>
+                          {slide.section_label ? <p className="mt-1 text-sm text-white/60">{slide.section_label}</p> : null}
+                        </div>
+                        <LessonBlockPreview blocks={slideBlocks} />
+                        {generated ? (
+                          <div className="mt-3 rounded-lg border border-black/10 bg-white p-4">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-moss">Activity</p>
+                            <p className="mt-1 text-sm text-black/65">
+                              {generated.activity_type.replaceAll("_", " ")}
+                              {generated.needs_review ? " · needs review" : " · ready"}
+                            </p>
+                          </div>
+                        ) : null}
+                      </div>
+                    </details>
 
                     <div className="flex flex-wrap gap-2 border-t border-black/10 pt-4">
                       <form action={moveBuilderSlide.bind(null, lesson.id, slide.id, "up")}>
