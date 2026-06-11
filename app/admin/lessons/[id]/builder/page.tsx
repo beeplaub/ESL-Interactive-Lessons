@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import {
   addBuilderSlide,
   addLessonBlock,
+  addLessonSlideActivity,
   deleteBuilderSlide,
   deleteLessonBlock,
   duplicateBuilderSlide,
@@ -15,6 +16,7 @@ import {
   updateBuilderSlide,
   updateLessonBuilderDetails
 } from "@/app/admin/lessons/actions";
+import { InLessonActivitiesEditor } from "@/components/InLessonActivitiesEditor";
 import type { Json, SlideType } from "@/types/database.types";
 
 const slideTypes: SlideType[] = [
@@ -81,7 +83,7 @@ export default async function LessonBuilderPage({ params }: { params: Promise<{ 
       .order("slide_number", { ascending: true }),
     supabase
       .from("lesson_slide_activities")
-      .select("id, slide_id, slide_number, activity_type, needs_review")
+      .select("*, slides(title)")
       .eq("lesson_id", id)
       .order("slide_number", { ascending: true }),
     supabase
@@ -128,6 +130,8 @@ export default async function LessonBuilderPage({ params }: { params: Promise<{ 
           {reviewCount} generated activities need review. Publishing is blocked until they are fixed in the parser edit screen.
         </div>
       ) : null}
+
+      <InLessonActivitiesEditor lessonId={lesson.id} initialActivities={generatedActivities ?? []} />
 
       <section className="grid gap-5 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
         <form action={updateLessonBuilderDetails.bind(null, lesson.id)} className="h-fit rounded-lg border border-black/10 bg-white p-5 shadow-sm">
@@ -377,6 +381,46 @@ export default async function LessonBuilderPage({ params }: { params: Promise<{ 
                           </div>
                         ) : null}
                       </div>
+                    </section>
+
+                    <section className="rounded-md border border-black/10 bg-white p-4">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <h4 className="font-semibold">Interactive activity</h4>
+                          <p className="mt-1 text-xs text-black/55">
+                            Add one auto-check activity to this slide. Then edit it in the In-Lesson Activities panel above.
+                          </p>
+                        </div>
+                        {generated ? (
+                          <span className={`rounded-full px-2 py-1 text-xs font-medium ${generated.needs_review ? "bg-amber-100 text-amber-800" : "bg-moss/10 text-moss"}`}>
+                            {generated.activity_type}
+                          </span>
+                        ) : null}
+                      </div>
+                      {generated ? (
+                        <p className="mt-3 text-sm text-black/60">
+                          This slide already has an activity. Open the In-Lesson Activities panel above to edit or remove it.
+                        </p>
+                      ) : (
+                        <form action={addLessonSlideActivity.bind(null, lesson.id, slide.id, slide.slide_number)} className="mt-4 grid gap-3">
+                          <div className="grid gap-3 sm:grid-cols-[180px_1fr_auto] sm:items-end">
+                            <label className="text-sm">
+                              Activity type
+                              <select name="activityType" defaultValue="MCQ" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">
+                                <option value="MCQ">Multiple Choice</option>
+                                <option value="GAP_FILL">Gap Fill</option>
+                                <option value="TRUE_FALSE">True / False</option>
+                                <option value="MATCHING">Matching</option>
+                              </select>
+                            </label>
+                            <label className="text-sm">
+                              Instruction
+                              <input name="prompt" placeholder="Choose the best answer." className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+                            </label>
+                            <button className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white">Add activity</button>
+                          </div>
+                        </form>
+                      )}
                     </section>
 
                     <div className="flex flex-wrap gap-2 border-t border-black/10 pt-4">

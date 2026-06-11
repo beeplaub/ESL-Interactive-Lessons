@@ -751,6 +751,26 @@ export async function moveLessonBlock(lessonId: string, slideId: string, blockId
   revalidateLessonBuilder(lessonId);
 }
 
+export async function addLessonSlideActivity(lessonId: string, slideId: string, slideNumber: number, formData: FormData) {
+  await requireAdmin();
+  const supabase = createAdminClient();
+  const activityType = String(formData.get("activityType") || "MCQ");
+  const prompt = String(formData.get("prompt") || defaultActivityPrompt(activityType)).trim();
+
+  const { error } = await supabase.from("lesson_slide_activities").insert({
+    lesson_id: lessonId,
+    slide_id: slideId,
+    slide_number: slideNumber,
+    activity_type: activityType,
+    activity_data: defaultActivityData(activityType, prompt),
+    needs_review: true,
+    raw_text: prompt
+  });
+
+  if (error) throw error;
+  revalidateLessonBuilder(lessonId);
+}
+
 export async function rerunParser(lessonId: string) {
   await requireAdmin();
   await classifyAndExtractLesson(lessonId);
@@ -873,6 +893,48 @@ function revalidateLessonBuilder(lessonId: string) {
   revalidatePath(`/admin/lessons/${lessonId}/edit`);
   revalidatePath(`/admin/lessons/${lessonId}/builder`);
   revalidatePath(`/lessons/${lessonId}`);
+}
+
+function defaultActivityPrompt(activityType: string) {
+  if (activityType === "GAP_FILL") return "Complete the sentences.";
+  if (activityType === "TRUE_FALSE") return "True or False?";
+  if (activityType === "MATCHING") return "Match the items.";
+  return "Choose the best answer.";
+}
+
+function defaultActivityData(activityType: string, prompt: string): Json {
+  if (activityType === "GAP_FILL") {
+    return { prompt, items: [{ sentence: "", answer: "" }] };
+  }
+  if (activityType === "TRUE_FALSE") {
+    return { prompt, items: [{ statement: "", answer: true }] };
+  }
+  if (activityType === "MATCHING") {
+    return {
+      prompt,
+      questions: [
+        {
+          id: "1",
+          question_number: 1,
+          question_type: "MATCHING",
+          question_text: prompt,
+          options: { a_items: [], b_items: [] },
+          correct_answer: []
+        }
+      ]
+    };
+  }
+  return {
+    prompt,
+    questions: [
+      {
+        id: 1,
+        text: "",
+        options: { A: "", B: "", C: "", D: "" },
+        answer: "A"
+      }
+    ]
+  };
 }
 
 async function reorderSlides(lessonId: string, orderedIds: string[]) {
