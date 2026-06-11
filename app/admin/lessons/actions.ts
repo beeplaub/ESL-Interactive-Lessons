@@ -43,6 +43,25 @@ const signedUploadSchema = z.object({
   path: z.string().min(3)
 });
 
+const lessonBlockTypes = [
+  "HEADING",
+  "TEXT",
+  "QUOTE",
+  "CALLOUT",
+  "IMAGE",
+  "AUDIO",
+  "VIDEO",
+  "DIVIDER",
+  "VOCABULARY",
+  "GRAMMAR",
+  "READING",
+  "DIALOGUE"
+] as const;
+
+const lessonBlockSchema = z.object({
+  blockType: z.enum(lessonBlockTypes)
+});
+
 function fileExt(file: File) {
   return file.name.split(".").pop()?.toLowerCase() ?? "bin";
 }
@@ -83,6 +102,88 @@ function nullableText(value: unknown) {
 function optionalPositiveInt(value: unknown) {
   const number = Number(value);
   return Number.isFinite(number) && number > 0 ? Math.round(number) : null;
+}
+
+function splitLines(value: unknown) {
+  return String(value ?? "")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+function blockContentFromForm(blockType: string, formData: FormData): Json {
+  if (blockType === "HEADING") {
+    return {
+      text: String(formData.get("text") || "").trim(),
+      level: String(formData.get("level") || "H2")
+    };
+  }
+  if (blockType === "TEXT") {
+    return { body: String(formData.get("body") || "").trim() };
+  }
+  if (blockType === "QUOTE") {
+    return {
+      body: String(formData.get("body") || "").trim(),
+      attribution: nullableText(formData.get("attribution"))
+    };
+  }
+  if (blockType === "CALLOUT") {
+    return {
+      title: nullableText(formData.get("title")),
+      body: String(formData.get("body") || "").trim()
+    };
+  }
+  if (blockType === "IMAGE") {
+    return {
+      path: String(formData.get("path") || "").trim(),
+      alt: nullableText(formData.get("alt")),
+      caption: nullableText(formData.get("caption"))
+    };
+  }
+  if (blockType === "AUDIO") {
+    return {
+      path: String(formData.get("path") || "").trim(),
+      label: nullableText(formData.get("label"))
+    };
+  }
+  if (blockType === "VIDEO") {
+    return {
+      url: String(formData.get("url") || "").trim(),
+      title: nullableText(formData.get("title"))
+    };
+  }
+  if (blockType === "VOCABULARY") {
+    return {
+      entries: splitLines(formData.get("entries")).map((line) => {
+        const [word, pronunciation, meaning, example, notes] = line.split("|").map((part) => part.trim());
+        return { word, pronunciation, meaning, example, notes };
+      })
+    };
+  }
+  if (blockType === "GRAMMAR") {
+    return {
+      title: String(formData.get("title") || "").trim(),
+      explanation: String(formData.get("explanation") || "").trim(),
+      examples: splitLines(formData.get("examples")),
+      notes: nullableText(formData.get("notes"))
+    };
+  }
+  if (blockType === "READING") {
+    return {
+      title: String(formData.get("title") || "").trim(),
+      passage: String(formData.get("passage") || "").trim(),
+      questions: splitLines(formData.get("questions"))
+    };
+  }
+  if (blockType === "DIALOGUE") {
+    return {
+      turns: splitLines(formData.get("turns")).map((line) => {
+        const [speaker, ...rest] = line.split(":");
+        return { speaker: speaker?.trim() || "Speaker", line: rest.join(":").trim() };
+      })
+    };
+  }
+  return {};
 }
 
 async function createLessonRowsFromPdf(params: {
@@ -565,6 +666,91 @@ export async function moveBuilderSlide(lessonId: string, slideId: string, direct
   revalidateLessonBuilder(lessonId);
 }
 
+export async function addLessonBlock(lessonId: string, slideId: string, formData: FormData) {
+  await requireAdmin();
+  const supabase = createAdminClient();
+  const parsed = lessonBlockSchema.parse({ blockType: formData.get("blockType") });
+
+  const { data: blocks, error: blocksError } = await supabase
+    .from("lesson_blocks")
+    .select("position")
+    .eq("slide_id", slideId)
+    .order("position", { ascending: false })
+    .limit(1);
+  if (blocksError) throw blocksError;
+
+  const { error } = await supabase.from("lesson_blocks").insert({
+    lesson_id: lessonId,
+    slide_id: slideId,
+    position: (blocks?.[0]?.position ?? 0) + 1,
+    block_type: parsed.blockType,
+    content: blockContentFromForm(parsed.blockType, formData)
+  });
+
+  if (error) throw error;
+  revalidateLessonBuilder(lessonId);
+}
+
+export async function updateLessonBlock(lessonId: string, blockId: string, formData: FormData) {
+  await requireAdmin();
+  const supabase = createAdminClient();
+  const parsed = lessonBlockSchema.parse({ blockType: formData.get("blockType") });
+
+  const { error } = await supabase
+    .from("lesson_blocks")
+    .update({
+      block_type: parsed.blockType,
+      content: blockContentFromForm(parsed.blockType, formData)
+    })
+    .eq("id", blockId)
+    .eq("lesson_id", lessonId);
+
+  if (error) throw error;
+  revalidateLessonBuilder(lessonId);
+}
+
+export async function deleteLessonBlock(lessonId: string, slideId: string, blockId: string) {
+  await requireAdmin();
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from("lesson_blocks")
+    .delete()
+    .eq("id", blockId)
+    .eq("lesson_id", lessonId)
+    .eq("slide_id", slideId);
+  if (error) throw error;
+
+  const { data: blocks, error: blocksError } = await supabase
+    .from("lesson_blocks")
+    .select("id")
+    .eq("slide_id", slideId)
+    .order("position", { ascending: true });
+  if (blocksError) throw blocksError;
+  await reorderBlocks(slideId, (blocks ?? []).map((block) => block.id));
+  revalidateLessonBuilder(lessonId);
+}
+
+export async function moveLessonBlock(lessonId: string, slideId: string, blockId: string, direction: "up" | "down") {
+  await requireAdmin();
+  const supabase = createAdminClient();
+  const { data: blocks, error } = await supabase
+    .from("lesson_blocks")
+    .select("id")
+    .eq("slide_id", slideId)
+    .order("position", { ascending: true });
+  if (error) throw error;
+
+  const orderedIds = (blocks ?? []).map((block) => block.id);
+  const index = orderedIds.indexOf(blockId);
+  if (index === -1) return;
+  const nextIndex = direction === "up" ? index - 1 : index + 1;
+  if (nextIndex < 0 || nextIndex >= orderedIds.length) return;
+
+  [orderedIds[index], orderedIds[nextIndex]] = [orderedIds[nextIndex], orderedIds[index]];
+  await reorderBlocks(slideId, orderedIds);
+  revalidateLessonBuilder(lessonId);
+}
+
 export async function rerunParser(lessonId: string) {
   await requireAdmin();
   await classifyAndExtractLesson(lessonId);
@@ -744,6 +930,29 @@ async function reorderSlides(lessonId: string, orderedIds: string[]) {
       .update({ linked_slide_number: nextNumber })
       .eq("id", audio.id)
       .eq("lesson_id", lessonId);
+  }
+}
+
+async function reorderBlocks(slideId: string, orderedIds: string[]) {
+  const supabase = createAdminClient();
+  if (orderedIds.length === 0) return;
+
+  for (let index = 0; index < orderedIds.length; index += 1) {
+    const { error } = await supabase
+      .from("lesson_blocks")
+      .update({ position: -100000 - index })
+      .eq("id", orderedIds[index])
+      .eq("slide_id", slideId);
+    if (error) throw error;
+  }
+
+  for (let index = 0; index < orderedIds.length; index += 1) {
+    const { error } = await supabase
+      .from("lesson_blocks")
+      .update({ position: index + 1 })
+      .eq("id", orderedIds[index])
+      .eq("slide_id", slideId);
+    if (error) throw error;
   }
 }
 

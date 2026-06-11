@@ -247,6 +247,54 @@ export type Database = {
           }
         ];
       };
+      lesson_blocks: {
+        Row: {
+          id: string;
+          lesson_id: string;
+          slide_id: string;
+          position: number;
+          block_type: string;
+          content: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          lesson_id: string;
+          slide_id: string;
+          position: number;
+          block_type: string;
+          content?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          lesson_id?: string;
+          slide_id?: string;
+          position?: number;
+          block_type?: string;
+          content?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "lesson_blocks_lesson_id_fkey";
+            columns: ["lesson_id"];
+            isOneToOne: false;
+            referencedRelation: "lessons";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "lesson_blocks_slide_id_fkey";
+            columns: ["slide_id"];
+            isOneToOne: false;
+            referencedRelation: "slides";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       lesson_progress: {
         Row: {
           id: string;
