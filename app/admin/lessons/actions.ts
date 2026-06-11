@@ -22,6 +22,16 @@ const lessonSchema = z.object({
   description: z.string().optional()
 });
 
+const builderLessonSchema = lessonSchema.extend({
+  subtitle: z.string().optional(),
+  category: z.string().optional(),
+  thumbnailPath: z.string().optional(),
+  coverImagePath: z.string().optional(),
+  durationMinutes: z.coerce.number().int().positive().optional().or(z.literal("").transform(() => undefined)),
+  estimatedCompletionMinutes: z.coerce.number().int().positive().optional().or(z.literal("").transform(() => undefined)),
+  status: z.enum(["DRAFT", "PUBLISHED"])
+});
+
 const pathLessonSchema = lessonSchema.extend({
   lessonId: z.string().uuid(),
   pdfPath: z.string().min(3),
@@ -63,6 +73,16 @@ function getErrorMessage(error: unknown) {
 
 function throwStep(step: string, error: unknown): never {
   throw new Error(`${step}: ${getErrorMessage(error)}`);
+}
+
+function nullableText(value: unknown) {
+  const text = String(value ?? "").trim();
+  return text || null;
+}
+
+function optionalPositiveInt(value: unknown) {
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? Math.round(number) : null;
 }
 
 async function createLessonRowsFromPdf(params: {
@@ -326,6 +346,56 @@ export async function updateLessonDetails(lessonId: string, formData: FormData) 
   revalidatePath(`/lessons/${lessonId}`);
 }
 
+export async function updateLessonBuilderDetails(lessonId: string, formData: FormData) {
+  await requireAdmin();
+  const supabase = createAdminClient();
+  const parsed = builderLessonSchema.parse({
+    title: formData.get("title"),
+    subtitle: formData.get("subtitle") || "",
+    topic: formData.get("topic"),
+    category: formData.get("category") || "",
+    level: formData.get("level"),
+    description: formData.get("description") || "",
+    thumbnailPath: formData.get("thumbnailPath") || "",
+    coverImagePath: formData.get("coverImagePath") || "",
+    durationMinutes: formData.get("durationMinutes") || "",
+    estimatedCompletionMinutes: formData.get("estimatedCompletionMinutes") || "",
+    status: formData.get("status")
+  });
+
+  if (parsed.status === "PUBLISHED") {
+    const { count, error: reviewError } = await supabase
+      .from("lesson_slide_activities")
+      .select("id", { count: "exact", head: true })
+      .eq("lesson_id", lessonId)
+      .eq("needs_review", true);
+    if (reviewError) throw reviewError;
+    if ((count ?? 0) > 0) {
+      throw new Error(`${count} generated lesson activities still need review before publishing.`);
+    }
+  }
+
+  const { error } = await supabase
+    .from("lessons")
+    .update({
+      title: parsed.title,
+      subtitle: nullableText(parsed.subtitle),
+      topic: parsed.topic,
+      category: nullableText(parsed.category),
+      level: parsed.level,
+      description: parsed.description ?? "",
+      thumbnail_path: nullableText(parsed.thumbnailPath),
+      cover_image_path: nullableText(parsed.coverImagePath),
+      duration_minutes: optionalPositiveInt(parsed.durationMinutes),
+      estimated_completion_minutes: optionalPositiveInt(parsed.estimatedCompletionMinutes),
+      status: parsed.status
+    })
+    .eq("id", lessonId);
+
+  if (error) throw error;
+  revalidateLessonBuilder(lessonId);
+}
+
 export async function deleteLesson(lessonId: string) {
   await requireAdmin();
   const supabase = createAdminClient();
@@ -381,6 +451,118 @@ export async function updateSlide(formData: FormData) {
   }
 
   revalidatePath(`/admin/lessons/${lessonId}/edit`);
+}
+
+export async function addBuilderSlide(lessonId: string, formData: FormData) {
+  await requireAdmin();
+  const supabase = createAdminClient();
+  const { data: slides, error: slidesError } = await supabase
+    .from("slides")
+    .select("slide_number")
+    .eq("lesson_id", lessonId)
+    .order("slide_number", { ascending: false })
+    .limit(1);
+  if (slidesError) throw slidesError;
+
+  const nextSlideNumber = (slides?.[0]?.slide_number ?? 0) + 1;
+  const title = String(formData.get("title") || `Slide ${nextSlideNumber}`).trim();
+  const type = String(formData.get("type") || "INFO") as SlideType;
+  const rawText = String(formData.get("rawText") || title).trim();
+
+  const { error } = await supabase.from("slides").insert({
+    lesson_id: lessonId,
+    slide_number: nextSlideNumber,
+    title,
+    section_label: nullableText(formData.get("sectionLabel")),
+    raw_text: rawText || title,
+    type
+  });
+
+  if (error) throw error;
+  revalidateLessonBuilder(lessonId);
+}
+
+export async function updateBuilderSlide(lessonId: string, slideId: string, formData: FormData) {
+  await requireAdmin();
+  const supabase = createAdminClient();
+  const title = String(formData.get("title") || "").trim();
+  const rawText = String(formData.get("rawText") || "").trim();
+
+  const { error } = await supabase
+    .from("slides")
+    .update({
+      title: title || "Untitled slide",
+      section_label: nullableText(formData.get("sectionLabel")),
+      type: String(formData.get("type") || "INFO") as SlideType,
+      raw_text: rawText || title || "Untitled slide"
+    })
+    .eq("id", slideId)
+    .eq("lesson_id", lessonId);
+
+  if (error) throw error;
+  revalidateLessonBuilder(lessonId);
+}
+
+export async function duplicateBuilderSlide(lessonId: string, slideId: string) {
+  await requireAdmin();
+  const supabase = createAdminClient();
+  const [{ data: source, error: sourceError }, { data: slides, error: slidesError }] = await Promise.all([
+    supabase.from("slides").select("*").eq("id", slideId).eq("lesson_id", lessonId).single(),
+    supabase.from("slides").select("slide_number").eq("lesson_id", lessonId).order("slide_number", { ascending: false }).limit(1)
+  ]);
+  if (sourceError) throw sourceError;
+  if (slidesError) throw slidesError;
+
+  const nextSlideNumber = (slides?.[0]?.slide_number ?? 0) + 1;
+  const { error } = await supabase.from("slides").insert({
+    lesson_id: lessonId,
+    slide_number: nextSlideNumber,
+    title: `${source.title} copy`,
+    section_label: source.section_label,
+    raw_text: source.raw_text,
+    type: source.type,
+    linked_answer_slide_id: null
+  });
+
+  if (error) throw error;
+  revalidateLessonBuilder(lessonId);
+}
+
+export async function deleteBuilderSlide(lessonId: string, slideId: string) {
+  await requireAdmin();
+  const supabase = createAdminClient();
+  const { error } = await supabase.from("slides").delete().eq("id", slideId).eq("lesson_id", lessonId);
+  if (error) throw error;
+
+  const { data: slides, error: slidesError } = await supabase
+    .from("slides")
+    .select("id")
+    .eq("lesson_id", lessonId)
+    .order("slide_number", { ascending: true });
+  if (slidesError) throw slidesError;
+  await reorderSlides(lessonId, (slides ?? []).map((slide) => slide.id));
+  revalidateLessonBuilder(lessonId);
+}
+
+export async function moveBuilderSlide(lessonId: string, slideId: string, direction: "up" | "down") {
+  await requireAdmin();
+  const supabase = createAdminClient();
+  const { data: slides, error } = await supabase
+    .from("slides")
+    .select("id")
+    .eq("lesson_id", lessonId)
+    .order("slide_number", { ascending: true });
+  if (error) throw error;
+
+  const orderedIds = (slides ?? []).map((slide) => slide.id);
+  const index = orderedIds.indexOf(slideId);
+  if (index === -1) return;
+  const nextIndex = direction === "up" ? index - 1 : index + 1;
+  if (nextIndex < 0 || nextIndex >= orderedIds.length) return;
+
+  [orderedIds[index], orderedIds[nextIndex]] = [orderedIds[nextIndex], orderedIds[index]];
+  await reorderSlides(lessonId, orderedIds);
+  revalidateLessonBuilder(lessonId);
 }
 
 export async function rerunParser(lessonId: string) {
@@ -498,6 +680,71 @@ export async function deleteInLessonActivity(formData: FormData) {
     activityId: String(formData.get("activityId")),
     lessonId: String(formData.get("lessonId"))
   });
+}
+
+function revalidateLessonBuilder(lessonId: string) {
+  revalidatePath("/admin/lessons");
+  revalidatePath(`/admin/lessons/${lessonId}/edit`);
+  revalidatePath(`/admin/lessons/${lessonId}/builder`);
+  revalidatePath(`/lessons/${lessonId}`);
+}
+
+async function reorderSlides(lessonId: string, orderedIds: string[]) {
+  const supabase = createAdminClient();
+  if (orderedIds.length === 0) return;
+
+  const { data: currentSlides, error: currentError } = await supabase
+    .from("slides")
+    .select("id, slide_number")
+    .eq("lesson_id", lessonId);
+  if (currentError) throw currentError;
+
+  const currentNumberById = new Map((currentSlides ?? []).map((slide) => [slide.id, slide.slide_number]));
+  const finalNumberById = new Map(orderedIds.map((id, index) => [id, index + 1]));
+
+  for (let index = 0; index < orderedIds.length; index += 1) {
+    const { error } = await supabase
+      .from("slides")
+      .update({ slide_number: -100000 - index })
+      .eq("id", orderedIds[index])
+      .eq("lesson_id", lessonId);
+    if (error) throw error;
+  }
+
+  for (const id of orderedIds) {
+    const slideNumber = finalNumberById.get(id);
+    if (!slideNumber) continue;
+    const { error } = await supabase
+      .from("slides")
+      .update({ slide_number: slideNumber })
+      .eq("id", id)
+      .eq("lesson_id", lessonId);
+    if (error) throw error;
+
+    await supabase
+      .from("lesson_slide_activities")
+      .update({ slide_number: slideNumber })
+      .eq("slide_id", id)
+      .eq("lesson_id", lessonId);
+  }
+
+  const { data: audioFiles, error: audioError } = await supabase
+    .from("lesson_audio_files")
+    .select("id, linked_slide_number")
+    .eq("lesson_id", lessonId)
+    .not("linked_slide_number", "is", null);
+  if (audioError) throw audioError;
+
+  for (const audio of audioFiles ?? []) {
+    const slideId = [...currentNumberById.entries()].find(([, number]) => number === audio.linked_slide_number)?.[0];
+    const nextNumber = slideId ? finalNumberById.get(slideId) : null;
+    if (!nextNumber || nextNumber === audio.linked_slide_number) continue;
+    await supabase
+      .from("lesson_audio_files")
+      .update({ linked_slide_number: nextNumber })
+      .eq("id", audio.id)
+      .eq("lesson_id", lessonId);
+  }
 }
 
 function hasMissingActivityAnswers(activityData: Json | null) {

@@ -64,6 +64,9 @@ export default async function EditLessonPage({ params }: { params: Promise<{ id:
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Link href={`/admin/lessons/${lesson.id}/builder`} className="rounded-md border border-black/15 px-4 py-2 text-sm hover:bg-black/5">
+            Open builder
+          </Link>
           <Link href={`/lessons/${lesson.id}`} className="rounded-md border border-black/15 px-4 py-2 text-sm hover:bg-black/5">
             Preview as learner
           </Link>

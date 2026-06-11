@@ -54,9 +54,15 @@ export type Database = {
         Row: {
           id: string;
           title: string;
+          subtitle: string | null;
           topic: string;
+          category: string | null;
           level: string;
           description: string | null;
+          thumbnail_path: string | null;
+          cover_image_path: string | null;
+          duration_minutes: number | null;
+          estimated_completion_minutes: number | null;
           pdf_path: string;
           status: "DRAFT" | "PUBLISHED";
           created_at: string;
@@ -65,9 +71,15 @@ export type Database = {
         Insert: {
           id?: string;
           title: string;
+          subtitle?: string | null;
           topic: string;
+          category?: string | null;
           level?: string;
           description?: string | null;
+          thumbnail_path?: string | null;
+          cover_image_path?: string | null;
+          duration_minutes?: number | null;
+          estimated_completion_minutes?: number | null;
           pdf_path: string;
           status?: "DRAFT" | "PUBLISHED";
           created_at?: string;
@@ -76,9 +88,15 @@ export type Database = {
         Update: {
           id?: string;
           title?: string;
+          subtitle?: string | null;
           topic?: string;
+          category?: string | null;
           level?: string;
           description?: string | null;
+          thumbnail_path?: string | null;
+          cover_image_path?: string | null;
+          duration_minutes?: number | null;
+          estimated_completion_minutes?: number | null;
           pdf_path?: string;
           status?: "DRAFT" | "PUBLISHED";
           created_at?: string;

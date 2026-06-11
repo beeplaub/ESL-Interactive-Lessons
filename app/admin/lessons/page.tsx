@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Eye, Pencil, Plus, Trash2 } from "lucide-react";
+import { Eye, Hammer, Pencil, Plus, Trash2 } from "lucide-react";
 import { requireAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { deleteLesson, updateLessonStatus } from "@/app/admin/lessons/actions";
@@ -47,6 +47,9 @@ export default async function AdminLessonsPage() {
                   <div className="flex flex-wrap gap-2">
                     <Link className="rounded-md border border-black/15 p-2 hover:bg-black/5" href={`/admin/lessons/${lesson.id}/edit`} aria-label="Edit">
                       <Pencil size={16} />
+                    </Link>
+                    <Link className="rounded-md border border-black/15 p-2 hover:bg-black/5" href={`/admin/lessons/${lesson.id}/builder`} aria-label="Builder">
+                      <Hammer size={16} />
                     </Link>
                     <Link className="rounded-md border border-black/15 p-2 hover:bg-black/5" href={`/lessons/${lesson.id}`} aria-label="Preview">
                       <Eye size={16} />
