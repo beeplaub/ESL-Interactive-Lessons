@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Eye, Hammer, Pencil, Plus, Trash2 } from "lucide-react";
+import { Hammer, Plus, Trash2 } from "lucide-react";
 import { requireAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { deleteLesson, updateLessonStatus } from "@/app/admin/lessons/actions";
@@ -14,7 +14,7 @@ export default async function AdminLessonsPage() {
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">Lessons</h1>
-          <p className="mt-2 text-black/60">Upload, review, preview, and publish learner slide decks.</p>
+          <p className="mt-2 text-black/60">Create, build, review, and publish future LMS lessons.</p>
         </div>
         <Link href="/admin/lessons/new" className="inline-flex items-center gap-2 rounded-md bg-ink px-4 py-2 text-sm font-medium text-white">
           <Plus size={16} /> New lesson
@@ -45,14 +45,8 @@ export default async function AdminLessonsPage() {
                 <td className="px-4 py-3">{new Date(lesson.created_at).toLocaleDateString()}</td>
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-2">
-                    <Link className="rounded-md border border-black/15 p-2 hover:bg-black/5" href={`/admin/lessons/${lesson.id}/edit`} aria-label="Edit">
-                      <Pencil size={16} />
-                    </Link>
                     <Link className="rounded-md border border-black/15 p-2 hover:bg-black/5" href={`/admin/lessons/${lesson.id}/builder`} aria-label="Builder">
                       <Hammer size={16} />
-                    </Link>
-                    <Link className="rounded-md border border-black/15 p-2 hover:bg-black/5" href={`/lessons/${lesson.id}`} aria-label="Preview">
-                      <Eye size={16} />
                     </Link>
                     <form action={updateLessonStatus.bind(null, lesson.id, lesson.status === "PUBLISHED" ? "DRAFT" : "PUBLISHED")}>
                       <button className="rounded-md border border-black/15 px-3 py-2 text-xs hover:bg-black/5">

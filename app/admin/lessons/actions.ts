@@ -186,6 +186,23 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
   return {};
 }
 
+function defaultBlockContent(blockType: string): Json {
+  if (blockType === "HEADING") return { text: "New heading", level: "H2" };
+  if (blockType === "TEXT") return { body: "Add lesson text here." };
+  if (blockType === "QUOTE") return { body: "Add a quote.", attribution: null };
+  if (blockType === "CALLOUT") return { title: "Note", body: "Add a short note for learners." };
+  if (blockType === "IMAGE") return { path: "", alt: "", caption: "" };
+  if (blockType === "AUDIO") return { path: "", label: "Audio" };
+  if (blockType === "VIDEO") return { url: "", title: "Video" };
+  if (blockType === "VOCABULARY") {
+    return { entries: [{ word: "word", pronunciation: "", meaning: "meaning", example: "", notes: "" }] };
+  }
+  if (blockType === "GRAMMAR") return { title: "Grammar focus", explanation: "", examples: [], notes: null };
+  if (blockType === "READING") return { title: "Reading passage", passage: "", questions: [] };
+  if (blockType === "DIALOGUE") return { turns: [{ speaker: "A", line: "" }, { speaker: "B", line: "" }] };
+  return {};
+}
+
 async function createLessonRowsFromPdf(params: {
   lessonId: string;
   title: string;
@@ -399,6 +416,57 @@ export async function createLesson(formData: FormData) {
 
   revalidatePath("/admin/lessons");
   redirect(`/admin/lessons/${lessonId}/edit`);
+}
+
+export async function createVisualLesson(formData: FormData) {
+  await requireAdmin();
+  const supabase = createAdminClient();
+
+  const parsed = builderLessonSchema.parse({
+    title: formData.get("title"),
+    subtitle: formData.get("subtitle") || "",
+    topic: formData.get("topic"),
+    category: formData.get("category") || "",
+    level: formData.get("level") || "B1",
+    description: formData.get("description") || "",
+    thumbnailPath: formData.get("thumbnailPath") || "",
+    coverImagePath: formData.get("coverImagePath") || "",
+    durationMinutes: formData.get("durationMinutes") || "",
+    estimatedCompletionMinutes: formData.get("estimatedCompletionMinutes") || "",
+    status: "DRAFT"
+  });
+
+  const lessonId = crypto.randomUUID();
+  const { error: lessonError } = await supabase.from("lessons").insert({
+    id: lessonId,
+    title: parsed.title,
+    subtitle: nullableText(parsed.subtitle),
+    topic: parsed.topic,
+    category: nullableText(parsed.category),
+    level: parsed.level,
+    description: parsed.description ?? "",
+    thumbnail_path: nullableText(parsed.thumbnailPath),
+    cover_image_path: nullableText(parsed.coverImagePath),
+    duration_minutes: optionalPositiveInt(parsed.durationMinutes),
+    estimated_completion_minutes: optionalPositiveInt(parsed.estimatedCompletionMinutes),
+    pdf_path: `builder/${lessonId}`,
+    status: "DRAFT"
+  });
+  if (lessonError) throw lessonError;
+
+  const firstSlideTitle = parsed.subtitle || parsed.title;
+  const { error: slideError } = await supabase.from("slides").insert({
+    lesson_id: lessonId,
+    slide_number: 1,
+    title: firstSlideTitle,
+    section_label: "Introduction",
+    raw_text: firstSlideTitle,
+    type: "INFO"
+  });
+  if (slideError) throw slideError;
+
+  revalidatePath("/admin/lessons");
+  redirect(`/admin/lessons/${lessonId}/builder`);
 }
 
 export async function updateLessonStatus(lessonId: string, status: "DRAFT" | "PUBLISHED") {
@@ -615,7 +683,7 @@ export async function duplicateBuilderSlide(lessonId: string, slideId: string) {
   if (slidesError) throw slidesError;
 
   const nextSlideNumber = (slides?.[0]?.slide_number ?? 0) + 1;
-  const { error } = await supabase.from("slides").insert({
+  const { data: duplicatedSlide, error } = await supabase.from("slides").insert({
     lesson_id: lessonId,
     slide_number: nextSlideNumber,
     title: `${source.title} copy`,
@@ -623,15 +691,65 @@ export async function duplicateBuilderSlide(lessonId: string, slideId: string) {
     raw_text: source.raw_text,
     type: source.type,
     linked_answer_slide_id: null
-  });
+  }).select("id").single();
 
   if (error) throw error;
+  if (!duplicatedSlide) throw new Error("The slide was duplicated, but the new slide ID was not returned.");
+
+  const [{ data: blocks, error: blocksError }, { data: activity, error: activityError }] = await Promise.all([
+    supabase.from("lesson_blocks").select("*").eq("slide_id", slideId).eq("lesson_id", lessonId).order("position", { ascending: true }),
+    supabase.from("lesson_slide_activities").select("*").eq("slide_id", slideId).eq("lesson_id", lessonId).maybeSingle()
+  ]);
+  if (blocksError) throw blocksError;
+  if (activityError) throw activityError;
+
+  if (blocks?.length) {
+    const { error: blockInsertError } = await supabase.from("lesson_blocks").insert(
+      blocks.map((block) => ({
+        lesson_id: lessonId,
+        slide_id: duplicatedSlide.id,
+        position: block.position,
+        block_type: block.block_type,
+        content: block.content
+      }))
+    );
+    if (blockInsertError) throw blockInsertError;
+  }
+
+  if (activity) {
+    const { error: activityInsertError } = await supabase.from("lesson_slide_activities").insert({
+      lesson_id: lessonId,
+      slide_id: duplicatedSlide.id,
+      slide_number: nextSlideNumber,
+      activity_type: activity.activity_type,
+      activity_data: activity.activity_data,
+      needs_review: activity.needs_review,
+      raw_text: activity.raw_text
+    });
+    if (activityInsertError) throw activityInsertError;
+  }
+
   revalidateLessonBuilder(lessonId);
 }
 
 export async function deleteBuilderSlide(lessonId: string, slideId: string) {
   await requireAdmin();
   const supabase = createAdminClient();
+  const { data: slide, error: slideError } = await supabase
+    .from("slides")
+    .select("slide_number")
+    .eq("id", slideId)
+    .eq("lesson_id", lessonId)
+    .single();
+  if (slideError) throw slideError;
+
+  await supabase.from("slides").update({ linked_answer_slide_id: null }).eq("linked_answer_slide_id", slideId);
+  await supabase.from("lesson_audio_files").update({ linked_slide_number: null }).eq("lesson_id", lessonId).eq("linked_slide_number", slide.slide_number);
+  await supabase.from("lesson_slide_activities").delete().eq("slide_id", slideId).eq("lesson_id", lessonId);
+  await supabase.from("lesson_blocks").delete().eq("slide_id", slideId).eq("lesson_id", lessonId);
+  await supabase.from("slide_activities").delete().eq("slide_id", slideId).eq("lesson_id", lessonId);
+  await supabase.from("responses").delete().eq("slide_id", slideId).eq("lesson_id", lessonId);
+
   const { error } = await supabase.from("slides").delete().eq("id", slideId).eq("lesson_id", lessonId);
   if (error) throw error;
 
@@ -684,7 +802,7 @@ export async function addLessonBlock(lessonId: string, slideId: string, formData
     slide_id: slideId,
     position: (blocks?.[0]?.position ?? 0) + 1,
     block_type: parsed.blockType,
-    content: blockContentFromForm(parsed.blockType, formData)
+    content: defaultBlockContent(parsed.blockType)
   });
 
   if (error) throw error;

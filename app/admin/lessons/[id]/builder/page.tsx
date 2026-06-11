@@ -116,14 +116,6 @@ export default async function LessonBuilderPage({ params }: { params: Promise<{ 
             Visual foundation for editing existing lessons safely. Lesson ID and URLs stay unchanged.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Link href={`/admin/lessons/${lesson.id}/edit`} className="rounded-md border border-black/15 px-4 py-2 text-sm font-medium hover:bg-black/5">
-            Parser edit
-          </Link>
-          <Link href={`/lessons/${lesson.id}`} className="inline-flex items-center gap-2 rounded-md border border-black/15 px-4 py-2 text-sm font-medium hover:bg-black/5">
-            <Eye size={16} /> Preview
-          </Link>
-        </div>
       </div>
 
       {reviewCount > 0 ? (
@@ -323,9 +315,8 @@ export default async function LessonBuilderPage({ params }: { params: Promise<{ 
                               ))}
                             </select>
                           </label>
-                          <BlockFields blockType="TEXT" content={{}} />
                           <p className="text-xs text-black/50">
-                            After adding, open the block below to change its type-specific fields.
+                            Add the block, then open it below to fill in its fields.
                           </p>
                           <button className="w-fit rounded-md bg-ink px-4 py-2 text-sm font-medium text-white">Add block</button>
                         </form>
