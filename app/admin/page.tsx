@@ -1,11 +1,10 @@
 import Link from "next/link";
-import { BookOpen, ClipboardList, FlaskConical, UsersRound } from "lucide-react";
+import { ClipboardList, FlaskConical, UsersRound } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export default async function AdminPage() {
   const admin = createAdminClient();
-  const [{ data: lessons }, { data: quizzes }, { data: profiles }, { data: attempts }, { data: levelResults }] = await Promise.all([
-    admin.from("lessons").select("status"),
+  const [{ data: quizzes }, { data: profiles }, { data: attempts }, { data: levelResults }] = await Promise.all([
     admin.from("quizzes").select("status"),
     admin.from("profiles").select("id"),
     admin.from("quiz_attempts").select("id"),
@@ -18,8 +17,7 @@ export default async function AdminPage() {
         <h1 className="text-2xl font-semibold sm:text-3xl">Admin overview</h1>
         <p className="mt-2 text-sm text-black/60">A central hub for managing BrenUp.</p>
       </div>
-      <section className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        <AdminCard href="/admin/lessons" icon={BookOpen} label="Lessons" value={lessons?.length ?? 0} detail={`${countStatus(lessons, "PUBLISHED")} published · ${countStatus(lessons, "DRAFT")} draft`} />
+      <section className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <AdminCard href="/admin/quizzes" icon={ClipboardList} label="Quizzes" value={quizzes?.length ?? 0} detail={`${countStatus(quizzes, "PUBLISHED")} published · ${countStatus(quizzes, "DRAFT")} draft`} />
         <AdminCard href="/admin/users" icon={UsersRound} label="Users" value={profiles?.length ?? 0} detail="Registered users" />
         <AdminCard href="/admin/quiz-attempts" icon={ClipboardList} label="Quiz attempts" value={attempts?.length ?? 0} detail="All learners" />
@@ -33,7 +31,7 @@ function countStatus(rows: Array<{ status: string }> | null, status: string) {
   return rows?.filter((row) => row.status === status).length ?? 0;
 }
 
-function AdminCard({ href, icon: Icon, label, value, detail }: { href: string; icon: typeof BookOpen; label: string; value: number; detail: string }) {
+function AdminCard({ href, icon: Icon, label, value, detail }: { href: string; icon: typeof ClipboardList; label: string; value: number; detail: string }) {
   return (
     <Link href={href} className="min-w-0 rounded-lg border border-black/10 bg-white p-4 shadow-sm hover:bg-slate-50 sm:p-5">
       <Icon className="text-moss" size={22} />

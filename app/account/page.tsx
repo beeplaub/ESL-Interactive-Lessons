@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
-import { ArrowRight, BadgeCheck, CheckCircle2, ClipboardList, Clock3, Flame, Heart, LogOut, Trophy, UserRound } from "lucide-react";
+import { ArrowRight, BadgeCheck, ClipboardList, Flame, Heart, LogOut, Trophy, UserRound } from "lucide-react";
 import { signOut, switchToAdminView } from "@/app/auth/actions";
 import { requireUser } from "@/lib/auth";
-import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { CarouselItem, HorizontalCarousel } from "@/components/HorizontalCarousel";
 
@@ -39,45 +38,25 @@ export default async function AccountPage() {
   const { user, profile } = await requireUser();
   const cookieStore = await cookies();
   const isAdminLearnerView = profile?.role === "ADMIN" && cookieStore.get("view_mode")?.value === "learner";
-  const supabase = await createClient();
   const adminSupabase = createAdminClient();
 
-  const [{ data: progress }, { data: lessons }, { data: quizAttempts }, { data: wishlistItems }] = await Promise.all([
-    supabase.from("lesson_progress").select("*").eq("user_id", user.id).order("updated_at", { ascending: false }),
-    adminSupabase.from("lessons").select("*").eq("status", "PUBLISHED").order("created_at", { ascending: false }),
+  const [{ data: quizAttempts }, { data: wishlistItems }] = await Promise.all([
     adminSupabase
       .from("quiz_attempts")
-      .select("*, quizzes(title, level), lesson_slide_activities(slide_number, activity_type, lessons(title, level))")
+      .select("*, quizzes(title, level)")
       .eq("user_id", user.id)
+      .not("quiz_id", "is", null)
       .order("completed_at", { ascending: false }),
     adminSupabase
       .from("wishlist_items")
-      .select("*, lessons(title, topic, level), quizzes(title, topic, level)")
+      .select("*, quizzes(title, topic, level)")
       .eq("user_id", user.id)
+      .not("quiz_id", "is", null)
       .order("created_at", { ascending: false })
   ]);
 
-  const lessonIds = (lessons ?? []).map((lesson) => lesson.id);
-  const { data: slides } = lessonIds.length
-    ? await adminSupabase.from("slides").select("lesson_id,type").in("lesson_id", lessonIds)
-    : { data: [] };
-
-  const lessonMap = new Map((lessons ?? []).map((lesson) => [lesson.id, lesson]));
-  const slideCounts = new Map<string, number>();
-  for (const slide of slides ?? []) {
-    slideCounts.set(slide.lesson_id, (slideCounts.get(slide.lesson_id) ?? 0) + 1);
-  }
-
-  const currentLessons = (progress ?? [])
-    .filter((item) => !item.completed && lessonMap.has(item.lesson_id))
-    .map((item) => ({ progress: item, lesson: lessonMap.get(item.lesson_id)! }));
-  const completedLessons = (progress ?? [])
-    .filter((item) => item.completed && lessonMap.has(item.lesson_id))
-    .map((item) => ({ progress: item, lesson: lessonMap.get(item.lesson_id)! }));
-
   // ── Streak calculation ──
   const activityDates: string[] = [
-    ...(progress ?? []).map((p) => toDateKey(new Date(p.updated_at))),
     ...(quizAttempts ?? []).filter((a) => a.completed_at).map((a) => toDateKey(new Date(a.completed_at)))
   ];
   const streak = calcStreak(activityDates);
@@ -129,81 +108,14 @@ export default async function AccountPage() {
       </section>
 
       {/* ── Stat cards ── */}
-      <section className="mt-5 grid gap-4 sm:grid-cols-2 md:grid-cols-4">
-        <StatCard icon={Clock3} label="Current lessons" value={currentLessons.length} />
-        <StatCard icon={Trophy} label="Completed lessons" value={completedLessons.length} />
+      <section className="mt-5 grid gap-4 sm:grid-cols-2 md:grid-cols-3">
         <StatCard icon={ClipboardList} label="Quizzes completed" value={(quizAttempts ?? []).length} />
+        <StatCard icon={Trophy} label="Saved quizzes" value={(wishlistItems ?? []).length} />
         <StreakCard streak={streak} />
       </section>
 
       <section className="mt-6 grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
         <div className="min-w-0 space-y-6">
-          <Panel title="Current lessons" icon={Clock3}>
-            <HorizontalCarousel
-              empty={
-                <EmptyState text="No current lessons yet. Start one from the lessons page." href="/lessons" label="Browse lessons" />
-              }
-            >
-              {currentLessons.length ? (
-                currentLessons.map(({ lesson, progress: saved }) => {
-                  const totalSlides = slideCounts.get(lesson.id) ?? 0;
-                  const percent = totalSlides ? Math.round(((saved.current_slide_number ?? 1) / totalSlides) * 100) : 0;
-                  return (
-                    <CarouselItem key={lesson.id}>
-                      <Link
-                        href={`/lessons/${lesson.id}`}
-                        className="flex h-full flex-col rounded-lg border border-black/10 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
-                      >
-                        <span className="rounded-full bg-skywash px-2 py-1 text-xs font-medium text-ink self-start">
-                          {lesson.level}
-                        </span>
-                        <p className="mt-3 font-semibold leading-snug">{lesson.title}</p>
-                        <p className="mt-1 text-xs text-black/55">{lesson.topic}</p>
-                        <div className="mt-auto pt-4">
-                          <div className="mb-1 flex justify-between text-xs text-black/55">
-                            <span>Slide {saved.current_slide_number ?? 1}/{totalSlides || "?"}</span>
-                            <span>{percent}%</span>
-                          </div>
-                          <div className="h-1.5 overflow-hidden rounded-full bg-black/10">
-                            <div className="h-full bg-moss" style={{ width: `${percent}%` }} />
-                          </div>
-                        </div>
-                      </Link>
-                    </CarouselItem>
-                  );
-                })
-              ) : null}
-            </HorizontalCarousel>
-          </Panel>
-
-          <Panel title="Completed lessons" icon={CheckCircle2}>
-            <HorizontalCarousel
-              empty={
-                <EmptyState text="No completed lessons yet." href="/lessons" label="Browse lessons" />
-              }
-            >
-              {completedLessons.length ? (
-                completedLessons.map(({ lesson }) => (
-                  <CarouselItem key={lesson.id}>
-                    <Link
-                      href={`/lessons/${lesson.id}`}
-                      className="flex h-full flex-col rounded-lg border border-moss/20 bg-moss/5 p-4 shadow-sm transition-shadow hover:shadow-md"
-                    >
-                      <span className="rounded-full bg-skywash px-2 py-1 text-xs font-medium text-ink self-start">
-                        {lesson.level}
-                      </span>
-                      <p className="mt-3 font-semibold leading-snug">{lesson.title}</p>
-                      <p className="mt-1 text-xs text-black/55">{lesson.topic}</p>
-                      <div className="mt-auto pt-4 flex items-center gap-1 text-xs font-medium text-moss">
-                        <CheckCircle2 size={13} /> Completed
-                      </div>
-                    </Link>
-                  </CarouselItem>
-                ))
-              ) : null}
-            </HorizontalCarousel>
-          </Panel>
-
           <Panel title="Quiz attempts" icon={ClipboardList}>
             <HorizontalCarousel
               empty={
@@ -212,10 +124,10 @@ export default async function AccountPage() {
             >
               {(quizAttempts ?? []).length ? (
                 (quizAttempts ?? []).slice(0, 10).map((attempt) => {
-                  const title = attempt.quizzes?.title ?? attempt.lesson_slide_activities?.lessons?.title ?? "Quiz";
-                  const level = attempt.quizzes?.level ?? attempt.lesson_slide_activities?.lessons?.level ?? "";
+                  const title = attempt.quizzes?.title ?? "Quiz";
+                  const level = attempt.quizzes?.level ?? "";
                   const percent = attempt.total ? Math.round((attempt.score / attempt.total) * 100) : 0;
-                  const href = attempt.quiz_id ? `/quizzes/${attempt.quiz_id}` : "/quizzes";
+                  const href = `/quizzes/${attempt.quiz_id}`;
                   return (
                     <CarouselItem key={attempt.id}>
                       <Link
@@ -250,14 +162,13 @@ export default async function AccountPage() {
         <div className="min-w-0 space-y-6">
           <Panel title="Saved" icon={Heart}>
             {(wishlistItems ?? []).length === 0 ? (
-              <EmptyState text="Saved lessons and quizzes will appear here." href="/lessons" label="Browse lessons" />
+              <EmptyState text="Saved quizzes will appear here." href="/quizzes" label="Browse quizzes" />
             ) : (
               <div className="space-y-3">
                 {(wishlistItems ?? []).map((item) => {
-                  const isLesson = Boolean(item.lesson_id);
-                  const content = isLesson ? item.lessons : item.quizzes;
+                  const content = item.quizzes;
                   if (!content) return null;
-                  const href = isLesson ? `/lessons/${item.lesson_id}` : `/quizzes/${item.quiz_id}`;
+                  const href = `/quizzes/${item.quiz_id}`;
                   return (
                     <Link
                       key={item.id}

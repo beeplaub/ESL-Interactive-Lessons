@@ -56,8 +56,8 @@ export default async function LevelTestResultPage({ searchParams }: { searchPara
         </div>
       </section>
       <div className="mt-6 flex flex-wrap justify-center gap-3">
-        <Link href="/lessons" className="inline-flex items-center gap-2 rounded-md bg-moss px-5 py-3 text-sm font-semibold text-white">
-          Go to lessons <ArrowRight size={16} />
+        <Link href="/quizzes" className="inline-flex items-center gap-2 rounded-md bg-moss px-5 py-3 text-sm font-semibold text-white">
+          Go to quizzes <ArrowRight size={16} />
         </Link>
         <Link href="/level-test/test" className="inline-flex items-center gap-2 rounded-md border border-black/15 px-5 py-3 text-sm font-medium">
           <RotateCcw size={16} /> Retake level test

@@ -25,37 +25,37 @@ export const levelGuidance: Record<CefrLevel, { name: string; summary: string; g
     name: "Beginner",
     summary: "Basic phrases and very simple interactions.",
     guidance:
-      "You're at the very start of your English journey. Focus on everyday vocabulary: greetings, numbers, colours, and family. Short, simple sentences are your goal right now. Try A1 and A2 lessons on this site to build your foundation."
+      "You're at the very start of your English journey. Focus on everyday vocabulary: greetings, numbers, colours, and family. Short, simple sentences are your goal right now. Try A1 and A2 quizzes on this site to build your foundation."
   },
   A2: {
     name: "Elementary",
     summary: "Familiar topics and simple direct exchange.",
     guidance:
-      "You can handle familiar topics and simple conversations. Your next step is expanding vocabulary around daily life: shopping, travel, and routines. A2 and B1 lessons here will stretch you just the right amount."
+      "You can handle familiar topics and simple conversations. Your next step is expanding vocabulary around daily life: shopping, travel, and routines. A2 and B1 quizzes here will stretch you just the right amount."
   },
   B1: {
     name: "Intermediate",
     summary: "Main points of clear standard input, travel, and work.",
     guidance:
-      "You've reached a confident intermediate level. You can follow the main points of clear speech and writing. Now focus on accuracy: verb tenses, connecting ideas, and richer vocabulary. B1 lessons are your core; dip into B2 when you're ready."
+      "You've reached a confident intermediate level. You can follow the main points of clear speech and writing. Now focus on accuracy: verb tenses, connecting ideas, and richer vocabulary. B1 quizzes are your core; dip into B2 when you're ready."
   },
   B2: {
     name: "Upper-Intermediate",
     summary: "Complex text and fluent interaction with native speakers.",
     guidance:
-      "Strong upper-intermediate. You can read complex texts and express yourself with reasonable fluency. Work on precision: collocations, advanced grammar, and nuanced vocabulary. B2 and C1 lessons will push your English toward near-native quality."
+      "Strong upper-intermediate. You can read complex texts and express yourself with reasonable fluency. Work on precision: collocations, advanced grammar, and nuanced vocabulary. B2 and C1 quizzes will push your English toward near-native quality."
   },
   C1: {
     name: "Advanced",
     summary: "Demanding texts and spontaneous fluent expression.",
     guidance:
-      "You're operating at an advanced level. Your English is flexible and effective in demanding situations. Focus on style, register, and idiomatic expression. C1 lessons will sharpen what you already do well; C2 materials will expose you to the highest level."
+      "You're operating at an advanced level. Your English is flexible and effective in demanding situations. Focus on style, register, and idiomatic expression. C1 quizzes will sharpen what you already do well; C2 materials will expose you to the highest level."
   },
   C2: {
     name: "Mastery",
     summary: "Everything with ease and precision.",
     guidance:
-      "Exceptional. You use English with the ease and precision of an educated native speaker. Your focus now is style, cultural nuance, and specialised vocabulary. Explore C1 and C2 lessons to keep your skills razor-sharp."
+      "Exceptional. You use English with the ease and precision of an educated native speaker. Your focus now is style, cultural nuance, and specialised vocabulary. Explore C1 and C2 quizzes to keep your skills razor-sharp."
   }
 };
 

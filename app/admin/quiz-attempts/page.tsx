@@ -13,7 +13,8 @@ export default async function AdminQuizAttemptsPage({ searchParams }: { searchPa
   const [{ data: attempts }, { data: quizzes }, { data: profiles }, { data: usersData }] = await Promise.all([
     admin
       .from("quiz_attempts")
-      .select("*, quizzes(id, title, level), lesson_slide_activities(slide_number, activity_type, lessons(title, level))")
+      .select("*, quizzes(id, title, level)")
+      .not("quiz_id", "is", null)
       .order("completed_at", { ascending: false })
       .limit(500),
     admin.from("quizzes").select("id, title").order("title", { ascending: true }),
@@ -37,7 +38,7 @@ export default async function AdminQuizAttemptsPage({ searchParams }: { searchPa
     <main className="mx-auto max-w-6xl px-4 py-8">
       <div className="mb-6">
         <h1 className="text-3xl font-semibold">Quiz attempts</h1>
-        <p className="mt-2 text-sm text-black/60">All learner quiz and in-lesson activity attempts.</p>
+        <p className="mt-2 text-sm text-black/60">All learner quiz attempts.</p>
       </div>
 
       <form className="mb-4 grid gap-3 rounded-lg border border-black/10 bg-white p-4 shadow-sm md:grid-cols-[1fr_260px_auto]">
@@ -72,12 +73,9 @@ export default async function AdminQuizAttemptsPage({ searchParams }: { searchPa
           <tbody>
             {filteredAttempts.map((attempt) => {
               const quiz = attempt.quizzes as { title?: string; level?: string } | null;
-              const lessonActivity = attempt.lesson_slide_activities as
-                | { slide_number?: number; activity_type?: string; lessons?: { title?: string; level?: string } | null }
-                | null;
               const profile = profileMap.get(attempt.user_id);
               const user = userMap.get(attempt.user_id);
-              const title = quiz?.title ?? `${lessonActivity?.lessons?.title ?? "Lesson activity"} · Slide ${lessonActivity?.slide_number ?? ""}`;
+              const title = quiz?.title ?? "Quiz";
               const percent = attempt.total ? Math.round((attempt.score / attempt.total) * 100) : 0;
               return (
                 <tr key={attempt.id} className="border-t border-black/10">

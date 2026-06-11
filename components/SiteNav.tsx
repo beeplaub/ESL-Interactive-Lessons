@@ -6,7 +6,6 @@ import { useState } from "react";
 import { signOut } from "@/app/auth/actions";
 
 const links = [
-  { href: "/lessons", label: "Lessons" },
   { href: "/quizzes", label: "Quizzes" },
   { href: "/level-test", label: "Level Test" }
 ];

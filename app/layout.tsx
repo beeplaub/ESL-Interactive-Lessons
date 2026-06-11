@@ -5,7 +5,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "BrenUp",
-  description: "Interactive English lessons for confident real-world communication."
+  description: "ESL quizzes and level tests for confident English practice."
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
