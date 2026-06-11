@@ -14,10 +14,12 @@ import {
   UserRound
 } from "lucide-react";
 import { getFreshProfile } from "@/lib/auth";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function HomePage() {
   const supabase = await createClient();
+  const admin = createAdminClient();
   const {
     data: { user }
   } = await supabase.auth.getUser();
@@ -26,6 +28,18 @@ export default async function HomePage() {
     const profile = await getFreshProfile(user.id);
     if (profile?.role === "ADMIN") redirect("/admin");
   }
+
+  const [{ count: publishedQuizCount }, { data: latestQuiz }] = await Promise.all([
+    admin.from("quizzes").select("id", { count: "exact", head: true }).eq("status", "PUBLISHED"),
+    admin
+      .from("quizzes")
+      .select("id, title, level, topic, created_at")
+      .eq("status", "PUBLISHED")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+  ]);
+  const quizCount = publishedQuizCount ?? 0;
 
   return (
     <main className="bg-slate-50">
@@ -65,6 +79,38 @@ export default async function HomePage() {
               <h2 className="mt-1 text-2xl font-semibold">Clear practice, quick results</h2>
             </div>
             <div className="space-y-4 p-5">
+              <div className="rounded-md border border-moss/20 bg-moss/5 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-moss">Live quiz library</p>
+                    <p className="mt-1 text-3xl font-semibold tracking-tight text-ink">
+                      {quizCount} quiz{quizCount === 1 ? "" : "zes"} available
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-black/55 shadow-sm">
+                    Updated live
+                  </span>
+                </div>
+                {latestQuiz ? (
+                  <div className="mt-4 rounded-md bg-white p-4 shadow-sm">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-black/45">Latest quiz added</p>
+                    <h3 className="mt-1 text-lg font-semibold text-ink">{latestQuiz.title}</h3>
+                    <p className="mt-1 text-sm text-black/60">
+                      {[latestQuiz.level, latestQuiz.topic].filter(Boolean).join(" • ")}
+                    </p>
+                    <Link
+                      href={`/quizzes/${latestQuiz.id}`}
+                      className="mt-4 inline-flex items-center gap-2 rounded-md bg-moss px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                    >
+                      Try the latest quiz <ArrowRight size={15} />
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="mt-4 rounded-md bg-white p-4 text-sm text-black/60 shadow-sm">
+                    Published quizzes will appear here as soon as they are added.
+                  </div>
+                )}
+              </div>
               <div className="rounded-md bg-blue-50 p-4">
                 <div className="mb-3 flex items-center justify-between text-sm">
                   <span className="font-medium text-blue-700">Sample score</span>
