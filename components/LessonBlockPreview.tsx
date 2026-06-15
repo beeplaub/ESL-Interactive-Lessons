@@ -24,6 +24,24 @@ function isImageUrl(value: string) {
   return /^https?:\/\//i.test(value) || value.startsWith("/");
 }
 
+function getGoogleDriveFileId(value: string) {
+  const directMatch = value.match(/[?&]id=([^&]+)/);
+  if (directMatch?.[1]) return directMatch[1];
+  const fileMatch = value.match(/\/file\/d\/([^/]+)/);
+  if (fileMatch?.[1]) return fileMatch[1];
+  return "";
+}
+
+function mediaUrl(value: string, kind: "image" | "audio") {
+  const id = getGoogleDriveFileId(value);
+  if (id) {
+    return kind === "image"
+      ? `https://drive.google.com/uc?export=view&id=${id}`
+      : `https://drive.google.com/uc?export=download&id=${id}`;
+  }
+  return value;
+}
+
 function getYouTubeEmbedUrl(value: string) {
   try {
     const url = new URL(value);
@@ -109,11 +127,12 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
 
   if (block.block_type === "IMAGE") {
     const path = asString(content.path);
+    const src = mediaUrl(path, "image");
     return (
       <figure className="overflow-hidden rounded-lg border border-black/10 bg-slate-50">
         {path && isImageUrl(path) ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={path} alt={asString(content.alt) || ""} className="max-h-80 w-full object-cover" />
+          <img src={src} alt={asString(content.alt) || ""} className="max-h-80 w-full object-cover" />
         ) : (
           <div className="grid aspect-video place-items-center text-sm text-black/45">
             <div className="text-center">
@@ -131,13 +150,14 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
 
   if (block.block_type === "AUDIO") {
     const path = asString(content.path);
+    const src = mediaUrl(path, "audio");
     return (
       <div className="rounded-lg border border-black/10 bg-ink p-4 text-white">
         <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
           <Headphones size={18} /> {asString(content.label) || "Audio"}
         </div>
         {path && /^https?:\/\//i.test(path) ? (
-          <audio controls src={path} className="w-full">
+          <audio controls src={src} className="w-full">
             <track kind="captions" />
           </audio>
         ) : (

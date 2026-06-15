@@ -222,10 +222,6 @@ function ActivityPanel({
     });
   }
 
-  // Only show editor for activity types that have interactive content
-  const EDITABLE_TYPES = ["MCQ", "GAP_FILL", "TRUE_FALSE", "MATCHING"];
-  if (!EDITABLE_TYPES.includes(activity.activity_type)) return null;
-
   return (
     <details className="rounded-md border border-black/10 p-4">
       <summary className="cursor-pointer list-none">
@@ -255,7 +251,9 @@ function ActivityPanel({
         {activity.activity_type === "TRUE_FALSE" ? <TrueFalseEditor activity={activity} onSave={save} /> : null}
         {activity.activity_type === "MATCHING" ? <MatchingEditor activity={activity} onSave={save} /> : null}
         {!["MCQ", "GAP_FILL", "TRUE_FALSE", "MATCHING"].includes(activity.activity_type) ? (
-          <p className="rounded-md bg-slate-50 p-3 text-sm text-black/60">This activity type does not need an editor yet.</p>
+          <p className="rounded-md bg-slate-50 p-3 text-sm text-black/60">
+            This activity type has starter data and preview support. A detailed visual editor for it will be added in the next activity-builder pass.
+          </p>
         ) : null}
         <div className="flex flex-wrap items-center gap-3">
           <StatusText status={status} error={error} />

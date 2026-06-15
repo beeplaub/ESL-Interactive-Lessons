@@ -14,9 +14,11 @@ import {
   moveLessonBlock,
   updateBuilderSlide,
   updateLessonBlock,
-  updateLessonBuilderDetails
+  updateLessonBuilderDetails,
+  updateLessonStatus
 } from "@/app/admin/lessons/actions";
 import { InLessonActivitiesEditor } from "@/components/InLessonActivitiesEditor";
+import { LessonActivityPanel } from "@/components/LessonActivityPanel";
 import { LessonBlockPreview } from "@/components/LessonBlockPreview";
 import type { Json } from "@/types/database.types";
 
@@ -136,6 +138,11 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
           <p className="mt-1 text-sm text-black/55">Build slides, preview the learner view, and edit the selected slide without leaving this page.</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <form action={updateLessonStatus.bind(null, lesson.id, lesson.status === "PUBLISHED" ? "DRAFT" : "PUBLISHED")}>
+            <button className={`inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold ${lesson.status === "PUBLISHED" ? "border border-black/15 bg-white text-ink hover:bg-black/5" : "bg-moss text-white hover:bg-blue-700"}`}>
+              {lesson.status === "PUBLISHED" ? "Unpublish" : "Publish lesson"}
+            </button>
+          </form>
           <button type="button" onClick={() => setIsMetadataOpen(true)} className="inline-flex items-center gap-2 rounded-md border border-black/15 bg-white px-4 py-2 text-sm font-medium hover:bg-black/5">
             <Settings size={16} /> Lesson settings
           </button>
@@ -218,15 +225,15 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
             <Eye size={18} className="text-moss" />
           </div>
           {selectedActivity ? (
-            <div className="rounded-lg border border-black/10 bg-slate-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-black/45">{selectedActivity.activity_type.replaceAll("_", " ")}</p>
-              <p className="mt-2 text-sm text-black/65">
-                This slide has an activity. Use the activity editor below to adjust questions and answers.
-              </p>
-              {selectedActivity.needs_review ? (
-                <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">This activity needs review before publishing.</p>
-              ) : null}
-            </div>
+            <LessonActivityPanel
+              activity={{
+                id: selectedActivity.id,
+                activity_type: selectedActivity.activity_type,
+                activity_data: selectedActivity.activity_data
+              }}
+              onNext={() => selectRelative(1)}
+              previewOnly
+            />
           ) : (
             <div className="rounded-lg border border-dashed border-black/15 bg-slate-50 p-6 text-center text-sm text-black/50">
               No activity on this slide yet. Add one in the editor below when the slide needs answers.
@@ -235,19 +242,34 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
         </section>
       </section>
 
-      <section className="mt-5 grid gap-5 lg:grid-cols-[minmax(300px,0.78fr)_minmax(0,1.22fr)]">
-        <section className="rounded-xl border border-black/10 bg-white p-4 shadow-sm">
+      <section className="mt-5 rounded-xl border border-black/10 bg-white p-4 shadow-sm">
+        <div className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)] lg:items-start">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-moss">Slides</p>
               <h2 className="mt-1 text-lg font-semibold">Add and organise</h2>
             </div>
           </div>
-          <details className="mt-4 rounded-md border border-dashed border-black/15 p-3">
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {slides.map((slide, index) => (
+              <button
+                key={slide.id}
+                type="button"
+                onClick={() => setSelectedSlideId(slide.id)}
+                className={`min-w-48 rounded-lg border p-3 text-left ${selectedSlide?.id === slide.id ? "border-moss bg-moss/10" : "border-black/10 hover:bg-black/[0.03]"}`}
+              >
+                <span className="text-xs font-semibold text-moss">Slide {index + 1}</span>
+                <span className="mt-1 block truncate font-semibold">{slide.title}</span>
+                <span className="mt-1 block truncate text-xs text-black/45">{slide.section_label || "No section label"}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+        <details className="mt-3 rounded-md border border-dashed border-black/15 p-3">
             <summary className="cursor-pointer list-none">
               <span className="inline-flex items-center gap-2 text-sm font-semibold"><Plus size={15} /> Add slide</span>
             </summary>
-            <form action={addBuilderSlide.bind(null, lesson.id)} className="mt-4 grid gap-3">
+            <form action={addBuilderSlide.bind(null, lesson.id)} className="mt-4 grid gap-3 lg:grid-cols-[1fr_1fr_1.5fr_auto] lg:items-end">
               <label className="text-sm">
                 Slide title
                 <input name="title" placeholder="New slide title" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
@@ -263,22 +285,9 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
               <button className="w-fit rounded-md bg-ink px-4 py-2 text-sm font-medium text-white">Add slide</button>
             </form>
           </details>
-          <div className="mt-4 grid gap-2">
-            {slides.map((slide, index) => (
-              <button
-                key={slide.id}
-                type="button"
-                onClick={() => setSelectedSlideId(slide.id)}
-                className={`rounded-lg border p-3 text-left ${selectedSlide?.id === slide.id ? "border-moss bg-moss/10" : "border-black/10 hover:bg-black/[0.03]"}`}
-              >
-                <span className="text-xs font-semibold text-moss">Slide {index + 1}</span>
-                <span className="mt-1 block truncate font-semibold">{slide.title}</span>
-                <span className="mt-1 block truncate text-xs text-black/45">{slide.section_label || "No section label"}</span>
-              </button>
-            ))}
-          </div>
-        </section>
+      </section>
 
+      <section className="mt-5">
         <section className="rounded-xl border border-black/10 bg-white p-4 shadow-sm">
           {selectedSlide ? (
             <SelectedSlideEditor
@@ -481,10 +490,20 @@ function SelectedSlideEditor({
               Activity type
               <select name="activityType" defaultValue="MCQ" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">
                 <option value="MCQ">Multiple Choice</option>
+                <option value="MULTIPLE_SELECT">Multiple Select</option>
                 <option value="GAP_FILL">Gap Fill</option>
                 <option value="TRUE_FALSE">True / False</option>
                 <option value="MATCHING">Matching</option>
+                <option value="DRAG_DROP">Drag & Drop</option>
+                <option value="REORDERING">Reordering</option>
+                <option value="CATEGORIZATION">Categorization</option>
+                <option value="SHORT_ANSWER">Short Answer</option>
+                <option value="ERROR_CORRECTION">Error Correction</option>
+                <option value="MISSING_INFORMATION">Missing Information</option>
               </select>
+              <span className="mt-1 block text-xs text-black/45">
+                Examples: Multiple Select = choose all correct; Reordering = put steps in order; Categorization = sort words into groups.
+              </span>
             </label>
             <label className="text-sm">
               Instruction

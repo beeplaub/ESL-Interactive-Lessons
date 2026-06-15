@@ -90,10 +90,12 @@ function activityLabel(type: string) {
 
 export function LessonActivityPanel({
   activity,
-  onNext
+  onNext,
+  previewOnly = false
 }: {
   activity: LessonSlideActivity;
   onNext: () => void;
+  previewOnly?: boolean;
 }) {
   const questions = questionsFromData(activity.activity_data, activity.activity_type);
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
@@ -104,11 +106,29 @@ export function LessonActivityPanel({
   const score = questions.reduce((sum, question) => sum + questionScore(question, answers[question.id]), 0);
   const total = questions.reduce((sum, question) => sum + questionTotal(question), 0);
 
-  if (questions.length === 0) return null;
+  if (questions.length === 0) {
+    const data = asRecord(activity.activity_data);
+    return (
+      <section className="rounded-lg border border-black/10 bg-white p-4 shadow-sm">
+        <p className="text-xs font-semibold uppercase tracking-wide text-moss">Activity</p>
+        <h2 className="mt-1 text-lg font-semibold">{activity.activity_type.replaceAll("_", " ")}</h2>
+        <p className="mt-3 rounded-md bg-slate-50 p-3 text-sm text-black/65">
+          {String(data.prompt ?? "This activity is ready for a specialised renderer.")}
+        </p>
+        <p className="mt-3 text-xs text-black/45">
+          Full learner interaction for this activity type will be added in the next activity-renderer pass.
+        </p>
+      </section>
+    );
+  }
 
   function submit() {
     const finalScore = questions.reduce((sum, question) => sum + questionScore(question, answers[question.id]), 0);
     setSubmitted(true);
+    if (previewOnly) {
+      setMessage("Preview only. Learner attempts are not saved here.");
+      return;
+    }
     startTransition(async () => {
       try {
         await recordQuizAttempt({

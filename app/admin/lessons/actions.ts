@@ -472,17 +472,6 @@ export async function createVisualLesson(formData: FormData) {
 export async function updateLessonStatus(lessonId: string, status: "DRAFT" | "PUBLISHED") {
   await requireAdmin();
   const supabase = createAdminClient();
-  if (status === "PUBLISHED") {
-    const { count, error: reviewError } = await supabase
-      .from("lesson_slide_activities")
-      .select("id", { count: "exact", head: true })
-      .eq("lesson_id", lessonId)
-      .eq("needs_review", true);
-    if (reviewError) throw reviewError;
-    if ((count ?? 0) > 0) {
-      throw new Error(`${count} generated lesson activities still need review before publishing.`);
-    }
-  }
   const { error } = await supabase.from("lessons").update({ status }).eq("id", lessonId);
   if (error) throw error;
   revalidatePath("/admin/lessons");
@@ -531,18 +520,6 @@ export async function updateLessonBuilderDetails(lessonId: string, formData: For
     estimatedCompletionMinutes: formData.get("estimatedCompletionMinutes") || "",
     status: formData.get("status")
   });
-
-  if (parsed.status === "PUBLISHED") {
-    const { count, error: reviewError } = await supabase
-      .from("lesson_slide_activities")
-      .select("id", { count: "exact", head: true })
-      .eq("lesson_id", lessonId)
-      .eq("needs_review", true);
-    if (reviewError) throw reviewError;
-    if ((count ?? 0) > 0) {
-      throw new Error(`${count} generated lesson activities still need review before publishing.`);
-    }
-  }
 
   const { error } = await supabase
     .from("lessons")
@@ -1014,13 +991,33 @@ function revalidateLessonBuilder(lessonId: string) {
 }
 
 function defaultActivityPrompt(activityType: string) {
+  if (activityType === "MULTIPLE_SELECT") return "Choose all correct answers.";
   if (activityType === "GAP_FILL") return "Complete the sentences.";
   if (activityType === "TRUE_FALSE") return "True or False?";
   if (activityType === "MATCHING") return "Match the items.";
+  if (activityType === "DRAG_DROP") return "Move each item to the correct place.";
+  if (activityType === "REORDERING") return "Put the items in the correct order.";
+  if (activityType === "CATEGORIZATION") return "Sort the items into the correct categories.";
+  if (activityType === "SHORT_ANSWER") return "Write a short answer.";
+  if (activityType === "ERROR_CORRECTION") return "Find and correct the mistake.";
+  if (activityType === "MISSING_INFORMATION") return "Complete the missing information.";
   return "Choose the best answer.";
 }
 
 function defaultActivityData(activityType: string, prompt: string): Json {
+  if (activityType === "MULTIPLE_SELECT") {
+    return {
+      prompt,
+      questions: [
+        {
+          id: 1,
+          text: "",
+          options: { A: "", B: "", C: "", D: "" },
+          answer: ["A"]
+        }
+      ]
+    };
+  }
   if (activityType === "GAP_FILL") {
     return { prompt, items: [{ sentence: "", answer: "" }] };
   }
@@ -1041,6 +1038,24 @@ function defaultActivityData(activityType: string, prompt: string): Json {
         }
       ]
     };
+  }
+  if (activityType === "DRAG_DROP") {
+    return { prompt, items: [{ text: "Item", target: "Target" }], targets: ["Target"] };
+  }
+  if (activityType === "REORDERING") {
+    return { prompt, items: ["First item", "Second item"], correct_order: ["First item", "Second item"] };
+  }
+  if (activityType === "CATEGORIZATION") {
+    return { prompt, categories: [{ name: "Category A", items: ["Item"] }, { name: "Category B", items: [] }] };
+  }
+  if (activityType === "SHORT_ANSWER") {
+    return { prompt, questions: [{ id: 1, text: "", sample_answer: "" }] };
+  }
+  if (activityType === "ERROR_CORRECTION") {
+    return { prompt, items: [{ incorrect: "", correct: "" }] };
+  }
+  if (activityType === "MISSING_INFORMATION") {
+    return { prompt, paragraphs: [{ text: "Write a paragraph with ___ missing information.", answers: ["answer"] }] };
   }
   return {
     prompt,
