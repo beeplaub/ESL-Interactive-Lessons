@@ -136,19 +136,25 @@ function normalizeMatching(data: Json | null): MatchData {
 
 export function InLessonActivitiesEditor({
   lessonId,
-  initialActivities
+  initialActivities,
+  embedded = false
 }: {
   lessonId: string;
   initialActivities: Activity[];
+  embedded?: boolean;
 }) {
   const [activities, setActivities] = useState(initialActivities);
   if (!activities.length) return null;
 
   return (
-    <section className="mb-6 rounded-lg border border-black/10 bg-white p-5 shadow-sm">
-      <h2 className="text-xl font-semibold">In-Lesson Activities</h2>
-      <p className="mt-1 text-sm text-black/55">These activities appear beside the slide image for learners.</p>
-      <div className="mt-4 space-y-3">
+    <section className={embedded ? "space-y-3" : "mb-6 rounded-lg border border-black/10 bg-white p-5 shadow-sm"}>
+      {!embedded ? (
+        <>
+          <h2 className="text-xl font-semibold">In-Lesson Activities</h2>
+          <p className="mt-1 text-sm text-black/55">These activities appear beside the slide image for learners.</p>
+        </>
+      ) : null}
+      <div className={embedded ? "space-y-3" : "mt-4 space-y-3"}>
         {activities.map((activity) => (
           <ActivityPanel
             key={activity.id}

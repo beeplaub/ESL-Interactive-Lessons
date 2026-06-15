@@ -24,6 +24,23 @@ function isImageUrl(value: string) {
   return /^https?:\/\//i.test(value) || value.startsWith("/");
 }
 
+function getYouTubeEmbedUrl(value: string) {
+  try {
+    const url = new URL(value);
+    if (url.hostname.includes("youtu.be")) {
+      const id = url.pathname.replace("/", "");
+      return id ? `https://www.youtube.com/embed/${id}` : "";
+    }
+    if (url.hostname.includes("youtube.com")) {
+      const id = url.searchParams.get("v") || url.pathname.split("/").filter(Boolean).pop();
+      return id ? `https://www.youtube.com/embed/${id}` : "";
+    }
+  } catch {
+    return "";
+  }
+  return "";
+}
+
 export function LessonBlockPreview({
   blocks,
   emptyText = "No editable blocks yet. Add content blocks to preview the future LMS lesson view."
@@ -131,12 +148,30 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
   }
 
   if (block.block_type === "VIDEO") {
+    const url = asString(content.url);
+    const embedUrl = getYouTubeEmbedUrl(url);
     return (
-      <div className="rounded-lg border border-black/10 bg-slate-50 p-4">
-        <div className="mb-2 flex items-center gap-2 font-semibold">
-          <PlayCircle size={18} className="text-moss" /> {asString(content.title) || "Video"}
-        </div>
-        <p className="break-all text-sm text-black/55">{asString(content.url) || "Add a video or embed URL."}</p>
+      <div className="overflow-hidden rounded-lg border border-black/10 bg-slate-50">
+        {embedUrl ? (
+          <iframe
+            src={embedUrl}
+            title={asString(content.title) || "Video"}
+            className="aspect-video w-full"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+          />
+        ) : (
+          <div className="grid aspect-video place-items-center p-4 text-center">
+            <div>
+              <PlayCircle size={28} className="mx-auto text-moss" />
+              <p className="mt-2 font-semibold">{asString(content.title) || "Video"}</p>
+              <p className="mt-1 break-all text-sm text-black/55">{url || "Add a YouTube or video URL."}</p>
+            </div>
+          </div>
+        )}
+        {asString(content.title) && embedUrl ? (
+          <div className="border-t border-black/10 px-4 py-2 text-sm font-medium">{asString(content.title)}</div>
+        ) : null}
       </div>
     );
   }

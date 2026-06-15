@@ -96,24 +96,8 @@ export default async function NewLessonPage() {
             />
           </label>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="text-sm font-medium">
-              Thumbnail storage path
-              <input
-                name="thumbnailPath"
-                placeholder="Optional"
-                className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 font-normal"
-              />
-            </label>
-            <label className="text-sm font-medium">
-              Cover image storage path
-              <input
-                name="coverImagePath"
-                placeholder="Optional"
-                className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 font-normal"
-              />
-            </label>
-          </div>
+          <input type="hidden" name="thumbnailPath" value="" />
+          <input type="hidden" name="coverImagePath" value="" />
 
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-black/10 pt-5">
             <p className="text-sm text-black/55">This creates a draft lesson and opens the builder with the first slide ready.</p>
