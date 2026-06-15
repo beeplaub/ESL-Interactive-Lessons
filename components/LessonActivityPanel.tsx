@@ -12,6 +12,12 @@ type LessonSlideActivity = {
   activity_data: Json | null;
 };
 
+type SavedAttempt = {
+  score: number;
+  total: number;
+  answers: Json | null;
+};
+
 function asRecord(value: Json | null | undefined): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 }
@@ -91,15 +97,18 @@ function activityLabel(type: string) {
 export function LessonActivityPanel({
   activity,
   onNext,
-  previewOnly = false
+  previewOnly = false,
+  initialAttempt = null
 }: {
   activity: LessonSlideActivity;
   onNext: () => void;
   previewOnly?: boolean;
+  initialAttempt?: SavedAttempt | null;
 }) {
   const questions = questionsFromData(activity.activity_data, activity.activity_type);
-  const [answers, setAnswers] = useState<Record<string, unknown>>({});
-  const [submitted, setSubmitted] = useState(false);
+  const initialAnswers = asRecord(initialAttempt?.answers);
+  const [answers, setAnswers] = useState<Record<string, unknown>>(initialAnswers);
+  const [submitted, setSubmitted] = useState(Boolean(initialAttempt));
   const [message, setMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const answered = questions.length > 0 && questions.every((question) => hasAnswer(question, answers[question.id]));
@@ -144,6 +153,12 @@ export function LessonActivityPanel({
     });
   }
 
+  function retake() {
+    setAnswers({});
+    setSubmitted(false);
+    setMessage("Retake started. Your previous attempt is still stored.");
+  }
+
   return (
     <section className="rounded-lg border border-black/10 bg-white p-4 shadow-sm">
       <div className="mb-4 flex items-center justify-between gap-3">
@@ -176,13 +191,22 @@ export function LessonActivityPanel({
         </p>
         <div className="flex gap-2">
           {submitted ? (
-            <button
-              type="button"
-              onClick={onNext}
-              className="inline-flex items-center gap-2 rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white"
-            >
-              Next Slide <ArrowRight size={16} />
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={retake}
+                className="rounded-md border border-black/15 px-4 py-2 text-sm font-semibold hover:bg-black/5"
+              >
+                Retake
+              </button>
+              <button
+                type="button"
+                onClick={onNext}
+                className="inline-flex items-center gap-2 rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white"
+              >
+                Next Slide <ArrowRight size={16} />
+              </button>
+            </>
           ) : (
             <button
               type="button"

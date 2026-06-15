@@ -42,18 +42,28 @@ type Progress = {
   completed: boolean;
 } | null;
 
+type ActivityAttempt = {
+  lesson_slide_activity_id: string | null;
+  score: number;
+  total: number;
+  answers: Json | null;
+  completed_at: string;
+};
+
 export function BuilderLessonPlayer({
   lesson,
   slides,
   blocks,
   activities,
-  initialProgress
+  initialProgress,
+  activityAttempts = []
 }: {
   lesson: Lesson;
   slides: Slide[];
   blocks: Block[];
   activities: Activity[];
   initialProgress: Progress;
+  activityAttempts?: ActivityAttempt[];
 }) {
   const initialIndex = Math.max(0, Math.min(slides.length - 1, (initialProgress?.current_slide_number ?? 1) - 1));
   const [index, setIndex] = useState(initialIndex);
@@ -69,6 +79,9 @@ export function BuilderLessonPlayer({
   const slideBlocks = slide ? blocksBySlide.get(slide.id) ?? [] : [];
   const activity = slide
     ? activities.find((item) => item.slide_id === slide.id || item.slide_number === slide.slide_number)
+    : null;
+  const latestAttempt = activity
+    ? activityAttempts.find((attempt) => attempt.lesson_slide_activity_id === activity.id) ?? null
     : null;
   const progressPercent = slides.length ? Math.round(((index + 1) / slides.length) * 100) : 0;
 
@@ -144,6 +157,7 @@ export function BuilderLessonPlayer({
             <LessonActivityPanel
               activity={{ id: activity.id, activity_type: activity.activity_type, activity_data: activity.activity_data }}
               onNext={() => move(1)}
+              initialAttempt={latestAttempt}
             />
           ) : (
             <div className="rounded-lg border border-black/10 bg-white p-5 text-sm text-black/55 shadow-sm">

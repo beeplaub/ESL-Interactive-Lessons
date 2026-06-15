@@ -121,6 +121,12 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
   if (blockType === "TEXT") {
     return { body: String(formData.get("body") || "").trim() };
   }
+  if (blockType === "BULLETS") {
+    return {
+      title: nullableText(formData.get("title")),
+      items: splitLines(formData.get("items"))
+    };
+  }
   if (blockType === "QUOTE") {
     return {
       body: String(formData.get("body") || "").trim(),
@@ -189,6 +195,7 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
 function defaultBlockContent(blockType: string): Json {
   if (blockType === "HEADING") return { text: "New heading", level: "H2" };
   if (blockType === "TEXT") return { body: "Add lesson text here." };
+  if (blockType === "BULLETS") return { title: "Key points", items: ["First point", "Second point"] };
   if (blockType === "QUOTE") return { body: "Add a quote.", attribution: null };
   if (blockType === "CALLOUT") return { title: "Note", body: "Add a short note for learners." };
   if (blockType === "IMAGE") return { path: "", alt: "", caption: "" };
@@ -435,6 +442,7 @@ export async function createVisualLesson(formData: FormData) {
     estimatedCompletionMinutes: formData.get("estimatedCompletionMinutes") || "",
     status: "DRAFT"
   });
+  const outcomes = splitLines(formData.get("outcomes"));
 
   const lessonId = crypto.randomUUID();
   const { error: lessonError } = await supabase.from("lessons").insert({
@@ -444,7 +452,7 @@ export async function createVisualLesson(formData: FormData) {
     topic: parsed.topic,
     category: nullableText(parsed.category),
     level: parsed.level,
-    description: parsed.description ?? "",
+    description: outcomes.length > 0 ? JSON.stringify({ outcomes }) : parsed.description ?? "",
     thumbnail_path: nullableText(parsed.thumbnailPath),
     cover_image_path: nullableText(parsed.coverImagePath),
     duration_minutes: optionalPositiveInt(parsed.durationMinutes),
@@ -520,6 +528,8 @@ export async function updateLessonBuilderDetails(lessonId: string, formData: For
     estimatedCompletionMinutes: formData.get("estimatedCompletionMinutes") || "",
     status: formData.get("status")
   });
+  const outcomes = splitLines(formData.get("outcomes"));
+  const description = outcomes.length > 0 ? JSON.stringify({ outcomes }) : parsed.description ?? "";
 
   const { error } = await supabase
     .from("lessons")
@@ -529,7 +539,7 @@ export async function updateLessonBuilderDetails(lessonId: string, formData: For
       topic: parsed.topic,
       category: nullableText(parsed.category),
       level: parsed.level,
-      description: parsed.description ?? "",
+      description,
       thumbnail_path: nullableText(parsed.thumbnailPath),
       cover_image_path: nullableText(parsed.coverImagePath),
       duration_minutes: optionalPositiveInt(parsed.durationMinutes),

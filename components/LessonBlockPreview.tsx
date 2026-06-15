@@ -1,4 +1,7 @@
-import { BookOpen, Headphones, ImageIcon, MessageSquareQuote, PlayCircle } from "lucide-react";
+"use client";
+
+import { BookOpen, Headphones, ImageIcon, ListChecks, MessageSquareQuote, Pause, Play, PlayCircle, Volume2 } from "lucide-react";
+import { useRef, useState } from "react";
 import type { Json } from "@/types/database.types";
 
 export type PreviewLessonBlock = {
@@ -98,6 +101,29 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
     return <FormattedText text={asString(content.body)} />;
   }
 
+  if (block.block_type === "BULLETS") {
+    const items = asArray(content.items).map(String).filter(Boolean);
+    return (
+      <div className="rounded-lg border border-black/10 bg-white p-4">
+        <div className="mb-3 flex items-center gap-2 font-semibold text-ink">
+          <ListChecks size={18} className="text-moss" /> {asString(content.title) || "Key points"}
+        </div>
+        {items.length ? (
+          <ul className="space-y-2 text-sm leading-6 text-black/70">
+            {items.map((item, index) => (
+              <li key={index} className="flex gap-2">
+                <span className="mt-2 size-1.5 shrink-0 rounded-full bg-moss" />
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-black/50">Add bullet points.</p>
+        )}
+      </div>
+    );
+  }
+
   if (block.block_type === "QUOTE") {
     return (
       <figure className="rounded-lg border-l-4 border-moss bg-skywash p-4">
@@ -157,9 +183,7 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
           <Headphones size={18} /> {asString(content.label) || "Audio"}
         </div>
         {path && /^https?:\/\//i.test(path) ? (
-          <audio controls src={src} className="w-full">
-            <track kind="captions" />
-          </audio>
+          <CustomAudioPlayer src={src} />
         ) : (
           <p className="text-sm text-white/65">{path || "Add an audio URL or storage path."}</p>
         )}
@@ -296,6 +320,91 @@ function FormattedText({ text }: { text: string }) {
       {paragraphs.map((paragraph, index) => (
         <p key={index}>{paragraph}</p>
       ))}
+    </div>
+  );
+}
+
+function CustomAudioPlayer({ src }: { src: string }) {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [playing, setPlaying] = useState(false);
+  const [volume, setVolume] = useState(0.9);
+  const [speed, setSpeed] = useState(1);
+  const [openSettings, setOpenSettings] = useState(false);
+
+  function toggle() {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (audio.paused) {
+      void audio.play();
+    } else {
+      audio.pause();
+    }
+  }
+
+  function seek(seconds: number) {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.currentTime = Math.max(0, audio.currentTime + seconds);
+  }
+
+  return (
+    <div className="rounded-lg bg-white/10 p-3">
+      <audio
+        ref={audioRef}
+        src={src}
+        preload="metadata"
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
+        onEnded={() => setPlaying(false)}
+      />
+      <div className="flex flex-wrap items-center gap-2">
+        <button type="button" onClick={() => seek(-10)} className="rounded-md bg-white/10 px-3 py-2 text-xs font-semibold hover:bg-white/20">
+          -10s
+        </button>
+        <button type="button" onClick={toggle} className="inline-flex items-center gap-2 rounded-md bg-white px-4 py-2 text-sm font-semibold text-ink">
+          {playing ? <Pause size={16} /> : <Play size={16} />} {playing ? "Pause" : "Play"}
+        </button>
+        <button type="button" onClick={() => seek(10)} className="rounded-md bg-white/10 px-3 py-2 text-xs font-semibold hover:bg-white/20">
+          +10s
+        </button>
+        <label className="ml-auto flex items-center gap-2 text-xs text-white/70">
+          <Volume2 size={15} />
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={volume}
+            onChange={(event) => {
+              const next = Number(event.target.value);
+              setVolume(next);
+              if (audioRef.current) audioRef.current.volume = next;
+            }}
+          />
+        </label>
+        <button type="button" onClick={() => setOpenSettings((current) => !current)} className="rounded-md bg-white/10 px-3 py-2 text-xs font-semibold hover:bg-white/20">
+          Settings
+        </button>
+      </div>
+      {openSettings ? (
+        <div className="mt-3 rounded-md bg-white/10 p-3 text-sm">
+          <label className="flex items-center justify-between gap-3">
+            Speed
+            <select
+              value={speed}
+              onChange={(event) => {
+                const next = Number(event.target.value);
+                setSpeed(next);
+                if (audioRef.current) audioRef.current.playbackRate = next;
+              }}
+              className="rounded-md border border-white/20 bg-ink px-2 py-1 text-white"
+            >
+              {[0.75, 1, 1.25, 1.5, 2].map((value) => <option key={value} value={value}>{value}x</option>)}
+            </select>
+          </label>
+          <p className="mt-2 text-xs text-white/55">Audio quality depends on the source link.</p>
+        </div>
+      ) : null}
     </div>
   );
 }

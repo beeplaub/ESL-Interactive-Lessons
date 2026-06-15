@@ -57,6 +57,17 @@ function getLevelTheme(level: string | null) {
   };
 }
 
+function lessonOutcomes(description: string | null) {
+  if (!description) return [];
+  try {
+    const parsed = JSON.parse(description) as { outcomes?: unknown };
+    if (Array.isArray(parsed.outcomes)) return parsed.outcomes.map(String).filter(Boolean);
+  } catch {
+    return description.split(/\r?\n/).map((line) => line.replace(/^[-•]\s*/, "").trim()).filter(Boolean);
+  }
+  return [];
+}
+
 export function LessonsGrid({ lessons, slideCounts, progress, wishlistLessonIds, isLoggedIn }: Props) {
   const [keyword, setKeyword] = useState("");
   const [selectedLevel, setSelectedLevel] = useState<string>("");
@@ -231,9 +242,21 @@ export function LessonsGrid({ lessons, slideCounts, progress, wishlistLessonIds,
                 </div>
 
                 <div className="flex flex-1 flex-col px-5 pb-5 pt-3">
-                  <p className="text-sm leading-6 text-black/60">
-                    {lesson.description || "A focused English lesson with guided slide practice."}
-                  </p>
+                  {lessonOutcomes(lesson.description).length ? (
+                    <div className="text-sm leading-6 text-black/60">
+                      <p className="font-medium text-black/70">After this lesson, you&apos;ll be able to:</p>
+                      <ul className="mt-1 space-y-1">
+                        {lessonOutcomes(lesson.description).slice(0, 3).map((outcome, index) => (
+                          <li key={index} className="flex gap-2">
+                            <span className="mt-2 size-1.5 shrink-0 rounded-full" style={{ backgroundColor: theme.border }} />
+                            <span>{outcome}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : (
+                    <p className="text-sm leading-6 text-black/60">A focused English lesson with guided slide practice.</p>
+                  )}
 
                   <div className="mt-auto pt-4">
                     {isLoggedIn ? (

@@ -25,6 +25,7 @@ import type { Json } from "@/types/database.types";
 const blockTypes = [
   "HEADING",
   "TEXT",
+  "BULLETS",
   "QUOTE",
   "CALLOUT",
   "IMAGE",
@@ -100,9 +101,33 @@ function lines(value: unknown) {
   return Array.isArray(value) ? value.map((item) => String(item)).join("\n") : "";
 }
 
+function parseOutcomes(description: string | null) {
+  if (!description) return [""];
+  try {
+    const parsed = JSON.parse(description) as { outcomes?: unknown };
+    if (Array.isArray(parsed.outcomes)) {
+      const values = parsed.outcomes.map(String);
+      return values.length ? values : [""];
+    }
+  } catch {
+    return description.split(/\r?\n/).map((line) => line.replace(/^[-•]\s*/, "").trim()).filter(Boolean);
+  }
+  return [""];
+}
+
+function SubmitButton({ label, workingLabel = "Working..." }: { label: string; workingLabel?: string }) {
+  return (
+    <button className="rounded-md bg-moss px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">
+      {label}
+      <span className="sr-only">{workingLabel}</span>
+    </button>
+  );
+}
+
 export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: Props) {
   const [selectedSlideId, setSelectedSlideId] = useState(slides[0]?.id ?? "");
   const [isMetadataOpen, setIsMetadataOpen] = useState(false);
+  const [busyMessage, setBusyMessage] = useState<string | null>(null);
   const selectedSlide = slides.find((slide) => slide.id === selectedSlideId) ?? slides[0] ?? null;
   const selectedIndex = selectedSlide ? slides.findIndex((slide) => slide.id === selectedSlide.id) : -1;
   const blocksBySlide = useMemo(() => {
@@ -124,7 +149,27 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
   }
 
   return (
-    <main className="mx-auto max-w-7xl px-4 py-6">
+    <main
+      className="mx-auto max-w-7xl overflow-x-hidden px-3 py-5 sm:px-4 sm:py-6"
+      onSubmitCapture={(event) => {
+        const form = event.target instanceof HTMLFormElement ? event.target : null;
+        setBusyMessage(form?.dataset.busyMessage || "Applying changes...");
+      }}
+    >
+      {busyMessage ? (
+        <div className="fixed bottom-4 left-1/2 z-[60] w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 rounded-2xl border border-moss/20 bg-white p-4 shadow-2xl">
+          <div className="flex items-center gap-3">
+            <span className="relative flex size-9">
+              <span className="absolute inline-flex size-full animate-ping rounded-full bg-moss/30" />
+              <span className="relative inline-flex size-9 rounded-full bg-moss" />
+            </span>
+            <div>
+              <p className="font-semibold text-ink">{busyMessage}</p>
+              <p className="text-xs text-black/50">Hold tight. The builder is updating.</p>
+            </div>
+          </div>
+        </div>
+      ) : null}
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
           <Link href="/admin/lessons" className="text-sm text-black/55 hover:text-black">
@@ -138,7 +183,7 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
           <p className="mt-1 text-sm text-black/55">Build slides, preview the learner view, and edit the selected slide without leaving this page.</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <form action={updateLessonStatus.bind(null, lesson.id, lesson.status === "PUBLISHED" ? "DRAFT" : "PUBLISHED")}>
+          <form action={updateLessonStatus.bind(null, lesson.id, lesson.status === "PUBLISHED" ? "DRAFT" : "PUBLISHED")} data-busy-message={lesson.status === "PUBLISHED" ? "Unpublishing lesson..." : "Publishing lesson..."}>
             <button className={`inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold ${lesson.status === "PUBLISHED" ? "border border-black/15 bg-white text-ink hover:bg-black/5" : "bg-moss text-white hover:bg-blue-700"}`}>
               {lesson.status === "PUBLISHED" ? "Unpublish" : "Publish lesson"}
             </button>
@@ -166,7 +211,7 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
         </div>
       ) : null}
 
-      <section className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
+      <section className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)] lg:gap-5">
         <section className="rounded-xl border border-black/10 bg-white p-4 shadow-sm">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -201,7 +246,7 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
               )}
             </div>
           </div>
-          <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+          <div className="mt-3 flex max-w-full gap-2 overflow-x-auto pb-1">
             {slides.map((slide, index) => (
               <button
                 key={slide.id}
@@ -242,15 +287,15 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
         </section>
       </section>
 
-      <section className="mt-5 rounded-xl border border-black/10 bg-white p-4 shadow-sm">
-        <div className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)] lg:items-start">
+      <section className="mt-5 rounded-xl border border-black/10 bg-white p-3 shadow-sm sm:p-4">
+        <div className="grid gap-3 lg:grid-cols-[160px_minmax(0,1fr)] lg:items-center">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-moss">Slides</p>
-              <h2 className="mt-1 text-lg font-semibold">Add and organise</h2>
+              <h2 className="mt-0.5 text-sm font-semibold">Add & organise</h2>
             </div>
           </div>
-          <div className="flex gap-2 overflow-x-auto pb-1">
+          <div className="flex max-w-full gap-2 overflow-x-auto pb-1">
             {slides.map((slide, index) => (
               <button
                 key={slide.id}
@@ -269,7 +314,7 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
             <summary className="cursor-pointer list-none">
               <span className="inline-flex items-center gap-2 text-sm font-semibold"><Plus size={15} /> Add slide</span>
             </summary>
-            <form action={addBuilderSlide.bind(null, lesson.id)} className="mt-4 grid gap-3 lg:grid-cols-[1fr_1fr_1.5fr_auto] lg:items-end">
+            <form action={addBuilderSlide.bind(null, lesson.id)} data-busy-message="Adding slide..." className="mt-4 grid gap-3 lg:grid-cols-[1fr_1fr_1.5fr_auto] lg:items-end">
               <label className="text-sm">
                 Slide title
                 <input name="title" placeholder="New slide title" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
@@ -287,7 +332,7 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
           </details>
       </section>
 
-      <section className="mt-5">
+      <section className="mt-5 min-w-0">
         <section className="rounded-xl border border-black/10 bg-white p-4 shadow-sm">
           {selectedSlide ? (
             <SelectedSlideEditor
@@ -309,7 +354,7 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
 
 function MetadataForm({ lesson }: { lesson: Lesson }) {
   return (
-    <form action={updateLessonBuilderDetails.bind(null, lesson.id)} className="mt-5 grid gap-4">
+    <form action={updateLessonBuilderDetails.bind(null, lesson.id)} data-busy-message="Saving lesson settings..." className="mt-5 grid gap-4">
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="text-sm">
           Title
@@ -319,10 +364,17 @@ function MetadataForm({ lesson }: { lesson: Lesson }) {
           Subtitle
           <input name="subtitle" defaultValue={lesson.subtitle ?? ""} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
         </label>
-        <label className="text-sm sm:col-span-2">
-          Description
-          <textarea name="description" rows={4} defaultValue={lesson.description ?? ""} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
-        </label>
+        <div className="text-sm sm:col-span-2">
+          <span className="font-medium">After this lesson, learners will be able to:</span>
+          <textarea
+            name="outcomes"
+            rows={5}
+            defaultValue={parseOutcomes(lesson.description).join("\n")}
+            placeholder="Use five new vocabulary words&#10;Explain the main idea of a short text&#10;Answer topic questions with confidence"
+            className="mt-2 w-full rounded-md border border-black/15 px-3 py-2"
+          />
+          <span className="mt-1 block text-xs text-black/45">One outcome per line.</span>
+        </div>
         <label className="text-sm">
           Topic
           <input name="topic" defaultValue={lesson.topic} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
@@ -380,7 +432,7 @@ function SelectedSlideEditor({
   activity: Activity | null;
 }) {
   return (
-    <div className="grid gap-5 xl:grid-cols-2">
+    <div className="grid min-w-0 gap-5 xl:grid-cols-2">
       <section>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -388,22 +440,22 @@ function SelectedSlideEditor({
             <h2 className="mt-1 text-lg font-semibold">Edit slide {slideIndex + 1}</h2>
           </div>
           <div className="flex flex-wrap gap-2">
-            <form action={moveBuilderSlide.bind(null, lessonId, slide.id, "up")}>
+            <form action={moveBuilderSlide.bind(null, lessonId, slide.id, "up")} data-busy-message="Moving slide...">
               <button disabled={slideIndex === 0} className="rounded-md border border-black/15 p-2 hover:bg-black/5 disabled:opacity-35" aria-label="Move slide up"><ArrowUp size={15} /></button>
             </form>
-            <form action={moveBuilderSlide.bind(null, lessonId, slide.id, "down")}>
+            <form action={moveBuilderSlide.bind(null, lessonId, slide.id, "down")} data-busy-message="Moving slide...">
               <button disabled={slideIndex === slideCount - 1} className="rounded-md border border-black/15 p-2 hover:bg-black/5 disabled:opacity-35" aria-label="Move slide down"><ArrowDown size={15} /></button>
             </form>
-            <form action={duplicateBuilderSlide.bind(null, lessonId, slide.id)}>
+            <form action={duplicateBuilderSlide.bind(null, lessonId, slide.id)} data-busy-message="Duplicating slide...">
               <button className="rounded-md border border-black/15 p-2 hover:bg-black/5" aria-label="Duplicate slide"><Copy size={15} /></button>
             </form>
-            <form action={deleteBuilderSlide.bind(null, lessonId, slide.id)}>
+            <form action={deleteBuilderSlide.bind(null, lessonId, slide.id)} data-busy-message="Deleting slide...">
               <button className="rounded-md border border-coral/30 p-2 text-coral hover:bg-coral/10" aria-label="Delete slide"><Trash2 size={15} /></button>
             </form>
           </div>
         </div>
 
-        <form action={updateBuilderSlide.bind(null, lessonId, slide.id)} className="mt-4 grid gap-3 rounded-lg border border-black/10 bg-slate-50 p-3">
+        <form action={updateBuilderSlide.bind(null, lessonId, slide.id)} data-busy-message="Saving slide..." className="mt-4 grid gap-3 rounded-lg border border-black/10 bg-slate-50 p-3">
           <input type="hidden" name="type" value="INFO" />
           <label className="text-sm">
             Slide title
@@ -417,7 +469,7 @@ function SelectedSlideEditor({
             Slide notes
             <textarea name="rawText" rows={4} defaultValue={slide.raw_text} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
           </label>
-          <button className="w-fit rounded-md bg-moss px-4 py-2 text-sm font-semibold text-white">Save slide</button>
+          <SubmitButton label="Save slide" />
         </form>
 
         <section className="mt-4 rounded-lg border border-black/10 bg-white p-3">
@@ -425,7 +477,7 @@ function SelectedSlideEditor({
             <summary className="cursor-pointer list-none">
               <span className="inline-flex items-center gap-2 text-sm font-semibold"><Plus size={15} /> Add content block</span>
             </summary>
-            <form action={addLessonBlock.bind(null, lessonId, slide.id)} className="mt-4 grid gap-3">
+            <form action={addLessonBlock.bind(null, lessonId, slide.id)} data-busy-message="Adding content block..." className="mt-4 grid gap-3">
               <label className="text-sm">
                 Block type
                 <select name="blockType" defaultValue="TEXT" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">
@@ -448,7 +500,7 @@ function SelectedSlideEditor({
                   </div>
                 </summary>
                 <div className="mt-4 grid gap-4">
-                  <form action={updateLessonBlock.bind(null, lessonId, block.id)} className="grid gap-3">
+                  <form action={updateLessonBlock.bind(null, lessonId, block.id)} data-busy-message="Saving block..." className="grid gap-3">
                     <label className="text-sm">
                       Block type
                       <select name="blockType" defaultValue={block.block_type} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">
@@ -459,13 +511,13 @@ function SelectedSlideEditor({
                     <button className="w-fit rounded-md bg-moss px-4 py-2 text-sm font-semibold text-white">Save block</button>
                   </form>
                   <div className="flex flex-wrap gap-2 border-t border-black/10 pt-3">
-                    <form action={moveLessonBlock.bind(null, lessonId, slide.id, block.id, "up")}>
+                    <form action={moveLessonBlock.bind(null, lessonId, slide.id, block.id, "up")} data-busy-message="Moving block...">
                       <button disabled={blockIndex === 0} className="inline-flex items-center gap-2 rounded-md border border-black/15 px-3 py-2 text-xs font-medium hover:bg-black/5 disabled:opacity-35"><ArrowUp size={14} /> Up</button>
                     </form>
-                    <form action={moveLessonBlock.bind(null, lessonId, slide.id, block.id, "down")}>
+                    <form action={moveLessonBlock.bind(null, lessonId, slide.id, block.id, "down")} data-busy-message="Moving block...">
                       <button disabled={blockIndex === blocks.length - 1} className="inline-flex items-center gap-2 rounded-md border border-black/15 px-3 py-2 text-xs font-medium hover:bg-black/5 disabled:opacity-35"><ArrowDown size={14} /> Down</button>
                     </form>
-                    <form action={deleteLessonBlock.bind(null, lessonId, slide.id, block.id)}>
+                    <form action={deleteLessonBlock.bind(null, lessonId, slide.id, block.id)} data-busy-message="Deleting block...">
                       <button className="inline-flex items-center gap-2 rounded-md border border-coral/30 px-3 py-2 text-xs font-medium text-coral hover:bg-coral/10"><Trash2 size={14} /> Delete block</button>
                     </form>
                   </div>
@@ -485,7 +537,7 @@ function SelectedSlideEditor({
             <InLessonActivitiesEditor lessonId={lessonId} initialActivities={[activity]} embedded />
           </div>
         ) : (
-          <form action={addLessonSlideActivity.bind(null, lessonId, slide.id, slide.slide_number)} className="mt-4 grid gap-3 rounded-lg border border-dashed border-black/15 p-3">
+          <form action={addLessonSlideActivity.bind(null, lessonId, slide.id, slide.slide_number)} data-busy-message="Adding activity..." className="mt-4 grid gap-3 rounded-lg border border-dashed border-black/15 p-3">
             <label className="text-sm">
               Activity type
               <select name="activityType" defaultValue="MCQ" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">
@@ -525,6 +577,10 @@ function blockSummary(block: LessonBlock) {
   const content = asRecord(block.content);
   if (block.block_type === "HEADING") return asString(content.text);
   if (block.block_type === "TEXT") return asString(content.body);
+  if (block.block_type === "BULLETS") {
+    const items = Array.isArray(content.items) ? content.items : [];
+    return `${items.length} bullet${items.length === 1 ? "" : "s"}`;
+  }
   if (block.block_type === "QUOTE") return asString(content.body);
   if (block.block_type === "CALLOUT") return asString(content.title) || asString(content.body);
   if (block.block_type === "IMAGE") return asString(content.caption) || asString(content.path);
@@ -554,6 +610,9 @@ function BlockFields({ blockType, content }: { blockType: string; content: Json 
     );
   }
   if (blockType === "TEXT") return <label className="text-sm">Text<textarea name="body" rows={5} defaultValue={asString(record.body)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>;
+  if (blockType === "BULLETS") {
+    return <div className="grid gap-3"><label className="text-sm">Title<input name="title" defaultValue={asString(record.title)} placeholder="Agenda" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label><label className="text-sm">Bullet points<textarea name="items" rows={6} defaultValue={lines(record.items)} placeholder="One bullet per line" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /><span className="mt-1 block text-xs text-black/45">Example: Warm-up discussion / Vocabulary practice / Reading task</span></label></div>;
+  }
   if (blockType === "QUOTE") {
     return <div className="grid gap-3"><label className="text-sm">Quote<textarea name="body" rows={4} defaultValue={asString(record.body)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label><label className="text-sm">Attribution<input name="attribution" defaultValue={asString(record.attribution)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label></div>;
   }

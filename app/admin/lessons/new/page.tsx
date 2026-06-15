@@ -86,14 +86,16 @@ export default async function NewLessonPage() {
             </label>
           </div>
 
+          <input type="hidden" name="description" value="" />
           <label className="text-sm font-medium">
-            Description
+            After this lesson, learners will be able to:
             <textarea
-              name="description"
+              name="outcomes"
               rows={4}
-              placeholder="What learners will practise and achieve in this lesson."
+              placeholder="Use topic vocabulary accurately&#10;Answer discussion questions with confidence&#10;Complete a short practice activity"
               className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 font-normal"
             />
+            <span className="mt-1 block text-xs font-normal text-black/45">One outcome per line.</span>
           </label>
 
           <input type="hidden" name="thumbnailPath" value="" />
