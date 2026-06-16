@@ -1,7 +1,7 @@
 "use client";
 
-import { BookOpen, Headphones, ImageIcon, ListChecks, MessageSquareQuote, Pause, Play, PlayCircle, Volume2 } from "lucide-react";
-import { useRef, useState } from "react";
+import { BookOpen, Headphones, ImageIcon, ListChecks, MessageSquareQuote, Pause, Play, PlayCircle, Settings, Volume2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Json } from "@/types/database.types";
 
 export type PreviewLessonBlock = {
@@ -45,16 +45,16 @@ function mediaUrl(value: string, kind: "image" | "audio") {
   return value;
 }
 
-function getYouTubeEmbedUrl(value: string) {
+function getYouTubeId(value: string) {
   try {
     const url = new URL(value);
     if (url.hostname.includes("youtu.be")) {
       const id = url.pathname.replace("/", "");
-      return id ? `https://www.youtube.com/embed/${id}` : "";
+      return id || "";
     }
     if (url.hostname.includes("youtube.com")) {
       const id = url.searchParams.get("v") || url.pathname.split("/").filter(Boolean).pop();
-      return id ? `https://www.youtube.com/embed/${id}` : "";
+      return id || "";
     }
   } catch {
     return "";
@@ -177,12 +177,15 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
   if (block.block_type === "AUDIO") {
     const path = asString(content.path);
     const src = mediaUrl(path, "audio");
+    const youtubeId = getYouTubeId(path);
     return (
       <div className="rounded-lg border border-black/10 bg-ink p-4 text-white">
         <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
           <Headphones size={18} /> {asString(content.label) || "Audio"}
         </div>
-        {path && /^https?:\/\//i.test(path) ? (
+        {youtubeId ? (
+          <YouTubeAudioPlayer videoId={youtubeId} />
+        ) : path && /^https?:\/\//i.test(path) ? (
           <CustomAudioPlayer src={src} />
         ) : (
           <p className="text-sm text-white/65">{path || "Add an audio URL or storage path."}</p>
@@ -193,17 +196,11 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
 
   if (block.block_type === "VIDEO") {
     const url = asString(content.url);
-    const embedUrl = getYouTubeEmbedUrl(url);
+    const youtubeId = getYouTubeId(url);
     return (
       <div className="overflow-hidden rounded-lg border border-black/10 bg-slate-50">
-        {embedUrl ? (
-          <iframe
-            src={embedUrl}
-            title={asString(content.title) || "Video"}
-            className="aspect-video w-full"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-            allowFullScreen
-          />
+        {youtubeId ? (
+          <CustomYouTubeVideoPlayer videoId={youtubeId} title={asString(content.title) || "Lesson video"} />
         ) : (
           <div className="grid aspect-video place-items-center p-4 text-center">
             <div>
@@ -213,9 +210,6 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
             </div>
           </div>
         )}
-        {asString(content.title) && embedUrl ? (
-          <div className="border-t border-black/10 px-4 py-2 text-sm font-medium">{asString(content.title)}</div>
-        ) : null}
       </div>
     );
   }
@@ -382,8 +376,8 @@ function CustomAudioPlayer({ src }: { src: string }) {
             }}
           />
         </label>
-        <button type="button" onClick={() => setOpenSettings((current) => !current)} className="rounded-md bg-white/10 px-3 py-2 text-xs font-semibold hover:bg-white/20">
-          Settings
+        <button type="button" onClick={() => setOpenSettings((current) => !current)} className="rounded-md bg-white/10 p-2 hover:bg-white/20" aria-label="Audio settings">
+          <Settings size={16} />
         </button>
       </div>
       {openSettings ? (
@@ -403,6 +397,176 @@ function CustomAudioPlayer({ src }: { src: string }) {
             </select>
           </label>
           <p className="mt-2 text-xs text-white/55">Audio quality depends on the source link.</p>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function YouTubeAudioPlayer({ videoId }: { videoId: string }) {
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [playing, setPlaying] = useState(false);
+  const [volume, setVolume] = useState(80);
+  const [openSettings, setOpenSettings] = useState(false);
+  const [speed, setSpeed] = useState(1);
+  const src = useMemo(
+    () => `https://www.youtube-nocookie.com/embed/${videoId}?enablejsapi=1&rel=0&modestbranding=1&playsinline=1&iv_load_policy=3&disablekb=1&fs=0`,
+    [videoId]
+  );
+
+  function command(func: string, args: unknown[] = []) {
+    iframeRef.current?.contentWindow?.postMessage(JSON.stringify({ event: "command", func, args }), "*");
+  }
+
+  useEffect(() => {
+    command("setVolume", [volume]);
+    command("setPlaybackRate", [speed]);
+  }, [volume, speed]);
+
+  function toggle() {
+    if (playing) {
+      command("pauseVideo");
+      setPlaying(false);
+    } else {
+      command("playVideo");
+      setPlaying(true);
+    }
+  }
+
+  function seek(seconds: number) {
+    command("seekTo", [seconds, true]);
+  }
+
+  return (
+    <div className="relative rounded-lg bg-white/10 p-3">
+      <iframe
+        ref={iframeRef}
+        src={src}
+        title="Audio source"
+        className="pointer-events-none absolute size-px opacity-0"
+        allow="autoplay; encrypted-media"
+      />
+      <div className="flex flex-wrap items-center gap-2">
+        <button type="button" onClick={() => seek(0)} className="rounded-md bg-white/10 px-3 py-2 text-xs font-semibold hover:bg-white/20">
+          Start
+        </button>
+        <button type="button" onClick={toggle} className="inline-flex items-center gap-2 rounded-md bg-white px-4 py-2 text-sm font-semibold text-ink">
+          {playing ? <Pause size={16} /> : <Play size={16} />} {playing ? "Pause" : "Play"}
+        </button>
+        <label className="ml-auto flex items-center gap-2 text-xs text-white/70">
+          <Volume2 size={15} />
+          <input
+            type="range"
+            min="0"
+            max="100"
+            step="5"
+            value={volume}
+            onChange={(event) => setVolume(Number(event.target.value))}
+          />
+        </label>
+        <button type="button" onClick={() => setOpenSettings((current) => !current)} className="rounded-md bg-white/10 p-2 hover:bg-white/20" aria-label="Audio settings">
+          <Settings size={16} />
+        </button>
+      </div>
+      {openSettings ? (
+        <div className="mt-3 rounded-md bg-white/10 p-3 text-sm">
+          <label className="flex items-center justify-between gap-3">
+            Speed
+            <select
+              value={speed}
+              onChange={(event) => setSpeed(Number(event.target.value))}
+              className="rounded-md border border-white/20 bg-ink px-2 py-1 text-white"
+            >
+              {[0.75, 1, 1.25, 1.5, 2].map((value) => <option key={value} value={value}>{value}x</option>)}
+            </select>
+          </label>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function CustomYouTubeVideoPlayer({ videoId, title }: { videoId: string; title: string }) {
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [started, setStarted] = useState(false);
+  const [playing, setPlaying] = useState(false);
+  const [volume, setVolume] = useState(80);
+  const [openSettings, setOpenSettings] = useState(false);
+  const [speed, setSpeed] = useState(1);
+  const src = useMemo(
+    () => `https://www.youtube-nocookie.com/embed/${videoId}?enablejsapi=1&controls=0&rel=0&modestbranding=1&playsinline=1&iv_load_policy=3&disablekb=1&fs=0`,
+    [videoId]
+  );
+
+  function command(func: string, args: unknown[] = []) {
+    iframeRef.current?.contentWindow?.postMessage(JSON.stringify({ event: "command", func, args }), "*");
+  }
+
+  useEffect(() => {
+    command("setVolume", [volume]);
+    command("setPlaybackRate", [speed]);
+  }, [volume, speed]);
+
+  function toggle() {
+    if (!started) setStarted(true);
+    if (playing) {
+      command("pauseVideo");
+      setPlaying(false);
+    } else {
+      command("playVideo");
+      setPlaying(true);
+    }
+  }
+
+  function restart() {
+    if (!started) setStarted(true);
+    command("seekTo", [0, true]);
+    command("playVideo");
+    setPlaying(true);
+  }
+
+  return (
+    <div className="overflow-hidden rounded-lg bg-ink text-white">
+      <div className="relative aspect-video bg-black">
+        <iframe
+          ref={iframeRef}
+          src={src}
+          title={title}
+          className={`h-full w-full ${started ? "opacity-100" : "opacity-0"}`}
+          allow="autoplay; encrypted-media; picture-in-picture"
+        />
+        {!started ? (
+          <button type="button" onClick={toggle} className="absolute inset-0 grid place-items-center bg-ink text-white">
+            <span className="grid size-16 place-items-center rounded-full bg-white text-ink shadow-xl">
+              <Play size={26} />
+            </span>
+            <span className="sr-only">Play video</span>
+          </button>
+        ) : null}
+      </div>
+      <div className="flex flex-wrap items-center gap-2 p-3">
+        <button type="button" onClick={toggle} className="inline-flex items-center gap-2 rounded-md bg-white px-4 py-2 text-sm font-semibold text-ink">
+          {playing ? <Pause size={16} /> : <Play size={16} />} {playing ? "Pause" : "Play"}
+        </button>
+        <button type="button" onClick={restart} className="rounded-md bg-white/10 px-3 py-2 text-xs font-semibold hover:bg-white/20">
+          Restart
+        </button>
+        <label className="ml-auto flex items-center gap-2 text-xs text-white/70">
+          <Volume2 size={15} />
+          <input type="range" min="0" max="100" step="5" value={volume} onChange={(event) => setVolume(Number(event.target.value))} />
+        </label>
+        <button type="button" onClick={() => setOpenSettings((current) => !current)} className="rounded-md bg-white/10 p-2 hover:bg-white/20" aria-label="Video settings">
+          <Settings size={16} />
+        </button>
+      </div>
+      {openSettings ? (
+        <div className="border-t border-white/10 p-3 text-sm">
+          <label className="flex items-center justify-between gap-3">
+            Speed
+            <select value={speed} onChange={(event) => setSpeed(Number(event.target.value))} className="rounded-md border border-white/20 bg-ink px-2 py-1 text-white">
+              {[0.75, 1, 1.25, 1.5, 2].map((value) => <option key={value} value={value}>{value}x</option>)}
+            </select>
+          </label>
         </div>
       ) : null}
     </div>

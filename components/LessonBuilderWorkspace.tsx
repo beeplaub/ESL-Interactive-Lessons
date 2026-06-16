@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Copy, Eye, Plus, Save, Settings, Trash2, X } from "lucide-react";
 import {
   addBuilderSlide,
@@ -148,6 +148,16 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
     if (next) setSelectedSlideId(next.id);
   }
 
+  useEffect(() => {
+    setBusyMessage(null);
+  }, [lesson.status, slides.length, blocks.length, activities.length, selectedSlide?.title, selectedSlide?.raw_text]);
+
+  useEffect(() => {
+    if (!busyMessage) return;
+    const timeout = window.setTimeout(() => setBusyMessage(null), 3500);
+    return () => window.clearTimeout(timeout);
+  }, [busyMessage]);
+
   return (
     <main
       className="mx-auto max-w-7xl overflow-x-hidden px-3 py-5 sm:px-4 sm:py-6"
@@ -157,16 +167,13 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
       }}
     >
       {busyMessage ? (
-        <div className="fixed bottom-4 left-1/2 z-[60] w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 rounded-2xl border border-moss/20 bg-white p-4 shadow-2xl">
-          <div className="flex items-center gap-3">
-            <span className="relative flex size-9">
+        <div className="fixed bottom-4 left-1/2 z-[60] max-w-[calc(100%-2rem)] -translate-x-1/2 rounded-full border border-moss/20 bg-white px-4 py-2 shadow-2xl">
+          <div className="flex items-center gap-2">
+            <span className="relative flex size-5">
               <span className="absolute inline-flex size-full animate-ping rounded-full bg-moss/30" />
-              <span className="relative inline-flex size-9 rounded-full bg-moss" />
+              <span className="relative inline-flex size-5 rounded-full bg-moss" />
             </span>
-            <div>
-              <p className="font-semibold text-ink">{busyMessage}</p>
-              <p className="text-xs text-black/50">Hold tight. The builder is updating.</p>
-            </div>
+            <p className="text-sm font-semibold text-ink">{busyMessage}</p>
           </div>
         </div>
       ) : null}
@@ -212,7 +219,7 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
       ) : null}
 
       <section className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)] lg:gap-5">
-        <section className="rounded-xl border border-black/10 bg-white p-4 shadow-sm">
+        <section className="min-w-0 rounded-xl border border-black/10 bg-white p-3 shadow-sm sm:p-4">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-moss">Lesson preview</p>
@@ -261,7 +268,7 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
           </div>
         </section>
 
-        <section className="rounded-xl border border-black/10 bg-white p-4 shadow-sm">
+        <section className="min-w-0 rounded-xl border border-black/10 bg-white p-3 shadow-sm sm:p-4">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-moss">Interactive preview</p>
@@ -333,7 +340,7 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
       </section>
 
       <section className="mt-5 min-w-0">
-        <section className="rounded-xl border border-black/10 bg-white p-4 shadow-sm">
+        <section className="min-w-0 rounded-xl border border-black/10 bg-white p-3 shadow-sm sm:p-4">
           {selectedSlide ? (
             <SelectedSlideEditor
               lessonId={lesson.id}
@@ -433,7 +440,7 @@ function SelectedSlideEditor({
 }) {
   return (
     <div className="grid min-w-0 gap-5 xl:grid-cols-2">
-      <section>
+      <section className="min-w-0">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-moss">Slide content</p>
@@ -529,7 +536,7 @@ function SelectedSlideEditor({
         </section>
       </section>
 
-      <section>
+      <section className="min-w-0">
         <p className="text-xs font-semibold uppercase tracking-wide text-moss">Activity</p>
         <h2 className="mt-1 text-lg font-semibold">Add or edit interactivity</h2>
         {activity ? (
