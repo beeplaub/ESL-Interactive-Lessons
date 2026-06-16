@@ -46,6 +46,7 @@ const signedUploadSchema = z.object({
 const lessonBlockTypes = [
   "HEADING",
   "TEXT",
+  "BULLETS",
   "QUOTE",
   "CALLOUT",
   "IMAGE",
@@ -767,6 +768,12 @@ export async function moveBuilderSlide(lessonId: string, slideId: string, direct
   if (nextIndex < 0 || nextIndex >= orderedIds.length) return;
 
   [orderedIds[index], orderedIds[nextIndex]] = [orderedIds[nextIndex], orderedIds[index]];
+  await reorderSlides(lessonId, orderedIds);
+  revalidateLessonBuilder(lessonId);
+}
+
+export async function reorderBuilderSlides(lessonId: string, orderedIds: string[]) {
+  await requireAdmin();
   await reorderSlides(lessonId, orderedIds);
   revalidateLessonBuilder(lessonId);
 }

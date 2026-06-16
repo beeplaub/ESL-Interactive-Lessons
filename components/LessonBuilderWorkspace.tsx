@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Copy, Eye, Plus, Save, Settings, Trash2, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Copy, Eye, GripVertical, Plus, Save, Settings, Trash2, X } from "lucide-react";
 import {
   addBuilderSlide,
   addLessonBlock,
@@ -12,6 +12,7 @@ import {
   duplicateBuilderSlide,
   moveBuilderSlide,
   moveLessonBlock,
+  reorderBuilderSlides,
   updateBuilderSlide,
   updateLessonBlock,
   updateLessonBuilderDetails,
@@ -128,6 +129,9 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
   const [selectedSlideId, setSelectedSlideId] = useState(slides[0]?.id ?? "");
   const [isMetadataOpen, setIsMetadataOpen] = useState(false);
   const [busyMessage, setBusyMessage] = useState<string | null>(null);
+  const [draggedSlideId, setDraggedSlideId] = useState<string | null>(null);
+  const [isReordering, startReorderTransition] = useTransition();
+  const previousSlideCount = useRef(slides.length);
   const selectedSlide = slides.find((slide) => slide.id === selectedSlideId) ?? slides[0] ?? null;
   const selectedIndex = selectedSlide ? slides.findIndex((slide) => slide.id === selectedSlide.id) : -1;
   const blocksBySlide = useMemo(() => {
@@ -148,9 +152,32 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
     if (next) setSelectedSlideId(next.id);
   }
 
+  function reorderSlideCards(targetSlideId: string) {
+    if (!draggedSlideId || draggedSlideId === targetSlideId || isReordering) return;
+    const orderedIds = slides.map((slide) => slide.id);
+    const from = orderedIds.indexOf(draggedSlideId);
+    const to = orderedIds.indexOf(targetSlideId);
+    if (from < 0 || to < 0) return;
+    const next = [...orderedIds];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    setSelectedSlideId(draggedSlideId);
+    setBusyMessage("Reordering slides...");
+    startReorderTransition(async () => {
+      await reorderBuilderSlides(lesson.id, next);
+    });
+  }
+
   useEffect(() => {
     setBusyMessage(null);
   }, [lesson.status, slides.length, blocks.length, activities.length, selectedSlide?.title, selectedSlide?.raw_text]);
+
+  useEffect(() => {
+    if (slides.length > previousSlideCount.current) {
+      setSelectedSlideId(slides[slides.length - 1]?.id ?? "");
+    }
+    previousSlideCount.current = slides.length;
+  }, [slides]);
 
   useEffect(() => {
     if (!busyMessage) return;
@@ -258,10 +285,15 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
               <button
                 key={slide.id}
                 type="button"
+                draggable
+                onDragStart={() => setDraggedSlideId(slide.id)}
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={() => reorderSlideCards(slide.id)}
+                onDragEnd={() => setDraggedSlideId(null)}
                 onClick={() => setSelectedSlideId(slide.id)}
                 className={`min-w-44 rounded-lg border px-3 py-2 text-left text-sm ${slide.id === selectedSlide?.id ? "border-moss bg-moss/10" : "border-black/10 bg-white hover:bg-black/[0.03]"}`}
               >
-                <span className="text-xs font-semibold text-moss">Slide {index + 1}</span>
+                <span className="flex items-center gap-1 text-xs font-semibold text-moss"><GripVertical size={13} /> Slide {index + 1}</span>
                 <span className="mt-1 block truncate font-medium">{slide.title}</span>
               </button>
             ))}
@@ -307,10 +339,15 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
               <button
                 key={slide.id}
                 type="button"
+                draggable
+                onDragStart={() => setDraggedSlideId(slide.id)}
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={() => reorderSlideCards(slide.id)}
+                onDragEnd={() => setDraggedSlideId(null)}
                 onClick={() => setSelectedSlideId(slide.id)}
                 className={`min-w-48 rounded-lg border p-3 text-left ${selectedSlide?.id === slide.id ? "border-moss bg-moss/10" : "border-black/10 hover:bg-black/[0.03]"}`}
               >
-                <span className="text-xs font-semibold text-moss">Slide {index + 1}</span>
+                <span className="flex items-center gap-1 text-xs font-semibold text-moss"><GripVertical size={13} /> Slide {index + 1}</span>
                 <span className="mt-1 block truncate font-semibold">{slide.title}</span>
                 <span className="mt-1 block truncate text-xs text-black/45">{slide.section_label || "No section label"}</span>
               </button>
@@ -321,7 +358,7 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
             <summary className="cursor-pointer list-none">
               <span className="inline-flex items-center gap-2 text-sm font-semibold"><Plus size={15} /> Add slide</span>
             </summary>
-            <form action={addBuilderSlide.bind(null, lesson.id)} data-busy-message="Adding slide..." className="mt-4 grid gap-3 lg:grid-cols-[1fr_1fr_1.5fr_auto] lg:items-end">
+            <form action={addBuilderSlide.bind(null, lesson.id)} data-busy-message="Adding slide..." className="mt-4 grid gap-3 lg:grid-cols-[1fr_1fr_auto] lg:items-end">
               <label className="text-sm">
                 Slide title
                 <input name="title" placeholder="New slide title" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
@@ -329,10 +366,6 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
               <label className="text-sm">
                 Section label
                 <input name="sectionLabel" placeholder="Vocabulary, Grammar, Reading..." className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
-              </label>
-              <label className="text-sm">
-                Notes for this slide
-                <textarea name="rawText" rows={3} placeholder="Private planning notes or learner-facing summary" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
               </label>
               <button className="w-fit rounded-md bg-ink px-4 py-2 text-sm font-medium text-white">Add slide</button>
             </form>
@@ -472,10 +505,7 @@ function SelectedSlideEditor({
             Section label
             <input name="sectionLabel" defaultValue={slide.section_label ?? ""} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
           </label>
-          <label className="text-sm">
-            Slide notes
-            <textarea name="rawText" rows={4} defaultValue={slide.raw_text} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
-          </label>
+          <input type="hidden" name="rawText" value={slide.title} />
           <SubmitButton label="Save slide" />
         </form>
 

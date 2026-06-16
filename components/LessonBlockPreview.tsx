@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, Headphones, ImageIcon, ListChecks, MessageSquareQuote, Pause, Play, PlayCircle, Settings, Volume2 } from "lucide-react";
+import { BookOpen, Headphones, ImageIcon, ListChecks, Maximize, MessageSquareQuote, Pause, Play, PlayCircle, Settings, Volume2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Json } from "@/types/database.types";
 
@@ -487,11 +487,13 @@ function YouTubeAudioPlayer({ videoId }: { videoId: string }) {
 }
 
 function CustomYouTubeVideoPlayer({ videoId, title }: { videoId: string; title: string }) {
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [started, setStarted] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [volume, setVolume] = useState(80);
   const [openSettings, setOpenSettings] = useState(false);
+  const [openVolume, setOpenVolume] = useState(false);
   const [speed, setSpeed] = useState(1);
   const src = useMemo(
     () => `https://www.youtube-nocookie.com/embed/${videoId}?enablejsapi=1&controls=0&rel=0&modestbranding=1&playsinline=1&iv_load_policy=3&disablekb=1&fs=0`,
@@ -525,8 +527,12 @@ function CustomYouTubeVideoPlayer({ videoId, title }: { videoId: string; title: 
     setPlaying(true);
   }
 
+  function fullscreen() {
+    void wrapperRef.current?.requestFullscreen?.();
+  }
+
   return (
-    <div className="overflow-hidden rounded-lg bg-ink text-white">
+    <div ref={wrapperRef} className="overflow-hidden rounded-lg bg-ink text-white">
       <div className="relative aspect-video bg-black">
         <iframe
           ref={iframeRef}
@@ -544,19 +550,37 @@ function CustomYouTubeVideoPlayer({ videoId, title }: { videoId: string; title: 
           </button>
         ) : null}
       </div>
-      <div className="flex flex-wrap items-center gap-2 p-3">
-        <button type="button" onClick={toggle} className="inline-flex items-center gap-2 rounded-md bg-white px-4 py-2 text-sm font-semibold text-ink">
-          {playing ? <Pause size={16} /> : <Play size={16} />} {playing ? "Pause" : "Play"}
+      <div className="flex items-center gap-1 overflow-x-auto p-2">
+        <button type="button" onClick={toggle} className="inline-flex shrink-0 items-center gap-1 rounded-md bg-white px-2.5 py-1.5 text-xs font-semibold text-ink">
+          {playing ? <Pause size={14} /> : <Play size={14} />} {playing ? "Pause" : "Play"}
         </button>
-        <button type="button" onClick={restart} className="rounded-md bg-white/10 px-3 py-2 text-xs font-semibold hover:bg-white/20">
+        <button type="button" onClick={restart} className="shrink-0 rounded-md bg-white/10 px-2.5 py-1.5 text-xs font-semibold hover:bg-white/20">
           Restart
         </button>
-        <label className="ml-auto flex items-center gap-2 text-xs text-white/70">
-          <Volume2 size={15} />
-          <input type="range" min="0" max="100" step="5" value={volume} onChange={(event) => setVolume(Number(event.target.value))} />
-        </label>
-        <button type="button" onClick={() => setOpenSettings((current) => !current)} className="rounded-md bg-white/10 p-2 hover:bg-white/20" aria-label="Video settings">
-          <Settings size={16} />
+        <div className="relative ml-auto shrink-0">
+          <button type="button" onClick={() => setOpenVolume((current) => !current)} className="rounded-md bg-white/10 p-1.5 hover:bg-white/20" aria-label="Volume">
+            <Volume2 size={15} />
+          </button>
+          {openVolume ? (
+            <div className="absolute bottom-9 right-0 rounded-md bg-ink/95 p-3 shadow-xl">
+              <input
+                aria-label="Volume"
+                type="range"
+                min="0"
+                max="100"
+                step="5"
+                value={volume}
+                onChange={(event) => setVolume(Number(event.target.value))}
+                className="h-24 w-6 [writing-mode:vertical-rl]"
+              />
+            </div>
+          ) : null}
+        </div>
+        <button type="button" onClick={fullscreen} className="shrink-0 rounded-md bg-white/10 p-1.5 hover:bg-white/20" aria-label="Fullscreen">
+          <Maximize size={15} />
+        </button>
+        <button type="button" onClick={() => setOpenSettings((current) => !current)} className="shrink-0 rounded-md bg-white/10 p-1.5 hover:bg-white/20" aria-label="Video settings">
+          <Settings size={15} />
         </button>
       </div>
       {openSettings ? (
