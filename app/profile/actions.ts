@@ -9,15 +9,13 @@ export async function updateProfile(formData: FormData) {
   const { user } = await requireUser();
   const firstName = String(formData.get("firstName") ?? "").trim();
   const lastName = String(formData.get("lastName") ?? "").trim();
+  const fullName = [firstName, lastName].filter(Boolean).join(" ") || null;
   const admin = createAdminClient();
-  await admin
+  const { error } = await admin
     .from("profiles")
-    .update({
-      first_name: firstName,
-      last_name: lastName,
-      full_name: [firstName, lastName].filter(Boolean).join(" ") || null
-    })
+    .update({ first_name: firstName || null, last_name: lastName || null, full_name: fullName })
     .eq("id", user.id);
+  if (error) console.error("updateProfile error:", error.message);
   revalidatePath("/profile");
   revalidatePath("/account");
 }
