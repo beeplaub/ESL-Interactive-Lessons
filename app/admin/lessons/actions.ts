@@ -561,6 +561,159 @@ export async function deleteLesson(lessonId: string) {
   revalidatePath("/admin/lessons");
 }
 
+export async function duplicateLesson(lessonId: string) {
+  await requireAdmin();
+  const supabase = createAdminClient();
+
+  // 1. Fetch the source lesson
+  const { data: source, error: lessonErr } = await supabase
+    .from("lessons")
+    .select("*")
+    .eq("id", lessonId)
+    .single();
+  if (lessonErr || !source) throw new Error("Lesson not found");
+
+  // 2. Insert the new lesson (DRAFT, new id, "Copy of …" title)
+  const { data: newLesson, error: insertErr } = await supabase
+    .from("lessons")
+    .insert({
+      title: `Copy of ${source.title}`,
+      subtitle: source.subtitle,
+      topic: source.topic,
+      category: source.category,
+      level: source.level,
+      description: source.description,
+      thumbnail_path: source.thumbnail_path,
+      cover_image_path: source.cover_image_path,
+      duration_minutes: source.duration_minutes,
+      estimated_completion_minutes: source.estimated_completion_minutes,
+      pdf_path: source.pdf_path,
+      status: "DRAFT",
+    })
+    .select("id")
+    .single();
+  if (insertErr || !newLesson) throw new Error("Failed to duplicate lesson");
+
+  const newLessonId = newLesson.id;
+
+  // 3. Duplicate slides — build an old→new id map for later use
+  const { data: slides } = await supabase
+    .from("slides")
+    .select("*")
+    .eq("lesson_id", lessonId)
+    .order("slide_number", { ascending: true });
+
+  const slideIdMap: Record<string, string> = {};
+
+  if (slides?.length) {
+    // Insert slides without linked_answer_slide_id first (resolve after)
+    const { data: newSlides, error: slidesErr } = await supabase
+      .from("slides")
+      .insert(
+        slides.map((s) => ({
+          lesson_id: newLessonId,
+          slide_number: s.slide_number,
+          title: s.title,
+          section_label: s.section_label,
+          raw_text: s.raw_text,
+          type: s.type,
+          linked_answer_slide_id: null, // resolved below
+        }))
+      )
+      .select("id, slide_number");
+    if (slidesErr) throw new Error("Failed to duplicate slides");
+
+    // Build old→new slide id map by slide_number (unique per lesson)
+    slides.forEach((oldSlide) => {
+      const match = newSlides?.find(
+        (ns) => ns.slide_number === oldSlide.slide_number
+      );
+      if (match) slideIdMap[oldSlide.id] = match.id;
+    });
+
+    // Resolve linked_answer_slide_id references
+    const slidesWithLinks = slides.filter((s) => s.linked_answer_slide_id);
+    for (const s of slidesWithLinks) {
+      const newSlideId = slideIdMap[s.id];
+      const newLinkedId = s.linked_answer_slide_id
+        ? slideIdMap[s.linked_answer_slide_id]
+        : null;
+      if (newSlideId && newLinkedId) {
+        await supabase
+          .from("slides")
+          .update({ linked_answer_slide_id: newLinkedId })
+          .eq("id", newSlideId);
+      }
+    }
+
+    // 4. Duplicate slide_activities
+    const { data: activities } = await supabase
+      .from("slide_activities")
+      .select("*")
+      .eq("lesson_id", lessonId);
+
+    if (activities?.length) {
+      const { error: actErr } = await supabase.from("slide_activities").insert(
+        activities
+          .filter((a) => slideIdMap[a.slide_id])
+          .map((a) => ({
+            lesson_id: newLessonId,
+            slide_id: slideIdMap[a.slide_id],
+            activity_type: a.activity_type,
+            prompt: a.prompt,
+            items: a.items,
+            answer_key: a.answer_key,
+          }))
+      );
+      if (actErr) throw new Error("Failed to duplicate slide activities");
+    }
+
+    // 5. Duplicate lesson_blocks
+    const { data: blocks } = await supabase
+      .from("lesson_blocks")
+      .select("*")
+      .eq("lesson_id", lessonId)
+      .order("position", { ascending: true });
+
+    if (blocks?.length) {
+      const { error: blockErr } = await supabase.from("lesson_blocks").insert(
+        blocks
+          .filter((b) => slideIdMap[b.slide_id])
+          .map((b) => ({
+            lesson_id: newLessonId,
+            slide_id: slideIdMap[b.slide_id],
+            position: b.position,
+            block_type: b.block_type,
+            content: b.content,
+          }))
+      );
+      if (blockErr) throw new Error("Failed to duplicate lesson blocks");
+    }
+  }
+
+  // 6. Duplicate lesson_audio_files (metadata only — storage files are shared by path)
+  const { data: audioFiles } = await supabase
+    .from("lesson_audio_files")
+    .select("*")
+    .eq("lesson_id", lessonId);
+
+  if (audioFiles?.length) {
+    const { error: audioErr } = await supabase
+      .from("lesson_audio_files")
+      .insert(
+        audioFiles.map((af) => ({
+          lesson_id: newLessonId,
+          label: af.label,
+          storage_path: af.storage_path,
+          linked_slide_number: af.linked_slide_number,
+        }))
+      );
+    if (audioErr) throw new Error("Failed to duplicate audio files");
+  }
+
+  revalidatePath("/admin/lessons");
+}
+
 export async function updateSlide(formData: FormData) {
   await requireAdmin();
   const supabase = createAdminClient();
