@@ -8,9 +8,22 @@ export function AdminShell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="mx-auto flex w-full max-w-7xl gap-4 overflow-x-hidden px-3 py-4 sm:px-4 sm:py-6">
-      <AdminSidebar name={name} />
-      <div className="min-w-0 flex-1 overflow-hidden">{children}</div>
+    <div className="mx-auto w-full max-w-7xl px-3 py-4 sm:px-4 sm:py-6">
+      {/* Mobile: top bar (original behaviour) */}
+      <div className="mb-4 md:hidden">
+        <AdminSidebar name={name} mobileTop />
+      </div>
+
+      {/* Desktop: collapsible side rail */}
+      <div className="hidden md:flex md:gap-4">
+        <AdminSidebar name={name} />
+        <div className="min-w-0 flex-1 overflow-hidden">{children}</div>
+      </div>
+
+      {/* Mobile children */}
+      <div className="md:hidden">
+        {children}
+      </div>
     </div>
   );
 }
