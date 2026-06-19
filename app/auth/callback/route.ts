@@ -19,61 +19,74 @@ export async function GET(request: NextRequest) {
 
       if (user) {
         const admin = createAdminClient();
-        const { data: existingProfile } = await admin
-          .from("profiles")
-          .select("*")
-          .eq("id", user.id)
-          .maybeSingle();
+        const meta = user.user_metadata ?? {};
 
-        let profile = existingProfile;
-        if (!profile) {
-          const meta = user.user_metadata ?? {};
+        // ── Resolve names from metadata ──────────────────────────────────────
+        // Email/password signup sends first_name + last_name explicitly.
+        // Google OAuth and other providers send full_name or name only.
+        let firstName = typeof meta.first_name === "string" ? meta.first_name.trim() : "";
+        let lastName  = typeof meta.last_name  === "string" ? meta.last_name.trim()  : "";
 
-          // Email/password signup sends first_name + last_name directly.
-          // Google OAuth sends full_name (or name). Handle both cleanly.
-          let firstName = typeof meta.first_name === "string" ? meta.first_name.trim() : "";
-          let lastName = typeof meta.last_name === "string" ? meta.last_name.trim() : "";
-
-          if (!firstName) {
-            // Google OAuth fallback: split full_name
-            const rawFull =
-              typeof meta.full_name === "string"
-                ? meta.full_name.trim()
-                : typeof meta.name === "string"
-                  ? meta.name.trim()
-                  : "";
-            if (rawFull) {
-              const parts = rawFull.split(/\s+/).filter(Boolean);
-              firstName = parts[0] ?? "";
-              lastName = parts.slice(1).join(" ");
-            }
+        if (!firstName) {
+          // Provider fallback: split whatever full name string is available
+          const rawFull =
+            typeof meta.full_name === "string"
+              ? meta.full_name.trim()
+              : typeof meta.name === "string"
+                ? meta.name.trim()
+                : "";
+          if (rawFull) {
+            const parts = rawFull.split(/\s+/).filter(Boolean);
+            firstName = parts[0] ?? "";
+            lastName  = parts.slice(1).join(" ");
           }
-
-          const fullName =
-            [firstName, lastName].filter(Boolean).join(" ") ||
-            user.email ||
-            "Learner";
-
-          const { data: insertedProfile } = await admin
-            .from("profiles")
-            .insert({
-              id: user.id,
-              full_name: fullName,
-              first_name: firstName || null,
-              last_name: lastName || null,
-              role: "LEARNER"
-            })
-            .select("*")
-            .single();
-          profile = insertedProfile;
         }
 
+        const fullName =
+          [firstName, lastName].filter(Boolean).join(" ") ||
+          user.email ||
+          "Learner";
+
+        // ── Upsert profile ───────────────────────────────────────────────────
+        // We always upsert (not just insert) because the DB trigger fires the
+        // moment the auth.users row is created and already inserts a profile row
+        // with only full_name. If we only inserted on !profile the name fields
+        // would be left null for email/password signups. Upserting here ensures
+        // first_name and last_name are always written from the real metadata,
+        // whether the trigger ran first or not.
+        const { data: profile } = await admin
+          .from("profiles")
+          .upsert(
+            {
+              id:         user.id,
+              full_name:  fullName,
+              first_name: firstName || null,
+              last_name:  lastName  || null,
+            },
+            {
+              onConflict:        "id",
+              // Only fill name columns when they are currently empty —
+              // this prevents overwriting a name the user intentionally
+              // changed later on the profile page.
+              ignoreDuplicates: false,
+            }
+          )
+          .select("role, first_name, last_name")
+          .maybeSingle();
+
+        // Fetch full profile for role-based redirect (upsert returns updated row)
+        const { data: freshProfile } = await admin
+          .from("profiles")
+          .select("role")
+          .eq("id", user.id)
+          .single();
+
         redirectPath =
-          profile?.role === "ADMIN"
+          freshProfile?.role === "ADMIN"
             ? "/admin"
             : nextPath?.startsWith("/") && !nextPath.startsWith("/admin")
               ? nextPath
-              : roleHomePath(profile?.role);
+              : roleHomePath(freshProfile?.role);
       }
     }
   }
