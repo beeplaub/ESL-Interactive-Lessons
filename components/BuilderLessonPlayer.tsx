@@ -27,7 +27,6 @@ export function BuilderLessonPlayer({
   const [message, setMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  // Per-slide notes state
   const [notesMap, setNotesMap] = useState<Record<string, string>>(
     typeof initialNotes === "object" && !Array.isArray(initialNotes) ? initialNotes : {}
   );
@@ -51,7 +50,6 @@ export function BuilderLessonPlayer({
     : null;
   const progressPercent = slides.length ? Math.round(((index + 1) / slides.length) * 100) : 0;
 
-  // Auto-save notes with 800ms debounce
   const saveNotes = useCallback((map: Record<string, string>) => {
     fetch(`/api/lessons/${lesson.id}/progress`, {
       method: "POST",
@@ -70,7 +68,6 @@ export function BuilderLessonPlayer({
     debounceRef.current = setTimeout(() => saveNotes(updated), 800);
   }
 
-  // Clear saved indicator after 2s
   useEffect(() => {
     if (!notesSaved) return;
     const t = setTimeout(() => setNotesSaved(false), 2000);
@@ -103,7 +100,9 @@ export function BuilderLessonPlayer({
   if (!slide) {
     return (
       <main className="mx-auto max-w-5xl px-4 py-10">
-        <Link href="/lessons" className="text-sm text-black/55 hover:text-black">Back to lessons</Link>
+        <Link href="/lessons" className="text-sm text-black/55 hover:text-black">
+          Back to lessons
+        </Link>
         <div className="mt-6 rounded-lg border border-black/10 bg-white p-8 text-center text-sm text-black/55">
           This lesson has no slides yet.
         </div>
@@ -122,7 +121,9 @@ export function BuilderLessonPlayer({
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">{lesson.title}</h1>
-            <p className="mt-1 text-sm text-black/55">{[lesson.level, lesson.topic].filter(Boolean).join(" • ")}</p>
+            <p className="mt-1 text-sm text-black/55">
+              {[lesson.level, lesson.topic].filter(Boolean).join(" • ")}
+            </p>
           </div>
           {completed && (
             <span className="inline-flex items-center gap-2 rounded-full bg-moss/10 px-3 py-1 text-sm font-semibold text-moss">
@@ -130,8 +131,6 @@ export function BuilderLessonPlayer({
             </span>
           )}
         </div>
-
-        {/* Progress bar */}
         <div className="mt-3 flex items-center gap-3">
           <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-black/10">
             <div
@@ -143,38 +142,27 @@ export function BuilderLessonPlayer({
         </div>
       </div>
 
-      {/* ── Main content grid ── */}
+      {/* ── Main two-column grid ── */}
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(340px,0.85fr)]">
 
-        {/* Left — slide content */}
-        <section className="rounded-xl border border-black/10 bg-white p-4 shadow-sm">
-          <div className="mb-4 rounded-lg bg-ink px-4 py-3 text-white">
-            <p className="text-xs uppercase tracking-wide text-white/55">
-              Slide {index + 1} of {slides.length}
-            </p>
-            <h2 className="mt-1 text-2xl font-semibold">{slide.title}</h2>
-            {slide.section_label && (
-              <p className="mt-1 text-sm text-white/60">{slide.section_label}</p>
-            )}
-          </div>
-          <LessonBlockPreview blocks={slideBlocks} />
-        </section>
+        {/* ── LEFT column: slide + notes ── */}
+        <div className="flex flex-col gap-4">
 
-        {/* Right — activity + notes */}
-        <aside className="flex flex-col gap-4">
-          {activity ? (
-            <LessonActivityPanel
-              activity={{ id: activity.id, activity_type: activity.activity_type, activity_data: activity.activity_data }}
-              onNext={() => move(1)}
-              initialAttempt={latestAttempt}
-            />
-          ) : (
-            <div className="rounded-lg border border-black/10 bg-white p-5 text-sm text-black/55 shadow-sm">
-              No activity on this slide. Use Next when you are ready.
+          {/* Slide content */}
+          <section className="rounded-xl border border-black/10 bg-white p-4 shadow-sm">
+            <div className="mb-4 rounded-lg bg-ink px-4 py-3 text-white">
+              <p className="text-xs uppercase tracking-wide text-white/55">
+                Slide {index + 1} of {slides.length}
+              </p>
+              <h2 className="mt-1 text-2xl font-semibold">{slide.title}</h2>
+              {slide.section_label && (
+                <p className="mt-1 text-sm text-white/60">{slide.section_label}</p>
+              )}
             </div>
-          )}
+            <LessonBlockPreview blocks={slideBlocks} />
+          </section>
 
-          {/* Notes panel */}
+          {/* Notes panel — directly below slide */}
           <div className="rounded-xl border border-black/10 bg-white shadow-sm">
             <div className="flex items-center justify-between border-b border-black/10 px-4 py-3">
               <div className="flex items-center gap-2">
@@ -194,7 +182,7 @@ export function BuilderLessonPlayer({
                 value={notesMap[slide.id] ?? ""}
                 onChange={handleNotesChange}
                 placeholder="Type your notes here… they save automatically."
-                rows={6}
+                rows={4}
                 className="w-full resize-none rounded-lg border border-black/10 bg-slate-50 px-3 py-2.5 text-sm leading-relaxed text-black/80 placeholder:text-black/30 focus:border-moss/40 focus:bg-white focus:outline-none focus:ring-2 focus:ring-moss/20"
               />
               <p className="mt-1.5 text-[11px] text-black/35">
@@ -202,6 +190,25 @@ export function BuilderLessonPlayer({
               </p>
             </div>
           </div>
+        </div>
+
+        {/* ── RIGHT column: activity only ── */}
+        <aside className="flex flex-col gap-4">
+          {activity ? (
+            <LessonActivityPanel
+              activity={{
+                id: activity.id,
+                activity_type: activity.activity_type,
+                activity_data: activity.activity_data,
+              }}
+              onNext={() => move(1)}
+              initialAttempt={latestAttempt}
+            />
+          ) : (
+            <div className="rounded-lg border border-black/10 bg-white p-5 text-sm text-black/55 shadow-sm">
+              No activity on this slide. Use Next when you are ready.
+            </div>
+          )}
         </aside>
       </div>
 
