@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, CheckCircle2, ChevronLeft, ChevronRight, NotebookPen } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle2, ChevronLeft, ChevronRight, NotebookPen, Pause, Play } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { LessonActivityPanel } from "@/components/LessonActivityPanel";
 import { LessonBlockPreview } from "@/components/LessonBlockPreview";
@@ -14,12 +14,65 @@ type Activity = { id: string; slide_id: string | null; slide_number: number; act
 type Progress = { current_slide_number: number; completed: boolean } | null;
 type ActivityAttempt = { lesson_slide_activity_id: string | null; score: number; total: number; answers: Json | null; completed_at: string };
 
+function NarrationPill({ src }: { src: string }) {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [playing, setPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+
+  function toggle() {
+    const a = audioRef.current;
+    if (!a) return;
+    if (a.paused) void a.play(); else a.pause();
+  }
+
+  function fmt(s: number) {
+    if (!s || !isFinite(s)) return "0:00";
+    return `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+  }
+
+  return (
+    <div className="flex items-center gap-2 rounded-full bg-black/30 px-3 py-1.5 backdrop-blur-sm">
+      <audio
+        ref={audioRef}
+        src={src}
+        preload="metadata"
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
+        onEnded={() => { setPlaying(false); setCurrentTime(0); }}
+        onTimeUpdate={() => setCurrentTime(audioRef.current?.currentTime ?? 0)}
+        onLoadedMetadata={() => setDuration(audioRef.current?.duration ?? 0)}
+      />
+      <button
+        type="button"
+        onClick={toggle}
+        aria-label={playing ? "Pause narration" : "Play narration"}
+        className="flex size-6 shrink-0 items-center justify-center rounded-full bg-white/20 text-white transition hover:bg-white/30"
+      >
+        {playing ? <Pause size={11} /> : <Play size={11} />}
+      </button>
+      {playing && (
+        <div className="h-0.5 w-16 overflow-hidden rounded-full bg-white/20">
+          <div
+            className="h-full rounded-full bg-moss transition-all"
+            style={{ width: duration ? `${(currentTime / duration) * 100}%` : "0%" }}
+          />
+        </div>
+      )}
+      <span className="shrink-0 text-[10px] tabular-nums text-white/70">
+        {playing ? fmt(currentTime) : fmt(duration)}
+      </span>
+    </div>
+  );
+}
+
 export function BuilderLessonPlayer({
-  lesson, slides, blocks, activities, initialProgress, activityAttempts = [], initialNotes = {},
+  lesson, slides, blocks, activities, initialProgress, activityAttempts = [], initialNotes = {}, narrationMap = {},
 }: {
   lesson: Lesson; slides: Slide[]; blocks: Block[]; activities: Activity[];
   initialProgress: Progress; activityAttempts?: ActivityAttempt[];
   initialNotes?: Record<string, string>;
+  narrationMap?: Record<string, string>;
 }) {
   const initialIndex = Math.max(0, Math.min(slides.length - 1, (initialProgress?.current_slide_number ?? 1) - 1));
   const [index, setIndex] = useState(initialIndex);
@@ -49,6 +102,9 @@ export function BuilderLessonPlayer({
     ? activityAttempts.find((a) => a.lesson_slide_activity_id === activity.id) ?? null
     : null;
   const progressPercent = slides.length ? Math.round(((index + 1) / slides.length) * 100) : 0;
+
+  // Narration for current slide
+  const narrationUrl = slide ? (narrationMap[slide.id] ?? null) : null;
 
   const saveNotes = useCallback((map: Record<string, string>) => {
     fetch(`/api/lessons/${lesson.id}/progress`, {
@@ -100,9 +156,7 @@ export function BuilderLessonPlayer({
   if (!slide) {
     return (
       <main className="mx-auto max-w-5xl px-4 py-10">
-        <Link href="/lessons" className="text-sm text-black/55 hover:text-black">
-          Back to lessons
-        </Link>
+        <Link href="/lessons" className="text-sm text-black/55 hover:text-black">Back to lessons</Link>
         <div className="mt-6 rounded-lg border border-black/10 bg-white p-8 text-center text-sm text-black/55">
           This lesson has no slides yet.
         </div>
@@ -148,10 +202,8 @@ export function BuilderLessonPlayer({
         {/* ── LEFT column: slide + notes ── */}
         <div className="flex flex-col gap-4">
 
-          {/* Slide content — wrapped in relative container for arrow positioning */}
+          {/* Slide card with nav arrows */}
           <div className="relative">
-
-            {/* Previous slide arrow */}
             <button
               type="button"
               onClick={() => move(-1)}
@@ -161,8 +213,6 @@ export function BuilderLessonPlayer({
             >
               <ChevronLeft size={16} />
             </button>
-
-            {/* Next slide arrow */}
             <button
               type="button"
               onClick={() => move(1)}
@@ -174,20 +224,31 @@ export function BuilderLessonPlayer({
             </button>
 
             <section className="rounded-xl border border-black/10 bg-white p-4 shadow-sm">
-              <div className="mb-4 rounded-lg bg-ink px-4 py-3 text-white">
-                <p className="text-xs uppercase tracking-wide text-white/55">
-                  Slide {index + 1} of {slides.length}
-                </p>
-                <h2 className="mt-1 text-2xl font-semibold">{slide.title}</h2>
-                {slide.section_label && (
-                  <p className="mt-1 text-sm text-white/60">{slide.section_label}</p>
+              {/* Slide header — narration pill floats top-right */}
+              <div className="relative mb-4 rounded-lg bg-ink px-4 py-3 text-white">
+                <div className="pr-2">
+                  <p className="text-xs uppercase tracking-wide text-white/55">
+                    Slide {index + 1} of {slides.length}
+                  </p>
+                  <h2 className="mt-1 text-2xl font-semibold">{slide.title}</h2>
+                  {slide.section_label && (
+                    <p className="mt-1 text-sm text-white/60">{slide.section_label}</p>
+                  )}
+                </div>
+
+                {/* Narration pill — only if this slide has audio */}
+                {narrationUrl && (
+                  <div className="absolute right-3 top-3">
+                    <NarrationPill key={slide.id} src={narrationUrl} />
+                  </div>
                 )}
               </div>
+
               <LessonBlockPreview blocks={slideBlocks} />
             </section>
           </div>
 
-          {/* Notes panel — directly below slide */}
+          {/* Notes panel */}
           <div className="rounded-xl border border-black/10 bg-white shadow-sm">
             <div className="flex items-center justify-between border-b border-black/10 px-4 py-3">
               <div className="flex items-center gap-2">

@@ -21,6 +21,7 @@ import {
 import { InLessonActivitiesEditor } from "@/components/InLessonActivitiesEditor";
 import { LessonActivityPanel } from "@/components/LessonActivityPanel";
 import { LessonBlockPreview } from "@/components/LessonBlockPreview";
+import { SlideNarrationRecorder } from "@/components/SlideNarrationRecorder";
 import type { Json } from "@/types/database.types";
 
 const blockTypes = [
@@ -486,6 +487,7 @@ function SelectedSlideEditor({
             <form action={moveBuilderSlide.bind(null, lessonId, slide.id, "down")} data-busy-message="Moving slide...">
               <button disabled={slideIndex === slideCount - 1} className="rounded-md border border-black/15 p-2 hover:bg-black/5 disabled:opacity-35" aria-label="Move slide down"><ArrowDown size={15} /></button>
             </form>
+            <SlideNarrationRecorder lessonId={lessonId} slideId={slide.id} />
             <form action={duplicateBuilderSlide.bind(null, lessonId, slide.id)} data-busy-message="Duplicating slide...">
               <button className="rounded-md border border-black/15 p-2 hover:bg-black/5" aria-label="Duplicate slide"><Copy size={15} /></button>
             </form>
