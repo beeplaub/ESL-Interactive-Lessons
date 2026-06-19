@@ -7,29 +7,21 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { CarouselItem, HorizontalCarousel } from "@/components/HorizontalCarousel";
 
 function toDateKey(date: Date) {
-  return date.toISOString().slice(0, 10); // "YYYY-MM-DD"
+  return date.toISOString().slice(0, 10);
 }
 
 function calcStreak(dates: string[]): number {
   if (!dates.length) return 0;
-
   const unique = Array.from(new Set(dates)).sort().reverse();
   const today = toDateKey(new Date());
   const yesterday = toDateKey(new Date(Date.now() - 86400000));
-
-  // Streak must include today or yesterday to be "active"
   if (unique[0] !== today && unique[0] !== yesterday) return 0;
-
   let streak = 1;
   for (let i = 1; i < unique.length; i++) {
     const prev = new Date(unique[i - 1]);
     const curr = new Date(unique[i]);
     const diffDays = Math.round((prev.getTime() - curr.getTime()) / 86400000);
-    if (diffDays === 1) {
-      streak++;
-    } else {
-      break;
-    }
+    if (diffDays === 1) { streak++; } else { break; }
   }
   return streak;
 }
@@ -41,38 +33,18 @@ export default async function AccountPage() {
   const adminSupabase = createAdminClient();
 
   const [{ data: quizAttempts }, { data: wishlistItems }, { data: lessonProgress }, { data: savedLessons }] = await Promise.all([
-    adminSupabase
-      .from("quiz_attempts")
-      .select("*, quizzes(title, level)")
-      .eq("user_id", user.id)
-      .not("quiz_id", "is", null)
-      .order("completed_at", { ascending: false }),
-    adminSupabase
-      .from("wishlist_items")
-      .select("*, quizzes(title, topic, level)")
-      .eq("user_id", user.id)
-      .not("quiz_id", "is", null)
-      .order("created_at", { ascending: false }),
-    adminSupabase
-      .from("lesson_progress")
-      .select("*, lessons(title, topic, level)")
-      .eq("user_id", user.id)
-      .order("updated_at", { ascending: false }),
-    adminSupabase
-      .from("wishlist_items")
-      .select("*, lessons(title, topic, level)")
-      .eq("user_id", user.id)
-      .not("lesson_id", "is", null)
-      .order("created_at", { ascending: false })
+    adminSupabase.from("quiz_attempts").select("*, quizzes(title, level)").eq("user_id", user.id).not("quiz_id", "is", null).order("completed_at", { ascending: false }),
+    adminSupabase.from("wishlist_items").select("*, quizzes(title, topic, level)").eq("user_id", user.id).not("quiz_id", "is", null).order("created_at", { ascending: false }),
+    adminSupabase.from("lesson_progress").select("*, lessons(title, topic, level)").eq("user_id", user.id).order("updated_at", { ascending: false }),
+    adminSupabase.from("wishlist_items").select("*, lessons(title, topic, level)").eq("user_id", user.id).not("lesson_id", "is", null).order("created_at", { ascending: false })
   ]);
 
-  // ── Streak calculation ──
   const activityDates: string[] = [
     ...(quizAttempts ?? []).filter((a) => a.completed_at).map((a) => toDateKey(new Date(a.completed_at)))
   ];
   const streak = calcStreak(activityDates);
-
   const firstName = profile?.first_name?.trim();
+  const hasName = Boolean(firstName);
 
   return (
     <main className="mx-auto w-full max-w-6xl overflow-hidden px-4 py-8">
@@ -83,6 +55,21 @@ export default async function AccountPage() {
             <button className="rounded-md bg-amber-900 px-3 py-2 text-xs font-semibold text-white">Switch to Admin</button>
           </div>
         </form>
+      ) : null}
+
+      {/* ── Complete your profile nudge (Google OAuth users + anyone missing a name) ── */}
+      {!hasName ? (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-moss/30 bg-moss/5 px-4 py-3 text-sm">
+          <p className="text-black/70">
+            <span className="font-semibold text-moss">Add your name</span> — let us know what to call you!
+          </p>
+          <Link
+            href="/profile"
+            className="inline-flex items-center gap-1.5 rounded-md bg-moss px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90"
+          >
+            Go to Profile <ArrowRight size={13} />
+          </Link>
+        </div>
       ) : null}
 
       <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
@@ -118,7 +105,6 @@ export default async function AccountPage() {
         </div>
       </section>
 
-      {/* ── Stat cards ── */}
       <section className="mt-5 grid gap-4 sm:grid-cols-2 md:grid-cols-3">
         <StatCard icon={ClipboardList} label="Quizzes completed" value={(quizAttempts ?? []).length} />
         <StatCard icon={BookOpen} label="Lessons completed" value={(lessonProgress ?? []).filter((item) => item.completed).length} />
@@ -157,48 +143,28 @@ export default async function AccountPage() {
           </Panel>
 
           <Panel title="Quiz attempts" icon={ClipboardList}>
-            <HorizontalCarousel
-              empty={
-                <EmptyState text="No quiz attempts yet." href="/quizzes" label="Browse quizzes" />
-              }
-            >
-              {(quizAttempts ?? []).length ? (
-                (quizAttempts ?? []).slice(0, 10).map((attempt) => {
-                  const title = attempt.quizzes?.title ?? "Quiz";
-                  const level = attempt.quizzes?.level ?? "";
-                  const percent = attempt.total ? Math.round((attempt.score / attempt.total) * 100) : 0;
-                  const href = `/quizzes/${attempt.quiz_id}`;
-                  return (
-                    <CarouselItem key={attempt.id}>
-                      <Link
-                        href={href}
-                        className="flex h-full flex-col rounded-lg border border-black/10 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
-                      >
-                        {level ? (
-                          <span className="rounded-full bg-skywash px-2 py-1 text-xs font-medium text-ink self-start">
-                            {level}
-                          </span>
-                        ) : null}
-                        <p className="mt-3 font-semibold leading-snug">{title}</p>
-                        <div className="mt-auto pt-4">
-                          <p className="text-sm font-semibold text-moss">
-                            {attempt.score}/{attempt.total}
-                            <span className="ml-1 font-normal text-black/55">({percent}%)</span>
-                          </p>
-                          <p className="text-xs text-black/45 mt-0.5">
-                            {new Date(attempt.completed_at).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </Link>
-                    </CarouselItem>
-                  );
-                })
-              ) : null}
+            <HorizontalCarousel empty={<EmptyState text="No quiz attempts yet." href="/quizzes" label="Browse quizzes" />}>
+              {(quizAttempts ?? []).slice(0, 10).map((attempt) => {
+                const title = attempt.quizzes?.title ?? "Quiz";
+                const level = attempt.quizzes?.level ?? "";
+                const percent = attempt.total ? Math.round((attempt.score / attempt.total) * 100) : 0;
+                return (
+                  <CarouselItem key={attempt.id}>
+                    <Link href={`/quizzes/${attempt.quiz_id}`} className="flex h-full flex-col rounded-lg border border-black/10 bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
+                      {level ? <span className="rounded-full bg-skywash px-2 py-1 text-xs font-medium text-ink self-start">{level}</span> : null}
+                      <p className="mt-3 font-semibold leading-snug">{title}</p>
+                      <div className="mt-auto pt-4">
+                        <p className="text-sm font-semibold text-moss">{attempt.score}/{attempt.total}<span className="ml-1 font-normal text-black/55">({percent}%)</span></p>
+                        <p className="text-xs text-black/45 mt-0.5">{new Date(attempt.completed_at).toLocaleDateString()}</p>
+                      </div>
+                    </Link>
+                  </CarouselItem>
+                );
+              })}
             </HorizontalCarousel>
           </Panel>
         </div>
 
-        {/* ── Right column: Wishlist ── */}
         <div className="min-w-0 space-y-6">
           <Panel title="Saved" icon={Heart}>
             {((wishlistItems ?? []).length === 0 && (savedLessons ?? []).length === 0) ? (
@@ -221,13 +187,8 @@ export default async function AccountPage() {
                 {(wishlistItems ?? []).map((item) => {
                   const content = item.quizzes;
                   if (!content) return null;
-                  const href = `/quizzes/${item.quiz_id}`;
                   return (
-                    <Link
-                      key={item.id}
-                      href={href}
-                      className="flex items-center justify-between gap-3 rounded-lg border border-black/10 bg-white p-3 text-sm shadow-sm hover:shadow-md transition-shadow"
-                    >
+                    <Link key={item.id} href={`/quizzes/${item.quiz_id}`} className="flex items-center justify-between gap-3 rounded-lg border border-black/10 bg-white p-3 text-sm shadow-sm hover:shadow-md transition-shadow">
                       <div className="min-w-0">
                         <p className="font-medium truncate">{content.title}</p>
                         <p className="text-xs text-black/50 mt-0.5">{content.level} · {content.topic}</p>

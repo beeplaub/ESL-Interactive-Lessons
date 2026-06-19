@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, BadgeCheck } from "lucide-react";
+import { ArrowLeft, BadgeCheck, UserRound } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { AvatarUploader } from "@/components/AvatarUploader";
 import { ProfileForm } from "@/components/ProfileForm";
@@ -9,6 +9,7 @@ export default async function ProfilePage() {
   const { user, profile } = await requireUser();
   const initials = (profile?.first_name?.[0] || profile?.full_name?.[0] || user.email?.[0] || "U").toUpperCase();
   const level = profile?.cefr_level as CefrLevel | null;
+  const missingName = !profile?.first_name?.trim();
 
   return (
     <main className="mx-auto w-full max-w-3xl overflow-hidden px-4 py-8">
@@ -17,6 +18,20 @@ export default async function ProfilePage() {
       </Link>
       <section className="mt-5 min-w-0 rounded-lg border border-black/10 bg-white p-5 shadow-sm sm:p-6">
         <h1 className="text-3xl font-semibold">Profile</h1>
+
+        {/* Prompt for users who haven't set a name yet (Google OAuth, or trigger-only signups) */}
+        {missingName ? (
+          <div className="mt-4 flex items-start gap-3 rounded-lg border border-moss/30 bg-moss/5 p-4">
+            <UserRound size={18} className="mt-0.5 shrink-0 text-moss" />
+            <div>
+              <p className="text-sm font-semibold text-moss">Add your name</p>
+              <p className="mt-0.5 text-sm text-black/65">
+                Enter your first and last name below so we know what to call you across BrenUp.
+              </p>
+            </div>
+          </div>
+        ) : null}
+
         <div className="mt-6 grid min-w-0 gap-8 md:grid-cols-[160px_minmax(0,1fr)]">
           <AvatarUploader initialUrl={profile?.avatar_url ?? null} initials={initials} />
           <div className="min-w-0">
