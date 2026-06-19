@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 type ProgressBody = {
   current_slide_number?: number;
   completed?: boolean;
-  notes?: string;
+  notes?: Record<string, string>; // { slideId: noteText }
 };
 
 type SavePayload = {
@@ -15,17 +15,14 @@ type SavePayload = {
   lesson_id: string;
   current_slide_number: number;
   completed: boolean;
-  notes: string;
+  notes: Record<string, string>;
 };
 
-function missingColumnHint(message: string) {
-  if (message.includes("notes")) return "The notes column is missing. Run the lesson_progress SQL patch in Supabase.";
-  if (message.includes("current_slide_number")) return "The current_slide_number column is missing. Run the lesson_progress SQL patch in Supabase.";
-  if (message.includes("completed")) return "The completed column is missing. Run the lesson_progress SQL patch in Supabase.";
-  return message;
-}
-
-async function saveProgress(admin: ReturnType<typeof createAdminClient>, existing: { user_id?: string } | null, payload: SavePayload) {
+async function saveProgress(
+  admin: ReturnType<typeof createAdminClient>,
+  existing: { user_id?: string } | null,
+  payload: SavePayload
+) {
   if (existing) {
     return admin
       .from("lesson_progress")
@@ -35,27 +32,24 @@ async function saveProgress(admin: ReturnType<typeof createAdminClient>, existin
       .select("*")
       .maybeSingle();
   }
-
   return admin.from("lesson_progress").insert(payload).select("*").single();
 }
 
-export async function POST(request: Request, { params }: { params: Promise<{ lessonId: string }> }) {
+export async function POST(
+  request: Request,
+  { params }: { params: Promise<{ lessonId: string }> }
+) {
   const { lessonId } = await params;
   const body = (await request.json().catch(() => ({}))) as ProgressBody;
   const supabase = await createClient();
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  if (!user) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-  }
+  if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
   const admin = createAdminClient();
-  const { data: lesson } = await admin.from("lessons").select("id,status").eq("id", lessonId).single();
-  if (!lesson) {
-    return NextResponse.json({ error: "Lesson not found" }, { status: 404 });
-  }
+  const { data: lesson } = await admin
+    .from("lessons").select("id,status").eq("id", lessonId).single();
+  if (!lesson) return NextResponse.json({ error: "Lesson not found" }, { status: 404 });
 
   const { data: existing } = await admin
     .from("lesson_progress")
@@ -64,18 +58,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ les
     .eq("user_id", user.id)
     .maybeSingle();
 
-  const payload = {
+  const payload: SavePayload = {
     user_id: user.id,
     lesson_id: lessonId,
     current_slide_number: body.current_slide_number ?? existing?.current_slide_number ?? 1,
     completed: body.completed ?? existing?.completed ?? false,
-    notes: body.notes ?? existing?.notes ?? ""
+    notes: body.notes ?? existing?.notes ?? {},
   };
 
   const result = await saveProgress(admin, existing, payload);
-
   if (result.error) {
-    return NextResponse.json({ error: missingColumnHint(result.error.message), details: result.error }, { status: 500 });
+    return NextResponse.json({ error: result.error.message }, { status: 500 });
   }
 
   return NextResponse.json({ progress: result.data });

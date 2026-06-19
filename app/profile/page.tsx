@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { ArrowLeft, BadgeCheck } from "lucide-react";
-import { updateProfile } from "@/app/profile/actions";
 import { requireUser } from "@/lib/auth";
 import { AvatarUploader } from "@/components/AvatarUploader";
+import { ProfileForm } from "@/components/ProfileForm";
 import { levelGuidance, type CefrLevel } from "@/lib/levelTestBank";
 
 export default async function ProfilePage() {
@@ -20,23 +20,11 @@ export default async function ProfilePage() {
         <div className="mt-6 grid min-w-0 gap-8 md:grid-cols-[160px_minmax(0,1fr)]">
           <AvatarUploader initialUrl={profile?.avatar_url ?? null} initials={initials} />
           <div className="min-w-0">
-            <form action={updateProfile} className="grid gap-4">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <label className="text-sm font-medium">
-                  First Name
-                  <input name="firstName" defaultValue={profile?.first_name ?? ""} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
-                </label>
-                <label className="text-sm font-medium">
-                  Last Name
-                  <input name="lastName" defaultValue={profile?.last_name ?? ""} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
-                </label>
-              </div>
-              <div className="rounded-md bg-slate-50 p-4">
-                <p className="break-words text-sm font-medium">{user.email}</p>
-                <p className="mt-1 text-xs text-black/50">Email cannot be changed</p>
-              </div>
-              <button className="rounded-md bg-ink px-4 py-3 text-sm font-semibold text-white">Save profile</button>
-            </form>
+            <ProfileForm
+              email={user.email ?? ""}
+              firstName={profile?.first_name ?? ""}
+              lastName={profile?.last_name ?? ""}
+            />
 
             <div className="mt-6 rounded-md border border-black/10 p-4">
               <div className="flex items-center gap-2 font-semibold">
