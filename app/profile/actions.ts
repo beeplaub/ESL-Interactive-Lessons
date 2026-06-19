@@ -35,18 +35,28 @@ export async function uploadAvatar(formData: FormData) {
     return { error: "Please choose an image file." };
   }
 
-  const supabase = await createClient();
   const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
   const path = `${user.id}/avatar.${ext}`;
-  const { error: uploadError } = await supabase.storage.from("avatars").upload(path, file, {
-    upsert: true,
-    contentType: file.type || "image/jpeg"
-  });
+
+  // Convert File to ArrayBuffer for server-side upload
+  const arrayBuffer = await file.arrayBuffer();
+  const buffer = new Uint8Array(arrayBuffer);
+
+  const admin = createAdminClient();
+  const { error: uploadError } = await admin.storage
+    .from("avatars")
+    .upload(path, buffer, {
+      upsert: true,
+      contentType: file.type || "image/jpeg",
+    });
   if (uploadError) return { error: uploadError.message };
 
-  const { data } = supabase.storage.from("avatars").getPublicUrl(path);
-  const admin = createAdminClient();
-  const { error: profileError } = await admin.from("profiles").update({ avatar_url: data.publicUrl }).eq("id", user.id);
+  const { data } = admin.storage.from("avatars").getPublicUrl(path);
+
+  const { error: profileError } = await admin
+    .from("profiles")
+    .update({ avatar_url: data.publicUrl })
+    .eq("id", user.id);
   if (profileError) return { error: profileError.message };
 
   revalidatePath("/profile");
