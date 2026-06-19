@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, CheckCircle2, NotebookPen } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle2, ChevronLeft, ChevronRight, NotebookPen } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { LessonActivityPanel } from "@/components/LessonActivityPanel";
 import { LessonBlockPreview } from "@/components/LessonBlockPreview";
@@ -148,19 +148,44 @@ export function BuilderLessonPlayer({
         {/* ── LEFT column: slide + notes ── */}
         <div className="flex flex-col gap-4">
 
-          {/* Slide content */}
-          <section className="rounded-xl border border-black/10 bg-white p-4 shadow-sm">
-            <div className="mb-4 rounded-lg bg-ink px-4 py-3 text-white">
-              <p className="text-xs uppercase tracking-wide text-white/55">
-                Slide {index + 1} of {slides.length}
-              </p>
-              <h2 className="mt-1 text-2xl font-semibold">{slide.title}</h2>
-              {slide.section_label && (
-                <p className="mt-1 text-sm text-white/60">{slide.section_label}</p>
-              )}
-            </div>
-            <LessonBlockPreview blocks={slideBlocks} />
-          </section>
+          {/* Slide content — wrapped in relative container for arrow positioning */}
+          <div className="relative">
+
+            {/* Previous slide arrow */}
+            <button
+              type="button"
+              onClick={() => move(-1)}
+              disabled={index === 0 || isPending}
+              aria-label="Previous slide"
+              className="absolute -left-3 top-1/2 z-10 flex size-8 -translate-y-1/2 items-center justify-center rounded-full border border-black/10 bg-white shadow-md transition-all hover:border-moss hover:bg-moss hover:text-white disabled:pointer-events-none disabled:opacity-0"
+            >
+              <ChevronLeft size={16} />
+            </button>
+
+            {/* Next slide arrow */}
+            <button
+              type="button"
+              onClick={() => move(1)}
+              disabled={index === slides.length - 1 || isPending}
+              aria-label="Next slide"
+              className="absolute -right-3 top-1/2 z-10 flex size-8 -translate-y-1/2 items-center justify-center rounded-full border border-black/10 bg-white shadow-md transition-all hover:border-moss hover:bg-moss hover:text-white disabled:pointer-events-none disabled:opacity-0"
+            >
+              <ChevronRight size={16} />
+            </button>
+
+            <section className="rounded-xl border border-black/10 bg-white p-4 shadow-sm">
+              <div className="mb-4 rounded-lg bg-ink px-4 py-3 text-white">
+                <p className="text-xs uppercase tracking-wide text-white/55">
+                  Slide {index + 1} of {slides.length}
+                </p>
+                <h2 className="mt-1 text-2xl font-semibold">{slide.title}</h2>
+                {slide.section_label && (
+                  <p className="mt-1 text-sm text-white/60">{slide.section_label}</p>
+                )}
+              </div>
+              <LessonBlockPreview blocks={slideBlocks} />
+            </section>
+          </div>
 
           {/* Notes panel — directly below slide */}
           <div className="rounded-xl border border-black/10 bg-white shadow-sm">
