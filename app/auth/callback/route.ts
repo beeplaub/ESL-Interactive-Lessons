@@ -27,22 +27,40 @@ export async function GET(request: NextRequest) {
 
         let profile = existingProfile;
         if (!profile) {
+          const meta = user.user_metadata ?? {};
+
+          // Email/password signup sends first_name + last_name directly.
+          // Google OAuth sends full_name (or name). Handle both cleanly.
+          let firstName = typeof meta.first_name === "string" ? meta.first_name.trim() : "";
+          let lastName = typeof meta.last_name === "string" ? meta.last_name.trim() : "";
+
+          if (!firstName) {
+            // Google OAuth fallback: split full_name
+            const rawFull =
+              typeof meta.full_name === "string"
+                ? meta.full_name.trim()
+                : typeof meta.name === "string"
+                  ? meta.name.trim()
+                  : "";
+            if (rawFull) {
+              const parts = rawFull.split(/\s+/).filter(Boolean);
+              firstName = parts[0] ?? "";
+              lastName = parts.slice(1).join(" ");
+            }
+          }
+
           const fullName =
-            typeof user.user_metadata?.full_name === "string"
-              ? user.user_metadata.full_name
-              : typeof user.user_metadata?.name === "string"
-                ? user.user_metadata.name
-                : "";
-          const [firstName = "", ...rest] = fullName.trim().split(/\s+/).filter(Boolean);
-          const lastName = rest.join(" ");
+            [firstName, lastName].filter(Boolean).join(" ") ||
+            user.email ||
+            "Learner";
 
           const { data: insertedProfile } = await admin
             .from("profiles")
             .insert({
               id: user.id,
-              full_name: fullName || user.email || "Learner",
-              first_name: firstName,
-              last_name: lastName,
+              full_name: fullName,
+              first_name: firstName || null,
+              last_name: lastName || null,
               role: "LEARNER"
             })
             .select("*")
@@ -50,7 +68,12 @@ export async function GET(request: NextRequest) {
           profile = insertedProfile;
         }
 
-        redirectPath = profile?.role === "ADMIN" ? "/admin" : nextPath?.startsWith("/") && !nextPath.startsWith("/admin") ? nextPath : roleHomePath(profile?.role);
+        redirectPath =
+          profile?.role === "ADMIN"
+            ? "/admin"
+            : nextPath?.startsWith("/") && !nextPath.startsWith("/admin")
+              ? nextPath
+              : roleHomePath(profile?.role);
       }
     }
   }

@@ -11,7 +11,8 @@ export function LoginForm() {
   const nextPath = searchParams.get("next") || "/account";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [message, setMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -28,20 +29,45 @@ export function LoginForm() {
   function submit() {
     startTransition(async () => {
       setMessage(null);
-      const result =
-        mode === "signin"
-          ? await supabase.auth.signInWithPassword({ email, password })
-          : await supabase.auth.signUp({
-              email,
-              password,
-              options: { data: { full_name: fullName } }
-            });
 
+      if (mode === "signup") {
+        const trimmedFirst = firstName.trim();
+        const trimmedLast = lastName.trim();
+        const fullName = [trimmedFirst, trimmedLast].filter(Boolean).join(" ");
+
+        const result = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              full_name: fullName,
+              first_name: trimmedFirst,
+              last_name: trimmedLast,
+            },
+          },
+        });
+
+        if (result.error) {
+          setMessage(result.error.message);
+          return;
+        }
+
+        // Email confirmation required before session exists
+        if (!result.data.session) {
+          setMessage("Check your email to confirm your account.");
+          return;
+        }
+
+        await redirectForRole();
+        return;
+      }
+
+      // Sign in
+      const result = await supabase.auth.signInWithPassword({ email, password });
       if (result.error) {
         setMessage(result.error.message);
         return;
       }
-
       await redirectForRole();
     });
   }
@@ -89,23 +115,40 @@ export function LoginForm() {
           Register
         </button>
       </div>
+
       {mode === "signup" ? (
-        <label className="block text-sm">
-          Name
-          <input
-            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
-            value={fullName}
-            onChange={(event) => setFullName(event.target.value)}
-          />
-        </label>
+        <div className="grid grid-cols-2 gap-3">
+          <label className="block text-sm">
+            First name
+            <input
+              className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              placeholder="Maria"
+              autoComplete="given-name"
+            />
+          </label>
+          <label className="block text-sm">
+            Last name
+            <input
+              className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              placeholder="Santos"
+              autoComplete="family-name"
+            />
+          </label>
+        </div>
       ) : null}
+
       <label className="block text-sm">
         Email
         <input
           type="email"
           className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
           value={email}
-          onChange={(event) => setEmail(event.target.value)}
+          onChange={(e) => setEmail(e.target.value)}
+          autoComplete="email"
         />
       </label>
       <label className="block text-sm">
@@ -114,7 +157,8 @@ export function LoginForm() {
           type="password"
           className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
           value={password}
-          onChange={(event) => setPassword(event.target.value)}
+          onChange={(e) => setPassword(e.target.value)}
+          autoComplete={mode === "signup" ? "new-password" : "current-password"}
         />
       </label>
       <button
@@ -125,7 +169,9 @@ export function LoginForm() {
       >
         {isPending ? "Working..." : mode === "signin" ? "Sign in" : "Create account"}
       </button>
-      {message ? <p className="rounded-md bg-coral/10 p-3 text-sm text-coral">{message}</p> : null}
+      {message ? (
+        <p className="rounded-md bg-coral/10 p-3 text-sm text-coral">{message}</p>
+      ) : null}
     </div>
   );
 }
