@@ -8,7 +8,7 @@ import type { Json } from "@/types/database.types";
 export type QuizQuestion = {
   id: string;
   question_number: number;
-  question_type: "MCQ" | "TRUE_FALSE" | "FILL" | "MATCHING" | "ERROR_CORRECTION";
+  question_type: "MCQ" | "TRUE_FALSE" | "FILL" | "MATCHING" | "ERROR_CORRECTION" | "REORDERING";
   question_text: string;
   description?: string | null;
   options: Json | null;
@@ -67,6 +67,12 @@ export function isCorrect(question: QuizQuestion, value: unknown): boolean {
     }
     return correctionMatches;
   }
+  if (question.question_type === "REORDERING") {
+    const correctOrder = Array.isArray(question.correct_answer) ? question.correct_answer.map(String) : [];
+    const given = Array.isArray(value) ? value.map(String) : [];
+    if (given.length !== correctOrder.length) return false;
+    return correctOrder.every((id, i) => given[i] === id);
+  }
   return false;
 }
 
@@ -81,6 +87,10 @@ export function hasAnswer(question: QuizQuestion, value: unknown): boolean {
     const hasCorrection = String(given.correction ?? "").trim() !== "";
     if (mode === "spot_and_fix") return hasCorrection && String(given.selected_span ?? "").trim() !== "";
     return hasCorrection;
+  }
+  if (question.question_type === "REORDERING") {
+    const correctOrder = Array.isArray(question.correct_answer) ? question.correct_answer : [];
+    return Array.isArray(value) && value.length === correctOrder.length;
   }
   return true;
 }
@@ -113,6 +123,14 @@ function answerText(question: QuizQuestion): string {
       return `"${correct.error_span ?? ""}" → "${correct.correction ?? ""}"`;
     }
     return String(correct.correction ?? "");
+  }
+  if (question.question_type === "REORDERING") {
+    const opts = asRecord(question.options) as { items?: unknown[]; level?: string };
+    const items = Array.isArray(opts.items) ? opts.items.map((item) => asRecord(item as Json)) : [];
+    const byId = new Map(items.map((item) => [String(item.id), String(item.text ?? "")]));
+    const correctOrder = Array.isArray(question.correct_answer) ? question.correct_answer.map(String) : [];
+    const separator = opts.level === "word" ? " " : " → ";
+    return correctOrder.map((id) => byId.get(id) ?? "").join(separator);
   }
   return "";
 }
@@ -309,6 +327,7 @@ export function QuestionCard({
         {question.question_type === "FILL" ? <Fill question={question} value={value as string[] | undefined} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "MATCHING" ? <Matching question={question} value={(value as Record<string, string>) ?? {}} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "ERROR_CORRECTION" ? <ErrorCorrection question={question} value={(value as { selected_span?: string; correction?: string }) ?? {}} disabled={submitted} onChange={onChange} /> : null}
+        {question.question_type === "REORDERING" ? <Reordering question={question} value={value as string[] | undefined} disabled={submitted} onChange={onChange} /> : null}
       </div>
       {submitted && wrong ? (
         <p className="mt-3 rounded-md bg-coral/10 p-3 text-sm text-coral">
@@ -531,4 +550,82 @@ function findContiguousIndices(words: string[], selectedSpan: string): number[] 
     if (matches) return Array.from({ length: spanWords.length }, (_, j) => start + j);
   }
   return [];
+}
+
+function Reordering({
+  question,
+  value,
+  disabled,
+  onChange
+}: {
+  question: QuizQuestion;
+  value?: string[];
+  disabled: boolean;
+  onChange: (value: string[]) => void;
+}) {
+  const opts = asRecord(question.options) as { items?: unknown[]; level?: string };
+  const items = Array.isArray(opts.items) ? opts.items.map((item) => asRecord(item as Json)) : [];
+  const byId = new Map(items.map((item) => [String(item.id), String(item.text ?? "")]));
+  const order = value && value.length === items.length ? value : items.map((item) => String(item.id));
+  const isWordLevel = opts.level === "word";
+  const dragIndex = { current: -1 };
+
+  function move(from: number, to: number) {
+    if (to < 0 || to >= order.length || from === to) return;
+    const next = [...order];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    onChange(next);
+  }
+
+  if (isWordLevel) {
+    return (
+      <div className="flex flex-wrap gap-2 rounded-md bg-slate-50 p-3">
+        {order.map((id, i) => (
+          <div
+            key={id}
+            draggable={!disabled}
+            onDragStart={() => { dragIndex.current = i; }}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={() => { move(dragIndex.current, i); dragIndex.current = -1; }}
+            className="flex items-center gap-1 rounded-md border border-black/15 bg-white px-2 py-1 text-sm shadow-sm"
+          >
+            <button type="button" disabled={disabled || i === 0} onClick={() => move(i, i - 1)} className="text-black/40 hover:text-ink disabled:opacity-25" aria-label="Move left">
+              ←
+            </button>
+            <span className="cursor-grab select-none px-1">{byId.get(id) ?? ""}</span>
+            <button type="button" disabled={disabled || i === order.length - 1} onClick={() => move(i, i + 1)} className="text-black/40 hover:text-ink disabled:opacity-25" aria-label="Move right">
+              →
+            </button>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-2">
+      {order.map((id, i) => (
+        <div
+          key={id}
+          draggable={!disabled}
+          onDragStart={() => { dragIndex.current = i; }}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={() => { move(dragIndex.current, i); dragIndex.current = -1; }}
+          className="flex items-center gap-3 rounded-md border border-black/15 bg-white px-3 py-2 text-sm shadow-sm"
+        >
+          <span className="cursor-grab select-none text-black/30">⠿</span>
+          <span className="flex-1">{byId.get(id) ?? ""}</span>
+          <div className="flex gap-1">
+            <button type="button" disabled={disabled || i === 0} onClick={() => move(i, i - 1)} className="rounded border border-black/15 px-2 py-1 text-xs text-black/55 hover:bg-black/5 disabled:opacity-25" aria-label="Move up">
+              ↑
+            </button>
+            <button type="button" disabled={disabled || i === order.length - 1} onClick={() => move(i, i + 1)} className="rounded border border-black/15 px-2 py-1 text-xs text-black/55 hover:bg-black/5 disabled:opacity-25" aria-label="Move down">
+              ↓
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 }

@@ -22,7 +22,21 @@ function asRecord(value: Json | null | undefined): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 }
 
-function questionsFromData(value: Json | null, activityType: string): QuizQuestion[] {
+// Deterministic shuffle seeded by a string (the activity id), so the same learner sees a stable
+// scrambled order across re-renders/refreshes instead of the items starting pre-solved or re-shuffling.
+function seededShuffle<T>(list: T[], seed: string): T[] {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+  const result = [...list];
+  for (let i = result.length - 1; i > 0; i--) {
+    hash = (hash * 1103515245 + 12345) >>> 0;
+    const j = hash % (i + 1);
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+
+function questionsFromData(value: Json | null, activityType: string, seed: string): QuizQuestion[] {
   const data = asRecord(value);
   if (activityType === "MCQ") {
     const questions = Array.isArray(data.questions) ? data.questions : [];
@@ -91,6 +105,33 @@ function questionsFromData(value: Json | null, activityType: string): QuizQuesti
     });
   }
 
+  if (activityType === "REORDERING") {
+    const rawItems: unknown[] = Array.isArray(data.items) ? data.items : [];
+    const items = rawItems.map((item, index) =>
+      typeof item === "string"
+        ? { id: String(index + 1), text: item }
+        : { id: String(asRecord(item as Json).id ?? index + 1), text: String(asRecord(item as Json).text ?? "") }
+    );
+    const rawCorrectOrder = data.correct_order;
+    const correctOrder = Array.isArray(rawCorrectOrder)
+      ? rawCorrectOrder.map((entry) => {
+          // Backward-compat: old default data stored correct_order as matching text strings, not ids.
+          const match = items.find((item) => item.text === entry || item.id === String(entry));
+          return match ? match.id : String(entry);
+        })
+      : items.map((item) => item.id);
+    const level = data.level === "word" ? "word" : "sentence";
+    const shuffledItems = seededShuffle(items, seed);
+    return [{
+      id: "1",
+      question_number: 1,
+      question_type: "REORDERING",
+      question_text: String(data.prompt ?? "Put the items in the correct order."),
+      options: { items: shuffledItems, level } as Json,
+      correct_answer: correctOrder as Json
+    }];
+  }
+
   const questions = Array.isArray(data.questions) ? data.questions : [];
   return questions.map((item, index) => {
     const question = asRecord(item as Json);
@@ -111,6 +152,7 @@ function activityLabel(type: string) {
   if (type === "GAP_FILL") return "Grammar Check";
   if (type === "MATCHING") return "Vocabulary Match";
   if (type === "ERROR_CORRECTION") return "Error Correction";
+  if (type === "REORDERING") return "Put in Order";
   return "Activity";
 }
 
@@ -125,7 +167,7 @@ export function LessonActivityPanel({
   previewOnly?: boolean;
   initialAttempt?: SavedAttempt | null;
 }) {
-  const questions = questionsFromData(activity.activity_data, activity.activity_type);
+  const questions = questionsFromData(activity.activity_data, activity.activity_type, activity.id);
   const initialAnswers = asRecord(initialAttempt?.answers);
   const [answers, setAnswers] = useState<Record<string, unknown>>(initialAnswers);
   const [submitted, setSubmitted] = useState(Boolean(initialAttempt));

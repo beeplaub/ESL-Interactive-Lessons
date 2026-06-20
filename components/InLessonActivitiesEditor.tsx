@@ -47,6 +47,12 @@ type ErrorCorrectionItem = {
   note: string;
 };
 
+type ReorderData = {
+  prompt: string;
+  level: "sentence" | "word";
+  itemsText: string;
+};
+
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 }
@@ -57,6 +63,7 @@ function labelFor(type: string) {
   if (type === "TRUE_FALSE") return "True/False Activity";
   if (type === "MATCHING") return "Matching Activity";
   if (type === "ERROR_CORRECTION") return "Error Correction Activity";
+  if (type === "REORDERING") return "Put in Order Activity";
   return `${type.replaceAll("_", " ")} Activity`;
 }
 
@@ -158,6 +165,28 @@ function normalizeErrorCorrection(data: Json | null): { prompt: string; items: E
         note: String(row.note ?? "")
       };
     })
+  };
+}
+
+function normalizeReordering(data: Json | null): ReorderData {
+  const record = asRecord(data);
+  const rawItems: unknown[] = Array.isArray(record.items) ? record.items : [];
+  const items = rawItems.map((item, index) =>
+    typeof item === "string"
+      ? { id: String(index + 1), text: item }
+      : { id: String(asRecord(item).id ?? index + 1), text: String(asRecord(item).text ?? "") }
+  );
+  const rawCorrectOrder = record.correct_order;
+  const orderedTexts = Array.isArray(rawCorrectOrder)
+    ? rawCorrectOrder.map((entry) => {
+        const match = items.find((item) => item.id === String(entry) || item.text === entry);
+        return match ? match.text : String(entry);
+      })
+    : items.map((item) => item.text);
+  return {
+    prompt: String(record.prompt ?? "Put the items in the correct order."),
+    level: record.level === "word" ? "word" : "sentence",
+    itemsText: orderedTexts.filter(Boolean).join("\n")
   };
 }
 
@@ -278,7 +307,8 @@ function ActivityPanel({
         {activity.activity_type === "TRUE_FALSE" ? <TrueFalseEditor activity={activity} onSave={save} /> : null}
         {activity.activity_type === "MATCHING" ? <MatchingEditor activity={activity} onSave={save} /> : null}
         {activity.activity_type === "ERROR_CORRECTION" ? <ErrorCorrectionEditor activity={activity} onSave={save} /> : null}
-        {!["MCQ", "GAP_FILL", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION"].includes(activity.activity_type) ? (
+        {activity.activity_type === "REORDERING" ? <ReorderingEditor activity={activity} onSave={save} /> : null}
+        {!["MCQ", "GAP_FILL", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION", "REORDERING"].includes(activity.activity_type) ? (
           <p className="rounded-md bg-slate-50 p-3 text-sm text-black/60">
             This activity type has starter data and preview support. A detailed visual editor for it will be added in the next activity-builder pass.
           </p>
@@ -554,6 +584,60 @@ function ErrorCorrectionEditor({ activity, onSave }: { activity: Activity; onSav
             note: item.note || null
           }))
         } as Json, needsReview)} />
+      </div>
+    </div>
+  );
+}
+
+function ReorderingEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
+  const initial = useMemo(() => normalizeReordering(activity.activity_data), [activity.activity_data]);
+  const [prompt, setPrompt] = useState(initial.prompt);
+  const [level, setLevel] = useState<"sentence" | "word">(initial.level);
+  const [itemsText, setItemsText] = useState(initial.itemsText);
+  const lines = itemsText.split("\n").map((line) => line.trim()).filter(Boolean);
+  const needsReview = lines.length < 2;
+
+  return (
+    <div className="grid gap-4">
+      <label className="text-sm font-medium">
+        Instruction
+        <input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+      </label>
+      <label className="text-sm font-medium">
+        Level
+        <select value={level} onChange={(event) => setLevel(event.target.value === "word" ? "word" : "sentence")} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">
+          <option value="sentence">Sentence / step order (reorder whole lines)</option>
+          <option value="word">Word order (reorder words into one sentence)</option>
+        </select>
+      </label>
+      <label className="text-sm">
+        {level === "word" ? "Words, one per line, in the CORRECT order" : "Items, one per line, in the CORRECT order"}
+        <textarea
+          rows={8}
+          value={itemsText}
+          onChange={(event) => setItemsText(event.target.value)}
+          className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 font-mono text-sm"
+          placeholder={level === "word" ? "She\nalways\ndrinks\ncoffee\nin the morning" : "First, boil the water.\nThen, add the pasta.\nFinally, drain it."}
+        />
+        <span className="mt-1 block text-xs text-black/45">
+          Type them in the right order — learners will see them scrambled and have to put them back in this order. The answer key is generated automatically from this order.
+        </span>
+      </label>
+      {needsReview ? (
+        <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+          Add at least 2 items for this activity to make sense.
+        </p>
+      ) : null}
+      <div className="flex flex-wrap gap-3">
+        <SaveButton onClick={() => {
+          const items = lines.map((text, index) => ({ id: String(index + 1), text }));
+          onSave({
+            prompt,
+            level,
+            items,
+            correct_order: items.map((item) => item.id)
+          } as Json, needsReview);
+        }} />
       </div>
     </div>
   );

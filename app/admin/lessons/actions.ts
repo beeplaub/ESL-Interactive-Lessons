@@ -1213,7 +1213,12 @@ function defaultActivityData(activityType: string, prompt: string): Json {
     return { prompt, items: [{ text: "Item", target: "Target" }], targets: ["Target"] };
   }
   if (activityType === "REORDERING") {
-    return { prompt, items: ["First item", "Second item"], correct_order: ["First item", "Second item"] };
+    return {
+      prompt,
+      level: "sentence",
+      items: [{ id: "1", text: "First item" }, { id: "2", text: "Second item" }],
+      correct_order: ["1", "2"]
+    };
   }
   if (activityType === "CATEGORIZATION") {
     return { prompt, categories: [{ name: "Category A", items: ["Item"] }, { name: "Category B", items: [] }] };
