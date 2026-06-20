@@ -424,32 +424,68 @@ function ErrorCorrection({
   const opts = asRecord(question.options) as { mode?: string; text?: string; note?: string };
   const mode = opts.mode === "spot_and_fix" ? "spot_and_fix" : "rewrite";
   const text = String(opts.text ?? "");
-  const tokens = text.split(/(\s+)/).filter((t) => t !== "");
+  // Word tokens only (no whitespace entries) so indices line up cleanly for contiguous-range selection.
+  const words = text.split(/\s+/).filter((w) => w !== "");
 
   if (mode === "spot_and_fix") {
+    const selectedSpan = value.selected_span ?? "";
+    // Find which word indices are currently selected by matching the stored phrase back against the word list.
+    // (Selection is re-derived from selected_span so this works after a page refresh / saved attempt review too.)
+    const selectedIndices = findContiguousIndices(words, selectedSpan);
+
+    function toggleWord(index: number) {
+      let next: number[];
+      if (selectedIndices.includes(index)) {
+        // Clicking an already-selected word shrinks the selection back to before that word.
+        next = selectedIndices.filter((i) => i < index);
+      } else if (selectedIndices.length === 0) {
+        next = [index];
+      } else {
+        const min = Math.min(...selectedIndices);
+        const max = Math.max(...selectedIndices);
+        if (index === max + 1) {
+          // Extend the selection to the right.
+          next = [...selectedIndices, index];
+        } else if (index === min - 1) {
+          // Extend the selection to the left.
+          next = [index, ...selectedIndices];
+        } else {
+          // Clicked somewhere non-adjacent — start a fresh single-word selection there.
+          next = [index];
+        }
+      }
+      const phrase = next.map((i) => words[i].replace(/[.,!?;:]+$/, "")).join(" ");
+      onChange({ ...value, selected_span: phrase });
+    }
+
     return (
       <div className="grid gap-3">
-        <p className="text-xs text-black/45">Click the word or phrase that&apos;s wrong, then type the fix.</p>
+        <p className="text-xs text-black/45">
+          Click the word that&apos;s wrong. If the mistake is more than one word, click each word in the phrase in order to add it to your selection.
+        </p>
         <div className="flex flex-wrap gap-1 rounded-md bg-slate-50 p-3 text-sm leading-7">
-          {tokens.map((token, i) => {
-            if (/^\s+$/.test(token)) return <span key={i}>{token}</span>;
-            const cleaned = token.replace(/[.,!?;:]+$/, "");
-            const selected = value.selected_span === cleaned;
+          {words.map((word, i) => {
+            const selected = selectedIndices.includes(i);
             return (
               <button
                 key={i}
                 type="button"
                 disabled={disabled}
-                onClick={() => onChange({ ...value, selected_span: cleaned })}
+                onClick={() => toggleWord(i)}
                 className={`rounded px-1 transition-colors ${
                   selected ? "bg-coral/25 font-semibold text-ink" : "hover:bg-black/5"
                 }`}
               >
-                {token}
+                {word}
               </button>
             );
           })}
         </div>
+        {selectedSpan ? (
+          <p className="text-xs text-black/45">
+            Selected: <span className="font-medium text-ink">&quot;{selectedSpan}&quot;</span>
+          </p>
+        ) : null}
         <input
           type="text"
           disabled={disabled}
@@ -475,4 +511,24 @@ function ErrorCorrection({
       />
     </div>
   );
+}
+
+// Given the saved selected phrase, figure out which contiguous run of word indices it corresponds to,
+// so the click UI can re-highlight the right words (e.g. after loading a saved/reviewed attempt).
+function findContiguousIndices(words: string[], selectedSpan: string): number[] {
+  if (!selectedSpan) return [];
+  const cleanedWords = words.map((w) => w.replace(/[.,!?;:]+$/, "").toLowerCase());
+  const spanWords = selectedSpan.toLowerCase().split(/\s+/).filter(Boolean);
+  if (spanWords.length === 0) return [];
+  for (let start = 0; start <= cleanedWords.length - spanWords.length; start++) {
+    let matches = true;
+    for (let j = 0; j < spanWords.length; j++) {
+      if (cleanedWords[start + j] !== spanWords[j]) {
+        matches = false;
+        break;
+      }
+    }
+    if (matches) return Array.from({ length: spanWords.length }, (_, j) => start + j);
+  }
+  return [];
 }
