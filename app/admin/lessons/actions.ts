@@ -1220,7 +1220,7 @@ function defaultActivityData(activityType: string, prompt: string): Json {
           id: 1,
           text: "",
           options: { A: "", B: "", C: "", D: "" },
-          answer: ["A"]
+          answers: ["A"]
         }
       ]
     };
