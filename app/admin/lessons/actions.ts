@@ -792,6 +792,43 @@ export async function addBuilderSlide(lessonId: string, formData: FormData) {
   revalidateLessonBuilder(lessonId);
 }
 
+export async function addBuilderSlideAt(
+  lessonId: string,
+  afterSlideNumber: number,
+  title: string,
+  sectionLabel: string
+) {
+  await requireAdmin();
+  const supabase = createAdminClient();
+
+  // Shift all slides after insertion point up by 1
+  const { data: slidesToShift } = await supabase
+    .from("slides")
+    .select("id, slide_number")
+    .eq("lesson_id", lessonId)
+    .gt("slide_number", afterSlideNumber)
+    .order("slide_number", { ascending: false });
+
+  for (const slide of slidesToShift ?? []) {
+    await supabase
+      .from("slides")
+      .update({ slide_number: slide.slide_number + 1 })
+      .eq("id", slide.id);
+  }
+
+  // Insert new slide at position afterSlideNumber + 1
+  await supabase.from("slides").insert({
+    lesson_id: lessonId,
+    slide_number: afterSlideNumber + 1,
+    title: title || "New Slide",
+    section_label: sectionLabel || null,
+    raw_text: "",
+    type: "INFO",
+  });
+
+  revalidatePath(`/admin/lessons/${lessonId}/builder`);
+}
+
 export async function updateBuilderSlide(lessonId: string, slideId: string, formData: FormData) {
   await requireAdmin();
   const supabase = createAdminClient();
