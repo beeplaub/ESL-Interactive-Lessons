@@ -637,24 +637,22 @@ function ReorderingEditor({ activity, onSave }: { activity: Activity; onSave: (d
                 <button type="button" onClick={() => setBlocks((current) => current.filter((_, blockIndex) => blockIndex !== index))} className="text-sm text-coral">Remove</button>
               ) : null}
             </div>
-            <div className="grid gap-3 md:grid-cols-2">
-              <label className="text-sm">
-                Level
-                <select value={block.level} onChange={(event) => updateBlock(index, { level: event.target.value === "word" ? "word" : "sentence" })} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">
-                  <option value="sentence">Sentence / step order (reorder whole lines)</option>
-                  <option value="word">Word order (reorder words into one sentence)</option>
-                </select>
-              </label>
-              <label className="text-sm">
-                Question instruction (optional, shown above this question)
-                <input
-                  value={block.questionText}
-                  onChange={(event) => updateBlock(index, { questionText: event.target.value })}
-                  placeholder="Leave blank to use the overall instruction"
-                  className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
-                />
-              </label>
-            </div>
+            <label className="text-sm">
+              Level
+              <select value={block.level} onChange={(event) => updateBlock(index, { level: event.target.value === "word" ? "word" : "sentence" })} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">
+                <option value="sentence">Sentence / step order (reorder whole lines)</option>
+                <option value="word">Word order (reorder words into one sentence)</option>
+              </select>
+            </label>
+            <label className="mt-3 block text-sm">
+              Question instruction (optional, shown above this question)
+              <input
+                value={block.questionText}
+                onChange={(event) => updateBlock(index, { questionText: event.target.value })}
+                placeholder="Leave blank to use the overall instruction"
+                className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+              />
+            </label>
             <label className="mt-3 block text-sm">
               {block.level === "word" ? "Words, one per line, in the CORRECT order" : "Items, one per line, in the CORRECT order"}
               <textarea
