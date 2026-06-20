@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Mic, MicOff, Pause, Play, RotateCcw, Trash2, Upload } from "lucide-react";
 
-type State = "idle" | "recording" | "recorded" | "uploading" | "saved" | "error";
+type State = "loading" | "idle" | "recording" | "recorded" | "uploading" | "saved" | "error";
 
 export function SlideNarrationRecorder({
   lessonId,
@@ -12,7 +12,7 @@ export function SlideNarrationRecorder({
   lessonId: string;
   slideId: string;
 }) {
-  const [state, setState] = useState<State>("idle");
+  const [state, setState] = useState<State>("loading");
   const [existingUrl, setExistingUrl] = useState<string | null>(null);
   const [recordedUrl, setRecordedUrl] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
@@ -25,17 +25,22 @@ export function SlideNarrationRecorder({
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Load existing narration on mount
+  // Fetch existing narration for THIS slide on mount
   useEffect(() => {
+    setState("loading");
+    setExistingUrl(null);
+    setOpen(false);
     fetch(`/api/lessons/${lessonId}/narration/${slideId}`)
       .then((r) => r.json())
-      .then((data) => {
+      .then((data: { url: string | null }) => {
         if (data.url) {
           setExistingUrl(data.url);
           setState("saved");
+        } else {
+          setState("idle");
         }
       })
-      .catch(() => {});
+      .catch(() => setState("idle"));
   }, [lessonId, slideId]);
 
   function startRecording() {
@@ -79,7 +84,7 @@ export function SlideNarrationRecorder({
       method: "POST",
       body: fd,
     });
-    const data = await res.json();
+    const data = await res.json() as { url?: string };
     if (data.url) {
       setExistingUrl(data.url);
       setRecordedUrl(null);
@@ -95,18 +100,26 @@ export function SlideNarrationRecorder({
     setExistingUrl(null);
     setRecordedUrl(null);
     blobRef.current = null;
+    audioRef.current = null;
+    setPlaying(false);
     setState("idle");
     setOpen(false);
   }
 
   function reRecord() {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
     setRecordedUrl(null);
     blobRef.current = null;
+    setPlaying(false);
     setState("idle");
   }
 
   function togglePlay(url: string) {
-    if (!audioRef.current) {
+    if (!audioRef.current || audioRef.current.src !== url) {
+      if (audioRef.current) audioRef.current.pause();
       audioRef.current = new Audio(url);
       audioRef.current.onended = () => setPlaying(false);
     }
@@ -123,36 +136,47 @@ export function SlideNarrationRecorder({
     return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
   }
 
-  const hasSaved = state === "saved" && existingUrl;
+  // Button appearance based on state
+  const buttonClass =
+    state === "saved"
+      ? "border-moss/30 bg-moss/10 text-moss hover:bg-moss/20"
+      : state === "recording"
+      ? "border-red-300 bg-red-50 text-red-500"
+      : state === "loading"
+      ? "border-black/10 text-black/30"
+      : "border-black/15 text-black/60 hover:bg-black/5";
 
   return (
     <div className="relative">
       {/* Mic trigger button */}
       <button
         type="button"
-        onClick={() => setOpen((p) => !p)}
+        onClick={() => { if (state !== "loading") setOpen((p) => !p); }}
         aria-label="Slide narration"
-        title={hasSaved ? "Narration recorded" : "Record narration"}
-        className={`rounded-md border p-2 transition
-          ${hasSaved
-            ? "border-moss/30 bg-moss/10 text-moss hover:bg-moss/20"
-            : state === "recording"
-            ? "border-red-300 bg-red-50 text-red-500"
-            : "border-black/15 hover:bg-black/5"
-          }`}
+        title={
+          state === "saved" ? "Narration recorded — click to manage"
+          : state === "recording" ? "Recording…"
+          : state === "loading" ? "Loading…"
+          : "Record narration"
+        }
+        className={`rounded-md border p-2 transition ${buttonClass}`}
       >
         {state === "recording" ? (
           <span className="flex items-center gap-1">
             <span className="size-2 animate-pulse rounded-full bg-red-500" />
             <MicOff size={15} />
           </span>
+        ) : state === "loading" ? (
+          <span className="flex size-[15px] items-center justify-center">
+            <span className="size-3 animate-spin rounded-full border-2 border-black/20 border-t-black/60" />
+          </span>
         ) : (
-          <Mic size={15} className={hasSaved ? "text-moss" : ""} />
+          <Mic size={15} />
         )}
       </button>
 
       {/* Popover panel */}
-      {open && (
+      {open && state !== "loading" && (
         <div className="absolute left-0 top-10 z-50 w-64 rounded-xl border border-black/10 bg-white p-3 shadow-xl">
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-black/45">
             Slide Narration
@@ -255,7 +279,9 @@ export function SlideNarrationRecorder({
           {/* error */}
           {state === "error" && (
             <div className="space-y-2">
-              <p className="text-xs text-red-500">Something went wrong. Check microphone permissions.</p>
+              <p className="text-xs text-red-500">
+                Something went wrong. Check microphone permissions.
+              </p>
               <button
                 type="button"
                 onClick={() => setState("idle")}
