@@ -8,7 +8,7 @@ import type { Json } from "@/types/database.types";
 export type QuizQuestion = {
   id: string;
   question_number: number;
-  question_type: "MCQ" | "TRUE_FALSE" | "FILL" | "MATCHING";
+  question_type: "MCQ" | "TRUE_FALSE" | "FILL" | "MATCHING" | "ERROR_CORRECTION";
   question_text: string;
   description?: string | null;
   options: Json | null;
@@ -55,6 +55,18 @@ export function isCorrect(question: QuizQuestion, value: unknown): boolean {
     const given = asRecord(value as Json);
     return Object.entries(correct).every(([k, v]) => normalize(given[k]) === normalize(v));
   }
+  if (question.question_type === "ERROR_CORRECTION") {
+    const opts = asRecord(question.options);
+    const mode = String(opts.mode ?? "rewrite");
+    const correct = asRecord(question.correct_answer);
+    const given = asRecord(value as Json);
+    const correctionMatches = normalize(given.correction) === normalize(correct.correction);
+    if (mode === "spot_and_fix") {
+      const spanMatches = normalize(given.selected_span) === normalize(correct.error_span);
+      return spanMatches && correctionMatches;
+    }
+    return correctionMatches;
+  }
   return false;
 }
 
@@ -62,6 +74,14 @@ export function hasAnswer(question: QuizQuestion, value: unknown): boolean {
   if (value === undefined || value === null) return false;
   if (question.question_type === "FILL") return Array.isArray(value) && value.some((v) => String(v).trim() !== "");
   if (question.question_type === "MATCHING") return Object.keys(asRecord(value as Json)).length > 0;
+  if (question.question_type === "ERROR_CORRECTION") {
+    const opts = asRecord(question.options);
+    const mode = String(opts.mode ?? "rewrite");
+    const given = asRecord(value as Json);
+    const hasCorrection = String(given.correction ?? "").trim() !== "";
+    if (mode === "spot_and_fix") return hasCorrection && String(given.selected_span ?? "").trim() !== "";
+    return hasCorrection;
+  }
   return true;
 }
 
@@ -84,6 +104,15 @@ function answerText(question: QuizQuestion): string {
     return Object.entries(asRecord(question.correct_answer))
       .map(([k, v]) => `${k} → ${v}`)
       .join(", ");
+  }
+  if (question.question_type === "ERROR_CORRECTION") {
+    const opts = asRecord(question.options);
+    const mode = String(opts.mode ?? "rewrite");
+    const correct = asRecord(question.correct_answer);
+    if (mode === "spot_and_fix") {
+      return `"${correct.error_span ?? ""}" → "${correct.correction ?? ""}"`;
+    }
+    return String(correct.correction ?? "");
   }
   return "";
 }
@@ -279,6 +308,7 @@ export function QuestionCard({
         {question.question_type === "TRUE_FALSE" ? <TrueFalse value={value as boolean | undefined} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "FILL" ? <Fill question={question} value={value as string[] | undefined} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "MATCHING" ? <Matching question={question} value={(value as Record<string, string>) ?? {}} disabled={submitted} onChange={onChange} /> : null}
+        {question.question_type === "ERROR_CORRECTION" ? <ErrorCorrection question={question} value={(value as { selected_span?: string; correction?: string }) ?? {}} disabled={submitted} onChange={onChange} /> : null}
       </div>
       {submitted && wrong ? (
         <p className="mt-3 rounded-md bg-coral/10 p-3 text-sm text-coral">
@@ -376,6 +406,73 @@ function Matching({ question, value, disabled, onChange }: { question: QuizQuest
           </select>
         </div>
       ))}
+    </div>
+  );
+}
+
+function ErrorCorrection({
+  question,
+  value,
+  disabled,
+  onChange
+}: {
+  question: QuizQuestion;
+  value: { selected_span?: string; correction?: string };
+  disabled: boolean;
+  onChange: (value: { selected_span?: string; correction?: string }) => void;
+}) {
+  const opts = asRecord(question.options) as { mode?: string; text?: string; note?: string };
+  const mode = opts.mode === "spot_and_fix" ? "spot_and_fix" : "rewrite";
+  const text = String(opts.text ?? "");
+  const tokens = text.split(/(\s+)/).filter((t) => t !== "");
+
+  if (mode === "spot_and_fix") {
+    return (
+      <div className="grid gap-3">
+        <p className="text-xs text-black/45">Click the word or phrase that&apos;s wrong, then type the fix.</p>
+        <div className="flex flex-wrap gap-1 rounded-md bg-slate-50 p-3 text-sm leading-7">
+          {tokens.map((token, i) => {
+            if (/^\s+$/.test(token)) return <span key={i}>{token}</span>;
+            const cleaned = token.replace(/[.,!?;:]+$/, "");
+            const selected = value.selected_span === cleaned;
+            return (
+              <button
+                key={i}
+                type="button"
+                disabled={disabled}
+                onClick={() => onChange({ ...value, selected_span: cleaned })}
+                className={`rounded px-1 transition-colors ${
+                  selected ? "bg-coral/25 font-semibold text-ink" : "hover:bg-black/5"
+                }`}
+              >
+                {token}
+              </button>
+            );
+          })}
+        </div>
+        <input
+          type="text"
+          disabled={disabled}
+          value={value.correction ?? ""}
+          onChange={(e) => onChange({ ...value, correction: e.target.value })}
+          placeholder="Type the correction"
+          className="rounded-md border border-black/15 px-3 py-2 text-sm outline-none focus:border-moss"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-2">
+      <p className="rounded-md bg-slate-50 p-3 text-sm leading-6">{text}</p>
+      <input
+        type="text"
+        disabled={disabled}
+        value={value.correction ?? ""}
+        onChange={(e) => onChange({ ...value, correction: e.target.value })}
+        placeholder="Type the corrected sentence"
+        className="rounded-md border border-black/15 px-3 py-2 text-sm outline-none focus:border-moss"
+      />
     </div>
   );
 }

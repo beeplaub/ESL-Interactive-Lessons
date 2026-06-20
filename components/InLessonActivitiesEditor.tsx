@@ -39,6 +39,14 @@ type MatchData = {
   pairs: string;
 };
 
+type ErrorCorrectionItem = {
+  mode: "spot_and_fix" | "rewrite";
+  text: string;
+  errorSpan: string;
+  correction: string;
+  note: string;
+};
+
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
 }
@@ -48,6 +56,7 @@ function labelFor(type: string) {
   if (type === "GAP_FILL") return "Gap Fill Activity";
   if (type === "TRUE_FALSE") return "True/False Activity";
   if (type === "MATCHING") return "Matching Activity";
+  if (type === "ERROR_CORRECTION") return "Error Correction Activity";
   return `${type.replaceAll("_", " ")} Activity`;
 }
 
@@ -131,6 +140,24 @@ function normalizeMatching(data: Json | null): MatchData {
       const row = asRecord(pair);
       return `${row.a ?? ""}-${row.b ?? ""}`;
     }).filter(Boolean).join(", ")
+  };
+}
+
+function normalizeErrorCorrection(data: Json | null): { prompt: string; items: ErrorCorrectionItem[] } {
+  const record = asRecord(data);
+  const items = Array.isArray(record.items) ? record.items : [];
+  return {
+    prompt: String(record.prompt ?? "Find and correct the mistake."),
+    items: items.map((item) => {
+      const row = asRecord(item);
+      return {
+        mode: row.mode === "spot_and_fix" ? "spot_and_fix" : "rewrite",
+        text: String(row.text ?? row.sentence ?? ""),
+        errorSpan: String(row.error_span ?? row.incorrect ?? ""),
+        correction: String(row.correction ?? row.correct ?? ""),
+        note: String(row.note ?? "")
+      };
+    })
   };
 }
 
@@ -250,7 +277,8 @@ function ActivityPanel({
         {activity.activity_type === "GAP_FILL" ? <GapFillEditor activity={activity} onSave={save} /> : null}
         {activity.activity_type === "TRUE_FALSE" ? <TrueFalseEditor activity={activity} onSave={save} /> : null}
         {activity.activity_type === "MATCHING" ? <MatchingEditor activity={activity} onSave={save} /> : null}
-        {!["MCQ", "GAP_FILL", "TRUE_FALSE", "MATCHING"].includes(activity.activity_type) ? (
+        {activity.activity_type === "ERROR_CORRECTION" ? <ErrorCorrectionEditor activity={activity} onSave={save} /> : null}
+        {!["MCQ", "GAP_FILL", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION"].includes(activity.activity_type) ? (
           <p className="rounded-md bg-slate-50 p-3 text-sm text-black/60">
             This activity type has starter data and preview support. A detailed visual editor for it will be added in the next activity-builder pass.
           </p>
@@ -416,6 +444,115 @@ function MatchingEditor({ activity, onSave }: { activity: Activity; onSave: (dat
             options: { a_items: aItems.split("\n").map((item) => item.trim()).filter(Boolean), b_items: bItems.split("\n").map((item) => item.trim()).filter(Boolean) },
             correct_answer: pairs.split(",").map((pair) => pair.trim().match(/^(\d+)\s*-\s*([A-Z])$/i)).filter(Boolean).map((match) => ({ a: Number(match![1]), b: match![2].toUpperCase() }))
           }]
+        } as Json, needsReview)} />
+      </div>
+    </div>
+  );
+}
+
+function ErrorCorrectionEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
+  const initial = useMemo(() => normalizeErrorCorrection(activity.activity_data), [activity.activity_data]);
+  const [prompt, setPrompt] = useState(initial.prompt);
+  const [items, setItems] = useState<ErrorCorrectionItem[]>(
+    initial.items.length ? initial.items : [{ mode: "rewrite", text: "", errorSpan: "", correction: "", note: "" }]
+  );
+  const needsReview = items.some((item) => {
+    if (!item.text.trim() || !item.correction.trim()) return true;
+    if (item.mode === "spot_and_fix" && !item.errorSpan.trim()) return true;
+    return false;
+  });
+
+  function updateItem(index: number, patch: Partial<ErrorCorrectionItem>) {
+    setItems((current) => current.map((row, itemIndex) => (itemIndex === index ? { ...row, ...patch } : row)));
+  }
+
+  return (
+    <div className="grid gap-4">
+      <label className="text-sm font-medium">
+        Instruction
+        <input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+      </label>
+      {items.map((item, index) => (
+        <div key={index} className="rounded-md border border-black/10 p-4">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <p className="font-medium">Sentence {index + 1}</p>
+            <button type="button" onClick={() => setItems((current) => current.filter((_, itemIndex) => itemIndex !== index))} className="text-sm text-coral">Remove</button>
+          </div>
+          <label className="text-sm">
+            Mode
+            <select
+              value={item.mode}
+              onChange={(event) => updateItem(index, { mode: event.target.value === "spot_and_fix" ? "spot_and_fix" : "rewrite" })}
+              className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+            >
+              <option value="rewrite">Rewrite whole sentence</option>
+              <option value="spot_and_fix">Click error, then type fix</option>
+            </select>
+          </label>
+          <label className="mt-3 block text-sm">
+            Sentence with the mistake
+            <input
+              value={item.text}
+              onChange={(event) => updateItem(index, { text: event.target.value })}
+              className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+              placeholder="She don't like coffee."
+            />
+          </label>
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
+            {item.mode === "spot_and_fix" ? (
+              <label className="text-sm">
+                Exact wrong word/phrase
+                <input
+                  value={item.errorSpan}
+                  onChange={(event) => updateItem(index, { errorSpan: event.target.value })}
+                  className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+                  placeholder="don't"
+                />
+              </label>
+            ) : null}
+            <label className="text-sm">
+              {item.mode === "spot_and_fix" ? "Correction for that word/phrase" : "Full corrected sentence"}
+              <input
+                value={item.correction}
+                onChange={(event) => updateItem(index, { correction: event.target.value })}
+                className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+                placeholder={item.mode === "spot_and_fix" ? "doesn't" : "She doesn't like coffee."}
+              />
+            </label>
+          </div>
+          <label className="mt-3 block text-sm">
+            Note for learners (optional)
+            <input
+              value={item.note}
+              onChange={(event) => updateItem(index, { note: event.target.value })}
+              className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+              placeholder="subject-verb agreement"
+            />
+          </label>
+          {item.mode === "spot_and_fix" && item.text && item.errorSpan && !item.text.includes(item.errorSpan) ? (
+            <p className="mt-2 text-xs text-amber-700">
+              The exact wrong word/phrase doesn&apos;t appear in the sentence above — the learner won&apos;t be able to click it.
+            </p>
+          ) : null}
+        </div>
+      ))}
+      <div className="flex flex-wrap gap-3">
+        <button
+          type="button"
+          onClick={() => setItems((current) => [...current, { mode: "rewrite", text: "", errorSpan: "", correction: "", note: "" }])}
+          className="rounded-md border border-black/15 px-4 py-2 text-sm"
+        >
+          Add sentence
+        </button>
+        <SaveButton onClick={() => onSave({
+          prompt,
+          items: items.map((item) => ({
+            mode: item.mode,
+            text: item.text,
+            error_span: item.errorSpan,
+            correction: item.correction,
+            note: item.note || null
+          }))
         } as Json, needsReview)} />
       </div>
     </div>

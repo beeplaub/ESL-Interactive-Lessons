@@ -72,6 +72,25 @@ function questionsFromData(value: Json | null, activityType: string): QuizQuesti
     });
   }
 
+  if (activityType === "ERROR_CORRECTION") {
+    const items = Array.isArray(data.items) ? data.items : [];
+    return items.map((item, index) => {
+      const row = asRecord(item as Json);
+      const mode = row.mode === "spot_and_fix" ? "spot_and_fix" : "rewrite";
+      const text = String(row.text ?? row.sentence ?? "");
+      const correction = String(row.correction ?? row.correct ?? "");
+      const errorSpan = String(row.error_span ?? row.incorrect ?? "");
+      return {
+        id: String(row.id ?? index + 1),
+        question_number: Number(row.question_number ?? index + 1),
+        question_type: "ERROR_CORRECTION",
+        question_text: "Find and correct the mistake.",
+        options: { mode, text, note: row.note ?? null } as Json,
+        correct_answer: { error_span: errorSpan, correction } as Json
+      };
+    });
+  }
+
   const questions = Array.isArray(data.questions) ? data.questions : [];
   return questions.map((item, index) => {
     const question = asRecord(item as Json);
@@ -91,6 +110,7 @@ function activityLabel(type: string) {
   if (type === "TRUE_FALSE") return "True or False";
   if (type === "GAP_FILL") return "Grammar Check";
   if (type === "MATCHING") return "Vocabulary Match";
+  if (type === "ERROR_CORRECTION") return "Error Correction";
   return "Activity";
 }
 

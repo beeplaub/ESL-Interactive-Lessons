@@ -1222,7 +1222,7 @@ function defaultActivityData(activityType: string, prompt: string): Json {
     return { prompt, questions: [{ id: 1, text: "", sample_answer: "" }] };
   }
   if (activityType === "ERROR_CORRECTION") {
-    return { prompt, items: [{ incorrect: "", correct: "" }] };
+    return { prompt, items: [{ mode: "rewrite", text: "", error_span: "", correction: "", note: null }] };
   }
   if (activityType === "MISSING_INFORMATION") {
     return { prompt, paragraphs: [{ text: "Write a paragraph with ___ missing information.", answers: ["answer"] }] };
