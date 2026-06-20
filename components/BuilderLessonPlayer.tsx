@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, CheckCircle2, ChevronLeft, ChevronRight, NotebookPen, Pause, Play } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle2, ChevronLeft, ChevronRight, NotebookPen, Pause, Play, RotateCcw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { LessonActivityPanel } from "@/components/LessonActivityPanel";
 import { LessonBlockPreview } from "@/components/LessonBlockPreview";
@@ -19,11 +19,44 @@ function NarrationPill({ src }: { src: string }) {
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [expanded, setExpanded] = useState(false);
+  const [speed, setSpeed] = useState(1);
+  const [autoplayBlocked, setAutoplayBlocked] = useState(false);
+
+  // Autoplay on mount
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.playbackRate = 1;
+    setSpeed(1);
+    const attempt = audio.play();
+    if (attempt !== undefined) {
+      attempt
+        .then(() => { setPlaying(true); setAutoplayBlocked(false); })
+        .catch(() => setAutoplayBlocked(true));
+    }
+    return () => {
+      audio.pause();
+      audio.currentTime = 0;
+    };
+  }, [src]);
 
   function toggle() {
     const a = audioRef.current;
     if (!a) return;
-    if (a.paused) void a.play(); else a.pause();
+    if (a.paused) { void a.play(); } else { a.pause(); }
+  }
+
+  function skip(secs: number) {
+    const a = audioRef.current;
+    if (!a) return;
+    a.currentTime = Math.max(0, Math.min(a.duration, a.currentTime + secs));
+  }
+
+  function setPlaybackSpeed(s: number) {
+    const a = audioRef.current;
+    if (a) a.playbackRate = s;
+    setSpeed(s);
   }
 
   function fmt(s: number) {
@@ -31,37 +64,110 @@ function NarrationPill({ src }: { src: string }) {
     return `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
   }
 
+  const percent = duration ? (currentTime / duration) * 100 : 0;
+  const speeds = [0.75, 1, 1.25, 1.5];
+
   return (
-    <div className="flex items-center gap-2 rounded-full bg-black/30 px-3 py-1.5 backdrop-blur-sm">
+    <div
+      className={`flex flex-col gap-1.5 rounded-2xl bg-black/35 px-3 py-2 backdrop-blur-sm transition-all duration-200 ${expanded ? "w-48" : "w-auto"}`}
+    >
       <audio
         ref={audioRef}
         src={src}
-        preload="metadata"
+        preload="auto"
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
         onEnded={() => { setPlaying(false); setCurrentTime(0); }}
         onTimeUpdate={() => setCurrentTime(audioRef.current?.currentTime ?? 0)}
         onLoadedMetadata={() => setDuration(audioRef.current?.duration ?? 0)}
       />
-      <button
-        type="button"
-        onClick={toggle}
-        aria-label={playing ? "Pause narration" : "Play narration"}
-        className="flex size-6 shrink-0 items-center justify-center rounded-full bg-white/20 text-white transition hover:bg-white/30"
-      >
-        {playing ? <Pause size={11} /> : <Play size={11} />}
-      </button>
-      {playing && (
-        <div className="h-0.5 w-16 overflow-hidden rounded-full bg-white/20">
-          <div
-            className="h-full rounded-full bg-moss transition-all"
-            style={{ width: duration ? `${(currentTime / duration) * 100}%` : "0%" }}
-          />
+
+      {/* Autoplay blocked prompt */}
+      {autoplayBlocked && !playing && (
+        <button
+          type="button"
+          onClick={() => { void audioRef.current?.play(); setAutoplayBlocked(false); }}
+          className="flex items-center gap-1.5 text-[10px] font-semibold text-amber-300 hover:text-white"
+        >
+          <Play size={10} /> Tap to play narration
+        </button>
+      )}
+
+      {/* Main controls row */}
+      {!autoplayBlocked && (
+        <div className="flex items-center gap-2">
+          {/* Play/Pause */}
+          <button
+            type="button"
+            onClick={toggle}
+            aria-label={playing ? "Pause" : "Play"}
+            className="flex size-6 shrink-0 items-center justify-center rounded-full bg-white/20 text-white transition hover:bg-white/35"
+          >
+            {playing ? <Pause size={10} /> : <Play size={10} />}
+          </button>
+
+          {/* Progress bar + time */}
+          <button
+            type="button"
+            onClick={() => setExpanded((p) => !p)}
+            className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
+            aria-label="Toggle audio controls"
+          >
+            <div className="h-0.5 flex-1 overflow-hidden rounded-full bg-white/20">
+              <div
+                className="h-full rounded-full bg-moss transition-all duration-100"
+                style={{ width: `${percent}%` }}
+              />
+            </div>
+            <span className="shrink-0 text-[10px] tabular-nums text-white/60">
+              {fmt(currentTime)}/{fmt(duration)}
+            </span>
+          </button>
         </div>
       )}
-      <span className="shrink-0 text-[10px] tabular-nums text-white/70">
-        {playing ? fmt(currentTime) : fmt(duration)}
-      </span>
+
+      {/* Expanded controls — skip + speed */}
+      {expanded && !autoplayBlocked && (
+        <div className="flex items-center justify-between gap-1">
+          {/* Skip back 5s */}
+          <button
+            type="button"
+            onClick={() => skip(-5)}
+            aria-label="Back 5 seconds"
+            className="flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[10px] font-semibold text-white/70 hover:bg-white/10 hover:text-white"
+          >
+            <RotateCcw size={9} />5
+          </button>
+
+          {/* Speed chips */}
+          <div className="flex gap-0.5">
+            {speeds.map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setPlaybackSpeed(s)}
+                className={`rounded px-1 py-0.5 text-[9px] font-bold transition
+                  ${speed === s
+                    ? "bg-moss text-white"
+                    : "text-white/50 hover:bg-white/10 hover:text-white"
+                  }`}
+              >
+                {s}x
+              </button>
+            ))}
+          </div>
+
+          {/* Skip forward 5s */}
+          <button
+            type="button"
+            onClick={() => skip(5)}
+            aria-label="Forward 5 seconds"
+            className="flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[10px] font-semibold text-white/70 hover:bg-white/10 hover:text-white"
+          >
+            5<RotateCcw size={9} className="scale-x-[-1]" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

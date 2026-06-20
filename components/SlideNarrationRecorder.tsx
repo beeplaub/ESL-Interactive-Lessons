@@ -177,7 +177,7 @@ export function SlideNarrationRecorder({
 
       {/* Popover panel */}
       {open && state !== "loading" && (
-        <div className="absolute left-0 top-10 z-50 w-64 rounded-xl border border-black/10 bg-white p-3 shadow-xl">
+        <div className="absolute right-0 top-10 z-50 w-64 rounded-xl border border-black/10 bg-white p-3 shadow-xl">
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-black/45">
             Slide Narration
           </p>
