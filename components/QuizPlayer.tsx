@@ -144,7 +144,7 @@ function answerText(question: QuizQuestion): string {
   }
   if (question.question_type === "MULTIPLE_SELECT") {
     const opts = asRecord(question.options);
-    const correct = Array.isArray(question.correct_answer) ? question.correct_answer.map(String) : [];
+    const correct = Array.isArray(question.correct_answer) ? question.correct_answer.map(String).sort() : [];
     return correct.map((key) => `${key}. ${opts[key] ?? ""}`).join(", ");
   }
   return "";

@@ -126,7 +126,7 @@ function normalizeMultipleSelect(data: Json | null): { prompt: string; questions
           C: String(options.C ?? ""),
           D: String(options.D ?? "")
         },
-        answers: answers.filter(Boolean)
+        answers: answers.filter(Boolean).sort()
       };
     })
   };
@@ -744,7 +744,7 @@ function MultipleSelectEditor({ activity, onSave }: { activity: Activity; onSave
   function toggleAnswer(index: number, letter: "A" | "B" | "C" | "D") {
     setQuestions((current) => current.map((item, itemIndex) => {
       if (itemIndex !== index) return item;
-      const answers = item.answers.includes(letter) ? item.answers.filter((a) => a !== letter) : [...item.answers, letter];
+      const answers = item.answers.includes(letter) ? item.answers.filter((a) => a !== letter) : [...item.answers, letter].sort();
       return { ...item, answers };
     }));
   }

@@ -52,7 +52,7 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
     return questions.map((item, index) => {
       const q = asRecord(item as Json);
       const rawAnswer = q.answers ?? q.correct_answer ?? q.answer ?? [];
-      const answers = Array.isArray(rawAnswer) ? rawAnswer.map((v) => String(v).toUpperCase()) : [String(rawAnswer).toUpperCase()];
+      const answers = (Array.isArray(rawAnswer) ? rawAnswer.map((v) => String(v).toUpperCase()) : [String(rawAnswer).toUpperCase()]).sort();
       return {
         id: String(q.id ?? index + 1),
         question_number: Number(q.question_number ?? index + 1),
