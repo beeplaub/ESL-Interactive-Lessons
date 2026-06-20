@@ -461,7 +461,7 @@ function ErrorCorrection({
     return (
       <div className="grid gap-3">
         <p className="text-xs text-black/45">
-          Click the word that&apos;s wrong. If the mistake is more than one word, click each word in the phrase in order to add it to your selection.
+          Click the word or words that are wrong, then type the fix.
         </p>
         <div className="flex flex-wrap gap-1 rounded-md bg-slate-50 p-3 text-sm leading-7">
           {words.map((word, i) => {
