@@ -8,7 +8,7 @@ import type { Json } from "@/types/database.types";
 export type QuizQuestion = {
   id: string;
   question_number: number;
-  question_type: "MCQ" | "TRUE_FALSE" | "FILL" | "MATCHING" | "ERROR_CORRECTION" | "REORDERING";
+  question_type: "MCQ" | "TRUE_FALSE" | "FILL" | "MATCHING" | "ERROR_CORRECTION" | "REORDERING" | "MULTIPLE_SELECT";
   question_text: string;
   description?: string | null;
   options: Json | null;
@@ -73,6 +73,13 @@ export function isCorrect(question: QuizQuestion, value: unknown): boolean {
     if (given.length !== correctOrder.length) return false;
     return correctOrder.every((id, i) => given[i] === id);
   }
+  if (question.question_type === "MULTIPLE_SELECT") {
+    const correct = Array.isArray(question.correct_answer) ? question.correct_answer.map((v) => normalize(v)) : [];
+    const given = Array.isArray(value) ? value.map((v) => normalize(v)) : [];
+    if (given.length !== correct.length) return false;
+    const correctSet = new Set(correct);
+    return given.every((v) => correctSet.has(v));
+  }
   return false;
 }
 
@@ -91,6 +98,9 @@ export function hasAnswer(question: QuizQuestion, value: unknown): boolean {
   if (question.question_type === "REORDERING") {
     const correctOrder = Array.isArray(question.correct_answer) ? question.correct_answer : [];
     return Array.isArray(value) && value.length === correctOrder.length;
+  }
+  if (question.question_type === "MULTIPLE_SELECT") {
+    return Array.isArray(value) && value.length > 0;
   }
   return true;
 }
@@ -131,6 +141,11 @@ function answerText(question: QuizQuestion): string {
     const correctOrder = Array.isArray(question.correct_answer) ? question.correct_answer.map(String) : [];
     const separator = opts.level === "word" ? " " : " → ";
     return correctOrder.map((id) => byId.get(id) ?? "").join(separator);
+  }
+  if (question.question_type === "MULTIPLE_SELECT") {
+    const opts = asRecord(question.options);
+    const correct = Array.isArray(question.correct_answer) ? question.correct_answer.map(String) : [];
+    return correct.map((key) => `${key}. ${opts[key] ?? ""}`).join(", ");
   }
   return "";
 }
@@ -328,6 +343,7 @@ export function QuestionCard({
         {question.question_type === "MATCHING" ? <Matching question={question} value={(value as Record<string, string>) ?? {}} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "ERROR_CORRECTION" ? <ErrorCorrection question={question} value={(value as { selected_span?: string; correction?: string }) ?? {}} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "REORDERING" ? <Reordering question={question} value={value as string[] | undefined} disabled={submitted} onChange={onChange} /> : null}
+        {question.question_type === "MULTIPLE_SELECT" ? <MultipleSelect question={question} value={value as string[] | undefined} disabled={submitted} onChange={onChange} /> : null}
       </div>
       {submitted && wrong ? (
         <p className="mt-3 rounded-md bg-coral/10 p-3 text-sm text-coral">
@@ -345,6 +361,25 @@ function Mcq({ question, value, disabled, onChange }: { question: QuizQuestion; 
       {Object.entries(options).map(([key, text]) => (
         <label key={key} className="flex cursor-pointer items-center gap-3 rounded-md border border-black/10 px-3 py-2 text-sm">
           <input type="radio" disabled={disabled} checked={value === key} onChange={() => onChange(key)} />
+          <strong>{key}.</strong> {String(text)}
+        </label>
+      ))}
+    </div>
+  );
+}
+
+function MultipleSelect({ question, value, disabled, onChange }: { question: QuizQuestion; value?: string[]; disabled: boolean; onChange: (value: string[]) => void }) {
+  const options = asRecord(question.options);
+  const selected = value ?? [];
+  function toggle(key: string) {
+    onChange(selected.includes(key) ? selected.filter((k) => k !== key) : [...selected, key]);
+  }
+  return (
+    <div className="grid gap-2">
+      <p className="text-xs text-black/45">Select all that apply.</p>
+      {Object.entries(options).map(([key, text]) => (
+        <label key={key} className="flex cursor-pointer items-center gap-3 rounded-md border border-black/10 px-3 py-2 text-sm">
+          <input type="checkbox" disabled={disabled} checked={selected.includes(key)} onChange={() => toggle(key)} />
           <strong>{key}.</strong> {String(text)}
         </label>
       ))}

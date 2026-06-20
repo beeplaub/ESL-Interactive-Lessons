@@ -22,6 +22,13 @@ type McqQuestion = {
   answer: string;
 };
 
+type MultipleSelectQuestion = {
+  id: string | number;
+  text: string;
+  options: { A: string; B: string; C: string; D: string };
+  answers: string[];
+};
+
 type GapItem = {
   sentence: string;
   answers: string[];
@@ -69,6 +76,7 @@ function labelFor(type: string) {
   if (type === "MATCHING") return "Matching Activity";
   if (type === "ERROR_CORRECTION") return "Error Correction Activity";
   if (type === "REORDERING") return "Put in Order Activity";
+  if (type === "MULTIPLE_SELECT") return "Multiple Select Activity";
   return `${type.replaceAll("_", " ")} Activity`;
 }
 
@@ -94,6 +102,31 @@ function normalizeMcq(data: Json | null): { prompt: string; questions: McqQuesti
           D: String(options.D ?? "")
         },
         answer: String(question.answer ?? question.correct_answer ?? "A")
+      };
+    })
+  };
+}
+
+function normalizeMultipleSelect(data: Json | null): { prompt: string; questions: MultipleSelectQuestion[] } {
+  const record = asRecord(data);
+  const questions = Array.isArray(record.questions) ? record.questions : [];
+  return {
+    prompt: String(record.prompt ?? "Choose all correct answers."),
+    questions: questions.map((item, index) => {
+      const question = asRecord(item);
+      const options = asRecord(question.options);
+      const rawAnswers = question.answers ?? question.answer ?? question.correct_answer ?? [];
+      const answers = Array.isArray(rawAnswers) ? rawAnswers.map((v) => String(v).toUpperCase()) : [String(rawAnswers).toUpperCase()];
+      return {
+        id: String(question.id ?? index + 1),
+        text: String(question.text ?? question.question_text ?? ""),
+        options: {
+          A: String(options.A ?? ""),
+          B: String(options.B ?? ""),
+          C: String(options.C ?? ""),
+          D: String(options.D ?? "")
+        },
+        answers: answers.filter(Boolean)
       };
     })
   };
@@ -327,7 +360,8 @@ function ActivityPanel({
         {activity.activity_type === "MATCHING" ? <MatchingEditor activity={activity} onSave={save} /> : null}
         {activity.activity_type === "ERROR_CORRECTION" ? <ErrorCorrectionEditor activity={activity} onSave={save} /> : null}
         {activity.activity_type === "REORDERING" ? <ReorderingEditor activity={activity} onSave={save} /> : null}
-        {!["MCQ", "GAP_FILL", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION", "REORDERING"].includes(activity.activity_type) ? (
+        {activity.activity_type === "MULTIPLE_SELECT" ? <MultipleSelectEditor activity={activity} onSave={save} /> : null}
+        {!["MCQ", "GAP_FILL", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT"].includes(activity.activity_type) ? (
           <p className="rounded-md bg-slate-50 p-3 text-sm text-black/60">
             This activity type has starter data and preview support. A detailed visual editor for it will be added in the next activity-builder pass.
           </p>
@@ -694,6 +728,90 @@ function ReorderingEditor({ activity, onSave }: { activity: Activity; onSave: (d
           });
           onSave({ prompt, questions } as Json, needsReview);
         }} />
+      </div>
+    </div>
+  );
+}
+
+function MultipleSelectEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
+  const initial = useMemo(() => normalizeMultipleSelect(activity.activity_data), [activity.activity_data]);
+  const [prompt, setPrompt] = useState(initial.prompt);
+  const [questions, setQuestions] = useState<MultipleSelectQuestion[]>(
+    initial.questions.length ? initial.questions : [{ id: 1, text: "", options: { A: "", B: "", C: "", D: "" }, answers: ["A"] }]
+  );
+  const needsReview = questions.some((question) => !question.text.trim() || question.answers.length === 0 || Object.values(question.options).some((option) => !option.trim()));
+
+  function toggleAnswer(index: number, letter: "A" | "B" | "C" | "D") {
+    setQuestions((current) => current.map((item, itemIndex) => {
+      if (itemIndex !== index) return item;
+      const answers = item.answers.includes(letter) ? item.answers.filter((a) => a !== letter) : [...item.answers, letter];
+      return { ...item, answers };
+    }));
+  }
+
+  return (
+    <div className="grid gap-4">
+      <label className="text-sm font-medium">
+        Instruction
+        <input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+      </label>
+      {questions.map((question, index) => (
+        <div key={String(question.id)} className="rounded-md border border-black/10 p-4">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <p className="font-medium">Question {index + 1}</p>
+            <button type="button" onClick={() => setQuestions((current) => current.filter((_, itemIndex) => itemIndex !== index))} className="text-sm text-coral">Remove question</button>
+          </div>
+          <div className="grid gap-3">
+            <label className="text-sm">
+              Question
+              <input
+                value={question.text}
+                onChange={(event) => setQuestions((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, text: event.target.value } : item))}
+                className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+              />
+            </label>
+            <p className="text-sm font-medium">Options — check the box for each correct answer</p>
+            <div className="grid gap-2 md:grid-cols-2">
+              {(["A", "B", "C", "D"] as const).map((letter) => (
+                <div key={letter} className="flex items-center gap-2 rounded-md border border-black/15 px-3 py-2">
+                  <input
+                    type="checkbox"
+                    checked={question.answers.includes(letter)}
+                    onChange={() => toggleAnswer(index, letter)}
+                  />
+                  <strong className="text-sm">{letter}.</strong>
+                  <input
+                    value={question.options[letter]}
+                    onChange={(event) => setQuestions((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, options: { ...item.options, [letter]: event.target.value } } : item))}
+                    placeholder={`Option ${letter}`}
+                    className="flex-1 rounded-md border-0 bg-transparent text-sm outline-none"
+                  />
+                </div>
+              ))}
+            </div>
+            {question.answers.length === 0 ? (
+              <p className="text-xs text-amber-700">Check at least one correct answer.</p>
+            ) : null}
+          </div>
+        </div>
+      ))}
+      <div className="flex flex-wrap gap-3">
+        <button
+          type="button"
+          onClick={() => setQuestions((current) => [...current, { id: Date.now(), text: "", options: { A: "", B: "", C: "", D: "" }, answers: ["A"] }])}
+          className="rounded-md border border-black/15 px-4 py-2 text-sm"
+        >
+          Add question
+        </button>
+        <SaveButton onClick={() => onSave({
+          prompt,
+          questions: questions.map((question, index) => ({
+            id: index + 1,
+            text: question.text,
+            options: question.options,
+            answers: question.answers
+          }))
+        } as Json, needsReview)} />
       </div>
     </div>
   );

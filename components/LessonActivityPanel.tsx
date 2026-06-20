@@ -47,6 +47,22 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
       };
     });
   }
+  if (activityType === "MULTIPLE_SELECT") {
+    const questions = Array.isArray(data.questions) ? data.questions : [];
+    return questions.map((item, index) => {
+      const q = asRecord(item as Json);
+      const rawAnswer = q.correct_answer ?? q.answer ?? [];
+      const answers = Array.isArray(rawAnswer) ? rawAnswer.map((v) => String(v).toUpperCase()) : [String(rawAnswer).toUpperCase()];
+      return {
+        id: String(q.id ?? index + 1),
+        question_number: Number(q.question_number ?? index + 1),
+        question_type: "MULTIPLE_SELECT",
+        question_text: String(q.question_text ?? q.text ?? ""),
+        options: asRecord(q.options as Json) as Json,
+        correct_answer: answers as Json,
+      };
+    });
+  }
   if (activityType === "GAP_FILL") {
     const items = Array.isArray(data.items) ? data.items : Array.isArray(data.questions) ? data.questions : [];
     return items.map((item, index) => {
@@ -152,6 +168,7 @@ function activityLabel(type: string) {
   if (type === "MATCHING") return "Vocabulary Match";
   if (type === "ERROR_CORRECTION") return "Error Correction";
   if (type === "REORDERING") return "Put in Order";
+  if (type === "MULTIPLE_SELECT") return "Multiple Select";
   return "Activity";
 }
 
