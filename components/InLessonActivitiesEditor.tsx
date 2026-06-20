@@ -47,10 +47,15 @@ type ErrorCorrectionItem = {
   note: string;
 };
 
+type ReorderBlock = {
+  level: "sentence" | "word";
+  questionText: string;
+  itemsText: string;
+};
+
 type ReorderData = {
   prompt: string;
-  level: "sentence" | "word";
-  itemsText: string;
+  blocks: ReorderBlock[];
 };
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -170,23 +175,37 @@ function normalizeErrorCorrection(data: Json | null): { prompt: string; items: E
 
 function normalizeReordering(data: Json | null): ReorderData {
   const record = asRecord(data);
-  const rawItems: unknown[] = Array.isArray(record.items) ? record.items : [];
-  const items = rawItems.map((item, index) =>
-    typeof item === "string"
-      ? { id: String(index + 1), text: item }
-      : { id: String(asRecord(item).id ?? index + 1), text: String(asRecord(item).text ?? "") }
-  );
-  const rawCorrectOrder = record.correct_order;
-  const orderedTexts = Array.isArray(rawCorrectOrder)
-    ? rawCorrectOrder.map((entry) => {
-        const match = items.find((item) => item.id === String(entry) || item.text === entry);
-        return match ? match.text : String(entry);
-      })
-    : items.map((item) => item.text);
+  // New shape: { prompt, questions: [{ level, question_text?, items, correct_order }, ...] }
+  // Old shape (backward-compat): { prompt, level, items, correct_order } — a single block, no array.
+  const rawBlocks: unknown[] = Array.isArray(record.questions)
+    ? record.questions
+    : [{ level: record.level, question_text: record.prompt, items: record.items, correct_order: record.correct_order }];
+
+  const blocks = rawBlocks.map((block) => {
+    const row = asRecord(block);
+    const rawItems: unknown[] = Array.isArray(row.items) ? row.items : [];
+    const items = rawItems.map((item, index) =>
+      typeof item === "string"
+        ? { id: String(index + 1), text: item }
+        : { id: String(asRecord(item).id ?? index + 1), text: String(asRecord(item).text ?? "") }
+    );
+    const rawCorrectOrder = row.correct_order;
+    const orderedTexts = Array.isArray(rawCorrectOrder)
+      ? rawCorrectOrder.map((entry) => {
+          const match = items.find((item) => item.id === String(entry) || item.text === entry);
+          return match ? match.text : String(entry);
+        })
+      : items.map((item) => item.text);
+    return {
+      level: row.level === "word" ? "word" as const : "sentence" as const,
+      questionText: String(row.question_text ?? ""),
+      itemsText: orderedTexts.filter(Boolean).join("\n")
+    };
+  });
+
   return {
     prompt: String(record.prompt ?? "Put the items in the correct order."),
-    level: record.level === "word" ? "word" : "sentence",
-    itemsText: orderedTexts.filter(Boolean).join("\n")
+    blocks: blocks.length ? blocks : [{ level: "sentence", questionText: "", itemsText: "" }]
   };
 }
 
@@ -592,51 +611,90 @@ function ErrorCorrectionEditor({ activity, onSave }: { activity: Activity; onSav
 function ReorderingEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
   const initial = useMemo(() => normalizeReordering(activity.activity_data), [activity.activity_data]);
   const [prompt, setPrompt] = useState(initial.prompt);
-  const [level, setLevel] = useState<"sentence" | "word">(initial.level);
-  const [itemsText, setItemsText] = useState(initial.itemsText);
-  const lines = itemsText.split("\n").map((line) => line.trim()).filter(Boolean);
-  const needsReview = lines.length < 2;
+  const [blocks, setBlocks] = useState<ReorderBlock[]>(initial.blocks);
+
+  function blockLines(block: ReorderBlock) {
+    return block.itemsText.split("\n").map((line) => line.trim()).filter(Boolean);
+  }
+  function updateBlock(index: number, patch: Partial<ReorderBlock>) {
+    setBlocks((current) => current.map((block, blockIndex) => (blockIndex === index ? { ...block, ...patch } : block)));
+  }
+  const needsReview = blocks.length === 0 || blocks.some((block) => blockLines(block).length < 2);
 
   return (
     <div className="grid gap-4">
       <label className="text-sm font-medium">
-        Instruction
+        Overall instruction
         <input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
       </label>
-      <label className="text-sm font-medium">
-        Level
-        <select value={level} onChange={(event) => setLevel(event.target.value === "word" ? "word" : "sentence")} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">
-          <option value="sentence">Sentence / step order (reorder whole lines)</option>
-          <option value="word">Word order (reorder words into one sentence)</option>
-        </select>
-      </label>
-      <label className="text-sm">
-        {level === "word" ? "Words, one per line, in the CORRECT order" : "Items, one per line, in the CORRECT order"}
-        <textarea
-          rows={8}
-          value={itemsText}
-          onChange={(event) => setItemsText(event.target.value)}
-          className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 font-mono text-sm"
-          placeholder={level === "word" ? "She\nalways\ndrinks\ncoffee\nin the morning" : "First, boil the water.\nThen, add the pasta.\nFinally, drain it."}
-        />
-        <span className="mt-1 block text-xs text-black/45">
-          Type them in the right order — learners will see them scrambled and have to put them back in this order. The answer key is generated automatically from this order.
-        </span>
-      </label>
-      {needsReview ? (
-        <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-          Add at least 2 items for this activity to make sense.
-        </p>
-      ) : null}
+      {blocks.map((block, index) => {
+        const lines = blockLines(block);
+        return (
+          <div key={index} className="rounded-md border border-black/10 p-4">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <p className="font-medium">Question {index + 1}</p>
+              {blocks.length > 1 ? (
+                <button type="button" onClick={() => setBlocks((current) => current.filter((_, blockIndex) => blockIndex !== index))} className="text-sm text-coral">Remove</button>
+              ) : null}
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              <label className="text-sm">
+                Level
+                <select value={block.level} onChange={(event) => updateBlock(index, { level: event.target.value === "word" ? "word" : "sentence" })} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">
+                  <option value="sentence">Sentence / step order (reorder whole lines)</option>
+                  <option value="word">Word order (reorder words into one sentence)</option>
+                </select>
+              </label>
+              <label className="text-sm">
+                Question instruction (optional, shown above this question)
+                <input
+                  value={block.questionText}
+                  onChange={(event) => updateBlock(index, { questionText: event.target.value })}
+                  placeholder="Leave blank to use the overall instruction"
+                  className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+                />
+              </label>
+            </div>
+            <label className="mt-3 block text-sm">
+              {block.level === "word" ? "Words, one per line, in the CORRECT order" : "Items, one per line, in the CORRECT order"}
+              <textarea
+                rows={6}
+                value={block.itemsText}
+                onChange={(event) => updateBlock(index, { itemsText: event.target.value })}
+                className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 font-mono text-sm"
+                placeholder={block.level === "word" ? "She\nalways\ndrinks\ncoffee\nin the morning" : "First, boil the water.\nThen, add the pasta.\nFinally, drain it."}
+              />
+              <span className="mt-1 block text-xs text-black/45">
+                Type them in the right order — learners will see them scrambled and have to put them back in this order. The answer key is generated automatically from this order.
+              </span>
+            </label>
+            {lines.length < 2 ? (
+              <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
+                Add at least 2 items for this question to make sense.
+              </p>
+            ) : null}
+          </div>
+        );
+      })}
       <div className="flex flex-wrap gap-3">
+        <button
+          type="button"
+          onClick={() => setBlocks((current) => [...current, { level: "sentence", questionText: "", itemsText: "" }])}
+          className="rounded-md border border-black/15 px-4 py-2 text-sm"
+        >
+          Add question
+        </button>
         <SaveButton onClick={() => {
-          const items = lines.map((text, index) => ({ id: String(index + 1), text }));
-          onSave({
-            prompt,
-            level,
-            items,
-            correct_order: items.map((item) => item.id)
-          } as Json, needsReview);
+          const questions = blocks.map((block) => {
+            const items = blockLines(block).map((text, index) => ({ id: String(index + 1), text }));
+            return {
+              level: block.level,
+              question_text: block.questionText || null,
+              items,
+              correct_order: items.map((item) => item.id)
+            };
+          });
+          onSave({ prompt, questions } as Json, needsReview);
         }} />
       </div>
     </div>

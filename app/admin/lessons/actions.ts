@@ -1215,9 +1215,12 @@ function defaultActivityData(activityType: string, prompt: string): Json {
   if (activityType === "REORDERING") {
     return {
       prompt,
-      level: "sentence",
-      items: [{ id: "1", text: "First item" }, { id: "2", text: "Second item" }],
-      correct_order: ["1", "2"]
+      questions: [{
+        level: "sentence",
+        question_text: null,
+        items: [{ id: "1", text: "First item" }, { id: "2", text: "Second item" }],
+        correct_order: ["1", "2"]
+      }]
     };
   }
   if (activityType === "CATEGORIZATION") {

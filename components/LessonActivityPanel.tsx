@@ -106,30 +106,39 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
   }
 
   if (activityType === "REORDERING") {
-    const rawItems: unknown[] = Array.isArray(data.items) ? data.items : [];
-    const items = rawItems.map((item, index) =>
-      typeof item === "string"
-        ? { id: String(index + 1), text: item }
-        : { id: String(asRecord(item as Json).id ?? index + 1), text: String(asRecord(item as Json).text ?? "") }
-    );
-    const rawCorrectOrder = data.correct_order;
-    const correctOrder = Array.isArray(rawCorrectOrder)
-      ? rawCorrectOrder.map((entry) => {
-          // Backward-compat: old default data stored correct_order as matching text strings, not ids.
-          const match = items.find((item) => item.text === entry || item.id === String(entry));
-          return match ? match.id : String(entry);
-        })
-      : items.map((item) => item.id);
-    const level = data.level === "word" ? "word" : "sentence";
-    const shuffledItems = seededShuffle(items, seed);
-    return [{
-      id: "1",
-      question_number: 1,
-      question_type: "REORDERING",
-      question_text: String(data.prompt ?? "Put the items in the correct order."),
-      options: { items: shuffledItems, level } as Json,
-      correct_answer: correctOrder as Json
-    }];
+    // New shape: { prompt, questions: [{ level, question_text?, items, correct_order }, ...] }
+    // Old shape (backward-compat): { prompt, level, items, correct_order } — a single question, no array.
+    const rawBlocks: unknown[] = Array.isArray(data.questions)
+      ? data.questions
+      : [{ level: data.level, question_text: data.prompt, items: data.items, correct_order: data.correct_order }];
+
+    return rawBlocks.map((block, blockIndex) => {
+      const row = asRecord(block as Json);
+      const rawItems: unknown[] = Array.isArray(row.items) ? row.items : [];
+      const items = rawItems.map((item, index) =>
+        typeof item === "string"
+          ? { id: String(index + 1), text: item }
+          : { id: String(asRecord(item as Json).id ?? index + 1), text: String(asRecord(item as Json).text ?? "") }
+      );
+      const rawCorrectOrder = row.correct_order;
+      const correctOrder = Array.isArray(rawCorrectOrder)
+        ? rawCorrectOrder.map((entry) => {
+            // Backward-compat: very old default data stored correct_order as matching text strings, not ids.
+            const match = items.find((item) => item.text === entry || item.id === String(entry));
+            return match ? match.id : String(entry);
+          })
+        : items.map((item) => item.id);
+      const level = row.level === "word" ? "word" : "sentence";
+      const shuffledItems = seededShuffle(items, `${seed}:${blockIndex}`);
+      return {
+        id: String(blockIndex + 1),
+        question_number: blockIndex + 1,
+        question_type: "REORDERING",
+        question_text: String(row.question_text ?? data.prompt ?? "Put the items in the correct order."),
+        options: { items: shuffledItems, level } as Json,
+        correct_answer: correctOrder as Json
+      };
+    });
   }
 
   const questions = Array.isArray(data.questions) ? data.questions : [];
