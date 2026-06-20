@@ -330,23 +330,25 @@ export function BuilderLessonPlayer({
             </button>
 
             <section className="rounded-xl border border-black/10 bg-white p-4 shadow-sm">
-              {/* Slide header — narration pill floats top-right */}
-              <div className="relative mb-4 rounded-lg bg-ink px-4 py-3 text-white">
-                <div className="pr-2">
+              {/* Slide header */}
+              <div className="mb-4 rounded-lg bg-ink px-4 py-3 text-white">
+
+                {/* Line 1 — slide counter (left) + narration pill (right) */}
+                <div className="flex items-center justify-between gap-2">
                   <p className="text-xs uppercase tracking-wide text-white/55">
                     Slide {index + 1} of {slides.length}
                   </p>
-                  <h2 className="mt-1 text-2xl font-semibold">{slide.title}</h2>
-                  {slide.section_label && (
-                    <p className="mt-1 text-sm text-white/60">{slide.section_label}</p>
+                  {narrationUrl && (
+                    <NarrationPill key={slide.id} src={narrationUrl} />
                   )}
                 </div>
 
-                {/* Narration pill — only if this slide has audio */}
-                {narrationUrl && (
-                  <div className="absolute right-3 top-3">
-                    <NarrationPill key={slide.id} src={narrationUrl} />
-                  </div>
+                {/* Line 2 — slide title */}
+                <h2 className="mt-1 text-2xl font-semibold">{slide.title}</h2>
+
+                {/* Line 3 — section label */}
+                {slide.section_label && (
+                  <p className="mt-1 text-sm text-white/60">{slide.section_label}</p>
                 )}
               </div>
 
