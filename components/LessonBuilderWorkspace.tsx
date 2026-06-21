@@ -613,7 +613,9 @@ function SelectedSlideEditor({
                 <option value="TRUE_FALSE">True / False</option>
                 <option value="MATCHING">Matching</option>
                 <option value="SHORT_ANSWER">Short Answer</option>
-                <option value="ORDERING">Ordering</option>
+                <option value="REORDERING">Reordering</option>
+                <option value="ERROR_CORRECTION">Error Correction</option>
+                <option value="DRAG_DROP">Drag and Drop</option>
               </select>
             </label>
             <button className="w-fit rounded-md bg-ink px-4 py-2 text-sm font-medium text-white">Add activity</button>
