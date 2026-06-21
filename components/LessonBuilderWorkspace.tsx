@@ -154,8 +154,10 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
   }, [blocks]);
 
   const selectedBlocks = selectedSlide ? blocksBySlide.get(selectedSlide.id) ?? [] : [];
+
+  // ── FIXED: match by slide_id only — slide_number is a display number that changes on reorder ──
   const selectedActivity = selectedSlide
-    ? activities.find((a) => a.slide_id === selectedSlide.id || a.slide_number === selectedSlide.slide_number)
+    ? activities.find((a) => a.slide_id === selectedSlide.id) ?? null
     : null;
 
   function selectRelative(direction: -1 | 1) {
@@ -350,7 +352,7 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
               slideIndex={selectedIndex}
               slideCount={slides.length}
               blocks={selectedBlocks}
-              activity={selectedActivity ?? null}
+              activity={selectedActivity}
             />
           ) : (
             <div className="rounded-lg border border-dashed border-black/15 p-8 text-center text-sm text-black/50">Select or add a slide to edit.</div>
@@ -549,9 +551,7 @@ function blockSummary(block: LessonBlock) {
 // ── BlockFields — field names match blockContentFromForm in actions.ts exactly ──
 function BlockFields({ blockType, content, lessonId }: { blockType: string; content: Json; lessonId: string }) {
   const data = asRecord(content);
-  // These two hooks must run on every render regardless of blockType — React requires hooks to be
-  // called in the same order every time, so they can't live inside the IMAGE/AUDIO branches below
-  // (which only run conditionally, after several earlier `return`s for other block types).
+  // Hooks must always run unconditionally — React requires consistent hook order across renders
   const [imagePath, setImagePath] = useState(asString(data.path ?? data.src ?? data.url));
   const [audioPath, setAudioPath] = useState(asString(data.path ?? data.src ?? data.url));
 
@@ -564,7 +564,6 @@ function BlockFields({ blockType, content, lessonId }: { blockType: string; cont
     );
   }
 
-  // TEXT — action reads "body"
   if (blockType === "TEXT") {
     return (
       <label className="text-sm">
@@ -583,7 +582,6 @@ function BlockFields({ blockType, content, lessonId }: { blockType: string; cont
     );
   }
 
-  // QUOTE — action reads "body" + "attribution"
   if (blockType === "QUOTE") {
     return (
       <div className="grid gap-3">
@@ -599,7 +597,6 @@ function BlockFields({ blockType, content, lessonId }: { blockType: string; cont
     );
   }
 
-  // CALLOUT — action reads "title" + "body"
   if (blockType === "CALLOUT") {
     return (
       <div className="grid gap-3">
@@ -615,7 +612,6 @@ function BlockFields({ blockType, content, lessonId }: { blockType: string; cont
     );
   }
 
-  // IMAGE — action reads "path", "alt", "caption"
   if (blockType === "IMAGE") {
     return (
       <div className="grid gap-3">
@@ -644,7 +640,6 @@ function BlockFields({ blockType, content, lessonId }: { blockType: string; cont
     );
   }
 
-  // AUDIO — action reads "path" + "label"
   if (blockType === "AUDIO") {
     return (
       <div className="grid gap-3">
@@ -667,7 +662,6 @@ function BlockFields({ blockType, content, lessonId }: { blockType: string; cont
     );
   }
 
-  // VIDEO — action reads "url" + "title"
   if (blockType === "VIDEO") {
     return (
       <div className="grid gap-3">
@@ -683,7 +677,6 @@ function BlockFields({ blockType, content, lessonId }: { blockType: string; cont
     );
   }
 
-  // VOCABULARY — action reads "entries" pipe-delimited
   if (blockType === "VOCABULARY") {
     const entries = Array.isArray(data.entries)
       ? (data.entries as Record<string, string>[]).map((e) => [e.word, e.pronunciation, e.meaning, e.example, e.notes].join(" | ")).join("\n")
@@ -708,7 +701,6 @@ function BlockFields({ blockType, content, lessonId }: { blockType: string; cont
     );
   }
 
-  // READING — action reads "title", "passage"
   if (blockType === "READING") {
     return (
       <div className="grid gap-3">
@@ -718,7 +710,6 @@ function BlockFields({ blockType, content, lessonId }: { blockType: string; cont
     );
   }
 
-  // DIALOGUE — action reads "turns" as "Speaker: Line"
   if (blockType === "DIALOGUE") {
     const turnsText = Array.isArray(data.turns)
       ? (data.turns as Record<string, string>[]).map((t) => `${t.speaker}: ${t.line ?? t.text}`).join("\n")
