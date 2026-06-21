@@ -37,6 +37,12 @@ type ShortAnswerQuestion = {
   requiredWordsText: string;
 };
 
+type DragDropItem = {
+  id: string;
+  text: string;
+  target: string;
+};
+
 type GapItem = {
   sentence: string;
   answers: string[];
@@ -86,6 +92,7 @@ function labelFor(type: string) {
   if (type === "REORDERING") return "Put in Order Activity";
   if (type === "MULTIPLE_SELECT") return "Multiple Select Activity";
   if (type === "SHORT_ANSWER") return "Short Answer Activity";
+  if (type === "DRAG_DROP") return "Drag and Drop Activity";
   return `${type.replaceAll("_", " ")} Activity`;
 }
 
@@ -158,6 +165,23 @@ function normalizeShortAnswer(data: Json | null): { prompt: string; questions: S
         requiredWordsText: requiredWords.join(", ")
       };
     })
+  };
+}
+
+function normalizeDragDrop(data: Json | null): { prompt: string; targets: string[]; items: DragDropItem[] } {
+  const record = asRecord(data);
+  const rawItems: unknown[] = Array.isArray(record.items) ? record.items : [];
+  const items = rawItems.map((item, index) => {
+    const row = asRecord(item);
+    return { id: String(row.id ?? index + 1), text: String(row.text ?? ""), target: String(row.target ?? "") };
+  });
+  const targets = Array.isArray(record.targets) && record.targets.length > 0
+    ? record.targets.map(String)
+    : Array.from(new Set(items.map((item) => item.target).filter(Boolean)));
+  return {
+    prompt: String(record.prompt ?? "Move each item to the correct place."),
+    targets: targets.length ? targets : [""],
+    items: items.length ? items : [{ id: "1", text: "", target: targets[0] ?? "" }]
   };
 }
 
@@ -391,7 +415,8 @@ function ActivityPanel({
         {activity.activity_type === "REORDERING" ? <ReorderingEditor activity={activity} onSave={save} /> : null}
         {activity.activity_type === "MULTIPLE_SELECT" ? <MultipleSelectEditor activity={activity} onSave={save} /> : null}
         {activity.activity_type === "SHORT_ANSWER" ? <ShortAnswerEditor activity={activity} onSave={save} /> : null}
-        {!["MCQ", "GAP_FILL", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER"].includes(activity.activity_type) ? (
+        {activity.activity_type === "DRAG_DROP" ? <DragDropEditor activity={activity} onSave={save} /> : null}
+        {!["MCQ", "GAP_FILL", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP"].includes(activity.activity_type) ? (
           <p className="rounded-md bg-slate-50 p-3 text-sm text-black/60">
             This activity type has starter data and preview support. A detailed visual editor for it will be added in the next activity-builder pass.
           </p>
@@ -928,6 +953,113 @@ function ShortAnswerEditor({ activity, onSave }: { activity: Activity; onSave: (
             min_words: question.minWords,
             required_words: question.requiredWordsText.split(",").map((w) => w.trim()).filter(Boolean)
           }))
+        } as Json, needsReview)} />
+      </div>
+    </div>
+  );
+}
+
+function DragDropEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
+  const initial = useMemo(() => normalizeDragDrop(activity.activity_data), [activity.activity_data]);
+  const [prompt, setPrompt] = useState(initial.prompt);
+  const [targets, setTargets] = useState<string[]>(initial.targets);
+  const [items, setItems] = useState<DragDropItem[]>(initial.items);
+  const needsReview = targets.some((t) => !t.trim()) || items.some((item) => !item.text.trim() || !item.target.trim());
+
+  function renameTarget(index: number, newName: string) {
+    const oldName = targets[index];
+    setTargets((current) => current.map((t, i) => (i === index ? newName : t)));
+    setItems((current) => current.map((item) => (item.target === oldName ? { ...item, target: newName } : item)));
+  }
+  function removeTarget(index: number) {
+    const removed = targets[index];
+    setTargets((current) => current.filter((_, i) => i !== index));
+    setItems((current) => current.map((item) => (item.target === removed ? { ...item, target: "" } : item)));
+  }
+  function updateItem(index: number, patch: Partial<DragDropItem>) {
+    setItems((current) => current.map((item, i) => (i === index ? { ...item, ...patch } : item)));
+  }
+
+  return (
+    <div className="grid gap-4">
+      <label className="text-sm font-medium">
+        Instruction
+        <input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+      </label>
+
+      <div className="rounded-md border border-black/10 p-4">
+        <p className="mb-3 font-medium">Target boxes (where items get dropped)</p>
+        <div className="grid gap-2">
+          {targets.map((target, index) => (
+            <div key={index} className="flex items-center gap-2">
+              <input
+                value={target}
+                onChange={(event) => renameTarget(index, event.target.value)}
+                placeholder={`Target ${index + 1}`}
+                className="flex-1 rounded-md border border-black/15 px-3 py-2 text-sm"
+              />
+              {targets.length > 1 ? (
+                <button type="button" onClick={() => removeTarget(index)} className="text-sm text-coral">Remove</button>
+              ) : null}
+            </div>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => setTargets((current) => [...current, ""])}
+          className="mt-3 rounded-md border border-black/15 px-3 py-1.5 text-sm"
+        >
+          Add target box
+        </button>
+      </div>
+
+      <div className="rounded-md border border-black/10 p-4">
+        <p className="mb-3 font-medium">Items (learners drag each one into its correct target)</p>
+        <div className="grid gap-2">
+          {items.map((item, index) => (
+            <div key={item.id} className="flex flex-wrap items-center gap-2">
+              <input
+                value={item.text}
+                onChange={(event) => updateItem(index, { text: event.target.value })}
+                placeholder="Item text"
+                className="flex-1 rounded-md border border-black/15 px-3 py-2 text-sm"
+              />
+              <select
+                value={item.target}
+                onChange={(event) => updateItem(index, { target: event.target.value })}
+                className="rounded-md border border-black/15 px-3 py-2 text-sm"
+              >
+                <option value="">Choose target...</option>
+                {targets.map((target, i) => (
+                  <option key={i} value={target}>{target || `Target ${i + 1}`}</option>
+                ))}
+              </select>
+              {items.length > 1 ? (
+                <button type="button" onClick={() => setItems((current) => current.filter((_, i) => i !== index))} className="text-sm text-coral">Remove</button>
+              ) : null}
+            </div>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => setItems((current) => [...current, { id: String(Date.now()), text: "", target: targets[0] ?? "" }])}
+          className="mt-3 rounded-md border border-black/15 px-3 py-1.5 text-sm"
+        >
+          Add item
+        </button>
+      </div>
+
+      {needsReview ? (
+        <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+          Fill in every target box and make sure each item has text and a chosen target.
+        </p>
+      ) : null}
+
+      <div className="flex flex-wrap gap-3">
+        <SaveButton onClick={() => onSave({
+          prompt,
+          targets,
+          items: items.map((item, index) => ({ id: String(index + 1), text: item.text, target: item.target }))
         } as Json, needsReview)} />
       </div>
     </div>

@@ -1247,7 +1247,11 @@ function defaultActivityData(activityType: string, prompt: string): Json {
     };
   }
   if (activityType === "DRAG_DROP") {
-    return { prompt, items: [{ text: "Item", target: "Target" }], targets: ["Target"] };
+    return {
+      prompt,
+      targets: ["Target"],
+      items: [{ id: "1", text: "Item", target: "Target" }]
+    };
   }
   if (activityType === "REORDERING") {
     return {

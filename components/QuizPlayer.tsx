@@ -1,14 +1,14 @@
 "use client";
 
 import { CheckCircle2, RotateCcw, TrendingUp } from "lucide-react";
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { recordQuizAttempt } from "@/app/quizzes/actions";
 import type { Json } from "@/types/database.types";
 
 export type QuizQuestion = {
   id: string;
   question_number: number;
-  question_type: "MCQ" | "TRUE_FALSE" | "FILL" | "MATCHING" | "ERROR_CORRECTION" | "REORDERING" | "MULTIPLE_SELECT" | "SHORT_ANSWER";
+  question_type: "MCQ" | "TRUE_FALSE" | "FILL" | "MATCHING" | "ERROR_CORRECTION" | "REORDERING" | "MULTIPLE_SELECT" | "SHORT_ANSWER" | "DRAG_DROP";
   question_text: string;
   description?: string | null;
   options: Json | null;
@@ -84,6 +84,13 @@ export function isCorrect(question: QuizQuestion, value: unknown): boolean {
     const given = asRecord(value as Json);
     return given.selfMarked === true;
   }
+  if (question.question_type === "DRAG_DROP") {
+    const correct = asRecord(question.correct_answer);
+    const given = asRecord(value as Json);
+    const keys = Object.keys(correct);
+    if (keys.length === 0) return false;
+    return keys.every((itemId) => normalize(given[itemId]) === normalize(correct[itemId]));
+  }
   return false;
 }
 
@@ -119,6 +126,12 @@ export function hasAnswer(question: QuizQuestion, value: unknown): boolean {
       if (!requiredWords.every((word) => lowerText.includes(word))) return false;
     }
     return true;
+  }
+  if (question.question_type === "DRAG_DROP") {
+    const correct = asRecord(question.correct_answer);
+    const given = asRecord(value as Json);
+    const keys = Object.keys(correct);
+    return keys.length > 0 && keys.every((itemId) => Boolean(given[itemId]));
   }
   return true;
 }
@@ -164,6 +177,13 @@ function answerText(question: QuizQuestion): string {
     const opts = asRecord(question.options);
     const correct = Array.isArray(question.correct_answer) ? question.correct_answer.map(String).sort() : [];
     return correct.map((key) => `${key}. ${opts[key] ?? ""}`).join(", ");
+  }
+  if (question.question_type === "DRAG_DROP") {
+    const opts = asRecord(question.options) as { items?: unknown[] };
+    const items = Array.isArray(opts.items) ? opts.items.map((item) => asRecord(item as Json)) : [];
+    const byId = new Map(items.map((item) => [String(item.id), String(item.text ?? "")]));
+    const correct = asRecord(question.correct_answer);
+    return Object.entries(correct).map(([itemId, target]) => `${byId.get(itemId) ?? ""} → ${target}`).join(", ");
   }
   return "";
 }
@@ -364,6 +384,7 @@ export function QuestionCard({
         {question.question_type === "REORDERING" ? <Reordering question={question} value={value as string[] | undefined} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "MULTIPLE_SELECT" ? <MultipleSelect question={question} value={value as string[] | undefined} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "SHORT_ANSWER" ? <ShortAnswer question={question} value={value as { text?: string; selfMarked?: boolean } | undefined} submitted={submitted} onChange={onChange} /> : null}
+        {question.question_type === "DRAG_DROP" ? <DragDrop question={question} value={(value as Record<string, string>) ?? {}} disabled={submitted} onChange={onChange} /> : null}
       </div>
       {submitted && wrong ? (
         <p className="mt-3 rounded-md bg-coral/10 p-3 text-sm text-coral">
@@ -787,6 +808,96 @@ function ShortAnswer({
             : "Use all the required words above before you can check your answer."}
         </p>
       ) : null}
+    </div>
+  );
+}
+
+function DragDrop({
+  question,
+  value,
+  disabled,
+  onChange
+}: {
+  question: QuizQuestion;
+  value: Record<string, string>;
+  disabled: boolean;
+  onChange: (value: Record<string, string>) => void;
+}) {
+  const opts = asRecord(question.options) as { items?: unknown[]; targets?: unknown[] };
+  const items = Array.isArray(opts.items) ? opts.items.map((item) => asRecord(item as Json)) : [];
+  const targets = Array.isArray(opts.targets) ? opts.targets.map(String) : [];
+  const [picked, setPicked] = useState<string | null>(null);
+  const dragItemId = useRef<string | null>(null);
+
+  function place(itemId: string, target: string) {
+    onChange({ ...value, [itemId]: target });
+    setPicked(null);
+  }
+  function unplace(itemId: string) {
+    const next = { ...value };
+    delete next[itemId];
+    onChange(next);
+  }
+
+  const unplacedItems = items.filter((item) => !value[String(item.id)]);
+
+  return (
+    <div className="grid gap-4">
+      <div className="flex flex-wrap gap-2 rounded-md bg-slate-50 p-3 min-h-[3rem]">
+        {unplacedItems.length === 0 ? (
+          <span className="text-xs text-black/40">All items placed.</span>
+        ) : (
+          unplacedItems.map((item) => {
+            const id = String(item.id);
+            return (
+              <button
+                key={id}
+                type="button"
+                disabled={disabled}
+                draggable={!disabled}
+                onDragStart={() => { dragItemId.current = id; }}
+                onClick={() => setPicked(picked === id ? null : id)}
+                className={`rounded-md border px-3 py-1.5 text-sm shadow-sm transition-colors ${
+                  picked === id ? "border-moss bg-moss/10 text-moss" : "border-black/15 bg-white hover:bg-black/5"
+                }`}
+              >
+                {String(item.text ?? "")}
+              </button>
+            );
+          })
+        )}
+      </div>
+      {picked ? <p className="text-xs text-black/45">Now tap a box below to place it there.</p> : null}
+      <div className="grid gap-2 sm:grid-cols-2">
+        {targets.map((target) => {
+          const placedItem = items.find((item) => value[String(item.id)] === target);
+          return (
+            <div
+              key={target}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={() => { if (dragItemId.current) { place(dragItemId.current, target); dragItemId.current = null; } }}
+              onClick={() => { if (picked) place(picked, target); }}
+              className={`rounded-md border-2 border-dashed p-3 text-sm transition-colors ${
+                picked ? "cursor-pointer border-moss/40 hover:border-moss" : "border-black/15"
+              }`}
+            >
+              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-black/45">{target}</p>
+              {placedItem ? (
+                <button
+                  type="button"
+                  disabled={disabled}
+                  onClick={(e) => { e.stopPropagation(); unplace(String(placedItem.id)); }}
+                  className="rounded-md border border-moss/30 bg-moss/10 px-3 py-1.5 text-sm text-ink"
+                >
+                  {String(placedItem.text ?? "")} <span className="text-black/40">×</span>
+                </button>
+              ) : (
+                <span className="text-xs text-black/30">Empty</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

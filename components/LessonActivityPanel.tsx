@@ -82,6 +82,26 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
       };
     });
   }
+  if (activityType === "DRAG_DROP") {
+    const rawItems: unknown[] = Array.isArray(data.items) ? data.items : [];
+    const items = rawItems.map((item, index) => {
+      const row = asRecord(item as Json);
+      return { id: String(row.id ?? index + 1), text: String(row.text ?? ""), target: String(row.target ?? "") };
+    });
+    const targets = Array.isArray(data.targets) && data.targets.length > 0
+      ? data.targets.map(String)
+      : Array.from(new Set(items.map((item) => item.target).filter(Boolean)));
+    const correctAnswer: Record<string, string> = {};
+    items.forEach((item) => { correctAnswer[item.id] = item.target; });
+    return [{
+      id: "1",
+      question_number: 1,
+      question_type: "DRAG_DROP",
+      question_text: String(data.prompt ?? "Move each item to the correct place."),
+      options: { items: items.map(({ id, text }) => ({ id, text })), targets } as Json,
+      correct_answer: correctAnswer as Json,
+    }];
+  }
   if (activityType === "GAP_FILL") {
     const items = Array.isArray(data.items) ? data.items : Array.isArray(data.questions) ? data.questions : [];
     return items.map((item, index) => {
@@ -189,6 +209,7 @@ function activityLabel(type: string) {
   if (type === "REORDERING") return "Put in Order";
   if (type === "MULTIPLE_SELECT") return "Multiple Select";
   if (type === "SHORT_ANSWER") return "Short Answer";
+  if (type === "DRAG_DROP") return "Drag and Drop";
   return "Activity";
 }
 
