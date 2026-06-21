@@ -1,14 +1,15 @@
 "use client";
 
-import { CheckCircle2, RotateCcw, TrendingUp } from "lucide-react";
-import { useRef, useState, useTransition } from "react";
+import { AlertCircle, CheckCircle2, Mic, MicOff, RotateCcw, TrendingUp } from "lucide-react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { recordQuizAttempt } from "@/app/quizzes/actions";
 import type { Json } from "@/types/database.types";
+import { getSpeechRecognitionConstructor, transcriptContainsTarget } from "@/lib/speechRecognition";
 
 export type QuizQuestion = {
   id: string;
   question_number: number;
-  question_type: "MCQ" | "TRUE_FALSE" | "FILL" | "MATCHING" | "ERROR_CORRECTION" | "REORDERING" | "MULTIPLE_SELECT" | "SHORT_ANSWER" | "DRAG_DROP";
+  question_type: "MCQ" | "TRUE_FALSE" | "FILL" | "MATCHING" | "ERROR_CORRECTION" | "REORDERING" | "MULTIPLE_SELECT" | "SHORT_ANSWER" | "DRAG_DROP" | "PRONUNCIATION";
   question_text: string;
   description?: string | null;
   options: Json | null;
@@ -19,6 +20,11 @@ type PastAttempt = {
   score: number;
   total: number;
   completedAt: string;
+};
+
+type PronunciationValue = {
+  results: Record<string, boolean>;
+  attemptsUsed: Record<string, number>;
 };
 
 function asRecord(value: Json | null | undefined): Record<string, unknown> {
@@ -42,6 +48,12 @@ function partialCreditStats(question: QuizQuestion, value: unknown): { correctCo
     const given = Array.isArray(value) ? value : [value];
     const correctCount = correct.filter((c, i) => normalize(given[i]) === normalize(c)).length;
     return { correctCount, total: correct.length };
+  }
+  if (question.question_type === "PRONUNCIATION") {
+    const targetIds = Array.isArray(question.correct_answer) ? question.correct_answer.map(String) : [];
+    const results = asRecord((value as { results?: Json })?.results ?? {});
+    const correctCount = targetIds.filter((id) => results[id] === true).length;
+    return { correctCount, total: targetIds.length };
   }
   return null;
 }
@@ -108,6 +120,12 @@ export function isCorrect(question: QuizQuestion, value: unknown): boolean {
     if (keys.length === 0) return false;
     return keys.every((itemId) => normalize(given[itemId]) === normalize(correct[itemId]));
   }
+  if (question.question_type === "PRONUNCIATION") {
+    const targetIds = Array.isArray(question.correct_answer) ? question.correct_answer.map(String) : [];
+    if (targetIds.length === 0) return false;
+    const results = asRecord((value as { results?: Json })?.results ?? {});
+    return targetIds.every((id) => results[id] === true);
+  }
   return false;
 }
 
@@ -149,6 +167,15 @@ export function hasAnswer(question: QuizQuestion, value: unknown): boolean {
     const given = asRecord(value as Json);
     const keys = Object.keys(correct);
     return keys.length > 0 && keys.every((itemId) => Boolean(given[itemId]));
+  }
+  if (question.question_type === "PRONUNCIATION") {
+    const targetIds = Array.isArray(question.correct_answer) ? question.correct_answer.map(String) : [];
+    if (targetIds.length === 0) return false;
+    const opts = asRecord(question.options);
+    const maxAttempts = Number(opts.max_attempts ?? 3);
+    const results = asRecord((value as { results?: Json })?.results ?? {});
+    const attemptsUsed = asRecord((value as { attemptsUsed?: Json })?.attemptsUsed ?? {});
+    return targetIds.every((id) => results[id] === true || Number(attemptsUsed[id] ?? 0) >= maxAttempts);
   }
   return true;
 }
@@ -201,6 +228,11 @@ function answerText(question: QuizQuestion): string {
     const byId = new Map(items.map((item) => [String(item.id), String(item.text ?? "")]));
     const correct = asRecord(question.correct_answer);
     return Object.entries(correct).map(([itemId, target]) => `${byId.get(itemId) ?? ""} → ${target}`).join(", ");
+  }
+  if (question.question_type === "PRONUNCIATION") {
+    const opts = asRecord(question.options) as { targets?: unknown[] };
+    const targets = Array.isArray(opts.targets) ? opts.targets.map((t) => asRecord(t as Json)) : [];
+    return targets.map((t) => String(t.text ?? "")).join(", ");
   }
   return "";
 }
@@ -384,7 +416,7 @@ export function QuestionCard({
   onChange: (value: unknown) => void;
 }) {
   const isSelfChecked = question.question_type === "SHORT_ANSWER";
-  const isPartialCredit = question.question_type === "DRAG_DROP" || question.question_type === "FILL";
+  const isPartialCredit = question.question_type === "DRAG_DROP" || question.question_type === "FILL" || question.question_type === "PRONUNCIATION";
   const stats = isPartialCredit && submitted ? partialCreditStats(question, value) : null;
   const correct = submitted && !isSelfChecked && !isPartialCredit ? isCorrect(question, value) : false;
   const wrong = submitted && !isSelfChecked && !isPartialCredit && !correct;
@@ -414,6 +446,7 @@ export function QuestionCard({
         {question.question_type === "MULTIPLE_SELECT" ? <MultipleSelect question={question} value={value as string[] | undefined} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "SHORT_ANSWER" ? <ShortAnswer question={question} value={value as { text?: string; selfMarked?: boolean } | undefined} submitted={submitted} onChange={onChange} /> : null}
         {question.question_type === "DRAG_DROP" ? <DragDrop question={question} value={(value as Record<string, string>) ?? {}} disabled={submitted} onChange={onChange} /> : null}
+        {question.question_type === "PRONUNCIATION" ? <Pronunciation question={question} value={value as PronunciationValue | undefined} disabled={submitted} onChange={onChange} /> : null}
       </div>
       {stats && stats.correctCount < stats.total ? (
         <p className={`mt-3 rounded-md p-3 text-sm ${allWrong ? "bg-coral/10 text-coral" : "bg-amber-50 text-amber-900"}`}>
@@ -966,6 +999,192 @@ function DragDrop({
             </div>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+type PronunciationTarget = { id: string; text: string; color: string };
+
+function Pronunciation({
+  question,
+  value,
+  disabled,
+  onChange
+}: {
+  question: QuizQuestion;
+  value?: PronunciationValue;
+  disabled: boolean;
+  onChange: (value: PronunciationValue) => void;
+}) {
+  const opts = asRecord(question.options) as { level?: string; passage?: string; targets?: unknown[]; max_attempts?: number };
+  const level = opts.level === "sentence" || opts.level === "paragraph" ? opts.level : "word";
+  const targets: PronunciationTarget[] = Array.isArray(opts.targets)
+    ? opts.targets.map((t) => {
+        const row = asRecord(t as Json);
+        return { id: String(row.id ?? ""), text: String(row.text ?? ""), color: String(row.color ?? "#fbbf24") };
+      })
+    : [];
+  const maxAttempts = Math.max(1, Number(opts.max_attempts ?? 3));
+  const passage = String(opts.passage ?? "");
+
+  const results = value?.results ?? {};
+  const attemptsUsed = value?.attemptsUsed ?? {};
+
+  const [supported, setSupported] = useState(true);
+  const [micState, setMicState] = useState<"idle" | "listening" | "denied" | "error">("idle");
+  const [activeKey, setActiveKey] = useState<string | null>(null);
+  const [lastHeard, setLastHeard] = useState<Record<string, string>>({});
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
+
+  useEffect(() => {
+    setSupported(getSpeechRecognitionConstructor() !== null);
+    return () => { recognitionRef.current?.abort(); };
+  }, []);
+
+  function recordFor(key: string, checkTargets: PronunciationTarget[]) {
+    const Recognition = getSpeechRecognitionConstructor();
+    if (!Recognition || disabled) return;
+    const usedSoFar = attemptsUsed[key] ?? 0;
+    if (usedSoFar >= maxAttempts) return;
+
+    const recognition = new Recognition();
+    recognition.lang = "en-US";
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    recognitionRef.current = recognition;
+    setActiveKey(key);
+    setMicState("listening");
+
+    recognition.onresult = (event) => {
+      const transcript = Array.from({ length: event.results.length }, (_, i) => event.results.item(i).item(0).transcript).join(" ");
+      setLastHeard((current) => ({ ...current, [key]: transcript }));
+      const newResults = { ...results };
+      checkTargets.forEach((target) => {
+        if (transcriptContainsTarget(transcript, target.text)) newResults[target.id] = true;
+      });
+      onChange({
+        results: newResults,
+        attemptsUsed: { ...attemptsUsed, [key]: usedSoFar + 1 }
+      });
+    };
+    recognition.onerror = (event) => {
+      setMicState(event.error === "not-allowed" || event.error === "permission-denied" ? "denied" : "error");
+      setActiveKey(null);
+    };
+    recognition.onend = () => {
+      setMicState("idle");
+      setActiveKey(null);
+    };
+    recognition.start();
+  }
+
+  function stopRecording() {
+    recognitionRef.current?.stop();
+  }
+
+  if (!supported) {
+    return (
+      <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+        <AlertCircle size={16} className="mt-0.5 shrink-0" />
+        <span>Speech recognition isn&apos;t supported in this browser. Try Chrome or Edge on a desktop or Android device.</span>
+      </div>
+    );
+  }
+
+  if (micState === "denied") {
+    return (
+      <div className="flex items-start gap-2 rounded-md border border-coral/30 bg-coral/10 p-3 text-sm text-coral">
+        <AlertCircle size={16} className="mt-0.5 shrink-0" />
+        <span>Microphone access was denied. Check your browser&apos;s site permissions and reload the page to try again.</span>
+      </div>
+    );
+  }
+
+  if (level === "word") {
+    return (
+      <div className="grid gap-2">
+        {targets.map((target) => {
+          const recognized = results[target.id] === true;
+          const used = attemptsUsed[target.id] ?? 0;
+          const outOfAttempts = used >= maxAttempts && !recognized;
+          const isActive = activeKey === target.id && micState === "listening";
+          return (
+            <div key={target.id} className="flex items-center justify-between gap-3 rounded-md border border-black/10 p-3">
+              <div>
+                <p className="font-medium" style={{ color: target.color }}>{target.text}</p>
+                {lastHeard[target.id] ? <p className="text-xs text-black/40">Heard: &quot;{lastHeard[target.id]}&quot;</p> : null}
+                {outOfAttempts ? <p className="text-xs text-coral">No more attempts for this word.</p> : null}
+              </div>
+              <button
+                type="button"
+                disabled={disabled || recognized || outOfAttempts || (micState === "listening" && !isActive)}
+                onClick={() => (isActive ? stopRecording() : recordFor(target.id, [target]))}
+                className={`flex shrink-0 items-center gap-2 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors ${
+                  recognized
+                    ? "border-moss/30 bg-moss/10 text-moss"
+                    : isActive
+                    ? "border-red-300 bg-red-50 text-red-500"
+                    : "border-black/15 hover:bg-black/5"
+                }`}
+              >
+                {recognized ? <CheckCircle2 size={15} /> : isActive ? <MicOff size={15} /> : <Mic size={15} />}
+                {recognized ? "Recognized" : isActive ? "Stop" : `Record (${maxAttempts - used} left)`}
+              </button>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  // sentence / paragraph level — one recording covers the whole passage, checked against every target
+  const passageKey = "__passage__";
+  const used = attemptsUsed[passageKey] ?? 0;
+  const outOfAttempts = used >= maxAttempts;
+  const isActive = activeKey === passageKey && micState === "listening";
+  const allRecognized = targets.length > 0 && targets.every((t) => results[t.id] === true);
+  const segments = targets.length > 0
+    ? passage.split(new RegExp(`(${targets.map((t) => t.text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`, "i")).filter(Boolean)
+    : [passage];
+
+  return (
+    <div className="grid gap-3">
+      <p className="rounded-md bg-slate-50 p-3 text-sm leading-7">
+        {segments.map((segment, i) => {
+          const target = targets.find((t) => t.text.toLowerCase() === segment.toLowerCase());
+          if (!target) return <span key={i}>{segment}</span>;
+          const recognized = results[target.id] === true;
+          return (
+            <span
+              key={i}
+              className="rounded px-1 font-semibold"
+              style={{ backgroundColor: recognized ? "#d1fae5" : `${target.color}33`, color: recognized ? "#047857" : undefined }}
+            >
+              {segment}
+            </span>
+          );
+        })}
+      </p>
+      {lastHeard[passageKey] ? <p className="text-xs text-black/40">Heard: &quot;{lastHeard[passageKey]}&quot;</p> : null}
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          disabled={disabled || allRecognized || (outOfAttempts && !isActive) || (micState === "listening" && !isActive)}
+          onClick={() => (isActive ? stopRecording() : recordFor(passageKey, targets))}
+          className={`flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium transition-colors ${
+            allRecognized
+              ? "border-moss/30 bg-moss/10 text-moss"
+              : isActive
+              ? "border-red-300 bg-red-50 text-red-500"
+              : "border-black/15 hover:bg-black/5"
+          }`}
+        >
+          {allRecognized ? <CheckCircle2 size={15} /> : isActive ? <MicOff size={15} /> : <Mic size={15} />}
+          {allRecognized ? "All words recognized" : isActive ? "Stop" : `Record (${maxAttempts - used} left)`}
+        </button>
+        {outOfAttempts && !allRecognized ? <span className="text-xs text-coral">No more attempts.</span> : null}
       </div>
     </div>
   );

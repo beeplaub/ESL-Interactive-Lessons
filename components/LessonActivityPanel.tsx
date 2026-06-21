@@ -106,6 +106,32 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
       correct_answer: correctAnswer as Json,
     }];
   }
+  if (activityType === "PRONUNCIATION") {
+    const rawTargets: unknown[] = Array.isArray(data.targets) ? data.targets : [];
+    const targets = rawTargets.map((item, index) => {
+      const row = asRecord(item as Json);
+      return {
+        id: String(row.id ?? index + 1),
+        text: String(row.text ?? ""),
+        color: String(row.color ?? "#fbbf24"),
+      };
+    });
+    const level = data.level === "sentence" || data.level === "paragraph" ? data.level : "word";
+    const maxAttempts = Math.max(1, Number(data.max_attempts ?? 3));
+    return [{
+      id: "1",
+      question_number: 1,
+      question_type: "PRONUNCIATION",
+      question_text: String(data.prompt ?? "Say each word clearly."),
+      options: {
+        level,
+        passage: String(data.passage ?? ""),
+        targets,
+        max_attempts: maxAttempts,
+      } as Json,
+      correct_answer: targets.map((t) => t.id) as Json,
+    }];
+  }
   if (activityType === "GAP_FILL") {
     const items = Array.isArray(data.items) ? data.items : Array.isArray(data.questions) ? data.questions : [];
     return items.map((item, index) => {
@@ -219,6 +245,7 @@ function activityLabel(type: string) {
   if (type === "MULTIPLE_SELECT") return "Multiple Select";
   if (type === "SHORT_ANSWER") return "Short Answer";
   if (type === "DRAG_DROP") return "Drag and Drop";
+  if (type === "PRONUNCIATION") return "Pronunciation Practice";
   return "Activity";
 }
 
@@ -233,6 +260,11 @@ function questionScore(question: QuizQuestion, answer: unknown): number {
     const given = Array.isArray(answer) ? answer : [answer];
     return correct.filter((c, i) => normalize(given[i]) === normalize(c)).length;
   }
+  if (question.question_type === "PRONUNCIATION") {
+    const targetIds = Array.isArray(question.correct_answer) ? question.correct_answer.map(String) : [];
+    const results = asRecord(asRecord(answer as Json).results as Json);
+    return targetIds.filter((id) => results[id] === true).length;
+  }
   if (!isCorrect(question, answer)) return 0;
   return 1;
 }
@@ -240,6 +272,9 @@ function questionScore(question: QuizQuestion, answer: unknown): number {
 function questionTotal(question: QuizQuestion): number {
   if (question.question_type === "DRAG_DROP") {
     return Object.keys(asRecord(question.correct_answer)).length || 1;
+  }
+  if (question.question_type === "PRONUNCIATION") {
+    return (Array.isArray(question.correct_answer) ? question.correct_answer.length : 0) || 1;
   }
   return question.question_type === "FILL"
     ? (Array.isArray(question.correct_answer) ? question.correct_answer.length : 1)

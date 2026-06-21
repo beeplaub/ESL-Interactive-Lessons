@@ -43,6 +43,12 @@ type DragDropItem = {
   target: string;
 };
 
+type PronunciationTargetItem = {
+  id: string;
+  text: string;
+  color: string;
+};
+
 type GapItem = {
   level: "sentence" | "paragraph";
   sentence: string;
@@ -94,6 +100,7 @@ function labelFor(type: string) {
   if (type === "MULTIPLE_SELECT") return "Multiple Select Activity";
   if (type === "SHORT_ANSWER") return "Short Answer Activity";
   if (type === "DRAG_DROP") return "Drag and Drop Activity";
+  if (type === "PRONUNCIATION") return "Pronunciation Practice Activity";
   return `${type.replaceAll("_", " ")} Activity`;
 }
 
@@ -183,6 +190,26 @@ function normalizeDragDrop(data: Json | null): { prompt: string; targets: string
     prompt: String(record.prompt ?? "Move each item to the correct place."),
     targets: targets.length ? targets : [""],
     items: items.length ? items : [{ id: "1", text: "", target: targets[0] ?? "" }]
+  };
+}
+
+function normalizePronunciation(data: Json | null): { prompt: string; level: "word" | "sentence" | "paragraph"; maxAttempts: number; passage: string; targets: PronunciationTargetItem[] } {
+  const record = asRecord(data);
+  const rawTargets: unknown[] = Array.isArray(record.targets) ? record.targets : [];
+  const targets = rawTargets.map((item, index) => {
+    const row = asRecord(item);
+    return {
+      id: String(row.id ?? index + 1),
+      text: String(row.text ?? ""),
+      color: String(row.color ?? "#fbbf24")
+    };
+  });
+  return {
+    prompt: String(record.prompt ?? "Say each highlighted word clearly."),
+    level: record.level === "sentence" || record.level === "paragraph" ? record.level : "word",
+    maxAttempts: Math.max(1, Number(record.max_attempts ?? 3)),
+    passage: String(record.passage ?? ""),
+    targets: targets.length ? targets : [{ id: "1", text: "", color: "#fbbf24" }]
   };
 }
 
@@ -418,7 +445,8 @@ function ActivityPanel({
         {activity.activity_type === "MULTIPLE_SELECT" ? <MultipleSelectEditor activity={activity} onSave={save} /> : null}
         {activity.activity_type === "SHORT_ANSWER" ? <ShortAnswerEditor activity={activity} onSave={save} /> : null}
         {activity.activity_type === "DRAG_DROP" ? <DragDropEditor activity={activity} onSave={save} /> : null}
-        {!["MCQ", "GAP_FILL", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP"].includes(activity.activity_type) ? (
+        {activity.activity_type === "PRONUNCIATION" ? <PronunciationEditor activity={activity} onSave={save} /> : null}
+        {!["MCQ", "GAP_FILL", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "PRONUNCIATION"].includes(activity.activity_type) ? (
           <p className="rounded-md bg-slate-50 p-3 text-sm text-black/60">
             This activity type has starter data and preview support. A detailed visual editor for it will be added in the next activity-builder pass.
           </p>
@@ -1098,6 +1126,125 @@ function DragDropEditor({ activity, onSave }: { activity: Activity; onSave: (dat
           prompt,
           targets,
           items: items.map((item, index) => ({ id: String(index + 1), text: item.text, target: item.target }))
+        } as Json, needsReview)} />
+      </div>
+    </div>
+  );
+}
+
+const PRONUNCIATION_COLORS = ["#fbbf24", "#34d399", "#60a5fa", "#f472b6", "#a78bfa", "#fb923c"];
+
+function PronunciationEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
+  const initial = useMemo(() => normalizePronunciation(activity.activity_data), [activity.activity_data]);
+  const [prompt, setPrompt] = useState(initial.prompt);
+  const [level, setLevel] = useState<"word" | "sentence" | "paragraph">(initial.level);
+  const [maxAttempts, setMaxAttempts] = useState(initial.maxAttempts);
+  const [passage, setPassage] = useState(initial.passage);
+  const [targets, setTargets] = useState<PronunciationTargetItem[]>(initial.targets);
+  const needsReview = targets.some((target) => !target.text.trim()) || (level !== "word" && !passage.trim());
+  const passageMissingTargets = level !== "word" && targets.some((target) => target.text && !passage.toLowerCase().includes(target.text.toLowerCase()));
+
+  function updateTarget(index: number, patch: Partial<PronunciationTargetItem>) {
+    setTargets((current) => current.map((target, i) => (i === index ? { ...target, ...patch } : target)));
+  }
+
+  return (
+    <div className="grid gap-4">
+      <label className="text-sm font-medium">
+        Instruction
+        <input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+      </label>
+      <label className="text-sm font-medium">
+        Level
+        <select
+          value={level}
+          onChange={(event) => setLevel(event.target.value === "sentence" || event.target.value === "paragraph" ? event.target.value : "word")}
+          className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+        >
+          <option value="word">Word list (each word recorded and scored separately)</option>
+          <option value="sentence">Sentence (one recording, certain words highlighted and checked)</option>
+          <option value="paragraph">Paragraph (one recording, certain words highlighted and checked)</option>
+        </select>
+      </label>
+      <label className="text-sm font-medium">
+        Attempts allowed per {level === "word" ? "word" : "recording"}
+        <input
+          type="number"
+          min={1}
+          value={maxAttempts}
+          onChange={(event) => setMaxAttempts(Math.max(1, Number(event.target.value) || 1))}
+          className="mt-1 w-32 rounded-md border border-black/15 px-3 py-2"
+        />
+      </label>
+      {level !== "word" ? (
+        <label className="text-sm">
+          {level === "paragraph" ? "Paragraph" : "Sentence"}
+          <textarea
+            rows={level === "paragraph" ? 5 : 2}
+            value={passage}
+            onChange={(event) => setPassage(event.target.value)}
+            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+            placeholder="Her pronunciation improved a lot after she practiced every day."
+          />
+          <span className="mt-1 block text-xs text-black/45">
+            The target words below must appear exactly as spelled here — they&apos;ll be highlighted automatically.
+          </span>
+        </label>
+      ) : null}
+      <div className="rounded-md border border-black/10 p-4">
+        <p className="mb-3 font-medium">
+          {level === "word" ? "Words to pronounce" : "Words to check (highlighted in the text above)"}
+        </p>
+        <div className="grid gap-2">
+          {targets.map((target, index) => (
+            <div key={target.id} className="flex flex-wrap items-center gap-2">
+              <input
+                value={target.text}
+                onChange={(event) => updateTarget(index, { text: event.target.value })}
+                placeholder={level === "word" ? "pronunciation" : "word or phrase from the text above"}
+                className="flex-1 rounded-md border border-black/15 px-3 py-2 text-sm"
+              />
+              <div className="flex items-center gap-1">
+                {PRONUNCIATION_COLORS.map((color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    onClick={() => updateTarget(index, { color })}
+                    aria-label={`Use color ${color}`}
+                    className="size-6 rounded-full border-2"
+                    style={{ backgroundColor: color, borderColor: target.color === color ? "#111827" : "transparent" }}
+                  />
+                ))}
+              </div>
+              {targets.length > 1 ? (
+                <button type="button" onClick={() => setTargets((current) => current.filter((_, i) => i !== index))} className="text-sm text-coral">Remove</button>
+              ) : null}
+            </div>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => setTargets((current) => [...current, { id: String(Date.now()), text: "", color: PRONUNCIATION_COLORS[current.length % PRONUNCIATION_COLORS.length] }])}
+          className="mt-3 rounded-md border border-black/15 px-3 py-1.5 text-sm"
+        >
+          Add word
+        </button>
+      </div>
+      {passageMissingTargets ? (
+        <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+          One or more target words don&apos;t appear in the text above exactly as spelled — they won&apos;t be highlighted or checked until the spelling matches.
+        </p>
+      ) : null}
+      <p className="rounded-md border border-black/10 bg-slate-50 p-3 text-xs text-black/55">
+        This activity uses your browser&apos;s built-in speech recognition (free, no setup needed), which currently works reliably in Chrome and Edge only. It checks whether the recognizer transcribed the target word — a useful practice signal, but not a precise measure of pronunciation accuracy.
+      </p>
+      <div className="flex flex-wrap gap-3">
+        <SaveButton onClick={() => onSave({
+          prompt,
+          level,
+          max_attempts: maxAttempts,
+          passage,
+          targets: targets.map((target) => ({ id: target.id, text: target.text, color: target.color }))
         } as Json, needsReview)} />
       </div>
     </div>

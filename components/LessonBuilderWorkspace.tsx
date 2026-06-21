@@ -520,6 +520,7 @@ function SelectedSlideEditor({
                 <option value="REORDERING">Reordering</option>
                 <option value="ERROR_CORRECTION">Error Correction</option>
                 <option value="DRAG_DROP">Drag and Drop</option>
+                <option value="PRONUNCIATION">Pronunciation Practice</option>
               </select>
             </label>
             <button className="w-fit rounded-md bg-ink px-4 py-2 text-sm font-medium text-white">Add activity</button>

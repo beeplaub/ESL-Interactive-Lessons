@@ -1207,6 +1207,7 @@ function defaultActivityPrompt(activityType: string) {
   if (activityType === "CATEGORIZATION") return "Sort the items into the correct categories.";
   if (activityType === "SHORT_ANSWER") return "Write a short answer.";
   if (activityType === "ERROR_CORRECTION") return "Find and correct the mistake.";
+  if (activityType === "PRONUNCIATION") return "Say each highlighted word clearly.";
   return "Choose the best answer.";
 }
 
@@ -1250,6 +1251,15 @@ function defaultActivityData(activityType: string, prompt: string): Json {
       prompt,
       targets: ["Target"],
       items: [{ id: "1", text: "Item", target: "Target" }]
+    };
+  }
+  if (activityType === "PRONUNCIATION") {
+    return {
+      prompt,
+      level: "word",
+      max_attempts: 3,
+      passage: "",
+      targets: [{ id: "1", text: "pronunciation", color: "#fbbf24" }]
     };
   }
   if (activityType === "REORDERING") {
