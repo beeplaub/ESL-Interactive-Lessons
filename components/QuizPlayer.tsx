@@ -29,12 +29,21 @@ function normalize(value: unknown) {
   return String(value ?? "").trim().toLowerCase();
 }
 
-function dragDropPlacementStats(question: QuizQuestion, value: unknown): { correctCount: number; total: number } {
-  const correct = asRecord(question.correct_answer);
-  const given = asRecord(value as Json);
-  const keys = Object.keys(correct);
-  const correctCount = keys.filter((itemId) => normalize(given[itemId]) === normalize(correct[itemId])).length;
-  return { correctCount, total: keys.length };
+function partialCreditStats(question: QuizQuestion, value: unknown): { correctCount: number; total: number } | null {
+  if (question.question_type === "DRAG_DROP") {
+    const correct = asRecord(question.correct_answer);
+    const given = asRecord(value as Json);
+    const keys = Object.keys(correct);
+    const correctCount = keys.filter((itemId) => normalize(given[itemId]) === normalize(correct[itemId])).length;
+    return { correctCount, total: keys.length };
+  }
+  if (question.question_type === "FILL") {
+    const correct = Array.isArray(question.correct_answer) ? question.correct_answer : [question.correct_answer];
+    const given = Array.isArray(value) ? value : [value];
+    const correctCount = correct.filter((c, i) => normalize(given[i]) === normalize(c)).length;
+    return { correctCount, total: correct.length };
+  }
+  return null;
 }
 
 export function isCorrect(question: QuizQuestion, value: unknown): boolean {
@@ -375,13 +384,13 @@ export function QuestionCard({
   onChange: (value: unknown) => void;
 }) {
   const isSelfChecked = question.question_type === "SHORT_ANSWER";
-  const isPartialCredit = question.question_type === "DRAG_DROP";
-  const dragDropStats = isPartialCredit && submitted ? dragDropPlacementStats(question, value) : null;
+  const isPartialCredit = question.question_type === "DRAG_DROP" || question.question_type === "FILL";
+  const stats = isPartialCredit && submitted ? partialCreditStats(question, value) : null;
   const correct = submitted && !isSelfChecked && !isPartialCredit ? isCorrect(question, value) : false;
   const wrong = submitted && !isSelfChecked && !isPartialCredit && !correct;
-  const partial = Boolean(dragDropStats && dragDropStats.correctCount > 0 && dragDropStats.correctCount < dragDropStats.total);
-  const allCorrect = Boolean(dragDropStats && dragDropStats.correctCount === dragDropStats.total);
-  const allWrong = Boolean(dragDropStats && dragDropStats.correctCount === 0);
+  const partial = Boolean(stats && stats.correctCount > 0 && stats.correctCount < stats.total);
+  const allCorrect = Boolean(stats && stats.correctCount === stats.total);
+  const allWrong = Boolean(stats && stats.correctCount === 0);
   const borderClass = correct || allCorrect
     ? "border-moss"
     : partial
@@ -406,9 +415,9 @@ export function QuestionCard({
         {question.question_type === "SHORT_ANSWER" ? <ShortAnswer question={question} value={value as { text?: string; selfMarked?: boolean } | undefined} submitted={submitted} onChange={onChange} /> : null}
         {question.question_type === "DRAG_DROP" ? <DragDrop question={question} value={(value as Record<string, string>) ?? {}} disabled={submitted} onChange={onChange} /> : null}
       </div>
-      {dragDropStats && dragDropStats.correctCount < dragDropStats.total ? (
+      {stats && stats.correctCount < stats.total ? (
         <p className={`mt-3 rounded-md p-3 text-sm ${allWrong ? "bg-coral/10 text-coral" : "bg-amber-50 text-amber-900"}`}>
-          {dragDropStats.correctCount} of {dragDropStats.total} placed correctly. Correct answer: {answerText(question)}
+          {stats.correctCount} of {stats.total} correct. Correct answer: {answerText(question)}
         </p>
       ) : null}
       {submitted && wrong ? (

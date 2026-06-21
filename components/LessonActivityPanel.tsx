@@ -228,10 +228,13 @@ function questionScore(question: QuizQuestion, answer: unknown): number {
     const given = asRecord(answer as Json);
     return Object.keys(correct).filter((itemId) => normalize(given[itemId]) === normalize(correct[itemId])).length;
   }
+  if (question.question_type === "FILL") {
+    const correct = Array.isArray(question.correct_answer) ? question.correct_answer : [question.correct_answer];
+    const given = Array.isArray(answer) ? answer : [answer];
+    return correct.filter((c, i) => normalize(given[i]) === normalize(c)).length;
+  }
   if (!isCorrect(question, answer)) return 0;
-  return question.question_type === "FILL"
-    ? (Array.isArray(question.correct_answer) ? question.correct_answer.length : 1)
-    : 1;
+  return 1;
 }
 
 function questionTotal(question: QuizQuestion): number {

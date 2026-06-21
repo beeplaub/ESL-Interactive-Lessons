@@ -498,11 +498,15 @@ function GapFillEditor({ activity, onSave }: { activity: Activity; onSave: (data
   const [items, setItems] = useState<GapItem[]>(initial.items.length ? initial.items : [{ level: "sentence", sentence: "", answers: [""] }]);
   const needsReview = items.some((item) => !item.sentence.trim() || item.answers.some((answer) => !answer.trim()));
 
-  function syncAnswers(index: number) {
+  function updateSentence(index: number, sentence: string) {
     setItems((current) => current.map((item, itemIndex) => {
       if (itemIndex !== index) return item;
-      const count = blankCount(item.sentence);
-      return { ...item, answers: Array.from({ length: count }, (_, answerIndex) => item.answers[answerIndex] ?? "") };
+      const count = blankCount(sentence);
+      return {
+        ...item,
+        sentence,
+        answers: Array.from({ length: count }, (_, answerIndex) => item.answers[answerIndex] ?? "")
+      };
     }));
   }
 
@@ -532,16 +536,14 @@ function GapFillEditor({ activity, onSave }: { activity: Activity; onSave: (data
               <textarea
                 rows={5}
                 value={item.sentence}
-                onBlur={() => syncAnswers(index)}
-                onChange={(event) => setItems((current) => current.map((row, itemIndex) => itemIndex === index ? { ...row, sentence: event.target.value } : row))}
+                onChange={(event) => updateSentence(index, event.target.value)}
                 className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
                 placeholder="She said she ___ tired, but she ___ stay up to finish her homework."
               />
             ) : (
               <input
                 value={item.sentence}
-                onBlur={() => syncAnswers(index)}
-                onChange={(event) => setItems((current) => current.map((row, itemIndex) => itemIndex === index ? { ...row, sentence: event.target.value } : row))}
+                onChange={(event) => updateSentence(index, event.target.value)}
                 className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
                 placeholder="She said she ___ tired."
               />
