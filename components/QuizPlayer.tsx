@@ -703,6 +703,10 @@ function ShortAnswer({
   const requiredWords = Array.isArray(opts.required_words) ? opts.required_words.filter(Boolean) : [];
   const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
   const lowerText = text.toLowerCase();
+  const unmet = {
+    lengthOk: minWords === 0 || wordCount >= minWords,
+    wordsOk: requiredWords.length === 0 || requiredWords.every((word) => lowerText.includes(word.toLowerCase()))
+  };
 
   if (submitted) {
     return (
@@ -758,7 +762,8 @@ function ShortAnswer({
             </span>
           ) : null}
           {requiredWords.length > 0 ? (
-            <span className="flex flex-wrap gap-1.5">
+            <span className="flex flex-wrap items-center gap-1.5">
+              <span className="text-black/45">Use:</span>
               {requiredWords.map((word) => (
                 <span
                   key={word}
@@ -772,6 +777,15 @@ function ShortAnswer({
             </span>
           ) : null}
         </div>
+      ) : null}
+      {!unmet.lengthOk || !unmet.wordsOk ? (
+        <p className="rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
+          {!unmet.lengthOk && !unmet.wordsOk
+            ? `Write at least ${minWords} words and use all the required words above before you can check your answer.`
+            : !unmet.lengthOk
+            ? `Write at least ${minWords} words before you can check your answer.`
+            : "Use all the required words above before you can check your answer."}
+        </p>
       ) : null}
     </div>
   );
