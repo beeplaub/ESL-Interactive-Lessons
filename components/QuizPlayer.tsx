@@ -870,7 +870,7 @@ function DragDrop({
       {picked ? <p className="text-xs text-black/45">Now tap a box below to place it there.</p> : null}
       <div className="grid gap-2 sm:grid-cols-2">
         {targets.map((target) => {
-          const placedItem = items.find((item) => value[String(item.id)] === target);
+          const placedItems = items.filter((item) => value[String(item.id)] === target);
           return (
             <div
               key={target}
@@ -882,15 +882,20 @@ function DragDrop({
               }`}
             >
               <p className="mb-2 text-xs font-medium uppercase tracking-wide text-black/45">{target}</p>
-              {placedItem ? (
-                <button
-                  type="button"
-                  disabled={disabled}
-                  onClick={(e) => { e.stopPropagation(); unplace(String(placedItem.id)); }}
-                  className="rounded-md border border-moss/30 bg-moss/10 px-3 py-1.5 text-sm text-ink"
-                >
-                  {String(placedItem.text ?? "")} <span className="text-black/40">×</span>
-                </button>
+              {placedItems.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {placedItems.map((placedItem) => (
+                    <button
+                      key={String(placedItem.id)}
+                      type="button"
+                      disabled={disabled}
+                      onClick={(e) => { e.stopPropagation(); unplace(String(placedItem.id)); }}
+                      className="rounded-md border border-moss/30 bg-moss/10 px-3 py-1.5 text-sm text-ink"
+                    >
+                      {String(placedItem.text ?? "")} <span className="text-black/40">×</span>
+                    </button>
+                  ))}
+                </div>
               ) : (
                 <span className="text-xs text-black/30">Empty</span>
               )}
