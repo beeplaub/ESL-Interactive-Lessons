@@ -22,6 +22,7 @@ import { InLessonActivitiesEditor } from "@/components/InLessonActivitiesEditor"
 import { LessonActivityPanel } from "@/components/LessonActivityPanel";
 import { LessonBlockPreview } from "@/components/LessonBlockPreview";
 import { SlideNarrationRecorder } from "@/components/SlideNarrationRecorder";
+import { BlockMediaUploader } from "@/components/BlockMediaUploader";
 import type { Json } from "@/types/database.types";
 
 const blockTypes = [
@@ -89,17 +90,10 @@ function SubmitButton({ label }: { label: string }) {
   );
 }
 
-// ── Add Slide Between Modal ──────────────────────────────────────────────────
 function AddSlideModal({
-  lessonId,
-  afterSlideNumber,
-  onClose,
-  onBusy,
+  lessonId, afterSlideNumber, onClose, onBusy,
 }: {
-  lessonId: string;
-  afterSlideNumber: number;
-  onClose: () => void;
-  onBusy: (msg: string) => void;
+  lessonId: string; afterSlideNumber: number; onClose: () => void; onBusy: (msg: string) => void;
 }) {
   const [title, setTitle] = useState("");
   const [sectionLabel, setSectionLabel] = useState("");
@@ -118,40 +112,20 @@ function AddSlideModal({
       <div className="w-full max-w-md rounded-xl bg-white p-5 shadow-2xl">
         <div className="flex items-center justify-between gap-4">
           <h2 className="text-lg font-semibold">Add slide after #{afterSlideNumber}</h2>
-          <button type="button" onClick={onClose} className="rounded-md border border-black/10 p-1.5 hover:bg-black/5">
-            <X size={16} />
-          </button>
+          <button type="button" onClick={onClose} className="rounded-md border border-black/10 p-1.5 hover:bg-black/5"><X size={16} /></button>
         </div>
         <div className="mt-4 grid gap-3">
           <label className="text-sm font-medium">
             Slide title
-            <input
-              autoFocus
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Present Perfect"
-              className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
-            />
+            <input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Present Perfect" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
           </label>
           <label className="text-sm font-medium">
             Section label <span className="font-normal text-black/40">(optional)</span>
-            <input
-              value={sectionLabel}
-              onChange={(e) => setSectionLabel(e.target.value)}
-              placeholder="e.g. Grammar, Vocabulary, Reading…"
-              className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
-            />
+            <input value={sectionLabel} onChange={(e) => setSectionLabel(e.target.value)} placeholder="e.g. Grammar, Vocabulary, Reading…" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
           </label>
           <div className="mt-2 flex justify-end gap-2">
-            <button type="button" onClick={onClose} className="rounded-md border border-black/15 px-4 py-2 text-sm hover:bg-black/5">
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={submit}
-              disabled={!title.trim() || isPending}
-              className="rounded-md bg-moss px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-            >
+            <button type="button" onClick={onClose} className="rounded-md border border-black/15 px-4 py-2 text-sm hover:bg-black/5">Cancel</button>
+            <button type="button" onClick={submit} disabled={!title.trim() || isPending} className="rounded-md bg-moss px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
               {isPending ? "Adding…" : "Add slide"}
             </button>
           </div>
@@ -166,7 +140,7 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
   const [isMetadataOpen, setIsMetadataOpen] = useState(false);
   const [busyMessage, setBusyMessage] = useState<string | null>(null);
   const [draggedSlideId, setDraggedSlideId] = useState<string | null>(null);
-  const [addAfter, setAddAfter] = useState<number | null>(null); // slide_number to insert after
+  const [addAfter, setAddAfter] = useState<number | null>(null);
   const [isReordering, startReorderTransition] = useTransition();
   const previousSlideCount = useRef(slides.length);
 
@@ -227,7 +201,6 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
         setBusyMessage(form?.dataset.busyMessage || "Applying changes...");
       }}
     >
-      {/* Busy toast */}
       {busyMessage && (
         <div className="fixed bottom-4 left-1/2 z-[60] max-w-[calc(100%-2rem)] -translate-x-1/2 rounded-full border border-moss/20 bg-white px-4 py-2 shadow-2xl">
           <div className="flex items-center gap-2">
@@ -240,17 +213,10 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
         </div>
       )}
 
-      {/* Add Slide Modal */}
       {addAfter !== null && (
-        <AddSlideModal
-          lessonId={lesson.id}
-          afterSlideNumber={addAfter}
-          onClose={() => setAddAfter(null)}
-          onBusy={setBusyMessage}
-        />
+        <AddSlideModal lessonId={lesson.id} afterSlideNumber={addAfter} onClose={() => setAddAfter(null)} onBusy={setBusyMessage} />
       )}
 
-      {/* Lesson Settings Modal */}
       {isMetadataOpen && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 px-4 py-6">
           <div className="max-h-[90vh] w-full max-w-3xl overflow-auto rounded-xl bg-white p-5 shadow-2xl">
@@ -259,16 +225,13 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
                 <h2 className="text-xl font-semibold">Lesson settings</h2>
                 <p className="mt-1 text-sm text-black/55">These details appear in admin lists and learner-facing lesson cards.</p>
               </div>
-              <button type="button" onClick={() => setIsMetadataOpen(false)} className="rounded-md border border-black/10 p-2 hover:bg-black/5">
-                <X size={18} />
-              </button>
+              <button type="button" onClick={() => setIsMetadataOpen(false)} className="rounded-md border border-black/10 p-2 hover:bg-black/5"><X size={18} /></button>
             </div>
             <MetadataForm lesson={lesson} />
           </div>
         </div>
       )}
 
-      {/* Header */}
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
           <Link href="/admin/lessons" className="text-sm text-black/55 hover:text-black">Back to lessons</Link>
@@ -291,10 +254,7 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
         </div>
       </div>
 
-      {/* Top two-column section: preview + interactive preview */}
       <section className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)] lg:gap-5">
-
-        {/* Left — Lesson preview + slide strip */}
         <section className="min-w-0 rounded-xl border border-black/10 bg-white p-3 shadow-sm sm:p-4">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -308,7 +268,6 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
             </div>
           </div>
 
-          {/* Slide preview */}
           <div className="rounded-xl bg-slate-100 p-3">
             <div className="min-h-[420px] rounded-lg bg-white p-4 shadow-inner">
               {selectedSlide ? (
@@ -321,29 +280,18 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
                   <LessonBlockPreview blocks={selectedBlocks} />
                 </>
               ) : (
-                <div className="grid min-h-[360px] place-items-center text-center text-sm text-black/50">
-                  Add your first slide below.
-                </div>
+                <div className="grid min-h-[360px] place-items-center text-center text-sm text-black/50">Add your first slide below.</div>
               )}
             </div>
           </div>
 
-          {/* Slide strip — Canva style with + between cards */}
           <div className="mt-3 flex max-w-full items-center gap-0 overflow-x-auto pb-1">
-
-            {/* + button before first slide */}
-            <button
-              type="button"
-              onClick={() => setAddAfter(0)}
-              title="Add slide at beginning"
-              className="flex size-7 shrink-0 items-center justify-center rounded-full border border-dashed border-black/20 text-black/30 transition hover:border-moss hover:bg-moss/5 hover:text-moss"
-            >
+            <button type="button" onClick={() => setAddAfter(0)} title="Add slide at beginning" className="flex size-7 shrink-0 items-center justify-center rounded-full border border-dashed border-black/20 text-black/30 transition hover:border-moss hover:bg-moss/5 hover:text-moss">
               <Plus size={13} />
             </button>
 
             {slides.map((slide, index) => (
               <div key={slide.id} className="flex shrink-0 items-center">
-                {/* Slide card */}
                 <button
                   type="button"
                   draggable
@@ -357,37 +305,22 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
                 >
                   <span className="flex items-center gap-1 text-xs font-semibold text-moss">Slide {index + 1}</span>
                   <span className="mt-1 block truncate font-medium">{slide.title}</span>
-                  {slide.section_label && (
-                    <span className="mt-0.5 block truncate text-[11px] text-black/40">{slide.section_label}</span>
-                  )}
+                  {slide.section_label && <span className="mt-0.5 block truncate text-[11px] text-black/40">{slide.section_label}</span>}
                 </button>
-
-                {/* + button after this slide */}
-                <button
-                  type="button"
-                  onClick={() => setAddAfter(slide.slide_number)}
-                  title={`Add slide after slide ${index + 1}`}
-                  className="mx-1 flex size-7 shrink-0 items-center justify-center rounded-full border border-dashed border-black/20 text-black/30 transition hover:border-moss hover:bg-moss/5 hover:text-moss"
-                >
+                <button type="button" onClick={() => setAddAfter(slide.slide_number)} title={`Add slide after slide ${index + 1}`} className="mx-1 flex size-7 shrink-0 items-center justify-center rounded-full border border-dashed border-black/20 text-black/30 transition hover:border-moss hover:bg-moss/5 hover:text-moss">
                   <Plus size={13} />
                 </button>
               </div>
             ))}
 
-            {/* Empty state */}
             {slides.length === 0 && (
-              <button
-                type="button"
-                onClick={() => setAddAfter(0)}
-                className="inline-flex items-center gap-2 rounded-lg border border-dashed border-black/20 px-4 py-2 text-sm text-black/40 hover:border-moss hover:text-moss"
-              >
+              <button type="button" onClick={() => setAddAfter(0)} className="inline-flex items-center gap-2 rounded-lg border border-dashed border-black/20 px-4 py-2 text-sm text-black/40 hover:border-moss hover:text-moss">
                 <Plus size={15} /> Add first slide
               </button>
             )}
           </div>
         </section>
 
-        {/* Right — Interactive preview */}
         <section className="min-w-0 rounded-xl border border-black/10 bg-white p-3 shadow-sm sm:p-4">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
@@ -403,14 +336,11 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
               previewOnly
             />
           ) : (
-            <div className="rounded-lg border border-dashed border-black/15 bg-slate-50 p-6 text-center text-sm text-black/50">
-              No activity on this slide yet.
-            </div>
+            <div className="rounded-lg border border-dashed border-black/15 bg-slate-50 p-6 text-center text-sm text-black/50">No activity on this slide yet.</div>
           )}
         </section>
       </section>
 
-      {/* Slide editor */}
       <section className="mt-5 min-w-0">
         <section className="min-w-0 rounded-xl border border-black/10 bg-white p-3 shadow-sm sm:p-4">
           {selectedSlide ? (
@@ -423,9 +353,7 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
               activity={selectedActivity ?? null}
             />
           ) : (
-            <div className="rounded-lg border border-dashed border-black/15 p-8 text-center text-sm text-black/50">
-              Select or add a slide to edit.
-            </div>
+            <div className="rounded-lg border border-dashed border-black/15 p-8 text-center text-sm text-black/50">Select or add a slide to edit.</div>
           )}
         </section>
       </section>
@@ -437,33 +365,15 @@ function MetadataForm({ lesson }: { lesson: Lesson }) {
   return (
     <form action={updateLessonBuilderDetails.bind(null, lesson.id)} data-busy-message="Saving lesson settings..." className="mt-5 grid gap-4">
       <div className="grid gap-4 sm:grid-cols-2">
-        <label className="text-sm">
-          Title
-          <input name="title" defaultValue={lesson.title} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
-        </label>
-        <label className="text-sm">
-          Subtitle
-          <input name="subtitle" defaultValue={lesson.subtitle ?? ""} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
-        </label>
+        <label className="text-sm">Title<input name="title" defaultValue={lesson.title} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+        <label className="text-sm">Subtitle<input name="subtitle" defaultValue={lesson.subtitle ?? ""} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
         <div className="text-sm sm:col-span-2">
           <span className="font-medium">After this lesson, learners will be able to:</span>
-          <textarea
-            name="outcomes"
-            rows={5}
-            defaultValue={parseOutcomes(lesson.description).join("\n")}
-            placeholder="Use five new vocabulary words&#10;Explain the main idea of a short text"
-            className="mt-2 w-full rounded-md border border-black/15 px-3 py-2"
-          />
+          <textarea name="outcomes" rows={5} defaultValue={parseOutcomes(lesson.description).join("\n")} placeholder="Use five new vocabulary words&#10;Explain the main idea of a short text" className="mt-2 w-full rounded-md border border-black/15 px-3 py-2" />
           <span className="mt-1 block text-xs text-black/45">One outcome per line.</span>
         </div>
-        <label className="text-sm">
-          Topic
-          <input name="topic" defaultValue={lesson.topic} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
-        </label>
-        <label className="text-sm">
-          Category
-          <input name="category" defaultValue={lesson.category ?? ""} placeholder="Grammar, Speaking, Exam prep" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
-        </label>
+        <label className="text-sm">Topic<input name="topic" defaultValue={lesson.topic} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+        <label className="text-sm">Category<input name="category" defaultValue={lesson.category ?? ""} placeholder="Grammar, Speaking, Exam prep" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
         <label className="text-sm">
           CEFR level
           <select name="level" defaultValue={lesson.level} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">
@@ -477,14 +387,8 @@ function MetadataForm({ lesson }: { lesson: Lesson }) {
             <option value="PUBLISHED">Published</option>
           </select>
         </label>
-        <label className="text-sm">
-          Class duration (minutes)
-          <input name="durationMinutes" type="number" min="1" defaultValue={lesson.duration_minutes ?? ""} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
-        </label>
-        <label className="text-sm">
-          Estimated completion (minutes)
-          <input name="estimatedCompletionMinutes" type="number" min="1" defaultValue={lesson.estimated_completion_minutes ?? ""} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
-        </label>
+        <label className="text-sm">Class duration (minutes)<input name="durationMinutes" type="number" min="1" defaultValue={lesson.duration_minutes ?? ""} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+        <label className="text-sm">Estimated completion (minutes)<input name="estimatedCompletionMinutes" type="number" min="1" defaultValue={lesson.estimated_completion_minutes ?? ""} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
       </div>
       <SubmitButton label="Save settings" />
     </form>
@@ -571,7 +475,7 @@ function SelectedSlideEditor({
                         {blockTypes.map((type) => <option key={type} value={type}>{labelForBlockType(type)}</option>)}
                       </select>
                     </label>
-                    <BlockFields blockType={block.block_type} content={block.content} />
+                    <BlockFields blockType={block.block_type} content={block.content} lessonId={lessonId} />
                     <button className="w-fit rounded-md bg-moss px-4 py-2 text-sm font-semibold text-white">Save block</button>
                   </form>
                   <div className="flex flex-wrap gap-2 border-t border-black/10 pt-3">
@@ -626,7 +530,6 @@ function SelectedSlideEditor({
   );
 }
 
-// ── Block helpers (unchanged) ────────────────────────────────────────────────
 function labelForBlockType(type: string) {
   const labels: Record<string, string> = {
     HEADING: "Heading", TEXT: "Text", BULLETS: "Bullet points", QUOTE: "Quote",
@@ -639,19 +542,32 @@ function labelForBlockType(type: string) {
 
 function blockSummary(block: LessonBlock) {
   const data = asRecord(block.content);
-  return asString(data.text ?? data.title ?? data.src ?? data.url ?? data.prompt ?? "");
+  return asString(data.text ?? data.title ?? data.body ?? data.path ?? data.src ?? data.url ?? data.prompt ?? "");
 }
 
-function BlockFields({ blockType, content }: { blockType: string; content: Json }) {
+// ── BlockFields — field names match blockContentFromForm in actions.ts exactly ──
+function BlockFields({ blockType, content, lessonId }: { blockType: string; content: Json; lessonId: string }) {
   const data = asRecord(content);
-  if (blockType === "HEADING" || blockType === "TEXT" || blockType === "QUOTE" || blockType === "CALLOUT") {
+
+  if (blockType === "HEADING") {
     return (
       <label className="text-sm">
-        {blockType === "HEADING" ? "Heading text" : blockType === "QUOTE" ? "Quote text" : blockType === "CALLOUT" ? "Callout text" : "Body text"}
-        <textarea name="text" rows={4} defaultValue={asString(data.text)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+        Heading text
+        <textarea name="text" rows={2} defaultValue={asString(data.text)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
       </label>
     );
   }
+
+  // TEXT — action reads "body"
+  if (blockType === "TEXT") {
+    return (
+      <label className="text-sm">
+        Body text
+        <textarea name="body" rows={4} defaultValue={asString(data.body ?? data.text)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+      </label>
+    );
+  }
+
   if (blockType === "BULLETS") {
     return (
       <label className="text-sm">
@@ -660,56 +576,158 @@ function BlockFields({ blockType, content }: { blockType: string; content: Json 
       </label>
     );
   }
-  if (blockType === "IMAGE" || blockType === "AUDIO" || blockType === "VIDEO") {
+
+  // QUOTE — action reads "body" + "attribution"
+  if (blockType === "QUOTE") {
     return (
-      <label className="text-sm">
-        {blockType === "IMAGE" ? "Image URL" : blockType === "AUDIO" ? "Audio URL" : "Video URL"}
-        <input name="src" defaultValue={asString(data.src ?? data.url)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
-      </label>
+      <div className="grid gap-3">
+        <label className="text-sm">
+          Quote text
+          <textarea name="body" rows={3} defaultValue={asString(data.body ?? data.text)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+        </label>
+        <label className="text-sm">
+          Attribution <span className="font-normal text-black/45">(optional)</span>
+          <input name="attribution" defaultValue={asString(data.attribution)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+        </label>
+      </div>
     );
   }
+
+  // CALLOUT — action reads "title" + "body"
+  if (blockType === "CALLOUT") {
+    return (
+      <div className="grid gap-3">
+        <label className="text-sm">
+          Callout title <span className="font-normal text-black/45">(optional)</span>
+          <input name="title" defaultValue={asString(data.title)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+        </label>
+        <label className="text-sm">
+          Callout text
+          <textarea name="body" rows={3} defaultValue={asString(data.body ?? data.text)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+        </label>
+      </div>
+    );
+  }
+
+  // IMAGE — action reads "path", "alt", "caption"
+  if (blockType === "IMAGE") {
+    const [imagePath, setImagePath] = useState(asString(data.path ?? data.src ?? data.url));
+    return (
+      <div className="grid gap-3">
+        <label className="text-sm">
+          Image URL
+          <input
+            name="path"
+            value={imagePath}
+            onChange={(e) => setImagePath(e.target.value)}
+            placeholder="https://… or upload below"
+            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+          />
+        </label>
+        <BlockMediaUploader type="image" lessonId={lessonId} currentSrc={imagePath} onUploaded={(url) => setImagePath(url)} />
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="text-sm">
+            Alt text
+            <input name="alt" defaultValue={asString(data.alt)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+          </label>
+          <label className="text-sm">
+            Caption
+            <input name="caption" defaultValue={asString(data.caption)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+          </label>
+        </div>
+      </div>
+    );
+  }
+
+  // AUDIO — action reads "path" + "label"
+  if (blockType === "AUDIO") {
+    const [audioPath, setAudioPath] = useState(asString(data.path ?? data.src ?? data.url));
+    return (
+      <div className="grid gap-3">
+        <label className="text-sm">
+          Label
+          <input name="label" defaultValue={asString(data.label)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+        </label>
+        <label className="text-sm">
+          Audio URL
+          <input
+            name="path"
+            value={audioPath}
+            onChange={(e) => setAudioPath(e.target.value)}
+            placeholder="https://… or upload below"
+            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+          />
+        </label>
+        <BlockMediaUploader type="audio" lessonId={lessonId} currentSrc={audioPath} onUploaded={(url) => setAudioPath(url)} />
+      </div>
+    );
+  }
+
+  // VIDEO — action reads "url" + "title"
+  if (blockType === "VIDEO") {
+    return (
+      <div className="grid gap-3">
+        <label className="text-sm">
+          Video URL
+          <input name="url" defaultValue={asString(data.url ?? data.src)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+        </label>
+        <label className="text-sm">
+          Title <span className="font-normal text-black/45">(optional)</span>
+          <input name="title" defaultValue={asString(data.title)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+        </label>
+      </div>
+    );
+  }
+
+  // VOCABULARY — action reads "entries" pipe-delimited
   if (blockType === "VOCABULARY") {
+    const entries = Array.isArray(data.entries)
+      ? (data.entries as Record<string, string>[]).map((e) => [e.word, e.pronunciation, e.meaning, e.example, e.notes].join(" | ")).join("\n")
+      : Array.isArray(data.items)
+      ? (data.items as Record<string, string>[]).map((e) => [e.word, e.pronunciation, e.meaning, e.example, e.notes].join(" | ")).join("\n")
+      : "";
     return (
       <label className="text-sm">
         Vocabulary items <span className="font-normal text-black/45">(word | pronunciation | meaning | example | notes)</span>
-        <textarea
-          name="items"
-          rows={6}
-          defaultValue={Array.isArray(data.items) ? (data.items as Record<string, string>[]).map((item) => [item.word, item.pronunciation, item.meaning, item.example, item.notes].join(" | ")).join("\n") : ""}
-          className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 font-mono text-xs"
-        />
+        <textarea name="entries" rows={6} defaultValue={entries} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 font-mono text-xs" />
       </label>
     );
   }
+
   if (blockType === "GRAMMAR") {
     return (
-      <>
+      <div className="grid gap-3">
         <label className="text-sm">Title<input name="title" defaultValue={asString(data.title)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
         <label className="text-sm">Explanation<textarea name="explanation" rows={3} defaultValue={asString(data.explanation)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
         <label className="text-sm">Examples <span className="font-normal text-black/45">(one per line)</span><textarea name="examples" rows={3} defaultValue={lines(data.examples)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
-      </>
+      </div>
     );
   }
+
+  // READING — action reads "title", "passage"
   if (blockType === "READING") {
     return (
-      <>
+      <div className="grid gap-3">
         <label className="text-sm">Title<input name="title" defaultValue={asString(data.title)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
-        <label className="text-sm">Passage<textarea name="text" rows={6} defaultValue={asString(data.text)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
-      </>
+        <label className="text-sm">Passage<textarea name="passage" rows={6} defaultValue={asString(data.passage ?? data.text)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+      </div>
     );
   }
+
+  // DIALOGUE — action reads "turns" as "Speaker: Line"
   if (blockType === "DIALOGUE") {
+    const turnsText = Array.isArray(data.turns)
+      ? (data.turns as Record<string, string>[]).map((t) => `${t.speaker}: ${t.line ?? t.text}`).join("\n")
+      : Array.isArray(data.lines)
+      ? (data.lines as Record<string, string>[]).map((l) => `${l.speaker}: ${l.text}`).join("\n")
+      : "";
     return (
       <label className="text-sm">
         Dialogue lines <span className="font-normal text-black/45">(Speaker: Line — one per line)</span>
-        <textarea
-          name="lines"
-          rows={6}
-          defaultValue={Array.isArray(data.lines) ? (data.lines as Record<string, string>[]).map((l) => `${l.speaker}: ${l.text}`).join("\n") : ""}
-          className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
-        />
+        <textarea name="turns" rows={6} defaultValue={turnsText} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
       </label>
     );
   }
+
   return <p className="text-sm text-black/45">No fields for {blockType}.</p>;
 }
