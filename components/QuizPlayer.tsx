@@ -469,24 +469,54 @@ function TrueFalse({ value, disabled, onChange }: { value?: boolean; disabled: b
 function Fill({ question, value, disabled, onChange }: { question: QuizQuestion; value?: string[]; disabled: boolean; onChange: (value: string[]) => void }) {
   const correct = Array.isArray(question.correct_answer) ? question.correct_answer : [question.correct_answer];
   const current = value ?? correct.map(() => "");
+  const opts = asRecord(question.options) as { text?: string; level?: string };
+  const text = String(opts.text ?? "");
+  const segments = text ? text.split("___") : [];
+
+  function setAnswer(index: number, next: string) {
+    const updated = [...current];
+    updated[index] = next;
+    onChange(updated);
+  }
+
+  // No inline text stored (older sentence-level data may only have the legend text, no options.text) —
+  // fall back to the original disconnected answer-input stack so existing activities keep working.
+  if (segments.length < 2) {
+    return (
+      <div className="grid gap-2">
+        {correct.map((_, i) => (
+          <input
+            key={i}
+            type="text"
+            disabled={disabled}
+            value={current[i] ?? ""}
+            onChange={(e) => setAnswer(i, e.target.value)}
+            placeholder={`Answer ${correct.length > 1 ? i + 1 : ""}`}
+            className="rounded-md border border-black/15 px-3 py-2 text-sm outline-none focus:border-moss"
+          />
+        ))}
+      </div>
+    );
+  }
+
   return (
-    <div className="grid gap-2">
-      {correct.map((_, i) => (
-        <input
-          key={i}
-          type="text"
-          disabled={disabled}
-          value={current[i] ?? ""}
-          onChange={(e) => {
-            const next = [...current];
-            next[i] = e.target.value;
-            onChange(next);
-          }}
-          placeholder={`Answer ${correct.length > 1 ? i + 1 : ""}`}
-          className="rounded-md border border-black/15 px-3 py-2 text-sm outline-none focus:border-moss"
-        />
+    <p className="rounded-md bg-slate-50 p-3 text-sm leading-8">
+      {segments.map((segment, i) => (
+        <span key={i}>
+          {segment}
+          {i < segments.length - 1 ? (
+            <input
+              type="text"
+              disabled={disabled}
+              value={current[i] ?? ""}
+              onChange={(e) => setAnswer(i, e.target.value)}
+              size={Math.max(4, (String(correct[i] ?? "")).length + 2)}
+              className="mx-1 inline-block rounded border border-black/20 bg-white px-2 py-0.5 text-sm outline-none focus:border-moss"
+            />
+          ) : null}
+        </span>
       ))}
-    </div>
+    </p>
   );
 }
 

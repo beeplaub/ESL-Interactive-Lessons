@@ -111,14 +111,19 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
     return items.map((item, index) => {
       const row = asRecord(item as Json);
       const answer = row.correct_answer ?? row.answer ?? "";
-      const sentence = String(row.question_text ?? row.sentence ?? "");
+      const sentence = String(row.question_text ?? row.sentence ?? row.text ?? "");
       const answers = Array.isArray(answer) ? answer.map(String) : [String(answer)];
+      const level = row.level === "paragraph" ? "paragraph" : "sentence";
       return {
         id: String(row.id ?? index + 1),
         question_number: Number(row.question_number ?? index + 1),
         question_type: "FILL",
-        question_text: sentence,
-        options: { blank_count: Math.max(1, sentence.match(/___/g)?.length ?? answers.length) } as Json,
+        question_text: level === "paragraph" ? "Complete the paragraph." : "Complete the sentence.",
+        options: {
+          text: sentence,
+          level,
+          blank_count: Math.max(1, sentence.match(/___/g)?.length ?? answers.length),
+        } as Json,
         correct_answer: answers as Json,
       };
     });
@@ -207,7 +212,7 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
 function activityLabel(type: string) {
   if (type === "MCQ") return "Multiple Choice";
   if (type === "TRUE_FALSE") return "True or False";
-  if (type === "GAP_FILL") return "Gap Fill";
+  if (type === "GAP_FILL") return "Fill in the Blanks";
   if (type === "MATCHING") return "Vocabulary Match";
   if (type === "ERROR_CORRECTION") return "Error Correction";
   if (type === "REORDERING") return "Put in Order";

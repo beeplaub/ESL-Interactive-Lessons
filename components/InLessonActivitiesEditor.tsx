@@ -44,6 +44,7 @@ type DragDropItem = {
 };
 
 type GapItem = {
+  level: "sentence" | "paragraph";
   sentence: string;
   answers: string[];
 };
@@ -199,6 +200,7 @@ function normalizeGap(data: Json | null): { prompt: string; items: GapItem[] } {
       const sentence = String(row.sentence ?? row.text ?? row.question_text ?? "");
       const answer = row.answer ?? row.correct_answer ?? "";
       return {
+        level: row.level === "paragraph" ? "paragraph" : "sentence",
         sentence,
         answers: Array.isArray(answer) ? answer.map(String) : [String(answer)]
       };
@@ -493,7 +495,7 @@ function McqEditor({ activity, onSave }: { activity: Activity; onSave: (data: Js
 function GapFillEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
   const initial = useMemo(() => normalizeGap(activity.activity_data), [activity.activity_data]);
   const [prompt, setPrompt] = useState(initial.prompt);
-  const [items, setItems] = useState<GapItem[]>(initial.items.length ? initial.items : [{ sentence: "", answers: [""] }]);
+  const [items, setItems] = useState<GapItem[]>(initial.items.length ? initial.items : [{ level: "sentence", sentence: "", answers: [""] }]);
   const needsReview = items.some((item) => !item.sentence.trim() || item.answers.some((answer) => !answer.trim()));
 
   function syncAnswers(index: number) {
@@ -510,10 +512,44 @@ function GapFillEditor({ activity, onSave }: { activity: Activity; onSave: (data
       {items.map((item, index) => (
         <div key={index} className="rounded-md border border-black/10 p-4">
           <div className="mb-3 flex items-center justify-between gap-3">
-            <p className="font-medium">Sentence {index + 1}</p>
+            <p className="font-medium">{item.level === "paragraph" ? "Paragraph" : "Sentence"} {index + 1}</p>
             <button type="button" onClick={() => setItems((current) => current.filter((_, itemIndex) => itemIndex !== index))} className="text-sm text-coral">Remove</button>
           </div>
-          <label className="text-sm">Sentence<input value={item.sentence} onBlur={() => syncAnswers(index)} onChange={(event) => setItems((current) => current.map((row, itemIndex) => itemIndex === index ? { ...row, sentence: event.target.value } : row))} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" placeholder="She said she ___ tired." /></label>
+          <label className="text-sm">
+            Level
+            <select
+              value={item.level}
+              onChange={(event) => setItems((current) => current.map((row, itemIndex) => itemIndex === index ? { ...row, level: event.target.value === "paragraph" ? "paragraph" : "sentence" } : row))}
+              className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+            >
+              <option value="sentence">Sentence (one short line)</option>
+              <option value="paragraph">Paragraph (longer passage)</option>
+            </select>
+          </label>
+          <label className="mt-3 block text-sm">
+            {item.level === "paragraph" ? "Paragraph" : "Sentence"}
+            {item.level === "paragraph" ? (
+              <textarea
+                rows={5}
+                value={item.sentence}
+                onBlur={() => syncAnswers(index)}
+                onChange={(event) => setItems((current) => current.map((row, itemIndex) => itemIndex === index ? { ...row, sentence: event.target.value } : row))}
+                className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+                placeholder="She said she ___ tired, but she ___ stay up to finish her homework."
+              />
+            ) : (
+              <input
+                value={item.sentence}
+                onBlur={() => syncAnswers(index)}
+                onChange={(event) => setItems((current) => current.map((row, itemIndex) => itemIndex === index ? { ...row, sentence: event.target.value } : row))}
+                className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+                placeholder="She said she ___ tired."
+              />
+            )}
+            <span className="mt-1 block text-xs text-black/45">
+              Type <code className="rounded bg-black/5 px-1 py-0.5 font-mono">___</code> (three underscores) anywhere you want a blank. Each one becomes its own answer field below.
+            </span>
+          </label>
           <div className="mt-3 grid gap-3 md:grid-cols-2">
             {item.answers.map((answer, answerIndex) => (
               <label key={answerIndex} className="text-sm">Answer {answerIndex + 1}<input value={answer} onChange={(event) => setItems((current) => current.map((row, itemIndex) => itemIndex === index ? { ...row, answers: row.answers.map((value, valueIndex) => valueIndex === answerIndex ? event.target.value : value) } : row))} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
@@ -522,8 +558,8 @@ function GapFillEditor({ activity, onSave }: { activity: Activity; onSave: (data
         </div>
       ))}
       <div className="flex flex-wrap gap-3">
-        <button type="button" onClick={() => setItems((current) => [...current, { sentence: "", answers: [""] }])} className="rounded-md border border-black/15 px-4 py-2 text-sm">Add sentence</button>
-        <SaveButton onClick={() => onSave({ prompt, items: items.map((item) => ({ sentence: item.sentence, answer: item.answers.length === 1 ? item.answers[0] : item.answers })) } as Json, needsReview)} />
+        <button type="button" onClick={() => setItems((current) => [...current, { level: "sentence", sentence: "", answers: [""] }])} className="rounded-md border border-black/15 px-4 py-2 text-sm">Add sentence</button>
+        <SaveButton onClick={() => onSave({ prompt, items: items.map((item) => ({ level: item.level, sentence: item.sentence, answer: item.answers.length === 1 ? item.answers[0] : item.answers })) } as Json, needsReview)} />
       </div>
     </div>
   );

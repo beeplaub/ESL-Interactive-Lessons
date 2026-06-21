@@ -1207,7 +1207,6 @@ function defaultActivityPrompt(activityType: string) {
   if (activityType === "CATEGORIZATION") return "Sort the items into the correct categories.";
   if (activityType === "SHORT_ANSWER") return "Write a short answer.";
   if (activityType === "ERROR_CORRECTION") return "Find and correct the mistake.";
-  if (activityType === "MISSING_INFORMATION") return "Complete the missing information.";
   return "Choose the best answer.";
 }
 
@@ -1226,7 +1225,7 @@ function defaultActivityData(activityType: string, prompt: string): Json {
     };
   }
   if (activityType === "GAP_FILL") {
-    return { prompt, items: [{ sentence: "", answer: "" }] };
+    return { prompt, items: [{ level: "sentence", sentence: "", answer: "" }] };
   }
   if (activityType === "TRUE_FALSE") {
     return { prompt, items: [{ statement: "", answer: true }] };
@@ -1272,9 +1271,6 @@ function defaultActivityData(activityType: string, prompt: string): Json {
   }
   if (activityType === "ERROR_CORRECTION") {
     return { prompt, items: [{ mode: "rewrite", text: "", error_span: "", correction: "", note: null }] };
-  }
-  if (activityType === "MISSING_INFORMATION") {
-    return { prompt, paragraphs: [{ text: "Write a paragraph with ___ missing information.", answers: ["answer"] }] };
   }
   return {
     prompt,
