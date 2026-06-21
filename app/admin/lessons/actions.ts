@@ -1264,7 +1264,7 @@ function defaultActivityData(activityType: string, prompt: string): Json {
     return { prompt, categories: [{ name: "Category A", items: ["Item"] }, { name: "Category B", items: [] }] };
   }
   if (activityType === "SHORT_ANSWER") {
-    return { prompt, questions: [{ id: 1, text: "", sample_answer: "" }] };
+    return { prompt, questions: [{ id: 1, text: "", sample_answer: "", min_words: null, required_words: [] }] };
   }
   if (activityType === "ERROR_CORRECTION") {
     return { prompt, items: [{ mode: "rewrite", text: "", error_span: "", correction: "", note: null }] };

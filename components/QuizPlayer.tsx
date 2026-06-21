@@ -8,7 +8,7 @@ import type { Json } from "@/types/database.types";
 export type QuizQuestion = {
   id: string;
   question_number: number;
-  question_type: "MCQ" | "TRUE_FALSE" | "FILL" | "MATCHING" | "ERROR_CORRECTION" | "REORDERING" | "MULTIPLE_SELECT";
+  question_type: "MCQ" | "TRUE_FALSE" | "FILL" | "MATCHING" | "ERROR_CORRECTION" | "REORDERING" | "MULTIPLE_SELECT" | "SHORT_ANSWER";
   question_text: string;
   description?: string | null;
   options: Json | null;
@@ -80,6 +80,10 @@ export function isCorrect(question: QuizQuestion, value: unknown): boolean {
     const correctSet = new Set(correct);
     return given.every((v) => correctSet.has(v));
   }
+  if (question.question_type === "SHORT_ANSWER") {
+    const given = asRecord(value as Json);
+    return given.selfMarked === true;
+  }
   return false;
 }
 
@@ -101,6 +105,20 @@ export function hasAnswer(question: QuizQuestion, value: unknown): boolean {
   }
   if (question.question_type === "MULTIPLE_SELECT") {
     return Array.isArray(value) && value.length > 0;
+  }
+  if (question.question_type === "SHORT_ANSWER") {
+    const opts = asRecord(question.options);
+    const given = asRecord(value as Json);
+    const text = String(given.text ?? "").trim();
+    if (!text) return false;
+    const minWords = Number(opts.min_words ?? 0);
+    if (minWords > 0 && text.split(/\s+/).filter(Boolean).length < minWords) return false;
+    const requiredWords = Array.isArray(opts.required_words) ? opts.required_words.map((w) => String(w).toLowerCase()) : [];
+    if (requiredWords.length > 0) {
+      const lowerText = text.toLowerCase();
+      if (!requiredWords.every((word) => lowerText.includes(word))) return false;
+    }
+    return true;
   }
   return true;
 }
@@ -328,8 +346,9 @@ export function QuestionCard({
   submitted: boolean;
   onChange: (value: unknown) => void;
 }) {
-  const correct = submitted ? isCorrect(question, value) : false;
-  const wrong = submitted && !correct;
+  const isSelfChecked = question.question_type === "SHORT_ANSWER";
+  const correct = submitted && !isSelfChecked ? isCorrect(question, value) : false;
+  const wrong = submitted && !isSelfChecked && !correct;
   return (
     <fieldset className={`rounded-lg border bg-white p-5 shadow-sm ${correct ? "border-moss" : wrong ? "border-coral" : "border-black/10"}`}>
       <legend className="px-1 font-semibold">
@@ -344,6 +363,7 @@ export function QuestionCard({
         {question.question_type === "ERROR_CORRECTION" ? <ErrorCorrection question={question} value={(value as { selected_span?: string; correction?: string }) ?? {}} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "REORDERING" ? <Reordering question={question} value={value as string[] | undefined} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "MULTIPLE_SELECT" ? <MultipleSelect question={question} value={value as string[] | undefined} disabled={submitted} onChange={onChange} /> : null}
+        {question.question_type === "SHORT_ANSWER" ? <ShortAnswer question={question} value={value as { text?: string; selfMarked?: boolean } | undefined} submitted={submitted} onChange={onChange} /> : null}
       </div>
       {submitted && wrong ? (
         <p className="mt-3 rounded-md bg-coral/10 p-3 text-sm text-coral">
@@ -661,6 +681,98 @@ function Reordering({
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+function ShortAnswer({
+  question,
+  value,
+  submitted,
+  onChange
+}: {
+  question: QuizQuestion;
+  value?: { text?: string; selfMarked?: boolean };
+  submitted: boolean;
+  onChange: (value: { text?: string; selfMarked?: boolean }) => void;
+}) {
+  const opts = asRecord(question.options) as { sample_answer?: string; min_words?: number; required_words?: string[] };
+  const text = value?.text ?? "";
+  const selfMarked = value?.selfMarked;
+  const minWords = Number(opts.min_words ?? 0);
+  const requiredWords = Array.isArray(opts.required_words) ? opts.required_words.filter(Boolean) : [];
+  const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
+  const lowerText = text.toLowerCase();
+
+  if (submitted) {
+    return (
+      <div className="grid gap-3">
+        <div className="rounded-md bg-slate-50 p-3 text-sm leading-6 whitespace-pre-wrap">
+          {text || <span className="text-black/40">(No answer written)</span>}
+        </div>
+        {opts.sample_answer ? (
+          <div className="rounded-md border border-moss/30 bg-moss/5 p-3 text-sm leading-6">
+            <p className="mb-1 text-xs font-medium uppercase tracking-wide text-moss">Model answer</p>
+            {opts.sample_answer}
+          </div>
+        ) : null}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm text-black/55">How did you do?</span>
+          <button
+            type="button"
+            onClick={() => onChange({ text, selfMarked: true })}
+            className={`rounded-md border px-3 py-1.5 text-sm font-medium transition-colors ${
+              selfMarked === true ? "border-moss bg-moss/10 text-moss" : "border-black/15 text-black/60 hover:bg-black/5"
+            }`}
+          >
+            Got it
+          </button>
+          <button
+            type="button"
+            onClick={() => onChange({ text, selfMarked: false })}
+            className={`rounded-md border px-3 py-1.5 text-sm font-medium transition-colors ${
+              selfMarked === false ? "border-coral bg-coral/10 text-coral" : "border-black/15 text-black/60 hover:bg-black/5"
+            }`}
+          >
+            Needs work
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-2">
+      <textarea
+        rows={5}
+        value={text}
+        onChange={(e) => onChange({ text: e.target.value, selfMarked: undefined })}
+        placeholder="Write your answer..."
+        className="w-full rounded-md border border-black/15 px-3 py-2 text-sm outline-none focus:border-moss"
+      />
+      {minWords > 0 || requiredWords.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-3 text-xs">
+          {minWords > 0 ? (
+            <span className={wordCount >= minWords ? "text-moss" : "text-black/45"}>
+              {wordCount} / {minWords} words
+            </span>
+          ) : null}
+          {requiredWords.length > 0 ? (
+            <span className="flex flex-wrap gap-1.5">
+              {requiredWords.map((word) => (
+                <span
+                  key={word}
+                  className={`rounded-full border px-2 py-0.5 ${
+                    lowerText.includes(word.toLowerCase()) ? "border-moss bg-moss/10 text-moss" : "border-black/15 text-black/45"
+                  }`}
+                >
+                  {word}
+                </span>
+              ))}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

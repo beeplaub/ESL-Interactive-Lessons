@@ -29,6 +29,14 @@ type MultipleSelectQuestion = {
   answers: string[];
 };
 
+type ShortAnswerQuestion = {
+  id: string | number;
+  text: string;
+  sampleAnswer: string;
+  minWords: number | null;
+  requiredWordsText: string;
+};
+
 type GapItem = {
   sentence: string;
   answers: string[];
@@ -77,6 +85,7 @@ function labelFor(type: string) {
   if (type === "ERROR_CORRECTION") return "Error Correction Activity";
   if (type === "REORDERING") return "Put in Order Activity";
   if (type === "MULTIPLE_SELECT") return "Multiple Select Activity";
+  if (type === "SHORT_ANSWER") return "Short Answer Activity";
   return `${type.replaceAll("_", " ")} Activity`;
 }
 
@@ -127,6 +136,26 @@ function normalizeMultipleSelect(data: Json | null): { prompt: string; questions
           D: String(options.D ?? "")
         },
         answers: answers.filter(Boolean).sort()
+      };
+    })
+  };
+}
+
+function normalizeShortAnswer(data: Json | null): { prompt: string; questions: ShortAnswerQuestion[] } {
+  const record = asRecord(data);
+  const questions = Array.isArray(record.questions) ? record.questions : [];
+  return {
+    prompt: String(record.prompt ?? "Write a short answer."),
+    questions: questions.map((item, index) => {
+      const question = asRecord(item);
+      const requiredWords = Array.isArray(question.required_words) ? question.required_words.map(String).filter(Boolean) : [];
+      const rawMinWords = question.min_words;
+      return {
+        id: String(question.id ?? index + 1),
+        text: String(question.text ?? question.question_text ?? ""),
+        sampleAnswer: String(question.sample_answer ?? ""),
+        minWords: rawMinWords === null || rawMinWords === undefined || Number(rawMinWords) <= 0 ? null : Number(rawMinWords),
+        requiredWordsText: requiredWords.join(", ")
       };
     })
   };
@@ -361,7 +390,8 @@ function ActivityPanel({
         {activity.activity_type === "ERROR_CORRECTION" ? <ErrorCorrectionEditor activity={activity} onSave={save} /> : null}
         {activity.activity_type === "REORDERING" ? <ReorderingEditor activity={activity} onSave={save} /> : null}
         {activity.activity_type === "MULTIPLE_SELECT" ? <MultipleSelectEditor activity={activity} onSave={save} /> : null}
-        {!["MCQ", "GAP_FILL", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT"].includes(activity.activity_type) ? (
+        {activity.activity_type === "SHORT_ANSWER" ? <ShortAnswerEditor activity={activity} onSave={save} /> : null}
+        {!["MCQ", "GAP_FILL", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER"].includes(activity.activity_type) ? (
           <p className="rounded-md bg-slate-50 p-3 text-sm text-black/60">
             This activity type has starter data and preview support. A detailed visual editor for it will be added in the next activity-builder pass.
           </p>
@@ -810,6 +840,93 @@ function MultipleSelectEditor({ activity, onSave }: { activity: Activity; onSave
             text: question.text,
             options: question.options,
             answers: question.answers
+          }))
+        } as Json, needsReview)} />
+      </div>
+    </div>
+  );
+}
+
+function ShortAnswerEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
+  const initial = useMemo(() => normalizeShortAnswer(activity.activity_data), [activity.activity_data]);
+  const [prompt, setPrompt] = useState(initial.prompt);
+  const [questions, setQuestions] = useState<ShortAnswerQuestion[]>(
+    initial.questions.length ? initial.questions : [{ id: 1, text: "", sampleAnswer: "", minWords: null, requiredWordsText: "" }]
+  );
+  const needsReview = questions.some((question) => !question.text.trim());
+
+  function updateQuestion(index: number, patch: Partial<ShortAnswerQuestion>) {
+    setQuestions((current) => current.map((item, itemIndex) => (itemIndex === index ? { ...item, ...patch } : item)));
+  }
+
+  return (
+    <div className="grid gap-4">
+      <label className="text-sm font-medium">
+        Instruction
+        <input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+      </label>
+      {questions.map((question, index) => (
+        <div key={String(question.id)} className="rounded-md border border-black/10 p-4">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <p className="font-medium">Question {index + 1}</p>
+            <button type="button" onClick={() => setQuestions((current) => current.filter((_, itemIndex) => itemIndex !== index))} className="text-sm text-coral">Remove question</button>
+          </div>
+          <div className="grid gap-3">
+            <label className="text-sm">
+              Question
+              <input value={question.text} onChange={(event) => updateQuestion(index, { text: event.target.value })} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+            </label>
+            <label className="text-sm">
+              Model / sample answer (shown to learners after they submit, for self-checking)
+              <textarea
+                rows={3}
+                value={question.sampleAnswer}
+                onChange={(event) => updateQuestion(index, { sampleAnswer: event.target.value })}
+                className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+              />
+            </label>
+            <p className="text-xs text-black/45">
+              This activity is self-checked, not auto-graded — learners write a free response, then compare it to your sample answer and mark themselves.
+            </p>
+            <label className="text-sm">
+              Minimum word count (optional)
+              <input
+                type="number"
+                min={0}
+                value={question.minWords ?? ""}
+                onChange={(event) => updateQuestion(index, { minWords: event.target.value === "" ? null : Math.max(0, Number(event.target.value)) })}
+                placeholder="Leave blank for no minimum"
+                className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+              />
+            </label>
+            <label className="text-sm">
+              Required words (optional, comma-separated — learners must use all of these)
+              <input
+                value={question.requiredWordsText}
+                onChange={(event) => updateQuestion(index, { requiredWordsText: event.target.value })}
+                placeholder="e.g. because, however, therefore"
+                className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+              />
+            </label>
+          </div>
+        </div>
+      ))}
+      <div className="flex flex-wrap gap-3">
+        <button
+          type="button"
+          onClick={() => setQuestions((current) => [...current, { id: Date.now(), text: "", sampleAnswer: "", minWords: null, requiredWordsText: "" }])}
+          className="rounded-md border border-black/15 px-4 py-2 text-sm"
+        >
+          Add question
+        </button>
+        <SaveButton onClick={() => onSave({
+          prompt,
+          questions: questions.map((question, index) => ({
+            id: index + 1,
+            text: question.text,
+            sample_answer: question.sampleAnswer,
+            min_words: question.minWords,
+            required_words: question.requiredWordsText.split(",").map((w) => w.trim()).filter(Boolean)
           }))
         } as Json, needsReview)} />
       </div>

@@ -63,6 +63,25 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
       };
     });
   }
+  if (activityType === "SHORT_ANSWER") {
+    const questions = Array.isArray(data.questions) ? data.questions : [];
+    return questions.map((item, index) => {
+      const q = asRecord(item as Json);
+      const requiredWords = Array.isArray(q.required_words) ? q.required_words.map(String).filter(Boolean) : [];
+      return {
+        id: String(q.id ?? index + 1),
+        question_number: Number(q.question_number ?? index + 1),
+        question_type: "SHORT_ANSWER",
+        question_text: String(q.question_text ?? q.text ?? ""),
+        options: {
+          sample_answer: String(q.sample_answer ?? ""),
+          min_words: Number(q.min_words ?? 0),
+          required_words: requiredWords,
+        } as Json,
+        correct_answer: null,
+      };
+    });
+  }
   if (activityType === "GAP_FILL") {
     const items = Array.isArray(data.items) ? data.items : Array.isArray(data.questions) ? data.questions : [];
     return items.map((item, index) => {
@@ -169,6 +188,7 @@ function activityLabel(type: string) {
   if (type === "ERROR_CORRECTION") return "Error Correction";
   if (type === "REORDERING") return "Put in Order";
   if (type === "MULTIPLE_SELECT") return "Multiple Select";
+  if (type === "SHORT_ANSWER") return "Short Answer";
   return "Activity";
 }
 
