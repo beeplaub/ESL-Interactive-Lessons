@@ -548,6 +548,11 @@ function blockSummary(block: LessonBlock) {
 // ── BlockFields — field names match blockContentFromForm in actions.ts exactly ──
 function BlockFields({ blockType, content, lessonId }: { blockType: string; content: Json; lessonId: string }) {
   const data = asRecord(content);
+  // These two hooks must run on every render regardless of blockType — React requires hooks to be
+  // called in the same order every time, so they can't live inside the IMAGE/AUDIO branches below
+  // (which only run conditionally, after several earlier `return`s for other block types).
+  const [imagePath, setImagePath] = useState(asString(data.path ?? data.src ?? data.url));
+  const [audioPath, setAudioPath] = useState(asString(data.path ?? data.src ?? data.url));
 
   if (blockType === "HEADING") {
     return (
@@ -611,7 +616,6 @@ function BlockFields({ blockType, content, lessonId }: { blockType: string; cont
 
   // IMAGE — action reads "path", "alt", "caption"
   if (blockType === "IMAGE") {
-    const [imagePath, setImagePath] = useState(asString(data.path ?? data.src ?? data.url));
     return (
       <div className="grid gap-3">
         <label className="text-sm">
@@ -641,7 +645,6 @@ function BlockFields({ blockType, content, lessonId }: { blockType: string; cont
 
   // AUDIO — action reads "path" + "label"
   if (blockType === "AUDIO") {
-    const [audioPath, setAudioPath] = useState(asString(data.path ?? data.src ?? data.url));
     return (
       <div className="grid gap-3">
         <label className="text-sm">
