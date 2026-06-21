@@ -17,6 +17,10 @@ function asRecord(value: Json | null | undefined): Record<string, unknown> {
     ? (value as Record<string, unknown>) : {};
 }
 
+function normalize(value: unknown) {
+  return String(value ?? "").trim().toLowerCase();
+}
+
 // Deterministic shuffle seeded by a string (the activity id), so the same learner sees a stable
 // scrambled order across re-renders/refreshes instead of the items starting pre-solved or re-shuffling.
 function seededShuffle<T>(list: T[], seed: string): T[] {
@@ -214,6 +218,11 @@ function activityLabel(type: string) {
 }
 
 function questionScore(question: QuizQuestion, answer: unknown): number {
+  if (question.question_type === "DRAG_DROP") {
+    const correct = asRecord(question.correct_answer);
+    const given = asRecord(answer as Json);
+    return Object.keys(correct).filter((itemId) => normalize(given[itemId]) === normalize(correct[itemId])).length;
+  }
   if (!isCorrect(question, answer)) return 0;
   return question.question_type === "FILL"
     ? (Array.isArray(question.correct_answer) ? question.correct_answer.length : 1)
@@ -221,6 +230,9 @@ function questionScore(question: QuizQuestion, answer: unknown): number {
 }
 
 function questionTotal(question: QuizQuestion): number {
+  if (question.question_type === "DRAG_DROP") {
+    return Object.keys(asRecord(question.correct_answer)).length || 1;
+  }
   return question.question_type === "FILL"
     ? (Array.isArray(question.correct_answer) ? question.correct_answer.length : 1)
     : 1;

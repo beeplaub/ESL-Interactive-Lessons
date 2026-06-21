@@ -29,6 +29,14 @@ function normalize(value: unknown) {
   return String(value ?? "").trim().toLowerCase();
 }
 
+function dragDropPlacementStats(question: QuizQuestion, value: unknown): { correctCount: number; total: number } {
+  const correct = asRecord(question.correct_answer);
+  const given = asRecord(value as Json);
+  const keys = Object.keys(correct);
+  const correctCount = keys.filter((itemId) => normalize(given[itemId]) === normalize(correct[itemId])).length;
+  return { correctCount, total: keys.length };
+}
+
 export function isCorrect(question: QuizQuestion, value: unknown): boolean {
   if (question.question_type === "MCQ") {
     return normalize(value) === normalize(question.correct_answer);
@@ -367,10 +375,22 @@ export function QuestionCard({
   onChange: (value: unknown) => void;
 }) {
   const isSelfChecked = question.question_type === "SHORT_ANSWER";
-  const correct = submitted && !isSelfChecked ? isCorrect(question, value) : false;
-  const wrong = submitted && !isSelfChecked && !correct;
+  const isPartialCredit = question.question_type === "DRAG_DROP";
+  const dragDropStats = isPartialCredit && submitted ? dragDropPlacementStats(question, value) : null;
+  const correct = submitted && !isSelfChecked && !isPartialCredit ? isCorrect(question, value) : false;
+  const wrong = submitted && !isSelfChecked && !isPartialCredit && !correct;
+  const partial = Boolean(dragDropStats && dragDropStats.correctCount > 0 && dragDropStats.correctCount < dragDropStats.total);
+  const allCorrect = Boolean(dragDropStats && dragDropStats.correctCount === dragDropStats.total);
+  const allWrong = Boolean(dragDropStats && dragDropStats.correctCount === 0);
+  const borderClass = correct || allCorrect
+    ? "border-moss"
+    : partial
+    ? "border-amber-400"
+    : wrong || allWrong
+    ? "border-coral"
+    : "border-black/10";
   return (
-    <fieldset className={`rounded-lg border bg-white p-5 shadow-sm ${correct ? "border-moss" : wrong ? "border-coral" : "border-black/10"}`}>
+    <fieldset className={`rounded-lg border bg-white p-5 shadow-sm ${borderClass}`}>
       <legend className="px-1 font-semibold">
         {question.question_number}. {question.question_text}
       </legend>
@@ -386,6 +406,11 @@ export function QuestionCard({
         {question.question_type === "SHORT_ANSWER" ? <ShortAnswer question={question} value={value as { text?: string; selfMarked?: boolean } | undefined} submitted={submitted} onChange={onChange} /> : null}
         {question.question_type === "DRAG_DROP" ? <DragDrop question={question} value={(value as Record<string, string>) ?? {}} disabled={submitted} onChange={onChange} /> : null}
       </div>
+      {dragDropStats && dragDropStats.correctCount < dragDropStats.total ? (
+        <p className={`mt-3 rounded-md p-3 text-sm ${allWrong ? "bg-coral/10 text-coral" : "bg-amber-50 text-amber-900"}`}>
+          {dragDropStats.correctCount} of {dragDropStats.total} placed correctly. Correct answer: {answerText(question)}
+        </p>
+      ) : null}
       {submitted && wrong ? (
         <p className="mt-3 rounded-md bg-coral/10 p-3 text-sm text-coral">
           Correct answer: {answerText(question)}
