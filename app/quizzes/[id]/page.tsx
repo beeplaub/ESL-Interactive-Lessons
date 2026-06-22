@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -7,24 +7,20 @@ import { QuizPlayer } from "@/components/QuizPlayer";
 
 export default async function QuizPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+
+  // Do NOT redirect guests — quizzes are open to everyone.
   const supabase = await createClient();
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
-  if (!user) redirect(`/login?next=${encodeURIComponent(`/quizzes/${id}`)}`);
+  const { data: { user } } = await supabase.auth.getUser();
 
   const admin = createAdminClient();
   const [{ data: quiz }, { data: questions }, { data: attempts }] = await Promise.all([
     admin.from("quizzes").select("*").eq("id", id).eq("status", "PUBLISHED").single(),
     admin.from("quiz_questions").select("*").eq("quiz_id", id).order("question_number", { ascending: true }),
-    admin
-      .from("quiz_attempts")
-      .select("score, total, completed_at")
-      .eq("quiz_id", id)
-      .eq("user_id", user.id)
-      .order("completed_at", { ascending: true })
-      .limit(10)
+    user
+      ? admin.from("quiz_attempts").select("score, total, completed_at").eq("quiz_id", id).eq("user_id", user.id).order("completed_at", { ascending: true }).limit(10)
+      : Promise.resolve({ data: [] }),
   ]);
+
   if (!quiz) notFound();
 
   return (
@@ -36,11 +32,17 @@ export default async function QuizPage({ params }: { params: Promise<{ id: strin
         <span className="rounded-full bg-skywash px-2 py-1 text-xs font-medium text-ink">{quiz.level}</span>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight">{quiz.title}</h1>
         <p className="mt-2 text-sm text-black/60">{quiz.topic} · {(questions ?? []).length} questions</p>
+        {!user ? (
+          <p className="mt-3 rounded-md bg-skywash px-3 py-2 text-xs text-black/60">
+            Playing as guest · <Link href="/login" className="font-medium text-moss hover:underline">Sign in</Link> to save your scores and track progress over time.
+          </p>
+        ) : null}
       </section>
       <QuizPlayer
         quizId={quiz.id}
         questions={(questions ?? []) as Parameters<typeof QuizPlayer>[0]["questions"]}
         pastAttempts={(attempts ?? []).map((a) => ({ score: a.score, total: a.total, completedAt: a.completed_at }))}
+        isGuest={!user}
       />
     </main>
   );
