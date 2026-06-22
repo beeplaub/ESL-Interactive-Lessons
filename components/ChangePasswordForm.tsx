@@ -1,0 +1,153 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import { Eye, EyeOff } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+
+function StrengthBar({ password }: { password: string }) {
+  const score = (() => {
+    if (!password) return 0;
+    let s = 0;
+    if (password.length >= 8)  s++;
+    if (password.length >= 12) s++;
+    if (/[A-Z]/.test(password)) s++;
+    if (/[0-9]/.test(password)) s++;
+    if (/[^A-Za-z0-9]/.test(password)) s++;
+    return s;
+  })();
+  const label = ["", "Weak", "Fair", "Good", "Strong", "Very strong"][score];
+  const color  = ["", "bg-coral", "bg-orange-400", "bg-yellow-400", "bg-moss", "bg-moss"][score];
+  if (!password) return null;
+  return (
+    <div className="mt-2">
+      <div className="flex gap-1">
+        {[1,2,3,4,5].map((i) => (
+          <div key={i} className={`h-1 flex-1 rounded-full transition-colors ${i <= score ? color : "bg-black/10"}`} />
+        ))}
+      </div>
+      <p className="mt-1 text-xs text-black/45">{label}</p>
+    </div>
+  );
+}
+
+export function ChangePasswordForm() {
+  const supabase = createClient();
+  const [current,  setCurrent]  = useState("");
+  const [next,     setNext]     = useState("");
+  const [confirm,  setConfirm]  = useState("");
+  const [showCur,  setShowCur]  = useState(false);
+  const [showNew,  setShowNew]  = useState(false);
+  const [status,   setStatus]   = useState<"idle" | "success" | "error">("idle");
+  const [message,  setMessage]  = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function submit() {
+    setMessage(null);
+    setStatus("idle");
+    if (!current)           { setMessage("Please enter your current password."); return; }
+    if (next.length < 8)    { setMessage("New password must be at least 8 characters."); return; }
+    if (next !== confirm)   { setMessage("New passwords do not match."); return; }
+    if (next === current)   { setMessage("New password must differ from your current password."); return; }
+
+    startTransition(async () => {
+      // Step 1: verify current password by re-authenticating
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.email) { setMessage("Session error. Please sign in again."); return; }
+
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: current,
+      });
+      if (signInError) {
+        setStatus("error");
+        setMessage("Current password is incorrect.");
+        return;
+      }
+
+      // Step 2: set the new password
+      const { error: updateError } = await supabase.auth.updateUser({ password: next });
+      if (updateError) {
+        setStatus("error");
+        setMessage(updateError.message);
+        return;
+      }
+
+      setStatus("success");
+      setMessage("Password changed successfully.");
+      setCurrent(""); setNext(""); setConfirm("");
+    });
+  }
+
+  return (
+    <div className="mt-5 grid gap-4">
+      {/* Current password */}
+      <label className="block text-sm font-medium">
+        Current password
+        <div className="relative mt-1">
+          <input
+            type={showCur ? "text" : "password"}
+            value={current}
+            onChange={(e) => setCurrent(e.target.value)}
+            autoComplete="current-password"
+            className="w-full rounded-md border border-black/15 px-3 py-2 pr-10 font-normal"
+          />
+          <button type="button" onClick={() => setShowCur((v) => !v)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-black/40 hover:text-black"
+            aria-label={showCur ? "Hide" : "Show"}>
+            {showCur ? <EyeOff size={15} /> : <Eye size={15} />}
+          </button>
+        </div>
+      </label>
+
+      {/* New password */}
+      <label className="block text-sm font-medium">
+        New password
+        <div className="relative mt-1">
+          <input
+            type={showNew ? "text" : "password"}
+            value={next}
+            onChange={(e) => setNext(e.target.value)}
+            autoComplete="new-password"
+            placeholder="At least 8 characters"
+            className="w-full rounded-md border border-black/15 px-3 py-2 pr-10 font-normal"
+          />
+          <button type="button" onClick={() => setShowNew((v) => !v)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-black/40 hover:text-black"
+            aria-label={showNew ? "Hide" : "Show"}>
+            {showNew ? <EyeOff size={15} /> : <Eye size={15} />}
+          </button>
+        </div>
+        <StrengthBar password={next} />
+      </label>
+
+      {/* Confirm new password */}
+      <label className="block text-sm font-medium">
+        Confirm new password
+        <input
+          type={showNew ? "text" : "password"}
+          value={confirm}
+          onChange={(e) => setConfirm(e.target.value)}
+          autoComplete="new-password"
+          className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 font-normal"
+        />
+      </label>
+
+      <button
+        type="button"
+        disabled={isPending || !current || !next || !confirm}
+        onClick={submit}
+        className="w-fit rounded-md bg-ink px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+      >
+        {isPending ? "Updating..." : "Change password"}
+      </button>
+
+      {message ? (
+        <p className={`rounded-md p-3 text-sm ${
+          status === "success" ? "bg-moss/10 text-moss" : "bg-coral/10 text-coral"
+        }`}>
+          {message}
+        </p>
+      ) : null}
+    </div>
+  );
+}
