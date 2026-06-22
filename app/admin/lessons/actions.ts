@@ -56,7 +56,8 @@ const lessonBlockTypes = [
   "VOCABULARY",
   "GRAMMAR",
   "READING",
-  "DIALOGUE"
+  "DIALOGUE",
+  "FLASHCARD"
 ] as const;
 
 const lessonBlockSchema = z.object({
@@ -190,6 +191,16 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
       })
     };
   }
+  if (blockType === "FLASHCARD") {
+    return {
+      image_path: String(formData.get("image_path") || "").trim(),
+      word: String(formData.get("word") || "").trim(),
+      phonetic: nullableText(formData.get("phonetic")),
+      audio_path: nullableText(formData.get("audio_path")),
+      meaning: String(formData.get("meaning") || "").trim(),
+      examples: splitLines(formData.get("examples"))
+    };
+  }
   return {};
 }
 
@@ -208,6 +219,14 @@ function defaultBlockContent(blockType: string): Json {
   if (blockType === "GRAMMAR") return { title: "Grammar focus", explanation: "", examples: [], notes: null };
   if (blockType === "READING") return { title: "Reading passage", passage: "", questions: [] };
   if (blockType === "DIALOGUE") return { turns: [{ speaker: "A", line: "" }, { speaker: "B", line: "" }] };
+  if (blockType === "FLASHCARD") return {
+    image_path: "",
+    word: "resilience",
+    phonetic: "/rɪˈzɪliəns/",
+    audio_path: null,
+    meaning: "the ability to recover quickly from difficulties",
+    examples: ["She showed great resilience during the crisis."]
+  };
   return {};
 }
 

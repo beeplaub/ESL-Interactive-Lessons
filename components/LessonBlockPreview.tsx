@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, Headphones, ImageIcon, ListChecks, Maximize, MessageSquareQuote, Pause, Play, PlayCircle, Settings, Volume2 } from "lucide-react";
+import { BookOpen, FlipHorizontal2, Headphones, ImageIcon, ListChecks, Maximize, MessageSquareQuote, Pause, Play, PlayCircle, Settings, Volume2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Json } from "@/types/database.types";
 
@@ -303,7 +303,135 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
     );
   }
 
+  if (block.block_type === "FLASHCARD") {
+    return <FlashcardBlock content={content} />;
+  }
+
   return null;
+}
+
+function FlashcardBlock({ content }: { content: Record<string, unknown> }) {
+  const [flipped, setFlipped] = useState(false);
+  const audioRef = useRef<HTMLAudioElement>(null);
+
+  const imagePath = asString(content.image_path);
+  const word      = asString(content.word);
+  const phonetic  = asString(content.phonetic);
+  const audioPath = asString(content.audio_path);
+  const meaning   = asString(content.meaning);
+  const examples  = asArray(content.examples).map(String).filter(Boolean);
+
+  const imageSrc = imagePath ? mediaUrl(imagePath, "image") : "";
+  const audioSrc = audioPath ? mediaUrl(audioPath, "audio") : "";
+
+  return (
+    <div className="w-full select-none" style={{ perspective: "1200px" }}>
+      <div
+        className="relative w-full transition-all duration-500"
+        style={{
+          transformStyle: "preserve-3d",
+          transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)",
+          minHeight: "300px",
+        }}
+      >
+        {/* FRONT: image face */}
+        <div
+          className="absolute inset-0 cursor-pointer overflow-hidden rounded-2xl"
+          style={{ backfaceVisibility: "hidden", minHeight: "300px" }}
+          onClick={() => setFlipped(true)}
+          role="button"
+          aria-label="Flip card to reveal the word"
+        >
+          {imageSrc && isImageUrl(imageSrc) ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={imageSrc}
+              alt={word || "Flashcard image"}
+              className="h-full w-full object-cover"
+              style={{ minHeight: "300px" }}
+            />
+          ) : (
+            <div className="grid min-h-[300px] place-items-center rounded-2xl bg-slate-100 text-black/25">
+              <div className="flex flex-col items-center gap-2 text-center">
+                <ImageIcon size={40} />
+                <p className="text-sm">Add an image to display here</p>
+              </div>
+            </div>
+          )}
+          {imageSrc && isImageUrl(imageSrc) && (
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 rounded-b-2xl bg-gradient-to-t from-black/50 to-transparent" />
+          )}
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setFlipped(true); }}
+            className="absolute bottom-3 right-3 flex items-center gap-1.5 rounded-full bg-black/40 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-sm transition hover:bg-black/60"
+            aria-label="Flip card"
+          >
+            <FlipHorizontal2 size={12} /> Flip
+          </button>
+        </div>
+
+        {/* BACK: word details face */}
+        <div
+          className="absolute inset-0 flex flex-col items-center justify-center gap-3 overflow-y-auto rounded-2xl border border-black/10 bg-white p-6 text-center shadow-sm"
+          style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)", minHeight: "300px" }}
+        >
+          {audioSrc && <audio ref={audioRef} src={audioSrc} preload="none" />}
+
+          <p className="text-3xl font-bold leading-tight tracking-tight text-ink">
+            {word || "Word"}
+          </p>
+
+          {(phonetic || audioSrc) && (
+            <div className="flex items-center justify-center gap-2">
+              {phonetic && <span className="font-mono text-sm text-black/45">{phonetic}</span>}
+              {audioSrc && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (audioRef.current) {
+                      audioRef.current.currentTime = 0;
+                      void audioRef.current.play();
+                    }
+                  }}
+                  title="Play pronunciation"
+                  className="flex items-center justify-center rounded-full bg-moss/10 p-1.5 text-moss transition hover:bg-moss/20 active:scale-95"
+                >
+                  <Volume2 size={15} />
+                </button>
+              )}
+            </div>
+          )}
+
+          <div className="w-12 border-t border-black/10" />
+
+          <p className="max-w-xs text-base leading-relaxed text-black/70">
+            {meaning || "Meaning"}
+          </p>
+
+          {examples.length > 0 && (
+            <div className="max-w-xs space-y-1">
+              {examples.map((ex, i) => (
+                <p key={i} className="text-sm italic leading-relaxed text-black/45">
+                  &ldquo;{ex}&rdquo;
+                </p>
+              ))}
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={() => setFlipped(false)}
+            className="absolute bottom-3 right-3 flex items-center gap-1.5 rounded-full border border-black/10 bg-white px-3 py-1.5 text-xs font-medium text-black/50 shadow-sm transition hover:bg-black/5 hover:text-black"
+            aria-label="Flip back"
+          >
+            <FlipHorizontal2 size={12} /> Flip back
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function FormattedText({ text }: { text: string }) {

@@ -28,7 +28,8 @@ import type { Json } from "@/types/database.types";
 const blockTypes = [
   "HEADING", "TEXT", "BULLETS", "QUOTE", "CALLOUT",
   "IMAGE", "AUDIO", "VIDEO", "DIVIDER",
-  "VOCABULARY", "GRAMMAR", "READING", "DIALOGUE"
+  "VOCABULARY", "GRAMMAR", "READING", "DIALOGUE",
+  "FLASHCARD"
 ] as const;
 
 type Lesson = {
@@ -537,13 +538,14 @@ function labelForBlockType(type: string) {
     CALLOUT: "Callout", IMAGE: "Image", AUDIO: "Audio", VIDEO: "Video",
     DIVIDER: "Divider", VOCABULARY: "Vocabulary list", GRAMMAR: "Grammar",
     READING: "Reading passage", DIALOGUE: "Dialogue",
+    FLASHCARD: "Flashcard",
   };
   return labels[type] ?? type;
 }
 
 function blockSummary(block: LessonBlock) {
   const data = asRecord(block.content);
-  return asString(data.text ?? data.title ?? data.body ?? data.path ?? data.src ?? data.url ?? data.prompt ?? "");
+  return asString(data.text ?? data.title ?? data.body ?? data.path ?? data.src ?? data.url ?? data.word ?? data.prompt ?? "");
 }
 
 // ── BlockFields — field names match blockContentFromForm in actions.ts exactly ──
@@ -552,8 +554,12 @@ function BlockFields({ blockType, content, lessonId }: { blockType: string; cont
   // These two hooks must run on every render regardless of blockType — React requires hooks to be
   // called in the same order every time, so they can't live inside the IMAGE/AUDIO branches below
   // (which only run conditionally, after several earlier `return`s for other block types).
-  const [imagePath, setImagePath] = useState(asString(data.path ?? data.src ?? data.url));
-  const [audioPath, setAudioPath] = useState(asString(data.path ?? data.src ?? data.url));
+  const [imagePath, setImagePath] = useState(
+    blockType === "FLASHCARD" ? asString(data.image_path) : asString(data.path ?? data.src ?? data.url)
+  );
+  const [audioPath, setAudioPath] = useState(
+    blockType === "FLASHCARD" ? asString(data.audio_path) : asString(data.path ?? data.src ?? data.url)
+  );
 
   if (blockType === "HEADING") {
     return (
@@ -733,5 +739,57 @@ function BlockFields({ blockType, content, lessonId }: { blockType: string; cont
     );
   }
 
+  if (blockType === "FLASHCARD") {
+    return (
+      <div className="grid gap-4">
+        <div className="grid gap-2">
+          <p className="text-sm font-medium">Cover image</p>
+          <input
+            name="image_path"
+            value={imagePath}
+            onChange={(e) => setImagePath(e.target.value)}
+            placeholder="https://… or upload below"
+            className="w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+          />
+          <BlockMediaUploader type="image" lessonId={lessonId} currentSrc={imagePath} onUploaded={(url) => setImagePath(url)} />
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="text-sm">
+            Word or phrase
+            <input name="word" defaultValue={asString(data.word)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+          </label>
+          <label className="text-sm">
+            Phonetic <span className="font-normal text-black/40">(optional)</span>
+            <input name="phonetic" defaultValue={asString(data.phonetic)} placeholder="/fəˈnetɪk/" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+          </label>
+        </div>
+        <div className="grid gap-2">
+          <p className="text-sm font-medium">Pronunciation audio <span className="font-normal text-black/40">(optional)</span></p>
+          <input
+            name="audio_path"
+            value={audioPath}
+            onChange={(e) => setAudioPath(e.target.value)}
+            placeholder="https://… or upload below"
+            className="w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+          />
+          <BlockMediaUploader type="audio" lessonId={lessonId} currentSrc={audioPath} onUploaded={(url) => setAudioPath(url)} />
+        </div>
+        <label className="text-sm">
+          Meaning
+          <textarea name="meaning" rows={2} defaultValue={asString(data.meaning)} placeholder="A short, clear definition" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+        </label>
+        <label className="text-sm">
+          Example sentences <span className="font-normal text-black/40">(one per line)</span>
+          <textarea
+            name="examples"
+            rows={3}
+            defaultValue={lines(data.examples)}
+            placeholder="She showed great resilience."
+            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+          />
+        </label>
+      </div>
+    );
+  }
   return <p className="text-sm text-black/45">No fields for {blockType}.</p>;
 }
