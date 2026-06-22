@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, ChevronLeft, ChevronRight, Copy, Eye, Plus, Save, Settings, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Copy, Eye, GripVertical, Move, Plus, Settings, Trash2, X } from "lucide-react";
 import {
   addBuilderSlideAt,
   addLessonBlock,
@@ -90,6 +90,7 @@ function SubmitButton({ label }: { label: string }) {
   );
 }
 
+// ── Add Slide Modal ──────────────────────────────────────────────────────────
 function AddSlideModal({
   lessonId, afterSlideNumber, onClose, onBusy,
 }: {
@@ -135,14 +136,100 @@ function AddSlideModal({
   );
 }
 
-export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: Props) {
-  const [selectedSlideId, setSelectedSlideId] = useState(slides[0]?.id ?? "");
+// ── Move Slide Modal ─────────────────────────────────────────────────────────
+function MoveSlideModal({
+  slide, totalSlides, onMove, onClose,
+}: {
+  slide: Slide; totalSlides: number; onMove: (toIndex: number) => void; onClose: () => void;
+}) {
+  const [target, setTarget] = useState(String(slide.slide_number));
+
+  function submit() {
+    const n = parseInt(target, 10);
+    if (!isNaN(n) && n >= 1 && n <= totalSlides && n !== slide.slide_number) {
+      onMove(n - 1); // convert to 0-based index
+    }
+    onClose();
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 px-4">
+      <div className="w-full max-w-sm rounded-xl bg-white p-5 shadow-2xl">
+        <div className="flex items-center justify-between gap-4">
+          <h2 className="text-lg font-semibold">Move slide</h2>
+          <button type="button" onClick={onClose} className="rounded-md border border-black/10 p-1.5 hover:bg-black/5"><X size={16} /></button>
+        </div>
+        <p className="mt-2 text-sm text-black/55">
+          <span className="font-medium">"{slide.title}"</span> is currently at position {slide.slide_number} of {totalSlides}.
+        </p>
+        <div className="mt-4">
+          <label className="text-sm font-medium">
+            Move to position
+            <input
+              autoFocus
+              type="number"
+              min={1}
+              max={totalSlides}
+              value={target}
+              onChange={(e) => setTarget(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && submit()}
+              className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-center text-lg font-semibold"
+            />
+          </label>
+          <p className="mt-1 text-xs text-black/40">Enter a number between 1 and {totalSlides}</p>
+        </div>
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          {/* Quick position shortcuts */}
+          <div className="col-span-2 flex flex-wrap gap-1.5">
+            {[1, Math.ceil(totalSlides / 2), totalSlides].filter((n, i, arr) => arr.indexOf(n) === i && n !== slide.slide_number).map((n) => (
+              <button
+                key={n}
+                type="button"
+                onClick={() => setTarget(String(n))}
+                className="rounded-md border border-black/10 px-3 py-1 text-xs font-medium hover:bg-black/5"
+              >
+                {n === 1 ? "First" : n === totalSlides ? "Last" : `Middle (${n})`}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="mt-4 flex justify-end gap-2">
+          <button type="button" onClick={onClose} className="rounded-md border border-black/15 px-4 py-2 text-sm hover:bg-black/5">Cancel</button>
+          <button
+            type="button"
+            onClick={submit}
+            disabled={parseInt(target, 10) === slide.slide_number || parseInt(target, 10) < 1 || parseInt(target, 10) > totalSlides}
+            className="rounded-md bg-moss px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+          >
+            Move slide
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main workspace ───────────────────────────────────────────────────────────
+export function LessonBuilderWorkspace({ lesson, slides: serverSlides, blocks, activities }: Props) {
+  // ── Optimistic slides state — updates instantly on reorder ──
+  const [slides, setSlides] = useState<Slide[]>(serverSlides);
+  const [selectedSlideId, setSelectedSlideId] = useState(serverSlides[0]?.id ?? "");
   const [isMetadataOpen, setIsMetadataOpen] = useState(false);
   const [busyMessage, setBusyMessage] = useState<string | null>(null);
   const [draggedSlideId, setDraggedSlideId] = useState<string | null>(null);
+  const [dragOverSlideId, setDragOverSlideId] = useState<string | null>(null);
   const [addAfter, setAddAfter] = useState<number | null>(null);
+  const [moveSlide, setMoveSlide] = useState<Slide | null>(null);
   const [isReordering, startReorderTransition] = useTransition();
-  const previousSlideCount = useRef(slides.length);
+  const previousSlideCount = useRef(serverSlides.length);
+
+  // Keep local slides in sync with server when slides are added/deleted
+  useEffect(() => {
+    // If slide count changed (add/delete), accept the server version fully
+    if (serverSlides.length !== slides.length) {
+      setSlides(serverSlides);
+    }
+  }, [serverSlides]);
 
   const selectedSlide = slides.find((s) => s.id === selectedSlideId) ?? slides[0] ?? null;
   const selectedIndex = selectedSlide ? slides.findIndex((s) => s.id === selectedSlide.id) : -1;
@@ -154,8 +241,6 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
   }, [blocks]);
 
   const selectedBlocks = selectedSlide ? blocksBySlide.get(selectedSlide.id) ?? [] : [];
-
-  // ── FIXED: match by slide_id only — slide_number is a display number that changes on reorder ──
   const selectedActivity = selectedSlide
     ? activities.find((a) => a.slide_id === selectedSlide.id) ?? null
     : null;
@@ -166,28 +251,78 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
     if (next) setSelectedSlideId(next.id);
   }
 
-  function reorderSlideCards(targetSlideId: string) {
-    if (!draggedSlideId || draggedSlideId === targetSlideId || isReordering) return;
-    const orderedIds = slides.map((s) => s.id);
-    const from = orderedIds.indexOf(draggedSlideId);
-    const to = orderedIds.indexOf(targetSlideId);
+  // ── Core reorder function — updates UI instantly, then persists ──
+  function applyReorder(newOrder: Slide[]) {
+    // Renumber optimistically
+    const renumbered = newOrder.map((s, i) => ({ ...s, slide_number: i + 1 }));
+    setSlides(renumbered);
+    const orderedIds = renumbered.map((s) => s.id);
+    setBusyMessage("Reordering slides...");
+    startReorderTransition(async () => {
+      await reorderBuilderSlides(lesson.id, orderedIds);
+    });
+  }
+
+  // ── Drag and drop ──
+  function handleDragStart(slideId: string) {
+    setDraggedSlideId(slideId);
+  }
+
+  function handleDragOver(e: React.DragEvent, slideId: string) {
+    e.preventDefault();
+    if (slideId !== draggedSlideId) setDragOverSlideId(slideId);
+  }
+
+  function handleDrop(targetSlideId: string) {
+    if (!draggedSlideId || draggedSlideId === targetSlideId) return;
+    const from = slides.findIndex((s) => s.id === draggedSlideId);
+    const to = slides.findIndex((s) => s.id === targetSlideId);
     if (from < 0 || to < 0) return;
-    const next = [...orderedIds];
+    const next = [...slides];
     const [moved] = next.splice(from, 1);
     next.splice(to, 0, moved);
     setSelectedSlideId(draggedSlideId);
-    setBusyMessage("Reordering slides...");
-    startReorderTransition(async () => { await reorderBuilderSlides(lesson.id, next); });
+    setDraggedSlideId(null);
+    setDragOverSlideId(null);
+    applyReorder(next);
   }
 
-  useEffect(() => { setBusyMessage(null); }, [lesson.status, slides.length, blocks.length, activities.length, selectedSlide?.title]);
+  function handleDragEnd() {
+    setDraggedSlideId(null);
+    setDragOverSlideId(null);
+  }
+
+  // ── Move to position ──
+  function handleMoveToPosition(toIndex: number) {
+    if (!moveSlide) return;
+    const from = slides.findIndex((s) => s.id === moveSlide.id);
+    if (from < 0 || from === toIndex) return;
+    const next = [...slides];
+    const [moved] = next.splice(from, 1);
+    next.splice(toIndex, 0, moved);
+    setSelectedSlideId(moveSlide.id);
+    applyReorder(next);
+  }
+
+  // ── Up/down arrow moves ──
+  function handleMoveUpDown(slideId: string, direction: "up" | "down") {
+    const index = slides.findIndex((s) => s.id === slideId);
+    if (index < 0) return;
+    const nextIndex = direction === "up" ? index - 1 : index + 1;
+    if (nextIndex < 0 || nextIndex >= slides.length) return;
+    const next = [...slides];
+    [next[index], next[nextIndex]] = [next[nextIndex], next[index]];
+    applyReorder(next);
+  }
+
+  useEffect(() => { setBusyMessage(null); }, [lesson.status, blocks.length, activities.length, selectedSlide?.title]);
 
   useEffect(() => {
-    if (slides.length > previousSlideCount.current) {
-      setSelectedSlideId(slides[slides.length - 1]?.id ?? "");
+    if (serverSlides.length > previousSlideCount.current) {
+      setSelectedSlideId(serverSlides[serverSlides.length - 1]?.id ?? "");
     }
-    previousSlideCount.current = slides.length;
-  }, [slides]);
+    previousSlideCount.current = serverSlides.length;
+  }, [serverSlides]);
 
   useEffect(() => {
     if (!busyMessage) return;
@@ -216,7 +351,21 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
       )}
 
       {addAfter !== null && (
-        <AddSlideModal lessonId={lesson.id} afterSlideNumber={addAfter} onClose={() => setAddAfter(null)} onBusy={setBusyMessage} />
+        <AddSlideModal
+          lessonId={lesson.id}
+          afterSlideNumber={addAfter}
+          onClose={() => setAddAfter(null)}
+          onBusy={setBusyMessage}
+        />
+      )}
+
+      {moveSlide && (
+        <MoveSlideModal
+          slide={moveSlide}
+          totalSlides={slides.length}
+          onMove={handleMoveToPosition}
+          onClose={() => setMoveSlide(null)}
+        />
       )}
 
       {isMetadataOpen && (
@@ -234,6 +383,7 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
         </div>
       )}
 
+      {/* Header */}
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
           <Link href="/admin/lessons" className="text-sm text-black/55 hover:text-black">Back to lessons</Link>
@@ -256,7 +406,10 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
         </div>
       </div>
 
+      {/* Top two-column section */}
       <section className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)] lg:gap-5">
+
+        {/* Left — Lesson preview + slide strip */}
         <section className="min-w-0 rounded-xl border border-black/10 bg-white p-3 shadow-sm sm:p-4">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -270,6 +423,7 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
             </div>
           </div>
 
+          {/* Slide preview */}
           <div className="rounded-xl bg-slate-100 p-3">
             <div className="min-h-[420px] rounded-lg bg-white p-4 shadow-inner">
               {selectedSlide ? (
@@ -287,42 +441,54 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
             </div>
           </div>
 
-          <div className="mt-3 flex max-w-full items-center gap-0 overflow-x-auto pb-1">
-            <button type="button" onClick={() => setAddAfter(0)} title="Add slide at beginning" className="flex size-7 shrink-0 items-center justify-center rounded-full border border-dashed border-black/20 text-black/30 transition hover:border-moss hover:bg-moss/5 hover:text-moss">
-              <Plus size={13} />
-            </button>
-
-            {slides.map((slide, index) => (
-              <div key={slide.id} className="flex shrink-0 items-center">
-                <button
-                  type="button"
-                  draggable
-                  onDragStart={() => setDraggedSlideId(slide.id)}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={() => reorderSlideCards(slide.id)}
-                  onDragEnd={() => setDraggedSlideId(null)}
-                  onClick={() => setSelectedSlideId(slide.id)}
-                  className={`min-w-44 rounded-lg border px-3 py-2 text-left text-sm transition
-                    ${slide.id === selectedSlide?.id ? "border-moss bg-moss/10" : "border-black/10 bg-white hover:bg-black/[0.03]"}`}
-                >
-                  <span className="flex items-center gap-1 text-xs font-semibold text-moss">Slide {index + 1}</span>
-                  <span className="mt-1 block truncate font-medium">{slide.title}</span>
-                  {slide.section_label && <span className="mt-0.5 block truncate text-[11px] text-black/40">{slide.section_label}</span>}
-                </button>
-                <button type="button" onClick={() => setAddAfter(slide.slide_number)} title={`Add slide after slide ${index + 1}`} className="mx-1 flex size-7 shrink-0 items-center justify-center rounded-full border border-dashed border-black/20 text-black/30 transition hover:border-moss hover:bg-moss/5 hover:text-moss">
-                  <Plus size={13} />
-                </button>
-              </div>
-            ))}
-
-            {slides.length === 0 && (
-              <button type="button" onClick={() => setAddAfter(0)} className="inline-flex items-center gap-2 rounded-lg border border-dashed border-black/20 px-4 py-2 text-sm text-black/40 hover:border-moss hover:text-moss">
-                <Plus size={15} /> Add first slide
+          {/* Slide strip — drag to reorder */}
+          <div className="mt-3">
+            <p className="mb-1.5 text-[11px] text-black/35">Drag slides to reorder · Click to select</p>
+            <div className="flex max-w-full items-center gap-0 overflow-x-auto pb-1">
+              <button type="button" onClick={() => setAddAfter(0)} title="Add slide at beginning" className="flex size-7 shrink-0 items-center justify-center rounded-full border border-dashed border-black/20 text-black/30 transition hover:border-moss hover:bg-moss/5 hover:text-moss">
+                <Plus size={13} />
               </button>
-            )}
+
+              {slides.map((slide, index) => (
+                <div key={slide.id} className="flex shrink-0 items-center">
+                  <div
+                    draggable
+                    onDragStart={() => handleDragStart(slide.id)}
+                    onDragOver={(e) => handleDragOver(e, slide.id)}
+                    onDrop={() => handleDrop(slide.id)}
+                    onDragEnd={handleDragEnd}
+                    className={`min-w-44 rounded-lg border px-3 py-2 text-left text-sm transition cursor-grab active:cursor-grabbing
+                      ${slide.id === selectedSlide?.id ? "border-moss bg-moss/10" : "border-black/10 bg-white hover:bg-black/[0.03]"}
+                      ${dragOverSlideId === slide.id && draggedSlideId !== slide.id ? "border-moss/50 bg-moss/5 scale-[1.02]" : ""}
+                      ${draggedSlideId === slide.id ? "opacity-40" : ""}
+                    `}
+                    onClick={() => setSelectedSlideId(slide.id)}
+                  >
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="flex items-center gap-1 text-xs font-semibold text-moss">
+                        <GripVertical size={11} className="text-black/20" />
+                        Slide {index + 1}
+                      </span>
+                    </div>
+                    <span className="mt-1 block truncate font-medium">{slide.title}</span>
+                    {slide.section_label && <span className="mt-0.5 block truncate text-[11px] text-black/40">{slide.section_label}</span>}
+                  </div>
+                  <button type="button" onClick={() => setAddAfter(slide.slide_number)} title={`Add slide after slide ${index + 1}`} className="mx-1 flex size-7 shrink-0 items-center justify-center rounded-full border border-dashed border-black/20 text-black/30 transition hover:border-moss hover:bg-moss/5 hover:text-moss">
+                    <Plus size={13} />
+                  </button>
+                </div>
+              ))}
+
+              {slides.length === 0 && (
+                <button type="button" onClick={() => setAddAfter(0)} className="inline-flex items-center gap-2 rounded-lg border border-dashed border-black/20 px-4 py-2 text-sm text-black/40 hover:border-moss hover:text-moss">
+                  <Plus size={15} /> Add first slide
+                </button>
+              )}
+            </div>
           </div>
         </section>
 
+        {/* Right — Interactive preview */}
         <section className="min-w-0 rounded-xl border border-black/10 bg-white p-3 shadow-sm sm:p-4">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
@@ -343,6 +509,7 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
         </section>
       </section>
 
+      {/* Slide editor */}
       <section className="mt-5 min-w-0">
         <section className="min-w-0 rounded-xl border border-black/10 bg-white p-3 shadow-sm sm:p-4">
           {selectedSlide ? (
@@ -353,6 +520,8 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
               slideCount={slides.length}
               blocks={selectedBlocks}
               activity={selectedActivity}
+              onMoveUpDown={handleMoveUpDown}
+              onMoveToPosition={() => setMoveSlide(selectedSlide)}
             />
           ) : (
             <div className="rounded-lg border border-dashed border-black/15 p-8 text-center text-sm text-black/50">Select or add a slide to edit.</div>
@@ -363,6 +532,7 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
   );
 }
 
+// ── Metadata Form ─────────────────────────────────────────────────────────────
 function MetadataForm({ lesson }: { lesson: Lesson }) {
   return (
     <form action={updateLessonBuilderDetails.bind(null, lesson.id)} data-busy-message="Saving lesson settings..." className="mt-5 grid gap-4">
@@ -397,11 +567,14 @@ function MetadataForm({ lesson }: { lesson: Lesson }) {
   );
 }
 
+// ── Selected Slide Editor ─────────────────────────────────────────────────────
 function SelectedSlideEditor({
-  lessonId, slide, slideIndex, slideCount, blocks, activity
+  lessonId, slide, slideIndex, slideCount, blocks, activity, onMoveUpDown, onMoveToPosition
 }: {
   lessonId: string; slide: Slide; slideIndex: number;
   slideCount: number; blocks: LessonBlock[]; activity: Activity | null;
+  onMoveUpDown: (slideId: string, direction: "up" | "down") => void;
+  onMoveToPosition: () => void;
 }) {
   return (
     <div className="grid min-w-0 gap-5 xl:grid-cols-2">
@@ -412,12 +585,33 @@ function SelectedSlideEditor({
             <h2 className="mt-1 text-lg font-semibold">Edit slide {slideIndex + 1}</h2>
           </div>
           <div className="flex flex-wrap gap-2">
-            <form action={moveBuilderSlide.bind(null, lessonId, slide.id, "up")} data-busy-message="Moving slide...">
-              <button disabled={slideIndex === 0} className="rounded-md border border-black/15 p-2 hover:bg-black/5 disabled:opacity-35" aria-label="Move up"><ArrowUp size={15} /></button>
-            </form>
-            <form action={moveBuilderSlide.bind(null, lessonId, slide.id, "down")} data-busy-message="Moving slide...">
-              <button disabled={slideIndex === slideCount - 1} className="rounded-md border border-black/15 p-2 hover:bg-black/5 disabled:opacity-35" aria-label="Move down"><ArrowDown size={15} /></button>
-            </form>
+            <button
+              type="button"
+              onClick={() => onMoveUpDown(slide.id, "up")}
+              disabled={slideIndex === 0}
+              className="rounded-md border border-black/15 p-2 hover:bg-black/5 disabled:opacity-35"
+              aria-label="Move up"
+            >
+              <ArrowUp size={15} />
+            </button>
+            <button
+              type="button"
+              onClick={() => onMoveUpDown(slide.id, "down")}
+              disabled={slideIndex === slideCount - 1}
+              className="rounded-md border border-black/15 p-2 hover:bg-black/5 disabled:opacity-35"
+              aria-label="Move down"
+            >
+              <ArrowDown size={15} />
+            </button>
+            <button
+              type="button"
+              onClick={onMoveToPosition}
+              className="rounded-md border border-black/15 p-2 hover:bg-black/5"
+              aria-label="Move to position"
+              title="Move to position"
+            >
+              <Move size={15} />
+            </button>
             <SlideNarrationRecorder key={slide.id} lessonId={lessonId} slideId={slide.id} />
             <form action={duplicateBuilderSlide.bind(null, lessonId, slide.id)} data-busy-message="Duplicating slide...">
               <button className="rounded-md border border-black/15 p-2 hover:bg-black/5" aria-label="Duplicate"><Copy size={15} /></button>
@@ -551,7 +745,6 @@ function blockSummary(block: LessonBlock) {
 // ── BlockFields — field names match blockContentFromForm in actions.ts exactly ──
 function BlockFields({ blockType, content, lessonId }: { blockType: string; content: Json; lessonId: string }) {
   const data = asRecord(content);
-  // Hooks must always run unconditionally — React requires consistent hook order across renders
   const [imagePath, setImagePath] = useState(asString(data.path ?? data.src ?? data.url));
   const [audioPath, setAudioPath] = useState(asString(data.path ?? data.src ?? data.url));
 
@@ -563,7 +756,6 @@ function BlockFields({ blockType, content, lessonId }: { blockType: string; cont
       </label>
     );
   }
-
   if (blockType === "TEXT") {
     return (
       <label className="text-sm">
@@ -572,7 +764,6 @@ function BlockFields({ blockType, content, lessonId }: { blockType: string; cont
       </label>
     );
   }
-
   if (blockType === "BULLETS") {
     return (
       <label className="text-sm">
@@ -581,102 +772,51 @@ function BlockFields({ blockType, content, lessonId }: { blockType: string; cont
       </label>
     );
   }
-
   if (blockType === "QUOTE") {
     return (
       <div className="grid gap-3">
-        <label className="text-sm">
-          Quote text
-          <textarea name="body" rows={3} defaultValue={asString(data.body ?? data.text)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
-        </label>
-        <label className="text-sm">
-          Attribution <span className="font-normal text-black/45">(optional)</span>
-          <input name="attribution" defaultValue={asString(data.attribution)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
-        </label>
+        <label className="text-sm">Quote text<textarea name="body" rows={3} defaultValue={asString(data.body ?? data.text)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+        <label className="text-sm">Attribution <span className="font-normal text-black/45">(optional)</span><input name="attribution" defaultValue={asString(data.attribution)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
       </div>
     );
   }
-
   if (blockType === "CALLOUT") {
     return (
       <div className="grid gap-3">
-        <label className="text-sm">
-          Callout title <span className="font-normal text-black/45">(optional)</span>
-          <input name="title" defaultValue={asString(data.title)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
-        </label>
-        <label className="text-sm">
-          Callout text
-          <textarea name="body" rows={3} defaultValue={asString(data.body ?? data.text)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
-        </label>
+        <label className="text-sm">Callout title <span className="font-normal text-black/45">(optional)</span><input name="title" defaultValue={asString(data.title)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+        <label className="text-sm">Callout text<textarea name="body" rows={3} defaultValue={asString(data.body ?? data.text)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
       </div>
     );
   }
-
   if (blockType === "IMAGE") {
     return (
       <div className="grid gap-3">
-        <label className="text-sm">
-          Image URL
-          <input
-            name="path"
-            value={imagePath}
-            onChange={(e) => setImagePath(e.target.value)}
-            placeholder="https://… or upload below"
-            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
-          />
-        </label>
+        <label className="text-sm">Image URL<input name="path" value={imagePath} onChange={(e) => setImagePath(e.target.value)} placeholder="https://… or upload below" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
         <BlockMediaUploader type="image" lessonId={lessonId} currentSrc={imagePath} onUploaded={(url) => setImagePath(url)} />
         <div className="grid gap-3 sm:grid-cols-2">
-          <label className="text-sm">
-            Alt text
-            <input name="alt" defaultValue={asString(data.alt)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
-          </label>
-          <label className="text-sm">
-            Caption
-            <input name="caption" defaultValue={asString(data.caption)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
-          </label>
+          <label className="text-sm">Alt text<input name="alt" defaultValue={asString(data.alt)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+          <label className="text-sm">Caption<input name="caption" defaultValue={asString(data.caption)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
         </div>
       </div>
     );
   }
-
   if (blockType === "AUDIO") {
     return (
       <div className="grid gap-3">
-        <label className="text-sm">
-          Label
-          <input name="label" defaultValue={asString(data.label)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
-        </label>
-        <label className="text-sm">
-          Audio URL
-          <input
-            name="path"
-            value={audioPath}
-            onChange={(e) => setAudioPath(e.target.value)}
-            placeholder="https://… or upload below"
-            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
-          />
-        </label>
+        <label className="text-sm">Label<input name="label" defaultValue={asString(data.label)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+        <label className="text-sm">Audio URL<input name="path" value={audioPath} onChange={(e) => setAudioPath(e.target.value)} placeholder="https://… or upload below" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
         <BlockMediaUploader type="audio" lessonId={lessonId} currentSrc={audioPath} onUploaded={(url) => setAudioPath(url)} />
       </div>
     );
   }
-
   if (blockType === "VIDEO") {
     return (
       <div className="grid gap-3">
-        <label className="text-sm">
-          Video URL
-          <input name="url" defaultValue={asString(data.url ?? data.src)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
-        </label>
-        <label className="text-sm">
-          Title <span className="font-normal text-black/45">(optional)</span>
-          <input name="title" defaultValue={asString(data.title)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
-        </label>
+        <label className="text-sm">Video URL<input name="url" defaultValue={asString(data.url ?? data.src)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+        <label className="text-sm">Title <span className="font-normal text-black/45">(optional)</span><input name="title" defaultValue={asString(data.title)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
       </div>
     );
   }
-
   if (blockType === "VOCABULARY") {
     const entries = Array.isArray(data.entries)
       ? (data.entries as Record<string, string>[]).map((e) => [e.word, e.pronunciation, e.meaning, e.example, e.notes].join(" | ")).join("\n")
@@ -690,7 +830,6 @@ function BlockFields({ blockType, content, lessonId }: { blockType: string; cont
       </label>
     );
   }
-
   if (blockType === "GRAMMAR") {
     return (
       <div className="grid gap-3">
@@ -700,7 +839,6 @@ function BlockFields({ blockType, content, lessonId }: { blockType: string; cont
       </div>
     );
   }
-
   if (blockType === "READING") {
     return (
       <div className="grid gap-3">
@@ -709,7 +847,6 @@ function BlockFields({ blockType, content, lessonId }: { blockType: string; cont
       </div>
     );
   }
-
   if (blockType === "DIALOGUE") {
     const turnsText = Array.isArray(data.turns)
       ? (data.turns as Record<string, string>[]).map((t) => `${t.speaker}: ${t.line ?? t.text}`).join("\n")
@@ -723,6 +860,5 @@ function BlockFields({ blockType, content, lessonId }: { blockType: string; cont
       </label>
     );
   }
-
   return <p className="text-sm text-black/45">No fields for {blockType}.</p>;
 }
