@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, ClipboardList, LockKeyhole, RotateCcw, Search, X } from "lucide-react";
+import { ArrowRight, ClipboardList, RotateCcw, Search, X } from "lucide-react";
 import { useState, useMemo } from "react";
 import { WishlistButton } from "@/components/WishlistButton";
 
@@ -203,9 +203,7 @@ export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLogged
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {filtered.map((quiz) => {
             const theme = getLevelTheme(quiz.level);
-            const href = isLoggedIn
-              ? `/quizzes/${quiz.id}`
-              : `/login?next=${encodeURIComponent(`/quizzes/${quiz.id}`)}`;
+            const href = `/quizzes/${quiz.id}`;
             const qCount = questionCounts[quiz.id] ?? 0;
             const hasTimer = Boolean(quiz.time_limit_seconds);
             const attempt = bestAttempts[quiz.id];
@@ -270,8 +268,8 @@ export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLogged
                   ) : null}
 
                   {!isLoggedIn ? (
-                    <div className="mt-auto flex items-center gap-2 rounded-md bg-slate-50 p-3 text-sm text-slate-500">
-                      <LockKeyhole size={15} /> Sign in to start this quiz.
+                    <div className="mt-auto rounded-md bg-slate-50 p-3 text-sm text-slate-500">
+                      Try it free. Create an account after submitting if you want to save your score.
                     </div>
                   ) : !attempt ? (
                     <div className="mt-auto rounded-md p-3 text-sm font-medium" style={{ backgroundColor: theme.badge, color: theme.badgeText }}>
