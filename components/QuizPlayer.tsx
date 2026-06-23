@@ -53,6 +53,39 @@ export function isCorrect(question: QuizQuestion, value: unknown): boolean {
     const given   = asRecord(value as Json);
     return Object.entries(correct).every(([k, v]) => normalize(given[k]) === normalize(v));
   }
+  if (question.question_type === "MULTIPLE_SELECT") {
+    const correct = (Array.isArray(question.correct_answer) ? question.correct_answer : [question.correct_answer]).map((v) => String(v).toUpperCase()).sort();
+    const given = (Array.isArray(value) ? value : []).map((v) => String(v).toUpperCase()).sort();
+    return correct.length === given.length && correct.every((answer, index) => answer === given[index]);
+  }
+  if (question.question_type === "SHORT_ANSWER") {
+    const data = asRecord(question.options);
+    const requiredWords = Array.isArray(data.required_words) ? data.required_words.map(normalize).filter(Boolean) : [];
+    const text = normalize(asRecord(value as Json).text ?? value);
+    if (requiredWords.length > 0) return requiredWords.every((word) => text.includes(word));
+    return Boolean(asRecord(value as Json).selfMarked);
+  }
+  if (question.question_type === "DRAG_DROP") {
+    const correct = asRecord(question.correct_answer);
+    const given = asRecord(value as Json);
+    return Object.entries(correct).every(([item, target]) => normalize(given[item]) === normalize(target));
+  }
+  if (question.question_type === "PRONUNCIATION") {
+    const data = asRecord(question.correct_answer);
+    const targets = Array.isArray(data.targets) ? data.targets.map((t) => normalize(asRecord(t as Json).text ?? t)).filter(Boolean) : [];
+    const spoken = normalize(asRecord(value as Json).transcript);
+    return targets.length > 0 && targets.every((target) => spoken.includes(target));
+  }
+  if (question.question_type === "ERROR_CORRECTION") {
+    const correct = asRecord(question.correct_answer);
+    const given = asRecord(value as Json);
+    return normalize(given.correction) === normalize(correct.correction ?? question.correct_answer);
+  }
+  if (question.question_type === "REORDERING") {
+    const correct = Array.isArray(question.correct_answer) ? question.correct_answer.map(String) : [];
+    const given = Array.isArray(value) ? value.map(String) : [];
+    return correct.length === given.length && correct.every((item, index) => item === given[index]);
+  }
   return false;
 }
 
@@ -60,6 +93,12 @@ export function hasAnswer(question: QuizQuestion, value: unknown): boolean {
   if (value === undefined || value === null) return false;
   if (question.question_type === "FILL")     return Array.isArray(value) && value.some((v) => String(v).trim() !== "");
   if (question.question_type === "MATCHING") return Object.keys(asRecord(value as Json)).length > 0;
+  if (question.question_type === "MULTIPLE_SELECT") return Array.isArray(value) && value.length > 0;
+  if (question.question_type === "DRAG_DROP") return Object.keys(asRecord(value as Json)).length > 0;
+  if (question.question_type === "PRONUNCIATION") return Boolean(asRecord(value as Json).transcript);
+  if (question.question_type === "SHORT_ANSWER") return Boolean(normalize(asRecord(value as Json).text ?? value));
+  if (question.question_type === "ERROR_CORRECTION") return Boolean(normalize(asRecord(value as Json).correction));
+  if (question.question_type === "REORDERING") return Array.isArray(value) && value.length > 0;
   return true;
 }
 
@@ -71,6 +110,12 @@ function answerText(question: QuizQuestion): string {
     if (Array.isArray(question.correct_answer)) return (question.correct_answer as Array<{ a: number; b: string }>).map((p) => `${p.a} → ${p.b}`).join(", ");
     return Object.entries(asRecord(question.correct_answer)).map(([k, v]) => `${k} → ${v}`).join(", ");
   }
+  if (question.question_type === "MULTIPLE_SELECT") return (Array.isArray(question.correct_answer) ? question.correct_answer : [question.correct_answer]).join(", ");
+  if (question.question_type === "SHORT_ANSWER") return String(asRecord(question.correct_answer).sample ?? question.correct_answer ?? "Answers may vary.");
+  if (question.question_type === "DRAG_DROP") return Object.entries(asRecord(question.correct_answer)).map(([k, v]) => `${k} → ${v}`).join(", ");
+  if (question.question_type === "PRONUNCIATION") return "Try to include the highlighted target sounds or words.";
+  if (question.question_type === "ERROR_CORRECTION") return String(asRecord(question.correct_answer).correction ?? question.correct_answer);
+  if (question.question_type === "REORDERING") return (Array.isArray(question.correct_answer) ? question.correct_answer : []).join(" → ");
   return "";
 }
 
@@ -209,6 +254,12 @@ export function QuestionCard({ question, value, submitted, onChange }: {
         {question.question_type === "TRUE_FALSE" && <TrueFalse                    value={value as boolean | undefined}             disabled={submitted} onChange={onChange} />}
         {question.question_type === "FILL"       && <Fill      question={question} value={value as string[] | undefined}            disabled={submitted} onChange={onChange} />}
         {question.question_type === "MATCHING"   && <Matching  question={question} value={(value as Record<string, string>) ?? {}} disabled={submitted} onChange={onChange} />}
+        {question.question_type === "MULTIPLE_SELECT" && <MultipleSelect question={question} value={value as string[] | undefined} disabled={submitted} onChange={onChange} />}
+        {question.question_type === "SHORT_ANSWER" && <ShortAnswer question={question} value={value as { text?: string; selfMarked?: boolean } | undefined} submitted={submitted} onChange={onChange} />}
+        {question.question_type === "DRAG_DROP" && <DragDrop question={question} value={(value as Record<string, string>) ?? {}} disabled={submitted} onChange={onChange} />}
+        {question.question_type === "PRONUNCIATION" && <Pronunciation value={value as { transcript?: string } | undefined} disabled={submitted} onChange={onChange} />}
+        {question.question_type === "ERROR_CORRECTION" && <ErrorCorrection question={question} value={value as { correction?: string } | undefined} disabled={submitted} onChange={onChange} />}
+        {question.question_type === "REORDERING" && <Reordering question={question} value={value as string[] | undefined} disabled={submitted} onChange={onChange} />}
       </div>
       {submitted && wrong ? <p className="mt-3 rounded-md bg-coral/10 p-3 text-sm text-coral">Correct answer: {answerText(question)}</p> : null}
     </fieldset>
@@ -247,6 +298,119 @@ function Matching({ question, value, disabled, onChange }: { question: QuizQuest
           </select>
         </div>
       ); })}
+    </div>
+  );
+}
+
+function MultipleSelect({ question, value = [], disabled, onChange }: { question: QuizQuestion; value?: string[]; disabled: boolean; onChange: (v: string[]) => void }) {
+  const options = asRecord(question.options);
+  function toggle(key: string) {
+    onChange(value.includes(key) ? value.filter((item) => item !== key) : [...value, key]);
+  }
+  return (
+    <div className="grid gap-2">
+      {Object.entries(options).map(([key, text]) => (
+        <label key={key} className="flex cursor-pointer items-center gap-3 rounded-md border border-black/10 px-3 py-2 text-sm">
+          <input type="checkbox" disabled={disabled} checked={value.includes(key)} onChange={() => toggle(key)} />
+          <strong>{key}.</strong> {String(text)}
+        </label>
+      ))}
+    </div>
+  );
+}
+
+function ShortAnswer({ question, value, submitted, onChange }: { question: QuizQuestion; value?: { text?: string; selfMarked?: boolean }; submitted: boolean; onChange: (v: { text?: string; selfMarked?: boolean }) => void }) {
+  const current = value ?? {};
+  return (
+    <div className="grid gap-3">
+      <textarea
+        disabled={submitted}
+        value={current.text ?? ""}
+        onChange={(e) => onChange({ ...current, text: e.target.value })}
+        rows={4}
+        className="rounded-md border border-black/15 px-3 py-2 text-sm outline-none focus:border-moss"
+        placeholder="Write your answer..."
+      />
+      {submitted ? (
+        <label className="flex items-center gap-2 text-sm text-black/60">
+          <input type="checkbox" checked={Boolean(current.selfMarked)} onChange={(e) => onChange({ ...current, selfMarked: e.target.checked })} />
+          I checked my answer against the sample answer.
+        </label>
+      ) : null}
+      {question.correct_answer ? <p className="rounded-md bg-slate-50 p-3 text-sm text-black/60">Sample: {answerText(question)}</p> : null}
+    </div>
+  );
+}
+
+function DragDrop({ question, value, disabled, onChange }: { question: QuizQuestion; value: Record<string, string>; disabled: boolean; onChange: (v: Record<string, string>) => void }) {
+  const options = asRecord(question.options);
+  const items = (Array.isArray(options.items) ? options.items : Object.keys(asRecord(question.correct_answer))).map(String);
+  const targets = (Array.isArray(options.targets) ? options.targets : Array.from(new Set(Object.values(asRecord(question.correct_answer)).map(String)))).map(String);
+  return (
+    <div className="grid gap-3">
+      {items.map((item) => (
+        <label key={item} className="grid gap-1 text-sm sm:grid-cols-[1fr_180px] sm:items-center">
+          <span className="font-medium">{item}</span>
+          <select disabled={disabled} value={value[item] ?? ""} onChange={(e) => onChange({ ...value, [item]: e.target.value })} className="rounded-md border border-black/15 px-2 py-2 text-sm">
+            <option value="">Choose...</option>
+            {targets.map((target) => <option key={target} value={target}>{target}</option>)}
+          </select>
+        </label>
+      ))}
+    </div>
+  );
+}
+
+function Pronunciation({ value, disabled, onChange }: { value?: { transcript?: string }; disabled: boolean; onChange: (v: { transcript?: string }) => void }) {
+  return (
+    <textarea
+      disabled={disabled}
+      value={value?.transcript ?? ""}
+      onChange={(e) => onChange({ transcript: e.target.value })}
+      rows={3}
+      className="w-full rounded-md border border-black/15 px-3 py-2 text-sm outline-none focus:border-moss"
+      placeholder="Type what you said or what you heard yourself say."
+    />
+  );
+}
+
+function ErrorCorrection({ question, value, disabled, onChange }: { question: QuizQuestion; value?: { correction?: string }; disabled: boolean; onChange: (v: { correction?: string }) => void }) {
+  const options = asRecord(question.options);
+  return (
+    <div className="grid gap-3">
+      {options.incorrect ? <p className="rounded-md bg-coral/10 p-3 text-sm text-coral">{String(options.incorrect)}</p> : null}
+      <input
+        disabled={disabled}
+        value={value?.correction ?? ""}
+        onChange={(e) => onChange({ correction: e.target.value })}
+        className="rounded-md border border-black/15 px-3 py-2 text-sm outline-none focus:border-moss"
+        placeholder="Write the corrected sentence..."
+      />
+    </div>
+  );
+}
+
+function Reordering({ question, value, disabled, onChange }: { question: QuizQuestion; value?: string[]; disabled: boolean; onChange: (v: string[]) => void }) {
+  const options = asRecord(question.options);
+  const items = (value?.length ? value : (Array.isArray(options.items) ? options.items.map(String) : [])).map(String);
+  function move(index: number, direction: -1 | 1) {
+    const next = [...items];
+    const target = index + direction;
+    if (target < 0 || target >= next.length) return;
+    [next[index], next[target]] = [next[target], next[index]];
+    onChange(next);
+  }
+  return (
+    <div className="grid gap-2">
+      {items.map((item, index) => (
+        <div key={`${item}-${index}`} className="flex items-center justify-between gap-3 rounded-md border border-black/10 px-3 py-2 text-sm">
+          <span>{item}</span>
+          <span className="flex gap-1">
+            <button type="button" disabled={disabled || index === 0} onClick={() => move(index, -1)} className="rounded border border-black/10 px-2 py-1 disabled:opacity-35">Up</button>
+            <button type="button" disabled={disabled || index === items.length - 1} onClick={() => move(index, 1)} className="rounded border border-black/10 px-2 py-1 disabled:opacity-35">Down</button>
+          </span>
+        </div>
+      ))}
     </div>
   );
 }
