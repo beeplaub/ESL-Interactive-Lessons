@@ -10,7 +10,7 @@ async function action(_prev: State, formData: FormData): Promise<State> {
   try {
     await updateProfile(formData);
     return { success: true };
-  } catch (e) {
+  } catch {
     return { success: false, error: "Something went wrong. Please try again." };
   }
 }

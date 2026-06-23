@@ -42,8 +42,8 @@ export async function uploadAvatar(formData: FormData) {
   const arrayBuffer = await file.arrayBuffer();
   const buffer = new Uint8Array(arrayBuffer);
 
-  const admin = createAdminClient();
-  const { error: uploadError } = await admin.storage
+  const supabase = await createClient();
+  const { error: uploadError } = await supabase.storage
     .from("avatars")
     .upload(path, buffer, {
       upsert: true,
@@ -51,8 +51,9 @@ export async function uploadAvatar(formData: FormData) {
     });
   if (uploadError) return { error: uploadError.message };
 
-  const { data } = admin.storage.from("avatars").getPublicUrl(path);
+  const { data } = supabase.storage.from("avatars").getPublicUrl(path);
 
+  const admin = createAdminClient();
   const { error: profileError } = await admin
     .from("profiles")
     .update({ avatar_url: data.publicUrl })

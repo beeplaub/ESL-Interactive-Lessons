@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
 import { requireAdmin } from "@/lib/auth";
 
 type Params = { params: Promise<{ lessonId: string; slideId: string }> };
