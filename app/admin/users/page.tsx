@@ -46,8 +46,8 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
         <input name="q" defaultValue={q} placeholder="Search name or email" className="w-full outline-none" />
       </form>
 
-      <div className="overflow-hidden rounded-lg border border-black/10 bg-white shadow-sm">
-        <table className="w-full text-left text-sm">
+      <div className="overflow-x-auto rounded-lg border border-black/10 bg-white shadow-sm">
+        <table className="min-w-[800px] w-full text-left text-sm">
           <thead className="bg-slate-50 text-xs uppercase text-black/50">
             <tr><th className="p-3">Name</th><th className="p-3">Email</th><th className="p-3">Level</th><th className="p-3">Role</th><th className="p-3">Joined</th><th className="p-3">Attempts</th><th className="p-3">Actions</th></tr>
           </thead>

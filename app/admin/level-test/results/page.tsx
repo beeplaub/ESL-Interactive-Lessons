@@ -16,8 +16,8 @@ export default async function AdminLevelTestResultsPage() {
     <main className="mx-auto max-w-6xl px-4 py-8">
       <h1 className="text-3xl font-semibold">Level test results</h1>
       <p className="mt-2 text-sm text-black/60">Recent learner results and CEFR levels.</p>
-      <div className="mt-6 overflow-hidden rounded-lg border border-black/10 bg-white shadow-sm">
-        <table className="w-full text-left text-sm">
+      <div className="mt-6 overflow-x-auto rounded-lg border border-black/10 bg-white shadow-sm">
+        <table className="min-w-[820px] w-full text-left text-sm">
           <thead className="bg-slate-50 text-xs uppercase text-black/50">
             <tr>
               <th className="p-3">Learner</th>

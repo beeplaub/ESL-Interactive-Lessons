@@ -57,8 +57,8 @@ export default async function AdminQuizAttemptsPage({ searchParams }: { searchPa
         <button className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white">Filter</button>
       </form>
 
-      <div className="overflow-hidden rounded-lg border border-black/10 bg-white shadow-sm">
-        <table className="w-full text-left text-sm">
+      <div className="overflow-x-auto rounded-lg border border-black/10 bg-white shadow-sm">
+        <table className="min-w-[820px] w-full text-left text-sm">
           <thead className="bg-slate-50 text-xs uppercase text-black/50">
             <tr>
               <th className="p-3">Learner</th>

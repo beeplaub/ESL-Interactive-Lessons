@@ -30,8 +30,8 @@ export default async function AdminQuizzesPage() {
           <Plus size={16} /> New quiz
         </Link>
       </div>
-      <div className="overflow-hidden rounded-lg border border-black/10 bg-white shadow-sm">
-        <table className="w-full text-left text-sm">
+      <div className="overflow-x-auto rounded-lg border border-black/10 bg-white shadow-sm">
+        <table className="min-w-[760px] w-full text-left text-sm">
           <thead className="bg-slate-50 text-xs uppercase text-black/50">
             <tr><th className="p-3">Title</th><th className="p-3">Level</th><th className="p-3">Topic</th><th className="p-3">Questions</th><th className="p-3">Attempts</th><th className="p-3">Created</th><th className="p-3">Status</th><th className="p-3">Actions</th></tr>
           </thead>

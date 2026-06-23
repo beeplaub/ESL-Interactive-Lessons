@@ -30,8 +30,8 @@ export default async function AdminLevelTestPage() {
 
       <section className="rounded-lg border border-black/10 bg-white p-5 shadow-sm">
         <h2 className="text-xl font-semibold">Questions</h2>
-        <div className="mt-4 overflow-hidden rounded-md border border-black/10">
-          <table className="w-full text-left text-sm">
+        <div className="mt-4 overflow-x-auto rounded-md border border-black/10">
+          <table className="min-w-[700px] w-full text-left text-sm">
             <thead className="bg-slate-50 text-xs uppercase text-black/50"><tr><th className="p-3">Section</th><th className="p-3">Band</th><th className="p-3">Question</th><th className="p-3">Answer</th></tr></thead>
             <tbody>
               {(questions ?? []).map((question) => (

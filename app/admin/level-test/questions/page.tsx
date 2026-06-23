@@ -19,8 +19,8 @@ export default async function AdminLevelTestQuestionsPage() {
           <Plus size={16} /> New question
         </Link>
       </div>
-      <div className="overflow-hidden rounded-lg border border-black/10 bg-white shadow-sm">
-        <table className="w-full text-left text-sm">
+      <div className="overflow-x-auto rounded-lg border border-black/10 bg-white shadow-sm">
+        <table className="min-w-[700px] w-full text-left text-sm">
           <thead className="bg-slate-50 text-xs uppercase text-black/50">
             <tr><th className="p-3">Section</th><th className="p-3">Band</th><th className="p-3">Question</th><th className="p-3">Answer</th></tr>
           </thead>

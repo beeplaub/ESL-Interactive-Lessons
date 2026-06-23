@@ -54,9 +54,9 @@ export default async function AdminLessonsPage() {
                 {lesson.status}
               </span>
             </div>
-            <div className="mt-4 grid grid-cols-[1fr_auto_auto_auto] gap-2">
+            <div className="mt-4 flex flex-wrap gap-2">
               <Link
-                className="inline-flex items-center justify-center gap-2 rounded-md border border-black/15 px-3 py-2 text-sm font-medium hover:bg-black/5"
+                className="inline-flex flex-1 items-center justify-center gap-2 rounded-md border border-black/15 px-3 py-2 text-sm font-medium hover:bg-black/5"
                 href={`/admin/lessons/${lesson.id}/builder`}
               >
                 <Hammer size={16} /> Builder

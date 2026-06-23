@@ -41,8 +41,8 @@ export default async function EditQuizPage({ params }: { params: Promise<{ id: s
         </form>
       </section>
 
-      <section className="mt-6 overflow-hidden rounded-lg border border-black/10 bg-white shadow-sm">
-        <table className="w-full text-left text-sm">
+      <section className="mt-6 overflow-x-auto rounded-lg border border-black/10 bg-white shadow-sm">
+        <table className="min-w-[900px] w-full text-left text-sm">
           <thead className="bg-slate-50 text-xs uppercase text-black/50">
             <tr><th className="p-3">#</th><th className="p-3">Type</th><th className="p-3">Question</th><th className="p-3">Description</th><th className="p-3">Options</th><th className="p-3">Answer</th><th className="p-3">Save</th></tr>
           </thead>
