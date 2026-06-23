@@ -185,6 +185,7 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
   }
   if (blockType === "DIALOGUE") {
     return {
+      title: nullableText(formData.get("title")),
       turns: splitLines(formData.get("turns")).map((line) => {
         const [speaker, ...rest] = line.split(":");
         return { speaker: speaker?.trim() || "Speaker", line: rest.join(":").trim() };
@@ -218,7 +219,7 @@ function defaultBlockContent(blockType: string): Json {
   }
   if (blockType === "GRAMMAR") return { title: "Grammar focus", explanation: "", examples: [], notes: null };
   if (blockType === "READING") return { title: "Reading passage", passage: "", questions: [] };
-  if (blockType === "DIALOGUE") return { turns: [{ speaker: "A", line: "" }, { speaker: "B", line: "" }] };
+  if (blockType === "DIALOGUE") return { title: "Dialogue", turns: [{ speaker: "A", line: "" }, { speaker: "B", line: "" }] };
   if (blockType === "FLASHCARD") return {
     image_path: "",
     word: "resilience",
@@ -977,6 +978,30 @@ export async function moveBuilderSlide(lessonId: string, slideId: string, direct
   if (nextIndex < 0 || nextIndex >= orderedIds.length) return;
 
   [orderedIds[index], orderedIds[nextIndex]] = [orderedIds[nextIndex], orderedIds[index]];
+  await reorderSlides(lessonId, orderedIds);
+  revalidateLessonBuilder(lessonId);
+}
+
+export async function moveBuilderSlideToPosition(lessonId: string, slideId: string, formData: FormData) {
+  await requireAdmin();
+  const targetPosition = Number(formData.get("position"));
+  if (!Number.isFinite(targetPosition) || targetPosition < 1) return;
+
+  const supabase = createAdminClient();
+  const { data: slides, error } = await supabase
+    .from("slides")
+    .select("id")
+    .eq("lesson_id", lessonId)
+    .order("slide_number", { ascending: true });
+  if (error) throw error;
+
+  const orderedIds = (slides ?? []).map((slide) => slide.id);
+  const fromIndex = orderedIds.indexOf(slideId);
+  const toIndex = Math.min(Math.max(Math.round(targetPosition) - 1, 0), orderedIds.length - 1);
+  if (fromIndex === -1 || fromIndex === toIndex) return;
+
+  const [moved] = orderedIds.splice(fromIndex, 1);
+  orderedIds.splice(toIndex, 0, moved);
   await reorderSlides(lessonId, orderedIds);
   revalidateLessonBuilder(lessonId);
 }

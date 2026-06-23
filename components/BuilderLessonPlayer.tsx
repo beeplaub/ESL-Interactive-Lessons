@@ -202,7 +202,7 @@ export function BuilderLessonPlayer({
 
   const slideBlocks = slide ? blocksBySlide.get(slide.id) ?? [] : [];
   const activity = slide
-    ? activities.find((a) => a.slide_id === slide.id || a.slide_number === slide.slide_number)
+    ? activities.find((a) => a.slide_id === slide.id)
     : null;
   const latestAttempt = activity
     ? activityAttempts.find((a) => a.lesson_slide_activity_id === activity.id) ?? null

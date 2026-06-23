@@ -11,6 +11,7 @@ import {
   deleteLessonBlock,
   duplicateBuilderSlide,
   moveBuilderSlide,
+  moveBuilderSlideToPosition,
   moveLessonBlock,
   reorderBuilderSlides,
   updateBuilderSlide,
@@ -156,7 +157,7 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
 
   const selectedBlocks = selectedSlide ? blocksBySlide.get(selectedSlide.id) ?? [] : [];
   const selectedActivity = selectedSlide
-    ? activities.find((a) => a.slide_id === selectedSlide.id || a.slide_number === selectedSlide.slide_number)
+    ? activities.find((a) => a.slide_id === selectedSlide.id)
     : null;
 
   function selectRelative(direction: -1 | 1) {
@@ -418,6 +419,15 @@ function SelectedSlideEditor({
               <button disabled={slideIndex === slideCount - 1} className="rounded-md border border-black/15 p-2 hover:bg-black/5 disabled:opacity-35" aria-label="Move down"><ArrowDown size={15} /></button>
             </form>
             <SlideNarrationRecorder key={slide.id} lessonId={lessonId} slideId={slide.id} />
+            <form action={moveBuilderSlideToPosition.bind(null, lessonId, slide.id)} data-busy-message="Moving slide..." className="inline-flex items-center gap-1 rounded-md border border-black/15 px-2 py-1">
+              <span className="text-xs text-black/45">Move to</span>
+              <select name="position" defaultValue={slideIndex + 1} className="bg-transparent text-xs outline-none">
+                {Array.from({ length: slideCount }, (_, index) => (
+                  <option key={index + 1} value={index + 1}>{index + 1}</option>
+                ))}
+              </select>
+              <button className="rounded bg-black/[0.04] px-2 py-1 text-xs font-semibold hover:bg-black/[0.08]">Go</button>
+            </form>
             <form action={duplicateBuilderSlide.bind(null, lessonId, slide.id)} data-busy-message="Duplicating slide...">
               <button className="rounded-md border border-black/15 p-2 hover:bg-black/5" aria-label="Duplicate"><Copy size={15} /></button>
             </form>
@@ -427,7 +437,7 @@ function SelectedSlideEditor({
           </div>
         </div>
 
-        <form action={updateBuilderSlide.bind(null, lessonId, slide.id)} data-busy-message="Saving slide..." className="mt-4 grid gap-3 rounded-lg border border-black/10 bg-slate-50 p-3">
+        <form action={updateBuilderSlide.bind(null, lessonId, slide.id)} data-busy-message="Saving slide..." className="mt-3 grid gap-3 rounded-lg border border-black/10 bg-slate-50 p-3 sm:grid-cols-[1fr_180px_auto] sm:items-end">
           <input type="hidden" name="type" value="INFO" />
           <label className="text-sm">
             Slide title
@@ -563,10 +573,21 @@ function BlockFields({ blockType, content, lessonId }: { blockType: string; cont
 
   if (blockType === "HEADING") {
     return (
-      <label className="text-sm">
-        Heading text
-        <textarea name="text" rows={2} defaultValue={asString(data.text)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
-      </label>
+      <div className="grid gap-3 sm:grid-cols-[1fr_140px]">
+        <label className="text-sm">
+          Heading text
+          <textarea name="text" rows={2} defaultValue={asString(data.text)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+        </label>
+        <label className="text-sm">
+          Heading type
+          <select name="level" defaultValue={asString(data.level) || "H2"} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">
+            <option value="H1">H1</option>
+            <option value="H2">H2</option>
+            <option value="H3">H3</option>
+            <option value="H4">H4</option>
+          </select>
+        </label>
+      </div>
     );
   }
 
@@ -582,10 +603,16 @@ function BlockFields({ blockType, content, lessonId }: { blockType: string; cont
 
   if (blockType === "BULLETS") {
     return (
-      <label className="text-sm">
-        Bullet points <span className="font-normal text-black/45">(one per line)</span>
-        <textarea name="items" rows={5} defaultValue={lines(data.items)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
-      </label>
+      <div className="grid gap-3">
+        <label className="text-sm">
+          List title
+          <input name="title" defaultValue={asString(data.title)} placeholder="Key points" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+        </label>
+        <label className="text-sm">
+          Bullet points <span className="font-normal text-black/45">(one per line)</span>
+          <textarea name="items" rows={5} defaultValue={lines(data.items)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+        </label>
+      </div>
     );
   }
 
@@ -710,6 +737,7 @@ function BlockFields({ blockType, content, lessonId }: { blockType: string; cont
         <label className="text-sm">Title<input name="title" defaultValue={asString(data.title)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
         <label className="text-sm">Explanation<textarea name="explanation" rows={3} defaultValue={asString(data.explanation)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
         <label className="text-sm">Examples <span className="font-normal text-black/45">(one per line)</span><textarea name="examples" rows={3} defaultValue={lines(data.examples)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+        <label className="text-sm">Notes <span className="font-normal text-black/45">(optional)</span><textarea name="notes" rows={2} defaultValue={asString(data.notes)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
       </div>
     );
   }
@@ -732,10 +760,16 @@ function BlockFields({ blockType, content, lessonId }: { blockType: string; cont
       ? (data.lines as Record<string, string>[]).map((l) => `${l.speaker}: ${l.text}`).join("\n")
       : "";
     return (
-      <label className="text-sm">
-        Dialogue lines <span className="font-normal text-black/45">(Speaker: Line — one per line)</span>
-        <textarea name="turns" rows={6} defaultValue={turnsText} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
-      </label>
+      <div className="grid gap-3">
+        <label className="text-sm">
+          Dialogue title <span className="font-normal text-black/45">(optional)</span>
+          <input name="title" defaultValue={asString(data.title)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+        </label>
+        <label className="text-sm">
+          Dialogue lines <span className="font-normal text-black/45">(Speaker: Line — one per line)</span>
+          <textarea name="turns" rows={6} defaultValue={turnsText} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+        </label>
+      </div>
     );
   }
 

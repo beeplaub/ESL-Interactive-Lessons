@@ -94,6 +94,7 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
     const text = asString(content.text) || "Untitled heading";
     if (level === "H1") return <h1 className="text-3xl font-semibold tracking-tight text-ink">{text}</h1>;
     if (level === "H3") return <h3 className="text-lg font-semibold text-ink">{text}</h3>;
+    if (level === "H4") return <h4 className="text-base font-semibold text-ink">{text}</h4>;
     return <h2 className="text-2xl font-semibold tracking-tight text-ink">{text}</h2>;
   }
 
@@ -290,6 +291,7 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
     const turns = asArray(content.turns);
     return (
       <div className="space-y-2">
+        {asString(content.title) ? <h3 className="font-semibold text-ink">{asString(content.title)}</h3> : null}
         {turns.length ? turns.map((item, index) => {
           const turn = asRecord(item as Json);
           return (
