@@ -9,7 +9,18 @@ import type { Json } from "@/types/database.types";
 export type QuizQuestion = {
   id: string;
   question_number: number;
-  question_type: "MCQ" | "TRUE_FALSE" | "FILL" | "MATCHING";
+  // Widened to cover all activity types used across QuizPlayer + LessonActivityPanel
+  question_type:
+    | "MCQ"
+    | "TRUE_FALSE"
+    | "FILL"
+    | "MATCHING"
+    | "MULTIPLE_SELECT"
+    | "SHORT_ANSWER"
+    | "DRAG_DROP"
+    | "PRONUNCIATION"
+    | "ERROR_CORRECTION"
+    | "REORDERING";
   question_text: string;
   description?: string | null;
   options: Json | null;
