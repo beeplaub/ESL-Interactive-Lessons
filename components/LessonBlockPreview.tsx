@@ -78,7 +78,7 @@ export function LessonBlockPreview({
   }
 
   return (
-    <div className="space-y-3 rounded-md bg-white p-1 sm:p-2">
+    <div className="space-y-4 rounded-lg border border-black/10 bg-white p-5 shadow-sm">
       {blocks.map((block) => (
         <PreviewBlock key={block.id} block={block} />
       ))}
@@ -92,10 +92,10 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
   if (block.block_type === "HEADING") {
     const level = asString(content.level) || "H2";
     const text = asString(content.text) || "Untitled heading";
-    if (level === "H1") return <h1 className="text-2xl font-semibold tracking-tight text-ink sm:text-3xl">{text}</h1>;
+    if (level === "H1") return <h1 className="text-3xl font-semibold tracking-tight text-ink">{text}</h1>;
     if (level === "H3") return <h3 className="text-lg font-semibold text-ink">{text}</h3>;
     if (level === "H4") return <h4 className="text-base font-semibold text-ink">{text}</h4>;
-    return <h2 className="text-xl font-semibold tracking-tight text-ink sm:text-2xl">{text}</h2>;
+    return <h2 className="text-2xl font-semibold tracking-tight text-ink">{text}</h2>;
   }
 
   if (block.block_type === "TEXT") {
@@ -105,7 +105,7 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
   if (block.block_type === "BULLETS") {
     const items = asArray(content.items).map(String).filter(Boolean);
     return (
-      <div className="rounded-md border border-black/10 bg-white p-3 sm:p-4">
+      <div className="rounded-lg border border-black/10 bg-white p-4">
         <div className="mb-3 flex items-center gap-2 font-semibold text-ink">
           <ListChecks size={18} className="text-moss" /> {asString(content.title) || "Key points"}
         </div>
@@ -127,8 +127,8 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
 
   if (block.block_type === "QUOTE") {
     return (
-      <figure className="rounded-md border-l-4 border-moss bg-skywash p-3 sm:p-4">
-        <blockquote className="text-base font-medium leading-7 text-ink sm:text-lg sm:leading-8">
+      <figure className="rounded-lg border-l-4 border-moss bg-skywash p-4">
+        <blockquote className="text-lg font-medium leading-8 text-ink">
           “{asString(content.body) || "Add a quote."}”
         </blockquote>
         {asString(content.attribution) ? (
@@ -140,7 +140,7 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
 
   if (block.block_type === "CALLOUT") {
     return (
-      <div className="rounded-md border border-amber-200 bg-amber-50 p-3 sm:p-4">
+      <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
         <div className="flex items-start gap-3">
           <MessageSquareQuote className="mt-0.5 shrink-0 text-amber-700" size={18} />
           <div>
@@ -156,10 +156,10 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
     const path = asString(content.path);
     const src = mediaUrl(path, "image");
     return (
-      <figure className="overflow-hidden rounded-md border border-black/10 bg-slate-50">
+      <figure className="overflow-hidden rounded-lg border border-black/10 bg-slate-50">
         {path && isImageUrl(path) ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={src} alt={asString(content.alt) || ""} className="max-h-[520px] w-full object-contain" />
+          <img src={src} alt={asString(content.alt) || ""} className="max-h-80 w-full object-cover" />
         ) : (
           <div className="grid aspect-video place-items-center text-sm text-black/45">
             <div className="text-center">
@@ -180,7 +180,7 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
     const src = mediaUrl(path, "audio");
     const youtubeId = getYouTubeId(path);
     return (
-      <div className="rounded-md border border-black/10 bg-ink p-3 text-white sm:p-4">
+      <div className="rounded-lg border border-black/10 bg-ink p-4 text-white">
         <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
           <Headphones size={18} /> {asString(content.label) || "Audio"}
         </div>
@@ -199,7 +199,7 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
     const url = asString(content.url);
     const youtubeId = getYouTubeId(url);
     return (
-      <div className="overflow-hidden rounded-md border border-black/10 bg-slate-50">
+      <div className="overflow-hidden rounded-lg border border-black/10 bg-slate-50">
         {youtubeId ? (
           <CustomYouTubeVideoPlayer videoId={youtubeId} title={asString(content.title) || "Lesson video"} />
         ) : (

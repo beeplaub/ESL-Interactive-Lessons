@@ -283,7 +283,7 @@ export function BuilderLessonPlayer({
   }
 
   return (
-    <main className="mx-auto max-w-[1500px] px-1.5 py-3 sm:px-4 sm:py-4">
+    <main className="mx-auto max-w-7xl px-1.5 py-3 sm:px-4 sm:py-4">
 
       {/* ── Header ── */}
       <div className="mb-3 rounded-xl border border-black/10 bg-white px-3 py-2 shadow-sm">
@@ -318,7 +318,7 @@ export function BuilderLessonPlayer({
       </div>
 
       {/* ── Main two-column grid ── */}
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.55fr)]">
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(340px,0.85fr)]">
 
         {/* ── LEFT column: slide + notes ── */}
         <div className="flex flex-col gap-4">
@@ -345,7 +345,7 @@ export function BuilderLessonPlayer({
             </button>
 
             <section
-              className="rounded-xl border border-black/10 bg-white p-2 shadow-sm sm:p-3"
+              className="rounded-xl border border-black/10 bg-white p-4 shadow-sm"
               onTouchStart={(event) => {
                 const touch = event.touches[0];
                 if (touch) touchStartRef.current = { x: touch.clientX, y: touch.clientY };
@@ -353,11 +353,11 @@ export function BuilderLessonPlayer({
               onTouchEnd={handleSlideTouchEnd}
             >
               {/* Slide header */}
-              <div className="mb-2 rounded-md bg-ink px-3 py-2.5 text-white">
+              <div className="mb-4 rounded-lg bg-ink px-4 py-3 text-white">
 
                 {/* Line 1 — slide counter (left) + narration pill (right) */}
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-white/55">
+                  <p className="text-xs uppercase tracking-wide text-white/55">
                     Slide {index + 1} of {slides.length}
                   </p>
                   {narrationUrl && (
@@ -366,11 +366,11 @@ export function BuilderLessonPlayer({
                 </div>
 
                 {/* Line 2 — slide title */}
-                <h2 className="mt-0.5 truncate text-lg font-semibold sm:text-xl">{slide.title}</h2>
+                <h2 className="mt-1 text-2xl font-semibold">{slide.title}</h2>
 
                 {/* Line 3 — section label */}
                 {slide.section_label && (
-                  <p className="mt-0.5 truncate text-sm text-white/65">{slide.section_label}</p>
+                  <p className="mt-1 text-sm text-white/60">{slide.section_label}</p>
                 )}
               </div>
 
