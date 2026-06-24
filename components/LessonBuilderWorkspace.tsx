@@ -275,12 +275,15 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
   }, [busyMessage]);
 
   useEffect(() => {
-    selectedTimelineItemRef.current?.scrollIntoView({
-      behavior: "smooth",
-      block: "nearest",
-      inline: "center",
-    });
-  }, [selectedSlideId]);
+    const timer = window.setTimeout(() => {
+      selectedTimelineItemRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+        inline: "center",
+      });
+    }, 80);
+    return () => window.clearTimeout(timer);
+  }, [selectedSlideId, slides.length]);
 
   function scrollTimeline(direction: -1 | 1) {
     const node = timelineRef.current;

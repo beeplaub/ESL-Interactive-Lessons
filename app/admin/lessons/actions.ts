@@ -1157,87 +1157,99 @@ export async function moveLessonBlock(lessonId: string, slideId: string, blockId
 }
 
 export async function moveSlideActivityToSlide(lessonId: string, activityId: string, formData: FormData) {
-  await requireAdmin();
-  const targetSlideId = String(formData.get("slideId") || "");
-  const replaceExisting = formData.get("replaceExisting") === "true";
-  if (!targetSlideId) return;
+  try {
+    await requireAdmin();
+    const targetSlideId = String(formData.get("slideId") || "");
+    const replaceExisting = formData.get("replaceExisting") === "true";
+    if (!targetSlideId) return;
 
-  const supabase = createAdminClient();
-  const { data: slide, error: slideError } = await supabase
-    .from("slides")
-    .select("id, slide_number")
-    .eq("id", targetSlideId)
-    .eq("lesson_id", lessonId)
-    .single();
-  if (slideError) throw slideError;
-
-  if (replaceExisting) {
-    const { error: deleteError } = await supabase
-      .from("lesson_slide_activities")
-      .delete()
+    const supabase = createAdminClient();
+    const { data: slide, error: slideError } = await supabase
+      .from("slides")
+      .select("id, slide_number")
+      .eq("id", targetSlideId)
       .eq("lesson_id", lessonId)
-      .eq("slide_id", slide.id)
-      .neq("id", activityId);
-    if (deleteError) throw deleteError;
-  }
+      .single();
+    if (slideError) throw slideError;
 
-  const { error } = await supabase
-    .from("lesson_slide_activities")
-    .update({
-      slide_id: slide.id,
-      slide_number: slide.slide_number,
-      updated_at: new Date().toISOString()
-    })
-    .eq("id", activityId)
-    .eq("lesson_id", lessonId);
-  if (error) throw error;
-  revalidateLessonBuilder(lessonId);
+    if (replaceExisting) {
+      const { error: deleteError } = await supabase
+        .from("lesson_slide_activities")
+        .delete()
+        .eq("lesson_id", lessonId)
+        .eq("slide_id", slide.id)
+        .neq("id", activityId);
+      if (deleteError) throw deleteError;
+    }
+
+    const { error } = await supabase
+      .from("lesson_slide_activities")
+      .update({
+        slide_id: slide.id,
+        slide_number: slide.slide_number,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", activityId)
+      .eq("lesson_id", lessonId);
+    if (error) throw error;
+    revalidateLessonBuilder(lessonId);
+    return;
+  } catch (error) {
+    console.error("moveSlideActivityToSlide failed", error);
+    return;
+  }
 }
 
 export async function copySlideActivityToSlide(lessonId: string, activityId: string, formData: FormData) {
-  await requireAdmin();
-  const targetSlideId = String(formData.get("slideId") || "");
-  const replaceExisting = formData.get("replaceExisting") === "true";
-  if (!targetSlideId) return;
+  try {
+    await requireAdmin();
+    const targetSlideId = String(formData.get("slideId") || "");
+    const replaceExisting = formData.get("replaceExisting") === "true";
+    if (!targetSlideId) return;
 
-  const supabase = createAdminClient();
-  const { data: source, error: sourceError } = await supabase
-    .from("lesson_slide_activities")
-    .select("activity_type, activity_data, needs_review, raw_text")
-    .eq("id", activityId)
-    .eq("lesson_id", lessonId)
-    .single();
-  if (sourceError) throw sourceError;
-
-  const { data: slide, error: slideError } = await supabase
-    .from("slides")
-    .select("id, slide_number")
-    .eq("id", targetSlideId)
-    .eq("lesson_id", lessonId)
-    .single();
-  if (slideError) throw slideError;
-
-  if (replaceExisting) {
-    const { error: deleteError } = await supabase
+    const supabase = createAdminClient();
+    const { data: source, error: sourceError } = await supabase
       .from("lesson_slide_activities")
-      .delete()
+      .select("activity_type, activity_data, needs_review, raw_text")
+      .eq("id", activityId)
       .eq("lesson_id", lessonId)
-      .eq("slide_id", slide.id);
-    if (deleteError) throw deleteError;
+      .single();
+    if (sourceError) throw sourceError;
+
+    const { data: slide, error: slideError } = await supabase
+      .from("slides")
+      .select("id, slide_number")
+      .eq("id", targetSlideId)
+      .eq("lesson_id", lessonId)
+      .single();
+    if (slideError) throw slideError;
+
+    if (replaceExisting) {
+      const { error: deleteError } = await supabase
+        .from("lesson_slide_activities")
+        .delete()
+        .eq("lesson_id", lessonId)
+        .eq("slide_id", slide.id);
+      if (deleteError) throw deleteError;
+    }
+
+    const { error } = await supabase.from("lesson_slide_activities").insert({
+      lesson_id: lessonId,
+      slide_id: slide.id,
+      slide_number: slide.slide_number,
+      activity_type: source.activity_type,
+      activity_data: source.activity_data,
+      needs_review: source.needs_review,
+      raw_text: source.raw_text
+    });
+
+    if (error) throw error;
+    revalidateLessonBuilder(lessonId);
+    return;
+  } catch (error) {
+    console.error("copySlideActivityToSlide failed", error);
+    return;
   }
-
-  const { error } = await supabase.from("lesson_slide_activities").insert({
-    lesson_id: lessonId,
-    slide_id: slide.id,
-    slide_number: slide.slide_number,
-    activity_type: source.activity_type,
-    activity_data: source.activity_data,
-    needs_review: source.needs_review,
-    raw_text: source.raw_text
-  });
-
-  if (error) throw error;
-  revalidateLessonBuilder(lessonId);
 }
 
 export async function moveOrCopySlideActivityToSlide(lessonId: string, activityId: string, formData: FormData) {
@@ -1248,23 +1260,29 @@ export async function moveOrCopySlideActivityToSlide(lessonId: string, activityI
 }
 
 export async function addLessonSlideActivity(lessonId: string, slideId: string, slideNumber: number, formData: FormData) {
-  await requireAdmin();
-  const supabase = createAdminClient();
-  const activityType = String(formData.get("activityType") || "MCQ");
-  const prompt = String(formData.get("prompt") || defaultActivityPrompt(activityType)).trim();
+  try {
+    await requireAdmin();
+    const supabase = createAdminClient();
+    const activityType = String(formData.get("activityType") || "MCQ");
+    const prompt = String(formData.get("prompt") || defaultActivityPrompt(activityType)).trim();
 
-  const { error } = await supabase.from("lesson_slide_activities").insert({
-    lesson_id: lessonId,
-    slide_id: slideId,
-    slide_number: slideNumber,
-    activity_type: activityType,
-    activity_data: defaultActivityData(activityType, prompt),
-    needs_review: true,
-    raw_text: prompt
-  });
+    const { error } = await supabase.from("lesson_slide_activities").insert({
+      lesson_id: lessonId,
+      slide_id: slideId,
+      slide_number: slideNumber,
+      activity_type: activityType,
+      activity_data: defaultActivityData(activityType, prompt),
+      needs_review: true,
+      raw_text: prompt
+    });
 
-  if (error) throw error;
-  revalidateLessonBuilder(lessonId);
+    if (error) throw error;
+    revalidateLessonBuilder(lessonId);
+    return;
+  } catch (error) {
+    console.error("addLessonSlideActivity failed", error);
+    return;
+  }
 }
 
 export async function rerunParser(lessonId: string) {

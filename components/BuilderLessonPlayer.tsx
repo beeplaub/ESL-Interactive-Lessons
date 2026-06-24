@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { TouchEvent } from "react";
-import { ArrowLeft, ArrowRight, CheckCircle2, ChevronLeft, ChevronRight, NotebookPen, Pause, Play, RotateCcw } from "lucide-react";
+import { ArrowLeft, ArrowRight, CheckCircle2, ChevronLeft, NotebookPen, Pause, Play, RotateCcw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { LessonActivityPanel, lessonActivityTotalPoints } from "@/components/LessonActivityPanel";
 import { LessonBlockPreview } from "@/components/LessonBlockPreview";
@@ -193,6 +193,7 @@ export function BuilderLessonPlayer({
   );
   const [notesSaved, setNotesSaved] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const progressSaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const [dragX, setDragX] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
@@ -257,21 +258,27 @@ export function BuilderLessonPlayer({
     return () => clearTimeout(t);
   }, [notesSaved]);
 
-  function save(nextIndex: number, nextCompleted = completed) {
-    startTransition(async () => {
-      const r = await fetch(`/api/lessons/${lesson.id}/progress`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ current_slide_number: nextIndex + 1, completed: nextCompleted }),
-      });
+  const saveProgress = useCallback((nextIndex: number, nextCompleted = completed) => {
+    fetch(`/api/lessons/${lesson.id}/progress`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ current_slide_number: nextIndex + 1, completed: nextCompleted }),
+    }).then((r) => {
       if (!r.ok) setMessage("Could not save progress.");
-    });
+    }).catch(() => setMessage("Could not save progress."));
+  }, [completed, lesson.id]);
+
+  function scheduleProgressSave(nextIndex: number, nextCompleted = completed) {
+    if (progressSaveRef.current) clearTimeout(progressSaveRef.current);
+    progressSaveRef.current = setTimeout(() => saveProgress(nextIndex, nextCompleted), 250);
   }
 
   function move(direction: -1 | 1) {
     const next = Math.max(0, Math.min(slides.length - 1, index + direction));
+    if (next === index) return;
     setIndex(next);
-    save(next);
+    setMessage(null);
+    scheduleProgressSave(next);
   }
 
   function handleLessonTouchMove(event: TouchEvent<HTMLElement>) {
@@ -308,8 +315,25 @@ export function BuilderLessonPlayer({
   function finish() {
     setCompleted(true);
     setMessage("Lesson completed.");
-    save(index, true);
+    startTransition(() => saveProgress(index, true));
   }
+
+  useEffect(() => {
+    return () => {
+      if (progressSaveRef.current) clearTimeout(progressSaveRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    function handleKey(event: KeyboardEvent) {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest("input, textarea, select, button")) return;
+      if (event.key === "ArrowRight") move(1);
+      if (event.key === "ArrowLeft") move(-1);
+    }
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  });
 
   if (!slide) {
     return (
@@ -415,27 +439,8 @@ export function BuilderLessonPlayer({
         {/* ── LEFT column: slide + notes ── */}
         <div className="flex flex-col gap-4">
 
-          {/* Slide card with nav arrows */}
+          {/* Slide card */}
           <div className="relative">
-            <button
-              type="button"
-              onClick={() => move(-1)}
-              disabled={index === 0 || isPending}
-              aria-label="Previous slide"
-              className="absolute -left-3 top-1/2 z-10 flex size-8 -translate-y-1/2 items-center justify-center rounded-full border border-black/10 bg-white shadow-md transition-all hover:border-moss hover:bg-moss hover:text-white disabled:pointer-events-none disabled:opacity-0"
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <button
-              type="button"
-              onClick={() => move(1)}
-              disabled={index === slides.length - 1 || isPending}
-              aria-label="Next slide"
-              className="absolute -right-3 top-1/2 z-10 flex size-8 -translate-y-1/2 items-center justify-center rounded-full border border-black/10 bg-white shadow-md transition-all hover:border-moss hover:bg-moss hover:text-white disabled:pointer-events-none disabled:opacity-0"
-            >
-              <ChevronRight size={16} />
-            </button>
-
             <section
               className="rounded-xl border border-black/10 bg-white p-2 shadow-sm sm:p-3"
             >
@@ -537,16 +542,16 @@ export function BuilderLessonPlayer({
       </div>
 
       {/* ── Bottom navigation bar ── */}
-      <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-black/10 bg-white p-4 shadow-sm">
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-black/10 bg-white/95 p-3 shadow-sm backdrop-blur">
         <button
           type="button"
           onClick={() => move(-1)}
-          disabled={index === 0 || isPending}
-          className="rounded-md border border-black/15 px-4 py-2 text-sm font-medium hover:bg-black/5 disabled:opacity-40"
+          disabled={index === 0}
+          className="inline-flex items-center gap-2 rounded-full border border-black/15 px-4 py-2 text-sm font-medium hover:bg-black/5 disabled:opacity-35"
         >
-          Previous
+          <ChevronLeft size={16} /> Previous
         </button>
-        <p className="text-sm text-black/55">{message ?? `Slide ${index + 1} of ${slides.length}`}</p>
+        <p className="rounded-full bg-black/[0.04] px-3 py-1.5 text-sm font-medium text-black/55">{message ?? `Slide ${index + 1} of ${slides.length}`}</p>
         {index === slides.length - 1 ? (
           <button
             type="button"
@@ -560,8 +565,7 @@ export function BuilderLessonPlayer({
           <button
             type="button"
             onClick={() => move(1)}
-            disabled={isPending}
-            className="inline-flex items-center gap-2 rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white disabled:opacity-45"
+            className="inline-flex items-center gap-2 rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-black disabled:opacity-45"
           >
             Next <ArrowRight size={15} />
           </button>
