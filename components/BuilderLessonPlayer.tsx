@@ -304,26 +304,6 @@ export function BuilderLessonPlayer({
 
   return (
     <main className="mx-auto max-w-7xl px-1.5 py-3 sm:px-4 sm:py-4">
-      <div
-        className="will-change-transform"
-        style={{
-          transform: `translateX(${dragX}px) rotate(${dragX / 60}deg)`,
-          transition: isDragging ? "none" : "transform 180ms ease",
-          touchAction: "pan-y"
-        }}
-        onTouchStart={(event) => {
-          const touch = event.touches[0];
-          if (touch) touchStartRef.current = { x: touch.clientX, y: touch.clientY };
-        }}
-        onTouchMove={handleLessonTouchMove}
-        onTouchCancel={() => {
-          touchStartRef.current = null;
-          setIsDragging(false);
-          setDragX(0);
-        }}
-        onTouchEnd={handleLessonTouchEnd}
-      >
-
       {/* ── Header ── */}
       <div className="mb-3 rounded-xl border border-black/10 bg-white px-3 py-2 shadow-sm">
         <div className="flex flex-wrap items-center gap-3">
@@ -355,6 +335,53 @@ export function BuilderLessonPlayer({
           )}
         </div>
       </div>
+
+      <div
+        className="relative overflow-hidden"
+        style={{ touchAction: "pan-y" }}
+        onTouchStart={(event) => {
+          const touch = event.touches[0];
+          if (touch) touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+        }}
+        onTouchMove={handleLessonTouchMove}
+        onTouchCancel={() => {
+          touchStartRef.current = null;
+          setIsDragging(false);
+          setDragX(0);
+        }}
+        onTouchEnd={handleLessonTouchEnd}
+      >
+        {dragX < -8 && slides[index + 1] ? (
+          <div
+            className="pointer-events-none absolute inset-0 rounded-xl border border-black/10 bg-white p-5 shadow-sm"
+            style={{
+              transform: `translateX(calc(100% + ${dragX}px))`,
+              transition: isDragging ? "none" : "transform 180ms ease"
+            }}
+          >
+            <p className="text-xs uppercase tracking-wide text-black/35">Next</p>
+            <h2 className="mt-1 text-xl font-semibold text-ink">{slides[index + 1].title}</h2>
+          </div>
+        ) : null}
+        {dragX > 8 && slides[index - 1] ? (
+          <div
+            className="pointer-events-none absolute inset-0 rounded-xl border border-black/10 bg-white p-5 shadow-sm"
+            style={{
+              transform: `translateX(calc(-100% + ${dragX}px))`,
+              transition: isDragging ? "none" : "transform 180ms ease"
+            }}
+          >
+            <p className="text-xs uppercase tracking-wide text-black/35">Previous</p>
+            <h2 className="mt-1 text-xl font-semibold text-ink">{slides[index - 1].title}</h2>
+          </div>
+        ) : null}
+        <div
+          className="relative z-10 will-change-transform"
+          style={{
+            transform: `translateX(${dragX}px)`,
+            transition: isDragging ? "none" : "transform 180ms ease"
+          }}
+        >
 
       {/* ── Main two-column grid ── */}
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(340px,0.85fr)]">
@@ -503,6 +530,7 @@ export function BuilderLessonPlayer({
             Next <ArrowRight size={15} />
           </button>
         )}
+      </div>
       </div>
       </div>
     </main>

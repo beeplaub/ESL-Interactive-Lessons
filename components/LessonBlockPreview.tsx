@@ -1,6 +1,7 @@
 "use client";
 
 import { BookOpen, FlipHorizontal2, Headphones, ImageIcon, ListChecks, Maximize, MessageSquareQuote, Pause, Play, PlayCircle, Settings, Volume2 } from "lucide-react";
+import type { RefObject } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Json } from "@/types/database.types";
 
@@ -313,6 +314,31 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
 }
 
 function FlashcardBlock({ content }: { content: Record<string, unknown> }) {
+  const rawCards = asArray(content.cards);
+  const cards = rawCards.length
+    ? rawCards.map((item) => asRecord(item as Json))
+    : [content];
+  const cardType = asString(content.card_type) === "CARD" ? "CARD" : "IMAGE";
+  const frontSide = asString(content.front_side) || (cardType === "CARD" ? "WORD" : "IMAGE");
+
+  return (
+    <div className={`grid gap-4 ${cards.length > 1 ? "md:grid-cols-2" : ""}`}>
+      {cards.map((card, index) => (
+        <SingleFlashcard key={index} content={card} cardType={cardType} frontSide={frontSide} />
+      ))}
+    </div>
+  );
+}
+
+function SingleFlashcard({
+  content,
+  cardType,
+  frontSide
+}: {
+  content: Record<string, unknown>;
+  cardType: "IMAGE" | "CARD";
+  frontSide: string;
+}) {
   const [flipped, setFlipped] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
 
@@ -325,6 +351,8 @@ function FlashcardBlock({ content }: { content: Record<string, unknown> }) {
 
   const imageSrc = imagePath ? mediaUrl(imagePath, "image") : "";
   const audioSrc = audioPath ? mediaUrl(audioPath, "audio") : "";
+  const showImageFront = cardType === "IMAGE" && frontSide !== "DETAIL";
+  const showWordFront = cardType === "CARD" && frontSide !== "DETAIL";
 
   return (
     <div className="w-full select-none" style={{ perspective: "1200px" }}>
@@ -336,21 +364,37 @@ function FlashcardBlock({ content }: { content: Record<string, unknown> }) {
           minHeight: "300px",
         }}
       >
-        {/* FRONT: image face */}
+        {/* FRONT */}
         <div
-          className="absolute inset-0 cursor-pointer overflow-hidden rounded-2xl"
+          className="absolute inset-0 cursor-pointer overflow-hidden rounded-2xl border border-black/10 bg-white"
           style={{ backfaceVisibility: "hidden", minHeight: "300px" }}
           onClick={() => setFlipped(true)}
           role="button"
-          aria-label="Flip card to reveal the word"
+          aria-label="Flip card"
         >
-          {imageSrc && isImageUrl(imageSrc) ? (
+          {showImageFront && imageSrc && isImageUrl(imageSrc) ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={imageSrc}
               alt={word || "Flashcard image"}
-              className="h-full w-full object-cover"
+              className="h-full w-full bg-slate-50 object-contain"
               style={{ minHeight: "300px" }}
+            />
+          ) : showWordFront ? (
+            <div className="grid min-h-[300px] place-items-center bg-slate-50 p-6 text-center">
+              <div>
+                <p className="text-4xl font-bold tracking-tight text-ink">{word || "Word"}</p>
+                {phonetic ? <p className="mt-3 font-mono text-sm text-black/45">{phonetic}</p> : null}
+              </div>
+            </div>
+          ) : frontSide === "DETAIL" ? (
+            <FlashcardDetails
+              word={word}
+              phonetic={phonetic}
+              audioSrc={audioSrc}
+              meaning={meaning}
+              examples={examples}
+              audioRef={audioRef}
             />
           ) : (
             <div className="grid min-h-[300px] place-items-center rounded-2xl bg-slate-100 text-black/25">
@@ -360,7 +404,7 @@ function FlashcardBlock({ content }: { content: Record<string, unknown> }) {
               </div>
             </div>
           )}
-          {imageSrc && isImageUrl(imageSrc) && (
+          {showImageFront && imageSrc && isImageUrl(imageSrc) && (
             <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 rounded-b-2xl bg-gradient-to-t from-black/50 to-transparent" />
           )}
           <button
@@ -373,53 +417,25 @@ function FlashcardBlock({ content }: { content: Record<string, unknown> }) {
           </button>
         </div>
 
-        {/* BACK: word details face */}
+        {/* BACK */}
         <div
           className="absolute inset-0 flex flex-col items-center justify-center gap-3 overflow-y-auto rounded-2xl border border-black/10 bg-white p-6 text-center shadow-sm"
           style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)", minHeight: "300px" }}
         >
-          {audioSrc && <audio ref={audioRef} src={audioSrc} preload="none" />}
-
-          <p className="text-3xl font-bold leading-tight tracking-tight text-ink">
-            {word || "Word"}
-          </p>
-
-          {(phonetic || audioSrc) && (
-            <div className="flex items-center justify-center gap-2">
-              {phonetic && <span className="font-mono text-sm text-black/45">{phonetic}</span>}
-              {audioSrc && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (audioRef.current) {
-                      audioRef.current.currentTime = 0;
-                      void audioRef.current.play();
-                    }
-                  }}
-                  title="Play pronunciation"
-                  className="flex items-center justify-center rounded-full bg-moss/10 p-1.5 text-moss transition hover:bg-moss/20 active:scale-95"
-                >
-                  <Volume2 size={15} />
-                </button>
-              )}
-            </div>
-          )}
-
-          <div className="w-12 border-t border-black/10" />
-
-          <p className="max-w-xs text-base leading-relaxed text-black/70">
-            {meaning || "Meaning"}
-          </p>
-
-          {examples.length > 0 && (
-            <div className="max-w-xs space-y-1">
-              {examples.map((ex, i) => (
-                <p key={i} className="text-sm italic leading-relaxed text-black/45">
-                  &ldquo;{ex}&rdquo;
-                </p>
-              ))}
-            </div>
+          {showImageFront || showWordFront ? (
+            <FlashcardDetails
+              word={word}
+              phonetic={phonetic}
+              audioSrc={audioSrc}
+              meaning={meaning}
+              examples={examples}
+              audioRef={audioRef}
+            />
+          ) : imageSrc && isImageUrl(imageSrc) ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={imageSrc} alt={word || "Flashcard image"} className="max-h-[280px] w-full object-contain" />
+          ) : (
+            <p className="text-sm text-black/50">Add an image or card details.</p>
           )}
 
           <button
@@ -433,6 +449,61 @@ function FlashcardBlock({ content }: { content: Record<string, unknown> }) {
         </div>
       </div>
     </div>
+  );
+}
+
+function FlashcardDetails({
+  word,
+  phonetic,
+  audioSrc,
+  meaning,
+  examples,
+  audioRef
+}: {
+  word: string;
+  phonetic: string;
+  audioSrc: string;
+  meaning: string;
+  examples: string[];
+  audioRef: RefObject<HTMLAudioElement | null>;
+}) {
+  return (
+    <>
+      {audioSrc && <audio ref={audioRef} src={audioSrc} preload="none" />}
+      <p className="text-3xl font-bold leading-tight tracking-tight text-ink">{word || "Word"}</p>
+      {(phonetic || audioSrc) && (
+        <div className="flex items-center justify-center gap-2">
+          {phonetic && <span className="font-mono text-sm text-black/45">{phonetic}</span>}
+          {audioSrc && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (audioRef.current) {
+                  audioRef.current.currentTime = 0;
+                  void audioRef.current.play();
+                }
+              }}
+              title="Play pronunciation"
+              className="flex items-center justify-center rounded-full bg-moss/10 p-1.5 text-moss transition hover:bg-moss/20 active:scale-95"
+            >
+              <Volume2 size={15} />
+            </button>
+          )}
+        </div>
+      )}
+      <div className="w-12 border-t border-black/10" />
+      <p className="max-w-xs text-base leading-relaxed text-black/70">{meaning || "Meaning"}</p>
+      {examples.length > 0 && (
+        <div className="max-w-xs space-y-1">
+          {examples.map((ex, i) => (
+            <p key={i} className="text-sm italic leading-relaxed text-black/45" >
+              &ldquo;{ex}&rdquo;
+            </p>
+          ))}
+        </div>
+      )}
+    </>
   );
 }
 

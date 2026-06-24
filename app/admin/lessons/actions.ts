@@ -193,13 +193,33 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
     };
   }
   if (blockType === "FLASHCARD") {
-    return {
+    const legacyCard = {
       image_path: String(formData.get("image_path") || "").trim(),
       word: String(formData.get("word") || "").trim(),
       phonetic: nullableText(formData.get("phonetic")),
       audio_path: nullableText(formData.get("audio_path")),
       meaning: String(formData.get("meaning") || "").trim(),
       examples: splitLines(formData.get("examples"))
+    };
+    const cardsText = String(formData.get("cards") || "").trim();
+    const cards = cardsText
+      ? splitLines(cardsText).map((line) => {
+          const [imagePath, word, phonetic, audioPath, meaning, examples] = line.split("|").map((part) => part.trim());
+          return {
+            image_path: imagePath || "",
+            word: word || "",
+            phonetic: phonetic || null,
+            audio_path: audioPath || null,
+            meaning: meaning || "",
+            examples: examples ? examples.split(";").map((item) => item.trim()).filter(Boolean) : []
+          };
+        })
+      : [legacyCard];
+    return {
+      card_type: String(formData.get("card_type") || "IMAGE"),
+      front_side: String(formData.get("front_side") || "IMAGE"),
+      cards,
+      ...legacyCard
     };
   }
   return {};
@@ -221,12 +241,22 @@ function defaultBlockContent(blockType: string): Json {
   if (blockType === "READING") return { title: "Reading passage", passage: "", questions: [] };
   if (blockType === "DIALOGUE") return { title: "Dialogue", turns: [{ speaker: "A", line: "" }, { speaker: "B", line: "" }] };
   if (blockType === "FLASHCARD") return {
+    card_type: "IMAGE",
+    front_side: "IMAGE",
     image_path: "",
     word: "resilience",
     phonetic: "/rɪˈzɪliəns/",
     audio_path: null,
     meaning: "the ability to recover quickly from difficulties",
-    examples: ["She showed great resilience during the crisis."]
+    examples: ["She showed great resilience during the crisis."],
+    cards: [{
+      image_path: "",
+      word: "resilience",
+      phonetic: "/rɪˈzɪliəns/",
+      audio_path: null,
+      meaning: "the ability to recover quickly from difficulties",
+      examples: ["She showed great resilience during the crisis."]
+    }]
   };
   return {};
 }

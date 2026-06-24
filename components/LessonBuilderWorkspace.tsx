@@ -1026,54 +1026,65 @@ function BlockFields({ blockType, content, lessonId }: { blockType: string; cont
   }
 
   if (blockType === "FLASHCARD") {
+    const flashcardRows = Array.isArray(data.cards)
+      ? (data.cards as Record<string, unknown>[]).map((card) => [
+          asString(card.image_path),
+          asString(card.word),
+          asString(card.phonetic),
+          asString(card.audio_path),
+          asString(card.meaning),
+          Array.isArray(card.examples) ? card.examples.map(String).join("; ") : ""
+        ].join(" | ")).join("\n")
+      : [[
+          asString(data.image_path),
+          asString(data.word),
+          asString(data.phonetic),
+          asString(data.audio_path),
+          asString(data.meaning),
+          lines(data.examples).replace(/\n/g, "; ")
+        ].join(" | ")].join("\n");
+
     return (
       <div className="grid gap-4">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="text-sm">
+            Flashcard type
+            <select name="card_type" defaultValue={asString(data.card_type) || "IMAGE"} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">
+              <option value="IMAGE">Image cards</option>
+              <option value="CARD">Text cards</option>
+            </select>
+          </label>
+          <label className="text-sm">
+            Front side
+            <select name="front_side" defaultValue={asString(data.front_side) || "IMAGE"} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">
+              <option value="IMAGE">Image front</option>
+              <option value="DETAIL">Detail front</option>
+              <option value="WORD">Word front</option>
+            </select>
+          </label>
+        </div>
         <div className="grid gap-2">
-          <p className="text-sm font-medium">Cover image</p>
+          <p className="text-sm font-medium">Quick image upload <span className="font-normal text-black/40">(optional)</span></p>
           <input
             name="image_path"
             value={imagePath}
             onChange={(e) => setImagePath(e.target.value)}
-            placeholder="https://… or upload below"
+            placeholder="Upload, then paste/use the URL in the cards list below"
             className="w-full rounded-md border border-black/15 px-3 py-2 text-sm"
           />
           <BlockMediaUploader type="image" lessonId={lessonId} currentSrc={imagePath} onUploaded={(url) => setImagePath(url)} />
         </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="text-sm">
-            Word or phrase
-            <input name="word" defaultValue={asString(data.word)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
-          </label>
-          <label className="text-sm">
-            Phonetic <span className="font-normal text-black/40">(optional)</span>
-            <input name="phonetic" defaultValue={asString(data.phonetic)} placeholder="/fəˈnetɪk/" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
-          </label>
-        </div>
-        <div className="grid gap-2">
-          <p className="text-sm font-medium">Pronunciation audio <span className="font-normal text-black/40">(optional)</span></p>
-          <input
-            name="audio_path"
-            value={audioPath}
-            onChange={(e) => setAudioPath(e.target.value)}
-            placeholder="https://… or upload below"
-            className="w-full rounded-md border border-black/15 px-3 py-2 text-sm"
-          />
-          <BlockMediaUploader type="audio" lessonId={lessonId} currentSrc={audioPath} onUploaded={(url) => setAudioPath(url)} />
-        </div>
         <label className="text-sm">
-          Meaning
-          <textarea name="meaning" rows={2} defaultValue={asString(data.meaning)} placeholder="A short, clear definition" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+          Cards <span className="font-normal text-black/45">(one per line: image URL | word | phonetic | audio URL | meaning | examples separated by ;)</span>
+          <textarea name="cards" rows={7} defaultValue={flashcardRows} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 font-mono text-xs" />
         </label>
-        <label className="text-sm">
-          Example sentences <span className="font-normal text-black/40">(one per line)</span>
-          <textarea
-            name="examples"
-            rows={3}
-            defaultValue={lines(data.examples)}
-            placeholder="She showed great resilience."
-            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
-          />
-        </label>
+        <div className="hidden">
+          <input name="word" defaultValue={asString(data.word)} />
+          <input name="phonetic" defaultValue={asString(data.phonetic)} />
+          <input name="audio_path" value={audioPath} onChange={(e) => setAudioPath(e.target.value)} />
+          <textarea name="meaning" defaultValue={asString(data.meaning)} />
+          <textarea name="examples" defaultValue={lines(data.examples)} />
+        </div>
       </div>
     );
   }
