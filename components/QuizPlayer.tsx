@@ -1068,6 +1068,10 @@ function Pronunciation({
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [lastHeard, setLastHeard] = useState<Record<string, string>>({});
   const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const activeKeyRef = useRef<string | null>(null);
+  const manualStopRef = useRef(false);
+  const transcriptBufferRef = useRef("");
+  const latestResultsRef = useRef<Record<string, boolean>>({});
 
   useEffect(() => {
     setSupported(getSpeechRecognitionConstructor() !== null);
@@ -1079,40 +1083,70 @@ function Pronunciation({
     if (!Recognition || disabled) return;
     const usedSoFar = attemptsUsed[key] ?? 0;
     if (usedSoFar >= maxAttempts) return;
+    const isPassageRecording = key === "__passage__";
 
     const recognition = new Recognition();
     recognition.lang = "en-US";
-    recognition.continuous = false;
-    recognition.interimResults = false;
+    recognition.continuous = isPassageRecording;
+    recognition.interimResults = isPassageRecording;
     recognition.maxAlternatives = 1;
     recognitionRef.current = recognition;
+    activeKeyRef.current = key;
+    manualStopRef.current = false;
+    transcriptBufferRef.current = "";
+    latestResultsRef.current = results;
     setActiveKey(key);
     setMicState("listening");
 
     recognition.onresult = (event) => {
       const transcript = Array.from({ length: event.results.length }, (_, i) => event.results.item(i).item(0).transcript).join(" ");
+      transcriptBufferRef.current = transcript;
       setLastHeard((current) => ({ ...current, [key]: transcript }));
-      const newResults = { ...results };
+      const newResults = { ...latestResultsRef.current };
       checkTargets.forEach((target) => {
         if (transcriptContainsTarget(transcript, target.text)) newResults[target.id] = true;
       });
+      latestResultsRef.current = newResults;
       onChange({
         results: newResults,
-        attemptsUsed: { ...attemptsUsed, [key]: usedSoFar + 1 }
+        attemptsUsed
       });
     };
     recognition.onerror = (event) => {
       setMicState(event.error === "not-allowed" || event.error === "permission-denied" ? "denied" : "error");
       setActiveKey(null);
+      activeKeyRef.current = null;
     };
     recognition.onend = () => {
+      if (isPassageRecording && !manualStopRef.current && activeKeyRef.current === key && !disabled) {
+        window.setTimeout(() => {
+          if (activeKeyRef.current !== key || manualStopRef.current) return;
+          try {
+            recognition.start();
+          } catch {
+            setMicState("idle");
+            setActiveKey(null);
+            activeKeyRef.current = null;
+          }
+        }, 250);
+        return;
+      }
+      const heardText = transcriptBufferRef.current.trim();
+      if (heardText || manualStopRef.current || !isPassageRecording) {
+        onChange({
+          results: latestResultsRef.current,
+          attemptsUsed: { ...attemptsUsed, [key]: usedSoFar + 1 }
+        });
+      }
       setMicState("idle");
       setActiveKey(null);
+      activeKeyRef.current = null;
     };
     recognition.start();
   }
 
   function stopRecording() {
+    manualStopRef.current = true;
     recognitionRef.current?.stop();
   }
 

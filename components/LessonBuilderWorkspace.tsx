@@ -59,7 +59,7 @@ type Activity = {
   id: string; lesson_id: string; slide_id: string | null;
   slide_number: number; activity_type: string; activity_data: Json | null;
   needs_review: boolean; raw_text: string | null;
-  slides?: { title?: string | null } | null;
+  slides?: { title?: string | null; slide_number?: number | null } | null;
 };
 
 type Props = { lesson: Lesson; slides: Slide[]; blocks: LessonBlock[]; activities: Activity[] };
@@ -143,6 +143,69 @@ function AddSlideModal({
   );
 }
 
+function DuplicateSlideModal({
+  lessonId,
+  sourceSlide,
+  slides,
+  onClose,
+  onBusy,
+  onDuplicated
+}: {
+  lessonId: string;
+  sourceSlide: Slide;
+  slides: Slide[];
+  onClose: () => void;
+  onBusy: (msg: string) => void;
+  onDuplicated: (slideId: string) => void;
+}) {
+  const [afterSlideNumber, setAfterSlideNumber] = useState(String(sourceSlide.slide_number));
+  const [isPending, startTransition] = useTransition();
+
+  function submit() {
+    onBusy("Duplicating slide...");
+    startTransition(async () => {
+      const newSlideId = await duplicateBuilderSlide(lessonId, sourceSlide.id, Number(afterSlideNumber));
+      if (newSlideId) onDuplicated(newSlideId);
+      onClose();
+    });
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 px-4">
+      <div className="w-full max-w-md rounded-xl bg-white p-5 shadow-2xl">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-semibold">Duplicate slide</h2>
+            <p className="mt-1 text-sm text-black/55">Choose where the duplicate should appear.</p>
+          </div>
+          <button type="button" onClick={onClose} className="rounded-md border border-black/10 p-1.5 hover:bg-black/5"><X size={16} /></button>
+        </div>
+        <label className="mt-4 block text-sm font-medium">
+          Place duplicate
+          <select
+            value={afterSlideNumber}
+            onChange={(event) => setAfterSlideNumber(event.target.value)}
+            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+          >
+            <option value="0">At the beginning</option>
+            {slides.map((slide, index) => (
+              <option key={slide.id} value={slide.slide_number}>
+                After {index + 1}. {slide.title}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div className="mt-5 flex justify-end gap-2">
+          <button type="button" onClick={onClose} className="rounded-md border border-black/15 px-4 py-2 text-sm hover:bg-black/5">Cancel</button>
+          <button type="button" onClick={submit} disabled={isPending} className="rounded-md bg-moss px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+            {isPending ? "Duplicating..." : "Duplicate"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: Props) {
   const [selectedSlideId, setSelectedSlideId] = useState(() => {
     if (typeof window === "undefined") return slides[0]?.id ?? "";
@@ -153,6 +216,7 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
   const [busyMessage, setBusyMessage] = useState<string | null>(null);
   const [draggedSlideId, setDraggedSlideId] = useState<string | null>(null);
   const [addAfter, setAddAfter] = useState<number | null>(null);
+  const [duplicateSlide, setDuplicateSlide] = useState<Slide | null>(null);
   const [isReordering, startReorderTransition] = useTransition();
   const timelineRef = useRef<HTMLDivElement>(null);
   const selectedTimelineItemRef = useRef<HTMLDivElement>(null);
@@ -246,6 +310,17 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
 
       {addAfter !== null && (
         <AddSlideModal lessonId={lesson.id} afterSlideNumber={addAfter} onClose={() => setAddAfter(null)} onBusy={setBusyMessage} onAdded={selectSlide} />
+      )}
+
+      {duplicateSlide && (
+        <DuplicateSlideModal
+          lessonId={lesson.id}
+          sourceSlide={duplicateSlide}
+          slides={slides}
+          onClose={() => setDuplicateSlide(null)}
+          onBusy={setBusyMessage}
+          onDuplicated={selectSlide}
+        />
       )}
 
       {isMetadataOpen && (
@@ -401,6 +476,7 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
               blocks={selectedBlocks}
               activities={activities}
               slideActivities={selectedActivities}
+              onDuplicateSlide={setDuplicateSlide}
             />
           ) : (
             <div className="rounded-lg border border-dashed border-black/15 p-8 text-center text-sm text-black/50">Select or add a slide to edit.</div>
@@ -446,10 +522,11 @@ function MetadataForm({ lesson }: { lesson: Lesson }) {
 }
 
 function SelectedSlideEditor({
-  lessonId, slide, slideIndex, slideCount, slides, blocks, activities, slideActivities
+  lessonId, slide, slideIndex, slideCount, slides, blocks, activities, slideActivities, onDuplicateSlide
 }: {
   lessonId: string; slide: Slide; slideIndex: number;
   slideCount: number; slides: Slide[]; blocks: LessonBlock[]; activities: Activity[]; slideActivities: Activity[];
+  onDuplicateSlide: (slide: Slide) => void;
 }) {
   const [openBlockId, setOpenBlockId] = useState<string | null>(null);
   const [isActivityBankOpen, setIsActivityBankOpen] = useState(false);
@@ -481,9 +558,14 @@ function SelectedSlideEditor({
               </select>
               <button className="rounded bg-black/[0.04] px-2 py-1 text-xs font-semibold hover:bg-black/[0.08]">Go</button>
             </form>
-            <form action={duplicateBuilderSlide.bind(null, lessonId, slide.id)} data-busy-message="Duplicating slide...">
-              <button className="rounded-md border border-black/15 p-2 hover:bg-black/5" aria-label="Duplicate"><Copy size={15} /></button>
-            </form>
+            <button
+              type="button"
+              onClick={() => onDuplicateSlide(slide)}
+              className="rounded-md border border-black/15 p-2 hover:bg-black/5"
+              aria-label="Duplicate"
+            >
+              <Copy size={15} />
+            </button>
             <form action={deleteBuilderSlide.bind(null, lessonId, slide.id)} data-busy-message="Deleting slide...">
               <button className="rounded-md border border-coral/30 p-2 text-coral hover:bg-coral/10" aria-label="Delete"><Trash2 size={15} /></button>
             </form>
@@ -775,7 +857,7 @@ function ActivityBank({
           <form key={activity.id} action={copySlideActivityToSlide.bind(null, lessonId, activity.id)} data-busy-message="Copying activity..." className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-white p-3 text-sm">
             <div className="min-w-0">
               <p className="font-semibold">{activity.activity_type.replaceAll("_", " ")}</p>
-              <p className="truncate text-xs text-black/45">Currently on {activity.slide_id ? slideTitleById.get(activity.slide_id) ?? `slide ${activity.slide_number}` : `slide ${activity.slide_number}`}</p>
+              <p className="truncate text-xs text-black/45">Currently on {activity.slide_id ? slideTitleById.get(activity.slide_id) ?? `slide ${activity.slides?.slide_number ?? activity.slide_number}` : `slide ${activity.slide_number}`}</p>
             </div>
             <input type="hidden" name="slideId" value={slide.id} />
             <input type="hidden" name="replaceExisting" value="false" />
@@ -1070,12 +1152,20 @@ function BlockFields({ blockType, content, lessonId }: { blockType: string; cont
                     className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
                   />
                 </label>
-                <BlockMediaUploader
-                  type="image"
-                  lessonId={lessonId}
-                  currentSrc={card.imagePath}
-                  onUploaded={(url) => setFlashcards((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, imagePath: url } : item))}
-                />
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <BlockMediaUploader
+                    type="image"
+                    lessonId={lessonId}
+                    currentSrc={card.imagePath}
+                    onUploaded={(url) => setFlashcards((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, imagePath: url } : item))}
+                  />
+                  <BlockMediaUploader
+                    type="audio"
+                    lessonId={lessonId}
+                    currentSrc={card.audioPath}
+                    onUploaded={(url) => setFlashcards((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, audioPath: url } : item))}
+                  />
+                </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="text-sm">
                     Word or phrase

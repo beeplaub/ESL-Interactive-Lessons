@@ -10,6 +10,8 @@ import { parseLessonSlideActivities } from "@/lib/lessonTextParser";
 import { classifyAndExtractLesson } from "@/lib/slideClassifier";
 import type { Json, SlideType } from "@/types/database.types";
 
+type AdminClient = ReturnType<typeof createAdminClient>;
+
 export type LessonActionState = {
   lessonId?: string;
   message?: string;
@@ -878,6 +880,7 @@ export async function addBuilderSlideAt(
   }).select("id").single();
   if (insertError) throw insertError;
 
+  await syncLessonSlideActivityNumbers(supabase, lessonId);
   revalidatePath(`/admin/lessons/${lessonId}/builder`);
   return insertedSlide?.id ?? null;
 }
@@ -903,17 +906,35 @@ export async function updateBuilderSlide(lessonId: string, slideId: string, form
   revalidateLessonBuilder(lessonId);
 }
 
-export async function duplicateBuilderSlide(lessonId: string, slideId: string) {
+export async function duplicateBuilderSlide(lessonId: string, slideId: string, afterSlideNumber?: number) {
   await requireAdmin();
   const supabase = createAdminClient();
   const [{ data: source, error: sourceError }, { data: slides, error: slidesError }] = await Promise.all([
     supabase.from("slides").select("*").eq("id", slideId).eq("lesson_id", lessonId).single(),
-    supabase.from("slides").select("slide_number").eq("lesson_id", lessonId).order("slide_number", { ascending: false }).limit(1)
+    supabase.from("slides").select("id, slide_number").eq("lesson_id", lessonId).order("slide_number", { ascending: true })
   ]);
   if (sourceError) throw sourceError;
   if (slidesError) throw slidesError;
 
-  const nextSlideNumber = (slides?.[0]?.slide_number ?? 0) + 1;
+  const orderedSlides = slides ?? [];
+  const maxSlideNumber = orderedSlides[orderedSlides.length - 1]?.slide_number ?? 0;
+  const requestedAfter = Number.isFinite(afterSlideNumber) ? Math.round(Number(afterSlideNumber)) : source.slide_number;
+  const insertAfter = Math.min(Math.max(requestedAfter, 0), maxSlideNumber);
+  const nextSlideNumber = insertAfter + 1;
+
+  const slidesToShift = orderedSlides
+    .filter((slide) => slide.slide_number > insertAfter)
+    .sort((a, b) => b.slide_number - a.slide_number);
+
+  for (const slide of slidesToShift) {
+    const { error: shiftError } = await supabase
+      .from("slides")
+      .update({ slide_number: slide.slide_number + 1 })
+      .eq("id", slide.id)
+      .eq("lesson_id", lessonId);
+    if (shiftError) throw shiftError;
+  }
+
   const { data: duplicatedSlide, error } = await supabase.from("slides").insert({
     lesson_id: lessonId,
     slide_number: nextSlideNumber,
@@ -962,7 +983,9 @@ export async function duplicateBuilderSlide(lessonId: string, slideId: string) {
     if (activityInsertError) throw activityInsertError;
   }
 
+  await syncLessonSlideActivityNumbers(supabase, lessonId);
   revalidateLessonBuilder(lessonId);
+  return duplicatedSlide.id as string;
 }
 
 export async function deleteBuilderSlide(lessonId: string, slideId: string) {
@@ -993,6 +1016,7 @@ export async function deleteBuilderSlide(lessonId: string, slideId: string) {
     .order("slide_number", { ascending: true });
   if (slidesError) throw slidesError;
   await reorderSlides(lessonId, (slides ?? []).map((slide) => slide.id));
+  await syncLessonSlideActivityNumbers(supabase, lessonId);
   revalidateLessonBuilder(lessonId);
 }
 
@@ -1520,6 +1544,25 @@ async function reorderSlides(lessonId: string, orderedIds: string[]) {
       .update({ linked_slide_number: nextNumber })
       .eq("id", audio.id)
       .eq("lesson_id", lessonId);
+  }
+
+  await syncLessonSlideActivityNumbers(supabase, lessonId);
+}
+
+async function syncLessonSlideActivityNumbers(supabase: AdminClient, lessonId: string) {
+  const { data: slides, error } = await supabase
+    .from("slides")
+    .select("id, slide_number")
+    .eq("lesson_id", lessonId);
+  if (error) throw error;
+
+  for (const slide of slides ?? []) {
+    const { error: activityError } = await supabase
+      .from("lesson_slide_activities")
+      .update({ slide_number: slide.slide_number })
+      .eq("lesson_id", lessonId)
+      .eq("slide_id", slide.id);
+    if (activityError) throw activityError;
   }
 }
 

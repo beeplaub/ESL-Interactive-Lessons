@@ -12,7 +12,7 @@ type Activity = {
   activity_data: Json | null;
   needs_review: boolean;
   raw_text: string | null;
-  slides?: { title?: string | null } | null;
+  slides?: { title?: string | null; slide_number?: number | null } | null;
 };
 
 type McqQuestion = {
@@ -378,6 +378,7 @@ function ActivityPanel({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const title = activity.slides?.title || `Slide ${activity.slide_number}`;
+  const displaySlideNumber = activity.slides?.slide_number ?? activity.slide_number;
 
   function save(activityData: Json, needsReview = false) {
     setStatus("saving");
@@ -420,7 +421,7 @@ function ActivityPanel({
     <div className="rounded-md border border-black/10 p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <span className="text-sm font-semibold">Slide {activity.slide_number}</span>
+          <span className="text-sm font-semibold">Slide {displaySlideNumber}</span>
           <span className="max-w-xs truncate text-sm text-black/55">{title}</span>
           <span className="rounded-full bg-skywash px-3 py-1 text-xs font-semibold text-ink">{activity.activity_type}</span>
           {activity.needs_review ? (
@@ -438,7 +439,7 @@ function ActivityPanel({
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-moss">Activity editor</p>
                 <h3 className="mt-1 text-lg font-semibold">{labelFor(activity.activity_type)}</h3>
-                <p className="mt-1 text-sm text-black/55">Slide {activity.slide_number} · {title}</p>
+                <p className="mt-1 text-sm text-black/55">Slide {displaySlideNumber} · {title}</p>
               </div>
               <button type="button" onClick={() => setIsOpen(false)} className="rounded-md border border-black/10 p-2 hover:bg-black/5" aria-label="Close activity editor">
                 Close

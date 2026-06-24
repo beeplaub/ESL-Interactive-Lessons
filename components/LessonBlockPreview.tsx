@@ -353,6 +353,7 @@ function SingleFlashcard({
   const audioSrc = audioPath ? mediaUrl(audioPath, "audio") : "";
   const showImageFront = cardType === "IMAGE" && frontSide !== "DETAIL";
   const showWordFront = cardType === "CARD" && frontSide !== "DETAIL";
+  const showDetailFront = frontSide === "DETAIL";
 
   return (
     <div className="w-full select-none" style={{ perspective: "1200px" }}>
@@ -366,7 +367,11 @@ function SingleFlashcard({
       >
         {/* FRONT */}
         <div
-          className="absolute inset-0 cursor-pointer overflow-hidden rounded-2xl border border-black/10 bg-white"
+          className={
+            showDetailFront
+              ? "absolute inset-0 flex cursor-pointer flex-col items-center justify-center gap-3 overflow-y-auto rounded-2xl border border-black/10 bg-white p-6 text-center shadow-sm"
+              : "absolute inset-0 cursor-pointer overflow-hidden rounded-2xl border border-black/10 bg-white"
+          }
           style={{ backfaceVisibility: "hidden", minHeight: "300px" }}
           onClick={() => setFlipped(true)}
           role="button"
@@ -387,7 +392,7 @@ function SingleFlashcard({
                 {phonetic ? <p className="mt-3 font-mono text-sm text-black/45">{phonetic}</p> : null}
               </div>
             </div>
-          ) : frontSide === "DETAIL" ? (
+          ) : showDetailFront ? (
             <FlashcardDetails
               word={word}
               phonetic={phonetic}
