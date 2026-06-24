@@ -276,9 +276,15 @@ export function BuilderLessonPlayer({
   function move(direction: -1 | 1) {
     const next = Math.max(0, Math.min(slides.length - 1, index + direction));
     if (next === index) return;
-    setIndex(next);
+    jumpTo(next);
+  }
+
+  function jumpTo(next: number) {
+    const normalized = Math.max(0, Math.min(slides.length - 1, next));
+    if (normalized === index) return;
+    setIndex(normalized);
     setMessage(null);
-    scheduleProgressSave(next);
+    scheduleProgressSave(normalized);
   }
 
   function handleLessonTouchMove(event: TouchEvent<HTMLElement>) {
@@ -551,7 +557,22 @@ export function BuilderLessonPlayer({
         >
           <ChevronLeft size={16} /> Previous
         </button>
-        <p className="rounded-full bg-black/[0.04] px-3 py-1.5 text-sm font-medium text-black/55">{message ?? `Slide ${index + 1} of ${slides.length}`}</p>
+        <div className="flex items-center gap-2 rounded-full bg-black/[0.04] px-2 py-1 text-sm font-medium text-black/55">
+          <span className="hidden sm:inline">{message ?? "Jump to"}</span>
+          <select
+            value={index}
+            onChange={(event) => jumpTo(Number(event.target.value))}
+            aria-label="Jump to slide"
+            className="max-w-44 rounded-full border border-black/10 bg-white px-3 py-1.5 text-sm font-semibold text-ink outline-none transition focus:border-moss/50 focus:ring-2 focus:ring-moss/15"
+          >
+            {slides.map((item, slideIndex) => (
+              <option key={item.id} value={slideIndex}>
+                {slideIndex + 1}. {item.title}
+              </option>
+            ))}
+          </select>
+          <span className="shrink-0 text-xs text-black/45">{index + 1}/{slides.length}</span>
+        </div>
         {index === slides.length - 1 ? (
           <button
             type="button"
