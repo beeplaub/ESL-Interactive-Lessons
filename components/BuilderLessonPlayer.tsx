@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { TouchEvent } from "react";
 import { ArrowLeft, ArrowRight, CheckCircle2, ChevronLeft, ChevronRight, NotebookPen, Pause, Play, RotateCcw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { LessonActivityPanel } from "@/components/LessonActivityPanel";
@@ -191,6 +192,7 @@ export function BuilderLessonPlayer({
   );
   const [notesSaved, setNotesSaved] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 
   const slide = slides[index] ?? null;
 
@@ -250,6 +252,19 @@ export function BuilderLessonPlayer({
     save(next);
   }
 
+  function handleSlideTouchEnd(event: TouchEvent<HTMLElement>) {
+    const start = touchStartRef.current;
+    touchStartRef.current = null;
+    if (!start) return;
+    const touch = event.changedTouches[0];
+    if (!touch) return;
+    const deltaX = touch.clientX - start.x;
+    const deltaY = touch.clientY - start.y;
+    if (Math.abs(deltaX) < 55 || Math.abs(deltaX) < Math.abs(deltaY) * 1.2) return;
+    if (deltaX < 0 && index < slides.length - 1) move(1);
+    if (deltaX > 0 && index > 0) move(-1);
+  }
+
   function finish() {
     setCompleted(true);
     setMessage("Lesson completed.");
@@ -283,11 +298,13 @@ export function BuilderLessonPlayer({
               {lesson.topic ? <span className="truncate text-xs text-black/45">{lesson.topic}</span> : null}
             </div>
             <div className="mt-1.5 flex items-center gap-2">
-              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-black/10">
-                <div
-                  className="h-full rounded-full bg-moss transition-all duration-300"
-                  style={{ width: `${progressPercent}%` }}
-                />
+              <div className="grid h-1.5 flex-1 grid-flow-col gap-1">
+                {slides.map((item, slideIndex) => (
+                  <span
+                    key={item.id}
+                    className={`rounded-full transition-colors ${slideIndex <= index ? "bg-moss" : "bg-black/10"}`}
+                  />
+                ))}
               </div>
               <span className="shrink-0 text-[11px] font-medium text-black/45">{progressPercent}%</span>
             </div>
@@ -327,13 +344,20 @@ export function BuilderLessonPlayer({
               <ChevronRight size={16} />
             </button>
 
-            <section className="rounded-xl border border-black/10 bg-white p-2 shadow-sm sm:p-3">
+            <section
+              className="mx-auto aspect-video w-full max-w-[1280px] rounded-xl border border-black/10 bg-white p-2 shadow-sm sm:p-3"
+              onTouchStart={(event) => {
+                const touch = event.touches[0];
+                if (touch) touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+              }}
+              onTouchEnd={handleSlideTouchEnd}
+            >
               {/* Slide header */}
-              <div className="mb-2 rounded-md bg-ink px-3 py-2 text-white">
+              <div className="mb-2 rounded-md bg-ink px-3 py-2.5 text-white">
 
                 {/* Line 1 — slide counter (left) + narration pill (right) */}
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-white/55">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-white/55">
                     Slide {index + 1} of {slides.length}
                   </p>
                   {narrationUrl && (
@@ -342,15 +366,21 @@ export function BuilderLessonPlayer({
                 </div>
 
                 {/* Line 2 — slide title */}
-                <h2 className="mt-0.5 truncate text-base font-semibold sm:text-lg">{slide.title}</h2>
+                <h2 className="mt-0.5 truncate text-lg font-semibold sm:text-xl">{slide.title}</h2>
 
                 {/* Line 3 — section label */}
                 {slide.section_label && (
-                  <p className="mt-0.5 truncate text-xs text-white/60">{slide.section_label}</p>
+                  <p className="mt-0.5 truncate text-sm text-white/65">{slide.section_label}</p>
                 )}
               </div>
 
-              <LessonBlockPreview blocks={slideBlocks} />
+              {slideBlocks.length ? (
+                <LessonBlockPreview blocks={slideBlocks} />
+              ) : slideActivities.length ? null : (
+                <div className="grid min-h-40 place-items-center rounded-md bg-slate-50 p-5 text-center text-sm text-black/55">
+                  Take a moment to review this step, then continue when you are ready.
+                </div>
+              )}
             </section>
           </div>
 

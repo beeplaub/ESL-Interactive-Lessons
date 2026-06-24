@@ -308,13 +308,13 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
           </div>
 
           <div className="rounded-xl bg-slate-100 p-1.5 sm:p-2">
-            <div className="min-h-[460px] rounded-lg bg-white p-2 shadow-inner sm:p-3">
+            <div className="mx-auto aspect-video w-full max-w-[1280px] rounded-lg bg-white p-2 shadow-inner sm:p-3">
               {selectedSlide ? (
                 <>
-                  <div className="mb-2 flex flex-wrap items-center gap-2 rounded-md bg-ink px-3 py-2 text-white">
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-white/55">Slide {selectedSlide.slide_number}</p>
-                    <h3 className="min-w-0 flex-1 truncate text-base font-semibold">{selectedSlide.title}</h3>
-                    {selectedSlide.section_label && <p className="truncate text-xs text-white/60">{selectedSlide.section_label}</p>}
+                  <div className="mb-2 flex flex-wrap items-center gap-2 rounded-md bg-ink px-3 py-2.5 text-white">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-white/55">Slide {selectedSlide.slide_number}</p>
+                    <h3 className="min-w-0 flex-1 truncate text-lg font-semibold">{selectedSlide.title}</h3>
+                    {selectedSlide.section_label && <p className="truncate text-sm text-white/65">{selectedSlide.section_label}</p>}
                   </div>
                   <LessonBlockPreview blocks={selectedBlocks} />
                 </>
@@ -460,6 +460,7 @@ function SelectedSlideEditor({
   slideCount: number; slides: Slide[]; blocks: LessonBlock[]; activities: Activity[]; slideActivities: Activity[];
 }) {
   const [openBlockId, setOpenBlockId] = useState<string | null>(null);
+  const [isActivityBankOpen, setIsActivityBankOpen] = useState(false);
   const openBlock = blocks.find((block) => block.id === openBlockId) ?? null;
   const openBlockIndex = openBlock ? blocks.findIndex((block) => block.id === openBlock.id) : -1;
 
@@ -565,8 +566,21 @@ function SelectedSlideEditor({
       </section>
 
       <section className="min-w-0">
-        <p className="text-xs font-semibold uppercase tracking-wide text-moss">Activity</p>
-        <h2 className="mt-1 text-lg font-semibold">Add or edit interactivity</h2>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-moss">Activity</p>
+            <h2 className="mt-1 text-lg font-semibold">Add or edit interactivity</h2>
+          </div>
+          {activities.some((activity) => activity.slide_id !== slide.id) ? (
+            <button
+              type="button"
+              onClick={() => setIsActivityBankOpen(true)}
+              className="rounded-md border border-black/15 bg-white px-3 py-2 text-xs font-semibold hover:bg-black/5"
+            >
+              Activity bank
+            </button>
+          ) : null}
+        </div>
         <div className="mt-4 grid gap-3">
           {slideActivities.length ? (
             <div className="rounded-lg border border-black/10 bg-slate-50 p-3">
@@ -585,9 +599,6 @@ function SelectedSlideEditor({
               activities={activities}
             />
           ))}
-          {activities.length > 0 ? (
-            <ActivityBank lessonId={lessonId} slide={slide} slides={slides} activities={activities} />
-          ) : null}
           <form action={addLessonSlideActivity.bind(null, lessonId, slide.id, slide.slide_number)} data-busy-message="Adding activity..." className="grid gap-3 rounded-lg border border-dashed border-black/15 p-3">
             <label className="text-sm">
               Create new activity
@@ -607,6 +618,15 @@ function SelectedSlideEditor({
             <button className="w-fit rounded-md bg-ink px-4 py-2 text-sm font-medium text-white">Add activity</button>
           </form>
         </div>
+        {isActivityBankOpen ? (
+          <ActivityBankModal
+            lessonId={lessonId}
+            slide={slide}
+            slides={slides}
+            activities={activities}
+            onClose={() => setIsActivityBankOpen(false)}
+          />
+        ) : null}
       </section>
     </div>
   );
@@ -723,6 +743,30 @@ function ActivityMoveCopyControls({
   );
 }
 
+function ActivityBankModal({
+  lessonId, slide, slides, activities, onClose
+}: {
+  lessonId: string; slide: Slide; slides: Slide[]; activities: Activity[]; onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 px-3 py-6">
+      <div className="max-h-[90vh] w-full max-w-2xl overflow-auto rounded-xl bg-white p-4 shadow-2xl sm:p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-moss">Activity bank</p>
+            <h3 className="mt-1 text-lg font-semibold">Copy an activity to this slide</h3>
+            <p className="mt-1 text-sm text-black/55">The original activity stays where it is.</p>
+          </div>
+          <button type="button" onClick={onClose} className="rounded-md border border-black/10 p-2 hover:bg-black/5" aria-label="Close activity bank">
+            <X size={16} />
+          </button>
+        </div>
+        <ActivityBank lessonId={lessonId} slide={slide} slides={slides} activities={activities} />
+      </div>
+    </div>
+  );
+}
+
 function ActivityBank({
   lessonId, slide, slides, activities
 }: {
@@ -734,9 +778,7 @@ function ActivityBank({
   const slideTitleById = new Map(slides.map((item, index) => [item.id, `${index + 1}. ${item.title}`]));
 
   return (
-    <details className="rounded-lg border border-black/10 bg-slate-50 p-3">
-      <summary className="cursor-pointer list-none text-sm font-semibold">Activity bank</summary>
-      <div className="mt-3 grid gap-2">
+    <div className="mt-4 grid gap-2">
         {available.map((activity) => (
           <form key={activity.id} action={copySlideActivityToSlide.bind(null, lessonId, activity.id)} data-busy-message="Copying activity..." className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-white p-3 text-sm">
             <div className="min-w-0">
@@ -748,8 +790,7 @@ function ActivityBank({
             <button className="rounded-md border border-black/15 px-3 py-2 text-xs font-semibold hover:bg-black/5">Use here</button>
           </form>
         ))}
-      </div>
-    </details>
+    </div>
   );
 }
 
