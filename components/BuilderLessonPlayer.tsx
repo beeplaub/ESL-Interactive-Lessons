@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { TouchEvent } from "react";
 import { ArrowLeft, ArrowRight, CheckCircle2, ChevronLeft, ChevronRight, NotebookPen, Pause, Play, RotateCcw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { LessonActivityPanel } from "@/components/LessonActivityPanel";
+import { LessonActivityPanel, lessonActivityTotalPoints } from "@/components/LessonActivityPanel";
 import { LessonBlockPreview } from "@/components/LessonBlockPreview";
 import type { Json } from "@/types/database.types";
 
@@ -186,6 +186,7 @@ export function BuilderLessonPlayer({
   const [completed, setCompleted] = useState(Boolean(initialProgress?.completed));
   const [message, setMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [savedActivityAttempts, setSavedActivityAttempts] = useState<ActivityAttempt[]>(activityAttempts);
 
   const [notesMap, setNotesMap] = useState<Record<string, string>>(
     typeof initialNotes === "object" && !Array.isArray(initialNotes) ? initialNotes : {}
@@ -209,6 +210,25 @@ export function BuilderLessonPlayer({
     ? activities.filter((a) => a.slide_id === slide.id)
     : [];
   const progressPercent = slides.length ? Math.round(((index + 1) / slides.length) * 100) : 0;
+  const latestAttemptByActivity = useMemo(() => {
+    const map = new Map<string, ActivityAttempt>();
+    for (const attempt of savedActivityAttempts) {
+      const id = attempt.lesson_slide_activity_id;
+      if (id && !map.has(id)) map.set(id, attempt);
+    }
+    return map;
+  }, [savedActivityAttempts]);
+  const totalLessonMarks = useMemo(
+    () => activities.reduce((sum, activity) => sum + lessonActivityTotalPoints({
+      id: activity.id,
+      activity_type: activity.activity_type,
+      activity_data: activity.activity_data
+    }), 0),
+    [activities]
+  );
+  const earnedLessonMarks = activities.reduce((sum, activity) => sum + (latestAttemptByActivity.get(activity.id)?.score ?? 0), 0);
+  const lessonPercent = totalLessonMarks ? Math.round((earnedLessonMarks / totalLessonMarks) * 100) : 0;
+  const lessonGrade = lessonPercent >= 90 ? "Excellent" : lessonPercent >= 75 ? "Strong" : lessonPercent >= 60 ? "Good" : lessonPercent >= 40 ? "Developing" : "Keep practising";
 
   // Narration for current slide
   const narrationUrl = slide ? (narrationMap[slide.id] ?? null) : null;
@@ -334,6 +354,12 @@ export function BuilderLessonPlayer({
             </span>
           )}
         </div>
+        {totalLessonMarks ? (
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-black/55">
+            <span className="rounded-full bg-black/[0.04] px-2.5 py-1">Lesson score {earnedLessonMarks}/{totalLessonMarks}</span>
+            <span className="rounded-full bg-moss/10 px-2.5 py-1 font-semibold text-moss">{lessonGrade}</span>
+          </div>
+        ) : null}
       </div>
 
       <div
@@ -488,7 +514,17 @@ export function BuilderLessonPlayer({
                     activity_data: activity.activity_data,
                   }}
                   onNext={() => move(1)}
-                  initialAttempt={activityAttempts.find((attempt) => attempt.lesson_slide_activity_id === activity.id) ?? null}
+                  initialAttempt={latestAttemptByActivity.get(activity.id) ?? null}
+                  attempts={savedActivityAttempts.filter((attempt) => attempt.lesson_slide_activity_id === activity.id)}
+                  onSavedAttempt={(attempt) => {
+                    setSavedActivityAttempts((current) => [{
+                      lesson_slide_activity_id: activity.id,
+                      score: attempt.score,
+                      total: attempt.total,
+                      answers: attempt.answers,
+                      completed_at: attempt.completed_at ?? new Date().toISOString()
+                    }, ...current]);
+                  }}
                 />
               ))}
             </div>

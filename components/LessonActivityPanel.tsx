@@ -10,7 +10,7 @@ type LessonSlideActivity = {
   id: string; activity_type: string; activity_data: Json | null;
 };
 
-type SavedAttempt = { score: number; total: number; answers: Json | null };
+type SavedAttempt = { score: number; total: number; answers: Json | null; completed_at?: string };
 
 function asRecord(value: Json | null | undefined): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -235,6 +235,11 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
   });
 }
 
+export function lessonActivityTotalPoints(activity: LessonSlideActivity): number {
+  return questionsFromData(activity.activity_data, activity.activity_type, activity.id)
+    .reduce((sum, question) => sum + questionTotal(question), 0);
+}
+
 function activityLabel(type: string) {
   if (type === "MCQ") return "Multiple Choice";
   if (type === "TRUE_FALSE") return "True or False";
@@ -282,16 +287,17 @@ function questionTotal(question: QuizQuestion): number {
 }
 
 export function LessonActivityPanel({
-  activity, onNext, previewOnly = false, initialAttempt = null,
+  activity, onNext, previewOnly = false, initialAttempt = null, attempts = [], onSavedAttempt,
 }: {
   activity: LessonSlideActivity; onNext: () => void;
-  previewOnly?: boolean; initialAttempt?: SavedAttempt | null;
+  previewOnly?: boolean; initialAttempt?: SavedAttempt | null; attempts?: SavedAttempt[]; onSavedAttempt?: (attempt: SavedAttempt) => void;
 }) {
   const questions = questionsFromData(activity.activity_data, activity.activity_type, activity.id);
   const initialAnswers = asRecord(initialAttempt?.answers);
   const [answers, setAnswers] = useState<Record<string, unknown>>(initialAnswers);
   const [submitted, setSubmitted] = useState(Boolean(initialAttempt));
   const [message, setMessage] = useState<string | null>(null);
+  const [localAttempts, setLocalAttempts] = useState<SavedAttempt[]>(attempts);
   const [isPending, startTransition] = useTransition();
 
   // Carousel state
@@ -322,6 +328,9 @@ export function LessonActivityPanel({
     startTransition(async () => {
       try {
         await recordQuizAttempt({ lessonSlideActivityId: activity.id, score: finalScore, total, answers });
+        const savedAttempt = { score: finalScore, total, answers: answers as Json, completed_at: new Date().toISOString() };
+        setLocalAttempts((current) => [savedAttempt, ...current]);
+        onSavedAttempt?.(savedAttempt);
         setMessage("Activity saved.");
       } catch (error) {
         setMessage(error instanceof Error ? error.message : "Could not save.");
@@ -448,6 +457,19 @@ export function LessonActivityPanel({
           )}
         </div>
       </div>
+      {localAttempts.length ? (
+        <div className="mt-4 rounded-md bg-slate-50 p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-black/45">Attempts</p>
+          <div className="mt-2 space-y-1.5">
+            {localAttempts.slice(0, 5).map((attempt, attemptIndex) => (
+              <div key={`${attempt.completed_at ?? "attempt"}-${attemptIndex}`} className="flex items-center justify-between gap-3 text-xs text-black/60">
+                <span>{attempt.completed_at ? new Date(attempt.completed_at).toLocaleString() : "Saved attempt"}</span>
+                <strong className="text-ink">{attempt.score}/{attempt.total}</strong>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

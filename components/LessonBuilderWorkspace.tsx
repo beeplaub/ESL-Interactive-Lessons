@@ -98,9 +98,9 @@ function SubmitButton({ label }: { label: string }) {
 }
 
 function AddSlideModal({
-  lessonId, afterSlideNumber, onClose, onBusy,
+  lessonId, afterSlideNumber, onClose, onBusy, onAdded,
 }: {
-  lessonId: string; afterSlideNumber: number; onClose: () => void; onBusy: (msg: string) => void;
+  lessonId: string; afterSlideNumber: number; onClose: () => void; onBusy: (msg: string) => void; onAdded: (slideId: string) => void;
 }) {
   const [title, setTitle] = useState("");
   const [sectionLabel, setSectionLabel] = useState("");
@@ -109,7 +109,8 @@ function AddSlideModal({
   function submit() {
     onBusy("Adding slide...");
     startTransition(async () => {
-      await addBuilderSlideAt(lessonId, afterSlideNumber, title, sectionLabel);
+      const newSlideId = await addBuilderSlideAt(lessonId, afterSlideNumber, title, sectionLabel);
+      if (newSlideId) onAdded(newSlideId);
       onClose();
     });
   }
@@ -153,7 +154,6 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
   const [draggedSlideId, setDraggedSlideId] = useState<string | null>(null);
   const [addAfter, setAddAfter] = useState<number | null>(null);
   const [isReordering, startReorderTransition] = useTransition();
-  const previousSlideCount = useRef(slides.length);
   const timelineRef = useRef<HTMLDivElement>(null);
   const selectedTimelineItemRef = useRef<HTMLDivElement>(null);
 
@@ -201,14 +201,6 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
   useEffect(() => { setBusyMessage(null); }, [lesson.status, slides.length, blocks.length, activities.length, selectedSlide?.title]);
 
   useEffect(() => {
-    if (slides.length > previousSlideCount.current) {
-      const nextId = slides[slides.length - 1]?.id ?? "";
-      if (nextId) selectSlide(nextId);
-    }
-    previousSlideCount.current = slides.length;
-  }, [slides, selectSlide]);
-
-  useEffect(() => {
     if (!selectedSlide && slides[0]) selectSlide(slides[0].id);
   }, [selectedSlide, slides, selectSlide]);
 
@@ -253,7 +245,7 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
       )}
 
       {addAfter !== null && (
-        <AddSlideModal lessonId={lesson.id} afterSlideNumber={addAfter} onClose={() => setAddAfter(null)} onBusy={setBusyMessage} />
+        <AddSlideModal lessonId={lesson.id} afterSlideNumber={addAfter} onClose={() => setAddAfter(null)} onBusy={setBusyMessage} onAdded={selectSlide} />
       )}
 
       {isMetadataOpen && (
@@ -822,6 +814,17 @@ function BlockFields({ blockType, content, lessonId }: { blockType: string; cont
   const [audioPath, setAudioPath] = useState(
     blockType === "FLASHCARD" ? asString(data.audio_path) : asString(data.path ?? data.src ?? data.url)
   );
+  const initialFlashcards = Array.isArray(data.cards) && data.cards.length
+    ? (data.cards as Record<string, unknown>[])
+    : [data];
+  const [flashcards, setFlashcards] = useState(() => initialFlashcards.map((card) => ({
+    imagePath: asString(card.image_path),
+    word: asString(card.word),
+    phonetic: asString(card.phonetic),
+    audioPath: asString(card.audio_path),
+    meaning: asString(card.meaning),
+    examples: Array.isArray(card.examples) ? card.examples.map(String).join("\n") : ""
+  })));
 
   if (blockType === "HEADING") {
     return (
@@ -1026,24 +1029,6 @@ function BlockFields({ blockType, content, lessonId }: { blockType: string; cont
   }
 
   if (blockType === "FLASHCARD") {
-    const flashcardRows = Array.isArray(data.cards)
-      ? (data.cards as Record<string, unknown>[]).map((card) => [
-          asString(card.image_path),
-          asString(card.word),
-          asString(card.phonetic),
-          asString(card.audio_path),
-          asString(card.meaning),
-          Array.isArray(card.examples) ? card.examples.map(String).join("; ") : ""
-        ].join(" | ")).join("\n")
-      : [[
-          asString(data.image_path),
-          asString(data.word),
-          asString(data.phonetic),
-          asString(data.audio_path),
-          asString(data.meaning),
-          lines(data.examples).replace(/\n/g, "; ")
-        ].join(" | ")].join("\n");
-
     return (
       <div className="grid gap-4">
         <div className="grid gap-3 sm:grid-cols-2">
@@ -1063,27 +1048,66 @@ function BlockFields({ blockType, content, lessonId }: { blockType: string; cont
             </select>
           </label>
         </div>
-        <div className="grid gap-2">
-          <p className="text-sm font-medium">Quick image upload <span className="font-normal text-black/40">(optional)</span></p>
-          <input
-            name="image_path"
-            value={imagePath}
-            onChange={(e) => setImagePath(e.target.value)}
-            placeholder="Upload, then paste/use the URL in the cards list below"
-            className="w-full rounded-md border border-black/15 px-3 py-2 text-sm"
-          />
-          <BlockMediaUploader type="image" lessonId={lessonId} currentSrc={imagePath} onUploaded={(url) => setImagePath(url)} />
-        </div>
-        <label className="text-sm">
-          Cards <span className="font-normal text-black/45">(one per line: image URL | word | phonetic | audio URL | meaning | examples separated by ;)</span>
-          <textarea name="cards" rows={7} defaultValue={flashcardRows} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 font-mono text-xs" />
-        </label>
-        <div className="hidden">
-          <input name="word" defaultValue={asString(data.word)} />
-          <input name="phonetic" defaultValue={asString(data.phonetic)} />
-          <input name="audio_path" value={audioPath} onChange={(e) => setAudioPath(e.target.value)} />
-          <textarea name="meaning" defaultValue={asString(data.meaning)} />
-          <textarea name="examples" defaultValue={lines(data.examples)} />
+        <div className="grid gap-3">
+          {flashcards.map((card, index) => (
+            <div key={index} className="rounded-lg border border-black/10 bg-slate-50 p-3">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <p className="text-sm font-semibold">Card {index + 1}</p>
+                {flashcards.length > 1 ? (
+                  <button type="button" onClick={() => setFlashcards((current) => current.filter((_, itemIndex) => itemIndex !== index))} className="text-xs font-semibold text-coral">
+                    Remove
+                  </button>
+                ) : null}
+              </div>
+              <div className="grid gap-3">
+                <label className="text-sm">
+                  Image URL
+                  <input
+                    name="flashcard_image_path"
+                    value={card.imagePath}
+                    onChange={(event) => setFlashcards((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, imagePath: event.target.value } : item))}
+                    placeholder="https://..."
+                    className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+                  />
+                </label>
+                <BlockMediaUploader
+                  type="image"
+                  lessonId={lessonId}
+                  currentSrc={card.imagePath}
+                  onUploaded={(url) => setFlashcards((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, imagePath: url } : item))}
+                />
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="text-sm">
+                    Word or phrase
+                    <input name="flashcard_word" value={card.word} onChange={(event) => setFlashcards((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, word: event.target.value } : item))} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+                  </label>
+                  <label className="text-sm">
+                    Phonetic <span className="font-normal text-black/40">(optional)</span>
+                    <input name="flashcard_phonetic" value={card.phonetic} onChange={(event) => setFlashcards((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, phonetic: event.target.value } : item))} placeholder="/fəˈnetɪk/" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+                  </label>
+                </div>
+                <label className="text-sm">
+                  Audio URL <span className="font-normal text-black/40">(optional)</span>
+                  <input name="flashcard_audio_path" value={card.audioPath} onChange={(event) => setFlashcards((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, audioPath: event.target.value } : item))} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+                </label>
+                <label className="text-sm">
+                  Meaning
+                  <textarea name="flashcard_meaning" rows={2} value={card.meaning} onChange={(event) => setFlashcards((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, meaning: event.target.value } : item))} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+                </label>
+                <label className="text-sm">
+                  Examples <span className="font-normal text-black/40">(one per line)</span>
+                  <textarea name="flashcard_examples" rows={3} value={card.examples} onChange={(event) => setFlashcards((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, examples: event.target.value } : item))} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+                </label>
+              </div>
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={() => setFlashcards((current) => [...current, { imagePath: "", word: "", phonetic: "", audioPath: "", meaning: "", examples: "" }])}
+            className="w-fit rounded-md border border-black/15 px-4 py-2 text-sm font-semibold hover:bg-black/5"
+          >
+            Add card
+          </button>
         </div>
       </div>
     );

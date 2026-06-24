@@ -193,32 +193,33 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
     };
   }
   if (blockType === "FLASHCARD") {
+    const imagePaths = formData.getAll("flashcard_image_path").map((value) => String(value || "").trim());
+    const words = formData.getAll("flashcard_word").map((value) => String(value || "").trim());
+    const phonetics = formData.getAll("flashcard_phonetic").map((value) => String(value || "").trim());
+    const audioPaths = formData.getAll("flashcard_audio_path").map((value) => String(value || "").trim());
+    const meanings = formData.getAll("flashcard_meaning").map((value) => String(value || "").trim());
+    const examplesList = formData.getAll("flashcard_examples").map((value) => splitLines(value));
+    const rowCount = Math.max(imagePaths.length, words.length, meanings.length, 1);
+    const cards = Array.from({ length: rowCount }, (_, index) => ({
+      image_path: imagePaths[index] ?? "",
+      word: words[index] ?? "",
+      phonetic: phonetics[index] || null,
+      audio_path: audioPaths[index] || null,
+      meaning: meanings[index] ?? "",
+      examples: examplesList[index] ?? []
+    })).filter((card, index) => index === 0 || card.image_path || card.word || card.meaning || card.examples.length);
     const legacyCard = {
-      image_path: String(formData.get("image_path") || "").trim(),
-      word: String(formData.get("word") || "").trim(),
-      phonetic: nullableText(formData.get("phonetic")),
-      audio_path: nullableText(formData.get("audio_path")),
-      meaning: String(formData.get("meaning") || "").trim(),
-      examples: splitLines(formData.get("examples"))
+      image_path: cards[0]?.image_path ?? "",
+      word: cards[0]?.word ?? "",
+      phonetic: cards[0]?.phonetic ?? null,
+      audio_path: cards[0]?.audio_path ?? null,
+      meaning: cards[0]?.meaning ?? "",
+      examples: cards[0]?.examples ?? []
     };
-    const cardsText = String(formData.get("cards") || "").trim();
-    const cards = cardsText
-      ? splitLines(cardsText).map((line) => {
-          const [imagePath, word, phonetic, audioPath, meaning, examples] = line.split("|").map((part) => part.trim());
-          return {
-            image_path: imagePath || "",
-            word: word || "",
-            phonetic: phonetic || null,
-            audio_path: audioPath || null,
-            meaning: meaning || "",
-            examples: examples ? examples.split(";").map((item) => item.trim()).filter(Boolean) : []
-          };
-        })
-      : [legacyCard];
     return {
       card_type: String(formData.get("card_type") || "IMAGE"),
       front_side: String(formData.get("front_side") || "IMAGE"),
-      cards,
+      cards: cards.length ? cards : [legacyCard],
       ...legacyCard
     };
   }
@@ -867,16 +868,18 @@ export async function addBuilderSlideAt(
   }
 
   // Insert new slide at position afterSlideNumber + 1
-  await supabase.from("slides").insert({
+  const { data: insertedSlide, error: insertError } = await supabase.from("slides").insert({
     lesson_id: lessonId,
     slide_number: afterSlideNumber + 1,
     title: title || "New Slide",
     section_label: sectionLabel || null,
     raw_text: "",
     type: "INFO",
-  });
+  }).select("id").single();
+  if (insertError) throw insertError;
 
   revalidatePath(`/admin/lessons/${lessonId}/builder`);
+  return insertedSlide?.id ?? null;
 }
 
 export async function updateBuilderSlide(lessonId: string, slideId: string, formData: FormData) {
