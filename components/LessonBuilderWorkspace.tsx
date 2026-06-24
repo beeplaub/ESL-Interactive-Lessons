@@ -89,6 +89,10 @@ function parseOutcomes(description: string | null) {
   return [""];
 }
 
+function renumberSlides(slides: Slide[]) {
+  return slides.map((slide, index) => ({ ...slide, slide_number: index + 1 }));
+}
+
 function SubmitButton({ label }: { label: string }) {
   return (
     <button className="rounded-md bg-moss px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">
@@ -98,9 +102,10 @@ function SubmitButton({ label }: { label: string }) {
 }
 
 function AddSlideModal({
-  lessonId, afterSlideNumber, onClose, onBusy, onAdded,
+  lessonId, afterSlideNumber, onClose, onBusy, onAdded, onOptimisticAdd,
 }: {
   lessonId: string; afterSlideNumber: number; onClose: () => void; onBusy: (msg: string) => void; onAdded: (slideId: string) => void;
+  onOptimisticAdd: (afterSlideNumber: number, title: string, sectionLabel: string) => string;
 }) {
   const [title, setTitle] = useState("");
   const [sectionLabel, setSectionLabel] = useState("");
@@ -108,10 +113,14 @@ function AddSlideModal({
 
   function submit() {
     onBusy("Adding slide...");
+    const optimisticId = onOptimisticAdd(afterSlideNumber, title, sectionLabel);
+    onAdded(optimisticId);
+    onClose();
     startTransition(async () => {
       const newSlideId = await addBuilderSlideAt(lessonId, afterSlideNumber, title, sectionLabel);
-      if (newSlideId) onAdded(newSlideId);
-      onClose();
+      if (newSlideId) {
+        onAdded(newSlideId);
+      }
     });
   }
 
@@ -149,7 +158,8 @@ function DuplicateSlideModal({
   slides,
   onClose,
   onBusy,
-  onDuplicated
+  onDuplicated,
+  onOptimisticDuplicate
 }: {
   lessonId: string;
   sourceSlide: Slide;
@@ -157,16 +167,22 @@ function DuplicateSlideModal({
   onClose: () => void;
   onBusy: (msg: string) => void;
   onDuplicated: (slideId: string) => void;
+  onOptimisticDuplicate: (sourceSlide: Slide, afterSlideNumber: number) => string;
 }) {
   const [afterSlideNumber, setAfterSlideNumber] = useState(String(sourceSlide.slide_number));
   const [isPending, startTransition] = useTransition();
 
   function submit() {
     onBusy("Duplicating slide...");
+    const insertAfter = Number(afterSlideNumber);
+    const optimisticId = onOptimisticDuplicate(sourceSlide, insertAfter);
+    onDuplicated(optimisticId);
+    onClose();
     startTransition(async () => {
-      const newSlideId = await duplicateBuilderSlide(lessonId, sourceSlide.id, Number(afterSlideNumber));
-      if (newSlideId) onDuplicated(newSlideId);
-      onClose();
+      const newSlideId = await duplicateBuilderSlide(lessonId, sourceSlide.id, insertAfter);
+      if (newSlideId) {
+        onDuplicated(newSlideId);
+      }
     });
   }
 
@@ -207,6 +223,7 @@ function DuplicateSlideModal({
 }
 
 export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: Props) {
+  const [localSlides, setLocalSlides] = useState(slides);
   const [selectedSlideId, setSelectedSlideId] = useState(() => {
     if (typeof window === "undefined") return slides[0]?.id ?? "";
     const saved = window.localStorage.getItem(`brenup-builder-slide:${lesson.id}`);
@@ -221,8 +238,8 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
   const timelineRef = useRef<HTMLDivElement>(null);
   const selectedTimelineItemRef = useRef<HTMLDivElement>(null);
 
-  const selectedSlide = slides.find((s) => s.id === selectedSlideId) ?? slides[0] ?? null;
-  const selectedIndex = selectedSlide ? slides.findIndex((s) => s.id === selectedSlide.id) : -1;
+  const selectedSlide = localSlides.find((s) => s.id === selectedSlideId) ?? localSlides[0] ?? null;
+  const selectedIndex = selectedSlide ? localSlides.findIndex((s) => s.id === selectedSlide.id) : -1;
 
   const blocksBySlide = useMemo(() => {
     const map = new Map<string, LessonBlock[]>();
@@ -235,9 +252,13 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
     ? activities.filter((a) => a.slide_id === selectedSlide.id)
     : [];
 
+  useEffect(() => {
+    setLocalSlides(slides);
+  }, [slides]);
+
   function selectRelative(direction: -1 | 1) {
     if (selectedIndex < 0) return;
-    const next = slides[selectedIndex + direction];
+    const next = localSlides[selectedIndex + direction];
     if (next) selectSlide(next.id);
   }
 
@@ -250,23 +271,86 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
 
   function reorderSlideCards(targetSlideId: string) {
     if (!draggedSlideId || draggedSlideId === targetSlideId || isReordering) return;
-    const orderedIds = slides.map((s) => s.id);
+    const orderedIds = localSlides.map((s) => s.id);
     const from = orderedIds.indexOf(draggedSlideId);
     const to = orderedIds.indexOf(targetSlideId);
     if (from < 0 || to < 0) return;
     const next = [...orderedIds];
     const [moved] = next.splice(from, 1);
     next.splice(to, 0, moved);
+    setLocalSlides((current) => renumberSlides(next.map((id) => current.find((slide) => slide.id === id)).filter(Boolean) as Slide[]));
     selectSlide(draggedSlideId);
     setBusyMessage("Reordering slides...");
     startReorderTransition(async () => { await reorderBuilderSlides(lesson.id, next); });
   }
 
-  useEffect(() => { setBusyMessage(null); }, [lesson.status, slides.length, blocks.length, activities.length, selectedSlide?.title]);
+  function optimisticAddSlide(afterSlideNumber: number, title: string, sectionLabel: string) {
+    const id = `optimistic-slide-${Date.now()}`;
+    setLocalSlides((current) => {
+      const nextSlide: Slide = {
+        id,
+        slide_number: afterSlideNumber + 1,
+        title: title.trim() || "New Slide",
+        section_label: sectionLabel.trim() || null,
+        raw_text: ""
+      };
+      const foundIndex = current.findIndex((slide) => slide.slide_number > afterSlideNumber);
+      const insertIndex = foundIndex === -1 ? current.length : Math.max(0, foundIndex);
+      const next = [...current];
+      next.splice(insertIndex, 0, nextSlide);
+      return renumberSlides(next);
+    });
+    return id;
+  }
+
+  function optimisticDuplicateSlide(sourceSlide: Slide, afterSlideNumber: number) {
+    const id = `optimistic-slide-${Date.now()}`;
+    setLocalSlides((current) => {
+      const nextSlide: Slide = {
+        ...sourceSlide,
+        id,
+        slide_number: afterSlideNumber + 1,
+        title: `${sourceSlide.title} copy`
+      };
+      const foundIndex = current.findIndex((slide) => slide.slide_number > afterSlideNumber);
+      const insertIndex = foundIndex === -1 ? current.length : Math.max(0, foundIndex);
+      const next = [...current];
+      next.splice(insertIndex, 0, nextSlide);
+      return renumberSlides(next);
+    });
+    return id;
+  }
+
+  function optimisticMoveSlide(slideId: string, direction: -1 | 1) {
+    const currentIndex = localSlides.findIndex((slide) => slide.id === slideId);
+    const nextIndex = currentIndex + direction;
+    if (currentIndex < 0 || nextIndex < 0 || nextIndex >= localSlides.length) return;
+    const next = [...localSlides];
+    [next[currentIndex], next[nextIndex]] = [next[nextIndex], next[currentIndex]];
+    setLocalSlides(renumberSlides(next));
+    selectSlide(slideId);
+    setBusyMessage("Moving slide...");
+    startReorderTransition(async () => {
+      await moveBuilderSlide(lesson.id, slideId, direction === -1 ? "up" : "down");
+    });
+  }
+
+  function optimisticDeleteSlide(slideId: string) {
+    if (!window.confirm("Delete this slide?")) return;
+    const currentIndex = localSlides.findIndex((slide) => slide.id === slideId);
+    const next = renumberSlides(localSlides.filter((slide) => slide.id !== slideId));
+    setLocalSlides(next);
+    const nextSelected = next[Math.min(currentIndex, next.length - 1)] ?? next[0] ?? null;
+    if (nextSelected) selectSlide(nextSelected.id);
+    setBusyMessage("Deleting slide...");
+    startReorderTransition(async () => { await deleteBuilderSlide(lesson.id, slideId); });
+  }
+
+  useEffect(() => { setBusyMessage(null); }, [lesson.status, localSlides.length, blocks.length, activities.length, selectedSlide?.title]);
 
   useEffect(() => {
-    if (!selectedSlide && slides[0]) selectSlide(slides[0].id);
-  }, [selectedSlide, slides, selectSlide]);
+    if (!selectedSlide && localSlides[0]) selectSlide(localSlides[0].id);
+  }, [selectedSlide, localSlides, selectSlide]);
 
   useEffect(() => {
     if (!busyMessage) return;
@@ -283,7 +367,7 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
       });
     }, 80);
     return () => window.clearTimeout(timer);
-  }, [selectedSlideId, slides.length]);
+  }, [selectedSlideId, localSlides.length]);
 
   function scrollTimeline(direction: -1 | 1) {
     const node = timelineRef.current;
@@ -312,17 +396,25 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
       )}
 
       {addAfter !== null && (
-        <AddSlideModal lessonId={lesson.id} afterSlideNumber={addAfter} onClose={() => setAddAfter(null)} onBusy={setBusyMessage} onAdded={selectSlide} />
+        <AddSlideModal
+          lessonId={lesson.id}
+          afterSlideNumber={addAfter}
+          onClose={() => setAddAfter(null)}
+          onBusy={setBusyMessage}
+          onAdded={selectSlide}
+          onOptimisticAdd={optimisticAddSlide}
+        />
       )}
 
       {duplicateSlide && (
         <DuplicateSlideModal
           lessonId={lesson.id}
           sourceSlide={duplicateSlide}
-          slides={slides}
+          slides={localSlides}
           onClose={() => setDuplicateSlide(null)}
           onBusy={setBusyMessage}
           onDuplicated={selectSlide}
+          onOptimisticDuplicate={optimisticDuplicateSlide}
         />
       )}
 
@@ -372,8 +464,8 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
             </div>
             <div className="flex items-center gap-2">
               <button type="button" onClick={() => selectRelative(-1)} disabled={selectedIndex <= 0} className="rounded-md border border-black/15 p-2 hover:bg-black/5 disabled:opacity-35"><ArrowLeft size={16} /></button>
-              <span className="min-w-16 text-center text-sm text-black/55">{selectedSlide ? `${selectedIndex + 1} / ${slides.length}` : "0 / 0"}</span>
-              <button type="button" onClick={() => selectRelative(1)} disabled={selectedIndex < 0 || selectedIndex >= slides.length - 1} className="rounded-md border border-black/15 p-2 hover:bg-black/5 disabled:opacity-35"><ArrowRight size={16} /></button>
+              <span className="min-w-16 text-center text-sm text-black/55">{selectedSlide ? `${selectedIndex + 1} / ${localSlides.length}` : "0 / 0"}</span>
+              <button type="button" onClick={() => selectRelative(1)} disabled={selectedIndex < 0 || selectedIndex >= localSlides.length - 1} className="rounded-md border border-black/15 p-2 hover:bg-black/5 disabled:opacity-35"><ArrowRight size={16} /></button>
             </div>
           </div>
 
@@ -406,7 +498,7 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
                 <Plus size={13} />
               </button>
 
-              {slides.map((slide, index) => (
+              {localSlides.map((slide, index) => (
                 <div key={slide.id} ref={slide.id === selectedSlide?.id ? selectedTimelineItemRef : null} className="flex shrink-0 items-center">
                   <button
                     type="button"
@@ -429,7 +521,7 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
                 </div>
               ))}
 
-              {slides.length === 0 && (
+              {localSlides.length === 0 && (
                 <button type="button" onClick={() => setAddAfter(0)} className="inline-flex items-center gap-2 rounded-lg border border-dashed border-black/20 px-4 py-2 text-sm text-black/40 hover:border-moss hover:text-moss">
                   <Plus size={15} /> Add first slide
                 </button>
@@ -474,12 +566,14 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
               lessonId={lesson.id}
               slide={selectedSlide}
               slideIndex={selectedIndex}
-              slideCount={slides.length}
-              slides={slides}
+              slideCount={localSlides.length}
+              slides={localSlides}
               blocks={selectedBlocks}
               activities={activities}
               slideActivities={selectedActivities}
               onDuplicateSlide={setDuplicateSlide}
+              onMoveSlide={optimisticMoveSlide}
+              onDeleteSlide={optimisticDeleteSlide}
             />
           ) : (
             <div className="rounded-lg border border-dashed border-black/15 p-8 text-center text-sm text-black/50">Select or add a slide to edit.</div>
@@ -525,11 +619,13 @@ function MetadataForm({ lesson }: { lesson: Lesson }) {
 }
 
 function SelectedSlideEditor({
-  lessonId, slide, slideIndex, slideCount, slides, blocks, activities, slideActivities, onDuplicateSlide
+  lessonId, slide, slideIndex, slideCount, slides, blocks, activities, slideActivities, onDuplicateSlide, onMoveSlide, onDeleteSlide
 }: {
   lessonId: string; slide: Slide; slideIndex: number;
   slideCount: number; slides: Slide[]; blocks: LessonBlock[]; activities: Activity[]; slideActivities: Activity[];
   onDuplicateSlide: (slide: Slide) => void;
+  onMoveSlide: (slideId: string, direction: -1 | 1) => void;
+  onDeleteSlide: (slideId: string) => void;
 }) {
   const [openBlockId, setOpenBlockId] = useState<string | null>(null);
   const [isActivityBankOpen, setIsActivityBankOpen] = useState(false);
@@ -545,12 +641,8 @@ function SelectedSlideEditor({
             <h2 className="mt-1 text-lg font-semibold">Edit slide {slideIndex + 1}</h2>
           </div>
           <div className="flex flex-wrap gap-2">
-            <form action={moveBuilderSlide.bind(null, lessonId, slide.id, "up")} data-busy-message="Moving slide...">
-              <button disabled={slideIndex === 0} className="rounded-md border border-black/15 p-2 hover:bg-black/5 disabled:opacity-35" aria-label="Move up"><ArrowUp size={15} /></button>
-            </form>
-            <form action={moveBuilderSlide.bind(null, lessonId, slide.id, "down")} data-busy-message="Moving slide...">
-              <button disabled={slideIndex === slideCount - 1} className="rounded-md border border-black/15 p-2 hover:bg-black/5 disabled:opacity-35" aria-label="Move down"><ArrowDown size={15} /></button>
-            </form>
+            <button type="button" onClick={() => onMoveSlide(slide.id, -1)} disabled={slideIndex === 0} className="rounded-md border border-black/15 p-2 hover:bg-black/5 disabled:opacity-35" aria-label="Move up"><ArrowUp size={15} /></button>
+            <button type="button" onClick={() => onMoveSlide(slide.id, 1)} disabled={slideIndex === slideCount - 1} className="rounded-md border border-black/15 p-2 hover:bg-black/5 disabled:opacity-35" aria-label="Move down"><ArrowDown size={15} /></button>
             <SlideNarrationRecorder key={slide.id} lessonId={lessonId} slideId={slide.id} />
             <form action={moveBuilderSlideToPosition.bind(null, lessonId, slide.id)} data-busy-message="Moving slide..." className="inline-flex items-center gap-1 rounded-md border border-black/15 px-2 py-1">
               <span className="text-xs text-black/45">Move to</span>
@@ -569,9 +661,7 @@ function SelectedSlideEditor({
             >
               <Copy size={15} />
             </button>
-            <form action={deleteBuilderSlide.bind(null, lessonId, slide.id)} data-busy-message="Deleting slide...">
-              <button className="rounded-md border border-coral/30 p-2 text-coral hover:bg-coral/10" aria-label="Delete"><Trash2 size={15} /></button>
-            </form>
+            <button type="button" onClick={() => onDeleteSlide(slide.id)} className="rounded-md border border-coral/30 p-2 text-coral hover:bg-coral/10" aria-label="Delete"><Trash2 size={15} /></button>
           </div>
         </div>
 
