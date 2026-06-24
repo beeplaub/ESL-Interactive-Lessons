@@ -193,6 +193,8 @@ export function BuilderLessonPlayer({
   const [notesSaved, setNotesSaved] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const [dragX, setDragX] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
 
   const slide = slides[index] ?? null;
 
@@ -252,14 +254,32 @@ export function BuilderLessonPlayer({
     save(next);
   }
 
-  function handleSlideTouchEnd(event: TouchEvent<HTMLElement>) {
+  function handleLessonTouchMove(event: TouchEvent<HTMLElement>) {
     const start = touchStartRef.current;
-    touchStartRef.current = null;
     if (!start) return;
-    const touch = event.changedTouches[0];
+    const touch = event.touches[0];
     if (!touch) return;
     const deltaX = touch.clientX - start.x;
     const deltaY = touch.clientY - start.y;
+    if (Math.abs(deltaX) < 8 || Math.abs(deltaX) < Math.abs(deltaY)) return;
+    event.preventDefault();
+    setIsDragging(true);
+    setDragX(Math.max(-120, Math.min(120, deltaX)));
+  }
+
+  function handleLessonTouchEnd(event: TouchEvent<HTMLElement>) {
+    const start = touchStartRef.current;
+    touchStartRef.current = null;
+    setIsDragging(false);
+    if (!start) return;
+    const touch = event.changedTouches[0];
+    if (!touch) {
+      setDragX(0);
+      return;
+    }
+    const deltaX = touch.clientX - start.x;
+    const deltaY = touch.clientY - start.y;
+    setDragX(0);
     if (Math.abs(deltaX) < 55 || Math.abs(deltaX) < Math.abs(deltaY) * 1.2) return;
     if (deltaX < 0 && index < slides.length - 1) move(1);
     if (deltaX > 0 && index > 0) move(-1);
@@ -284,6 +304,25 @@ export function BuilderLessonPlayer({
 
   return (
     <main className="mx-auto max-w-7xl px-1.5 py-3 sm:px-4 sm:py-4">
+      <div
+        className="will-change-transform"
+        style={{
+          transform: `translateX(${dragX}px) rotate(${dragX / 60}deg)`,
+          transition: isDragging ? "none" : "transform 180ms ease",
+          touchAction: "pan-y"
+        }}
+        onTouchStart={(event) => {
+          const touch = event.touches[0];
+          if (touch) touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+        }}
+        onTouchMove={handleLessonTouchMove}
+        onTouchCancel={() => {
+          touchStartRef.current = null;
+          setIsDragging(false);
+          setDragX(0);
+        }}
+        onTouchEnd={handleLessonTouchEnd}
+      >
 
       {/* ── Header ── */}
       <div className="mb-3 rounded-xl border border-black/10 bg-white px-3 py-2 shadow-sm">
@@ -345,12 +384,7 @@ export function BuilderLessonPlayer({
             </button>
 
             <section
-              className="rounded-xl border border-black/10 bg-white p-4 shadow-sm"
-              onTouchStart={(event) => {
-                const touch = event.touches[0];
-                if (touch) touchStartRef.current = { x: touch.clientX, y: touch.clientY };
-              }}
-              onTouchEnd={handleSlideTouchEnd}
+              className="rounded-xl border border-black/10 bg-white p-2 shadow-sm sm:p-3"
             >
               {/* Slide header */}
               <div className="mb-4 rounded-lg bg-ink px-4 py-3 text-white">
@@ -469,6 +503,7 @@ export function BuilderLessonPlayer({
             Next <ArrowRight size={15} />
           </button>
         )}
+      </div>
       </div>
     </main>
   );

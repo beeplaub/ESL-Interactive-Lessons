@@ -307,8 +307,8 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
             </div>
           </div>
 
-          <div className="rounded-xl bg-slate-100 p-3">
-            <div className="min-h-[420px] rounded-lg bg-white p-4 shadow-inner">
+          <div className="rounded-xl bg-slate-100 p-1.5 sm:p-2">
+            <div className="min-h-[420px] rounded-lg bg-white p-2 shadow-inner sm:p-3">
               {selectedSlide ? (
                 <>
                   <div className="mb-4 rounded-lg bg-ink px-4 py-3 text-white">
