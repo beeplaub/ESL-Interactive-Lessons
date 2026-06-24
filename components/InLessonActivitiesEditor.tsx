@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { deleteSlideActivity, updateSlideActivity } from "@/app/admin/lessons/actions";
 import type { Json } from "@/types/database.types";
 
@@ -334,6 +334,9 @@ export function InLessonActivitiesEditor({
   embedded?: boolean;
 }) {
   const [activities, setActivities] = useState(initialActivities);
+  useEffect(() => {
+    setActivities(initialActivities);
+  }, [initialActivities]);
   if (!activities.length) return null;
 
   return (

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Copy, Eye, Plus, Settings, Trash2, X } from "lucide-react";
 import {
   addBuilderSlideAt,
@@ -138,13 +138,18 @@ function AddSlideModal({
 }
 
 export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: Props) {
-  const [selectedSlideId, setSelectedSlideId] = useState(slides[0]?.id ?? "");
+  const [selectedSlideId, setSelectedSlideId] = useState(() => {
+    if (typeof window === "undefined") return slides[0]?.id ?? "";
+    const saved = window.localStorage.getItem(`brenup-builder-slide:${lesson.id}`);
+    return saved && slides.some((slide) => slide.id === saved) ? saved : slides[0]?.id ?? "";
+  });
   const [isMetadataOpen, setIsMetadataOpen] = useState(false);
   const [busyMessage, setBusyMessage] = useState<string | null>(null);
   const [draggedSlideId, setDraggedSlideId] = useState<string | null>(null);
   const [addAfter, setAddAfter] = useState<number | null>(null);
   const [isReordering, startReorderTransition] = useTransition();
   const previousSlideCount = useRef(slides.length);
+  const timelineRef = useRef<HTMLDivElement>(null);
 
   const selectedSlide = slides.find((s) => s.id === selectedSlideId) ?? slides[0] ?? null;
   const selectedIndex = selectedSlide ? slides.findIndex((s) => s.id === selectedSlide.id) : -1;
@@ -163,8 +168,15 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
   function selectRelative(direction: -1 | 1) {
     if (selectedIndex < 0) return;
     const next = slides[selectedIndex + direction];
-    if (next) setSelectedSlideId(next.id);
+    if (next) selectSlide(next.id);
   }
+
+  const selectSlide = useCallback((slideId: string) => {
+    setSelectedSlideId(slideId);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(`brenup-builder-slide:${lesson.id}`, slideId);
+    }
+  }, [lesson.id]);
 
   function reorderSlideCards(targetSlideId: string) {
     if (!draggedSlideId || draggedSlideId === targetSlideId || isReordering) return;
@@ -175,7 +187,7 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
     const next = [...orderedIds];
     const [moved] = next.splice(from, 1);
     next.splice(to, 0, moved);
-    setSelectedSlideId(draggedSlideId);
+    selectSlide(draggedSlideId);
     setBusyMessage("Reordering slides...");
     startReorderTransition(async () => { await reorderBuilderSlides(lesson.id, next); });
   }
@@ -184,10 +196,15 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
 
   useEffect(() => {
     if (slides.length > previousSlideCount.current) {
-      setSelectedSlideId(slides[slides.length - 1]?.id ?? "");
+      const nextId = slides[slides.length - 1]?.id ?? "";
+      if (nextId) selectSlide(nextId);
     }
     previousSlideCount.current = slides.length;
-  }, [slides]);
+  }, [slides, selectSlide]);
+
+  useEffect(() => {
+    if (!selectedSlide && slides[0]) selectSlide(slides[0].id);
+  }, [selectedSlide, slides, selectSlide]);
 
   useEffect(() => {
     if (!busyMessage) return;
@@ -287,7 +304,16 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
             </div>
           </div>
 
-          <div className="mt-3 flex max-w-full items-center gap-0 overflow-x-auto pb-1">
+          <div
+            ref={timelineRef}
+            className="mt-3 flex max-w-full touch-pan-x items-center gap-0 overflow-x-auto pb-1"
+            onWheel={(event) => {
+              const node = timelineRef.current;
+              if (!node || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+              event.preventDefault();
+              node.scrollLeft += event.deltaY;
+            }}
+          >
             <button type="button" onClick={() => setAddAfter(0)} title="Add slide at beginning" className="flex size-7 shrink-0 items-center justify-center rounded-full border border-dashed border-black/20 text-black/30 transition hover:border-moss hover:bg-moss/5 hover:text-moss">
               <Plus size={13} />
             </button>
@@ -301,7 +327,7 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={() => reorderSlideCards(slide.id)}
                   onDragEnd={() => setDraggedSlideId(null)}
-                  onClick={() => setSelectedSlideId(slide.id)}
+                  onClick={() => selectSlide(slide.id)}
                   className={`min-w-44 rounded-lg border px-3 py-2 text-left text-sm transition
                     ${slide.id === selectedSlide?.id ? "border-moss bg-moss/10" : "border-black/10 bg-white hover:bg-black/[0.03]"}`}
                 >
@@ -333,6 +359,7 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
           </div>
           {selectedActivity ? (
             <LessonActivityPanel
+              key={selectedActivity.id}
               activity={{ id: selectedActivity.id, activity_type: selectedActivity.activity_type, activity_data: selectedActivity.activity_data }}
               onNext={() => selectRelative(1)}
               previewOnly
@@ -515,7 +542,7 @@ function SelectedSlideEditor({
         <h2 className="mt-1 text-lg font-semibold">Add or edit interactivity</h2>
         {activity ? (
           <div className="mt-4">
-            <InLessonActivitiesEditor lessonId={lessonId} initialActivities={[activity]} embedded />
+            <InLessonActivitiesEditor key={`${slide.id}:${activity.id}`} lessonId={lessonId} initialActivities={[activity]} embedded />
           </div>
         ) : (
           <form action={addLessonSlideActivity.bind(null, lessonId, slide.id, slide.slide_number)} data-busy-message="Adding activity..." className="mt-4 grid gap-3 rounded-lg border border-dashed border-black/15 p-3">
