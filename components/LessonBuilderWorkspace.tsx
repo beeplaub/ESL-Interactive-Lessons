@@ -234,7 +234,7 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
 
   return (
     <main
-      className="mx-auto max-w-[1500px] overflow-x-hidden px-2 py-4 sm:px-4 sm:py-5"
+      className="mx-auto max-w-[1500px] overflow-x-hidden px-1.5 py-4 sm:px-4 sm:py-5"
       onSubmitCapture={(event) => {
         const form = event.target instanceof HTMLFormElement ? event.target : null;
         setBusyMessage(form?.dataset.busyMessage || "Applying changes...");
@@ -307,8 +307,8 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
             </div>
           </div>
 
-          <div className="rounded-xl bg-slate-100 p-1.5 sm:p-2">
-            <div className="mx-auto aspect-video w-full max-w-[1280px] rounded-lg bg-white p-2 shadow-inner sm:p-3">
+          <div className="rounded-xl bg-slate-100 p-1 sm:p-2">
+            <div className="min-h-[460px] rounded-lg bg-white p-2 shadow-inner sm:p-3">
               {selectedSlide ? (
                 <>
                   <div className="mb-2 flex flex-wrap items-center gap-2 rounded-md bg-ink px-3 py-2.5 text-white">
