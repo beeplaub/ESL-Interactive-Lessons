@@ -373,6 +373,7 @@ function ActivityPanel({
   onDelete: () => void;
   onSaved: (activity: Activity) => void;
 }) {
+  const [isOpen, setIsOpen] = useState(false);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -416,61 +417,74 @@ function ActivityPanel({
   }
 
   return (
-    <details className="rounded-md border border-black/10 p-4">
-      <summary className="cursor-pointer list-none">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm font-semibold">Slide {activity.slide_number}</span>
-            <span className="max-w-xs truncate text-sm text-black/55">{title}</span>
-            <span className="rounded-full bg-skywash px-3 py-1 text-xs font-semibold text-ink">{activity.activity_type}</span>
-            {activity.needs_review ? (
-              <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">Needs review</span>
-            ) : null}
-          </div>
-          <span className="text-xs text-black/45">Expand to edit</span>
-        </div>
-      </summary>
-      <div className="mt-4 grid gap-4">
-        <div>
-          <h3 className="text-lg font-semibold">{labelFor(activity.activity_type)}</h3>
+    <div className="rounded-md border border-black/10 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <span className="text-sm font-semibold">Slide {activity.slide_number}</span>
+          <span className="max-w-xs truncate text-sm text-black/55">{title}</span>
+          <span className="rounded-full bg-skywash px-3 py-1 text-xs font-semibold text-ink">{activity.activity_type}</span>
           {activity.needs_review ? (
-            <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-              This activity has missing answers. Please fill them in before publishing.
-            </p>
+            <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">Needs review</span>
           ) : null}
         </div>
-        {activity.activity_type === "MCQ" ? <McqEditor activity={activity} onSave={save} /> : null}
-        {activity.activity_type === "GAP_FILL" ? <GapFillEditor activity={activity} onSave={save} /> : null}
-        {activity.activity_type === "TRUE_FALSE" ? <TrueFalseEditor activity={activity} onSave={save} /> : null}
-        {activity.activity_type === "MATCHING" ? <MatchingEditor activity={activity} onSave={save} /> : null}
-        {activity.activity_type === "ERROR_CORRECTION" ? <ErrorCorrectionEditor activity={activity} onSave={save} /> : null}
-        {activity.activity_type === "REORDERING" ? <ReorderingEditor activity={activity} onSave={save} /> : null}
-        {activity.activity_type === "MULTIPLE_SELECT" ? <MultipleSelectEditor activity={activity} onSave={save} /> : null}
-        {activity.activity_type === "SHORT_ANSWER" ? <ShortAnswerEditor activity={activity} onSave={save} /> : null}
-        {activity.activity_type === "DRAG_DROP" ? <DragDropEditor activity={activity} onSave={save} /> : null}
-        {activity.activity_type === "PRONUNCIATION" ? <PronunciationEditor activity={activity} onSave={save} /> : null}
-        {!["MCQ", "GAP_FILL", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "PRONUNCIATION"].includes(activity.activity_type) ? (
-          <p className="rounded-md bg-slate-50 p-3 text-sm text-black/60">
-            This activity type has starter data and preview support. A detailed visual editor for it will be added in the next activity-builder pass.
-          </p>
-        ) : null}
-        <div className="flex flex-wrap items-center gap-3">
-          <StatusText status={status} error={error} />
-          <button
-            type="button"
-            disabled={isPending}
-            onClick={remove}
-            className="rounded-md border border-black/15 px-4 py-2 text-sm text-black/60 hover:bg-black/5 disabled:opacity-50"
-          >
-            Remove activity
-          </button>
-        </div>
-        <div className="rounded-md bg-black/[0.03] p-3">
-          <h4 className="text-sm font-semibold">Original pasted text</h4>
-          <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap text-xs text-black/65">{activity.raw_text}</pre>
-        </div>
+        <button type="button" onClick={() => setIsOpen(true)} className="rounded-md border border-black/15 px-3 py-2 text-xs font-semibold hover:bg-black/5">
+          Edit activity
+        </button>
       </div>
-    </details>
+      {isOpen ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 px-3 py-6">
+          <div className="max-h-[92vh] w-full max-w-4xl overflow-auto rounded-xl bg-white p-4 shadow-2xl sm:p-5">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-moss">Activity editor</p>
+                <h3 className="mt-1 text-lg font-semibold">{labelFor(activity.activity_type)}</h3>
+                <p className="mt-1 text-sm text-black/55">Slide {activity.slide_number} · {title}</p>
+              </div>
+              <button type="button" onClick={() => setIsOpen(false)} className="rounded-md border border-black/10 p-2 hover:bg-black/5" aria-label="Close activity editor">
+                Close
+              </button>
+            </div>
+            <div className="mt-4 grid gap-4">
+              {activity.needs_review ? (
+                <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                  This activity has missing answers. Please fill them in before publishing.
+                </p>
+              ) : null}
+              {activity.activity_type === "MCQ" ? <McqEditor activity={activity} onSave={save} /> : null}
+              {activity.activity_type === "GAP_FILL" ? <GapFillEditor activity={activity} onSave={save} /> : null}
+              {activity.activity_type === "TRUE_FALSE" ? <TrueFalseEditor activity={activity} onSave={save} /> : null}
+              {activity.activity_type === "MATCHING" ? <MatchingEditor activity={activity} onSave={save} /> : null}
+              {activity.activity_type === "ERROR_CORRECTION" ? <ErrorCorrectionEditor activity={activity} onSave={save} /> : null}
+              {activity.activity_type === "REORDERING" ? <ReorderingEditor activity={activity} onSave={save} /> : null}
+              {activity.activity_type === "MULTIPLE_SELECT" ? <MultipleSelectEditor activity={activity} onSave={save} /> : null}
+              {activity.activity_type === "SHORT_ANSWER" ? <ShortAnswerEditor activity={activity} onSave={save} /> : null}
+              {activity.activity_type === "DRAG_DROP" ? <DragDropEditor activity={activity} onSave={save} /> : null}
+              {activity.activity_type === "PRONUNCIATION" ? <PronunciationEditor activity={activity} onSave={save} /> : null}
+              {!["MCQ", "GAP_FILL", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "PRONUNCIATION"].includes(activity.activity_type) ? (
+                <p className="rounded-md bg-slate-50 p-3 text-sm text-black/60">
+                  This activity type has starter data and preview support. A detailed visual editor for it will be added in the next activity-builder pass.
+                </p>
+              ) : null}
+              <div className="flex flex-wrap items-center gap-3 border-t border-black/10 pt-3">
+                <StatusText status={status} error={error} />
+                <button
+                  type="button"
+                  disabled={isPending}
+                  onClick={remove}
+                  className="rounded-md border border-black/15 px-4 py-2 text-sm text-black/60 hover:bg-black/5 disabled:opacity-50"
+                >
+                  Remove activity
+                </button>
+              </div>
+              <div className="rounded-md bg-black/[0.03] p-3">
+                <h4 className="text-sm font-semibold">Original pasted text</h4>
+                <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap text-xs text-black/65">{activity.raw_text}</pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 }
 

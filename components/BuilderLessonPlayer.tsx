@@ -201,12 +201,9 @@ export function BuilderLessonPlayer({
   }, [blocks]);
 
   const slideBlocks = slide ? blocksBySlide.get(slide.id) ?? [] : [];
-  const activity = slide
-    ? activities.find((a) => a.slide_id === slide.id)
-    : null;
-  const latestAttempt = activity
-    ? activityAttempts.find((a) => a.lesson_slide_activity_id === activity.id) ?? null
-    : null;
+  const slideActivities = slide
+    ? activities.filter((a) => a.slide_id === slide.id)
+    : [];
   const progressPercent = slides.length ? Math.round(((index + 1) / slides.length) * 100) : 0;
 
   // Narration for current slide
@@ -388,16 +385,21 @@ export function BuilderLessonPlayer({
 
         {/* ── RIGHT column: activity only ── */}
         <aside className="flex flex-col gap-4">
-          {activity ? (
-            <LessonActivityPanel
-              activity={{
-                id: activity.id,
-                activity_type: activity.activity_type,
-                activity_data: activity.activity_data,
-              }}
-              onNext={() => move(1)}
-              initialAttempt={latestAttempt}
-            />
+          {slideActivities.length ? (
+            <div className="space-y-4">
+              {slideActivities.map((activity) => (
+                <LessonActivityPanel
+                  key={activity.id}
+                  activity={{
+                    id: activity.id,
+                    activity_type: activity.activity_type,
+                    activity_data: activity.activity_data,
+                  }}
+                  onNext={() => move(1)}
+                  initialAttempt={activityAttempts.find((attempt) => attempt.lesson_slide_activity_id === activity.id) ?? null}
+                />
+              ))}
+            </div>
           ) : (
             <div className="rounded-lg border border-black/10 bg-white p-5 text-sm text-black/55 shadow-sm">
               No activity on this slide. Use Next when you are ready.

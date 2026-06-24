@@ -894,9 +894,9 @@ export async function duplicateBuilderSlide(lessonId: string, slideId: string) {
   if (error) throw error;
   if (!duplicatedSlide) throw new Error("The slide was duplicated, but the new slide ID was not returned.");
 
-  const [{ data: blocks, error: blocksError }, { data: activity, error: activityError }] = await Promise.all([
+  const [{ data: blocks, error: blocksError }, { data: activities, error: activityError }] = await Promise.all([
     supabase.from("lesson_blocks").select("*").eq("slide_id", slideId).eq("lesson_id", lessonId).order("position", { ascending: true }),
-    supabase.from("lesson_slide_activities").select("*").eq("slide_id", slideId).eq("lesson_id", lessonId).maybeSingle()
+    supabase.from("lesson_slide_activities").select("*").eq("slide_id", slideId).eq("lesson_id", lessonId)
   ]);
   if (blocksError) throw blocksError;
   if (activityError) throw activityError;
@@ -914,16 +914,18 @@ export async function duplicateBuilderSlide(lessonId: string, slideId: string) {
     if (blockInsertError) throw blockInsertError;
   }
 
-  if (activity) {
-    const { error: activityInsertError } = await supabase.from("lesson_slide_activities").insert({
-      lesson_id: lessonId,
-      slide_id: duplicatedSlide.id,
-      slide_number: nextSlideNumber,
-      activity_type: activity.activity_type,
-      activity_data: activity.activity_data,
-      needs_review: activity.needs_review,
-      raw_text: activity.raw_text
-    });
+  if (activities?.length) {
+    const { error: activityInsertError } = await supabase.from("lesson_slide_activities").insert(
+      activities.map((activity) => ({
+        lesson_id: lessonId,
+        slide_id: duplicatedSlide.id,
+        slide_number: nextSlideNumber,
+        activity_type: activity.activity_type,
+        activity_data: activity.activity_data,
+        needs_review: activity.needs_review,
+        raw_text: activity.raw_text
+      }))
+    );
     if (activityInsertError) throw activityInsertError;
   }
 
@@ -1100,6 +1102,7 @@ export async function moveLessonBlock(lessonId: string, slideId: string, blockId
 export async function moveSlideActivityToSlide(lessonId: string, activityId: string, formData: FormData) {
   await requireAdmin();
   const targetSlideId = String(formData.get("slideId") || "");
+  const replaceExisting = formData.get("replaceExisting") === "true";
   if (!targetSlideId) return;
 
   const supabase = createAdminClient();
@@ -1111,6 +1114,16 @@ export async function moveSlideActivityToSlide(lessonId: string, activityId: str
     .single();
   if (slideError) throw slideError;
 
+  if (replaceExisting) {
+    const { error: deleteError } = await supabase
+      .from("lesson_slide_activities")
+      .delete()
+      .eq("lesson_id", lessonId)
+      .eq("slide_id", slide.id)
+      .neq("id", activityId);
+    if (deleteError) throw deleteError;
+  }
+
   const { error } = await supabase
     .from("lesson_slide_activities")
     .update({
@@ -1120,6 +1133,52 @@ export async function moveSlideActivityToSlide(lessonId: string, activityId: str
     })
     .eq("id", activityId)
     .eq("lesson_id", lessonId);
+  if (error) throw error;
+  revalidateLessonBuilder(lessonId);
+}
+
+export async function copySlideActivityToSlide(lessonId: string, activityId: string, formData: FormData) {
+  await requireAdmin();
+  const targetSlideId = String(formData.get("slideId") || "");
+  const replaceExisting = formData.get("replaceExisting") === "true";
+  if (!targetSlideId) return;
+
+  const supabase = createAdminClient();
+  const { data: source, error: sourceError } = await supabase
+    .from("lesson_slide_activities")
+    .select("activity_type, activity_data, needs_review, raw_text")
+    .eq("id", activityId)
+    .eq("lesson_id", lessonId)
+    .single();
+  if (sourceError) throw sourceError;
+
+  const { data: slide, error: slideError } = await supabase
+    .from("slides")
+    .select("id, slide_number")
+    .eq("id", targetSlideId)
+    .eq("lesson_id", lessonId)
+    .single();
+  if (slideError) throw slideError;
+
+  if (replaceExisting) {
+    const { error: deleteError } = await supabase
+      .from("lesson_slide_activities")
+      .delete()
+      .eq("lesson_id", lessonId)
+      .eq("slide_id", slide.id);
+    if (deleteError) throw deleteError;
+  }
+
+  const { error } = await supabase.from("lesson_slide_activities").insert({
+    lesson_id: lessonId,
+    slide_id: slide.id,
+    slide_number: slide.slide_number,
+    activity_type: source.activity_type,
+    activity_data: source.activity_data,
+    needs_review: source.needs_review,
+    raw_text: source.raw_text
+  });
+
   if (error) throw error;
   revalidateLessonBuilder(lessonId);
 }
