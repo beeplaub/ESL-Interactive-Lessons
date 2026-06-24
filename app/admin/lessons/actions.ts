@@ -1307,9 +1307,17 @@ export async function generateInLessonQuizzes(lessonId: string, formData: FormDa
     throw new Error("The pasted slide numbers did not match any slides in this lesson.");
   }
 
-  const { error } = await supabase
-    .from("lesson_slide_activities")
-    .upsert(rows, { onConflict: "lesson_id,slide_number" });
+  const slideNumbers = rows.map((row) => row.slide_number);
+  if (slideNumbers.length) {
+    const { error: deleteExistingError } = await supabase
+      .from("lesson_slide_activities")
+      .delete()
+      .eq("lesson_id", lessonId)
+      .in("slide_number", slideNumbers);
+    if (deleteExistingError) throw deleteExistingError;
+  }
+
+  const { error } = await supabase.from("lesson_slide_activities").insert(rows);
   if (error) throw error;
 
   revalidatePath(`/admin/lessons/${lessonId}/edit`);
@@ -1555,6 +1563,23 @@ async function syncLessonSlideActivityNumbers(supabase: AdminClient, lessonId: s
     .select("id, slide_number")
     .eq("lesson_id", lessonId);
   if (error) throw error;
+
+  const { data: activities, error: activitiesError } = await supabase
+    .from("lesson_slide_activities")
+    .select("id")
+    .eq("lesson_id", lessonId);
+  if (activitiesError) throw activitiesError;
+
+  for (let index = 0; index < (activities ?? []).length; index += 1) {
+    const activity = activities?.[index];
+    if (!activity) continue;
+    const { error: temporaryError } = await supabase
+      .from("lesson_slide_activities")
+      .update({ slide_number: -100000 - index })
+      .eq("lesson_id", lessonId)
+      .eq("id", activity.id);
+    if (temporaryError) throw temporaryError;
+  }
 
   for (const slide of slides ?? []) {
     const { error: activityError } = await supabase
