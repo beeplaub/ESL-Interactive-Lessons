@@ -1097,6 +1097,33 @@ export async function moveLessonBlock(lessonId: string, slideId: string, blockId
   revalidateLessonBuilder(lessonId);
 }
 
+export async function moveSlideActivityToSlide(lessonId: string, activityId: string, formData: FormData) {
+  await requireAdmin();
+  const targetSlideId = String(formData.get("slideId") || "");
+  if (!targetSlideId) return;
+
+  const supabase = createAdminClient();
+  const { data: slide, error: slideError } = await supabase
+    .from("slides")
+    .select("id, slide_number")
+    .eq("id", targetSlideId)
+    .eq("lesson_id", lessonId)
+    .single();
+  if (slideError) throw slideError;
+
+  const { error } = await supabase
+    .from("lesson_slide_activities")
+    .update({
+      slide_id: slide.id,
+      slide_number: slide.slide_number,
+      updated_at: new Date().toISOString()
+    })
+    .eq("id", activityId)
+    .eq("lesson_id", lessonId);
+  if (error) throw error;
+  revalidateLessonBuilder(lessonId);
+}
+
 export async function addLessonSlideActivity(lessonId: string, slideId: string, slideNumber: number, formData: FormData) {
   await requireAdmin();
   const supabase = createAdminClient();

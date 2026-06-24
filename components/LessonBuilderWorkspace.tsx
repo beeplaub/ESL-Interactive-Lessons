@@ -13,6 +13,7 @@ import {
   moveBuilderSlide,
   moveBuilderSlideToPosition,
   moveLessonBlock,
+  moveSlideActivityToSlide,
   reorderBuilderSlides,
   updateBuilderSlide,
   updateLessonBlock,
@@ -150,6 +151,7 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
   const [isReordering, startReorderTransition] = useTransition();
   const previousSlideCount = useRef(slides.length);
   const timelineRef = useRef<HTMLDivElement>(null);
+  const selectedTimelineItemRef = useRef<HTMLDivElement>(null);
 
   const selectedSlide = slides.find((s) => s.id === selectedSlideId) ?? slides[0] ?? null;
   const selectedIndex = selectedSlide ? slides.findIndex((s) => s.id === selectedSlide.id) : -1;
@@ -211,6 +213,20 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
     const t = window.setTimeout(() => setBusyMessage(null), 3500);
     return () => window.clearTimeout(t);
   }, [busyMessage]);
+
+  useEffect(() => {
+    selectedTimelineItemRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "nearest",
+      inline: "center",
+    });
+  }, [selectedSlideId]);
+
+  function scrollTimeline(direction: -1 | 1) {
+    const node = timelineRef.current;
+    if (!node) return;
+    node.scrollBy({ left: direction * Math.max(260, node.clientWidth * 0.75), behavior: "smooth" });
+  }
 
   return (
     <main
@@ -304,48 +320,56 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
             </div>
           </div>
 
-          <div
-            ref={timelineRef}
-            className="mt-3 flex max-w-full touch-pan-x items-center gap-0 overflow-x-auto pb-1"
-            onWheel={(event) => {
-              const node = timelineRef.current;
-              if (!node || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
-              event.preventDefault();
-              node.scrollLeft += event.deltaY;
-            }}
-          >
-            <button type="button" onClick={() => setAddAfter(0)} title="Add slide at beginning" className="flex size-7 shrink-0 items-center justify-center rounded-full border border-dashed border-black/20 text-black/30 transition hover:border-moss hover:bg-moss/5 hover:text-moss">
-              <Plus size={13} />
+          <div className="mt-3 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2">
+            <button type="button" onClick={() => scrollTimeline(-1)} className="hidden rounded-full border border-black/15 p-2 text-black/55 hover:bg-black/5 sm:inline-flex" aria-label="Scroll timeline left">
+              <ArrowLeft size={15} />
             </button>
-
-            {slides.map((slide, index) => (
-              <div key={slide.id} className="flex shrink-0 items-center">
-                <button
-                  type="button"
-                  draggable
-                  onDragStart={() => setDraggedSlideId(slide.id)}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={() => reorderSlideCards(slide.id)}
-                  onDragEnd={() => setDraggedSlideId(null)}
-                  onClick={() => selectSlide(slide.id)}
-                  className={`min-w-44 rounded-lg border px-3 py-2 text-left text-sm transition
-                    ${slide.id === selectedSlide?.id ? "border-moss bg-moss/10" : "border-black/10 bg-white hover:bg-black/[0.03]"}`}
-                >
-                  <span className="flex items-center gap-1 text-xs font-semibold text-moss">Slide {index + 1}</span>
-                  <span className="mt-1 block truncate font-medium">{slide.title}</span>
-                  {slide.section_label && <span className="mt-0.5 block truncate text-[11px] text-black/40">{slide.section_label}</span>}
-                </button>
-                <button type="button" onClick={() => setAddAfter(slide.slide_number)} title={`Add slide after slide ${index + 1}`} className="mx-1 flex size-7 shrink-0 items-center justify-center rounded-full border border-dashed border-black/20 text-black/30 transition hover:border-moss hover:bg-moss/5 hover:text-moss">
-                  <Plus size={13} />
-                </button>
-              </div>
-            ))}
-
-            {slides.length === 0 && (
-              <button type="button" onClick={() => setAddAfter(0)} className="inline-flex items-center gap-2 rounded-lg border border-dashed border-black/20 px-4 py-2 text-sm text-black/40 hover:border-moss hover:text-moss">
-                <Plus size={15} /> Add first slide
+            <div
+              ref={timelineRef}
+              className="flex max-w-full touch-pan-x items-center gap-0 overflow-x-auto pb-1"
+              onWheel={(event) => {
+                const node = timelineRef.current;
+                if (!node) return;
+                event.preventDefault();
+                node.scrollLeft += Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+              }}
+            >
+              <button type="button" onClick={() => setAddAfter(0)} title="Add slide at beginning" className="flex size-7 shrink-0 items-center justify-center rounded-full border border-dashed border-black/20 text-black/30 transition hover:border-moss hover:bg-moss/5 hover:text-moss">
+                <Plus size={13} />
               </button>
-            )}
+
+              {slides.map((slide, index) => (
+                <div key={slide.id} ref={slide.id === selectedSlide?.id ? selectedTimelineItemRef : null} className="flex shrink-0 items-center">
+                  <button
+                    type="button"
+                    draggable
+                    onDragStart={() => setDraggedSlideId(slide.id)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={() => reorderSlideCards(slide.id)}
+                    onDragEnd={() => setDraggedSlideId(null)}
+                    onClick={() => selectSlide(slide.id)}
+                    className={`min-w-44 rounded-lg border px-3 py-2 text-left text-sm transition
+                      ${slide.id === selectedSlide?.id ? "border-moss bg-moss/10" : "border-black/10 bg-white hover:bg-black/[0.03]"}`}
+                  >
+                    <span className="flex items-center gap-1 text-xs font-semibold text-moss">Slide {index + 1}</span>
+                    <span className="mt-1 block truncate font-medium">{slide.title}</span>
+                    {slide.section_label && <span className="mt-0.5 block truncate text-[11px] text-black/40">{slide.section_label}</span>}
+                  </button>
+                  <button type="button" onClick={() => setAddAfter(slide.slide_number)} title={`Add slide after slide ${index + 1}`} className="mx-1 flex size-7 shrink-0 items-center justify-center rounded-full border border-dashed border-black/20 text-black/30 transition hover:border-moss hover:bg-moss/5 hover:text-moss">
+                    <Plus size={13} />
+                  </button>
+                </div>
+              ))}
+
+              {slides.length === 0 && (
+                <button type="button" onClick={() => setAddAfter(0)} className="inline-flex items-center gap-2 rounded-lg border border-dashed border-black/20 px-4 py-2 text-sm text-black/40 hover:border-moss hover:text-moss">
+                  <Plus size={15} /> Add first slide
+                </button>
+              )}
+            </div>
+            <button type="button" onClick={() => scrollTimeline(1)} className="hidden rounded-full border border-black/15 p-2 text-black/55 hover:bg-black/5 sm:inline-flex" aria-label="Scroll timeline right">
+              <ArrowRight size={15} />
+            </button>
           </div>
         </section>
 
@@ -374,11 +398,14 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
         <section className="min-w-0 rounded-xl border border-black/10 bg-white p-3 shadow-sm sm:p-4">
           {selectedSlide ? (
             <SelectedSlideEditor
+              key={selectedSlide.id}
               lessonId={lesson.id}
               slide={selectedSlide}
               slideIndex={selectedIndex}
               slideCount={slides.length}
+              slides={slides}
               blocks={selectedBlocks}
+              activities={activities}
               activity={selectedActivity ?? null}
             />
           ) : (
@@ -425,10 +452,10 @@ function MetadataForm({ lesson }: { lesson: Lesson }) {
 }
 
 function SelectedSlideEditor({
-  lessonId, slide, slideIndex, slideCount, blocks, activity
+  lessonId, slide, slideIndex, slideCount, slides, blocks, activities, activity
 }: {
   lessonId: string; slide: Slide; slideIndex: number;
-  slideCount: number; blocks: LessonBlock[]; activity: Activity | null;
+  slideCount: number; slides: Slide[]; blocks: LessonBlock[]; activities: Activity[]; activity: Activity | null;
 }) {
   return (
     <div className="grid min-w-0 gap-5 xl:grid-cols-2">
@@ -502,7 +529,15 @@ function SelectedSlideEditor({
                       <p className="text-xs font-semibold text-moss">Block {block.position}</p>
                       <h5 className="font-semibold">{labelForBlockType(block.block_type)}</h5>
                     </div>
-                    <span className="max-w-sm truncate text-xs text-black/45">{blockSummary(block)}</span>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="max-w-sm truncate text-xs text-black/45">{blockSummary(block)}</span>
+                      <form action={moveLessonBlock.bind(null, lessonId, slide.id, block.id, "up")} data-busy-message="Moving block..." onClick={(event) => event.stopPropagation()}>
+                        <button disabled={blockIndex === 0} className="rounded-md border border-black/15 p-1.5 hover:bg-black/5 disabled:opacity-35" aria-label="Move block up"><ArrowUp size={13} /></button>
+                      </form>
+                      <form action={moveLessonBlock.bind(null, lessonId, slide.id, block.id, "down")} data-busy-message="Moving block..." onClick={(event) => event.stopPropagation()}>
+                        <button disabled={blockIndex === blocks.length - 1} className="rounded-md border border-black/15 p-1.5 hover:bg-black/5 disabled:opacity-35" aria-label="Move block down"><ArrowDown size={13} /></button>
+                      </form>
+                    </div>
                   </div>
                 </summary>
                 <div className="mt-4 grid gap-4">
@@ -541,31 +576,76 @@ function SelectedSlideEditor({
         <p className="text-xs font-semibold uppercase tracking-wide text-moss">Activity</p>
         <h2 className="mt-1 text-lg font-semibold">Add or edit interactivity</h2>
         {activity ? (
-          <div className="mt-4">
+          <div className="mt-4 space-y-3">
+            <form action={moveSlideActivityToSlide.bind(null, lessonId, activity.id)} data-busy-message="Moving activity..." className="flex flex-wrap items-end gap-2 rounded-lg border border-black/10 bg-slate-50 p-3">
+              <label className="text-sm">
+                Assign this activity to slide
+                <select name="slideId" defaultValue={slide.id} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">
+                  {slides.map((item, index) => (
+                    <option key={item.id} value={item.id}>{index + 1}. {item.title}</option>
+                  ))}
+                </select>
+              </label>
+              <button className="rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white">Move</button>
+            </form>
             <InLessonActivitiesEditor key={`${slide.id}:${activity.id}`} lessonId={lessonId} initialActivities={[activity]} embedded />
           </div>
         ) : (
-          <form action={addLessonSlideActivity.bind(null, lessonId, slide.id, slide.slide_number)} data-busy-message="Adding activity..." className="mt-4 grid gap-3 rounded-lg border border-dashed border-black/15 p-3">
-            <label className="text-sm">
-              Activity type
-              <select name="activityType" defaultValue="MCQ" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">
-                <option value="MCQ">Multiple Choice</option>
-                <option value="MULTIPLE_SELECT">Multiple Select</option>
-                <option value="GAP_FILL">Gap Fill</option>
-                <option value="TRUE_FALSE">True / False</option>
-                <option value="MATCHING">Matching</option>
-                <option value="SHORT_ANSWER">Short Answer</option>
-                <option value="REORDERING">Reordering</option>
-                <option value="ERROR_CORRECTION">Error Correction</option>
-                <option value="DRAG_DROP">Drag and Drop</option>
-                <option value="PRONUNCIATION">Pronunciation Practice</option>
-              </select>
-            </label>
-            <button className="w-fit rounded-md bg-ink px-4 py-2 text-sm font-medium text-white">Add activity</button>
-          </form>
+          <div className="mt-4 grid gap-3">
+            {activities.length > 0 ? (
+              <ActivityBank lessonId={lessonId} slide={slide} slides={slides} activities={activities} />
+            ) : null}
+            <form action={addLessonSlideActivity.bind(null, lessonId, slide.id, slide.slide_number)} data-busy-message="Adding activity..." className="grid gap-3 rounded-lg border border-dashed border-black/15 p-3">
+              <label className="text-sm">
+                Create new activity
+                <select name="activityType" defaultValue="MCQ" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">
+                  <option value="MCQ">Multiple Choice</option>
+                  <option value="MULTIPLE_SELECT">Multiple Select</option>
+                  <option value="GAP_FILL">Gap Fill</option>
+                  <option value="TRUE_FALSE">True / False</option>
+                  <option value="MATCHING">Matching</option>
+                  <option value="SHORT_ANSWER">Short Answer</option>
+                  <option value="REORDERING">Reordering</option>
+                  <option value="ERROR_CORRECTION">Error Correction</option>
+                  <option value="DRAG_DROP">Drag and Drop</option>
+                  <option value="PRONUNCIATION">Pronunciation Practice</option>
+                </select>
+              </label>
+              <button className="w-fit rounded-md bg-ink px-4 py-2 text-sm font-medium text-white">Add activity</button>
+            </form>
+          </div>
         )}
       </section>
     </div>
+  );
+}
+
+function ActivityBank({
+  lessonId, slide, slides, activities
+}: {
+  lessonId: string; slide: Slide; slides: Slide[]; activities: Activity[];
+}) {
+  const available = activities.filter((activity) => activity.slide_id !== slide.id);
+  if (!available.length) return null;
+
+  const slideTitleById = new Map(slides.map((item, index) => [item.id, `${index + 1}. ${item.title}`]));
+
+  return (
+    <details className="rounded-lg border border-black/10 bg-slate-50 p-3">
+      <summary className="cursor-pointer list-none text-sm font-semibold">Activity bank</summary>
+      <div className="mt-3 grid gap-2">
+        {available.map((activity) => (
+          <form key={activity.id} action={moveSlideActivityToSlide.bind(null, lessonId, activity.id)} data-busy-message="Assigning activity..." className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-white p-3 text-sm">
+            <div className="min-w-0">
+              <p className="font-semibold">{activity.activity_type.replaceAll("_", " ")}</p>
+              <p className="truncate text-xs text-black/45">Currently on {activity.slide_id ? slideTitleById.get(activity.slide_id) ?? `slide ${activity.slide_number}` : `slide ${activity.slide_number}`}</p>
+            </div>
+            <input type="hidden" name="slideId" value={slide.id} />
+            <button className="rounded-md border border-black/15 px-3 py-2 text-xs font-semibold hover:bg-black/5">Use here</button>
+          </form>
+        ))}
+      </div>
+    </details>
   );
 }
 
