@@ -1183,6 +1183,13 @@ export async function copySlideActivityToSlide(lessonId: string, activityId: str
   revalidateLessonBuilder(lessonId);
 }
 
+export async function moveOrCopySlideActivityToSlide(lessonId: string, activityId: string, formData: FormData) {
+  const mode = String(formData.get("mode") || "move");
+  return mode === "copy"
+    ? copySlideActivityToSlide(lessonId, activityId, formData)
+    : moveSlideActivityToSlide(lessonId, activityId, formData);
+}
+
 export async function addLessonSlideActivity(lessonId: string, slideId: string, slideNumber: number, formData: FormData) {
   await requireAdmin();
   const supabase = createAdminClient();

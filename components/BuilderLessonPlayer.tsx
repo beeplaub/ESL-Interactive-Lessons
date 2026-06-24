@@ -268,39 +268,40 @@ export function BuilderLessonPlayer({
   }
 
   return (
-    <main className="mx-auto max-w-7xl px-4 py-6">
+    <main className="mx-auto max-w-[1500px] px-2 py-3 sm:px-4 sm:py-4">
 
       {/* ── Header ── */}
-      <div className="mb-5">
-        <Link href="/lessons" className="inline-flex items-center gap-2 text-sm text-black/55 hover:text-black">
-          <ArrowLeft size={15} /> Back to lessons
-        </Link>
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">{lesson.title}</h1>
-            <p className="mt-1 text-sm text-black/55">
-              {[lesson.level, lesson.topic].filter(Boolean).join(" • ")}
-            </p>
+      <div className="mb-3 rounded-xl border border-black/10 bg-white px-3 py-2 shadow-sm">
+        <div className="flex flex-wrap items-center gap-3">
+          <Link href="/lessons" className="inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-black/10 text-black/55 hover:bg-black/5" aria-label="Back to lessons">
+            <ArrowLeft size={15} />
+          </Link>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="min-w-0 truncate text-base font-semibold tracking-tight sm:text-lg">{lesson.title}</h1>
+              <span className="rounded-full bg-skywash px-2 py-0.5 text-[11px] font-semibold text-ink">{lesson.level}</span>
+              {lesson.topic ? <span className="truncate text-xs text-black/45">{lesson.topic}</span> : null}
+            </div>
+            <div className="mt-1.5 flex items-center gap-2">
+              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-black/10">
+                <div
+                  className="h-full rounded-full bg-moss transition-all duration-300"
+                  style={{ width: `${progressPercent}%` }}
+                />
+              </div>
+              <span className="shrink-0 text-[11px] font-medium text-black/45">{progressPercent}%</span>
+            </div>
           </div>
           {completed && (
-            <span className="inline-flex items-center gap-2 rounded-full bg-moss/10 px-3 py-1 text-sm font-semibold text-moss">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-moss/10 px-2.5 py-1 text-xs font-semibold text-moss">
               <CheckCircle2 size={15} /> Completed
             </span>
           )}
         </div>
-        <div className="mt-3 flex items-center gap-3">
-          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-black/10">
-            <div
-              className="h-full rounded-full bg-moss transition-all duration-300"
-              style={{ width: `${progressPercent}%` }}
-            />
-          </div>
-          <span className="shrink-0 text-xs text-black/45">{progressPercent}%</span>
-        </div>
       </div>
 
       {/* ── Main two-column grid ── */}
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(340px,0.85fr)]">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.55fr)]">
 
         {/* ── LEFT column: slide + notes ── */}
         <div className="flex flex-col gap-4">
@@ -326,13 +327,13 @@ export function BuilderLessonPlayer({
               <ChevronRight size={16} />
             </button>
 
-            <section className="rounded-xl border border-black/10 bg-white p-4 shadow-sm">
+            <section className="rounded-xl border border-black/10 bg-white p-2 shadow-sm sm:p-3">
               {/* Slide header */}
-              <div className="mb-4 rounded-lg bg-ink px-4 py-3 text-white">
+              <div className="mb-2 rounded-md bg-ink px-3 py-2 text-white">
 
                 {/* Line 1 — slide counter (left) + narration pill (right) */}
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs uppercase tracking-wide text-white/55">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-white/55">
                     Slide {index + 1} of {slides.length}
                   </p>
                   {narrationUrl && (
@@ -341,11 +342,11 @@ export function BuilderLessonPlayer({
                 </div>
 
                 {/* Line 2 — slide title */}
-                <h2 className="mt-1 text-2xl font-semibold">{slide.title}</h2>
+                <h2 className="mt-0.5 truncate text-base font-semibold sm:text-lg">{slide.title}</h2>
 
                 {/* Line 3 — section label */}
                 {slide.section_label && (
-                  <p className="mt-1 text-sm text-white/60">{slide.section_label}</p>
+                  <p className="mt-0.5 truncate text-xs text-white/60">{slide.section_label}</p>
                 )}
               </div>
 
