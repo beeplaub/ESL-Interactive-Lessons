@@ -6,6 +6,7 @@ import { requireUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { CarouselItem, HorizontalCarousel } from "@/components/HorizontalCarousel";
 import { PendingAttemptSaver } from "@/components/PendingAttemptSaver";
+import { getNextQuizBadge, getQuizBadge } from "@/lib/quizBadges";
 
 function toDateKey(date: Date) { return date.toISOString().slice(0, 10); }
 
@@ -30,17 +31,21 @@ export default async function AccountPage() {
   const isAdminLearnerView = profile?.role === "ADMIN" && cookieStore.get("view_mode")?.value === "learner";
   const adminSupabase = createAdminClient();
 
-  const [{ data: quizAttempts }, { data: wishlistItems }, { data: lessonProgress }, { data: savedLessons }] = await Promise.all([
+  const [{ data: quizAttempts }, { data: wishlistItems }, { data: lessonProgress }, { data: savedLessons }, { data: leaderboardPoints }] = await Promise.all([
     adminSupabase.from("quiz_attempts").select("*, quizzes(title, level)").eq("user_id", user.id).not("quiz_id", "is", null).order("completed_at", { ascending: false }),
     adminSupabase.from("wishlist_items").select("*, quizzes(title, topic, level)").eq("user_id", user.id).not("quiz_id", "is", null).order("created_at", { ascending: false }),
     adminSupabase.from("lesson_progress").select("*, lessons(title, topic, level)").eq("user_id", user.id).order("updated_at", { ascending: false }),
     adminSupabase.from("wishlist_items").select("*, lessons(title, topic, level)").eq("user_id", user.id).not("lesson_id", "is", null).order("created_at", { ascending: false }),
+    adminSupabase.from("quiz_leaderboard_points").select("points").eq("user_id", user.id)
   ]);
 
   const activityDates = (quizAttempts ?? []).filter((a) => a.completed_at).map((a) => toDateKey(new Date(a.completed_at)));
   const streak    = calcStreak(activityDates);
   const firstName = profile?.first_name?.trim();
   const hasName   = Boolean(firstName);
+  const totalQuizPoints = (leaderboardPoints ?? []).reduce((sum, row) => sum + Number(row.points ?? 0), 0);
+  const currentBadge = getQuizBadge(totalQuizPoints);
+  const nextBadge = getNextQuizBadge(totalQuizPoints);
 
   return (
     <main className="mx-auto w-full max-w-6xl overflow-hidden px-4 py-8">
@@ -98,6 +103,36 @@ export default async function AccountPage() {
         <StatCard icon={BookOpen} label="Lessons completed" value={(lessonProgress ?? []).filter((i) => i.completed).length} />
         <StatCard icon={Trophy} label="Saved quizzes" value={(wishlistItems ?? []).length} />
         <StreakCard streak={streak} />
+      </section>
+
+      <section className="mt-5 rounded-lg border border-black/10 bg-white p-5 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className={`grid size-16 place-items-center rounded-2xl bg-gradient-to-br ${currentBadge.gradient} text-lg font-black text-white shadow-sm`}>
+              {currentBadge.icon}
+            </div>
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-wide text-moss">Quiz badge</p>
+              <h2 className="mt-1 text-2xl font-semibold">{currentBadge.name}</h2>
+              <p className="mt-1 text-sm text-black/55">{totalQuizPoints.toLocaleString()} points earned</p>
+            </div>
+          </div>
+          <div className="min-w-[220px] flex-1 sm:max-w-sm">
+            {nextBadge ? (
+              <>
+                <div className="flex items-center justify-between text-xs text-black/50">
+                  <span>Next: {nextBadge.name}</span>
+                  <span>{Math.max(0, nextBadge.minPoints - totalQuizPoints).toLocaleString()} pts to go</span>
+                </div>
+                <div className="mt-2 h-2 overflow-hidden rounded-full bg-black/10">
+                  <div className="h-full rounded-full bg-moss" style={{ width: `${Math.min(100, Math.round((totalQuizPoints / nextBadge.minPoints) * 100))}%` }} />
+                </div>
+              </>
+            ) : (
+              <p className="rounded-md bg-moss/10 p-3 text-sm font-medium text-moss">You are at the top badge: Legend.</p>
+            )}
+          </div>
+        </div>
       </section>
 
       <section className="mt-6 grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">

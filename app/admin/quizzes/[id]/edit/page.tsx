@@ -9,9 +9,14 @@ export default async function EditQuizPage({ params }: { params: Promise<{ id: s
   await requireAdmin();
   const { id } = await params;
   const admin = createAdminClient();
-  const [{ data: quiz }, { data: questions }] = await Promise.all([
+  const [{ data: quiz }, { data: questions }, { data: bankQuestions }] = await Promise.all([
     admin.from("quizzes").select("*").eq("id", id).single(),
-    admin.from("quiz_questions").select("*").eq("quiz_id", id).order("question_number", { ascending: true })
+    admin.from("quiz_questions").select("*").eq("quiz_id", id).order("question_number", { ascending: true }),
+    admin
+      .from("quiz_questions")
+      .select("id, question_type, question_text, description, options, correct_answer, quizzes(id, title, topic, level)")
+      .order("created_at", { ascending: false })
+      .limit(500)
   ]);
 
   if (!quiz) notFound();
@@ -38,6 +43,20 @@ export default async function EditQuizPage({ params }: { params: Promise<{ id: s
             options: question.options,
             correct_answer: question.correct_answer
           }))}
+          questionBank={(bankQuestions ?? []).map((question) => {
+            const sourceQuiz = Array.isArray(question.quizzes) ? question.quizzes[0] : question.quizzes;
+            return {
+              id: question.id,
+              question_type: question.question_type,
+              question_text: question.question_text,
+              description: question.description,
+              options: question.options,
+              correct_answer: question.correct_answer,
+              quiz_title: sourceQuiz?.title ?? "Untitled quiz",
+              quiz_topic: sourceQuiz?.topic ?? "",
+              quiz_level: sourceQuiz?.level ?? ""
+            };
+          })}
         />
       </div>
     </main>

@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowDown, ArrowUp, Copy, Edit3, Eye, FileText, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Copy, Edit3, Eye, FileText, Library, Search, Trash2, X } from "lucide-react";
 import { saveQuizBuilder } from "@/app/admin/quizzes/actions";
 import { LessonActivityPanel } from "@/components/LessonActivityPanel";
 import { parseQuizText } from "@/lib/quizParser";
@@ -26,6 +26,18 @@ type InitialQuiz = {
   status: "DRAFT" | "PUBLISHED";
 };
 
+type QuestionBankItem = {
+  id: string;
+  question_type: string;
+  question_text: string;
+  description: string | null;
+  options: Json | null;
+  correct_answer: Json;
+  quiz_title: string;
+  quiz_topic: string;
+  quiz_level: string;
+};
+
 const questionTypes: BuilderQuestion["questionType"][] = [
   "MCQ", "TRUE_FALSE", "FILL", "MATCHING", "MULTIPLE_SELECT",
   "SHORT_ANSWER", "ERROR_CORRECTION", "REORDERING", "DRAG_DROP", "PRONUNCIATION"
@@ -46,7 +58,7 @@ const typeLabels: Record<string, string> = {
 
 const PRONUNCIATION_COLORS = ["#fbbf24", "#34d399", "#60a5fa", "#f472b6", "#a78bfa", "#fb923c"];
 
-const parseSample = `QUIZ: Everyday English Challenge
+const parseSample = `QUIZ: Full Skills Practice
 TOPIC: Mixed Skills
 LEVEL: B1
 
@@ -57,16 +69,60 @@ C) I am here since two hours.
 D) I was here since two hours.
 ANSWER: B
 
-2. The sentence "I have been waiting for ages" talks about an action continuing until now. (T/F)
+2. "I have been waiting for ages" describes an action continuing until now. (T/F)
 ANSWER: TRUE
 
-3. Complete: I have ___ waiting for twenty minutes. (FILL)
+3. Complete the sentence: I have ___ waiting for twenty minutes. (FILL)
 ANSWER: been
 
 4. Match the word to the meaning. (MATCH)
 A: delay | queue | punctual
 B: late start | line of people | on time
-PAIRS: 1-A, 2-B, 3-C`;
+PAIRS: 1-A, 2-B, 3-C
+
+5. Select all sentences that are correct. (MULTIPLE_SELECT)
+A) I have lived here for five years.
+B) I am knowing him since 2020.
+C) She has been studying all morning.
+D) We was waiting outside.
+ANSWER: A, C
+
+6. Write 25-40 words about a time you had to wait. (SHORT_ANSWER)
+SAMPLE: I once waited two hours for a delayed train. I felt impatient at first, but I used the time to read and relax.
+MIN_WORDS: 25
+REQUIRED_WORDS: waited, felt
+
+7. Correct the sentence. (ERROR_CORRECTION_REWRITE)
+TEXT: She don't like waiting.
+ANSWER: She doesn't like waiting.
+
+8. Click the error and type the correction. (ERROR_CORRECTION_SPOT)
+TEXT: He have been studying since morning.
+ERROR: have
+ANSWER: has
+
+9. Put the steps in order. (REORDERING_SENTENCE)
+ITEMS: First, open the app. | Then, choose a quiz. | Finally, submit your answers.
+ANSWER: 1, 2, 3
+
+10. Put the words in order. (REORDERING_WORD)
+ITEMS: She | has | been | waiting | for | an hour
+ANSWER: 1, 2, 3, 4, 5, 6
+
+11. Move each phrase to the correct group. (DRAG_DROP)
+TARGETS: Formal | Informal
+ITEMS: Could you hold on? -> Formal | Hang on! -> Informal | Please bear with me. -> Formal
+
+12. Practise these words. (PRONUNCIATION_WORD)
+WORDS: comfortable | queue | punctual
+ATTEMPTS: 3
+
+13. Read the sentence and pronounce the target words clearly. (PRONUNCIATION_SENTENCE)
+TEXT: The punctual student waited patiently in the queue.
+TARGETS: punctual | patiently | queue
+ATTEMPTS: 3
+
+Note: The parser imports MCQ, T/F, FILL, and MATCH directly. Use the visual builder or Question Bank for the advanced types above.`;
 
 function defaultQuestion(type: BuilderQuestion["questionType"]): BuilderQuestion {
   const id = `q-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -141,7 +197,8 @@ function questionPointTotal(question: BuilderQuestion) {
 
 export function QuizVisualBuilder({
   initialQuiz,
-  initialQuestions = []
+  initialQuestions = [],
+  questionBank = []
 }: {
   initialQuiz?: InitialQuiz;
   initialQuestions?: Array<{
@@ -152,6 +209,7 @@ export function QuizVisualBuilder({
     options: Json | null;
     correct_answer: Json;
   }>;
+  questionBank?: QuestionBankItem[];
 }) {
   const router = useRouter();
   const [quiz, setQuiz] = useState<InitialQuiz>(initialQuiz ?? { title: "Untitled quiz", topic: "", level: "B1", status: "DRAFT" });
@@ -162,7 +220,12 @@ export function QuizVisualBuilder({
   );
   const [selectedId, setSelectedId] = useState(questions[0]?.id ?? "");
   const [parseOpen, setParseOpen] = useState(false);
+  const [bankOpen, setBankOpen] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
+  const [bankSearch, setBankSearch] = useState("");
+  const [bankLevel, setBankLevel] = useState("");
+  const [bankTopic, setBankTopic] = useState("");
+  const [bankTitle, setBankTitle] = useState("");
   const [parseText, setParseText] = useState(parseSample);
   const [message, setMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -170,6 +233,15 @@ export function QuizVisualBuilder({
   const selected = questions.find((question) => question.id === selectedId) ?? questions[0];
   const selectedIndex = selected ? questions.findIndex((question) => question.id === selected.id) : -1;
   const totalPoints = questions.reduce((sum, question) => sum + questionPointTotal(question), 0);
+  const bankTopics = Array.from(new Set(questionBank.map((item) => item.quiz_topic).filter(Boolean))).sort();
+  const bankTitles = Array.from(new Set(questionBank.map((item) => item.quiz_title).filter(Boolean))).sort();
+  const filteredBank = questionBank.filter((item) => {
+    const haystack = `${item.question_text} ${item.description ?? ""} ${item.quiz_title} ${item.quiz_topic} ${item.quiz_level}`.toLowerCase();
+    return (!bankSearch || haystack.includes(bankSearch.toLowerCase()))
+      && (!bankLevel || item.quiz_level === bankLevel)
+      && (!bankTopic || item.quiz_topic === bankTopic)
+      && (!bankTitle || item.quiz_title === bankTitle);
+  });
 
   const previewQuestion: QuizQuestion | null = selected
     ? {
@@ -235,6 +307,24 @@ export function QuizVisualBuilder({
     setQuestions(next);
     setSelectedId(clone.id);
     setEditorOpen(true);
+  }
+
+  function addQuestionFromBank(item: QuestionBankItem) {
+    const bankQuestion = normalizeInitialQuestion({
+      id: item.id,
+      question_type: item.question_type,
+      question_text: item.question_text,
+      description: item.description,
+      options: item.options,
+      correct_answer: item.correct_answer
+    });
+    const copy = {
+      ...bankQuestion,
+      id: `bank-${item.id}-${Date.now()}-${Math.random().toString(16).slice(2)}`
+    };
+    setQuestions((current) => [...current, copy]);
+    setSelectedId(copy.id);
+    setBankOpen(false);
   }
 
   function moveQuestion(id: string, direction: -1 | 1) {
@@ -307,6 +397,9 @@ export function QuizVisualBuilder({
             <button type="button" onClick={() => setParseOpen(true)} className="inline-flex items-center gap-2 rounded-md border border-black/15 px-3 py-2 text-sm font-medium hover:bg-black/5">
               <FileText size={15} /> Parse text
             </button>
+            <button type="button" onClick={() => setBankOpen(true)} className="inline-flex items-center gap-2 rounded-md border border-black/15 px-3 py-2 text-sm font-medium hover:bg-black/5">
+              <Library size={15} /> Question bank
+            </button>
             <button type="button" disabled={isPending} onClick={() => save("DRAFT")} className="rounded-md border border-black/15 px-4 py-2 text-sm font-semibold hover:bg-black/5 disabled:opacity-45">Save draft</button>
             <button type="button" disabled={isPending} onClick={() => save("PUBLISHED")} className="rounded-md bg-moss px-4 py-2 text-sm font-semibold text-white disabled:opacity-45">Publish</button>
           </div>
@@ -325,8 +418,8 @@ export function QuizVisualBuilder({
         {message ? <p className="mt-3 rounded-md bg-slate-50 p-3 text-sm text-black/60">{message}</p> : null}
       </section>
 
-      <section className="grid gap-5 lg:grid-cols-[300px_minmax(0,0.85fr)_minmax(340px,1fr)]">
-        <aside className="rounded-2xl border border-black/10 bg-white p-3 shadow-sm">
+      <section className="grid min-w-0 gap-5 lg:grid-cols-[280px_minmax(0,0.8fr)_minmax(340px,1fr)] xl:grid-cols-[300px_minmax(0,0.85fr)_minmax(380px,1fr)]">
+        <aside className="min-w-0 overflow-hidden rounded-2xl border border-black/10 bg-white p-3 shadow-sm">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold">Questions</h2>
             <select onChange={(event) => { addQuestion(event.target.value as BuilderQuestion["questionType"]); event.currentTarget.value = ""; }} defaultValue="" className="rounded-md border border-black/15 px-2 py-1 text-xs">
@@ -340,16 +433,16 @@ export function QuizVisualBuilder({
                 key={question.id}
                 type="button"
                 onClick={() => setSelectedId(question.id)}
-                className={`rounded-lg border px-3 py-2 text-left text-sm ${question.id === selected?.id ? "border-moss bg-moss/10" : "border-black/10 hover:bg-black/[0.03]"}`}
+                className={`min-w-0 rounded-lg border px-3 py-2 text-left text-sm ${question.id === selected?.id ? "border-moss bg-moss/10" : "border-black/10 hover:bg-black/[0.03]"}`}
               >
                 <span className="text-xs font-semibold text-moss">Q{index + 1} · {typeLabels[question.questionType]}</span>
-                <span className="mt-1 block min-w-0 overflow-hidden text-ellipsis whitespace-nowrap font-medium">{question.questionText}</span>
+                <span className="mt-1 block min-w-0 overflow-hidden text-ellipsis whitespace-nowrap font-medium" title={question.questionText}>{question.questionText}</span>
               </button>
             ))}
           </div>
         </aside>
 
-        <section className="rounded-2xl border border-black/10 bg-white p-4 shadow-sm">
+        <section className="min-w-0 rounded-2xl border border-black/10 bg-white p-4 shadow-sm">
           {selected ? (
             <div className="grid gap-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
@@ -384,7 +477,7 @@ export function QuizVisualBuilder({
           ) : null}
         </section>
 
-        <aside className="rounded-2xl border border-black/10 bg-slate-50 p-4 shadow-sm">
+        <aside className="min-w-0 rounded-2xl border border-black/10 bg-slate-50 p-4 shadow-sm">
           <div className="mb-3 flex items-center gap-2">
             <Eye size={16} className="text-moss" />
             <h2 className="text-sm font-semibold">Preview</h2>
@@ -424,6 +517,58 @@ export function QuizVisualBuilder({
             <div className="mt-4 flex justify-end gap-2">
               <button type="button" onClick={() => setParseOpen(false)} className="rounded-md border border-black/15 px-4 py-2 text-sm">Cancel</button>
               <button type="button" onClick={importParsed} className="rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white">Import into builder</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {bankOpen ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 px-3 py-6">
+          <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-start justify-between gap-4 border-b border-black/10 p-5">
+              <div>
+                <h2 className="text-xl font-semibold">Question bank</h2>
+                <p className="mt-1 text-sm text-black/55">Copy any question from any quiz into this quiz.</p>
+              </div>
+              <button type="button" onClick={() => setBankOpen(false)} className="rounded-md border border-black/10 p-2 hover:bg-black/5"><X size={16} /></button>
+            </div>
+            <div className="grid gap-3 border-b border-black/10 p-4 md:grid-cols-[1fr_140px_180px_220px]">
+              <label className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-black/35" size={15} />
+                <input value={bankSearch} onChange={(event) => setBankSearch(event.target.value)} placeholder="Search questions, topics, titles..." className="w-full rounded-md border border-black/15 py-2 pl-9 pr-3 text-sm" />
+              </label>
+              <select value={bankLevel} onChange={(event) => setBankLevel(event.target.value)} className="rounded-md border border-black/15 px-3 py-2 text-sm">
+                <option value="">All levels</option>
+                {["A1", "A2", "B1", "B2", "C1", "C2"].map((level) => <option key={level} value={level}>{level}</option>)}
+              </select>
+              <select value={bankTopic} onChange={(event) => setBankTopic(event.target.value)} className="rounded-md border border-black/15 px-3 py-2 text-sm">
+                <option value="">All topics</option>
+                {bankTopics.map((topic) => <option key={topic} value={topic}>{topic}</option>)}
+              </select>
+              <select value={bankTitle} onChange={(event) => setBankTitle(event.target.value)} className="rounded-md border border-black/15 px-3 py-2 text-sm">
+                <option value="">All quizzes</option>
+                {bankTitles.map((title) => <option key={title} value={title}>{title}</option>)}
+              </select>
+            </div>
+            <div className="overflow-auto p-4">
+              <div className="grid gap-3">
+                {filteredBank.map((item) => (
+                  <div key={item.id} className="grid gap-3 rounded-lg border border-black/10 p-3 md:grid-cols-[1fr_auto]">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-black/45">
+                        <span className="rounded-full bg-moss/10 px-2 py-1 text-moss">{typeLabels[item.question_type] ?? item.question_type}</span>
+                        {item.quiz_level ? <span>{item.quiz_level}</span> : null}
+                        {item.quiz_topic ? <span>{item.quiz_topic}</span> : null}
+                        <span className="min-w-0 truncate">{item.quiz_title}</span>
+                      </div>
+                      <p className="mt-2 break-words text-sm font-medium text-ink">{item.question_text}</p>
+                      {item.description ? <p className="mt-1 line-clamp-2 text-xs text-black/50">{item.description}</p> : null}
+                    </div>
+                    <button type="button" onClick={() => addQuestionFromBank(item)} className="self-center rounded-md bg-ink px-3 py-2 text-sm font-semibold text-white">Use here</button>
+                  </div>
+                ))}
+                {!filteredBank.length ? <p className="rounded-md bg-slate-50 p-6 text-center text-sm text-black/55">No questions match these filters.</p> : null}
+              </div>
             </div>
           </div>
         </div>
