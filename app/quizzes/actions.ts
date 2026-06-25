@@ -22,4 +22,15 @@ export async function recordQuizAttempt(input: {
     answers: input.answers as Json
   });
   if (error) throw new Error(error.message);
+
+  if (input.quizId) {
+    const percent = input.total > 0 ? input.score / input.total : 0;
+    const points = Math.max(1, Math.round(input.score * 10 + percent * 25));
+    await admin.from("quiz_leaderboard_points").insert({
+      user_id: user.id,
+      quiz_id: input.quizId,
+      points,
+      reason: "QUIZ_COMPLETED"
+    });
+  }
 }

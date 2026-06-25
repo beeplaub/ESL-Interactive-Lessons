@@ -1,6 +1,7 @@
 "use client";
 
-import { AlertCircle, CheckCircle2, Mic, MicOff, RotateCcw, TrendingUp } from "lucide-react";
+import type { TouchEvent } from "react";
+import { AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Mic, MicOff, RotateCcw, Sparkles, TrendingUp } from "lucide-react";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { recordQuizAttempt } from "@/app/quizzes/actions";
 import { GuestScorePopup, type PendingAttempt } from "@/components/GuestScorePopup";
@@ -329,15 +330,62 @@ export function QuizPlayer({
   const [message, setMessage] = useState<string | null>(null);
   const [showPopup, setShowPopup] = useState(false);
   const [guestAttempt, setGuestAttempt] = useState<PendingAttempt | null>(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const [isPending, startTransition] = useTransition();
   const answered = questions.every((question) => hasAnswer(question, answers[question.id]));
   const score = submitted ? questions.filter((question) => isCorrect(question, answers[question.id])).length : 0;
+  const currentQuestion = questions[currentIndex];
+  const currentAnswered = currentQuestion ? hasAnswer(currentQuestion, answers[currentQuestion.id]) : false;
+  const answeredCount = questions.filter((question) => hasAnswer(question, answers[question.id])).length;
+  const progressPercent = questions.length ? Math.round((answeredCount / questions.length) * 100) : 0;
+  const encouragement = submitted
+    ? score >= questions.length * 0.8
+      ? "Excellent control. You’re building real accuracy."
+      : score >= questions.length * 0.5
+      ? "Good effort. Review the red answers and your next attempt will be sharper."
+      : "This is useful data, not failure. Learn from the corrections and try again."
+    : currentIndex === 0
+    ? "Start calm. One question at a time."
+    : progressPercent >= 80
+    ? "Final stretch. Stay precise."
+    : progressPercent >= 45
+    ? "Nice rhythm. Keep your attention steady."
+    : "Good start. Trust what you know.";
 
   function reset() {
     setAnswers({});
     setSubmitted(false);
     setShowPopup(false);
     setGuestAttempt(null);
+    setCurrentIndex(0);
+  }
+
+  function goToQuestion(nextIndex: number) {
+    setCurrentIndex(Math.max(0, Math.min(questions.length - 1, nextIndex)));
+  }
+
+  function handleTouchMove(event: TouchEvent<HTMLDivElement>) {
+    const start = touchStartRef.current;
+    if (!start) return;
+    const touch = event.touches[0];
+    if (!touch) return;
+    const deltaX = touch.clientX - start.x;
+    const deltaY = touch.clientY - start.y;
+    if (Math.abs(deltaX) > 12 && Math.abs(deltaX) > Math.abs(deltaY)) event.preventDefault();
+  }
+
+  function handleTouchEnd(event: TouchEvent<HTMLDivElement>) {
+    const start = touchStartRef.current;
+    touchStartRef.current = null;
+    if (!start) return;
+    const touch = event.changedTouches[0];
+    if (!touch) return;
+    const deltaX = touch.clientX - start.x;
+    const deltaY = touch.clientY - start.y;
+    if (Math.abs(deltaX) < 55 || Math.abs(deltaX) < Math.abs(deltaY) * 1.2) return;
+    if (deltaX < 0) goToQuestion(currentIndex + 1);
+    if (deltaX > 0) goToQuestion(currentIndex - 1);
   }
 
   function submit() {
@@ -370,11 +418,24 @@ export function QuizPlayer({
         <ScoreHistory attempts={allAttempts} total={questions.length} />
       )}
 
+      <div className="rounded-2xl border border-black/10 bg-white p-4 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-moss">Question {currentIndex + 1} of {questions.length}</p>
+            <p className="mt-1 inline-flex items-center gap-2 text-sm text-black/55"><Sparkles size={15} className="text-moss" /> {encouragement}</p>
+          </div>
+          <div className="rounded-full bg-black/[0.04] px-3 py-1 text-sm font-semibold text-ink">{answeredCount}/{questions.length} answered</div>
+        </div>
+        <div className="mt-3 h-2 overflow-hidden rounded-full bg-black/10">
+          <div className="h-full rounded-full bg-moss transition-all duration-500" style={{ width: `${progressPercent}%` }} />
+        </div>
+      </div>
+
       {submitted ? (
-        <div className="rounded-lg border border-moss/20 bg-moss/10 p-5 text-moss">
+        <div className="rounded-2xl border border-moss/20 bg-moss/10 p-5 text-moss shadow-sm transition-all duration-300">
           <p className="text-xl font-semibold">Score: {score} out of {questions.length}</p>
           <p className="mt-1 text-sm opacity-75">
-            {Math.round((score / questions.length) * 100)}% — {score >= questions.length * 0.8 ? "Excellent work!" : score >= questions.length * 0.5 ? "Good effort, keep practising!" : "Keep going — every attempt builds fluency!"}
+            {Math.round((score / questions.length) * 100)}% — {encouragement}
           </p>
           {isGuest ? (
             <button
@@ -393,19 +454,70 @@ export function QuizPlayer({
         <ScoreHistory attempts={allAttempts} total={questions.length} />
       )}
 
-      {questions.map((question) => (
-        <QuestionCard
-          key={question.id}
-          question={question}
-          value={answers[question.id]}
-          submitted={submitted}
-          onChange={(value) => setAnswers((current) => ({ ...current, [question.id]: value }))}
-        />
-      ))}
+      <div
+        className="overflow-hidden"
+        style={{ touchAction: "pan-y" }}
+        onTouchStart={(event) => {
+          const touch = event.touches[0];
+          if (touch) touchStartRef.current = { x: touch.clientX, y: touch.clientY };
+        }}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={() => { touchStartRef.current = null; }}
+      >
+        {currentQuestion ? (
+          <QuestionCard
+            key={currentQuestion.id}
+            question={currentQuestion}
+            value={answers[currentQuestion.id]}
+            submitted={submitted}
+            onChange={(value) => setAnswers((current) => ({ ...current, [currentQuestion.id]: value }))}
+          />
+        ) : null}
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-black/10 bg-white p-3 shadow-sm">
+        <button
+          type="button"
+          onClick={() => goToQuestion(currentIndex - 1)}
+          disabled={currentIndex === 0}
+          className="inline-flex items-center gap-2 rounded-full border border-black/15 px-4 py-2 text-sm font-medium hover:bg-black/5 disabled:opacity-35"
+        >
+          <ChevronLeft size={16} /> Previous
+        </button>
+        <div className="flex items-center gap-1">
+          {questions.map((question, questionIndex) => {
+            const done = hasAnswer(question, answers[question.id]);
+            return (
+              <button
+                key={question.id}
+                type="button"
+                onClick={() => goToQuestion(questionIndex)}
+                aria-label={`Go to question ${questionIndex + 1}`}
+                className={`size-2.5 rounded-full transition-all ${
+                  questionIndex === currentIndex
+                    ? "w-7 bg-ink"
+                    : done
+                    ? "bg-moss"
+                    : "bg-black/15 hover:bg-black/30"
+                }`}
+              />
+            );
+          })}
+        </div>
+        <button
+          type="button"
+          onClick={() => goToQuestion(currentIndex + 1)}
+          disabled={currentIndex === questions.length - 1}
+          className="inline-flex items-center gap-2 rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white hover:bg-black disabled:opacity-35"
+        >
+          Next <ChevronRight size={16} />
+        </button>
+      </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-black/10 bg-white p-4 shadow-sm">
         <p className="text-sm text-black/60">
-          {submitted ? isGuest ? "Create a free account to save your score and track progress." : "Review your answers below." : "Answer every question to submit."}
+          {submitted ? isGuest ? "Create a free account to save your score and track progress." : "Review each question with the dots above." : currentAnswered ? "Answered. Move on when ready." : "Answer this question, then continue."}
         </p>
         <div className="flex gap-2">
           {submitted ? (

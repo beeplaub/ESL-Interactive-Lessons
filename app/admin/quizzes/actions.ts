@@ -8,7 +8,7 @@ import type { Json } from "@/types/database.types";
 
 const questionSchema = z.object({
   questionNumber: z.number(),
-  questionType: z.enum(["MCQ", "TRUE_FALSE", "FILL", "MATCHING"]),
+  questionType: z.enum(["MCQ", "TRUE_FALSE", "FILL", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "PRONUNCIATION"]),
   questionText: z.string().min(1),
   description: z.string().optional(),
   options: z.unknown().nullable(),
@@ -94,14 +94,17 @@ export async function updateQuizQuestion(formData: FormData) {
   const admin = createAdminClient();
   const questionId = String(formData.get("questionId"));
   const quizId = String(formData.get("quizId"));
-  const questionType = String(formData.get("questionType")) as "MCQ" | "TRUE_FALSE" | "FILL" | "MATCHING";
+  const questionType = String(formData.get("questionType")) as "MCQ" | "TRUE_FALSE" | "FILL" | "MATCHING" | "ERROR_CORRECTION" | "REORDERING" | "MULTIPLE_SELECT" | "SHORT_ANSWER" | "DRAG_DROP" | "PRONUNCIATION";
   const questionText = String(formData.get("questionText") ?? "");
   const description = String(formData.get("description") ?? "").trim() || null;
   const correctAnswerRaw = String(formData.get("correctAnswer") ?? "");
   let options: unknown = null;
   let correctAnswer: unknown = correctAnswerRaw;
 
-  if (questionType === "FILL") {
+  if (["ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "PRONUNCIATION"].includes(questionType)) {
+    options = JSON.parse(String(formData.get("options") || "{}"));
+    correctAnswer = JSON.parse(correctAnswerRaw || "null");
+  } else if (questionType === "FILL") {
     const blankCount = Math.max(1, Number(formData.get("blankCount")) || 1);
     options = { blank_count: blankCount };
     correctAnswer = correctAnswerRaw.split(",").map((item) => item.trim()).filter(Boolean).slice(0, blankCount);
@@ -136,4 +139,83 @@ export async function updateQuizQuestion(formData: FormData) {
 
   revalidatePath(`/admin/quizzes/${quizId}/edit`);
   revalidatePath(`/quizzes/${quizId}`);
+}
+
+export async function addQuizQuestion(formData: FormData) {
+  await requireAdmin();
+  const admin = createAdminClient();
+  const quizId = String(formData.get("quizId"));
+  const questionType = String(formData.get("questionType") || "MCQ");
+  const { data: existing } = await admin
+    .from("quiz_questions")
+    .select("question_number")
+    .eq("quiz_id", quizId)
+    .order("question_number", { ascending: false })
+    .limit(1);
+  const nextNumber = (existing?.[0]?.question_number ?? 0) + 1;
+  const { error } = await admin.from("quiz_questions").insert({
+    quiz_id: quizId,
+    question_number: nextNumber,
+    question_type: questionType,
+    question_text: defaultQuestionText(questionType),
+    description: null,
+    options: defaultOptions(questionType) as Json,
+    correct_answer: defaultCorrectAnswer(questionType) as Json
+  });
+  if (error) throw new Error(error.message);
+  revalidatePath(`/admin/quizzes/${quizId}/edit`);
+  revalidatePath(`/quizzes/${quizId}`);
+}
+
+export async function deleteQuizQuestion(formData: FormData) {
+  await requireAdmin();
+  const admin = createAdminClient();
+  const quizId = String(formData.get("quizId"));
+  const questionId = String(formData.get("questionId"));
+  const { error } = await admin.from("quiz_questions").delete().eq("id", questionId).eq("quiz_id", quizId);
+  if (error) throw new Error(error.message);
+  const { data: questions } = await admin.from("quiz_questions").select("id").eq("quiz_id", quizId).order("question_number", { ascending: true });
+  for (let index = 0; index < (questions ?? []).length; index += 1) {
+    await admin.from("quiz_questions").update({ question_number: index + 1 }).eq("id", questions![index].id);
+  }
+  revalidatePath(`/admin/quizzes/${quizId}/edit`);
+  revalidatePath(`/quizzes/${quizId}`);
+}
+
+function defaultQuestionText(type: string) {
+  if (type === "TRUE_FALSE") return "Write a clear true/false statement.";
+  if (type === "FILL") return "Complete the sentence.";
+  if (type === "MATCHING") return "Match the items.";
+  if (type === "MULTIPLE_SELECT") return "Select all correct answers.";
+  if (type === "SHORT_ANSWER") return "Write a short answer.";
+  if (type === "ERROR_CORRECTION") return "Correct the mistake.";
+  if (type === "REORDERING") return "Put the items in the correct order.";
+  if (type === "DRAG_DROP") return "Place each item in the correct group.";
+  if (type === "PRONUNCIATION") return "Practise the pronunciation.";
+  return "Choose the best answer.";
+}
+
+function defaultOptions(type: string) {
+  if (type === "MCQ" || type === "MULTIPLE_SELECT") return { A: "Option A", B: "Option B", C: "Option C", D: "Option D" };
+  if (type === "FILL") return { blank_count: 1, text: "I have ___ English for two years." };
+  if (type === "MATCHING") return { a_items: ["Word 1", "Word 2"], b_items: ["Meaning A", "Meaning B"] };
+  if (type === "ERROR_CORRECTION") return { mode: "rewrite", text: "She go to school every day." };
+  if (type === "REORDERING") return { level: "sentence", items: [{ id: "1", text: "First item" }, { id: "2", text: "Second item" }] };
+  if (type === "SHORT_ANSWER") return { sample_answer: "A good sample answer.", min_words: 10, required_words: [] };
+  if (type === "DRAG_DROP") return { targets: ["Group A", "Group B"], items: [{ id: "1", text: "Item 1" }, { id: "2", text: "Item 2" }] };
+  if (type === "PRONUNCIATION") return { level: "word", passage: "", targets: [{ id: "1", text: "comfortable", color: "#fbbf24" }], max_attempts: 3 };
+  return null;
+}
+
+function defaultCorrectAnswer(type: string) {
+  if (type === "TRUE_FALSE") return true;
+  if (type === "FILL") return ["studied"];
+  if (type === "MATCHING") return [{ a: 1, b: "A" }, { a: 2, b: "B" }];
+  if (type === "MULTIPLE_SELECT") return ["A", "C"];
+  if (type === "ERROR_CORRECTION") return { correction: "She goes to school every day." };
+  if (type === "REORDERING") return ["1", "2"];
+  if (type === "SHORT_ANSWER") return true;
+  if (type === "DRAG_DROP") return { "1": "Group A", "2": "Group B" };
+  if (type === "PRONUNCIATION") return ["1"];
+  return "A";
 }
