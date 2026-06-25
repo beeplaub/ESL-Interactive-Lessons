@@ -22,6 +22,22 @@ function normalizeForMatch(text: string): string {
   return text
     .toLowerCase()
     .replace(/[.,!?;:"'()]/g, "")
+    .replace(/\b(colour|colours|coloured|colouring)\b/g, (match) => match.replace("colour", "color"))
+    .replace(/\b(favour|favours|favoured|favouring|favourite|favourites)\b/g, (match) => match.replace("favour", "favor"))
+    .replace(/\b(honour|honours|honoured|honouring)\b/g, (match) => match.replace("honour", "honor"))
+    .replace(/\b(labour|labours|laboured|labouring)\b/g, (match) => match.replace("labour", "labor"))
+    .replace(/\b(neighbour|neighbours|neighbourhood)\b/g, (match) => match.replace("neighbour", "neighbor"))
+    .replace(/\b(organise|organises|organised|organising|organiser|organisers|organisation|organisations)\b/g, (match) => match.replace("organis", "organiz"))
+    .replace(/\b(analyse|analyses|analysed|analysing)\b/g, (match) => match.replace("analys", "analyz"))
+    .replace(/\b(recognise|recognises|recognised|recognising|recognisable)\b/g, (match) => match.replace("recognis", "recogniz"))
+    .replace(/\b(practise|practises|practised|practising)\b/g, (match) => match.replace("practis", "practic"))
+    .replace(/\b(centre|centres|centred|centring)\b/g, (match) => match.replace("centre", "center"))
+    .replace(/\b(theatre|theatres)\b/g, (match) => match.replace("theatre", "theater"))
+    .replace(/\b(metre|metres)\b/g, (match) => match.replace("metre", "meter"))
+    .replace(/\b(traveller|travellers|travelling|travelled)\b/g, (match) => match.replace("travell", "travel"))
+    .replace(/\b(jewellery)\b/g, "jewelry")
+    .replace(/\b(licence)\b/g, "license")
+    .replace(/\b(defence)\b/g, "defense")
     .replace(/\s+/g, " ")
     .trim();
 }

@@ -408,9 +408,9 @@ export function BuilderLessonPlayer({
               <CheckCircle2 size={15} /> Completed
             </span>
           )}
-          {remainingSeconds !== null && !completed ? (
+          {lesson.timer_minutes ? (
             <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${timerUrgent ? "bg-coral/10 text-coral" : "bg-moss/10 text-moss"}`}>
-              {formatTime(remainingSeconds)}
+              {completed ? `${lesson.timer_minutes} min timer` : formatTime(remainingSeconds ?? lesson.timer_minutes * 60)}
             </span>
           ) : null}
         </div>

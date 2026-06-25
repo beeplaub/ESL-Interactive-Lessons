@@ -89,13 +89,13 @@ export default async function HomePage() {
             </div>
           </div>
 
-          <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl shadow-blue-950/10">
-            <div className="border-b border-slate-200 bg-ink px-5 py-4 text-white">
-              <p className="text-sm text-white/70">BrenUp quiz practice</p>
-              <h2 className="mt-1 text-2xl font-semibold">Clear practice, quick results</h2>
-            </div>
-            <div className="space-y-4 p-5">
-              <div className="rounded-md border border-moss/20 bg-moss/5 p-4">
+          <div className="space-y-4">
+            <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl shadow-blue-950/10">
+              <div className="border-b border-slate-200 bg-ink px-5 py-4 text-white">
+                <p className="text-sm text-white/70">Live platform</p>
+                <h2 className="mt-1 text-2xl font-semibold">Fresh practice, ready now</h2>
+              </div>
+              <div className="p-5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="text-sm font-semibold text-moss">Live learning library</p>
@@ -129,33 +129,46 @@ export default async function HomePage() {
                   </div>
                 )}
               </div>
-              <div className="rounded-md bg-blue-50 p-4">
-                <div className="mb-3 flex items-center justify-between gap-3 text-sm">
-                  <span className="font-medium text-blue-700">Leaderboard energy</span>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-white px-2 py-1 text-xs font-semibold text-slate-600">
-                    <span className={`grid size-5 place-items-center rounded-full bg-gradient-to-br ${topBadge.gradient} text-[8px] font-black text-white`}>{topBadge.icon}</span>
-                    {topBadge.name}
-                  </span>
+            </div>
+
+            <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-lg shadow-blue-950/5">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-blue-700">Badge energy</p>
+                  <h2 className="mt-1 text-xl font-semibold text-ink">Climb from Bronze to Legend</h2>
                 </div>
-                <div className="h-2 overflow-hidden rounded-full bg-white">
-                  <div className="h-full w-4/5 rounded-full bg-moss" />
-                </div>
+                <span className={`grid size-12 place-items-center rounded-2xl bg-gradient-to-br ${topBadge.gradient} text-sm font-black text-white shadow-sm`}>
+                  {topBadge.icon}
+                </span>
               </div>
-              {[
-                { title: "Choose your level", text: "Filter quizzes and lessons from A1 to C2", Icon: Filter },
-                { title: "Answer and check", text: "Submit timed or untimed attempts with instant feedback", Icon: ClipboardList },
-                { title: "Climb badges", text: "Earn points from quizzes and move up the leaderboard", Icon: BarChart3 }
-              ].map(({ title, text, Icon }) => (
-                <div key={title} className="flex items-center gap-4 rounded-md border border-slate-200 bg-white p-4">
-                  <span className="grid size-10 place-items-center rounded-md bg-blue-50 text-moss">
-                    <Icon size={20} />
-                  </span>
-                  <div>
-                    <h3 className="font-medium">{title}</h3>
-                    <p className="text-sm text-black/60">{text}</p>
+              <p className="mt-3 text-sm leading-6 text-slate-600">
+                Quiz points unlock visible player badges on the leaderboard and in learner accounts.
+              </p>
+              <div className="mt-4 flex items-center justify-between rounded-md bg-blue-50 px-3 py-2 text-sm">
+                <span className="font-medium text-blue-700">Current top energy</span>
+                <span className="font-semibold text-ink">{topBadge.name}</span>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-lg shadow-blue-950/5">
+              <h2 className="text-xl font-semibold text-ink">How practice works</h2>
+              <div className="mt-4 space-y-3">
+                {[
+                  { title: "Choose your level", text: "Filter quizzes and lessons from A1 to C2", Icon: Filter },
+                  { title: "Answer and check", text: "Submit timed or untimed attempts with instant feedback", Icon: ClipboardList },
+                  { title: "Climb badges", text: "Earn points from quizzes and move up the leaderboard", Icon: BarChart3 }
+                ].map(({ title, text, Icon }) => (
+                  <div key={title} className="flex items-center gap-4 rounded-md border border-slate-200 bg-white p-4">
+                    <span className="grid size-10 place-items-center rounded-md bg-blue-50 text-moss">
+                      <Icon size={20} />
+                    </span>
+                    <div>
+                      <h3 className="font-medium">{title}</h3>
+                      <p className="text-sm text-black/60">{text}</p>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           </div>
         </div>
