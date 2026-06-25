@@ -59,6 +59,56 @@ export async function saveQuiz(payload: unknown) {
   return { quizId: quiz.id };
 }
 
+export async function saveQuizBuilder(payload: unknown) {
+  const { user } = await requireAdmin();
+  const parsed = quizSchema.parse(payload);
+  const quizId = typeof payload === "object" && payload && "quizId" in payload ? String((payload as { quizId?: unknown }).quizId || "") : "";
+  const admin = createAdminClient();
+
+  const quizValues = {
+    title: parsed.title,
+    topic: parsed.topic || null,
+    level: parsed.level,
+    status: parsed.status,
+    created_by: user.id
+  };
+
+  const quiz = quizId
+    ? { id: quizId }
+    : (await admin.from("quizzes").insert(quizValues).select("id").single()).data;
+
+  if (quizId) {
+    const { error } = await admin.from("quizzes").update(quizValues).eq("id", quizId);
+    if (error) throw new Error(error.message);
+  }
+
+  if (!quiz?.id) throw new Error("Could not save quiz.");
+
+  if (quizId) {
+    const { error } = await admin.from("quiz_questions").delete().eq("quiz_id", quiz.id);
+    if (error) throw new Error(error.message);
+  }
+
+  const { error: questionError } = await admin.from("quiz_questions").insert(
+    parsed.questions.map((question, index) => ({
+      quiz_id: quiz.id,
+      question_number: index + 1,
+      question_type: question.questionType,
+      question_text: question.questionText,
+      description: question.description || null,
+      options: question.options as Json,
+      correct_answer: question.correctAnswer as Json
+    }))
+  );
+
+  if (questionError) throw new Error(questionError.message);
+  revalidatePath("/admin/quizzes");
+  revalidatePath(`/admin/quizzes/${quiz.id}/edit`);
+  revalidatePath("/quizzes");
+  revalidatePath(`/quizzes/${quiz.id}`);
+  return { quizId: quiz.id };
+}
+
 export async function updateQuizStatus(quizId: string, status: "DRAFT" | "PUBLISHED") {
   await requireAdmin();
   const admin = createAdminClient();
