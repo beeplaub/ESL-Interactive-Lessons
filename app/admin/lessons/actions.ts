@@ -31,6 +31,7 @@ const builderLessonSchema = lessonSchema.extend({
   coverImagePath: z.string().optional(),
   durationMinutes: z.coerce.number().int().positive().optional().or(z.literal("").transform(() => undefined)),
   estimatedCompletionMinutes: z.coerce.number().int().positive().optional().or(z.literal("").transform(() => undefined)),
+  timerMinutes: z.coerce.number().int().positive().optional().or(z.literal("").transform(() => undefined)),
   status: z.enum(["DRAFT", "PUBLISHED"])
 });
 
@@ -494,6 +495,7 @@ export async function createVisualLesson(formData: FormData) {
     coverImagePath: formData.get("coverImagePath") || "",
     durationMinutes: formData.get("durationMinutes") || "",
     estimatedCompletionMinutes: formData.get("estimatedCompletionMinutes") || "",
+    timerMinutes: formData.get("timerMinutes") || "",
     status: "DRAFT"
   });
   const outcomes = splitLines(formData.get("outcomes"));
@@ -511,6 +513,7 @@ export async function createVisualLesson(formData: FormData) {
     cover_image_path: nullableText(parsed.coverImagePath),
     duration_minutes: optionalPositiveInt(parsed.durationMinutes),
     estimated_completion_minutes: optionalPositiveInt(parsed.estimatedCompletionMinutes),
+    timer_minutes: optionalPositiveInt(parsed.timerMinutes),
     pdf_path: `builder/${lessonId}`,
     status: "DRAFT"
   });
@@ -580,6 +583,7 @@ export async function updateLessonBuilderDetails(lessonId: string, formData: For
     coverImagePath: formData.get("coverImagePath") || "",
     durationMinutes: formData.get("durationMinutes") || "",
     estimatedCompletionMinutes: formData.get("estimatedCompletionMinutes") || "",
+    timerMinutes: formData.get("timerMinutes") || "",
     status: formData.get("status")
   });
   const outcomes = splitLines(formData.get("outcomes"));
@@ -598,6 +602,7 @@ export async function updateLessonBuilderDetails(lessonId: string, formData: For
       cover_image_path: nullableText(parsed.coverImagePath),
       duration_minutes: optionalPositiveInt(parsed.durationMinutes),
       estimated_completion_minutes: optionalPositiveInt(parsed.estimatedCompletionMinutes),
+      timer_minutes: optionalPositiveInt(parsed.timerMinutes),
       status: parsed.status
     })
     .eq("id", lessonId);
@@ -640,6 +645,7 @@ export async function duplicateLesson(lessonId: string) {
       cover_image_path: source.cover_image_path,
       duration_minutes: source.duration_minutes,
       estimated_completion_minutes: source.estimated_completion_minutes,
+      timer_minutes: source.timer_minutes,
       pdf_path: source.pdf_path,
       status: "DRAFT",
     })

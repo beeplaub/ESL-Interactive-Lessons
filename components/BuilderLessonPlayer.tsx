@@ -8,7 +8,7 @@ import { LessonActivityPanel, lessonActivityTotalPoints } from "@/components/Les
 import { LessonBlockPreview } from "@/components/LessonBlockPreview";
 import type { Json } from "@/types/database.types";
 
-type Lesson = { id: string; title: string; topic: string | null; level: string | null };
+type Lesson = { id: string; title: string; topic: string | null; level: string | null; timer_minutes?: number | null };
 type Slide = { id: string; slide_number: number; title: string; section_label: string | null };
 type Block = { id: string; slide_id: string; position: number; block_type: string; content: Json };
 type Activity = { id: string; slide_id: string | null; slide_number: number; activity_type: string; activity_data: Json | null };
@@ -184,6 +184,7 @@ export function BuilderLessonPlayer({
   const initialIndex = Math.max(0, Math.min(slides.length - 1, (initialProgress?.current_slide_number ?? 1) - 1));
   const [index, setIndex] = useState(initialIndex);
   const [completed, setCompleted] = useState(Boolean(initialProgress?.completed));
+  const [remainingSeconds, setRemainingSeconds] = useState(() => lesson.timer_minutes ? lesson.timer_minutes * 60 : null);
   const [message, setMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [savedActivityAttempts, setSavedActivityAttempts] = useState<ActivityAttempt[]>(activityAttempts);
@@ -212,6 +213,12 @@ export function BuilderLessonPlayer({
     ? activities.filter((a) => a.slide_id === slide.id)
     : [];
   const progressPercent = slides.length ? Math.round(((index + 1) / slides.length) * 100) : 0;
+  const timerUrgent = remainingSeconds !== null && remainingSeconds <= 60;
+  function formatTime(totalSeconds: number) {
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${String(seconds).padStart(2, "0")}`;
+  }
   const latestAttemptByActivity = useMemo(() => {
     const map = new Map<string, ActivityAttempt>();
     for (const attempt of savedActivityAttempts) {
@@ -320,11 +327,27 @@ export function BuilderLessonPlayer({
     if (deltaX > 0 && index > 0) move(-1);
   }
 
-  function finish() {
+  const finish = useCallback(() => {
     setCompleted(true);
     setMessage("Lesson completed.");
     startTransition(() => saveProgress(index, true));
-  }
+  }, [index, saveProgress]);
+
+  useEffect(() => {
+    if (!lesson.timer_minutes || completed) return;
+    const interval = window.setInterval(() => {
+      setRemainingSeconds((current) => {
+        if (current === null) return null;
+        if (current <= 1) {
+          window.clearInterval(interval);
+          window.setTimeout(() => finish(), 0);
+          return 0;
+        }
+        return current - 1;
+      });
+    }, 1000);
+    return () => window.clearInterval(interval);
+  }, [lesson.timer_minutes, completed, finish]);
 
   useEffect(() => {
     return () => {
@@ -385,6 +408,11 @@ export function BuilderLessonPlayer({
               <CheckCircle2 size={15} /> Completed
             </span>
           )}
+          {remainingSeconds !== null && !completed ? (
+            <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${timerUrgent ? "bg-coral/10 text-coral" : "bg-moss/10 text-moss"}`}>
+              {formatTime(remainingSeconds)}
+            </span>
+          ) : null}
         </div>
         {totalLessonMarks ? (
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-black/55">

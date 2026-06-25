@@ -2,7 +2,7 @@
 
 import type { TouchEvent } from "react";
 import { AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Mic, MicOff, RotateCcw, Sparkles, TrendingUp } from "lucide-react";
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { recordQuizAttempt } from "@/app/quizzes/actions";
 import { GuestScorePopup, type PendingAttempt } from "@/components/GuestScorePopup";
 import type { Json } from "@/types/database.types";
@@ -317,12 +317,14 @@ export function QuizPlayer({
   quizId,
   questions,
   pastAttempts = [],
-  isGuest = false
+  isGuest = false,
+  timerMinutes = null
 }: {
   quizId: string;
   questions: QuizQuestion[];
   pastAttempts?: PastAttempt[];
   isGuest?: boolean;
+  timerMinutes?: number | null;
 }) {
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
   const [submitted, setSubmitted] = useState(false);
@@ -332,6 +334,8 @@ export function QuizPlayer({
   const [guestAttempt, setGuestAttempt] = useState<PendingAttempt | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const [remainingSeconds, setRemainingSeconds] = useState(() => timerMinutes ? timerMinutes * 60 : null);
+  const attemptStartRef = useRef(Date.now());
   const [isPending, startTransition] = useTransition();
   const answered = questions.every((question) => hasAnswer(question, answers[question.id]));
   const score = submitted ? questions.filter((question) => isCorrect(question, answers[question.id])).length : 0;
@@ -352,6 +356,14 @@ export function QuizPlayer({
     : progressPercent >= 45
     ? "Nice rhythm. Keep your attention steady."
     : "Good start. Trust what you know.";
+  const timeTakenSeconds = Math.max(0, Math.round((Date.now() - attemptStartRef.current) / 1000));
+  const timerUrgent = remainingSeconds !== null && remainingSeconds <= 60;
+
+  function formatTime(totalSeconds: number) {
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${String(seconds).padStart(2, "0")}`;
+  }
 
   function reset() {
     setAnswers({});
@@ -359,6 +371,8 @@ export function QuizPlayer({
     setShowPopup(false);
     setGuestAttempt(null);
     setCurrentIndex(0);
+    setRemainingSeconds(timerMinutes ? timerMinutes * 60 : null);
+    attemptStartRef.current = Date.now();
   }
 
   function goToQuestion(nextIndex: number) {
@@ -388,8 +402,10 @@ export function QuizPlayer({
     if (deltaX > 0) goToQuestion(currentIndex - 1);
   }
 
-  function submit() {
+  const submit = useCallback(() => {
+    if (submitted) return;
     const finalScore = questions.filter((question) => isCorrect(question, answers[question.id])).length;
+    const finalTimeTakenSeconds = Math.max(0, Math.round((Date.now() - attemptStartRef.current) / 1000));
     setSubmitted(true);
     if (isGuest) {
       setGuestAttempt({ quizId, score: finalScore, total: questions.length, answers: answers as Record<string, unknown> });
@@ -398,7 +414,7 @@ export function QuizPlayer({
     }
     startTransition(async () => {
       try {
-        await recordQuizAttempt({ quizId, score: finalScore, total: questions.length, answers });
+        await recordQuizAttempt({ quizId, score: finalScore, total: questions.length, answers, timeTakenSeconds: finalTimeTakenSeconds });
         setAllAttempts((prev) => [
           ...prev,
           { score: finalScore, total: questions.length, completedAt: new Date().toISOString() }
@@ -408,7 +424,23 @@ export function QuizPlayer({
         setMessage(error instanceof Error ? error.message : "Could not save quiz attempt.");
       }
     });
-  }
+  }, [answers, isGuest, questions, quizId, submitted]);
+
+  useEffect(() => {
+    if (!timerMinutes || submitted) return;
+    const interval = window.setInterval(() => {
+      setRemainingSeconds((current) => {
+        if (current === null) return null;
+        if (current <= 1) {
+          window.clearInterval(interval);
+          window.setTimeout(() => submit(), 0);
+          return 0;
+        }
+        return current - 1;
+      });
+    }, 1000);
+    return () => window.clearInterval(interval);
+  }, [timerMinutes, submitted, submit]);
 
   return (
     <>
@@ -424,7 +456,14 @@ export function QuizPlayer({
             <p className="text-xs font-semibold uppercase tracking-wide text-moss">Question {currentIndex + 1} of {questions.length}</p>
             <p className="mt-1 inline-flex items-center gap-2 text-sm text-black/55"><Sparkles size={15} className="text-moss" /> {encouragement}</p>
           </div>
-          <div className="rounded-full bg-black/[0.04] px-3 py-1 text-sm font-semibold text-ink">{answeredCount}/{questions.length} answered</div>
+          <div className="flex flex-wrap items-center gap-2">
+            {remainingSeconds !== null ? (
+              <div className={`rounded-full px-3 py-1 text-sm font-semibold ${timerUrgent ? "bg-coral/10 text-coral" : "bg-moss/10 text-moss"}`}>
+                {formatTime(remainingSeconds)}
+              </div>
+            ) : null}
+            <div className="rounded-full bg-black/[0.04] px-3 py-1 text-sm font-semibold text-ink">{answeredCount}/{questions.length} answered</div>
+          </div>
         </div>
         <div className="mt-3 h-2 overflow-hidden rounded-full bg-black/10">
           <div className="h-full rounded-full bg-moss transition-all duration-500" style={{ width: `${progressPercent}%` }} />
@@ -437,6 +476,7 @@ export function QuizPlayer({
           <p className="mt-1 text-sm opacity-75">
             {Math.round((score / questions.length) * 100)}% — {encouragement}
           </p>
+          {timerMinutes ? <p className="mt-1 text-xs opacity-70">Time used: {formatTime(timeTakenSeconds)}</p> : null}
           {isGuest ? (
             <button
               type="button"

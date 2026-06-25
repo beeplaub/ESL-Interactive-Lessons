@@ -20,6 +20,7 @@ const quizSchema = z.object({
   topic: z.string().optional(),
   level: z.enum(["A1", "A2", "B1", "B2", "C1", "C2"]),
   status: z.enum(["DRAFT", "PUBLISHED"]),
+  timerMinutes: z.number().int().positive().nullable().optional(),
   questions: z.array(questionSchema).min(1)
 });
 
@@ -34,6 +35,7 @@ export async function saveQuiz(payload: unknown) {
       topic: parsed.topic || null,
       level: parsed.level,
       status: parsed.status,
+      timer_minutes: parsed.timerMinutes ?? null,
       created_by: user.id
     })
     .select("id")
@@ -70,6 +72,7 @@ export async function saveQuizBuilder(payload: unknown) {
     topic: parsed.topic || null,
     level: parsed.level,
     status: parsed.status,
+    timer_minutes: parsed.timerMinutes ?? null,
     created_by: user.id
   };
 

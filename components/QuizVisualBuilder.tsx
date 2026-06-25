@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowDown, ArrowUp, Copy, Edit3, Eye, FileText, Library, Search, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Clock3, Copy, Edit3, Eye, FileText, Library, Search, Trash2, X } from "lucide-react";
 import { saveQuizBuilder } from "@/app/admin/quizzes/actions";
 import { LessonActivityPanel } from "@/components/LessonActivityPanel";
 import { parseQuizText } from "@/lib/quizParser";
@@ -24,6 +24,7 @@ type InitialQuiz = {
   topic: string;
   level: string;
   status: "DRAFT" | "PUBLISHED";
+  timerMinutes?: number | null;
 };
 
 type QuestionBankItem = {
@@ -221,6 +222,7 @@ export function QuizVisualBuilder({
   const [selectedId, setSelectedId] = useState(questions[0]?.id ?? "");
   const [parseOpen, setParseOpen] = useState(false);
   const [bankOpen, setBankOpen] = useState(false);
+  const [timerOpen, setTimerOpen] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
   const [bankSearch, setBankSearch] = useState("");
   const [bankLevel, setBankLevel] = useState("");
@@ -263,6 +265,7 @@ export function QuizVisualBuilder({
     topic: quiz.topic,
     level: quiz.level,
     status: quiz.status,
+    timerMinutes: quiz.timerMinutes ?? null,
     questions: questions.map((question, index) => ({
       questionNumber: index + 1,
       questionType: question.questionType,
@@ -400,6 +403,9 @@ export function QuizVisualBuilder({
             <button type="button" onClick={() => setBankOpen(true)} className="inline-flex items-center gap-2 rounded-md border border-black/15 px-3 py-2 text-sm font-medium hover:bg-black/5">
               <Library size={15} /> Question bank
             </button>
+            <button type="button" onClick={() => setTimerOpen(true)} className="inline-flex items-center gap-2 rounded-md border border-black/15 px-3 py-2 text-sm font-medium hover:bg-black/5">
+              <Clock3 size={15} /> {quiz.timerMinutes ? `${quiz.timerMinutes} min` : "Timer"}
+            </button>
             <button type="button" disabled={isPending} onClick={() => save("DRAFT")} className="rounded-md border border-black/15 px-4 py-2 text-sm font-semibold hover:bg-black/5 disabled:opacity-45">Save draft</button>
             <button type="button" disabled={isPending} onClick={() => save("PUBLISHED")} className="rounded-md bg-moss px-4 py-2 text-sm font-semibold text-white disabled:opacity-45">Publish</button>
           </div>
@@ -517,6 +523,35 @@ export function QuizVisualBuilder({
             <div className="mt-4 flex justify-end gap-2">
               <button type="button" onClick={() => setParseOpen(false)} className="rounded-md border border-black/15 px-4 py-2 text-sm">Cancel</button>
               <button type="button" onClick={importParsed} className="rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white">Import into builder</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {timerOpen ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 px-3 py-6">
+          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-semibold">Quiz timer</h2>
+                <p className="mt-1 text-sm text-black/55">Set a countdown for each learner attempt. Leave empty for untimed practice.</p>
+              </div>
+              <button type="button" onClick={() => setTimerOpen(false)} className="rounded-md border border-black/10 p-2 hover:bg-black/5"><X size={16} /></button>
+            </div>
+            <label className="mt-5 block text-sm font-medium">
+              Time limit in minutes
+              <input
+                type="number"
+                min={1}
+                value={quiz.timerMinutes ?? ""}
+                onChange={(event) => setQuiz((current) => ({ ...current, timerMinutes: event.target.value ? Math.max(1, Number(event.target.value)) : null }))}
+                placeholder="No timer"
+                className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+              />
+            </label>
+            <div className="mt-5 flex justify-end gap-2">
+              <button type="button" onClick={() => setQuiz((current) => ({ ...current, timerMinutes: null }))} className="rounded-md border border-black/15 px-4 py-2 text-sm">Clear</button>
+              <button type="button" onClick={() => setTimerOpen(false)} className="rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white">Done</button>
             </div>
           </div>
         </div>

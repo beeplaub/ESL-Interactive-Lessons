@@ -10,6 +10,7 @@ export async function recordQuizAttempt(input: {
   score: number;
   total: number;
   answers: Record<string, unknown>;
+  timeTakenSeconds?: number | null;
 }) {
   const { user } = await requireUser();
   const admin = createAdminClient();
@@ -19,7 +20,8 @@ export async function recordQuizAttempt(input: {
     lesson_slide_activity_id: input.lessonSlideActivityId ?? null,
     score: input.score,
     total: input.total,
-    answers: input.answers as Json
+    answers: input.answers as Json,
+    time_taken_seconds: input.timeTakenSeconds ?? null
   });
   if (error) throw new Error(error.message);
 

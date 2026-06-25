@@ -43,6 +43,7 @@ export default async function QuizPage({ params }: { params: Promise<{ id: strin
         questions={(questions ?? []) as Parameters<typeof QuizPlayer>[0]["questions"]}
         pastAttempts={(attempts ?? []).map((a) => ({ score: a.score, total: a.total, completedAt: a.completed_at }))}
         isGuest={!user}
+        timerMinutes={quiz.timer_minutes ?? null}
       />
     </main>
   );

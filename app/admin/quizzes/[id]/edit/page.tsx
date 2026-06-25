@@ -33,7 +33,8 @@ export default async function EditQuizPage({ params }: { params: Promise<{ id: s
             title: quiz.title,
             topic: quiz.topic ?? "",
             level: quiz.level ?? "B1",
-            status: quiz.status
+            status: quiz.status,
+            timerMinutes: quiz.timer_minutes ?? null
           }}
           initialQuestions={(questions ?? []).map((question) => ({
             id: question.id,

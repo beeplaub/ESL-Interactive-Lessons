@@ -42,7 +42,7 @@ type Lesson = {
   id: string; title: string; subtitle: string | null; description: string | null;
   topic: string; category: string | null; level: string; status: "DRAFT" | "PUBLISHED";
   thumbnail_path: string | null; cover_image_path: string | null;
-  duration_minutes: number | null; estimated_completion_minutes: number | null;
+  duration_minutes: number | null; estimated_completion_minutes: number | null; timer_minutes: number | null;
 };
 
 type Slide = {
@@ -612,6 +612,7 @@ function MetadataForm({ lesson }: { lesson: Lesson }) {
         </label>
         <label className="text-sm">Class duration (minutes)<input name="durationMinutes" type="number" min="1" defaultValue={lesson.duration_minutes ?? ""} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
         <label className="text-sm">Estimated completion (minutes)<input name="estimatedCompletionMinutes" type="number" min="1" defaultValue={lesson.estimated_completion_minutes ?? ""} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+        <label className="text-sm">Attempt timer (minutes)<input name="timerMinutes" type="number" min="1" defaultValue={lesson.timer_minutes ?? ""} placeholder="Untimed" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
       </div>
       <SubmitButton label="Save settings" />
     </form>

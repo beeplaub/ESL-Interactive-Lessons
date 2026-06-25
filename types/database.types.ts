@@ -63,6 +63,7 @@ export type Database = {
           cover_image_path: string | null;
           duration_minutes: number | null;
           estimated_completion_minutes: number | null;
+          timer_minutes: number | null;
           pdf_path: string;
           status: "DRAFT" | "PUBLISHED";
           created_at: string;
@@ -80,6 +81,7 @@ export type Database = {
           cover_image_path?: string | null;
           duration_minutes?: number | null;
           estimated_completion_minutes?: number | null;
+          timer_minutes?: number | null;
           pdf_path: string;
           status?: "DRAFT" | "PUBLISHED";
           created_at?: string;
@@ -97,6 +99,7 @@ export type Database = {
           cover_image_path?: string | null;
           duration_minutes?: number | null;
           estimated_completion_minutes?: number | null;
+          timer_minutes?: number | null;
           pdf_path?: string;
           status?: "DRAFT" | "PUBLISHED";
           created_at?: string;

@@ -69,7 +69,7 @@ export default async function NewLessonPage() {
             <label className="text-sm font-medium">
               CEFR level
               <select name="level" defaultValue="B1" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 font-normal">
-                {["A1", "A2", "B1", "B2", "C1", "C2"].map((level) => (
+                {["A1", "A2", "B1", "B2", "C1", "C2", "A1-A2", "B1-B2", "C1-C2", "All Levels"].map((level) => (
                   <option key={level}>{level}</option>
                 ))}
               </select>
@@ -81,6 +81,16 @@ export default async function NewLessonPage() {
                 type="number"
                 min="1"
                 placeholder="45"
+                className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 font-normal"
+              />
+            </label>
+            <label className="text-sm font-medium">
+              Attempt timer minutes
+              <input
+                name="timerMinutes"
+                type="number"
+                min="1"
+                placeholder="Leave blank for untimed"
                 className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 font-normal"
               />
             </label>
