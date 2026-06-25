@@ -187,6 +187,7 @@ export function BuilderLessonPlayer({
   const [message, setMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [savedActivityAttempts, setSavedActivityAttempts] = useState<ActivityAttempt[]>(activityAttempts);
+  const [jumpOpen, setJumpOpen] = useState(false);
 
   const [notesMap, setNotesMap] = useState<Record<string, string>>(
     typeof initialNotes === "object" && !Array.isArray(initialNotes) ? initialNotes : {}
@@ -281,6 +282,7 @@ export function BuilderLessonPlayer({
 
   function jumpTo(next: number) {
     const normalized = Math.max(0, Math.min(slides.length - 1, next));
+    setJumpOpen(false);
     if (normalized === index) return;
     setIndex(normalized);
     setMessage(null);
@@ -557,21 +559,35 @@ export function BuilderLessonPlayer({
         >
           <ChevronLeft size={16} /> Previous
         </button>
-        <div className="flex items-center gap-2 rounded-full bg-black/[0.04] px-2 py-1 text-sm font-medium text-black/55">
-          <span className="hidden sm:inline">{message ?? "Jump to"}</span>
-          <select
-            value={index}
-            onChange={(event) => jumpTo(Number(event.target.value))}
+        <div className="relative flex items-center gap-2 rounded-full bg-black/[0.04] px-2 py-1 text-sm font-medium text-black/55">
+          {message ? <span className="hidden text-xs text-coral sm:inline">{message}</span> : null}
+          <button
+            type="button"
+            onClick={() => setJumpOpen((open) => !open)}
+            aria-expanded={jumpOpen}
             aria-label="Jump to slide"
-            className="max-w-44 rounded-full border border-black/10 bg-white px-3 py-1.5 text-sm font-semibold text-ink outline-none transition focus:border-moss/50 focus:ring-2 focus:ring-moss/15"
+            className="rounded-full border border-black/10 bg-white px-3 py-1.5 text-sm font-semibold text-ink outline-none transition hover:bg-slate-50 focus:border-moss/50 focus:ring-2 focus:ring-moss/15"
           >
-            {slides.map((item, slideIndex) => (
-              <option key={item.id} value={slideIndex}>
-                {slideIndex + 1}. {item.title}
-              </option>
-            ))}
-          </select>
-          <span className="shrink-0 text-xs text-black/45">{index + 1}/{slides.length}</span>
+            Slide {index + 1}
+          </button>
+          <span className="shrink-0 text-xs text-black/45">of {slides.length}</span>
+          {jumpOpen ? (
+            <div className="absolute bottom-full left-1/2 z-30 mb-2 max-h-72 w-72 max-w-[calc(100vw-2rem)] -translate-x-1/2 overflow-auto rounded-xl border border-black/10 bg-white p-1.5 text-left shadow-2xl">
+              {slides.map((item, slideIndex) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => jumpTo(slideIndex)}
+                  className={`block w-full rounded-lg px-3 py-2 text-left text-sm transition ${
+                    slideIndex === index ? "bg-moss/10 font-semibold text-moss" : "text-black/70 hover:bg-black/[0.04]"
+                  }`}
+                >
+                  <span className="mr-2 text-xs font-semibold text-black/35">{slideIndex + 1}</span>
+                  {item.title}
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
         {index === slides.length - 1 ? (
           <button
