@@ -40,16 +40,16 @@ export default async function LeaderboardPage() {
       </section>
 
       <section className="mt-5 overflow-hidden rounded-2xl border border-black/10 bg-white shadow-sm">
-        <div className="grid grid-cols-[72px_1fr_110px_110px] gap-3 border-b border-black/10 bg-slate-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-black/45">
+        <div className="grid grid-cols-[48px_minmax(0,1fr)_82px_72px] gap-2 border-b border-black/10 bg-slate-50 px-3 py-3 text-xs font-semibold uppercase tracking-wide text-black/45 sm:grid-cols-[56px_minmax(260px,1fr)_110px_110px] sm:gap-3 sm:px-4">
           <span>Rank</span>
-          <span>Learner</span>
+          <span>Player</span>
           <span>Points</span>
           <span>Quizzes</span>
         </div>
         {leaders.map((leader, index) => (
-          <div key={leader.userId} className="grid grid-cols-[72px_1fr_110px_110px] gap-3 border-b border-black/5 px-4 py-4 text-sm last:border-b-0">
+          <div key={leader.userId} className="grid grid-cols-[48px_minmax(0,1fr)_82px_72px] gap-2 border-b border-black/5 px-3 py-4 text-sm last:border-b-0 sm:grid-cols-[56px_minmax(260px,1fr)_110px_110px] sm:gap-3 sm:px-4">
             <span className={`font-bold ${index < 3 ? "text-moss" : "text-black/45"}`}>#{index + 1}</span>
-            <span className="font-medium text-ink">{leader.name}</span>
+            <span className="min-w-0 truncate font-medium text-ink">{leader.name}</span>
             <span className="font-semibold">{leader.points}</span>
             <span className="text-black/55">{leader.quizzes.size}</span>
           </div>

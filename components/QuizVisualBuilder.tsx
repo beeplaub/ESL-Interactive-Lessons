@@ -94,6 +94,51 @@ function splitLines(value: string) {
   return value.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
 }
 
+function splitEditableLines(value: string) {
+  return value.split(/\r?\n/).map((line) => line.trim());
+}
+
+function normalizeInitialQuestion(question: {
+  id: string;
+  question_type: string;
+  question_text: string;
+  description: string | null;
+  options: Json | null;
+  correct_answer: Json;
+}): BuilderQuestion {
+  const questionType = question.question_type as BuilderQuestion["questionType"];
+  const options = asRecord(question.options);
+  if (questionType === "FILL" && !options.text) {
+    return {
+      id: question.id,
+      questionType,
+      questionText: question.description || "Complete the sentence.",
+      description: "",
+      options: {
+        ...options,
+        text: question.question_text,
+        blank_count: Math.max(1, question.question_text.match(/___/g)?.length ?? (Array.isArray(question.correct_answer) ? question.correct_answer.length : 1))
+      } as Json,
+      correctAnswer: question.correct_answer
+    };
+  }
+  return {
+    id: question.id,
+    questionType,
+    questionText: question.question_text,
+    description: question.description ?? "",
+    options: question.options,
+    correctAnswer: question.correct_answer
+  };
+}
+
+function questionPointTotal(question: BuilderQuestion) {
+  if (question.questionType === "FILL") return Array.isArray(question.correctAnswer) ? Math.max(1, question.correctAnswer.length) : 1;
+  if (question.questionType === "DRAG_DROP") return Object.keys(asRecord(question.correctAnswer)).length || 1;
+  if (question.questionType === "PRONUNCIATION") return Array.isArray(question.correctAnswer) ? Math.max(1, question.correctAnswer.length) : 1;
+  return 1;
+}
+
 export function QuizVisualBuilder({
   initialQuiz,
   initialQuestions = []
@@ -112,14 +157,7 @@ export function QuizVisualBuilder({
   const [quiz, setQuiz] = useState<InitialQuiz>(initialQuiz ?? { title: "Untitled quiz", topic: "", level: "B1", status: "DRAFT" });
   const [questions, setQuestions] = useState<BuilderQuestion[]>(
     initialQuestions.length
-      ? initialQuestions.map((question) => ({
-          id: question.id,
-          questionType: question.question_type as BuilderQuestion["questionType"],
-          questionText: question.question_text,
-          description: question.description ?? "",
-          options: question.options,
-          correctAnswer: question.correct_answer
-        }))
+      ? initialQuestions.map(normalizeInitialQuestion)
       : [defaultQuestion("MCQ")]
   );
   const [selectedId, setSelectedId] = useState(questions[0]?.id ?? "");
@@ -131,6 +169,7 @@ export function QuizVisualBuilder({
 
   const selected = questions.find((question) => question.id === selectedId) ?? questions[0];
   const selectedIndex = selected ? questions.findIndex((question) => question.id === selected.id) : -1;
+  const totalPoints = questions.reduce((sum, question) => sum + questionPointTotal(question), 0);
 
   const previewQuestion: QuizQuestion | null = selected
     ? {
@@ -262,6 +301,7 @@ export function QuizVisualBuilder({
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">{quiz.id ? "Edit quiz" : "Create quiz"}</h1>
             <p className="mt-1 text-sm text-black/55">Build questions visually, preview them, then save or publish.</p>
+            <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-moss">{questions.length} question{questions.length !== 1 ? "s" : ""} · {totalPoints} total point{totalPoints !== 1 ? "s" : ""}</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <button type="button" onClick={() => setParseOpen(true)} className="inline-flex items-center gap-2 rounded-md border border-black/15 px-3 py-2 text-sm font-medium hover:bg-black/5">
@@ -303,7 +343,7 @@ export function QuizVisualBuilder({
                 className={`rounded-lg border px-3 py-2 text-left text-sm ${question.id === selected?.id ? "border-moss bg-moss/10" : "border-black/10 hover:bg-black/[0.03]"}`}
               >
                 <span className="text-xs font-semibold text-moss">Q{index + 1} · {typeLabels[question.questionType]}</span>
-                <span className="mt-1 block truncate font-medium">{question.questionText}</span>
+                <span className="mt-1 block min-w-0 overflow-hidden text-ellipsis whitespace-nowrap font-medium">{question.questionText}</span>
               </button>
             ))}
           </div>
@@ -348,6 +388,7 @@ export function QuizVisualBuilder({
           <div className="mb-3 flex items-center gap-2">
             <Eye size={16} className="text-moss" />
             <h2 className="text-sm font-semibold">Preview</h2>
+            <span className="ml-auto rounded-full bg-white px-2 py-1 text-xs font-semibold text-black/50">{totalPoints} pts</span>
           </div>
           {previewActivity ? (
             <LessonActivityPanel key={`${selected?.id}-${JSON.stringify(selected?.options)}-${JSON.stringify(selected?.correctAnswer)}`} activity={previewActivity} previewOnly onNext={() => {}} />
@@ -730,7 +771,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
         <label className="text-sm">
           {options.level === "word" ? "Words, one per line, in the CORRECT order" : "Items, one per line, in the CORRECT order"}
           <textarea value={itemsText} onChange={(event) => {
-          const nextItems = splitLines(event.target.value).map((text, index) => ({ id: String(index + 1), text }));
+          const nextItems = splitEditableLines(event.target.value).map((text, index) => ({ id: String(index + 1), text }));
           onChange({ options: { ...options, items: nextItems } as Json, correctAnswer: nextItems.map((item) => item.id) });
         }} rows={6} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 font-mono text-sm" placeholder={options.level === "word" ? "She\nalways\ndrinks\ncoffee\nin the morning" : "First, boil the water.\nThen, add the pasta.\nFinally, drain it."} />
           <span className="mt-1 block text-xs text-black/45">Type them in the right order. Learners will see them scrambled.</span>

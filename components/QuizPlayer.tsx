@@ -476,27 +476,28 @@ export function QuizPlayer({
         ) : null}
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-black/10 bg-white p-3 shadow-sm">
+      <div className="flex flex-nowrap items-center justify-between gap-2 rounded-2xl border border-black/10 bg-white p-2.5 shadow-sm sm:gap-3 sm:p-3">
         <button
           type="button"
           onClick={() => goToQuestion(currentIndex - 1)}
           disabled={currentIndex === 0}
-          className="inline-flex items-center gap-2 rounded-full border border-black/15 px-4 py-2 text-sm font-medium hover:bg-black/5 disabled:opacity-35"
+          className="inline-flex shrink-0 items-center gap-1 rounded-full border border-black/15 px-2.5 py-2 text-xs font-medium hover:bg-black/5 disabled:opacity-35 sm:gap-2 sm:px-4 sm:text-sm"
         >
           <ChevronLeft size={16} /> Previous
         </button>
-        <div className="flex items-center gap-1">
+        <div className="flex min-w-0 flex-1 items-center justify-center gap-0.5 overflow-hidden sm:gap-1">
           {questions.map((question, questionIndex) => {
             const done = hasAnswer(question, answers[question.id]);
+            const manyQuestions = questions.length > 14;
             return (
               <button
                 key={question.id}
                 type="button"
                 onClick={() => goToQuestion(questionIndex)}
                 aria-label={`Go to question ${questionIndex + 1}`}
-                className={`size-2.5 rounded-full transition-all ${
+                className={`${manyQuestions ? "size-1.5 sm:size-2" : "size-2 sm:size-2.5"} rounded-full transition-all ${
                   questionIndex === currentIndex
-                    ? "w-7 bg-ink"
+                    ? manyQuestions ? "w-4 bg-ink sm:w-5" : "w-5 bg-ink sm:w-7"
                     : done
                     ? "bg-moss"
                     : "bg-black/15 hover:bg-black/30"
@@ -509,7 +510,7 @@ export function QuizPlayer({
           type="button"
           onClick={() => goToQuestion(currentIndex + 1)}
           disabled={currentIndex === questions.length - 1}
-          className="inline-flex items-center gap-2 rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white hover:bg-black disabled:opacity-35"
+          className="inline-flex shrink-0 items-center gap-1 rounded-full bg-ink px-2.5 py-2 text-xs font-semibold text-white hover:bg-black disabled:opacity-35 sm:gap-2 sm:px-4 sm:text-sm"
         >
           Next <ChevronRight size={16} />
         </button>
@@ -1199,8 +1200,8 @@ function Pronunciation({
 
     const recognition = new Recognition();
     recognition.lang = "en-US";
-    recognition.continuous = isPassageRecording;
-    recognition.interimResults = isPassageRecording;
+    recognition.continuous = false;
+    recognition.interimResults = false;
     recognition.maxAlternatives = 1;
     recognitionRef.current = recognition;
     activeKeyRef.current = key;
@@ -1211,7 +1212,10 @@ function Pronunciation({
     setMicState("listening");
 
     recognition.onresult = (event) => {
-      const transcript = Array.from({ length: event.results.length }, (_, i) => event.results.item(i).item(0).transcript).join(" ");
+      const transcript = Array.from({ length: event.results.length }, (_, i) => event.results.item(i).item(0).transcript)
+        .join(" ")
+        .replace(/\s+/g, " ")
+        .trim();
       transcriptBufferRef.current = transcript;
       setLastHeard((current) => ({ ...current, [key]: transcript }));
       const newResults = { ...latestResultsRef.current };
@@ -1230,19 +1234,6 @@ function Pronunciation({
       activeKeyRef.current = null;
     };
     recognition.onend = () => {
-      if (isPassageRecording && !manualStopRef.current && activeKeyRef.current === key && !disabled) {
-        window.setTimeout(() => {
-          if (activeKeyRef.current !== key || manualStopRef.current) return;
-          try {
-            recognition.start();
-          } catch {
-            setMicState("idle");
-            setActiveKey(null);
-            activeKeyRef.current = null;
-          }
-        }, 250);
-        return;
-      }
       const heardText = transcriptBufferRef.current.trim();
       if (heardText || manualStopRef.current || !isPassageRecording) {
         onChange({
@@ -1259,7 +1250,18 @@ function Pronunciation({
 
   function stopRecording() {
     manualStopRef.current = true;
-    recognitionRef.current?.stop();
+    const key = activeKeyRef.current;
+    const usedSoFar = key ? attemptsUsed[key] ?? 0 : 0;
+    recognitionRef.current?.abort();
+    if (key) {
+      onChange({
+        results: latestResultsRef.current,
+        attemptsUsed: { ...attemptsUsed, [key]: usedSoFar + 1 }
+      });
+    }
+    setMicState("idle");
+    setActiveKey(null);
+    activeKeyRef.current = null;
   }
 
   if (!supported) {
@@ -1292,7 +1294,7 @@ function Pronunciation({
             <div key={target.id} className="flex items-center justify-between gap-3 rounded-md border border-black/10 p-3">
               <div>
                 <p className="font-medium" style={{ color: target.color }}>{target.text}</p>
-                {lastHeard[target.id] ? <p className="text-xs text-black/40">Heard: &quot;{lastHeard[target.id]}&quot;</p> : null}
+                {lastHeard[target.id] ? <p className="line-clamp-2 text-xs text-black/40">Heard: &quot;{lastHeard[target.id]}&quot;</p> : null}
                 {outOfAttempts ? <p className="text-xs text-coral">No more attempts for this word.</p> : null}
               </div>
               <button
@@ -1345,7 +1347,7 @@ function Pronunciation({
           );
         })}
       </p>
-      {lastHeard[passageKey] ? <p className="text-xs text-black/40">Heard: &quot;{lastHeard[passageKey]}&quot;</p> : null}
+      {lastHeard[passageKey] ? <p className="line-clamp-2 text-xs text-black/40">Heard: &quot;{lastHeard[passageKey]}&quot;</p> : null}
       <div className="flex items-center gap-3">
         <button
           type="button"
