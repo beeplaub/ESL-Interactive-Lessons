@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, FileText, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Copy, Edit3, Eye, FileText, Trash2, X } from "lucide-react";
 import { saveQuizBuilder } from "@/app/admin/quizzes/actions";
 import { parseQuizText } from "@/lib/quizParser";
 import { QuestionCard, type QuizQuestion } from "@/components/QuizPlayer";
@@ -121,6 +121,7 @@ export function QuizVisualBuilder({
   );
   const [selectedId, setSelectedId] = useState(questions[0]?.id ?? "");
   const [parseOpen, setParseOpen] = useState(false);
+  const [editorOpen, setEditorOpen] = useState(false);
   const [parseText, setParseText] = useState(parseSample);
   const [message, setMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -165,22 +166,67 @@ export function QuizVisualBuilder({
     const question = defaultQuestion(type);
     setQuestions((current) => [...current, question]);
     setSelectedId(question.id);
+    setEditorOpen(true);
   }
 
   function deleteQuestion(id: string) {
     const next = questions.filter((question) => question.id !== id);
-    setQuestions(next.length ? next : [defaultQuestion("MCQ")]);
-    setSelectedId(next[0]?.id ?? "");
+    const fallback = next.length ? next : [defaultQuestion("MCQ")];
+    setQuestions(fallback);
+    setSelectedId(fallback[0]?.id ?? "");
+    setEditorOpen(false);
+  }
+
+  function duplicateQuestion(id: string) {
+    const source = questions.find((question) => question.id === id);
+    if (!source) return;
+    const clone = {
+      ...source,
+      id: `q-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      questionText: source.questionText.endsWith("(copy)") ? source.questionText : `${source.questionText} (copy)`
+    };
+    const index = questions.findIndex((question) => question.id === id);
+    const next = [...questions];
+    next.splice(index + 1, 0, clone);
+    setQuestions(next);
+    setSelectedId(clone.id);
+    setEditorOpen(true);
+  }
+
+  function moveQuestion(id: string, direction: -1 | 1) {
+    const index = questions.findIndex((question) => question.id === id);
+    const targetIndex = index + direction;
+    if (index < 0 || targetIndex < 0 || targetIndex >= questions.length) return;
+    const next = [...questions];
+    const [question] = next.splice(index, 1);
+    next.splice(targetIndex, 0, question);
+    setQuestions(next);
+    setSelectedId(id);
+  }
+
+  function validateQuiz() {
+    if (!quiz.title.trim()) return "Add a quiz title before saving.";
+    if (!questions.length) return "Add at least one question before saving.";
+    const incomplete = questions.findIndex((question) => !question.questionText.trim());
+    if (incomplete >= 0) return `Question ${incomplete + 1} needs question text.`;
+    return null;
   }
 
   function save(status?: "DRAFT" | "PUBLISHED") {
     setMessage(null);
+    const validationError = validateQuiz();
+    if (validationError) {
+      setMessage(validationError);
+      return;
+    }
     const nextPayload = status ? { ...payload, status } : payload;
     startTransition(async () => {
       try {
         const result = await saveQuizBuilder(nextPayload);
         setMessage(status === "PUBLISHED" ? "Published." : "Saved.");
-        router.push(`/admin/quizzes/${result.quizId}/edit`);
+        setQuiz((current) => ({ ...current, id: result.quizId, status: status ?? current.status }));
+        router.replace(`/admin/quizzes/${result.quizId}/edit`);
+        router.refresh();
       } catch (error) {
         setMessage(error instanceof Error ? error.message : "Could not save quiz.");
       }
@@ -201,6 +247,7 @@ export function QuizVisualBuilder({
     setQuestions(imported);
     setSelectedId(imported[0]?.id ?? "");
     setParseOpen(false);
+    setEditorOpen(Boolean(imported[0]));
   }
 
   return (
@@ -233,7 +280,7 @@ export function QuizVisualBuilder({
         {message ? <p className="mt-3 rounded-md bg-slate-50 p-3 text-sm text-black/60">{message}</p> : null}
       </section>
 
-      <section className="grid gap-5 lg:grid-cols-[280px_minmax(0,1fr)_minmax(320px,0.85fr)]">
+      <section className="grid gap-5 lg:grid-cols-[300px_minmax(0,0.85fr)_minmax(340px,1fr)]">
         <aside className="rounded-2xl border border-black/10 bg-white p-3 shadow-sm">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold">Questions</h2>
@@ -262,31 +309,32 @@ export function QuizVisualBuilder({
             <div className="grid gap-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-moss">Question editor</p>
-                  <h2 className="mt-1 text-lg font-semibold">Q{selectedIndex + 1}</h2>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-moss">Selected question</p>
+                  <h2 className="mt-1 text-lg font-semibold">Q{selectedIndex + 1} · {typeLabels[selected.questionType]}</h2>
                 </div>
-                <button type="button" onClick={() => deleteQuestion(selected.id)} className="inline-flex items-center gap-2 rounded-md border border-coral/30 px-3 py-2 text-xs font-semibold text-coral hover:bg-coral/10">
-                  <Trash2 size={14} /> Delete
+                <span className="rounded-full bg-moss/10 px-3 py-1 text-xs font-semibold text-moss">{quiz.status}</span>
+              </div>
+              <div className="rounded-xl border border-black/10 bg-slate-50 p-4">
+                <p className="text-sm font-semibold text-black/75">{selected.questionText || "Untitled question"}</p>
+                {selected.description ? <p className="mt-2 max-h-20 overflow-hidden text-sm text-black/55">{selected.description}</p> : null}
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <button type="button" onClick={() => setEditorOpen(true)} className="inline-flex items-center justify-center gap-2 rounded-md bg-ink px-3 py-2 text-sm font-semibold text-white">
+                  <Edit3 size={15} /> Edit question
+                </button>
+                <button type="button" onClick={() => duplicateQuestion(selected.id)} className="inline-flex items-center justify-center gap-2 rounded-md border border-black/15 px-3 py-2 text-sm font-semibold hover:bg-black/5">
+                  <Copy size={15} /> Duplicate
+                </button>
+                <button type="button" disabled={selectedIndex <= 0} onClick={() => moveQuestion(selected.id, -1)} className="inline-flex items-center justify-center gap-2 rounded-md border border-black/15 px-3 py-2 text-sm font-semibold hover:bg-black/5 disabled:opacity-40">
+                  <ArrowUp size={15} /> Move up
+                </button>
+                <button type="button" disabled={selectedIndex >= questions.length - 1} onClick={() => moveQuestion(selected.id, 1)} className="inline-flex items-center justify-center gap-2 rounded-md border border-black/15 px-3 py-2 text-sm font-semibold hover:bg-black/5 disabled:opacity-40">
+                  <ArrowDown size={15} /> Move down
                 </button>
               </div>
-              <label className="text-sm">
-                Activity type
-                <select value={selected.questionType} onChange={(event) => {
-                  const next = defaultQuestion(event.target.value as BuilderQuestion["questionType"]);
-                  updateSelected({ ...next, id: selected.id });
-                }} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">
-                  {questionTypes.map((type) => <option key={type} value={type}>{typeLabels[type]}</option>)}
-                </select>
-              </label>
-              <label className="text-sm">
-                Question
-                <textarea value={selected.questionText} onChange={(event) => updateSelected({ questionText: event.target.value })} rows={2} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
-              </label>
-              <label className="text-sm">
-                Description <span className="font-normal text-black/40">(optional)</span>
-                <textarea value={selected.description} onChange={(event) => updateSelected({ description: event.target.value })} rows={2} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
-              </label>
-              <QuestionFields question={selected} onChange={updateSelected} />
+              <button type="button" onClick={() => { if (window.confirm("Delete this question?")) deleteQuestion(selected.id); }} className="inline-flex items-center justify-center gap-2 rounded-md border border-coral/30 px-3 py-2 text-sm font-semibold text-coral hover:bg-coral/10">
+                <Trash2 size={15} /> Delete question
+              </button>
             </div>
           ) : null}
         </section>
@@ -302,13 +350,25 @@ export function QuizVisualBuilder({
         </aside>
       </section>
 
+      {editorOpen && selected ? (
+        <QuestionEditorModal
+          question={selected}
+          questionNumber={selectedIndex + 1}
+          onChange={updateSelected}
+          onClose={() => setEditorOpen(false)}
+          onDelete={() => {
+            if (window.confirm("Delete this question?")) deleteQuestion(selected.id);
+          }}
+        />
+      ) : null}
+
       {parseOpen ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 px-3 py-6">
           <div className="max-h-[92vh] w-full max-w-3xl overflow-auto rounded-2xl bg-white p-5 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-xl font-semibold">Parse quiz text</h2>
-                <p className="mt-1 text-sm text-black/55">Optional import. Supports MCQ, T/F, FILL, MATCH from text now. Add advanced types visually after import.</p>
+                <p className="mt-1 text-sm text-black/55">Optional import. Text parsing supports MCQ, T/F, FILL, and MATCH. The visual builder supports every quiz activity type: Multiple Choice, True/False, Fill, Matching, Multiple Select, Short Answer, Error Correction, Reordering, Drag & Drop, and Pronunciation.</p>
               </div>
               <button type="button" onClick={() => setParseOpen(false)} className="rounded-md border border-black/10 p-2 hover:bg-black/5"><X size={16} /></button>
             </div>
@@ -320,6 +380,67 @@ export function QuizVisualBuilder({
           </div>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function QuestionEditorModal({
+  question,
+  questionNumber,
+  onChange,
+  onClose,
+  onDelete
+}: {
+  question: BuilderQuestion;
+  questionNumber: number;
+  onChange: (patch: Partial<BuilderQuestion>) => void;
+  onClose: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 px-3 py-5">
+      <div className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <div className="flex items-start justify-between gap-4 border-b border-black/10 px-5 py-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-moss">Question {questionNumber}</p>
+            <h2 className="mt-1 text-xl font-semibold">{typeLabels[question.questionType]}</h2>
+          </div>
+          <button type="button" onClick={onClose} className="rounded-md border border-black/10 p-2 hover:bg-black/5" aria-label="Close question editor">
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="grid gap-4 overflow-auto px-5 py-4">
+          <label className="text-sm font-medium">
+            Activity type
+            <select value={question.questionType} onChange={(event) => {
+              const next = defaultQuestion(event.target.value as BuilderQuestion["questionType"]);
+              onChange({ ...next, id: question.id });
+            }} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 font-normal">
+              {questionTypes.map((type) => <option key={type} value={type}>{typeLabels[type]}</option>)}
+            </select>
+          </label>
+
+          <label className="text-sm font-medium">
+            Question / instruction
+            <textarea value={question.questionText} onChange={(event) => onChange({ questionText: event.target.value })} rows={2} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 font-normal" />
+          </label>
+
+          <label className="text-sm font-medium">
+            Description <span className="font-normal text-black/40">(optional)</span>
+            <textarea value={question.description} onChange={(event) => onChange({ description: event.target.value })} rows={2} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 font-normal" placeholder="Short context shown before the answer fields." />
+          </label>
+
+          <QuestionFields question={question} onChange={onChange} />
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-black/10 px-5 py-4">
+          <button type="button" onClick={onDelete} className="inline-flex items-center gap-2 rounded-md border border-coral/30 px-3 py-2 text-sm font-semibold text-coral hover:bg-coral/10">
+            <Trash2 size={15} /> Delete question
+          </button>
+          <button type="button" onClick={onClose} className="rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white">Done</button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -337,10 +458,36 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             <input value={String(options[key] ?? "")} onChange={(event) => onChange({ options: { ...options, [key]: event.target.value } as Json })} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
           </label>
         ))}
-        <label className="text-sm">
-          Correct answer{question.questionType === "MULTIPLE_SELECT" ? "s" : ""}
-          <input value={correct.join(", ")} onChange={(event) => onChange({ correctAnswer: question.questionType === "MULTIPLE_SELECT" ? event.target.value.split(",").map((v) => v.trim().toUpperCase()).filter(Boolean) : event.target.value.trim().toUpperCase() })} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" placeholder="A or A, C" />
-        </label>
+        {question.questionType === "MCQ" ? (
+          <label className="text-sm">
+            Correct answer
+            <select value={String(question.correctAnswer ?? "A")} onChange={(event) => onChange({ correctAnswer: event.target.value })} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">
+              {["A", "B", "C", "D"].map((key) => <option key={key} value={key}>Option {key}</option>)}
+            </select>
+          </label>
+        ) : (
+          <div className="grid gap-2 rounded-md bg-slate-50 p-3">
+            <p className="text-sm font-medium">Correct answers</p>
+            <div className="flex flex-wrap gap-2">
+              {["A", "B", "C", "D"].map((key) => {
+                const checked = correct.includes(key);
+                return (
+                  <label key={key} className="inline-flex items-center gap-2 rounded-md border border-black/10 bg-white px-3 py-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => {
+                        const next = checked ? correct.filter((item) => item !== key) : [...correct, key];
+                        onChange({ correctAnswer: next as Json });
+                      }}
+                    />
+                    {key}
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -358,10 +505,22 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
   }
 
   if (question.questionType === "FILL") {
+    const answerLines = Array.isArray(question.correctAnswer) ? question.correctAnswer.map(String).join("\n") : String(question.correctAnswer ?? "");
     return (
       <div className="grid gap-3">
-        <label className="text-sm">Sentence or paragraph with ___ blanks<textarea value={String(options.text ?? "")} onChange={(event) => onChange({ options: { ...options, text: event.target.value, blank_count: (event.target.value.match(/___/g) ?? []).length || 1 } as Json })} rows={3} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
-        <label className="text-sm">Answers, comma separated<input value={Array.isArray(question.correctAnswer) ? question.correctAnswer.join(", ") : String(question.correctAnswer ?? "")} onChange={(event) => onChange({ correctAnswer: event.target.value.split(",").map((v) => v.trim()) })} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+        <label className="text-sm">
+          Sentence or paragraph with ___ blanks
+          <textarea value={String(options.text ?? "")} onChange={(event) => {
+            const blankCount = (event.target.value.match(/___/g) ?? []).length || 1;
+            const current = Array.isArray(question.correctAnswer) ? question.correctAnswer.map(String) : [];
+            while (current.length < blankCount) current.push("");
+            onChange({ options: { ...options, text: event.target.value, blank_count: blankCount } as Json, correctAnswer: current.slice(0, blankCount) as Json });
+          }} rows={3} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" placeholder="I have ___ English for two years." />
+        </label>
+        <label className="text-sm">
+          Answers, one per blank
+          <textarea value={answerLines} onChange={(event) => onChange({ correctAnswer: splitLines(event.target.value) as Json })} rows={3} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" placeholder={"studied\nbeen studying"} />
+        </label>
       </div>
     );
   }

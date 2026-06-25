@@ -73,9 +73,12 @@ export async function saveQuizBuilder(payload: unknown) {
     created_by: user.id
   };
 
-  const quiz = quizId
-    ? { id: quizId }
-    : (await admin.from("quizzes").insert(quizValues).select("id").single()).data;
+  let quiz = quizId ? { id: quizId } : null;
+  if (!quiz) {
+    const { data, error } = await admin.from("quizzes").insert(quizValues).select("id").single();
+    if (error || !data) throw new Error(error?.message ?? "Could not create quiz.");
+    quiz = data;
+  }
 
   if (quizId) {
     const { error } = await admin.from("quizzes").update(quizValues).eq("id", quizId);
@@ -84,10 +87,10 @@ export async function saveQuizBuilder(payload: unknown) {
 
   if (!quiz?.id) throw new Error("Could not save quiz.");
 
-  if (quizId) {
-    const { error } = await admin.from("quiz_questions").delete().eq("quiz_id", quiz.id);
-    if (error) throw new Error(error.message);
-  }
+  const { data: oldQuestions, error: oldQuestionsError } = quizId
+    ? await admin.from("quiz_questions").select("id").eq("quiz_id", quiz.id)
+    : { data: [], error: null };
+  if (oldQuestionsError) throw new Error(oldQuestionsError.message);
 
   const { error: questionError } = await admin.from("quiz_questions").insert(
     parsed.questions.map((question, index) => ({
@@ -102,6 +105,13 @@ export async function saveQuizBuilder(payload: unknown) {
   );
 
   if (questionError) throw new Error(questionError.message);
+
+  const oldIds = (oldQuestions ?? []).map((question) => question.id);
+  if (oldIds.length) {
+    const { error: deleteError } = await admin.from("quiz_questions").delete().in("id", oldIds);
+    if (deleteError) throw new Error(deleteError.message);
+  }
+
   revalidatePath("/admin/quizzes");
   revalidatePath(`/admin/quizzes/${quiz.id}/edit`);
   revalidatePath("/quizzes");
