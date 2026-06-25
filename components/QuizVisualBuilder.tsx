@@ -4,8 +4,9 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowDown, ArrowUp, Copy, Edit3, Eye, FileText, Trash2, X } from "lucide-react";
 import { saveQuizBuilder } from "@/app/admin/quizzes/actions";
+import { LessonActivityPanel } from "@/components/LessonActivityPanel";
 import { parseQuizText } from "@/lib/quizParser";
-import { QuestionCard, type QuizQuestion } from "@/components/QuizPlayer";
+import type { QuizQuestion } from "@/components/QuizPlayer";
 import type { Json } from "@/types/database.types";
 
 type BuilderQuestion = {
@@ -43,6 +44,8 @@ const typeLabels: Record<string, string> = {
   PRONUNCIATION: "Pronunciation"
 };
 
+const PRONUNCIATION_COLORS = ["#fbbf24", "#34d399", "#60a5fa", "#f472b6", "#a78bfa", "#fb923c"];
+
 const parseSample = `QUIZ: Everyday English Challenge
 TOPIC: Mixed Skills
 LEVEL: B1
@@ -75,7 +78,7 @@ function defaultQuestion(type: BuilderQuestion["questionType"]): BuilderQuestion
   if (type === "ERROR_CORRECTION") return { id, questionType: type, questionText: "Correct the mistake.", description: "", options: { mode: "rewrite", text: "She go to school every day." }, correctAnswer: { correction: "She goes to school every day." } };
   if (type === "REORDERING") return { id, questionType: type, questionText: "Put the items in the correct order.", description: "", options: { level: "sentence", items: [{ id: "1", text: "First item" }, { id: "2", text: "Second item" }] }, correctAnswer: ["1", "2"] };
   if (type === "DRAG_DROP") return { id, questionType: type, questionText: "Place each item in the correct group.", description: "", options: { targets: ["Group A", "Group B"], items: [{ id: "1", text: "Item 1" }, { id: "2", text: "Item 2" }] }, correctAnswer: { "1": "Group A", "2": "Group B" } };
-  if (type === "PRONUNCIATION") return { id, questionType: type, questionText: "Practise the pronunciation.", description: "", options: { level: "word", targets: [{ id: "1", text: "comfortable", color: "#fbbf24" }], max_attempts: 3 }, correctAnswer: ["1"] };
+  if (type === "PRONUNCIATION") return { id, questionType: type, questionText: "Practise the pronunciation.", description: "", options: { level: "word", passage: "", targets: [{ id: "1", text: "comfortable", color: "#fbbf24" }], max_attempts: 3 }, correctAnswer: ["1"] };
   return { id, questionType: "MCQ", questionText: "Choose the best answer.", description: "", options: { A: "Option A", B: "Option B", C: "Option C", D: "Option D" }, correctAnswer: "A" };
 }
 
@@ -140,6 +143,8 @@ export function QuizVisualBuilder({
         correct_answer: selected.correctAnswer
       }
     : null;
+
+  const previewActivity = selected ? questionToPreviewActivity(selected) : null;
 
   const payload = useMemo(() => ({
     quizId: quiz.id,
@@ -344,8 +349,10 @@ export function QuizVisualBuilder({
             <Eye size={16} className="text-moss" />
             <h2 className="text-sm font-semibold">Preview</h2>
           </div>
-          {previewQuestion ? (
-            <QuestionCard question={previewQuestion} value={undefined} submitted={false} onChange={() => {}} />
+          {previewActivity ? (
+            <LessonActivityPanel key={`${selected?.id}-${JSON.stringify(selected?.options)}-${JSON.stringify(selected?.correctAnswer)}`} activity={previewActivity} previewOnly onNext={() => {}} />
+          ) : previewQuestion ? (
+            <p className="rounded-md bg-white p-3 text-sm text-black/55">{previewQuestion.question_text}</p>
           ) : null}
         </aside>
       </section>
@@ -443,6 +450,132 @@ function QuestionEditorModal({
       </div>
     </div>
   );
+}
+
+function questionToPreviewActivity(question: BuilderQuestion) {
+  const options = asRecord(question.options);
+  if (question.questionType === "FILL") {
+    return {
+      id: question.id,
+      activity_type: "GAP_FILL",
+      activity_data: {
+        prompt: question.questionText,
+        items: [{
+          id: 1,
+          sentence: String(options.text ?? ""),
+          answer: Array.isArray(question.correctAnswer) ? question.correctAnswer : [question.correctAnswer],
+          level: options.level === "paragraph" ? "paragraph" : "sentence"
+        }]
+      } as Json
+    };
+  }
+  if (question.questionType === "TRUE_FALSE") {
+    return {
+      id: question.id,
+      activity_type: "TRUE_FALSE",
+      activity_data: {
+        prompt: "True or False?",
+        items: [{ id: 1, statement: question.questionText, answer: question.correctAnswer }]
+      } as Json
+    };
+  }
+  if (question.questionType === "DRAG_DROP") {
+    const items = Array.isArray(options.items) ? options.items.map((item) => asRecord(item as Json)) : [];
+    const correct = asRecord(question.correctAnswer);
+    return {
+      id: question.id,
+      activity_type: "DRAG_DROP",
+      activity_data: {
+        prompt: question.questionText,
+        targets: Array.isArray(options.targets) ? options.targets : [],
+        items: items.map((item) => ({ id: String(item.id ?? ""), text: String(item.text ?? ""), target: String(correct[String(item.id ?? "")] ?? "") }))
+      } as Json
+    };
+  }
+  if (question.questionType === "REORDERING") {
+    return {
+      id: question.id,
+      activity_type: "REORDERING",
+      activity_data: {
+        prompt: question.questionText,
+        questions: [{
+          level: options.level === "word" ? "word" : "sentence",
+          question_text: question.description || null,
+          items: Array.isArray(options.items) ? options.items : [],
+          correct_order: Array.isArray(question.correctAnswer) ? question.correctAnswer : []
+        }]
+      } as Json
+    };
+  }
+  if (question.questionType === "ERROR_CORRECTION") {
+    const correct = asRecord(question.correctAnswer);
+    return {
+      id: question.id,
+      activity_type: "ERROR_CORRECTION",
+      activity_data: {
+        prompt: question.questionText,
+        items: [{
+          mode: options.mode === "spot_and_fix" ? "spot_and_fix" : "rewrite",
+          text: String(options.text ?? ""),
+          error_span: String(correct.error_span ?? ""),
+          correction: String(correct.correction ?? ""),
+          note: String(options.note ?? "")
+        }]
+      } as Json
+    };
+  }
+  if (question.questionType === "PRONUNCIATION") {
+    return {
+      id: question.id,
+      activity_type: "PRONUNCIATION",
+      activity_data: {
+        prompt: question.questionText,
+        level: options.level === "sentence" || options.level === "paragraph" ? options.level : "word",
+        passage: String(options.passage ?? ""),
+        targets: Array.isArray(options.targets) ? options.targets : [],
+        max_attempts: Number(options.max_attempts ?? 3)
+      } as Json
+    };
+  }
+  if (question.questionType === "MULTIPLE_SELECT") {
+    return {
+      id: question.id,
+      activity_type: "MULTIPLE_SELECT",
+      activity_data: {
+        prompt: question.questionText,
+        questions: [{ id: 1, text: question.questionText, options: question.options, answers: question.correctAnswer }]
+      } as Json
+    };
+  }
+  if (question.questionType === "SHORT_ANSWER") {
+    return {
+      id: question.id,
+      activity_type: "SHORT_ANSWER",
+      activity_data: {
+        prompt: question.questionText,
+        questions: [{
+          id: 1,
+          text: question.questionText,
+          sample_answer: String(options.sample_answer ?? ""),
+          min_words: Number(options.min_words ?? 0),
+          required_words: Array.isArray(options.required_words) ? options.required_words : []
+        }]
+      } as Json
+    };
+  }
+  return {
+    id: question.id,
+    activity_type: question.questionType,
+    activity_data: {
+      prompt: question.questionText,
+      questions: [{
+        id: 1,
+        question_text: question.questionText,
+        options: question.options,
+        correct_answer: question.correctAnswer
+      }]
+    } as Json
+  };
 }
 
 function QuestionFields({ question, onChange }: { question: BuilderQuestion; onChange: (patch: Partial<BuilderQuestion>) => void }) {
@@ -550,23 +683,58 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
     const correct = asRecord(question.correctAnswer);
     return (
       <div className="grid gap-3">
-        <label className="text-sm">Mode<select value={String(options.mode ?? "rewrite")} onChange={(event) => onChange({ options: { ...options, mode: event.target.value } as Json })} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"><option value="rewrite">Rewrite sentence</option><option value="spot_and_fix">Click to fix error</option></select></label>
-        <label className="text-sm">Incorrect text<textarea value={String(options.text ?? "")} onChange={(event) => onChange({ options: { ...options, text: event.target.value } as Json })} rows={3} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
-        {options.mode === "spot_and_fix" ? <label className="text-sm">Error span<input value={String(correct.error_span ?? "")} onChange={(event) => onChange({ correctAnswer: { ...correct, error_span: event.target.value } as Json })} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label> : null}
-        <label className="text-sm">Correction<input value={String(correct.correction ?? "")} onChange={(event) => onChange({ correctAnswer: { ...correct, correction: event.target.value } as Json })} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+        <label className="text-sm">
+          Mode
+          <select value={String(options.mode ?? "rewrite")} onChange={(event) => onChange({ options: { ...options, mode: event.target.value } as Json })} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">
+            <option value="rewrite">Rewrite whole sentence</option>
+            <option value="spot_and_fix">Click error, then type fix</option>
+          </select>
+        </label>
+        <label className="text-sm">
+          Sentence with the mistake
+          <input value={String(options.text ?? "")} onChange={(event) => onChange({ options: { ...options, text: event.target.value } as Json })} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" placeholder="She don't like coffee." />
+        </label>
+        {options.mode === "spot_and_fix" ? (
+          <label className="text-sm">
+            Exact wrong word/phrase
+            <input value={String(correct.error_span ?? "")} onChange={(event) => onChange({ correctAnswer: { ...correct, error_span: event.target.value } as Json })} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" placeholder="don't" />
+          </label>
+        ) : null}
+        <label className="text-sm">
+          {options.mode === "spot_and_fix" ? "Correction for that word/phrase" : "Full corrected sentence"}
+          <input value={String(correct.correction ?? "")} onChange={(event) => onChange({ correctAnswer: { ...correct, correction: event.target.value } as Json })} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" placeholder={options.mode === "spot_and_fix" ? "doesn't" : "She doesn't like coffee."} />
+        </label>
+        <label className="text-sm">
+          Note for learners (optional)
+          <input value={String(options.note ?? "")} onChange={(event) => onChange({ options: { ...options, note: event.target.value } as Json })} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" placeholder="subject-verb agreement" />
+        </label>
+        {options.mode === "spot_and_fix" && options.text && correct.error_span && !String(options.text).includes(String(correct.error_span)) ? (
+          <p className="text-xs text-amber-700">The exact wrong word/phrase does not appear in the sentence above, so learners will not be able to click it.</p>
+        ) : null}
       </div>
     );
   }
 
   if (question.questionType === "REORDERING") {
     const items = Array.isArray(options.items) ? options.items.map((item) => asRecord(item as Json)) : [];
+    const itemsText = items.map((item) => String(item.text ?? "")).join("\n");
     return (
       <div className="grid gap-3">
-        <label className="text-sm">Level<select value={String(options.level ?? "sentence")} onChange={(event) => onChange({ options: { ...options, level: event.target.value } as Json })} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"><option value="sentence">Sentence</option><option value="word">Word</option></select></label>
-        <label className="text-sm">Items, one per line<textarea value={items.map((item) => String(item.text ?? "")).join("\n")} onChange={(event) => {
+        <label className="text-sm">
+          Level
+          <select value={String(options.level ?? "sentence")} onChange={(event) => onChange({ options: { ...options, level: event.target.value } as Json })} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">
+            <option value="sentence">Sentence / step order (reorder whole lines)</option>
+            <option value="word">Word order (reorder words into one sentence)</option>
+          </select>
+        </label>
+        <label className="text-sm">
+          {options.level === "word" ? "Words, one per line, in the CORRECT order" : "Items, one per line, in the CORRECT order"}
+          <textarea value={itemsText} onChange={(event) => {
           const nextItems = splitLines(event.target.value).map((text, index) => ({ id: String(index + 1), text }));
           onChange({ options: { ...options, items: nextItems } as Json, correctAnswer: nextItems.map((item) => item.id) });
-        }} rows={5} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+        }} rows={6} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 font-mono text-sm" placeholder={options.level === "word" ? "She\nalways\ndrinks\ncoffee\nin the morning" : "First, boil the water.\nThen, add the pasta.\nFinally, drain it."} />
+          <span className="mt-1 block text-xs text-black/45">Type them in the right order. Learners will see them scrambled.</span>
+        </label>
       </div>
     );
   }
@@ -574,32 +742,156 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
   if (question.questionType === "DRAG_DROP") {
     const items = Array.isArray(options.items) ? options.items.map((item) => asRecord(item as Json)) : [];
     const correct = asRecord(question.correctAnswer);
+    const targets = Array.isArray(options.targets) ? options.targets.map(String) : [];
+    function renameTarget(index: number, newName: string) {
+      const oldName = targets[index];
+      const nextTargets = targets.map((target, targetIndex) => targetIndex === index ? newName : target);
+      const nextCorrect = { ...correct };
+      Object.keys(nextCorrect).forEach((key) => {
+        if (String(nextCorrect[key]) === oldName) nextCorrect[key] = newName;
+      });
+      onChange({ options: { ...options, targets: nextTargets } as Json, correctAnswer: nextCorrect as Json });
+    }
+    function updateItem(index: number, text: string) {
+      const nextItems = items.map((item, itemIndex) => itemIndex === index ? { ...item, text } : item);
+      onChange({ options: { ...options, items: nextItems } as Json });
+    }
+    function updateTargetForItem(itemId: string, target: string) {
+      onChange({ correctAnswer: { ...correct, [itemId]: target } as Json });
+    }
     return (
       <div className="grid gap-3">
-        <label className="text-sm">Targets, one per line<textarea value={lines(options.targets)} onChange={(event) => onChange({ options: { ...options, targets: splitLines(event.target.value) } as Json })} rows={3} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
-        <label className="text-sm">Items, one per line<textarea value={items.map((item) => String(item.text ?? "")).join("\n")} onChange={(event) => {
-          const nextItems = splitLines(event.target.value).map((text, index) => ({ id: String(index + 1), text }));
-          onChange({ options: { ...options, items: nextItems } as Json });
-        }} rows={4} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
-        <label className="text-sm">Correct targets, one per item line<textarea value={items.map((item) => String(correct[String(item.id)] ?? "")).join("\n")} onChange={(event) => {
-          const targets = splitLines(event.target.value);
-          const nextCorrect: Record<string, string> = {};
-          items.forEach((item, index) => { nextCorrect[String(item.id)] = targets[index] ?? ""; });
-          onChange({ correctAnswer: nextCorrect as Json });
-        }} rows={4} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+        <div className="rounded-md border border-black/10 p-4">
+          <p className="mb-3 font-medium">Target boxes (where items get dropped)</p>
+          <div className="grid gap-2">
+            {targets.map((target, index) => (
+              <div key={index} className="flex items-center gap-2">
+                <input value={target} onChange={(event) => renameTarget(index, event.target.value)} placeholder={`Target ${index + 1}`} className="flex-1 rounded-md border border-black/15 px-3 py-2 text-sm" />
+                {targets.length > 1 ? (
+                  <button type="button" onClick={() => onChange({ options: { ...options, targets: targets.filter((_, targetIndex) => targetIndex !== index) } as Json })} className="text-sm text-coral">Remove</button>
+                ) : null}
+              </div>
+            ))}
+          </div>
+          <button type="button" onClick={() => onChange({ options: { ...options, targets: [...targets, ""] } as Json })} className="mt-3 rounded-md border border-black/15 px-3 py-1.5 text-sm">Add target box</button>
+        </div>
+        <div className="rounded-md border border-black/10 p-4">
+          <p className="mb-3 font-medium">Items (learners drag each one into its correct target)</p>
+          <div className="grid gap-2">
+            {items.map((item, index) => {
+              const id = String(item.id ?? index + 1);
+              return (
+                <div key={id} className="flex flex-wrap items-center gap-2">
+                  <input value={String(item.text ?? "")} onChange={(event) => updateItem(index, event.target.value)} placeholder="Item text" className="min-w-48 flex-1 rounded-md border border-black/15 px-3 py-2 text-sm" />
+                  <select value={String(correct[id] ?? "")} onChange={(event) => updateTargetForItem(id, event.target.value)} className="rounded-md border border-black/15 px-3 py-2 text-sm">
+                    <option value="">Choose target...</option>
+                    {targets.map((target, targetIndex) => <option key={targetIndex} value={target}>{target || `Target ${targetIndex + 1}`}</option>)}
+                  </select>
+                  {items.length > 1 ? <button type="button" onClick={() => onChange({ options: { ...options, items: items.filter((_, itemIndex) => itemIndex !== index) } as Json })} className="text-sm text-coral">Remove</button> : null}
+                </div>
+              );
+            })}
+          </div>
+          <button type="button" onClick={() => {
+            const nextId = String(items.length + 1);
+            onChange({ options: { ...options, items: [...items, { id: nextId, text: "" }] } as Json, correctAnswer: { ...correct, [nextId]: targets[0] ?? "" } as Json });
+          }} className="mt-3 rounded-md border border-black/15 px-3 py-1.5 text-sm">Add item</button>
+        </div>
       </div>
     );
   }
 
   const targets = Array.isArray(options.targets) ? options.targets.map((target) => asRecord(target as Json)) : [];
+  const pronunciationLevel = options.level === "sentence" || options.level === "paragraph" ? options.level : "word";
+  function updatePronunciationTarget(index: number, patch: Record<string, string>) {
+    const nextTargets = targets.map((target, targetIndex) => targetIndex === index ? { ...target, ...patch } : target);
+    onChange({ options: { ...options, targets: nextTargets } as Json, correctAnswer: nextTargets.map((target) => String(target.id ?? "")) as Json });
+  }
   return (
     <div className="grid gap-3">
-      <label className="text-sm">Level<select value={String(options.level ?? "word")} onChange={(event) => onChange({ options: { ...options, level: event.target.value } as Json })} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"><option value="word">Word</option><option value="sentence">Sentence</option><option value="paragraph">Paragraph</option></select></label>
-      <label className="text-sm">Passage / sentence<textarea value={String(options.passage ?? "")} onChange={(event) => onChange({ options: { ...options, passage: event.target.value } as Json })} rows={3} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
-      <label className="text-sm">Target words, one per line<textarea value={targets.map((target) => String(target.text ?? "")).join("\n")} onChange={(event) => {
-        const nextTargets = splitLines(event.target.value).map((text, index) => ({ id: String(index + 1), text, color: ["#fbbf24", "#34d399", "#60a5fa", "#f472b6"][index % 4] }));
-        onChange({ options: { ...options, targets: nextTargets } as Json, correctAnswer: nextTargets.map((target) => target.id) });
-      }} rows={4} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+      <label className="text-sm font-medium">
+        Level
+        <select value={String(pronunciationLevel)} onChange={(event) => onChange({ options: { ...options, level: event.target.value } as Json })} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">
+          <option value="word">Word list (each word recorded and scored separately)</option>
+          <option value="sentence">Sentence (one recording, certain words highlighted and checked)</option>
+          <option value="paragraph">Paragraph (one recording, certain words highlighted and checked)</option>
+        </select>
+      </label>
+      <label className="text-sm font-medium">
+        Attempts allowed per {pronunciationLevel === "word" ? "word" : "recording"}
+        <input
+          type="number"
+          min={1}
+          value={Number(options.max_attempts ?? 3)}
+          onChange={(event) => onChange({ options: { ...options, max_attempts: Math.max(1, Number(event.target.value) || 1) } as Json })}
+          className="mt-1 w-32 rounded-md border border-black/15 px-3 py-2"
+        />
+      </label>
+      {pronunciationLevel !== "word" ? (
+        <label className="text-sm">
+          {pronunciationLevel === "paragraph" ? "Paragraph" : "Sentence"}
+          <textarea
+            value={String(options.passage ?? "")}
+            onChange={(event) => onChange({ options: { ...options, passage: event.target.value } as Json })}
+            rows={pronunciationLevel === "paragraph" ? 5 : 2}
+            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+            placeholder="Her pronunciation improved a lot after she practiced every day."
+          />
+          <span className="mt-1 block text-xs text-black/45">The target words below must appear exactly as spelled here.</span>
+        </label>
+      ) : null}
+      <div className="rounded-md border border-black/10 p-4">
+        <p className="mb-3 font-medium">{pronunciationLevel === "word" ? "Words to pronounce" : "Words to check"}</p>
+        <div className="grid gap-2">
+          {targets.map((target, index) => (
+            <div key={String(target.id ?? index)} className="flex flex-wrap items-center gap-2">
+              <input
+                value={String(target.text ?? "")}
+                onChange={(event) => updatePronunciationTarget(index, { text: event.target.value })}
+                placeholder={pronunciationLevel === "word" ? "pronunciation" : "word or phrase from the text above"}
+                className="min-w-48 flex-1 rounded-md border border-black/15 px-3 py-2 text-sm"
+              />
+              <div className="flex items-center gap-1">
+                {PRONUNCIATION_COLORS.map((color) => (
+                  <button
+                    key={color}
+                    type="button"
+                    onClick={() => updatePronunciationTarget(index, { color })}
+                    aria-label={`Use color ${color}`}
+                    className="size-6 rounded-full border-2"
+                    style={{ backgroundColor: color, borderColor: target.color === color ? "#111827" : "transparent" }}
+                  />
+                ))}
+              </div>
+              {targets.length > 1 ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nextTargets = targets.filter((_, targetIndex) => targetIndex !== index);
+                    onChange({ options: { ...options, targets: nextTargets } as Json, correctAnswer: nextTargets.map((row) => String(row.id ?? "")) as Json });
+                  }}
+                  className="text-sm text-coral"
+                >
+                  Remove
+                </button>
+              ) : null}
+            </div>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            const nextTargets = [...targets, { id: String(targets.length + 1), text: "", color: PRONUNCIATION_COLORS[targets.length % PRONUNCIATION_COLORS.length] }];
+            onChange({ options: { ...options, targets: nextTargets } as Json, correctAnswer: nextTargets.map((target) => String(target.id ?? "")) as Json });
+          }}
+          className="mt-3 rounded-md border border-black/15 px-3 py-1.5 text-sm"
+        >
+          Add word
+        </button>
+      </div>
+      <p className="rounded-md border border-black/10 bg-slate-50 p-3 text-xs text-black/55">
+        This uses the learner browser&apos;s speech recognition. It works best in Chrome and Edge.
+      </p>
     </div>
   );
 }

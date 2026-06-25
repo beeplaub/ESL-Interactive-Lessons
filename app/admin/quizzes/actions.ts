@@ -104,7 +104,12 @@ export async function saveQuizBuilder(payload: unknown) {
     }))
   );
 
-  if (questionError) throw new Error(questionError.message);
+  if (questionError) {
+    if (!quizId) {
+      await admin.from("quizzes").delete().eq("id", quiz.id);
+    }
+    throw new Error(questionError.message);
+  }
 
   const oldIds = (oldQuestions ?? []).map((question) => question.id);
   if (oldIds.length) {
