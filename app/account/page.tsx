@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
-import { ArrowRight, BadgeCheck, BookOpen, ClipboardList, Flame, Heart, LogOut, Trophy, UserRound } from "lucide-react";
+import { ArrowRight, BadgeCheck, BookOpen, ClipboardList, Flame, GraduationCap, Heart, LogOut, Trophy, UserRound } from "lucide-react";
 import { signOut, switchToAdminView } from "@/app/auth/actions";
 import { requireUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -31,12 +31,14 @@ export default async function AccountPage() {
   const isAdminLearnerView = profile?.role === "ADMIN" && cookieStore.get("view_mode")?.value === "learner";
   const adminSupabase = createAdminClient();
 
-  const [{ data: quizAttempts }, { data: wishlistItems }, { data: lessonProgress }, { data: savedLessons }, { data: leaderboardPoints }] = await Promise.all([
+  const [{ data: quizAttempts }, { data: wishlistItems }, { data: lessonProgress }, { data: savedLessons }, { data: leaderboardPoints }, { data: courseEnrollments }, { data: courseProgress }] = await Promise.all([
     adminSupabase.from("quiz_attempts").select("*, quizzes(title, level)").eq("user_id", user.id).not("quiz_id", "is", null).order("completed_at", { ascending: false }),
     adminSupabase.from("wishlist_items").select("*, quizzes(title, topic, level)").eq("user_id", user.id).not("quiz_id", "is", null).order("created_at", { ascending: false }),
     adminSupabase.from("lesson_progress").select("*, lessons(title, topic, level)").eq("user_id", user.id).order("updated_at", { ascending: false }),
     adminSupabase.from("wishlist_items").select("*, lessons(title, topic, level)").eq("user_id", user.id).not("lesson_id", "is", null).order("created_at", { ascending: false }),
-    adminSupabase.from("quiz_leaderboard_points").select("points").eq("user_id", user.id)
+    adminSupabase.from("quiz_leaderboard_points").select("points").eq("user_id", user.id),
+    adminSupabase.from("course_enrollments").select("*, courses(title, level, topic)").eq("user_id", user.id).order("enrolled_at", { ascending: false }),
+    adminSupabase.from("course_progress").select("*").eq("user_id", user.id)
   ]);
 
   const activityDates = (quizAttempts ?? []).filter((a) => a.completed_at).map((a) => toDateKey(new Date(a.completed_at)));
@@ -46,6 +48,7 @@ export default async function AccountPage() {
   const totalQuizPoints = (leaderboardPoints ?? []).reduce((sum, row) => sum + Number(row.points ?? 0), 0);
   const currentBadge = getQuizBadge(totalQuizPoints);
   const nextBadge = getNextQuizBadge(totalQuizPoints);
+  const courseProgressByCourse = new Map((courseProgress ?? []).map((item) => [item.course_id, item]));
 
   return (
     <main className="mx-auto w-full max-w-6xl overflow-hidden px-4 py-8">
@@ -100,6 +103,7 @@ export default async function AccountPage() {
 
       <section className="mt-5 grid gap-4 sm:grid-cols-2 md:grid-cols-3">
         <StatCard icon={ClipboardList} label="Quizzes completed" value={(quizAttempts ?? []).length} />
+        <StatCard icon={GraduationCap} label="Courses enrolled" value={(courseEnrollments ?? []).length} />
         <StatCard icon={BookOpen} label="Lessons completed" value={(lessonProgress ?? []).filter((i) => i.completed).length} />
         <StatCard icon={Trophy} label="Saved quizzes" value={(wishlistItems ?? []).length} />
         <StreakCard streak={streak} />
@@ -137,6 +141,28 @@ export default async function AccountPage() {
 
       <section className="mt-6 grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
         <div className="min-w-0 space-y-6">
+          <Panel title="My courses" icon={GraduationCap}>
+            <HorizontalCarousel empty={<EmptyState text="No courses enrolled yet." href="/courses" label="Browse courses" />}>
+              {(courseEnrollments ?? []).map((item) => {
+                const course = item.courses;
+                const progress = courseProgressByCourse.get(item.course_id);
+                return (
+                  <CarouselItem key={item.id}>
+                    <Link href={`/courses/${item.course_id}`} className="flex h-full flex-col rounded-lg border border-black/10 bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
+                      <span className="self-start rounded-full bg-skywash px-2 py-1 text-xs font-medium text-ink">{course?.level ?? "Course"}</span>
+                      <p className="mt-3 font-semibold leading-snug">{course?.title ?? "Course"}</p>
+                      <div className="mt-auto pt-4">
+                        <div className="h-2 overflow-hidden rounded-full bg-black/10">
+                          <div className="h-full rounded-full bg-moss" style={{ width: `${progress?.progress_percent ?? 0}%` }} />
+                        </div>
+                        <p className="mt-2 text-sm text-black/55">{progress?.progress_percent ?? 0}% complete</p>
+                      </div>
+                    </Link>
+                  </CarouselItem>
+                );
+              })}
+            </HorizontalCarousel>
+          </Panel>
           <Panel title="Current lessons" icon={BookOpen}>
             <HorizontalCarousel empty={<EmptyState text="No lessons started yet." href="/lessons" label="Browse lessons" />}>
               {(lessonProgress ?? []).filter((i) => !i.completed).map((item) => (

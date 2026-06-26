@@ -8,6 +8,7 @@ import {
   ChevronLeft,
   ClipboardList,
   FlaskConical,
+  GraduationCap,
   LogOut,
   UsersRound,
 } from "lucide-react";
@@ -16,6 +17,7 @@ import { signOut, switchToLearnerView } from "@/app/auth/actions";
 
 const links = [
   { href: "/admin", label: "Overview", Icon: BarChart3 },
+  { href: "/admin/courses", label: "Courses", Icon: GraduationCap },
   { href: "/admin/lessons", label: "Lessons", Icon: BookOpen },
   { href: "/admin/quizzes", label: "Quizzes", Icon: ClipboardList },
   { href: "/admin/users", label: "Users", Icon: UsersRound },

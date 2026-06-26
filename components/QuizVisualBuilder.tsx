@@ -41,7 +41,7 @@ type QuestionBankItem = {
 
 const questionTypes: BuilderQuestion["questionType"][] = [
   "MCQ", "TRUE_FALSE", "FILL", "MATCHING", "MULTIPLE_SELECT",
-  "SHORT_ANSWER", "ERROR_CORRECTION", "REORDERING", "DRAG_DROP", "PRONUNCIATION"
+  "SHORT_ANSWER", "ERROR_CORRECTION", "REORDERING", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION"
 ];
 
 const typeLabels: Record<string, string> = {
@@ -54,6 +54,7 @@ const typeLabels: Record<string, string> = {
   ERROR_CORRECTION: "Error Correction",
   REORDERING: "Reordering",
   DRAG_DROP: "Drag & Drop",
+  CATEGORIZATION: "Categorization",
   PRONUNCIATION: "Pronunciation"
 };
 
@@ -114,11 +115,15 @@ ANSWER: 1, 2, 3, 4, 5, 6
 TARGETS: Formal | Informal
 ITEMS: Could you hold on? -> Formal | Hang on! -> Informal | Please bear with me. -> Formal
 
-12. Practise these words. (PRONUNCIATION_WORD)
+12. Sort each phrase into the correct category. (CATEGORIZATION)
+TARGETS: Patient | Impatient
+ITEMS: Take your time. -> Patient | What is taking so long? -> Impatient | There is no rush. -> Patient
+
+13. Practise these words. (PRONUNCIATION_WORD)
 WORDS: comfortable | queue | punctual
 ATTEMPTS: 3
 
-13. Read the sentence and pronounce the target words clearly. (PRONUNCIATION_SENTENCE)
+14. Read the sentence and pronounce the target words clearly. (PRONUNCIATION_SENTENCE)
 TEXT: The punctual student waited patiently in the queue.
 TARGETS: punctual | patiently | queue
 ATTEMPTS: 3
@@ -135,6 +140,7 @@ function defaultQuestion(type: BuilderQuestion["questionType"]): BuilderQuestion
   if (type === "ERROR_CORRECTION") return { id, questionType: type, questionText: "Correct the mistake.", description: "", options: { mode: "rewrite", text: "She go to school every day." }, correctAnswer: { correction: "She goes to school every day." } };
   if (type === "REORDERING") return { id, questionType: type, questionText: "Put the items in the correct order.", description: "", options: { level: "sentence", items: [{ id: "1", text: "First item" }, { id: "2", text: "Second item" }] }, correctAnswer: ["1", "2"] };
   if (type === "DRAG_DROP") return { id, questionType: type, questionText: "Place each item in the correct group.", description: "", options: { targets: ["Group A", "Group B"], items: [{ id: "1", text: "Item 1" }, { id: "2", text: "Item 2" }] }, correctAnswer: { "1": "Group A", "2": "Group B" } };
+  if (type === "CATEGORIZATION") return { id, questionType: type, questionText: "Sort each item into the correct category.", description: "", options: { targets: ["Category A", "Category B"], items: [{ id: "1", text: "Item 1" }, { id: "2", text: "Item 2" }] }, correctAnswer: { "1": "Category A", "2": "Category B" } };
   if (type === "PRONUNCIATION") return { id, questionType: type, questionText: "Practise the pronunciation.", description: "", options: { level: "word", passage: "", targets: [{ id: "1", text: "comfortable", color: "#fbbf24" }], max_attempts: 3 }, correctAnswer: ["1"] };
   return { id, questionType: "MCQ", questionText: "Choose the best answer.", description: "", options: { A: "Option A", B: "Option B", C: "Option C", D: "Option D" }, correctAnswer: "A" };
 }
@@ -191,7 +197,7 @@ function normalizeInitialQuestion(question: {
 
 function questionPointTotal(question: BuilderQuestion) {
   if (question.questionType === "FILL") return Array.isArray(question.correctAnswer) ? Math.max(1, question.correctAnswer.length) : 1;
-  if (question.questionType === "DRAG_DROP") return Object.keys(asRecord(question.correctAnswer)).length || 1;
+  if (question.questionType === "DRAG_DROP" || question.questionType === "CATEGORIZATION") return Object.keys(asRecord(question.correctAnswer)).length || 1;
   if (question.questionType === "PRONUNCIATION") return Array.isArray(question.correctAnswer) ? Math.max(1, question.correctAnswer.length) : 1;
   return 1;
 }
@@ -700,12 +706,12 @@ function questionToPreviewActivity(question: BuilderQuestion) {
       } as Json
     };
   }
-  if (question.questionType === "DRAG_DROP") {
+  if (question.questionType === "DRAG_DROP" || question.questionType === "CATEGORIZATION") {
     const items = Array.isArray(options.items) ? options.items.map((item) => asRecord(item as Json)) : [];
     const correct = asRecord(question.correctAnswer);
     return {
       id: question.id,
-      activity_type: "DRAG_DROP",
+      activity_type: question.questionType,
       activity_data: {
         prompt: question.questionText,
         targets: Array.isArray(options.targets) ? options.targets : [],
@@ -960,7 +966,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
     );
   }
 
-  if (question.questionType === "DRAG_DROP") {
+  if (question.questionType === "DRAG_DROP" || question.questionType === "CATEGORIZATION") {
     const items = Array.isArray(options.items) ? options.items.map((item) => asRecord(item as Json)) : [];
     const correct = asRecord(question.correctAnswer);
     const targets = Array.isArray(options.targets) ? options.targets.map(String) : [];

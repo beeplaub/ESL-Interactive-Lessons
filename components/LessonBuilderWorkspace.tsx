@@ -780,6 +780,7 @@ function SelectedSlideEditor({
                 <option value="REORDERING">Reordering</option>
                 <option value="ERROR_CORRECTION">Error Correction</option>
                 <option value="DRAG_DROP">Drag and Drop</option>
+                <option value="CATEGORIZATION">Categorization</option>
                 <option value="PRONUNCIATION">Pronunciation Practice</option>
               </select>
             </label>

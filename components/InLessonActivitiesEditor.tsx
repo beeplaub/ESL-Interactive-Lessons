@@ -100,6 +100,7 @@ function labelFor(type: string) {
   if (type === "MULTIPLE_SELECT") return "Multiple Select Activity";
   if (type === "SHORT_ANSWER") return "Short Answer Activity";
   if (type === "DRAG_DROP") return "Drag and Drop Activity";
+  if (type === "CATEGORIZATION") return "Categorization Activity";
   if (type === "PRONUNCIATION") return "Pronunciation Practice Activity";
   return `${type.replaceAll("_", " ")} Activity`;
 }
@@ -459,9 +460,9 @@ function ActivityPanel({
               {activity.activity_type === "REORDERING" ? <ReorderingEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "MULTIPLE_SELECT" ? <MultipleSelectEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "SHORT_ANSWER" ? <ShortAnswerEditor activity={activity} onSave={save} /> : null}
-              {activity.activity_type === "DRAG_DROP" ? <DragDropEditor activity={activity} onSave={save} /> : null}
+              {activity.activity_type === "DRAG_DROP" || activity.activity_type === "CATEGORIZATION" ? <DragDropEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "PRONUNCIATION" ? <PronunciationEditor activity={activity} onSave={save} /> : null}
-              {!["MCQ", "GAP_FILL", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "PRONUNCIATION"].includes(activity.activity_type) ? (
+              {!["MCQ", "GAP_FILL", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION"].includes(activity.activity_type) ? (
                 <p className="rounded-md bg-slate-50 p-3 text-sm text-black/60">
                   This activity type has starter data and preview support. A detailed visual editor for it will be added in the next activity-builder pass.
                 </p>

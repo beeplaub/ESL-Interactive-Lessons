@@ -8,7 +8,7 @@ import type { Json } from "@/types/database.types";
 
 const questionSchema = z.object({
   questionNumber: z.number(),
-  questionType: z.enum(["MCQ", "TRUE_FALSE", "FILL", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "PRONUNCIATION"]),
+  questionType: z.enum(["MCQ", "TRUE_FALSE", "FILL", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION"]),
   questionText: z.string().min(1),
   description: z.string().optional(),
   options: z.unknown().nullable(),
@@ -162,14 +162,14 @@ export async function updateQuizQuestion(formData: FormData) {
   const admin = createAdminClient();
   const questionId = String(formData.get("questionId"));
   const quizId = String(formData.get("quizId"));
-  const questionType = String(formData.get("questionType")) as "MCQ" | "TRUE_FALSE" | "FILL" | "MATCHING" | "ERROR_CORRECTION" | "REORDERING" | "MULTIPLE_SELECT" | "SHORT_ANSWER" | "DRAG_DROP" | "PRONUNCIATION";
+  const questionType = String(formData.get("questionType")) as "MCQ" | "TRUE_FALSE" | "FILL" | "MATCHING" | "ERROR_CORRECTION" | "REORDERING" | "MULTIPLE_SELECT" | "SHORT_ANSWER" | "DRAG_DROP" | "CATEGORIZATION" | "PRONUNCIATION";
   const questionText = String(formData.get("questionText") ?? "");
   const description = String(formData.get("description") ?? "").trim() || null;
   const correctAnswerRaw = String(formData.get("correctAnswer") ?? "");
   let options: unknown = null;
   let correctAnswer: unknown = correctAnswerRaw;
 
-  if (["ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "PRONUNCIATION"].includes(questionType)) {
+  if (["ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION"].includes(questionType)) {
     options = JSON.parse(String(formData.get("options") || "{}"));
     correctAnswer = JSON.parse(correctAnswerRaw || "null");
   } else if (questionType === "FILL") {
@@ -259,6 +259,7 @@ function defaultQuestionText(type: string) {
   if (type === "ERROR_CORRECTION") return "Correct the mistake.";
   if (type === "REORDERING") return "Put the items in the correct order.";
   if (type === "DRAG_DROP") return "Place each item in the correct group.";
+  if (type === "CATEGORIZATION") return "Sort each item into the correct category.";
   if (type === "PRONUNCIATION") return "Practise the pronunciation.";
   return "Choose the best answer.";
 }
@@ -270,7 +271,7 @@ function defaultOptions(type: string) {
   if (type === "ERROR_CORRECTION") return { mode: "rewrite", text: "She go to school every day." };
   if (type === "REORDERING") return { level: "sentence", items: [{ id: "1", text: "First item" }, { id: "2", text: "Second item" }] };
   if (type === "SHORT_ANSWER") return { sample_answer: "A good sample answer.", min_words: 10, required_words: [] };
-  if (type === "DRAG_DROP") return { targets: ["Group A", "Group B"], items: [{ id: "1", text: "Item 1" }, { id: "2", text: "Item 2" }] };
+  if (type === "DRAG_DROP" || type === "CATEGORIZATION") return { targets: ["Group A", "Group B"], items: [{ id: "1", text: "Item 1" }, { id: "2", text: "Item 2" }] };
   if (type === "PRONUNCIATION") return { level: "word", passage: "", targets: [{ id: "1", text: "comfortable", color: "#fbbf24" }], max_attempts: 3 };
   return null;
 }
@@ -283,7 +284,7 @@ function defaultCorrectAnswer(type: string) {
   if (type === "ERROR_CORRECTION") return { correction: "She goes to school every day." };
   if (type === "REORDERING") return ["1", "2"];
   if (type === "SHORT_ANSWER") return true;
-  if (type === "DRAG_DROP") return { "1": "Group A", "2": "Group B" };
+  if (type === "DRAG_DROP" || type === "CATEGORIZATION") return { "1": "Group A", "2": "Group B" };
   if (type === "PRONUNCIATION") return ["1"];
   return "A";
 }

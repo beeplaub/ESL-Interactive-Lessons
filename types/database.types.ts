@@ -411,6 +411,150 @@ export type Database = {
           }
         ];
       };
+      courses: {
+        Row: {
+          id: string;
+          title: string;
+          subtitle: string | null;
+          slug: string | null;
+          description: string | null;
+          topic: string | null;
+          category: string | null;
+          level: string;
+          thumbnail_path: string | null;
+          cover_image_path: string | null;
+          duration_minutes: number | null;
+          estimated_completion_minutes: number | null;
+          status: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          title: string;
+          subtitle?: string | null;
+          slug?: string | null;
+          description?: string | null;
+          topic?: string | null;
+          category?: string | null;
+          level?: string;
+          thumbnail_path?: string | null;
+          cover_image_path?: string | null;
+          duration_minutes?: number | null;
+          estimated_completion_minutes?: number | null;
+          status?: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          title?: string;
+          subtitle?: string | null;
+          slug?: string | null;
+          description?: string | null;
+          topic?: string | null;
+          category?: string | null;
+          level?: string;
+          thumbnail_path?: string | null;
+          cover_image_path?: string | null;
+          duration_minutes?: number | null;
+          estimated_completion_minutes?: number | null;
+          status?: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      course_outcomes: {
+        Row: { id: string; course_id: string; position: number; outcome: string; created_at: string };
+        Insert: { id?: string; course_id: string; position?: number; outcome: string; created_at?: string };
+        Update: { id?: string; course_id?: string; position?: number; outcome?: string; created_at?: string };
+        Relationships: [];
+      };
+      course_faqs: {
+        Row: { id: string; course_id: string; position: number; question: string; answer: string; created_at: string };
+        Insert: { id?: string; course_id: string; position?: number; question: string; answer: string; created_at?: string };
+        Update: { id?: string; course_id?: string; position?: number; question?: string; answer?: string; created_at?: string };
+        Relationships: [];
+      };
+      course_sections: {
+        Row: { id: string; course_id: string; position: number; title: string; description: string | null; created_at: string; updated_at: string };
+        Insert: { id?: string; course_id: string; position?: number; title: string; description?: string | null; created_at?: string; updated_at?: string };
+        Update: { id?: string; course_id?: string; position?: number; title?: string; description?: string | null; created_at?: string; updated_at?: string };
+        Relationships: [];
+      };
+      course_items: {
+        Row: {
+          id: string;
+          course_id: string;
+          section_id: string | null;
+          position: number;
+          item_type: "LESSON" | "QUIZ" | "LEVEL_TEST" | "RESOURCE" | "EXTERNAL_LINK";
+          lesson_id: string | null;
+          quiz_id: string | null;
+          title: string | null;
+          description: string | null;
+          resource_url: string | null;
+          is_required: boolean;
+          is_free_preview: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          course_id: string;
+          section_id?: string | null;
+          position?: number;
+          item_type: "LESSON" | "QUIZ" | "LEVEL_TEST" | "RESOURCE" | "EXTERNAL_LINK";
+          lesson_id?: string | null;
+          quiz_id?: string | null;
+          title?: string | null;
+          description?: string | null;
+          resource_url?: string | null;
+          is_required?: boolean;
+          is_free_preview?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          course_id?: string;
+          section_id?: string | null;
+          position?: number;
+          item_type?: "LESSON" | "QUIZ" | "LEVEL_TEST" | "RESOURCE" | "EXTERNAL_LINK";
+          lesson_id?: string | null;
+          quiz_id?: string | null;
+          title?: string | null;
+          description?: string | null;
+          resource_url?: string | null;
+          is_required?: boolean;
+          is_free_preview?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      course_enrollments: {
+        Row: { id: string; user_id: string; course_id: string; status: "ACTIVE" | "COMPLETED" | "CANCELLED"; enrolled_at: string; completed_at: string | null };
+        Insert: { id?: string; user_id: string; course_id: string; status?: "ACTIVE" | "COMPLETED" | "CANCELLED"; enrolled_at?: string; completed_at?: string | null };
+        Update: { id?: string; user_id?: string; course_id?: string; status?: "ACTIVE" | "COMPLETED" | "CANCELLED"; enrolled_at?: string; completed_at?: string | null };
+        Relationships: [];
+      };
+      course_progress: {
+        Row: { id: string; user_id: string; course_id: string; current_item_id: string | null; completed_items: number; total_items: number; progress_percent: number; updated_at: string };
+        Insert: { id?: string; user_id: string; course_id: string; current_item_id?: string | null; completed_items?: number; total_items?: number; progress_percent?: number; updated_at?: string };
+        Update: { id?: string; user_id?: string; course_id?: string; current_item_id?: string | null; completed_items?: number; total_items?: number; progress_percent?: number; updated_at?: string };
+        Relationships: [];
+      };
+      course_item_progress: {
+        Row: { id: string; user_id: string; course_id: string; course_item_id: string; completed: boolean; completed_at: string | null; updated_at: string };
+        Insert: { id?: string; user_id: string; course_id: string; course_item_id: string; completed?: boolean; completed_at?: string | null; updated_at?: string };
+        Update: { id?: string; user_id?: string; course_id?: string; course_item_id?: string; completed?: boolean; completed_at?: string | null; updated_at?: string };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {

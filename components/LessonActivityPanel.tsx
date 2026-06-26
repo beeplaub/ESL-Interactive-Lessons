@@ -3,7 +3,8 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useState, useTransition } from "react";
 import { recordQuizAttempt } from "@/app/quizzes/actions";
-import { QuestionCard, hasAnswer, isCorrect, type QuizQuestion } from "@/components/QuizPlayer";
+import { QuestionCard, hasAnswer, type QuizQuestion } from "@/components/QuizPlayer";
+import { questionScore, questionTotal } from "@/lib/quizScoring";
 import type { Json } from "@/types/database.types";
 
 type LessonSlideActivity = {
@@ -15,10 +16,6 @@ type SavedAttempt = { score: number; total: number; answers: Json | null; comple
 function asRecord(value: Json | null | undefined): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>) : {};
-}
-
-function normalize(value: unknown) {
-  return String(value ?? "").trim().toLowerCase();
 }
 
 // Deterministic shuffle seeded by a string (the activity id), so the same learner sees a stable
@@ -103,6 +100,53 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
       question_type: "DRAG_DROP",
       question_text: String(data.prompt ?? "Move each item to the correct place."),
       options: { items: items.map(({ id, text }) => ({ id, text })), targets } as Json,
+      correct_answer: correctAnswer as Json,
+    }];
+  }
+  if (activityType === "CATEGORIZATION") {
+    if (Array.isArray(data.items)) {
+      const rawItems: unknown[] = data.items;
+      const items = rawItems.map((item, index) => {
+        const row = asRecord(item as Json);
+        return { id: String(row.id ?? index + 1), text: String(row.text ?? ""), target: String(row.target ?? "") };
+      });
+      const targets = Array.isArray(data.targets) && data.targets.length > 0
+        ? data.targets.map(String)
+        : Array.from(new Set(items.map((item) => item.target).filter(Boolean)));
+      const correctAnswer: Record<string, string> = {};
+      items.forEach((item) => { correctAnswer[item.id] = item.target; });
+      return [{
+        id: "1",
+        question_number: 1,
+        question_type: "CATEGORIZATION",
+        question_text: String(data.prompt ?? "Sort the items into the correct categories."),
+        options: { items: items.map(({ id, text }) => ({ id, text })), targets } as Json,
+        correct_answer: correctAnswer as Json,
+      }];
+    }
+    const rawCategories: unknown[] = Array.isArray(data.categories) ? data.categories : [];
+    const categories = rawCategories.map((category, index) => {
+      const row = asRecord(category as Json);
+      return {
+        name: String(row.name ?? `Category ${index + 1}`),
+        items: Array.isArray(row.items) ? row.items.map(String).filter(Boolean) : [],
+      };
+    });
+    const items = categories.flatMap((category, categoryIndex) =>
+      category.items.map((item, itemIndex) => ({
+        id: `${categoryIndex + 1}-${itemIndex + 1}`,
+        text: item,
+        target: category.name,
+      })),
+    );
+    const correctAnswer: Record<string, string> = {};
+    items.forEach((item) => { correctAnswer[item.id] = item.target; });
+    return [{
+      id: "1",
+      question_number: 1,
+      question_type: "CATEGORIZATION",
+      question_text: String(data.prompt ?? "Sort the items into the correct categories."),
+      options: { items: seededShuffle(items.map(({ id, text }) => ({ id, text })), seed), targets: categories.map((category) => category.name) } as Json,
       correct_answer: correctAnswer as Json,
     }];
   }
@@ -250,40 +294,9 @@ function activityLabel(type: string) {
   if (type === "MULTIPLE_SELECT") return "Multiple Select";
   if (type === "SHORT_ANSWER") return "Short Answer";
   if (type === "DRAG_DROP") return "Drag and Drop";
+  if (type === "CATEGORIZATION") return "Categorization";
   if (type === "PRONUNCIATION") return "Pronunciation Practice";
   return "Activity";
-}
-
-function questionScore(question: QuizQuestion, answer: unknown): number {
-  if (question.question_type === "DRAG_DROP") {
-    const correct = asRecord(question.correct_answer);
-    const given = asRecord(answer as Json);
-    return Object.keys(correct).filter((itemId) => normalize(given[itemId]) === normalize(correct[itemId])).length;
-  }
-  if (question.question_type === "FILL") {
-    const correct = Array.isArray(question.correct_answer) ? question.correct_answer : [question.correct_answer];
-    const given = Array.isArray(answer) ? answer : [answer];
-    return correct.filter((c, i) => normalize(given[i]) === normalize(c)).length;
-  }
-  if (question.question_type === "PRONUNCIATION") {
-    const targetIds = Array.isArray(question.correct_answer) ? question.correct_answer.map(String) : [];
-    const results = asRecord(asRecord(answer as Json).results as Json);
-    return targetIds.filter((id) => results[id] === true).length;
-  }
-  if (!isCorrect(question, answer)) return 0;
-  return 1;
-}
-
-function questionTotal(question: QuizQuestion): number {
-  if (question.question_type === "DRAG_DROP") {
-    return Object.keys(asRecord(question.correct_answer)).length || 1;
-  }
-  if (question.question_type === "PRONUNCIATION") {
-    return (Array.isArray(question.correct_answer) ? question.correct_answer.length : 0) || 1;
-  }
-  return question.question_type === "FILL"
-    ? (Array.isArray(question.correct_answer) ? question.correct_answer.length : 1)
-    : 1;
 }
 
 export function LessonActivityPanel({

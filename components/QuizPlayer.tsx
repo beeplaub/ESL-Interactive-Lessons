@@ -7,11 +7,12 @@ import { recordQuizAttempt } from "@/app/quizzes/actions";
 import { GuestScorePopup, type PendingAttempt } from "@/components/GuestScorePopup";
 import type { Json } from "@/types/database.types";
 import { getSpeechRecognitionConstructor, transcriptContainsTarget } from "@/lib/speechRecognition";
+import { asRecord, isCorrect, partialCreditStats, questionScore, questionTotal } from "@/lib/quizScoring";
 
 export type QuizQuestion = {
   id: string;
   question_number: number;
-  question_type: "MCQ" | "TRUE_FALSE" | "FILL" | "MATCHING" | "ERROR_CORRECTION" | "REORDERING" | "MULTIPLE_SELECT" | "SHORT_ANSWER" | "DRAG_DROP" | "PRONUNCIATION";
+  question_type: "MCQ" | "TRUE_FALSE" | "FILL" | "MATCHING" | "ERROR_CORRECTION" | "REORDERING" | "MULTIPLE_SELECT" | "SHORT_ANSWER" | "DRAG_DROP" | "CATEGORIZATION" | "PRONUNCIATION";
   question_text: string;
   description?: string | null;
   options: Json | null;
@@ -28,108 +29,6 @@ type PronunciationValue = {
   results: Record<string, boolean>;
   attemptsUsed: Record<string, number>;
 };
-
-function asRecord(value: Json | null | undefined): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
-}
-
-function normalize(value: unknown) {
-  return String(value ?? "").trim().toLowerCase();
-}
-
-function partialCreditStats(question: QuizQuestion, value: unknown): { correctCount: number; total: number } | null {
-  if (question.question_type === "DRAG_DROP") {
-    const correct = asRecord(question.correct_answer);
-    const given = asRecord(value as Json);
-    const keys = Object.keys(correct);
-    const correctCount = keys.filter((itemId) => normalize(given[itemId]) === normalize(correct[itemId])).length;
-    return { correctCount, total: keys.length };
-  }
-  if (question.question_type === "FILL") {
-    const correct = Array.isArray(question.correct_answer) ? question.correct_answer : [question.correct_answer];
-    const given = Array.isArray(value) ? value : [value];
-    const correctCount = correct.filter((c, i) => normalize(given[i]) === normalize(c)).length;
-    return { correctCount, total: correct.length };
-  }
-  if (question.question_type === "PRONUNCIATION") {
-    const targetIds = Array.isArray(question.correct_answer) ? question.correct_answer.map(String) : [];
-    const results = asRecord((value as { results?: Json })?.results ?? {});
-    const correctCount = targetIds.filter((id) => results[id] === true).length;
-    return { correctCount, total: targetIds.length };
-  }
-  return null;
-}
-
-export function isCorrect(question: QuizQuestion, value: unknown): boolean {
-  if (question.question_type === "MCQ") {
-    return normalize(value) === normalize(question.correct_answer);
-  }
-  if (question.question_type === "TRUE_FALSE") {
-    return value === question.correct_answer;
-  }
-  if (question.question_type === "FILL") {
-    const correct = Array.isArray(question.correct_answer) ? question.correct_answer : [question.correct_answer];
-    const given = Array.isArray(value) ? value : [value];
-    return correct.every((c, i) => normalize(given[i]) === normalize(c));
-  }
-  if (question.question_type === "MATCHING") {
-    if (Array.isArray(question.correct_answer)) {
-      const pairs = question.correct_answer as Array<{ a: number; b: string }>;
-      const given = asRecord(value as Json);
-      return pairs.every((pair) => {
-        const selected = String(given[String(pair.a)] ?? "").trim().toUpperCase();
-        const expected = String(pair.b ?? "").trim().toUpperCase();
-        return selected === expected;
-      });
-    }
-    const correct = asRecord(question.correct_answer);
-    const given = asRecord(value as Json);
-    return Object.entries(correct).every(([k, v]) => normalize(given[k]) === normalize(v));
-  }
-  if (question.question_type === "ERROR_CORRECTION") {
-    const opts = asRecord(question.options);
-    const mode = String(opts.mode ?? "rewrite");
-    const correct = asRecord(question.correct_answer);
-    const given = asRecord(value as Json);
-    const correctionMatches = normalize(given.correction) === normalize(correct.correction);
-    if (mode === "spot_and_fix") {
-      const spanMatches = normalize(given.selected_span) === normalize(correct.error_span);
-      return spanMatches && correctionMatches;
-    }
-    return correctionMatches;
-  }
-  if (question.question_type === "REORDERING") {
-    const correctOrder = Array.isArray(question.correct_answer) ? question.correct_answer.map(String) : [];
-    const given = Array.isArray(value) ? value.map(String) : [];
-    if (given.length !== correctOrder.length) return false;
-    return correctOrder.every((id, i) => given[i] === id);
-  }
-  if (question.question_type === "MULTIPLE_SELECT") {
-    const correct = Array.isArray(question.correct_answer) ? question.correct_answer.map((v) => normalize(v)) : [];
-    const given = Array.isArray(value) ? value.map((v) => normalize(v)) : [];
-    if (given.length !== correct.length) return false;
-    const correctSet = new Set(correct);
-    return given.every((v) => correctSet.has(v));
-  }
-  if (question.question_type === "SHORT_ANSWER") {
-    const given = asRecord(value as Json);
-    return given.selfMarked === true;
-  }
-  if (question.question_type === "DRAG_DROP") {
-    const correct = asRecord(question.correct_answer);
-    const given = asRecord(value as Json);
-    const keys = Object.keys(correct);
-    if (keys.length === 0) return false;
-    return keys.every((itemId) => normalize(given[itemId]) === normalize(correct[itemId]));
-  }
-  if (question.question_type === "PRONUNCIATION") {
-    const targetIds = Array.isArray(question.correct_answer) ? question.correct_answer.map(String) : [];
-    if (targetIds.length === 0) return false;
-    const results = asRecord((value as { results?: Json })?.results ?? {});
-    return targetIds.every((id) => results[id] === true);
-  }
-  return false;
-}
 
 export function hasAnswer(question: QuizQuestion, value: unknown): boolean {
   if (value === undefined || value === null) return false;
@@ -170,7 +69,7 @@ export function hasAnswer(question: QuizQuestion, value: unknown): boolean {
     }
     return true;
   }
-  if (question.question_type === "DRAG_DROP") {
+  if (question.question_type === "DRAG_DROP" || question.question_type === "CATEGORIZATION") {
     const correct = asRecord(question.correct_answer);
     const given = asRecord(value as Json);
     const keys = Object.keys(correct);
@@ -338,15 +237,17 @@ export function QuizPlayer({
   const attemptStartRef = useRef(Date.now());
   const [isPending, startTransition] = useTransition();
   const answered = questions.every((question) => hasAnswer(question, answers[question.id]));
-  const score = submitted ? questions.filter((question) => isCorrect(question, answers[question.id])).length : 0;
+  const totalPoints = questions.reduce((sum, question) => sum + questionTotal(question), 0);
+  const currentScore = questions.reduce((sum, question) => sum + questionScore(question, answers[question.id]), 0);
+  const score = submitted ? currentScore : 0;
   const currentQuestion = questions[currentIndex];
   const currentAnswered = currentQuestion ? hasAnswer(currentQuestion, answers[currentQuestion.id]) : false;
   const answeredCount = questions.filter((question) => hasAnswer(question, answers[question.id])).length;
   const progressPercent = questions.length ? Math.round((answeredCount / questions.length) * 100) : 0;
   const encouragement = submitted
-    ? score >= questions.length * 0.8
+      ? score >= totalPoints * 0.8
       ? "Excellent control. You’re building real accuracy."
-      : score >= questions.length * 0.5
+      : score >= totalPoints * 0.5
       ? "Good effort. Review the red answers and your next attempt will be sharper."
       : "This is useful data, not failure. Learn from the corrections and try again."
     : currentIndex === 0
@@ -404,20 +305,21 @@ export function QuizPlayer({
 
   const submit = useCallback(() => {
     if (submitted) return;
-    const finalScore = questions.filter((question) => isCorrect(question, answers[question.id])).length;
+    const finalScore = questions.reduce((sum, question) => sum + questionScore(question, answers[question.id]), 0);
+    const finalTotal = questions.reduce((sum, question) => sum + questionTotal(question), 0);
     const finalTimeTakenSeconds = Math.max(0, Math.round((Date.now() - attemptStartRef.current) / 1000));
     setSubmitted(true);
     if (isGuest) {
-      setGuestAttempt({ quizId, score: finalScore, total: questions.length, answers: answers as Record<string, unknown> });
+      setGuestAttempt({ quizId, score: finalScore, total: finalTotal, answers: answers as Record<string, unknown> });
       setShowPopup(true);
       return;
     }
     startTransition(async () => {
       try {
-        await recordQuizAttempt({ quizId, score: finalScore, total: questions.length, answers, timeTakenSeconds: finalTimeTakenSeconds });
+        await recordQuizAttempt({ quizId, score: finalScore, total: finalTotal, answers, timeTakenSeconds: finalTimeTakenSeconds });
         setAllAttempts((prev) => [
           ...prev,
-          { score: finalScore, total: questions.length, completedAt: new Date().toISOString() }
+          { score: finalScore, total: finalTotal, completedAt: new Date().toISOString() }
         ]);
         setMessage("Quiz attempt saved.");
       } catch (error) {
@@ -472,9 +374,9 @@ export function QuizPlayer({
 
       {submitted ? (
         <div className="rounded-2xl border border-moss/20 bg-moss/10 p-5 text-moss shadow-sm transition-all duration-300">
-          <p className="text-xl font-semibold">Score: {score} out of {questions.length}</p>
+          <p className="text-xl font-semibold">Score: {score} out of {totalPoints}</p>
           <p className="mt-1 text-sm opacity-75">
-            {Math.round((score / questions.length) * 100)}% — {encouragement}
+            {Math.round((score / Math.max(1, totalPoints)) * 100)}% — {encouragement}
           </p>
           {timerMinutes ? <p className="mt-1 text-xs opacity-70">Time used: {formatTime(timeTakenSeconds)}</p> : null}
           {isGuest ? (
@@ -491,7 +393,7 @@ export function QuizPlayer({
 
       {/* Score history — also shown after submitting, now including the new attempt */}
       {submitted && allAttempts.length > 0 && (
-        <ScoreHistory attempts={allAttempts} total={questions.length} />
+        <ScoreHistory attempts={allAttempts} total={totalPoints} />
       )}
 
       <div
@@ -583,7 +485,7 @@ export function QuizPlayer({
       {message ? <p className="text-center text-sm text-black/55">{message}</p> : null}
     </div>
     {showPopup && guestAttempt ? (
-      <GuestScorePopup score={score} total={questions.length} attempt={guestAttempt} onDismiss={() => setShowPopup(false)} />
+      <GuestScorePopup score={score} total={totalPoints} attempt={guestAttempt} onDismiss={() => setShowPopup(false)} />
     ) : null}
     </>
   );
@@ -601,7 +503,7 @@ export function QuestionCard({
   onChange: (value: unknown) => void;
 }) {
   const isSelfChecked = question.question_type === "SHORT_ANSWER";
-  const isPartialCredit = question.question_type === "DRAG_DROP" || question.question_type === "FILL" || question.question_type === "PRONUNCIATION";
+  const isPartialCredit = question.question_type === "DRAG_DROP" || question.question_type === "CATEGORIZATION" || question.question_type === "FILL" || question.question_type === "PRONUNCIATION";
   const stats = isPartialCredit && submitted ? partialCreditStats(question, value) : null;
   const correct = submitted && !isSelfChecked && !isPartialCredit ? isCorrect(question, value) : false;
   const wrong = submitted && !isSelfChecked && !isPartialCredit && !correct;
@@ -630,7 +532,7 @@ export function QuestionCard({
         {question.question_type === "REORDERING" ? <Reordering question={question} value={value as string[] | undefined} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "MULTIPLE_SELECT" ? <MultipleSelect question={question} value={value as string[] | undefined} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "SHORT_ANSWER" ? <ShortAnswer question={question} value={value as { text?: string; selfMarked?: boolean } | undefined} submitted={submitted} onChange={onChange} /> : null}
-        {question.question_type === "DRAG_DROP" ? <DragDrop question={question} value={(value as Record<string, string>) ?? {}} disabled={submitted} onChange={onChange} /> : null}
+        {question.question_type === "DRAG_DROP" || question.question_type === "CATEGORIZATION" ? <DragDrop question={question} value={(value as Record<string, string>) ?? {}} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "PRONUNCIATION" ? <Pronunciation question={question} value={value as PronunciationValue | undefined} disabled={submitted} onChange={onChange} /> : null}
       </div>
       {stats && stats.correctCount < stats.total ? (
