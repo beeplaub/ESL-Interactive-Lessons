@@ -53,7 +53,7 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
               </p>
               {user ? (
                 isEnrolled ? (
-                  <Link href="#curriculum" className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-md bg-moss px-4 py-3 text-sm font-semibold text-white">
+                  <Link href={`/courses/${course.id}/learn`} className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-md bg-moss px-4 py-3 text-sm font-semibold text-white">
                     Continue course <ArrowRight size={16} />
                   </Link>
                 ) : (

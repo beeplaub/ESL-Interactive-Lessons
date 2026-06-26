@@ -148,7 +148,7 @@ export default async function AccountPage() {
                 const progress = courseProgressByCourse.get(item.course_id);
                 return (
                   <CarouselItem key={item.id}>
-                    <Link href={`/courses/${item.course_id}`} className="flex h-full flex-col rounded-lg border border-black/10 bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
+                    <Link href={`/courses/${item.course_id}/learn`} className="flex h-full flex-col rounded-lg border border-black/10 bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
                       <span className="self-start rounded-full bg-skywash px-2 py-1 text-xs font-medium text-ink">{course?.level ?? "Course"}</span>
                       <p className="mt-3 font-semibold leading-snug">{course?.title ?? "Course"}</p>
                       <div className="mt-auto pt-4">
