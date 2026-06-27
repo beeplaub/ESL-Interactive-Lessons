@@ -1,19 +1,39 @@
-do $$
-begin
-  if exists (
+create or replace function public.is_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
     select 1
-    from pg_type t
-    join pg_namespace n on n.oid = t.typnamespace
-    where n.nspname = 'public'
-      and t.typname = 'user_role'
-  ) then
-    alter type public.user_role add value if not exists 'TEACHER';
-    alter type public.user_role add value if not exists 'SCHOOL_ADMIN';
-  else
-    alter table public.profiles
-      alter column role type text using role::text;
-  end if;
+    from public.profiles
+    where id = auth.uid()
+      and role::text = 'ADMIN'
+  );
+$$;
+
+do $$
+declare
+  constraint_name text;
+begin
+  for constraint_name in
+    select con.conname
+    from pg_constraint con
+    join pg_class rel on rel.oid = con.conrelid
+    join pg_namespace nsp on nsp.oid = rel.relnamespace
+    where nsp.nspname = 'public'
+      and rel.relname = 'profiles'
+      and con.contype = 'c'
+      and pg_get_constraintdef(con.oid) ilike '%role%'
+  loop
+    execute format('alter table public.profiles drop constraint if exists %I', constraint_name);
+  end loop;
 end $$;
+
+alter table public.profiles
+  add constraint profiles_role_check
+  check (role::text in ('ADMIN', 'LEARNER', 'TEACHER', 'SCHOOL_ADMIN'));
 
 create table if not exists public.organizations (
   id uuid primary key default gen_random_uuid(),
@@ -102,7 +122,7 @@ using (
   public.is_admin()
   or exists (
     select 1 from public.organization_members m
-    where m.organization_id = id and m.user_id = auth.uid()
+    where m.organization_id = public.organizations.id and m.user_id = auth.uid()
   )
 );
 
@@ -127,7 +147,7 @@ using (
   or teacher_id = auth.uid()
   or exists (
     select 1 from public.class_members m
-    where m.class_id = id and m.user_id = auth.uid()
+    where m.class_id = public.classes.id and m.user_id = auth.uid()
   )
 );
 

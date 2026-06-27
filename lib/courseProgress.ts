@@ -70,6 +70,12 @@ export async function recalculateCourseProgress(userId: string, courseId: string
       .update({ status: "COMPLETED", completed_at: new Date().toISOString() })
       .eq("user_id", userId)
       .eq("course_id", courseId);
+    await admin.from("course_certificates").upsert({
+      user_id: userId,
+      course_id: courseId,
+      certificate_code: `BRN-${courseId.slice(0, 8).toUpperCase()}-${userId.slice(0, 8).toUpperCase()}`,
+      issued_at: new Date().toISOString(),
+    }, { onConflict: "user_id,course_id" });
   } else {
     await admin
       .from("course_enrollments")

@@ -627,6 +627,12 @@ export type Database = {
         };
         Relationships: [];
       };
+      course_certificates: {
+        Row: { id: string; user_id: string; course_id: string; certificate_code: string; issued_at: string };
+        Insert: { id?: string; user_id: string; course_id: string; certificate_code: string; issued_at?: string };
+        Update: { id?: string; user_id?: string; course_id?: string; certificate_code?: string; issued_at?: string };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {

@@ -42,3 +42,24 @@ export async function createClass(formData: FormData) {
   if (error) throw new Error(error.message);
   revalidatePath("/admin/organizations");
 }
+
+export async function createClassAssignment(formData: FormData) {
+  const { user } = await requireAdmin();
+  const classId = String(formData.get("classId") || "");
+  const itemType = String(formData.get("itemType") || "COURSE") as "COURSE" | "LESSON" | "QUIZ" | "LEVEL_TEST";
+  if (!classId) return;
+  const admin = createAdminClient();
+  const { error } = await admin.from("class_assignments").insert({
+    class_id: classId,
+    item_type: itemType,
+    course_id: itemType === "COURSE" ? String(formData.get("courseId") || "") || null : null,
+    lesson_id: itemType === "LESSON" ? String(formData.get("lessonId") || "") || null : null,
+    quiz_id: itemType === "QUIZ" ? String(formData.get("quizId") || "") || null : null,
+    title: String(formData.get("title") || "").trim() || null,
+    due_at: String(formData.get("dueAt") || "") || null,
+    required_score: Number(formData.get("requiredScore") || "") || null,
+    created_by: user.id,
+  });
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/organizations");
+}

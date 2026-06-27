@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
-import { ArrowRight, BadgeCheck, BookOpen, ClipboardList, Flame, GraduationCap, Heart, LogOut, Trophy, UserRound } from "lucide-react";
+import { ArrowRight, BadgeCheck, BookOpen, ClipboardList, Flame, GraduationCap, Heart, LogOut, ScrollText, Trophy, UserRound } from "lucide-react";
 import { signOut, switchToAdminView } from "@/app/auth/actions";
 import { requireUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -31,14 +31,16 @@ export default async function AccountPage() {
   const isAdminLearnerView = profile?.role === "ADMIN" && cookieStore.get("view_mode")?.value === "learner";
   const adminSupabase = createAdminClient();
 
-  const [{ data: quizAttempts }, { data: wishlistItems }, { data: lessonProgress }, { data: savedLessons }, { data: leaderboardPoints }, { data: courseEnrollments }, { data: courseProgress }] = await Promise.all([
+  const [{ data: quizAttempts }, { data: wishlistItems }, { data: lessonProgress }, { data: savedLessons }, { data: leaderboardPoints }, { data: courseEnrollments }, { data: courseProgress }, { data: classMemberships }, { data: certificates }] = await Promise.all([
     adminSupabase.from("quiz_attempts").select("*, quizzes(title, level)").eq("user_id", user.id).not("quiz_id", "is", null).order("completed_at", { ascending: false }),
     adminSupabase.from("wishlist_items").select("*, quizzes(title, topic, level)").eq("user_id", user.id).not("quiz_id", "is", null).order("created_at", { ascending: false }),
     adminSupabase.from("lesson_progress").select("*, lessons(title, topic, level)").eq("user_id", user.id).order("updated_at", { ascending: false }),
     adminSupabase.from("wishlist_items").select("*, lessons(title, topic, level)").eq("user_id", user.id).not("lesson_id", "is", null).order("created_at", { ascending: false }),
     adminSupabase.from("quiz_leaderboard_points").select("points").eq("user_id", user.id),
     adminSupabase.from("course_enrollments").select("*, courses(title, level, topic)").eq("user_id", user.id).order("enrolled_at", { ascending: false }),
-    adminSupabase.from("course_progress").select("*").eq("user_id", user.id)
+    adminSupabase.from("course_progress").select("*").eq("user_id", user.id),
+    adminSupabase.from("class_members").select("*, classes(name, class_assignments(*, courses(title), lessons(title), quizzes(title)))").eq("user_id", user.id),
+    adminSupabase.from("course_certificates").select("*, courses(title, level)").eq("user_id", user.id).order("issued_at", { ascending: false })
   ]);
 
   const activityDates = (quizAttempts ?? []).filter((a) => a.completed_at).map((a) => toDateKey(new Date(a.completed_at)));
@@ -49,6 +51,23 @@ export default async function AccountPage() {
   const currentBadge = getQuizBadge(totalQuizPoints);
   const nextBadge = getNextQuizBadge(totalQuizPoints);
   const courseProgressByCourse = new Map((courseProgress ?? []).map((item) => [item.course_id, item]));
+  type AccountAssignment = {
+    id: string;
+    item_type: string;
+    course_id: string | null;
+    lesson_id: string | null;
+    quiz_id: string | null;
+    title: string | null;
+    due_at: string | null;
+    courses?: { title?: string | null } | null;
+    lessons?: { title?: string | null } | null;
+    quizzes?: { title?: string | null } | null;
+    className: string;
+  };
+  const assignments: AccountAssignment[] = (classMemberships ?? []).flatMap((membership) => {
+    const klass = membership.classes as { name?: string | null; class_assignments?: Array<Omit<AccountAssignment, "className">> } | null;
+    return (klass?.class_assignments ?? []).map((assignment) => ({ ...assignment, className: klass?.name ?? "Class" }));
+  });
 
   return (
     <main className="mx-auto w-full max-w-6xl overflow-hidden px-4 py-8">
@@ -104,6 +123,7 @@ export default async function AccountPage() {
       <section className="mt-5 grid gap-4 sm:grid-cols-2 md:grid-cols-3">
         <StatCard icon={ClipboardList} label="Quizzes completed" value={(quizAttempts ?? []).length} />
         <StatCard icon={GraduationCap} label="Courses enrolled" value={(courseEnrollments ?? []).length} />
+        <StatCard icon={ScrollText} label="Certificates" value={(certificates ?? []).length} />
         <StatCard icon={BookOpen} label="Lessons completed" value={(lessonProgress ?? []).filter((i) => i.completed).length} />
         <StatCard icon={Trophy} label="Saved quizzes" value={(wishlistItems ?? []).length} />
         <StreakCard streak={streak} />
@@ -161,6 +181,42 @@ export default async function AccountPage() {
                   </CarouselItem>
                 );
               })}
+            </HorizontalCarousel>
+          </Panel>
+          <Panel title="Assignments" icon={ScrollText}>
+            <HorizontalCarousel empty={<EmptyState text="No class assignments yet." href="/courses" label="Browse courses" />}>
+              {assignments.map((assignment) => {
+                const href = assignment.item_type === "COURSE" && assignment.course_id
+                  ? `/courses/${assignment.course_id}/learn`
+                  : assignment.item_type === "LESSON" && assignment.lesson_id
+                    ? `/lessons/${assignment.lesson_id}`
+                    : assignment.item_type === "QUIZ" && assignment.quiz_id
+                      ? `/quizzes/${assignment.quiz_id}`
+                      : "/level-test";
+                const title = assignment.title || assignment.courses?.title || assignment.lessons?.title || assignment.quizzes?.title || assignment.item_type.replaceAll("_", " ");
+                return (
+                  <CarouselItem key={assignment.id}>
+                    <Link href={href} className="flex h-full flex-col rounded-lg border border-black/10 bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
+                      <span className="self-start rounded-full bg-skywash px-2 py-1 text-xs font-medium text-ink">{assignment.className}</span>
+                      <p className="mt-3 font-semibold leading-snug">{title}</p>
+                      <p className="mt-auto pt-4 text-sm text-black/55">{assignment.due_at ? `Due ${new Date(assignment.due_at).toLocaleDateString()}` : "No due date"}</p>
+                    </Link>
+                  </CarouselItem>
+                );
+              })}
+            </HorizontalCarousel>
+          </Panel>
+          <Panel title="Certificates" icon={BadgeCheck}>
+            <HorizontalCarousel empty={<EmptyState text="Complete a course to earn a certificate." href="/courses" label="Browse courses" />}>
+              {(certificates ?? []).map((certificate) => (
+                <CarouselItem key={certificate.id}>
+                  <Link href={`/courses/${certificate.course_id}`} className="flex h-full flex-col rounded-lg border border-moss/20 bg-moss/5 p-4 shadow-sm transition-shadow hover:shadow-md">
+                    <span className="self-start rounded-full bg-moss/10 px-2 py-1 text-xs font-medium text-moss">Certificate</span>
+                    <p className="mt-3 font-semibold leading-snug">{certificate.courses?.title ?? "Course"}</p>
+                    <p className="mt-auto pt-4 text-xs text-black/55">{certificate.certificate_code}<br />Issued {new Date(certificate.issued_at).toLocaleDateString()}</p>
+                  </Link>
+                </CarouselItem>
+              ))}
             </HorizontalCarousel>
           </Panel>
           <Panel title="Current lessons" icon={BookOpen}>
