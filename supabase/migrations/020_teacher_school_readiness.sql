@@ -1,5 +1,19 @@
-alter type public.user_role add value if not exists 'TEACHER';
-alter type public.user_role add value if not exists 'SCHOOL_ADMIN';
+do $$
+begin
+  if exists (
+    select 1
+    from pg_type t
+    join pg_namespace n on n.oid = t.typnamespace
+    where n.nspname = 'public'
+      and t.typname = 'user_role'
+  ) then
+    alter type public.user_role add value if not exists 'TEACHER';
+    alter type public.user_role add value if not exists 'SCHOOL_ADMIN';
+  else
+    alter table public.profiles
+      alter column role type text using role::text;
+  end if;
+end $$;
 
 create table if not exists public.organizations (
   id uuid primary key default gen_random_uuid(),
