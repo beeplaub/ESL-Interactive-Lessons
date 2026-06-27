@@ -7,7 +7,6 @@ import { signOut } from "@/app/auth/actions";
 
 const links = [
   { href: "/courses", label: "Courses" },
-  { href: "/lessons", label: "Lessons" },
   { href: "/quizzes", label: "Quizzes" },
   { href: "/leaderboard", label: "Leaderboard" },
   { href: "/level-test", label: "Level Test" }

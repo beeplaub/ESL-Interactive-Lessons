@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { FormEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Copy, Eye, Plus, Settings, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Copy, Eye, Library, Plus, Settings, Trash2, X } from "lucide-react";
 import {
   addBuilderSlideAt,
   addLessonBlock,
@@ -444,6 +444,9 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
           <p className="mt-1 text-sm text-black/55">Build slides, preview the learner view, and edit the selected slide.</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Link href="/admin/content-library?type=LESSON_BLOCK" className="inline-flex items-center gap-2 rounded-md border border-black/15 bg-white px-4 py-2 text-sm font-medium hover:bg-black/5">
+            <Library size={16} /> Content library
+          </Link>
           <form action={updateLessonStatus.bind(null, lesson.id, lesson.status === "PUBLISHED" ? "DRAFT" : "PUBLISHED")} data-busy-message={lesson.status === "PUBLISHED" ? "Unpublishing..." : "Publishing..."}>
             <button className={`inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold ${lesson.status === "PUBLISHED" ? "border border-black/15 bg-white text-ink hover:bg-black/5" : "bg-moss text-white"}`}>
               {lesson.status === "PUBLISHED" ? "Unpublish" : "Publish lesson"}

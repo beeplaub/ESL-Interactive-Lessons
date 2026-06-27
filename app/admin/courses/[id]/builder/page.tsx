@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowDown, ArrowLeft, ArrowUp, Eye, Plus, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowUp, Eye, Library, Plus, Trash2 } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   addCourseFaq,
@@ -74,6 +74,7 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
             <p className="mt-1 text-sm text-black/55">Build the course landing page and curriculum from existing BrenUp lessons and quizzes.</p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <Link href="/admin/content-library?type=COURSE_TEMPLATE" className="inline-flex items-center gap-2 rounded-md border border-black/15 px-4 py-2 text-sm font-semibold"><Library size={15} /> Content library</Link>
             {course.status === "PUBLISHED" ? (
               <form action={setCourseStatus.bind(null, course.id, "DRAFT")}><button className="rounded-md border border-black/15 px-4 py-2 text-sm font-semibold">Unpublish</button></form>
             ) : (

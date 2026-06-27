@@ -298,6 +298,99 @@ export type Database = {
           }
         ];
       };
+      content_library_items: {
+        Row: {
+          id: string;
+          item_type: "QUESTION" | "ACTIVITY" | "LESSON_BLOCK" | "SLIDE" | "LESSON" | "COURSE_TEMPLATE";
+          title: string;
+          description: string | null;
+          level: string | null;
+          skill: string | null;
+          topic: string | null;
+          activity_type: string | null;
+          source_type: string;
+          source_id: string | null;
+          source_parent_id: string | null;
+          source_title: string | null;
+          source_metadata: Json;
+          content_snapshot: Json;
+          created_by: string | null;
+          organization_id: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          item_type: "QUESTION" | "ACTIVITY" | "LESSON_BLOCK" | "SLIDE" | "LESSON" | "COURSE_TEMPLATE";
+          title: string;
+          description?: string | null;
+          level?: string | null;
+          skill?: string | null;
+          topic?: string | null;
+          activity_type?: string | null;
+          source_type: string;
+          source_id?: string | null;
+          source_parent_id?: string | null;
+          source_title?: string | null;
+          source_metadata?: Json;
+          content_snapshot: Json;
+          created_by?: string | null;
+          organization_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          item_type?: "QUESTION" | "ACTIVITY" | "LESSON_BLOCK" | "SLIDE" | "LESSON" | "COURSE_TEMPLATE";
+          title?: string;
+          description?: string | null;
+          level?: string | null;
+          skill?: string | null;
+          topic?: string | null;
+          activity_type?: string | null;
+          source_type?: string;
+          source_id?: string | null;
+          source_parent_id?: string | null;
+          source_title?: string | null;
+          source_metadata?: Json;
+          content_snapshot?: Json;
+          created_by?: string | null;
+          organization_id?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      content_reuse_events: {
+        Row: {
+          id: string;
+          library_item_id: string;
+          copied_by: string | null;
+          destination_type: string;
+          destination_id: string | null;
+          destination_parent_id: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          library_item_id: string;
+          copied_by?: string | null;
+          destination_type: string;
+          destination_id?: string | null;
+          destination_parent_id?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          library_item_id?: string;
+          copied_by?: string | null;
+          destination_type?: string;
+          destination_id?: string | null;
+          destination_parent_id?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       lesson_progress: {
         Row: {
           id: string;

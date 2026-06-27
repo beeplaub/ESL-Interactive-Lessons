@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowDown, ArrowUp, Clock3, Copy, Edit3, Eye, FileText, Library, Search, Trash2, X } from "lucide-react";
 import { saveQuizBuilder } from "@/app/admin/quizzes/actions";
@@ -403,6 +404,9 @@ export function QuizVisualBuilder({
             <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-moss">{questions.length} question{questions.length !== 1 ? "s" : ""} · {totalPoints} total point{totalPoints !== 1 ? "s" : ""}</p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <Link href="/admin/content-library?type=QUESTION" className="inline-flex items-center gap-2 rounded-md border border-black/15 px-3 py-2 text-sm font-medium hover:bg-black/5">
+              <Library size={15} /> Content library
+            </Link>
             <button type="button" onClick={() => setParseOpen(true)} className="inline-flex items-center gap-2 rounded-md border border-black/15 px-3 py-2 text-sm font-medium hover:bg-black/5">
               <FileText size={15} /> Parse text
             </button>

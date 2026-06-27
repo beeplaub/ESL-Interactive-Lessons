@@ -10,6 +10,7 @@ import {
   ClipboardList,
   FlaskConical,
   GraduationCap,
+  Library,
   LogOut,
   UsersRound,
 } from "lucide-react";
@@ -21,6 +22,7 @@ const links = [
   { href: "/admin/analytics", label: "Analytics", Icon: BarChart3 },
   { href: "/admin/organizations", label: "Organizations", Icon: Building2 },
   { href: "/admin/courses", label: "Courses", Icon: GraduationCap },
+  { href: "/admin/content-library", label: "Content Library", Icon: Library },
   { href: "/admin/lessons", label: "Lessons", Icon: BookOpen },
   { href: "/admin/quizzes", label: "Quizzes", Icon: ClipboardList },
   { href: "/admin/users", label: "Users", Icon: UsersRound },
