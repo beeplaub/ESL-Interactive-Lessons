@@ -31,6 +31,7 @@ export async function createCourse(formData: FormData) {
       description: String(formData.get("description") || "").trim() || null,
       slug: `${baseSlug}-${Date.now().toString(36)}`,
       created_by: user.id,
+      owner_id: user.id,
       status: "DRAFT",
     })
     .select("id")
@@ -77,6 +78,7 @@ export async function updateCourseMetadata(courseId: string, formData: FormData)
       description: String(formData.get("description") || "").trim() || null,
       estimated_completion_minutes: Number(formData.get("estimatedCompletionMinutes") || "") || null,
       duration_minutes: Number(formData.get("durationMinutes") || "") || null,
+      organization_id: String(formData.get("organizationId") || "") || null,
       updated_at: new Date().toISOString(),
     })
     .eq("id", courseId);

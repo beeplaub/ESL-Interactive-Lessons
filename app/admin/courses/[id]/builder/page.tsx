@@ -45,7 +45,7 @@ type CourseItem = {
 export default async function CourseBuilderPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const admin = createAdminClient();
-  const [{ data: course }, { data: outcomes }, { data: faqs }, { data: sections }, { data: items }, { data: lessons }, { data: quizzes }] = await Promise.all([
+  const [{ data: course }, { data: outcomes }, { data: faqs }, { data: sections }, { data: items }, { data: lessons }, { data: quizzes }, { data: organizations }] = await Promise.all([
     admin.from("courses").select("*").eq("id", id).maybeSingle(),
     admin.from("course_outcomes").select("*").eq("course_id", id).order("position", { ascending: true }),
     admin.from("course_faqs").select("*").eq("course_id", id).order("position", { ascending: true }),
@@ -53,6 +53,7 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
     admin.from("course_items").select("*, lessons(title,level), quizzes(title,level)").eq("course_id", id).order("position", { ascending: true }),
     admin.from("lessons").select("id,title,level,status").order("created_at", { ascending: false }),
     admin.from("quizzes").select("id,title,level,status").order("created_at", { ascending: false }),
+    admin.from("organizations").select("id,name").order("name", { ascending: true }),
   ]);
 
   if (!course) notFound();
@@ -95,6 +96,12 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
                 <label className="text-sm font-medium">Topic<input name="topic" defaultValue={course.topic ?? ""} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm" /></label>
                 <label className="text-sm font-medium">Category<input name="category" defaultValue={course.category ?? ""} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm" /></label>
               </div>
+              <label className="text-sm font-medium">Organization
+                <select name="organizationId" defaultValue={course.organization_id ?? ""} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm">
+                  <option value="">Platform course</option>
+                  {(organizations ?? []).map((org) => <option key={org.id} value={org.id}>{org.name}</option>)}
+                </select>
+              </label>
               <div className="grid gap-3 sm:grid-cols-3">
                 <label className="text-sm font-medium">Level<select name="level" defaultValue={course.level} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm">{levels.map((level) => <option key={level}>{level}</option>)}</select></label>
                 <label className="text-sm font-medium">Study Time<input name="estimatedCompletionMinutes" type="number" min="0" defaultValue={course.estimated_completion_minutes ?? ""} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm" /></label>

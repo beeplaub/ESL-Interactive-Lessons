@@ -5,12 +5,14 @@ import { z } from "zod";
 import { requireAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+export type AdminAssignableRole = "ADMIN" | "LEARNER" | "TEACHER" | "SCHOOL_ADMIN";
+
 const createUserSchema = z.object({
   firstName: z.string().min(1),
   lastName: z.string().optional(),
   email: z.string().email(),
   password: z.string().min(6),
-  role: z.enum(["ADMIN", "LEARNER"])
+  role: z.enum(["ADMIN", "LEARNER", "TEACHER", "SCHOOL_ADMIN"])
 });
 
 export async function createUserManually(formData: FormData) {
@@ -36,7 +38,7 @@ export async function createUserManually(formData: FormData) {
   revalidatePath("/admin/users");
 }
 
-export async function updateUserRole(userId: string, role: "ADMIN" | "LEARNER") {
+export async function updateUserRole(userId: string, role: AdminAssignableRole) {
   await requireAdmin();
   const admin = createAdminClient();
   await admin.from("profiles").update({ role }).eq("id", userId);

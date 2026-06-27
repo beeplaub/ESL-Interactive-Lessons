@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   BarChart3,
   BookOpen,
+  Building2,
   ChevronLeft,
   ClipboardList,
   FlaskConical,
@@ -18,6 +19,7 @@ import { signOut, switchToLearnerView } from "@/app/auth/actions";
 const links = [
   { href: "/admin", label: "Overview", Icon: BarChart3 },
   { href: "/admin/analytics", label: "Analytics", Icon: BarChart3 },
+  { href: "/admin/organizations", label: "Organizations", Icon: Building2 },
   { href: "/admin/courses", label: "Courses", Icon: GraduationCap },
   { href: "/admin/lessons", label: "Lessons", Icon: BookOpen },
   { href: "/admin/quizzes", label: "Quizzes", Icon: ClipboardList },

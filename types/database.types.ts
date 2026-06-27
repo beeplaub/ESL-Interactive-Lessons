@@ -23,7 +23,7 @@ export type Database = {
           first_name: string | null;
           last_name: string | null;
           avatar_url: string | null;
-          role: "ADMIN" | "LEARNER";
+          role: "ADMIN" | "LEARNER" | "TEACHER" | "SCHOOL_ADMIN";
           cefr_level: "A1" | "A2" | "B1" | "B2" | "C1" | "C2" | null;
           created_at: string;
           updated_at: string;
@@ -34,7 +34,7 @@ export type Database = {
           first_name?: string | null;
           last_name?: string | null;
           avatar_url?: string | null;
-          role?: "ADMIN" | "LEARNER";
+          role?: "ADMIN" | "LEARNER" | "TEACHER" | "SCHOOL_ADMIN";
           cefr_level?: "A1" | "A2" | "B1" | "B2" | "C1" | "C2" | null;
           created_at?: string;
           updated_at?: string;
@@ -44,7 +44,7 @@ export type Database = {
           first_name?: string | null;
           last_name?: string | null;
           avatar_url?: string | null;
-          role?: "ADMIN" | "LEARNER";
+          role?: "ADMIN" | "LEARNER" | "TEACHER" | "SCHOOL_ADMIN";
           cefr_level?: "A1" | "A2" | "B1" | "B2" | "C1" | "C2" | null;
           updated_at?: string;
         };
@@ -427,6 +427,8 @@ export type Database = {
           estimated_completion_minutes: number | null;
           status: "DRAFT" | "PUBLISHED" | "ARCHIVED";
           created_by: string | null;
+          owner_id: string | null;
+          organization_id: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -445,6 +447,8 @@ export type Database = {
           estimated_completion_minutes?: number | null;
           status?: "DRAFT" | "PUBLISHED" | "ARCHIVED";
           created_by?: string | null;
+          owner_id?: string | null;
+          organization_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -463,6 +467,8 @@ export type Database = {
           estimated_completion_minutes?: number | null;
           status?: "DRAFT" | "PUBLISHED" | "ARCHIVED";
           created_by?: string | null;
+          owner_id?: string | null;
+          organization_id?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -555,6 +561,72 @@ export type Database = {
         Update: { id?: string; user_id?: string; course_id?: string; course_item_id?: string; completed?: boolean; completed_at?: string | null; updated_at?: string };
         Relationships: [];
       };
+      organizations: {
+        Row: { id: string; name: string; slug: string | null; description: string | null; created_by: string | null; created_at: string; updated_at: string };
+        Insert: { id?: string; name: string; slug?: string | null; description?: string | null; created_by?: string | null; created_at?: string; updated_at?: string };
+        Update: { id?: string; name?: string; slug?: string | null; description?: string | null; created_by?: string | null; created_at?: string; updated_at?: string };
+        Relationships: [];
+      };
+      organization_members: {
+        Row: { id: string; organization_id: string; user_id: string; role: "OWNER" | "SCHOOL_ADMIN" | "TEACHER" | "STUDENT" | "MEMBER"; created_at: string };
+        Insert: { id?: string; organization_id: string; user_id: string; role?: "OWNER" | "SCHOOL_ADMIN" | "TEACHER" | "STUDENT" | "MEMBER"; created_at?: string };
+        Update: { id?: string; organization_id?: string; user_id?: string; role?: "OWNER" | "SCHOOL_ADMIN" | "TEACHER" | "STUDENT" | "MEMBER"; created_at?: string };
+        Relationships: [];
+      };
+      classes: {
+        Row: { id: string; organization_id: string | null; name: string; description: string | null; level: string | null; teacher_id: string | null; status: "ACTIVE" | "ARCHIVED"; created_by: string | null; created_at: string; updated_at: string };
+        Insert: { id?: string; organization_id?: string | null; name: string; description?: string | null; level?: string | null; teacher_id?: string | null; status?: "ACTIVE" | "ARCHIVED"; created_by?: string | null; created_at?: string; updated_at?: string };
+        Update: { id?: string; organization_id?: string | null; name?: string; description?: string | null; level?: string | null; teacher_id?: string | null; status?: "ACTIVE" | "ARCHIVED"; created_by?: string | null; created_at?: string; updated_at?: string };
+        Relationships: [];
+      };
+      class_members: {
+        Row: { id: string; class_id: string; user_id: string; role: "TEACHER" | "STUDENT"; joined_at: string };
+        Insert: { id?: string; class_id: string; user_id: string; role?: "TEACHER" | "STUDENT"; joined_at?: string };
+        Update: { id?: string; class_id?: string; user_id?: string; role?: "TEACHER" | "STUDENT"; joined_at?: string };
+        Relationships: [];
+      };
+      class_assignments: {
+        Row: {
+          id: string;
+          class_id: string;
+          item_type: "COURSE" | "LESSON" | "QUIZ" | "LEVEL_TEST";
+          course_id: string | null;
+          lesson_id: string | null;
+          quiz_id: string | null;
+          title: string | null;
+          due_at: string | null;
+          required_score: number | null;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          class_id: string;
+          item_type: "COURSE" | "LESSON" | "QUIZ" | "LEVEL_TEST";
+          course_id?: string | null;
+          lesson_id?: string | null;
+          quiz_id?: string | null;
+          title?: string | null;
+          due_at?: string | null;
+          required_score?: number | null;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          class_id?: string;
+          item_type?: "COURSE" | "LESSON" | "QUIZ" | "LEVEL_TEST";
+          course_id?: string | null;
+          lesson_id?: string | null;
+          quiz_id?: string | null;
+          title?: string | null;
+          due_at?: string | null;
+          required_score?: number | null;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -564,7 +636,7 @@ export type Database = {
       };
     };
     Enums: {
-      user_role: "ADMIN" | "LEARNER";
+      user_role: "ADMIN" | "LEARNER" | "TEACHER" | "SCHOOL_ADMIN";
       lesson_status: "DRAFT" | "PUBLISHED";
     };
     CompositeTypes: Record<string, never>;

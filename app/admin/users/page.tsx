@@ -36,7 +36,9 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
           <input name="lastName" placeholder="Last Name" className="rounded-md border border-black/15 px-3 py-2" />
           <input name="email" type="email" placeholder="Email" required className="rounded-md border border-black/15 px-3 py-2" />
           <input name="password" type="password" placeholder="Password" required className="rounded-md border border-black/15 px-3 py-2" />
-          <select name="role" className="rounded-md border border-black/15 px-3 py-2"><option value="LEARNER">Learner</option><option value="ADMIN">Admin</option></select>
+          <select name="role" className="rounded-md border border-black/15 px-3 py-2">
+            <RoleOptions />
+          </select>
           <button className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white">Add user</button>
         </form>
       </section>
@@ -62,8 +64,11 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
                 <td className="p-3">{attemptCounts.get(profile.id) ?? 0}</td>
                 <td className="p-3">
                   <div className="flex gap-2">
-                    <form action={async () => { "use server"; await updateUserRole(profile.id, profile.role === "ADMIN" ? "LEARNER" : "ADMIN"); }}>
-                      <button className="rounded-md border border-black/15 px-3 py-2 text-xs">{profile.role === "ADMIN" ? "Demote" : "Promote"}</button>
+                    <form action={async (formData) => { "use server"; await updateUserRole(profile.id, String(formData.get("role")) as "ADMIN" | "LEARNER" | "TEACHER" | "SCHOOL_ADMIN"); }}>
+                      <select name="role" defaultValue={profile.role} className="rounded-md border border-black/15 px-3 py-2 text-xs" aria-label={`Change role for ${profile.full_name ?? "user"}`}>
+                        <RoleOptions />
+                      </select>
+                      <button className="ml-2 rounded-md border border-black/15 px-3 py-2 text-xs">Save</button>
                     </form>
                     <form action={async () => { "use server"; await deleteUser(profile.id); }}>
                       <button className="rounded-md border border-coral/30 p-2 text-coral"><Trash2 size={16} /></button>
@@ -76,5 +81,16 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
         </table>
       </div>
     </main>
+  );
+}
+
+function RoleOptions() {
+  return (
+    <>
+      <option value="LEARNER">Learner</option>
+      <option value="TEACHER">Teacher</option>
+      <option value="SCHOOL_ADMIN">School Admin</option>
+      <option value="ADMIN">Admin</option>
+    </>
   );
 }
