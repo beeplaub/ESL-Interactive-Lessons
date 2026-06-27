@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { completeCourseItemsForContent } from "@/lib/courseProgress";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -69,6 +70,10 @@ export async function POST(
   const result = await saveProgress(admin, existing, payload);
   if (result.error) {
     return NextResponse.json({ error: result.error.message }, { status: 500 });
+  }
+
+  if (payload.completed) {
+    await completeCourseItemsForContent(user.id, { kind: "LESSON", id: lessonId });
   }
 
   return NextResponse.json({ progress: result.data });

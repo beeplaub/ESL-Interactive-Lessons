@@ -1,0 +1,86 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { ArrowLeft, BarChart3 } from "lucide-react";
+import { createAdminClient } from "@/lib/supabase/admin";
+
+export default async function CourseAnalyticsPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const admin = createAdminClient();
+  const [
+    { data: course },
+    { data: enrollments },
+    { data: progressRows },
+    { data: profiles },
+    usersResult,
+  ] = await Promise.all([
+    admin.from("courses").select("id,title,status").eq("id", id).maybeSingle(),
+    admin.from("course_enrollments").select("*").eq("course_id", id).order("enrolled_at", { ascending: false }),
+    admin.from("course_progress").select("*").eq("course_id", id),
+    admin.from("profiles").select("id,full_name,first_name,last_name"),
+    admin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
+  ]);
+
+  if (!course) notFound();
+
+  const progressByUser = new Map((progressRows ?? []).map((row) => [row.user_id, row]));
+  const profileByUser = new Map((profiles ?? []).map((profile) => [profile.id, profile]));
+  const emailByUser = new Map((usersResult.data.users ?? []).map((user) => [user.id, user.email ?? ""]));
+  const completed = (enrollments ?? []).filter((item) => item.status === "COMPLETED").length;
+  const averageProgress = progressRows?.length
+    ? Math.round(progressRows.reduce((sum, row) => sum + row.progress_percent, 0) / progressRows.length)
+    : 0;
+
+  return (
+    <main className="min-w-0 overflow-hidden">
+      <Link href="/admin/analytics" className="inline-flex items-center gap-1 text-sm text-black/55 hover:text-black"><ArrowLeft size={15} /> Analytics</Link>
+      <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-moss">Course report</p>
+          <h1 className="mt-1 text-2xl font-semibold sm:text-3xl">{course.title}</h1>
+        </div>
+        <Link href={`/admin/courses/${course.id}/builder`} className="rounded-md border border-black/15 px-3 py-2 text-sm font-semibold">Open builder</Link>
+      </div>
+
+      <section className="mt-5 grid gap-3 sm:grid-cols-3">
+        <Metric label="Enrollments" value={enrollments?.length ?? 0} />
+        <Metric label="Completed" value={completed} />
+        <Metric label="Average progress" value={`${averageProgress}%`} />
+      </section>
+
+      <section className="mt-6 overflow-hidden rounded-xl border border-black/10 bg-white shadow-sm">
+        <div className="hidden grid-cols-[1.2fr_1.3fr_0.7fr_0.8fr_0.8fr] gap-3 border-b border-black/10 bg-slate-50 p-3 text-xs font-semibold uppercase tracking-wide text-black/45 md:grid">
+          <span>Learner</span><span>Email</span><span>Status</span><span>Items</span><span>Progress</span>
+        </div>
+        <div className="divide-y divide-black/10">
+          {(enrollments ?? []).map((enrollment) => {
+            const profile = profileByUser.get(enrollment.user_id);
+            const progress = progressByUser.get(enrollment.user_id);
+            const name = profile?.full_name?.trim()
+              || [profile?.first_name, profile?.last_name].filter(Boolean).join(" ")
+              || "Learner";
+            return (
+              <div key={enrollment.id} className="grid gap-2 p-4 md:grid-cols-[1.2fr_1.3fr_0.7fr_0.8fr_0.8fr] md:items-center">
+                <span className="font-semibold">{name}</span>
+                <span className="min-w-0 truncate text-sm text-black/55">{emailByUser.get(enrollment.user_id) || "No email"}</span>
+                <span className="text-xs font-semibold text-black/55">{enrollment.status}</span>
+                <span className="text-sm">{progress?.completed_items ?? 0}/{progress?.total_items ?? 0}</span>
+                <span className="font-semibold text-moss">{progress?.progress_percent ?? 0}%</span>
+              </div>
+            );
+          })}
+          {(enrollments?.length ?? 0) === 0 ? <p className="p-6 text-center text-sm text-black/55">No learners enrolled yet.</p> : null}
+        </div>
+      </section>
+    </main>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: number | string }) {
+  return (
+    <div className="rounded-xl border border-black/10 bg-white p-5 shadow-sm">
+      <BarChart3 size={19} className="text-moss" />
+      <p className="mt-3 text-2xl font-semibold">{value}</p>
+      <p className="mt-1 text-sm text-black/55">{label}</p>
+    </div>
+  );
+}

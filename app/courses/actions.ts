@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
+import { recalculateCourseProgress } from "@/lib/courseProgress";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function enrollInCourse(courseId: string) {
@@ -71,38 +72,7 @@ export async function markCourseItemComplete(courseId: string, itemId: string) {
     updated_at: new Date().toISOString(),
   }, { onConflict: "user_id,course_item_id" });
 
-  const [{ count: totalRequired }, { count: completedRequired }] = await Promise.all([
-    admin.from("course_items").select("id", { count: "exact", head: true }).eq("course_id", courseId).eq("is_required", true),
-    admin
-      .from("course_item_progress")
-      .select("course_item_id, course_items!inner(is_required)", { count: "exact", head: true })
-      .eq("user_id", user.id)
-      .eq("course_id", courseId)
-      .eq("completed", true)
-      .eq("course_items.is_required", true),
-  ]);
-
-  const total = totalRequired ?? 0;
-  const completed = completedRequired ?? 0;
-  const percent = total ? Math.min(100, Math.round((completed / total) * 100)) : 0;
-
-  await admin.from("course_progress").upsert({
-    user_id: user.id,
-    course_id: courseId,
-    current_item_id: itemId,
-    total_items: total,
-    completed_items: completed,
-    progress_percent: percent,
-    updated_at: new Date().toISOString(),
-  }, { onConflict: "user_id,course_id" });
-
-  if (total > 0 && completed >= total) {
-    await admin
-      .from("course_enrollments")
-      .update({ status: "COMPLETED", completed_at: new Date().toISOString() })
-      .eq("user_id", user.id)
-      .eq("course_id", courseId);
-  }
+  await recalculateCourseProgress(user.id, courseId, itemId);
 
   revalidatePath("/account");
   revalidatePath(`/courses/${courseId}`);

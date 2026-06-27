@@ -1,6 +1,7 @@
 "use server";
 
 import { requireUser } from "@/lib/auth";
+import { completeCourseItemsForContent } from "@/lib/courseProgress";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Json } from "@/types/database.types";
 
@@ -34,5 +35,6 @@ export async function recordQuizAttempt(input: {
       points,
       reason: "QUIZ_COMPLETED"
     });
+    await completeCourseItemsForContent(user.id, { kind: "QUIZ", id: input.quizId });
   }
 }

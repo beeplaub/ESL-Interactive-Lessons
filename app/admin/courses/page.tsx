@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Archive, Eye, GraduationCap, Pencil, Plus, Trash2 } from "lucide-react";
+import { Archive, BarChart3, Eye, GraduationCap, Pencil, Plus, Trash2 } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createCourse, deleteCourse, setCourseStatus } from "@/app/admin/courses/actions";
 
@@ -58,6 +58,7 @@ export default async function AdminCoursesPage() {
               <span className="text-sm text-black/60">{enrollmentCounts.get(course.id) ?? 0}</span>
               <div className="flex flex-wrap gap-2">
                 <Link href={`/admin/courses/${course.id}/builder`} className="inline-flex items-center gap-1 rounded-md border border-black/15 px-2.5 py-1.5 text-xs font-semibold hover:bg-black/5"><Pencil size={13} /> Edit</Link>
+                <Link href={`/admin/courses/${course.id}/analytics`} className="inline-flex items-center gap-1 rounded-md border border-black/15 px-2.5 py-1.5 text-xs font-semibold hover:bg-black/5"><BarChart3 size={13} /> Analytics</Link>
                 {course.status === "PUBLISHED" ? (
                   <form action={setCourseStatus.bind(null, course.id, "DRAFT")}><button className="inline-flex items-center gap-1 rounded-md border border-black/15 px-2.5 py-1.5 text-xs font-semibold hover:bg-black/5"><Archive size={13} /> Unpublish</button></form>
                 ) : (

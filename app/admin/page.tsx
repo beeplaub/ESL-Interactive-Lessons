@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BookOpen, ClipboardList, FlaskConical, GraduationCap, UsersRound } from "lucide-react";
+import { BarChart3, BookOpen, ClipboardList, FlaskConical, GraduationCap, UsersRound } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export default async function AdminPage() {
@@ -21,6 +21,7 @@ export default async function AdminPage() {
       </div>
       <section className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <AdminCard href="/admin/courses" icon={GraduationCap} label="Courses" value={courses?.length ?? 0} detail={`${countStatus(courses, "PUBLISHED")} published · ${countStatus(courses, "DRAFT")} draft`} />
+        <AdminCard href="/admin/analytics" icon={BarChart3} label="Analytics" value={attempts?.length ?? 0} detail="Courses, lessons and quizzes" />
         <AdminCard href="/admin/lessons" icon={BookOpen} label="Lessons" value={lessons?.length ?? 0} detail={`${countStatus(lessons, "PUBLISHED")} published · ${countStatus(lessons, "DRAFT")} draft`} />
         <AdminCard href="/admin/quizzes" icon={ClipboardList} label="Quizzes" value={quizzes?.length ?? 0} detail={`${countStatus(quizzes, "PUBLISHED")} published · ${countStatus(quizzes, "DRAFT")} draft`} />
         <AdminCard href="/admin/users" icon={UsersRound} label="Users" value={profiles?.length ?? 0} detail="Registered users" />
