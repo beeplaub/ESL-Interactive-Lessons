@@ -153,13 +153,13 @@ function ScoreHistory({ attempts, total }: { attempts: PastAttempt[]; total: num
   const latestPercent = total ? Math.round((latest.score / total) * 100) : 0;
 
   return (
-    <div className="mb-6 rounded-lg border border-black/10 bg-white p-5 shadow-sm">
+    <div className="mb-6 rounded-[20px] border border-[#ECECF5] bg-white p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)]">
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <TrendingUp size={16} className="text-moss" />
-          <h2 className="text-sm font-semibold">Your score history</h2>
+          <TrendingUp size={16} className="text-[#6C3BFF]" />
+          <h2 className="text-sm font-extrabold">Your score history</h2>
         </div>
-        <span className="text-xs text-black/45">{last5.length} attempt{last5.length !== 1 ? "s" : ""}</span>
+        <span className="text-xs text-[#6E738D]">{last5.length} attempt{last5.length !== 1 ? "s" : ""}</span>
       </div>
 
       {/* Bar chart */}
@@ -170,11 +170,11 @@ function ScoreHistory({ attempts, total }: { attempts: PastAttempt[]; total: num
           const isLatest = i === last5.length - 1;
           return (
             <div key={i} className="flex flex-1 flex-col items-center gap-1">
-              <span className="text-xs font-medium text-black/55">{attempt.score}</span>
+              <span className="text-xs font-medium text-[#6E738D]">{attempt.score}</span>
               <div className="w-full rounded-t-sm" style={{
                 height: `${Math.max(percent, 6)}%`,
                 maxHeight: "100%",
-                backgroundColor: isLatest ? "var(--color-moss, #4a7c59)" : isBest ? "var(--color-moss, #4a7c59)" : undefined,
+                backgroundColor: isLatest ? "#6C3BFF" : isBest ? "#00C98D" : undefined,
                 opacity: isLatest ? 1 : 0.35,
                 background: isLatest
                   ? undefined
@@ -189,7 +189,7 @@ function ScoreHistory({ attempts, total }: { attempts: PastAttempt[]; total: num
       <div className="mt-1 flex gap-2">
         {last5.map((attempt, i) => (
           <div key={i} className="flex-1 text-center">
-            <span className="text-xs text-black/35">
+            <span className="text-xs text-[#A0A5BA]">
               {new Date(attempt.completedAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
             </span>
           </div>
@@ -197,14 +197,14 @@ function ScoreHistory({ attempts, total }: { attempts: PastAttempt[]; total: num
       </div>
 
       {/* Summary line */}
-      <div className="mt-3 flex items-center gap-3 border-t border-black/8 pt-3 text-xs text-black/55">
-        <span>Latest: <strong className={latestPercent >= 80 ? "text-moss" : latestPercent >= 50 ? "text-ink" : "text-coral"}>{latest.score}/{total} ({latestPercent}%)</strong></span>
+      <div className="mt-3 flex items-center gap-3 border-t border-[#ECECF5] pt-3 text-xs text-[#6E738D]">
+        <span>Latest: <strong className={latestPercent >= 80 ? "text-[#00A977]" : latestPercent >= 50 ? "text-[#14172B]" : "text-[#FF5D73]"}>{latest.score}/{total} ({latestPercent}%)</strong></span>
         <span>·</span>
-        <span>Best: <strong className="text-ink">{best}/{total}</strong></span>
+        <span>Best: <strong className="text-[#14172B]">{best}/{total}</strong></span>
         {last5.length >= 2 && last5[last5.length - 1].score > last5[last5.length - 2].score && (
           <>
             <span>·</span>
-            <span className="text-moss font-medium">↑ Improving!</span>
+            <span className="text-[#00A977] font-medium">↑ Improving!</span>
           </>
         )}
       </div>
@@ -352,38 +352,40 @@ export function QuizPlayer({
         <ScoreHistory attempts={allAttempts} total={questions.length} />
       )}
 
-      <div className="rounded-2xl border border-black/10 bg-white p-4 shadow-sm">
+      <div className="rounded-[20px] border border-[#ECECF5] bg-white p-4 shadow-[0_12px_32px_rgba(0,0,0,.06)] sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-moss">Question {currentIndex + 1} of {questions.length}</p>
-            <p className="mt-1 inline-flex items-center gap-2 text-sm text-black/55"><Sparkles size={15} className="text-moss" /> {encouragement}</p>
+            <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#6C3BFF]">Question {currentIndex + 1} of {questions.length}</p>
+            <p className="mt-1 inline-flex items-center gap-2 text-sm font-semibold text-[#6E738D]"><Sparkles size={15} className="text-[#6C3BFF]" /> {encouragement}</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {remainingSeconds !== null ? (
-              <div className={`rounded-full px-3 py-1 text-sm font-semibold ${timerUrgent ? "bg-coral/10 text-coral" : "bg-moss/10 text-moss"}`}>
+              <div className={`rounded-full px-3 py-1.5 text-sm font-extrabold ${timerUrgent ? "bg-[#FF5D73]/10 text-[#FF5D73]" : "bg-[#00C98D]/10 text-[#00A977]"}`}>
                 {formatTime(remainingSeconds)}
               </div>
             ) : null}
-            <div className="rounded-full bg-black/[0.04] px-3 py-1 text-sm font-semibold text-ink">{answeredCount}/{questions.length} answered</div>
+            <div className="rounded-full bg-[#F6F7FB] px-3 py-1.5 text-sm font-extrabold text-[#14172B]">{answeredCount}/{questions.length} answered</div>
           </div>
         </div>
-        <div className="mt-3 h-2 overflow-hidden rounded-full bg-black/10">
-          <div className="h-full rounded-full bg-moss transition-all duration-500" style={{ width: `${progressPercent}%` }} />
+        <div className="mt-4 h-2 overflow-hidden rounded-full bg-[#F6F7FB]">
+          <div className="h-full rounded-full bg-gradient-to-r from-[#6C3BFF] to-[#8A58FF] transition-all duration-500" style={{ width: `${progressPercent}%` }} />
         </div>
       </div>
 
       {submitted ? (
-        <div className="rounded-2xl border border-moss/20 bg-moss/10 p-5 text-moss shadow-sm transition-all duration-300">
-          <p className="text-xl font-semibold">Score: {score} out of {totalPoints}</p>
-          <p className="mt-1 text-sm opacity-75">
+        <div className="overflow-hidden rounded-[20px] border border-[#ECECF5] bg-white p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)] transition-all duration-300">
+          <div className="rounded-[18px] bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] p-5 text-white">
+          <p className="text-2xl font-extrabold">Score: {score} out of {totalPoints}</p>
+          <p className="mt-1 text-sm font-semibold text-white/75">
             {Math.round((score / Math.max(1, totalPoints)) * 100)}% — {encouragement}
           </p>
-          {timerMinutes ? <p className="mt-1 text-xs opacity-70">Time used: {formatTime(timeTakenSeconds)}</p> : null}
+          {timerMinutes ? <p className="mt-1 text-xs font-semibold text-white/65">Time used: {formatTime(timeTakenSeconds)}</p> : null}
+          </div>
           {isGuest ? (
             <button
               type="button"
               onClick={() => setShowPopup(true)}
-              className="mt-3 inline-flex items-center gap-2 rounded-md bg-moss px-4 py-2 text-sm font-semibold text-white"
+              className="mt-4 inline-flex items-center gap-2 rounded-[14px] bg-[#14172B] px-4 py-2.5 text-sm font-extrabold text-white"
             >
               Save this score →
             </button>
@@ -418,12 +420,12 @@ export function QuizPlayer({
         ) : null}
       </div>
 
-      <div className="flex flex-nowrap items-center justify-between gap-2 rounded-2xl border border-black/10 bg-white p-2.5 shadow-sm sm:gap-3 sm:p-3">
+      <div className="flex flex-nowrap items-center justify-between gap-2 rounded-[20px] border border-[#ECECF5] bg-white p-2.5 shadow-[0_12px_32px_rgba(0,0,0,.06)] sm:gap-3 sm:p-3">
         <button
           type="button"
           onClick={() => goToQuestion(currentIndex - 1)}
           disabled={currentIndex === 0}
-          className="inline-flex shrink-0 items-center gap-1 rounded-full border border-black/15 px-2.5 py-2 text-xs font-medium hover:bg-black/5 disabled:opacity-35 sm:gap-2 sm:px-4 sm:text-sm"
+          className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[#ECECF5] bg-[#F6F7FB] px-2.5 py-2 text-xs font-bold text-[#6E738D] hover:bg-white disabled:opacity-35 sm:gap-2 sm:px-4 sm:text-sm"
         >
           <ChevronLeft size={16} /> Previous
         </button>
@@ -439,10 +441,10 @@ export function QuizPlayer({
                 aria-label={`Go to question ${questionIndex + 1}`}
                 className={`${manyQuestions ? "size-1.5 sm:size-2" : "size-2 sm:size-2.5"} rounded-full transition-all ${
                   questionIndex === currentIndex
-                    ? manyQuestions ? "w-4 bg-ink sm:w-5" : "w-5 bg-ink sm:w-7"
+                    ? manyQuestions ? "w-4 bg-[#6C3BFF] sm:w-5" : "w-5 bg-[#6C3BFF] sm:w-7"
                     : done
-                    ? "bg-moss"
-                    : "bg-black/15 hover:bg-black/30"
+                    ? "bg-[#00C98D]"
+                    : "bg-[#D9DCE8] hover:bg-[#A0A5BA]"
                 }`}
               />
             );
@@ -452,14 +454,14 @@ export function QuizPlayer({
           type="button"
           onClick={() => goToQuestion(currentIndex + 1)}
           disabled={currentIndex === questions.length - 1}
-          className="inline-flex shrink-0 items-center gap-1 rounded-full bg-ink px-2.5 py-2 text-xs font-semibold text-white hover:bg-black disabled:opacity-35 sm:gap-2 sm:px-4 sm:text-sm"
+          className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#14172B] px-2.5 py-2 text-xs font-extrabold text-white hover:bg-[#6C3BFF] disabled:opacity-35 sm:gap-2 sm:px-4 sm:text-sm"
         >
           Next <ChevronRight size={16} />
         </button>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-black/10 bg-white p-4 shadow-sm">
-        <p className="text-sm text-black/60">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-[20px] border border-[#ECECF5] bg-white p-4 shadow-[0_12px_32px_rgba(0,0,0,.06)]">
+        <p className="text-sm font-semibold text-[#6E738D]">
           {submitted ? isGuest ? "Create a free account to save your score and track progress." : "Review each question with the dots above." : currentAnswered ? "Answered. Move on when ready." : "Answer this question, then continue."}
         </p>
         <div className="flex gap-2">
@@ -467,7 +469,7 @@ export function QuizPlayer({
             <button
               type="button"
               onClick={reset}
-              className="inline-flex items-center gap-2 rounded-md border border-black/15 px-4 py-2 text-sm font-medium"
+              className="inline-flex items-center gap-2 rounded-[14px] border border-[#ECECF5] bg-[#F6F7FB] px-4 py-2 text-sm font-bold text-[#6E738D]"
             >
               <RotateCcw size={16} /> Retake
             </button>
@@ -476,13 +478,13 @@ export function QuizPlayer({
             type="button"
             disabled={!answered || submitted}
             onClick={submit}
-            className="inline-flex items-center gap-2 rounded-md bg-moss px-4 py-2 text-sm font-semibold text-white disabled:opacity-45"
+            className="inline-flex items-center gap-2 rounded-[14px] bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] px-4 py-2 text-sm font-extrabold text-white shadow-[0_8px_20px_rgba(108,59,255,.25)] disabled:opacity-45"
           >
             <CheckCircle2 size={16} /> {isPending ? "Saving..." : "Submit"}
           </button>
         </div>
       </div>
-      {message ? <p className="text-center text-sm text-black/55">{message}</p> : null}
+      {message ? <p className="text-center text-sm font-semibold text-[#6E738D]">{message}</p> : null}
     </div>
     {showPopup && guestAttempt ? (
       <GuestScorePopup score={score} total={totalPoints} attempt={guestAttempt} onDismiss={() => setShowPopup(false)} />
@@ -511,19 +513,19 @@ export function QuestionCard({
   const allCorrect = Boolean(stats && stats.correctCount === stats.total);
   const allWrong = Boolean(stats && stats.correctCount === 0);
   const borderClass = correct || allCorrect
-    ? "border-moss"
+    ? "border-[#00C98D]"
     : partial
-    ? "border-amber-400"
+    ? "border-[#FFB545]"
     : wrong || allWrong
-    ? "border-coral"
-    : "border-black/10";
+    ? "border-[#FF5D73]"
+    : "border-[#ECECF5]";
   return (
-    <fieldset className={`rounded-lg border bg-white p-5 shadow-sm ${borderClass}`}>
-      <legend className="px-1 font-semibold">
-        {question.question_number}. {question.question_text}
+    <fieldset className={`rounded-[20px] border bg-white p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)] sm:p-6 ${borderClass}`}>
+      <legend className="px-2 text-lg font-extrabold leading-snug text-[#14172B] sm:text-xl">
+        <span className="mr-2 inline-grid size-8 place-items-center rounded-full bg-[#6C3BFF]/10 text-sm font-black text-[#6C3BFF]">{question.question_number}</span>{question.question_text}
       </legend>
-      {question.description ? <p className="mt-2 text-sm leading-6 text-black/55">{question.description}</p> : null}
-      <div className="mt-4">
+      {question.description ? <p className="mt-3 rounded-[14px] bg-[#F6F7FB] p-3 text-sm font-semibold leading-6 text-[#6E738D]">{question.description}</p> : null}
+      <div className="mt-5">
         {question.question_type === "MCQ" ? <Mcq question={question} value={value as string | undefined} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "TRUE_FALSE" ? <TrueFalse value={value as boolean | undefined} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "FILL" ? <Fill question={question} value={value as string[] | undefined} disabled={submitted} onChange={onChange} /> : null}
@@ -536,12 +538,12 @@ export function QuestionCard({
         {question.question_type === "PRONUNCIATION" ? <Pronunciation question={question} value={value as PronunciationValue | undefined} disabled={submitted} onChange={onChange} /> : null}
       </div>
       {stats && stats.correctCount < stats.total ? (
-        <p className={`mt-3 rounded-md p-3 text-sm ${allWrong ? "bg-coral/10 text-coral" : "bg-amber-50 text-amber-900"}`}>
+        <p className={`mt-4 rounded-[14px] p-3 text-sm font-semibold ${allWrong ? "bg-[#FF5D73]/10 text-[#FF5D73]" : "bg-[#FFB545]/10 text-amber-900"}`}>
           {stats.correctCount} of {stats.total} correct. Correct answer: {answerText(question)}
         </p>
       ) : null}
       {submitted && wrong ? (
-        <p className="mt-3 rounded-md bg-coral/10 p-3 text-sm text-coral">
+        <p className="mt-4 rounded-[14px] bg-[#FF5D73]/10 p-3 text-sm font-semibold text-[#FF5D73]">
           Correct answer: {answerText(question)}
         </p>
       ) : null}
@@ -554,9 +556,9 @@ function Mcq({ question, value, disabled, onChange }: { question: QuizQuestion; 
   return (
     <div className="grid gap-2">
       {Object.entries(options).map(([key, text]) => (
-        <label key={key} className="flex cursor-pointer items-center gap-3 rounded-md border border-black/10 px-3 py-2 text-sm">
+        <label key={key} className="flex cursor-pointer items-center gap-3 rounded-[14px] border border-[#ECECF5] bg-[#F6F7FB] px-3 py-3 text-sm font-semibold text-[#14172B] transition hover:bg-white">
           <input type="radio" disabled={disabled} checked={value === key} onChange={() => onChange(key)} />
-          <strong>{key}.</strong> {String(text)}
+          <strong className="text-[#6C3BFF]">{key}.</strong> {String(text)}
         </label>
       ))}
     </div>
@@ -571,11 +573,11 @@ function MultipleSelect({ question, value, disabled, onChange }: { question: Qui
   }
   return (
     <div className="grid gap-2">
-      <p className="text-xs text-black/45">Select all that apply.</p>
+      <p className="text-xs font-semibold text-[#6E738D]">Select all that apply.</p>
       {Object.entries(options).map(([key, text]) => (
-        <label key={key} className="flex cursor-pointer items-center gap-3 rounded-md border border-black/10 px-3 py-2 text-sm">
+        <label key={key} className="flex cursor-pointer items-center gap-3 rounded-[14px] border border-[#ECECF5] bg-[#F6F7FB] px-3 py-3 text-sm font-semibold text-[#14172B] transition hover:bg-white">
           <input type="checkbox" disabled={disabled} checked={selected.includes(key)} onChange={() => toggle(key)} />
-          <strong>{key}.</strong> {String(text)}
+          <strong className="text-[#6C3BFF]">{key}.</strong> {String(text)}
         </label>
       ))}
     </div>
@@ -584,9 +586,9 @@ function MultipleSelect({ question, value, disabled, onChange }: { question: Qui
 
 function TrueFalse({ value, disabled, onChange }: { value?: boolean; disabled: boolean; onChange: (value: boolean) => void }) {
   return (
-    <div className="flex gap-3">
+    <div className="grid gap-3 sm:grid-cols-2">
       {([true, false] as const).map((opt) => (
-        <label key={String(opt)} className="flex cursor-pointer items-center gap-2 rounded-md border border-black/10 px-4 py-2 text-sm">
+        <label key={String(opt)} className="flex cursor-pointer items-center justify-center gap-2 rounded-[14px] border border-[#ECECF5] bg-[#F6F7FB] px-4 py-3 text-sm font-extrabold transition hover:bg-white">
           <input type="radio" disabled={disabled} checked={value === opt} onChange={() => onChange(opt)} />
           {opt ? "True" : "False"}
         </label>
@@ -621,7 +623,7 @@ function Fill({ question, value, disabled, onChange }: { question: QuizQuestion;
             value={current[i] ?? ""}
             onChange={(e) => setAnswer(i, e.target.value)}
             placeholder={`Answer ${correct.length > 1 ? i + 1 : ""}`}
-            className="rounded-md border border-black/15 px-3 py-2 text-sm outline-none focus:border-moss"
+            className="rounded-[14px] border border-[#ECECF5] bg-[#F6F7FB] px-3 py-3 text-sm font-semibold outline-none focus:border-[#6C3BFF] focus:bg-white"
           />
         ))}
       </div>
@@ -629,7 +631,7 @@ function Fill({ question, value, disabled, onChange }: { question: QuizQuestion;
   }
 
   return (
-    <p className="rounded-md bg-slate-50 p-3 text-sm leading-8">
+    <p className="rounded-[14px] bg-[#F6F7FB] p-3 text-sm leading-8">
       {segments.map((segment, i) => (
         <span key={i}>
           {segment}
@@ -640,7 +642,7 @@ function Fill({ question, value, disabled, onChange }: { question: QuizQuestion;
               value={current[i] ?? ""}
               onChange={(e) => setAnswer(i, e.target.value)}
               size={Math.max(4, (String(correct[i] ?? "")).length + 2)}
-              className="mx-1 inline-block rounded border border-black/20 bg-white px-2 py-0.5 text-sm outline-none focus:border-moss"
+              className="mx-1 inline-block rounded border border-[#D9DCE8] bg-white px-2 py-0.5 text-sm outline-none focus:border-[#6C3BFF]"
             />
           ) : null}
         </span>
@@ -657,11 +659,11 @@ function Matching({ question, value, disabled, onChange }: { question: QuizQuest
   return (
     <div className="grid gap-3">
       {bItems.length > 0 && (
-        <div className="flex flex-wrap gap-2 rounded-md bg-slate-50 p-3 text-sm">
+        <div className="flex flex-wrap gap-2 rounded-[14px] bg-[#F6F7FB] p-3 text-sm">
           {bItems.map((item, i) => {
             const letter = String.fromCharCode(65 + i);
             return (
-              <span key={letter} className="rounded border border-black/10 bg-white px-2 py-1 text-xs">
+              <span key={letter} className="rounded border border-[#ECECF5] bg-white px-2 py-1 text-xs">
                 <strong>{letter}.</strong> {item}
               </span>
             );
@@ -675,7 +677,7 @@ function Matching({ question, value, disabled, onChange }: { question: QuizQuest
             disabled={disabled}
             value={value[key] ?? ""}
             onChange={(e) => onChange({ ...value, [key]: e.target.value })}
-            className="flex-1 rounded-md border border-black/15 px-2 py-1.5 text-sm outline-none focus:border-moss"
+            className="flex-1 rounded-[14px] border border-[#ECECF5] bg-[#F6F7FB] px-3 py-2 text-sm font-semibold outline-none focus:border-[#6C3BFF] focus:bg-white"
           >
             <option value="">Select...</option>
             {bItems.map((_, i) => {
@@ -739,10 +741,10 @@ function ErrorCorrection({
 
     return (
       <div className="grid gap-3">
-        <p className="text-xs text-black/45">
+        <p className="text-xs text-[#6E738D]">
           Click the word or words that are wrong, then type the fix.
         </p>
-        <div className="flex flex-wrap gap-1 rounded-md bg-slate-50 p-3 text-sm leading-7">
+        <div className="flex flex-wrap gap-1 rounded-[14px] bg-[#F6F7FB] p-3 text-sm leading-7">
           {words.map((word, i) => {
             const selected = selectedIndices.includes(i);
             return (
@@ -752,7 +754,7 @@ function ErrorCorrection({
                 disabled={disabled}
                 onClick={() => toggleWord(i)}
                 className={`rounded px-1 transition-colors ${
-                  selected ? "bg-coral/25 font-semibold text-ink" : "hover:bg-black/5"
+                  selected ? "bg-[#FF5D73]/20 font-semibold text-[#14172B]" : "hover:bg-white"
                 }`}
               >
                 {word}
@@ -761,8 +763,8 @@ function ErrorCorrection({
           })}
         </div>
         {selectedSpan ? (
-          <p className="text-xs text-black/45">
-            Selected: <span className="font-medium text-ink">&quot;{selectedSpan}&quot;</span>
+          <p className="text-xs text-[#6E738D]">
+            Selected: <span className="font-medium text-[#14172B]">&quot;{selectedSpan}&quot;</span>
           </p>
         ) : null}
         <input
@@ -771,7 +773,7 @@ function ErrorCorrection({
           value={value.correction ?? ""}
           onChange={(e) => onChange({ ...value, correction: e.target.value })}
           placeholder="Type the correction"
-          className="rounded-md border border-black/15 px-3 py-2 text-sm outline-none focus:border-moss"
+          className="rounded-[14px] border border-[#ECECF5] bg-[#F6F7FB] px-3 py-3 text-sm font-semibold outline-none focus:border-[#6C3BFF] focus:bg-white"
         />
       </div>
     );
@@ -779,14 +781,14 @@ function ErrorCorrection({
 
   return (
     <div className="grid gap-2">
-      <p className="rounded-md bg-slate-50 p-3 text-sm leading-6">{text}</p>
+      <p className="rounded-[14px] bg-[#F6F7FB] p-3 text-sm leading-6">{text}</p>
       <input
         type="text"
         disabled={disabled}
         value={value.correction ?? ""}
         onChange={(e) => onChange({ ...value, correction: e.target.value })}
         placeholder="Type the corrected sentence"
-        className="rounded-md border border-black/15 px-3 py-2 text-sm outline-none focus:border-moss"
+        className="rounded-[14px] border border-[#ECECF5] bg-[#F6F7FB] px-3 py-3 text-sm font-semibold outline-none focus:border-[#6C3BFF] focus:bg-white"
       />
     </div>
   );
@@ -840,7 +842,7 @@ function Reordering({
 
   if (isWordLevel) {
     return (
-      <div className="flex flex-wrap gap-2 rounded-md bg-slate-50 p-3">
+      <div className="flex flex-wrap gap-2 rounded-[14px] bg-[#F6F7FB] p-3">
         {order.map((id, i) => (
           <div
             key={id}
@@ -848,13 +850,13 @@ function Reordering({
             onDragStart={() => { dragIndex.current = i; }}
             onDragOver={(e) => e.preventDefault()}
             onDrop={() => { move(dragIndex.current, i); dragIndex.current = -1; }}
-            className="flex items-center gap-1 rounded-md border border-black/15 bg-white px-2 py-1 text-sm shadow-sm"
+            className="flex items-center gap-1 rounded-[14px] border border-[#ECECF5] bg-white px-2 py-1 text-sm shadow-sm"
           >
-            <button type="button" disabled={disabled || i === 0} onClick={() => move(i, i - 1)} className="text-black/40 hover:text-ink disabled:opacity-25" aria-label="Move left">
+            <button type="button" disabled={disabled || i === 0} onClick={() => move(i, i - 1)} className="text-[#6E738D] hover:text-[#14172B] disabled:opacity-25" aria-label="Move left">
               ←
             </button>
             <span className="cursor-grab select-none px-1">{byId.get(id) ?? ""}</span>
-            <button type="button" disabled={disabled || i === order.length - 1} onClick={() => move(i, i + 1)} className="text-black/40 hover:text-ink disabled:opacity-25" aria-label="Move right">
+            <button type="button" disabled={disabled || i === order.length - 1} onClick={() => move(i, i + 1)} className="text-[#6E738D] hover:text-[#14172B] disabled:opacity-25" aria-label="Move right">
               →
             </button>
           </div>
@@ -872,15 +874,15 @@ function Reordering({
           onDragStart={() => { dragIndex.current = i; }}
           onDragOver={(e) => e.preventDefault()}
           onDrop={() => { move(dragIndex.current, i); dragIndex.current = -1; }}
-          className="flex items-center gap-3 rounded-md border border-black/15 bg-white px-3 py-2 text-sm shadow-sm"
+          className="flex items-center gap-3 rounded-[14px] border border-[#ECECF5] bg-white px-3 py-2 text-sm shadow-sm"
         >
-          <span className="cursor-grab select-none text-black/30">⠿</span>
+          <span className="cursor-grab select-none text-[#A0A5BA]">⠿</span>
           <span className="flex-1">{byId.get(id) ?? ""}</span>
           <div className="flex gap-1">
-            <button type="button" disabled={disabled || i === 0} onClick={() => move(i, i - 1)} className="rounded border border-black/15 px-2 py-1 text-xs text-black/55 hover:bg-black/5 disabled:opacity-25" aria-label="Move up">
+            <button type="button" disabled={disabled || i === 0} onClick={() => move(i, i - 1)} className="rounded border border-[#ECECF5] px-2 py-1 text-xs text-[#6E738D] hover:bg-white disabled:opacity-25" aria-label="Move up">
               ↑
             </button>
-            <button type="button" disabled={disabled || i === order.length - 1} onClick={() => move(i, i + 1)} className="rounded border border-black/15 px-2 py-1 text-xs text-black/55 hover:bg-black/5 disabled:opacity-25" aria-label="Move down">
+            <button type="button" disabled={disabled || i === order.length - 1} onClick={() => move(i, i + 1)} className="rounded border border-[#ECECF5] px-2 py-1 text-xs text-[#6E738D] hover:bg-white disabled:opacity-25" aria-label="Move down">
               ↓
             </button>
           </div>
@@ -916,22 +918,22 @@ function ShortAnswer({
   if (submitted) {
     return (
       <div className="grid gap-3">
-        <div className="rounded-md bg-slate-50 p-3 text-sm leading-6 whitespace-pre-wrap">
-          {text || <span className="text-black/40">(No answer written)</span>}
+        <div className="rounded-[14px] bg-[#F6F7FB] p-3 text-sm leading-6 whitespace-pre-wrap">
+          {text || <span className="text-[#6E738D]">(No answer written)</span>}
         </div>
         {opts.sample_answer ? (
-          <div className="rounded-md border border-moss/30 bg-moss/5 p-3 text-sm leading-6">
-            <p className="mb-1 text-xs font-medium uppercase tracking-wide text-moss">Model answer</p>
+          <div className="rounded-[14px] border border-[#00C98D]/30 bg-[#00C98D]/5 p-3 text-sm leading-6">
+            <p className="mb-1 text-xs font-medium uppercase tracking-wide text-[#00A977]">Model answer</p>
             {opts.sample_answer}
           </div>
         ) : null}
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm text-black/55">How did you do?</span>
+          <span className="text-sm text-[#6E738D]">How did you do?</span>
           <button
             type="button"
             onClick={() => onChange({ text, selfMarked: true })}
-            className={`rounded-md border px-3 py-1.5 text-sm font-medium transition-colors ${
-              selfMarked === true ? "border-moss bg-moss/10 text-moss" : "border-black/15 text-black/60 hover:bg-black/5"
+            className={`rounded-[14px] border px-3 py-1.5 text-sm font-medium transition-colors ${
+              selfMarked === true ? "border-[#00C98D] bg-[#00C98D]/10 text-[#00A977]" : "border-[#ECECF5] text-[#6E738D] hover:bg-white"
             }`}
           >
             Got it
@@ -939,8 +941,8 @@ function ShortAnswer({
           <button
             type="button"
             onClick={() => onChange({ text, selfMarked: false })}
-            className={`rounded-md border px-3 py-1.5 text-sm font-medium transition-colors ${
-              selfMarked === false ? "border-coral bg-coral/10 text-coral" : "border-black/15 text-black/60 hover:bg-black/5"
+            className={`rounded-[14px] border px-3 py-1.5 text-sm font-medium transition-colors ${
+              selfMarked === false ? "border-[#FF5D73] bg-[#FF5D73]/10 text-[#FF5D73]" : "border-[#ECECF5] text-[#6E738D] hover:bg-white"
             }`}
           >
             Needs work
@@ -957,23 +959,23 @@ function ShortAnswer({
         value={text}
         onChange={(e) => onChange({ text: e.target.value, selfMarked: undefined })}
         placeholder="Write your answer..."
-        className="w-full rounded-md border border-black/15 px-3 py-2 text-sm outline-none focus:border-moss"
+        className="w-full rounded-[14px] border border-[#ECECF5] bg-[#F6F7FB] px-3 py-3 text-sm font-semibold outline-none focus:border-[#6C3BFF] focus:bg-white"
       />
       {minWords > 0 || requiredWords.length > 0 ? (
         <div className="flex flex-wrap items-center gap-3 text-xs">
           {minWords > 0 ? (
-            <span className={wordCount >= minWords ? "text-moss" : "text-black/45"}>
+            <span className={wordCount >= minWords ? "text-[#00A977]" : "text-[#6E738D]"}>
               {wordCount} / {minWords} words
             </span>
           ) : null}
           {requiredWords.length > 0 ? (
             <span className="flex flex-wrap items-center gap-1.5">
-              <span className="text-black/45">Use:</span>
+              <span className="text-[#6E738D]">Use:</span>
               {requiredWords.map((word) => (
                 <span
                   key={word}
                   className={`rounded-full border px-2 py-0.5 ${
-                    lowerText.includes(word.toLowerCase()) ? "border-moss bg-moss/10 text-moss" : "border-black/15 text-black/45"
+                    lowerText.includes(word.toLowerCase()) ? "border-[#00C98D] bg-[#00C98D]/10 text-[#00A977]" : "border-[#ECECF5] text-[#6E738D]"
                   }`}
                 >
                   {word}
@@ -984,7 +986,7 @@ function ShortAnswer({
         </div>
       ) : null}
       {!unmet.lengthOk || !unmet.wordsOk ? (
-        <p className="rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
+        <p className="rounded-[14px] border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
           {!unmet.lengthOk && !unmet.wordsOk
             ? `Write at least ${minWords} words and use all the required words above before you can check your answer.`
             : !unmet.lengthOk
@@ -1027,9 +1029,9 @@ function DragDrop({
 
   return (
     <div className="grid gap-4">
-      <div className="flex flex-wrap gap-2 rounded-md bg-slate-50 p-3 min-h-[3rem]">
+      <div className="flex flex-wrap gap-2 rounded-[14px] bg-[#F6F7FB] p-3 min-h-[3rem]">
         {unplacedItems.length === 0 ? (
-          <span className="text-xs text-black/40">All items placed.</span>
+          <span className="text-xs text-[#6E738D]">All items placed.</span>
         ) : (
           unplacedItems.map((item) => {
             const id = String(item.id);
@@ -1041,8 +1043,8 @@ function DragDrop({
                 draggable={!disabled}
                 onDragStart={() => { dragItemId.current = id; }}
                 onClick={() => setPicked(picked === id ? null : id)}
-                className={`rounded-md border px-3 py-1.5 text-sm shadow-sm transition-colors ${
-                  picked === id ? "border-moss bg-moss/10 text-moss" : "border-black/15 bg-white hover:bg-black/5"
+                className={`rounded-[14px] border px-3 py-1.5 text-sm shadow-sm transition-colors ${
+                  picked === id ? "border-[#00C98D] bg-[#00C98D]/10 text-[#00A977]" : "border-[#ECECF5] bg-white hover:bg-white"
                 }`}
               >
                 {String(item.text ?? "")}
@@ -1051,7 +1053,7 @@ function DragDrop({
           })
         )}
       </div>
-      {picked ? <p className="text-xs text-black/45">Now tap a box below to place it there.</p> : null}
+      {picked ? <p className="text-xs text-[#6E738D]">Now tap a box below to place it there.</p> : null}
       <div className="grid gap-2 sm:grid-cols-2">
         {targets.map((target) => {
           const placedItems = items.filter((item) => value[String(item.id)] === target);
@@ -1061,11 +1063,11 @@ function DragDrop({
               onDragOver={(e) => e.preventDefault()}
               onDrop={() => { if (dragItemId.current) { place(dragItemId.current, target); dragItemId.current = null; } }}
               onClick={() => { if (picked) place(picked, target); }}
-              className={`rounded-md border-2 border-dashed p-3 text-sm transition-colors ${
-                picked ? "cursor-pointer border-moss/40 hover:border-moss" : "border-black/15"
+              className={`rounded-[14px] border-2 border-dashed p-3 text-sm transition-colors ${
+                picked ? "cursor-pointer border-[#00C98D]/40 hover:border-[#00C98D]" : "border-[#ECECF5]"
               }`}
             >
-              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-black/45">{target}</p>
+              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[#6E738D]">{target}</p>
               {placedItems.length > 0 ? (
                 <div className="flex flex-wrap gap-1.5">
                   {placedItems.map((placedItem) => (
@@ -1074,14 +1076,14 @@ function DragDrop({
                       type="button"
                       disabled={disabled}
                       onClick={(e) => { e.stopPropagation(); unplace(String(placedItem.id)); }}
-                      className="rounded-md border border-moss/30 bg-moss/10 px-3 py-1.5 text-sm text-ink"
+                      className="rounded-[14px] border border-[#00C98D]/30 bg-[#00C98D]/10 px-3 py-1.5 text-sm text-[#14172B]"
                     >
-                      {String(placedItem.text ?? "")} <span className="text-black/40">×</span>
+                      {String(placedItem.text ?? "")} <span className="text-[#6E738D]">×</span>
                     </button>
                   ))}
                 </div>
               ) : (
-                <span className="text-xs text-black/30">Empty</span>
+                <span className="text-xs text-[#A0A5BA]">Empty</span>
               )}
             </div>
           );
@@ -1208,7 +1210,7 @@ function Pronunciation({
 
   if (!supported) {
     return (
-      <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+      <div className="flex items-start gap-2 rounded-[14px] border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
         <AlertCircle size={16} className="mt-0.5 shrink-0" />
         <span>Speech recognition isn&apos;t supported in this browser. Try Chrome or Edge on a desktop or Android device.</span>
       </div>
@@ -1217,7 +1219,7 @@ function Pronunciation({
 
   if (micState === "denied") {
     return (
-      <div className="flex items-start gap-2 rounded-md border border-coral/30 bg-coral/10 p-3 text-sm text-coral">
+      <div className="flex items-start gap-2 rounded-[14px] border border-[#FF5D73]/30 bg-[#FF5D73]/10 p-3 text-sm text-[#FF5D73]">
         <AlertCircle size={16} className="mt-0.5 shrink-0" />
         <span>Microphone access was denied. Check your browser&apos;s site permissions and reload the page to try again.</span>
       </div>
@@ -1233,22 +1235,22 @@ function Pronunciation({
           const outOfAttempts = used >= maxAttempts && !recognized;
           const isActive = activeKey === target.id && micState === "listening";
           return (
-            <div key={target.id} className="flex items-center justify-between gap-3 rounded-md border border-black/10 p-3">
+            <div key={target.id} className="flex items-center justify-between gap-3 rounded-[14px] border border-[#ECECF5] p-3">
               <div>
                 <p className="font-medium" style={{ color: target.color }}>{target.text}</p>
-                {lastHeard[target.id] ? <p className="line-clamp-2 text-xs text-black/40">Heard: &quot;{lastHeard[target.id]}&quot;</p> : null}
-                {outOfAttempts ? <p className="text-xs text-coral">No more attempts for this word.</p> : null}
+                {lastHeard[target.id] ? <p className="line-clamp-2 text-xs text-[#6E738D]">Heard: &quot;{lastHeard[target.id]}&quot;</p> : null}
+                {outOfAttempts ? <p className="text-xs text-[#FF5D73]">No more attempts for this word.</p> : null}
               </div>
               <button
                 type="button"
                 disabled={disabled || recognized || outOfAttempts || (micState === "listening" && !isActive)}
                 onClick={() => (isActive ? stopRecording() : recordFor(target.id, [target]))}
-                className={`flex shrink-0 items-center gap-2 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors ${
+                className={`flex shrink-0 items-center gap-2 rounded-[14px] border px-3 py-1.5 text-sm font-medium transition-colors ${
                   recognized
-                    ? "border-moss/30 bg-moss/10 text-moss"
+                    ? "border-[#00C98D]/30 bg-[#00C98D]/10 text-[#00A977]"
                     : isActive
                     ? "border-red-300 bg-red-50 text-red-500"
-                    : "border-black/15 hover:bg-black/5"
+                    : "border-[#ECECF5] hover:bg-white"
                 }`}
               >
                 {recognized ? <CheckCircle2 size={15} /> : isActive ? <MicOff size={15} /> : <Mic size={15} />}
@@ -1273,7 +1275,7 @@ function Pronunciation({
 
   return (
     <div className="grid gap-3">
-      <p className="rounded-md bg-slate-50 p-3 text-sm leading-7">
+      <p className="rounded-[14px] bg-[#F6F7FB] p-3 text-sm leading-7">
         {segments.map((segment, i) => {
           const target = targets.find((t) => t.text.toLowerCase() === segment.toLowerCase());
           if (!target) return <span key={i}>{segment}</span>;
@@ -1289,24 +1291,24 @@ function Pronunciation({
           );
         })}
       </p>
-      {lastHeard[passageKey] ? <p className="line-clamp-2 text-xs text-black/40">Heard: &quot;{lastHeard[passageKey]}&quot;</p> : null}
+      {lastHeard[passageKey] ? <p className="line-clamp-2 text-xs text-[#6E738D]">Heard: &quot;{lastHeard[passageKey]}&quot;</p> : null}
       <div className="flex items-center gap-3">
         <button
           type="button"
           disabled={disabled || allRecognized || (outOfAttempts && !isActive) || (micState === "listening" && !isActive)}
           onClick={() => (isActive ? stopRecording() : recordFor(passageKey, targets))}
-          className={`flex items-center gap-2 rounded-md border px-4 py-2 text-sm font-medium transition-colors ${
+          className={`flex items-center gap-2 rounded-[14px] border px-4 py-2 text-sm font-medium transition-colors ${
             allRecognized
-              ? "border-moss/30 bg-moss/10 text-moss"
+              ? "border-[#00C98D]/30 bg-[#00C98D]/10 text-[#00A977]"
               : isActive
               ? "border-red-300 bg-red-50 text-red-500"
-              : "border-black/15 hover:bg-black/5"
+              : "border-[#ECECF5] hover:bg-white"
           }`}
         >
           {allRecognized ? <CheckCircle2 size={15} /> : isActive ? <MicOff size={15} /> : <Mic size={15} />}
           {allRecognized ? "All words recognized" : isActive ? "Stop" : `Record (${maxAttempts - used} left)`}
         </button>
-        {outOfAttempts && !allRecognized ? <span className="text-xs text-coral">No more attempts.</span> : null}
+        {outOfAttempts && !allRecognized ? <span className="text-xs text-[#FF5D73]">No more attempts.</span> : null}
       </div>
     </div>
   );
