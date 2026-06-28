@@ -56,8 +56,12 @@ export default async function HomePage() {
 
   return (
     <main className="bg-slate-50">
+
+      {/* ── Section 1: Hero ── */}
       <section className="border-b border-black/10 bg-white">
-        <div className="mx-auto grid max-w-6xl gap-10 px-4 py-10 md:grid-cols-[1.02fr_0.98fr] md:items-center md:py-16 lg:py-20">
+        <div className="mx-auto grid max-w-6xl gap-10 px-4 py-10 md:grid-cols-2 md:items-center md:py-16 lg:py-20">
+
+          {/* Left: headline + buttons */}
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-sm font-medium text-blue-700">
               <Sparkles size={15} /> ESL quiz, lesson and level practice
@@ -89,48 +93,60 @@ export default async function HomePage() {
             </div>
           </div>
 
-          <div className="space-y-4">
-            <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl shadow-blue-950/10">
-              <div className="border-b border-slate-200 bg-ink px-5 py-4 text-white">
-                <p className="text-sm text-white/70">Live platform</p>
-                <h2 className="mt-1 text-2xl font-semibold">Fresh practice, ready now</h2>
-              </div>
-              <div className="p-5">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-semibold text-moss">Live learning library</p>
-                    <p className="mt-1 text-3xl font-semibold tracking-tight text-ink">
-                      {quizCount} quiz{quizCount === 1 ? "" : "zes"} available
-                    </p>
-                    <p className="mt-1 text-sm text-black/55">{lessonCount} published lesson{lessonCount === 1 ? "" : "s"}</p>
-                  </div>
-                  <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-black/55 shadow-sm">
-                    Updated live
-                  </span>
-                </div>
-                {latestQuiz ? (
-                  <div className="mt-4 rounded-md bg-white p-4 shadow-sm">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-black/45">Latest quiz added</p>
-                    <h3 className="mt-1 text-lg font-semibold text-ink">{latestQuiz.title}</h3>
-                    <p className="mt-1 text-sm text-black/60">
-                      {[latestQuiz.level, latestQuiz.topic].filter(Boolean).join(" • ")}
-                      {latestQuiz.timer_minutes ? ` • ${latestQuiz.timer_minutes} min timer` : ""}
-                    </p>
-                    <Link
-                      href={`/quizzes/${latestQuiz.id}`}
-                      className="mt-4 inline-flex items-center gap-2 rounded-md bg-moss px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-                    >
-                      Try the latest quiz <ArrowRight size={15} />
-                    </Link>
-                  </div>
-                ) : (
-                  <div className="mt-4 rounded-md bg-white p-4 text-sm text-black/60 shadow-sm">
-                    Published quizzes will appear here as soon as they are added.
-                  </div>
-                )}
-              </div>
-            </div>
+          {/* Right: intentionally empty — coming soon */}
+          <div />
 
+        </div>
+      </section>
+
+      {/* ── Section 2: Cards (Live Platform + Badge Energy + How Practice Works) ── */}
+      <section className="border-b border-slate-200 bg-white">
+        <div className="mx-auto grid max-w-6xl gap-6 px-4 py-12 md:grid-cols-[1.1fr_0.9fr] md:items-start md:py-16">
+
+          {/* Left: Live Platform (big card) */}
+          <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl shadow-blue-950/10">
+            <div className="border-b border-slate-200 bg-ink px-5 py-4 text-white">
+              <p className="text-sm text-white/70">Live platform</p>
+              <h2 className="mt-1 text-2xl font-semibold">Fresh practice, ready now</h2>
+            </div>
+            <div className="p-5">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-moss">Live learning library</p>
+                  <p className="mt-1 text-3xl font-semibold tracking-tight text-ink">
+                    {quizCount} quiz{quizCount === 1 ? "" : "zes"} available
+                  </p>
+                  <p className="mt-1 text-sm text-black/55">{lessonCount} published lesson{lessonCount === 1 ? "" : "s"}</p>
+                </div>
+                <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-black/55 shadow-sm">
+                  Updated live
+                </span>
+              </div>
+              {latestQuiz ? (
+                <div className="mt-4 rounded-md bg-white p-4 shadow-sm">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-black/45">Latest quiz added</p>
+                  <h3 className="mt-1 text-lg font-semibold text-ink">{latestQuiz.title}</h3>
+                  <p className="mt-1 text-sm text-black/60">
+                    {[latestQuiz.level, latestQuiz.topic].filter(Boolean).join(" • ")}
+                    {latestQuiz.timer_minutes ? ` • ${latestQuiz.timer_minutes} min timer` : ""}
+                  </p>
+                  <Link
+                    href={`/quizzes/${latestQuiz.id}`}
+                    className="mt-4 inline-flex items-center gap-2 rounded-md bg-moss px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                  >
+                    Try the latest quiz <ArrowRight size={15} />
+                  </Link>
+                </div>
+              ) : (
+                <div className="mt-4 rounded-md bg-white p-4 text-sm text-black/60 shadow-sm">
+                  Published quizzes will appear here as soon as they are added.
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Right: Badge Energy + How Practice Works */}
+          <div className="space-y-4">
             <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-lg shadow-blue-950/5">
               <div className="flex items-center justify-between gap-3">
                 <div>
@@ -171,9 +187,11 @@ export default async function HomePage() {
               </div>
             </div>
           </div>
+
         </div>
       </section>
 
+      {/* ── Section 3: Why learners use BrenUp ── */}
       <section className="mx-auto max-w-6xl px-4 py-12 md:py-16">
         <div className="max-w-2xl">
           <p className="text-sm font-semibold uppercase tracking-wide text-moss">Why learners use BrenUp</p>
@@ -199,6 +217,7 @@ export default async function HomePage() {
         </div>
       </section>
 
+      {/* ── Section 4: Steps ── */}
       <section className="border-y border-slate-200 bg-white">
         <div className="mx-auto grid max-w-6xl gap-6 px-4 py-12 md:grid-cols-3 md:py-16">
           {[
@@ -215,6 +234,7 @@ export default async function HomePage() {
         </div>
       </section>
 
+      {/* ── Section 5: CTA ── */}
       <section className="mx-auto max-w-6xl px-4 py-12 md:py-16">
         <div className="rounded-lg bg-ink px-5 py-8 text-white md:px-10 md:py-12">
           <div className="grid gap-6 md:grid-cols-[1fr_auto] md:items-center">
@@ -230,6 +250,7 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
+
     </main>
   );
 }
