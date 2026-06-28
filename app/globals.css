@@ -4,8 +4,18 @@
 
 :root {
   color-scheme: light;
-  background: #f8fafc;
-  color: #111827;
+  --br-bg: #f6f8ff;
+  --br-ink: #10172f;
+  --br-muted: #667085;
+  --br-line: rgba(15, 23, 42, 0.1);
+  --br-card: rgba(255, 255, 255, 0.86);
+  --br-violet: #7c3aed;
+  --br-blue: #2563ff;
+  --br-cyan: #38bdf8;
+  --br-gold: #f59e0b;
+  --br-shadow: 0 18px 55px rgba(16, 24, 40, 0.12);
+  background: var(--br-bg);
+  color: var(--br-ink);
 }
 
 * {
@@ -16,9 +26,11 @@ body {
   margin: 0;
   min-height: 100vh;
   background:
-    linear-gradient(180deg, rgba(239, 246, 255, 0.9), rgba(248, 250, 252, 1) 360px),
-    #f8fafc;
-  color: #111827;
+    radial-gradient(circle at 18% 6%, rgba(124, 58, 237, 0.13), transparent 28rem),
+    radial-gradient(circle at 86% 0%, rgba(37, 99, 255, 0.12), transparent 26rem),
+    linear-gradient(180deg, #fbfcff 0%, var(--br-bg) 42%, #f8fbff 100%);
+  color: var(--br-ink);
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
 }
 
 button,
@@ -35,4 +47,25 @@ select {
 .prose-lite ul {
   margin: 0.5rem 0 1rem 1.25rem;
   list-style: disc;
+}
+
+@layer components {
+  .br-card {
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    background: var(--br-card);
+    box-shadow: 0 12px 35px rgba(15, 23, 42, 0.08);
+    backdrop-filter: blur(18px);
+  }
+
+  .br-gradient-panel {
+    background:
+      radial-gradient(circle at 46% 34%, rgba(56, 189, 248, 0.35), transparent 16rem),
+      linear-gradient(135deg, #6d28d9 0%, #1d4ed8 43%, #06152f 100%);
+    box-shadow: 0 26px 70px rgba(29, 78, 216, 0.26);
+  }
+
+  .br-focus-ring {
+    outline: none;
+    box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.16);
+  }
 }
