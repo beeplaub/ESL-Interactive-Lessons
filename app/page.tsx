@@ -69,14 +69,14 @@ export default async function HomePage() {
               Practice grammar, vocabulary, reading, listening and functional English with instant feedback, timed attempts, CEFR guidance and motivating leaderboard progress.
             </p>
             <div className="mt-8 grid gap-3 sm:flex sm:flex-wrap">
-              <Link href="/quizzes" className="inline-flex items-center justify-center gap-2 rounded-md bg-moss px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-700">
-                Browse quizzes <ArrowRight size={16} />
+              <Link href="/level-test" className="inline-flex items-center justify-center gap-2 rounded-md bg-moss px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-700">
+                Take level test <ArrowRight size={16} />
               </Link>
-              <Link href="/level-test" className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-ink hover:bg-slate-50">
-                Take level test
+              <Link href="/quizzes" className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-ink hover:bg-slate-50">
+                Play quizzes
               </Link>
-              <Link href="/lessons" className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-ink hover:bg-slate-50">
-                Explore lessons
+              <Link href="/courses" className="inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-ink hover:bg-slate-50">
+                Explore courses
               </Link>
             </div>
             <div className="mt-7 grid gap-3 text-sm text-slate-600 sm:grid-cols-3">
