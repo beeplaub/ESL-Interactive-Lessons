@@ -68,34 +68,8 @@ export default async function HomePage() {
     <main className="min-h-screen overflow-hidden bg-[#F6F7FB] text-[#14172B]">
       <section className="relative">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_16%_8%,rgba(108,59,255,.16),transparent_28rem),radial-gradient(circle_at_82%_0%,rgba(78,141,255,.18),transparent_26rem)]" />
-        <div className="relative mx-auto max-w-[1536px] px-4 py-6 sm:px-6 lg:py-8">
-          <nav className="flex items-center justify-between gap-4">
-            <Link href="/" className="flex items-center gap-2.5">
-              <span className="grid size-11 place-items-center rounded-[14px] bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] shadow-[0_8px_20px_rgba(108,59,255,.28)]">
-                <Layers className="size-6 text-white" />
-              </span>
-              <span>
-                <span className="block text-lg font-extrabold leading-tight">BrenUp</span>
-                <span className="hidden text-[11px] font-semibold text-[#6E738D] sm:block">Level Up Your English</span>
-              </span>
-            </Link>
-            <div className="hidden items-center gap-1 md:flex">
-              <TopLink href="/quizzes" label="Quizzes" />
-              <TopLink href="/courses" label="Courses" />
-              <TopLink href="/leaderboard" label="Leaderboard" />
-              <TopLink href="/level-test" label="Level Test" />
-            </div>
-            <div className="flex items-center gap-2">
-              <Link href="/login" className="rounded-full border border-[#ECECF5] bg-white px-4 py-2 text-sm font-bold text-[#14172B] shadow-[0_2px_8px_rgba(0,0,0,.04)]">
-                My Account
-              </Link>
-              <Link href="/quizzes" className="hidden rounded-full bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] px-4 py-2 text-sm font-bold text-white shadow-[0_8px_20px_rgba(108,59,255,.28)] sm:inline-flex">
-                Play free
-              </Link>
-            </div>
-          </nav>
-
-          <div className="grid gap-8 py-10 lg:grid-cols-[minmax(0,0.95fr)_minmax(430px,0.9fr)] lg:items-center lg:py-16">
+        <div className="relative mx-auto max-w-[1536px] px-4 py-10 sm:px-6 lg:py-16">
+          <div className="grid gap-8 lg:grid-cols-[minmax(0,0.95fr)_minmax(430px,0.9fr)] lg:items-center">
             <div className="max-w-3xl">
               <div className="inline-flex items-center gap-2 rounded-full border border-[#ECECF5] bg-white px-3 py-1.5 text-xs font-bold text-[#6C3BFF] shadow-[0_2px_8px_rgba(0,0,0,.04)]">
                 <Sparkles className="size-4" /> Free ESL quiz practice plus guided courses
@@ -194,10 +168,6 @@ export default async function HomePage() {
       </section>
     </main>
   );
-}
-
-function TopLink({ href, label }: { href: string; label: string }) {
-  return <Link href={href} className="rounded-full px-3 py-2 text-sm font-bold text-[#6E738D] transition hover:bg-white hover:text-[#6C3BFF]">{label}</Link>;
 }
 
 function TrustItem({ text }: { text: string }) {

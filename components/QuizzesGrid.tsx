@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, ClipboardList, RotateCcw, Search, X } from "lucide-react";
+import { ArrowRight, CheckCircle2, ClipboardList, Clock3, Filter, Gamepad2, RotateCcw, Search, X, Zap } from "lucide-react";
 import { useState, useMemo } from "react";
 import { WishlistButton } from "@/components/WishlistButton";
 
@@ -34,19 +34,18 @@ const LEVEL_ORDER: Record<string, number> = { A1: 1, A2: 2, B1: 3, B2: 4, C1: 5,
 
 type SortOption = "newest" | "az" | "level-asc" | "level-desc";
 
-// Colour palette per level
 const LEVEL_THEME: Record<string, {
-  border: string;       // card left border
-  badge: string;        // level badge background
-  badgeText: string;    // level badge text
-  headerBg: string;     // subtle card header tint
+  border: string;
+  badge: string;
+  badgeText: string;
+  gradient: string;
 }> = {
-  A1: { border: "#f59e0b", badge: "#fef3c7", badgeText: "#92400e", headerBg: "#fffbeb" },
-  A2: { border: "#f97316", badge: "#ffedd5", badgeText: "#7c2d12", headerBg: "#fff7ed" },
-  B1: { border: "#0ea5e9", badge: "#e0f2fe", badgeText: "#0c4a6e", headerBg: "#f0f9ff" },
-  B2: { border: "#2563eb", badge: "#dbeafe", badgeText: "#1e3a8a", headerBg: "#eff6ff" },
-  C1: { border: "#7c3aed", badge: "#ede9fe", badgeText: "#4c1d95", headerBg: "#f5f3ff" },
-  C2: { border: "#0f172a", badge: "#e2e8f0", badgeText: "#0f172a", headerBg: "#f8fafc" },
+  A1: { border: "#FFB545", badge: "#fff7ed", badgeText: "#9a3412", gradient: "from-[#FFB545] to-[#FF8C00]" },
+  A2: { border: "#FF8E53", badge: "#fff1e8", badgeText: "#9a3412", gradient: "from-[#FF8E53] to-[#FF6B9D]" },
+  B1: { border: "#4E8DFF", badge: "#eff6ff", badgeText: "#1e3a8a", gradient: "from-[#4E8DFF] to-[#3CCEFF]" },
+  B2: { border: "#6C3BFF", badge: "#f3efff", badgeText: "#4520D9", gradient: "from-[#6C3BFF] to-[#8A58FF]" },
+  C1: { border: "#8A58FF", badge: "#f5f3ff", badgeText: "#4c1d95", gradient: "from-[#4A148C] to-[#8A58FF]" },
+  C2: { border: "#14172B", badge: "#f1f5f9", badgeText: "#14172B", gradient: "from-[#14172B] to-[#6C3BFF]" },
 };
 
 function getLevelTheme(level: string | null) {
@@ -54,7 +53,7 @@ function getLevelTheme(level: string | null) {
     border: "#e2e8f0",
     badge: "#f1f5f9",
     badgeText: "#475569",
-    headerBg: "#f8fafc"
+    gradient: "from-[#8890B8] to-[#6E738D]"
   };
 }
 
@@ -111,17 +110,36 @@ export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLogged
 
   return (
     <>
-      {/* ── Filter + Sort bar ── */}
-      <div className="mb-5 rounded-lg border border-black/10 bg-white px-4 py-3 shadow-sm">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative flex min-w-[180px] flex-1 items-center">
-            <Search size={14} className="pointer-events-none absolute left-3 text-black/40" />
+      <div className="mb-5 rounded-[20px] border border-[#ECECF5] bg-white p-4 shadow-[0_12px_32px_rgba(0,0,0,.06)] sm:p-5">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2 text-lg font-extrabold text-[#14172B]"><Gamepad2 className="size-5 text-[#6C3BFF]" /> Quiz Library</div>
+            <p className="mt-1 text-xs font-semibold text-[#6E738D]">
+              {filtered.length === quizzes.length
+                ? `${quizzes.length} quiz${quizzes.length !== 1 ? "zes" : ""} ready`
+                : `${filtered.length} of ${quizzes.length} quizzes shown`}
+            </p>
+          </div>
+          {hasActiveFilter && (
+            <button
+              type="button"
+              onClick={clearFilters}
+              className="inline-flex items-center gap-1 rounded-[12px] border border-[#ECECF5] bg-[#F6F7FB] px-3 py-2 text-xs font-bold text-[#6E738D] hover:bg-white"
+            >
+              <X size={13} /> Clear filters
+            </button>
+          )}
+        </div>
+
+        <div className="grid gap-3 lg:grid-cols-[minmax(220px,1fr)_auto_auto_auto]">
+          <div className="relative flex min-w-0 items-center">
+            <Search size={15} className="pointer-events-none absolute left-4 text-[#6E738D]" />
             <input
               type="search"
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
               placeholder="Search title or topic…"
-              className="w-full rounded-md border border-black/15 py-1.5 pl-8 pr-3 text-sm outline-none focus:border-moss"
+              className="h-12 w-full rounded-[16px] border border-[#ECECF5] bg-[#F6F7FB] py-2 pl-10 pr-3 text-sm font-semibold outline-none transition placeholder:text-[#6E738D] focus:border-[#6C3BFF] focus:bg-white"
             />
           </div>
 
@@ -129,7 +147,7 @@ export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLogged
             <select
               value={selectedTopic}
               onChange={(e) => setSelectedTopic(e.target.value)}
-              className="rounded-md border border-black/15 py-1.5 pl-3 pr-8 text-sm outline-none focus:border-moss"
+              className="h-12 rounded-[16px] border border-[#ECECF5] bg-[#F6F7FB] px-3 text-sm font-bold text-[#14172B] outline-none focus:border-[#6C3BFF] focus:bg-white"
             >
               <option value="">All topics</option>
               {topics.map((t) => (
@@ -141,7 +159,7 @@ export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLogged
           <select
             value={timerFilter}
             onChange={(e) => setTimerFilter(e.target.value as "all" | "timer" | "no-timer")}
-            className="rounded-md border border-black/15 py-1.5 pl-3 pr-8 text-sm outline-none focus:border-moss"
+            className="h-12 rounded-[16px] border border-[#ECECF5] bg-[#F6F7FB] px-3 text-sm font-bold text-[#14172B] outline-none focus:border-[#6C3BFF] focus:bg-white"
           >
             <option value="all">Timer: all</option>
             <option value="timer">With timer</option>
@@ -151,7 +169,7 @@ export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLogged
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as SortOption)}
-            className="rounded-md border border-black/15 py-1.5 pl-3 pr-8 text-sm outline-none focus:border-moss"
+            className="h-12 rounded-[16px] border border-[#ECECF5] bg-[#F6F7FB] px-3 text-sm font-bold text-[#14172B] outline-none focus:border-[#6C3BFF] focus:bg-white"
           >
             <option value="newest">Sort: Newest</option>
             <option value="az">Sort: A–Z</option>
@@ -159,6 +177,10 @@ export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLogged
             <option value="level-desc">Sort: Level ↓</option>
           </select>
 
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1 rounded-full bg-[#F6F7FB] px-3 py-1.5 text-xs font-bold text-[#6E738D]"><Filter className="size-3.5" /> Levels</span>
           <div className="flex flex-wrap gap-1.5">
             {LEVELS.map((lvl) => {
               const t = getLevelTheme(lvl);
@@ -179,28 +201,11 @@ export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLogged
               );
             })}
           </div>
-
-          {hasActiveFilter && (
-            <button
-              type="button"
-              onClick={clearFilters}
-              className="inline-flex items-center gap-1 rounded-md border border-black/15 px-2.5 py-1.5 text-xs text-black/60 hover:bg-black/5"
-            >
-              <X size={12} /> Clear
-            </button>
-          )}
         </div>
-
-        <p className="mt-2 text-xs text-black/45">
-          {filtered.length === quizzes.length
-            ? `${quizzes.length} quiz${quizzes.length !== 1 ? "zes" : ""}`
-            : `${filtered.length} of ${quizzes.length} quizzes`}
-        </p>
       </div>
 
-      {/* ── Quiz grid ── */}
       {filtered.length > 0 ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {filtered.map((quiz) => {
             const theme = getLevelTheme(quiz.level);
             const href = `/quizzes/${quiz.id}`;
@@ -212,43 +217,45 @@ export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLogged
             return (
               <article
                 key={quiz.id}
-                className="flex flex-col overflow-hidden rounded-lg border border-black/10 bg-white shadow-sm"
-                style={{ borderLeftColor: theme.border, borderLeftWidth: "4px" }}
+                className="group flex flex-col overflow-hidden rounded-[20px] border border-[#ECECF5] bg-white shadow-[0_12px_32px_rgba(0,0,0,.06)] transition hover:scale-[1.012] hover:shadow-[0_16px_40px_rgba(0,0,0,.1)]"
               >
-                {/* Card header with tint */}
-                <div className="px-5 pt-5 pb-3" style={{ backgroundColor: theme.headerBg }}>
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
+                <div className={`relative flex min-h-[132px] items-start justify-between gap-3 bg-gradient-to-br ${theme.gradient} p-5 text-white`}>
+                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,.28),transparent_28%),radial-gradient(circle_at_90%_90%,rgba(255,255,255,.16),transparent_28%)]" />
+                  <div className="relative z-10 min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span
-                        className="inline-block rounded-full px-2.5 py-1 text-xs font-bold"
-                        style={{ backgroundColor: theme.badge, color: theme.badgeText }}
+                        className="inline-block rounded-full bg-white/90 px-2.5 py-1 text-xs font-black"
+                        style={{ color: theme.border }}
                       >
-                        {quiz.level}
+                        {quiz.level ?? "Quiz"}
                       </span>
-                      <h2 className="mt-2 text-lg font-semibold leading-snug">{quiz.title}</h2>
-                      <p className="mt-0.5 text-sm text-black/55">{quiz.topic}</p>
+                      {hasTimer ? <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 text-xs font-bold text-white"><Clock3 className="size-3" /> Timed</span> : null}
                     </div>
-                    <div className="flex shrink-0 items-center gap-2 pt-1">
-                      <WishlistButton
-                        isLoggedIn={isLoggedIn}
-                        quizId={quiz.id}
-                        initiallySaved={wishlistSet.has(quiz.id)}
-                        loginNext="/quizzes"
-                      />
-                      <ClipboardList size={20} style={{ color: theme.border }} />
-                    </div>
+                    <h2 className="mt-3 line-clamp-2 text-xl font-extrabold leading-tight">{quiz.title}</h2>
+                    <p className="mt-1 text-sm font-semibold text-white/70">{quiz.topic || "English practice"}</p>
+                  </div>
+                  <div className="relative z-10 flex shrink-0 items-center gap-2">
+                    <WishlistButton
+                      isLoggedIn={isLoggedIn}
+                      quizId={quiz.id}
+                      initiallySaved={wishlistSet.has(quiz.id)}
+                      loginNext="/quizzes"
+                    />
+                    <span className="grid size-10 place-items-center rounded-[14px] bg-white/15 text-white">
+                      <ClipboardList size={20} />
+                    </span>
                   </div>
                 </div>
 
-                {/* Card body */}
-                <div className="flex flex-1 flex-col px-5 pb-5 pt-3">
-                  <p className="text-sm text-black/55">
-                    {qCount} question{qCount !== 1 ? "s" : ""} · {hasTimer ? "timed" : "no timer"}
-                  </p>
+                <div className="flex flex-1 flex-col p-5">
+                  <div className="grid grid-cols-2 gap-2 text-xs font-bold text-[#6E738D]">
+                    <div className="rounded-[14px] bg-[#F6F7FB] p-3"><span className="block text-lg font-extrabold text-[#14172B]">{qCount}</span>questions</div>
+                    <div className="rounded-[14px] bg-[#F6F7FB] p-3"><span className="block text-lg font-extrabold text-[#14172B]">{hasTimer ? Math.round((quiz.time_limit_seconds ?? 0) / 60) : "∞"}</span>{hasTimer ? "minutes" : "no timer"}</div>
+                  </div>
 
                   {isLoggedIn && attempt ? (
                     <div
-                      className="mt-3 flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium"
+                      className="mt-3 flex items-center justify-between rounded-[14px] px-3 py-2 text-sm font-bold"
                       style={{
                         backgroundColor: percent !== null && percent >= 80
                           ? "#f0fdf4"
@@ -262,27 +269,26 @@ export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLogged
                           : "#9a3412"
                       }}
                     >
-                      <span>Best: {attempt.score}/{attempt.total} ({percent}%)</span>
+                      <span className="inline-flex items-center gap-2"><CheckCircle2 size={15} /> Best: {attempt.score}/{attempt.total} ({percent}%)</span>
                       <RotateCcw size={13} className="opacity-60" />
                     </div>
                   ) : null}
 
                   {!isLoggedIn ? (
-                    <div className="mt-auto rounded-md bg-slate-50 p-3 text-sm text-slate-500">
+                    <div className="mt-3 rounded-[14px] bg-[#F6F7FB] p-3 text-sm font-semibold leading-5 text-[#6E738D]">
                       Try it free. Create an account after submitting if you want to save your score.
                     </div>
                   ) : !attempt ? (
-                    <div className="mt-auto rounded-md p-3 text-sm font-medium" style={{ backgroundColor: theme.badge, color: theme.badgeText }}>
-                      Ready to start
+                    <div className="mt-3 rounded-[14px] p-3 text-sm font-bold" style={{ backgroundColor: theme.badge, color: theme.badgeText }}>
+                      <span className="inline-flex items-center gap-2"><Zap size={15} /> Ready to start</span>
                     </div>
                   ) : (
-                    <div className="mt-auto" />
+                    null
                   )}
 
                   <Link
                     href={href}
-                    className="mt-4 inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90"
-                    style={{ backgroundColor: theme.border }}
+                    className="mt-4 inline-flex items-center justify-center gap-2 rounded-[14px] bg-[#14172B] px-4 py-3 text-sm font-extrabold text-white transition group-hover:bg-[#6C3BFF]"
                   >
                     {attempt ? "Retake quiz" : "Start quiz"} <ArrowRight size={15} />
                   </Link>
@@ -292,14 +298,14 @@ export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLogged
           })}
         </div>
       ) : (
-        <div className="rounded-lg border border-black/10 bg-white p-8 text-center shadow-sm">
-          <ClipboardList className="mx-auto text-black/30" size={28} />
-          <h2 className="mt-4 text-lg font-semibold">No quizzes match your filters</h2>
-          <p className="mt-2 text-sm text-black/60">Try clearing some filters to see more quizzes.</p>
+        <div className="rounded-[20px] border border-[#ECECF5] bg-white p-10 text-center shadow-[0_12px_32px_rgba(0,0,0,.06)]">
+          <ClipboardList className="mx-auto text-[#6C3BFF]/40" size={32} />
+          <h2 className="mt-4 text-lg font-extrabold">No quizzes match your filters</h2>
+          <p className="mt-2 text-sm text-[#6E738D]">Try clearing some filters to see more quizzes.</p>
           <button
             type="button"
             onClick={clearFilters}
-            className="mt-4 inline-flex items-center gap-2 rounded-md border border-black/15 px-4 py-2 text-sm font-medium hover:bg-black/5"
+            className="mt-4 inline-flex items-center gap-2 rounded-[14px] border border-[#ECECF5] bg-[#F6F7FB] px-4 py-2 text-sm font-bold text-[#6E738D] hover:bg-white"
           >
             <X size={15} /> Clear filters
           </button>
