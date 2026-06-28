@@ -101,7 +101,7 @@ export default async function HomePage() {
 
       {/* ── Section 2: Cards (Live Platform + Badge Energy + How Practice Works) ── */}
       <section className="border-b border-slate-200 bg-white">
-        <div className="mx-auto grid max-w-6xl gap-6 px-4 py-12 md:grid-cols-[1.1fr_0.9fr] md:items-start md:py-16">
+        <div className="mx-auto grid max-w-6xl gap-6 px-4 py-12 md:grid-cols-[1.1fr_0.9fr] md:items-center md:py-16">
 
           {/* Left: Live Platform (big card) */}
           <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl shadow-blue-950/10">
