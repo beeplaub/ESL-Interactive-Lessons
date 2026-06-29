@@ -174,7 +174,7 @@ function CourseCard({
   totalItems,
   tone
 }: {
-  course: { id: string; title: string; subtitle?: string | null; topic?: string | null; level?: string | null; estimated_completion_minutes?: number | null };
+  course: { id: string; title: string; subtitle?: string | null; topic?: string | null; level?: string | null; estimated_completion_minutes?: number | null; thumbnail_path?: string | null; cover_image_path?: string | null };
   status?: string;
   progress: number;
   completedItems: number;
@@ -190,9 +190,13 @@ function CourseCard({
     "from-[#FFB545] to-[#FF8C00]"
   ];
   const level = course.level ?? "Course";
+  const imageUrl = resolveCourseImage(course.thumbnail_path || course.cover_image_path);
   return (
     <Link href={`/courses/${course.id}`} className="group overflow-hidden rounded-[20px] border border-[#ECECF5] bg-white shadow-[0_12px_32px_rgba(0,0,0,.06)] transition hover:scale-[1.012] hover:shadow-[0_16px_40px_rgba(0,0,0,.1)]">
       <div className={`relative flex h-36 items-center justify-center bg-gradient-to-br ${tones[tone % tones.length]}`}>
+        {/* eslint-disable-next-line @next/next/no-img-element -- Course creators can use arbitrary public image links. */}
+        {imageUrl ? <img src={imageUrl} alt="" className="absolute inset-0 h-full w-full object-cover" /> : null}
+        {imageUrl ? <div className="absolute inset-0 bg-black/25" /> : null}
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,.28),transparent_32%),radial-gradient(circle_at_85%_80%,rgba(255,255,255,.16),transparent_28%)]" />
         <span className="absolute left-3 top-3 rounded-md bg-[#6C3BFF] px-2 py-1 text-[10px] font-bold text-white">{level}</span>
         {status ? <span className="absolute right-3 top-3 rounded-md bg-white/90 px-2 py-1 text-[10px] font-bold text-[#6C3BFF]">{status === "COMPLETED" ? "Completed" : "Enrolled"}</span> : null}
@@ -223,6 +227,12 @@ function CourseCard({
       </div>
     </Link>
   );
+}
+
+function resolveCourseImage(value?: string | null) {
+  if (!value) return null;
+  if (/^https?:\/\//i.test(value)) return value;
+  return value.startsWith("/") ? value : `/${value}`;
 }
 
 function CoursesSidebar() {

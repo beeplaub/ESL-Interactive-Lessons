@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowDown, ArrowLeft, ArrowUp, Eye, Library, Plus, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowUp, Eye, Image as ImageIcon, Library, Plus, Trash2 } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   addCourseFaq,
@@ -109,6 +109,14 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
                 <label className="text-sm font-medium">Duration<input name="durationMinutes" type="number" min="0" defaultValue={course.duration_minutes ?? ""} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm" /></label>
               </div>
               <label className="text-sm font-medium">Description<textarea name="description" defaultValue={course.description ?? ""} rows={5} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm" /></label>
+              <div className="rounded-lg border border-black/10 bg-slate-50 p-3">
+                <div className="mb-3 flex items-center gap-2 text-sm font-semibold"><ImageIcon size={16} /> Course images</div>
+                <div className="grid gap-3">
+                  <label className="text-sm font-medium">Feature image URL or storage path<input name="coverImagePath" defaultValue={course.cover_image_path ?? ""} placeholder="https://... or course-covers/image.png" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm" /></label>
+                  <label className="text-sm font-medium">Small card image URL or storage path<input name="thumbnailPath" defaultValue={course.thumbnail_path ?? ""} placeholder="Optional card image" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm" /></label>
+                  <p className="text-xs leading-5 text-black/50">Use a direct image link for now. Storage upload can be added later without changing the course layout.</p>
+                </div>
+              </div>
               <button className="w-fit rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white">Save landing page</button>
             </div>
           </form>
@@ -214,9 +222,10 @@ function AddItemForm({ courseId, sectionId, lessons, quizzes }: { courseId: stri
     <form action={addCourseItem.bind(null, courseId)} className="mt-4 grid gap-2 rounded-lg border border-dashed border-black/15 bg-white p-3 md:grid-cols-[0.7fr_1fr_1fr_auto]">
       <input type="hidden" name="sectionId" value={sectionId} />
       <select name="itemType" className="rounded-md border border-black/15 px-3 py-2 text-sm">{itemTypes.map((type) => <option key={type} value={type}>{type.replaceAll("_", " ")}</option>)}</select>
-      <LessonSelect lessons={lessons} />
-      <QuizSelect quizzes={quizzes} />
+      <LessonSelect lessons={lessons} multiple />
+      <QuizSelect quizzes={quizzes} multiple />
       <button className="rounded-md bg-moss px-3 py-2 text-sm font-semibold text-white">Add item</button>
+      <p className="text-xs leading-5 text-black/50 md:col-span-4">Tip: hold Command/Ctrl to select several lessons or quizzes and add them to this section together.</p>
       <input name="title" placeholder="Resource/link title" className="rounded-md border border-black/15 px-3 py-2 text-sm md:col-span-2" />
       <input name="resourceUrl" placeholder="Resource/link URL" className="rounded-md border border-black/15 px-3 py-2 text-sm md:col-span-2" />
       <label className="inline-flex items-center gap-2 text-xs text-black/60"><input type="checkbox" name="isRequired" defaultChecked /> Required</label>
@@ -270,18 +279,18 @@ function CourseItemEditor({ courseId, item, itemIndex, totalItems, sections, les
   );
 }
 
-function LessonSelect({ lessons, defaultValue = "" }: { lessons: LessonOption[]; defaultValue?: string }) {
+function LessonSelect({ lessons, defaultValue = "", multiple = false }: { lessons: LessonOption[]; defaultValue?: string; multiple?: boolean }) {
   return (
-    <select name="lessonId" defaultValue={defaultValue} className="rounded-md border border-black/15 px-3 py-2 text-sm">
+    <select name={multiple ? "lessonIds" : "lessonId"} defaultValue={multiple ? undefined : defaultValue} multiple={multiple} size={multiple ? 4 : undefined} className="rounded-md border border-black/15 px-3 py-2 text-sm">
       <option value="">Choose lesson...</option>
       {lessons.map((lesson) => <option key={lesson.id} value={lesson.id}>{lesson.title} ({lesson.status})</option>)}
     </select>
   );
 }
 
-function QuizSelect({ quizzes, defaultValue = "" }: { quizzes: QuizOption[]; defaultValue?: string }) {
+function QuizSelect({ quizzes, defaultValue = "", multiple = false }: { quizzes: QuizOption[]; defaultValue?: string; multiple?: boolean }) {
   return (
-    <select name="quizId" defaultValue={defaultValue} className="rounded-md border border-black/15 px-3 py-2 text-sm">
+    <select name={multiple ? "quizIds" : "quizId"} defaultValue={multiple ? undefined : defaultValue} multiple={multiple} size={multiple ? 4 : undefined} className="rounded-md border border-black/15 px-3 py-2 text-sm">
       <option value="">Choose quiz...</option>
       {quizzes.map((quiz) => <option key={quiz.id} value={quiz.id}>{quiz.title} ({quiz.status})</option>)}
     </select>

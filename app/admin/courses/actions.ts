@@ -76,6 +76,8 @@ export async function updateCourseMetadata(courseId: string, formData: FormData)
       category: String(formData.get("category") || "").trim() || null,
       level: String(formData.get("level") || "All Levels"),
       description: String(formData.get("description") || "").trim() || null,
+      thumbnail_path: String(formData.get("thumbnailPath") || "").trim() || null,
+      cover_image_path: String(formData.get("coverImagePath") || "").trim() || null,
       estimated_completion_minutes: Number(formData.get("estimatedCompletionMinutes") || "") || null,
       duration_minutes: Number(formData.get("durationMinutes") || "") || null,
       organization_id: String(formData.get("organizationId") || "") || null,
@@ -222,21 +224,30 @@ export async function addCourseItem(courseId: string, formData: FormData) {
   const itemType = String(formData.get("itemType") || "LESSON") as "LESSON" | "QUIZ" | "LEVEL_TEST" | "RESOURCE" | "EXTERNAL_LINK";
   const admin = createAdminClient();
   const { count } = await admin.from("course_items").select("id", { count: "exact", head: true }).eq("course_id", courseId);
-  const lessonId = itemType === "LESSON" ? String(formData.get("lessonId") || "") || null : null;
-  const quizId = itemType === "QUIZ" ? String(formData.get("quizId") || "") || null : null;
-  const { error } = await admin.from("course_items").insert({
+  const lessonIds = itemType === "LESSON"
+    ? formData.getAll("lessonIds").map((value) => String(value)).filter(Boolean)
+    : [];
+  const quizIds = itemType === "QUIZ"
+    ? formData.getAll("quizIds").map((value) => String(value)).filter(Boolean)
+    : [];
+  const startingPosition = count ?? 0;
+  const baseItem = {
     course_id: courseId,
     section_id: sectionId,
-    position: (count ?? 0) + 1,
     item_type: itemType,
-    lesson_id: lessonId,
-    quiz_id: quizId,
     title: String(formData.get("title") || "").trim() || null,
     description: String(formData.get("description") || "").trim() || null,
     resource_url: String(formData.get("resourceUrl") || "").trim() || null,
     is_required: formData.get("isRequired") !== "off",
     is_free_preview: formData.get("isFreePreview") === "on",
-  });
+  };
+  const rows: Array<Record<string, unknown>> = itemType === "LESSON" && lessonIds.length
+    ? lessonIds.map((lessonId, index) => ({ ...baseItem, position: startingPosition + index + 1, lesson_id: lessonId, quiz_id: null }))
+    : itemType === "QUIZ" && quizIds.length
+      ? quizIds.map((quizId, index) => ({ ...baseItem, position: startingPosition + index + 1, lesson_id: null, quiz_id: quizId }))
+      : [{ ...baseItem, position: startingPosition + 1, lesson_id: null, quiz_id: null }];
+
+  const { error } = await admin.from("course_items").insert(rows);
   if (error) throw new Error(error.message);
   revalidatePath(`/admin/courses/${courseId}/builder`);
   revalidatePath(`/courses/${courseId}`);
