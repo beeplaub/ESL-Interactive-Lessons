@@ -219,17 +219,42 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
 
 function AddItemForm({ courseId, sectionId, lessons, quizzes }: { courseId: string; sectionId: string; lessons: LessonOption[]; quizzes: QuizOption[] }) {
   return (
-    <form action={addCourseItem.bind(null, courseId)} className="mt-4 grid gap-2 rounded-lg border border-dashed border-black/15 bg-white p-3 md:grid-cols-[0.7fr_1fr_1fr_auto]">
+    <form action={addCourseItem.bind(null, courseId)} className="mt-4 space-y-3 rounded-lg border border-dashed border-black/15 bg-white p-3">
       <input type="hidden" name="sectionId" value={sectionId} />
-      <select name="itemType" className="rounded-md border border-black/15 px-3 py-2 text-sm">{itemTypes.map((type) => <option key={type} value={type}>{type.replaceAll("_", " ")}</option>)}</select>
-      <LessonSelect lessons={lessons} multiple />
-      <QuizSelect quizzes={quizzes} multiple />
-      <button className="rounded-md bg-moss px-3 py-2 text-sm font-semibold text-white">Add item</button>
-      <p className="text-xs leading-5 text-black/50 md:col-span-4">Tip: hold Command/Ctrl to select several lessons or quizzes and add them to this section together.</p>
-      <input name="title" placeholder="Resource/link title" className="rounded-md border border-black/15 px-3 py-2 text-sm md:col-span-2" />
-      <input name="resourceUrl" placeholder="Resource/link URL" className="rounded-md border border-black/15 px-3 py-2 text-sm md:col-span-2" />
-      <label className="inline-flex items-center gap-2 text-xs text-black/60"><input type="checkbox" name="isRequired" defaultChecked /> Required</label>
-      <label className="inline-flex items-center gap-2 text-xs text-black/60"><input type="checkbox" name="isFreePreview" /> Free preview</label>
+
+      {/* Row 1: type + lesson + quiz + button */}
+      <div className="flex flex-wrap items-center gap-2">
+        <select name="itemType" className="rounded-md border border-black/15 px-3 py-2 text-sm">
+          {itemTypes.map((type) => (
+            <option key={type} value={type}>{type.replaceAll("_", " ")}</option>
+          ))}
+        </select>
+        <select name="lessonId" className="min-w-0 flex-1 rounded-md border border-black/15 px-3 py-2 text-sm">
+          <option value="">Choose lesson…</option>
+          {lessons.map((lesson) => (
+            <option key={lesson.id} value={lesson.id}>{lesson.title}</option>
+          ))}
+        </select>
+        <select name="quizId" className="min-w-0 flex-1 rounded-md border border-black/15 px-3 py-2 text-sm">
+          <option value="">Choose quiz…</option>
+          {quizzes.map((quiz) => (
+            <option key={quiz.id} value={quiz.id}>{quiz.title}</option>
+          ))}
+        </select>
+        <button className="shrink-0 rounded-md bg-moss px-4 py-2 text-sm font-semibold text-white">Add item</button>
+      </div>
+
+      {/* Row 2: resource fields */}
+      <div className="flex flex-wrap gap-2">
+        <input name="title" placeholder="Resource/link title" className="min-w-0 flex-1 rounded-md border border-black/15 px-3 py-2 text-sm" />
+        <input name="resourceUrl" placeholder="Resource/link URL" className="min-w-0 flex-1 rounded-md border border-black/15 px-3 py-2 text-sm" />
+      </div>
+
+      {/* Row 3: checkboxes */}
+      <div className="flex gap-4">
+        <label className="inline-flex items-center gap-2 text-xs text-black/60"><input type="checkbox" name="isRequired" defaultChecked /> Required</label>
+        <label className="inline-flex items-center gap-2 text-xs text-black/60"><input type="checkbox" name="isFreePreview" /> Free preview</label>
+      </div>
     </form>
   );
 }
@@ -261,8 +286,14 @@ function CourseItemEditor({ courseId, item, itemIndex, totalItems, sections, les
       <form action={updateCourseItem.bind(null, courseId, item.id)} className="mt-3 grid gap-2">
         <select name="sectionId" defaultValue={item.section_id ?? ""} className="rounded-md border border-black/15 px-3 py-2 text-sm">{sections.map((section) => <option key={section.id} value={section.id}>{section.title}</option>)}</select>
         <select name="itemType" defaultValue={item.item_type} className="rounded-md border border-black/15 px-3 py-2 text-sm">{itemTypes.map((type) => <option key={type} value={type}>{type.replaceAll("_", " ")}</option>)}</select>
-        <LessonSelect lessons={lessons} defaultValue={item.lesson_id ?? ""} />
-        <QuizSelect quizzes={quizzes} defaultValue={item.quiz_id ?? ""} />
+        <select name="lessonId" defaultValue={item.lesson_id ?? ""} className="rounded-md border border-black/15 px-3 py-2 text-sm">
+          <option value="">Choose lesson…</option>
+          {lessons.map((lesson) => <option key={lesson.id} value={lesson.id}>{lesson.title}</option>)}
+        </select>
+        <select name="quizId" defaultValue={item.quiz_id ?? ""} className="rounded-md border border-black/15 px-3 py-2 text-sm">
+          <option value="">Choose quiz…</option>
+          {quizzes.map((quiz) => <option key={quiz.id} value={quiz.id}>{quiz.title}</option>)}
+        </select>
         <input name="title" defaultValue={item.title ?? ""} placeholder="Custom/resource title" className="rounded-md border border-black/15 px-3 py-2 text-sm" />
         <textarea name="description" defaultValue={item.description ?? ""} placeholder="Item description" rows={2} className="rounded-md border border-black/15 px-3 py-2 text-sm" />
         <input name="resourceUrl" defaultValue={item.resource_url ?? ""} placeholder="URL for resource or external link" className="rounded-md border border-black/15 px-3 py-2 text-sm" />
@@ -276,23 +307,5 @@ function CourseItemEditor({ courseId, item, itemIndex, totalItems, sections, les
         </div>
       </form>
     </details>
-  );
-}
-
-function LessonSelect({ lessons, defaultValue = "", multiple = false }: { lessons: LessonOption[]; defaultValue?: string; multiple?: boolean }) {
-  return (
-    <select name={multiple ? "lessonIds" : "lessonId"} defaultValue={multiple ? undefined : defaultValue} multiple={multiple} size={multiple ? 4 : undefined} className="rounded-md border border-black/15 px-3 py-2 text-sm">
-      <option value="">Choose lesson...</option>
-      {lessons.map((lesson) => <option key={lesson.id} value={lesson.id}>{lesson.title} ({lesson.status})</option>)}
-    </select>
-  );
-}
-
-function QuizSelect({ quizzes, defaultValue = "", multiple = false }: { quizzes: QuizOption[]; defaultValue?: string; multiple?: boolean }) {
-  return (
-    <select name={multiple ? "quizIds" : "quizId"} defaultValue={multiple ? undefined : defaultValue} multiple={multiple} size={multiple ? 4 : undefined} className="rounded-md border border-black/15 px-3 py-2 text-sm">
-      <option value="">Choose quiz...</option>
-      {quizzes.map((quiz) => <option key={quiz.id} value={quiz.id}>{quiz.title} ({quiz.status})</option>)}
-    </select>
   );
 }
