@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, ArrowRight, CheckCircle2, ExternalLink, FileText, GraduationCap, LockKeyhole, PlayCircle } from "lucide-react";
+import { LearnerAppShell } from "@/components/LearnerAppShell";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireUser } from "@/lib/auth";
 import { markCourseItemComplete } from "@/app/courses/actions";
@@ -47,43 +48,44 @@ export default async function CourseLearnPage({ params, searchParams }: { params
   const percent = progress?.progress_percent ?? (totalCount ? Math.round((completedCount / totalCount) * 100) : 0);
 
   return (
-    <main className="mx-auto max-w-7xl px-3 py-4 sm:px-4 sm:py-6">
-      <section className="mb-4 rounded-xl border border-black/10 bg-white p-4 shadow-sm">
+    <LearnerAppShell active="courses" contentClassName="block">
+    <main className="mx-auto max-w-7xl">
+      <section className="mb-4 rounded-[22px] border border-[#ECECF5] bg-white p-4 shadow-[0_12px_32px_rgba(0,0,0,.06)]">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
-            <Link href={`/courses/${course.id}`} className="inline-flex items-center gap-1 text-sm text-black/55 hover:text-black"><ArrowLeft size={15} /> Course landing</Link>
-            <h1 className="mt-2 truncate text-2xl font-semibold tracking-tight">{course.title}</h1>
-            <p className="mt-1 text-sm text-black/55">{completedCount}/{totalCount} required items complete</p>
+            <Link href={`/courses/${course.id}`} className="inline-flex items-center gap-1 text-sm font-bold text-[#6E738D] hover:text-[#6C3BFF]"><ArrowLeft size={15} /> Course landing</Link>
+            <h1 className="mt-2 truncate text-2xl font-extrabold tracking-tight">{course.title}</h1>
+            <p className="mt-1 text-sm font-semibold text-[#6E738D]">{completedCount}/{totalCount} required items complete</p>
           </div>
-          <span className={`rounded-full px-3 py-1 text-sm font-semibold ${enrollment.status === "COMPLETED" ? "bg-moss/10 text-moss" : "bg-skywash text-ink"}`}>
+          <span className={`rounded-full px-3 py-1 text-sm font-extrabold ${enrollment.status === "COMPLETED" ? "bg-[#E7FBF4] text-[#00A978]" : "bg-[#EEEAFB] text-[#6C3BFF]"}`}>
             {enrollment.status === "COMPLETED" ? "Completed" : "In progress"}
           </span>
         </div>
-        <div className="mt-4 h-2 overflow-hidden rounded-full bg-black/10">
-          <div className="h-full rounded-full bg-moss transition-all" style={{ width: `${percent}%` }} />
+        <div className="mt-4 h-2 overflow-hidden rounded-full bg-[#ECECF5]">
+          <div className="h-full rounded-full bg-gradient-to-r from-[#6C3BFF] to-[#00C98D] transition-all" style={{ width: `${percent}%` }} />
         </div>
       </section>
 
       <section className="grid gap-4 lg:grid-cols-[340px_minmax(0,1fr)]">
-        <aside className="rounded-xl border border-black/10 bg-white p-4 shadow-sm lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
+        <aside className="rounded-[22px] border border-[#ECECF5] bg-white p-4 shadow-[0_12px_32px_rgba(0,0,0,.06)] lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:overflow-y-auto">
           <div className="flex items-center gap-2">
-            <GraduationCap size={18} className="text-moss" />
-            <h2 className="font-semibold">Curriculum</h2>
+            <span className="grid size-9 place-items-center rounded-[12px] bg-[#EEEAFB] text-[#6C3BFF]"><GraduationCap size={18} /></span>
+            <h2 className="font-extrabold">Curriculum</h2>
           </div>
           <div className="mt-4 space-y-4">
             {(sections ?? []).map((section) => {
               const sectionItems = courseItems.filter((item) => item.section_id === section.id);
               return (
                 <div key={section.id}>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-black/45">{section.title}</p>
+                  <p className="text-xs font-extrabold uppercase tracking-wide text-[#8B90A7]">{section.title}</p>
                   <div className="mt-2 grid gap-1.5">
                     {sectionItems.map((item) => (
                       <Link
                         key={item.id}
                         href={`/courses/${course.id}/learn?item=${item.id}`}
-                        className={`flex items-center gap-2 rounded-md px-3 py-2 text-sm ${currentItem?.id === item.id ? "bg-moss/10 font-semibold text-moss" : "hover:bg-black/5"}`}
+                        className={`flex items-center gap-2 rounded-[12px] px-3 py-2 text-sm font-semibold ${currentItem?.id === item.id ? "bg-[#6C3BFF]/10 text-[#6C3BFF]" : "text-[#53607D] hover:bg-[#F6F7FB]"}`}
                       >
-                        {completedIds.has(item.id) ? <CheckCircle2 size={15} className="shrink-0 text-moss" /> : <span className="size-[15px] shrink-0 rounded-full border border-black/20" />}
+                        {completedIds.has(item.id) ? <CheckCircle2 size={15} className="shrink-0 text-[#00A978]" /> : <span className="size-[15px] shrink-0 rounded-full border border-[#C8CDDA]" />}
                         <span className="min-w-0 flex-1 truncate">{itemLabel(item)}</span>
                       </Link>
                     ))}
@@ -94,7 +96,7 @@ export default async function CourseLearnPage({ params, searchParams }: { params
           </div>
         </aside>
 
-        <section className="rounded-xl border border-black/10 bg-white p-5 shadow-sm">
+        <section className="rounded-[22px] border border-[#ECECF5] bg-white p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)]">
           {currentItem ? (
             <CourseItemFocus courseId={course.id} item={currentItem} completed={completedIds.has(currentItem.id)} />
           ) : (
@@ -109,6 +111,7 @@ export default async function CourseLearnPage({ params, searchParams }: { params
         </section>
       </section>
     </main>
+    </LearnerAppShell>
   );
 }
 

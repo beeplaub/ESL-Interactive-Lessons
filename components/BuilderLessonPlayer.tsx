@@ -368,9 +368,9 @@ export function BuilderLessonPlayer({
 
   if (!slide) {
     return (
-      <main className="mx-auto max-w-5xl px-4 py-10">
-        <Link href="/lessons" className="text-sm text-black/55 hover:text-black">Back to lessons</Link>
-        <div className="mt-6 rounded-lg border border-black/10 bg-white p-8 text-center text-sm text-black/55">
+    <main className="mx-auto max-w-5xl px-4 py-10">
+        <Link href="/courses" className="text-sm font-bold text-[#6E738D] hover:text-[#6C3BFF]">Back to courses</Link>
+        <div className="mt-6 rounded-[22px] border border-[#ECECF5] bg-white p-8 text-center text-sm font-semibold text-[#6E738D] shadow-[0_12px_32px_rgba(0,0,0,.06)]">
           This lesson has no slides yet.
         </div>
       </main>
@@ -378,29 +378,29 @@ export function BuilderLessonPlayer({
   }
 
   return (
-    <main className="mx-auto max-w-7xl px-1.5 py-3 sm:px-4 sm:py-4">
+    <main className="mx-auto max-w-7xl">
       {/* ── Header ── */}
-      <div className="mb-3 rounded-xl border border-black/10 bg-white px-3 py-2 shadow-sm">
+      <div className="mb-3 rounded-[22px] border border-[#ECECF5] bg-white px-3 py-2 shadow-[0_12px_32px_rgba(0,0,0,.06)]">
         <div className="flex flex-wrap items-center gap-3">
-          <Link href="/lessons" className="inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-black/10 text-black/55 hover:bg-black/5" aria-label="Back to lessons">
+          <Link href="/courses" className="inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-[#ECECF5] text-[#6E738D] hover:bg-[#F6F7FB] hover:text-[#6C3BFF]" aria-label="Back to courses">
             <ArrowLeft size={15} />
           </Link>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="min-w-0 truncate text-base font-semibold tracking-tight sm:text-lg">{lesson.title}</h1>
-              <span className="rounded-full bg-skywash px-2 py-0.5 text-[11px] font-semibold text-ink">{lesson.level}</span>
-              {lesson.topic ? <span className="truncate text-xs text-black/45">{lesson.topic}</span> : null}
+              <h1 className="min-w-0 truncate text-base font-extrabold tracking-tight sm:text-lg">{lesson.title}</h1>
+              <span className="rounded-full bg-[#EEEAFB] px-2 py-0.5 text-[11px] font-extrabold text-[#6C3BFF]">{lesson.level}</span>
+              {lesson.topic ? <span className="truncate text-xs font-semibold text-[#8B90A7]">{lesson.topic}</span> : null}
             </div>
             <div className="mt-1.5 flex items-center gap-2">
               <div className="grid h-1.5 flex-1 grid-flow-col gap-1">
                 {slides.map((item, slideIndex) => (
                   <span
                     key={item.id}
-                    className={`rounded-full transition-colors ${slideIndex <= index ? "bg-moss" : "bg-black/10"}`}
+                    className={`rounded-full transition-colors ${slideIndex <= index ? "bg-gradient-to-r from-[#6C3BFF] to-[#00C98D]" : "bg-[#ECECF5]"}`}
                   />
                 ))}
               </div>
-              <span className="shrink-0 text-[11px] font-medium text-black/45">{progressPercent}%</span>
+              <span className="shrink-0 text-[11px] font-bold text-[#8B90A7]">{progressPercent}%</span>
             </div>
           </div>
           {completed && (
@@ -409,15 +409,15 @@ export function BuilderLessonPlayer({
             </span>
           )}
           {lesson.timer_minutes ? (
-            <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${timerUrgent ? "bg-coral/10 text-coral" : "bg-moss/10 text-moss"}`}>
+            <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-extrabold ${timerUrgent ? "bg-[#FFF0F2] text-[#D9324A]" : "bg-[#E7FBF4] text-[#00A978]"}`}>
               {completed ? `${lesson.timer_minutes} min timer` : formatTime(remainingSeconds ?? lesson.timer_minutes * 60)}
             </span>
           ) : null}
         </div>
         {totalLessonMarks ? (
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-black/55">
-            <span className="rounded-full bg-black/[0.04] px-2.5 py-1">Lesson score {earnedLessonMarks}/{totalLessonMarks}</span>
-            <span className="rounded-full bg-moss/10 px-2.5 py-1 font-semibold text-moss">{lessonGrade}</span>
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs font-semibold text-[#6E738D]">
+            <span className="rounded-full bg-[#F6F7FB] px-2.5 py-1">Lesson score {earnedLessonMarks}/{totalLessonMarks}</span>
+            <span className="rounded-full bg-[#E7FBF4] px-2.5 py-1 font-extrabold text-[#00A978]">{lessonGrade}</span>
           </div>
         ) : null}
       </div>
@@ -439,26 +439,26 @@ export function BuilderLessonPlayer({
       >
         {dragX < -8 && slides[index + 1] ? (
           <div
-            className="pointer-events-none absolute inset-0 rounded-xl border border-black/10 bg-white p-5 shadow-sm"
+            className="pointer-events-none absolute inset-0 rounded-[22px] border border-[#ECECF5] bg-white p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)]"
             style={{
               transform: `translateX(calc(100% + ${dragX}px))`,
               transition: isDragging ? "none" : "transform 180ms ease"
             }}
           >
-            <p className="text-xs uppercase tracking-wide text-black/35">Next</p>
-            <h2 className="mt-1 text-xl font-semibold text-ink">{slides[index + 1].title}</h2>
+            <p className="text-xs font-bold uppercase tracking-wide text-[#8B90A7]">Next</p>
+            <h2 className="mt-1 text-xl font-extrabold text-[#14172B]">{slides[index + 1].title}</h2>
           </div>
         ) : null}
         {dragX > 8 && slides[index - 1] ? (
           <div
-            className="pointer-events-none absolute inset-0 rounded-xl border border-black/10 bg-white p-5 shadow-sm"
+            className="pointer-events-none absolute inset-0 rounded-[22px] border border-[#ECECF5] bg-white p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)]"
             style={{
               transform: `translateX(calc(-100% + ${dragX}px))`,
               transition: isDragging ? "none" : "transform 180ms ease"
             }}
           >
-            <p className="text-xs uppercase tracking-wide text-black/35">Previous</p>
-            <h2 className="mt-1 text-xl font-semibold text-ink">{slides[index - 1].title}</h2>
+            <p className="text-xs font-bold uppercase tracking-wide text-[#8B90A7]">Previous</p>
+            <h2 className="mt-1 text-xl font-extrabold text-[#14172B]">{slides[index - 1].title}</h2>
           </div>
         ) : null}
         <div
@@ -478,10 +478,10 @@ export function BuilderLessonPlayer({
           {/* Slide card */}
           <div className="relative">
             <section
-              className="rounded-xl border border-black/10 bg-white p-2 shadow-sm sm:p-3"
+              className="rounded-[22px] border border-[#ECECF5] bg-white p-2 shadow-[0_12px_32px_rgba(0,0,0,.06)] sm:p-3"
             >
               {/* Slide header */}
-              <div className="mb-4 rounded-lg bg-ink px-4 py-3 text-white">
+              <div className="mb-4 rounded-[18px] bg-gradient-to-br from-[#1A1060] via-[#0C1945] to-[#0E1F5A] px-4 py-3 text-white">
 
                 {/* Line 1 — slide counter (left) + narration pill (right) */}
                 <div className="flex items-center justify-between gap-2">
@@ -494,7 +494,7 @@ export function BuilderLessonPlayer({
                 </div>
 
                 {/* Line 2 — slide title */}
-                <h2 className="mt-1 text-2xl font-semibold">{slide.title}</h2>
+                <h2 className="mt-1 text-2xl font-extrabold">{slide.title}</h2>
 
                 {/* Line 3 — section label */}
                 {slide.section_label && (
@@ -505,7 +505,7 @@ export function BuilderLessonPlayer({
               {slideBlocks.length ? (
                 <LessonBlockPreview blocks={slideBlocks} />
               ) : slideActivities.length ? null : (
-                <div className="grid min-h-40 place-items-center rounded-md bg-slate-50 p-5 text-center text-sm text-black/55">
+                <div className="grid min-h-40 place-items-center rounded-[16px] bg-[#F6F7FB] p-5 text-center text-sm font-semibold text-[#6E738D]">
                   Take a moment to review this step, then continue when you are ready.
                 </div>
               )}
@@ -513,16 +513,16 @@ export function BuilderLessonPlayer({
           </div>
 
           {/* Notes panel */}
-          <div className="rounded-xl border border-black/10 bg-white shadow-sm">
-            <div className="flex items-center justify-between border-b border-black/10 px-4 py-3">
+          <div className="rounded-[22px] border border-[#ECECF5] bg-white shadow-[0_12px_32px_rgba(0,0,0,.06)]">
+            <div className="flex items-center justify-between border-b border-[#ECECF5] px-4 py-3">
               <div className="flex items-center gap-2">
-                <NotebookPen size={15} className="text-moss" />
-                <span className="text-sm font-semibold">My Notes</span>
-                <span className="rounded-full bg-black/[0.06] px-2 py-0.5 text-[10px] font-medium text-black/45">
+                <NotebookPen size={15} className="text-[#6C3BFF]" />
+                <span className="text-sm font-extrabold">My Notes</span>
+                <span className="rounded-full bg-[#F6F7FB] px-2 py-0.5 text-[10px] font-bold text-[#8B90A7]">
                   Slide {index + 1}
                 </span>
               </div>
-              <span className={`text-[11px] transition-opacity duration-300 ${notesSaved ? "text-moss opacity-100" : "opacity-0"}`}>
+              <span className={`text-[11px] font-bold transition-opacity duration-300 ${notesSaved ? "text-[#00A978] opacity-100" : "opacity-0"}`}>
                 ✓ Saved
               </span>
             </div>
@@ -533,9 +533,9 @@ export function BuilderLessonPlayer({
                 onChange={handleNotesChange}
                 placeholder="Type your notes here… they save automatically."
                 rows={4}
-                className="w-full resize-none rounded-lg border border-black/10 bg-slate-50 px-3 py-2.5 text-sm leading-relaxed text-black/80 placeholder:text-black/30 focus:border-moss/40 focus:bg-white focus:outline-none focus:ring-2 focus:ring-moss/20"
+                className="w-full resize-none rounded-[16px] border border-[#ECECF5] bg-[#F8F8FC] px-3 py-2.5 text-sm font-semibold leading-relaxed text-[#35405F] placeholder:text-[#A0A5BA] focus:border-[#6C3BFF]/40 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#6C3BFF]/15"
               />
-              <p className="mt-1.5 text-[11px] text-black/35">
+              <p className="mt-1.5 text-[11px] font-semibold text-[#8B90A7]">
                 Notes are saved per slide and will be here when you return.
               </p>
             </div>
@@ -570,7 +570,7 @@ export function BuilderLessonPlayer({
               ))}
             </div>
           ) : (
-            <div className="rounded-lg border border-black/10 bg-white p-5 text-sm text-black/55 shadow-sm">
+            <div className="rounded-[22px] border border-[#ECECF5] bg-white p-5 text-sm font-semibold text-[#6E738D] shadow-[0_12px_32px_rgba(0,0,0,.06)]">
               No activity on this slide. Use Next when you are ready.
             </div>
           )}
@@ -578,36 +578,36 @@ export function BuilderLessonPlayer({
       </div>
 
       {/* ── Bottom navigation bar ── */}
-      <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-black/10 bg-white/95 p-3 shadow-sm backdrop-blur">
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-[22px] border border-[#ECECF5] bg-white/95 p-3 shadow-[0_12px_32px_rgba(0,0,0,.06)] backdrop-blur">
         <button
           type="button"
           onClick={() => move(-1)}
           disabled={index === 0}
-          className="inline-flex items-center gap-2 rounded-full border border-black/15 px-4 py-2 text-sm font-medium hover:bg-black/5 disabled:opacity-35"
+          className="inline-flex items-center gap-2 rounded-full border border-[#ECECF5] px-4 py-2 text-sm font-bold text-[#53607D] hover:bg-[#F6F7FB] disabled:opacity-35"
         >
           <ChevronLeft size={16} /> Previous
         </button>
-        <div className="relative flex items-center gap-2 rounded-full bg-black/[0.04] px-2 py-1 text-sm font-medium text-black/55">
-          {message ? <span className="hidden text-xs text-coral sm:inline">{message}</span> : null}
+        <div className="relative flex items-center gap-2 rounded-full bg-[#F6F7FB] px-2 py-1 text-sm font-bold text-[#6E738D]">
+          {message ? <span className="hidden text-xs text-[#D9324A] sm:inline">{message}</span> : null}
           <button
             type="button"
             onClick={() => setJumpOpen((open) => !open)}
             aria-expanded={jumpOpen}
             aria-label="Jump to slide"
-            className="rounded-full border border-black/10 bg-white px-3 py-1.5 text-sm font-semibold text-ink outline-none transition hover:bg-slate-50 focus:border-moss/50 focus:ring-2 focus:ring-moss/15"
+            className="rounded-full border border-[#ECECF5] bg-white px-3 py-1.5 text-sm font-extrabold text-[#14172B] outline-none transition hover:bg-[#F6F7FB] focus:border-[#6C3BFF]/50 focus:ring-2 focus:ring-[#6C3BFF]/15"
           >
             Slide {index + 1}
           </button>
-          <span className="shrink-0 text-xs text-black/45">of {slides.length}</span>
+          <span className="shrink-0 text-xs text-[#8B90A7]">of {slides.length}</span>
           {jumpOpen ? (
-            <div className="absolute bottom-full left-1/2 z-30 mb-2 max-h-72 w-72 max-w-[calc(100vw-2rem)] -translate-x-1/2 overflow-auto rounded-xl border border-black/10 bg-white p-1.5 text-left shadow-2xl">
+            <div className="absolute bottom-full left-1/2 z-30 mb-2 max-h-72 w-72 max-w-[calc(100vw-2rem)] -translate-x-1/2 overflow-auto rounded-[18px] border border-[#ECECF5] bg-white p-1.5 text-left shadow-2xl">
               {slides.map((item, slideIndex) => (
                 <button
                   key={item.id}
                   type="button"
                   onClick={() => jumpTo(slideIndex)}
                   className={`block w-full rounded-lg px-3 py-2 text-left text-sm transition ${
-                    slideIndex === index ? "bg-moss/10 font-semibold text-moss" : "text-black/70 hover:bg-black/[0.04]"
+                    slideIndex === index ? "bg-[#6C3BFF]/10 font-extrabold text-[#6C3BFF]" : "font-semibold text-[#53607D] hover:bg-[#F6F7FB]"
                   }`}
                 >
                   <span className="mr-2 text-xs font-semibold text-black/35">{slideIndex + 1}</span>
@@ -622,7 +622,7 @@ export function BuilderLessonPlayer({
             type="button"
             onClick={finish}
             disabled={isPending || completed}
-            className="rounded-md bg-coral px-4 py-2 text-sm font-semibold text-white disabled:opacity-45"
+            className="rounded-full bg-gradient-to-br from-[#FF6B9D] to-[#FF8E53] px-4 py-2 text-sm font-extrabold text-white shadow-[0_8px_20px_rgba(255,107,157,.24)] disabled:opacity-45"
           >
             {completed ? "Completed" : "Complete lesson"}
           </button>
@@ -630,7 +630,7 @@ export function BuilderLessonPlayer({
           <button
             type="button"
             onClick={() => move(1)}
-            className="inline-flex items-center gap-2 rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-black disabled:opacity-45"
+            className="inline-flex items-center gap-2 rounded-full bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] px-4 py-2 text-sm font-extrabold text-white shadow-[0_8px_20px_rgba(108,59,255,.28)] disabled:opacity-45"
           >
             Next <ArrowRight size={15} />
           </button>

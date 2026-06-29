@@ -2,7 +2,6 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import {
   Award,
-  BarChart2,
   Bell,
   Book,
   BookOpen,
@@ -12,15 +11,11 @@ import {
   ClipboardList,
   Flag,
   Gamepad2,
-  GraduationCap,
   Grid3X3,
   Headphones,
   Heart,
   HelpCircle,
-  Home,
-  Layers,
   LogOut,
-  Menu,
   Mic,
   Pencil,
   Play,
@@ -28,14 +23,12 @@ import {
   Star,
   Target,
   TrendingUp,
-  Trophy,
   Type,
-  User,
-  Users
 } from "lucide-react";
 import { signOut, switchToAdminView } from "@/app/auth/actions";
 import { requireUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { LearnerAppShell } from "@/components/LearnerAppShell";
 import { PendingAttemptSaver } from "@/components/PendingAttemptSaver";
 import { getNextQuizBadge, getQuizBadge } from "@/lib/quizBadges";
 
@@ -150,14 +143,10 @@ export default async function AccountPage() {
   });
 
   return (
-    <main className="min-h-screen bg-[#F6F7FB] font-sans text-[#14172B]">
+    <LearnerAppShell active="home">
       <PendingAttemptSaver />
-      <MobileTopbar initials={initials} streak={streak} />
-
-      <div className="mx-auto flex min-h-screen max-w-[1536px] items-start gap-5 p-3 pb-24 md:p-6 md:pb-6">
-        <DashboardSidebar currentLevel={currentLevel} />
-
-        <section className="flex min-w-0 flex-1 flex-col gap-5 pt-[60px] md:pt-0">
+      <div className="flex min-w-0 gap-5">
+        <section className="flex min-w-0 flex-1 flex-col gap-5">
           {isAdminLearnerView ? (
             <form action={switchToAdminView} className="rounded-[20px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 shadow-sm">
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -313,151 +302,9 @@ export default async function AccountPage() {
               ) : null}
             </div>
           </DashboardCard>
-          <div className="relative overflow-hidden rounded-[20px] bg-gradient-to-br from-[#2D1B69] to-[#1A0F4A] p-5 text-white shadow-[0_12px_32px_rgba(45,27,105,.35)]">
-            <div className="absolute -right-5 -top-8 size-32 rounded-full bg-[#6C3BFF]/20" />
-            <div className="relative z-10 flex gap-3">
-              <div className="flex-1">
-                <div className="text-[15px] font-extrabold">Challenge yourself!</div>
-                <p className="mt-1.5 text-[11px] leading-5 text-white/65">Join the weekly challenge and win bonus points.</p>
-                <Link href="/quizzes" className="mt-4 inline-flex rounded-xl bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] px-5 py-2.5 text-xs font-bold text-white">Join Now</Link>
-              </div>
-              <div className="self-end text-5xl">🏆</div>
-            </div>
-          </div>
         </aside>
       </div>
-
-      <MobileBottomNav />
-    </main>
-  );
-}
-
-function DashboardSidebar({ currentLevel }: { currentLevel: string }) {
-  const navItems = [
-    { href: "/account", label: "Home", icon: Home, active: true },
-    { href: "/quizzes", label: "Quizzes", icon: HelpCircle },
-    { href: "#", label: "Lessons", icon: BookOpen, disabled: true },
-    { href: "/courses", label: "Courses", icon: GraduationCap },
-    { href: "/level-test", label: "Level Test", icon: Target },
-    { href: "#", label: "Vocabulary", icon: Book, disabled: true },
-    { href: "#", label: "Pronunciation", icon: Mic, disabled: true },
-    { href: "#", label: "Assignments", icon: ClipboardList, disabled: true },
-    { href: "/leaderboard", label: "Leaderboard", icon: BarChart2 },
-    { href: "#", label: "Community", icon: Users, disabled: true, badge: "NEW" }
-  ];
-
-  return (
-    <aside className="sticky top-6 hidden max-h-[calc(100vh-48px)] w-[225px] min-w-[225px] flex-col overflow-y-auto rounded-[24px] bg-gradient-to-b from-[#09112C] to-[#0C1636] p-5 [scrollbar-width:none] min-[861px]:flex [&::-webkit-scrollbar]:hidden">
-      <Link href="/" className="flex items-center gap-2.5 pb-5">
-        <div className="grid size-10 place-items-center rounded-xl bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF]">
-          <Layers className="size-[22px] text-white" />
-        </div>
-        <div>
-          <div className="text-base font-bold leading-tight text-white">BrenUp</div>
-          <div className="text-[10px] font-medium text-[#8890B8]">Level Up Your English</div>
-        </div>
-      </Link>
-      <nav className="flex flex-1 flex-col gap-0.5">
-        {navItems.map((item) => (
-          <NavLink key={item.label} {...item} />
-        ))}
-      </nav>
-      <div className="mt-4 rounded-[20px] bg-gradient-to-br from-[#6C3BFF] to-[#4520D9] p-[18px] text-white">
-        <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide opacity-75">Current CEFR Level</div>
-        <div className="text-[40px] font-extrabold leading-none">{currentLevel}</div>
-        <div className="mb-3 text-xs opacity-80">{levelNames[currentLevel] ?? "Not tested yet"}</div>
-        <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-white/20">
-          <div className="h-full w-[72%] rounded-full bg-gradient-to-r from-white to-white/70" />
-        </div>
-        <Link href="/level-test" className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-white/30 bg-white/20 p-2.5 text-xs font-semibold text-white">
-          View Level Roadmap <ChevronRight className="size-[13px]" />
-        </Link>
-      </div>
-      <div className="mt-3 rounded-[20px] border border-[#6B4A00] bg-gradient-to-br from-[#2A1A00] to-[#3D2800] p-4 text-white">
-        <div className="mb-1.5 flex items-center gap-2"><span>👑</span><span className="text-sm font-bold">Go Premium</span></div>
-        <p className="mb-3 text-[11px] leading-5 text-[#B8996A]">Unlock all courses, detailed feedback, and more!</p>
-        <button type="button" className="w-full rounded-xl bg-gradient-to-br from-[#FFB545] to-[#FF8C00] p-2.5 text-xs font-bold text-[#1A0D00]">Upgrade Now</button>
-      </div>
-    </aside>
-  );
-}
-
-function NavLink({ href, label, icon: Icon, active, disabled, badge }: { href: string; label: string; icon: React.ElementType; active?: boolean; disabled?: boolean; badge?: string }) {
-  const className = `flex h-12 items-center gap-3 rounded-[14px] px-3.5 text-sm font-semibold no-underline transition ${active ? "bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] text-white shadow-[0_8px_20px_rgba(108,59,255,.35)]" : "text-[#C5C8DC] hover:bg-[#6C3BFF]/20 hover:text-white"} ${disabled ? "cursor-default opacity-80" : ""}`;
-  const content = (
-    <>
-      <span className="grid size-5 shrink-0 place-items-center"><Icon className="size-[18px]" /></span>
-      <span>{label}</span>
-      {badge ? <span className="ml-auto rounded-full bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] px-2 py-0.5 text-[9px] font-bold tracking-wide text-white">{badge}</span> : null}
-    </>
-  );
-  if (disabled) return <span className={className}>{content}</span>;
-  return <Link href={href} className={className}>{content}</Link>;
-}
-
-function MobileTopbar({ initials, streak }: { initials: string; streak: number }) {
-  return (
-    <div className="fixed inset-x-0 top-0 z-40 flex h-[60px] items-center justify-between bg-gradient-to-br from-[#09112C] to-[#0C1636] px-4 min-[861px]:hidden">
-      <Link href="/" className="flex items-center gap-2">
-        <span className="grid size-8 place-items-center rounded-[9px] bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF]"><Layers className="size-[18px] text-white" /></span>
-        <span className="text-[15px] font-bold text-white">BrenUp</span>
-      </Link>
-      <div className="flex items-center gap-2.5">
-        <div className="flex items-center gap-1 rounded-[14px] bg-white px-2.5 py-1.5"><span>🔥</span><span className="text-[13px] font-bold text-[#14172B]">{streak}</span></div>
-        <div className="relative grid size-9 place-items-center text-white"><Bell className="size-5" /><span className="absolute right-0.5 top-0.5 grid size-3.5 place-items-center rounded-full border border-[#09112C] bg-[#FF5D73] text-[8px] font-bold">3</span></div>
-        <Avatar initials={initials} size="sm" />
-        <details className="group relative">
-          <summary className="grid size-9 cursor-pointer list-none place-items-center rounded-[10px] text-white marker:hidden [&::-webkit-details-marker]:hidden" aria-label="Menu">
-            <Menu className="size-[22px]" />
-          </summary>
-          <div className="fixed inset-x-3 top-[68px] z-50 rounded-[24px] border border-white/10 bg-[#09112C] p-3 shadow-2xl shadow-black/30">
-            <div className="grid gap-1">
-              <MobileDrawerLink href="/account" label="Home" icon={Home} active />
-              <MobileDrawerLink href="/quizzes" label="Quizzes" icon={HelpCircle} />
-              <MobileDrawerLink href="/courses" label="Courses" icon={GraduationCap} />
-              <MobileDrawerLink href="/level-test" label="Level Test" icon={Target} />
-              <MobileDrawerLink href="/leaderboard" label="Leaderboard" icon={Trophy} />
-              <MobileDrawerLink href="/profile" label="Profile" icon={User} />
-              <form action={signOut} className="mt-1 border-t border-white/10 pt-2">
-                <button className="flex h-11 w-full items-center gap-3 rounded-[14px] px-3.5 text-left text-sm font-semibold text-[#C5C8DC]" type="submit">
-                  <LogOut className="size-[18px]" /> Logout
-                </button>
-              </form>
-            </div>
-          </div>
-        </details>
-      </div>
-    </div>
-  );
-}
-
-function MobileDrawerLink({ href, label, icon: Icon, active }: { href: string; label: string; icon: React.ElementType; active?: boolean }) {
-  return (
-    <Link href={href} className={`flex h-11 items-center gap-3 rounded-[14px] px-3.5 text-sm font-semibold ${active ? "bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] text-white" : "text-[#C5C8DC]"}`}>
-      <Icon className="size-[18px]" /> {label}
-    </Link>
-  );
-}
-
-function MobileBottomNav() {
-  const items = [
-    { href: "/account", label: "Home", icon: Home, active: true },
-    { href: "/quizzes", label: "Quizzes", icon: HelpCircle },
-    { href: "/courses", label: "Courses", icon: BookOpen },
-    { href: "/leaderboard", label: "Ranks", icon: Trophy },
-    { href: "/profile", label: "Profile", icon: User }
-  ];
-  return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-[#ECECF5] bg-white px-1 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 min-[861px]:hidden">
-      <div className="flex items-center justify-around">
-        {items.map((item) => (
-          <Link key={item.label} href={item.href} className={`flex flex-col items-center gap-1 rounded-xl px-3 py-1.5 text-[9px] font-semibold ${item.active ? "text-[#6C3BFF]" : "text-[#6E738D]"}`}>
-            <span className={`grid size-9 place-items-center rounded-[10px] ${item.active ? "bg-[#6C3BFF]/10" : ""}`}><item.icon className="size-5" /></span>
-            {item.label}
-          </Link>
-        ))}
-      </div>
-    </nav>
+    </LearnerAppShell>
   );
 }
 

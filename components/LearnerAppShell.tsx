@@ -30,7 +30,7 @@ const levelNames: Record<string, string> = {
 
 type ActiveItem = "home" | "quizzes" | "courses" | "level-test" | "leaderboard" | "profile";
 
-export async function LearnerAppShell({ active, children }: { active: ActiveItem; children: React.ReactNode }) {
+export async function LearnerAppShell({ active, children, contentClassName = "flex flex-col gap-5" }: { active: ActiveItem; children: React.ReactNode; contentClassName?: string }) {
   const supabase = await createClient();
   const admin = createAdminClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -47,7 +47,7 @@ export async function LearnerAppShell({ active, children }: { active: ActiveItem
       <MobileTopbar active={active} initials={initials} isLoggedIn={Boolean(user)} />
       <div className="mx-auto flex min-h-screen max-w-[1536px] items-start gap-5 p-3 pb-24 md:p-6 md:pb-6">
         <LearnerSidebar active={active} currentLevel={currentLevel} />
-        <section className="flex min-w-0 flex-1 flex-col gap-5 pt-[60px] md:pt-0">
+        <section className={`min-w-0 flex-1 pt-[60px] md:pt-0 ${contentClassName}`}>
           {children}
         </section>
       </div>
@@ -104,24 +104,17 @@ function LearnerSidebar({ active, currentLevel }: { active: ActiveItem; currentL
           </Link>
         </div>
       )}
-      <ChallengeCard compact />
+      <PremiumCard />
     </aside>
   );
 }
 
-function ChallengeCard({ compact = false }: { compact?: boolean }) {
+function PremiumCard() {
   return (
-    <div className={`mt-3 overflow-hidden rounded-[20px] bg-gradient-to-br from-[#6C3BFF] to-[#172BB8] text-white shadow-[0_12px_28px_rgba(108,59,255,.28)] ${compact ? "p-4" : "p-5"}`}>
-      <div className="flex items-end justify-between gap-3">
-        <div>
-          <div className="text-sm font-extrabold">Challenge yourself!</div>
-          <p className="mt-1.5 text-[11px] leading-5 text-white/70">Join a quiz challenge and earn points toward your next badge.</p>
-          <Link href="/quizzes" className="mt-4 inline-flex rounded-xl bg-gradient-to-br from-[#8A58FF] to-[#6C3BFF] px-4 py-2.5 text-xs font-bold text-white shadow-[0_8px_18px_rgba(0,0,0,.16)]">
-            Join Now
-          </Link>
-        </div>
-        <div className="text-4xl">🏆</div>
-      </div>
+    <div className="mt-3 rounded-[20px] border border-[#6B4A00] bg-gradient-to-br from-[#2A1A00] to-[#3D2800] p-4 text-white">
+      <div className="mb-1.5 flex items-center gap-2"><span>👑</span><span className="text-sm font-bold">Go Premium</span></div>
+      <p className="mb-3 text-[11px] leading-5 text-[#B8996A]">Unlock all courses, detailed feedback, and more!</p>
+      <button type="button" className="w-full cursor-default rounded-xl bg-gradient-to-br from-[#FFB545] to-[#FF8C00] p-2.5 text-xs font-bold text-[#1A0D00]">Upgrade Now</button>
     </div>
   );
 }

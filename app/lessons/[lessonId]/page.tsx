@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { BuilderLessonPlayer } from "@/components/BuilderLessonPlayer";
+import { LearnerAppShell } from "@/components/LearnerAppShell";
 
 export default async function LessonPage({ params }: { params: Promise<{ lessonId: string }> }) {
   const { lessonId } = await params;
@@ -48,15 +49,17 @@ export default async function LessonPage({ params }: { params: Promise<{ lessonI
   }
 
   return (
-    <BuilderLessonPlayer
-      lesson={lesson}
-      slides={slides ?? []}
-      blocks={blocks ?? []}
-      activities={activities ?? []}
-      initialProgress={progress ?? null}
-      activityAttempts={attempts ?? []}
-      initialNotes={progress?.notes ?? {}}
-      narrationMap={narrationMap}
-    />
+    <LearnerAppShell active="courses" contentClassName="block">
+      <BuilderLessonPlayer
+        lesson={lesson}
+        slides={slides ?? []}
+        blocks={blocks ?? []}
+        activities={activities ?? []}
+        initialProgress={progress ?? null}
+        activityAttempts={attempts ?? []}
+        initialNotes={progress?.notes ?? {}}
+        narrationMap={narrationMap}
+      />
+    </LearnerAppShell>
   );
 }
