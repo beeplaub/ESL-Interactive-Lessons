@@ -1,11 +1,11 @@
 export type CefrLevel = "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
-export type LevelAnswer = "A" | "B" | "C" | "D";
+export type LevelAnswer = "A" | "B" | "C" | "D" | string;
 
 export type LevelTestQuestion = {
   id: string;
   section: "USE_OF_ENGLISH" | "READING";
   cefrBand: CefrLevel;
-  questionType: "MCQ" | "TRUE_FALSE";
+  questionType: "MCQ" | "TRUE_FALSE" | "MULTIPLE_SELECT" | "FILL";
   questionText: string;
   options: Array<{ key: LevelAnswer; text: string }>;
   correctAnswer: LevelAnswer;

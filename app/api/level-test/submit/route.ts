@@ -1,13 +1,15 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { levelGuidance, scoreLevelTest, type LevelAnswer } from "@/lib/levelTestBank";
+import { getLevelTestForScoring, scoreConfigurableTest } from "@/lib/configurableLevelTest";
+import { levelGuidance, type LevelAnswer } from "@/lib/levelTestBank";
 
 export const runtime = "nodejs";
 
 type SubmitBody = {
+  testId?: string | null;
   questionIds?: string[];
-  answers?: Record<string, LevelAnswer>;
+  answers?: Record<string, LevelAnswer | string[]>;
   timeTakenSeconds?: number;
 };
 
@@ -23,20 +25,47 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid level test submission" }, { status: 400 });
   }
 
-  const score = scoreLevelTest(body.questionIds, body.answers);
+  const test = await getLevelTestForScoring(body.testId ?? null, body.questionIds);
+  const score = scoreConfigurableTest(test, body.questionIds, body.answers);
   const admin = createAdminClient();
   const resultPayload = {
     user_id: user.id,
+    test_id: test.id,
     raw_score: score.rawScore,
     weighted_score: score.weightedScore,
     cefr_level: score.cefrLevel,
     section_scores: score.sectionScores,
     answers: body.answers,
+    total_questions: body.questionIds.length,
+    maximum_weighted_score: score.maximumWeightedScore,
+    percentage: score.percentage,
+    test_snapshot: {
+      title: test.title,
+      gradeBand: score.gradeBand,
+      sections: test.sections.map((section) => ({
+        title: section.title,
+        questionCount: section.questions.length
+      }))
+    },
     time_taken_seconds: Math.max(0, Math.round(body.timeTakenSeconds ?? 0))
   };
 
-  const { data: result, error } = await admin.from("level_test_results").insert(resultPayload).select("*").single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  let { data: result, error } = await admin.from("level_test_results").insert(resultPayload).select("*").single();
+  if (error && (error.code === "PGRST204" || error.code === "42703")) {
+    const legacyPayload = {
+      user_id: user.id,
+      raw_score: score.rawScore,
+      weighted_score: score.weightedScore,
+      cefr_level: score.cefrLevel,
+      section_scores: score.sectionScores,
+      answers: body.answers,
+      time_taken_seconds: Math.max(0, Math.round(body.timeTakenSeconds ?? 0))
+    };
+    const legacyInsert = await admin.from("level_test_results").insert(legacyPayload).select("*").single();
+    result = legacyInsert.data;
+    error = legacyInsert.error;
+  }
+  if (error || !result) return NextResponse.json({ error: error?.message ?? "Could not save the result." }, { status: 500 });
 
   await admin.from("profiles").update({ cefr_level: score.cefrLevel }).eq("id", user.id);
 

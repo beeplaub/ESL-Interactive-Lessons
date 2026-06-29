@@ -1,153 +1,204 @@
 "use client";
 
+import { BookOpen, Check, ChevronRight, Clock3, Loader2, Send, ShieldCheck, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { LevelAnswer, LevelTestQuestion, ReadingPassage } from "@/lib/levelTestBank";
 
-const TEST_SECONDS = 30 * 60;
+type PublicQuestion = {
+  id: string;
+  section: "USE_OF_ENGLISH" | "READING";
+  cefrBand: string;
+  questionType: "MCQ" | "TRUE_FALSE" | "MULTIPLE_SELECT" | "FILL";
+  questionText: string;
+  options: Array<{ key: string; text: string }>;
+  passageId?: string;
+};
+type PublicPassage = { id: string; title: string; body: string };
+type PublicSection = { id: string; title: string; description: string; questions: PublicQuestion[]; passages: PublicPassage[] };
 
-export function LevelTestRunner({ questions, passages }: { questions: LevelTestQuestion[]; passages: ReadingPassage[] }) {
+export function LevelTestRunner({
+  testId,
+  title,
+  durationSeconds,
+  requireAllAnswers,
+  showQuestionNumbers,
+  sections
+}: {
+  testId: string | null;
+  title: string;
+  durationSeconds: number | null;
+  requireAllAnswers: boolean;
+  showQuestionNumbers: boolean;
+  sections: PublicSection[];
+}) {
   const router = useRouter();
   const startedAt = useRef(Date.now());
   const hasSubmitted = useRef(false);
-  const [secondsLeft, setSecondsLeft] = useState(TEST_SECONDS);
-  const [answers, setAnswers] = useState<Record<string, LevelAnswer>>({});
+  const [secondsLeft, setSecondsLeft] = useState(durationSeconds);
+  const [answers, setAnswers] = useState<Record<string, string | string[]>>({});
+  const [activeIndex, setActiveIndex] = useState(0);
   const [message, setMessage] = useState<string | null>(null);
-  const answeredCount = Object.keys(answers).length;
-  const useQuestions = questions.filter((question) => question.section === "USE_OF_ENGLISH");
-  const readingQuestions = questions.filter((question) => question.section === "READING");
-  const minutes = Math.floor(secondsLeft / 60);
-  const seconds = secondsLeft % 60;
+  const questions = useMemo(() => sections.flatMap((section) => section.questions.map((question) => ({ ...question, sectionRecord: section }))), [sections]);
+  const current = questions[activeIndex];
+  const currentAnswer = current ? answers[current.id] : undefined;
+  const answeredCount = Object.keys(answers).filter((id) => {
+    const answer = answers[id];
+    return Array.isArray(answer) ? answer.length > 0 : Boolean(answer?.trim());
+  }).length;
   const isComplete = answeredCount === questions.length;
+  const percentage = questions.length ? Math.round((answeredCount / questions.length) * 100) : 0;
 
-  const questionsByPassage = useMemo(() => {
-    const map = new Map<string, LevelTestQuestion[]>();
-    for (const question of readingQuestions) {
-      if (!question.passageId) continue;
-      map.set(question.passageId, [...(map.get(question.passageId) ?? []), question]);
-    }
-    return map;
-  }, [readingQuestions]);
+  useEffect(() => {
+    if (durationSeconds === null) return;
+    const timer = window.setInterval(() => setSecondsLeft((value) => value === null ? null : Math.max(0, value - 1)), 1000);
+    return () => window.clearInterval(timer);
+  }, [durationSeconds]);
 
-  async function submit() {
+  useEffect(() => {
+    if (secondsLeft === 0 && durationSeconds) void submit(true);
+    // submit is intentionally triggered only when the timer reaches zero.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [secondsLeft, durationSeconds]);
+
+  async function submit(timerExpired = false) {
     if (hasSubmitted.current) return;
+    if (requireAllAnswers && !isComplete && !timerExpired) {
+      setMessage("Answer every question before submitting. Unanswered questions are marked above.");
+      return;
+    }
     hasSubmitted.current = true;
-    setMessage("Submitting your level test...");
+    setMessage("Scoring your answers...");
     const response = await fetch("/api/level-test/submit", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
+        testId,
         questionIds: questions.map((question) => question.id),
         answers,
         timeTakenSeconds: Math.round((Date.now() - startedAt.current) / 1000)
       })
     });
-
     if (!response.ok) {
       hasSubmitted.current = false;
       const error = (await response.json().catch(() => null)) as { error?: string } | null;
-      setMessage(error?.error ?? "Could not submit your level test. Please try again.");
+      setMessage(error?.error ?? "Your result could not be saved. Please try again.");
       return;
     }
-
     const result = (await response.json()) as { resultId: string };
     router.push(`/level-test/result?resultId=${result.resultId}`);
   }
 
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      setSecondsLeft((current) => {
-        if (current <= 1) {
-          window.clearInterval(timer);
-          void submit();
-          return 0;
-        }
-        return current - 1;
-      });
-    }, 1000);
+  if (!current) {
+    return <main className="grid min-h-[70vh] place-items-center bg-[#F6F7FB] p-6"><div className="rounded-[20px] bg-white p-8 text-center shadow-sm"><h1 className="text-xl font-extrabold">This test has no questions yet.</h1><p className="mt-2 text-sm text-[#6E738D]">Please return after the test administrator publishes its question bank.</p></div></main>;
+  }
 
-    return () => window.clearInterval(timer);
-  });
+  const passage = current.passageId ? current.sectionRecord.passages.find((item) => item.id === current.passageId) : null;
+  const urgent = secondsLeft !== null && secondsLeft <= 300;
+  const minutes = secondsLeft === null ? 0 : Math.floor(secondsLeft / 60);
+  const seconds = secondsLeft === null ? 0 : secondsLeft % 60;
 
   return (
-    <main className="mx-auto max-w-5xl px-4 py-5">
-      <div className="sticky top-0 z-20 -mx-4 border-b border-black/10 bg-white px-4 py-3">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-sm font-semibold">BrenUp Level Test</p>
-            <p className="text-xs text-black/55">{answeredCount}/{questions.length} answered</p>
-          </div>
-          <div className={`rounded-md px-3 py-2 text-sm font-semibold ${secondsLeft <= 300 ? "bg-coral text-white" : "bg-skywash text-ink"}`}>
-            {String(minutes).padStart(2, "0")}:{String(seconds).padStart(2, "0")}
-          </div>
-        </div>
-        <div className="mx-auto mt-3 grid max-w-5xl gap-1" style={{ gridTemplateColumns: "repeat(25, minmax(0, 1fr))" }}>
-          {questions.map((question, index) => (
-            <span key={question.id} className={`h-1.5 rounded-full ${answers[question.id] ? "bg-moss" : "bg-coral/30"}`} title={`Question ${index + 1}`} />
-          ))}
-        </div>
-      </div>
-
-      <section className="mt-6 rounded-lg border border-black/10 bg-white p-5 shadow-sm">
-        <h1 className="text-2xl font-semibold">Section 1: Use of English</h1>
-        <p className="mt-2 text-sm text-black/60">Choose the best answer for each grammar and vocabulary question.</p>
-        <div className="mt-5 grid gap-4">
-          {useQuestions.map((question, index) => (
-            <QuestionCard key={question.id} number={index + 1} question={question} value={answers[question.id]} onChange={(value) => setAnswers((current) => ({ ...current, [question.id]: value }))} />
-          ))}
-        </div>
-      </section>
-
-      <section className="mt-6 rounded-lg border border-black/10 bg-white p-5 shadow-sm">
-        <h2 className="text-2xl font-semibold">Section 2: Reading</h2>
-        <p className="mt-2 text-sm text-black/60">Read both texts and answer the questions below each passage.</p>
-        <div className="mt-5 grid gap-6">
-          {passages.map((passage, passageIndex) => (
-            <article key={passage.id} className="rounded-lg border border-black/10 bg-slate-50 p-4">
-              <h3 className="text-lg font-semibold">{passage.title}</h3>
-              <p className="mt-3 whitespace-pre-line text-sm leading-7 text-black/70">{passage.body}</p>
-              <div className="mt-5 grid gap-4">
-                {(questionsByPassage.get(passage.id) ?? []).map((question, questionIndex) => (
-                  <QuestionCard
-                    key={question.id}
-                    number={useQuestions.length + passageIndex * 5 + questionIndex + 1}
-                    question={question}
-                    value={answers[question.id]}
-                    onChange={(value) => setAnswers((current) => ({ ...current, [question.id]: value }))}
-                  />
-                ))}
+    <main className="min-h-screen bg-[#F6F7FB] px-3 py-3 text-[#14172B] sm:px-5 sm:py-5">
+      <div className="mx-auto max-w-5xl">
+        <header className="sticky top-0 z-30 rounded-[18px] border border-[#ECECF5] bg-white/95 p-3 shadow-[0_10px_30px_rgba(0,0,0,.08)] backdrop-blur sm:p-4">
+          <div className="flex items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="size-4 shrink-0 text-[#6C3BFF]" />
+                <h1 className="truncate text-sm font-extrabold sm:text-base">{title}</h1>
               </div>
-            </article>
-          ))}
-        </div>
-      </section>
+              <p className="mt-0.5 text-[11px] font-bold text-[#8B90A7]">Question {activeIndex + 1} of {questions.length} · {answeredCount} answered</p>
+            </div>
+            {secondsLeft !== null ? (
+              <div className={`inline-flex shrink-0 items-center gap-2 rounded-[12px] px-3 py-2 text-sm font-black ${urgent ? "bg-red-50 text-red-600" : "bg-[#EEEAFB] text-[#6C3BFF]"}`}>
+                <Clock3 className="size-4" /> {String(minutes).padStart(2, "0")}:{String(seconds).padStart(2, "0")}
+              </div>
+            ) : <span className="rounded-full bg-[#E7FBF4] px-3 py-1.5 text-xs font-bold text-[#008E66]">Untimed</span>}
+          </div>
+          <div className="mt-3 flex gap-1 overflow-hidden">
+            {questions.map((question, index) => {
+              const answer = answers[question.id];
+              const answered = Array.isArray(answer) ? answer.length > 0 : Boolean(answer);
+              return <span key={question.id} className={`h-1.5 min-w-[3px] flex-1 rounded-full transition-colors ${index === activeIndex ? "bg-[#6C3BFF]" : answered ? "bg-[#00C98D]" : "bg-[#E5E6EE]"}`} />;
+            })}
+          </div>
+        </header>
 
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-black/10 bg-white p-4 shadow-sm">
-        <p className="text-sm text-black/60">{isComplete ? "Ready to submit." : "Unanswered questions are marked in the progress bar."}</p>
-        <button disabled={!isComplete || hasSubmitted.current} onClick={submit} className="rounded-md bg-moss px-5 py-3 text-sm font-semibold text-white disabled:opacity-45">
-          Submit Test
-        </button>
+        <div className={`mt-4 grid gap-4 ${passage ? "lg:grid-cols-[minmax(0,.9fr)_minmax(0,1.1fr)]" : ""}`}>
+          {passage ? (
+            <aside className="rounded-[20px] border border-[#ECECF5] bg-white p-5 shadow-[0_12px_32px_rgba(0,0,0,.05)] lg:sticky lg:top-28 lg:max-h-[calc(100vh-130px)] lg:overflow-y-auto">
+              <div className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-[.12em] text-[#6C3BFF]"><BookOpen className="size-4" /> Reading passage</div>
+              <h2 className="mt-3 text-xl font-extrabold">{passage.title}</h2>
+              <p className="mt-4 whitespace-pre-line text-sm font-medium leading-7 text-[#4E536B]">{passage.body}</p>
+            </aside>
+          ) : null}
+
+          <section className="rounded-[20px] border border-[#ECECF5] bg-white p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)] sm:p-7">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-full bg-[#EEEAFB] px-3 py-1 text-[11px] font-extrabold text-[#6C3BFF]">{current.sectionRecord.title}</span>
+              <span className="rounded-full bg-[#F1F8FF] px-3 py-1 text-[11px] font-extrabold text-[#2697FF]">{current.cefrBand}</span>
+              <span className="rounded-full bg-[#FFF5E7] px-3 py-1 text-[11px] font-extrabold text-[#E47A00]">{readableType(current.questionType)}</span>
+            </div>
+            <h2 className="mt-5 text-xl font-extrabold leading-snug sm:text-2xl">
+              {showQuestionNumbers ? `${activeIndex + 1}. ` : ""}{current.questionText}
+            </h2>
+            <div className="mt-6">
+              {current.questionType === "FILL" ? (
+                <input
+                  value={typeof currentAnswer === "string" ? currentAnswer : ""}
+                  onChange={(event) => setAnswers((value) => ({ ...value, [current.id]: event.target.value }))}
+                  placeholder="Type your answer"
+                  className="w-full rounded-[14px] border-2 border-[#E2E3EC] px-4 py-3 text-base font-semibold outline-none focus:border-[#6C3BFF]"
+                />
+              ) : (
+                <div className="grid gap-2.5">
+                  {current.options.map((option) => {
+                    const selected = Array.isArray(currentAnswer) ? currentAnswer.includes(option.key) : currentAnswer === option.key;
+                    return (
+                      <button
+                        key={option.key}
+                        onClick={() => {
+                          if (current.questionType === "MULTIPLE_SELECT") {
+                            const values = Array.isArray(currentAnswer) ? currentAnswer : [];
+                            setAnswers((currentAnswers) => ({ ...currentAnswers, [current.id]: selected ? values.filter((value) => value !== option.key) : [...values, option.key] }));
+                          } else {
+                            setAnswers((currentAnswers) => ({ ...currentAnswers, [current.id]: option.key }));
+                          }
+                          setMessage(null);
+                        }}
+                        className={`flex w-full items-center gap-3 rounded-[14px] border-2 p-3 text-left transition-all sm:p-4 ${selected ? "border-[#6C3BFF] bg-[#EEEAFB]" : "border-[#ECECF5] bg-white hover:border-[#CFC6F8]"}`}
+                      >
+                        <span className={`grid size-9 shrink-0 place-items-center rounded-[11px] text-sm font-black ${selected ? "bg-[#6C3BFF] text-white" : "bg-[#F2F3F7] text-[#6E738D]"}`}>{selected ? <Check className="size-4" /> : option.key}</span>
+                        <span className="text-sm font-bold sm:text-base">{option.text}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="mt-7 flex items-center justify-between gap-3 border-t border-[#ECECF5] pt-5">
+              <div className="text-xs font-bold text-[#8B90A7]">{percentage}% answered</div>
+              {activeIndex < questions.length - 1 ? (
+                <button onClick={() => setActiveIndex((index) => index + 1)} className="inline-flex items-center gap-2 rounded-[13px] bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] px-5 py-3 text-sm font-extrabold text-white shadow-[0_8px_20px_rgba(108,59,255,.24)]">
+                  Next question <ChevronRight className="size-4" />
+                </button>
+              ) : (
+                <button disabled={hasSubmitted.current} onClick={() => void submit()} className="inline-flex items-center gap-2 rounded-[13px] bg-gradient-to-br from-[#00C98D] to-[#00A978] px-5 py-3 text-sm font-extrabold text-white disabled:opacity-50">
+                  {hasSubmitted.current ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />} Submit test
+                </button>
+              )}
+            </div>
+            {message ? <p className={`mt-4 rounded-[12px] px-3 py-2 text-sm font-bold ${hasSubmitted.current ? "bg-[#EEEAFB] text-[#6C3BFF]" : "bg-red-50 text-red-600"}`}>{message}</p> : null}
+          </section>
+        </div>
+
+        <div className="mt-4 flex items-center justify-center gap-2 text-xs font-bold text-[#8B90A7]"><Sparkles className="size-4 text-[#6C3BFF]" /> Stay calm. Choose the best answer you can.</div>
       </div>
-      {message ? <p className="mt-3 text-center text-sm text-coral">{message}</p> : null}
     </main>
   );
 }
 
-function QuestionCard({ number, question, value, onChange }: { number: number; question: LevelTestQuestion; value?: LevelAnswer; onChange: (value: LevelAnswer) => void }) {
-  return (
-    <fieldset className={`rounded-md border p-4 ${value ? "border-black/10 bg-white" : "border-coral/30 bg-coral/5"}`}>
-      <legend className="px-1 text-sm font-semibold">
-        {number}. {question.questionText}
-      </legend>
-      <div className="mt-3 grid gap-2">
-        {question.options.map((option) => (
-          <label key={option.key} className="flex cursor-pointer items-center gap-3 rounded-md border border-black/10 bg-white px-3 py-2 text-sm hover:bg-slate-50">
-            <input type="radio" name={question.id} checked={value === option.key} onChange={() => onChange(option.key)} />
-            <span className="font-semibold">{option.key}.</span>
-            <span>{option.text}</span>
-          </label>
-        ))}
-      </div>
-    </fieldset>
-  );
+function readableType(type: string) {
+  return ({ MCQ: "Multiple choice", TRUE_FALSE: "True / False", MULTIPLE_SELECT: "Select all", FILL: "Written answer" } as Record<string, string>)[type] ?? type;
 }

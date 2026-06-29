@@ -34,15 +34,18 @@ export default async function AdminLevelTestResultsPage() {
               const profile = profileMap.get(result.user_id);
               const user = userMap.get(result.user_id);
               const sectionScores = asRecord(result.section_scores);
+              const useScore = scorePart(sectionScores.use_of_english);
+              const readingScore = scorePart(sectionScores.reading);
+              const total = Number(result.total_questions ?? 25);
               const name = profile?.full_name || [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || "Learner";
               return (
                 <tr key={result.id} className="border-t border-black/10">
                   <td className="p-3">{name}</td>
                   <td className="p-3">{user?.email ?? "Unknown"}</td>
                   <td className="p-3 font-semibold">{result.cefr_level}</td>
-                  <td className="p-3">{Number(sectionScores.use_of_english ?? 0)}/15</td>
-                  <td className="p-3">{Number(sectionScores.reading ?? 0)}/10</td>
-                  <td className="p-3">{result.raw_score}/25</td>
+                  <td className="p-3">{useScore.correct}{useScore.total ? `/${useScore.total}` : ""}</td>
+                  <td className="p-3">{readingScore.correct}{readingScore.total ? `/${readingScore.total}` : ""}</td>
+                  <td className="p-3">{result.raw_score}/{total}</td>
                   <td className="p-3">{new Date(result.completed_at).toLocaleDateString()}</td>
                 </tr>
               );
@@ -57,4 +60,10 @@ export default async function AdminLevelTestResultsPage() {
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+}
+
+function scorePart(value: unknown) {
+  if (typeof value === "number") return { correct: value, total: 0 };
+  const record = asRecord(value);
+  return { correct: Number(record.correct ?? 0), total: Number(record.total ?? 0) };
 }

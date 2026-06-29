@@ -1,66 +1,40 @@
-import Link from "next/link";
-import { Plus } from "lucide-react";
-import { saveResultCard } from "@/app/admin/level-test/actions";
+import { AlertTriangle } from "lucide-react";
+import { LevelTestAdminWorkspace } from "@/components/LevelTestAdminWorkspace";
 import { requireAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { levelGuidance, type CefrLevel } from "@/lib/levelTestBank";
-
-const levels: CefrLevel[] = ["A1", "A2", "B1", "B2", "C1", "C2"];
 
 export default async function AdminLevelTestPage() {
   await requireAdmin();
   const admin = createAdminClient();
-  const [{ data: questions }, { data: cards }] = await Promise.all([
-    admin.from("level_test_questions").select("*").order("section").order("cefr_band"),
-    admin.from("level_test_result_cards").select("*")
+  const { data: test, error: testError } = await admin.from("level_tests").select("*").order("created_at").limit(1).maybeSingle();
+
+  if (testError || !test) {
+    return (
+      <main className="rounded-[20px] border border-amber-200 bg-amber-50 p-6 text-amber-950">
+        <AlertTriangle className="size-7" />
+        <h1 className="mt-3 text-2xl font-extrabold">Level Test upgrade is ready</h1>
+        <p className="mt-2 max-w-2xl text-sm leading-6">
+          Run <strong>supabase/migrations/023_configurable_level_tests.sql</strong> in the Supabase SQL Editor once. Then return here to manage the complete test.
+        </p>
+        {testError?.message ? <p className="mt-3 rounded-lg bg-white/70 p-3 text-xs">{testError.message}</p> : null}
+      </main>
+    );
+  }
+
+  const [{ data: sections }, { data: questions }, { data: passages }, { data: gradeBands }] = await Promise.all([
+    admin.from("level_test_sections").select("*").eq("test_id", test.id).order("position"),
+    admin.from("level_test_questions").select("*").eq("test_id", test.id).order("position"),
+    admin.from("reading_passages").select("*").eq("test_id", test.id).order("position"),
+    admin.from("level_test_grade_bands").select("*").eq("test_id", test.id).order("position")
   ]);
-  const cardMap = new Map((cards ?? []).map((card) => [card.cefr_level, card.guidance_text]));
 
   return (
-    <main>
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-semibold">Level Test</h1>
-          <p className="mt-2 text-sm text-black/60">Manage question bank and result-card guidance.</p>
-        </div>
-        <Link href="/admin/level-test/questions/new" className="inline-flex items-center gap-2 rounded-md bg-ink px-4 py-2 text-sm font-medium text-white">
-          <Plus size={16} /> Add Question
-        </Link>
-      </div>
-
-      <section className="rounded-lg border border-black/10 bg-white p-5 shadow-sm">
-        <h2 className="text-xl font-semibold">Questions</h2>
-        <div className="mt-4 overflow-x-auto rounded-md border border-black/10">
-          <table className="min-w-[700px] w-full text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase text-black/50"><tr><th className="p-3">Section</th><th className="p-3">Band</th><th className="p-3">Question</th><th className="p-3">Answer</th></tr></thead>
-            <tbody>
-              {(questions ?? []).map((question) => (
-                <tr key={question.id} className="border-t border-black/10">
-                  <td className="p-3">{question.section}</td>
-                  <td className="p-3">{question.cefr_band}</td>
-                  <td className="p-3">{question.question_text}</td>
-                  <td className="p-3">{question.correct_answer}</td>
-                </tr>
-              ))}
-              {!questions?.length ? <tr><td colSpan={4} className="p-6 text-center text-black/55">No database questions yet. The learner test uses the built-in starter bank.</td></tr> : null}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <section className="mt-6 rounded-lg border border-black/10 bg-white p-5 shadow-sm">
-        <h2 className="text-xl font-semibold">Result Cards</h2>
-        <div className="mt-4 grid gap-4">
-          {levels.map((level) => (
-            <form key={level} action={saveResultCard} className="rounded-md border border-black/10 p-4">
-              <input type="hidden" name="cefrLevel" value={level} />
-              <label className="text-sm font-semibold">{level} · {levelGuidance[level].name}</label>
-              <textarea name="guidanceText" defaultValue={cardMap.get(level) ?? levelGuidance[level].guidance} rows={4} className="mt-2 w-full rounded-md border border-black/15 px-3 py-2 text-sm leading-6" />
-              <button className="mt-2 rounded-md bg-moss px-4 py-2 text-sm font-medium text-white">Save card</button>
-            </form>
-          ))}
-        </div>
-      </section>
-    </main>
+    <LevelTestAdminWorkspace
+      test={test}
+      sections={sections ?? []}
+      questions={questions ?? []}
+      passages={passages ?? []}
+      gradeBands={gradeBands ?? []}
+    />
   );
 }
