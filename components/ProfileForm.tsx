@@ -29,43 +29,43 @@ export function ProfileForm({
   return (
     <form action={formAction} className="grid gap-4">
       <div className="grid gap-4 sm:grid-cols-2">
-        <label className="text-sm font-medium">
+        <label className="text-sm font-extrabold text-[#35405F]">
           First Name
           <input
             name="firstName"
             defaultValue={firstName}
-            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+            className="mt-2 w-full rounded-[14px] border border-[#ECECF5] bg-[#F8F8FC] px-4 py-3 font-semibold text-[#14172B] outline-none transition focus:border-[#6C3BFF] focus:bg-white"
           />
         </label>
-        <label className="text-sm font-medium">
+        <label className="text-sm font-extrabold text-[#35405F]">
           Last Name
           <input
             name="lastName"
             defaultValue={lastName}
-            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+            className="mt-2 w-full rounded-[14px] border border-[#ECECF5] bg-[#F8F8FC] px-4 py-3 font-semibold text-[#14172B] outline-none transition focus:border-[#6C3BFF] focus:bg-white"
           />
         </label>
       </div>
 
-      <div className="rounded-md bg-slate-50 p-4">
-        <p className="break-words text-sm font-medium">{email}</p>
-        <p className="mt-1 text-xs text-black/50">Email cannot be changed</p>
+      <div className="rounded-[16px] border border-[#ECECF5] bg-[#F8F8FC] p-4">
+        <p className="break-words text-sm font-extrabold text-[#14172B]">{email}</p>
+        <p className="mt-1 text-xs font-semibold text-[#8B90A7]">Email cannot be changed</p>
       </div>
 
       {state?.success && (
-        <div className="inline-flex items-center gap-2 rounded-md bg-moss/10 px-4 py-2 text-sm font-medium text-moss">
+        <div className="inline-flex items-center gap-2 rounded-[14px] bg-[#E7FBF4] px-4 py-2 text-sm font-extrabold text-[#00A978]">
           <CheckCircle2 size={16} /> Profile saved successfully
         </div>
       )}
       {state?.error && (
-        <div className="rounded-md bg-red-50 px-4 py-2 text-sm font-medium text-red-600">
+        <div className="rounded-[14px] bg-[#FFF0F2] px-4 py-2 text-sm font-extrabold text-[#D9324A]">
           {state.error}
         </div>
       )}
 
       <button
         disabled={isPending}
-        className="rounded-md bg-ink px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"
+        className="w-fit rounded-[14px] bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] px-5 py-3 text-sm font-extrabold text-white shadow-[0_8px_20px_rgba(108,59,255,.28)] disabled:opacity-50"
       >
         {isPending ? "Saving…" : "Save profile"}
       </button>

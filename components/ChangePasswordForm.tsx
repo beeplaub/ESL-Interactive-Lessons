@@ -22,10 +22,10 @@ function StrengthBar({ password }: { password: string }) {
     <div className="mt-2">
       <div className="flex gap-1">
         {[1,2,3,4,5].map((i) => (
-          <div key={i} className={`h-1 flex-1 rounded-full transition-colors ${i <= score ? color : "bg-black/10"}`} />
+          <div key={i} className={`h-1.5 flex-1 rounded-full transition-colors ${i <= score ? color : "bg-[#ECECF5]"}`} />
         ))}
       </div>
-      <p className="mt-1 text-xs text-black/45">{label}</p>
+      <p className="mt-1 text-xs font-semibold text-[#8B90A7]">{label}</p>
     </div>
   );
 }
@@ -81,7 +81,7 @@ export function ChangePasswordForm() {
   return (
     <div className="mt-5 grid gap-4">
       {/* Current password */}
-      <label className="block text-sm font-medium">
+      <label className="block text-sm font-extrabold text-[#35405F]">
         Current password
         <div className="relative mt-1">
           <input
@@ -89,10 +89,10 @@ export function ChangePasswordForm() {
             value={current}
             onChange={(e) => setCurrent(e.target.value)}
             autoComplete="current-password"
-            className="w-full rounded-md border border-black/15 px-3 py-2 pr-10 font-normal"
+            className="w-full rounded-[14px] border border-[#ECECF5] bg-[#F8F8FC] px-4 py-3 pr-11 font-semibold outline-none transition focus:border-[#6C3BFF] focus:bg-white"
           />
           <button type="button" onClick={() => setShowCur((v) => !v)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-black/40 hover:text-black"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8B90A7] hover:text-[#14172B]"
             aria-label={showCur ? "Hide" : "Show"}>
             {showCur ? <EyeOff size={15} /> : <Eye size={15} />}
           </button>
@@ -100,7 +100,7 @@ export function ChangePasswordForm() {
       </label>
 
       {/* New password */}
-      <label className="block text-sm font-medium">
+      <label className="block text-sm font-extrabold text-[#35405F]">
         New password
         <div className="relative mt-1">
           <input
@@ -109,10 +109,10 @@ export function ChangePasswordForm() {
             onChange={(e) => setNext(e.target.value)}
             autoComplete="new-password"
             placeholder="At least 8 characters"
-            className="w-full rounded-md border border-black/15 px-3 py-2 pr-10 font-normal"
+            className="w-full rounded-[14px] border border-[#ECECF5] bg-[#F8F8FC] px-4 py-3 pr-11 font-semibold outline-none transition focus:border-[#6C3BFF] focus:bg-white"
           />
           <button type="button" onClick={() => setShowNew((v) => !v)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-black/40 hover:text-black"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8B90A7] hover:text-[#14172B]"
             aria-label={showNew ? "Hide" : "Show"}>
             {showNew ? <EyeOff size={15} /> : <Eye size={15} />}
           </button>
@@ -121,14 +121,14 @@ export function ChangePasswordForm() {
       </label>
 
       {/* Confirm new password */}
-      <label className="block text-sm font-medium">
+      <label className="block text-sm font-extrabold text-[#35405F]">
         Confirm new password
         <input
           type={showNew ? "text" : "password"}
           value={confirm}
           onChange={(e) => setConfirm(e.target.value)}
           autoComplete="new-password"
-          className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 font-normal"
+          className="mt-1 w-full rounded-[14px] border border-[#ECECF5] bg-[#F8F8FC] px-4 py-3 font-semibold outline-none transition focus:border-[#6C3BFF] focus:bg-white"
         />
       </label>
 
@@ -136,14 +136,14 @@ export function ChangePasswordForm() {
         type="button"
         disabled={isPending || !current || !next || !confirm}
         onClick={submit}
-        className="w-fit rounded-md bg-ink px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+        className="w-fit rounded-[14px] bg-gradient-to-br from-[#14172B] to-[#303751] px-5 py-3 text-sm font-extrabold text-white shadow-[0_8px_20px_rgba(20,23,43,.18)] disabled:opacity-60"
       >
         {isPending ? "Updating..." : "Change password"}
       </button>
 
       {message ? (
-        <p className={`rounded-md p-3 text-sm ${
-          status === "success" ? "bg-moss/10 text-moss" : "bg-coral/10 text-coral"
+        <p className={`rounded-[14px] p-3 text-sm font-extrabold ${
+          status === "success" ? "bg-[#E7FBF4] text-[#00A978]" : "bg-[#FFF0F2] text-[#D9324A]"
         }`}>
           {message}
         </p>

@@ -10,7 +10,8 @@ export function HeaderGate({ children }: { children: React.ReactNode }) {
     pathname.startsWith("/courses") ||
     pathname.startsWith("/quizzes") ||
     pathname.startsWith("/leaderboard") ||
-    pathname.startsWith("/level-test")
+    pathname.startsWith("/level-test") ||
+    pathname.startsWith("/profile")
   ) return null;
   return children;
 }
