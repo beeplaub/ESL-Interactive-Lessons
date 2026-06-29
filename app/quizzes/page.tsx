@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { QuizzesGrid } from "@/components/QuizzesGrid";
+import { LearnerAppShell } from "@/components/LearnerAppShell";
 import { Award, Clock3, Gamepad2, Search, Sparkles, Trophy, Zap } from "lucide-react";
 
 export default async function QuizzesPage() {
@@ -47,8 +48,8 @@ export default async function QuizzesPage() {
   const completedCount = Object.keys(bestAttempts).length;
 
   return (
-    <main className="min-h-screen bg-[#F6F7FB] px-4 py-6 text-[#14172B] sm:px-6 lg:py-8">
-      <section className="mx-auto max-w-[1536px]">
+    <LearnerAppShell active="quizzes">
+      <section>
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
           <div className="relative overflow-hidden rounded-[24px] bg-gradient-to-br from-[#1A1060] via-[#0C1945] to-[#0E1F5A] p-6 text-white shadow-[0_16px_48px_rgba(20,23,80,.25)] sm:p-8">
             <div className="absolute -right-16 -top-20 size-60 rounded-full bg-[#6C3BFF]/25" />
@@ -88,7 +89,7 @@ export default async function QuizzesPage() {
         </section>
       </section>
 
-      <section id="quiz-library" className="mx-auto mt-6 max-w-[1536px]">
+      <section id="quiz-library" className="mt-6">
         {(quizzes?.length ?? 0) > 0 ? (
           <QuizzesGrid
             quizzes={quizzes ?? []}
@@ -104,7 +105,7 @@ export default async function QuizzesPage() {
           </div>
         )}
       </section>
-    </main>
+    </LearnerAppShell>
   );
 }
 

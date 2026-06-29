@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, BadgeCheck, BookOpen, CheckCircle2, Clock3, FileQuestion, ShieldCheck, Sparkles, Target } from "lucide-react";
+import { LearnerAppShell } from "@/components/LearnerAppShell";
 import { getPublishedLevelTest } from "@/lib/configurableLevelTest";
 import { createClient } from "@/lib/supabase/server";
 
@@ -11,8 +12,8 @@ export default async function LevelTestPage() {
   const startHref = user ? "/level-test/test" : `/login?next=${encodeURIComponent("/level-test/test")}`;
 
   return (
-    <main className="min-h-screen bg-[#F6F7FB] px-4 py-6 text-[#14172B] sm:px-6 lg:py-8">
-      <section className="mx-auto max-w-[1320px]">
+    <LearnerAppShell active="level-test">
+      <section>
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(330px,.85fr)]">
           <div className="relative overflow-hidden rounded-[24px] bg-gradient-to-br from-[#1A1060] via-[#0C1945] to-[#0E1F5A] p-6 text-white shadow-[0_18px_52px_rgba(20,23,80,.28)] sm:p-9 lg:p-11">
             <div className="absolute -right-20 -top-24 size-72 rounded-full bg-[#6C3BFF]/25" />
@@ -58,7 +59,7 @@ export default async function LevelTestPage() {
           ))}
         </section>
       </section>
-    </main>
+    </LearnerAppShell>
   );
 }
 

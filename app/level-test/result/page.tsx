@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, Award, BarChart3, BookOpen, CheckCircle2, Clock3, RotateCcw, Sparkles, Target } from "lucide-react";
+import { LearnerAppShell } from "@/components/LearnerAppShell";
 import { notFound, redirect } from "next/navigation";
 import { levelGuidance, type CefrLevel } from "@/lib/levelTestBank";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -32,8 +33,8 @@ export default async function LevelTestResultPage({ searchParams }: { searchPara
   const guidanceText = String(snapshotBand.guidanceText ?? card?.guidance_text ?? guidance.guidance);
 
   return (
-    <main className="min-h-screen bg-[#F6F7FB] px-4 py-6 text-[#14172B] sm:px-6 lg:py-10">
-      <section className="mx-auto max-w-5xl">
+    <LearnerAppShell active="level-test">
+      <section className="max-w-5xl">
         <div className="relative overflow-hidden rounded-[24px] bg-gradient-to-br from-[#1A1060] via-[#0C1945] to-[#0E1F5A] p-6 text-white shadow-[0_20px_58px_rgba(20,23,80,.3)] sm:p-9">
           <div className="absolute -right-16 -top-20 size-64 rounded-full bg-[#6C3BFF]/25" />
           <div className="relative z-10 grid gap-7 md:grid-cols-[1fr_auto] md:items-center">
@@ -76,7 +77,7 @@ export default async function LevelTestResultPage({ searchParams }: { searchPara
 
         <div className="mt-5 text-center"><Link href="/level-test/test" className="inline-flex items-center gap-2 rounded-[13px] bg-white px-5 py-3 text-sm font-extrabold text-[#6E738D] shadow-sm"><RotateCcw className="size-4" /> Take a fresh test</Link></div>
       </section>
-    </main>
+    </LearnerAppShell>
   );
 }
 

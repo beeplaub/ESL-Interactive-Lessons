@@ -2,28 +2,23 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   ArrowRight,
-  BarChart2,
   BookOpen,
   CheckCircle2,
   ChevronDown,
   ChevronRight,
   Clock3,
   GraduationCap,
-  HelpCircle,
   Home,
   Layers,
   LockKeyhole,
-  Menu,
   Play,
   PlayCircle,
   ShieldCheck,
   Sparkles,
   Star,
-  Target,
-  Trophy,
-  User,
-  Users
+  User
 } from "lucide-react";
+import { LearnerAppShell } from "@/components/LearnerAppShell";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { enrollInCourse } from "@/app/courses/actions";
@@ -85,12 +80,8 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
   const dashOffset = circumference - (progressPercent / 100) * circumference;
 
   return (
-    <main className="min-h-screen bg-[#F6F7FB] font-sans text-[#14172B]">
-      <MobileTopbar />
-      <div className="mx-auto flex min-h-screen max-w-[1536px] items-start gap-5 p-3 pb-24 md:p-6 md:pb-6">
-        <CourseSidebar />
-
-        <section className="flex min-w-0 flex-1 flex-col gap-5 pt-[60px] md:pt-0">
+    <LearnerAppShell active="courses">
+        <section className="flex min-w-0 flex-col gap-5">
           <header className="hidden items-center justify-between gap-4 min-[861px]:flex">
             <div className="flex items-center gap-2 text-sm font-semibold text-[#6E738D]">
               <Link href="/account" className="grid size-9 place-items-center rounded-xl border border-[#ECECF5] bg-white text-[#6E738D] shadow-[0_2px_8px_rgba(0,0,0,.04)]"><Home className="size-4" /></Link>
@@ -285,9 +276,7 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
             </aside>
           </section>
         </section>
-      </div>
-      <MobileBottomNav />
-    </main>
+    </LearnerAppShell>
   );
 }
 
@@ -338,98 +327,6 @@ function Meta({ icon: Icon, label, star }: { icon: React.ElementType; label: str
 
 function Legend({ dot, label, value }: { dot: string; label: string; value: string }) {
   return <div className="flex items-start gap-2"><span className="mt-1.5 size-2.5 rounded-full" style={{ backgroundColor: dot }} /><div><p className="font-bold text-[#35405F]">{label}</p><p className="text-xs text-[#6E738D]">{value}</p></div></div>;
-}
-
-function CourseSidebar() {
-  const navItems = [
-    { href: "/account", label: "Home", icon: Home },
-    { href: "/quizzes", label: "Quizzes", icon: HelpCircle },
-    { href: "/courses", label: "Courses", icon: GraduationCap, active: true },
-    { href: "/level-test", label: "Level Test", icon: Target },
-    { href: "/leaderboard", label: "Leaderboard", icon: BarChart2 },
-    { href: "#", label: "Community", icon: Users, disabled: true, badge: "NEW" }
-  ];
-  return (
-    <aside className="sticky top-6 hidden max-h-[calc(100vh-48px)] w-[225px] min-w-[225px] flex-col overflow-y-auto rounded-[24px] bg-gradient-to-b from-[#09112C] to-[#0C1636] p-5 [scrollbar-width:none] min-[861px]:flex [&::-webkit-scrollbar]:hidden">
-      <Link href="/" className="flex items-center gap-2.5 pb-5">
-        <div className="grid size-10 place-items-center rounded-xl bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF]">
-          <Layers className="size-[22px] text-white" />
-        </div>
-        <div>
-          <div className="text-base font-bold leading-tight text-white">BrenUp</div>
-          <div className="text-[10px] font-medium text-[#8890B8]">Level Up Your English</div>
-        </div>
-      </Link>
-      <nav className="flex flex-1 flex-col gap-0.5">
-        {navItems.map((item) => <NavItem key={item.label} {...item} />)}
-      </nav>
-      <div className="mt-4 rounded-[20px] bg-gradient-to-br from-[#6C3BFF] to-[#4520D9] p-[18px] text-white">
-        <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide opacity-75">Current Level</div>
-        <div className="text-[28px] font-extrabold leading-none">B2</div>
-        <div className="mb-3 mt-1 text-xs opacity-80">Upper Intermediate</div>
-        <Link href="/level-test" className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-white/30 bg-white/20 p-2.5 text-xs font-semibold text-white">
-          View roadmap <ChevronRight className="size-[13px]" />
-        </Link>
-      </div>
-    </aside>
-  );
-}
-
-function NavItem({ href, label, icon: Icon, active, disabled, badge }: { href: string; label: string; icon: React.ElementType; active?: boolean; disabled?: boolean; badge?: string }) {
-  const className = `flex h-12 items-center gap-3 rounded-[14px] px-3.5 text-sm font-semibold no-underline transition ${active ? "bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] text-white shadow-[0_8px_20px_rgba(108,59,255,.35)]" : "text-[#C5C8DC] hover:bg-[#6C3BFF]/20 hover:text-white"} ${disabled ? "cursor-default opacity-80" : ""}`;
-  const content = <><span className="grid size-5 shrink-0 place-items-center"><Icon className="size-[18px]" /></span><span>{label}</span>{badge ? <span className="ml-auto rounded-full bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] px-2 py-0.5 text-[9px] font-bold tracking-wide text-white">{badge}</span> : null}</>;
-  if (disabled) return <span className={className}>{content}</span>;
-  return <Link href={href} className={className}>{content}</Link>;
-}
-
-function MobileTopbar() {
-  return (
-    <div className="fixed inset-x-0 top-0 z-40 flex h-[60px] items-center justify-between bg-gradient-to-br from-[#09112C] to-[#0C1636] px-4 min-[861px]:hidden">
-      <Link href="/" className="flex items-center gap-2">
-        <span className="grid size-8 place-items-center rounded-[9px] bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF]"><Layers className="size-[18px] text-white" /></span>
-        <span className="text-[15px] font-bold text-white">BrenUp</span>
-      </Link>
-      <details className="group relative">
-        <summary className="grid size-9 cursor-pointer list-none place-items-center rounded-[10px] text-white marker:hidden [&::-webkit-details-marker]:hidden" aria-label="Menu"><Menu className="size-[22px]" /></summary>
-        <div className="fixed inset-x-3 top-[68px] z-50 rounded-[24px] border border-white/10 bg-[#09112C] p-3 shadow-2xl shadow-black/30">
-          <div className="grid gap-1">
-            <MobileDrawerLink href="/account" label="Home" icon={Home} />
-            <MobileDrawerLink href="/quizzes" label="Quizzes" icon={HelpCircle} />
-            <MobileDrawerLink href="/courses" label="Courses" icon={GraduationCap} active />
-            <MobileDrawerLink href="/level-test" label="Level Test" icon={Target} />
-            <MobileDrawerLink href="/leaderboard" label="Leaderboard" icon={Trophy} />
-            <MobileDrawerLink href="/profile" label="Profile" icon={User} />
-          </div>
-        </div>
-      </details>
-    </div>
-  );
-}
-
-function MobileDrawerLink({ href, label, icon: Icon, active }: { href: string; label: string; icon: React.ElementType; active?: boolean }) {
-  return <Link href={href} className={`flex h-11 items-center gap-3 rounded-[14px] px-3.5 text-sm font-semibold ${active ? "bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] text-white" : "text-[#C5C8DC]"}`}><Icon className="size-[18px]" /> {label}</Link>;
-}
-
-function MobileBottomNav() {
-  const items = [
-    { href: "/account", label: "Home", icon: Home },
-    { href: "/quizzes", label: "Quizzes", icon: HelpCircle },
-    { href: "/courses", label: "Courses", icon: BookOpen, active: true },
-    { href: "/leaderboard", label: "Ranks", icon: Trophy },
-    { href: "/profile", label: "Profile", icon: User }
-  ];
-  return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-[#ECECF5] bg-white px-1 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 min-[861px]:hidden">
-      <div className="flex items-center justify-around">
-        {items.map((item) => (
-          <Link key={item.label} href={item.href} className={`flex flex-col items-center gap-1 rounded-xl px-3 py-1.5 text-[9px] font-semibold ${item.active ? "text-[#6C3BFF]" : "text-[#6E738D]"}`}>
-            <span className={`grid size-9 place-items-center rounded-[10px] ${item.active ? "bg-[#6C3BFF]/10" : ""}`}><item.icon className="size-5" /></span>
-            {item.label}
-          </Link>
-        ))}
-      </div>
-    </nav>
-  );
 }
 
 function StatChip({ icon, value, label }: { icon: React.ReactNode; value: string; label: string }) {

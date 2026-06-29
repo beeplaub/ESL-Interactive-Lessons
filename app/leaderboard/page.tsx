@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Award, Crown, Gamepad2, Medal, Sparkles, Trophy, Users, Zap } from "lucide-react";
+import { LearnerAppShell } from "@/components/LearnerAppShell";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getQuizBadge, quizBadges } from "@/lib/quizBadges";
 
@@ -31,8 +32,8 @@ export default async function LeaderboardPage() {
   const topBadge = getQuizBadge(leaders[0]?.points ?? 0);
 
   return (
-    <main className="min-h-screen bg-[#F6F7FB] px-4 py-6 text-[#14172B] sm:px-6 lg:py-8">
-      <section className="mx-auto max-w-[1536px]">
+    <LearnerAppShell active="leaderboard">
+      <section>
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
           <div className="relative overflow-hidden rounded-[24px] bg-gradient-to-br from-[#1A1060] via-[#0C1945] to-[#0E1F5A] p-6 text-white shadow-[0_16px_48px_rgba(20,23,80,.25)] sm:p-8">
             <div className="absolute -right-16 -top-20 size-60 rounded-full bg-[#6C3BFF]/25" />
@@ -116,7 +117,7 @@ export default async function LeaderboardPage() {
           ) : null}
         </section>
       </section>
-    </main>
+    </LearnerAppShell>
   );
 }
 
