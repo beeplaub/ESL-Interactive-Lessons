@@ -2,7 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowDown, ArrowLeft, ArrowUp, Eye, Image as ImageIcon, Library, Plus, Trash2 } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { ItemPicker } from "@/app/admin/courses/[id]/builder/ItemPicker";
+import { AddItemModal } from "@/app/admin/courses/[id]/builder/AddItemModal";
+import { EditItemModal } from "@/app/admin/courses/[id]/builder/EditItemModal";
 import {
   addCourseFaq,
   addCourseItem,
@@ -23,7 +24,6 @@ import {
 } from "@/app/admin/courses/actions";
 
 const levels = ["A1", "A2", "A1-A2", "B1", "B2", "B1-B2", "C1", "C2", "C1-C2", "All Levels"];
-const itemTypes = ["LESSON", "QUIZ", "RESOURCE", "EXTERNAL_LINK", "LEVEL_TEST"] as const;
 
 type LessonOption = { id: string; title: string; level: string | null; topic: string | null; status: string };
 type QuizOption = { id: string; title: string; level: string | null; topic: string | null; status: string };
@@ -61,6 +61,8 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
 
   const courseItems = (items ?? []) as CourseItem[];
   const sectionOptions = (sections ?? []).map((section) => ({ id: section.id, title: section.title }));
+  const lessonOptions = (lessons ?? []) as LessonOption[];
+  const quizOptions = (quizzes ?? []) as QuizOption[];
 
   return (
     <main className="min-w-0 space-y-5 overflow-hidden">
@@ -188,25 +190,41 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
                       <button formAction={deleteCourseSection.bind(null, course.id, section.id)} className="rounded-md border border-coral/30 px-2 py-2 text-coral"><Trash2 size={14} /></button>
                     </div>
                     <input name="description" defaultValue={section.description ?? ""} placeholder="Section description" className="rounded-md border border-black/15 px-3 py-2 text-sm" />
-                    <button className="w-fit rounded-md border border-black/15 bg-white px-3 py-1.5 text-xs font-semibold">Save section</button>
+                    <div className="flex items-center justify-between gap-2">
+                      <button className="w-fit rounded-md border border-black/15 bg-white px-3 py-1.5 text-xs font-semibold">Save section</button>
+                      <AddItemModal
+                        action={addCourseItem.bind(null, course.id)}
+                        sectionId={section.id}
+                        lessons={lessonOptions}
+                        quizzes={quizOptions}
+                      />
+                    </div>
                   </form>
 
                   <div className="mt-4 space-y-2">
-                    {sectionItems.map((item, itemIndex) => (
-                      <CourseItemEditor
-                        key={item.id}
-                        courseId={course.id}
-                        item={item}
-                        itemIndex={itemIndex}
-                        totalItems={courseItems.length}
-                        sections={sectionOptions}
-                        lessons={(lessons ?? []) as LessonOption[]}
-                        quizzes={(quizzes ?? []) as QuizOption[]}
-                      />
-                    ))}
+                    {sectionItems.map((item, itemIndex) => {
+                      const label = item.lessons?.title ?? item.quizzes?.title ?? item.title ?? item.item_type.replaceAll("_", " ");
+                      return (
+                        <div key={item.id} className="flex items-start gap-2">
+                          <div className="min-w-0 flex-1">
+                            <EditItemModal
+                              action={updateCourseItem.bind(null, course.id, item.id)}
+                              deleteAction={deleteCourseItem.bind(null, course.id, item.id)}
+                              item={item}
+                              label={label}
+                              sections={sectionOptions}
+                              lessons={lessonOptions}
+                              quizzes={quizOptions}
+                            />
+                          </div>
+                          <div className="flex shrink-0 flex-col gap-1">
+                            <form action={moveCourseItem.bind(null, course.id, item.id, "up")}><button disabled={itemIndex === 0} className="rounded-md border border-black/15 px-2 py-1.5 disabled:opacity-35"><ArrowUp size={13} /></button></form>
+                            <form action={moveCourseItem.bind(null, course.id, item.id, "down")}><button disabled={itemIndex === totalItemsInSection(sectionItems)} className="rounded-md border border-black/15 px-2 py-1.5 disabled:opacity-35"><ArrowDown size={13} /></button></form>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-
-                  <AddItemForm courseId={course.id} sectionId={section.id} lessons={(lessons ?? []) as LessonOption[]} quizzes={(quizzes ?? []) as QuizOption[]} />
                 </div>
               );
             })}
@@ -218,81 +236,6 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
   );
 }
 
-function AddItemForm({ courseId, sectionId, lessons, quizzes }: { courseId: string; sectionId: string; lessons: LessonOption[]; quizzes: QuizOption[] }) {
-  return (
-    <form action={addCourseItem.bind(null, courseId)} className="mt-4 space-y-3 rounded-lg border border-dashed border-black/15 bg-white p-3">
-      <input type="hidden" name="sectionId" value={sectionId} />
-
-      {/* Row 1: type + lesson + quiz + button */}
-      <div className="flex flex-wrap items-center gap-2">
-        <select name="itemType" className="rounded-md border border-black/15 px-3 py-2 text-sm">
-          {itemTypes.map((type) => (
-            <option key={type} value={type}>{type.replaceAll("_", " ")}</option>
-          ))}
-        </select>
-        <ItemPicker options={lessons} name="lessonId" placeholder="Choose lesson\u2026" />
-        <ItemPicker options={quizzes} name="quizId" placeholder="Choose quiz\u2026" />
-        <button className="shrink-0 rounded-md bg-moss px-4 py-2 text-sm font-semibold text-white">Add item</button>
-      </div>
-
-      {/* Row 2: resource fields */}
-      <div className="flex flex-wrap gap-2">
-        <input name="title" placeholder="Resource/link title" className="min-w-0 flex-1 rounded-md border border-black/15 px-3 py-2 text-sm" />
-        <input name="resourceUrl" placeholder="Resource/link URL" className="min-w-0 flex-1 rounded-md border border-black/15 px-3 py-2 text-sm" />
-      </div>
-
-      {/* Row 3: checkboxes */}
-      <div className="flex gap-4">
-        <label className="inline-flex items-center gap-2 text-xs text-black/60"><input type="checkbox" name="isRequired" defaultChecked /> Required</label>
-        <label className="inline-flex items-center gap-2 text-xs text-black/60"><input type="checkbox" name="isFreePreview" /> Free preview</label>
-      </div>
-    </form>
-  );
-}
-
-function CourseItemEditor({ courseId, item, itemIndex, totalItems, sections, lessons, quizzes }: {
-  courseId: string;
-  item: CourseItem;
-  itemIndex: number;
-  totalItems: number;
-  sections: SectionOption[];
-  lessons: LessonOption[];
-  quizzes: QuizOption[];
-}) {
-  const label = item.lessons?.title ?? item.quizzes?.title ?? item.title ?? item.item_type.replaceAll("_", " ");
-  return (
-    <details className="rounded-lg border border-black/10 bg-white p-3">
-      <summary className="cursor-pointer list-none">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold">{label}</p>
-            <p className="mt-0.5 text-xs text-black/45">{item.item_type.replaceAll("_", " ")}{item.is_free_preview ? " \u00b7 Free preview" : ""}{item.is_required ? " \u00b7 Required" : " \u00b7 Optional"}</p>
-          </div>
-          <div className="flex gap-1">
-            <form action={moveCourseItem.bind(null, courseId, item.id, "up")}><button disabled={itemIndex === 0} className="rounded-md border border-black/15 px-2 py-1.5 disabled:opacity-35"><ArrowUp size={13} /></button></form>
-            <form action={moveCourseItem.bind(null, courseId, item.id, "down")}><button disabled={itemIndex === totalItems - 1} className="rounded-md border border-black/15 px-2 py-1.5 disabled:opacity-35"><ArrowDown size={13} /></button></form>
-          </div>
-        </div>
-      </summary>
-      <form action={updateCourseItem.bind(null, courseId, item.id)} className="mt-3 grid gap-2">
-        <select name="sectionId" defaultValue={item.section_id ?? ""} className="rounded-md border border-black/15 px-3 py-2 text-sm">{sections.map((section) => <option key={section.id} value={section.id}>{section.title}</option>)}</select>
-        <select name="itemType" defaultValue={item.item_type} className="rounded-md border border-black/15 px-3 py-2 text-sm">{itemTypes.map((type) => <option key={type} value={type}>{type.replaceAll("_", " ")}</option>)}</select>
-        <div className="flex gap-2">
-          <ItemPicker options={lessons} name="lessonId" defaultValue={item.lesson_id ?? ""} placeholder="Choose lesson\u2026" />
-          <ItemPicker options={quizzes} name="quizId" defaultValue={item.quiz_id ?? ""} placeholder="Choose quiz\u2026" />
-        </div>
-        <input name="title" defaultValue={item.title ?? ""} placeholder="Custom/resource title" className="rounded-md border border-black/15 px-3 py-2 text-sm" />
-        <textarea name="description" defaultValue={item.description ?? ""} placeholder="Item description" rows={2} className="rounded-md border border-black/15 px-3 py-2 text-sm" />
-        <input name="resourceUrl" defaultValue={item.resource_url ?? ""} placeholder="URL for resource or external link" className="rounded-md border border-black/15 px-3 py-2 text-sm" />
-        <div className="flex flex-wrap gap-3">
-          <label className="inline-flex items-center gap-2 text-xs text-black/60"><input type="checkbox" name="isRequired" defaultChecked={item.is_required} /> Required</label>
-          <label className="inline-flex items-center gap-2 text-xs text-black/60"><input type="checkbox" name="isFreePreview" defaultChecked={item.is_free_preview} /> Free preview</label>
-        </div>
-        <div className="flex gap-2">
-          <button className="rounded-md bg-ink px-3 py-2 text-xs font-semibold text-white">Save item</button>
-          <button formAction={deleteCourseItem.bind(null, courseId, item.id)} className="rounded-md border border-coral/30 px-3 py-2 text-xs font-semibold text-coral">Delete item</button>
-        </div>
-      </form>
-    </details>
-  );
+function totalItemsInSection(items: CourseItem[]) {
+  return items.length - 1;
 }
