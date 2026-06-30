@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Copy, Hammer, Plus, Trash2 } from "lucide-react";
+import { Copy, Filter, Hammer, Plus, Trash2 } from "lucide-react";
 import { requireAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
@@ -8,13 +8,33 @@ import {
   updateLessonStatus,
 } from "@/app/admin/lessons/actions";
 
-export default async function AdminLessonsPage() {
+export default async function AdminLessonsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   await requireAdmin();
+  const params = await searchParams;
   const supabase = createAdminClient();
-  const { data: lessons } = await supabase
+  const { data: allLessons } = await supabase
     .from("lessons")
     .select("*")
     .order("created_at", { ascending: false });
+
+  const value = (key: string) => (typeof params[key] === "string" ? (params[key] as string) : "");
+  const q = value("q").trim().toLowerCase();
+
+  const lessons = (allLessons ?? []).filter((lesson) =>
+    (!value("status") || lesson.status === value("status"))
+    && (!value("level") || lesson.level === value("level"))
+    && (!value("topic") || lesson.topic === value("topic"))
+    && (!q || lesson.title?.toLowerCase().includes(q))
+  );
+
+  const statuses = unique((allLessons ?? []).map((lesson) => lesson.status));
+  const levels = unique((allLessons ?? []).map((lesson) => lesson.level));
+  const topics = unique((allLessons ?? []).map((lesson) => lesson.topic));
+  const hasActiveFilters = Boolean(value("status") || value("level") || value("topic") || q);
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
@@ -33,9 +53,44 @@ export default async function AdminLessonsPage() {
         </Link>
       </div>
 
+      <form className="mb-5 rounded-lg border border-black/10 bg-white p-4 shadow-sm">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <Filter size={16} /> Filters
+          </div>
+          <span className="text-xs font-medium text-black/45">
+            {lessons.length} of {(allLessons ?? []).length} lesson{(allLessons ?? []).length === 1 ? "" : "s"}
+          </span>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          <input
+            name="q"
+            defaultValue={value("q")}
+            placeholder="Search by title"
+            className="min-w-0 rounded-md border border-black/15 px-3 py-2 text-sm"
+          />
+          <FilterSelect name="status" current={value("status")} label="All statuses" values={statuses} />
+          <FilterSelect name="level" current={value("level")} label="All levels" values={levels} />
+          <FilterSelect name="topic" current={value("topic")} label="All topics" values={topics} />
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button className="rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white">
+            Apply filters
+          </button>
+          {hasActiveFilters ? (
+            <Link
+              href="/admin/lessons"
+              className="inline-flex items-center rounded-md border border-black/15 px-4 py-2 text-sm font-semibold hover:bg-black/5"
+            >
+              Clear filters
+            </Link>
+          ) : null}
+        </div>
+      </form>
+
       {/* ── Mobile cards ── */}
       <div className="grid gap-3 md:hidden">
-        {(lessons ?? []).map((lesson) => (
+        {lessons.map((lesson) => (
           <article
             key={lesson.id}
             className="rounded-lg border border-black/10 bg-white p-4 shadow-sm"
@@ -92,9 +147,9 @@ export default async function AdminLessonsPage() {
             </div>
           </article>
         ))}
-        {!lessons?.length ? (
+        {!lessons.length ? (
           <div className="rounded-lg border border-black/10 bg-white p-8 text-center text-black/60 shadow-sm">
-            No lessons yet.
+            {hasActiveFilters ? "No lessons match these filters." : "No lessons yet."}
           </div>
         ) : null}
       </div>
@@ -113,7 +168,7 @@ export default async function AdminLessonsPage() {
             </tr>
           </thead>
           <tbody>
-            {(lessons ?? []).map((lesson) => (
+            {lessons.map((lesson) => (
               <tr key={lesson.id} className="border-t border-black/10">
                 <td className="px-4 py-3 font-medium">{lesson.title}</td>
                 <td className="px-4 py-3">{lesson.topic}</td>
@@ -167,13 +222,13 @@ export default async function AdminLessonsPage() {
                 </td>
               </tr>
             ))}
-            {!lessons?.length ? (
+            {!lessons.length ? (
               <tr>
                 <td
                   className="px-4 py-8 text-center text-black/60"
                   colSpan={6}
                 >
-                  No lessons yet.
+                  {hasActiveFilters ? "No lessons match these filters." : "No lessons yet."}
                 </td>
               </tr>
             ) : null}
@@ -181,5 +236,18 @@ export default async function AdminLessonsPage() {
         </table>
       </div>
     </main>
+  );
+}
+
+function unique(values: Array<string | null>) {
+  return Array.from(new Set(values.filter((value): value is string => Boolean(value)))).sort();
+}
+
+function FilterSelect({ name, current, label, values }: { name: string; current: string; label: string; values: string[] }) {
+  return (
+    <select name={name} defaultValue={current} className="min-w-0 rounded-md border border-black/15 px-3 py-2 text-sm">
+      <option value="">{label}</option>
+      {values.map((value) => <option key={value} value={value}>{value}</option>)}
+    </select>
   );
 }
