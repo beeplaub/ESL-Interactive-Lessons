@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowDown, ArrowLeft, ArrowUp, Eye, Image as ImageIcon, Library, Plus, Trash2 } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { ItemPicker } from "@/app/admin/courses/[id]/builder/ItemPicker";
 import {
   addCourseFaq,
   addCourseItem,
@@ -24,8 +25,8 @@ import {
 const levels = ["A1", "A2", "A1-A2", "B1", "B2", "B1-B2", "C1", "C2", "C1-C2", "All Levels"];
 const itemTypes = ["LESSON", "QUIZ", "RESOURCE", "EXTERNAL_LINK", "LEVEL_TEST"] as const;
 
-type LessonOption = { id: string; title: string; level: string; status: string };
-type QuizOption = { id: string; title: string; level: string; status: string };
+type LessonOption = { id: string; title: string; level: string | null; topic: string | null; status: string };
+type QuizOption = { id: string; title: string; level: string | null; topic: string | null; status: string };
 type SectionOption = { id: string; title: string };
 type CourseItem = {
   id: string;
@@ -51,8 +52,8 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
     admin.from("course_faqs").select("*").eq("course_id", id).order("position", { ascending: true }),
     admin.from("course_sections").select("*").eq("course_id", id).order("position", { ascending: true }),
     admin.from("course_items").select("*, lessons(title,level), quizzes(title,level)").eq("course_id", id).order("position", { ascending: true }),
-    admin.from("lessons").select("id,title,level,status").order("created_at", { ascending: false }),
-    admin.from("quizzes").select("id,title,level,status").order("created_at", { ascending: false }),
+    admin.from("lessons").select("id,title,level,topic,status").order("created_at", { ascending: false }),
+    admin.from("quizzes").select("id,title,level,topic,status").order("created_at", { ascending: false }),
     admin.from("organizations").select("id,name").order("name", { ascending: true }),
   ]);
 
@@ -229,18 +230,8 @@ function AddItemForm({ courseId, sectionId, lessons, quizzes }: { courseId: stri
             <option key={type} value={type}>{type.replaceAll("_", " ")}</option>
           ))}
         </select>
-        <select name="lessonId" className="min-w-0 flex-1 rounded-md border border-black/15 px-3 py-2 text-sm">
-          <option value="">Choose lesson…</option>
-          {lessons.map((lesson) => (
-            <option key={lesson.id} value={lesson.id}>{lesson.title}</option>
-          ))}
-        </select>
-        <select name="quizId" className="min-w-0 flex-1 rounded-md border border-black/15 px-3 py-2 text-sm">
-          <option value="">Choose quiz…</option>
-          {quizzes.map((quiz) => (
-            <option key={quiz.id} value={quiz.id}>{quiz.title}</option>
-          ))}
-        </select>
+        <ItemPicker options={lessons} name="lessonId" placeholder="Choose lesson\u2026" />
+        <ItemPicker options={quizzes} name="quizId" placeholder="Choose quiz\u2026" />
         <button className="shrink-0 rounded-md bg-moss px-4 py-2 text-sm font-semibold text-white">Add item</button>
       </div>
 
@@ -275,7 +266,7 @@ function CourseItemEditor({ courseId, item, itemIndex, totalItems, sections, les
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold">{label}</p>
-            <p className="mt-0.5 text-xs text-black/45">{item.item_type.replaceAll("_", " ")}{item.is_free_preview ? " · Free preview" : ""}{item.is_required ? " · Required" : " · Optional"}</p>
+            <p className="mt-0.5 text-xs text-black/45">{item.item_type.replaceAll("_", " ")}{item.is_free_preview ? " \u00b7 Free preview" : ""}{item.is_required ? " \u00b7 Required" : " \u00b7 Optional"}</p>
           </div>
           <div className="flex gap-1">
             <form action={moveCourseItem.bind(null, courseId, item.id, "up")}><button disabled={itemIndex === 0} className="rounded-md border border-black/15 px-2 py-1.5 disabled:opacity-35"><ArrowUp size={13} /></button></form>
@@ -286,14 +277,10 @@ function CourseItemEditor({ courseId, item, itemIndex, totalItems, sections, les
       <form action={updateCourseItem.bind(null, courseId, item.id)} className="mt-3 grid gap-2">
         <select name="sectionId" defaultValue={item.section_id ?? ""} className="rounded-md border border-black/15 px-3 py-2 text-sm">{sections.map((section) => <option key={section.id} value={section.id}>{section.title}</option>)}</select>
         <select name="itemType" defaultValue={item.item_type} className="rounded-md border border-black/15 px-3 py-2 text-sm">{itemTypes.map((type) => <option key={type} value={type}>{type.replaceAll("_", " ")}</option>)}</select>
-        <select name="lessonId" defaultValue={item.lesson_id ?? ""} className="rounded-md border border-black/15 px-3 py-2 text-sm">
-          <option value="">Choose lesson…</option>
-          {lessons.map((lesson) => <option key={lesson.id} value={lesson.id}>{lesson.title}</option>)}
-        </select>
-        <select name="quizId" defaultValue={item.quiz_id ?? ""} className="rounded-md border border-black/15 px-3 py-2 text-sm">
-          <option value="">Choose quiz…</option>
-          {quizzes.map((quiz) => <option key={quiz.id} value={quiz.id}>{quiz.title}</option>)}
-        </select>
+        <div className="flex gap-2">
+          <ItemPicker options={lessons} name="lessonId" defaultValue={item.lesson_id ?? ""} placeholder="Choose lesson\u2026" />
+          <ItemPicker options={quizzes} name="quizId" defaultValue={item.quiz_id ?? ""} placeholder="Choose quiz\u2026" />
+        </div>
         <input name="title" defaultValue={item.title ?? ""} placeholder="Custom/resource title" className="rounded-md border border-black/15 px-3 py-2 text-sm" />
         <textarea name="description" defaultValue={item.description ?? ""} placeholder="Item description" rows={2} className="rounded-md border border-black/15 px-3 py-2 text-sm" />
         <input name="resourceUrl" defaultValue={item.resource_url ?? ""} placeholder="URL for resource or external link" className="rounded-md border border-black/15 px-3 py-2 text-sm" />
