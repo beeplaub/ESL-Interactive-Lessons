@@ -8,6 +8,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { parsePdfPages } from "@/lib/pdfParser";
 import { parseLessonSlideActivities } from "@/lib/lessonTextParser";
 import { classifyAndExtractLesson } from "@/lib/slideClassifier";
+import { CONTENT_LEVELS } from "@/lib/levels";
 import type { Json, SlideType } from "@/types/database.types";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
@@ -20,7 +21,7 @@ export type LessonActionState = {
 const lessonSchema = z.object({
   title: z.string().min(2),
   topic: z.string().min(2),
-  level: z.enum(["A1", "A2", "B1", "B2", "C1", "C2"]),
+  level: z.enum(CONTENT_LEVELS),
   description: z.string().optional()
 });
 

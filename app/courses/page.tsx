@@ -15,8 +15,9 @@ import {
 import { LearnerAppShell } from "@/components/LearnerAppShell";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { CONTENT_LEVELS } from "@/lib/levels";
 
-const levelOrder = ["A1", "A2", "B1", "B2", "C1", "C2"];
+const levelOrder = CONTENT_LEVELS;
 
 export default async function CoursesPage() {
   const supabase = await createClient();

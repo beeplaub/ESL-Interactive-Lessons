@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Archive, BarChart3, Eye, GraduationCap, Pencil, Plus, Trash2 } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createCourse, deleteCourse, setCourseStatus } from "@/app/admin/courses/actions";
+import { CONTENT_LEVELS } from "@/lib/levels";
 
 export default async function AdminCoursesPage() {
   const admin = createAdminClient();
@@ -33,7 +34,7 @@ export default async function AdminCoursesPage() {
           <input name="subtitle" placeholder="Short subtitle" className="rounded-md border border-black/15 px-3 py-2 text-sm md:col-span-2" />
           <input name="topic" placeholder="Topic" className="rounded-md border border-black/15 px-3 py-2 text-sm" />
           <select name="level" defaultValue="All Levels" className="rounded-md border border-black/15 px-3 py-2 text-sm">
-            {["A1", "A2", "A1-A2", "B1", "B2", "B1-B2", "C1", "C2", "C1-C2", "All Levels"].map((level) => <option key={level}>{level}</option>)}
+            {CONTENT_LEVELS.map((level) => <option key={level}>{level}</option>)}
           </select>
           <textarea name="description" placeholder="Course description" rows={3} className="rounded-md border border-black/15 px-3 py-2 text-sm md:col-span-2" />
           <button className="w-fit rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white">Create and open builder</button>

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowRight, BookOpen, CheckCircle2, Clock3, LockKeyhole, Search, X } from "lucide-react";
 import { useState, useMemo } from "react";
 import { WishlistButton } from "@/components/WishlistButton";
+import { CONTENT_LEVELS, CONTENT_LEVEL_SORT_ORDER } from "@/lib/levels";
 
 type Lesson = {
   id: string;
@@ -29,8 +30,8 @@ type Props = {
   isLoggedIn: boolean;
 };
 
-const LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"] as const;
-const LEVEL_ORDER: Record<string, number> = { A1: 1, A2: 2, B1: 3, B2: 4, C1: 5, C2: 6 };
+const LEVELS = CONTENT_LEVELS;
+const LEVEL_ORDER = CONTENT_LEVEL_SORT_ORDER;
 
 type SortOption = "newest" | "az" | "level-asc" | "level-desc";
 
@@ -41,11 +42,15 @@ const LEVEL_THEME: Record<string, {
   headerBg: string;
 }> = {
   A1: { border: "#f59e0b", badge: "#fef3c7", badgeText: "#92400e", headerBg: "#fffbeb" },
+  "A1-A2": { border: "#f97316", badge: "#ffedd5", badgeText: "#7c2d12", headerBg: "#fff7ed" },
   A2: { border: "#f97316", badge: "#ffedd5", badgeText: "#7c2d12", headerBg: "#fff7ed" },
   B1: { border: "#0ea5e9", badge: "#e0f2fe", badgeText: "#0c4a6e", headerBg: "#f0f9ff" },
+  "B1-B2": { border: "#2563eb", badge: "#dbeafe", badgeText: "#1e3a8a", headerBg: "#eff6ff" },
   B2: { border: "#2563eb", badge: "#dbeafe", badgeText: "#1e3a8a", headerBg: "#eff6ff" },
   C1: { border: "#7c3aed", badge: "#ede9fe", badgeText: "#4c1d95", headerBg: "#f5f3ff" },
+  "C1-C2": { border: "#7c3aed", badge: "#ede9fe", badgeText: "#4c1d95", headerBg: "#f5f3ff" },
   C2: { border: "#0f172a", badge: "#e2e8f0", badgeText: "#0f172a", headerBg: "#f8fafc" },
+  "All Levels": { border: "#64748b", badge: "#f1f5f9", badgeText: "#334155", headerBg: "#f8fafc" },
 };
 
 function getLevelTheme(level: string | null) {

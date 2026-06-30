@@ -3,6 +3,7 @@ import { AlertTriangle, RefreshCw } from "lucide-react";
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { CONTENT_LEVELS } from "@/lib/levels";
 import {
   generateInLessonQuizzes,
   rerunParser,
@@ -116,7 +117,7 @@ export default async function EditLessonPage({ params }: { params: Promise<{ id:
           <label className="text-sm">
             Level
             <select name="level" defaultValue={lesson.level} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">
-              {["A1", "A2", "B1", "B2", "C1", "C2"].map((level) => (
+              {CONTENT_LEVELS.map((level) => (
                 <option key={level}>{level}</option>
               ))}
             </select>

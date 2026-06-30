@@ -27,6 +27,7 @@ import { LessonActivityPanel } from "@/components/LessonActivityPanel";
 import { LessonBlockPreview } from "@/components/LessonBlockPreview";
 import { SlideNarrationRecorder } from "@/components/SlideNarrationRecorder";
 import { BlockMediaUploader } from "@/components/BlockMediaUploader";
+import { CONTENT_LEVELS } from "@/lib/levels";
 import type { Json } from "@/types/database.types";
 
 const blockTypes = [
@@ -36,7 +37,7 @@ const blockTypes = [
   "FLASHCARD"
 ] as const;
 
-const levelOptions = ["A1", "A2", "B1", "B2", "C1", "C2", "A1-A2", "B1-B2", "C1-C2", "All Levels"];
+const levelOptions = CONTENT_LEVELS;
 
 type Lesson = {
   id: string; title: string; subtitle: string | null; description: string | null;

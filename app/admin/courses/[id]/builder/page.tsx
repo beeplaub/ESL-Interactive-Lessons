@@ -11,6 +11,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { CONTENT_LEVELS } from "@/lib/levels";
 import { AddItemModal } from "@/app/admin/courses/[id]/builder/AddItemModal";
 import { BuilderDialog, CurriculumWorkspace } from "@/app/admin/courses/[id]/builder/CourseBuilderChrome";
 import { EditItemModal } from "@/app/admin/courses/[id]/builder/EditItemModal";
@@ -33,7 +34,7 @@ import {
   updateCourseSection,
 } from "@/app/admin/courses/actions";
 
-const levels = ["A1", "A2", "A1-A2", "B1", "B2", "B1-B2", "C1", "C2", "C1-C2", "All Levels"];
+const levels = CONTENT_LEVELS;
 
 type LessonOption = { id: string; title: string; level: string | null; topic: string | null; status: string };
 type QuizOption = { id: string; title: string; level: string | null; topic: string | null; status: string };

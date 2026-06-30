@@ -2,6 +2,7 @@ import Link from "next/link";
 import { BookOpen, Sparkles } from "lucide-react";
 import { requireAdmin } from "@/lib/auth";
 import { createVisualLesson } from "@/app/admin/lessons/actions";
+import { CONTENT_LEVELS } from "@/lib/levels";
 
 export default async function NewLessonPage() {
   await requireAdmin();
@@ -69,7 +70,7 @@ export default async function NewLessonPage() {
             <label className="text-sm font-medium">
               CEFR level
               <select name="level" defaultValue="B1" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 font-normal">
-                {["A1", "A2", "B1", "B2", "C1", "C2", "A1-A2", "B1-B2", "C1-C2", "All Levels"].map((level) => (
+                {CONTENT_LEVELS.map((level) => (
                   <option key={level}>{level}</option>
                 ))}
               </select>

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { ALL_LEVELS_LABEL } from "@/lib/levels";
 
 function slugify(value: string) {
   return value
@@ -27,7 +28,7 @@ export async function createCourse(formData: FormData) {
       title,
       subtitle: String(formData.get("subtitle") || "").trim() || null,
       topic: String(formData.get("topic") || "").trim() || null,
-      level: String(formData.get("level") || "All Levels"),
+      level: String(formData.get("level") || ALL_LEVELS_LABEL),
       description: String(formData.get("description") || "").trim() || null,
       slug: `${baseSlug}-${Date.now().toString(36)}`,
       created_by: user.id,
@@ -74,7 +75,7 @@ export async function updateCourseMetadata(courseId: string, formData: FormData)
       subtitle: String(formData.get("subtitle") || "").trim() || null,
       topic: String(formData.get("topic") || "").trim() || null,
       category: String(formData.get("category") || "").trim() || null,
-      level: String(formData.get("level") || "All Levels"),
+      level: String(formData.get("level") || ALL_LEVELS_LABEL),
       description: String(formData.get("description") || "").trim() || null,
       thumbnail_path: String(formData.get("thumbnailPath") || "").trim() || null,
       cover_image_path: String(formData.get("coverImagePath") || "").trim() || null,
