@@ -204,7 +204,7 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
 
                   <div className="mt-4 space-y-2">
                     {sectionItems.map((item, itemIndex) => {
-                      const label = item.lessons?.title ?? item.quizzes?.title ?? item.title ?? item.item_type.replaceAll("_", " ");
+                      const label = item.title?.trim() || item.lessons?.title || item.quizzes?.title || item.item_type.replaceAll("_", " ");
                       return (
                         <div key={item.id} className="flex items-start gap-2">
                           <div className="min-w-0 flex-1">
