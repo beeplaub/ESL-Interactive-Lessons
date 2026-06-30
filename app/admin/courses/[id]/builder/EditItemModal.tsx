@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Edit3, Search, Trash2, X } from "lucide-react";
+import { Check, Edit3, Search, Trash2, X } from "lucide-react";
 
 type Option = { id: string; title: string; level: string | null; topic: string | null; status: string };
 type SectionOption = { id: string; title: string };
@@ -200,6 +200,12 @@ export function EditItemModal({ action, deleteAction, item, label, sections, les
                     </button>
                   ) : null}
 
+                  {(lessonId || quizId) ? (
+                    <p className="mt-2 inline-flex items-center gap-1.5 rounded-md bg-moss/15 px-2.5 py-1.5 text-xs font-semibold text-moss">
+                      <Check size={13} /> Selected: {activeOptions.find((o) => o.id === (itemType === "QUIZ" ? quizId : lessonId))?.title}
+                    </p>
+                  ) : null}
+
                   <div className="mt-3 max-h-60 overflow-y-auto rounded-md border border-black/10">
                     {filtered.map((o) => {
                       const selected = itemType === "QUIZ" ? quizId === o.id : lessonId === o.id;
@@ -212,9 +218,12 @@ export function EditItemModal({ action, deleteAction, item, label, sections, les
                             else setLessonId(o.id);
                             setError(null);
                           }}
-                          className={`flex w-full items-center justify-between gap-2 border-t border-black/5 px-3 py-2 text-left text-sm first:border-t-0 hover:bg-slate-50 ${selected ? "bg-moss/10" : ""}`}
+                          className={`flex w-full items-center justify-between gap-2 border-t border-black/5 px-3 py-2 text-left text-sm first:border-t-0 hover:bg-slate-50 ${selected ? "border-l-4 border-l-moss bg-moss/15 font-semibold" : ""}`}
                         >
-                          <span className="min-w-0 flex-1 truncate font-medium">{o.title}</span>
+                          <span className="flex min-w-0 flex-1 items-center gap-1.5 truncate">
+                            {selected ? <Check size={14} className="shrink-0 text-moss" /> : null}
+                            <span className="truncate">{o.title}</span>
+                          </span>
                           <span className="shrink-0 text-xs text-black/40">{o.level ?? ""}{o.topic ? ` \u00b7 ${o.topic}` : ""}</span>
                         </button>
                       );
