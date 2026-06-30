@@ -55,7 +55,7 @@ export function BuilderDialog({
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-semibold text-ink">{triggerLabel}</span>
-          {countLabel ? <span className="block text-xs text-black/45">{countLabel}</span> : null}
+          {countLabel ? <span className="block truncate text-xs text-black/45">{countLabel}</span> : null}
         </span>
         <ChevronRight size={16} className="shrink-0 text-black/30 transition group-hover:translate-x-0.5 group-hover:text-violet-600" />
       </button>
@@ -137,9 +137,9 @@ export function CurriculumWorkspace({ sections, panels, addSectionAction }: Curr
         </div>
       </header>
 
-      <div className="grid min-h-[570px] lg:grid-cols-[260px_minmax(0,1fr)]">
+      <div className="flex flex-col lg:grid lg:min-h-[480px] lg:grid-cols-[260px_minmax(0,1fr)]">
         <aside className="border-b border-black/10 bg-slate-50/80 lg:border-b-0 lg:border-r">
-          <div className="flex gap-2 overflow-x-auto p-3 lg:block lg:max-h-[640px] lg:space-y-1.5 lg:overflow-y-auto">
+          <div className="flex snap-x snap-mandatory gap-2 overflow-x-auto p-3 lg:block lg:max-h-[640px] lg:snap-none lg:space-y-1.5 lg:overflow-y-auto">
             {sections.map((section, index) => {
               const active = section.id === activeSectionId;
               return (
@@ -147,7 +147,7 @@ export function CurriculumWorkspace({ sections, panels, addSectionAction }: Curr
                   key={section.id}
                   type="button"
                   onClick={() => setActiveSectionId(section.id)}
-                  className={`flex min-w-[220px] items-center gap-3 rounded-xl border px-3 py-3 text-left transition lg:min-w-0 lg:w-full ${
+                  className={`flex min-w-[220px] shrink-0 snap-start items-center gap-3 rounded-xl border px-3 py-3 text-left transition lg:min-w-0 lg:w-full lg:shrink ${
                     active
                       ? "border-violet-300 bg-white shadow-sm ring-1 ring-violet-100"
                       : "border-transparent hover:border-black/10 hover:bg-white"
@@ -166,7 +166,7 @@ export function CurriculumWorkspace({ sections, panels, addSectionAction }: Curr
                       {section.itemCount} {section.itemCount === 1 ? "item" : "items"}
                     </span>
                   </span>
-                  <ChevronRight size={15} className={active ? "text-violet-600" : "text-black/20"} />
+                  <ChevronRight size={15} className={active ? "shrink-0 text-violet-600" : "shrink-0 text-black/20"} />
                 </button>
               );
             })}
@@ -176,9 +176,9 @@ export function CurriculumWorkspace({ sections, panels, addSectionAction }: Curr
           </div>
         </aside>
 
-        <div className="min-w-0 p-3 sm:p-5">
+        <div className="min-w-0 max-h-[75vh] overflow-y-auto p-3 sm:p-5 lg:max-h-[640px]">
           {activeSection ? panels[activeIndex] : (
-            <div className="grid min-h-[430px] place-items-center rounded-xl border border-dashed border-black/15 bg-slate-50 p-6 text-center">
+            <div className="grid min-h-[260px] place-items-center rounded-xl border border-dashed border-black/15 bg-slate-50 p-6 text-center lg:min-h-[430px]">
               <div>
                 <BookOpen className="mx-auto text-black/25" size={30} />
                 <p className="mt-3 font-semibold text-ink">Start your curriculum</p>
