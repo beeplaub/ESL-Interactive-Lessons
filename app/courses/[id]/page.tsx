@@ -18,6 +18,7 @@ import {
   Star,
   User
 } from "lucide-react";
+import { CourseCurriculumTabs } from "@/components/CourseCurriculumTabs";
 import { LearnerAppShell } from "@/components/LearnerAppShell";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -133,15 +134,8 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
     </div>
   );
 
-  const curriculumCard = (
-    <div id="curriculum" className="rounded-[24px] border border-[#ECECF5] bg-white p-4 shadow-[0_12px_32px_rgba(0,0,0,.06)] md:p-5">
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-xl font-extrabold">Course Curriculum</h2>
-          <p className="mt-1 text-sm text-[#6E738D]">{sectionCount} modules · {totalItems} items · {Math.max(1, Math.round(totalMinutes / 60))}h total</p>
-        </div>
-      </div>
-      <div className="grid gap-3">
+  const curriculumContent = (
+    <div className="grid gap-3">
         {(sections ?? []).length ? (sections ?? []).map((section, index) => {
           const sectionItems = courseItems.filter((item) => item.section_id === section.id);
           const completedInSection = sectionItems.filter((item) => completedIds.has(item.id)).length;
@@ -175,7 +169,6 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
         }) : (
           <p className="rounded-xl bg-[#F6F7FB] p-5 text-sm text-[#6E738D]">Curriculum coming soon.</p>
         )}
-      </div>
     </div>
   );
 
@@ -239,21 +232,28 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
     </Panel>
   );
 
-  const overviewPanel = course.description ? (
-    <Panel title="Overview">
-      <p className="whitespace-pre-line text-sm leading-6 text-[#53607D]">{course.description}</p>
-    </Panel>
+  const overviewContent = course.description ? (
+    <p className="whitespace-pre-line text-sm leading-6 text-[#53607D]">{course.description}</p>
   ) : null;
 
-  const questionsPanel = (faqs ?? []).length ? (
-    <Panel title="Questions">
-      <div className="grid gap-2.5">
-        {(faqs ?? []).map((faq, index) => (
-          <FaqAccordionItem key={faq.id} question={faq.question} answer={faq.answer} defaultOpen={index === 0} />
-        ))}
-      </div>
-    </Panel>
+  const questionsContent = (faqs ?? []).length ? (
+    <div className="grid gap-2.5">
+      {(faqs ?? []).map((faq, index) => (
+        <FaqAccordionItem key={faq.id} question={faq.question} answer={faq.answer} defaultOpen={index === 0} />
+      ))}
+    </div>
   ) : null;
+
+  const curriculumSubtitle = `${sectionCount} modules · ${totalItems} items · ${Math.max(1, Math.round(totalMinutes / 60))}h total`;
+
+  const curriculumCard = (
+    <CourseCurriculumTabs
+      curriculumSubtitle={curriculumSubtitle}
+      curriculumContent={curriculumContent}
+      overviewContent={overviewContent}
+      questionsContent={questionsContent}
+    />
+  );
 
   return (
     <LearnerAppShell active="courses">
@@ -288,8 +288,6 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
               {curriculumCard}
               <aside className="grid content-start gap-4">
                 {supportPanel}
-                {overviewPanel}
-                {questionsPanel}
               </aside>
             </section>
           </div>
@@ -304,8 +302,6 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
               {progressPanel}
               {outcomesPanel}
               {supportPanel}
-              {overviewPanel}
-              {questionsPanel}
             </aside>
           </div>
         </section>
