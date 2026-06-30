@@ -190,16 +190,17 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
                       <button formAction={deleteCourseSection.bind(null, course.id, section.id)} className="rounded-md border border-coral/30 px-2 py-2 text-coral"><Trash2 size={14} /></button>
                     </div>
                     <input name="description" defaultValue={section.description ?? ""} placeholder="Section description" className="rounded-md border border-black/15 px-3 py-2 text-sm" />
-                    <div className="flex items-center justify-between gap-2">
-                      <button className="w-fit rounded-md border border-black/15 bg-white px-3 py-1.5 text-xs font-semibold">Save section</button>
-                      <AddItemModal
-                        action={addCourseItem.bind(null, course.id)}
-                        sectionId={section.id}
-                        lessons={lessonOptions}
-                        quizzes={quizOptions}
-                      />
-                    </div>
+                    <button className="w-fit rounded-md border border-black/15 bg-white px-3 py-1.5 text-xs font-semibold">Save section</button>
                   </form>
+
+                  <div className="mt-2 flex items-center justify-end">
+                    <AddItemModal
+                      action={addCourseItem.bind(null, course.id)}
+                      sectionId={section.id}
+                      lessons={lessonOptions}
+                      quizzes={quizOptions}
+                    />
+                  </div>
 
                   <div className="mt-4 space-y-2">
                     {sectionItems.map((item, itemIndex) => {
