@@ -247,12 +247,9 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
 
   const questionsPanel = (faqs ?? []).length ? (
     <Panel title="Questions">
-      <div className="grid gap-4">
-        {(faqs ?? []).map((faq) => (
-          <div key={faq.id}>
-            <p className="text-sm font-extrabold">{faq.question}</p>
-            <p className="mt-1 text-sm leading-6 text-[#6E738D]">{faq.answer}</p>
-          </div>
+      <div className="grid gap-2.5">
+        {(faqs ?? []).map((faq, index) => (
+          <FaqAccordionItem key={faq.id} question={faq.question} answer={faq.answer} defaultOpen={index === 0} />
         ))}
       </div>
     </Panel>
@@ -339,6 +336,18 @@ function CourseItemLink({ item, itemIndex, isEnrolled, isComplete }: { item: Cou
         </span>
       )}
     </div>
+  );
+}
+
+function FaqAccordionItem({ question, answer, defaultOpen }: { question: string; answer: string; defaultOpen?: boolean }) {
+  return (
+    <details className="group rounded-[16px] border border-[#ECECF5] bg-white px-4 py-3 shadow-[0_2px_10px_rgba(0,0,0,.03)] open:shadow-[0_4px_14px_rgba(0,0,0,.05)]" open={defaultOpen}>
+      <summary className="flex cursor-pointer list-none items-start justify-between gap-3 marker:hidden [&::-webkit-details-marker]:hidden">
+        <p className="text-sm font-extrabold leading-5 text-[#14172B]">{question}</p>
+        <ChevronDown className="mt-0.5 size-4 shrink-0 text-[#6E738D] transition group-open:rotate-180" />
+      </summary>
+      <p className="mt-2.5 text-sm leading-6 text-[#6E738D]">{answer}</p>
+    </details>
   );
 }
 
