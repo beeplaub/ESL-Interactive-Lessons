@@ -1,8 +1,18 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowDown, ArrowLeft, ArrowUp, Eye, Image as ImageIcon, Library, Plus, Trash2 } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowLeft,
+  ArrowUp,
+  Eye,
+  Image as ImageIcon,
+  Library,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { AddItemModal } from "@/app/admin/courses/[id]/builder/AddItemModal";
+import { BuilderDialog, CurriculumWorkspace } from "@/app/admin/courses/[id]/builder/CourseBuilderChrome";
 import { EditItemModal } from "@/app/admin/courses/[id]/builder/EditItemModal";
 import {
   addCourseFaq,
@@ -27,7 +37,6 @@ const levels = ["A1", "A2", "A1-A2", "B1", "B2", "B1-B2", "C1", "C2", "C1-C2", "
 
 type LessonOption = { id: string; title: string; level: string | null; topic: string | null; status: string };
 type QuizOption = { id: string; title: string; level: string | null; topic: string | null; status: string };
-type SectionOption = { id: string; title: string };
 type CourseItem = {
   id: string;
   section_id: string | null;
@@ -46,7 +55,16 @@ type CourseItem = {
 export default async function CourseBuilderPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const admin = createAdminClient();
-  const [{ data: course }, { data: outcomes }, { data: faqs }, { data: sections }, { data: items }, { data: lessons }, { data: quizzes }, { data: organizations }] = await Promise.all([
+  const [
+    { data: course },
+    { data: outcomes },
+    { data: faqs },
+    { data: sections },
+    { data: items },
+    { data: lessons },
+    { data: quizzes },
+    { data: organizations },
+  ] = await Promise.all([
     admin.from("courses").select("*").eq("id", id).maybeSingle(),
     admin.from("course_outcomes").select("*").eq("course_id", id).order("position", { ascending: true }),
     admin.from("course_faqs").select("*").eq("course_id", id).order("position", { ascending: true }),
@@ -60,183 +78,304 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
   if (!course) notFound();
 
   const courseItems = (items ?? []) as CourseItem[];
-  const sectionOptions = (sections ?? []).map((section) => ({ id: section.id, title: section.title }));
   const lessonOptions = (lessons ?? []) as LessonOption[];
   const quizOptions = (quizzes ?? []) as QuizOption[];
+  const sectionOptions = (sections ?? []).map((section) => ({ id: section.id, title: section.title }));
+  const curriculumSections = (sections ?? []).map((section) => ({
+    id: section.id,
+    title: section.title,
+    description: section.description,
+    itemCount: courseItems.filter((item) => item.section_id === section.id).length,
+  }));
+
+  const curriculumPanels = (sections ?? []).map((section, sectionIndex) => {
+    const sectionItems = courseItems.filter((item) => item.section_id === section.id);
+
+    return (
+      <div key={section.id} className="min-w-0">
+        <form action={updateCourseSection.bind(null, course.id, section.id)} className="rounded-xl border border-black/10 bg-slate-50 p-3 sm:p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+            <div className="grid min-w-0 flex-1 gap-2">
+              <label className="text-xs font-semibold uppercase tracking-wide text-black/45">
+                Section title
+                <input
+                  name="title"
+                  defaultValue={section.title}
+                  className="mt-1 w-full rounded-lg border border-black/15 bg-white px-3 py-2 text-sm font-semibold normal-case tracking-normal"
+                />
+              </label>
+              <label className="text-xs font-semibold uppercase tracking-wide text-black/45">
+                Description
+                <input
+                  name="description"
+                  defaultValue={section.description ?? ""}
+                  placeholder="What learners will do in this section"
+                  className="mt-1 w-full rounded-lg border border-black/15 bg-white px-3 py-2 text-sm font-normal normal-case tracking-normal"
+                />
+              </label>
+            </div>
+            <div className="flex shrink-0 items-center gap-1.5">
+              <button className="rounded-lg bg-ink px-3 py-2 text-xs font-semibold text-white">Save section</button>
+              <button
+                formAction={moveCourseSection.bind(null, course.id, section.id, "up")}
+                disabled={sectionIndex === 0}
+                title="Move section up"
+                className="grid size-9 place-items-center rounded-lg border border-black/15 bg-white disabled:opacity-35"
+              >
+                <ArrowUp size={14} />
+              </button>
+              <button
+                formAction={moveCourseSection.bind(null, course.id, section.id, "down")}
+                disabled={sectionIndex === (sections?.length ?? 1) - 1}
+                title="Move section down"
+                className="grid size-9 place-items-center rounded-lg border border-black/15 bg-white disabled:opacity-35"
+              >
+                <ArrowDown size={14} />
+              </button>
+              <button
+                formAction={deleteCourseSection.bind(null, course.id, section.id)}
+                title="Delete section"
+                className="grid size-9 place-items-center rounded-lg border border-coral/30 bg-white text-coral"
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+          </div>
+        </form>
+
+        <div className="mt-4 flex items-center justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-semibold text-ink">Section content</h3>
+            <p className="text-xs text-black/45">{sectionItems.length} {sectionItems.length === 1 ? "item" : "items"} in learning order</p>
+          </div>
+          <AddItemModal
+            action={addCourseItem.bind(null, course.id)}
+            sectionId={section.id}
+            lessons={lessonOptions}
+            quizzes={quizOptions}
+          />
+        </div>
+
+        <div className="mt-3 space-y-2">
+          {sectionItems.map((item, itemIndex) => {
+            const label = item.title?.trim() || item.lessons?.title || item.quizzes?.title || item.item_type.replaceAll("_", " ");
+            return (
+              <div key={item.id} className="flex min-w-0 items-start gap-2">
+                <div className="min-w-0 flex-1">
+                  <EditItemModal
+                    action={updateCourseItem.bind(null, course.id, item.id)}
+                    deleteAction={deleteCourseItem.bind(null, course.id, item.id)}
+                    item={item}
+                    label={label}
+                    sections={sectionOptions}
+                    lessons={lessonOptions}
+                    quizzes={quizOptions}
+                  />
+                </div>
+                <div className="flex shrink-0 flex-col gap-1">
+                  <form action={moveCourseItem.bind(null, course.id, item.id, "up")}>
+                    <button
+                      disabled={itemIndex === 0}
+                      title="Move item up"
+                      className="grid size-8 place-items-center rounded-lg border border-black/15 bg-white disabled:opacity-35"
+                    >
+                      <ArrowUp size={13} />
+                    </button>
+                  </form>
+                  <form action={moveCourseItem.bind(null, course.id, item.id, "down")}>
+                    <button
+                      disabled={itemIndex === sectionItems.length - 1}
+                      title="Move item down"
+                      className="grid size-8 place-items-center rounded-lg border border-black/15 bg-white disabled:opacity-35"
+                    >
+                      <ArrowDown size={13} />
+                    </button>
+                  </form>
+                </div>
+              </div>
+            );
+          })}
+          {sectionItems.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-black/15 bg-slate-50 px-4 py-10 text-center">
+              <p className="text-sm font-semibold text-ink">This section is ready for content</p>
+              <p className="mt-1 text-xs text-black/45">Add a lesson, quiz, level test, resource, or external link.</p>
+            </div>
+          ) : null}
+        </div>
+      </div>
+    );
+  });
 
   return (
-    <main className="min-w-0 space-y-5 overflow-hidden">
-      <section className="rounded-xl border border-black/10 bg-white p-4 shadow-sm sm:p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+    <main className="min-w-0 space-y-4 overflow-hidden">
+      <section className="rounded-2xl border border-black/10 bg-white p-4 shadow-sm sm:p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
-            <Link href="/admin/courses" className="inline-flex items-center gap-1 text-sm text-black/55 hover:text-black"><ArrowLeft size={15} /> Courses</Link>
+            <Link href="/admin/courses" className="inline-flex items-center gap-1 text-sm text-black/50 hover:text-black">
+              <ArrowLeft size={15} /> Courses
+            </Link>
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              <h1 className="min-w-0 text-2xl font-semibold tracking-tight sm:text-3xl">{course.title}</h1>
-              <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${course.status === "PUBLISHED" ? "bg-moss/10 text-moss" : "bg-amber-50 text-amber-800"}`}>{course.status}</span>
+              <h1 className="min-w-0 truncate text-2xl font-semibold tracking-tight text-ink sm:text-3xl">{course.title}</h1>
+              <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${course.status === "PUBLISHED" ? "bg-moss/10 text-moss" : "bg-amber-50 text-amber-800"}`}>
+                {course.status}
+              </span>
             </div>
-            <p className="mt-1 text-sm text-black/55">Build the course landing page and curriculum from existing BrenUp lessons and quizzes.</p>
+            <p className="mt-1 text-sm text-black/50">Shape the landing page when needed. Keep the curriculum in focus.</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Link href="/admin/content-library?type=COURSE_TEMPLATE" className="inline-flex items-center gap-2 rounded-md border border-black/15 px-4 py-2 text-sm font-semibold"><Library size={15} /> Content library</Link>
+            <Link href="/admin/content-library?type=COURSE_TEMPLATE" className="inline-flex items-center gap-2 rounded-lg border border-black/15 px-3 py-2 text-sm font-semibold">
+              <Library size={15} /> Library
+            </Link>
             {course.status === "PUBLISHED" ? (
-              <form action={setCourseStatus.bind(null, course.id, "DRAFT")}><button className="rounded-md border border-black/15 px-4 py-2 text-sm font-semibold">Unpublish</button></form>
+              <form action={setCourseStatus.bind(null, course.id, "DRAFT")}>
+                <button className="rounded-lg border border-black/15 px-3 py-2 text-sm font-semibold">Unpublish</button>
+              </form>
             ) : (
-              <form action={setCourseStatus.bind(null, course.id, "PUBLISHED")}><button className="rounded-md bg-moss px-4 py-2 text-sm font-semibold text-white">Publish</button></form>
+              <form action={setCourseStatus.bind(null, course.id, "PUBLISHED")}>
+                <button className="rounded-lg bg-moss px-3 py-2 text-sm font-semibold text-white">Publish</button>
+              </form>
             )}
-            <Link href={`/courses/${course.id}`} className="inline-flex items-center gap-2 rounded-md border border-black/15 px-4 py-2 text-sm font-semibold"><Eye size={15} /> Preview</Link>
+            <Link href={`/courses/${course.id}`} className="inline-flex items-center gap-2 rounded-lg border border-black/15 px-3 py-2 text-sm font-semibold">
+              <Eye size={15} /> Preview
+            </Link>
           </div>
         </div>
       </section>
 
-      <section className="grid gap-5 xl:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
-        <div className="space-y-5">
-          <form action={updateCourseMetadata.bind(null, course.id)} className="rounded-xl border border-black/10 bg-white p-5 shadow-sm">
-            <h2 className="font-semibold">Landing Page</h2>
-            <p className="mt-1 text-sm text-black/55">The public sales-style page learners see before enrolling.</p>
-            <div className="mt-4 grid gap-3">
-              <label className="text-sm font-medium">Title<input name="title" defaultValue={course.title} required className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm" /></label>
-              <label className="text-sm font-medium">Subtitle<input name="subtitle" defaultValue={course.subtitle ?? ""} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm" /></label>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <label className="text-sm font-medium">Topic<input name="topic" defaultValue={course.topic ?? ""} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm" /></label>
-                <label className="text-sm font-medium">Category<input name="category" defaultValue={course.category ?? ""} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm" /></label>
-              </div>
-              <label className="text-sm font-medium">Organization
-                <select name="organizationId" defaultValue={course.organization_id ?? ""} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm">
+      <section className="grid gap-2 sm:grid-cols-3">
+        <BuilderDialog
+          icon="settings"
+          triggerLabel="Landing page"
+          countLabel={`${course.level} · ${course.topic || "Topic not set"}`}
+          title="Course landing page"
+          description="Edit the public course information, classification, duration, and imagery."
+        >
+          <form action={updateCourseMetadata.bind(null, course.id)} className="grid gap-4">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="text-sm font-medium sm:col-span-2">
+                Title
+                <input name="title" defaultValue={course.title} required className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2 text-sm" />
+              </label>
+              <label className="text-sm font-medium sm:col-span-2">
+                Subtitle
+                <input name="subtitle" defaultValue={course.subtitle ?? ""} className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2 text-sm" />
+              </label>
+              <label className="text-sm font-medium">
+                Topic
+                <input name="topic" defaultValue={course.topic ?? ""} className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2 text-sm" />
+              </label>
+              <label className="text-sm font-medium">
+                Category
+                <input name="category" defaultValue={course.category ?? ""} className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2 text-sm" />
+              </label>
+              <label className="text-sm font-medium">
+                Level
+                <select name="level" defaultValue={course.level} className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2 text-sm">
+                  {levels.map((level) => <option key={level}>{level}</option>)}
+                </select>
+              </label>
+              <label className="text-sm font-medium">
+                Organization
+                <select name="organizationId" defaultValue={course.organization_id ?? ""} className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2 text-sm">
                   <option value="">Platform course</option>
                   {(organizations ?? []).map((org) => <option key={org.id} value={org.id}>{org.name}</option>)}
                 </select>
               </label>
-              <div className="grid gap-3 sm:grid-cols-3">
-                <label className="text-sm font-medium">Level<select name="level" defaultValue={course.level} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm">{levels.map((level) => <option key={level}>{level}</option>)}</select></label>
-                <label className="text-sm font-medium">Study Time<input name="estimatedCompletionMinutes" type="number" min="0" defaultValue={course.estimated_completion_minutes ?? ""} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm" /></label>
-                <label className="text-sm font-medium">Duration<input name="durationMinutes" type="number" min="0" defaultValue={course.duration_minutes ?? ""} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm" /></label>
+              <label className="text-sm font-medium">
+                Estimated completion (minutes)
+                <input name="estimatedCompletionMinutes" type="number" min="0" defaultValue={course.estimated_completion_minutes ?? ""} className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2 text-sm" />
+              </label>
+              <label className="text-sm font-medium">
+                Content duration (minutes)
+                <input name="durationMinutes" type="number" min="0" defaultValue={course.duration_minutes ?? ""} className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2 text-sm" />
+              </label>
+              <label className="text-sm font-medium sm:col-span-2">
+                Description
+                <textarea name="description" defaultValue={course.description ?? ""} rows={5} className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2 text-sm" />
+              </label>
+            </div>
+            <div className="rounded-xl border border-black/10 bg-slate-50 p-4">
+              <div className="mb-3 flex items-center gap-2 text-sm font-semibold"><ImageIcon size={16} /> Course images</div>
+              <div className="grid gap-3">
+                <label className="text-sm font-medium">
+                  Feature image URL or storage path
+                  <input name="coverImagePath" defaultValue={course.cover_image_path ?? ""} placeholder="https://... or course-covers/image.png" className="mt-1 w-full rounded-lg border border-black/15 bg-white px-3 py-2 text-sm" />
+                </label>
+                <label className="text-sm font-medium">
+                  Small card image URL or storage path
+                  <input name="thumbnailPath" defaultValue={course.thumbnail_path ?? ""} placeholder="Optional card image" className="mt-1 w-full rounded-lg border border-black/15 bg-white px-3 py-2 text-sm" />
+                </label>
               </div>
-              <label className="text-sm font-medium">Description<textarea name="description" defaultValue={course.description ?? ""} rows={5} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm" /></label>
-              <div className="rounded-lg border border-black/10 bg-slate-50 p-3">
-                <div className="mb-3 flex items-center gap-2 text-sm font-semibold"><ImageIcon size={16} /> Course images</div>
-                <div className="grid gap-3">
-                  <label className="text-sm font-medium">Feature image URL or storage path<input name="coverImagePath" defaultValue={course.cover_image_path ?? ""} placeholder="https://... or course-covers/image.png" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm" /></label>
-                  <label className="text-sm font-medium">Small card image URL or storage path<input name="thumbnailPath" defaultValue={course.thumbnail_path ?? ""} placeholder="Optional card image" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm" /></label>
-                  <p className="text-xs leading-5 text-black/50">Use a direct image link for now. Storage upload can be added later without changing the course layout.</p>
-                </div>
-              </div>
-              <button className="w-fit rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white">Save landing page</button>
             </div>
+            <button className="w-fit rounded-lg bg-ink px-4 py-2 text-sm font-semibold text-white">Save landing page</button>
           </form>
+        </BuilderDialog>
 
-          <section className="rounded-xl border border-black/10 bg-white p-5 shadow-sm">
-            <h2 className="font-semibold">Outcomes</h2>
-            <div className="mt-4 space-y-2">
-              {(outcomes ?? []).map((outcome) => (
-                <form key={outcome.id} action={updateCourseOutcome.bind(null, course.id, outcome.id)} className="flex gap-2">
-                  <input name="outcome" defaultValue={outcome.outcome} className="min-w-0 flex-1 rounded-md border border-black/15 px-3 py-2 text-sm" />
-                  <button className="rounded-md border border-black/15 px-3 py-2 text-xs font-semibold">Save</button>
-                  <button formAction={deleteCourseOutcome.bind(null, course.id, outcome.id)} className="rounded-md border border-coral/30 px-3 py-2 text-coral"><Trash2 size={14} /></button>
-                </form>
-              ))}
-            </div>
-            <form action={addCourseOutcome.bind(null, course.id)} className="mt-3 flex gap-2">
-              <input name="outcome" placeholder="Add an outcome" className="min-w-0 flex-1 rounded-md border border-black/15 px-3 py-2 text-sm" />
-              <button className="rounded-md bg-moss px-3 py-2 text-white"><Plus size={15} /></button>
-            </form>
-          </section>
-
-          <section className="rounded-xl border border-black/10 bg-white p-5 shadow-sm">
-            <h2 className="font-semibold">FAQ</h2>
-            <div className="mt-4 space-y-3">
-              {(faqs ?? []).map((faq) => (
-                <form key={faq.id} action={updateCourseFaq.bind(null, course.id, faq.id)} className="grid gap-2 rounded-lg border border-black/10 p-3">
-                  <input name="question" defaultValue={faq.question} className="rounded-md border border-black/15 px-3 py-2 text-sm" />
-                  <textarea name="answer" defaultValue={faq.answer} rows={2} className="rounded-md border border-black/15 px-3 py-2 text-sm" />
-                  <div className="flex gap-2">
-                    <button className="rounded-md border border-black/15 px-3 py-2 text-xs font-semibold">Save FAQ</button>
-                    <button formAction={deleteCourseFaq.bind(null, course.id, faq.id)} className="rounded-md border border-coral/30 px-3 py-2 text-xs font-semibold text-coral">Delete</button>
-                  </div>
-                </form>
-              ))}
-            </div>
-            <form action={addCourseFaq.bind(null, course.id)} className="mt-3 grid gap-2 rounded-lg bg-slate-50 p-3">
-              <input name="question" placeholder="New FAQ question" className="rounded-md border border-black/15 px-3 py-2 text-sm" />
-              <textarea name="answer" placeholder="Answer" rows={2} className="rounded-md border border-black/15 px-3 py-2 text-sm" />
-              <button className="w-fit rounded-md bg-moss px-3 py-2 text-sm font-semibold text-white">Add FAQ</button>
-            </form>
-          </section>
-        </div>
-
-        <section className="rounded-xl border border-black/10 bg-white p-5 shadow-sm">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h2 className="font-semibold">Curriculum</h2>
-              <p className="mt-1 text-sm text-black/55">Organise sections and attach lessons, quizzes, resources, and links.</p>
-            </div>
+        <BuilderDialog
+          icon="outcomes"
+          triggerLabel="Learning outcomes"
+          countLabel={`${outcomes?.length ?? 0} outcomes`}
+          title="Learning outcomes"
+          description="Tell learners what they will be able to do after completing the course."
+        >
+          <div className="space-y-2">
+            {(outcomes ?? []).map((outcome, index) => (
+              <form key={outcome.id} action={updateCourseOutcome.bind(null, course.id, outcome.id)} className="flex items-start gap-2 rounded-xl border border-black/10 p-3">
+                <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-moss/10 text-xs font-bold text-moss">{index + 1}</span>
+                <input name="outcome" defaultValue={outcome.outcome} className="min-w-0 flex-1 rounded-lg border border-black/15 px-3 py-2 text-sm" />
+                <button className="rounded-lg border border-black/15 px-3 py-2 text-xs font-semibold">Save</button>
+                <button formAction={deleteCourseOutcome.bind(null, course.id, outcome.id)} className="grid size-9 place-items-center rounded-lg border border-coral/30 text-coral" title="Delete outcome">
+                  <Trash2 size={14} />
+                </button>
+              </form>
+            ))}
           </div>
-
-          <form action={addCourseSection.bind(null, course.id)} className="mt-4 grid gap-2 rounded-lg border border-dashed border-black/15 p-3 sm:grid-cols-[1fr_1fr_auto]">
-            <input name="title" placeholder="New section title" className="rounded-md border border-black/15 px-3 py-2 text-sm" />
-            <input name="description" placeholder="Description" className="rounded-md border border-black/15 px-3 py-2 text-sm" />
-            <button className="rounded-md bg-ink px-3 py-2 text-sm font-semibold text-white">Add section</button>
+          <form action={addCourseOutcome.bind(null, course.id)} className="mt-3 flex gap-2 rounded-xl bg-slate-50 p-3">
+            <input name="outcome" placeholder="Add an outcome" className="min-w-0 flex-1 rounded-lg border border-black/15 px-3 py-2 text-sm" />
+            <button className="inline-flex items-center gap-1.5 rounded-lg bg-moss px-3 py-2 text-sm font-semibold text-white">
+              <Plus size={15} /> Add
+            </button>
           </form>
+        </BuilderDialog>
 
-          <div className="mt-5 space-y-4">
-            {(sections ?? []).map((section, sectionIndex) => {
-              const sectionItems = courseItems.filter((item) => item.section_id === section.id);
-              return (
-                <div key={section.id} className="rounded-xl border border-black/10 bg-slate-50 p-3">
-                  <form action={updateCourseSection.bind(null, course.id, section.id)} className="grid gap-2">
-                    <div className="flex flex-wrap gap-2">
-                      <input name="title" defaultValue={section.title} className="min-w-0 flex-1 rounded-md border border-black/15 px-3 py-2 text-sm font-semibold" />
-                      <button formAction={moveCourseSection.bind(null, course.id, section.id, "up")} disabled={sectionIndex === 0} className="rounded-md border border-black/15 px-2 py-2 disabled:opacity-35"><ArrowUp size={14} /></button>
-                      <button formAction={moveCourseSection.bind(null, course.id, section.id, "down")} disabled={sectionIndex === (sections?.length ?? 1) - 1} className="rounded-md border border-black/15 px-2 py-2 disabled:opacity-35"><ArrowDown size={14} /></button>
-                      <button formAction={deleteCourseSection.bind(null, course.id, section.id)} className="rounded-md border border-coral/30 px-2 py-2 text-coral"><Trash2 size={14} /></button>
-                    </div>
-                    <input name="description" defaultValue={section.description ?? ""} placeholder="Section description" className="rounded-md border border-black/15 px-3 py-2 text-sm" />
-                    <button className="w-fit rounded-md border border-black/15 bg-white px-3 py-1.5 text-xs font-semibold">Save section</button>
-                  </form>
-
-                  <div className="mt-2 flex items-center justify-end">
-                    <AddItemModal
-                      action={addCourseItem.bind(null, course.id)}
-                      sectionId={section.id}
-                      lessons={lessonOptions}
-                      quizzes={quizOptions}
-                    />
-                  </div>
-
-                  <div className="mt-4 space-y-2">
-                    {sectionItems.map((item, itemIndex) => {
-                      const label = item.title?.trim() || item.lessons?.title || item.quizzes?.title || item.item_type.replaceAll("_", " ");
-                      return (
-                        <div key={item.id} className="flex items-start gap-2">
-                          <div className="min-w-0 flex-1">
-                            <EditItemModal
-                              action={updateCourseItem.bind(null, course.id, item.id)}
-                              deleteAction={deleteCourseItem.bind(null, course.id, item.id)}
-                              item={item}
-                              label={label}
-                              sections={sectionOptions}
-                              lessons={lessonOptions}
-                              quizzes={quizOptions}
-                            />
-                          </div>
-                          <div className="flex shrink-0 flex-col gap-1">
-                            <form action={moveCourseItem.bind(null, course.id, item.id, "up")}><button disabled={itemIndex === 0} className="rounded-md border border-black/15 px-2 py-1.5 disabled:opacity-35"><ArrowUp size={13} /></button></form>
-                            <form action={moveCourseItem.bind(null, course.id, item.id, "down")}><button disabled={itemIndex === totalItemsInSection(sectionItems)} className="rounded-md border border-black/15 px-2 py-1.5 disabled:opacity-35"><ArrowDown size={13} /></button></form>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+        <BuilderDialog
+          icon="faq"
+          triggerLabel="Course FAQ"
+          countLabel={`${faqs?.length ?? 0} questions`}
+          title="Course FAQ"
+          description="Answer the questions learners commonly ask before enrolling."
+        >
+          <div className="space-y-3">
+            {(faqs ?? []).map((faq, index) => (
+              <form key={faq.id} action={updateCourseFaq.bind(null, course.id, faq.id)} className="grid gap-2 rounded-xl border border-black/10 p-3">
+                <label className="text-xs font-semibold text-black/50">
+                  Question {index + 1}
+                  <input name="question" defaultValue={faq.question} className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2 text-sm font-normal text-black" />
+                </label>
+                <label className="text-xs font-semibold text-black/50">
+                  Answer
+                  <textarea name="answer" defaultValue={faq.answer} rows={3} className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2 text-sm font-normal text-black" />
+                </label>
+                <div className="flex gap-2">
+                  <button className="rounded-lg border border-black/15 px-3 py-2 text-xs font-semibold">Save FAQ</button>
+                  <button formAction={deleteCourseFaq.bind(null, course.id, faq.id)} className="rounded-lg border border-coral/30 px-3 py-2 text-xs font-semibold text-coral">Delete</button>
                 </div>
-              );
-            })}
-            {(sections?.length ?? 0) === 0 ? <p className="rounded-lg bg-slate-50 p-4 text-sm text-black/55">Add a section to start building the course curriculum.</p> : null}
+              </form>
+            ))}
           </div>
-        </section>
+          <form action={addCourseFaq.bind(null, course.id)} className="mt-3 grid gap-2 rounded-xl bg-slate-50 p-3">
+            <input name="question" placeholder="New FAQ question" className="rounded-lg border border-black/15 px-3 py-2 text-sm" />
+            <textarea name="answer" placeholder="Answer" rows={3} className="rounded-lg border border-black/15 px-3 py-2 text-sm" />
+            <button className="w-fit rounded-lg bg-moss px-3 py-2 text-sm font-semibold text-white">Add FAQ</button>
+          </form>
+        </BuilderDialog>
       </section>
+
+      <CurriculumWorkspace
+        sections={curriculumSections}
+        panels={curriculumPanels}
+        addSectionAction={addCourseSection.bind(null, course.id)}
+      />
     </main>
   );
-}
-
-function totalItemsInSection(items: CourseItem[]) {
-  return items.length - 1;
 }

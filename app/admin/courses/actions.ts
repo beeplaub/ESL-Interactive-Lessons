@@ -223,7 +223,9 @@ export async function addCourseItem(courseId: string, formData: FormData) {
   const sectionId = String(formData.get("sectionId") || "") || null;
   const itemType = String(formData.get("itemType") || "LESSON") as "LESSON" | "QUIZ" | "LEVEL_TEST" | "RESOURCE" | "EXTERNAL_LINK";
   const admin = createAdminClient();
-  const { count } = await admin.from("course_items").select("id", { count: "exact", head: true }).eq("course_id", courseId);
+  let positionQuery = admin.from("course_items").select("id", { count: "exact", head: true }).eq("course_id", courseId);
+  positionQuery = sectionId ? positionQuery.eq("section_id", sectionId) : positionQuery.is("section_id", null);
+  const { count } = await positionQuery;
   const lessonId = itemType === "LESSON" ? String(formData.get("lessonId") || "") || null : null;
   const quizId = itemType === "QUIZ" ? String(formData.get("quizId") || "") || null : null;
   const startingPosition = count ?? 0;
@@ -280,11 +282,23 @@ export async function deleteCourseItem(courseId: string, itemId: string) {
 export async function moveCourseItem(courseId: string, itemId: string, direction: "up" | "down") {
   await requireAdmin();
   const admin = createAdminClient();
-  const { data: items, error } = await admin
+  const { data: selectedItem, error: selectedItemError } = await admin
+    .from("course_items")
+    .select("section_id")
+    .eq("course_id", courseId)
+    .eq("id", itemId)
+    .maybeSingle();
+  if (selectedItemError) throw new Error(selectedItemError.message);
+  if (!selectedItem) return;
+
+  let itemsQuery = admin
     .from("course_items")
     .select("id,position")
-    .eq("course_id", courseId)
-    .order("position", { ascending: true });
+    .eq("course_id", courseId);
+  itemsQuery = selectedItem.section_id
+    ? itemsQuery.eq("section_id", selectedItem.section_id)
+    : itemsQuery.is("section_id", null);
+  const { data: items, error } = await itemsQuery.order("position", { ascending: true });
   if (error) throw new Error(error.message);
   const index = (items ?? []).findIndex((item) => item.id === itemId);
   const swapIndex = direction === "up" ? index - 1 : index + 1;
