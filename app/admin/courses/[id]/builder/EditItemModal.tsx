@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { Edit3, Search, Trash2, X } from "lucide-react";
 
 type Option = { id: string; title: string; level: string | null; topic: string | null; status: string };
@@ -39,6 +39,8 @@ export function EditItemModal({ action, deleteAction, item, label, sections, les
   const [keyword, setKeyword] = useState("");
   const [level, setLevel] = useState("");
   const [topic, setTopic] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
 
   const activeOptions = itemType === "QUIZ" ? quizzes : lessons;
 
@@ -64,8 +66,49 @@ export function EditItemModal({ action, deleteAction, item, label, sections, les
     });
   }, [activeOptions, keyword, level, topic]);
 
+  const hasActiveFilter = Boolean(keyword || level || topic);
+
+  function clearFilters() {
+    setKeyword("");
+    setLevel("");
+    setTopic("");
+  }
+
   function close() {
     setOpen(false);
+    setError(null);
+  }
+
+  function handleSubmit(formData: FormData) {
+    setError(null);
+    if (itemType === "LESSON" && !lessonId) {
+      setError("Choose a lesson before saving.");
+      return;
+    }
+    if (itemType === "QUIZ" && !quizId) {
+      setError("Choose a quiz before saving.");
+      return;
+    }
+    startTransition(async () => {
+      try {
+        await action(formData);
+        close();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Could not save item.");
+      }
+    });
+  }
+
+  function handleDelete() {
+    if (!window.confirm("Delete this item?")) return;
+    startTransition(async () => {
+      try {
+        await deleteAction();
+        close();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Could not delete item.");
+      }
+    });
   }
 
   return (
@@ -97,13 +140,7 @@ export function EditItemModal({ action, deleteAction, item, label, sections, les
               </button>
             </div>
 
-            <form
-              action={(formData) => {
-                action(formData);
-                close();
-              }}
-              className="grid gap-4 overflow-auto px-5 py-4"
-            >
+            <form action={handleSubmit} className="grid gap-4 overflow-auto px-5 py-4">
               <input type="hidden" name="lessonId" value={lessonId} />
               <input type="hidden" name="quizId" value={quizId} />
 
@@ -124,6 +161,7 @@ export function EditItemModal({ action, deleteAction, item, label, sections, les
                     setKeyword("");
                     setLevel("");
                     setTopic("");
+                    setError(null);
                   }}
                   className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 font-normal"
                 >
@@ -152,6 +190,15 @@ export function EditItemModal({ action, deleteAction, item, label, sections, les
                       {topics.map((t) => <option key={t} value={t}>{t}</option>)}
                     </select>
                   </div>
+                  {hasActiveFilter ? (
+                    <button
+                      type="button"
+                      onClick={clearFilters}
+                      className="mt-2 inline-flex items-center gap-1 rounded-md border border-black/15 px-2 py-1.5 text-xs text-black/55 hover:bg-black/5"
+                    >
+                      <X size={12} /> Clear filters
+                    </button>
+                  ) : null}
 
                   <div className="mt-3 max-h-60 overflow-y-auto rounded-md border border-black/10">
                     {filtered.map((o) => {
@@ -160,7 +207,11 @@ export function EditItemModal({ action, deleteAction, item, label, sections, les
                         <button
                           key={o.id}
                           type="button"
-                          onClick={() => (itemType === "QUIZ" ? setQuizId(o.id) : setLessonId(o.id))}
+                          onClick={() => {
+                            if (itemType === "QUIZ") setQuizId(o.id);
+                            else setLessonId(o.id);
+                            setError(null);
+                          }}
                           className={`flex w-full items-center justify-between gap-2 border-t border-black/5 px-3 py-2 text-left text-sm first:border-t-0 hover:bg-slate-50 ${selected ? "bg-moss/10" : ""}`}
                         >
                           <span className="min-w-0 flex-1 truncate font-medium">{o.title}</span>
@@ -171,6 +222,10 @@ export function EditItemModal({ action, deleteAction, item, label, sections, les
                     {filtered.length === 0 ? <p className="px-3 py-4 text-center text-sm text-black/40">No matches.</p> : null}
                   </div>
                 </div>
+              ) : itemType === "LEVEL_TEST" ? (
+                <p className="rounded-lg border border-black/10 bg-slate-50 p-3 text-sm text-black/55">
+                  This links to the BrenUp level test as a course item. No selection needed.
+                </p>
               ) : null}
 
               <label className="text-sm font-medium">
@@ -191,22 +246,22 @@ export function EditItemModal({ action, deleteAction, item, label, sections, les
                 <label className="inline-flex items-center gap-2 text-xs text-black/60"><input type="checkbox" name="isFreePreview" defaultChecked={item.is_free_preview} /> Free preview</label>
               </div>
 
+              {error ? <p className="rounded-md bg-coral/10 px-3 py-2 text-sm text-coral">{error}</p> : null}
+
               <div className="flex flex-wrap items-center justify-between gap-2 border-t border-black/10 pt-4">
                 <button
                   type="button"
-                  onClick={() => {
-                    if (window.confirm("Delete this item?")) {
-                      deleteAction();
-                      close();
-                    }
-                  }}
-                  className="inline-flex items-center gap-2 rounded-md border border-coral/30 px-3 py-2 text-sm font-semibold text-coral hover:bg-coral/10"
+                  onClick={handleDelete}
+                  disabled={isPending}
+                  className="inline-flex items-center gap-2 rounded-md border border-coral/30 px-3 py-2 text-sm font-semibold text-coral hover:bg-coral/10 disabled:opacity-50"
                 >
                   <Trash2 size={15} /> Delete item
                 </button>
                 <div className="flex gap-2">
                   <button type="button" onClick={close} className="rounded-md border border-black/15 px-4 py-2 text-sm">Cancel</button>
-                  <button type="submit" className="rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white">Save item</button>
+                  <button type="submit" disabled={isPending} className="rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+                    {isPending ? "Saving\u2026" : "Save item"}
+                  </button>
                 </div>
               </div>
             </form>
