@@ -224,30 +224,24 @@ export async function addCourseItem(courseId: string, formData: FormData) {
   const itemType = String(formData.get("itemType") || "LESSON") as "LESSON" | "QUIZ" | "LEVEL_TEST" | "RESOURCE" | "EXTERNAL_LINK";
   const admin = createAdminClient();
   const { count } = await admin.from("course_items").select("id", { count: "exact", head: true }).eq("course_id", courseId);
-  const lessonIds = itemType === "LESSON"
-    ? formData.getAll("lessonIds").map((value) => String(value)).filter(Boolean)
-    : [];
-  const quizIds = itemType === "QUIZ"
-    ? formData.getAll("quizIds").map((value) => String(value)).filter(Boolean)
-    : [];
+  const lessonId = itemType === "LESSON" ? String(formData.get("lessonId") || "") || null : null;
+  const quizId = itemType === "QUIZ" ? String(formData.get("quizId") || "") || null : null;
   const startingPosition = count ?? 0;
-  const baseItem = {
+  const row = {
     course_id: courseId,
     section_id: sectionId,
     item_type: itemType,
+    position: startingPosition + 1,
+    lesson_id: lessonId,
+    quiz_id: quizId,
     title: String(formData.get("title") || "").trim() || null,
     description: String(formData.get("description") || "").trim() || null,
     resource_url: String(formData.get("resourceUrl") || "").trim() || null,
     is_required: formData.get("isRequired") !== "off",
     is_free_preview: formData.get("isFreePreview") === "on",
   };
-  const rows: Array<Record<string, unknown>> = itemType === "LESSON" && lessonIds.length
-    ? lessonIds.map((lessonId, index) => ({ ...baseItem, position: startingPosition + index + 1, lesson_id: lessonId, quiz_id: null }))
-    : itemType === "QUIZ" && quizIds.length
-      ? quizIds.map((quizId, index) => ({ ...baseItem, position: startingPosition + index + 1, lesson_id: null, quiz_id: quizId }))
-      : [{ ...baseItem, position: startingPosition + 1, lesson_id: null, quiz_id: null }];
 
-  const { error } = await admin.from("course_items").insert(rows);
+  const { error } = await admin.from("course_items").insert(row);
   if (error) throw new Error(error.message);
   revalidatePath(`/admin/courses/${courseId}/builder`);
   revalidatePath(`/courses/${courseId}`);
