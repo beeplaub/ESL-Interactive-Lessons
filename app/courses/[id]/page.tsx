@@ -99,7 +99,7 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
             </div>
           </header>
 
-          <section className="grid gap-5 min-[1130px]:grid-cols-[minmax(0,1fr)_360px]">
+          <section className="grid items-start gap-5 min-[1130px]:grid-cols-[minmax(0,1fr)_360px]">
             <div className="rounded-[24px] border border-[#ECECF5] bg-white p-4 shadow-[0_12px_32px_rgba(0,0,0,.06)] md:p-5">
               <div className="grid gap-6 lg:grid-cols-[340px_minmax(0,1fr)]">
                 <div className="group relative overflow-hidden rounded-[18px] bg-[#11152E]">
@@ -196,7 +196,7 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
             </aside>
           </section>
 
-          <section className="grid gap-5 min-[1130px]:grid-cols-[minmax(0,1fr)_360px]">
+          <section className="grid items-start gap-5 min-[1130px]:grid-cols-[minmax(0,1fr)_360px]">
             <div id="curriculum" className="rounded-[24px] border border-[#ECECF5] bg-white p-4 shadow-[0_12px_32px_rgba(0,0,0,.06)] md:p-5">
               <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
                 <div>
