@@ -32,7 +32,7 @@ import type { Json } from "@/types/database.types";
 
 const blockTypes = [
   "HEADING", "TEXT", "BULLETS", "QUOTE", "CALLOUT",
-  "IMAGE", "AUDIO", "VIDEO", "DIVIDER",
+  "IMAGE", "IMAGE_TEXT", "AUDIO", "VIDEO", "DIVIDER",
   "VOCABULARY", "GRAMMAR", "READING", "DIALOGUE",
   "FLASHCARD"
 ] as const;
@@ -119,9 +119,7 @@ function AddSlideModal({
     onClose();
     startTransition(async () => {
       const newSlideId = await addBuilderSlideAt(lessonId, afterSlideNumber, title, sectionLabel);
-      if (newSlideId) {
-        onAdded(newSlideId);
-      }
+      if (newSlideId) { onAdded(newSlideId); }
     });
   }
 
@@ -139,12 +137,12 @@ function AddSlideModal({
           </label>
           <label className="text-sm font-medium">
             Section label <span className="font-normal text-black/40">(optional)</span>
-            <input value={sectionLabel} onChange={(e) => setSectionLabel(e.target.value)} placeholder="e.g. Grammar, Vocabulary, Reading…" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+            <input value={sectionLabel} onChange={(e) => setSectionLabel(e.target.value)} placeholder="e.g. Grammar, Vocabulary, Reading\u2026" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
           </label>
           <div className="mt-2 flex justify-end gap-2">
             <button type="button" onClick={onClose} className="rounded-md border border-black/15 px-4 py-2 text-sm hover:bg-black/5">Cancel</button>
             <button type="button" onClick={submit} disabled={!title.trim() || isPending} className="rounded-md bg-moss px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
-              {isPending ? "Adding…" : "Add slide"}
+              {isPending ? "Adding\u2026" : "Add slide"}
             </button>
           </div>
         </div>
@@ -154,21 +152,10 @@ function AddSlideModal({
 }
 
 function DuplicateSlideModal({
-  lessonId,
-  sourceSlide,
-  slides,
-  onClose,
-  onBusy,
-  onDuplicated,
-  onOptimisticDuplicate
+  lessonId, sourceSlide, slides, onClose, onBusy, onDuplicated, onOptimisticDuplicate
 }: {
-  lessonId: string;
-  sourceSlide: Slide;
-  slides: Slide[];
-  onClose: () => void;
-  onBusy: (msg: string) => void;
-  onDuplicated: (slideId: string) => void;
-  onOptimisticDuplicate: (sourceSlide: Slide, afterSlideNumber: number) => string;
+  lessonId: string; sourceSlide: Slide; slides: Slide[]; onClose: () => void; onBusy: (msg: string) => void;
+  onDuplicated: (slideId: string) => void; onOptimisticDuplicate: (sourceSlide: Slide, afterSlideNumber: number) => string;
 }) {
   const [afterSlideNumber, setAfterSlideNumber] = useState(String(sourceSlide.slide_number));
   const [isPending, startTransition] = useTransition();
@@ -181,9 +168,7 @@ function DuplicateSlideModal({
     onClose();
     startTransition(async () => {
       const newSlideId = await duplicateBuilderSlide(lessonId, sourceSlide.id, insertAfter);
-      if (newSlideId) {
-        onDuplicated(newSlideId);
-      }
+      if (newSlideId) { onDuplicated(newSlideId); }
     });
   }
 
@@ -199,16 +184,10 @@ function DuplicateSlideModal({
         </div>
         <label className="mt-4 block text-sm font-medium">
           Place duplicate
-          <select
-            value={afterSlideNumber}
-            onChange={(event) => setAfterSlideNumber(event.target.value)}
-            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
-          >
+          <select value={afterSlideNumber} onChange={(event) => setAfterSlideNumber(event.target.value)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">
             <option value="0">At the beginning</option>
             {slides.map((slide, index) => (
-              <option key={slide.id} value={slide.slide_number}>
-                After {index + 1}. {slide.title}
-              </option>
+              <option key={slide.id} value={slide.slide_number}>After {index + 1}. {slide.title}</option>
             ))}
           </select>
         </label>
@@ -249,13 +228,9 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
   }, [blocks]);
 
   const selectedBlocks = selectedSlide ? blocksBySlide.get(selectedSlide.id) ?? [] : [];
-  const selectedActivities = selectedSlide
-    ? activities.filter((a) => a.slide_id === selectedSlide.id)
-    : [];
+  const selectedActivities = selectedSlide ? activities.filter((a) => a.slide_id === selectedSlide.id) : [];
 
-  useEffect(() => {
-    setLocalSlides(slides);
-  }, [slides]);
+  useEffect(() => { setLocalSlides(slides); }, [slides]);
 
   function selectRelative(direction: -1 | 1) {
     if (selectedIndex < 0) return;
@@ -265,9 +240,7 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
 
   const selectSlide = useCallback((slideId: string) => {
     setSelectedSlideId(slideId);
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(`brenup-builder-slide:${lesson.id}`, slideId);
-    }
+    if (typeof window !== "undefined") window.localStorage.setItem(`brenup-builder-slide:${lesson.id}`, slideId);
   }, [lesson.id]);
 
   function reorderSlideCards(targetSlideId: string) {
@@ -288,13 +261,7 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
   function optimisticAddSlide(afterSlideNumber: number, title: string, sectionLabel: string) {
     const id = `optimistic-slide-${Date.now()}`;
     setLocalSlides((current) => {
-      const nextSlide: Slide = {
-        id,
-        slide_number: afterSlideNumber + 1,
-        title: title.trim() || "New Slide",
-        section_label: sectionLabel.trim() || null,
-        raw_text: ""
-      };
+      const nextSlide: Slide = { id, slide_number: afterSlideNumber + 1, title: title.trim() || "New Slide", section_label: sectionLabel.trim() || null, raw_text: "" };
       const foundIndex = current.findIndex((slide) => slide.slide_number > afterSlideNumber);
       const insertIndex = foundIndex === -1 ? current.length : Math.max(0, foundIndex);
       const next = [...current];
@@ -307,12 +274,7 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
   function optimisticDuplicateSlide(sourceSlide: Slide, afterSlideNumber: number) {
     const id = `optimistic-slide-${Date.now()}`;
     setLocalSlides((current) => {
-      const nextSlide: Slide = {
-        ...sourceSlide,
-        id,
-        slide_number: afterSlideNumber + 1,
-        title: `${sourceSlide.title} copy`
-      };
+      const nextSlide: Slide = { ...sourceSlide, id, slide_number: afterSlideNumber + 1, title: `${sourceSlide.title} copy` };
       const foundIndex = current.findIndex((slide) => slide.slide_number > afterSlideNumber);
       const insertIndex = foundIndex === -1 ? current.length : Math.max(0, foundIndex);
       const next = [...current];
@@ -331,9 +293,7 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
     setLocalSlides(renumberSlides(next));
     selectSlide(slideId);
     setBusyMessage("Moving slide...");
-    startReorderTransition(async () => {
-      await moveBuilderSlide(lesson.id, slideId, direction === -1 ? "up" : "down");
-    });
+    startReorderTransition(async () => { await moveBuilderSlide(lesson.id, slideId, direction === -1 ? "up" : "down"); });
   }
 
   function optimisticDeleteSlide(slideId: string) {
@@ -348,25 +308,10 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
   }
 
   useEffect(() => { setBusyMessage(null); }, [lesson.status, localSlides.length, blocks.length, activities.length, selectedSlide?.title]);
-
+  useEffect(() => { if (!selectedSlide && localSlides[0]) selectSlide(localSlides[0].id); }, [selectedSlide, localSlides, selectSlide]);
+  useEffect(() => { if (!busyMessage) return; const t = window.setTimeout(() => setBusyMessage(null), 3500); return () => window.clearTimeout(t); }, [busyMessage]);
   useEffect(() => {
-    if (!selectedSlide && localSlides[0]) selectSlide(localSlides[0].id);
-  }, [selectedSlide, localSlides, selectSlide]);
-
-  useEffect(() => {
-    if (!busyMessage) return;
-    const t = window.setTimeout(() => setBusyMessage(null), 3500);
-    return () => window.clearTimeout(t);
-  }, [busyMessage]);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      selectedTimelineItemRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "nearest",
-        inline: "center",
-      });
-    }, 80);
+    const timer = window.setTimeout(() => { selectedTimelineItemRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" }); }, 80);
     return () => window.clearTimeout(timer);
   }, [selectedSlideId, localSlides.length]);
 
@@ -397,28 +342,11 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
       )}
 
       {addAfter !== null && (
-        <AddSlideModal
-          lessonId={lesson.id}
-          afterSlideNumber={addAfter}
-          onClose={() => setAddAfter(null)}
-          onBusy={setBusyMessage}
-          onAdded={selectSlide}
-          onOptimisticAdd={optimisticAddSlide}
-        />
+        <AddSlideModal lessonId={lesson.id} afterSlideNumber={addAfter} onClose={() => setAddAfter(null)} onBusy={setBusyMessage} onAdded={selectSlide} onOptimisticAdd={optimisticAddSlide} />
       )}
-
       {duplicateSlide && (
-        <DuplicateSlideModal
-          lessonId={lesson.id}
-          sourceSlide={duplicateSlide}
-          slides={localSlides}
-          onClose={() => setDuplicateSlide(null)}
-          onBusy={setBusyMessage}
-          onDuplicated={selectSlide}
-          onOptimisticDuplicate={optimisticDuplicateSlide}
-        />
+        <DuplicateSlideModal lessonId={lesson.id} sourceSlide={duplicateSlide} slides={localSlides} onClose={() => setDuplicateSlide(null)} onBusy={setBusyMessage} onDuplicated={selectSlide} onOptimisticDuplicate={optimisticDuplicateSlide} />
       )}
-
       {isMetadataOpen && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 px-4 py-6">
           <div className="max-h-[90vh] w-full max-w-3xl overflow-auto rounded-xl bg-white p-5 shadow-2xl">
@@ -472,7 +400,6 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
               <button type="button" onClick={() => selectRelative(1)} disabled={selectedIndex < 0 || selectedIndex >= localSlides.length - 1} className="rounded-md border border-black/15 p-2 hover:bg-black/5 disabled:opacity-35"><ArrowRight size={16} /></button>
             </div>
           </div>
-
           <div className="rounded-xl bg-slate-100 p-1.5 sm:p-2">
             <div className="min-h-[420px] rounded-lg bg-white p-2 shadow-inner sm:p-3">
               {selectedSlide ? (
@@ -489,51 +416,26 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
               )}
             </div>
           </div>
-
           <div className="mt-3 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2">
-            <button type="button" onClick={() => scrollTimeline(-1)} className="hidden rounded-full border border-black/15 p-2 text-black/55 hover:bg-black/5 sm:inline-flex" aria-label="Scroll timeline left">
-              <ArrowLeft size={15} />
-            </button>
-            <div
-              ref={timelineRef}
-              className="flex max-w-full touch-pan-x items-center gap-0 overflow-x-auto pb-1"
-            >
-              <button type="button" onClick={() => setAddAfter(0)} title="Add slide at beginning" className="flex size-7 shrink-0 items-center justify-center rounded-full border border-dashed border-black/20 text-black/30 transition hover:border-moss hover:bg-moss/5 hover:text-moss">
-                <Plus size={13} />
-              </button>
-
+            <button type="button" onClick={() => scrollTimeline(-1)} className="hidden rounded-full border border-black/15 p-2 text-black/55 hover:bg-black/5 sm:inline-flex" aria-label="Scroll timeline left"><ArrowLeft size={15} /></button>
+            <div ref={timelineRef} className="flex max-w-full touch-pan-x items-center gap-0 overflow-x-auto pb-1">
+              <button type="button" onClick={() => setAddAfter(0)} title="Add slide at beginning" className="flex size-7 shrink-0 items-center justify-center rounded-full border border-dashed border-black/20 text-black/30 transition hover:border-moss hover:bg-moss/5 hover:text-moss"><Plus size={13} /></button>
               {localSlides.map((slide, index) => (
                 <div key={slide.id} ref={slide.id === selectedSlide?.id ? selectedTimelineItemRef : null} className="flex shrink-0 items-center">
-                  <button
-                    type="button"
-                    draggable
-                    onDragStart={() => setDraggedSlideId(slide.id)}
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={() => reorderSlideCards(slide.id)}
-                    onDragEnd={() => setDraggedSlideId(null)}
-                    onClick={() => selectSlide(slide.id)}
-                    className={`min-w-44 rounded-lg border px-3 py-2 text-left text-sm transition
-                      ${slide.id === selectedSlide?.id ? "border-moss bg-moss/10" : "border-black/10 bg-white hover:bg-black/[0.03]"}`}
-                  >
+                  <button type="button" draggable onDragStart={() => setDraggedSlideId(slide.id)} onDragOver={(e) => e.preventDefault()} onDrop={() => reorderSlideCards(slide.id)} onDragEnd={() => setDraggedSlideId(null)} onClick={() => selectSlide(slide.id)}
+                    className={`min-w-44 rounded-lg border px-3 py-2 text-left text-sm transition ${slide.id === selectedSlide?.id ? "border-moss bg-moss/10" : "border-black/10 bg-white hover:bg-black/[0.03]"}`}>
                     <span className="flex items-center gap-1 text-xs font-semibold text-moss">Slide {index + 1}</span>
                     <span className="mt-1 block truncate font-medium">{slide.title}</span>
                     {slide.section_label && <span className="mt-0.5 block truncate text-[11px] text-black/40">{slide.section_label}</span>}
                   </button>
-                  <button type="button" onClick={() => setAddAfter(slide.slide_number)} title={`Add slide after slide ${index + 1}`} className="mx-1 flex size-7 shrink-0 items-center justify-center rounded-full border border-dashed border-black/20 text-black/30 transition hover:border-moss hover:bg-moss/5 hover:text-moss">
-                    <Plus size={13} />
-                  </button>
+                  <button type="button" onClick={() => setAddAfter(slide.slide_number)} title={`Add slide after slide ${index + 1}`} className="mx-1 flex size-7 shrink-0 items-center justify-center rounded-full border border-dashed border-black/20 text-black/30 transition hover:border-moss hover:bg-moss/5 hover:text-moss"><Plus size={13} /></button>
                 </div>
               ))}
-
               {localSlides.length === 0 && (
-                <button type="button" onClick={() => setAddAfter(0)} className="inline-flex items-center gap-2 rounded-lg border border-dashed border-black/20 px-4 py-2 text-sm text-black/40 hover:border-moss hover:text-moss">
-                  <Plus size={15} /> Add first slide
-                </button>
+                <button type="button" onClick={() => setAddAfter(0)} className="inline-flex items-center gap-2 rounded-lg border border-dashed border-black/20 px-4 py-2 text-sm text-black/40 hover:border-moss hover:text-moss"><Plus size={15} /> Add first slide</button>
               )}
             </div>
-            <button type="button" onClick={() => scrollTimeline(1)} className="hidden rounded-full border border-black/15 p-2 text-black/55 hover:bg-black/5 sm:inline-flex" aria-label="Scroll timeline right">
-              <ArrowRight size={15} />
-            </button>
+            <button type="button" onClick={() => scrollTimeline(1)} className="hidden rounded-full border border-black/15 p-2 text-black/55 hover:bg-black/5 sm:inline-flex" aria-label="Scroll timeline right"><ArrowRight size={15} /></button>
           </div>
         </section>
 
@@ -548,12 +450,7 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
           {selectedActivities.length ? (
             <div className="space-y-3">
               {selectedActivities.map((activity) => (
-                <LessonActivityPanel
-                  key={activity.id}
-                  activity={{ id: activity.id, activity_type: activity.activity_type, activity_data: activity.activity_data }}
-                  onNext={() => selectRelative(1)}
-                  previewOnly
-                />
+                <LessonActivityPanel key={activity.id} activity={{ id: activity.id, activity_type: activity.activity_type, activity_data: activity.activity_data }} onNext={() => selectRelative(1)} previewOnly />
               ))}
             </div>
           ) : (
@@ -601,19 +498,8 @@ function MetadataForm({ lesson }: { lesson: Lesson }) {
         </div>
         <label className="text-sm">Topic<input name="topic" defaultValue={lesson.topic} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
         <label className="text-sm">Category<input name="category" defaultValue={lesson.category ?? ""} placeholder="Grammar, Speaking, Exam prep" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
-        <label className="text-sm">
-          CEFR level
-          <select name="level" defaultValue={lesson.level} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">
-            {levelOptions.map((l) => <option key={l}>{l}</option>)}
-          </select>
-        </label>
-        <label className="text-sm">
-          Status
-          <select name="status" defaultValue={lesson.status} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">
-            <option value="DRAFT">Draft</option>
-            <option value="PUBLISHED">Published</option>
-          </select>
-        </label>
+        <label className="text-sm">CEFR level<select name="level" defaultValue={lesson.level} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">{levelOptions.map((l) => <option key={l}>{l}</option>)}</select></label>
+        <label className="text-sm">Status<select name="status" defaultValue={lesson.status} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"><option value="DRAFT">Draft</option><option value="PUBLISHED">Published</option></select></label>
         <label className="text-sm">Class duration (minutes)<input name="durationMinutes" type="number" min="1" defaultValue={lesson.duration_minutes ?? ""} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
         <label className="text-sm">Estimated completion (minutes)<input name="estimatedCompletionMinutes" type="number" min="1" defaultValue={lesson.estimated_completion_minutes ?? ""} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
         <label className="text-sm">Attempt timer (minutes)<input name="timerMinutes" type="number" min="1" defaultValue={lesson.timer_minutes ?? ""} placeholder="Untimed" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
@@ -626,8 +512,8 @@ function MetadataForm({ lesson }: { lesson: Lesson }) {
 function SelectedSlideEditor({
   lessonId, slide, slideIndex, slideCount, slides, blocks, activities, slideActivities, onDuplicateSlide, onMoveSlide, onDeleteSlide
 }: {
-  lessonId: string; slide: Slide; slideIndex: number;
-  slideCount: number; slides: Slide[]; blocks: LessonBlock[]; activities: Activity[]; slideActivities: Activity[];
+  lessonId: string; slide: Slide; slideIndex: number; slideCount: number; slides: Slide[];
+  blocks: LessonBlock[]; activities: Activity[]; slideActivities: Activity[];
   onDuplicateSlide: (slide: Slide) => void;
   onMoveSlide: (slideId: string, direction: -1 | 1) => void;
   onDeleteSlide: (slideId: string) => void;
@@ -652,34 +538,19 @@ function SelectedSlideEditor({
             <form action={moveBuilderSlideToPosition.bind(null, lessonId, slide.id)} data-busy-message="Moving slide..." className="inline-flex items-center gap-1 rounded-md border border-black/15 px-2 py-1">
               <span className="text-xs text-black/45">Move to</span>
               <select name="position" defaultValue={slideIndex + 1} className="bg-transparent text-xs outline-none">
-                {Array.from({ length: slideCount }, (_, index) => (
-                  <option key={index + 1} value={index + 1}>{index + 1}</option>
-                ))}
+                {Array.from({ length: slideCount }, (_, index) => <option key={index + 1} value={index + 1}>{index + 1}</option>)}
               </select>
               <button className="rounded bg-black/[0.04] px-2 py-1 text-xs font-semibold hover:bg-black/[0.08]">Go</button>
             </form>
-            <button
-              type="button"
-              onClick={() => onDuplicateSlide(slide)}
-              className="rounded-md border border-black/15 p-2 hover:bg-black/5"
-              aria-label="Duplicate"
-            >
-              <Copy size={15} />
-            </button>
+            <button type="button" onClick={() => onDuplicateSlide(slide)} className="rounded-md border border-black/15 p-2 hover:bg-black/5" aria-label="Duplicate"><Copy size={15} /></button>
             <button type="button" onClick={() => onDeleteSlide(slide.id)} className="rounded-md border border-coral/30 p-2 text-coral hover:bg-coral/10" aria-label="Delete"><Trash2 size={15} /></button>
           </div>
         </div>
 
         <form action={updateBuilderSlide.bind(null, lessonId, slide.id)} data-busy-message="Saving slide..." className="mt-3 grid gap-3 rounded-lg border border-black/10 bg-slate-50 p-3 sm:grid-cols-[1fr_180px_auto] sm:items-end">
           <input type="hidden" name="type" value="INFO" />
-          <label className="text-sm">
-            Slide title
-            <input name="title" defaultValue={slide.title} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
-          </label>
-          <label className="text-sm">
-            Section label
-            <input name="sectionLabel" defaultValue={slide.section_label ?? ""} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
-          </label>
+          <label className="text-sm">Slide title<input name="title" defaultValue={slide.title} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+          <label className="text-sm">Section label<input name="sectionLabel" defaultValue={slide.section_label ?? ""} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
           <input type="hidden" name="rawText" value={slide.title} />
           <SubmitButton label="Save slide" />
         </form>
@@ -726,14 +597,7 @@ function SelectedSlideEditor({
           </div>
         </section>
         {openBlock ? (
-          <BlockEditModal
-            lessonId={lessonId}
-            slideId={slide.id}
-            block={openBlock}
-            blockIndex={openBlockIndex}
-            blockCount={blocks.length}
-            onClose={() => setOpenBlockId(null)}
-          />
+          <BlockEditModal lessonId={lessonId} slideId={slide.id} block={openBlock} blockIndex={openBlockIndex} blockCount={blocks.length} onClose={() => setOpenBlockId(null)} />
         ) : null}
       </section>
 
@@ -744,13 +608,7 @@ function SelectedSlideEditor({
             <h2 className="mt-1 text-lg font-semibold">Add or edit interactivity</h2>
           </div>
           {activities.some((activity) => activity.slide_id !== slide.id) ? (
-            <button
-              type="button"
-              onClick={() => setIsActivityBankOpen(true)}
-              className="rounded-md border border-black/15 bg-white px-3 py-2 text-xs font-semibold hover:bg-black/5"
-            >
-              Activity bank
-            </button>
+            <button type="button" onClick={() => setIsActivityBankOpen(true)} className="rounded-md border border-black/15 bg-white px-3 py-2 text-xs font-semibold hover:bg-black/5">Activity bank</button>
           ) : null}
         </div>
         <div className="mt-4 grid gap-3">
@@ -762,14 +620,7 @@ function SelectedSlideEditor({
             <div className="rounded-lg border border-dashed border-black/15 p-4 text-center text-sm text-black/50">No activity on this slide yet.</div>
           )}
           {slideActivities.map((activity) => (
-            <ActivityMoveCopyControls
-              key={activity.id}
-              lessonId={lessonId}
-              activity={activity}
-              currentSlide={slide}
-              slides={slides}
-              activities={activities}
-            />
+            <ActivityMoveCopyControls key={activity.id} lessonId={lessonId} activity={activity} currentSlide={slide} slides={slides} activities={activities} />
           ))}
           <form action={addLessonSlideActivity.bind(null, lessonId, slide.id, slide.slide_number)} data-busy-message="Adding activity..." className="grid gap-3 rounded-lg border border-dashed border-black/15 p-3">
             <label className="text-sm">
@@ -792,13 +643,7 @@ function SelectedSlideEditor({
           </form>
         </div>
         {isActivityBankOpen ? (
-          <ActivityBankModal
-            lessonId={lessonId}
-            slide={slide}
-            slides={slides}
-            activities={activities}
-            onClose={() => setIsActivityBankOpen(false)}
-          />
+          <ActivityBankModal lessonId={lessonId} slide={slide} slides={slides} activities={activities} onClose={() => setIsActivityBankOpen(false)} />
         ) : null}
       </section>
     </div>
@@ -806,19 +651,9 @@ function SelectedSlideEditor({
 }
 
 function BlockEditModal({
-  lessonId,
-  slideId,
-  block,
-  blockIndex,
-  blockCount,
-  onClose
+  lessonId, slideId, block, blockIndex, blockCount, onClose
 }: {
-  lessonId: string;
-  slideId: string;
-  block: LessonBlock;
-  blockIndex: number;
-  blockCount: number;
-  onClose: () => void;
+  lessonId: string; slideId: string; block: LessonBlock; blockIndex: number; blockCount: number; onClose: () => void;
 }) {
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 px-3 py-6">
@@ -829,9 +664,7 @@ function BlockEditModal({
             <h3 className="mt-1 text-lg font-semibold">{labelForBlockType(block.block_type)}</h3>
             <p className="mt-1 break-all text-xs text-black/45 sm:truncate">{blockSummary(block)}</p>
           </div>
-          <button type="button" onClick={onClose} className="rounded-md border border-black/10 p-2 hover:bg-black/5" aria-label="Close block editor">
-            <X size={16} />
-          </button>
+          <button type="button" onClick={onClose} className="rounded-md border border-black/10 p-2 hover:bg-black/5" aria-label="Close block editor"><X size={16} /></button>
         </div>
         <div className="mt-4 grid gap-4">
           <form action={updateLessonBlock.bind(null, lessonId, block.id)} data-busy-message="Saving block..." className="grid gap-3">
@@ -864,18 +697,8 @@ function BlockEditModal({
   );
 }
 
-function ActivityMoveCopyControls({
-  lessonId,
-  activity,
-  currentSlide,
-  slides,
-  activities
-}: {
-  lessonId: string;
-  activity: Activity;
-  currentSlide: Slide;
-  slides: Slide[];
-  activities: Activity[];
+function ActivityMoveCopyControls({ lessonId, activity, currentSlide, slides, activities }: {
+  lessonId: string; activity: Activity; currentSlide: Slide; slides: Slide[]; activities: Activity[];
 }) {
   function handleTargetSubmit(event: FormEvent<HTMLFormElement>) {
     const form = event.currentTarget;
@@ -888,26 +711,15 @@ function ActivityMoveCopyControls({
       if (replaceInput) replaceInput.value = "true";
     }
   }
-
   return (
     <div className="rounded-lg border border-black/10 bg-slate-50 p-3">
       <p className="text-xs font-semibold uppercase tracking-wide text-black/45">{activity.activity_type.replaceAll("_", " ")}</p>
-      <form
-        action={moveOrCopySlideActivityToSlide.bind(null, lessonId, activity.id)}
-        onSubmit={handleTargetSubmit}
-        data-busy-message="Updating activity..."
-        className="mt-2"
-      >
+      <form action={moveOrCopySlideActivityToSlide.bind(null, lessonId, activity.id)} onSubmit={handleTargetSubmit} data-busy-message="Updating activity..." className="mt-2">
         <input type="hidden" name="replaceExisting" value="false" />
         <div className="flex flex-wrap items-center gap-2">
-          <select name="mode" defaultValue="move" aria-label="Move or copy" className="min-w-28 rounded-md border border-black/15 bg-white px-3 py-2 text-sm">
-            <option value="move">Move</option>
-            <option value="copy">Copy</option>
-          </select>
+          <select name="mode" defaultValue="move" aria-label="Move or copy" className="min-w-28 rounded-md border border-black/15 bg-white px-3 py-2 text-sm"><option value="move">Move</option><option value="copy">Copy</option></select>
           <select name="slideId" defaultValue={currentSlide.id} aria-label="Target slide" className="min-w-0 flex-1 rounded-md border border-black/15 bg-white px-3 py-2 text-sm">
-            {slides.map((item, index) => (
-              <option key={item.id} value={item.id}>{index + 1}. {item.title}</option>
-            ))}
+            {slides.map((item, index) => <option key={item.id} value={item.id}>{index + 1}. {item.title}</option>)}
           </select>
           <button className="rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white">Apply</button>
         </div>
@@ -916,9 +728,7 @@ function ActivityMoveCopyControls({
   );
 }
 
-function ActivityBankModal({
-  lessonId, slide, slides, activities, onClose
-}: {
+function ActivityBankModal({ lessonId, slide, slides, activities, onClose }: {
   lessonId: string; slide: Slide; slides: Slide[]; activities: Activity[]; onClose: () => void;
 }) {
   return (
@@ -930,9 +740,7 @@ function ActivityBankModal({
             <h3 className="mt-1 text-lg font-semibold">Copy an activity to this slide</h3>
             <p className="mt-1 text-sm text-black/55">The original activity stays where it is.</p>
           </div>
-          <button type="button" onClick={onClose} className="rounded-md border border-black/10 p-2 hover:bg-black/5" aria-label="Close activity bank">
-            <X size={16} />
-          </button>
+          <button type="button" onClick={onClose} className="rounded-md border border-black/10 p-2 hover:bg-black/5" aria-label="Close activity bank"><X size={16} /></button>
         </div>
         <ActivityBank lessonId={lessonId} slide={slide} slides={slides} activities={activities} />
       </div>
@@ -940,29 +748,25 @@ function ActivityBankModal({
   );
 }
 
-function ActivityBank({
-  lessonId, slide, slides, activities
-}: {
+function ActivityBank({ lessonId, slide, slides, activities }: {
   lessonId: string; slide: Slide; slides: Slide[]; activities: Activity[];
 }) {
   const available = activities.filter((activity) => activity.slide_id !== slide.id);
   if (!available.length) return null;
-
   const slideTitleById = new Map(slides.map((item, index) => [item.id, `${index + 1}. ${item.title}`]));
-
   return (
     <div className="mt-4 grid gap-2">
-        {available.map((activity) => (
-          <form key={activity.id} action={copySlideActivityToSlide.bind(null, lessonId, activity.id)} data-busy-message="Copying activity..." className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-white p-3 text-sm">
-            <div className="min-w-0">
-              <p className="font-semibold">{activity.activity_type.replaceAll("_", " ")}</p>
-              <p className="truncate text-xs text-black/45">Currently on {activity.slide_id ? slideTitleById.get(activity.slide_id) ?? `slide ${activity.slides?.slide_number ?? activity.slide_number}` : `slide ${activity.slide_number}`}</p>
-            </div>
-            <input type="hidden" name="slideId" value={slide.id} />
-            <input type="hidden" name="replaceExisting" value="false" />
-            <button className="rounded-md border border-black/15 px-3 py-2 text-xs font-semibold hover:bg-black/5">Use here</button>
-          </form>
-        ))}
+      {available.map((activity) => (
+        <form key={activity.id} action={copySlideActivityToSlide.bind(null, lessonId, activity.id)} data-busy-message="Copying activity..." className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-white p-3 text-sm">
+          <div className="min-w-0">
+            <p className="font-semibold">{activity.activity_type.replaceAll("_", " ")}</p>
+            <p className="truncate text-xs text-black/45">Currently on {activity.slide_id ? slideTitleById.get(activity.slide_id) ?? `slide ${activity.slides?.slide_number ?? activity.slide_number}` : `slide ${activity.slide_number}`}</p>
+          </div>
+          <input type="hidden" name="slideId" value={slide.id} />
+          <input type="hidden" name="replaceExisting" value="false" />
+          <button className="rounded-md border border-black/15 px-3 py-2 text-xs font-semibold hover:bg-black/5">Use here</button>
+        </form>
+      ))}
     </div>
   );
 }
@@ -970,8 +774,9 @@ function ActivityBank({
 function labelForBlockType(type: string) {
   const labels: Record<string, string> = {
     HEADING: "Heading", TEXT: "Text", BULLETS: "Bullet points", QUOTE: "Quote",
-    CALLOUT: "Callout", IMAGE: "Image", AUDIO: "Audio", VIDEO: "Video",
-    DIVIDER: "Divider", VOCABULARY: "Vocabulary list", GRAMMAR: "Grammar",
+    CALLOUT: "Callout", IMAGE: "Image", IMAGE_TEXT: "Image + Text",
+    AUDIO: "Audio", VIDEO: "Video", DIVIDER: "Divider",
+    VOCABULARY: "Vocabulary list", GRAMMAR: "Grammar",
     READING: "Reading passage", DIALOGUE: "Dialogue",
     FLASHCARD: "Flashcard",
   };
@@ -980,193 +785,124 @@ function labelForBlockType(type: string) {
 
 function blockSummary(block: LessonBlock) {
   const data = asRecord(block.content);
-  return asString(data.text ?? data.title ?? data.body ?? data.path ?? data.src ?? data.url ?? data.word ?? data.prompt ?? "");
+  return asString(data.text ?? data.title ?? data.body ?? data.heading ?? data.path ?? data.src ?? data.url ?? data.word ?? data.prompt ?? "");
 }
 
-// ── BlockFields — field names match blockContentFromForm in actions.ts exactly ──
+// ── BlockFields ────────────────────────────────────────────────────────────────
 function BlockFields({ blockType, content, lessonId }: { blockType: string; content: Json; lessonId: string }) {
   const data = asRecord(content);
-  // These two hooks must run on every render regardless of blockType — React requires hooks to be
-  // called in the same order every time, so they can't live inside the IMAGE/AUDIO branches below
-  // (which only run conditionally, after several earlier `return`s for other block types).
   const [imagePath, setImagePath] = useState(
-    blockType === "FLASHCARD" ? asString(data.image_path) : asString(data.path ?? data.src ?? data.url)
+    blockType === "FLASHCARD" ? asString(data.image_path) :
+    blockType === "IMAGE_TEXT" ? asString(data.image_path) :
+    asString(data.path ?? data.src ?? data.url)
   );
   const [audioPath, setAudioPath] = useState(
     blockType === "FLASHCARD" ? asString(data.audio_path) : asString(data.path ?? data.src ?? data.url)
   );
   const initialFlashcards = Array.isArray(data.cards) && data.cards.length
-    ? (data.cards as Record<string, unknown>[])
-    : [data];
+    ? (data.cards as Record<string, unknown>[]) : [data];
   const [flashcards, setFlashcards] = useState(() => initialFlashcards.map((card) => ({
-    imagePath: asString(card.image_path),
-    word: asString(card.word),
-    phonetic: asString(card.phonetic),
-    audioPath: asString(card.audio_path),
-    meaning: asString(card.meaning),
+    imagePath: asString(card.image_path), word: asString(card.word), phonetic: asString(card.phonetic),
+    audioPath: asString(card.audio_path), meaning: asString(card.meaning),
     examples: Array.isArray(card.examples) ? card.examples.map(String).join("\n") : ""
   })));
 
   if (blockType === "HEADING") {
     return (
       <div className="grid gap-3 sm:grid-cols-[1fr_140px]">
-        <label className="text-sm">
-          Heading text
-          <textarea name="text" rows={2} defaultValue={asString(data.text)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
-        </label>
-        <label className="text-sm">
-          Heading type
-          <select name="level" defaultValue={asString(data.level) || "H2"} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">
-            <option value="H1">H1</option>
-            <option value="H2">H2</option>
-            <option value="H3">H3</option>
-            <option value="H4">H4</option>
-          </select>
-        </label>
+        <label className="text-sm">Heading text<textarea name="text" rows={2} defaultValue={asString(data.text)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+        <label className="text-sm">Heading type<select name="level" defaultValue={asString(data.level) || "H2"} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"><option value="H1">H1</option><option value="H2">H2</option><option value="H3">H3</option><option value="H4">H4</option></select></label>
       </div>
     );
   }
-
-  // TEXT — action reads "body"
   if (blockType === "TEXT") {
-    return (
-      <label className="text-sm">
-        Body text
-        <textarea name="body" rows={4} defaultValue={asString(data.body ?? data.text)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
-      </label>
-    );
+    return <label className="text-sm">Body text<textarea name="body" rows={4} defaultValue={asString(data.body ?? data.text)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>;
   }
-
   if (blockType === "BULLETS") {
     return (
       <div className="grid gap-3">
-        <label className="text-sm">
-          List title
-          <input name="title" defaultValue={asString(data.title)} placeholder="Key points" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
-        </label>
-        <label className="text-sm">
-          Bullet points <span className="font-normal text-black/45">(one per line)</span>
-          <textarea name="items" rows={5} defaultValue={lines(data.items)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
-        </label>
+        <label className="text-sm">List title<input name="title" defaultValue={asString(data.title)} placeholder="Key points" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+        <label className="text-sm">Bullet points <span className="font-normal text-black/45">(one per line)</span><textarea name="items" rows={5} defaultValue={lines(data.items)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
       </div>
     );
   }
-
-  // QUOTE — action reads "body" + "attribution"
   if (blockType === "QUOTE") {
     return (
       <div className="grid gap-3">
-        <label className="text-sm">
-          Quote text
-          <textarea name="body" rows={3} defaultValue={asString(data.body ?? data.text)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
-        </label>
-        <label className="text-sm">
-          Attribution <span className="font-normal text-black/45">(optional)</span>
-          <input name="attribution" defaultValue={asString(data.attribution)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
-        </label>
+        <label className="text-sm">Quote text<textarea name="body" rows={3} defaultValue={asString(data.body ?? data.text)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+        <label className="text-sm">Attribution <span className="font-normal text-black/45">(optional)</span><input name="attribution" defaultValue={asString(data.attribution)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
       </div>
     );
   }
-
-  // CALLOUT — action reads "title" + "body"
   if (blockType === "CALLOUT") {
     return (
       <div className="grid gap-3">
-        <label className="text-sm">
-          Callout title <span className="font-normal text-black/45">(optional)</span>
-          <input name="title" defaultValue={asString(data.title)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
-        </label>
-        <label className="text-sm">
-          Callout text
-          <textarea name="body" rows={3} defaultValue={asString(data.body ?? data.text)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
-        </label>
+        <label className="text-sm">Callout title <span className="font-normal text-black/45">(optional)</span><input name="title" defaultValue={asString(data.title)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+        <label className="text-sm">Callout text<textarea name="body" rows={3} defaultValue={asString(data.body ?? data.text)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
       </div>
     );
   }
-
-  // IMAGE — action reads "path", "alt", "caption"
   if (blockType === "IMAGE") {
     return (
       <div className="grid gap-3">
-        <label className="text-sm">
-          Image URL
-          <input
-            name="path"
-            value={imagePath}
-            onChange={(e) => setImagePath(e.target.value)}
-            placeholder="https://… or upload below"
-            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
-          />
-        </label>
+        <label className="text-sm">Image URL<input name="path" value={imagePath} onChange={(e) => setImagePath(e.target.value)} placeholder="https://\u2026 or upload below" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
         <BlockMediaUploader type="image" lessonId={lessonId} currentSrc={imagePath} onUploaded={(url) => setImagePath(url)} />
         <div className="grid gap-3 sm:grid-cols-2">
-          <label className="text-sm">
-            Alt text
-            <input name="alt" defaultValue={asString(data.alt)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
-          </label>
-          <label className="text-sm">
-            Caption
-            <input name="caption" defaultValue={asString(data.caption)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
-          </label>
+          <label className="text-sm">Alt text<input name="alt" defaultValue={asString(data.alt)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+          <label className="text-sm">Caption<input name="caption" defaultValue={asString(data.caption)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
         </div>
       </div>
     );
   }
-
-  // AUDIO — action reads "path" + "label"
-  if (blockType === "AUDIO") {
+  if (blockType === "IMAGE_TEXT") {
     return (
       <div className="grid gap-3">
         <label className="text-sm">
-          Label
-          <input name="label" defaultValue={asString(data.label)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+          Image position
+          <select name="image_position" defaultValue={asString(data.image_position) || "left"} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">
+            <option value="left">Image on left</option>
+            <option value="right">Image on right</option>
+          </select>
         </label>
         <label className="text-sm">
-          Audio URL
-          <input
-            name="path"
-            value={audioPath}
-            onChange={(e) => setAudioPath(e.target.value)}
-            placeholder="https://… or upload below"
-            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
-          />
+          Image URL
+          <input name="image_path" value={imagePath} onChange={(e) => setImagePath(e.target.value)} placeholder="https://\u2026 or upload below" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
         </label>
+        <BlockMediaUploader type="image" lessonId={lessonId} currentSrc={imagePath} onUploaded={(url) => setImagePath(url)} />
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="text-sm">Alt text <span className="font-normal text-black/45">(optional)</span><input name="alt" defaultValue={asString(data.alt)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+          <label className="text-sm">Caption <span className="font-normal text-black/45">(optional)</span><input name="caption" defaultValue={asString(data.caption)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+        </div>
+        <label className="text-sm">Heading <span className="font-normal text-black/45">(optional)</span><input name="heading" defaultValue={asString(data.heading)} placeholder="Section heading" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+        <label className="text-sm">Body text<textarea name="body" rows={4} defaultValue={asString(data.body)} placeholder="Supporting text alongside the image\u2026" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+      </div>
+    );
+  }
+  if (blockType === "AUDIO") {
+    return (
+      <div className="grid gap-3">
+        <label className="text-sm">Label<input name="label" defaultValue={asString(data.label)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+        <label className="text-sm">Audio URL<input name="path" value={audioPath} onChange={(e) => setAudioPath(e.target.value)} placeholder="https://\u2026 or upload below" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
         <BlockMediaUploader type="audio" lessonId={lessonId} currentSrc={audioPath} onUploaded={(url) => setAudioPath(url)} />
       </div>
     );
   }
-
-  // VIDEO — action reads "url" + "title"
   if (blockType === "VIDEO") {
     return (
       <div className="grid gap-3">
-        <label className="text-sm">
-          Video URL
-          <input name="url" defaultValue={asString(data.url ?? data.src)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
-        </label>
-        <label className="text-sm">
-          Title <span className="font-normal text-black/45">(optional)</span>
-          <input name="title" defaultValue={asString(data.title)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
-        </label>
+        <label className="text-sm">Video URL<input name="url" defaultValue={asString(data.url ?? data.src)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+        <label className="text-sm">Title <span className="font-normal text-black/45">(optional)</span><input name="title" defaultValue={asString(data.title)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
       </div>
     );
   }
-
-  // VOCABULARY — action reads "entries" pipe-delimited
   if (blockType === "VOCABULARY") {
     const entries = Array.isArray(data.entries)
       ? (data.entries as Record<string, string>[]).map((e) => [e.word, e.pronunciation, e.meaning, e.example, e.notes].join(" | ")).join("\n")
       : Array.isArray(data.items)
       ? (data.items as Record<string, string>[]).map((e) => [e.word, e.pronunciation, e.meaning, e.example, e.notes].join(" | ")).join("\n")
       : "";
-    return (
-      <label className="text-sm">
-        Vocabulary items <span className="font-normal text-black/45">(word | pronunciation | meaning | example | notes)</span>
-        <textarea name="entries" rows={6} defaultValue={entries} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 font-mono text-xs" />
-      </label>
-    );
+    return <label className="text-sm">Vocabulary items <span className="font-normal text-black/45">(word | pronunciation | meaning | example | notes)</span><textarea name="entries" rows={6} defaultValue={entries} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 font-mono text-xs" /></label>;
   }
-
   if (blockType === "GRAMMAR") {
     return (
       <div className="grid gap-3">
@@ -1177,8 +913,6 @@ function BlockFields({ blockType, content, lessonId }: { blockType: string; cont
       </div>
     );
   }
-
-  // READING — action reads "title", "passage"
   if (blockType === "READING") {
     return (
       <div className="grid gap-3">
@@ -1187,116 +921,48 @@ function BlockFields({ blockType, content, lessonId }: { blockType: string; cont
       </div>
     );
   }
-
-  // DIALOGUE — action reads "turns" as "Speaker: Line"
   if (blockType === "DIALOGUE") {
     const turnsText = Array.isArray(data.turns)
       ? (data.turns as Record<string, string>[]).map((t) => `${t.speaker}: ${t.line ?? t.text}`).join("\n")
-      : Array.isArray(data.lines)
-      ? (data.lines as Record<string, string>[]).map((l) => `${l.speaker}: ${l.text}`).join("\n")
-      : "";
+      : Array.isArray(data.lines) ? (data.lines as Record<string, string>[]).map((l) => `${l.speaker}: ${l.text}`).join("\n") : "";
     return (
       <div className="grid gap-3">
-        <label className="text-sm">
-          Dialogue title <span className="font-normal text-black/45">(optional)</span>
-          <input name="title" defaultValue={asString(data.title)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
-        </label>
-        <label className="text-sm">
-          Dialogue lines <span className="font-normal text-black/45">(Speaker: Line — one per line)</span>
-          <textarea name="turns" rows={6} defaultValue={turnsText} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
-        </label>
+        <label className="text-sm">Dialogue title <span className="font-normal text-black/45">(optional)</span><input name="title" defaultValue={asString(data.title)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+        <label className="text-sm">Dialogue lines <span className="font-normal text-black/45">(Speaker: Line \u2014 one per line)</span><textarea name="turns" rows={6} defaultValue={turnsText} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
       </div>
     );
   }
-
   if (blockType === "FLASHCARD") {
     return (
       <div className="grid gap-4">
         <div className="grid gap-3 sm:grid-cols-2">
-          <label className="text-sm">
-            Flashcard type
-            <select name="card_type" defaultValue={asString(data.card_type) || "IMAGE"} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">
-              <option value="IMAGE">Image cards</option>
-              <option value="CARD">Text cards</option>
-            </select>
-          </label>
-          <label className="text-sm">
-            Front side
-            <select name="front_side" defaultValue={asString(data.front_side) || "IMAGE"} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">
-              <option value="IMAGE">Image front</option>
-              <option value="DETAIL">Detail front</option>
-              <option value="WORD">Word front</option>
-            </select>
-          </label>
+          <label className="text-sm">Flashcard type<select name="card_type" defaultValue={asString(data.card_type) || "IMAGE"} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"><option value="IMAGE">Image cards</option><option value="CARD">Text cards</option></select></label>
+          <label className="text-sm">Front side<select name="front_side" defaultValue={asString(data.front_side) || "IMAGE"} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"><option value="IMAGE">Image front</option><option value="DETAIL">Detail front</option><option value="WORD">Word front</option></select></label>
         </div>
         <div className="grid gap-3">
           {flashcards.map((card, index) => (
             <div key={index} className="rounded-lg border border-black/10 bg-slate-50 p-3">
               <div className="mb-3 flex items-center justify-between gap-3">
                 <p className="text-sm font-semibold">Card {index + 1}</p>
-                {flashcards.length > 1 ? (
-                  <button type="button" onClick={() => setFlashcards((current) => current.filter((_, itemIndex) => itemIndex !== index))} className="text-xs font-semibold text-coral">
-                    Remove
-                  </button>
-                ) : null}
+                {flashcards.length > 1 ? <button type="button" onClick={() => setFlashcards((current) => current.filter((_, i) => i !== index))} className="text-xs font-semibold text-coral">Remove</button> : null}
               </div>
               <div className="grid gap-3">
-                <label className="text-sm">
-                  Image URL
-                  <input
-                    name="flashcard_image_path"
-                    value={card.imagePath}
-                    onChange={(event) => setFlashcards((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, imagePath: event.target.value } : item))}
-                    placeholder="https://..."
-                    className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
-                  />
-                </label>
+                <label className="text-sm">Image URL<input name="flashcard_image_path" value={card.imagePath} onChange={(e) => setFlashcards((c) => c.map((item, i) => i === index ? { ...item, imagePath: e.target.value } : item))} placeholder="https://..." className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <BlockMediaUploader
-                    type="image"
-                    lessonId={lessonId}
-                    currentSrc={card.imagePath}
-                    onUploaded={(url) => setFlashcards((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, imagePath: url } : item))}
-                  />
-                  <BlockMediaUploader
-                    type="audio"
-                    lessonId={lessonId}
-                    currentSrc={card.audioPath}
-                    onUploaded={(url) => setFlashcards((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, audioPath: url } : item))}
-                  />
+                  <BlockMediaUploader type="image" lessonId={lessonId} currentSrc={card.imagePath} onUploaded={(url) => setFlashcards((c) => c.map((item, i) => i === index ? { ...item, imagePath: url } : item))} />
+                  <BlockMediaUploader type="audio" lessonId={lessonId} currentSrc={card.audioPath} onUploaded={(url) => setFlashcards((c) => c.map((item, i) => i === index ? { ...item, audioPath: url } : item))} />
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <label className="text-sm">
-                    Word or phrase
-                    <input name="flashcard_word" value={card.word} onChange={(event) => setFlashcards((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, word: event.target.value } : item))} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
-                  </label>
-                  <label className="text-sm">
-                    Phonetic <span className="font-normal text-black/40">(optional)</span>
-                    <input name="flashcard_phonetic" value={card.phonetic} onChange={(event) => setFlashcards((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, phonetic: event.target.value } : item))} placeholder="/fəˈnetɪk/" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
-                  </label>
+                  <label className="text-sm">Word or phrase<input name="flashcard_word" value={card.word} onChange={(e) => setFlashcards((c) => c.map((item, i) => i === index ? { ...item, word: e.target.value } : item))} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+                  <label className="text-sm">Phonetic <span className="font-normal text-black/40">(optional)</span><input name="flashcard_phonetic" value={card.phonetic} onChange={(e) => setFlashcards((c) => c.map((item, i) => i === index ? { ...item, phonetic: e.target.value } : item))} placeholder="/f\u0259\u02c8net\u026ak/" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
                 </div>
-                <label className="text-sm">
-                  Audio URL <span className="font-normal text-black/40">(optional)</span>
-                  <input name="flashcard_audio_path" value={card.audioPath} onChange={(event) => setFlashcards((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, audioPath: event.target.value } : item))} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
-                </label>
-                <label className="text-sm">
-                  Meaning
-                  <textarea name="flashcard_meaning" rows={2} value={card.meaning} onChange={(event) => setFlashcards((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, meaning: event.target.value } : item))} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
-                </label>
-                <label className="text-sm">
-                  Examples <span className="font-normal text-black/40">(one per line)</span>
-                  <textarea name="flashcard_examples" rows={3} value={card.examples} onChange={(event) => setFlashcards((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, examples: event.target.value } : item))} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
-                </label>
+                <label className="text-sm">Audio URL <span className="font-normal text-black/40">(optional)</span><input name="flashcard_audio_path" value={card.audioPath} onChange={(e) => setFlashcards((c) => c.map((item, i) => i === index ? { ...item, audioPath: e.target.value } : item))} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+                <label className="text-sm">Meaning<textarea name="flashcard_meaning" rows={2} value={card.meaning} onChange={(e) => setFlashcards((c) => c.map((item, i) => i === index ? { ...item, meaning: e.target.value } : item))} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+                <label className="text-sm">Examples <span className="font-normal text-black/40">(one per line)</span><textarea name="flashcard_examples" rows={3} value={card.examples} onChange={(e) => setFlashcards((c) => c.map((item, i) => i === index ? { ...item, examples: e.target.value } : item))} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
               </div>
             </div>
           ))}
-          <button
-            type="button"
-            onClick={() => setFlashcards((current) => [...current, { imagePath: "", word: "", phonetic: "", audioPath: "", meaning: "", examples: "" }])}
-            className="w-fit rounded-md border border-black/15 px-4 py-2 text-sm font-semibold hover:bg-black/5"
-          >
-            Add card
-          </button>
+          <button type="button" onClick={() => setFlashcards((c) => [...c, { imagePath: "", word: "", phonetic: "", audioPath: "", meaning: "", examples: "" }])} className="w-fit rounded-md border border-black/15 px-4 py-2 text-sm font-semibold hover:bg-black/5">Add card</button>
         </div>
       </div>
     );
