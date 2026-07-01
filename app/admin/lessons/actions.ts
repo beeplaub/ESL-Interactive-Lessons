@@ -54,6 +54,7 @@ const lessonBlockTypes = [
   "QUOTE",
   "CALLOUT",
   "IMAGE",
+  "IMAGE_TEXT",
   "AUDIO",
   "VIDEO",
   "DIVIDER",
@@ -152,6 +153,16 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
       caption: nullableText(formData.get("caption"))
     };
   }
+  if (blockType === "IMAGE_TEXT") {
+    return {
+      image_position: String(formData.get("image_position") || "left"),
+      image_path: String(formData.get("image_path") || "").trim(),
+      alt: nullableText(formData.get("alt")),
+      caption: nullableText(formData.get("caption")),
+      heading: nullableText(formData.get("heading")),
+      body: String(formData.get("body") || "").trim()
+    };
+  }
   if (blockType === "AUDIO") {
     return {
       path: String(formData.get("path") || "").trim(),
@@ -237,6 +248,14 @@ function defaultBlockContent(blockType: string): Json {
   if (blockType === "QUOTE") return { body: "Add a quote.", attribution: null };
   if (blockType === "CALLOUT") return { title: "Note", body: "Add a short note for learners." };
   if (blockType === "IMAGE") return { path: "", alt: "", caption: "" };
+  if (blockType === "IMAGE_TEXT") return {
+    image_position: "left",
+    image_path: "",
+    alt: "",
+    caption: null,
+    heading: "Section heading",
+    body: "Add supporting text here."
+  };
   if (blockType === "AUDIO") return { path: "", label: "Audio" };
   if (blockType === "VIDEO") return { url: "", title: "Video" };
   if (blockType === "VOCABULARY") {
@@ -250,14 +269,14 @@ function defaultBlockContent(blockType: string): Json {
     front_side: "IMAGE",
     image_path: "",
     word: "resilience",
-    phonetic: "/rɪˈzɪliəns/",
+    phonetic: "/r\u026a\u02c8z\u026al\u026a\u0259ns/",
     audio_path: null,
     meaning: "the ability to recover quickly from difficulties",
     examples: ["She showed great resilience during the crisis."],
     cards: [{
       image_path: "",
       word: "resilience",
-      phonetic: "/rɪˈzɪliəns/",
+      phonetic: "/r\u026a\u02c8z\u026al\u026a\u0259ns/",
       audio_path: null,
       meaning: "the ability to recover quickly from difficulties",
       examples: ["She showed great resilience during the crisis."]
@@ -624,7 +643,6 @@ export async function duplicateLesson(lessonId: string) {
   await requireAdmin();
   const supabase = createAdminClient();
 
-  // 1. Fetch the source lesson
   const { data: source, error: lessonErr } = await supabase
     .from("lessons")
     .select("*")
@@ -632,7 +650,6 @@ export async function duplicateLesson(lessonId: string) {
     .single();
   if (lessonErr || !source) throw new Error("Lesson not found");
 
-  // 2. Insert the new lesson (DRAFT, new id, "Copy of …" title)
   const { data: newLesson, error: insertErr } = await supabase
     .from("lessons")
     .insert({
@@ -656,7 +673,6 @@ export async function duplicateLesson(lessonId: string) {
 
   const newLessonId = newLesson.id;
 
-  // 3. Duplicate slides — build an old→new id map for later use
   const { data: slides } = await supabase
     .from("slides")
     .select("*")
@@ -666,7 +682,6 @@ export async function duplicateLesson(lessonId: string) {
   const slideIdMap: Record<string, string> = {};
 
   if (slides?.length) {
-    // Insert slides without linked_answer_slide_id first (resolve after)
     const { data: newSlides, error: slidesErr } = await supabase
       .from("slides")
       .insert(
@@ -677,41 +692,27 @@ export async function duplicateLesson(lessonId: string) {
           section_label: s.section_label,
           raw_text: s.raw_text,
           type: s.type,
-          linked_answer_slide_id: null, // resolved below
+          linked_answer_slide_id: null,
         }))
       )
       .select("id, slide_number");
     if (slidesErr) throw new Error("Failed to duplicate slides");
 
-    // Build old→new slide id map by slide_number (unique per lesson)
     slides.forEach((oldSlide) => {
-      const match = newSlides?.find(
-        (ns) => ns.slide_number === oldSlide.slide_number
-      );
+      const match = newSlides?.find((ns) => ns.slide_number === oldSlide.slide_number);
       if (match) slideIdMap[oldSlide.id] = match.id;
     });
 
-    // Resolve linked_answer_slide_id references
     const slidesWithLinks = slides.filter((s) => s.linked_answer_slide_id);
     for (const s of slidesWithLinks) {
       const newSlideId = slideIdMap[s.id];
-      const newLinkedId = s.linked_answer_slide_id
-        ? slideIdMap[s.linked_answer_slide_id]
-        : null;
+      const newLinkedId = s.linked_answer_slide_id ? slideIdMap[s.linked_answer_slide_id] : null;
       if (newSlideId && newLinkedId) {
-        await supabase
-          .from("slides")
-          .update({ linked_answer_slide_id: newLinkedId })
-          .eq("id", newSlideId);
+        await supabase.from("slides").update({ linked_answer_slide_id: newLinkedId }).eq("id", newSlideId);
       }
     }
 
-    // 4. Duplicate slide_activities
-    const { data: activities } = await supabase
-      .from("slide_activities")
-      .select("*")
-      .eq("lesson_id", lessonId);
-
+    const { data: activities } = await supabase.from("slide_activities").select("*").eq("lesson_id", lessonId);
     if (activities?.length) {
       const { error: actErr } = await supabase.from("slide_activities").insert(
         activities
@@ -728,13 +729,11 @@ export async function duplicateLesson(lessonId: string) {
       if (actErr) throw new Error("Failed to duplicate slide activities");
     }
 
-    // 5. Duplicate lesson_blocks
     const { data: blocks } = await supabase
       .from("lesson_blocks")
       .select("*")
       .eq("lesson_id", lessonId)
       .order("position", { ascending: true });
-
     if (blocks?.length) {
       const { error: blockErr } = await supabase.from("lesson_blocks").insert(
         blocks
@@ -751,23 +750,16 @@ export async function duplicateLesson(lessonId: string) {
     }
   }
 
-  // 6. Duplicate lesson_audio_files (metadata only — storage files are shared by path)
-  const { data: audioFiles } = await supabase
-    .from("lesson_audio_files")
-    .select("*")
-    .eq("lesson_id", lessonId);
-
+  const { data: audioFiles } = await supabase.from("lesson_audio_files").select("*").eq("lesson_id", lessonId);
   if (audioFiles?.length) {
-    const { error: audioErr } = await supabase
-      .from("lesson_audio_files")
-      .insert(
-        audioFiles.map((af) => ({
-          lesson_id: newLessonId,
-          label: af.label,
-          storage_path: af.storage_path,
-          linked_slide_number: af.linked_slide_number,
-        }))
-      );
+    const { error: audioErr } = await supabase.from("lesson_audio_files").insert(
+      audioFiles.map((af) => ({
+        lesson_id: newLessonId,
+        label: af.label,
+        storage_path: af.storage_path,
+        linked_slide_number: af.linked_slide_number,
+      }))
+    );
     if (audioErr) throw new Error("Failed to duplicate audio files");
   }
 
@@ -861,7 +853,6 @@ export async function addBuilderSlideAt(
   await requireAdmin();
   const supabase = createAdminClient();
 
-  // Shift all slides after insertion point up by 1
   const { data: slidesToShift } = await supabase
     .from("slides")
     .select("id, slide_number")
@@ -876,7 +867,6 @@ export async function addBuilderSlideAt(
       .eq("id", slide.id);
   }
 
-  // Insert new slide at position afterSlideNumber + 1
   const { data: insertedSlide, error: insertError } = await supabase.from("slides").insert({
     lesson_id: lessonId,
     slide_number: afterSlideNumber + 1,
@@ -1442,14 +1432,7 @@ function defaultActivityData(activityType: string, prompt: string): Json {
   if (activityType === "MULTIPLE_SELECT") {
     return {
       prompt,
-      questions: [
-        {
-          id: 1,
-          text: "",
-          options: { A: "", B: "", C: "", D: "" },
-          answers: ["A"]
-        }
-      ]
+      questions: [{ id: 1, text: "", options: { A: "", B: "", C: "", D: "" }, answers: ["A"] }]
     };
   }
   if (activityType === "GAP_FILL") {
@@ -1461,43 +1444,19 @@ function defaultActivityData(activityType: string, prompt: string): Json {
   if (activityType === "MATCHING") {
     return {
       prompt,
-      questions: [
-        {
-          id: "1",
-          question_number: 1,
-          question_type: "MATCHING",
-          question_text: prompt,
-          options: { a_items: [], b_items: [] },
-          correct_answer: []
-        }
-      ]
+      questions: [{ id: "1", question_number: 1, question_type: "MATCHING", question_text: prompt, options: { a_items: [], b_items: [] }, correct_answer: [] }]
     };
   }
   if (activityType === "DRAG_DROP") {
-    return {
-      prompt,
-      targets: ["Target"],
-      items: [{ id: "1", text: "Item", target: "Target" }]
-    };
+    return { prompt, targets: ["Target"], items: [{ id: "1", text: "Item", target: "Target" }] };
   }
   if (activityType === "PRONUNCIATION") {
-    return {
-      prompt,
-      level: "word",
-      max_attempts: 3,
-      passage: "",
-      targets: [{ id: "1", text: "pronunciation", color: "#fbbf24" }]
-    };
+    return { prompt, level: "word", max_attempts: 3, passage: "", targets: [{ id: "1", text: "pronunciation", color: "#fbbf24" }] };
   }
   if (activityType === "REORDERING") {
     return {
       prompt,
-      questions: [{
-        level: "sentence",
-        question_text: null,
-        items: [{ id: "1", text: "First item" }, { id: "2", text: "Second item" }],
-        correct_order: ["1", "2"]
-      }]
+      questions: [{ level: "sentence", question_text: null, items: [{ id: "1", text: "First item" }, { id: "2", text: "Second item" }], correct_order: ["1", "2"] }]
     };
   }
   if (activityType === "CATEGORIZATION") {
@@ -1509,17 +1468,7 @@ function defaultActivityData(activityType: string, prompt: string): Json {
   if (activityType === "ERROR_CORRECTION") {
     return { prompt, items: [{ mode: "rewrite", text: "", error_span: "", correction: "", note: null }] };
   }
-  return {
-    prompt,
-    questions: [
-      {
-        id: 1,
-        text: "",
-        options: { A: "", B: "", C: "", D: "" },
-        answer: "A"
-      }
-    ]
-  };
+  return { prompt, questions: [{ id: 1, text: "", options: { A: "", B: "", C: "", D: "" }, answer: "A" }] };
 }
 
 async function reorderSlides(lessonId: string, orderedIds: string[]) {
