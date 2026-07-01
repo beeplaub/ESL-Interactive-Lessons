@@ -15,7 +15,7 @@ import {
 import { LearnerAppShell } from "@/components/LearnerAppShell";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { CONTENT_LEVELS, CONTENT_LEVEL_SORT_ORDER } from "@/lib/levels";
+import { CONTENT_LEVELS } from "@/lib/levels";
 
 const levelOrder = CONTENT_LEVELS;
 
@@ -164,7 +164,7 @@ export default async function CoursesPage({
                 <span className="text-[#6E738D]">
                   Showing <strong className="text-[#14172B]">{filteredCourses.length}</strong> of {allCourses.length} courses
                   {activeLevel ? <> · Level <strong className="text-[#14172B]">{activeLevel}</strong></> : null}
-                  {searchQuery ? <> · Search <strong className="text-[#14172B]">"{searchQuery}"</strong></> : null}
+                  {searchQuery ? <> · Search <strong className="text-[#14172B]">&ldquo;{searchQuery}&rdquo;</strong></> : null}
                 </span>
                 <Link href="/courses" className="text-xs font-semibold text-[#6C3BFF] hover:underline">Clear filters</Link>
               </div>
