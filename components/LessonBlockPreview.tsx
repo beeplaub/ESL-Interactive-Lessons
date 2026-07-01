@@ -130,7 +130,7 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
     return (
       <figure className="rounded-lg border-l-4 border-moss bg-skywash p-3 sm:p-4">
         <blockquote className="text-base font-medium leading-7 text-ink sm:text-lg sm:leading-8">
-          “{asString(content.body) || "Add a quote."}”
+          "{asString(content.body) || "Add a quote."}"
         </blockquote>
         {asString(content.attribution) ? (
           <figcaption className="mt-2 text-sm text-black/55">— {asString(content.attribution)}</figcaption>
@@ -173,6 +173,46 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
           <figcaption className="border-t border-black/10 px-4 py-2 text-sm text-black/55">{asString(content.caption)}</figcaption>
         ) : null}
       </figure>
+    );
+  }
+
+  if (block.block_type === "IMAGE_TEXT") {
+    const imagePath = asString(content.image_path);
+    const src = imagePath ? mediaUrl(imagePath, "image") : "";
+    const imageRight = asString(content.image_position) === "right";
+    const heading = asString(content.heading);
+    const body = asString(content.body);
+    const caption = asString(content.caption);
+    const alt = asString(content.alt);
+
+    const imageCol = (
+      <figure className="overflow-hidden rounded-xl border border-black/10 bg-slate-50">
+        {src && isImageUrl(src) ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={src} alt={alt || heading || ""} className="h-full max-h-[340px] w-full object-cover" />
+        ) : (
+          <div className="flex min-h-[180px] flex-col items-center justify-center gap-2 p-6 text-center text-sm text-black/40">
+            <ImageIcon size={28} />
+            <span>Add an image URL</span>
+          </div>
+        )}
+        {caption ? (
+          <figcaption className="border-t border-black/10 px-3 py-2 text-xs text-black/50">{caption}</figcaption>
+        ) : null}
+      </figure>
+    );
+
+    const textCol = (
+      <div className="flex flex-col justify-center gap-3">
+        {heading ? <h3 className="text-xl font-semibold leading-snug text-ink">{heading}</h3> : null}
+        {body ? <FormattedText text={body} /> : <p className="text-sm text-black/40">Add supporting text.</p>}
+      </div>
+    );
+
+    return (
+      <div className={`grid items-start gap-5 sm:grid-cols-2 ${imageRight ? "" : ""}`}>
+        {imageRight ? <>{textCol}{imageCol}</> : <>{imageCol}{textCol}</>}
+      </div>
     );
   }
 
@@ -315,12 +355,9 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
 
 function FlashcardBlock({ content }: { content: Record<string, unknown> }) {
   const rawCards = asArray(content.cards);
-  const cards = rawCards.length
-    ? rawCards.map((item) => asRecord(item as Json))
-    : [content];
+  const cards = rawCards.length ? rawCards.map((item) => asRecord(item as Json)) : [content];
   const cardType = asString(content.card_type) === "CARD" ? "CARD" : "IMAGE";
   const frontSide = asString(content.front_side) || (cardType === "CARD" ? "WORD" : "IMAGE");
-
   return (
     <div className={`grid gap-4 ${cards.length > 1 ? "md:grid-cols-2" : ""}`}>
       {cards.map((card, index) => (
@@ -330,148 +367,54 @@ function FlashcardBlock({ content }: { content: Record<string, unknown> }) {
   );
 }
 
-function SingleFlashcard({
-  content,
-  cardType,
-  frontSide
-}: {
-  content: Record<string, unknown>;
-  cardType: "IMAGE" | "CARD";
-  frontSide: string;
-}) {
+function SingleFlashcard({ content, cardType, frontSide }: { content: Record<string, unknown>; cardType: "IMAGE" | "CARD"; frontSide: string }) {
   const [flipped, setFlipped] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
-
   const imagePath = asString(content.image_path);
-  const word      = asString(content.word);
-  const phonetic  = asString(content.phonetic);
+  const word = asString(content.word);
+  const phonetic = asString(content.phonetic);
   const audioPath = asString(content.audio_path);
-  const meaning   = asString(content.meaning);
-  const examples  = asArray(content.examples).map(String).filter(Boolean);
-
+  const meaning = asString(content.meaning);
+  const examples = asArray(content.examples).map(String).filter(Boolean);
   const imageSrc = imagePath ? mediaUrl(imagePath, "image") : "";
   const audioSrc = audioPath ? mediaUrl(audioPath, "audio") : "";
   const showImageFront = cardType === "IMAGE" && frontSide !== "DETAIL";
   const showWordFront = cardType === "CARD" && frontSide !== "DETAIL";
   const showDetailFront = frontSide === "DETAIL";
-
   return (
     <div className="w-full select-none" style={{ perspective: "1200px" }}>
-      <div
-        className="relative w-full transition-all duration-500"
-        style={{
-          transformStyle: "preserve-3d",
-          transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)",
-          minHeight: "300px",
-        }}
-      >
-        {/* FRONT */}
-        <div
-          className={
-            showDetailFront
-              ? "absolute inset-0 flex cursor-pointer flex-col items-center justify-center gap-3 overflow-y-auto rounded-2xl border border-black/10 bg-white p-6 text-center shadow-sm"
-              : "absolute inset-0 cursor-pointer overflow-hidden rounded-2xl border border-black/10 bg-white"
-          }
-          style={{ backfaceVisibility: "hidden", minHeight: "300px" }}
-          onClick={() => setFlipped(true)}
-          role="button"
-          aria-label="Flip card"
-        >
+      <div className="relative w-full transition-all duration-500" style={{ transformStyle: "preserve-3d", transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)", minHeight: "300px" }}>
+        <div className={showDetailFront ? "absolute inset-0 flex cursor-pointer flex-col items-center justify-center gap-3 overflow-y-auto rounded-2xl border border-black/10 bg-white p-6 text-center shadow-sm" : "absolute inset-0 cursor-pointer overflow-hidden rounded-2xl border border-black/10 bg-white"} style={{ backfaceVisibility: "hidden", minHeight: "300px" }} onClick={() => setFlipped(true)} role="button" aria-label="Flip card">
           {showImageFront && imageSrc && isImageUrl(imageSrc) ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={imageSrc}
-              alt={word || "Flashcard image"}
-              className="h-full w-full bg-slate-50 object-contain"
-              style={{ minHeight: "300px" }}
-            />
+            <img src={imageSrc} alt={word || "Flashcard image"} className="h-full w-full bg-slate-50 object-contain" style={{ minHeight: "300px" }} />
           ) : showWordFront ? (
-            <div className="grid min-h-[300px] place-items-center bg-slate-50 p-6 text-center">
-              <div>
-                <p className="text-4xl font-bold tracking-tight text-ink">{word || "Word"}</p>
-                {phonetic ? <p className="mt-3 font-mono text-sm text-black/45">{phonetic}</p> : null}
-              </div>
-            </div>
+            <div className="grid min-h-[300px] place-items-center bg-slate-50 p-6 text-center"><div><p className="text-4xl font-bold tracking-tight text-ink">{word || "Word"}</p>{phonetic ? <p className="mt-3 font-mono text-sm text-black/45">{phonetic}</p> : null}</div></div>
           ) : showDetailFront ? (
-            <FlashcardDetails
-              word={word}
-              phonetic={phonetic}
-              audioSrc={audioSrc}
-              meaning={meaning}
-              examples={examples}
-              audioRef={audioRef}
-            />
+            <FlashcardDetails word={word} phonetic={phonetic} audioSrc={audioSrc} meaning={meaning} examples={examples} audioRef={audioRef} />
           ) : (
-            <div className="grid min-h-[300px] place-items-center rounded-2xl bg-slate-100 text-black/25">
-              <div className="flex flex-col items-center gap-2 text-center">
-                <ImageIcon size={40} />
-                <p className="text-sm">Add an image to display here</p>
-              </div>
-            </div>
+            <div className="grid min-h-[300px] place-items-center rounded-2xl bg-slate-100 text-black/25"><div className="flex flex-col items-center gap-2 text-center"><ImageIcon size={40} /><p className="text-sm">Add an image to display here</p></div></div>
           )}
-          {showImageFront && imageSrc && isImageUrl(imageSrc) && (
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 rounded-b-2xl bg-gradient-to-t from-black/50 to-transparent" />
-          )}
-          <button
-            type="button"
-            onClick={(e) => { e.stopPropagation(); setFlipped(true); }}
-            className="absolute bottom-3 right-3 flex items-center gap-1.5 rounded-full bg-black/40 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-sm transition hover:bg-black/60"
-            aria-label="Flip card"
-          >
-            <FlipHorizontal2 size={12} /> Flip
-          </button>
+          {showImageFront && imageSrc && isImageUrl(imageSrc) && <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 rounded-b-2xl bg-gradient-to-t from-black/50 to-transparent" />}
+          <button type="button" onClick={(e) => { e.stopPropagation(); setFlipped(true); }} className="absolute bottom-3 right-3 flex items-center gap-1.5 rounded-full bg-black/40 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-sm transition hover:bg-black/60" aria-label="Flip card"><FlipHorizontal2 size={12} /> Flip</button>
         </div>
-
-        {/* BACK */}
-        <div
-          className="absolute inset-0 flex flex-col items-center justify-center gap-3 overflow-y-auto rounded-2xl border border-black/10 bg-white p-6 text-center shadow-sm"
-          style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)", minHeight: "300px" }}
-        >
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 overflow-y-auto rounded-2xl border border-black/10 bg-white p-6 text-center shadow-sm" style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)", minHeight: "300px" }}>
           {showImageFront || showWordFront ? (
-            <FlashcardDetails
-              word={word}
-              phonetic={phonetic}
-              audioSrc={audioSrc}
-              meaning={meaning}
-              examples={examples}
-              audioRef={audioRef}
-            />
+            <FlashcardDetails word={word} phonetic={phonetic} audioSrc={audioSrc} meaning={meaning} examples={examples} audioRef={audioRef} />
           ) : imageSrc && isImageUrl(imageSrc) ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={imageSrc} alt={word || "Flashcard image"} className="max-h-[280px] w-full object-contain" />
           ) : (
             <p className="text-sm text-black/50">Add an image or card details.</p>
           )}
-
-          <button
-            type="button"
-            onClick={() => setFlipped(false)}
-            className="absolute bottom-3 right-3 flex items-center gap-1.5 rounded-full border border-black/10 bg-white px-3 py-1.5 text-xs font-medium text-black/50 shadow-sm transition hover:bg-black/5 hover:text-black"
-            aria-label="Flip back"
-          >
-            <FlipHorizontal2 size={12} /> Flip back
-          </button>
+          <button type="button" onClick={() => setFlipped(false)} className="absolute bottom-3 right-3 flex items-center gap-1.5 rounded-full border border-black/10 bg-white px-3 py-1.5 text-xs font-medium text-black/50 shadow-sm transition hover:bg-black/5 hover:text-black" aria-label="Flip back"><FlipHorizontal2 size={12} /> Flip back</button>
         </div>
       </div>
     </div>
   );
 }
 
-function FlashcardDetails({
-  word,
-  phonetic,
-  audioSrc,
-  meaning,
-  examples,
-  audioRef
-}: {
-  word: string;
-  phonetic: string;
-  audioSrc: string;
-  meaning: string;
-  examples: string[];
-  audioRef: RefObject<HTMLAudioElement | null>;
-}) {
+function FlashcardDetails({ word, phonetic, audioSrc, meaning, examples, audioRef }: { word: string; phonetic: string; audioSrc: string; meaning: string; examples: string[]; audioRef: RefObject<HTMLAudioElement | null> }) {
   return (
     <>
       {audioSrc && <audio ref={audioRef} src={audioSrc} preload="none" />}
@@ -480,33 +423,14 @@ function FlashcardDetails({
         <div className="flex items-center justify-center gap-2">
           {phonetic && <span className="font-mono text-sm text-black/45">{phonetic}</span>}
           {audioSrc && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                if (audioRef.current) {
-                  audioRef.current.currentTime = 0;
-                  void audioRef.current.play();
-                }
-              }}
-              title="Play pronunciation"
-              className="flex items-center justify-center rounded-full bg-moss/10 p-1.5 text-moss transition hover:bg-moss/20 active:scale-95"
-            >
-              <Volume2 size={15} />
-            </button>
+            <button type="button" onClick={(e) => { e.stopPropagation(); if (audioRef.current) { audioRef.current.currentTime = 0; void audioRef.current.play(); } }} title="Play pronunciation" className="flex items-center justify-center rounded-full bg-moss/10 p-1.5 text-moss transition hover:bg-moss/20 active:scale-95"><Volume2 size={15} /></button>
           )}
         </div>
       )}
       <div className="w-12 border-t border-black/10" />
       <p className="max-w-xs text-base leading-relaxed text-black/70">{meaning || "Meaning"}</p>
       {examples.length > 0 && (
-        <div className="max-w-xs space-y-1">
-          {examples.map((ex, i) => (
-            <p key={i} className="text-sm italic leading-relaxed text-black/45" >
-              &ldquo;{ex}&rdquo;
-            </p>
-          ))}
-        </div>
+        <div className="max-w-xs space-y-1">{examples.map((ex, i) => <p key={i} className="text-sm italic leading-relaxed text-black/45">&ldquo;{ex}&rdquo;</p>)}</div>
       )}
     </>
   );
@@ -517,9 +441,7 @@ function FormattedText({ text }: { text: string }) {
   if (!paragraphs.length) return <p className="text-sm text-black/50">Add text.</p>;
   return (
     <div className="space-y-3 text-sm leading-7 text-black/70">
-      {paragraphs.map((paragraph, index) => (
-        <p key={index}>{paragraph}</p>
-      ))}
+      {paragraphs.map((paragraph, index) => <p key={index}>{paragraph}</p>)}
     </div>
   );
 }
@@ -530,78 +452,21 @@ function CustomAudioPlayer({ src }: { src: string }) {
   const [volume, setVolume] = useState(0.9);
   const [speed, setSpeed] = useState(1);
   const [openSettings, setOpenSettings] = useState(false);
-
-  function toggle() {
-    const audio = audioRef.current;
-    if (!audio) return;
-    if (audio.paused) {
-      void audio.play();
-    } else {
-      audio.pause();
-    }
-  }
-
-  function seek(seconds: number) {
-    const audio = audioRef.current;
-    if (!audio) return;
-    audio.currentTime = Math.max(0, audio.currentTime + seconds);
-  }
-
+  function toggle() { const audio = audioRef.current; if (!audio) return; if (audio.paused) { void audio.play(); } else { audio.pause(); } }
+  function seek(seconds: number) { const audio = audioRef.current; if (!audio) return; audio.currentTime = Math.max(0, audio.currentTime + seconds); }
   return (
     <div className="rounded-lg bg-white/10 p-3">
-      <audio
-        ref={audioRef}
-        src={src}
-        preload="metadata"
-        onPlay={() => setPlaying(true)}
-        onPause={() => setPlaying(false)}
-        onEnded={() => setPlaying(false)}
-      />
+      <audio ref={audioRef} src={src} preload="metadata" onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} onEnded={() => setPlaying(false)} />
       <div className="flex flex-wrap items-center gap-2">
-        <button type="button" onClick={() => seek(-10)} className="rounded-md bg-white/10 px-3 py-2 text-xs font-semibold hover:bg-white/20">
-          -10s
-        </button>
-        <button type="button" onClick={toggle} className="inline-flex items-center gap-2 rounded-md bg-white px-4 py-2 text-sm font-semibold text-ink">
-          {playing ? <Pause size={16} /> : <Play size={16} />} {playing ? "Pause" : "Play"}
-        </button>
-        <button type="button" onClick={() => seek(10)} className="rounded-md bg-white/10 px-3 py-2 text-xs font-semibold hover:bg-white/20">
-          +10s
-        </button>
-        <label className="ml-auto flex items-center gap-2 text-xs text-white/70">
-          <Volume2 size={15} />
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.05"
-            value={volume}
-            onChange={(event) => {
-              const next = Number(event.target.value);
-              setVolume(next);
-              if (audioRef.current) audioRef.current.volume = next;
-            }}
-          />
-        </label>
-        <button type="button" onClick={() => setOpenSettings((current) => !current)} className="rounded-md bg-white/10 p-2 hover:bg-white/20" aria-label="Audio settings">
-          <Settings size={16} />
-        </button>
+        <button type="button" onClick={() => seek(-10)} className="rounded-md bg-white/10 px-3 py-2 text-xs font-semibold hover:bg-white/20">-10s</button>
+        <button type="button" onClick={toggle} className="inline-flex items-center gap-2 rounded-md bg-white px-4 py-2 text-sm font-semibold text-ink">{playing ? <Pause size={16} /> : <Play size={16} />} {playing ? "Pause" : "Play"}</button>
+        <button type="button" onClick={() => seek(10)} className="rounded-md bg-white/10 px-3 py-2 text-xs font-semibold hover:bg-white/20">+10s</button>
+        <label className="ml-auto flex items-center gap-2 text-xs text-white/70"><Volume2 size={15} /><input type="range" min="0" max="1" step="0.05" value={volume} onChange={(event) => { const next = Number(event.target.value); setVolume(next); if (audioRef.current) audioRef.current.volume = next; }} /></label>
+        <button type="button" onClick={() => setOpenSettings((current) => !current)} className="rounded-md bg-white/10 p-2 hover:bg-white/20" aria-label="Audio settings"><Settings size={16} /></button>
       </div>
       {openSettings ? (
         <div className="mt-3 rounded-md bg-white/10 p-3 text-sm">
-          <label className="flex items-center justify-between gap-3">
-            Speed
-            <select
-              value={speed}
-              onChange={(event) => {
-                const next = Number(event.target.value);
-                setSpeed(next);
-                if (audioRef.current) audioRef.current.playbackRate = next;
-              }}
-              className="rounded-md border border-white/20 bg-ink px-2 py-1 text-white"
-            >
-              {[0.75, 1, 1.25, 1.5, 2].map((value) => <option key={value} value={value}>{value}x</option>)}
-            </select>
-          </label>
+          <label className="flex items-center justify-between gap-3">Speed<select value={speed} onChange={(event) => { const next = Number(event.target.value); setSpeed(next); if (audioRef.current) audioRef.current.playbackRate = next; }} className="rounded-md border border-white/20 bg-ink px-2 py-1 text-white">{[0.75, 1, 1.25, 1.5, 2].map((value) => <option key={value} value={value}>{value}x</option>)}</select></label>
           <p className="mt-2 text-xs text-white/55">Audio quality depends on the source link.</p>
         </div>
       ) : null}
@@ -615,79 +480,21 @@ function YouTubeAudioPlayer({ videoId }: { videoId: string }) {
   const [volume, setVolume] = useState(80);
   const [openSettings, setOpenSettings] = useState(false);
   const [speed, setSpeed] = useState(1);
-  const src = useMemo(
-    () => `https://www.youtube-nocookie.com/embed/${videoId}?enablejsapi=1&rel=0&modestbranding=1&playsinline=1&iv_load_policy=3&disablekb=1&fs=0`,
-    [videoId]
-  );
-
-  function command(func: string, args: unknown[] = []) {
-    iframeRef.current?.contentWindow?.postMessage(JSON.stringify({ event: "command", func, args }), "*");
-  }
-
-  useEffect(() => {
-    command("setVolume", [volume]);
-    command("setPlaybackRate", [speed]);
-  }, [volume, speed]);
-
-  function toggle() {
-    if (playing) {
-      command("pauseVideo");
-      setPlaying(false);
-    } else {
-      command("playVideo");
-      setPlaying(true);
-    }
-  }
-
-  function seek(seconds: number) {
-    command("seekTo", [seconds, true]);
-  }
-
+  const src = useMemo(() => `https://www.youtube-nocookie.com/embed/${videoId}?enablejsapi=1&rel=0&modestbranding=1&playsinline=1&iv_load_policy=3&disablekb=1&fs=0`, [videoId]);
+  function command(func: string, args: unknown[] = []) { iframeRef.current?.contentWindow?.postMessage(JSON.stringify({ event: "command", func, args }), "*"); }
+  useEffect(() => { command("setVolume", [volume]); command("setPlaybackRate", [speed]); }, [volume, speed]);
+  function toggle() { if (playing) { command("pauseVideo"); setPlaying(false); } else { command("playVideo"); setPlaying(true); } }
+  function seek(seconds: number) { command("seekTo", [seconds, true]); }
   return (
     <div className="relative rounded-lg bg-white/10 p-3">
-      <iframe
-        ref={iframeRef}
-        src={src}
-        title="Audio source"
-        className="pointer-events-none absolute size-px opacity-0"
-        allow="autoplay; encrypted-media"
-      />
+      <iframe ref={iframeRef} src={src} title="Audio source" className="pointer-events-none absolute size-px opacity-0" allow="autoplay; encrypted-media" />
       <div className="flex flex-wrap items-center gap-2">
-        <button type="button" onClick={() => seek(0)} className="rounded-md bg-white/10 px-3 py-2 text-xs font-semibold hover:bg-white/20">
-          Start
-        </button>
-        <button type="button" onClick={toggle} className="inline-flex items-center gap-2 rounded-md bg-white px-4 py-2 text-sm font-semibold text-ink">
-          {playing ? <Pause size={16} /> : <Play size={16} />} {playing ? "Pause" : "Play"}
-        </button>
-        <label className="ml-auto flex items-center gap-2 text-xs text-white/70">
-          <Volume2 size={15} />
-          <input
-            type="range"
-            min="0"
-            max="100"
-            step="5"
-            value={volume}
-            onChange={(event) => setVolume(Number(event.target.value))}
-          />
-        </label>
-        <button type="button" onClick={() => setOpenSettings((current) => !current)} className="rounded-md bg-white/10 p-2 hover:bg-white/20" aria-label="Audio settings">
-          <Settings size={16} />
-        </button>
+        <button type="button" onClick={() => seek(0)} className="rounded-md bg-white/10 px-3 py-2 text-xs font-semibold hover:bg-white/20">Start</button>
+        <button type="button" onClick={toggle} className="inline-flex items-center gap-2 rounded-md bg-white px-4 py-2 text-sm font-semibold text-ink">{playing ? <Pause size={16} /> : <Play size={16} />} {playing ? "Pause" : "Play"}</button>
+        <label className="ml-auto flex items-center gap-2 text-xs text-white/70"><Volume2 size={15} /><input type="range" min="0" max="100" step="5" value={volume} onChange={(event) => setVolume(Number(event.target.value))} /></label>
+        <button type="button" onClick={() => setOpenSettings((current) => !current)} className="rounded-md bg-white/10 p-2 hover:bg-white/20" aria-label="Audio settings"><Settings size={16} /></button>
       </div>
-      {openSettings ? (
-        <div className="mt-3 rounded-md bg-white/10 p-3 text-sm">
-          <label className="flex items-center justify-between gap-3">
-            Speed
-            <select
-              value={speed}
-              onChange={(event) => setSpeed(Number(event.target.value))}
-              className="rounded-md border border-white/20 bg-ink px-2 py-1 text-white"
-            >
-              {[0.75, 1, 1.25, 1.5, 2].map((value) => <option key={value} value={value}>{value}x</option>)}
-            </select>
-          </label>
-        </div>
-      ) : null}
+      {openSettings ? (<div className="mt-3 rounded-md bg-white/10 p-3 text-sm"><label className="flex items-center justify-between gap-3">Speed<select value={speed} onChange={(event) => setSpeed(Number(event.target.value))} className="rounded-md border border-white/20 bg-ink px-2 py-1 text-white">{[0.75, 1, 1.25, 1.5, 2].map((value) => <option key={value} value={value}>{value}x</option>)}</select></label></div>) : null}
     </div>
   );
 }
@@ -701,104 +508,29 @@ function CustomYouTubeVideoPlayer({ videoId, title }: { videoId: string; title: 
   const [openSettings, setOpenSettings] = useState(false);
   const [openVolume, setOpenVolume] = useState(false);
   const [speed, setSpeed] = useState(1);
-  const src = useMemo(
-    () => `https://www.youtube-nocookie.com/embed/${videoId}?enablejsapi=1&controls=0&rel=0&modestbranding=1&playsinline=1&iv_load_policy=3&disablekb=1&fs=0`,
-    [videoId]
-  );
-
-  function command(func: string, args: unknown[] = []) {
-    iframeRef.current?.contentWindow?.postMessage(JSON.stringify({ event: "command", func, args }), "*");
-  }
-
-  useEffect(() => {
-    command("setVolume", [volume]);
-    command("setPlaybackRate", [speed]);
-  }, [volume, speed]);
-
-  function toggle() {
-    if (!started) setStarted(true);
-    if (playing) {
-      command("pauseVideo");
-      setPlaying(false);
-    } else {
-      command("playVideo");
-      setPlaying(true);
-    }
-  }
-
-  function restart() {
-    if (!started) setStarted(true);
-    command("seekTo", [0, true]);
-    command("playVideo");
-    setPlaying(true);
-  }
-
-  function fullscreen() {
-    void wrapperRef.current?.requestFullscreen?.();
-  }
-
+  const src = useMemo(() => `https://www.youtube-nocookie.com/embed/${videoId}?enablejsapi=1&controls=0&rel=0&modestbranding=1&playsinline=1&iv_load_policy=3&disablekb=1&fs=0`, [videoId]);
+  function command(func: string, args: unknown[] = []) { iframeRef.current?.contentWindow?.postMessage(JSON.stringify({ event: "command", func, args }), "*"); }
+  useEffect(() => { command("setVolume", [volume]); command("setPlaybackRate", [speed]); }, [volume, speed]);
+  function toggle() { if (!started) setStarted(true); if (playing) { command("pauseVideo"); setPlaying(false); } else { command("playVideo"); setPlaying(true); } }
+  function restart() { if (!started) setStarted(true); command("seekTo", [0, true]); command("playVideo"); setPlaying(true); }
+  function fullscreen() { void wrapperRef.current?.requestFullscreen?.(); }
   return (
     <div ref={wrapperRef} className="overflow-hidden rounded-lg bg-ink text-white">
       <div className="relative aspect-video bg-black">
-        <iframe
-          ref={iframeRef}
-          src={src}
-          title={title}
-          className={`h-full w-full ${started ? "opacity-100" : "opacity-0"}`}
-          allow="autoplay; encrypted-media; picture-in-picture"
-        />
-        {!started ? (
-          <button type="button" onClick={toggle} className="absolute inset-0 grid place-items-center bg-ink text-white">
-            <span className="grid size-16 place-items-center rounded-full bg-white text-ink shadow-xl">
-              <Play size={26} />
-            </span>
-            <span className="sr-only">Play video</span>
-          </button>
-        ) : null}
+        <iframe ref={iframeRef} src={src} title={title} className={`h-full w-full ${started ? "opacity-100" : "opacity-0"}`} allow="autoplay; encrypted-media; picture-in-picture" />
+        {!started ? (<button type="button" onClick={toggle} className="absolute inset-0 grid place-items-center bg-ink text-white"><span className="grid size-16 place-items-center rounded-full bg-white text-ink shadow-xl"><Play size={26} /></span><span className="sr-only">Play video</span></button>) : null}
       </div>
       <div className="flex items-center gap-1 overflow-x-auto p-2">
-        <button type="button" onClick={toggle} className="inline-flex shrink-0 items-center gap-1 rounded-md bg-white px-2.5 py-1.5 text-xs font-semibold text-ink">
-          {playing ? <Pause size={14} /> : <Play size={14} />} {playing ? "Pause" : "Play"}
-        </button>
-        <button type="button" onClick={restart} className="shrink-0 rounded-md bg-white/10 px-2.5 py-1.5 text-xs font-semibold hover:bg-white/20">
-          Restart
-        </button>
+        <button type="button" onClick={toggle} className="inline-flex shrink-0 items-center gap-1 rounded-md bg-white px-2.5 py-1.5 text-xs font-semibold text-ink">{playing ? <Pause size={14} /> : <Play size={14} />} {playing ? "Pause" : "Play"}</button>
+        <button type="button" onClick={restart} className="shrink-0 rounded-md bg-white/10 px-2.5 py-1.5 text-xs font-semibold hover:bg-white/20">Restart</button>
         <div className="relative ml-auto shrink-0">
-          <button type="button" onClick={() => setOpenVolume((current) => !current)} className="rounded-md bg-white/10 p-1.5 hover:bg-white/20" aria-label="Volume">
-            <Volume2 size={15} />
-          </button>
-          {openVolume ? (
-            <div className="absolute bottom-9 right-0 rounded-md bg-ink/95 p-3 shadow-xl">
-              <input
-                aria-label="Volume"
-                type="range"
-                min="0"
-                max="100"
-                step="5"
-                value={volume}
-                onChange={(event) => setVolume(Number(event.target.value))}
-                className="h-24 w-6 [writing-mode:vertical-rl]"
-              />
-            </div>
-          ) : null}
+          <button type="button" onClick={() => setOpenVolume((current) => !current)} className="rounded-md bg-white/10 p-1.5 hover:bg-white/20" aria-label="Volume"><Volume2 size={15} /></button>
+          {openVolume ? (<div className="absolute bottom-9 right-0 rounded-md bg-ink/95 p-3 shadow-xl"><input aria-label="Volume" type="range" min="0" max="100" step="5" value={volume} onChange={(event) => setVolume(Number(event.target.value))} className="h-24 w-6 [writing-mode:vertical-rl]" /></div>) : null}
         </div>
-        <button type="button" onClick={fullscreen} className="shrink-0 rounded-md bg-white/10 p-1.5 hover:bg-white/20" aria-label="Fullscreen">
-          <Maximize size={15} />
-        </button>
-        <button type="button" onClick={() => setOpenSettings((current) => !current)} className="shrink-0 rounded-md bg-white/10 p-1.5 hover:bg-white/20" aria-label="Video settings">
-          <Settings size={15} />
-        </button>
+        <button type="button" onClick={fullscreen} className="shrink-0 rounded-md bg-white/10 p-1.5 hover:bg-white/20" aria-label="Fullscreen"><Maximize size={15} /></button>
+        <button type="button" onClick={() => setOpenSettings((current) => !current)} className="shrink-0 rounded-md bg-white/10 p-1.5 hover:bg-white/20" aria-label="Video settings"><Settings size={15} /></button>
       </div>
-      {openSettings ? (
-        <div className="border-t border-white/10 p-3 text-sm">
-          <label className="flex items-center justify-between gap-3">
-            Speed
-            <select value={speed} onChange={(event) => setSpeed(Number(event.target.value))} className="rounded-md border border-white/20 bg-ink px-2 py-1 text-white">
-              {[0.75, 1, 1.25, 1.5, 2].map((value) => <option key={value} value={value}>{value}x</option>)}
-            </select>
-          </label>
-        </div>
-      ) : null}
+      {openSettings ? (<div className="border-t border-white/10 p-3 text-sm"><label className="flex items-center justify-between gap-3">Speed<select value={speed} onChange={(event) => setSpeed(Number(event.target.value))} className="rounded-md border border-white/20 bg-ink px-2 py-1 text-white">{[0.75, 1, 1.25, 1.5, 2].map((value) => <option key={value} value={value}>{value}x</option>)}</select></label></div>) : null}
     </div>
   );
 }
