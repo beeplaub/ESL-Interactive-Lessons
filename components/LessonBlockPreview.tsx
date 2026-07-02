@@ -230,7 +230,7 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
     );
 
     return (
-      <div className={`grid items-start gap-5 sm:grid-cols-2 ${imageRight ? "" : ""}`}>
+      <div className="grid items-stretch gap-5 sm:grid-cols-2">
         {imageRight ? <>{textCol}{imageCol}</> : <>{imageCol}{textCol}</>}
       </div>
     );
