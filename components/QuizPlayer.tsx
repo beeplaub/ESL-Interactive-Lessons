@@ -17,6 +17,7 @@ export type QuizQuestion = {
   description?: string | null;
   options: Json | null;
   correct_answer: Json;
+  max_points?: number | null;
 };
 
 type PastAttempt = {
@@ -218,12 +219,14 @@ export function QuizPlayer({
   pastAttempts = [],
   isGuest = false,
   timerMinutes = null
+  , courseItemId = null
 }: {
   quizId: string;
   questions: QuizQuestion[];
   pastAttempts?: PastAttempt[];
   isGuest?: boolean;
   timerMinutes?: number | null;
+  courseItemId?: string | null;
 }) {
   const [answers, setAnswers] = useState<Record<string, unknown>>({});
   const [submitted, setSubmitted] = useState(false);
@@ -316,7 +319,7 @@ export function QuizPlayer({
     }
     startTransition(async () => {
       try {
-        await recordQuizAttempt({ quizId, score: finalScore, total: finalTotal, answers, timeTakenSeconds: finalTimeTakenSeconds });
+        await recordQuizAttempt({ quizId, score: finalScore, total: finalTotal, answers, timeTakenSeconds: finalTimeTakenSeconds, courseItemId });
         setAllAttempts((prev) => [
           ...prev,
           { score: finalScore, total: finalTotal, completedAt: new Date().toISOString() }

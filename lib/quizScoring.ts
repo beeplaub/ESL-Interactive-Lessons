@@ -16,6 +16,7 @@ export type ScoredQuestion = {
     | "PRONUNCIATION";
   options: Json | null;
   correct_answer: Json;
+  max_points?: number | null;
 };
 
 export function asRecord(value: Json | null | undefined): Record<string, unknown> {
@@ -26,7 +27,7 @@ export function normalizeAnswer(value: unknown) {
   return String(value ?? "").trim().toLowerCase();
 }
 
-export function questionTotal(question: ScoredQuestion): number {
+function baseQuestionTotal(question: ScoredQuestion): number {
   if (question.question_type === "DRAG_DROP" || question.question_type === "CATEGORIZATION") {
     return Object.keys(asRecord(question.correct_answer)).length || 1;
   }
@@ -42,7 +43,12 @@ export function questionTotal(question: ScoredQuestion): number {
   return 1;
 }
 
-export function questionScore(question: ScoredQuestion, answer: unknown): number {
+export function questionTotal(question: ScoredQuestion): number {
+  const configured = Number(question.max_points);
+  return Number.isFinite(configured) && configured > 0 ? configured : baseQuestionTotal(question);
+}
+
+function baseQuestionScore(question: ScoredQuestion, answer: unknown): number {
   if (question.question_type === "DRAG_DROP" || question.question_type === "CATEGORIZATION") {
     const correct = asRecord(question.correct_answer);
     const given = asRecord(answer as Json);
@@ -62,6 +68,11 @@ export function questionScore(question: ScoredQuestion, answer: unknown): number
   }
 
   return isCorrect(question, answer) ? 1 : 0;
+}
+
+export function questionScore(question: ScoredQuestion, answer: unknown): number {
+  const baseTotal = baseQuestionTotal(question);
+  return baseTotal > 0 ? (baseQuestionScore(question, answer) / baseTotal) * questionTotal(question) : 0;
 }
 
 export function scoreQuestions(questions: ScoredQuestion[], answers: Record<string, unknown>) {

@@ -311,7 +311,11 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
 
 function CourseItemLink({ item, itemIndex, isEnrolled, isComplete }: { item: CourseItemView; itemIndex: number; isEnrolled: boolean; isComplete: boolean }) {
   const label = item.lessons?.title ?? item.quizzes?.title ?? item.title ?? item.item_type.replaceAll("_", " ");
-  const href = item.item_type === "LESSON" && item.lesson_id ? `/lessons/${item.lesson_id}` : item.item_type === "QUIZ" && item.quiz_id ? `/quizzes/${item.quiz_id}` : item.resource_url;
+  const href = item.item_type === "LESSON" && item.lesson_id
+    ? `/lessons/${item.lesson_id}?courseItem=${item.id}`
+    : item.item_type === "QUIZ" && item.quiz_id
+      ? `/quizzes/${item.quiz_id}?courseItem=${item.id}`
+      : item.resource_url;
   const unlocked = isEnrolled || item.is_free_preview;
   return (
     <div className="flex items-center gap-3 rounded-[14px] px-2 py-2 text-sm transition hover:bg-[#F6F7FB]">

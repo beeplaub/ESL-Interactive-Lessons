@@ -5,8 +5,15 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { QuizPlayer } from "@/components/QuizPlayer";
 
-export default async function QuizPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function QuizPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ courseItem?: string }>;
+}) {
   const { id } = await params;
+  const { courseItem = null } = await searchParams;
 
   // Do NOT redirect guests — quizzes are open to everyone.
   const supabase = await createClient();
@@ -22,6 +29,15 @@ export default async function QuizPage({ params }: { params: Promise<{ id: strin
   ]);
 
   if (!quiz) notFound();
+  const questionIds = (questions ?? []).map((question) => question.id);
+  const { data: assessmentItems } = questionIds.length
+    ? await admin.from("assessment_items").select("quiz_question_id,max_points").in("quiz_question_id", questionIds)
+    : { data: [] };
+  const pointsByQuestion = new Map((assessmentItems ?? []).map((item) => [item.quiz_question_id, Number(item.max_points)]));
+  const scoredQuestions = (questions ?? []).map((question) => ({
+    ...question,
+    max_points: pointsByQuestion.get(question.id) ?? null,
+  }));
 
   return (
     <main className="min-h-screen bg-[#F6F7FB] px-4 py-6 text-[#14172B] sm:px-6 lg:py-8">
@@ -54,10 +70,11 @@ export default async function QuizPage({ params }: { params: Promise<{ id: strin
       </section>
       <QuizPlayer
         quizId={quiz.id}
-        questions={(questions ?? []) as Parameters<typeof QuizPlayer>[0]["questions"]}
+        questions={scoredQuestions as Parameters<typeof QuizPlayer>[0]["questions"]}
         pastAttempts={(attempts ?? []).map((a) => ({ score: a.score, total: a.total, completedAt: a.completed_at }))}
         isGuest={!user}
         timerMinutes={quiz.timer_minutes ?? null}
+        courseItemId={courseItem}
       />
       </div>
     </main>

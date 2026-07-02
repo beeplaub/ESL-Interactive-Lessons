@@ -606,9 +606,6 @@ export async function updateLessonBuilderDetails(lessonId: string, formData: For
     timerMinutes: formData.get("timerMinutes") || "",
     status: formData.get("status")
   });
-  const outcomes = splitLines(formData.get("outcomes"));
-  const description = outcomes.length > 0 ? JSON.stringify({ outcomes }) : parsed.description ?? "";
-
   const { error } = await supabase
     .from("lessons")
     .update({
@@ -617,7 +614,6 @@ export async function updateLessonBuilderDetails(lessonId: string, formData: For
       topic: parsed.topic,
       category: nullableText(parsed.category),
       level: parsed.level,
-      description,
       thumbnail_path: nullableText(parsed.thumbnailPath),
       cover_image_path: nullableText(parsed.coverImagePath),
       duration_minutes: optionalPositiveInt(parsed.durationMinutes),

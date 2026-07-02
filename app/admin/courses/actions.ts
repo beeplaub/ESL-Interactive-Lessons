@@ -98,7 +98,15 @@ export async function addCourseOutcome(courseId: string, formData: FormData) {
   if (!outcome) return;
   const admin = createAdminClient();
   const { count } = await admin.from("course_outcomes").select("id", { count: "exact", head: true }).eq("course_id", courseId);
-  const { error } = await admin.from("course_outcomes").insert({ course_id: courseId, outcome, position: (count ?? 0) + 1 });
+  const position = (count ?? 0) + 1;
+  const { error } = await admin.from("course_outcomes").insert({
+    course_id: courseId,
+    code: String(formData.get("code") || "").trim() || `CO${position}`,
+    outcome,
+    description: String(formData.get("outcomeDescription") || "").trim() || null,
+    weight: Math.max(0.01, Number(formData.get("weight") || 1)),
+    position,
+  });
   if (error) throw new Error(error.message);
   revalidatePath(`/admin/courses/${courseId}/builder`);
   revalidatePath(`/courses/${courseId}`);
@@ -109,10 +117,43 @@ export async function updateCourseOutcome(courseId: string, outcomeId: string, f
   const outcome = String(formData.get("outcome") || "").trim();
   if (!outcome) return;
   const admin = createAdminClient();
-  const { error } = await admin.from("course_outcomes").update({ outcome }).eq("id", outcomeId).eq("course_id", courseId);
+  const evidenceSelection = String(formData.get("evidenceSelectionOverride") || "");
+  const thresholdValue = String(formData.get("masteryThresholdOverride") || "").trim();
+  const { error } = await admin.from("course_outcomes").update({
+    code: String(formData.get("code") || "").trim(),
+    outcome,
+    description: String(formData.get("outcomeDescription") || "").trim() || null,
+    weight: Math.max(0.01, Number(formData.get("weight") || 1)),
+    mastery_threshold_override: thresholdValue ? Number(thresholdValue) : null,
+    evidence_selection_override: ["LATEST", "BEST", "FIRST"].includes(evidenceSelection) ? evidenceSelection : null,
+    status: String(formData.get("outcomeStatus") || "ACTIVE") === "ARCHIVED" ? "ARCHIVED" : "ACTIVE",
+  }).eq("id", outcomeId).eq("course_id", courseId);
   if (error) throw new Error(error.message);
   revalidatePath(`/admin/courses/${courseId}/builder`);
   revalidatePath(`/courses/${courseId}`);
+}
+
+export async function updateCourseAssessmentPolicy(courseId: string, formData: FormData) {
+  await requireAdmin();
+  const masteryThreshold = Number(formData.get("masteryThreshold"));
+  const minimumEvidenceCoverage = Number(formData.get("minimumEvidenceCoverage"));
+  const evidenceSelection = String(formData.get("evidenceSelection") || "LATEST");
+  if (
+    masteryThreshold < 0 || masteryThreshold > 100
+    || minimumEvidenceCoverage < 0 || minimumEvidenceCoverage > 100
+    || !["LATEST", "BEST", "FIRST"].includes(evidenceSelection)
+  ) {
+    throw new Error("Assessment thresholds must be between 0 and 100.");
+  }
+  const admin = createAdminClient();
+  const { error } = await admin.from("courses").update({
+    mastery_threshold: masteryThreshold,
+    minimum_evidence_coverage: minimumEvidenceCoverage,
+    evidence_selection: evidenceSelection,
+    updated_at: new Date().toISOString(),
+  }).eq("id", courseId);
+  if (error) throw new Error(error.message);
+  revalidatePath(`/admin/courses/${courseId}/builder`);
 }
 
 export async function deleteCourseOutcome(courseId: string, outcomeId: string) {
@@ -242,6 +283,7 @@ export async function addCourseItem(courseId: string, formData: FormData) {
     resource_url: String(formData.get("resourceUrl") || "").trim() || null,
     is_required: formData.get("isRequired") !== "off",
     is_free_preview: formData.get("isFreePreview") === "on",
+    assessment_weight: Math.max(0.01, Number(formData.get("assessmentWeight") || 1)),
   };
 
   const { error } = await admin.from("course_items").insert(row);
@@ -264,6 +306,13 @@ export async function updateCourseItem(courseId: string, itemId: string, formDat
     resource_url: String(formData.get("resourceUrl") || "").trim() || null,
     is_required: formData.get("isRequired") === "on",
     is_free_preview: formData.get("isFreePreview") === "on",
+    assessment_weight: Math.max(0.01, Number(formData.get("assessmentWeight") || 1)),
+    mastery_threshold_override: String(formData.get("masteryThresholdOverride") || "").trim()
+      ? Number(formData.get("masteryThresholdOverride"))
+      : null,
+    evidence_selection_override: ["LATEST", "BEST", "FIRST"].includes(String(formData.get("evidenceSelectionOverride") || ""))
+      ? String(formData.get("evidenceSelectionOverride"))
+      : null,
     updated_at: new Date().toISOString(),
   }).eq("id", itemId).eq("course_id", courseId);
   if (error) throw new Error(error.message);

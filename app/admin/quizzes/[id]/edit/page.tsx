@@ -9,17 +9,31 @@ export default async function EditQuizPage({ params }: { params: Promise<{ id: s
   await requireAdmin();
   const { id } = await params;
   const admin = createAdminClient();
-  const [{ data: quiz }, { data: questions }, { data: bankQuestions }] = await Promise.all([
+  const [{ data: quiz }, { data: questions }, { data: bankQuestions }, { data: skills }, { data: targets }] = await Promise.all([
     admin.from("quizzes").select("*").eq("id", id).single(),
     admin.from("quiz_questions").select("*").eq("quiz_id", id).order("question_number", { ascending: true }),
     admin
       .from("quiz_questions")
       .select("id, question_type, question_text, description, options, correct_answer, quizzes(id, title, topic, level)")
       .order("created_at", { ascending: false })
-      .limit(500)
+      .limit(500),
+    admin.from("learning_skills").select("id,parent_id,name,slug").eq("status", "ACTIVE").order("position"),
+    admin.from("learning_targets").select("id,target_type,label").eq("status", "ACTIVE").order("label"),
   ]);
 
   if (!quiz) notFound();
+
+  const questionIds = (questions ?? []).map((question) => question.id);
+  const { data: assessmentItems } = questionIds.length
+    ? await admin.from("assessment_items").select("*").in("quiz_question_id", questionIds)
+    : { data: [] };
+  const assessmentIds = (assessmentItems ?? []).map((item) => item.id);
+  const [{ data: assessmentSkills }, { data: assessmentTargets }] = assessmentIds.length
+    ? await Promise.all([
+        admin.from("assessment_item_skills").select("*").in("assessment_item_id", assessmentIds),
+        admin.from("assessment_item_targets").select("*").in("assessment_item_id", assessmentIds),
+      ])
+    : [{ data: [] }, { data: [] }];
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8">
@@ -58,6 +72,11 @@ export default async function EditQuizPage({ params }: { params: Promise<{ id: s
               quiz_level: sourceQuiz?.level ?? ""
             };
           })}
+          skills={skills ?? []}
+          learningTargets={targets ?? []}
+          assessmentItems={assessmentItems ?? []}
+          assessmentSkills={assessmentSkills ?? []}
+          assessmentTargets={assessmentTargets ?? []}
         />
       </div>
     </main>

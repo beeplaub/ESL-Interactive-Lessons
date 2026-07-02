@@ -19,6 +19,9 @@ type ItemShape = {
   resource_url: string | null;
   is_required: boolean;
   is_free_preview: boolean;
+  assessment_weight?: number;
+  mastery_threshold_override?: number | null;
+  evidence_selection_override?: string | null;
 };
 
 type Props = {
@@ -254,6 +257,17 @@ export function EditItemModal({ action, deleteAction, item, label, sections, les
                 <label className="inline-flex items-center gap-2 text-xs text-black/60"><input type="checkbox" name="isRequired" defaultChecked={item.is_required} /> Required</label>
                 <label className="inline-flex items-center gap-2 text-xs text-black/60"><input type="checkbox" name="isFreePreview" defaultChecked={item.is_free_preview} /> Free preview</label>
               </div>
+
+              {(itemType === "LESSON" || itemType === "QUIZ") ? (
+                <section className="rounded-xl border border-[#6C3BFF]/20 bg-[#F8F6FF] p-3">
+                  <p className="text-xs font-extrabold uppercase tracking-wide text-[#6C3BFF]">Course assessment contribution</p>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                    <label className="text-sm font-medium">Item weight<input name="assessmentWeight" type="number" min="0.01" step="0.01" defaultValue={item.assessment_weight ?? 1} className="mt-1 w-full rounded-lg border border-black/15 bg-white px-3 py-2 font-normal" /></label>
+                    <label className="text-sm font-medium">Mastery override %<input name="masteryThresholdOverride" type="number" min="0" max="100" defaultValue={item.mastery_threshold_override ?? ""} placeholder="Course default" className="mt-1 w-full rounded-lg border border-black/15 bg-white px-3 py-2 font-normal" /></label>
+                    <label className="text-sm font-medium">Evidence override<select name="evidenceSelectionOverride" defaultValue={item.evidence_selection_override ?? ""} className="mt-1 w-full rounded-lg border border-black/15 bg-white px-3 py-2 font-normal"><option value="">Course default</option><option value="LATEST">Latest</option><option value="BEST">Best</option><option value="FIRST">First</option></select></label>
+                  </div>
+                </section>
+              ) : null}
 
               {error ? <p className="rounded-md bg-coral/10 px-3 py-2 text-sm text-coral">{error}</p> : null}
 

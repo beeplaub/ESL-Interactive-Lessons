@@ -4,8 +4,15 @@ import { createClient } from "@/lib/supabase/server";
 import { BuilderLessonPlayer } from "@/components/BuilderLessonPlayer";
 import { LearnerAppShell } from "@/components/LearnerAppShell";
 
-export default async function LessonPage({ params }: { params: Promise<{ lessonId: string }> }) {
+export default async function LessonPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ lessonId: string }>;
+  searchParams: Promise<{ courseItem?: string }>;
+}) {
   const { lessonId } = await params;
+  const { courseItem = null } = await searchParams;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -59,6 +66,7 @@ export default async function LessonPage({ params }: { params: Promise<{ lessonI
         activityAttempts={attempts ?? []}
         initialNotes={progress?.notes ?? {}}
         narrationMap={narrationMap}
+        courseItemId={courseItem}
       />
     </LearnerAppShell>
   );

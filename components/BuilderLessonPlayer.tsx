@@ -174,12 +174,13 @@ function NarrationPill({ src }: { src: string }) {
 }
 
 export function BuilderLessonPlayer({
-  lesson, slides, blocks, activities, initialProgress, activityAttempts = [], initialNotes = {}, narrationMap = {},
+  lesson, slides, blocks, activities, initialProgress, activityAttempts = [], initialNotes = {}, narrationMap = {}, courseItemId = null,
 }: {
   lesson: Lesson; slides: Slide[]; blocks: Block[]; activities: Activity[];
   initialProgress: Progress; activityAttempts?: ActivityAttempt[];
   initialNotes?: Record<string, string>;
   narrationMap?: Record<string, string>;
+  courseItemId?: string | null;
 }) {
   const initialIndex = Math.max(0, Math.min(slides.length - 1, (initialProgress?.current_slide_number ?? 1) - 1));
   const [index, setIndex] = useState(initialIndex);
@@ -555,6 +556,7 @@ export function BuilderLessonPlayer({
                     activity_data: activity.activity_data,
                   }}
                   onNext={() => move(1)}
+                  courseItemId={courseItemId}
                   initialAttempt={latestAttemptByActivity.get(activity.id) ?? null}
                   attempts={savedActivityAttempts.filter((attempt) => attempt.lesson_slide_activity_id === activity.id)}
                   onSavedAttempt={(attempt) => {

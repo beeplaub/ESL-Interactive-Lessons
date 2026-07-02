@@ -7,11 +7,15 @@ import { createAdminClient } from "@/lib/supabase/admin";
 export default async function NewQuizPage() {
   await requireAdmin();
   const admin = createAdminClient();
-  const { data: bankQuestions } = await admin
-    .from("quiz_questions")
-    .select("id, question_type, question_text, description, options, correct_answer, quizzes(id, title, topic, level)")
-    .order("created_at", { ascending: false })
-    .limit(500);
+  const [{ data: bankQuestions }, { data: skills }, { data: targets }] = await Promise.all([
+    admin
+      .from("quiz_questions")
+      .select("id, question_type, question_text, description, options, correct_answer, quizzes(id, title, topic, level)")
+      .order("created_at", { ascending: false })
+      .limit(500),
+    admin.from("learning_skills").select("id,parent_id,name,slug").eq("status", "ACTIVE").order("position"),
+    admin.from("learning_targets").select("id,target_type,label").eq("status", "ACTIVE").order("label"),
+  ]);
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
@@ -32,7 +36,13 @@ export default async function NewQuizPage() {
             quiz_topic: sourceQuiz?.topic ?? "",
             quiz_level: sourceQuiz?.level ?? ""
           };
-        })} />
+        })}
+        skills={skills ?? []}
+        learningTargets={targets ?? []}
+        assessmentItems={[]}
+        assessmentSkills={[]}
+        assessmentTargets={[]}
+        />
       </div>
     </main>
   );

@@ -7,12 +7,19 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import type { Json } from "@/types/database.types";
 
 const questionSchema = z.object({
+  questionId: z.string().optional(),
   questionNumber: z.number(),
   questionType: z.enum(["MCQ", "TRUE_FALSE", "FILL", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION"]),
   questionText: z.string().min(1),
   description: z.string().optional(),
   options: z.unknown().nullable(),
-  correctAnswer: z.unknown()
+  correctAnswer: z.unknown(),
+  assessment: z.object({
+    maxPoints: z.number().positive().default(1),
+    analyticalWeight: z.number().positive().default(1),
+    primarySkillId: z.string().uuid().nullable().optional(),
+    targetIds: z.array(z.string().uuid()).default([])
+  }).optional()
 });
 
 const quizSchema = z.object({
@@ -94,9 +101,12 @@ export async function saveQuizBuilder(payload: unknown) {
     ? await admin.from("quiz_questions").select("id").eq("quiz_id", quiz.id)
     : { data: [], error: null };
   if (oldQuestionsError) throw new Error(oldQuestionsError.message);
+  const existingIds = new Set((oldQuestions ?? []).map((question) => question.id));
+  const retainedIds = new Set<string>();
 
-  const { error: questionError } = await admin.from("quiz_questions").insert(
-    parsed.questions.map((question, index) => ({
+  for (const [index, question] of parsed.questions.entries()) {
+    const requestedId = question.questionId && existingIds.has(question.questionId) ? question.questionId : null;
+    const values = {
       quiz_id: quiz.id,
       question_number: index + 1,
       question_type: question.questionType,
@@ -104,19 +114,21 @@ export async function saveQuizBuilder(payload: unknown) {
       description: question.description || null,
       options: question.options as Json,
       correct_answer: question.correctAnswer as Json
-    }))
-  );
-
-  if (questionError) {
-    if (!quizId) {
-      await admin.from("quizzes").delete().eq("id", quiz.id);
+    };
+    const { data: savedQuestion, error: questionError } = requestedId
+      ? await admin.from("quiz_questions").update(values).eq("id", requestedId).eq("quiz_id", quiz.id).select("id").single()
+      : await admin.from("quiz_questions").insert(values).select("id").single();
+    if (questionError || !savedQuestion) {
+      if (!quizId) await admin.from("quizzes").delete().eq("id", quiz.id);
+      throw new Error(questionError?.message ?? "Could not save a quiz question.");
     }
-    throw new Error(questionError.message);
+    retainedIds.add(savedQuestion.id);
+    await saveQuestionAssessmentMetadata(admin, savedQuestion.id, question.questionText, question.assessment);
   }
 
-  const oldIds = (oldQuestions ?? []).map((question) => question.id);
-  if (oldIds.length) {
-    const { error: deleteError } = await admin.from("quiz_questions").delete().in("id", oldIds);
+  const removedIds = [...existingIds].filter((id) => !retainedIds.has(id));
+  if (removedIds.length) {
+    const { error: deleteError } = await admin.from("quiz_questions").delete().in("id", removedIds);
     if (deleteError) throw new Error(deleteError.message);
   }
 
@@ -125,6 +137,56 @@ export async function saveQuizBuilder(payload: unknown) {
   revalidatePath("/quizzes");
   revalidatePath(`/quizzes/${quiz.id}`);
   return { quizId: quiz.id };
+}
+
+async function saveQuestionAssessmentMetadata(
+  admin: ReturnType<typeof createAdminClient>,
+  questionId: string,
+  prompt: string,
+  assessment?: {
+    maxPoints: number;
+    analyticalWeight: number;
+    primarySkillId?: string | null;
+    targetIds: string[];
+  },
+) {
+  const { data: existing } = await admin.from("assessment_items").select("id").eq("quiz_question_id", questionId).maybeSingle();
+  const values = {
+    source_type: "QUIZ_QUESTION",
+    quiz_question_id: questionId,
+    lesson_activity_id: null,
+    source_item_key: questionId,
+    prompt_snapshot: prompt,
+    max_points: assessment?.maxPoints ?? 1,
+    analytical_weight: assessment?.analyticalWeight ?? 1,
+    updated_at: new Date().toISOString(),
+  };
+  const { data: item, error } = existing
+    ? await admin.from("assessment_items").update(values).eq("id", existing.id).select("id").single()
+    : await admin.from("assessment_items").insert(values).select("id").single();
+  if (error || !item) throw new Error(error?.message ?? "Could not save question assessment settings.");
+
+  await admin.from("assessment_item_skills").delete().eq("assessment_item_id", item.id);
+  if (assessment?.primarySkillId) {
+    const { error: skillError } = await admin.from("assessment_item_skills").insert({
+      assessment_item_id: item.id,
+      skill_id: assessment.primarySkillId,
+      is_primary: true,
+      weight_percent: 100,
+    });
+    if (skillError) throw new Error(skillError.message);
+  }
+
+  await admin.from("assessment_item_targets").delete().eq("assessment_item_id", item.id);
+  if (assessment?.targetIds.length) {
+    const { error: targetError } = await admin.from("assessment_item_targets").insert(
+      assessment.targetIds.map((learningTargetId) => ({
+        assessment_item_id: item.id,
+        learning_target_id: learningTargetId,
+      })),
+    );
+    if (targetError) throw new Error(targetError.message);
+  }
 }
 
 export async function updateQuizStatus(quizId: string, status: "DRAFT" | "PUBLISHED") {

@@ -120,8 +120,8 @@ function itemLabel(item: CourseItemView) {
 }
 
 function itemHref(item: CourseItemView) {
-  if (item.item_type === "LESSON" && item.lesson_id) return `/lessons/${item.lesson_id}`;
-  if (item.item_type === "QUIZ" && item.quiz_id) return `/quizzes/${item.quiz_id}`;
+  if (item.item_type === "LESSON" && item.lesson_id) return `/lessons/${item.lesson_id}?courseItem=${item.id}`;
+  if (item.item_type === "QUIZ" && item.quiz_id) return `/quizzes/${item.quiz_id}?courseItem=${item.id}`;
   if (item.item_type === "LEVEL_TEST") return "/level-test";
   return item.resource_url;
 }

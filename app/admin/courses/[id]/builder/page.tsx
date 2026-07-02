@@ -15,6 +15,7 @@ import { CONTENT_LEVELS } from "@/lib/levels";
 import { AddItemModal } from "@/app/admin/courses/[id]/builder/AddItemModal";
 import { BuilderDialog, CurriculumWorkspace } from "@/app/admin/courses/[id]/builder/CourseBuilderChrome";
 import { EditItemModal } from "@/app/admin/courses/[id]/builder/EditItemModal";
+import { CourseQuizOutcomeMapper } from "@/components/CourseQuizOutcomeMapper";
 import {
   addCourseFaq,
   addCourseItem,
@@ -29,6 +30,7 @@ import {
   setCourseStatus,
   updateCourseFaq,
   updateCourseItem,
+  updateCourseAssessmentPolicy,
   updateCourseMetadata,
   updateCourseOutcome,
   updateCourseSection,
@@ -49,6 +51,9 @@ type CourseItem = {
   resource_url: string | null;
   is_required: boolean;
   is_free_preview: boolean;
+  assessment_weight: number;
+  mastery_threshold_override: number | null;
+  evidence_selection_override: string | null;
   lessons?: { title?: string | null; level?: string | null } | null;
   quizzes?: { title?: string | null; level?: string | null } | null;
 };
@@ -79,6 +84,19 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
   if (!course) notFound();
 
   const courseItems = (items ?? []) as CourseItem[];
+  const quizItemRows = courseItems.filter((item) => item.item_type === "QUIZ" && item.quiz_id);
+  const quizIds = quizItemRows.map((item) => item.quiz_id).filter((value): value is string => Boolean(value));
+  const { data: courseQuizQuestions } = quizIds.length
+    ? await admin.from("quiz_questions").select("id,quiz_id,question_number,question_text").in("quiz_id", quizIds).order("question_number")
+    : { data: [] };
+  const courseQuizQuestionIds = (courseQuizQuestions ?? []).map((question) => question.id);
+  const { data: courseQuizAssessmentItems } = courseQuizQuestionIds.length
+    ? await admin.from("assessment_items").select("id,quiz_question_id").in("quiz_question_id", courseQuizQuestionIds)
+    : { data: [] };
+  const courseQuizAssessmentIds = (courseQuizAssessmentItems ?? []).map((item) => item.id);
+  const { data: quizOutcomeMappings } = courseQuizAssessmentIds.length
+    ? await admin.from("assessment_item_course_outcomes").select("*").in("assessment_item_id", courseQuizAssessmentIds).eq("course_item_id", courseItems.map((item) => item.id))
+    : { data: [] };
   const lessonOptions = (lessons ?? []) as LessonOption[];
   const quizOptions = (quizzes ?? []) as QuizOption[];
   const sectionOptions = (sections ?? []).map((section) => ({ id: section.id, title: section.title }));
@@ -243,7 +261,7 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
         </div>
       </section>
 
-      <section className="grid gap-2 sm:grid-cols-3">
+      <section className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
         <BuilderDialog
           icon="settings"
           triggerLabel="Landing page"
@@ -319,23 +337,55 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
           title="Learning outcomes"
           description="Tell learners what they will be able to do after completing the course."
         >
-          <div className="space-y-2">
+          <div className="space-y-3">
             {(outcomes ?? []).map((outcome, index) => (
-              <form key={outcome.id} action={updateCourseOutcome.bind(null, course.id, outcome.id)} className="flex items-start gap-2 rounded-xl border border-black/10 p-3">
-                <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-moss/10 text-xs font-bold text-moss">{index + 1}</span>
-                <input name="outcome" defaultValue={outcome.outcome} className="min-w-0 flex-1 rounded-lg border border-black/15 px-3 py-2 text-sm" />
-                <button className="rounded-lg border border-black/15 px-3 py-2 text-xs font-semibold">Save</button>
-                <button formAction={deleteCourseOutcome.bind(null, course.id, outcome.id)} className="grid size-9 place-items-center rounded-lg border border-coral/30 text-coral" title="Delete outcome">
-                  <Trash2 size={14} />
-                </button>
+              <form key={outcome.id} action={updateCourseOutcome.bind(null, course.id, outcome.id)} className="grid gap-3 rounded-xl border border-black/10 p-3">
+                <div className="flex items-center gap-2">
+                  <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-moss/10 text-xs font-bold text-moss">{index + 1}</span>
+                  <input name="code" defaultValue={outcome.code ?? `CO${index + 1}`} aria-label="Outcome code" className="w-20 rounded-lg border border-black/15 px-2 py-2 text-sm font-bold" />
+                  <input name="outcome" defaultValue={outcome.outcome} aria-label="Outcome statement" className="min-w-0 flex-1 rounded-lg border border-black/15 px-3 py-2 text-sm" />
+                </div>
+                <textarea name="outcomeDescription" defaultValue={outcome.description ?? ""} rows={2} placeholder="Optional explanation or observable performance" className="w-full rounded-lg border border-black/15 px-3 py-2 text-sm" />
+                <div className="grid gap-2 sm:grid-cols-4">
+                  <label className="text-xs font-semibold text-black/50">Weight<input name="weight" type="number" min="0.01" step="0.01" defaultValue={outcome.weight ?? 1} className="mt-1 w-full rounded-lg border border-black/15 px-2 py-2 text-sm text-black" /></label>
+                  <label className="text-xs font-semibold text-black/50">Mastery %<input name="masteryThresholdOverride" type="number" min="0" max="100" defaultValue={outcome.mastery_threshold_override ?? ""} placeholder="Course default" className="mt-1 w-full rounded-lg border border-black/15 px-2 py-2 text-sm text-black" /></label>
+                  <label className="text-xs font-semibold text-black/50">Evidence<select name="evidenceSelectionOverride" defaultValue={outcome.evidence_selection_override ?? ""} className="mt-1 w-full rounded-lg border border-black/15 px-2 py-2 text-sm text-black"><option value="">Course default</option><option value="LATEST">Latest</option><option value="BEST">Best</option><option value="FIRST">First</option></select></label>
+                  <label className="text-xs font-semibold text-black/50">Status<select name="outcomeStatus" defaultValue={outcome.status ?? "ACTIVE"} className="mt-1 w-full rounded-lg border border-black/15 px-2 py-2 text-sm text-black"><option value="ACTIVE">Active</option><option value="ARCHIVED">Archived</option></select></label>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <button className="rounded-lg border border-black/15 px-3 py-2 text-xs font-semibold">Save outcome</button>
+                  <button formAction={deleteCourseOutcome.bind(null, course.id, outcome.id)} className="inline-flex items-center gap-1 rounded-lg border border-coral/30 px-3 py-2 text-xs font-semibold text-coral" title="Delete outcome">
+                    <Trash2 size={14} /> Delete
+                  </button>
+                </div>
               </form>
             ))}
           </div>
-          <form action={addCourseOutcome.bind(null, course.id)} className="mt-3 flex gap-2 rounded-xl bg-slate-50 p-3">
-            <input name="outcome" placeholder="Add an outcome" className="min-w-0 flex-1 rounded-lg border border-black/15 px-3 py-2 text-sm" />
+          <form action={addCourseOutcome.bind(null, course.id)} className="mt-3 grid gap-2 rounded-xl bg-slate-50 p-3 sm:grid-cols-[80px_1fr_90px_auto]">
+            <input name="code" placeholder={`CO${(outcomes?.length ?? 0) + 1}`} aria-label="Outcome code" className="rounded-lg border border-black/15 px-3 py-2 text-sm font-bold" />
+            <input name="outcome" placeholder="Learners will be able to..." className="min-w-0 rounded-lg border border-black/15 px-3 py-2 text-sm" />
+            <input name="weight" type="number" min="0.01" step="0.01" defaultValue="1" aria-label="Outcome weight" className="rounded-lg border border-black/15 px-3 py-2 text-sm" />
             <button className="inline-flex items-center gap-1.5 rounded-lg bg-moss px-3 py-2 text-sm font-semibold text-white">
               <Plus size={15} /> Add
             </button>
+          </form>
+        </BuilderDialog>
+
+        <BuilderDialog
+          icon="settings"
+          triggerLabel="Assessment policy"
+          countLabel={`${course.mastery_threshold ?? 70}% mastery · ${String(course.evidence_selection ?? "LATEST").toLowerCase()}`}
+          title="Course assessment policy"
+          description="Set how evidence is selected and when a course outcome counts as attained."
+        >
+          <form action={updateCourseAssessmentPolicy.bind(null, course.id)} className="grid gap-4">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <label className="text-sm font-medium">Mastery threshold %<input name="masteryThreshold" type="number" min="0" max="100" defaultValue={course.mastery_threshold ?? 70} className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2" /></label>
+              <label className="text-sm font-medium">Minimum evidence coverage %<input name="minimumEvidenceCoverage" type="number" min="0" max="100" defaultValue={course.minimum_evidence_coverage ?? 70} className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2" /></label>
+              <label className="text-sm font-medium">Attempt evidence<select name="evidenceSelection" defaultValue={course.evidence_selection ?? "LATEST"} className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2"><option value="LATEST">Latest attempt</option><option value="BEST">Best attempt</option><option value="FIRST">First attempt</option></select></label>
+            </div>
+            <p className="rounded-xl bg-[#F6F7FB] p-3 text-sm text-black/60">Attainment measures performance on attempted evidence. Coverage shows how much mapped evidence has been attempted. Both thresholds must be met.</p>
+            <button className="w-fit rounded-lg bg-ink px-4 py-2 text-sm font-semibold text-white">Save policy</button>
           </form>
         </BuilderDialog>
 
@@ -369,6 +419,27 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
             <textarea name="answer" placeholder="Answer" rows={3} className="rounded-lg border border-black/15 px-3 py-2 text-sm" />
             <button className="w-fit rounded-lg bg-moss px-3 py-2 text-sm font-semibold text-white">Add FAQ</button>
           </form>
+        </BuilderDialog>
+
+        <BuilderDialog
+          icon="outcomes"
+          triggerLabel="Quiz outcome map"
+          countLabel={`${quizOutcomeMappings?.length ?? 0} mapped questions`}
+          title="Quiz questions to course outcomes"
+          description="Choose which formal course outcome each course quiz question measures."
+        >
+          <CourseQuizOutcomeMapper
+            courseId={course.id}
+            courseOutcomes={(outcomes ?? []).filter((outcome) => (outcome.status ?? "ACTIVE") === "ACTIVE")}
+            quizItems={quizItemRows.map((item) => ({
+              id: item.id,
+              quiz_id: item.quiz_id,
+              label: item.quizzes?.title ?? item.title ?? "Quiz",
+              questions: (courseQuizQuestions ?? []).filter((question) => question.quiz_id === item.quiz_id),
+            }))}
+            assessmentItems={courseQuizAssessmentItems ?? []}
+            mappings={quizOutcomeMappings ?? []}
+          />
         </BuilderDialog>
       </section>
 

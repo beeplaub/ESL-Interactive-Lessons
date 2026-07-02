@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useState, useTransition } from "react";
 import { recordQuizAttempt } from "@/app/quizzes/actions";
 import { QuestionCard, hasAnswer, type QuizQuestion } from "@/components/QuizPlayer";
-import { questionScore, questionTotal } from "@/lib/quizScoring";
+import { isCorrect, questionScore, questionTotal } from "@/lib/quizScoring";
 import type { Json } from "@/types/database.types";
 
 type LessonSlideActivity = {
@@ -300,10 +300,11 @@ function activityLabel(type: string) {
 }
 
 export function LessonActivityPanel({
-  activity, onNext, previewOnly = false, initialAttempt = null, attempts = [], onSavedAttempt,
+  activity, onNext, previewOnly = false, initialAttempt = null, attempts = [], onSavedAttempt, courseItemId = null,
 }: {
   activity: LessonSlideActivity; onNext: () => void;
   previewOnly?: boolean; initialAttempt?: SavedAttempt | null; attempts?: SavedAttempt[]; onSavedAttempt?: (attempt: SavedAttempt) => void;
+  courseItemId?: string | null;
 }) {
   const questions = questionsFromData(activity.activity_data, activity.activity_type, activity.id);
   const initialAnswers = asRecord(initialAttempt?.answers);
@@ -340,7 +341,20 @@ export function LessonActivityPanel({
     if (previewOnly) { setMessage("Preview only."); return; }
     startTransition(async () => {
       try {
-        await recordQuizAttempt({ lessonSlideActivityId: activity.id, score: finalScore, total, answers });
+        await recordQuizAttempt({
+          lessonSlideActivityId: activity.id,
+          score: finalScore,
+          total,
+          answers,
+          courseItemId,
+          responseScores: questions.map((question) => ({
+            itemKey: question.id,
+            answer: answers[question.id],
+            earnedPoints: questionScore(question, answers[question.id]),
+            maximumPoints: questionTotal(question),
+            isCorrect: isCorrect(question, answers[question.id]),
+          })),
+        });
         const savedAttempt = { score: finalScore, total, answers: answers as Json, completed_at: new Date().toISOString() };
         setLocalAttempts((current) => [savedAttempt, ...current]);
         onSavedAttempt?.(savedAttempt);

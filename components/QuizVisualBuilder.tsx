@@ -17,6 +17,12 @@ type BuilderQuestion = {
   description: string;
   options: Json | null;
   correctAnswer: Json;
+  assessment: {
+    maxPoints: number;
+    analyticalWeight: number;
+    primarySkillId: string | null;
+    targetIds: string[];
+  };
 };
 
 type InitialQuiz = {
@@ -133,17 +139,18 @@ Note: The parser imports MCQ, T/F, FILL, and MATCH directly. Use the visual buil
 
 function defaultQuestion(type: BuilderQuestion["questionType"]): BuilderQuestion {
   const id = `q-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  if (type === "TRUE_FALSE") return { id, questionType: type, questionText: "Write a clear true/false statement.", description: "", options: null, correctAnswer: true };
-  if (type === "FILL") return { id, questionType: type, questionText: "Complete the sentence.", description: "", options: { text: "I have ___ English for two years.", blank_count: 1 }, correctAnswer: ["studied"] };
-  if (type === "MATCHING") return { id, questionType: type, questionText: "Match the items.", description: "", options: { a_items: ["Word 1", "Word 2"], b_items: ["Meaning A", "Meaning B"] }, correctAnswer: [{ a: 1, b: "A" }, { a: 2, b: "B" }] };
-  if (type === "MULTIPLE_SELECT") return { id, questionType: type, questionText: "Select all correct answers.", description: "", options: { A: "Option A", B: "Option B", C: "Option C", D: "Option D" }, correctAnswer: ["A", "C"] };
-  if (type === "SHORT_ANSWER") return { id, questionType: type, questionText: "Write a short answer.", description: "", options: { sample_answer: "A good sample answer.", min_words: 10, required_words: [] }, correctAnswer: true };
-  if (type === "ERROR_CORRECTION") return { id, questionType: type, questionText: "Correct the mistake.", description: "", options: { mode: "rewrite", text: "She go to school every day." }, correctAnswer: { correction: "She goes to school every day." } };
-  if (type === "REORDERING") return { id, questionType: type, questionText: "Put the items in the correct order.", description: "", options: { level: "sentence", items: [{ id: "1", text: "First item" }, { id: "2", text: "Second item" }] }, correctAnswer: ["1", "2"] };
-  if (type === "DRAG_DROP") return { id, questionType: type, questionText: "Place each item in the correct group.", description: "", options: { targets: ["Group A", "Group B"], items: [{ id: "1", text: "Item 1" }, { id: "2", text: "Item 2" }] }, correctAnswer: { "1": "Group A", "2": "Group B" } };
-  if (type === "CATEGORIZATION") return { id, questionType: type, questionText: "Sort each item into the correct category.", description: "", options: { targets: ["Category A", "Category B"], items: [{ id: "1", text: "Item 1" }, { id: "2", text: "Item 2" }] }, correctAnswer: { "1": "Category A", "2": "Category B" } };
-  if (type === "PRONUNCIATION") return { id, questionType: type, questionText: "Practise the pronunciation.", description: "", options: { level: "word", passage: "", targets: [{ id: "1", text: "comfortable", color: "#fbbf24" }], max_attempts: 3 }, correctAnswer: ["1"] };
-  return { id, questionType: "MCQ", questionText: "Choose the best answer.", description: "", options: { A: "Option A", B: "Option B", C: "Option C", D: "Option D" }, correctAnswer: "A" };
+  const assessment = { maxPoints: 1, analyticalWeight: 1, primarySkillId: null, targetIds: [] as string[] };
+  if (type === "TRUE_FALSE") return { id, questionType: type, questionText: "Write a clear true/false statement.", description: "", options: null, correctAnswer: true, assessment };
+  if (type === "FILL") return { id, questionType: type, questionText: "Complete the sentence.", description: "", options: { text: "I have ___ English for two years.", blank_count: 1 }, correctAnswer: ["studied"], assessment };
+  if (type === "MATCHING") return { id, questionType: type, questionText: "Match the items.", description: "", options: { a_items: ["Word 1", "Word 2"], b_items: ["Meaning A", "Meaning B"] }, correctAnswer: [{ a: 1, b: "A" }, { a: 2, b: "B" }], assessment };
+  if (type === "MULTIPLE_SELECT") return { id, questionType: type, questionText: "Select all correct answers.", description: "", options: { A: "Option A", B: "Option B", C: "Option C", D: "Option D" }, correctAnswer: ["A", "C"], assessment };
+  if (type === "SHORT_ANSWER") return { id, questionType: type, questionText: "Write a short answer.", description: "", options: { sample_answer: "A good sample answer.", min_words: 10, required_words: [] }, correctAnswer: true, assessment };
+  if (type === "ERROR_CORRECTION") return { id, questionType: type, questionText: "Correct the mistake.", description: "", options: { mode: "rewrite", text: "She go to school every day." }, correctAnswer: { correction: "She goes to school every day." }, assessment };
+  if (type === "REORDERING") return { id, questionType: type, questionText: "Put the items in the correct order.", description: "", options: { level: "sentence", items: [{ id: "1", text: "First item" }, { id: "2", text: "Second item" }] }, correctAnswer: ["1", "2"], assessment };
+  if (type === "DRAG_DROP") return { id, questionType: type, questionText: "Place each item in the correct group.", description: "", options: { targets: ["Group A", "Group B"], items: [{ id: "1", text: "Item 1" }, { id: "2", text: "Item 2" }] }, correctAnswer: { "1": "Group A", "2": "Group B" }, assessment };
+  if (type === "CATEGORIZATION") return { id, questionType: type, questionText: "Sort each item into the correct category.", description: "", options: { targets: ["Category A", "Category B"], items: [{ id: "1", text: "Item 1" }, { id: "2", text: "Item 2" }] }, correctAnswer: { "1": "Category A", "2": "Category B" }, assessment };
+  if (type === "PRONUNCIATION") return { id, questionType: type, questionText: "Practise the pronunciation.", description: "", options: { level: "word", passage: "", targets: [{ id: "1", text: "comfortable", color: "#fbbf24" }], max_attempts: 3 }, correctAnswer: ["1"], assessment };
+  return { id, questionType: "MCQ", questionText: "Choose the best answer.", description: "", options: { A: "Option A", B: "Option B", C: "Option C", D: "Option D" }, correctAnswer: "A", assessment };
 }
 
 function asRecord(value: Json | null | undefined): Record<string, unknown> {
@@ -169,7 +176,7 @@ function normalizeInitialQuestion(question: {
   description: string | null;
   options: Json | null;
   correct_answer: Json;
-}): BuilderQuestion {
+}, assessment?: BuilderQuestion["assessment"]): BuilderQuestion {
   const questionType = question.question_type as BuilderQuestion["questionType"];
   const options = asRecord(question.options);
   if (questionType === "FILL" && !options.text) {
@@ -183,7 +190,8 @@ function normalizeInitialQuestion(question: {
         text: question.question_text,
         blank_count: Math.max(1, question.question_text.match(/___/g)?.length ?? (Array.isArray(question.correct_answer) ? question.correct_answer.length : 1))
       } as Json,
-      correctAnswer: question.correct_answer
+      correctAnswer: question.correct_answer,
+      assessment: assessment ?? { maxPoints: questionPointSuggestion(question.question_type, question.correct_answer), analyticalWeight: 1, primarySkillId: null, targetIds: [] }
     };
   }
   return {
@@ -192,21 +200,41 @@ function normalizeInitialQuestion(question: {
     questionText: question.question_text,
     description: question.description ?? "",
     options: question.options,
-    correctAnswer: question.correct_answer
+    correctAnswer: question.correct_answer,
+    assessment: assessment ?? { maxPoints: questionPointSuggestion(question.question_type, question.correct_answer), analyticalWeight: 1, primarySkillId: null, targetIds: [] }
   };
 }
 
-function questionPointTotal(question: BuilderQuestion) {
-  if (question.questionType === "FILL") return Array.isArray(question.correctAnswer) ? Math.max(1, question.correctAnswer.length) : 1;
-  if (question.questionType === "DRAG_DROP" || question.questionType === "CATEGORIZATION") return Object.keys(asRecord(question.correctAnswer)).length || 1;
-  if (question.questionType === "PRONUNCIATION") return Array.isArray(question.correctAnswer) ? Math.max(1, question.correctAnswer.length) : 1;
+function questionPointSuggestion(type: string, correctAnswer: Json) {
+  if (["FILL", "PRONUNCIATION"].includes(type) && Array.isArray(correctAnswer)) return Math.max(1, correctAnswer.length);
+  if (["DRAG_DROP", "CATEGORIZATION"].includes(type)) return Math.max(1, Object.keys(asRecord(correctAnswer)).length);
   return 1;
+}
+
+function skillOptions(skills: Array<{ id: string; parent_id: string | null; name: string }>) {
+  return skills.filter((skill) => !skill.parent_id).map((parent) => (
+    <optgroup key={parent.id} label={parent.name}>
+      <option value={parent.id}>{parent.name} (general)</option>
+      {skills.filter((skill) => skill.parent_id === parent.id).map((child) => (
+        <option key={child.id} value={child.id}>{child.name}</option>
+      ))}
+    </optgroup>
+  ));
+}
+
+function questionPointTotal(question: BuilderQuestion) {
+  return question.assessment.maxPoints;
 }
 
 export function QuizVisualBuilder({
   initialQuiz,
   initialQuestions = [],
-  questionBank = []
+  questionBank = [],
+  skills = [],
+  learningTargets = [],
+  assessmentItems = [],
+  assessmentSkills = [],
+  assessmentTargets = [],
 }: {
   initialQuiz?: InitialQuiz;
   initialQuestions?: Array<{
@@ -218,12 +246,25 @@ export function QuizVisualBuilder({
     correct_answer: Json;
   }>;
   questionBank?: QuestionBankItem[];
+  skills?: Array<{ id: string; parent_id: string | null; name: string; slug: string }>;
+  learningTargets?: Array<{ id: string; target_type: string; label: string }>;
+  assessmentItems?: Array<{ id: string; quiz_question_id: string | null; max_points: number; analytical_weight: number }>;
+  assessmentSkills?: Array<{ assessment_item_id: string; skill_id: string; is_primary: boolean }>;
+  assessmentTargets?: Array<{ assessment_item_id: string; learning_target_id: string }>;
 }) {
   const router = useRouter();
   const [quiz, setQuiz] = useState<InitialQuiz>(initialQuiz ?? { title: "Untitled quiz", topic: "", level: "B1", status: "DRAFT" });
   const [questions, setQuestions] = useState<BuilderQuestion[]>(
     initialQuestions.length
-      ? initialQuestions.map(normalizeInitialQuestion)
+      ? initialQuestions.map((question) => {
+          const item = assessmentItems.find((candidate) => candidate.quiz_question_id === question.id);
+          return normalizeInitialQuestion(question, {
+            maxPoints: item?.max_points ?? questionPointSuggestion(question.question_type, question.correct_answer),
+            analyticalWeight: item?.analytical_weight ?? 1,
+            primarySkillId: item ? assessmentSkills.find((skill) => skill.assessment_item_id === item.id && skill.is_primary)?.skill_id ?? null : null,
+            targetIds: item ? assessmentTargets.filter((target) => target.assessment_item_id === item.id).map((target) => target.learning_target_id) : [],
+          });
+        })
       : [defaultQuestion("MCQ")]
   );
   const [selectedId, setSelectedId] = useState(questions[0]?.id ?? "");
@@ -275,11 +316,13 @@ export function QuizVisualBuilder({
     timerMinutes: quiz.timerMinutes ?? null,
     questions: questions.map((question, index) => ({
       questionNumber: index + 1,
+      questionId: question.id,
       questionType: question.questionType,
       questionText: question.questionText,
       description: question.description,
       options: question.options,
-      correctAnswer: question.correctAnswer
+      correctAnswer: question.correctAnswer,
+      assessment: question.assessment,
     }))
   }), [quiz, questions]);
 
@@ -385,7 +428,8 @@ export function QuizVisualBuilder({
       questionText: question.questionText,
       description: question.description ?? "",
       options: question.options as Json,
-      correctAnswer: question.correctAnswer as Json
+      correctAnswer: question.correctAnswer as Json,
+      assessment: { maxPoints: questionPointSuggestion(question.questionType, question.correctAnswer as Json), analyticalWeight: 1, primarySkillId: null, targetIds: [] }
     }));
     setQuiz((current) => ({ ...current, title: parsed.title, topic: parsed.topic, level: parsed.level }));
     setQuestions(imported);
@@ -516,6 +560,8 @@ export function QuizVisualBuilder({
           onDelete={() => {
             if (window.confirm("Delete this question?")) deleteQuestion(selected.id);
           }}
+          skills={skills}
+          learningTargets={learningTargets}
         />
       ) : null}
 
@@ -627,13 +673,17 @@ function QuestionEditorModal({
   questionNumber,
   onChange,
   onClose,
-  onDelete
+  onDelete,
+  skills,
+  learningTargets,
 }: {
   question: BuilderQuestion;
   questionNumber: number;
   onChange: (patch: Partial<BuilderQuestion>) => void;
   onClose: () => void;
   onDelete: () => void;
+  skills: Array<{ id: string; parent_id: string | null; name: string; slug: string }>;
+  learningTargets: Array<{ id: string; target_type: string; label: string }>;
 }) {
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 px-3 py-5">
@@ -670,6 +720,26 @@ function QuestionEditorModal({
           </label>
 
           <QuestionFields question={question} onChange={onChange} />
+
+          <section className="rounded-xl border border-[#6C3BFF]/20 bg-[#F8F6FF] p-3">
+            <p className="text-xs font-extrabold uppercase tracking-wide text-[#6C3BFF]">Measurement</p>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <label className="text-sm font-medium">Skill / subskill<select value={question.assessment.primarySkillId ?? ""} onChange={(event) => onChange({ assessment: { ...question.assessment, primarySkillId: event.target.value || null } })} className="mt-1 w-full rounded-lg border border-black/15 bg-white px-3 py-2 font-normal"><option value="">Not classified</option>{skillOptions(skills)}</select></label>
+              <label className="text-sm font-medium">Maximum points<input type="number" min="0.01" step="0.01" value={question.assessment.maxPoints} onChange={(event) => onChange({ assessment: { ...question.assessment, maxPoints: Math.max(0.01, Number(event.target.value) || 1) } })} className="mt-1 w-full rounded-lg border border-black/15 bg-white px-3 py-2 font-normal" /></label>
+              <label className="text-sm font-medium">Analytical weight<input type="number" min="0.01" step="0.01" value={question.assessment.analyticalWeight} onChange={(event) => onChange({ assessment: { ...question.assessment, analyticalWeight: Math.max(0.01, Number(event.target.value) || 1) } })} className="mt-1 w-full rounded-lg border border-black/15 bg-white px-3 py-2 font-normal" /></label>
+            </div>
+            <fieldset className="mt-3">
+              <legend className="text-sm font-medium">Specific learning targets</legend>
+              <div className="mt-2 flex max-h-28 flex-wrap gap-2 overflow-auto">
+                {learningTargets.map((target) => (
+                  <label key={target.id} className="inline-flex items-center gap-1.5 rounded-full border border-black/10 bg-white px-2.5 py-1.5 text-xs">
+                    <input type="checkbox" checked={question.assessment.targetIds.includes(target.id)} onChange={(event) => onChange({ assessment: { ...question.assessment, targetIds: event.target.checked ? [...question.assessment.targetIds, target.id] : question.assessment.targetIds.filter((id) => id !== target.id) } })} />
+                    {target.label}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+          </section>
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-2 border-t border-black/10 px-5 py-4">
