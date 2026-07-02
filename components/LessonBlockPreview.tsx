@@ -130,7 +130,7 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
     return (
       <figure className="rounded-lg border-l-4 border-moss bg-skywash p-3 sm:p-4">
         <blockquote className="text-base font-medium leading-7 text-ink sm:text-lg sm:leading-8">
-          "{asString(content.body) || "Add a quote."}"
+          &ldquo;{asString(content.body) || "Add a quote."}&rdquo;
         </blockquote>
         {asString(content.attribution) ? (
           <figcaption className="mt-2 text-sm text-black/55">— {asString(content.attribution)}</figcaption>
