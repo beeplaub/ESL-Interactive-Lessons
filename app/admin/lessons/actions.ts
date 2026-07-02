@@ -118,15 +118,29 @@ function splitLines(value: unknown) {
     .filter(Boolean);
 }
 
+function textAlignValue(value: unknown) {
+  const v = String(value ?? "left");
+  return v === "center" || v === "right" ? v : "left";
+}
+
+function verticalAlignValue(value: unknown) {
+  const v = String(value ?? "middle");
+  return v === "top" || v === "bottom" ? v : "middle";
+}
+
 function blockContentFromForm(blockType: string, formData: FormData): Json {
   if (blockType === "HEADING") {
     return {
       text: String(formData.get("text") || "").trim(),
-      level: String(formData.get("level") || "H2")
+      level: String(formData.get("level") || "H2"),
+      text_align: textAlignValue(formData.get("text_align"))
     };
   }
   if (blockType === "TEXT") {
-    return { body: String(formData.get("body") || "").trim() };
+    return {
+      body: String(formData.get("body") || "").trim(),
+      text_align: textAlignValue(formData.get("text_align"))
+    };
   }
   if (blockType === "BULLETS") {
     return {
@@ -137,13 +151,15 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
   if (blockType === "QUOTE") {
     return {
       body: String(formData.get("body") || "").trim(),
-      attribution: nullableText(formData.get("attribution"))
+      attribution: nullableText(formData.get("attribution")),
+      text_align: textAlignValue(formData.get("text_align"))
     };
   }
   if (blockType === "CALLOUT") {
     return {
       title: nullableText(formData.get("title")),
-      body: String(formData.get("body") || "").trim()
+      body: String(formData.get("body") || "").trim(),
+      text_align: textAlignValue(formData.get("text_align"))
     };
   }
   if (blockType === "IMAGE") {
@@ -160,7 +176,9 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
       alt: nullableText(formData.get("alt")),
       caption: nullableText(formData.get("caption")),
       heading: nullableText(formData.get("heading")),
-      body: String(formData.get("body") || "").trim()
+      body: String(formData.get("body") || "").trim(),
+      text_align: textAlignValue(formData.get("text_align")),
+      vertical_align: verticalAlignValue(formData.get("vertical_align"))
     };
   }
   if (blockType === "AUDIO") {

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { FormEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Copy, Eye, Library, Plus, Settings, Trash2, X } from "lucide-react";
+import { AlignCenter, AlignLeft, AlignRight, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, AlignVerticalJustifyStart, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Copy, Eye, Library, Plus, Settings, Trash2, X } from "lucide-react";
 import {
   addBuilderSlideAt,
   addLessonBlock,
@@ -788,6 +788,41 @@ function blockSummary(block: LessonBlock) {
   return asString(data.text ?? data.title ?? data.body ?? data.heading ?? data.path ?? data.src ?? data.url ?? data.word ?? data.prompt ?? "");
 }
 
+const TEXT_ALIGN_OPTIONS = [
+  { value: "left", label: "Align left", icon: AlignLeft },
+  { value: "center", label: "Align center", icon: AlignCenter },
+  { value: "right", label: "Align right", icon: AlignRight },
+];
+
+const VERTICAL_ALIGN_OPTIONS = [
+  { value: "top", label: "Align top", icon: AlignVerticalJustifyStart },
+  { value: "middle", label: "Align middle", icon: AlignVerticalJustifyCenter },
+  { value: "bottom", label: "Align bottom", icon: AlignVerticalJustifyEnd },
+];
+
+function AlignmentGroup({ label, name, value, options }: {
+  label: string;
+  name: string;
+  value: string;
+  options: { value: string; label: string; icon: typeof AlignLeft }[];
+}) {
+  return (
+    <div className="text-sm">
+      {label}
+      <div className="mt-1 inline-flex gap-1 rounded-md border border-black/15 bg-white p-1">
+        {options.map(({ value: optionValue, label: optionLabel, icon: Icon }) => (
+          <label key={optionValue} title={optionLabel} className="cursor-pointer">
+            <input type="radio" name={name} value={optionValue} defaultChecked={value === optionValue} className="peer sr-only" />
+            <span className="flex size-8 items-center justify-center rounded text-black/45 transition hover:bg-black/5 peer-checked:bg-moss peer-checked:text-white peer-checked:hover:bg-moss">
+              <Icon size={15} />
+            </span>
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── BlockFields ────────────────────────────────────────────────────────────────
 function BlockFields({ blockType, content, lessonId }: { blockType: string; content: Json; lessonId: string }) {
   const data = asRecord(content);
@@ -809,14 +844,22 @@ function BlockFields({ blockType, content, lessonId }: { blockType: string; cont
 
   if (blockType === "HEADING") {
     return (
-      <div className="grid gap-3 sm:grid-cols-[1fr_140px]">
-        <label className="text-sm">Heading text<textarea name="text" rows={2} defaultValue={asString(data.text)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
-        <label className="text-sm">Heading type<select name="level" defaultValue={asString(data.level) || "H2"} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"><option value="H1">H1</option><option value="H2">H2</option><option value="H3">H3</option><option value="H4">H4</option></select></label>
+      <div className="grid gap-3">
+        <div className="grid gap-3 sm:grid-cols-[1fr_140px]">
+          <label className="text-sm">Heading text<textarea name="text" rows={2} defaultValue={asString(data.text)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+          <label className="text-sm">Heading type<select name="level" defaultValue={asString(data.level) || "H2"} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"><option value="H1">H1</option><option value="H2">H2</option><option value="H3">H3</option><option value="H4">H4</option></select></label>
+        </div>
+        <AlignmentGroup label="Text alignment" name="text_align" value={asString(data.text_align) || "left"} options={TEXT_ALIGN_OPTIONS} />
       </div>
     );
   }
   if (blockType === "TEXT") {
-    return <label className="text-sm">Body text<textarea name="body" rows={4} defaultValue={asString(data.body ?? data.text)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>;
+    return (
+      <div className="grid gap-3">
+        <label className="text-sm">Body text<textarea name="body" rows={4} defaultValue={asString(data.body ?? data.text)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+        <AlignmentGroup label="Text alignment" name="text_align" value={asString(data.text_align) || "left"} options={TEXT_ALIGN_OPTIONS} />
+      </div>
+    );
   }
   if (blockType === "BULLETS") {
     return (
@@ -831,6 +874,7 @@ function BlockFields({ blockType, content, lessonId }: { blockType: string; cont
       <div className="grid gap-3">
         <label className="text-sm">Quote text<textarea name="body" rows={3} defaultValue={asString(data.body ?? data.text)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
         <label className="text-sm">Attribution <span className="font-normal text-black/45">(optional)</span><input name="attribution" defaultValue={asString(data.attribution)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+        <AlignmentGroup label="Text alignment" name="text_align" value={asString(data.text_align) || "left"} options={TEXT_ALIGN_OPTIONS} />
       </div>
     );
   }
@@ -839,6 +883,7 @@ function BlockFields({ blockType, content, lessonId }: { blockType: string; cont
       <div className="grid gap-3">
         <label className="text-sm">Callout title <span className="font-normal text-black/45">(optional)</span><input name="title" defaultValue={asString(data.title)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
         <label className="text-sm">Callout text<textarea name="body" rows={3} defaultValue={asString(data.body ?? data.text)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+        <AlignmentGroup label="Text alignment" name="text_align" value={asString(data.text_align) || "left"} options={TEXT_ALIGN_OPTIONS} />
       </div>
     );
   }
@@ -875,6 +920,10 @@ function BlockFields({ blockType, content, lessonId }: { blockType: string; cont
         </div>
         <label className="text-sm">Heading <span className="font-normal text-black/45">(optional)</span><input name="heading" defaultValue={asString(data.heading)} placeholder="Section heading" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
         <label className="text-sm">Body text<textarea name="body" rows={4} defaultValue={asString(data.body)} placeholder="Supporting text alongside the image\u2026" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <AlignmentGroup label="Text alignment" name="text_align" value={asString(data.text_align) || "left"} options={TEXT_ALIGN_OPTIONS} />
+          <AlignmentGroup label="Vertical alignment (vs. image)" name="vertical_align" value={asString(data.vertical_align) || "middle"} options={VERTICAL_ALIGN_OPTIONS} />
+        </div>
       </div>
     );
   }

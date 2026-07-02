@@ -24,6 +24,20 @@ function asArray(value: unknown) {
   return Array.isArray(value) ? value : [];
 }
 
+function textAlignClass(value: unknown) {
+  const v = asString(value);
+  if (v === "center") return "text-center";
+  if (v === "right") return "text-right";
+  return "text-left";
+}
+
+function verticalAlignClass(value: unknown) {
+  const v = asString(value);
+  if (v === "top") return "justify-start";
+  if (v === "bottom") return "justify-end";
+  return "justify-center";
+}
+
 function isImageUrl(value: string) {
   return /^https?:\/\//i.test(value) || value.startsWith("/");
 }
@@ -93,14 +107,15 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
   if (block.block_type === "HEADING") {
     const level = asString(content.level) || "H2";
     const text = asString(content.text) || "Untitled heading";
-    if (level === "H1") return <h1 className="text-3xl font-semibold tracking-tight text-ink">{text}</h1>;
-    if (level === "H3") return <h3 className="text-lg font-semibold text-ink">{text}</h3>;
-    if (level === "H4") return <h4 className="text-base font-semibold text-ink">{text}</h4>;
-    return <h2 className="text-2xl font-semibold tracking-tight text-ink">{text}</h2>;
+    const align = textAlignClass(content.text_align);
+    if (level === "H1") return <h1 className={`text-3xl font-semibold tracking-tight text-ink ${align}`}>{text}</h1>;
+    if (level === "H3") return <h3 className={`text-lg font-semibold text-ink ${align}`}>{text}</h3>;
+    if (level === "H4") return <h4 className={`text-base font-semibold text-ink ${align}`}>{text}</h4>;
+    return <h2 className={`text-2xl font-semibold tracking-tight text-ink ${align}`}>{text}</h2>;
   }
 
   if (block.block_type === "TEXT") {
-    return <FormattedText text={asString(content.body)} />;
+    return <FormattedText text={asString(content.body)} align={textAlignClass(content.text_align)} />;
   }
 
   if (block.block_type === "BULLETS") {
@@ -127,8 +142,9 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
   }
 
   if (block.block_type === "QUOTE") {
+    const align = textAlignClass(content.text_align);
     return (
-      <figure className="rounded-lg border-l-4 border-moss bg-skywash p-3 sm:p-4">
+      <figure className={`rounded-lg border-l-4 border-moss bg-skywash p-3 sm:p-4 ${align}`}>
         <blockquote className="text-base font-medium leading-7 text-ink sm:text-lg sm:leading-8">
           &ldquo;{asString(content.body) || "Add a quote."}&rdquo;
         </blockquote>
@@ -140,11 +156,12 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
   }
 
   if (block.block_type === "CALLOUT") {
+    const align = textAlignClass(content.text_align);
     return (
       <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 sm:p-4">
         <div className="flex items-start gap-3">
           <MessageSquareQuote className="mt-0.5 shrink-0 text-amber-700" size={18} />
-          <div>
+          <div className={align}>
             {asString(content.title) ? <h3 className="font-semibold text-amber-950">{asString(content.title)}</h3> : null}
             <p className="mt-1 text-sm leading-6 text-amber-900">{asString(content.body) || "Add a callout message."}</p>
           </div>
@@ -202,10 +219,13 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
       </figure>
     );
 
+    const textAlign = textAlignClass(content.text_align);
+    const verticalAlign = verticalAlignClass(content.vertical_align);
+
     const textCol = (
-      <div className="flex flex-col justify-center gap-3">
+      <div className={`flex flex-col gap-3 ${verticalAlign} ${textAlign}`}>
         {heading ? <h3 className="text-xl font-semibold leading-snug text-ink">{heading}</h3> : null}
-        {body ? <FormattedText text={body} /> : <p className="text-sm text-black/40">Add supporting text.</p>}
+        {body ? <FormattedText text={body} align={textAlign} /> : <p className="text-sm text-black/40">Add supporting text.</p>}
       </div>
     );
 
@@ -436,11 +456,11 @@ function FlashcardDetails({ word, phonetic, audioSrc, meaning, examples, audioRe
   );
 }
 
-function FormattedText({ text }: { text: string }) {
+function FormattedText({ text, align = "text-left" }: { text: string; align?: string }) {
   const paragraphs = text.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
-  if (!paragraphs.length) return <p className="text-sm text-black/50">Add text.</p>;
+  if (!paragraphs.length) return <p className={`text-sm text-black/50 ${align}`}>Add text.</p>;
   return (
-    <div className="space-y-3 text-sm leading-7 text-black/70">
+    <div className={`space-y-3 text-sm leading-7 text-black/70 ${align}`}>
       {paragraphs.map((paragraph, index) => <p key={index}>{paragraph}</p>)}
     </div>
   );
