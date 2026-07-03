@@ -78,6 +78,7 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
           sample_answer: String(q.sample_answer ?? ""),
           min_words: Number(q.min_words ?? 0),
           required_words: requiredWords,
+          show_required_words: q.show_required_words !== false,
         } as Json,
         correct_answer: null,
       };

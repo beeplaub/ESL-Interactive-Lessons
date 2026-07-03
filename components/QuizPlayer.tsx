@@ -906,11 +906,12 @@ function ShortAnswer({
   submitted: boolean;
   onChange: (value: { text?: string; selfMarked?: boolean }) => void;
 }) {
-  const opts = asRecord(question.options) as { sample_answer?: string; min_words?: number; required_words?: string[] };
+  const opts = asRecord(question.options) as { sample_answer?: string; min_words?: number; required_words?: string[]; show_required_words?: boolean };
   const text = value?.text ?? "";
   const selfMarked = value?.selfMarked;
   const minWords = Number(opts.min_words ?? 0);
   const requiredWords = Array.isArray(opts.required_words) ? opts.required_words.filter(Boolean) : [];
+  const showRequiredWords = opts.show_required_words !== false;
   const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
   const lowerText = text.toLowerCase();
   const unmet = {
@@ -964,14 +965,14 @@ function ShortAnswer({
         placeholder="Write your answer..."
         className="w-full rounded-[14px] border border-[#ECECF5] bg-[#F6F7FB] px-3 py-3 text-sm font-semibold outline-none focus:border-[#6C3BFF] focus:bg-white"
       />
-      {minWords > 0 || requiredWords.length > 0 ? (
+      {minWords > 0 || (requiredWords.length > 0 && showRequiredWords) ? (
         <div className="flex flex-wrap items-center gap-3 text-xs">
           {minWords > 0 ? (
             <span className={wordCount >= minWords ? "text-[#00A977]" : "text-[#6E738D]"}>
               {wordCount} / {minWords} words
             </span>
           ) : null}
-          {requiredWords.length > 0 ? (
+          {requiredWords.length > 0 && showRequiredWords ? (
             <span className="flex flex-wrap items-center gap-1.5">
               <span className="text-[#6E738D]">Use:</span>
               {requiredWords.map((word) => (

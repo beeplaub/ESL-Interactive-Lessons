@@ -35,6 +35,7 @@ type ShortAnswerQuestion = {
   sampleAnswer: string;
   minWords: number | null;
   requiredWordsText: string;
+  showRequiredWords: boolean;
 };
 
 type DragDropItem = {
@@ -171,7 +172,8 @@ function normalizeShortAnswer(data: Json | null): { prompt: string; questions: S
         text: String(question.text ?? question.question_text ?? ""),
         sampleAnswer: String(question.sample_answer ?? ""),
         minWords: rawMinWords === null || rawMinWords === undefined || Number(rawMinWords) <= 0 ? null : Number(rawMinWords),
-        requiredWordsText: requiredWords.join(", ")
+        requiredWordsText: requiredWords.join(", "),
+        showRequiredWords: question.show_required_words !== false
       };
     })
   };
@@ -961,7 +963,7 @@ function ShortAnswerEditor({ activity, onSave }: { activity: Activity; onSave: (
   const initial = useMemo(() => normalizeShortAnswer(activity.activity_data), [activity.activity_data]);
   const [prompt, setPrompt] = useState(initial.prompt);
   const [questions, setQuestions] = useState<ShortAnswerQuestion[]>(
-    initial.questions.length ? initial.questions : [{ id: 1, text: "", sampleAnswer: "", minWords: null, requiredWordsText: "" }]
+    initial.questions.length ? initial.questions : [{ id: 1, text: "", sampleAnswer: "", minWords: null, requiredWordsText: "", showRequiredWords: true }]
   );
   const needsReview = questions.some((question) => !question.text.trim());
 
@@ -1018,13 +1020,22 @@ function ShortAnswerEditor({ activity, onSave }: { activity: Activity; onSave: (
                 className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
               />
             </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={question.showRequiredWords}
+                onChange={(event) => updateQuestion(index, { showRequiredWords: event.target.checked })}
+              />
+              Show required words to learners while they write
+            </label>
+            <p className="-mt-1 text-xs text-black/45">When off, required words still count toward correctness but aren&rsquo;t revealed as a hint.</p>
           </div>
         </div>
       ))}
       <div className="flex flex-wrap gap-3">
         <button
           type="button"
-          onClick={() => setQuestions((current) => [...current, { id: Date.now(), text: "", sampleAnswer: "", minWords: null, requiredWordsText: "" }])}
+          onClick={() => setQuestions((current) => [...current, { id: Date.now(), text: "", sampleAnswer: "", minWords: null, requiredWordsText: "", showRequiredWords: true }])}
           className="rounded-md border border-black/15 px-4 py-2 text-sm"
         >
           Add question
@@ -1036,7 +1047,8 @@ function ShortAnswerEditor({ activity, onSave }: { activity: Activity; onSave: (
             text: question.text,
             sample_answer: question.sampleAnswer,
             min_words: question.minWords,
-            required_words: question.requiredWordsText.split(",").map((w) => w.trim()).filter(Boolean)
+            required_words: question.requiredWordsText.split(",").map((w) => w.trim()).filter(Boolean),
+            show_required_words: question.showRequiredWords
           }))
         } as Json, needsReview)} />
       </div>

@@ -332,7 +332,7 @@ function defaultOptions(type: string) {
   if (type === "MATCHING") return { a_items: ["Word 1", "Word 2"], b_items: ["Meaning A", "Meaning B"] };
   if (type === "ERROR_CORRECTION") return { mode: "rewrite", text: "She go to school every day." };
   if (type === "REORDERING") return { level: "sentence", items: [{ id: "1", text: "First item" }, { id: "2", text: "Second item" }] };
-  if (type === "SHORT_ANSWER") return { sample_answer: "A good sample answer.", min_words: 10, required_words: [] };
+  if (type === "SHORT_ANSWER") return { sample_answer: "A good sample answer.", min_words: 10, required_words: [], show_required_words: true };
   if (type === "DRAG_DROP" || type === "CATEGORIZATION") return { targets: ["Group A", "Group B"], items: [{ id: "1", text: "Item 1" }, { id: "2", text: "Item 2" }] };
   if (type === "PRONUNCIATION") return { level: "word", passage: "", targets: [{ id: "1", text: "comfortable", color: "#fbbf24" }], max_attempts: 3 };
   return null;
