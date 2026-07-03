@@ -38,6 +38,29 @@ function verticalAlignClass(value: unknown) {
   return "justify-center";
 }
 
+function relativeLuminance(hex: string) {
+  const clean = hex.replace("#", "");
+  const r = parseInt(clean.substring(0, 2), 16) / 255;
+  const g = parseInt(clean.substring(2, 4), 16) / 255;
+  const b = parseInt(clean.substring(4, 6), 16) / 255;
+  const linear = (c: number) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+  return 0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b);
+}
+
+function contrastRatio(l1: number, l2: number) {
+  const lighter = Math.max(l1, l2);
+  const darker = Math.min(l1, l2);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+function readableTextColor(hex: unknown) {
+  const value = /^#[0-9a-fA-F]{6}$/.test(asString(hex)) ? asString(hex) : "#2563eb";
+  const backgroundLuminance = relativeLuminance(value);
+  const whiteContrast = contrastRatio(backgroundLuminance, 1);
+  const inkContrast = contrastRatio(backgroundLuminance, relativeLuminance("#111827"));
+  return whiteContrast >= inkContrast ? "#ffffff" : "#111827";
+}
+
 function isImageUrl(value: string) {
   return /^https?:\/\//i.test(value) || value.startsWith("/");
 }
@@ -370,7 +393,59 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
     return <FlashcardBlock content={content} />;
   }
 
+  if (block.block_type === "TABLE") {
+    return <TableBlock content={content} />;
+  }
+
   return null;
+}
+
+function TableBlock({ content }: { content: Record<string, unknown> }) {
+  const headers = asArray(content.headers).map((header) => asString(header));
+  const rows = asArray(content.rows).map((row) => asArray(row).map((cell) => asString(cell)));
+  const fill = /^#[0-9a-fA-F]{6}$/.test(asString(content.header_fill)) ? asString(content.header_fill) : "#2563eb";
+  const textColor = readableTextColor(fill);
+  const caption = asString(content.caption);
+
+  if (!headers.length) {
+    return <p className="text-sm text-black/40">Add table columns to get started.</p>;
+  }
+
+  return (
+    <div className="overflow-hidden rounded-lg border border-black/10 shadow-sm">
+      {caption ? <p className="border-b border-black/10 bg-slate-50 px-4 py-2 text-sm font-medium text-black/70">{caption}</p> : null}
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[420px] border-collapse text-sm">
+          <thead>
+            <tr style={{ backgroundColor: fill }}>
+              {headers.map((header, index) => (
+                <th key={index} className="whitespace-nowrap px-4 py-2.5 text-left font-semibold" style={{ color: textColor }}>
+                  {header || `Column ${index + 1}`}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length ? (
+              rows.map((row, rowIndex) => (
+                <tr key={rowIndex} className={rowIndex % 2 === 1 ? "bg-slate-50" : "bg-white"}>
+                  {headers.map((_, colIndex) => (
+                    <td key={colIndex} className="border-t border-black/10 px-4 py-2.5 align-top text-black/75">
+                      {row[colIndex] || ""}
+                    </td>
+                  ))}
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td className="border-t border-black/10 px-4 py-3 text-black/40" colSpan={headers.length}>No rows yet.</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 }
 
 function FlashcardBlock({ content }: { content: Record<string, unknown> }) {

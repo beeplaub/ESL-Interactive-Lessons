@@ -34,7 +34,7 @@ const blockTypes = [
   "HEADING", "TEXT", "BULLETS", "QUOTE", "CALLOUT",
   "IMAGE", "IMAGE_TEXT", "AUDIO", "VIDEO", "DIVIDER",
   "VOCABULARY", "GRAMMAR", "READING", "DIALOGUE",
-  "FLASHCARD"
+  "FLASHCARD", "TABLE"
 ] as const;
 
 const levelOptions = CONTENT_LEVELS;
@@ -778,13 +778,19 @@ function labelForBlockType(type: string) {
     AUDIO: "Audio", VIDEO: "Video", DIVIDER: "Divider",
     VOCABULARY: "Vocabulary list", GRAMMAR: "Grammar",
     READING: "Reading passage", DIALOGUE: "Dialogue",
-    FLASHCARD: "Flashcard",
+    FLASHCARD: "Flashcard", TABLE: "Table",
   };
   return labels[type] ?? type;
 }
 
 function blockSummary(block: LessonBlock) {
   const data = asRecord(block.content);
+  if (block.block_type === "TABLE") {
+    const colCount = Array.isArray(data.headers) ? data.headers.length : 0;
+    const rowCount = Array.isArray(data.rows) ? data.rows.length : 0;
+    const caption = asString(data.caption);
+    return caption || `${colCount} column${colCount === 1 ? "" : "s"} \u00d7 ${rowCount} row${rowCount === 1 ? "" : "s"}`;
+  }
   return asString(data.text ?? data.title ?? data.body ?? data.heading ?? data.path ?? data.src ?? data.url ?? data.word ?? data.prompt ?? "");
 }
 
@@ -798,6 +804,16 @@ const VERTICAL_ALIGN_OPTIONS = [
   { value: "top", label: "Align top", icon: AlignVerticalJustifyStart },
   { value: "middle", label: "Align middle", icon: AlignVerticalJustifyCenter },
   { value: "bottom", label: "Align bottom", icon: AlignVerticalJustifyEnd },
+];
+
+const TABLE_FILL_PRESETS = [
+  { value: "#2563eb", label: "Moss blue" },
+  { value: "#111827", label: "Ink" },
+  { value: "#06152f", label: "Midnight" },
+  { value: "#7c3aed", label: "Violet glow" },
+  { value: "#12b981", label: "Mint" },
+  { value: "#f97316", label: "Coral" },
+  { value: "#f59e0b", label: "Gold" },
 ];
 
 function AlignmentGroup({ label, name, value, options }: {
@@ -841,6 +857,17 @@ function BlockFields({ blockType, content, lessonId }: { blockType: string; cont
     audioPath: asString(card.audio_path), meaning: asString(card.meaning),
     examples: Array.isArray(card.examples) ? card.examples.map(String).join("\n") : ""
   })));
+  const [tableHeaders, setTableHeaders] = useState<string[]>(() =>
+    Array.isArray(data.headers) && data.headers.length ? data.headers.map(String) : ["Column 1", "Column 2"]
+  );
+  const [tableRows, setTableRows] = useState<string[][]>(() => {
+    const headers = Array.isArray(data.headers) && data.headers.length ? data.headers.map(String) : ["Column 1", "Column 2"];
+    const rows = Array.isArray(data.rows) ? data.rows : [];
+    return rows.length
+      ? rows.map((row) => headers.map((_, index) => asString(Array.isArray(row) ? row[index] : "")))
+      : [headers.map(() => ""), headers.map(() => "")];
+  });
+  const [tableHeaderFill, setTableHeaderFill] = useState(() => asString(data.header_fill) || "#2563eb");
 
   if (blockType === "HEADING") {
     return (
@@ -1013,6 +1040,93 @@ function BlockFields({ blockType, content, lessonId }: { blockType: string; cont
           ))}
           <button type="button" onClick={() => setFlashcards((c) => [...c, { imagePath: "", word: "", phonetic: "", audioPath: "", meaning: "", examples: "" }])} className="w-fit rounded-md border border-black/15 px-4 py-2 text-sm font-semibold hover:bg-black/5">Add card</button>
         </div>
+      </div>
+    );
+  }
+  if (blockType === "TABLE") {
+    const addColumn = () => {
+      setTableHeaders((headers) => [...headers, `Column ${headers.length + 1}`]);
+      setTableRows((rows) => rows.map((row) => [...row, ""]));
+    };
+    const removeColumn = (colIndex: number) => {
+      setTableHeaders((headers) => headers.filter((_, index) => index !== colIndex));
+      setTableRows((rows) => rows.map((row) => row.filter((_, index) => index !== colIndex)));
+    };
+    const addRow = () => setTableRows((rows) => [...rows, tableHeaders.map(() => "")]);
+    const removeRow = (rowIndex: number) => setTableRows((rows) => rows.filter((_, index) => index !== rowIndex));
+
+    return (
+      <div className="grid gap-3">
+        <label className="text-sm">Caption <span className="font-normal text-black/45">(optional)</span><input name="caption" defaultValue={asString(data.caption)} placeholder="e.g., Table 1: Irregular verbs" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+        <div className="text-sm">
+          Header color
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            {TABLE_FILL_PRESETS.map((preset) => (
+              <button key={preset.value} type="button" title={preset.label} onClick={() => setTableHeaderFill(preset.value)}
+                className={`size-7 rounded-full border-2 ${tableHeaderFill.toLowerCase() === preset.value ? "border-ink" : "border-transparent"}`}
+                style={{ backgroundColor: preset.value }} />
+            ))}
+            <label className="flex cursor-pointer items-center gap-1.5 text-xs text-black/50" title="Custom color">
+              <input type="color" value={tableHeaderFill} onChange={(event) => setTableHeaderFill(event.target.value)} className="size-7 cursor-pointer rounded border border-black/15 p-0.5" />
+              Custom
+            </label>
+          </div>
+          <p className="mt-1 text-xs text-black/40">Header text color is chosen automatically for readable contrast against whatever color you pick.</p>
+        </div>
+        <div className="text-sm">
+          Table content
+          <div className="mt-1 overflow-x-auto rounded-lg border border-black/10">
+            <table className="w-full min-w-[480px] border-collapse text-sm">
+              <thead>
+                <tr>
+                  {tableHeaders.map((header, colIndex) => (
+                    <th key={colIndex} className="border-b border-black/10 bg-slate-50 p-2 text-left">
+                      <div className="flex items-center gap-1">
+                        <input
+                          value={header}
+                          onChange={(event) => setTableHeaders((headers) => headers.map((value, index) => index === colIndex ? event.target.value : value))}
+                          placeholder={`Column ${colIndex + 1}`}
+                          className="w-full min-w-[110px] rounded border border-black/15 px-2 py-1 text-sm font-medium"
+                        />
+                        {tableHeaders.length > 1 ? (
+                          <button type="button" title="Remove column" onClick={() => removeColumn(colIndex)} className="shrink-0 text-black/30 hover:text-coral"><X size={14} /></button>
+                        ) : null}
+                      </div>
+                    </th>
+                  ))}
+                  <th className="border-b border-black/10 bg-slate-50 p-2">
+                    <button type="button" onClick={addColumn} className="flex items-center gap-1 whitespace-nowrap rounded-md border border-black/15 px-2 py-1 text-xs font-semibold hover:bg-black/5"><Plus size={13} /> Column</button>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {tableRows.map((row, rowIndex) => (
+                  <tr key={rowIndex}>
+                    {row.map((cell, colIndex) => (
+                      <td key={colIndex} className="border-b border-black/10 p-2">
+                        <input
+                          value={cell}
+                          onChange={(event) => setTableRows((rows) => rows.map((r, ri) => ri === rowIndex ? r.map((c, ci) => ci === colIndex ? event.target.value : c) : r))}
+                          className="w-full min-w-[110px] rounded border border-black/15 px-2 py-1 text-sm"
+                        />
+                      </td>
+                    ))}
+                    <td className="border-b border-black/10 p-2 text-center">
+                      <button type="button" title="Remove row" onClick={() => removeRow(rowIndex)} className="text-black/30 hover:text-coral"><X size={14} /></button>
+                    </td>
+                  </tr>
+                ))}
+                <tr>
+                  <td colSpan={tableHeaders.length + 1} className="p-2">
+                    <button type="button" onClick={addRow} className="flex items-center gap-1 rounded-md border border-black/15 px-3 py-1.5 text-xs font-semibold hover:bg-black/5"><Plus size={13} /> Row</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <input type="hidden" name="table_data" value={JSON.stringify({ headers: tableHeaders, rows: tableRows })} />
+        <input type="hidden" name="header_fill" value={tableHeaderFill} />
       </div>
     );
   }

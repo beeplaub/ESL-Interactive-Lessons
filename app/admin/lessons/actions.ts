@@ -62,7 +62,8 @@ const lessonBlockTypes = [
   "GRAMMAR",
   "READING",
   "DIALOGUE",
-  "FLASHCARD"
+  "FLASHCARD",
+  "TABLE"
 ] as const;
 
 const lessonBlockSchema = z.object({
@@ -126,6 +127,11 @@ function textAlignValue(value: unknown) {
 function verticalAlignValue(value: unknown) {
   const v = String(value ?? "middle");
   return v === "top" || v === "bottom" ? v : "middle";
+}
+
+function hexColorValue(value: unknown, fallback: string) {
+  const v = String(value ?? "");
+  return /^#[0-9a-fA-F]{6}$/.test(v) ? v : fallback;
 }
 
 function blockContentFromForm(blockType: string, formData: FormData): Json {
@@ -256,6 +262,29 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
       ...legacyCard
     };
   }
+  if (blockType === "TABLE") {
+    let parsed: { headers?: unknown; rows?: unknown } = {};
+    try {
+      parsed = JSON.parse(String(formData.get("table_data") || "{}"));
+    } catch {
+      parsed = {};
+    }
+    const rawHeaders = Array.isArray(parsed.headers) && parsed.headers.length ? parsed.headers : ["Column 1", "Column 2"];
+    const headers = rawHeaders.map((header, index) => String(header ?? "").trim() || `Column ${index + 1}`);
+    const rawRows = Array.isArray(parsed.rows) ? parsed.rows : [];
+    const rows = rawRows
+      .map((row) => {
+        const cells = Array.isArray(row) ? row : [];
+        return headers.map((_, index) => String(cells[index] ?? "").trim());
+      })
+      .filter((row) => row.some((cell) => cell.length > 0));
+    return {
+      caption: nullableText(formData.get("caption")),
+      headers,
+      rows,
+      header_fill: hexColorValue(formData.get("header_fill"), "#2563eb")
+    };
+  }
   return {};
 }
 
@@ -299,6 +328,12 @@ function defaultBlockContent(blockType: string): Json {
       meaning: "the ability to recover quickly from difficulties",
       examples: ["She showed great resilience during the crisis."]
     }]
+  };
+  if (blockType === "TABLE") return {
+    caption: null,
+    headers: ["Column 1", "Column 2"],
+    rows: [["", ""], ["", ""]],
+    header_fill: "#2563eb"
   };
   return {};
 }
