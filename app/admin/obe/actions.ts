@@ -327,6 +327,42 @@ export async function createLearningTarget(formData: FormData): Promise<ObeActio
   }
 }
 
+export async function createLearningSkill(formData: FormData): Promise<ObeActionResult> {
+  try {
+    await requireAdmin();
+    const name = text(formData.get("name"));
+    const parentId = text(formData.get("parentId")) || null;
+    const description = text(formData.get("description")) || null;
+    if (!name) throw new Error("Write a skill name.");
+    const admin = createAdminClient();
+    const slugBase = name.toLocaleLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "skill";
+    const slug = `${slugBase}-${Date.now().toString(36)}`;
+    const positionQuery = admin
+      .from("learning_skills")
+      .select("position")
+      .order("position", { ascending: false })
+      .limit(1);
+    const { data: existingPosition } = parentId
+      ? await positionQuery.eq("parent_id", parentId)
+      : await positionQuery.is("parent_id", null);
+    const position = Number(existingPosition?.[0]?.position ?? 0) + 1;
+    const { error } = await admin.from("learning_skills").insert({
+      parent_id: parentId,
+      slug,
+      name,
+      description,
+      position,
+      status: "ACTIVE",
+    });
+    if (error) throw error;
+    revalidatePath("/admin/obe");
+    return { success: true };
+  } catch (error) {
+    console.error("createLearningSkill failed", error);
+    return { success: false, error: message(error) };
+  }
+}
+
 export async function saveQuizQuestionCourseOutcomeMapping(
   courseId: string,
   courseItemId: string,

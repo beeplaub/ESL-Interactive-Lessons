@@ -1,6 +1,7 @@
 import { Plus, Target } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createLearningTarget } from "@/app/admin/obe/actions";
+import { createLearningSkill, createLearningTarget } from "@/app/admin/obe/actions";
+import { ObeActionForm } from "@/components/ObeActionForm";
 
 const targetTypes = [
   "VOCABULARY",
@@ -36,7 +37,7 @@ export default async function ObeAdminPage() {
         </div>
       </section>
 
-      <div className="grid gap-5 lg:grid-cols-[1fr_380px]">
+      <div className="grid gap-5 lg:grid-cols-[1fr_420px]">
         <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
           <div className="mb-4 flex items-center gap-2">
             <Target size={18} className="text-moss" />
@@ -70,12 +71,34 @@ export default async function ObeAdminPage() {
           <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
             <div className="mb-4 flex items-center gap-2">
               <Plus size={18} className="text-moss" />
+              <h2 className="text-lg font-semibold text-ink">Add skill or subskill</h2>
+            </div>
+            <ObeActionForm action={createLearningSkill} successMessage="Skill saved." className="grid gap-3">
+              <label className="text-sm font-medium text-black/65">
+                Parent skill
+                <select name="parentId" defaultValue="" className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2">
+                  <option value="">Top-level skill</option>
+                  {topSkills.map((skill) => <option key={skill.id} value={skill.id}>{skill.name}</option>)}
+                </select>
+              </label>
+              <label className="text-sm font-medium text-black/65">
+                Name
+                <input name="name" required placeholder="e.g. Listening for gist" className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2" />
+              </label>
+              <label className="text-sm font-medium text-black/65">
+                Description <span className="font-normal text-black/40">(optional)</span>
+                <textarea name="description" rows={2} placeholder="What this skill measures" className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2" />
+              </label>
+              <button className="rounded-lg bg-ink px-4 py-2 text-sm font-semibold text-white">Save skill</button>
+            </ObeActionForm>
+          </section>
+
+          <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
+            <div className="mb-4 flex items-center gap-2">
+              <Plus size={18} className="text-moss" />
               <h2 className="text-lg font-semibold text-ink">Add learning target</h2>
             </div>
-            <form action={async (formData) => {
-              "use server";
-              await createLearningTarget(formData);
-            }} className="grid gap-3">
+            <ObeActionForm action={createLearningTarget} successMessage="Learning target saved." className="grid gap-3">
               <label className="text-sm font-medium text-black/65">
                 Target type
                 <select name="targetType" defaultValue="VOCABULARY" className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2">
@@ -87,7 +110,7 @@ export default async function ObeAdminPage() {
                 <input name="label" placeholder="e.g. present perfect continuous" className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2" />
               </label>
               <button className="rounded-lg bg-moss px-4 py-2 text-sm font-semibold text-white">Save target</button>
-            </form>
+            </ObeActionForm>
           </section>
 
           <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm">

@@ -2,6 +2,7 @@
 
 import type { FormEvent, ReactNode } from "react";
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import type { ObeActionResult } from "@/app/admin/obe/actions";
 
 export function ObeActionForm({
@@ -20,6 +21,7 @@ export function ObeActionForm({
   const [message, setMessage] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [pending, startTransition] = useTransition();
+  const router = useRouter();
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -31,6 +33,9 @@ export function ObeActionForm({
       const result = await action(formData);
       setSuccess(result.success);
       setMessage(result.success ? successMessage : result.error ?? "Could not save.");
+      if (result.success) {
+        router.refresh();
+      }
     });
   }
 
@@ -47,4 +52,3 @@ export function ObeActionForm({
     </form>
   );
 }
-
