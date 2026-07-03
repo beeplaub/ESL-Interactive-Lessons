@@ -63,7 +63,10 @@ export function hasAnswer(question: QuizQuestion, value: unknown): boolean {
     if (!text) return false;
     const minWords = Number(opts.min_words ?? 0);
     if (minWords > 0 && text.split(/\s+/).filter(Boolean).length < minWords) return false;
-    const requiredWords = Array.isArray(opts.required_words) ? opts.required_words.map((w) => String(w).toLowerCase()) : [];
+    const showRequiredWords = opts.show_required_words !== false;
+    const requiredWords = showRequiredWords && Array.isArray(opts.required_words)
+      ? opts.required_words.map((w) => String(w).toLowerCase())
+      : [];
     if (requiredWords.length > 0) {
       const lowerText = text.toLowerCase();
       if (!requiredWords.every((word) => lowerText.includes(word))) return false;
@@ -916,7 +919,7 @@ function ShortAnswer({
   const lowerText = text.toLowerCase();
   const unmet = {
     lengthOk: minWords === 0 || wordCount >= minWords,
-    wordsOk: requiredWords.length === 0 || requiredWords.every((word) => lowerText.includes(word.toLowerCase()))
+    wordsOk: !showRequiredWords || requiredWords.length === 0 || requiredWords.every((word) => lowerText.includes(word.toLowerCase()))
   };
 
   if (submitted) {
