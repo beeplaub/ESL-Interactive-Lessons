@@ -216,7 +216,7 @@ export default async function AccountPage() {
               <PracticeTile href="/level-test" icon={Target} label="Level Test" sub="Check your CEFR level" tone="orange" />
               <PracticeTile href="#" icon={Type} label="Vocabulary" sub="Coming soon" tone="green" disabled />
               <PracticeTile href="#" icon={Mic} label="Pronunciation" sub="Coming soon" tone="purple" disabled />
-              <PracticeTile href="#" icon={Grid3X3} label="All Activities" sub="Practice modes" tone="gray" disabled />
+              <PracticeTile href="/language-profile" icon={Grid3X3} label="Language Profile" sub="Your skill map" tone="gray" />
             </div>
           </DashboardCard>
 

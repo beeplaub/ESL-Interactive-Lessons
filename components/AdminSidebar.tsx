@@ -12,6 +12,7 @@ import {
   GraduationCap,
   Library,
   LogOut,
+  Target,
   UsersRound,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -23,6 +24,7 @@ const links = [
   { href: "/admin/organizations", label: "Organizations", Icon: Building2 },
   { href: "/admin/courses", label: "Courses", Icon: GraduationCap },
   { href: "/admin/content-library", label: "Content Library", Icon: Library },
+  { href: "/admin/obe", label: "Outcomes", Icon: Target },
   { href: "/admin/lessons", label: "Lessons", Icon: BookOpen },
   { href: "/admin/quizzes", label: "Quizzes", Icon: ClipboardList },
   { href: "/admin/users", label: "Users", Icon: UsersRound },

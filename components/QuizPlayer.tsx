@@ -332,7 +332,7 @@ export function QuizPlayer({
         setMessage(error instanceof Error ? error.message : "Could not save quiz attempt.");
       }
     });
-  }, [answers, isGuest, questions, quizId, submitted]);
+  }, [answers, courseItemId, isGuest, questions, quizId, submitted]);
 
   useEffect(() => {
     if (!timerMinutes || submitted) return;

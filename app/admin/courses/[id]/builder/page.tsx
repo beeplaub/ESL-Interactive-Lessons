@@ -4,6 +4,7 @@ import {
   ArrowDown,
   ArrowLeft,
   ArrowUp,
+  BarChart3,
   Eye,
   Image as ImageIcon,
   Library,
@@ -94,8 +95,9 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
     ? await admin.from("assessment_items").select("id,quiz_question_id").in("quiz_question_id", courseQuizQuestionIds)
     : { data: [] };
   const courseQuizAssessmentIds = (courseQuizAssessmentItems ?? []).map((item) => item.id);
+  const quizCourseItemIds = quizItemRows.map((item) => item.id);
   const { data: quizOutcomeMappings } = courseQuizAssessmentIds.length
-    ? await admin.from("assessment_item_course_outcomes").select("*").in("assessment_item_id", courseQuizAssessmentIds).eq("course_item_id", courseItems.map((item) => item.id))
+    ? await admin.from("assessment_item_course_outcomes").select("*").in("assessment_item_id", courseQuizAssessmentIds).in("course_item_id", quizCourseItemIds)
     : { data: [] };
   const lessonOptions = (lessons ?? []) as LessonOption[];
   const quizOptions = (quizzes ?? []) as QuizOption[];
@@ -244,6 +246,9 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
           <div className="flex flex-wrap gap-2">
             <Link href="/admin/content-library?type=COURSE_TEMPLATE" className="inline-flex items-center gap-2 rounded-lg border border-black/15 px-3 py-2 text-sm font-semibold">
               <Library size={15} /> Library
+            </Link>
+            <Link href={`/admin/courses/${course.id}/outcomes`} className="inline-flex items-center gap-2 rounded-lg border border-black/15 px-3 py-2 text-sm font-semibold">
+              <BarChart3 size={15} /> Outcomes
             </Link>
             {course.status === "PUBLISHED" ? (
               <form action={setCourseStatus.bind(null, course.id, "DRAFT")}>

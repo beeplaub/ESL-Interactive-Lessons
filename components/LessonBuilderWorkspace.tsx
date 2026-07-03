@@ -25,9 +25,12 @@ import {
 import { InLessonActivitiesEditor } from "@/components/InLessonActivitiesEditor";
 import { LessonActivityPanel } from "@/components/LessonActivityPanel";
 import { LessonBlockPreview } from "@/components/LessonBlockPreview";
+import { LessonAssessmentMetadataEditor } from "@/components/AssessmentMetadataEditor";
+import { LessonOutcomeManager } from "@/components/LessonOutcomeManager";
 import { SlideNarrationRecorder } from "@/components/SlideNarrationRecorder";
 import { BlockMediaUploader } from "@/components/BlockMediaUploader";
 import { CONTENT_LEVELS } from "@/lib/levels";
+import type { LessonOutcome } from "@/types/obe.types";
 import type { Json } from "@/types/database.types";
 
 const blockTypes = [
@@ -63,7 +66,41 @@ type Activity = {
   slides?: { title?: string | null; slide_number?: number | null } | null;
 };
 
-type Props = { lesson: Lesson; slides: Slide[]; blocks: LessonBlock[]; activities: Activity[] };
+type ObeData = {
+  lessonOutcomes: LessonOutcome[];
+  courses: Array<{ id: string; title: string; status: string }>;
+  courseSections: Array<{ id: string; course_id: string; title: string; position: number }>;
+  placements: Array<{
+    id: string;
+    course_id: string;
+    section_id: string | null;
+    position: number;
+    assessment_weight: number;
+    courses?: { title?: string | null } | null;
+    course_sections?: { title?: string | null } | null;
+  }>;
+  courseOutcomes: Array<{ id: string; course_id: string; code: string; outcome: string }>;
+  outcomeMappings: Array<{
+    course_item_id: string;
+    lesson_outcome_id: string;
+    course_outcome_id: string;
+    contribution_weight: number;
+  }>;
+  skills: Array<{ id: string; parent_id: string | null; name: string; slug: string }>;
+  learningTargets: Array<{ id: string; target_type: string; label: string }>;
+  assessmentItems: Array<{
+    id: string;
+    lesson_activity_id: string | null;
+    source_item_key: string;
+    lesson_outcome_id: string | null;
+    max_points: number;
+    analytical_weight: number;
+  }>;
+  assessmentSkills: Array<{ assessment_item_id: string; skill_id: string; is_primary: boolean }>;
+  assessmentTargets: Array<{ assessment_item_id: string; learning_target_id: string }>;
+};
+
+type Props = { lesson: Lesson; slides: Slide[]; blocks: LessonBlock[]; activities: Activity[]; obe?: ObeData };
 
 function asRecord(value: Json | null | undefined): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -74,20 +111,6 @@ function asString(value: unknown) { return typeof value === "string" ? value : "
 
 function lines(value: unknown) {
   return Array.isArray(value) ? value.map((item) => String(item)).join("\n") : "";
-}
-
-function parseOutcomes(description: string | null) {
-  if (!description) return [""];
-  try {
-    const parsed = JSON.parse(description) as { outcomes?: unknown };
-    if (Array.isArray(parsed.outcomes)) {
-      const values = parsed.outcomes.map(String);
-      return values.length ? values : [""];
-    }
-  } catch {
-    return description.split(/\r?\n/).map((line) => line.replace(/^[-•]\s*/, "").trim()).filter(Boolean);
-  }
-  return [""];
 }
 
 function renumberSlides(slides: Slide[]) {
@@ -202,7 +225,7 @@ function DuplicateSlideModal({
   );
 }
 
-export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: Props) {
+export function LessonBuilderWorkspace({ lesson, slides, blocks, activities, obe }: Props) {
   const [localSlides, setLocalSlides] = useState(slides);
   const [selectedSlideId, setSelectedSlideId] = useState(() => {
     if (typeof window === "undefined") return slides[0]?.id ?? "";
@@ -357,7 +380,7 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
               </div>
               <button type="button" onClick={() => setIsMetadataOpen(false)} className="rounded-md border border-black/10 p-2 hover:bg-black/5"><X size={18} /></button>
             </div>
-            <MetadataForm lesson={lesson} />
+            <MetadataForm lesson={lesson} obe={obe} />
           </div>
         </div>
       )}
@@ -475,6 +498,7 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
               onDuplicateSlide={setDuplicateSlide}
               onMoveSlide={optimisticMoveSlide}
               onDeleteSlide={optimisticDeleteSlide}
+              obe={obe}
             />
           ) : (
             <div className="rounded-lg border border-dashed border-black/15 p-8 text-center text-sm text-black/50">Select or add a slide to edit.</div>
@@ -485,38 +509,47 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities }: P
   );
 }
 
-function MetadataForm({ lesson }: { lesson: Lesson }) {
+function MetadataForm({ lesson, obe }: { lesson: Lesson; obe?: ObeData }) {
   return (
-    <form action={updateLessonBuilderDetails.bind(null, lesson.id)} data-busy-message="Saving lesson settings..." className="mt-5 grid gap-4">
-      <div className="grid gap-4 sm:grid-cols-2">
-        <label className="text-sm">Title<input name="title" defaultValue={lesson.title} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
-        <label className="text-sm">Subtitle<input name="subtitle" defaultValue={lesson.subtitle ?? ""} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
-        <div className="text-sm sm:col-span-2">
-          <span className="font-medium">After this lesson, learners will be able to:</span>
-          <textarea name="outcomes" rows={5} defaultValue={parseOutcomes(lesson.description).join("\n")} placeholder="Use five new vocabulary words&#10;Explain the main idea of a short text" className="mt-2 w-full rounded-md border border-black/15 px-3 py-2" />
-          <span className="mt-1 block text-xs text-black/45">One outcome per line.</span>
+    <>
+      <form action={updateLessonBuilderDetails.bind(null, lesson.id)} data-busy-message="Saving lesson settings..." className="mt-5 grid gap-4">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="text-sm">Title<input name="title" defaultValue={lesson.title} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+          <label className="text-sm">Subtitle<input name="subtitle" defaultValue={lesson.subtitle ?? ""} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+          <label className="text-sm">Topic<input name="topic" defaultValue={lesson.topic} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+          <label className="text-sm">Category<input name="category" defaultValue={lesson.category ?? ""} placeholder="Grammar, Speaking, Exam prep" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+          <label className="text-sm">CEFR level<select name="level" defaultValue={lesson.level} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">{levelOptions.map((l) => <option key={l}>{l}</option>)}</select></label>
+          <label className="text-sm">Status<select name="status" defaultValue={lesson.status} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"><option value="DRAFT">Draft</option><option value="PUBLISHED">Published</option></select></label>
+          <label className="text-sm">Class duration (minutes)<input name="durationMinutes" type="number" min="1" defaultValue={lesson.duration_minutes ?? ""} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+          <label className="text-sm">Estimated completion (minutes)<input name="estimatedCompletionMinutes" type="number" min="1" defaultValue={lesson.estimated_completion_minutes ?? ""} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+          <label className="text-sm">Attempt timer (minutes)<input name="timerMinutes" type="number" min="1" defaultValue={lesson.timer_minutes ?? ""} placeholder="Untimed" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
         </div>
-        <label className="text-sm">Topic<input name="topic" defaultValue={lesson.topic} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
-        <label className="text-sm">Category<input name="category" defaultValue={lesson.category ?? ""} placeholder="Grammar, Speaking, Exam prep" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
-        <label className="text-sm">CEFR level<select name="level" defaultValue={lesson.level} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">{levelOptions.map((l) => <option key={l}>{l}</option>)}</select></label>
-        <label className="text-sm">Status<select name="status" defaultValue={lesson.status} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"><option value="DRAFT">Draft</option><option value="PUBLISHED">Published</option></select></label>
-        <label className="text-sm">Class duration (minutes)<input name="durationMinutes" type="number" min="1" defaultValue={lesson.duration_minutes ?? ""} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
-        <label className="text-sm">Estimated completion (minutes)<input name="estimatedCompletionMinutes" type="number" min="1" defaultValue={lesson.estimated_completion_minutes ?? ""} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
-        <label className="text-sm">Attempt timer (minutes)<input name="timerMinutes" type="number" min="1" defaultValue={lesson.timer_minutes ?? ""} placeholder="Untimed" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
-      </div>
-      <SubmitButton label="Save settings" />
-    </form>
+        <SubmitButton label="Save settings" />
+      </form>
+      {obe ? (
+        <LessonOutcomeManager
+          lessonId={lesson.id}
+          outcomes={obe.lessonOutcomes}
+          courses={obe.courses}
+          sections={obe.courseSections}
+          placements={obe.placements}
+          courseOutcomes={obe.courseOutcomes}
+          mappings={obe.outcomeMappings}
+        />
+      ) : null}
+    </>
   );
 }
 
 function SelectedSlideEditor({
-  lessonId, slide, slideIndex, slideCount, slides, blocks, activities, slideActivities, onDuplicateSlide, onMoveSlide, onDeleteSlide
+  lessonId, slide, slideIndex, slideCount, slides, blocks, activities, slideActivities, onDuplicateSlide, onMoveSlide, onDeleteSlide, obe
 }: {
   lessonId: string; slide: Slide; slideIndex: number; slideCount: number; slides: Slide[];
   blocks: LessonBlock[]; activities: Activity[]; slideActivities: Activity[];
   onDuplicateSlide: (slide: Slide) => void;
   onMoveSlide: (slideId: string, direction: -1 | 1) => void;
   onDeleteSlide: (slideId: string) => void;
+  obe?: ObeData;
 }) {
   const [openBlockId, setOpenBlockId] = useState<string | null>(null);
   const [isActivityBankOpen, setIsActivityBankOpen] = useState(false);
@@ -620,7 +653,20 @@ function SelectedSlideEditor({
             <div className="rounded-lg border border-dashed border-black/15 p-4 text-center text-sm text-black/50">No activity on this slide yet.</div>
           )}
           {slideActivities.map((activity) => (
-            <ActivityMoveCopyControls key={activity.id} lessonId={lessonId} activity={activity} currentSlide={slide} slides={slides} activities={activities} />
+            <div key={activity.id} className="grid gap-3">
+              <ActivityMoveCopyControls lessonId={lessonId} activity={activity} currentSlide={slide} slides={slides} activities={activities} />
+              {obe ? (
+                <LessonAssessmentMetadataEditor
+                  activity={{ id: activity.id, activity_type: activity.activity_type, activity_data: activity.activity_data }}
+                  lessonOutcomes={obe.lessonOutcomes}
+                  skills={obe.skills}
+                  targets={obe.learningTargets}
+                  metadata={obe.assessmentItems}
+                  metadataSkills={obe.assessmentSkills}
+                  metadataTargets={obe.assessmentTargets}
+                />
+              ) : null}
+            </div>
           ))}
           <form action={addLessonSlideActivity.bind(null, lessonId, slide.id, slide.slide_number)} data-busy-message="Adding activity..." className="grid gap-3 rounded-lg border border-dashed border-black/15 p-3">
             <label className="text-sm">

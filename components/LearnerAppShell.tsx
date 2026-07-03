@@ -28,7 +28,7 @@ const levelNames: Record<string, string> = {
   C2: "Mastery"
 };
 
-type ActiveItem = "home" | "quizzes" | "courses" | "level-test" | "leaderboard" | "profile";
+type ActiveItem = "home" | "quizzes" | "courses" | "level-test" | "leaderboard" | "language-profile" | "profile";
 
 export async function LearnerAppShell({ active, children, contentClassName = "flex flex-col gap-5" }: { active: ActiveItem; children: React.ReactNode; contentClassName?: string }) {
   const supabase = await createClient();
@@ -62,6 +62,7 @@ function LearnerSidebar({ active, currentLevel }: { active: ActiveItem; currentL
     { href: "/quizzes", label: "Quizzes", icon: HelpCircle, key: "quizzes" },
     { href: "/courses", label: "Courses", icon: GraduationCap, key: "courses" },
     { href: "/level-test", label: "Level Test", icon: Target, key: "level-test" },
+    { href: "/language-profile", label: "Language Profile", icon: BarChart2, key: "language-profile" },
     { href: "/leaderboard", label: "Leaderboard", icon: BarChart2, key: "leaderboard" },
     { href: "#", label: "Community", icon: Users, key: "community", disabled: true, badge: "NEW" }
   ];
@@ -144,6 +145,7 @@ function MobileTopbar({ active, initials, isLoggedIn }: { active: ActiveItem; in
               <MobileDrawerLink href="/quizzes" label="Quizzes" icon={HelpCircle} active={active === "quizzes"} />
               <MobileDrawerLink href="/courses" label="Courses" icon={GraduationCap} active={active === "courses"} />
               <MobileDrawerLink href="/level-test" label="Level Test" icon={Target} active={active === "level-test"} />
+              <MobileDrawerLink href="/language-profile" label="Language Profile" icon={BarChart2} active={active === "language-profile"} />
               <MobileDrawerLink href="/leaderboard" label="Leaderboard" icon={Trophy} active={active === "leaderboard"} />
               <MobileDrawerLink href={isLoggedIn ? "/profile" : "/login"} label={isLoggedIn ? "Profile" : "My Account"} icon={User} active={active === "profile"} />
               {isLoggedIn ? (

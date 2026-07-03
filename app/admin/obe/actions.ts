@@ -14,11 +14,6 @@ function text(value: FormDataEntryValue | null) {
   return String(value ?? "").trim();
 }
 
-function nullableNumber(value: FormDataEntryValue | null) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
 export async function saveCourseAssessmentPolicy(courseId: string, formData: FormData): Promise<ObeActionResult> {
   try {
     await requireAdmin();
@@ -324,6 +319,7 @@ export async function createLearningTarget(formData: FormData): Promise<ObeActio
       updated_at: new Date().toISOString(),
     }, { onConflict: "target_type,normalized_label" }).select("id").single();
     if (error || !data) throw error ?? new Error("Learning target was not saved.");
+    revalidatePath("/admin/obe");
     return { success: true, id: data.id };
   } catch (error) {
     console.error("createLearningTarget failed", error);
