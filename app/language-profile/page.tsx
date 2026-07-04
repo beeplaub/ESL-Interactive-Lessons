@@ -24,15 +24,15 @@ export default async function LanguageProfilePage() {
   const admin = createAdminClient();
   const { data: attempts } = await admin
     .from("assessment_attempts")
-    .select("id,user_id,course_item_id,submitted_at")
+    .select("id,user_id,course_item_id,completed_at")
     .eq("user_id", user.id)
-    .order("submitted_at", { ascending: false });
+    .order("completed_at", { ascending: false });
   const attemptIds = (attempts ?? []).map((attempt) => attempt.id);
   const { data: responses } = attemptIds.length
     ? await admin
         .from("assessment_responses")
-        .select("id,assessment_attempt_id,assessment_item_id,earned_points,max_points,is_correct,submitted_at")
-        .in("assessment_attempt_id", attemptIds)
+        .select("id,attempt_id,assessment_item_id,earned_points,maximum_points,is_correct,submitted_at")
+        .in("attempt_id", attemptIds)
         .order("submitted_at", { ascending: false })
     : { data: [] };
   const assessmentItemIds = Array.from(new Set((responses ?? []).map((response) => response.assessment_item_id)));
@@ -58,7 +58,7 @@ export default async function LanguageProfilePage() {
     itemTargets: itemTargets ?? [],
   }).sort((a, b) => b.confidence - a.confidence);
   const totalEarned = (responses ?? []).reduce((sum, response) => sum + Number(response.earned_points || 0), 0);
-  const totalPossible = (responses ?? []).reduce((sum, response) => sum + Number(response.max_points || 0), 0);
+  const totalPossible = (responses ?? []).reduce((sum, response) => sum + Number(response.maximum_points || 0), 0);
   const overall = totalPossible ? (totalEarned / totalPossible) * 100 : 0;
 
   return (

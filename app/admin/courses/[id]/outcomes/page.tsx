@@ -19,7 +19,7 @@ export default async function CourseOutcomeReportPage({ params }: { params: Prom
   if (!course) notFound();
 
   const itemIds = (items ?? []).map((item) => item.id);
-  const { data: mappings } = itemIds.length
+  const { data: directMappings } = itemIds.length
     ? await admin
         .from("assessment_item_course_outcomes")
         .select("assessment_item_id,course_item_id,course_outcome_id,contribution_weight")
@@ -28,20 +28,52 @@ export default async function CourseOutcomeReportPage({ params }: { params: Prom
   const { data: attempts } = itemIds.length
     ? await admin
         .from("assessment_attempts")
-        .select("id,user_id,course_item_id,submitted_at")
+        .select("id,user_id,course_item_id,completed_at")
         .in("course_item_id", itemIds)
     : { data: [] };
   const attemptIds = (attempts ?? []).map((attempt) => attempt.id);
   const { data: responses } = attemptIds.length
     ? await admin
         .from("assessment_responses")
-        .select("id,assessment_attempt_id,assessment_item_id,earned_points,max_points,is_correct,submitted_at")
-        .in("assessment_attempt_id", attemptIds)
+        .select("id,attempt_id,assessment_item_id,earned_points,maximum_points,is_correct,submitted_at")
+        .in("attempt_id", attemptIds)
     : { data: [] };
+  const responseAssessmentIds = Array.from(new Set((responses ?? []).map((response) => response.assessment_item_id)));
+  const { data: responseAssessmentItems } = responseAssessmentIds.length
+    ? await admin
+        .from("assessment_items")
+        .select("id,lesson_outcome_id")
+        .in("id", responseAssessmentIds)
+    : { data: [] };
+  const { data: lessonOutcomeMappings } = itemIds.length
+    ? await admin
+        .from("course_lesson_outcome_mappings")
+        .select("course_item_id,lesson_outcome_id,course_outcome_id,contribution_weight")
+        .in("course_item_id", itemIds)
+    : { data: [] };
+  const lessonOutcomeByAssessmentItem = new Map((responseAssessmentItems ?? []).map((item) => [item.id, item.lesson_outcome_id]));
+  const derivedLessonMappings = (responses ?? []).flatMap((response) => {
+    const attempt = (attempts ?? []).find((candidate) => candidate.id === response.attempt_id);
+    if (!attempt?.course_item_id) return [];
+    const lessonOutcomeId = lessonOutcomeByAssessmentItem.get(response.assessment_item_id);
+    if (!lessonOutcomeId) return [];
+    return (lessonOutcomeMappings ?? [])
+      .filter((mapping) => mapping.course_item_id === attempt.course_item_id && mapping.lesson_outcome_id === lessonOutcomeId)
+      .map((mapping) => ({
+        assessment_item_id: response.assessment_item_id,
+        course_item_id: mapping.course_item_id,
+        course_outcome_id: mapping.course_outcome_id,
+        contribution_weight: mapping.contribution_weight,
+      }));
+  });
+  const mappings = [
+    ...(directMappings ?? []),
+    ...derivedLessonMappings,
+  ];
 
   const rows = calculateCourseOutcomeRows({
     outcomes: outcomes ?? [],
-    mappings: mappings ?? [],
+    mappings,
     responses: responses ?? [],
     attempts: attempts ?? [],
     defaultThreshold: course.mastery_threshold ?? 70,

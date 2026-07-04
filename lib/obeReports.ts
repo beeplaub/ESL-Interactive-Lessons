@@ -3,10 +3,10 @@ import { calculateAttainment, calculateLanguageConfidence, confidenceBand } from
 
 export type ResponseEvidence = {
   id: string;
-  assessment_attempt_id: string;
+  attempt_id: string;
   assessment_item_id: string;
   earned_points: number;
-  max_points: number;
+  maximum_points: number;
   is_correct: boolean | null;
   submitted_at: string;
 };
@@ -15,7 +15,7 @@ export type AttemptEvidence = {
   id: string;
   user_id: string;
   course_item_id: string | null;
-  submitted_at: string;
+  completed_at: string;
 };
 
 export type OutcomeMappingEvidence = {
@@ -29,7 +29,7 @@ export function latestResponsesByItem(responses: ResponseEvidence[], attempts: A
   const attemptById = new Map(attempts.map((attempt) => [attempt.id, attempt]));
   const latest = new Map<string, ResponseEvidence>();
   for (const response of responses) {
-    const attempt = attemptById.get(response.assessment_attempt_id);
+    const attempt = attemptById.get(response.attempt_id);
     const key = attempt?.course_item_id
       ? `${response.assessment_item_id}:${attempt.course_item_id}`
       : response.assessment_item_id;
@@ -71,7 +71,7 @@ export function calculateCourseOutcomeRows({
       if (!response) return [];
       return [{
         earnedPoints: response.earned_points,
-        maximumPoints: response.max_points,
+        maximumPoints: response.maximum_points,
         analyticalWeight: mapping.contribution_weight,
         courseItemWeight: 1,
         completedAt: response.submitted_at,
@@ -112,7 +112,7 @@ export function summarizeSkillEvidence({
       .slice(0, 5)
       .map((response) => ({
         earnedPoints: response.earned_points,
-        maximumPoints: response.max_points,
+        maximumPoints: response.maximum_points,
         completedAt: response.submitted_at,
       }));
     const confidence = calculateLanguageConfidence(recent);
@@ -144,7 +144,7 @@ export function summarizeTargetEvidence({
       .slice(0, 5)
       .map((response) => ({
         earnedPoints: response.earned_points,
-        maximumPoints: response.max_points,
+        maximumPoints: response.maximum_points,
         completedAt: response.submitted_at,
       }));
     const confidence = calculateLanguageConfidence(recent);
