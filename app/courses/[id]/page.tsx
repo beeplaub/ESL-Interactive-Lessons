@@ -7,6 +7,7 @@ import {
   ChevronDown,
   ChevronRight,
   Clock3,
+  Eye,
   GraduationCap,
   Home,
   Layers,
@@ -23,6 +24,7 @@ import { LearnerAppShell } from "@/components/LearnerAppShell";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { enrollInCourse } from "@/app/courses/actions";
+import { getFreshProfile } from "@/lib/auth";
 
 type CourseItemView = {
   id: string;
@@ -45,6 +47,16 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
   const supabase = await createClient();
   const admin = createAdminClient();
   const { data: { user } } = await supabase.auth.getUser();
+  const profile = user ? await getFreshProfile(user.id) : null;
+  // Admins can open this page as a draft preview straight from the course
+  // builder, even before the course is published. Everyone else only ever
+  // sees published courses here.
+  const isAdminPreview = profile?.role === "ADMIN";
+
+  let courseQuery = admin.from("courses").select("*").eq("id", id).is("deleted_at", null);
+  if (!isAdminPreview) {
+    courseQuery = courseQuery.eq("status", "PUBLISHED");
+  }
 
   const [
     { data: course },
@@ -56,7 +68,7 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
     { data: progress },
     { data: itemProgress }
   ] = await Promise.all([
-    admin.from("courses").select("*").eq("id", id).eq("status", "PUBLISHED").is("deleted_at", null).maybeSingle(),
+    courseQuery.maybeSingle(),
     admin.from("course_outcomes").select("*").eq("course_id", id).order("position", { ascending: true }),
     admin.from("course_sections").select("*").eq("course_id", id).order("position", { ascending: true }),
     admin.from("course_items").select("*, lessons(title,level), quizzes(title,level)").eq("course_id", id).order("position", { ascending: true }),
@@ -258,6 +270,11 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
   return (
     <LearnerAppShell active="courses">
         <section className="flex min-w-0 flex-col gap-5">
+          {isAdminPreview && course.status !== "PUBLISHED" ? (
+            <div className="flex items-center gap-2 rounded-[14px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
+              <Eye className="size-4 shrink-0" /> Draft preview — this course is unpublished and only visible to you as an admin.
+            </div>
+          ) : null}
           <header className="hidden items-center justify-between gap-4 min-[861px]:flex">
             <div className="flex items-center gap-2 text-sm font-semibold text-[#6E738D]">
               <Link href="/account" className="grid size-9 place-items-center rounded-xl border border-[#ECECF5] bg-white text-[#6E738D] shadow-[0_2px_8px_rgba(0,0,0,.04)]"><Home className="size-4" /></Link>

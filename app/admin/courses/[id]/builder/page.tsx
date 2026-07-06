@@ -259,7 +259,12 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
                 <button className="rounded-lg bg-moss px-3 py-2 text-sm font-semibold text-white">Publish</button>
               </form>
             )}
-            <Link href={`/courses/${course.id}`} className="inline-flex items-center gap-2 rounded-lg border border-black/15 px-3 py-2 text-sm font-semibold">
+            <Link
+              href={`/courses/${course.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-lg border border-black/15 px-3 py-2 text-sm font-semibold"
+            >
               <Eye size={15} /> Preview
             </Link>
           </div>
