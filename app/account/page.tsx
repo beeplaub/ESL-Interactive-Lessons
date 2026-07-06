@@ -4,7 +4,6 @@ import {
   Award,
   Book,
   BookOpen,
-  Briefcase,
   ChevronRight,
   ClipboardList,
   Flag,
@@ -13,40 +12,17 @@ import {
   Headphones,
   Heart,
   HelpCircle,
-  LogOut,
   Mic,
-  Pencil,
   Play,
   Target,
   TrendingUp,
   Type,
 } from "lucide-react";
-import { signOut, switchToAdminView } from "@/app/auth/actions";
+import { switchToAdminView } from "@/app/auth/actions";
 import { requireUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { LearnerAppShell } from "@/components/LearnerAppShell";
 import { PendingAttemptSaver } from "@/components/PendingAttemptSaver";
-import { getNextQuizBadge, getQuizBadge } from "@/lib/quizBadges";
-
-function toDateKey(date: Date) {
-  return date.toISOString().slice(0, 10);
-}
-
-function calcStreak(dates: string[]): number {
-  if (!dates.length) return 0;
-  const unique = Array.from(new Set(dates)).sort().reverse();
-  const today = toDateKey(new Date());
-  const yesterday = toDateKey(new Date(Date.now() - 86400000));
-  if (unique[0] !== today && unique[0] !== yesterday) return 0;
-  let streak = 1;
-  for (let i = 1; i < unique.length; i++) {
-    const prev = new Date(unique[i - 1]);
-    const curr = new Date(unique[i]);
-    if (Math.round((prev.getTime() - curr.getTime()) / 86400000) === 1) streak++;
-    else break;
-  }
-  return streak;
-}
 
 const levelNames: Record<string, string> = {
   A1: "Beginner",
@@ -68,29 +44,20 @@ export default async function AccountPage() {
     { data: wishlistItems },
     { data: lessonProgress },
     { data: savedLessons },
-    { data: leaderboardPoints },
     { data: courseEnrollments },
     { data: courseProgress },
-    { data: classMemberships },
     { data: certificates }
   ] = await Promise.all([
     adminSupabase.from("quiz_attempts").select("*, quizzes(title, level)").eq("user_id", user.id).not("quiz_id", "is", null).order("completed_at", { ascending: false }),
     adminSupabase.from("wishlist_items").select("*, quizzes(title, topic, level)").eq("user_id", user.id).not("quiz_id", "is", null).order("created_at", { ascending: false }),
     adminSupabase.from("lesson_progress").select("*, lessons(title, topic, level)").eq("user_id", user.id).order("updated_at", { ascending: false }),
     adminSupabase.from("wishlist_items").select("*, lessons(title, topic, level)").eq("user_id", user.id).not("lesson_id", "is", null).order("created_at", { ascending: false }),
-    adminSupabase.from("quiz_leaderboard_points").select("points").eq("user_id", user.id),
     adminSupabase.from("course_enrollments").select("*, courses(title, level, topic)").eq("user_id", user.id).order("enrolled_at", { ascending: false }),
     adminSupabase.from("course_progress").select("*").eq("user_id", user.id),
-    adminSupabase.from("class_members").select("*, classes(name, class_assignments(*, courses(title), lessons(title), quizzes(title)))").eq("user_id", user.id),
     adminSupabase.from("course_certificates").select("*, courses(title, level)").eq("user_id", user.id).order("issued_at", { ascending: false })
   ]);
 
-  const activityDates = (quizAttempts ?? []).filter((a) => a.completed_at).map((a) => toDateKey(new Date(a.completed_at)));
-  const streak = calcStreak(activityDates);
   const firstName = profile?.first_name?.trim() || profile?.full_name?.split(" ")?.[0]?.trim() || "there";
-  const totalQuizPoints = (leaderboardPoints ?? []).reduce((sum, row) => sum + Number(row.points ?? 0), 0);
-  const currentBadge = getQuizBadge(totalQuizPoints);
-  const nextBadge = getNextQuizBadge(totalQuizPoints);
   const currentLevel = profile?.cefr_level ?? "B1";
   const levelSteps = ["A1", "A2", "B1", "B2", "C1", "C2"];
   const activeLevelIndex = Math.max(0, levelSteps.indexOf(currentLevel));
@@ -118,27 +85,10 @@ export default async function AccountPage() {
       tone: index + 2
     }))
   ].slice(0, 4);
-  type AccountAssignment = {
-    id: string;
-    item_type: string;
-    course_id: string | null;
-    lesson_id: string | null;
-    quiz_id: string | null;
-    title: string | null;
-    due_at: string | null;
-    courses?: { title?: string | null } | null;
-    lessons?: { title?: string | null } | null;
-    quizzes?: { title?: string | null } | null;
-    className: string;
-  };
-  const assignments: AccountAssignment[] = (classMemberships ?? []).flatMap((membership) => {
-    const klass = membership.classes as { name?: string | null; class_assignments?: Array<Omit<AccountAssignment, "className">> } | null;
-    return (klass?.class_assignments ?? []).map((assignment) => ({ ...assignment, className: klass?.name ?? "Class" }));
-  });
-
   return (
     <LearnerAppShell
       active="home"
+      showRightSidebar
       desktopChromeLeading={
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-[28px] font-bold leading-tight">Good morning, {firstName}! 👋</h1>
@@ -235,48 +185,6 @@ export default async function AccountPage() {
           </div>
         </section>
 
-        <aside className="sticky top-6 hidden max-h-[calc(100vh-48px)] w-[285px] min-w-[285px] flex-col gap-4 overflow-y-auto [scrollbar-width:none] min-[1101px]:flex [&::-webkit-scrollbar]:hidden">
-          <RightStreakCard streak={streak} />
-          <DashboardCard className="p-5">
-            <SectionHeader title="Your Badges" href="/leaderboard" small />
-            <div className="mt-3 grid grid-cols-4 gap-2">
-              <BadgeIcon emoji="⭐" label="Quiz Master" tone="purple" />
-              <BadgeIcon emoji="🔥" label="Streak Beast" tone="orange" />
-              <BadgeIcon emoji="💎" label="Perfectionist" tone="green" />
-              <BadgeIcon emoji="👑" label={currentBadge.name} tone="red" />
-            </div>
-          </DashboardCard>
-          <DashboardCard className="p-5">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <div className="text-[15px] font-bold">Quiz Badge</div>
-                <div className="mt-1 text-xs text-[#6E738D]">{nextBadge ? `${Math.max(0, nextBadge.minPoints - totalQuizPoints).toLocaleString()} points to ${nextBadge.name}` : "You reached Legend."}</div>
-              </div>
-              <div className={`grid size-12 place-items-center rounded-2xl bg-gradient-to-br ${currentBadge.gradient} text-xs font-black text-white`}>{currentBadge.icon}</div>
-            </div>
-            <form action={signOut} className="mt-4">
-              <button className="flex w-full items-center justify-center gap-2 rounded-xl border border-[#ECECF5] bg-[#F6F7FB] px-3 py-2.5 text-xs font-bold text-[#6E738D]" type="submit">
-                <LogOut className="size-4" /> Logout
-              </button>
-            </form>
-          </DashboardCard>
-          <DashboardCard className="p-5">
-            <SectionHeader title="Assignments" href="#" small />
-            <div>
-              {assignments.slice(0, 3).map((assignment, index) => {
-                const title = assignment.title || assignment.courses?.title || assignment.lessons?.title || assignment.quizzes?.title || "Assignment";
-                return <AssignmentRow key={assignment.id} title={title} due={assignment.due_at ? `Due ${new Date(assignment.due_at).toLocaleDateString()}` : assignment.className} points={index === 2 ? "40 pts" : "50 pts"} tone={index} />;
-              })}
-              {assignments.length === 0 ? (
-                <>
-                  <AssignmentRow title="Business English Quiz" due="Due in 2 days" points="50 pts" tone={0} />
-                  <AssignmentRow title="Writing: Email Practice" due="Due in 5 days" points="50 pts" tone={1} />
-                  <AssignmentRow title="Listening Comprehension" due="Due in 7 days" points="40 pts" tone={2} />
-                </>
-              ) : null}
-            </div>
-          </DashboardCard>
-        </aside>
       </div>
     </LearnerAppShell>
   );
@@ -426,32 +334,6 @@ function WishlistRow({ title, type, tone }: { title: string; type: string; tone:
 
 function FooterStat({ icon: Icon, title, sub }: { icon: React.ElementType; title: string; sub: string }) {
   return <div className="flex items-center gap-2.5"><div className="grid size-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-[#6C3BFF]/10 to-[#4E8DFF]/10"><Icon className="size-5 text-[#6C3BFF]" /></div><div><div className="text-xs font-bold">{title}</div><div className="text-[10px] text-[#6E738D]">{sub}</div></div></div>;
-}
-
-function RightStreakCard({ streak }: { streak: number }) {
-  return (
-    <DashboardCard className="p-5">
-      <div className="mb-1 flex items-center justify-between">
-        <div><div className="text-[15px] font-bold">Your Streak</div><div className="text-[32px] font-extrabold leading-none text-[#FFB545]">{streak} days</div><div className="mt-1 text-xs text-[#6E738D]">{streak ? "Keep it up!" : "Start today!"}</div></div>
-        <div className="text-[52px] leading-none">🔥</div>
-      </div>
-      <div className="mt-3 flex justify-between gap-1">
-        {["M", "T", "W", "T", "F", "S", "S"].map((day, index) => <div key={`${day}-${index}`} className="flex flex-col items-center gap-1"><div className="text-[9px] font-semibold text-[#6E738D]">{day}</div><div className={`grid size-7 place-items-center rounded-full text-[13px] ${index < Math.min(streak, 7) ? "bg-[#FFB545] text-white" : "border border-[#ECECF5] bg-[#F6F7FB]"}`}>{index < Math.min(streak, 7) ? "✓" : ""}</div></div>)}
-      </div>
-    </DashboardCard>
-  );
-}
-
-function BadgeIcon({ emoji, label, tone }: { emoji: string; label: string; tone: "purple" | "orange" | "green" | "red" }) {
-  const tones = { purple: "from-[#6C3BFF] to-[#8A58FF]", orange: "from-[#FFB545] to-[#FF6B00]", green: "from-[#00C98D] to-[#00957A]", red: "from-[#FF5D73] to-[#C0002A]" };
-  return <div className="flex flex-col items-center gap-1.5"><div className={`grid size-[52px] place-items-center rounded-[14px] bg-gradient-to-br ${tones[tone]} text-[22px]`}>{emoji}</div><div className="text-center text-[9px] font-semibold leading-tight text-[#6E738D]">{label}</div></div>;
-}
-
-function AssignmentRow({ title, due, points, tone }: { title: string; due: string; points: string; tone: number }) {
-  const icons = [Briefcase, Pencil, Headphones];
-  const colors = ["bg-[#FF5D73]/10 text-[#FF5D73]", "bg-[#00C98D]/10 text-[#00C98D]", "bg-[#4E8DFF]/10 text-[#4E8DFF]"];
-  const Icon = icons[tone % icons.length];
-  return <div className="flex items-center gap-2.5 border-b border-[#ECECF5] py-2.5 last:border-0"><div className={`grid size-9 shrink-0 place-items-center rounded-[10px] ${colors[tone % colors.length]}`}><Icon className="size-4" /></div><div className="min-w-0 flex-1"><div className="truncate text-xs font-semibold">{title}</div><div className="text-[10px] text-[#6E738D]">{due}</div></div><div className="whitespace-nowrap text-xs font-bold">{points}</div></div>;
 }
 
 function EmptyMini({ text, href, label }: { text: string; href: string; label: string }) {

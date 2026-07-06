@@ -32,10 +32,9 @@ export default async function LeaderboardPage() {
   const topBadge = getQuizBadge(leaders[0]?.points ?? 0);
 
   return (
-    <LearnerAppShell active="leaderboard">
+    <LearnerAppShell active="leaderboard" showRightSidebar>
       <section>
-        <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="relative self-start overflow-hidden rounded-[24px] bg-gradient-to-br from-[#1A1060] via-[#0C1945] to-[#0E1F5A] p-4 text-white shadow-[0_16px_48px_rgba(20,23,80,.25)] sm:p-5">
+        <div className="relative self-start overflow-hidden rounded-[24px] bg-gradient-to-br from-[#1A1060] via-[#0C1945] to-[#0E1F5A] p-4 text-white shadow-[0_16px_48px_rgba(20,23,80,.25)] sm:p-5">
             <div className="absolute -right-16 -top-20 size-60 rounded-full bg-[#6C3BFF]/25" />
             <div className="absolute right-36 top-10 size-20 rounded-full bg-[#3CCEFF]/20 blur-xl" />
             <div className="relative z-10">
@@ -57,12 +56,12 @@ export default async function LeaderboardPage() {
                 </Link>
               </div>
             </div>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
-            <HeroStat icon={Users} value={leaders.length} label="Ranked players" tone="purple" />
-            <HeroStat icon={Zap} value={totalPoints.toLocaleString()} label="Points tracked" tone="orange" />
-            <HeroStat icon={Award} value={topBadge.name} label="Top badge energy" tone="green" />
-          </div>
+        </div>
+
+        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+          <HeroStat icon={Users} value={leaders.length} label="Ranked players" tone="purple" />
+          <HeroStat icon={Zap} value={totalPoints.toLocaleString()} label="Points tracked" tone="orange" />
+          <HeroStat icon={Award} value={topBadge.name} label="Top badge energy" tone="green" />
         </div>
 
         <section className="mt-5 rounded-[20px] border border-[#ECECF5] bg-white p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)] sm:p-6">

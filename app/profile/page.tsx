@@ -22,7 +22,7 @@ export default async function ProfilePage() {
   const providerLabel = provider === "google" ? "Google account" : "Email account";
 
   return (
-    <LearnerAppShell active="profile">
+    <LearnerAppShell active="profile" showRightSidebar>
       <section className="grid gap-5">
         <div className="relative overflow-hidden rounded-[24px] bg-gradient-to-br from-[#1A1060] via-[#0C1945] to-[#0E1F5A] p-4 text-white shadow-[0_16px_48px_rgba(20,23,80,.25)] sm:p-5">
           <div className="absolute -right-16 -top-20 size-60 rounded-full bg-[#6C3BFF]/25" />

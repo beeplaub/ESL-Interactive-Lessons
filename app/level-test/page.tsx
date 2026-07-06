@@ -12,7 +12,7 @@ export default async function LevelTestPage() {
   const startHref = user ? "/level-test/test" : `/login?next=${encodeURIComponent("/level-test/test")}`;
 
   return (
-    <LearnerAppShell active="level-test">
+    <LearnerAppShell active="level-test" showRightSidebar>
       <section>
         <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(330px,.85fr)]">
           <div className="relative self-start overflow-hidden rounded-[24px] bg-gradient-to-br from-[#1A1060] via-[#0C1945] to-[#0E1F5A] p-4 text-white shadow-[0_18px_52px_rgba(20,23,80,.28)] sm:p-5">

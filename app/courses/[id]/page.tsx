@@ -266,6 +266,7 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
   return (
     <LearnerAppShell
       active="courses"
+      showRightSidebar={false}
       breadcrumbs={[
         { label: "Home", href: "/account" },
         { label: "Courses", href: "/courses" },

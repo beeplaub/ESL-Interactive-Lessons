@@ -2,7 +2,6 @@ import Link from "next/link";
 import {
   ArrowRight,
   BookOpen,
-  CheckCircle2,
   ChevronRight,
   Clock3,
   GraduationCap,
@@ -49,14 +48,13 @@ export default async function CoursesPage({
   );
 
   const featured = allCourses[0] ?? null;
-  const totalMinutes = allCourses.reduce((sum, course) => sum + Number(course.estimated_completion_minutes ?? 0), 0);
   const enrolledCount = (enrollments ?? []).length;
   const levelCounts = levelOrder
     .map((level) => ({ level, count: allCourses.filter((course) => course.level === level).length }))
     .filter((item) => item.count > 0);
 
   return (
-    <LearnerAppShell active="courses">
+    <LearnerAppShell active="courses" showRightSidebar>
         <section className="flex min-w-0 flex-col gap-5">
           <div className="min-[861px]:hidden">
             <SearchBox mobile defaultValue={searchQuery} />
@@ -70,7 +68,7 @@ export default async function CoursesPage({
             </div>
           </div>
 
-          <section className="grid items-start gap-5 min-[1100px]:grid-cols-[minmax(0,1fr)_310px]">
+          <section>
             <div className="relative self-start overflow-hidden rounded-[24px] bg-gradient-to-br from-[#1A1060] via-[#0C1945] to-[#0E1F5A] p-4 text-white shadow-[0_16px_48px_rgba(20,23,80,.25)] md:p-5">
               <div className="absolute -right-16 -top-16 size-56 rounded-full bg-[#6C3BFF]/25 blur-sm" />
               <div className="absolute right-24 top-10 size-20 rounded-full bg-[#3CCEFF]/20 blur-xl" />
@@ -97,11 +95,6 @@ export default async function CoursesPage({
               </div>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-3 min-[1100px]:grid-cols-1">
-              <MiniInfoCard label="Published courses" value={allCourses.length.toString()} icon={GraduationCap} tone="purple" />
-              <MiniInfoCard label="Guided minutes" value={totalMinutes ? `${Math.round(totalMinutes / 60)}h` : "Soon"} icon={Clock3} tone="orange" />
-              <MiniInfoCard label="Enrolled paths" value={enrolledCount.toString()} icon={CheckCircle2} tone="green" />
-            </div>
           </section>
 
           <section className="rounded-[20px] border border-[#ECECF5] bg-white p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)] md:px-6">
@@ -282,15 +275,4 @@ function SearchBox({ mobile = false, defaultValue = "" }: { mobile?: boolean; de
 
 function StatChip({ icon, value, label, mobile }: { icon: React.ReactNode; value: string; label: string; mobile?: boolean }) {
   return <div className={`flex items-center gap-1.5 rounded-[20px] border border-[#ECECF5] bg-white px-3.5 py-2 shadow-[0_2px_8px_rgba(0,0,0,.04)] ${mobile ? "flex-1 justify-center" : ""}`}>{icon}<div><div className="text-sm font-bold text-[#14172B]">{value}</div><div className="text-[11px] text-[#6E738D]">{label}</div></div></div>;
-}
-
-function MiniInfoCard({ label, value, icon: Icon, tone }: { label: string; value: string; icon: React.ElementType; tone: "purple" | "orange" | "green" }) {
-  const tones = { purple: "from-[#6C3BFF] to-[#8A58FF]", orange: "from-[#FFB545] to-[#FF8C00]", green: "from-[#00C98D] to-[#00B37D]" };
-  return (
-    <div className="rounded-[20px] border border-[#ECECF5] bg-white p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)]">
-      <div className={`grid size-11 place-items-center rounded-[14px] bg-gradient-to-br ${tones[tone]} text-white`}><Icon className="size-5" /></div>
-      <div className="mt-4 text-[30px] font-extrabold leading-none">{value}</div>
-      <div className="mt-1 text-xs font-semibold text-[#6E738D]">{label}</div>
-    </div>
-  );
 }

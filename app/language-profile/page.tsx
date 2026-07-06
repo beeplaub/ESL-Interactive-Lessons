@@ -62,7 +62,7 @@ export default async function LanguageProfilePage() {
   const overall = totalPossible ? (totalEarned / totalPossible) * 100 : 0;
 
   return (
-    <LearnerAppShell active="language-profile">
+    <LearnerAppShell active="language-profile" showRightSidebar>
       <section className="rounded-[24px] bg-gradient-to-br from-[#6C3BFF] via-[#4223C9] to-[#06184A] p-4 text-white shadow-[0_18px_45px_rgba(41,28,135,.25)] sm:p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>

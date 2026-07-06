@@ -16,6 +16,7 @@ import {
   Users
 } from "lucide-react";
 import { signOut } from "@/app/auth/actions";
+import { getNextQuizBadge, getQuizBadge } from "@/lib/quizBadges";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -49,6 +50,7 @@ export async function LearnerAppShell({
   contentClassName = "flex flex-col gap-5",
   breadcrumbs,
   desktopChromeLeading,
+  showRightSidebar = true,
   showChrome = true,
   showFooter = true,
 }: {
@@ -57,6 +59,7 @@ export async function LearnerAppShell({
   contentClassName?: string;
   breadcrumbs?: BreadcrumbItem[];
   desktopChromeLeading?: React.ReactNode;
+  showRightSidebar?: boolean;
   showChrome?: boolean;
   showFooter?: boolean;
 }) {
@@ -71,6 +74,7 @@ export async function LearnerAppShell({
   const initials = name.split(/\s+/).slice(0, 2).map((part: string) => part[0]?.toUpperCase()).join("") || "BU";
   const currentLevel = profile?.cefr_level || null;
   const notifications = await buildNotifications(admin, user?.id ?? null, currentLevel);
+  const rightSidebarData = showRightSidebar ? await buildRightSidebarData(admin, user?.id ?? null, currentLevel) : null;
 
   return (
     <main className="min-h-screen bg-[#F6F7FB] font-sans text-[#14172B]">
@@ -93,10 +97,94 @@ export async function LearnerAppShell({
           {children}
           {showFooter ? <LearnerFooter /> : null}
         </section>
+        {showRightSidebar && rightSidebarData ? <LearnerRightSidebar data={rightSidebarData} /> : null}
       </div>
       <MobileBottomNav active={active} />
     </main>
   );
+}
+
+function toDateKey(date: Date) {
+  return date.toISOString().slice(0, 10);
+}
+
+function calcStreak(dates: string[]) {
+  if (!dates.length) return 0;
+  const unique = Array.from(new Set(dates)).sort().reverse();
+  const today = toDateKey(new Date());
+  const yesterday = toDateKey(new Date(Date.now() - 86400000));
+  if (unique[0] !== today && unique[0] !== yesterday) return 0;
+  let streak = 1;
+  for (let i = 1; i < unique.length; i++) {
+    const prev = new Date(unique[i - 1]);
+    const curr = new Date(unique[i]);
+    if (Math.round((prev.getTime() - curr.getTime()) / 86400000) === 1) streak++;
+    else break;
+  }
+  return streak;
+}
+
+type RightSidebarData = {
+  streak: number;
+  progressPercent: number;
+  completedCourses: number;
+  inProgressCourses: number;
+  notStartedCourses: number;
+  currentBadge: ReturnType<typeof getQuizBadge>;
+  nextBadge: ReturnType<typeof getNextQuizBadge>;
+  totalPoints: number;
+};
+
+async function buildRightSidebarData(
+  admin: ReturnType<typeof createAdminClient>,
+  userId: string | null,
+  currentLevel: string | null
+): Promise<RightSidebarData> {
+  if (!userId) {
+    const currentBadge = getQuizBadge(0);
+    return {
+      streak: 0,
+      progressPercent: currentLevel ? Math.round(((["A1", "A2", "B1", "B2", "C1", "C2"].indexOf(currentLevel) + 1) / 6) * 100) : 0,
+      completedCourses: 0,
+      inProgressCourses: 0,
+      notStartedCourses: 0,
+      currentBadge,
+      nextBadge: getNextQuizBadge(0),
+      totalPoints: 0,
+    };
+  }
+
+  const [{ data: quizAttempts }, { data: points }, { data: enrollments }, { data: courseProgress }] = await Promise.all([
+    admin.from("quiz_attempts").select("completed_at").eq("user_id", userId).not("quiz_id", "is", null).order("completed_at", { ascending: false }).limit(120),
+    admin.from("quiz_leaderboard_points").select("points").eq("user_id", userId),
+    admin.from("course_enrollments").select("course_id,status").eq("user_id", userId),
+    admin.from("course_progress").select("course_id,progress_percent").eq("user_id", userId),
+  ]);
+
+  const activityDates = (quizAttempts ?? []).filter((attempt) => attempt.completed_at).map((attempt) => toDateKey(new Date(attempt.completed_at)));
+  const streak = calcStreak(activityDates);
+  const totalPoints = (points ?? []).reduce((sum, row) => sum + Number(row.points ?? 0), 0);
+  const currentBadge = getQuizBadge(totalPoints);
+  const progressRows = courseProgress ?? [];
+  const progressPercent = progressRows.length
+    ? Math.round(progressRows.reduce((sum, row) => sum + Number(row.progress_percent ?? 0), 0) / progressRows.length)
+    : currentLevel
+      ? Math.round(((["A1", "A2", "B1", "B2", "C1", "C2"].indexOf(currentLevel) + 1) / 6) * 100)
+      : 0;
+  const enrolledCourseIds = new Set((enrollments ?? []).map((row) => row.course_id));
+  const completedCourses = progressRows.filter((row) => Number(row.progress_percent ?? 0) >= 100).length;
+  const inProgressCourses = progressRows.filter((row) => Number(row.progress_percent ?? 0) > 0 && Number(row.progress_percent ?? 0) < 100).length;
+
+  return {
+    streak,
+    progressPercent,
+    completedCourses,
+    inProgressCourses,
+    notStartedCourses: Math.max(0, enrolledCourseIds.size - completedCourses - inProgressCourses),
+    currentBadge,
+    nextBadge: getNextQuizBadge(totalPoints),
+    totalPoints,
+  };
 }
 
 async function buildNotifications(admin: ReturnType<typeof createAdminClient>, userId: string | null, currentLevel: string | null): Promise<NotificationItem[]> {
@@ -221,6 +309,106 @@ function AvatarBubble({ initials, avatarUrl }: { initials: string; avatarUrl: st
       {/* eslint-disable-next-line @next/next/no-img-element -- Avatar URLs are user-uploaded Supabase/public links. */}
       {avatarUrl ? <img src={avatarUrl} alt="" className="h-full w-full object-cover" /> : initials}
     </span>
+  );
+}
+
+function LearnerRightSidebar({ data }: { data: RightSidebarData }) {
+  return (
+    <aside className="sticky top-6 hidden max-h-[calc(100vh-48px)] w-[285px] min-w-[285px] flex-col gap-4 overflow-y-auto [scrollbar-width:none] min-[1180px]:flex [&::-webkit-scrollbar]:hidden">
+      <RightRailCard>
+        <div className="mb-1 flex items-center justify-between">
+          <div>
+            <div className="text-[15px] font-bold">Your Streak</div>
+            <div className="text-[32px] font-extrabold leading-none text-[#FFB545]">{data.streak} days</div>
+            <div className="mt-1 text-xs text-[#6E738D]">{data.streak ? "Keep it up!" : "Start today!"}</div>
+          </div>
+          <div className="text-[52px] leading-none">🔥</div>
+        </div>
+        <div className="mt-3 flex justify-between gap-1">
+          {["M", "T", "W", "T", "F", "S", "S"].map((day, index) => (
+            <div key={`${day}-${index}`} className="flex flex-col items-center gap-1">
+              <div className="text-[9px] font-semibold text-[#6E738D]">{day}</div>
+              <div className={`grid size-7 place-items-center rounded-full text-[13px] ${index < Math.min(data.streak, 7) ? "bg-[#FFB545] text-white" : "border border-[#ECECF5] bg-[#F6F7FB]"}`}>
+                {index < Math.min(data.streak, 7) ? "✓" : ""}
+              </div>
+            </div>
+          ))}
+        </div>
+      </RightRailCard>
+
+      <RightRailCard>
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div>
+            <div className="text-[15px] font-bold">Your Progress</div>
+            <p className="mt-1 text-xs font-semibold text-[#6E738D]">Across enrolled courses</p>
+          </div>
+          <div className="relative grid size-20 place-items-center rounded-full bg-[conic-gradient(#31C48D_var(--progress),#ECECF5_0)]" style={{ "--progress": `${data.progressPercent}%` } as React.CSSProperties}>
+            <div className="grid size-14 place-items-center rounded-full bg-white text-lg font-black">{data.progressPercent}%</div>
+          </div>
+        </div>
+        <div className="grid gap-2 text-xs font-semibold text-[#53607D]">
+          <ProgressLegend dot="#31C48D" label="Completed" value={`${data.completedCourses} courses`} />
+          <ProgressLegend dot="#3478F6" label="In progress" value={`${data.inProgressCourses} courses`} />
+          <ProgressLegend dot="#C8CDDA" label="Not started" value={`${data.notStartedCourses} courses`} />
+        </div>
+      </RightRailCard>
+
+      <RightRailCard>
+        <div className="mb-3 flex items-center justify-between">
+          <div className="text-[15px] font-bold">Your Achievements</div>
+          <Link href="/leaderboard" className="text-xs font-bold text-[#6C3BFF]">View all</Link>
+        </div>
+        <div className="grid grid-cols-4 gap-2">
+          <AchievementIcon emoji="⭐" label="Quiz Master" tone="purple" />
+          <AchievementIcon emoji="🔥" label="Streak Beast" tone="orange" />
+          <AchievementIcon emoji="💎" label="Perfectionist" tone="green" />
+          <AchievementIcon emoji="👑" label="Legend" tone="red" />
+        </div>
+      </RightRailCard>
+
+      <RightRailCard>
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="text-[15px] font-bold">Quiz Badge</div>
+            <div className="mt-1 text-xs text-[#6E738D]">
+              {data.nextBadge ? `${Math.max(0, data.nextBadge.minPoints - data.totalPoints).toLocaleString()} points to ${data.nextBadge.name}` : "You reached Legend."}
+            </div>
+          </div>
+          <div className={`grid size-12 place-items-center rounded-2xl bg-gradient-to-br ${data.currentBadge.gradient} text-xs font-black text-white`}>{data.currentBadge.icon}</div>
+        </div>
+      </RightRailCard>
+    </aside>
+  );
+}
+
+function RightRailCard({ children }: { children: React.ReactNode }) {
+  return <div className="rounded-[20px] border border-[#ECECF5] bg-white p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)]">{children}</div>;
+}
+
+function ProgressLegend({ dot, label, value }: { dot: string; label: string; value: string }) {
+  return (
+    <div className="flex items-start gap-2">
+      <span className="mt-1.5 size-2.5 rounded-full" style={{ backgroundColor: dot }} />
+      <div>
+        <p className="font-bold text-[#35405F]">{label}</p>
+        <p className="text-xs text-[#6E738D]">{value}</p>
+      </div>
+    </div>
+  );
+}
+
+function AchievementIcon({ emoji, label, tone }: { emoji: string; label: string; tone: "purple" | "orange" | "green" | "red" }) {
+  const tones = {
+    purple: "from-[#6C3BFF] to-[#8A58FF]",
+    orange: "from-[#FFB545] to-[#FF6B00]",
+    green: "from-[#00C98D] to-[#00957A]",
+    red: "from-[#FF5D73] to-[#C0002A]",
+  };
+  return (
+    <div className="flex flex-col items-center gap-1.5">
+      <div className={`grid size-[52px] place-items-center rounded-[14px] bg-gradient-to-br ${tones[tone]} text-[22px]`}>{emoji}</div>
+      <div className="text-center text-[9px] font-semibold leading-tight text-[#6E738D]">{label}</div>
+    </div>
   );
 }
 
