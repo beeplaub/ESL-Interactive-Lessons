@@ -11,11 +11,30 @@ import {
   Star,
 } from "lucide-react";
 import { LearnerAppShell } from "@/components/LearnerAppShell";
+import { CourseFilterControls } from "@/components/CourseFilterControls";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { CONTENT_LEVELS } from "@/lib/levels";
 
 const levelOrder = CONTENT_LEVELS;
+
+/** Learner-facing descriptor shown next to each CEFR level pill, matching the redesigned filter bar. */
+const LEVEL_DESCRIPTORS: Record<string, string> = {
+  A1: "Beginner",
+  A2: "Elementary",
+  "A1-A2": "Beginner\u2013Elementary",
+  B1: "Intermediate",
+  B2: "Upper Intermediate",
+  "B1-B2": "Intermediate",
+  C1: "Advanced",
+  C2: "Proficiency",
+  "C1-C2": "Advanced",
+};
+
+function levelPillLabel(level: string) {
+  const descriptor = LEVEL_DESCRIPTORS[level];
+  return descriptor ? `${level} ${descriptor}` : level;
+}
 
 export default async function CoursesPage({
   searchParams,
@@ -28,30 +47,67 @@ export default async function CoursesPage({
     data: { user }
   } = await supabase.auth.getUser();
 
-  const [{ data: courses }, { data: enrollments }, { data: progressRows }] = await Promise.all([
+  const [{ data: courses }, { data: enrollments }, { data: progressRows }, { data: popularityRows }] = await Promise.all([
     admin.from("courses").select("*").eq("status", "PUBLISHED").is("deleted_at", null).order("created_at", { ascending: false }),
     user ? admin.from("course_enrollments").select("course_id,status").eq("user_id", user.id) : Promise.resolve({ data: [] }),
-    user ? admin.from("course_progress").select("course_id,progress_percent,total_items,completed_items").eq("user_id", user.id) : Promise.resolve({ data: [] })
+    user ? admin.from("course_progress").select("course_id,progress_percent,total_items,completed_items").eq("user_id", user.id) : Promise.resolve({ data: [] }),
+    admin.from("course_enrollments").select("course_id")
   ]);
 
   const params = await searchParams;
   const activeLevel = typeof params.level === "string" ? params.level : "";
   const searchQuery = (typeof params.q === "string" ? params.q : "").trim().toLowerCase();
+  const rawSort = typeof params.sort === "string" ? params.sort : "";
+  const sort = ["popular", "newest", "az", "za"].includes(rawSort) ? rawSort : "popular";
+  const rawTopic = params.topic;
+  const selectedTopics = Array.isArray(rawTopic) ? rawTopic.filter(Boolean) : rawTopic ? [rawTopic] : [];
 
   const allCourses = courses ?? [];
   const enrolled = new Map((enrollments ?? []).map((item) => [item.course_id, item.status]));
   const progressByCourse = new Map((progressRows ?? []).map((item) => [item.course_id, item]));
+  const popularityByCourse = new Map<string, number>();
+  for (const row of popularityRows ?? []) {
+    popularityByCourse.set(row.course_id, (popularityByCourse.get(row.course_id) ?? 0) + 1);
+  }
 
   const filteredCourses = allCourses.filter((course) =>
     (!activeLevel || course.level === activeLevel) &&
-    (!searchQuery || course.title?.toLowerCase().includes(searchQuery) || course.topic?.toLowerCase().includes(searchQuery))
+    (!searchQuery || course.title?.toLowerCase().includes(searchQuery) || course.topic?.toLowerCase().includes(searchQuery)) &&
+    (selectedTopics.length === 0 || (course.topic ? selectedTopics.includes(course.topic) : false))
   );
+
+  const sortedCourses = [...filteredCourses].sort((a, b) => {
+    if (sort === "az") return (a.title ?? "").localeCompare(b.title ?? "");
+    if (sort === "za") return (b.title ?? "").localeCompare(a.title ?? "");
+    if (sort === "newest") return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    const popularityDiff = (popularityByCourse.get(b.id) ?? 0) - (popularityByCourse.get(a.id) ?? 0);
+    if (popularityDiff !== 0) return popularityDiff;
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
 
   const featured = allCourses[0] ?? null;
   const enrolledCount = (enrollments ?? []).length;
   const levelCounts = levelOrder
     .map((level) => ({ level, count: allCourses.filter((course) => course.level === level).length }))
     .filter((item) => item.count > 0);
+  const topicMap = new Map<string, number>();
+  for (const course of allCourses) {
+    if (!course.topic) continue;
+    topicMap.set(course.topic, (topicMap.get(course.topic) ?? 0) + 1);
+  }
+  const topicCounts: { topic: string; count: number }[] = [];
+  topicMap.forEach((count, topic) => topicCounts.push({ topic, count }));
+  topicCounts.sort((a, b) => b.count - a.count);
+
+  function levelHref(level: string) {
+    const sp = new URLSearchParams();
+    if (level) sp.set("level", level);
+    if (searchQuery) sp.set("q", searchQuery);
+    if (sort !== "popular") sp.set("sort", sort);
+    selectedTopics.forEach((topic) => sp.append("topic", topic));
+    const qs = sp.toString();
+    return qs ? `/courses?${qs}` : "/courses";
+  }
 
   return (
     <LearnerAppShell active="courses" showRightSidebar>
@@ -97,56 +153,51 @@ export default async function CoursesPage({
 
           </section>
 
-          <section className="rounded-[20px] border border-[#ECECF5] bg-white p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)] md:px-6">
-            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h2 className="text-lg font-bold">Find a course by level</h2>
-                <p className="mt-0.5 text-xs text-[#6E738D]">No gates. Pick what fits your current goal.</p>
-              </div>
-              <form method="GET" className="flex flex-wrap items-center gap-2">
-                {/* preserve search query when switching levels */}
-                {searchQuery ? <input type="hidden" name="q" value={searchQuery} /> : null}
+          <section className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Link
+                href={levelHref("")}
+                className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                  !activeLevel
+                    ? "bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] text-white"
+                    : "border border-[#ECECF5] bg-white text-[#4B5163] hover:border-[#6C3BFF]/40"
+                }`}
+              >
+                All Levels
+              </Link>
+              {levelCounts.map((item) => (
                 <Link
-                  href={searchQuery ? `/courses?q=${encodeURIComponent(searchQuery)}` : "/courses"}
-                  className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
-                    !activeLevel
+                  key={item.level}
+                  href={levelHref(item.level)}
+                  className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                    activeLevel === item.level
                       ? "bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] text-white"
-                      : "border border-[#ECECF5] bg-[#F6F7FB] text-[#6E738D] hover:bg-[#ECEDF8]"
+                      : "border border-[#ECECF5] bg-white text-[#4B5163] hover:border-[#6C3BFF]/40"
                   }`}
                 >
-                  All <span className={!activeLevel ? "text-white/70" : "text-[#A0A5BA]"}>{allCourses.length}</span>
+                  {levelPillLabel(item.level)}
                 </Link>
-                {levelCounts.map((item) => {
-                  const href = searchQuery
-                    ? `/courses?level=${encodeURIComponent(item.level)}&q=${encodeURIComponent(searchQuery)}`
-                    : `/courses?level=${encodeURIComponent(item.level)}`;
-                  return (
-                    <Link
-                      key={item.level}
-                      href={href}
-                      className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
-                        activeLevel === item.level
-                          ? "bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] text-white"
-                          : "border border-[#ECECF5] bg-[#F6F7FB] text-[#6E738D] hover:bg-[#ECEDF8]"
-                      }`}
-                    >
-                      {item.level} <span className={activeLevel === item.level ? "text-white/70" : "text-[#A0A5BA]"}>{item.count}</span>
-                    </Link>
-                  );
-                })}
-              </form>
+              ))}
             </div>
-            {(activeLevel || searchQuery) ? (
-              <div className="flex items-center justify-between gap-3 border-t border-[#ECECF5] pt-3 text-sm">
-                <span className="text-[#6E738D]">
-                  Showing <strong className="text-[#14172B]">{filteredCourses.length}</strong> of {allCourses.length} courses
-                  {activeLevel ? <> · Level <strong className="text-[#14172B]">{activeLevel}</strong></> : null}
-                  {searchQuery ? <> · Search <strong className="text-[#14172B]">&ldquo;{searchQuery}&rdquo;</strong></> : null}
-                </span>
-                <Link href="/courses" className="text-xs font-semibold text-[#6C3BFF] hover:underline">Clear filters</Link>
-              </div>
-            ) : null}
+            <CourseFilterControls
+              level={activeLevel}
+              q={searchQuery}
+              sort={sort}
+              topics={topicCounts}
+              selectedTopics={selectedTopics}
+            />
           </section>
+
+          {(activeLevel || searchQuery || selectedTopics.length > 0) ? (
+            <p className="-mt-2 text-sm text-[#6E738D]">
+              Showing <strong className="text-[#14172B]">{sortedCourses.length}</strong> of {allCourses.length} courses
+              {activeLevel ? <> · Level <strong className="text-[#14172B]">{activeLevel}</strong></> : null}
+              {searchQuery ? <> · Search <strong className="text-[#14172B]">&ldquo;{searchQuery}&rdquo;</strong></> : null}
+              {selectedTopics.length ? <> · Topic <strong className="text-[#14172B]">{selectedTopics.join(", ")}</strong></> : null}
+              {" · "}
+              <Link href="/courses" className="font-semibold text-[#6C3BFF] hover:underline">Clear all</Link>
+            </p>
+          ) : null}
 
           {allCourses.length === 0 ? (
             <section className="rounded-[20px] border border-[#ECECF5] bg-white p-10 text-center shadow-[0_12px_32px_rgba(0,0,0,.06)]">
@@ -156,7 +207,7 @@ export default async function CoursesPage({
               <h2 className="mt-4 text-lg font-bold">No published courses yet</h2>
               <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#6E738D]">BrenUp courses will appear here as soon as they are published.</p>
             </section>
-          ) : filteredCourses.length === 0 ? (
+          ) : sortedCourses.length === 0 ? (
             <section className="rounded-[20px] border border-[#ECECF5] bg-white p-10 text-center shadow-[0_12px_32px_rgba(0,0,0,.06)]">
               <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-[#6C3BFF]/10 text-[#6C3BFF]">
                 <BookOpen className="size-7" />
@@ -167,7 +218,7 @@ export default async function CoursesPage({
             </section>
           ) : (
             <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {filteredCourses.map((course, index) => {
+              {sortedCourses.map((course, index) => {
                 const status = enrolled.get(course.id);
                 const progress = progressByCourse.get(course.id);
                 return (
