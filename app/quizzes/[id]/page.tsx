@@ -21,7 +21,7 @@ export default async function QuizPage({
 
   const admin = createAdminClient();
   const [{ data: quiz }, { data: questions }, { data: attempts }] = await Promise.all([
-    admin.from("quizzes").select("*").eq("id", id).eq("status", "PUBLISHED").single(),
+    admin.from("quizzes").select("*").eq("id", id).eq("status", "PUBLISHED").is("deleted_at", null).single(),
     admin.from("quiz_questions").select("*").eq("quiz_id", id).order("question_number", { ascending: true }),
     user
       ? admin.from("quiz_attempts").select("score, total, completed_at").eq("quiz_id", id).eq("user_id", user.id).order("completed_at", { ascending: true }).limit(10)

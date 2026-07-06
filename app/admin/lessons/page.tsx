@@ -16,10 +16,14 @@ export default async function AdminLessonsPage({
   await requireAdmin();
   const params = await searchParams;
   const supabase = createAdminClient();
-  const { data: allLessons } = await supabase
-    .from("lessons")
-    .select("*")
-    .order("created_at", { ascending: false });
+  const [{ data: allLessons }, { count: trashedCount }] = await Promise.all([
+    supabase
+      .from("lessons")
+      .select("*")
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false }),
+    supabase.from("lessons").select("id", { count: "exact", head: true }).not("deleted_at", "is", null),
+  ]);
 
   const value = (key: string) => (typeof params[key] === "string" ? (params[key] as string) : "");
   const q = value("q").trim().toLowerCase();
@@ -45,12 +49,20 @@ export default async function AdminLessonsPage({
             Create, build, review, and publish future LMS lessons.
           </p>
         </div>
-        <Link
-          href="/admin/lessons/new"
-          className="inline-flex items-center gap-2 rounded-md bg-ink px-4 py-2 text-sm font-medium text-white"
-        >
-          <Plus size={16} /> New lesson
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/admin/lessons/trash"
+            className="inline-flex items-center gap-2 rounded-md border border-black/15 px-4 py-2 text-sm font-semibold hover:bg-black/5"
+          >
+            <Trash2 size={16} /> Trash{trashedCount ? ` (${trashedCount})` : ""}
+          </Link>
+          <Link
+            href="/admin/lessons/new"
+            className="inline-flex items-center gap-2 rounded-md bg-ink px-4 py-2 text-sm font-medium text-white"
+          >
+            <Plus size={16} /> New lesson
+          </Link>
+        </div>
       </div>
 
       <form className="mb-5 rounded-lg border border-black/10 bg-white p-4 shadow-sm">
@@ -139,7 +151,8 @@ export default async function AdminLessonsPage({
               <form action={deleteLesson.bind(null, lesson.id)}>
                 <button
                   className="h-full rounded-md border border-coral/30 px-3 py-2 text-coral hover:bg-coral/10"
-                  aria-label="Delete"
+                  aria-label="Move to trash"
+                  title="Move to trash"
                 >
                   <Trash2 size={16} />
                 </button>
@@ -213,7 +226,8 @@ export default async function AdminLessonsPage({
                     <form action={deleteLesson.bind(null, lesson.id)}>
                       <button
                         className="rounded-md border border-coral/30 p-2 text-coral hover:bg-coral/10"
-                        aria-label="Delete"
+                        aria-label="Move to trash"
+                        title="Move to trash"
                       >
                         <Trash2 size={16} />
                       </button>

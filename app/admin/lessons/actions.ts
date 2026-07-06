@@ -685,11 +685,46 @@ export async function updateLessonBuilderDetails(lessonId: string, formData: For
 }
 
 export async function deleteLesson(lessonId: string) {
+  const { user } = await requireAdmin();
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from("lessons")
+    .update({ deleted_at: new Date().toISOString(), deleted_by: user.id })
+    .eq("id", lessonId);
+  if (error) throw error;
+  revalidatePath("/admin");
+  revalidatePath("/admin/lessons");
+  revalidatePath("/admin/lessons/trash");
+  revalidatePath("/lessons");
+}
+
+export async function restoreLesson(lessonId: string) {
   await requireAdmin();
   const supabase = createAdminClient();
-  const { error } = await supabase.from("lessons").delete().eq("id", lessonId);
+  const { error } = await supabase
+    .from("lessons")
+    .update({ deleted_at: null, deleted_by: null })
+    .eq("id", lessonId);
   if (error) throw error;
+  revalidatePath("/admin");
   revalidatePath("/admin/lessons");
+  revalidatePath("/admin/lessons/trash");
+  revalidatePath("/lessons");
+}
+
+export async function permanentlyDeleteLesson(lessonId: string) {
+  await requireAdmin();
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from("lessons")
+    .delete()
+    .eq("id", lessonId)
+    .not("deleted_at", "is", null);
+  if (error) throw error;
+  revalidatePath("/admin");
+  revalidatePath("/admin/lessons");
+  revalidatePath("/admin/lessons/trash");
+  revalidatePath("/lessons");
 }
 
 export async function duplicateLesson(lessonId: string) {

@@ -47,11 +47,12 @@ export default async function HomePage() {
   }
 
   const [{ count: publishedQuizCount }, { data: latestQuiz }, { count: publishedCourseCount }, { data: topPoints }] = await Promise.all([
-    admin.from("quizzes").select("id", { count: "exact", head: true }).eq("status", "PUBLISHED"),
+    admin.from("quizzes").select("id", { count: "exact", head: true }).eq("status", "PUBLISHED").is("deleted_at", null),
     admin
       .from("quizzes")
       .select("id, title, level, topic, created_at, timer_minutes")
       .eq("status", "PUBLISHED")
+      .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle(),

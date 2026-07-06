@@ -49,7 +49,7 @@ export async function POST(
 
   const admin = createAdminClient();
   const { data: lesson } = await admin
-    .from("lessons").select("id,status").eq("id", lessonId).single();
+    .from("lessons").select("id,status").eq("id", lessonId).is("deleted_at", null).single();
   if (!lesson) return NextResponse.json({ error: "Lesson not found" }, { status: 404 });
 
   const { data: existing } = await admin

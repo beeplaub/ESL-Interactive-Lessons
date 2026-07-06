@@ -7,8 +7,8 @@ export default async function AdminPage() {
   const [{ data: courses }, { data: organizations }, { data: lessons }, { data: quizzes }, { data: profiles }, { data: attempts }, { data: levelResults }] = await Promise.all([
     admin.from("courses").select("status").is("deleted_at", null),
     admin.from("organizations").select("id"),
-    admin.from("lessons").select("status"),
-    admin.from("quizzes").select("status"),
+    admin.from("lessons").select("status").is("deleted_at", null),
+    admin.from("quizzes").select("status").is("deleted_at", null),
     admin.from("profiles").select("id"),
     admin.from("quiz_attempts").select("id"),
     admin.from("level_test_results").select("id")

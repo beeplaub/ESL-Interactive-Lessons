@@ -9,10 +9,11 @@ export const dynamic = "force-dynamic";
 export default async function AdminQuizzesPage() {
   await requireAdmin();
   const admin = createAdminClient();
-  const [{ data: quizzes }, { data: questions }, { data: attempts }] = await Promise.all([
-    admin.from("quizzes").select("*").order("created_at", { ascending: false }),
+  const [{ data: quizzes }, { data: questions }, { data: attempts }, { count: trashedCount }] = await Promise.all([
+    admin.from("quizzes").select("*").is("deleted_at", null).order("created_at", { ascending: false }),
     admin.from("quiz_questions").select("quiz_id").limit(10000),
-    admin.from("quiz_attempts").select("quiz_id").limit(10000)
+    admin.from("quiz_attempts").select("quiz_id").limit(10000),
+    admin.from("quizzes").select("id", { count: "exact", head: true }).not("deleted_at", "is", null)
   ]);
   const counts = new Map<string, number>();
   for (const question of questions ?? []) counts.set(question.quiz_id, (counts.get(question.quiz_id) ?? 0) + 1);
@@ -26,9 +27,14 @@ export default async function AdminQuizzesPage() {
           <h1 className="text-3xl font-semibold">Quizzes</h1>
           <p className="mt-1 text-sm text-black/60">Create and publish quiz practice.</p>
         </div>
-        <Link href="/admin/quizzes/new" className="inline-flex items-center gap-2 rounded-md bg-ink px-4 py-2 text-sm font-medium text-white">
-          <Plus size={16} /> New quiz
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href="/admin/quizzes/trash" className="inline-flex items-center gap-2 rounded-md border border-black/15 px-4 py-2 text-sm font-semibold hover:bg-black/5">
+            <Trash2 size={16} /> Trash{trashedCount ? ` (${trashedCount})` : ""}
+          </Link>
+          <Link href="/admin/quizzes/new" className="inline-flex items-center gap-2 rounded-md bg-ink px-4 py-2 text-sm font-medium text-white">
+            <Plus size={16} /> New quiz
+          </Link>
+        </div>
       </div>
       <div className="overflow-x-auto rounded-lg border border-black/10 bg-white shadow-sm">
         <table className="min-w-[760px] w-full text-left text-sm">
@@ -52,7 +58,7 @@ export default async function AdminQuizzesPage() {
                       <button className="rounded-md border border-black/15 px-3 py-2 text-xs hover:bg-black/5">{quiz.status === "PUBLISHED" ? "Unpublish" : "Publish"}</button>
                     </form>
                     <form action={async () => { "use server"; await deleteQuiz(quiz.id); }}>
-                      <button className="rounded-md border border-black/15 p-2 text-coral hover:bg-coral/10" aria-label="Delete"><Trash2 size={16} /></button>
+                      <button className="rounded-md border border-black/15 p-2 text-coral hover:bg-coral/10" aria-label="Move to trash" title="Move to trash"><Trash2 size={16} /></button>
                     </form>
                   </div>
                 </td>

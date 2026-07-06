@@ -31,8 +31,8 @@ export default async function ContentLibraryPage({
     admin.from("lesson_slide_activities").select("id,activity_type,slide_number,lessons(title)").order("created_at", { ascending: false }).limit(500),
     admin.from("lesson_blocks").select("id,block_type,position,lessons(title),slides(title)").order("created_at", { ascending: false }).limit(500),
     admin.from("slides").select("id,title,slide_number,lessons(title)").order("created_at", { ascending: false }).limit(500),
-    admin.from("lessons").select("id,title,level,topic,status").order("created_at", { ascending: false }),
-    admin.from("quizzes").select("id,title,level,topic,status").order("created_at", { ascending: false }),
+    admin.from("lessons").select("id,title,level,topic,status").is("deleted_at", null).order("created_at", { ascending: false }),
+    admin.from("quizzes").select("id,title,level,topic,status").is("deleted_at", null).order("created_at", { ascending: false }),
     admin.from("courses").select("id,title,level,topic,status").is("deleted_at", null).order("created_at", { ascending: false }),
     admin.from("profiles").select("id,full_name,first_name,last_name"),
   ]);

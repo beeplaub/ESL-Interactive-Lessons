@@ -17,7 +17,7 @@ export default async function AdminQuizAttemptsPage({ searchParams }: { searchPa
       .not("quiz_id", "is", null)
       .order("completed_at", { ascending: false })
       .limit(500),
-    admin.from("quizzes").select("id, title").order("title", { ascending: true }),
+    admin.from("quizzes").select("id, title").is("deleted_at", null).order("title", { ascending: true }),
     admin.from("profiles").select("id, full_name, first_name, last_name"),
     admin.auth.admin.listUsers()
   ]);

@@ -212,10 +212,35 @@ export async function updateQuizDetails(formData: FormData) {
 }
 
 export async function deleteQuiz(quizId: string) {
+  const { user } = await requireAdmin();
+  const admin = createAdminClient();
+  await admin
+    .from("quizzes")
+    .update({ deleted_at: new Date().toISOString(), deleted_by: user.id })
+    .eq("id", quizId);
+  revalidatePath("/admin");
+  revalidatePath("/admin/quizzes");
+  revalidatePath("/admin/quizzes/trash");
+  revalidatePath("/quizzes");
+}
+
+export async function restoreQuiz(quizId: string) {
   await requireAdmin();
   const admin = createAdminClient();
-  await admin.from("quizzes").delete().eq("id", quizId);
+  await admin.from("quizzes").update({ deleted_at: null, deleted_by: null }).eq("id", quizId);
+  revalidatePath("/admin");
   revalidatePath("/admin/quizzes");
+  revalidatePath("/admin/quizzes/trash");
+  revalidatePath("/quizzes");
+}
+
+export async function permanentlyDeleteQuiz(quizId: string) {
+  await requireAdmin();
+  const admin = createAdminClient();
+  await admin.from("quizzes").delete().eq("id", quizId).not("deleted_at", "is", null);
+  revalidatePath("/admin");
+  revalidatePath("/admin/quizzes");
+  revalidatePath("/admin/quizzes/trash");
   revalidatePath("/quizzes");
 }
 
