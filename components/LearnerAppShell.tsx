@@ -4,6 +4,7 @@ import {
   Bell,
   BookOpen,
   ChevronRight,
+  Flame,
   GraduationCap,
   HelpCircle,
   Home,
@@ -30,17 +31,45 @@ const levelNames: Record<string, string> = {
 
 type ActiveItem = "home" | "quizzes" | "courses" | "level-test" | "leaderboard" | "language-profile" | "profile";
 
-export async function LearnerAppShell({ active, children, contentClassName = "flex flex-col gap-5" }: { active: ActiveItem; children: React.ReactNode; contentClassName?: string }) {
+type BreadcrumbItem = { label: string; href?: string };
+type NotificationItem = { title: string; detail: string; href: string; tone: "purple" | "orange" | "green" | "blue" };
+
+const defaultBreadcrumbs: Record<ActiveItem, BreadcrumbItem[]> = {
+  home: [{ label: "Home" }],
+  quizzes: [{ label: "Home", href: "/account" }, { label: "Quizzes" }],
+  courses: [{ label: "Home", href: "/account" }, { label: "Courses" }],
+  "level-test": [{ label: "Home", href: "/account" }, { label: "Level Test" }],
+  leaderboard: [{ label: "Home", href: "/account" }, { label: "Leaderboard" }],
+  "language-profile": [{ label: "Home", href: "/account" }, { label: "Language Profile" }],
+  profile: [{ label: "Home", href: "/account" }, { label: "Profile" }],
+};
+
+export async function LearnerAppShell({
+  active,
+  children,
+  contentClassName = "flex flex-col gap-5",
+  breadcrumbs,
+  showChrome = true,
+  showFooter = true,
+}: {
+  active: ActiveItem;
+  children: React.ReactNode;
+  contentClassName?: string;
+  breadcrumbs?: BreadcrumbItem[];
+  showChrome?: boolean;
+  showFooter?: boolean;
+}) {
   const supabase = await createClient();
   const admin = createAdminClient();
   const { data: { user } } = await supabase.auth.getUser();
   const { data: profile } = user
-    ? await admin.from("profiles").select("first_name,last_name,full_name,cefr_level").eq("id", user.id).maybeSingle()
+    ? await admin.from("profiles").select("first_name,last_name,full_name,cefr_level,avatar_url").eq("id", user.id).maybeSingle()
     : { data: null };
 
   const name = [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || profile?.full_name || "Guest";
   const initials = name.split(/\s+/).slice(0, 2).map((part: string) => part[0]?.toUpperCase()).join("") || "BU";
   const currentLevel = profile?.cefr_level || null;
+  const notifications = await buildNotifications(admin, user?.id ?? null, currentLevel);
 
   return (
     <main className="min-h-screen bg-[#F6F7FB] font-sans text-[#14172B]">
@@ -48,11 +77,169 @@ export async function LearnerAppShell({ active, children, contentClassName = "fl
       <div className="mx-auto flex min-h-screen max-w-[1536px] items-start gap-5 p-3 pb-24 md:p-6 md:pb-6">
         <LearnerSidebar active={active} currentLevel={currentLevel} />
         <section className={`min-w-0 flex-1 pt-[60px] md:pt-0 ${contentClassName}`}>
+          {showChrome ? (
+            <DesktopLearnerChrome
+              breadcrumbs={breadcrumbs ?? defaultBreadcrumbs[active]}
+              notifications={notifications}
+              userName={name}
+              initials={initials}
+              avatarUrl={profile?.avatar_url ?? null}
+              isLoggedIn={Boolean(user)}
+              currentLevel={currentLevel}
+            />
+          ) : null}
           {children}
+          {showFooter ? <LearnerFooter /> : null}
         </section>
       </div>
       <MobileBottomNav active={active} />
     </main>
+  );
+}
+
+async function buildNotifications(admin: ReturnType<typeof createAdminClient>, userId: string | null, currentLevel: string | null): Promise<NotificationItem[]> {
+  const [{ data: quizzes }, { data: courses }, { data: attempts }, { data: points }] = await Promise.all([
+    admin.from("quizzes").select("id,title,level,created_at").eq("status", "PUBLISHED").is("deleted_at", null).order("created_at", { ascending: false }).limit(2),
+    admin.from("courses").select("id,title,level,created_at").eq("status", "PUBLISHED").is("deleted_at", null).order("created_at", { ascending: false }).limit(2),
+    userId
+      ? admin.from("quiz_attempts").select("quiz_id,score,total,completed_at,quizzes(title)").eq("user_id", userId).not("quiz_id", "is", null).order("completed_at", { ascending: false }).limit(2)
+      : Promise.resolve({ data: [] }),
+    userId
+      ? admin.from("quiz_leaderboard_points").select("points,created_at,quiz_id").eq("user_id", userId).order("created_at", { ascending: false }).limit(1)
+      : Promise.resolve({ data: [] }),
+  ]);
+  const items: NotificationItem[] = [];
+  if (currentLevel) items.push({ title: `Your level is ${currentLevel}`, detail: "Use it to choose better courses and quizzes.", href: "/level-test/result", tone: "purple" });
+  for (const attempt of attempts ?? []) {
+    const percent = attempt.total ? Math.round((Number(attempt.score) / Number(attempt.total)) * 100) : 0;
+    const quiz = Array.isArray(attempt.quizzes) ? attempt.quizzes[0] : attempt.quizzes;
+    items.push({ title: `Quiz completed: ${percent}%`, detail: quiz?.title ?? "Your latest quiz attempt was saved.", href: attempt.quiz_id ? `/quizzes/${attempt.quiz_id}` : "/quizzes", tone: "green" });
+  }
+  for (const point of points ?? []) {
+    items.push({ title: `+${Number(point.points ?? 0)} leaderboard points`, detail: "Your quiz activity moved your badge progress.", href: "/leaderboard", tone: "orange" });
+  }
+  for (const quiz of quizzes ?? []) {
+    items.push({ title: "New quiz published", detail: `${quiz.title}${quiz.level ? ` · ${quiz.level}` : ""}`, href: `/quizzes/${quiz.id}`, tone: "blue" });
+  }
+  for (const course of courses ?? []) {
+    items.push({ title: "Course available", detail: `${course.title}${course.level ? ` · ${course.level}` : ""}`, href: `/courses/${course.id}`, tone: "purple" });
+  }
+  return items.slice(0, 6);
+}
+
+function DesktopLearnerChrome({
+  breadcrumbs,
+  notifications,
+  userName,
+  initials,
+  avatarUrl,
+  isLoggedIn,
+  currentLevel,
+}: {
+  breadcrumbs: BreadcrumbItem[];
+  notifications: NotificationItem[];
+  userName: string;
+  initials: string;
+  avatarUrl: string | null;
+  isLoggedIn: boolean;
+  currentLevel: string | null;
+}) {
+  return (
+    <header className="mb-4 hidden items-center justify-between gap-4 min-[861px]:flex">
+      <nav className="flex min-w-0 items-center gap-2 text-sm font-semibold text-[#6E738D]" aria-label="Breadcrumb">
+        <Link href="/account" className="grid size-9 shrink-0 place-items-center rounded-xl border border-[#ECECF5] bg-white text-[#6E738D] shadow-[0_2px_8px_rgba(0,0,0,.04)]">
+          <Home className="size-4" />
+        </Link>
+        {breadcrumbs.map((item, index) => (
+          <span key={`${item.label}-${index}`} className="flex min-w-0 items-center gap-2">
+            {index === 0 ? null : <ChevronRight className="size-4 shrink-0 text-[#A0A5BA]" />}
+            {item.href ? (
+              <Link href={item.href} className="truncate hover:text-[#6C3BFF]">{item.label}</Link>
+            ) : (
+              <span className="max-w-[340px] truncate text-[#14172B]">{item.label}</span>
+            )}
+          </span>
+        ))}
+      </nav>
+      <div className="flex shrink-0 items-center gap-3">
+        <div className="hidden items-center gap-1.5 rounded-[14px] border border-[#ECECF5] bg-white px-3 py-2 text-xs font-bold text-[#6E738D] shadow-[0_2px_8px_rgba(0,0,0,.04)] min-[1120px]:inline-flex">
+          <Flame className="size-4 text-[#FF8C00]" /> {currentLevel ? `${currentLevel} level` : "Find your level"}
+        </div>
+        <details className="group relative">
+          <summary className="relative grid size-11 cursor-pointer list-none place-items-center rounded-[14px] border border-[#ECECF5] bg-white shadow-[0_2px_8px_rgba(0,0,0,.04)] marker:hidden [&::-webkit-details-marker]:hidden" aria-label="Notifications">
+            <Bell className="size-[18px] text-[#6E738D]" />
+            {notifications.length ? <span className="absolute -right-1 -top-1 grid size-5 place-items-center rounded-full border-2 border-[#F6F7FB] bg-[#FF5D73] text-[10px] font-black text-white">{notifications.length}</span> : null}
+          </summary>
+          <div className="absolute right-0 top-14 z-40 w-[360px] overflow-hidden rounded-[22px] border border-[#ECECF5] bg-white shadow-[0_24px_60px_rgba(20,23,43,.18)]">
+            <div className="border-b border-[#ECECF5] px-4 py-3">
+              <p className="text-sm font-black text-[#14172B]">Notifications</p>
+              <p className="text-xs font-semibold text-[#6E738D]">Latest learning and platform updates</p>
+            </div>
+            <div className="max-h-[360px] overflow-y-auto p-2">
+              {notifications.length ? notifications.map((item, index) => <NotificationRow key={`${item.title}-${index}`} item={item} />) : (
+                <p className="rounded-2xl bg-[#F6F7FB] px-4 py-6 text-center text-sm font-semibold text-[#6E738D]">No notifications yet.</p>
+              )}
+            </div>
+          </div>
+        </details>
+        <Link href={isLoggedIn ? "/profile" : "/login"} className="flex items-center gap-2 rounded-full border border-[#ECECF5] bg-white p-1.5 pr-3 shadow-[0_2px_8px_rgba(0,0,0,.04)]">
+          <AvatarBubble initials={initials} avatarUrl={avatarUrl} />
+          <span className="hidden max-w-[130px] truncate text-xs font-bold text-[#14172B] min-[1120px]:block">{isLoggedIn ? userName : "My Account"}</span>
+        </Link>
+      </div>
+    </header>
+  );
+}
+
+function NotificationRow({ item }: { item: NotificationItem }) {
+  const tones = {
+    purple: "bg-[#6C3BFF]",
+    orange: "bg-[#FF8C00]",
+    green: "bg-[#00C98D]",
+    blue: "bg-[#4E8DFF]",
+  };
+  return (
+    <Link href={item.href} className="flex gap-3 rounded-2xl px-3 py-3 transition hover:bg-[#F6F7FB]">
+      <span className={`mt-1 size-2.5 shrink-0 rounded-full ${tones[item.tone]}`} />
+      <span className="min-w-0">
+        <span className="block truncate text-sm font-extrabold text-[#14172B]">{item.title}</span>
+        <span className="mt-0.5 block line-clamp-2 text-xs font-semibold leading-5 text-[#6E738D]">{item.detail}</span>
+      </span>
+    </Link>
+  );
+}
+
+function AvatarBubble({ initials, avatarUrl }: { initials: string; avatarUrl: string | null }) {
+  return (
+    <span className="grid size-9 place-items-center overflow-hidden rounded-full bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] text-xs font-black text-white">
+      {/* eslint-disable-next-line @next/next/no-img-element -- Avatar URLs are user-uploaded Supabase/public links. */}
+      {avatarUrl ? <img src={avatarUrl} alt="" className="h-full w-full object-cover" /> : initials}
+    </span>
+  );
+}
+
+function LearnerFooter() {
+  return (
+    <footer className="mt-8 rounded-[24px] border border-[#ECECF5] bg-white px-5 py-5 shadow-[0_12px_32px_rgba(0,0,0,.04)]">
+      <div className="flex flex-col gap-4 min-[760px]:flex-row min-[760px]:items-center min-[760px]:justify-between">
+        <div className="flex items-center gap-3">
+          <span className="grid size-10 place-items-center rounded-[14px] bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF]">
+            <Layers className="size-5 text-white" />
+          </span>
+          <div>
+            <p className="text-sm font-black text-[#14172B]">BrenUp</p>
+            <p className="text-xs font-semibold text-[#6E738D]">Level Up Your English</p>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-3 text-xs font-bold text-[#6E738D]">
+          <Link href="/courses" className="hover:text-[#6C3BFF]">Courses</Link>
+          <Link href="/quizzes" className="hover:text-[#6C3BFF]">Quizzes</Link>
+          <Link href="/level-test" className="hover:text-[#6C3BFF]">Level Test</Link>
+          <Link href="/leaderboard" className="hover:text-[#6C3BFF]">Leaderboard</Link>
+        </div>
+        <p className="text-xs font-semibold text-[#A0A5BA]">© {new Date().getFullYear()} BrenUp</p>
+      </div>
+    </footer>
   );
 }
 

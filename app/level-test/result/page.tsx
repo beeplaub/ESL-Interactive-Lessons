@@ -33,7 +33,14 @@ export default async function LevelTestResultPage({ searchParams }: { searchPara
   const guidanceText = String(snapshotBand.guidanceText ?? card?.guidance_text ?? guidance.guidance);
 
   return (
-    <LearnerAppShell active="level-test">
+    <LearnerAppShell
+      active="level-test"
+      breadcrumbs={[
+        { label: "Home", href: "/account" },
+        { label: "Level Test", href: "/level-test" },
+        { label: `${level} Result` },
+      ]}
+    >
       <section className="max-w-5xl">
         <div className="relative overflow-hidden rounded-[24px] bg-gradient-to-br from-[#1A1060] via-[#0C1945] to-[#0E1F5A] p-6 text-white shadow-[0_20px_58px_rgba(20,23,80,.3)] sm:p-9">
           <div className="absolute -right-16 -top-20 size-64 rounded-full bg-[#6C3BFF]/25" />

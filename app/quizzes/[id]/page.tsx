@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Clock3, Gamepad2, HelpCircle, Sparkles } from "lucide-react";
+import { Clock3, Gamepad2, HelpCircle, Sparkles } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { QuizPlayer } from "@/components/QuizPlayer";
+import { LearnerAppShell } from "@/components/LearnerAppShell";
 
 export default async function QuizPage({
   params,
@@ -40,12 +41,17 @@ export default async function QuizPage({
   }));
 
   return (
-    <main className="min-h-screen bg-[#F6F7FB] px-4 py-6 text-[#14172B] sm:px-6 lg:py-8">
+    <LearnerAppShell
+      active="quizzes"
+      contentClassName="block"
+      breadcrumbs={[
+        { label: "Home", href: "/account" },
+        { label: "Quizzes", href: "/quizzes" },
+        { label: quiz.title },
+      ]}
+    >
       <div className="mx-auto max-w-[1120px]">
-      <Link href="/quizzes" className="inline-flex items-center gap-2 rounded-full border border-[#ECECF5] bg-white px-4 py-2 text-sm font-bold text-[#6E738D] shadow-[0_2px_8px_rgba(0,0,0,.04)] hover:text-[#14172B]">
-        <ArrowLeft size={16} /> Back to quizzes
-      </Link>
-      <section className="relative mb-6 mt-5 overflow-hidden rounded-[24px] bg-gradient-to-br from-[#1A1060] via-[#0C1945] to-[#0E1F5A] p-5 text-white shadow-[0_16px_48px_rgba(20,23,80,.25)] sm:p-7">
+      <section className="relative mb-6 overflow-hidden rounded-[24px] bg-gradient-to-br from-[#1A1060] via-[#0C1945] to-[#0E1F5A] p-5 text-white shadow-[0_16px_48px_rgba(20,23,80,.25)] sm:p-7">
         <div className="absolute -right-16 -top-20 size-56 rounded-full bg-[#6C3BFF]/25" />
         <div className="absolute right-36 top-10 size-20 rounded-full bg-[#3CCEFF]/20 blur-xl" />
         <div className="relative z-10">
@@ -77,6 +83,6 @@ export default async function QuizPage({
         courseItemId={courseItem}
       />
       </div>
-    </main>
+    </LearnerAppShell>
   );
 }

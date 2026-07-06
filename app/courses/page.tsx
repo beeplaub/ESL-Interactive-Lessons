@@ -10,7 +10,6 @@ import {
   Search,
   Sparkles,
   Star,
-  User
 } from "lucide-react";
 import { LearnerAppShell } from "@/components/LearnerAppShell";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -59,21 +58,6 @@ export default async function CoursesPage({
   return (
     <LearnerAppShell active="courses">
         <section className="flex min-w-0 flex-col gap-5">
-          <header className="hidden items-start justify-between gap-4 min-[861px]:flex">
-            <div>
-              <h1 className="text-[28px] font-bold leading-tight">Courses</h1>
-              <p className="mt-0.5 text-sm text-[#6E738D]">Choose a guided BrenUp path and keep your English moving.</p>
-            </div>
-            <div className="flex shrink-0 items-center gap-3">
-              <SearchBox defaultValue={searchQuery} />
-              <StatChip icon={<GraduationCap className="size-[18px] text-[#6C3BFF]" />} value={String(allCourses.length)} label="courses" />
-              <StatChip icon={<Star className="size-[18px] fill-[#FFB545] text-[#FFB545]" />} value={String(enrolledCount)} label="enrolled" />
-              <Link href={user ? "/account" : "/login"} className="relative grid size-11 place-items-center rounded-[14px] border border-[#ECECF5] bg-white shadow-[0_2px_8px_rgba(0,0,0,.04)]" aria-label="Account">
-                <User className="size-[18px] text-[#6E738D]" />
-              </Link>
-            </div>
-          </header>
-
           <div className="min-[861px]:hidden">
             <SearchBox mobile defaultValue={searchQuery} />
             <div className="mt-2 flex gap-2">
@@ -87,18 +71,18 @@ export default async function CoursesPage({
           </div>
 
           <section className="grid gap-5 min-[1100px]:grid-cols-[minmax(0,1fr)_310px]">
-            <div className="relative overflow-hidden rounded-[24px] bg-gradient-to-br from-[#1A1060] via-[#0C1945] to-[#0E1F5A] p-5 text-white shadow-[0_16px_48px_rgba(20,23,80,.25)] md:p-7">
+            <div className="relative overflow-hidden rounded-[24px] bg-gradient-to-br from-[#1A1060] via-[#0C1945] to-[#0E1F5A] p-5 text-white shadow-[0_16px_48px_rgba(20,23,80,.25)] md:p-6">
               <div className="absolute -right-16 -top-16 size-56 rounded-full bg-[#6C3BFF]/25 blur-sm" />
               <div className="absolute right-24 top-10 size-20 rounded-full bg-[#3CCEFF]/20 blur-xl" />
-              <div className="relative z-10 flex min-h-[240px] flex-col justify-between gap-8">
+              <div className="relative z-10 flex min-h-[190px] flex-col justify-between gap-5">
                 <div>
                   <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-bold text-white/80">
                     <Sparkles className="size-3.5" /> BrenUp Guided Learning
                   </span>
-                  <h2 className="mt-5 max-w-2xl text-3xl font-extrabold leading-tight md:text-5xl">
+                  <h2 className="mt-4 max-w-2xl text-3xl font-extrabold leading-tight md:text-4xl">
                     Build fluency through focused course paths.
                   </h2>
-                  <p className="mt-4 max-w-2xl text-sm leading-6 text-white/65 md:text-base">
+                  <p className="mt-3 max-w-2xl text-sm leading-6 text-white/65">
                     Courses combine lessons, quizzes, level practice, and progress tracking into a cleaner learning journey.
                   </p>
                 </div>

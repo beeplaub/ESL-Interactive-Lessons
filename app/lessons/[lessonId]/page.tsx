@@ -56,7 +56,15 @@ export default async function LessonPage({
   }
 
   return (
-    <LearnerAppShell active="courses" contentClassName="block">
+    <LearnerAppShell
+      active="courses"
+      contentClassName="block"
+      breadcrumbs={[
+        { label: "Home", href: "/account" },
+        { label: "Courses", href: "/courses" },
+        { label: lesson.title },
+      ]}
+    >
       <BuilderLessonPlayer
         lesson={lesson}
         slides={slides ?? []}

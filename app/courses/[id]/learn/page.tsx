@@ -48,7 +48,16 @@ export default async function CourseLearnPage({ params, searchParams }: { params
   const percent = progress?.progress_percent ?? (totalCount ? Math.round((completedCount / totalCount) * 100) : 0);
 
   return (
-    <LearnerAppShell active="courses" contentClassName="block">
+    <LearnerAppShell
+      active="courses"
+      contentClassName="block"
+      breadcrumbs={[
+        { label: "Home", href: "/account" },
+        { label: "Courses", href: "/courses" },
+        { label: course.title, href: `/courses/${course.id}` },
+        { label: "Learn" },
+      ]}
+    >
     <main className="mx-auto max-w-7xl">
       <section className="mb-4 rounded-[22px] border border-[#ECECF5] bg-white p-4 shadow-[0_12px_32px_rgba(0,0,0,.06)]">
         <div className="flex flex-wrap items-center justify-between gap-3">

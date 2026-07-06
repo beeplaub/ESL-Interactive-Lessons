@@ -5,19 +5,15 @@ import {
   BookOpen,
   CheckCircle2,
   ChevronDown,
-  ChevronRight,
   Clock3,
   Eye,
   GraduationCap,
-  Home,
   Layers,
   LockKeyhole,
   Play,
   PlayCircle,
   ShieldCheck,
-  Sparkles,
-  Star,
-  User
+  Star
 } from "lucide-react";
 import { CourseCurriculumTabs } from "@/components/CourseCurriculumTabs";
 import { LearnerAppShell } from "@/components/LearnerAppShell";
@@ -268,30 +264,20 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
   );
 
   return (
-    <LearnerAppShell active="courses">
+    <LearnerAppShell
+      active="courses"
+      breadcrumbs={[
+        { label: "Home", href: "/account" },
+        { label: "Courses", href: "/courses" },
+        { label: course.title },
+      ]}
+    >
         <section className="flex min-w-0 flex-col gap-5">
           {isAdminPreview && course.status !== "PUBLISHED" ? (
             <div className="flex items-center gap-2 rounded-[14px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
               <Eye className="size-4 shrink-0" /> Draft preview — this course is unpublished and only visible to you as an admin.
             </div>
           ) : null}
-          <header className="hidden items-center justify-between gap-4 min-[861px]:flex">
-            <div className="flex items-center gap-2 text-sm font-semibold text-[#6E738D]">
-              <Link href="/account" className="grid size-9 place-items-center rounded-xl border border-[#ECECF5] bg-white text-[#6E738D] shadow-[0_2px_8px_rgba(0,0,0,.04)]"><Home className="size-4" /></Link>
-              <ChevronRight className="size-4 text-[#A0A5BA]" />
-              <Link href="/courses" className="hover:text-[#6C3BFF]">Courses</Link>
-              <ChevronRight className="size-4 text-[#A0A5BA]" />
-              <span className="max-w-[320px] truncate text-[#14172B]">{course.title}</span>
-            </div>
-            <div className="flex shrink-0 items-center gap-3">
-              <StatChip icon={<Sparkles className="size-[18px] text-[#FF8C00]" />} value="12" label="day streak" />
-              <StatChip icon={<Star className="size-[18px] fill-[#FFB545] text-[#FFB545]" />} value="3,450" label="points" />
-              <Link href={user ? "/account" : "/login"} className="relative grid size-11 place-items-center rounded-[14px] border border-[#ECECF5] bg-white shadow-[0_2px_8px_rgba(0,0,0,.04)]" aria-label="Account">
-                <User className="size-[18px] text-[#6E738D]" />
-              </Link>
-            </div>
-          </header>
-
           {/* Mobile / tablet layout: unchanged, stacked sections */}
           <div className="grid gap-5 min-[1130px]:hidden">
             <section className="grid gap-5">
@@ -389,8 +375,4 @@ function Meta({ icon: Icon, label, star }: { icon: React.ElementType; label: str
 
 function Legend({ dot, label, value }: { dot: string; label: string; value: string }) {
   return <div className="flex items-start gap-2"><span className="mt-1.5 size-2.5 rounded-full" style={{ backgroundColor: dot }} /><div><p className="font-bold text-[#35405F]">{label}</p><p className="text-xs text-[#6E738D]">{value}</p></div></div>;
-}
-
-function StatChip({ icon, value, label }: { icon: React.ReactNode; value: string; label: string }) {
-  return <div className="flex items-center gap-1.5 rounded-[20px] border border-[#ECECF5] bg-white px-3.5 py-2 shadow-[0_2px_8px_rgba(0,0,0,.04)]">{icon}<div><div className="text-sm font-bold text-[#14172B]">{value}</div><div className="text-[11px] text-[#6E738D]">{label}</div></div></div>;
 }

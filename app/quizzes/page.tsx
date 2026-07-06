@@ -51,20 +51,20 @@ export default async function QuizzesPage() {
     <LearnerAppShell active="quizzes">
       <section>
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
-          <div className="relative overflow-hidden rounded-[24px] bg-gradient-to-br from-[#1A1060] via-[#0C1945] to-[#0E1F5A] p-6 text-white shadow-[0_16px_48px_rgba(20,23,80,.25)] sm:p-8">
+          <div className="relative overflow-hidden rounded-[24px] bg-gradient-to-br from-[#1A1060] via-[#0C1945] to-[#0E1F5A] p-5 text-white shadow-[0_16px_48px_rgba(20,23,80,.25)] sm:p-6">
             <div className="absolute -right-16 -top-20 size-60 rounded-full bg-[#6C3BFF]/25" />
             <div className="absolute right-36 top-10 size-20 rounded-full bg-[#3CCEFF]/20 blur-xl" />
             <div className="relative z-10">
               <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-bold text-white/80">
                 <Sparkles className="size-4" /> Free quiz arena
               </span>
-              <h1 className="mt-5 max-w-3xl text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl">
+              <h1 className="mt-4 max-w-3xl text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">
                 Choose a quiz, answer one question at a time, and climb.
               </h1>
-              <p className="mt-4 max-w-2xl text-sm leading-7 text-white/65 sm:text-base">
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-white/65">
                 Practice grammar, vocabulary, reading, and functional English with instant feedback, optional timers, saved scores, and leaderboard points.
               </p>
-              <div className="mt-6 flex flex-wrap gap-3">
+              <div className="mt-5 flex flex-wrap gap-3">
                 <a href="#quiz-library" className="inline-flex items-center gap-2 rounded-[14px] bg-white px-5 py-3 text-sm font-extrabold text-[#6C3BFF]">
                   Browse quiz library
                 </a>
