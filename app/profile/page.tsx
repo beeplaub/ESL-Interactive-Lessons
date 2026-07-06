@@ -24,16 +24,16 @@ export default async function ProfilePage() {
   return (
     <LearnerAppShell active="profile">
       <section className="grid gap-5">
-        <div className="relative overflow-hidden rounded-[24px] bg-gradient-to-br from-[#1A1060] via-[#0C1945] to-[#0E1F5A] p-6 text-white shadow-[0_16px_48px_rgba(20,23,80,.25)] sm:p-8">
+        <div className="relative overflow-hidden rounded-[24px] bg-gradient-to-br from-[#1A1060] via-[#0C1945] to-[#0E1F5A] p-4 text-white shadow-[0_16px_48px_rgba(20,23,80,.25)] sm:p-5">
           <div className="absolute -right-16 -top-20 size-60 rounded-full bg-[#6C3BFF]/25" />
           <div className="absolute right-36 top-10 size-20 rounded-full bg-[#3CCEFF]/20 blur-xl" />
-          <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div className="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-bold text-white/80">
                 <Sparkles className="size-4" /> Your BrenUp profile
               </span>
-              <h1 className="mt-5 text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl">{displayName}</h1>
-              <p className="mt-3 max-w-2xl text-sm leading-7 text-white/65 sm:text-base">
+              <h1 className="mt-3 text-2xl font-extrabold leading-tight tracking-tight sm:text-3xl">{displayName}</h1>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-white/65">
                 Keep your learning identity, CEFR level, avatar, and account security tidy in one place.
               </p>
             </div>

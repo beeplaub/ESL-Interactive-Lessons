@@ -14,20 +14,20 @@ export default async function LevelTestPage() {
   return (
     <LearnerAppShell active="level-test">
       <section>
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(330px,.85fr)]">
-          <div className="relative overflow-hidden rounded-[24px] bg-gradient-to-br from-[#1A1060] via-[#0C1945] to-[#0E1F5A] p-5 text-white shadow-[0_18px_52px_rgba(20,23,80,.28)] sm:p-6">
+        <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(330px,.85fr)]">
+          <div className="relative self-start overflow-hidden rounded-[24px] bg-gradient-to-br from-[#1A1060] via-[#0C1945] to-[#0E1F5A] p-4 text-white shadow-[0_18px_52px_rgba(20,23,80,.28)] sm:p-5">
             <div className="absolute -right-20 -top-24 size-72 rounded-full bg-[#6C3BFF]/25" />
             <div className="absolute right-32 top-20 size-24 rounded-full bg-[#38BDF8]/20 blur-xl" />
             <div className="relative z-10">
               <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-bold text-white/80"><Sparkles className="size-4" /> CEFR level check</span>
-              <h1 className="mt-4 max-w-3xl text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl">{test.title}</h1>
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-white/68">{test.description}</p>
-              <div className="mt-5 flex flex-wrap gap-3">
+              <h1 className="mt-3 max-w-3xl text-2xl font-extrabold leading-tight tracking-tight sm:text-3xl">{test.title}</h1>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-white/68">{test.description}</p>
+              <div className="mt-4 flex flex-wrap gap-2">
                 <InfoPill icon={FileQuestion} text={`${questionCount} questions`} />
                 <InfoPill icon={Clock3} text={test.durationSeconds ? `${Math.round(test.durationSeconds / 60)} minutes` : "No time limit"} />
                 <InfoPill icon={BadgeCheck} text="A1–C2 result" />
               </div>
-              <Link href={startHref} className="mt-5 inline-flex items-center gap-2 rounded-[14px] bg-white px-5 py-3 text-sm font-extrabold text-[#6C3BFF] shadow-[0_10px_28px_rgba(0,0,0,.16)]">
+              <Link href={startHref} className="mt-4 inline-flex items-center gap-2 rounded-[13px] bg-white px-4 py-2.5 text-sm font-extrabold text-[#6C3BFF] shadow-[0_10px_28px_rgba(0,0,0,.16)]">
                 Start level test <ArrowRight className="size-4" />
               </Link>
             </div>

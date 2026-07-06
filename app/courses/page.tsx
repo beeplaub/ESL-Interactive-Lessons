@@ -70,27 +70,27 @@ export default async function CoursesPage({
             </div>
           </div>
 
-          <section className="grid gap-5 min-[1100px]:grid-cols-[minmax(0,1fr)_310px]">
-            <div className="relative overflow-hidden rounded-[24px] bg-gradient-to-br from-[#1A1060] via-[#0C1945] to-[#0E1F5A] p-5 text-white shadow-[0_16px_48px_rgba(20,23,80,.25)] md:p-6">
+          <section className="grid items-start gap-5 min-[1100px]:grid-cols-[minmax(0,1fr)_310px]">
+            <div className="relative self-start overflow-hidden rounded-[24px] bg-gradient-to-br from-[#1A1060] via-[#0C1945] to-[#0E1F5A] p-4 text-white shadow-[0_16px_48px_rgba(20,23,80,.25)] md:p-5">
               <div className="absolute -right-16 -top-16 size-56 rounded-full bg-[#6C3BFF]/25 blur-sm" />
               <div className="absolute right-24 top-10 size-20 rounded-full bg-[#3CCEFF]/20 blur-xl" />
-              <div className="relative z-10 flex min-h-[190px] flex-col justify-between gap-5">
+              <div className="relative z-10 flex flex-col gap-4">
                 <div>
                   <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-bold text-white/80">
                     <Sparkles className="size-3.5" /> BrenUp Guided Learning
                   </span>
-                  <h2 className="mt-4 max-w-2xl text-3xl font-extrabold leading-tight md:text-4xl">
+                  <h2 className="mt-3 max-w-2xl text-2xl font-extrabold leading-tight md:text-3xl">
                     Build fluency through focused course paths.
                   </h2>
-                  <p className="mt-3 max-w-2xl text-sm leading-6 text-white/65">
+                  <p className="mt-2 max-w-2xl text-sm leading-6 text-white/65">
                     Courses combine lessons, quizzes, level practice, and progress tracking into a cleaner learning journey.
                   </p>
                 </div>
-                <div className="flex flex-wrap gap-3">
-                  <Link href={featured ? `/courses/${featured.id}` : "/level-test"} className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] px-5 py-3 text-sm font-bold text-white shadow-[0_8px_20px_rgba(108,59,255,.35)]">
+                <div className="flex flex-wrap gap-2">
+                  <Link href={featured ? `/courses/${featured.id}` : "/level-test"} className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] px-4 py-2.5 text-sm font-bold text-white shadow-[0_8px_20px_rgba(108,59,255,.35)]">
                     {featured ? "Explore newest course" : "Take level test"} <ArrowRight className="size-4" />
                   </Link>
-                  <Link href="/quizzes" className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-bold text-white">
+                  <Link href="/quizzes" className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-bold text-white">
                     Try a quiz first
                   </Link>
                 </div>

@@ -4,7 +4,6 @@ import {
   Bell,
   BookOpen,
   ChevronRight,
-  Flame,
   GraduationCap,
   HelpCircle,
   Home,
@@ -49,6 +48,7 @@ export async function LearnerAppShell({
   children,
   contentClassName = "flex flex-col gap-5",
   breadcrumbs,
+  desktopChromeLeading,
   showChrome = true,
   showFooter = true,
 }: {
@@ -56,6 +56,7 @@ export async function LearnerAppShell({
   children: React.ReactNode;
   contentClassName?: string;
   breadcrumbs?: BreadcrumbItem[];
+  desktopChromeLeading?: React.ReactNode;
   showChrome?: boolean;
   showFooter?: boolean;
 }) {
@@ -80,6 +81,7 @@ export async function LearnerAppShell({
           {showChrome ? (
             <DesktopLearnerChrome
               breadcrumbs={breadcrumbs ?? defaultBreadcrumbs[active]}
+              leading={desktopChromeLeading}
               notifications={notifications}
               userName={name}
               initials={initials}
@@ -129,6 +131,7 @@ async function buildNotifications(admin: ReturnType<typeof createAdminClient>, u
 
 function DesktopLearnerChrome({
   breadcrumbs,
+  leading,
   notifications,
   userName,
   initials,
@@ -137,6 +140,7 @@ function DesktopLearnerChrome({
   currentLevel,
 }: {
   breadcrumbs: BreadcrumbItem[];
+  leading?: React.ReactNode;
   notifications: NotificationItem[];
   userName: string;
   initials: string;
@@ -146,25 +150,27 @@ function DesktopLearnerChrome({
 }) {
   return (
     <header className="mb-4 hidden items-center justify-between gap-4 min-[861px]:flex">
-      <nav className="flex min-w-0 items-center gap-2 text-sm font-semibold text-[#6E738D]" aria-label="Breadcrumb">
-        <Link href="/account" className="grid size-9 shrink-0 place-items-center rounded-xl border border-[#ECECF5] bg-white text-[#6E738D] shadow-[0_2px_8px_rgba(0,0,0,.04)]">
-          <Home className="size-4" />
-        </Link>
-        {breadcrumbs.map((item, index) => (
-          <span key={`${item.label}-${index}`} className="flex min-w-0 items-center gap-2">
-            {index === 0 ? null : <ChevronRight className="size-4 shrink-0 text-[#A0A5BA]" />}
-            {item.href ? (
-              <Link href={item.href} className="truncate hover:text-[#6C3BFF]">{item.label}</Link>
-            ) : (
-              <span className="max-w-[340px] truncate text-[#14172B]">{item.label}</span>
-            )}
-          </span>
-        ))}
-      </nav>
+      {leading ?? (
+        <nav className="flex min-w-0 items-center gap-2 text-sm font-semibold text-[#6E738D]" aria-label="Breadcrumb">
+          <Link href="/account" className="grid size-9 shrink-0 place-items-center rounded-xl border border-[#ECECF5] bg-white text-[#6E738D] shadow-[0_2px_8px_rgba(0,0,0,.04)]">
+            <Home className="size-4" />
+          </Link>
+          {breadcrumbs.map((item, index) => (
+            <span key={`${item.label}-${index}`} className="flex min-w-0 items-center gap-2">
+              {index === 0 ? null : <ChevronRight className="size-4 shrink-0 text-[#A0A5BA]" />}
+              {item.href ? (
+                <Link href={item.href} className="truncate hover:text-[#6C3BFF]">{item.label}</Link>
+              ) : (
+                <span className="max-w-[340px] truncate text-[#14172B]">{item.label}</span>
+              )}
+            </span>
+          ))}
+        </nav>
+      )}
       <div className="flex shrink-0 items-center gap-3">
-        <div className="hidden items-center gap-1.5 rounded-[14px] border border-[#ECECF5] bg-white px-3 py-2 text-xs font-bold text-[#6E738D] shadow-[0_2px_8px_rgba(0,0,0,.04)] min-[1120px]:inline-flex">
-          <Flame className="size-4 text-[#FF8C00]" /> {currentLevel ? `${currentLevel} level` : "Find your level"}
-        </div>
+        <Link href="/level-test" className="hidden items-center gap-1.5 rounded-[14px] border border-[#ECECF5] bg-white px-3 py-2 text-xs font-bold text-[#6E738D] shadow-[0_2px_8px_rgba(0,0,0,.04)] transition hover:text-[#6C3BFF] min-[1120px]:inline-flex">
+          <Target className="size-4 text-[#6C3BFF]" /> {currentLevel ? `${currentLevel} level` : "Find your level"}
+        </Link>
         <details className="group relative">
           <summary className="relative grid size-11 cursor-pointer list-none place-items-center rounded-[14px] border border-[#ECECF5] bg-white shadow-[0_2px_8px_rgba(0,0,0,.04)] marker:hidden [&::-webkit-details-marker]:hidden" aria-label="Notifications">
             <Bell className="size-[18px] text-[#6E738D]" />

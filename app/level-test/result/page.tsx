@@ -42,16 +42,16 @@ export default async function LevelTestResultPage({ searchParams }: { searchPara
       ]}
     >
       <section className="max-w-5xl">
-        <div className="relative overflow-hidden rounded-[24px] bg-gradient-to-br from-[#1A1060] via-[#0C1945] to-[#0E1F5A] p-6 text-white shadow-[0_20px_58px_rgba(20,23,80,.3)] sm:p-9">
+        <div className="relative overflow-hidden rounded-[24px] bg-gradient-to-br from-[#1A1060] via-[#0C1945] to-[#0E1F5A] p-4 text-white shadow-[0_20px_58px_rgba(20,23,80,.3)] sm:p-5">
           <div className="absolute -right-16 -top-20 size-64 rounded-full bg-[#6C3BFF]/25" />
-          <div className="relative z-10 grid gap-7 md:grid-cols-[1fr_auto] md:items-center">
+          <div className="relative z-10 grid gap-4 md:grid-cols-[1fr_auto] md:items-center">
             <div>
               <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-bold text-white/80"><Sparkles className="size-4" /> Level test complete</span>
-              <p className="mt-5 text-sm font-bold text-white/60">Your CEFR reference level</p>
-              <div className="mt-2 flex flex-wrap items-end gap-4"><h1 className="text-7xl font-black leading-none tracking-tight sm:text-8xl">{level}</h1><div className="pb-1"><p className="text-xl font-extrabold sm:text-2xl">{resultName}</p><p className="mt-1 text-sm font-semibold text-white/60">{guidance.summary}</p></div></div>
+              <p className="mt-3 text-sm font-bold text-white/60">Your CEFR reference level</p>
+              <div className="mt-1 flex flex-wrap items-end gap-3"><h1 className="text-5xl font-black leading-none tracking-tight sm:text-6xl">{level}</h1><div className="pb-1"><p className="text-lg font-extrabold sm:text-xl">{resultName}</p><p className="mt-1 text-sm font-semibold text-white/60">{guidance.summary}</p></div></div>
             </div>
-            <div className="grid size-40 place-items-center rounded-full border-[10px] border-white/10 bg-white/10 text-center shadow-inner">
-              <div><div className="text-4xl font-black">{percentage}%</div><div className="mt-1 text-xs font-bold text-white/60">weighted score</div></div>
+            <div className="grid size-32 place-items-center rounded-full border-[8px] border-white/10 bg-white/10 text-center shadow-inner">
+              <div><div className="text-3xl font-black">{percentage}%</div><div className="mt-1 text-[11px] font-bold text-white/60">weighted score</div></div>
             </div>
           </div>
         </div>

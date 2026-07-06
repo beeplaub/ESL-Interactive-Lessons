@@ -2,11 +2,9 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import {
   Award,
-  Bell,
   Book,
   BookOpen,
   Briefcase,
-  ChevronDown,
   ChevronRight,
   ClipboardList,
   Flag,
@@ -19,8 +17,6 @@ import {
   Mic,
   Pencil,
   Play,
-  Search,
-  Star,
   Target,
   TrendingUp,
   Type,
@@ -92,8 +88,6 @@ export default async function AccountPage() {
   const activityDates = (quizAttempts ?? []).filter((a) => a.completed_at).map((a) => toDateKey(new Date(a.completed_at)));
   const streak = calcStreak(activityDates);
   const firstName = profile?.first_name?.trim() || profile?.full_name?.split(" ")?.[0]?.trim() || "there";
-  const fullName = [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || profile?.full_name || user.email?.split("@")[0] || "BrenUp Learner";
-  const initials = fullName.split(/\s+/).slice(0, 2).map((part: string) => part[0]?.toUpperCase()).join("") || "BU";
   const totalQuizPoints = (leaderboardPoints ?? []).reduce((sum, row) => sum + Number(row.points ?? 0), 0);
   const currentBadge = getQuizBadge(totalQuizPoints);
   const nextBadge = getNextQuizBadge(totalQuizPoints);
@@ -143,7 +137,15 @@ export default async function AccountPage() {
   });
 
   return (
-    <LearnerAppShell active="home">
+    <LearnerAppShell
+      active="home"
+      desktopChromeLeading={
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate text-[28px] font-bold leading-tight">Good morning, {firstName}! 👋</h1>
+          <p className="mt-0.5 text-sm text-[#6E738D]">Let&apos;s continue your English journey.</p>
+        </div>
+      }
+    >
       <PendingAttemptSaver />
       <div className="flex min-w-0 gap-5">
         <section className="flex min-w-0 flex-1 flex-col gap-5">
@@ -156,37 +158,9 @@ export default async function AccountPage() {
             </form>
           ) : null}
 
-          <header className="hidden items-start justify-between gap-4 min-[861px]:flex">
-            <div>
-              <h1 className="text-[28px] font-bold leading-tight">Good morning, {firstName}! 👋</h1>
-              <p className="mt-0.5 text-sm text-[#6E738D]">Let&apos;s continue your English journey.</p>
-            </div>
-            <div className="flex shrink-0 items-center gap-3">
-              <SearchBox />
-              <StatChip icon={<span>🔥</span>} value={String(streak)} label="day streak" />
-              <StatChip icon={<Star className="size-[18px] fill-[#FFB545] text-[#FFB545]" />} value={totalQuizPoints.toLocaleString()} label="points" />
-              <button className="relative grid size-11 place-items-center rounded-[14px] border border-[#ECECF5] bg-white shadow-[0_2px_8px_rgba(0,0,0,.04)]" aria-label="Notifications" type="button">
-                <Bell className="size-[18px] text-[#6E738D]" />
-                <span className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full border-2 border-[#F6F7FB] bg-[#FF5D73] text-[9px] font-bold text-white">3</span>
-              </button>
-              <Link href="/profile" className="flex items-center gap-2 rounded-[20px] border border-[#ECECF5] bg-white py-1.5 pl-1.5 pr-3 shadow-[0_2px_8px_rgba(0,0,0,.04)]">
-                <Avatar initials={initials} avatarUrl={profile?.avatar_url} />
-                <span className="text-[13px] font-semibold">{fullName}</span>
-                <ChevronDown className="size-3.5 text-[#6E738D]" />
-              </Link>
-            </div>
-          </header>
-
           <div className="min-[861px]:hidden">
-            <SearchBox mobile />
-            <div className="mt-2 flex gap-2">
-              <StatChip icon={<span>🔥</span>} value={String(streak)} label="day streak" mobile />
-              <StatChip icon={<Star className="size-4 fill-[#FFB545] text-[#FFB545]" />} value={totalQuizPoints.toLocaleString()} label="points" mobile />
-            </div>
-            <div className="mt-3">
-              <h2 className="text-xl font-bold">Good morning, {firstName}! 👋</h2>
-              <p className="mt-0.5 text-[13px] text-[#6E738D]">Let&apos;s continue your English journey.</p>
-            </div>
+            <h2 className="text-xl font-bold">Good morning, {firstName}! 👋</h2>
+            <p className="mt-0.5 text-[13px] text-[#6E738D]">Let&apos;s continue your English journey.</p>
           </div>
 
           <ProgressCard currentLevel={currentLevel} activeLevelIndex={activeLevelIndex} />
@@ -305,35 +279,6 @@ export default async function AccountPage() {
         </aside>
       </div>
     </LearnerAppShell>
-  );
-}
-
-function Avatar({ initials, avatarUrl, size = "md" }: { initials: string; avatarUrl?: string | null; size?: "sm" | "md" }) {
-  const dimension = size === "sm" ? "size-8 text-[11px]" : "size-[34px] text-[13px]";
-  return (
-    <span className={`relative grid shrink-0 place-items-center overflow-hidden rounded-full bg-gradient-to-br from-[#6C3BFF] to-[#4E8DFF] font-bold text-white ${dimension}`}>
-      {avatarUrl ? <span className="size-full bg-cover bg-center" style={{ backgroundImage: `url(${avatarUrl})` }} aria-label={initials} /> : initials}
-      <span className="absolute bottom-px right-px size-2 rounded-full border border-white bg-[#00C98D]" />
-    </span>
-  );
-}
-
-function SearchBox({ mobile = false }: { mobile?: boolean }) {
-  return (
-    <div className={`flex items-center gap-2 rounded-[26px] border border-[#ECECF5] bg-white px-4 shadow-[0_2px_8px_rgba(0,0,0,.04)] ${mobile ? "h-11 w-full" : "h-12 w-[300px]"}`}>
-      <Search className="size-4 shrink-0 text-[#6E738D]" />
-      <input className="min-w-0 flex-1 border-0 bg-transparent text-[13px] outline-none placeholder:text-[#6E738D]" placeholder="Search quizzes, lessons, topics..." readOnly />
-      <span className="whitespace-nowrap rounded-md border border-[#ECECF5] bg-[#F6F7FB] px-1.5 py-0.5 text-[11px] text-[#6E738D]">⌘ K</span>
-    </div>
-  );
-}
-
-function StatChip({ icon, value, label, mobile }: { icon: React.ReactNode; value: string; label: string; mobile?: boolean }) {
-  return (
-    <div className={`flex items-center gap-1.5 rounded-[20px] border border-[#ECECF5] bg-white px-3.5 py-2 shadow-[0_2px_8px_rgba(0,0,0,.04)] ${mobile ? "flex-1 justify-center" : ""}`}>
-      {icon}
-      <div><div className="text-sm font-bold text-[#14172B]">{value}</div><div className="text-[11px] text-[#6E738D]">{label}</div></div>
-    </div>
   );
 }
 
