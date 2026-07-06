@@ -522,6 +522,8 @@ export type Database = {
           created_by: string | null;
           owner_id: string | null;
           organization_id: string | null;
+          deleted_at: string | null;
+          deleted_by: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -542,6 +544,8 @@ export type Database = {
           created_by?: string | null;
           owner_id?: string | null;
           organization_id?: string | null;
+          deleted_at?: string | null;
+          deleted_by?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -562,6 +566,8 @@ export type Database = {
           created_by?: string | null;
           owner_id?: string | null;
           organization_id?: string | null;
+          deleted_at?: string | null;
+          deleted_by?: string | null;
           created_at?: string;
           updated_at?: string;
         };

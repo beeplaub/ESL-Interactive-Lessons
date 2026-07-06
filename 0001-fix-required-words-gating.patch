@@ -1,0 +1,68 @@
+From 8cb0393fabf519651354bcd3c857afeaa5f33afc Mon Sep 17 00:00:00 2001
+From: Claude <assistant@brenup.dev>
+Date: Fri, 3 Jul 2026 09:05:03 +0000
+Subject: [PATCH] Fix required-words gating ignoring the show/hide toggle
+
+Follow-up to the show/hide toggle: hiding the required-words hint
+stopped the chips from rendering, but two separate gates still
+enforced the requirement underneath it - the warning message
+('Use all the required words above...') and, more importantly, the
+hasAnswer() check that controls whether the Check answer button is
+even clickable. Both read required_words directly, unaware the hint
+had been turned off, so learners were blocked by a requirement they
+had no way to see. Exactly backwards from the intent of a visibility
+toggle.
+
+Fixed both to respect show_required_words:
+- hasAnswer() in QuizPlayer.tsx now only enforces required_words as
+  a submission gate when show_required_words is true. When hidden,
+  the Check answer button is gated by min_words only (unchanged).
+- The local 'unmet.wordsOk' check that drives the warning message is
+  gated the same way, so the warning never fires for a requirement
+  the learner can't see.
+
+Required words were already self-marked (not scored) for Short
+Answer per lib/quizScoring.ts, so no scoring logic needed to change -
+this was purely a submission-gating bug.
+
+Net behavior now: required words showing = hint visible + submission
+blocked until met. Required words hidden = no hint, no warning, no
+gate - a genuine recall task rather than a hidden trap.
+
+Does not touch any of Codex's OBE files - verified via diff, zero
+changes.
+
+Verified with a full npm run build - compiles clean, same two
+pre-existing unrelated warnings, zero new ones.
+---
+ components/QuizPlayer.tsx | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/components/QuizPlayer.tsx b/components/QuizPlayer.tsx
+index 789b2b5..4ec6bc5 100644
+--- a/components/QuizPlayer.tsx
++++ b/components/QuizPlayer.tsx
+@@ -63,7 +63,10 @@ export function hasAnswer(question: QuizQuestion, value: unknown): boolean {
+     if (!text) return false;
+     const minWords = Number(opts.min_words ?? 0);
+     if (minWords > 0 && text.split(/\s+/).filter(Boolean).length < minWords) return false;
+-    const requiredWords = Array.isArray(opts.required_words) ? opts.required_words.map((w) => String(w).toLowerCase()) : [];
++    const showRequiredWords = opts.show_required_words !== false;
++    const requiredWords = showRequiredWords && Array.isArray(opts.required_words)
++      ? opts.required_words.map((w) => String(w).toLowerCase())
++      : [];
+     if (requiredWords.length > 0) {
+       const lowerText = text.toLowerCase();
+       if (!requiredWords.every((word) => lowerText.includes(word))) return false;
+@@ -916,7 +919,7 @@ function ShortAnswer({
+   const lowerText = text.toLowerCase();
+   const unmet = {
+     lengthOk: minWords === 0 || wordCount >= minWords,
+-    wordsOk: requiredWords.length === 0 || requiredWords.every((word) => lowerText.includes(word.toLowerCase()))
++    wordsOk: !showRequiredWords || requiredWords.length === 0 || requiredWords.every((word) => lowerText.includes(word.toLowerCase()))
+   };
+ 
+   if (submitted) {
+-- 
+2.43.0
+

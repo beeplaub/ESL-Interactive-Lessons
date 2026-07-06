@@ -31,7 +31,7 @@ export default async function CoursesPage({
   } = await supabase.auth.getUser();
 
   const [{ data: courses }, { data: enrollments }, { data: progressRows }] = await Promise.all([
-    admin.from("courses").select("*").eq("status", "PUBLISHED").order("created_at", { ascending: false }),
+    admin.from("courses").select("*").eq("status", "PUBLISHED").is("deleted_at", null).order("created_at", { ascending: false }),
     user ? admin.from("course_enrollments").select("course_id,status").eq("user_id", user.id) : Promise.resolve({ data: [] }),
     user ? admin.from("course_progress").select("course_id,progress_percent,total_items,completed_items").eq("user_id", user.id) : Promise.resolve({ data: [] })
   ]);

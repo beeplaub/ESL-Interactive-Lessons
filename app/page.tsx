@@ -55,7 +55,7 @@ export default async function HomePage() {
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
-    admin.from("courses").select("id", { count: "exact", head: true }).eq("status", "PUBLISHED"),
+    admin.from("courses").select("id", { count: "exact", head: true }).eq("status", "PUBLISHED").is("deleted_at", null),
     admin.from("quiz_leaderboard_points").select("points").order("points", { ascending: false }).limit(1000)
   ]);
 

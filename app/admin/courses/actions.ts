@@ -364,11 +364,48 @@ export async function moveCourseItem(courseId: string, itemId: string, direction
 }
 
 export async function deleteCourse(courseId: string) {
-  await requireAdmin();
+  const { user } = await requireAdmin();
   const admin = createAdminClient();
-  const { error } = await admin.from("courses").delete().eq("id", courseId);
+  // Soft delete: move to trash instead of permanently destroying the row.
+  // Admins can restore from /admin/courses/trash, or permanently delete from there.
+  const { error } = await admin
+    .from("courses")
+    .update({ deleted_at: new Date().toISOString(), deleted_by: user.id })
+    .eq("id", courseId);
   if (error) throw new Error(error.message);
   revalidatePath("/admin");
   revalidatePath("/admin/courses");
+  revalidatePath("/admin/courses/trash");
+  revalidatePath("/courses");
+}
+
+export async function restoreCourse(courseId: string) {
+  await requireAdmin();
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("courses")
+    .update({ deleted_at: null, deleted_by: null })
+    .eq("id", courseId);
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin");
+  revalidatePath("/admin/courses");
+  revalidatePath("/admin/courses/trash");
+  revalidatePath("/courses");
+}
+
+export async function permanentlyDeleteCourse(courseId: string) {
+  await requireAdmin();
+  const admin = createAdminClient();
+  // Hard delete. Only ever called from the trash view on a course that is
+  // already soft-deleted, and cascades to sections/items/outcomes/faqs via FK.
+  const { error } = await admin
+    .from("courses")
+    .delete()
+    .eq("id", courseId)
+    .not("deleted_at", "is", null);
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin");
+  revalidatePath("/admin/courses");
+  revalidatePath("/admin/courses/trash");
   revalidatePath("/courses");
 }

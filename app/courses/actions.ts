@@ -15,6 +15,7 @@ export async function enrollInCourse(courseId: string) {
     .select("id,status")
     .eq("id", courseId)
     .eq("status", "PUBLISHED")
+    .is("deleted_at", null)
     .maybeSingle();
 
   if (!course) {

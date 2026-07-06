@@ -1,0 +1,1973 @@
+From 14ffdc6344901eb81dab49071a6b459ffbcbd5a2 Mon Sep 17 00:00:00 2001
+From: Claude <assistant@brenup.dev>
+Date: Thu, 2 Jul 2026 10:05:40 +0000
+Subject: [PATCH] Fix production build failure and revert broken OBE wiring in
+ lesson builder
+
+Root causes of the failed deploy (commit 5ee9e64):
+
+1. react/no-unescaped-entities build error in LessonBlockPreview.tsx.
+   The IMAGE_TEXT work accidentally replaced curly quote characters
+   around the QUOTE block body with raw straight quotes, which Next's
+   ESLint rules reject at build time. Restored as HTML entities.
+
+2. TypeScript error in app/admin/lessons/[id]/builder/page.tsx.
+   That same commit began wiring Codex's outcome-based-education (OBE)
+   data into the lesson builder page (fetching lesson_outcomes,
+   course_outcomes, assessment_items, learning_skills, etc. and
+   passing an obe prop into LessonBuilderWorkspace), but never
+   finished: LessonBuilderWorkspace Props type was never updated to
+   accept obe, so the build failed a type check. Separately, and
+   more importantly, Codex migration 024_outcome_based_education.sql
+   has not been applied to the live database yet (last applied
+   migration is 015), so those queries would have thrown at runtime
+   against tables that do not exist even if the type error were
+   silenced. Reverted this page back to only fetching what
+   LessonBuilderWorkspace actually uses. This does not touch any of
+   Codex files (app/admin/obe/actions.ts, lib/obe.ts,
+   types/obe.types.ts, components/LessonOutcomeManager.tsx,
+   AssessmentMetadataEditor.tsx, CourseQuizOutcomeMapper.tsx,
+   ObeActionForm.tsx, or the migration) - they remain exactly as
+   Codex left them, ready to be wired in once the migration ships.
+
+3. Restored the outcomes textarea save path in
+   updateLessonBuilderDetails that was silently dropped in the same
+   abandoned integration attempt.
+
+Also removed stray files accidentally committed alongside the
+IMAGE_TEXT work: old patch files, add_image_text.sh, duplicate stale
+root-level LoginForm.tsx and layout.tsx, and two vim swap files.
+
+Verified with a full npm run build - compiles and type-checks clean.
+---
+ 0001-admin-lessons-filters.patch              | 175 ---------
+ 0001-content-levels.patch                     | 357 ------------------
+ 0001-courses-filter-fixed.patch               | 268 -------------
+ 0001-courses-filter.patch                     | 229 -----------
+ 0001-courses-fix.patch                        |  36 --
+ 0001-curriculum-tabs.patch                    | 194 ----------
+ LoginForm.tsx                                 | 103 -----
+ add_image_text.sh                             | 257 -------------
+ app/admin/lessons/[id]/builder/page.tsx       |  50 +--
+ app/admin/lessons/actions.ts                  |   4 +
+ components/LessonBlockPreview.tsx             |   2 +-
+ layout.tsx                                    |  33 --
+ supabase/migrations/.019_courses_core.sql.swp | Bin 16384 -> 0 bytes
+ .../.020_teacher_school_readiness.sql.swp     | Bin 16384 -> 0 bytes
+ 14 files changed, 7 insertions(+), 1701 deletions(-)
+ delete mode 100644 0001-admin-lessons-filters.patch
+ delete mode 100644 0001-content-levels.patch
+ delete mode 100644 0001-courses-filter-fixed.patch
+ delete mode 100644 0001-courses-filter.patch
+ delete mode 100644 0001-courses-fix.patch
+ delete mode 100644 0001-curriculum-tabs.patch
+ delete mode 100644 LoginForm.tsx
+ delete mode 100755 add_image_text.sh
+ delete mode 100644 layout.tsx
+ delete mode 100644 supabase/migrations/.019_courses_core.sql.swp
+ delete mode 100644 supabase/migrations/.020_teacher_school_readiness.sql.swp
+
+diff --git a/0001-admin-lessons-filters.patch b/0001-admin-lessons-filters.patch
+deleted file mode 100644
+index d529f8f..0000000
+--- a/0001-admin-lessons-filters.patch
++++ /dev/null
+@@ -1,175 +0,0 @@
+-From a691a398e9a2f02cc2b7ce974dd1f21e90d9b589 Mon Sep 17 00:00:00 2001
+-From: Claude <assistant@brenup.dev>
+-Date: Tue, 30 Jun 2026 11:42:33 +0000
+-Subject: [PATCH] Add filter system to /admin/lessons
+-MIME-Version: 1.0
+-Content-Type: text/plain; charset=UTF-8
+-Content-Transfer-Encoding: 8bit
+-
+-- Add a server-rendered filter form (GET, no JS) above the lessons list,
+-  consistent with the existing filter pattern used on the Content
+-  Library page (FilterSelect + searchParams).
+-- Filters: search by title (q), status (Draft/Published), level
+-  (A1-C2), and topic — option lists are derived from the actual lesson
+-  data so they only ever show values that exist.
+-- Shows an 'X of Y lessons' count and a 'Clear filters' link when any
+-  filter is active.
+-- Filtering happens server-side against the already-fetched lessons
+-  array; works for both the mobile card list and the desktop table.
+-- Empty states now distinguish between 'No lessons yet' (no lessons in
+-  the DB) and 'No lessons match these filters' (filters too narrow).
+----
+- app/admin/lessons/page.tsx | 86 ++++++++++++++++++++++++++++++++++----
+- 1 file changed, 77 insertions(+), 9 deletions(-)
+-
+-diff --git a/app/admin/lessons/page.tsx b/app/admin/lessons/page.tsx
+-index 8ab19c1..fe34dca 100644
+---- a/app/admin/lessons/page.tsx
+-+++ b/app/admin/lessons/page.tsx
+-@@ -1,5 +1,5 @@
+- import Link from "next/link";
+--import { Copy, Hammer, Plus, Trash2 } from "lucide-react";
+-+import { Copy, Filter, Hammer, Plus, Trash2 } from "lucide-react";
+- import { requireAdmin } from "@/lib/auth";
+- import { createAdminClient } from "@/lib/supabase/admin";
+- import {
+-@@ -8,14 +8,34 @@ import {
+-   updateLessonStatus,
+- } from "@/app/admin/lessons/actions";
+- 
+--export default async function AdminLessonsPage() {
+-+export default async function AdminLessonsPage({
+-+  searchParams,
+-+}: {
+-+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+-+}) {
+-   await requireAdmin();
+-+  const params = await searchParams;
+-   const supabase = createAdminClient();
+--  const { data: lessons } = await supabase
+-+  const { data: allLessons } = await supabase
+-     .from("lessons")
+-     .select("*")
+-     .order("created_at", { ascending: false });
+- 
+-+  const value = (key: string) => (typeof params[key] === "string" ? (params[key] as string) : "");
+-+  const q = value("q").trim().toLowerCase();
+-+
+-+  const lessons = (allLessons ?? []).filter((lesson) =>
+-+    (!value("status") || lesson.status === value("status"))
+-+    && (!value("level") || lesson.level === value("level"))
+-+    && (!value("topic") || lesson.topic === value("topic"))
+-+    && (!q || lesson.title?.toLowerCase().includes(q))
+-+  );
+-+
+-+  const statuses = unique((allLessons ?? []).map((lesson) => lesson.status));
+-+  const levels = unique((allLessons ?? []).map((lesson) => lesson.level));
+-+  const topics = unique((allLessons ?? []).map((lesson) => lesson.topic));
+-+  const hasActiveFilters = Boolean(value("status") || value("level") || value("topic") || q);
+-+
+-   return (
+-     <main className="mx-auto max-w-6xl px-4 py-8">
+-       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+-@@ -33,9 +53,44 @@ export default async function AdminLessonsPage() {
+-         </Link>
+-       </div>
+- 
+-+      <form className="mb-5 rounded-lg border border-black/10 bg-white p-4 shadow-sm">
+-+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+-+          <div className="flex items-center gap-2 text-sm font-semibold">
+-+            <Filter size={16} /> Filters
+-+          </div>
+-+          <span className="text-xs font-medium text-black/45">
+-+            {lessons.length} of {(allLessons ?? []).length} lesson{(allLessons ?? []).length === 1 ? "" : "s"}
+-+          </span>
+-+        </div>
+-+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+-+          <input
+-+            name="q"
+-+            defaultValue={value("q")}
+-+            placeholder="Search by title"
+-+            className="min-w-0 rounded-md border border-black/15 px-3 py-2 text-sm"
+-+          />
+-+          <FilterSelect name="status" current={value("status")} label="All statuses" values={statuses} />
+-+          <FilterSelect name="level" current={value("level")} label="All levels" values={levels} />
+-+          <FilterSelect name="topic" current={value("topic")} label="All topics" values={topics} />
+-+        </div>
+-+        <div className="mt-3 flex flex-wrap gap-2">
+-+          <button className="rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white">
+-+            Apply filters
+-+          </button>
+-+          {hasActiveFilters ? (
+-+            <Link
+-+              href="/admin/lessons"
+-+              className="inline-flex items-center rounded-md border border-black/15 px-4 py-2 text-sm font-semibold hover:bg-black/5"
+-+            >
+-+              Clear filters
+-+            </Link>
+-+          ) : null}
+-+        </div>
+-+      </form>
+-+
+-       {/* ── Mobile cards ── */}
+-       <div className="grid gap-3 md:hidden">
+--        {(lessons ?? []).map((lesson) => (
+-+        {lessons.map((lesson) => (
+-           <article
+-             key={lesson.id}
+-             className="rounded-lg border border-black/10 bg-white p-4 shadow-sm"
+-@@ -92,9 +147,9 @@ export default async function AdminLessonsPage() {
+-             </div>
+-           </article>
+-         ))}
+--        {!lessons?.length ? (
+-+        {!lessons.length ? (
+-           <div className="rounded-lg border border-black/10 bg-white p-8 text-center text-black/60 shadow-sm">
+--            No lessons yet.
+-+            {hasActiveFilters ? "No lessons match these filters." : "No lessons yet."}
+-           </div>
+-         ) : null}
+-       </div>
+-@@ -113,7 +168,7 @@ export default async function AdminLessonsPage() {
+-             </tr>
+-           </thead>
+-           <tbody>
+--            {(lessons ?? []).map((lesson) => (
+-+            {lessons.map((lesson) => (
+-               <tr key={lesson.id} className="border-t border-black/10">
+-                 <td className="px-4 py-3 font-medium">{lesson.title}</td>
+-                 <td className="px-4 py-3">{lesson.topic}</td>
+-@@ -167,13 +222,13 @@ export default async function AdminLessonsPage() {
+-                 </td>
+-               </tr>
+-             ))}
+--            {!lessons?.length ? (
+-+            {!lessons.length ? (
+-               <tr>
+-                 <td
+-                   className="px-4 py-8 text-center text-black/60"
+-                   colSpan={6}
+-                 >
+--                  No lessons yet.
+-+                  {hasActiveFilters ? "No lessons match these filters." : "No lessons yet."}
+-                 </td>
+-               </tr>
+-             ) : null}
+-@@ -183,3 +238,16 @@ export default async function AdminLessonsPage() {
+-     </main>
+-   );
+- }
+-+
+-+function unique(values: Array<string | null>) {
+-+  return Array.from(new Set(values.filter((value): value is string => Boolean(value)))).sort();
+-+}
+-+
+-+function FilterSelect({ name, current, label, values }: { name: string; current: string; label: string; values: string[] }) {
+-+  return (
+-+    <select name={name} defaultValue={current} className="min-w-0 rounded-md border border-black/15 px-3 py-2 text-sm">
+-+      <option value="">{label}</option>
+-+      {values.map((value) => <option key={value} value={value}>{value}</option>)}
+-+    </select>
+-+  );
+-+}
+--- 
+-2.43.0
+-
+diff --git a/0001-content-levels.patch b/0001-content-levels.patch
+deleted file mode 100644
+index 53a7596..0000000
+--- a/0001-content-levels.patch
++++ /dev/null
+@@ -1,357 +0,0 @@
+-From 86f2eb3acc1180e019dd9709e3ba9efa8660df3f Mon Sep 17 00:00:00 2001
+-From: Claude <assistant@brenup.dev>
+-Date: Tue, 30 Jun 2026 16:06:46 +0000
+-Subject: [PATCH] Make A1-A2/B1-B2/C1-C2/All Levels official lesson & course
+- levels
+-MIME-Version: 1.0
+-Content-Type: text/plain; charset=UTF-8
+-Content-Transfer-Encoding: 8bit
+-
+-Root cause of the crash: the lesson builder settings UI offered combined-
+-range levels (A1-A2, B1-B2, C1-C2, All Levels) in its level dropdown, but
+-the server-side Zod schema validating the save (lessonSchema /
+-builderLessonSchema in app/admin/lessons/actions.ts) only accepted the
+-six base CEFR bands. Picking a combined range and saving threw an
+-uncaught ZodError on the server, surfacing as the
+-'Application error: a server-side exception has occurred' page.
+-
+-This was also inconsistent more broadly: the combined ranges had only
+-been added to 4 of the ~15 places a lesson/course level appears, so even
+-once a lesson was saved with e.g. 'A1-A2' it would render incorrectly or
+-become unfindable elsewhere (edit page dropdown, public lessons grid
+-filter/sort/theme, course-by-level counts on the public courses page).
+-
+-Fix:
+-- Add lib/levels.ts as the single source of truth: CEFR_LEVELS (the 6
+-  base bands, used by the unrelated learner placement-test cefr_level,
+-  which is intentionally left untouched), CONTENT_LEVELS (all 10 values
+-  a lesson/course level can hold), a shared sort-order map, and an
+-  anchorCefrLevel() helper for anywhere that needs to collapse a content
+-  level down to its nearest single CEFR band.
+-- Widen lessonSchema's level enum in app/admin/lessons/actions.ts to
+-  CONTENT_LEVELS — this is the actual fix for the crash.
+-- Replace every duplicated inline level array (lesson builder, new
+-  lesson form, lesson edit form, course builder, admin courses list)
+-  with the shared CONTENT_LEVELS constant so they can't drift again.
+-- Widen the lesson edit page's level dropdown (previously stuck at 6
+-  options, silently unable to display/save a lesson already tagged with
+-  a combined range).
+-- Extend LessonsGrid's public filter chips, sort order, and color theme
+-  map to cover the combined ranges and All Levels, with a sane neutral
+-  fallback theme for All Levels.
+-- Extend the public /courses page's per-level count breakdown
+-  (levelOrder) so courses tagged with a combined range or All Levels are
+-  actually counted instead of silently dropped.
+-- courses/actions.ts: swapped a hardcoded 'All Levels' string literal
+-  for the shared ALL_LEVELS_LABEL constant.
+-
+-Explicitly NOT touched, and why:
+-- Quiz level dropdowns/schema (AdminQuizBuilder, QuizVisualBuilder,
+-  QuizzesGrid, admin/quizzes/actions.ts): combined ranges were never
+-  exposed there, so nothing is broken; left at the 6 base bands.
+-- LevelTestAdminWorkspace.tsx / admin/level-test/actions.ts: these are
+-  CEFR placement-test bands used for scoring thresholds, a different
+-  concept from a content level tag — widening them would corrupt the
+-  test's percentage-band math.
+-- app/account/page.tsx and app/page.tsx CEFR progress bars: driven by
+-  profiles.cefr_level, a real Postgres enum representing the learner's
+-  own placement-test result, not a content tag. Left at 6 bands.
+-- components/NewLessonForm.tsx: confirmed dead code, not imported
+-  anywhere; left untouched.
+----
+- app/admin/courses/[id]/builder/page.tsx |  3 +-
+- app/admin/courses/actions.ts            |  5 +-
+- app/admin/courses/page.tsx              |  3 +-
+- app/admin/lessons/[id]/edit/page.tsx    |  3 +-
+- app/admin/lessons/actions.ts            |  3 +-
+- app/admin/lessons/new/page.tsx          |  3 +-
+- app/courses/page.tsx                    |  3 +-
+- components/LessonBuilderWorkspace.tsx   |  3 +-
+- components/LessonsGrid.tsx              |  9 +++-
+- lib/levels.ts                           | 64 +++++++++++++++++++++++++
+- 10 files changed, 88 insertions(+), 11 deletions(-)
+- create mode 100644 lib/levels.ts
+-
+-diff --git a/app/admin/courses/[id]/builder/page.tsx b/app/admin/courses/[id]/builder/page.tsx
+-index 1b64ecb..a212eb2 100644
+---- a/app/admin/courses/[id]/builder/page.tsx
+-+++ b/app/admin/courses/[id]/builder/page.tsx
+-@@ -11,6 +11,7 @@ import {
+-   Trash2,
+- } from "lucide-react";
+- import { createAdminClient } from "@/lib/supabase/admin";
+-+import { CONTENT_LEVELS } from "@/lib/levels";
+- import { AddItemModal } from "@/app/admin/courses/[id]/builder/AddItemModal";
+- import { BuilderDialog, CurriculumWorkspace } from "@/app/admin/courses/[id]/builder/CourseBuilderChrome";
+- import { EditItemModal } from "@/app/admin/courses/[id]/builder/EditItemModal";
+-@@ -33,7 +34,7 @@ import {
+-   updateCourseSection,
+- } from "@/app/admin/courses/actions";
+- 
+--const levels = ["A1", "A2", "A1-A2", "B1", "B2", "B1-B2", "C1", "C2", "C1-C2", "All Levels"];
+-+const levels = CONTENT_LEVELS;
+- 
+- type LessonOption = { id: string; title: string; level: string | null; topic: string | null; status: string };
+- type QuizOption = { id: string; title: string; level: string | null; topic: string | null; status: string };
+-diff --git a/app/admin/courses/actions.ts b/app/admin/courses/actions.ts
+-index fe0a37d..dfaf748 100644
+---- a/app/admin/courses/actions.ts
+-+++ b/app/admin/courses/actions.ts
+-@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
+- import { redirect } from "next/navigation";
+- import { requireAdmin } from "@/lib/auth";
+- import { createAdminClient } from "@/lib/supabase/admin";
+-+import { ALL_LEVELS_LABEL } from "@/lib/levels";
+- 
+- function slugify(value: string) {
+-   return value
+-@@ -27,7 +28,7 @@ export async function createCourse(formData: FormData) {
+-       title,
+-       subtitle: String(formData.get("subtitle") || "").trim() || null,
+-       topic: String(formData.get("topic") || "").trim() || null,
+--      level: String(formData.get("level") || "All Levels"),
+-+      level: String(formData.get("level") || ALL_LEVELS_LABEL),
+-       description: String(formData.get("description") || "").trim() || null,
+-       slug: `${baseSlug}-${Date.now().toString(36)}`,
+-       created_by: user.id,
+-@@ -74,7 +75,7 @@ export async function updateCourseMetadata(courseId: string, formData: FormData)
+-       subtitle: String(formData.get("subtitle") || "").trim() || null,
+-       topic: String(formData.get("topic") || "").trim() || null,
+-       category: String(formData.get("category") || "").trim() || null,
+--      level: String(formData.get("level") || "All Levels"),
+-+      level: String(formData.get("level") || ALL_LEVELS_LABEL),
+-       description: String(formData.get("description") || "").trim() || null,
+-       thumbnail_path: String(formData.get("thumbnailPath") || "").trim() || null,
+-       cover_image_path: String(formData.get("coverImagePath") || "").trim() || null,
+-diff --git a/app/admin/courses/page.tsx b/app/admin/courses/page.tsx
+-index 6ce3abf..9f9f443 100644
+---- a/app/admin/courses/page.tsx
+-+++ b/app/admin/courses/page.tsx
+-@@ -2,6 +2,7 @@ import Link from "next/link";
+- import { Archive, BarChart3, Eye, GraduationCap, Pencil, Plus, Trash2 } from "lucide-react";
+- import { createAdminClient } from "@/lib/supabase/admin";
+- import { createCourse, deleteCourse, setCourseStatus } from "@/app/admin/courses/actions";
+-+import { CONTENT_LEVELS } from "@/lib/levels";
+- 
+- export default async function AdminCoursesPage() {
+-   const admin = createAdminClient();
+-@@ -33,7 +34,7 @@ export default async function AdminCoursesPage() {
+-           <input name="subtitle" placeholder="Short subtitle" className="rounded-md border border-black/15 px-3 py-2 text-sm md:col-span-2" />
+-           <input name="topic" placeholder="Topic" className="rounded-md border border-black/15 px-3 py-2 text-sm" />
+-           <select name="level" defaultValue="All Levels" className="rounded-md border border-black/15 px-3 py-2 text-sm">
+--            {["A1", "A2", "A1-A2", "B1", "B2", "B1-B2", "C1", "C2", "C1-C2", "All Levels"].map((level) => <option key={level}>{level}</option>)}
+-+            {CONTENT_LEVELS.map((level) => <option key={level}>{level}</option>)}
+-           </select>
+-           <textarea name="description" placeholder="Course description" rows={3} className="rounded-md border border-black/15 px-3 py-2 text-sm md:col-span-2" />
+-           <button className="w-fit rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white">Create and open builder</button>
+-diff --git a/app/admin/lessons/[id]/edit/page.tsx b/app/admin/lessons/[id]/edit/page.tsx
+-index 53dc806..cb23f7a 100644
+---- a/app/admin/lessons/[id]/edit/page.tsx
+-+++ b/app/admin/lessons/[id]/edit/page.tsx
+-@@ -3,6 +3,7 @@ import { AlertTriangle, RefreshCw } from "lucide-react";
+- import { notFound } from "next/navigation";
+- import { requireAdmin } from "@/lib/auth";
+- import { createAdminClient } from "@/lib/supabase/admin";
+-+import { CONTENT_LEVELS } from "@/lib/levels";
+- import {
+-   generateInLessonQuizzes,
+-   rerunParser,
+-@@ -116,7 +117,7 @@ export default async function EditLessonPage({ params }: { params: Promise<{ id:
+-           <label className="text-sm">
+-             Level
+-             <select name="level" defaultValue={lesson.level} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">
+--              {["A1", "A2", "B1", "B2", "C1", "C2"].map((level) => (
+-+              {CONTENT_LEVELS.map((level) => (
+-                 <option key={level}>{level}</option>
+-               ))}
+-             </select>
+-diff --git a/app/admin/lessons/actions.ts b/app/admin/lessons/actions.ts
+-index cca9148..b19eb3f 100644
+---- a/app/admin/lessons/actions.ts
+-+++ b/app/admin/lessons/actions.ts
+-@@ -8,6 +8,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
+- import { parsePdfPages } from "@/lib/pdfParser";
+- import { parseLessonSlideActivities } from "@/lib/lessonTextParser";
+- import { classifyAndExtractLesson } from "@/lib/slideClassifier";
+-+import { CONTENT_LEVELS } from "@/lib/levels";
+- import type { Json, SlideType } from "@/types/database.types";
+- 
+- type AdminClient = ReturnType<typeof createAdminClient>;
+-@@ -20,7 +21,7 @@ export type LessonActionState = {
+- const lessonSchema = z.object({
+-   title: z.string().min(2),
+-   topic: z.string().min(2),
+--  level: z.enum(["A1", "A2", "B1", "B2", "C1", "C2"]),
+-+  level: z.enum(CONTENT_LEVELS),
+-   description: z.string().optional()
+- });
+- 
+-diff --git a/app/admin/lessons/new/page.tsx b/app/admin/lessons/new/page.tsx
+-index d8013e5..ce402cd 100644
+---- a/app/admin/lessons/new/page.tsx
+-+++ b/app/admin/lessons/new/page.tsx
+-@@ -2,6 +2,7 @@ import Link from "next/link";
+- import { BookOpen, Sparkles } from "lucide-react";
+- import { requireAdmin } from "@/lib/auth";
+- import { createVisualLesson } from "@/app/admin/lessons/actions";
+-+import { CONTENT_LEVELS } from "@/lib/levels";
+- 
+- export default async function NewLessonPage() {
+-   await requireAdmin();
+-@@ -69,7 +70,7 @@ export default async function NewLessonPage() {
+-             <label className="text-sm font-medium">
+-               CEFR level
+-               <select name="level" defaultValue="B1" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 font-normal">
+--                {["A1", "A2", "B1", "B2", "C1", "C2", "A1-A2", "B1-B2", "C1-C2", "All Levels"].map((level) => (
+-+                {CONTENT_LEVELS.map((level) => (
+-                   <option key={level}>{level}</option>
+-                 ))}
+-               </select>
+-diff --git a/app/courses/page.tsx b/app/courses/page.tsx
+-index 63e3173..71926fb 100644
+---- a/app/courses/page.tsx
+-+++ b/app/courses/page.tsx
+-@@ -15,8 +15,9 @@ import {
+- import { LearnerAppShell } from "@/components/LearnerAppShell";
+- import { createAdminClient } from "@/lib/supabase/admin";
+- import { createClient } from "@/lib/supabase/server";
+-+import { CONTENT_LEVELS } from "@/lib/levels";
+- 
+--const levelOrder = ["A1", "A2", "B1", "B2", "C1", "C2"];
+-+const levelOrder = CONTENT_LEVELS;
+- 
+- export default async function CoursesPage() {
+-   const supabase = await createClient();
+-diff --git a/components/LessonBuilderWorkspace.tsx b/components/LessonBuilderWorkspace.tsx
+-index 5ebe0e4..c6d86a5 100644
+---- a/components/LessonBuilderWorkspace.tsx
+-+++ b/components/LessonBuilderWorkspace.tsx
+-@@ -27,6 +27,7 @@ import { LessonActivityPanel } from "@/components/LessonActivityPanel";
+- import { LessonBlockPreview } from "@/components/LessonBlockPreview";
+- import { SlideNarrationRecorder } from "@/components/SlideNarrationRecorder";
+- import { BlockMediaUploader } from "@/components/BlockMediaUploader";
+-+import { CONTENT_LEVELS } from "@/lib/levels";
+- import type { Json } from "@/types/database.types";
+- 
+- const blockTypes = [
+-@@ -36,7 +37,7 @@ const blockTypes = [
+-   "FLASHCARD"
+- ] as const;
+- 
+--const levelOptions = ["A1", "A2", "B1", "B2", "C1", "C2", "A1-A2", "B1-B2", "C1-C2", "All Levels"];
+-+const levelOptions = CONTENT_LEVELS;
+- 
+- type Lesson = {
+-   id: string; title: string; subtitle: string | null; description: string | null;
+-diff --git a/components/LessonsGrid.tsx b/components/LessonsGrid.tsx
+-index ab3a332..073bbef 100644
+---- a/components/LessonsGrid.tsx
+-+++ b/components/LessonsGrid.tsx
+-@@ -4,6 +4,7 @@ import Link from "next/link";
+- import { ArrowRight, BookOpen, CheckCircle2, Clock3, LockKeyhole, Search, X } from "lucide-react";
+- import { useState, useMemo } from "react";
+- import { WishlistButton } from "@/components/WishlistButton";
+-+import { CONTENT_LEVELS, CONTENT_LEVEL_SORT_ORDER } from "@/lib/levels";
+- 
+- type Lesson = {
+-   id: string;
+-@@ -29,8 +30,8 @@ type Props = {
+-   isLoggedIn: boolean;
+- };
+- 
+--const LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"] as const;
+--const LEVEL_ORDER: Record<string, number> = { A1: 1, A2: 2, B1: 3, B2: 4, C1: 5, C2: 6 };
+-+const LEVELS = CONTENT_LEVELS;
+-+const LEVEL_ORDER = CONTENT_LEVEL_SORT_ORDER;
+- 
+- type SortOption = "newest" | "az" | "level-asc" | "level-desc";
+- 
+-@@ -41,11 +42,15 @@ const LEVEL_THEME: Record<string, {
+-   headerBg: string;
+- }> = {
+-   A1: { border: "#f59e0b", badge: "#fef3c7", badgeText: "#92400e", headerBg: "#fffbeb" },
+-+  "A1-A2": { border: "#f97316", badge: "#ffedd5", badgeText: "#7c2d12", headerBg: "#fff7ed" },
+-   A2: { border: "#f97316", badge: "#ffedd5", badgeText: "#7c2d12", headerBg: "#fff7ed" },
+-   B1: { border: "#0ea5e9", badge: "#e0f2fe", badgeText: "#0c4a6e", headerBg: "#f0f9ff" },
+-+  "B1-B2": { border: "#2563eb", badge: "#dbeafe", badgeText: "#1e3a8a", headerBg: "#eff6ff" },
+-   B2: { border: "#2563eb", badge: "#dbeafe", badgeText: "#1e3a8a", headerBg: "#eff6ff" },
+-   C1: { border: "#7c3aed", badge: "#ede9fe", badgeText: "#4c1d95", headerBg: "#f5f3ff" },
+-+  "C1-C2": { border: "#7c3aed", badge: "#ede9fe", badgeText: "#4c1d95", headerBg: "#f5f3ff" },
+-   C2: { border: "#0f172a", badge: "#e2e8f0", badgeText: "#0f172a", headerBg: "#f8fafc" },
+-+  "All Levels": { border: "#64748b", badge: "#f1f5f9", badgeText: "#334155", headerBg: "#f8fafc" },
+- };
+- 
+- function getLevelTheme(level: string | null) {
+-diff --git a/lib/levels.ts b/lib/levels.ts
+-new file mode 100644
+-index 0000000..c20ce7f
+---- /dev/null
+-+++ b/lib/levels.ts
+-@@ -0,0 +1,64 @@
+-+/**
+-+ * Single source of truth for the "level" tag used on lessons and courses.
+-+ *
+-+ * This is distinct from `profiles.cefr_level`, which is the learner's own
+-+ * placement-test result and is a real Postgres enum locked to the six base
+-+ * CEFR bands (A1-C2). That value must never be widened to include the
+-+ * combined ranges below — it represents a single point on the CEFR scale,
+-+ * not a content tag.
+-+ *
+-+ * Content (lessons/courses) can be tagged more loosely: a single CEFR band,
+-+ * a combined range spanning two adjacent bands, or "All Levels" for content
+-+ * that isn't level-specific.
+-+ */
+-+
+-+export const CEFR_LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"] as const;
+-+export type CefrLevel = (typeof CEFR_LEVELS)[number];
+-+
+-+export const CEFR_LEVEL_RANGES = ["A1-A2", "B1-B2", "C1-C2"] as const;
+-+export type CefrLevelRange = (typeof CEFR_LEVEL_RANGES)[number];
+-+
+-+export const ALL_LEVELS_LABEL = "All Levels" as const;
+-+
+-+/** Every value a lesson/course "level" field may legitimately hold. */
+-+export const CONTENT_LEVELS = [
+-+  "A1",
+-+  "A2",
+-+  "A1-A2",
+-+  "B1",
+-+  "B2",
+-+  "B1-B2",
+-+  "C1",
+-+  "C2",
+-+  "C1-C2",
+-+  ALL_LEVELS_LABEL,
+-+] as const;
+-+export type ContentLevel = (typeof CONTENT_LEVELS)[number];
+-+
+-+/** Numeric sort position for content levels (combined ranges sit between their bands; "All Levels" sorts first). */
+-+export const CONTENT_LEVEL_SORT_ORDER: Record<string, number> = {
+-+  [ALL_LEVELS_LABEL]: 0,
+-+  A1: 1,
+-+  "A1-A2": 1.5,
+-+  A2: 2,
+-+  B1: 3,
+-+  "B1-B2": 3.5,
+-+  B2: 4,
+-+  C1: 5,
+-+  "C1-C2": 5.5,
+-+  C2: 6,
+-+};
+-+
+-+/**
+-+ * Maps any content level (including combined ranges and "All Levels") down
+-+ * to its nearest single CEFR band. Used anywhere that needs a single-band
+-+ * anchor — e.g. matching content against a learner's own `cefr_level`.
+-+ */
+-+export function anchorCefrLevel(level: string | null | undefined): CefrLevel {
+-+  if (!level) return "B1";
+-+  if ((CEFR_LEVELS as readonly string[]).includes(level)) return level as CefrLevel;
+-+  if (level === "A1-A2") return "A1";
+-+  if (level === "B1-B2") return "B1";
+-+  if (level === "C1-C2") return "C1";
+-+  return "B1";
+-+}
+--- 
+-2.43.0
+-
+diff --git a/0001-courses-filter-fixed.patch b/0001-courses-filter-fixed.patch
+deleted file mode 100644
+index a87e2a8..0000000
+--- a/0001-courses-filter-fixed.patch
++++ /dev/null
+@@ -1,268 +0,0 @@
+-From c4bf8f3f7709173f3ecd25c76dcf6078f09a4d73 Mon Sep 17 00:00:00 2001
+-From: Claude <assistant@brenup.dev>
+-Date: Wed, 1 Jul 2026 00:28:16 +0000
+-Subject: [PATCH 1/2] Make /courses level filter and search functional
+-MIME-Version: 1.0
+-Content-Type: text/plain; charset=UTF-8
+-Content-Transfer-Encoding: 8bit
+-
+-Previously the level chips were decorative <span> elements and the
+-search box had readOnly on the input — neither did anything.
+-
+-Changes:
+-- Level chips are now <Link>s that append ?level=X to the URL. Active
+-  chip is highlighted with the BrenUp purple gradient, inactive ones
+-  are the standard grey pill. Chips with 0 courses are hidden.
+-- 'All' chip links back to /courses (or /courses?q=... to preserve
+-  search) and is highlighted when no level filter is active.
+-- SearchBox is now a real <form method=GET> that submits ?q= to
+-  /courses. The input stays populated with the current search value.
+-  The ⌘K hint is replaced with a ↵ submit button since the box is
+-  now interactive.
+-- CoursesPage accepts searchParams and filters allCourses server-side
+-  by active level (exact match) and search query (title + topic,
+-  case-insensitive substring).
+-- filteredCourses drives the course grid so the displayed cards
+-  actually reflect the active filters.
+-- Two distinct empty states: 'No published courses yet' (DB empty) vs
+-  'No courses match your filters' (filters too narrow), the latter
+-  including a Clear filters link.
+-- A result summary bar ('Showing X of Y · Level B1 · Search ...')
+-  with a Clear filters link appears below the chips whenever a filter
+-  is active.
+-- Level+search filters compose: picking B1 then searching 'grammar'
+-  shows only B1 courses whose title or topic contains 'grammar'.
+----
+- app/courses/page.tsx | 120 +++++++++++++++++++++++++++++++++----------
+- 1 file changed, 92 insertions(+), 28 deletions(-)
+-
+-diff --git a/app/courses/page.tsx b/app/courses/page.tsx
+-index 71926fb..f5f56e9 100644
+---- a/app/courses/page.tsx
+-+++ b/app/courses/page.tsx
+-@@ -15,11 +15,15 @@ import {
+- import { LearnerAppShell } from "@/components/LearnerAppShell";
+- import { createAdminClient } from "@/lib/supabase/admin";
+- import { createClient } from "@/lib/supabase/server";
+--import { CONTENT_LEVELS } from "@/lib/levels";
+-+import { CONTENT_LEVELS, CONTENT_LEVEL_SORT_ORDER } from "@/lib/levels";
+- 
+- const levelOrder = CONTENT_LEVELS;
+- 
+--export default async function CoursesPage() {
+-+export default async function CoursesPage({
+-+  searchParams,
+-+}: {
+-+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+-+}) {
+-   const supabase = await createClient();
+-   const admin = createAdminClient();
+-   const {
+-@@ -32,13 +36,25 @@ export default async function CoursesPage() {
+-     user ? admin.from("course_progress").select("course_id,progress_percent,total_items,completed_items").eq("user_id", user.id) : Promise.resolve({ data: [] })
+-   ]);
+- 
+-+  const params = await searchParams;
+-+  const activeLevel = typeof params.level === "string" ? params.level : "";
+-+  const searchQuery = (typeof params.q === "string" ? params.q : "").trim().toLowerCase();
+-+
+-   const allCourses = courses ?? [];
+-   const enrolled = new Map((enrollments ?? []).map((item) => [item.course_id, item.status]));
+-   const progressByCourse = new Map((progressRows ?? []).map((item) => [item.course_id, item]));
+-+
+-+  const filteredCourses = allCourses.filter((course) =>
+-+    (!activeLevel || course.level === activeLevel) &&
+-+    (!searchQuery || course.title?.toLowerCase().includes(searchQuery) || course.topic?.toLowerCase().includes(searchQuery))
+-+  );
+-+
+-   const featured = allCourses[0] ?? null;
+-   const totalMinutes = allCourses.reduce((sum, course) => sum + Number(course.estimated_completion_minutes ?? 0), 0);
+-   const enrolledCount = (enrollments ?? []).length;
+--  const levelCounts = levelOrder.map((level) => ({ level, count: allCourses.filter((course) => course.level === level).length }));
+-+  const levelCounts = levelOrder
+-+    .map((level) => ({ level, count: allCourses.filter((course) => course.level === level).length }))
+-+    .filter((item) => item.count > 0);
+- 
+-   return (
+-     <LearnerAppShell active="courses">
+-@@ -49,7 +65,7 @@ export default async function CoursesPage() {
+-               <p className="mt-0.5 text-sm text-[#6E738D]">Choose a guided BrenUp path and keep your English moving.</p>
+-             </div>
+-             <div className="flex shrink-0 items-center gap-3">
+--              <SearchBox />
+-+              <SearchBox defaultValue={searchQuery} />
+-               <StatChip icon={<GraduationCap className="size-[18px] text-[#6C3BFF]" />} value={String(allCourses.length)} label="courses" />
+-               <StatChip icon={<Star className="size-[18px] fill-[#FFB545] text-[#FFB545]" />} value={String(enrolledCount)} label="enrolled" />
+-               <Link href={user ? "/account" : "/login"} className="relative grid size-11 place-items-center rounded-[14px] border border-[#ECECF5] bg-white shadow-[0_2px_8px_rgba(0,0,0,.04)]" aria-label="Account">
+-@@ -59,7 +75,7 @@ export default async function CoursesPage() {
+-           </header>
+- 
+-           <div className="min-[861px]:hidden">
+--            <SearchBox mobile />
+-+            <SearchBox mobile defaultValue={searchQuery} />
+-             <div className="mt-2 flex gap-2">
+-               <StatChip icon={<GraduationCap className="size-4 text-[#6C3BFF]" />} value={String(allCourses.length)} label="courses" mobile />
+-               <StatChip icon={<Star className="size-4 fill-[#FFB545] text-[#FFB545]" />} value={String(enrolledCount)} label="enrolled" mobile />
+-@@ -110,20 +126,71 @@ export default async function CoursesPage() {
+-                 <h2 className="text-lg font-bold">Find a course by level</h2>
+-                 <p className="mt-0.5 text-xs text-[#6E738D]">No gates. Pick what fits your current goal.</p>
+-               </div>
+--              <div className="flex flex-wrap gap-2">
+--                <span className="rounded-full bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] px-3 py-1.5 text-xs font-bold text-white">All</span>
+--                {levelCounts.map((item) => (
+--                  <span key={item.level} className="rounded-full border border-[#ECECF5] bg-[#F6F7FB] px-3 py-1.5 text-xs font-bold text-[#6E738D]">
+--                    {item.level} <span className="text-[#A0A5BA]">{item.count}</span>
+--                  </span>
+--                ))}
+--              </div>
+-+              <form method="GET" className="flex flex-wrap items-center gap-2">
+-+                {/* preserve search query when switching levels */}
+-+                {searchQuery ? <input type="hidden" name="q" value={searchQuery} /> : null}
+-+                <Link
+-+                  href={searchQuery ? `/courses?q=${encodeURIComponent(searchQuery)}` : "/courses"}
+-+                  className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
+-+                    !activeLevel
+-+                      ? "bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] text-white"
+-+                      : "border border-[#ECECF5] bg-[#F6F7FB] text-[#6E738D] hover:bg-[#ECEDF8]"
+-+                  }`}
+-+                >
+-+                  All <span className={!activeLevel ? "text-white/70" : "text-[#A0A5BA]"}>{allCourses.length}</span>
+-+                </Link>
+-+                {levelCounts.map((item) => {
+-+                  const href = searchQuery
+-+                    ? `/courses?level=${encodeURIComponent(item.level)}&q=${encodeURIComponent(searchQuery)}`
+-+                    : `/courses?level=${encodeURIComponent(item.level)}`;
+-+                  return (
+-+                    <Link
+-+                      key={item.level}
+-+                      href={href}
+-+                      className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
+-+                        activeLevel === item.level
+-+                          ? "bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] text-white"
+-+                          : "border border-[#ECECF5] bg-[#F6F7FB] text-[#6E738D] hover:bg-[#ECEDF8]"
+-+                      }`}
+-+                    >
+-+                      {item.level} <span className={activeLevel === item.level ? "text-white/70" : "text-[#A0A5BA]"}>{item.count}</span>
+-+                    </Link>
+-+                  );
+-+                })}
+-+              </form>
+-             </div>
+-+            {(activeLevel || searchQuery) ? (
+-+              <div className="flex items-center justify-between gap-3 border-t border-[#ECECF5] pt-3 text-sm">
+-+                <span className="text-[#6E738D]">
+-+                  Showing <strong className="text-[#14172B]">{filteredCourses.length}</strong> of {allCourses.length} courses
+-+                  {activeLevel ? <> · Level <strong className="text-[#14172B]">{activeLevel}</strong></> : null}
+-+                  {searchQuery ? <> · Search <strong className="text-[#14172B]">"{searchQuery}"</strong></> : null}
+-+                </span>
+-+                <Link href="/courses" className="text-xs font-semibold text-[#6C3BFF] hover:underline">Clear filters</Link>
+-+              </div>
+-+            ) : null}
+-           </section>
+- 
+--          {(allCourses.length) > 0 ? (
+-+          {allCourses.length === 0 ? (
+-+            <section className="rounded-[20px] border border-[#ECECF5] bg-white p-10 text-center shadow-[0_12px_32px_rgba(0,0,0,.06)]">
+-+              <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-[#6C3BFF]/10 text-[#6C3BFF]">
+-+                <BookOpen className="size-7" />
+-+              </div>
+-+              <h2 className="mt-4 text-lg font-bold">No published courses yet</h2>
+-+              <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#6E738D]">BrenUp courses will appear here as soon as they are published.</p>
+-+            </section>
+-+          ) : filteredCourses.length === 0 ? (
+-+            <section className="rounded-[20px] border border-[#ECECF5] bg-white p-10 text-center shadow-[0_12px_32px_rgba(0,0,0,.06)]">
+-+              <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-[#6C3BFF]/10 text-[#6C3BFF]">
+-+                <BookOpen className="size-7" />
+-+              </div>
+-+              <h2 className="mt-4 text-lg font-bold">No courses match your filters</h2>
+-+              <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#6E738D]">Try a different level or clear your search.</p>
+-+              <Link href="/courses" className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-[#6C3BFF] hover:underline">Clear filters <ChevronRight className="size-4" /></Link>
+-+            </section>
+-+          ) : (
+-             <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+--              {allCourses.map((course, index) => {
+-+              {filteredCourses.map((course, index) => {
+-                 const status = enrolled.get(course.id);
+-                 const progress = progressByCourse.get(course.id);
+-                 return (
+-@@ -139,14 +206,6 @@ export default async function CoursesPage() {
+-                 );
+-               })}
+-             </section>
+--          ) : (
+--            <section className="rounded-[20px] border border-[#ECECF5] bg-white p-10 text-center shadow-[0_12px_32px_rgba(0,0,0,.06)]">
+--              <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-[#6C3BFF]/10 text-[#6C3BFF]">
+--                <BookOpen className="size-7" />
+--              </div>
+--              <h2 className="mt-4 text-lg font-bold">No published courses yet</h2>
+--              <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#6E738D]">BrenUp courses will appear here as soon as they are published.</p>
+--            </section>
+-           )}
+-         </section>
+-     </LearnerAppShell>
+-@@ -222,13 +281,18 @@ function resolveCourseImage(value?: string | null) {
+-   return value.startsWith("/") ? value : `/${value}`;
+- }
+- 
+--function SearchBox({ mobile = false }: { mobile?: boolean }) {
+-+function SearchBox({ mobile = false, defaultValue = "" }: { mobile?: boolean; defaultValue?: string }) {
+-   return (
+--    <div className={`flex items-center gap-2 rounded-[26px] border border-[#ECECF5] bg-white px-4 shadow-[0_2px_8px_rgba(0,0,0,.04)] ${mobile ? "h-11 w-full" : "h-12 w-[300px]"}`}>
+-+    <form method="GET" action="/courses" className={`flex items-center gap-2 rounded-[26px] border border-[#ECECF5] bg-white px-4 shadow-[0_2px_8px_rgba(0,0,0,.04)] ${mobile ? "h-11 w-full" : "h-12 w-[300px]"}`}>
+-       <Search className="size-4 shrink-0 text-[#6E738D]" />
+--      <input className="min-w-0 flex-1 border-0 bg-transparent text-[13px] outline-none placeholder:text-[#6E738D]" placeholder="Search courses, levels, topics..." readOnly />
+--      <span className="whitespace-nowrap rounded-md border border-[#ECECF5] bg-[#F6F7FB] px-1.5 py-0.5 text-[11px] text-[#6E738D]">⌘ K</span>
+--    </div>
+-+      <input
+-+        name="q"
+-+        defaultValue={defaultValue}
+-+        className="min-w-0 flex-1 border-0 bg-transparent text-[13px] outline-none placeholder:text-[#6E738D]"
+-+        placeholder="Search courses, levels, topics..."
+-+      />
+-+      <button type="submit" className="whitespace-nowrap rounded-md border border-[#ECECF5] bg-[#F6F7FB] px-1.5 py-0.5 text-[11px] text-[#6E738D]">↵</button>
+-+    </form>
+-   );
+- }
+- 
+--- 
+-2.43.0
+-
+-
+-From 370bffbde0a298a1ef541e254d30529e4d04c5a9 Mon Sep 17 00:00:00 2001
+-From: Claude <assistant@brenup.dev>
+-Date: Wed, 1 Jul 2026 00:47:54 +0000
+-Subject: [PATCH 2/2] Fix /courses build errors: unused import and unescaped
+- quotes
+-
+-- Remove unused CONTENT_LEVEL_SORT_ORDER import (ESLint no-unused-vars)
+-- Escape quote marks around search query in filter summary bar
+-  (react/no-unescaped-entities: use &ldquo;/&rdquo; instead of raw ")
+----
+- app/courses/page.tsx | 4 ++--
+- 1 file changed, 2 insertions(+), 2 deletions(-)
+-
+-diff --git a/app/courses/page.tsx b/app/courses/page.tsx
+-index f5f56e9..d41cd39 100644
+---- a/app/courses/page.tsx
+-+++ b/app/courses/page.tsx
+-@@ -15,7 +15,7 @@ import {
+- import { LearnerAppShell } from "@/components/LearnerAppShell";
+- import { createAdminClient } from "@/lib/supabase/admin";
+- import { createClient } from "@/lib/supabase/server";
+--import { CONTENT_LEVELS, CONTENT_LEVEL_SORT_ORDER } from "@/lib/levels";
+-+import { CONTENT_LEVELS } from "@/lib/levels";
+- 
+- const levelOrder = CONTENT_LEVELS;
+- 
+-@@ -164,7 +164,7 @@ export default async function CoursesPage({
+-                 <span className="text-[#6E738D]">
+-                   Showing <strong className="text-[#14172B]">{filteredCourses.length}</strong> of {allCourses.length} courses
+-                   {activeLevel ? <> · Level <strong className="text-[#14172B]">{activeLevel}</strong></> : null}
+--                  {searchQuery ? <> · Search <strong className="text-[#14172B]">"{searchQuery}"</strong></> : null}
+-+                  {searchQuery ? <> · Search <strong className="text-[#14172B]">&ldquo;{searchQuery}&rdquo;</strong></> : null}
+-                 </span>
+-                 <Link href="/courses" className="text-xs font-semibold text-[#6C3BFF] hover:underline">Clear filters</Link>
+-               </div>
+--- 
+-2.43.0
+-
+diff --git a/0001-courses-filter.patch b/0001-courses-filter.patch
+deleted file mode 100644
+index db737b7..0000000
+--- a/0001-courses-filter.patch
++++ /dev/null
+@@ -1,229 +0,0 @@
+-From c4bf8f3f7709173f3ecd25c76dcf6078f09a4d73 Mon Sep 17 00:00:00 2001
+-From: Claude <assistant@brenup.dev>
+-Date: Wed, 1 Jul 2026 00:28:16 +0000
+-Subject: [PATCH] Make /courses level filter and search functional
+-MIME-Version: 1.0
+-Content-Type: text/plain; charset=UTF-8
+-Content-Transfer-Encoding: 8bit
+-
+-Previously the level chips were decorative <span> elements and the
+-search box had readOnly on the input — neither did anything.
+-
+-Changes:
+-- Level chips are now <Link>s that append ?level=X to the URL. Active
+-  chip is highlighted with the BrenUp purple gradient, inactive ones
+-  are the standard grey pill. Chips with 0 courses are hidden.
+-- 'All' chip links back to /courses (or /courses?q=... to preserve
+-  search) and is highlighted when no level filter is active.
+-- SearchBox is now a real <form method=GET> that submits ?q= to
+-  /courses. The input stays populated with the current search value.
+-  The ⌘K hint is replaced with a ↵ submit button since the box is
+-  now interactive.
+-- CoursesPage accepts searchParams and filters allCourses server-side
+-  by active level (exact match) and search query (title + topic,
+-  case-insensitive substring).
+-- filteredCourses drives the course grid so the displayed cards
+-  actually reflect the active filters.
+-- Two distinct empty states: 'No published courses yet' (DB empty) vs
+-  'No courses match your filters' (filters too narrow), the latter
+-  including a Clear filters link.
+-- A result summary bar ('Showing X of Y · Level B1 · Search ...')
+-  with a Clear filters link appears below the chips whenever a filter
+-  is active.
+-- Level+search filters compose: picking B1 then searching 'grammar'
+-  shows only B1 courses whose title or topic contains 'grammar'.
+----
+- app/courses/page.tsx | 120 +++++++++++++++++++++++++++++++++----------
+- 1 file changed, 92 insertions(+), 28 deletions(-)
+-
+-diff --git a/app/courses/page.tsx b/app/courses/page.tsx
+-index 71926fb..f5f56e9 100644
+---- a/app/courses/page.tsx
+-+++ b/app/courses/page.tsx
+-@@ -15,11 +15,15 @@ import {
+- import { LearnerAppShell } from "@/components/LearnerAppShell";
+- import { createAdminClient } from "@/lib/supabase/admin";
+- import { createClient } from "@/lib/supabase/server";
+--import { CONTENT_LEVELS } from "@/lib/levels";
+-+import { CONTENT_LEVELS, CONTENT_LEVEL_SORT_ORDER } from "@/lib/levels";
+- 
+- const levelOrder = CONTENT_LEVELS;
+- 
+--export default async function CoursesPage() {
+-+export default async function CoursesPage({
+-+  searchParams,
+-+}: {
+-+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+-+}) {
+-   const supabase = await createClient();
+-   const admin = createAdminClient();
+-   const {
+-@@ -32,13 +36,25 @@ export default async function CoursesPage() {
+-     user ? admin.from("course_progress").select("course_id,progress_percent,total_items,completed_items").eq("user_id", user.id) : Promise.resolve({ data: [] })
+-   ]);
+- 
+-+  const params = await searchParams;
+-+  const activeLevel = typeof params.level === "string" ? params.level : "";
+-+  const searchQuery = (typeof params.q === "string" ? params.q : "").trim().toLowerCase();
+-+
+-   const allCourses = courses ?? [];
+-   const enrolled = new Map((enrollments ?? []).map((item) => [item.course_id, item.status]));
+-   const progressByCourse = new Map((progressRows ?? []).map((item) => [item.course_id, item]));
+-+
+-+  const filteredCourses = allCourses.filter((course) =>
+-+    (!activeLevel || course.level === activeLevel) &&
+-+    (!searchQuery || course.title?.toLowerCase().includes(searchQuery) || course.topic?.toLowerCase().includes(searchQuery))
+-+  );
+-+
+-   const featured = allCourses[0] ?? null;
+-   const totalMinutes = allCourses.reduce((sum, course) => sum + Number(course.estimated_completion_minutes ?? 0), 0);
+-   const enrolledCount = (enrollments ?? []).length;
+--  const levelCounts = levelOrder.map((level) => ({ level, count: allCourses.filter((course) => course.level === level).length }));
+-+  const levelCounts = levelOrder
+-+    .map((level) => ({ level, count: allCourses.filter((course) => course.level === level).length }))
+-+    .filter((item) => item.count > 0);
+- 
+-   return (
+-     <LearnerAppShell active="courses">
+-@@ -49,7 +65,7 @@ export default async function CoursesPage() {
+-               <p className="mt-0.5 text-sm text-[#6E738D]">Choose a guided BrenUp path and keep your English moving.</p>
+-             </div>
+-             <div className="flex shrink-0 items-center gap-3">
+--              <SearchBox />
+-+              <SearchBox defaultValue={searchQuery} />
+-               <StatChip icon={<GraduationCap className="size-[18px] text-[#6C3BFF]" />} value={String(allCourses.length)} label="courses" />
+-               <StatChip icon={<Star className="size-[18px] fill-[#FFB545] text-[#FFB545]" />} value={String(enrolledCount)} label="enrolled" />
+-               <Link href={user ? "/account" : "/login"} className="relative grid size-11 place-items-center rounded-[14px] border border-[#ECECF5] bg-white shadow-[0_2px_8px_rgba(0,0,0,.04)]" aria-label="Account">
+-@@ -59,7 +75,7 @@ export default async function CoursesPage() {
+-           </header>
+- 
+-           <div className="min-[861px]:hidden">
+--            <SearchBox mobile />
+-+            <SearchBox mobile defaultValue={searchQuery} />
+-             <div className="mt-2 flex gap-2">
+-               <StatChip icon={<GraduationCap className="size-4 text-[#6C3BFF]" />} value={String(allCourses.length)} label="courses" mobile />
+-               <StatChip icon={<Star className="size-4 fill-[#FFB545] text-[#FFB545]" />} value={String(enrolledCount)} label="enrolled" mobile />
+-@@ -110,20 +126,71 @@ export default async function CoursesPage() {
+-                 <h2 className="text-lg font-bold">Find a course by level</h2>
+-                 <p className="mt-0.5 text-xs text-[#6E738D]">No gates. Pick what fits your current goal.</p>
+-               </div>
+--              <div className="flex flex-wrap gap-2">
+--                <span className="rounded-full bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] px-3 py-1.5 text-xs font-bold text-white">All</span>
+--                {levelCounts.map((item) => (
+--                  <span key={item.level} className="rounded-full border border-[#ECECF5] bg-[#F6F7FB] px-3 py-1.5 text-xs font-bold text-[#6E738D]">
+--                    {item.level} <span className="text-[#A0A5BA]">{item.count}</span>
+--                  </span>
+--                ))}
+--              </div>
+-+              <form method="GET" className="flex flex-wrap items-center gap-2">
+-+                {/* preserve search query when switching levels */}
+-+                {searchQuery ? <input type="hidden" name="q" value={searchQuery} /> : null}
+-+                <Link
+-+                  href={searchQuery ? `/courses?q=${encodeURIComponent(searchQuery)}` : "/courses"}
+-+                  className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
+-+                    !activeLevel
+-+                      ? "bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] text-white"
+-+                      : "border border-[#ECECF5] bg-[#F6F7FB] text-[#6E738D] hover:bg-[#ECEDF8]"
+-+                  }`}
+-+                >
+-+                  All <span className={!activeLevel ? "text-white/70" : "text-[#A0A5BA]"}>{allCourses.length}</span>
+-+                </Link>
+-+                {levelCounts.map((item) => {
+-+                  const href = searchQuery
+-+                    ? `/courses?level=${encodeURIComponent(item.level)}&q=${encodeURIComponent(searchQuery)}`
+-+                    : `/courses?level=${encodeURIComponent(item.level)}`;
+-+                  return (
+-+                    <Link
+-+                      key={item.level}
+-+                      href={href}
+-+                      className={`rounded-full px-3 py-1.5 text-xs font-bold transition ${
+-+                        activeLevel === item.level
+-+                          ? "bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] text-white"
+-+                          : "border border-[#ECECF5] bg-[#F6F7FB] text-[#6E738D] hover:bg-[#ECEDF8]"
+-+                      }`}
+-+                    >
+-+                      {item.level} <span className={activeLevel === item.level ? "text-white/70" : "text-[#A0A5BA]"}>{item.count}</span>
+-+                    </Link>
+-+                  );
+-+                })}
+-+              </form>
+-             </div>
+-+            {(activeLevel || searchQuery) ? (
+-+              <div className="flex items-center justify-between gap-3 border-t border-[#ECECF5] pt-3 text-sm">
+-+                <span className="text-[#6E738D]">
+-+                  Showing <strong className="text-[#14172B]">{filteredCourses.length}</strong> of {allCourses.length} courses
+-+                  {activeLevel ? <> · Level <strong className="text-[#14172B]">{activeLevel}</strong></> : null}
+-+                  {searchQuery ? <> · Search <strong className="text-[#14172B]">"{searchQuery}"</strong></> : null}
+-+                </span>
+-+                <Link href="/courses" className="text-xs font-semibold text-[#6C3BFF] hover:underline">Clear filters</Link>
+-+              </div>
+-+            ) : null}
+-           </section>
+- 
+--          {(allCourses.length) > 0 ? (
+-+          {allCourses.length === 0 ? (
+-+            <section className="rounded-[20px] border border-[#ECECF5] bg-white p-10 text-center shadow-[0_12px_32px_rgba(0,0,0,.06)]">
+-+              <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-[#6C3BFF]/10 text-[#6C3BFF]">
+-+                <BookOpen className="size-7" />
+-+              </div>
+-+              <h2 className="mt-4 text-lg font-bold">No published courses yet</h2>
+-+              <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#6E738D]">BrenUp courses will appear here as soon as they are published.</p>
+-+            </section>
+-+          ) : filteredCourses.length === 0 ? (
+-+            <section className="rounded-[20px] border border-[#ECECF5] bg-white p-10 text-center shadow-[0_12px_32px_rgba(0,0,0,.06)]">
+-+              <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-[#6C3BFF]/10 text-[#6C3BFF]">
+-+                <BookOpen className="size-7" />
+-+              </div>
+-+              <h2 className="mt-4 text-lg font-bold">No courses match your filters</h2>
+-+              <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#6E738D]">Try a different level or clear your search.</p>
+-+              <Link href="/courses" className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-[#6C3BFF] hover:underline">Clear filters <ChevronRight className="size-4" /></Link>
+-+            </section>
+-+          ) : (
+-             <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+--              {allCourses.map((course, index) => {
+-+              {filteredCourses.map((course, index) => {
+-                 const status = enrolled.get(course.id);
+-                 const progress = progressByCourse.get(course.id);
+-                 return (
+-@@ -139,14 +206,6 @@ export default async function CoursesPage() {
+-                 );
+-               })}
+-             </section>
+--          ) : (
+--            <section className="rounded-[20px] border border-[#ECECF5] bg-white p-10 text-center shadow-[0_12px_32px_rgba(0,0,0,.06)]">
+--              <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-[#6C3BFF]/10 text-[#6C3BFF]">
+--                <BookOpen className="size-7" />
+--              </div>
+--              <h2 className="mt-4 text-lg font-bold">No published courses yet</h2>
+--              <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[#6E738D]">BrenUp courses will appear here as soon as they are published.</p>
+--            </section>
+-           )}
+-         </section>
+-     </LearnerAppShell>
+-@@ -222,13 +281,18 @@ function resolveCourseImage(value?: string | null) {
+-   return value.startsWith("/") ? value : `/${value}`;
+- }
+- 
+--function SearchBox({ mobile = false }: { mobile?: boolean }) {
+-+function SearchBox({ mobile = false, defaultValue = "" }: { mobile?: boolean; defaultValue?: string }) {
+-   return (
+--    <div className={`flex items-center gap-2 rounded-[26px] border border-[#ECECF5] bg-white px-4 shadow-[0_2px_8px_rgba(0,0,0,.04)] ${mobile ? "h-11 w-full" : "h-12 w-[300px]"}`}>
+-+    <form method="GET" action="/courses" className={`flex items-center gap-2 rounded-[26px] border border-[#ECECF5] bg-white px-4 shadow-[0_2px_8px_rgba(0,0,0,.04)] ${mobile ? "h-11 w-full" : "h-12 w-[300px]"}`}>
+-       <Search className="size-4 shrink-0 text-[#6E738D]" />
+--      <input className="min-w-0 flex-1 border-0 bg-transparent text-[13px] outline-none placeholder:text-[#6E738D]" placeholder="Search courses, levels, topics..." readOnly />
+--      <span className="whitespace-nowrap rounded-md border border-[#ECECF5] bg-[#F6F7FB] px-1.5 py-0.5 text-[11px] text-[#6E738D]">⌘ K</span>
+--    </div>
+-+      <input
+-+        name="q"
+-+        defaultValue={defaultValue}
+-+        className="min-w-0 flex-1 border-0 bg-transparent text-[13px] outline-none placeholder:text-[#6E738D]"
+-+        placeholder="Search courses, levels, topics..."
+-+      />
+-+      <button type="submit" className="whitespace-nowrap rounded-md border border-[#ECECF5] bg-[#F6F7FB] px-1.5 py-0.5 text-[11px] text-[#6E738D]">↵</button>
+-+    </form>
+-   );
+- }
+- 
+--- 
+-2.43.0
+-
+diff --git a/0001-courses-fix.patch b/0001-courses-fix.patch
+deleted file mode 100644
+index 2dbeadf..0000000
+--- a/0001-courses-fix.patch
++++ /dev/null
+@@ -1,36 +0,0 @@
+-From b231e57d73a0dbc0304bfbc2c7cb9dbedb23babf Mon Sep 17 00:00:00 2001
+-From: Claude <assistant@brenup.dev>
+-Date: Wed, 1 Jul 2026 00:56:10 +0000
+-Subject: [PATCH] Fix /courses ESLint build errors
+-
+-- Remove unused CONTENT_LEVEL_SORT_ORDER import
+-- Escape quote marks in JSX filter summary bar
+----
+- app/courses/page.tsx | 4 ++--
+- 1 file changed, 2 insertions(+), 2 deletions(-)
+-
+-diff --git a/app/courses/page.tsx b/app/courses/page.tsx
+-index f5f56e9..d41cd39 100644
+---- a/app/courses/page.tsx
+-+++ b/app/courses/page.tsx
+-@@ -15,7 +15,7 @@ import {
+- import { LearnerAppShell } from "@/components/LearnerAppShell";
+- import { createAdminClient } from "@/lib/supabase/admin";
+- import { createClient } from "@/lib/supabase/server";
+--import { CONTENT_LEVELS, CONTENT_LEVEL_SORT_ORDER } from "@/lib/levels";
+-+import { CONTENT_LEVELS } from "@/lib/levels";
+- 
+- const levelOrder = CONTENT_LEVELS;
+- 
+-@@ -164,7 +164,7 @@ export default async function CoursesPage({
+-                 <span className="text-[#6E738D]">
+-                   Showing <strong className="text-[#14172B]">{filteredCourses.length}</strong> of {allCourses.length} courses
+-                   {activeLevel ? <> · Level <strong className="text-[#14172B]">{activeLevel}</strong></> : null}
+--                  {searchQuery ? <> · Search <strong className="text-[#14172B]">"{searchQuery}"</strong></> : null}
+-+                  {searchQuery ? <> · Search <strong className="text-[#14172B]">&ldquo;{searchQuery}&rdquo;</strong></> : null}
+-                 </span>
+-                 <Link href="/courses" className="text-xs font-semibold text-[#6C3BFF] hover:underline">Clear filters</Link>
+-               </div>
+--- 
+-2.43.0
+-
+diff --git a/0001-curriculum-tabs.patch b/0001-curriculum-tabs.patch
+deleted file mode 100644
+index 258dd5a..0000000
+--- a/0001-curriculum-tabs.patch
++++ /dev/null
+@@ -1,194 +0,0 @@
+-From 9c76f0f4102e49c14b08a4f5a417a8761cde7428 Mon Sep 17 00:00:00 2001
+-From: Claude <assistant@brenup.dev>
+-Date: Tue, 30 Jun 2026 11:06:46 +0000
+-Subject: [PATCH] Refactor course curriculum card into
+- Curriculum/Overview/Questions tabs
+-
+-- Add components/CourseCurriculumTabs.tsx, a client component rendering
+-  the middle course-landing card with three tabs ordered left to right:
+-  Curriculum, Overview, Questions.
+-- Curriculum tab shows the existing modules/items/hours content that was
+-  previously rendered directly on the card.
+-- Overview and Questions tabs show the existing course description and
+-  FAQ accordion content, moved out of the right-hand sidebar panels and
+-  into the tabbed card, with no wording changes.
+-- Removed the now-redundant standalone Overview and Questions panels
+-  from both the mobile/tablet and desktop layouts.
+----
+- app/courses/[id]/page.tsx           | 48 ++++++++++-----------
+- components/CourseCurriculumTabs.tsx | 65 +++++++++++++++++++++++++++++
+- 2 files changed, 87 insertions(+), 26 deletions(-)
+- create mode 100644 components/CourseCurriculumTabs.tsx
+-
+-diff --git a/app/courses/[id]/page.tsx b/app/courses/[id]/page.tsx
+-index 525be07..2239daa 100644
+---- a/app/courses/[id]/page.tsx
+-+++ b/app/courses/[id]/page.tsx
+-@@ -18,6 +18,7 @@ import {
+-   Star,
+-   User
+- } from "lucide-react";
+-+import { CourseCurriculumTabs } from "@/components/CourseCurriculumTabs";
+- import { LearnerAppShell } from "@/components/LearnerAppShell";
+- import { createAdminClient } from "@/lib/supabase/admin";
+- import { createClient } from "@/lib/supabase/server";
+-@@ -133,15 +134,8 @@ export default async function CourseLandingPage({ params }: { params: Promise<{
+-     </div>
+-   );
+- 
+--  const curriculumCard = (
+--    <div id="curriculum" className="rounded-[24px] border border-[#ECECF5] bg-white p-4 shadow-[0_12px_32px_rgba(0,0,0,.06)] md:p-5">
+--      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+--        <div>
+--          <h2 className="text-xl font-extrabold">Course Curriculum</h2>
+--          <p className="mt-1 text-sm text-[#6E738D]">{sectionCount} modules · {totalItems} items · {Math.max(1, Math.round(totalMinutes / 60))}h total</p>
+--        </div>
+--      </div>
+--      <div className="grid gap-3">
+-+  const curriculumContent = (
+-+    <div className="grid gap-3">
+-         {(sections ?? []).length ? (sections ?? []).map((section, index) => {
+-           const sectionItems = courseItems.filter((item) => item.section_id === section.id);
+-           const completedInSection = sectionItems.filter((item) => completedIds.has(item.id)).length;
+-@@ -175,7 +169,6 @@ export default async function CourseLandingPage({ params }: { params: Promise<{
+-         }) : (
+-           <p className="rounded-xl bg-[#F6F7FB] p-5 text-sm text-[#6E738D]">Curriculum coming soon.</p>
+-         )}
+--      </div>
+-     </div>
+-   );
+- 
+-@@ -239,22 +232,29 @@ export default async function CourseLandingPage({ params }: { params: Promise<{
+-     </Panel>
+-   );
+- 
+--  const overviewPanel = course.description ? (
+--    <Panel title="Overview">
+--      <p className="whitespace-pre-line text-sm leading-6 text-[#53607D]">{course.description}</p>
+--    </Panel>
+-+  const overviewContent = course.description ? (
+-+    <p className="whitespace-pre-line text-sm leading-6 text-[#53607D]">{course.description}</p>
+-   ) : null;
+- 
+--  const questionsPanel = (faqs ?? []).length ? (
+--    <Panel title="Questions">
+--      <div className="grid gap-2.5">
+--        {(faqs ?? []).map((faq, index) => (
+--          <FaqAccordionItem key={faq.id} question={faq.question} answer={faq.answer} defaultOpen={index === 0} />
+--        ))}
+--      </div>
+--    </Panel>
+-+  const questionsContent = (faqs ?? []).length ? (
+-+    <div className="grid gap-2.5">
+-+      {(faqs ?? []).map((faq, index) => (
+-+        <FaqAccordionItem key={faq.id} question={faq.question} answer={faq.answer} defaultOpen={index === 0} />
+-+      ))}
+-+    </div>
+-   ) : null;
+- 
+-+  const curriculumSubtitle = `${sectionCount} modules · ${totalItems} items · ${Math.max(1, Math.round(totalMinutes / 60))}h total`;
+-+
+-+  const curriculumCard = (
+-+    <CourseCurriculumTabs
+-+      curriculumSubtitle={curriculumSubtitle}
+-+      curriculumContent={curriculumContent}
+-+      overviewContent={overviewContent}
+-+      questionsContent={questionsContent}
+-+    />
+-+  );
+-+
+-   return (
+-     <LearnerAppShell active="courses">
+-         <section className="flex min-w-0 flex-col gap-5">
+-@@ -288,8 +288,6 @@ export default async function CourseLandingPage({ params }: { params: Promise<{
+-               {curriculumCard}
+-               <aside className="grid content-start gap-4">
+-                 {supportPanel}
+--                {overviewPanel}
+--                {questionsPanel}
+-               </aside>
+-             </section>
+-           </div>
+-@@ -304,8 +302,6 @@ export default async function CourseLandingPage({ params }: { params: Promise<{
+-               {progressPanel}
+-               {outcomesPanel}
+-               {supportPanel}
+--              {overviewPanel}
+--              {questionsPanel}
+-             </aside>
+-           </div>
+-         </section>
+-diff --git a/components/CourseCurriculumTabs.tsx b/components/CourseCurriculumTabs.tsx
+-new file mode 100644
+-index 0000000..383e911
+---- /dev/null
+-+++ b/components/CourseCurriculumTabs.tsx
+-@@ -0,0 +1,65 @@
+-+"use client";
+-+
+-+import { useState } from "react";
+-+
+-+type TabKey = "curriculum" | "overview" | "questions";
+-+
+-+const TAB_TITLES: Record<TabKey, string> = {
+-+  curriculum: "Course Curriculum",
+-+  overview: "Overview",
+-+  questions: "Questions",
+-+};
+-+
+-+export function CourseCurriculumTabs({
+-+  curriculumSubtitle,
+-+  curriculumContent,
+-+  overviewContent,
+-+  questionsContent,
+-+}: {
+-+  curriculumSubtitle: string;
+-+  curriculumContent: React.ReactNode;
+-+  overviewContent: React.ReactNode | null;
+-+  questionsContent: React.ReactNode | null;
+-+}) {
+-+  const tabs: { key: TabKey; label: string; available: boolean }[] = [
+-+    { key: "curriculum", label: "Curriculum", available: true },
+-+    { key: "overview", label: "Overview", available: Boolean(overviewContent) },
+-+    { key: "questions", label: "Questions", available: Boolean(questionsContent) },
+-+  ];
+-+  const [active, setActive] = useState<TabKey>("curriculum");
+-+
+-+  return (
+-+    <div id="curriculum" className="rounded-[24px] border border-[#ECECF5] bg-white p-4 shadow-[0_12px_32px_rgba(0,0,0,.06)] md:p-5">
+-+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+-+        <div>
+-+          <h2 className="text-xl font-extrabold">{TAB_TITLES[active]}</h2>
+-+          {active === "curriculum" ? <p className="mt-1 text-sm text-[#6E738D]">{curriculumSubtitle}</p> : null}
+-+        </div>
+-+      </div>
+-+
+-+      <div className="mb-5 flex gap-1 border-b border-[#ECECF5]">
+-+        {tabs
+-+          .filter((tab) => tab.available)
+-+          .map((tab) => (
+-+            <button
+-+              key={tab.key}
+-+              type="button"
+-+              onClick={() => setActive(tab.key)}
+-+              aria-current={active === tab.key}
+-+              className={`relative -mb-px px-3.5 py-2.5 text-sm font-extrabold transition ${
+-+                active === tab.key
+-+                  ? "border-b-2 border-[#6C3BFF] text-[#6C3BFF]"
+-+                  : "border-b-2 border-transparent text-[#8D94AA] hover:text-[#35405F]"
+-+              }`}
+-+            >
+-+              {tab.label}
+-+            </button>
+-+          ))}
+-+      </div>
+-+
+-+      <div className={active === "curriculum" ? "block" : "hidden"}>{curriculumContent}</div>
+-+      {overviewContent ? <div className={active === "overview" ? "block" : "hidden"}>{overviewContent}</div> : null}
+-+      {questionsContent ? <div className={active === "questions" ? "block" : "hidden"}>{questionsContent}</div> : null}
+-+    </div>
+-+  );
+-+}
+--- 
+-2.43.0
+-
+diff --git a/LoginForm.tsx b/LoginForm.tsx
+deleted file mode 100644
+index dec4e1e..0000000
+--- a/LoginForm.tsx
++++ /dev/null
+@@ -1,103 +0,0 @@
+-"use client";
+-
+-import { useState, useTransition } from "react";
+-import { useRouter } from "next/navigation";
+-import { createClient } from "@/lib/supabase/client";
+-
+-export function LoginForm() {
+-  const supabase = createClient();
+-  const router = useRouter();
+-  const [email, setEmail] = useState("");
+-  const [password, setPassword] = useState("");
+-  const [fullName, setFullName] = useState("");
+-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+-  const [message, setMessage] = useState<string | null>(null);
+-  const [isPending, startTransition] = useTransition();
+-
+-  function submit() {
+-    startTransition(async () => {
+-      setMessage(null);
+-      const result =
+-        mode === "signin"
+-          ? await supabase.auth.signInWithPassword({ email, password })
+-          : await supabase.auth.signUp({
+-              email,
+-              password,
+-              options: { data: { full_name: fullName } },
+-            });
+-
+-      if (result.error) {
+-        setMessage(result.error.message);
+-        return;
+-      }
+-
+-      // For signup, Supabase may require email confirmation before a session exists
+-      if (mode === "signup" && !result.data.session) {
+-        setMessage("Check your email to confirm your account.");
+-        return;
+-      }
+-
+-      // Refresh server state so middleware sees the new session cookie, then navigate
+-      router.refresh();
+-      router.push("/dashboard");
+-    });
+-  }
+-
+-  return (
+-    <div className="mt-6 space-y-4">
+-      <div className="grid grid-cols-2 rounded-md border border-black/10 bg-black/[0.03] p-1 text-sm">
+-        <button
+-          type="button"
+-          onClick={() => setMode("signin")}
+-          className={`rounded px-3 py-2 ${mode === "signin" ? "bg-white shadow-sm" : ""}`}
+-        >
+-          Sign in
+-        </button>
+-        <button
+-          type="button"
+-          onClick={() => setMode("signup")}
+-          className={`rounded px-3 py-2 ${mode === "signup" ? "bg-white shadow-sm" : ""}`}
+-        >
+-          Register
+-        </button>
+-      </div>
+-      {mode === "signup" ? (
+-        <label className="block text-sm">
+-          Name
+-          <input
+-            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+-            value={fullName}
+-            onChange={(event) => setFullName(event.target.value)}
+-          />
+-        </label>
+-      ) : null}
+-      <label className="block text-sm">
+-        Email
+-        <input
+-          type="email"
+-          className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+-          value={email}
+-          onChange={(event) => setEmail(event.target.value)}
+-        />
+-      </label>
+-      <label className="block text-sm">
+-        Password
+-        <input
+-          type="password"
+-          className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+-          value={password}
+-          onChange={(event) => setPassword(event.target.value)}
+-        />
+-      </label>
+-      <button
+-        type="button"
+-        disabled={isPending}
+-        onClick={submit}
+-        className="w-full rounded-md bg-ink px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+-      >
+-        {isPending ? "Working..." : mode === "signin" ? "Sign in" : "Create account"}
+-      </button>
+-      {message ? <p className="rounded-md bg-coral/10 p-3 text-sm text-coral">{message}</p> : null}
+-    </div>
+-  );
+-}
+diff --git a/add_image_text.sh b/add_image_text.sh
+deleted file mode 100755
+index 44c3be2..0000000
+--- a/add_image_text.sh
++++ /dev/null
+@@ -1,257 +0,0 @@
+-#!/bin/bash
+-set -e
+-
+-echo "=== Adding IMAGE_TEXT block type to BrenUp lesson builder ==="
+-
+-# ── 1. actions.ts ─────────────────────────────────────────────────────────────
+-# Add "IMAGE_TEXT" to lessonBlockTypes array, right after "IMAGE",
+-# add blockContentFromForm branch, and add defaultBlockContent branch.
+-
+-FILE="app/admin/lessons/actions.ts"
+-
+-# 1a. Add to lessonBlockTypes (after "IMAGE",)
+-if grep -q '"IMAGE_TEXT"' "$FILE"; then
+-  echo "✓ actions.ts: lessonBlockTypes already has IMAGE_TEXT — skipping"
+-else
+-  sed -i '' 's/  "IMAGE",$/  "IMAGE",\n  "IMAGE_TEXT",/' "$FILE"
+-  echo "✓ actions.ts: added IMAGE_TEXT to lessonBlockTypes"
+-fi
+-
+-# 1b. Add blockContentFromForm branch (insert before the AUDIO branch)
+-if grep -q 'blockType === "IMAGE_TEXT"' "$FILE"; then
+-  echo "✓ actions.ts: blockContentFromForm branch already exists — skipping"
+-else
+-  # We insert the IMAGE_TEXT branch right before the AUDIO branch
+-  python3 - "$FILE" << 'PYEOF'
+-import sys, re
+-
+-path = sys.argv[1]
+-text = open(path).read()
+-
+-image_text_block = '''  if (blockType === "IMAGE_TEXT") {
+-    return {
+-      image_position: String(formData.get("image_position") || "left"),
+-      image_path: String(formData.get("image_path") || "").trim(),
+-      alt: nullableText(formData.get("alt")),
+-      caption: nullableText(formData.get("caption")),
+-      heading: nullableText(formData.get("heading")),
+-      body: String(formData.get("body") || "").trim()
+-    };
+-  }
+-  if (blockType === "AUDIO") {'''
+-
+-text = text.replace('  if (blockType === "AUDIO") {', image_text_block, 1)
+-open(path, 'w').write(text)
+-print("✓ actions.ts: added IMAGE_TEXT blockContentFromForm branch")
+-PYEOF
+-fi
+-
+-# 1c. Add defaultBlockContent branch (insert before AUDIO default)
+-if grep -q "IMAGE_TEXT.*image_position" "$FILE"; then
+-  echo "✓ actions.ts: defaultBlockContent branch already exists — skipping"
+-else
+-  python3 - "$FILE" << 'PYEOF'
+-import sys
+-
+-path = sys.argv[1]
+-text = open(path).read()
+-
+-image_text_default = '''  if (blockType === "IMAGE_TEXT") return {
+-    image_position: "left",
+-    image_path: "",
+-    alt: "",
+-    caption: null,
+-    heading: "Section heading",
+-    body: "Add supporting text here."
+-  };
+-  if (blockType === "AUDIO") return { path: "", label: "Audio" };'''
+-
+-text = text.replace(
+-    '  if (blockType === "AUDIO") return { path: "", label: "Audio" };',
+-    image_text_default,
+-    1
+-)
+-open(path, 'w').write(text)
+-print("✓ actions.ts: added IMAGE_TEXT defaultBlockContent branch")
+-PYEOF
+-fi
+-
+-# ── 2. LessonBuilderWorkspace.tsx ─────────────────────────────────────────────
+-FILE="components/LessonBuilderWorkspace.tsx"
+-
+-# 2a. Add to blockTypes array
+-if grep -q '"IMAGE_TEXT"' "$FILE"; then
+-  echo "✓ LessonBuilderWorkspace.tsx: blockTypes already has IMAGE_TEXT — skipping"
+-else
+-  sed -i '' 's/"IMAGE", "AUDIO"/"IMAGE", "IMAGE_TEXT", "AUDIO"/' "$FILE"
+-  # fallback if on separate lines
+-  if ! grep -q '"IMAGE_TEXT"' "$FILE"; then
+-    sed -i '' 's/  "IMAGE",$/  "IMAGE",\n  "IMAGE_TEXT",/' "$FILE"
+-  fi
+-  echo "✓ LessonBuilderWorkspace.tsx: added IMAGE_TEXT to blockTypes"
+-fi
+-
+-# 2b. Add label
+-if grep -q 'IMAGE_TEXT.*Image + Text' "$FILE"; then
+-  echo "✓ LessonBuilderWorkspace.tsx: label already exists — skipping"
+-else
+-  sed -i '' 's/IMAGE: "Image",/IMAGE: "Image", IMAGE_TEXT: "Image + Text",/' "$FILE"
+-  # fallback if on separate line
+-  if ! grep -q '"Image + Text"' "$FILE"; then
+-    sed -i '' 's/    IMAGE: "Image",$/    IMAGE: "Image",\n    IMAGE_TEXT: "Image + Text",/' "$FILE"
+-  fi
+-  echo "✓ LessonBuilderWorkspace.tsx: added IMAGE_TEXT label"
+-fi
+-
+-# 2c. Add blockSummary fallback for heading field
+-if grep -q 'data.heading' "$FILE"; then
+-  echo "✓ LessonBuilderWorkspace.tsx: blockSummary already handles heading — skipping"
+-else
+-  sed -i '' 's/data.text ?? data.title ?? data.body ?? data.path/data.text ?? data.title ?? data.body ?? data.heading ?? data.path/' "$FILE"
+-  echo "✓ LessonBuilderWorkspace.tsx: added heading to blockSummary"
+-fi
+-
+-# 2d. Add BlockFields branch for IMAGE_TEXT
+-if grep -q "blockType === \"IMAGE_TEXT\"" "$FILE"; then
+-  echo "✓ LessonBuilderWorkspace.tsx: BlockFields IMAGE_TEXT branch already exists — skipping"
+-else
+-  python3 - "$FILE" << 'PYEOF'
+-import sys
+-
+-path = sys.argv[1]
+-text = open(path).read()
+-
+-image_text_fields = '''  if (blockType === "IMAGE_TEXT") {
+-    return (
+-      <div className="grid gap-3">
+-        <label className="text-sm">
+-          Image position
+-          <select name="image_position" defaultValue={asString(data.image_position) || "left"} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">
+-            <option value="left">Image on left</option>
+-            <option value="right">Image on right</option>
+-          </select>
+-        </label>
+-        <label className="text-sm">
+-          Image URL
+-          <input name="image_path" value={imagePath} onChange={(e) => setImagePath(e.target.value)} placeholder="https://\u2026 or upload below" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+-        </label>
+-        <BlockMediaUploader type="image" lessonId={lessonId} currentSrc={imagePath} onUploaded={(url) => setImagePath(url)} />
+-        <div className="grid gap-3 sm:grid-cols-2">
+-          <label className="text-sm">Alt text <span className="font-normal text-black/45">(optional)</span><input name="alt" defaultValue={asString(data.alt)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+-          <label className="text-sm">Caption <span className="font-normal text-black/45">(optional)</span><input name="caption" defaultValue={asString(data.caption)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+-        </div>
+-        <label className="text-sm">Heading <span className="font-normal text-black/45">(optional)</span><input name="heading" defaultValue={asString(data.heading)} placeholder="Section heading" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+-        <label className="text-sm">Body text<textarea name="body" rows={4} defaultValue={asString(data.body)} placeholder="Supporting text alongside the image\u2026" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+-      </div>
+-    );
+-  }
+-  if (blockType === "AUDIO") {'''
+-
+-# Find the AUDIO BlockFields branch and insert before it
+-marker = '  if (blockType === "AUDIO") {'
+-# Only insert once, find the one inside BlockFields (after IMAGE branch)
+-idx = text.find('  if (blockType === "IMAGE") {')
+-if idx == -1:
+-    print("ERROR: Could not find IMAGE BlockFields branch as anchor")
+-    sys.exit(1)
+-# Find next AUDIO after the IMAGE branch
+-audio_idx = text.find(marker, idx)
+-if audio_idx == -1:
+-    print("ERROR: Could not find AUDIO BlockFields branch")
+-    sys.exit(1)
+-text = text[:audio_idx] + image_text_fields + '\n' + text[audio_idx + len(marker):]
+-open(path, 'w').write(text)
+-print("✓ LessonBuilderWorkspace.tsx: added IMAGE_TEXT BlockFields branch")
+-PYEOF
+-fi
+-
+-# Also fix imagePath useState initializer to handle IMAGE_TEXT
+-if grep -q "blockType === .IMAGE_TEXT. ? asString(data.image_path)" "$FILE"; then
+-  echo "✓ LessonBuilderWorkspace.tsx: imagePath useState already handles IMAGE_TEXT — skipping"
+-else
+-  python3 - "$FILE" << 'PYEOF'
+-import sys
+-
+-path = sys.argv[1]
+-text = open(path).read()
+-
+-# The existing useState for imagePath — make it also handle IMAGE_TEXT
+-old = 'blockType === "FLASHCARD" ? asString(data.image_path) :\n    asString(data.path ?? data.src ?? data.url)'
+-new = 'blockType === "FLASHCARD" ? asString(data.image_path) :\n    blockType === "IMAGE_TEXT" ? asString(data.image_path) :\n    asString(data.path ?? data.src ?? data.url)'
+-
+-if old in text:
+-    text = text.replace(old, new, 1)
+-    open(path, 'w').write(text)
+-    print("✓ LessonBuilderWorkspace.tsx: imagePath useState updated for IMAGE_TEXT")
+-else:
+-    print("⚠ LessonBuilderWorkspace.tsx: imagePath useState pattern not found — may already be correct or structured differently")
+-PYEOF
+-fi
+-
+-# ── 3. LessonBlockPreview.tsx ─────────────────────────────────────────────────
+-FILE="components/LessonBlockPreview.tsx"
+-
+-if grep -q '"IMAGE_TEXT"' "$FILE"; then
+-  echo "✓ LessonBlockPreview.tsx: IMAGE_TEXT renderer already exists — skipping"
+-else
+-  python3 - "$FILE" << 'PYEOF'
+-import sys
+-
+-path = sys.argv[1]
+-text = open(path).read()
+-
+-image_text_renderer = '''  if (block.block_type === "IMAGE_TEXT") {
+-    const imagePath = asString(content.image_path);
+-    const src = imagePath ? mediaUrl(imagePath, "image") : "";
+-    const imageRight = asString(content.image_position) === "right";
+-    const heading = asString(content.heading);
+-    const body = asString(content.body);
+-    const caption = asString(content.caption);
+-    const alt = asString(content.alt);
+-
+-    const imageCol = (
+-      <figure className="overflow-hidden rounded-xl border border-black/10 bg-slate-50">
+-        {src && isImageUrl(src) ? (
+-          // eslint-disable-next-line @next/next/no-img-element
+-          <img src={src} alt={alt || heading || ""} className="h-full max-h-[340px] w-full object-cover" />
+-        ) : (
+-          <div className="flex min-h-[180px] flex-col items-center justify-center gap-2 p-6 text-center text-sm text-black/40">
+-            <ImageIcon size={28} />
+-            <span>Add an image URL</span>
+-          </div>
+-        )}
+-        {caption ? (
+-          <figcaption className="border-t border-black/10 px-3 py-2 text-xs text-black/50">{caption}</figcaption>
+-        ) : null}
+-      </figure>
+-    );
+-
+-    const textCol = (
+-      <div className="flex flex-col justify-center gap-3">
+-        {heading ? <h3 className="text-xl font-semibold leading-snug text-ink">{heading}</h3> : null}
+-        {body ? <FormattedText text={body} /> : <p className="text-sm text-black/40">Add supporting text.</p>}
+-      </div>
+-    );
+-
+-    return (
+-      <div className="grid items-start gap-5 sm:grid-cols-2">
+-        {imageRight ? <>{textCol}{imageCol}</> : <>{imageCol}{textCol}</>}
+-      </div>
+-    );
+-  }
+-
+-  if (block.block_type === "AUDIO") {'''
+-
+-marker = '  if (block.block_type === "AUDIO") {'
+-idx = text.find(marker)
+-if idx == -1:
+-    print("ERROR: Could not find AUDIO block in LessonBlockPreview.tsx")
+-    sys.exit(1)
+-text = text[:idx] + image_text_renderer + '\n' + text[idx + len(marker):]
+-open(path, 'w').write(text)
+-print("✓ LessonBlockPreview.tsx: added IMAGE_TEXT renderer")
+-PYEOF
+-fi
+-
+-echo ""
+-echo "=== Done. Now run: npm run build ==="
+diff --git a/app/admin/lessons/[id]/builder/page.tsx b/app/admin/lessons/[id]/builder/page.tsx
+index 2959913..cca2e97 100644
+--- a/app/admin/lessons/[id]/builder/page.tsx
++++ b/app/admin/lessons/[id]/builder/page.tsx
+@@ -8,67 +8,21 @@ export default async function LessonBuilderPage({ params }: { params: Promise<{
+   const { id } = await params;
+   const supabase = createAdminClient();
+ 
+-  const [
+-    { data: lesson },
+-    { data: slides },
+-    { data: activities },
+-    { data: blocks },
+-    { data: lessonOutcomes },
+-    { data: courses },
+-    { data: courseSections },
+-    { data: placements },
+-    { data: courseOutcomes },
+-    { data: outcomeMappings },
+-    { data: skills },
+-    { data: targets },
+-  ] = await Promise.all([
++  const [{ data: lesson }, { data: slides }, { data: activities }, { data: blocks }] = await Promise.all([
+     supabase.from("lessons").select("*").eq("id", id).single(),
+     supabase.from("slides").select("id, slide_number, title, section_label, raw_text").eq("lesson_id", id).order("slide_number", { ascending: true }),
+     supabase.from("lesson_slide_activities").select("*, slides(title, slide_number)").eq("lesson_id", id).not("slide_id", "is", null).order("slide_number", { ascending: true }),
+-    supabase.from("lesson_blocks").select("*").eq("lesson_id", id).order("position", { ascending: true }),
+-    supabase.from("lesson_outcomes").select("*").eq("lesson_id", id).order("position", { ascending: true }),
+-    supabase.from("courses").select("id,title,status").neq("status", "ARCHIVED").order("title"),
+-    supabase.from("course_sections").select("id,course_id,title,position").order("position"),
+-    supabase.from("course_items").select("id,course_id,section_id,position,assessment_weight,courses(title),course_sections(title)").eq("lesson_id", id).order("position"),
+-    supabase.from("course_outcomes").select("id,course_id,code,outcome").eq("status", "ACTIVE").order("position"),
+-    supabase.from("course_lesson_outcome_mappings").select("*"),
+-    supabase.from("learning_skills").select("*").eq("status", "ACTIVE").order("position"),
+-    supabase.from("learning_targets").select("*").eq("status", "ACTIVE").order("label"),
++    supabase.from("lesson_blocks").select("*").eq("lesson_id", id).order("position", { ascending: true })
+   ]);
+ 
+   if (!lesson) notFound();
+ 
+-  const activityIds = (activities ?? []).map((activity) => activity.id);
+-  const { data: assessmentItems } = activityIds.length
+-    ? await supabase.from("assessment_items").select("*").in("lesson_activity_id", activityIds)
+-    : { data: [] };
+-  const assessmentItemIds = (assessmentItems ?? []).map((item) => item.id);
+-  const [{ data: assessmentSkills }, { data: assessmentTargets }] = assessmentItemIds.length
+-    ? await Promise.all([
+-        supabase.from("assessment_item_skills").select("*").in("assessment_item_id", assessmentItemIds),
+-        supabase.from("assessment_item_targets").select("*").in("assessment_item_id", assessmentItemIds),
+-      ])
+-    : [{ data: [] }, { data: [] }];
+-
+   return (
+     <LessonBuilderWorkspace
+       lesson={lesson}
+       slides={slides ?? []}
+       blocks={blocks ?? []}
+       activities={activities ?? []}
+-      obe={{
+-        lessonOutcomes: lessonOutcomes ?? [],
+-        courses: courses ?? [],
+-        sections: courseSections ?? [],
+-        placements: (placements ?? []).map((p: { id: string; course_id: string; section_id: string | null; position: number; assessment_weight: number; courses: { title?: string | null }[] | { title?: string | null } | null; course_sections: { title?: string | null }[] | { title?: string | null } | null }) => ({ ...p, courses: Array.isArray(p.courses) ? p.courses[0] ?? null : p.courses, course_sections: Array.isArray(p.course_sections) ? p.course_sections[0] ?? null : p.course_sections })),
+-        courseOutcomes: courseOutcomes ?? [],
+-        mappings: outcomeMappings ?? [],
+-        skills: skills ?? [],
+-        targets: targets ?? [],
+-        assessmentItems: assessmentItems ?? [],
+-        assessmentSkills: assessmentSkills ?? [],
+-        assessmentTargets: assessmentTargets ?? [],
+-      }}
+     />
+   );
+ }
+diff --git a/app/admin/lessons/actions.ts b/app/admin/lessons/actions.ts
+index c29704d..5ce84a4 100644
+--- a/app/admin/lessons/actions.ts
++++ b/app/admin/lessons/actions.ts
+@@ -606,6 +606,9 @@ export async function updateLessonBuilderDetails(lessonId: string, formData: For
+     timerMinutes: formData.get("timerMinutes") || "",
+     status: formData.get("status")
+   });
++  const outcomes = splitLines(formData.get("outcomes"));
++  const description = outcomes.length > 0 ? JSON.stringify({ outcomes }) : parsed.description ?? "";
++
+   const { error } = await supabase
+     .from("lessons")
+     .update({
+@@ -614,6 +617,7 @@ export async function updateLessonBuilderDetails(lessonId: string, formData: For
+       topic: parsed.topic,
+       category: nullableText(parsed.category),
+       level: parsed.level,
++      description,
+       thumbnail_path: nullableText(parsed.thumbnailPath),
+       cover_image_path: nullableText(parsed.coverImagePath),
+       duration_minutes: optionalPositiveInt(parsed.durationMinutes),
+diff --git a/components/LessonBlockPreview.tsx b/components/LessonBlockPreview.tsx
+index bf49fc6..566cddf 100644
+--- a/components/LessonBlockPreview.tsx
++++ b/components/LessonBlockPreview.tsx
+@@ -130,7 +130,7 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
+     return (
+       <figure className="rounded-lg border-l-4 border-moss bg-skywash p-3 sm:p-4">
+         <blockquote className="text-base font-medium leading-7 text-ink sm:text-lg sm:leading-8">
+-          "{asString(content.body) || "Add a quote."}"
++          &ldquo;{asString(content.body) || "Add a quote."}&rdquo;
+         </blockquote>
+         {asString(content.attribution) ? (
+           <figcaption className="mt-2 text-sm text-black/55">— {asString(content.attribution)}</figcaption>
+diff --git a/layout.tsx b/layout.tsx
+deleted file mode 100644
+index 978dee9..0000000
+--- a/layout.tsx
++++ /dev/null
+@@ -1,33 +0,0 @@
+-import type { Metadata } from "next";
+-import Link from "next/link";
+-import "./globals.css";
+-
+-export const metadata: Metadata = {
+-  title: "ESL Interactive Lessons",
+-  description: "Upload ESL lesson PDFs and turn them into interactive learner slide decks.",
+-};
+-
+-export default function RootLayout({ children }: { children: React.ReactNode }) {
+-  return (
+-    <html lang="en">
+-      <body>
+-        <header className="border-b border-black/10 bg-white/80 backdrop-blur">
+-          <nav className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
+-            <Link href="/dashboard" className="font-semibold tracking-tight">
+-              ESL Studio
+-            </Link>
+-            <div className="flex items-center gap-3 text-sm">
+-              <Link href="/dashboard" className="rounded-md px-3 py-2 hover:bg-black/5">
+-                Learner
+-              </Link>
+-              <Link href="/admin/lessons" className="rounded-md px-3 py-2 hover:bg-black/5">
+-                Admin
+-              </Link>
+-            </div>
+-          </nav>
+-        </header>
+-        {children}
+-      </body>
+-    </html>
+-  );
+-}
+diff --git a/supabase/migrations/.019_courses_core.sql.swp b/supabase/migrations/.019_courses_core.sql.swp
+deleted file mode 100644
+index f99e8be780bd36173c008116243b2c4610d6cef8..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+HcmV?d00001
+
+literal 16384
+zcmeI2TWDNG7{{l!wKr?MfFOvB5lJG+CQ%V<wYp7@Ho8q}b`zvNEN9P|-5h&vIWs3|
+zQmKyx5i96JMa72}AGDypi7z6kFRd3)Q0asCASjA&zUV{!&$;bpZ^@R1LY#$PHs_p~
+z+4=tS%{RAG8J(RtO!wx-2tGFv^1>bapFg|j!%hDVZz7d|x$^dEpFAHvtQ*6Q<ytx0
+zGjzK{hLf_uk%OKQI?NS(L@O3(-uFj%=<5}ovk}Lt1-h_2mye8&?JXN#7;wh%9k3jq
+z?^JAuUsJc00!o2QflyS3AKE>0|9xYl^4{HjchOsKnaLijf0P1B0i}RaKq;UUPzopo
+zlmbeDjjw?4H<K4(=5>jwN0aYOP2ZQ3&s1{%xu)lvlk2|Z`@N>;$));I3Md7X0!jg;
+zfKosypcGIFC<T-PN&%&SQs5dWpqqr;j^BMlF8Fc&pRWJE-$Te*@G>|7YM=--@Bp|O
+z{Bt8Azkn~m+u(6Pz&E=Ic?Y}&-UK!9Ao$}3LOuuYgA?F5SOiak+rWiggq#B}fdCu;
+zkAeMQC-`Y6A+LZMI07C4yTGL#g!~A80Plhj+zWo*PRPgLDX<NExeeFg95@XsU=&=w
+z9(4v6!3FR-Fu<MQyRC$9kO%jG?O-d|0>0e>JHb(~2YiN2kk^0(9tJzWpV(OW9sCA9
+z04Kp-@E7!!nx9EGTAJIQ()jg<vL%>PwoDp^_~Uwlx}j~;fK?gZrZ5<%eps<BBiE3e
+z4_M|P^;~K)n+Zk@og2EzhDg28wU*bVsF1UuYsK_X%;jXNE`_9q`GMu=!4f^jmQd@e
+z9@>J|m|G5X*YupSG=5-kh!_FWVUW-(HltQG(t{nhxM(Ls*$=#0z&NJ^gbeP3^`UFc
+zhio9J`A{aYIVd0cCdxL;x}d^x7#F(Zi{-lHX|-H$QC5Z0wD_{m0t0WfP|Fpp#)8%?
+zqcXYhgl<R8$yZ5fc#ba{&RkpSFn}kBm5$Pre{dFi)&I#s(#BhxZ`504rFTfhm>YPu
+z-HYSEwM59NV8@|*+M`qV>d%jtCT6vMYRoa?7#&CwTP__)9}Us|@u|Z{3R+1!*e@^g
+zljB;UfQ!M%G1E}6(K~speDpF|y%~Gy#b~`aqV&+~Encn$j3KzN1&b}xis#u(cUv2>
+zs@pt@xyTW)`OpfO**Ucc!YDD~6<&KYSUC*r$U~%ynT#8O<;z#&vU|c3h=J0FWC|3&
+zoCV|7&MzM?v*tM5*zaw`Nzd(4M4X^o5z$B`mi)L@bwLtGu0M`^xu6w`Q<KttpP89B
+zD!&WbtX3$Ov|>qKO>4!endxy&{;xe-(xxZ#g>qqH^6A9MeUDp_ARVLbm=uOHL#FCt
+zSkhaPgv|!7&)B)1!(PL1x88lByI*D=AlqS$&2<$+*LrE3I!YFDdI}+sLU;KhW(h08
+zf82*L=}5cy1{JTW&)5C4SK+)+U?6S^FB{9b5)<nh^)xGmbM>UD)Gp0XS&Ek!4TDF=
+z34G(g(S0&=a611)sqI`QeuChBWadC&qIf8t%H*fV4`KF`&SYeVaH3gxG6R#L950%O
+z0t=rc@Jl1iFn)2o-7~{mkP8(@uVK*E#auRKin-9KxVmMpylt}u77xAIN~AxJC09Y-
+z=lzjps8Y?tawQ#ph38vFcGWH{ayzWWT|Qof$YOX{SviW=uU2&bb&6!t$>jR~G}g)^
+zSVznCe_yf={R->*i{K=f1v#(_>;#`+jsGf`1Ct;JhQTGQ@y~-(pahEGGS>B9gY#e+
+z8~}OnE7tQLfm5Iair{b5;Ztx1RDrD1Fi;<*fKosypcGIFC<T-PN`Y&oz@mlebF!V2
+zZvQ_@<7I-}pr>At9!Fr)OE)o79~i{Wd&n)fM$>(Fx_TCZjjq;njrxXu6+figc6uJ*
+zdpH4EqJ1;+uz@<di@84a7TsinpUSPLY`eaXn1SbGLn6w9Lxki2VU4-vxk{I+?Zf#~
+zuh#Bci@6+UIfiI&F-}FyE48<K-qo$WhCY$);rHkcX}+F4A<Nh*OZw<4wSQV1m8SL5
+z^l8RbY-?`yEL&I08rwSQ1MT{G>!Vf&Z``|=HpcrL&F-C-AtdY34S716*EvV4Wew$_
+w*&2;&7u*oXTDpEi2~kU-vMlJ(N#nFs%rOTIy1;lx8{#n5ntnA4t|0LI2OSxnp#T5?
+
+diff --git a/supabase/migrations/.020_teacher_school_readiness.sql.swp b/supabase/migrations/.020_teacher_school_readiness.sql.swp
+deleted file mode 100644
+index d53ce40680e43d298f915b62acbca8dcc791e072..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+HcmV?d00001
+
+literal 16384
+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
+
+-- 
+2.43.0
+

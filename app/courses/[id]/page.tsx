@@ -56,7 +56,7 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
     { data: progress },
     { data: itemProgress }
   ] = await Promise.all([
-    admin.from("courses").select("*").eq("id", id).eq("status", "PUBLISHED").maybeSingle(),
+    admin.from("courses").select("*").eq("id", id).eq("status", "PUBLISHED").is("deleted_at", null).maybeSingle(),
     admin.from("course_outcomes").select("*").eq("course_id", id).order("position", { ascending: true }),
     admin.from("course_sections").select("*").eq("course_id", id).order("position", { ascending: true }),
     admin.from("course_items").select("*, lessons(title,level), quizzes(title,level)").eq("course_id", id).order("position", { ascending: true }),

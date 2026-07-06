@@ -6,10 +6,11 @@ import { CONTENT_LEVELS } from "@/lib/levels";
 
 export default async function AdminCoursesPage() {
   const admin = createAdminClient();
-  const [{ data: courses }, { data: enrollments }, { data: items }] = await Promise.all([
-    admin.from("courses").select("*").order("created_at", { ascending: false }),
+  const [{ data: courses }, { data: enrollments }, { data: items }, { count: trashedCount }] = await Promise.all([
+    admin.from("courses").select("*").is("deleted_at", null).order("created_at", { ascending: false }),
     admin.from("course_enrollments").select("course_id"),
     admin.from("course_items").select("course_id"),
+    admin.from("courses").select("id", { count: "exact", head: true }).not("deleted_at", "is", null),
   ]);
 
   const enrollmentCounts = countByCourse(enrollments ?? []);
@@ -22,9 +23,14 @@ export default async function AdminCoursesPage() {
           <h1 className="text-2xl font-semibold sm:text-3xl">Courses</h1>
           <p className="mt-2 text-sm text-black/60">Build the LMS layer: course landing pages, curriculum, and enrollments.</p>
         </div>
-        <Link href="#new-course" className="inline-flex items-center gap-2 rounded-md bg-moss px-4 py-2 text-sm font-semibold text-white">
-          <Plus size={16} /> New course
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href="/admin/courses/trash" className="inline-flex items-center gap-2 rounded-md border border-black/15 px-4 py-2 text-sm font-semibold hover:bg-black/5">
+            <Trash2 size={16} /> Trash{trashedCount ? ` (${trashedCount})` : ""}
+          </Link>
+          <Link href="#new-course" className="inline-flex items-center gap-2 rounded-md bg-moss px-4 py-2 text-sm font-semibold text-white">
+            <Plus size={16} /> New course
+          </Link>
+        </div>
       </div>
 
       <section id="new-course" className="mb-5 rounded-lg border border-black/10 bg-white p-4 shadow-sm">
@@ -65,7 +71,7 @@ export default async function AdminCoursesPage() {
                 ) : (
                   <form action={setCourseStatus.bind(null, course.id, "PUBLISHED")}><button className="inline-flex items-center gap-1 rounded-md bg-moss px-2.5 py-1.5 text-xs font-semibold text-white"><Eye size={13} /> Publish</button></form>
                 )}
-                <form action={deleteCourse.bind(null, course.id)}><button className="inline-flex items-center gap-1 rounded-md border border-coral/30 px-2.5 py-1.5 text-xs font-semibold text-coral hover:bg-coral/5"><Trash2 size={13} /> Delete</button></form>
+                <form action={deleteCourse.bind(null, course.id)}><button className="inline-flex items-center gap-1 rounded-md border border-coral/30 px-2.5 py-1.5 text-xs font-semibold text-coral hover:bg-coral/5"><Trash2 size={13} /> Move to trash</button></form>
               </div>
             </div>
           ))}

@@ -1,0 +1,40 @@
+From b1e5fa87b2106bef1b66f1fccaaebe6b68e59f9c Mon Sep 17 00:00:00 2001
+From: Claude <assistant@brenup.dev>
+Date: Thu, 2 Jul 2026 15:37:23 +0000
+Subject: [PATCH] Fix Image+Text vertical alignment not applying
+
+The outer grid wrapping the image and text columns used items-start,
+which tells CSS Grid not to stretch either column to match the
+other's height - each column just sizes to its own content. That
+meant the text column's box was never actually taller than its own
+text, so justify-content (the vertical alignment control) had no
+spare space to distribute the content into: top/middle/bottom all
+rendered identically because there was nothing to push against.
+
+Switched to items-stretch so both columns match the height of the
+taller one (typically the image). This is what lets top/middle/bottom
+now visibly move the text within the column. Also dropped a dead
+no-op ternary on the same className.
+
+Verified with a full npm run build - clean, same two pre-existing
+unrelated warnings, zero new ones.
+---
+ components/LessonBlockPreview.tsx | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/components/LessonBlockPreview.tsx b/components/LessonBlockPreview.tsx
+index f8c2fb5..378f968 100644
+--- a/components/LessonBlockPreview.tsx
++++ b/components/LessonBlockPreview.tsx
+@@ -230,7 +230,7 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
+     );
+ 
+     return (
+-      <div className={`grid items-start gap-5 sm:grid-cols-2 ${imageRight ? "" : ""}`}>
++      <div className="grid items-stretch gap-5 sm:grid-cols-2">
+         {imageRight ? <>{textCol}{imageCol}</> : <>{imageCol}{textCol}</>}
+       </div>
+     );
+-- 
+2.43.0
+

@@ -28,7 +28,7 @@ export default async function CourseLearnPage({ params, searchParams }: { params
   const admin = createAdminClient();
 
   const [{ data: course }, { data: enrollment }, { data: sections }, { data: items }, { data: itemProgress }, { data: progress }] = await Promise.all([
-    admin.from("courses").select("*").eq("id", id).eq("status", "PUBLISHED").maybeSingle(),
+    admin.from("courses").select("*").eq("id", id).eq("status", "PUBLISHED").is("deleted_at", null).maybeSingle(),
     admin.from("course_enrollments").select("*").eq("course_id", id).eq("user_id", user.id).maybeSingle(),
     admin.from("course_sections").select("*").eq("course_id", id).order("position", { ascending: true }),
     admin.from("course_items").select("*, lessons(title,level), quizzes(title,level)").eq("course_id", id).order("position", { ascending: true }),

@@ -12,7 +12,7 @@ export default async function AdminAnalyticsPage() {
     { data: lessonProgress },
     { data: profiles },
   ] = await Promise.all([
-    admin.from("courses").select("id,title,status").order("created_at", { ascending: false }),
+    admin.from("courses").select("id,title,status").is("deleted_at", null).order("created_at", { ascending: false }),
     admin.from("course_enrollments").select("course_id,status,user_id,enrolled_at"),
     admin.from("course_progress").select("course_id,user_id,progress_percent,completed_items,total_items"),
     admin.from("quiz_attempts").select("score,total,completed_at,quiz_id").not("quiz_id", "is", null),

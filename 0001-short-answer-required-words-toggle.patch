@@ -1,0 +1,231 @@
+From 64915a9030807e270da331087d6bc1861fd3cc5a Mon Sep 17 00:00:00 2001
+From: Claude <assistant@brenup.dev>
+Date: Fri, 3 Jul 2026 01:04:58 +0000
+Subject: [PATCH] Add Show/Hide required words toggle to Short Answer
+ activities
+
+Creators can now control whether the required-words hint (the row of
+pill badges showing which words a learner must use, turning green as
+they type) is visible while a learner is writing a Short Answer
+response. Defaults to on (true), so no existing activity or quiz
+question changes appearance until a creator touches the new checkbox.
+
+Important distinction: this only controls the learner-facing HINT.
+Required words still count toward correctness/grading either way -
+turning the hint off makes it a genuine recall/production challenge
+(learner has to remember to use the words without being shown a
+checklist) rather than removing the requirement itself. This felt
+like the right default interpretation of 'show/hide for learners':
+the assessment criterion set by the creator shouldn't silently change
+just because its visibility does.
+
+Short Answer questions exist in two parallel systems that share the
+same learner-facing renderer (QuizPlayer's ShortAnswer component) but
+have separate creator editors and storage shapes, so this touches
+both:
+
+- Standalone quizzes (quiz_questions.options, flat JSONB): added the
+  checkbox to QuizVisualBuilder's question editor, a default in
+  app/admin/quizzes/actions.ts, and passed the flag through
+  questionToPreviewActivity so the quiz builder's live preview panel
+  reflects the toggle too, not just the published quiz.
+- In-lesson activities (lesson_slide_activities.activity_data, nested
+  {prompt, questions[]}): added the checkbox to
+  InLessonActivitiesEditor's per-question editor, a default in
+  app/admin/lessons/actions.ts, and updated LessonActivityPanel's
+  questionsFromData to carry the flag from the nested storage shape
+  into the flat options object the renderer actually reads.
+
+Both editors expose it per-question (not per-activity), matching how
+required_words itself is already scoped per-question in both systems.
+
+Does not touch any of Codex's OBE files - verified via diff, zero
+changes.
+
+Verified with a full npm run build - compiles and type-checks clean,
+same two pre-existing unrelated warnings, zero new ones.
+---
+ app/admin/lessons/actions.ts            |  2 +-
+ app/admin/quizzes/actions.ts            |  2 +-
+ components/InLessonActivitiesEditor.tsx | 20 ++++++++++++++++----
+ components/LessonActivityPanel.tsx      |  1 +
+ components/QuizPlayer.tsx               |  7 ++++---
+ components/QuizVisualBuilder.tsx        | 10 ++++++++--
+ 6 files changed, 31 insertions(+), 11 deletions(-)
+
+diff --git a/app/admin/lessons/actions.ts b/app/admin/lessons/actions.ts
+index 1a81723..332e4d7 100644
+--- a/app/admin/lessons/actions.ts
++++ b/app/admin/lessons/actions.ts
+@@ -1516,7 +1516,7 @@ function defaultActivityData(activityType: string, prompt: string): Json {
+     return { prompt, categories: [{ name: "Category A", items: ["Item"] }, { name: "Category B", items: [] }] };
+   }
+   if (activityType === "SHORT_ANSWER") {
+-    return { prompt, questions: [{ id: 1, text: "", sample_answer: "", min_words: null, required_words: [] }] };
++    return { prompt, questions: [{ id: 1, text: "", sample_answer: "", min_words: null, required_words: [], show_required_words: true }] };
+   }
+   if (activityType === "ERROR_CORRECTION") {
+     return { prompt, items: [{ mode: "rewrite", text: "", error_span: "", correction: "", note: null }] };
+diff --git a/app/admin/quizzes/actions.ts b/app/admin/quizzes/actions.ts
+index d2190da..30e2ce5 100644
+--- a/app/admin/quizzes/actions.ts
++++ b/app/admin/quizzes/actions.ts
+@@ -332,7 +332,7 @@ function defaultOptions(type: string) {
+   if (type === "MATCHING") return { a_items: ["Word 1", "Word 2"], b_items: ["Meaning A", "Meaning B"] };
+   if (type === "ERROR_CORRECTION") return { mode: "rewrite", text: "She go to school every day." };
+   if (type === "REORDERING") return { level: "sentence", items: [{ id: "1", text: "First item" }, { id: "2", text: "Second item" }] };
+-  if (type === "SHORT_ANSWER") return { sample_answer: "A good sample answer.", min_words: 10, required_words: [] };
++  if (type === "SHORT_ANSWER") return { sample_answer: "A good sample answer.", min_words: 10, required_words: [], show_required_words: true };
+   if (type === "DRAG_DROP" || type === "CATEGORIZATION") return { targets: ["Group A", "Group B"], items: [{ id: "1", text: "Item 1" }, { id: "2", text: "Item 2" }] };
+   if (type === "PRONUNCIATION") return { level: "word", passage: "", targets: [{ id: "1", text: "comfortable", color: "#fbbf24" }], max_attempts: 3 };
+   return null;
+diff --git a/components/InLessonActivitiesEditor.tsx b/components/InLessonActivitiesEditor.tsx
+index 4eac363..8c2ea3c 100644
+--- a/components/InLessonActivitiesEditor.tsx
++++ b/components/InLessonActivitiesEditor.tsx
+@@ -35,6 +35,7 @@ type ShortAnswerQuestion = {
+   sampleAnswer: string;
+   minWords: number | null;
+   requiredWordsText: string;
++  showRequiredWords: boolean;
+ };
+ 
+ type DragDropItem = {
+@@ -171,7 +172,8 @@ function normalizeShortAnswer(data: Json | null): { prompt: string; questions: S
+         text: String(question.text ?? question.question_text ?? ""),
+         sampleAnswer: String(question.sample_answer ?? ""),
+         minWords: rawMinWords === null || rawMinWords === undefined || Number(rawMinWords) <= 0 ? null : Number(rawMinWords),
+-        requiredWordsText: requiredWords.join(", ")
++        requiredWordsText: requiredWords.join(", "),
++        showRequiredWords: question.show_required_words !== false
+       };
+     })
+   };
+@@ -961,7 +963,7 @@ function ShortAnswerEditor({ activity, onSave }: { activity: Activity; onSave: (
+   const initial = useMemo(() => normalizeShortAnswer(activity.activity_data), [activity.activity_data]);
+   const [prompt, setPrompt] = useState(initial.prompt);
+   const [questions, setQuestions] = useState<ShortAnswerQuestion[]>(
+-    initial.questions.length ? initial.questions : [{ id: 1, text: "", sampleAnswer: "", minWords: null, requiredWordsText: "" }]
++    initial.questions.length ? initial.questions : [{ id: 1, text: "", sampleAnswer: "", minWords: null, requiredWordsText: "", showRequiredWords: true }]
+   );
+   const needsReview = questions.some((question) => !question.text.trim());
+ 
+@@ -1018,13 +1020,22 @@ function ShortAnswerEditor({ activity, onSave }: { activity: Activity; onSave: (
+                 className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+               />
+             </label>
++            <label className="flex items-center gap-2 text-sm">
++              <input
++                type="checkbox"
++                checked={question.showRequiredWords}
++                onChange={(event) => updateQuestion(index, { showRequiredWords: event.target.checked })}
++              />
++              Show required words to learners while they write
++            </label>
++            <p className="-mt-1 text-xs text-black/45">When off, required words still count toward correctness but aren&rsquo;t revealed as a hint.</p>
+           </div>
+         </div>
+       ))}
+       <div className="flex flex-wrap gap-3">
+         <button
+           type="button"
+-          onClick={() => setQuestions((current) => [...current, { id: Date.now(), text: "", sampleAnswer: "", minWords: null, requiredWordsText: "" }])}
++          onClick={() => setQuestions((current) => [...current, { id: Date.now(), text: "", sampleAnswer: "", minWords: null, requiredWordsText: "", showRequiredWords: true }])}
+           className="rounded-md border border-black/15 px-4 py-2 text-sm"
+         >
+           Add question
+@@ -1036,7 +1047,8 @@ function ShortAnswerEditor({ activity, onSave }: { activity: Activity; onSave: (
+             text: question.text,
+             sample_answer: question.sampleAnswer,
+             min_words: question.minWords,
+-            required_words: question.requiredWordsText.split(",").map((w) => w.trim()).filter(Boolean)
++            required_words: question.requiredWordsText.split(",").map((w) => w.trim()).filter(Boolean),
++            show_required_words: question.showRequiredWords
+           }))
+         } as Json, needsReview)} />
+       </div>
+diff --git a/components/LessonActivityPanel.tsx b/components/LessonActivityPanel.tsx
+index 78c96ba..cb1ab01 100644
+--- a/components/LessonActivityPanel.tsx
++++ b/components/LessonActivityPanel.tsx
+@@ -78,6 +78,7 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
+           sample_answer: String(q.sample_answer ?? ""),
+           min_words: Number(q.min_words ?? 0),
+           required_words: requiredWords,
++          show_required_words: q.show_required_words !== false,
+         } as Json,
+         correct_answer: null,
+       };
+diff --git a/components/QuizPlayer.tsx b/components/QuizPlayer.tsx
+index 13729e5..789b2b5 100644
+--- a/components/QuizPlayer.tsx
++++ b/components/QuizPlayer.tsx
+@@ -906,11 +906,12 @@ function ShortAnswer({
+   submitted: boolean;
+   onChange: (value: { text?: string; selfMarked?: boolean }) => void;
+ }) {
+-  const opts = asRecord(question.options) as { sample_answer?: string; min_words?: number; required_words?: string[] };
++  const opts = asRecord(question.options) as { sample_answer?: string; min_words?: number; required_words?: string[]; show_required_words?: boolean };
+   const text = value?.text ?? "";
+   const selfMarked = value?.selfMarked;
+   const minWords = Number(opts.min_words ?? 0);
+   const requiredWords = Array.isArray(opts.required_words) ? opts.required_words.filter(Boolean) : [];
++  const showRequiredWords = opts.show_required_words !== false;
+   const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
+   const lowerText = text.toLowerCase();
+   const unmet = {
+@@ -964,14 +965,14 @@ function ShortAnswer({
+         placeholder="Write your answer..."
+         className="w-full rounded-[14px] border border-[#ECECF5] bg-[#F6F7FB] px-3 py-3 text-sm font-semibold outline-none focus:border-[#6C3BFF] focus:bg-white"
+       />
+-      {minWords > 0 || requiredWords.length > 0 ? (
++      {minWords > 0 || (requiredWords.length > 0 && showRequiredWords) ? (
+         <div className="flex flex-wrap items-center gap-3 text-xs">
+           {minWords > 0 ? (
+             <span className={wordCount >= minWords ? "text-[#00A977]" : "text-[#6E738D]"}>
+               {wordCount} / {minWords} words
+             </span>
+           ) : null}
+-          {requiredWords.length > 0 ? (
++          {requiredWords.length > 0 && showRequiredWords ? (
+             <span className="flex flex-wrap items-center gap-1.5">
+               <span className="text-[#6E738D]">Use:</span>
+               {requiredWords.map((word) => (
+diff --git a/components/QuizVisualBuilder.tsx b/components/QuizVisualBuilder.tsx
+index 3b1d1ad..fba79e6 100644
+--- a/components/QuizVisualBuilder.tsx
++++ b/components/QuizVisualBuilder.tsx
+@@ -144,7 +144,7 @@ function defaultQuestion(type: BuilderQuestion["questionType"]): BuilderQuestion
+   if (type === "FILL") return { id, questionType: type, questionText: "Complete the sentence.", description: "", options: { text: "I have ___ English for two years.", blank_count: 1 }, correctAnswer: ["studied"], assessment };
+   if (type === "MATCHING") return { id, questionType: type, questionText: "Match the items.", description: "", options: { a_items: ["Word 1", "Word 2"], b_items: ["Meaning A", "Meaning B"] }, correctAnswer: [{ a: 1, b: "A" }, { a: 2, b: "B" }], assessment };
+   if (type === "MULTIPLE_SELECT") return { id, questionType: type, questionText: "Select all correct answers.", description: "", options: { A: "Option A", B: "Option B", C: "Option C", D: "Option D" }, correctAnswer: ["A", "C"], assessment };
+-  if (type === "SHORT_ANSWER") return { id, questionType: type, questionText: "Write a short answer.", description: "", options: { sample_answer: "A good sample answer.", min_words: 10, required_words: [] }, correctAnswer: true, assessment };
++  if (type === "SHORT_ANSWER") return { id, questionType: type, questionText: "Write a short answer.", description: "", options: { sample_answer: "A good sample answer.", min_words: 10, required_words: [], show_required_words: true }, correctAnswer: true, assessment };
+   if (type === "ERROR_CORRECTION") return { id, questionType: type, questionText: "Correct the mistake.", description: "", options: { mode: "rewrite", text: "She go to school every day." }, correctAnswer: { correction: "She goes to school every day." }, assessment };
+   if (type === "REORDERING") return { id, questionType: type, questionText: "Put the items in the correct order.", description: "", options: { level: "sentence", items: [{ id: "1", text: "First item" }, { id: "2", text: "Second item" }] }, correctAnswer: ["1", "2"], assessment };
+   if (type === "DRAG_DROP") return { id, questionType: type, questionText: "Place each item in the correct group.", description: "", options: { targets: ["Group A", "Group B"], items: [{ id: "1", text: "Item 1" }, { id: "2", text: "Item 2" }] }, correctAnswer: { "1": "Group A", "2": "Group B" }, assessment };
+@@ -859,7 +859,8 @@ function questionToPreviewActivity(question: BuilderQuestion) {
+           text: question.questionText,
+           sample_answer: String(options.sample_answer ?? ""),
+           min_words: Number(options.min_words ?? 0),
+-          required_words: Array.isArray(options.required_words) ? options.required_words : []
++          required_words: Array.isArray(options.required_words) ? options.required_words : [],
++          show_required_words: options.show_required_words !== false
+         }]
+       } as Json
+     };
+@@ -976,6 +977,11 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
+         <label className="text-sm">Sample answer<textarea value={String(options.sample_answer ?? "")} onChange={(event) => onChange({ options: { ...options, sample_answer: event.target.value } as Json })} rows={3} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+         <label className="text-sm">Minimum words<input type="number" value={Number(options.min_words ?? 0)} onChange={(event) => onChange({ options: { ...options, min_words: Number(event.target.value) } as Json })} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+         <label className="text-sm">Required words, comma separated<input value={Array.isArray(options.required_words) ? options.required_words.join(", ") : ""} onChange={(event) => onChange({ options: { ...options, required_words: event.target.value.split(",").map((v) => v.trim()).filter(Boolean) } as Json })} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
++        <label className="flex items-center gap-2 text-sm">
++          <input type="checkbox" checked={options.show_required_words !== false} onChange={(event) => onChange({ options: { ...options, show_required_words: event.target.checked } as Json })} />
++          Show required words to learners while they write
++        </label>
++        <p className="-mt-1 text-xs text-black/45">When off, required words still count toward correctness but aren&rsquo;t revealed as a hint.</p>
+       </div>
+     );
+   }
+-- 
+2.43.0
+

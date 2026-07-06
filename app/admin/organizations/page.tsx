@@ -8,7 +8,7 @@ export default async function AdminOrganizationsPage() {
     admin.from("organizations").select("*").order("created_at", { ascending: false }),
     admin.from("classes").select("*, organizations(name)").order("created_at", { ascending: false }),
     admin.from("profiles").select("id,full_name,first_name,last_name,role").in("role", ["TEACHER", "SCHOOL_ADMIN", "ADMIN"]).order("full_name", { ascending: true }),
-    admin.from("courses").select("id,title,status").order("created_at", { ascending: false }),
+    admin.from("courses").select("id,title,status").is("deleted_at", null).order("created_at", { ascending: false }),
     admin.from("lessons").select("id,title,status").order("created_at", { ascending: false }),
     admin.from("quizzes").select("id,title,status").order("created_at", { ascending: false }),
     admin.from("class_assignments").select("*, classes(name)").order("created_at", { ascending: false }).limit(20),

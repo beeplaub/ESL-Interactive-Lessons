@@ -1,0 +1,324 @@
+From fdc20857869a43e159882d9783020012d0eb07da Mon Sep 17 00:00:00 2001
+From: Claude <assistant@brenup.dev>
+Date: Thu, 2 Jul 2026 10:39:03 +0000
+Subject: [PATCH] Add text alignment controls to text blocks; vertical
+ alignment for Image+Text
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Adds a Text alignment control (left/center/right) to every block with
+primary heading/body text: HEADING, TEXT, QUOTE, CALLOUT, IMAGE_TEXT.
+Adds a Vertical alignment control (top/middle/bottom) to IMAGE_TEXT's
+text column only, since that's the one place a block currently has
+extra vertical space to align within (next to the image) — other
+blocks size exactly to their content, so a vertical control there
+would sit in the UI and visibly do nothing.
+
+Defaults preserve current rendering exactly for every existing block:
+text_align defaults to left (matches the unset browser default),
+vertical_align defaults to middle (matches the previously hardcoded
+justify-center on IMAGE_TEXT's text column). No existing published
+lesson changes appearance after this ships.
+
+- app/admin/lessons/actions.ts: blockContentFromForm now records
+  text_align (and vertical_align for IMAGE_TEXT) via two small
+  sanitizing helpers that clamp to known values.
+- components/LessonBuilderWorkspace.tsx: new reusable AlignmentGroup
+  segmented control (radio buttons styled as icon buttons, submits
+  natively via FormData, no client state needed), wired into the
+  HEADING/TEXT/QUOTE/CALLOUT/IMAGE_TEXT editors.
+- components/LessonBlockPreview.tsx: renders the stored alignment as
+  explicit Tailwind classes at each text element (not relying on CSS
+  inheritance from a parent, so alignment can't be silently
+  overridden by another element's hardcoded class) for both the
+  builder preview and the live student-facing lesson player, since
+  both share this same renderer.
+
+Verified with a full npm run build - compiles and type-checks clean,
+zero new errors or warnings.
+---
+ app/admin/lessons/actions.ts          | 28 ++++++++++---
+ components/LessonBlockPreview.tsx     | 44 ++++++++++++++------
+ components/LessonBuilderWorkspace.tsx | 59 ++++++++++++++++++++++++---
+ 3 files changed, 109 insertions(+), 22 deletions(-)
+
+diff --git a/app/admin/lessons/actions.ts b/app/admin/lessons/actions.ts
+index 5ce84a4..6d50a4d 100644
+--- a/app/admin/lessons/actions.ts
++++ b/app/admin/lessons/actions.ts
+@@ -118,15 +118,29 @@ function splitLines(value: unknown) {
+     .filter(Boolean);
+ }
+ 
++function textAlignValue(value: unknown) {
++  const v = String(value ?? "left");
++  return v === "center" || v === "right" ? v : "left";
++}
++
++function verticalAlignValue(value: unknown) {
++  const v = String(value ?? "middle");
++  return v === "top" || v === "bottom" ? v : "middle";
++}
++
+ function blockContentFromForm(blockType: string, formData: FormData): Json {
+   if (blockType === "HEADING") {
+     return {
+       text: String(formData.get("text") || "").trim(),
+-      level: String(formData.get("level") || "H2")
++      level: String(formData.get("level") || "H2"),
++      text_align: textAlignValue(formData.get("text_align"))
+     };
+   }
+   if (blockType === "TEXT") {
+-    return { body: String(formData.get("body") || "").trim() };
++    return {
++      body: String(formData.get("body") || "").trim(),
++      text_align: textAlignValue(formData.get("text_align"))
++    };
+   }
+   if (blockType === "BULLETS") {
+     return {
+@@ -137,13 +151,15 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
+   if (blockType === "QUOTE") {
+     return {
+       body: String(formData.get("body") || "").trim(),
+-      attribution: nullableText(formData.get("attribution"))
++      attribution: nullableText(formData.get("attribution")),
++      text_align: textAlignValue(formData.get("text_align"))
+     };
+   }
+   if (blockType === "CALLOUT") {
+     return {
+       title: nullableText(formData.get("title")),
+-      body: String(formData.get("body") || "").trim()
++      body: String(formData.get("body") || "").trim(),
++      text_align: textAlignValue(formData.get("text_align"))
+     };
+   }
+   if (blockType === "IMAGE") {
+@@ -160,7 +176,9 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
+       alt: nullableText(formData.get("alt")),
+       caption: nullableText(formData.get("caption")),
+       heading: nullableText(formData.get("heading")),
+-      body: String(formData.get("body") || "").trim()
++      body: String(formData.get("body") || "").trim(),
++      text_align: textAlignValue(formData.get("text_align")),
++      vertical_align: verticalAlignValue(formData.get("vertical_align"))
+     };
+   }
+   if (blockType === "AUDIO") {
+diff --git a/components/LessonBlockPreview.tsx b/components/LessonBlockPreview.tsx
+index 566cddf..f8c2fb5 100644
+--- a/components/LessonBlockPreview.tsx
++++ b/components/LessonBlockPreview.tsx
+@@ -24,6 +24,20 @@ function asArray(value: unknown) {
+   return Array.isArray(value) ? value : [];
+ }
+ 
++function textAlignClass(value: unknown) {
++  const v = asString(value);
++  if (v === "center") return "text-center";
++  if (v === "right") return "text-right";
++  return "text-left";
++}
++
++function verticalAlignClass(value: unknown) {
++  const v = asString(value);
++  if (v === "top") return "justify-start";
++  if (v === "bottom") return "justify-end";
++  return "justify-center";
++}
++
+ function isImageUrl(value: string) {
+   return /^https?:\/\//i.test(value) || value.startsWith("/");
+ }
+@@ -93,14 +107,15 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
+   if (block.block_type === "HEADING") {
+     const level = asString(content.level) || "H2";
+     const text = asString(content.text) || "Untitled heading";
+-    if (level === "H1") return <h1 className="text-3xl font-semibold tracking-tight text-ink">{text}</h1>;
+-    if (level === "H3") return <h3 className="text-lg font-semibold text-ink">{text}</h3>;
+-    if (level === "H4") return <h4 className="text-base font-semibold text-ink">{text}</h4>;
+-    return <h2 className="text-2xl font-semibold tracking-tight text-ink">{text}</h2>;
++    const align = textAlignClass(content.text_align);
++    if (level === "H1") return <h1 className={`text-3xl font-semibold tracking-tight text-ink ${align}`}>{text}</h1>;
++    if (level === "H3") return <h3 className={`text-lg font-semibold text-ink ${align}`}>{text}</h3>;
++    if (level === "H4") return <h4 className={`text-base font-semibold text-ink ${align}`}>{text}</h4>;
++    return <h2 className={`text-2xl font-semibold tracking-tight text-ink ${align}`}>{text}</h2>;
+   }
+ 
+   if (block.block_type === "TEXT") {
+-    return <FormattedText text={asString(content.body)} />;
++    return <FormattedText text={asString(content.body)} align={textAlignClass(content.text_align)} />;
+   }
+ 
+   if (block.block_type === "BULLETS") {
+@@ -127,8 +142,9 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
+   }
+ 
+   if (block.block_type === "QUOTE") {
++    const align = textAlignClass(content.text_align);
+     return (
+-      <figure className="rounded-lg border-l-4 border-moss bg-skywash p-3 sm:p-4">
++      <figure className={`rounded-lg border-l-4 border-moss bg-skywash p-3 sm:p-4 ${align}`}>
+         <blockquote className="text-base font-medium leading-7 text-ink sm:text-lg sm:leading-8">
+           &ldquo;{asString(content.body) || "Add a quote."}&rdquo;
+         </blockquote>
+@@ -140,11 +156,12 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
+   }
+ 
+   if (block.block_type === "CALLOUT") {
++    const align = textAlignClass(content.text_align);
+     return (
+       <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 sm:p-4">
+         <div className="flex items-start gap-3">
+           <MessageSquareQuote className="mt-0.5 shrink-0 text-amber-700" size={18} />
+-          <div>
++          <div className={align}>
+             {asString(content.title) ? <h3 className="font-semibold text-amber-950">{asString(content.title)}</h3> : null}
+             <p className="mt-1 text-sm leading-6 text-amber-900">{asString(content.body) || "Add a callout message."}</p>
+           </div>
+@@ -202,10 +219,13 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
+       </figure>
+     );
+ 
++    const textAlign = textAlignClass(content.text_align);
++    const verticalAlign = verticalAlignClass(content.vertical_align);
++
+     const textCol = (
+-      <div className="flex flex-col justify-center gap-3">
++      <div className={`flex flex-col gap-3 ${verticalAlign} ${textAlign}`}>
+         {heading ? <h3 className="text-xl font-semibold leading-snug text-ink">{heading}</h3> : null}
+-        {body ? <FormattedText text={body} /> : <p className="text-sm text-black/40">Add supporting text.</p>}
++        {body ? <FormattedText text={body} align={textAlign} /> : <p className="text-sm text-black/40">Add supporting text.</p>}
+       </div>
+     );
+ 
+@@ -436,11 +456,11 @@ function FlashcardDetails({ word, phonetic, audioSrc, meaning, examples, audioRe
+   );
+ }
+ 
+-function FormattedText({ text }: { text: string }) {
++function FormattedText({ text, align = "text-left" }: { text: string; align?: string }) {
+   const paragraphs = text.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
+-  if (!paragraphs.length) return <p className="text-sm text-black/50">Add text.</p>;
++  if (!paragraphs.length) return <p className={`text-sm text-black/50 ${align}`}>Add text.</p>;
+   return (
+-    <div className="space-y-3 text-sm leading-7 text-black/70">
++    <div className={`space-y-3 text-sm leading-7 text-black/70 ${align}`}>
+       {paragraphs.map((paragraph, index) => <p key={index}>{paragraph}</p>)}
+     </div>
+   );
+diff --git a/components/LessonBuilderWorkspace.tsx b/components/LessonBuilderWorkspace.tsx
+index 6d828db..c2a7382 100644
+--- a/components/LessonBuilderWorkspace.tsx
++++ b/components/LessonBuilderWorkspace.tsx
+@@ -3,7 +3,7 @@
+ import Link from "next/link";
+ import type { FormEvent } from "react";
+ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Copy, Eye, Library, Plus, Settings, Trash2, X } from "lucide-react";
++import { AlignCenter, AlignLeft, AlignRight, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, AlignVerticalJustifyStart, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Copy, Eye, Library, Plus, Settings, Trash2, X } from "lucide-react";
+ import {
+   addBuilderSlideAt,
+   addLessonBlock,
+@@ -788,6 +788,41 @@ function blockSummary(block: LessonBlock) {
+   return asString(data.text ?? data.title ?? data.body ?? data.heading ?? data.path ?? data.src ?? data.url ?? data.word ?? data.prompt ?? "");
+ }
+ 
++const TEXT_ALIGN_OPTIONS = [
++  { value: "left", label: "Align left", icon: AlignLeft },
++  { value: "center", label: "Align center", icon: AlignCenter },
++  { value: "right", label: "Align right", icon: AlignRight },
++];
++
++const VERTICAL_ALIGN_OPTIONS = [
++  { value: "top", label: "Align top", icon: AlignVerticalJustifyStart },
++  { value: "middle", label: "Align middle", icon: AlignVerticalJustifyCenter },
++  { value: "bottom", label: "Align bottom", icon: AlignVerticalJustifyEnd },
++];
++
++function AlignmentGroup({ label, name, value, options }: {
++  label: string;
++  name: string;
++  value: string;
++  options: { value: string; label: string; icon: typeof AlignLeft }[];
++}) {
++  return (
++    <div className="text-sm">
++      {label}
++      <div className="mt-1 inline-flex gap-1 rounded-md border border-black/15 bg-white p-1">
++        {options.map(({ value: optionValue, label: optionLabel, icon: Icon }) => (
++          <label key={optionValue} title={optionLabel} className="cursor-pointer">
++            <input type="radio" name={name} value={optionValue} defaultChecked={value === optionValue} className="peer sr-only" />
++            <span className="flex size-8 items-center justify-center rounded text-black/45 transition hover:bg-black/5 peer-checked:bg-moss peer-checked:text-white peer-checked:hover:bg-moss">
++              <Icon size={15} />
++            </span>
++          </label>
++        ))}
++      </div>
++    </div>
++  );
++}
++
+ // ── BlockFields ────────────────────────────────────────────────────────────────
+ function BlockFields({ blockType, content, lessonId }: { blockType: string; content: Json; lessonId: string }) {
+   const data = asRecord(content);
+@@ -809,14 +844,22 @@ function BlockFields({ blockType, content, lessonId }: { blockType: string; cont
+ 
+   if (blockType === "HEADING") {
+     return (
+-      <div className="grid gap-3 sm:grid-cols-[1fr_140px]">
+-        <label className="text-sm">Heading text<textarea name="text" rows={2} defaultValue={asString(data.text)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+-        <label className="text-sm">Heading type<select name="level" defaultValue={asString(data.level) || "H2"} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"><option value="H1">H1</option><option value="H2">H2</option><option value="H3">H3</option><option value="H4">H4</option></select></label>
++      <div className="grid gap-3">
++        <div className="grid gap-3 sm:grid-cols-[1fr_140px]">
++          <label className="text-sm">Heading text<textarea name="text" rows={2} defaultValue={asString(data.text)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
++          <label className="text-sm">Heading type<select name="level" defaultValue={asString(data.level) || "H2"} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"><option value="H1">H1</option><option value="H2">H2</option><option value="H3">H3</option><option value="H4">H4</option></select></label>
++        </div>
++        <AlignmentGroup label="Text alignment" name="text_align" value={asString(data.text_align) || "left"} options={TEXT_ALIGN_OPTIONS} />
+       </div>
+     );
+   }
+   if (blockType === "TEXT") {
+-    return <label className="text-sm">Body text<textarea name="body" rows={4} defaultValue={asString(data.body ?? data.text)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>;
++    return (
++      <div className="grid gap-3">
++        <label className="text-sm">Body text<textarea name="body" rows={4} defaultValue={asString(data.body ?? data.text)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
++        <AlignmentGroup label="Text alignment" name="text_align" value={asString(data.text_align) || "left"} options={TEXT_ALIGN_OPTIONS} />
++      </div>
++    );
+   }
+   if (blockType === "BULLETS") {
+     return (
+@@ -831,6 +874,7 @@ function BlockFields({ blockType, content, lessonId }: { blockType: string; cont
+       <div className="grid gap-3">
+         <label className="text-sm">Quote text<textarea name="body" rows={3} defaultValue={asString(data.body ?? data.text)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+         <label className="text-sm">Attribution <span className="font-normal text-black/45">(optional)</span><input name="attribution" defaultValue={asString(data.attribution)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
++        <AlignmentGroup label="Text alignment" name="text_align" value={asString(data.text_align) || "left"} options={TEXT_ALIGN_OPTIONS} />
+       </div>
+     );
+   }
+@@ -839,6 +883,7 @@ function BlockFields({ blockType, content, lessonId }: { blockType: string; cont
+       <div className="grid gap-3">
+         <label className="text-sm">Callout title <span className="font-normal text-black/45">(optional)</span><input name="title" defaultValue={asString(data.title)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+         <label className="text-sm">Callout text<textarea name="body" rows={3} defaultValue={asString(data.body ?? data.text)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
++        <AlignmentGroup label="Text alignment" name="text_align" value={asString(data.text_align) || "left"} options={TEXT_ALIGN_OPTIONS} />
+       </div>
+     );
+   }
+@@ -875,6 +920,10 @@ function BlockFields({ blockType, content, lessonId }: { blockType: string; cont
+         </div>
+         <label className="text-sm">Heading <span className="font-normal text-black/45">(optional)</span><input name="heading" defaultValue={asString(data.heading)} placeholder="Section heading" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+         <label className="text-sm">Body text<textarea name="body" rows={4} defaultValue={asString(data.body)} placeholder="Supporting text alongside the image\u2026" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
++        <div className="grid gap-3 sm:grid-cols-2">
++          <AlignmentGroup label="Text alignment" name="text_align" value={asString(data.text_align) || "left"} options={TEXT_ALIGN_OPTIONS} />
++          <AlignmentGroup label="Vertical alignment (vs. image)" name="vertical_align" value={asString(data.vertical_align) || "middle"} options={VERTICAL_ALIGN_OPTIONS} />
++        </div>
+       </div>
+     );
+   }
+-- 
+2.43.0
+

@@ -29,7 +29,7 @@ export default async function LessonBuilderPage({ params }: { params: Promise<{ 
     { data: assessmentItems },
   ] = await Promise.all([
     supabase.from("lesson_outcomes").select("*").eq("lesson_id", id).order("position", { ascending: true }),
-    supabase.from("courses").select("id,title,status").order("created_at", { ascending: false }),
+    supabase.from("courses").select("id,title,status").is("deleted_at", null).order("created_at", { ascending: false }),
     supabase.from("course_sections").select("id,course_id,title,position").order("position", { ascending: true }),
     supabase
       .from("course_items")

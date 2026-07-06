@@ -5,7 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 export default async function AdminPage() {
   const admin = createAdminClient();
   const [{ data: courses }, { data: organizations }, { data: lessons }, { data: quizzes }, { data: profiles }, { data: attempts }, { data: levelResults }] = await Promise.all([
-    admin.from("courses").select("status"),
+    admin.from("courses").select("status").is("deleted_at", null),
     admin.from("organizations").select("id"),
     admin.from("lessons").select("status"),
     admin.from("quizzes").select("status"),
