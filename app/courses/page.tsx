@@ -6,9 +6,7 @@ import {
   Clock3,
   GraduationCap,
   Play,
-  Search,
   Sparkles,
-  Star,
 } from "lucide-react";
 import { LearnerAppShell } from "@/components/LearnerAppShell";
 import { CourseFilterControls } from "@/components/CourseFilterControls";
@@ -77,7 +75,6 @@ export default async function CoursesPage({
   });
 
   const featured = allCourses[0] ?? null;
-  const enrolledCount = (enrollments ?? []).length;
   const levelPills = CEFR_LEVELS;
   const topicMap = new Map<string, number>();
   for (const course of allCourses) {
@@ -101,18 +98,6 @@ export default async function CoursesPage({
   return (
     <LearnerAppShell active="courses" showRightSidebar>
         <section className="flex min-w-0 flex-col gap-5">
-          <div className="min-[1180px]:hidden">
-            <SearchBox mobile defaultValue={searchQuery} />
-            <div className="mt-2 flex gap-2">
-              <StatChip icon={<GraduationCap className="size-4 text-[#6C3BFF]" />} value={String(allCourses.length)} label="courses" mobile />
-              <StatChip icon={<Star className="size-4 fill-[#FFB545] text-[#FFB545]" />} value={String(enrolledCount)} label="enrolled" mobile />
-            </div>
-            <div className="mt-3">
-              <h1 className="text-xl font-bold">Courses</h1>
-              <p className="mt-0.5 text-[13px] text-[#6E738D]">Choose a guided BrenUp path.</p>
-            </div>
-          </div>
-
           <section>
             <div className="relative self-start overflow-hidden rounded-[24px] bg-gradient-to-br from-[#1A1060] via-[#0C1945] to-[#0E1F5A] p-4 text-white shadow-[0_16px_48px_rgba(20,23,80,.25)] md:p-5">
               <div className="absolute -right-16 -top-16 size-56 rounded-full bg-[#6C3BFF]/25 blur-sm" />
@@ -301,21 +286,4 @@ function resolveCourseImage(value?: string | null) {
   return value.startsWith("/") ? value : `/${value}`;
 }
 
-function SearchBox({ mobile = false, defaultValue = "" }: { mobile?: boolean; defaultValue?: string }) {
-  return (
-    <form method="GET" action="/courses" className={`flex items-center gap-2 rounded-[26px] border border-[#ECECF5] bg-white px-4 shadow-[0_2px_8px_rgba(0,0,0,.04)] ${mobile ? "h-11 w-full" : "h-12 w-[300px]"}`}>
-      <Search className="size-4 shrink-0 text-[#6E738D]" />
-      <input
-        name="q"
-        defaultValue={defaultValue}
-        className="min-w-0 flex-1 border-0 bg-transparent text-[13px] outline-none placeholder:text-[#6E738D]"
-        placeholder="Search courses, levels, topics..."
-      />
-      <button type="submit" className="whitespace-nowrap rounded-md border border-[#ECECF5] bg-[#F6F7FB] px-1.5 py-0.5 text-[11px] text-[#6E738D]">↵</button>
-    </form>
-  );
-}
 
-function StatChip({ icon, value, label, mobile }: { icon: React.ReactNode; value: string; label: string; mobile?: boolean }) {
-  return <div className={`flex items-center gap-1.5 rounded-[20px] border border-[#ECECF5] bg-white px-3.5 py-2 shadow-[0_2px_8px_rgba(0,0,0,.04)] ${mobile ? "flex-1 justify-center" : ""}`}>{icon}<div><div className="text-sm font-bold text-[#14172B]">{value}</div><div className="text-[11px] text-[#6E738D]">{label}</div></div></div>;
-}

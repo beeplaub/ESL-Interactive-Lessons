@@ -78,7 +78,14 @@ export async function LearnerAppShell({
 
   return (
     <main className="min-h-screen bg-[#F6F7FB] font-sans text-[#14172B]">
-      <MobileTopbar active={active} initials={initials} isLoggedIn={Boolean(user)} />
+      <MobileTopbar
+        active={active}
+        initials={initials}
+        avatarUrl={profile?.avatar_url ?? null}
+        isLoggedIn={Boolean(user)}
+        currentLevel={currentLevel}
+        notifications={notifications}
+      />
       <div className="mx-auto flex min-h-screen max-w-[1536px] items-start gap-5 p-3 pb-24 min-[1180px]:p-6 min-[1180px]:pb-6">
         <LearnerSidebar active={active} currentLevel={currentLevel} />
         <section className={`min-w-0 flex-1 pt-[60px] min-[1180px]:pt-0 ${contentClassName}`}>
@@ -531,16 +538,56 @@ function NavItem({ href, label, icon: Icon, active, disabled, badge }: { href: s
   return <Link href={href} className={className}>{content}</Link>;
 }
 
-function MobileTopbar({ active, initials, isLoggedIn }: { active: ActiveItem; initials: string; isLoggedIn: boolean }) {
+function MobileTopbar({
+  active,
+  initials,
+  avatarUrl,
+  isLoggedIn,
+  currentLevel,
+  notifications,
+}: {
+  active: ActiveItem;
+  initials: string;
+  avatarUrl: string | null;
+  isLoggedIn: boolean;
+  currentLevel: string | null;
+  notifications: NotificationItem[];
+}) {
   return (
-    <div className="fixed inset-x-0 top-0 z-40 flex h-[60px] items-center justify-between bg-gradient-to-br from-[#09112C] to-[#0C1636] px-4 min-[1180px]:hidden">
-      <Link href="/" className="flex items-center gap-2">
-        <span className="grid size-8 place-items-center rounded-[9px] bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF]"><Layers className="size-[18px] text-white" /></span>
-        <span className="text-[15px] font-bold text-white">BrenUp</span>
+    <div className="fixed inset-x-0 top-0 z-40 flex h-[60px] items-center justify-between gap-2 bg-gradient-to-br from-[#09112C] to-[#0C1636] px-3 min-[1180px]:hidden">
+      <Link href="/" className="flex min-w-0 items-center gap-2">
+        <span className="grid size-8 shrink-0 place-items-center rounded-[9px] bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF]"><Layers className="size-[18px] text-white" /></span>
+        <span className="truncate text-[15px] font-bold text-white">BrenUp</span>
       </Link>
-      <div className="flex items-center gap-2.5">
-        <div className="relative grid size-9 place-items-center text-white"><Bell className="size-5" /><span className="absolute right-0.5 top-0.5 grid size-3.5 place-items-center rounded-full border border-[#09112C] bg-[#FF5D73] text-[8px] font-bold">3</span></div>
-        <span className="grid size-9 place-items-center rounded-full bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] text-xs font-black text-white">{initials}</span>
+      <div className="flex shrink-0 items-center gap-1.5">
+        <Link
+          href="/level-test"
+          aria-label={currentLevel ? `Your level: ${currentLevel}` : "Take level test"}
+          className="flex h-9 items-center gap-1 rounded-[10px] border border-white/15 bg-white/10 px-2 text-[11px] font-bold text-white"
+        >
+          <Target className="size-[15px] text-[#9C8DFF]" />
+          {currentLevel ? <span>{currentLevel}</span> : null}
+        </Link>
+        <details className="group relative">
+          <summary className="relative grid size-9 cursor-pointer list-none place-items-center rounded-[10px] text-white marker:hidden [&::-webkit-details-marker]:hidden" aria-label="Notifications">
+            <Bell className="size-5" />
+            {notifications.length ? <span className="absolute right-0.5 top-0.5 grid size-3.5 place-items-center rounded-full border border-[#09112C] bg-[#FF5D73] text-[8px] font-bold">{notifications.length}</span> : null}
+          </summary>
+          <div className="fixed inset-x-3 top-[68px] z-50 max-h-[70vh] overflow-y-auto rounded-[22px] border border-[#ECECF5] bg-white shadow-2xl shadow-black/20">
+            <div className="border-b border-[#ECECF5] px-4 py-3">
+              <p className="text-sm font-black text-[#14172B]">Notifications</p>
+              <p className="text-xs font-semibold text-[#6E738D]">Latest learning and platform updates</p>
+            </div>
+            <div className="p-2">
+              {notifications.length ? notifications.map((item, index) => <NotificationRow key={`${item.title}-${index}`} item={item} />) : (
+                <p className="rounded-2xl bg-[#F6F7FB] px-4 py-6 text-center text-sm font-semibold text-[#6E738D]">No notifications yet.</p>
+              )}
+            </div>
+          </div>
+        </details>
+        <Link href={isLoggedIn ? "/profile" : "/login"} aria-label={isLoggedIn ? "Profile" : "My Account"}>
+          <AvatarBubble initials={initials} avatarUrl={avatarUrl} />
+        </Link>
         <details className="group relative">
           <summary className="grid size-9 cursor-pointer list-none place-items-center rounded-[10px] text-white marker:hidden [&::-webkit-details-marker]:hidden" aria-label="Menu"><Menu className="size-[22px]" /></summary>
           <div className="fixed inset-x-3 top-[68px] z-50 rounded-[24px] border border-white/10 bg-[#09112C] p-3 shadow-2xl shadow-black/30">
