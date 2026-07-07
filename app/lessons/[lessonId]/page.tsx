@@ -59,6 +59,8 @@ export default async function LessonPage({
     <LearnerAppShell
       active="courses"
       contentClassName="block"
+      showRightSidebar={false}
+      showFooter={false}
       breadcrumbs={[
         { label: "Home", href: "/account" },
         { label: "Courses", href: "/courses" },
