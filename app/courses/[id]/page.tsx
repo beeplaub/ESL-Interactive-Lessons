@@ -90,10 +90,10 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
 
   const headerCard = (
     <div className="rounded-[24px] border border-[#ECECF5] bg-white p-4 shadow-[0_12px_32px_rgba(0,0,0,.06)] md:p-5">
-      <div className="grid gap-6 lg:grid-cols-[340px_minmax(0,1fr)]">
-        <div className="group relative overflow-hidden rounded-[18px] bg-[#11152E]">
+      <div className="grid grid-cols-1 gap-6 min-[1130px]:grid-cols-[340px_minmax(0,1fr)]">
+        <div className="group relative min-w-0 overflow-hidden rounded-[18px] bg-[#11152E]">
           {/* eslint-disable-next-line @next/next/no-img-element -- Course creators can use arbitrary public image links. */}
-          <img src={imageUrl} alt={course.title} className="h-[230px] w-full object-cover sm:h-[280px] lg:h-full" />
+          <img src={imageUrl} alt={course.title} className="h-[230px] w-full object-cover sm:h-[280px] min-[1130px]:h-full" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/5 to-transparent" />
           <button type="button" className="absolute left-1/2 top-1/2 grid size-16 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-white text-[#14172B] shadow-[0_12px_24px_rgba(0,0,0,.25)]">
             <Play className="ml-1 size-7 fill-[#14172B]" />
@@ -104,10 +104,10 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
         <div className="flex min-w-0 flex-col justify-center py-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-md bg-[#00C98D] px-2.5 py-1 text-xs font-extrabold text-white">{course.level ?? "All Levels"}</span>
-            {course.topic ? <span className="text-sm font-semibold text-[#6E738D]">{course.topic}</span> : null}
+            {course.topic ? <span className="min-w-0 break-words text-sm font-semibold text-[#6E738D]">{course.topic}</span> : null}
           </div>
-          <h1 className="mt-4 text-[30px] font-extrabold leading-tight tracking-[-0.01em] text-[#14172B] md:text-[38px]">{course.title}</h1>
-          {course.subtitle ? <p className="mt-3 max-w-2xl text-sm leading-6 text-[#4F5671] md:text-base">{course.subtitle}</p> : null}
+          <h1 className="mt-4 break-words text-[26px] font-extrabold leading-tight tracking-[-0.01em] text-[#14172B] sm:text-[30px] md:text-[38px]">{course.title}</h1>
+          {course.subtitle ? <p className="mt-3 max-w-2xl break-words text-sm leading-6 text-[#4F5671] md:text-base">{course.subtitle}</p> : null}
           <div className="mt-5 flex flex-wrap gap-4 text-xs font-bold text-[#53607D]">
             <Meta icon={BookOpen} label={`${totalItems} items`} />
             <Meta icon={Layers} label={`${sectionCount} modules`} />
@@ -273,24 +273,24 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
         { label: course.title },
       ]}
     >
-        <section className="flex min-w-0 flex-col gap-5">
+        <section className="flex min-w-0 flex-col gap-5 overflow-x-hidden">
           {isAdminPreview && course.status !== "PUBLISHED" ? (
             <div className="flex items-center gap-2 rounded-[14px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
               <Eye className="size-4 shrink-0" /> Draft preview — this course is unpublished and only visible to you as an admin.
             </div>
           ) : null}
           {/* Mobile / tablet layout: unchanged, stacked sections */}
-          <div className="grid gap-5 min-[1130px]:hidden">
-            <section className="grid gap-5">
+          <div className="grid min-w-0 gap-5 min-[1130px]:hidden">
+            <section className="grid min-w-0 gap-5">
               {headerCard}
-              <aside className="grid gap-4">
+              <aside className="grid min-w-0 gap-4">
                 {progressPanel}
                 {outcomesPanel}
               </aside>
             </section>
-            <section className="grid gap-5">
+            <section className="grid min-w-0 gap-5">
               {curriculumCard}
-              <aside className="grid content-start gap-4">
+              <aside className="grid min-w-0 content-start gap-4">
                 {supportPanel}
               </aside>
             </section>
@@ -298,11 +298,11 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
 
           {/* Desktop layout: two independent flowing columns, no row-based stretch/gap */}
           <div className="hidden min-[1130px]:grid min-[1130px]:grid-cols-[minmax(0,1fr)_360px] min-[1130px]:items-start min-[1130px]:gap-5">
-            <div className="grid gap-5">
+            <div className="grid min-w-0 gap-5">
               {headerCard}
               {curriculumCard}
             </div>
-            <aside className="grid content-start gap-4">
+            <aside className="grid min-w-0 content-start gap-4">
               {progressPanel}
               {outcomesPanel}
               {supportPanel}
@@ -347,10 +347,10 @@ function FaqAccordionItem({ question, answer, defaultOpen }: { question: string;
   return (
     <details className="group rounded-[16px] border border-[#ECECF5] bg-white px-4 py-3 shadow-[0_2px_10px_rgba(0,0,0,.03)] open:shadow-[0_4px_14px_rgba(0,0,0,.05)]" open={defaultOpen}>
       <summary className="flex cursor-pointer list-none items-start justify-between gap-3 marker:hidden [&::-webkit-details-marker]:hidden">
-        <p className="text-sm font-extrabold leading-5 text-[#14172B]">{question}</p>
+        <p className="min-w-0 break-words text-sm font-extrabold leading-5 text-[#14172B]">{question}</p>
         <ChevronDown className="mt-0.5 size-4 shrink-0 text-[#6E738D] transition group-open:rotate-180" />
       </summary>
-      <p className="mt-2.5 text-sm leading-6 text-[#6E738D]">{answer}</p>
+      <p className="mt-2.5 break-words text-sm leading-6 text-[#6E738D]">{answer}</p>
     </details>
   );
 }
