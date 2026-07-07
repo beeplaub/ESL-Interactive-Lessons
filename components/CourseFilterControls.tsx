@@ -31,7 +31,7 @@ export function CourseFilterControls({
   })();
 
   return (
-    <form ref={formRef} method="GET" action="/courses" className="flex items-center gap-2">
+    <form ref={formRef} method="GET" action="/courses" className="flex items-center gap-1.5">
       {level ? <input type="hidden" name="level" value={level} /> : null}
       {q ? <input type="hidden" name="q" value={q} /> : null}
 
@@ -40,7 +40,7 @@ export function CourseFilterControls({
           name="sort"
           defaultValue={sort}
           onChange={() => formRef.current?.submit()}
-          className="h-[38px] cursor-pointer appearance-none rounded-lg border border-[#ECECF5] bg-white pl-3.5 pr-8 text-sm font-semibold text-[#35405F] shadow-[0_2px_8px_rgba(0,0,0,.04)] outline-none"
+          className="h-9 cursor-pointer appearance-none rounded-lg border border-[#ECECF5] bg-white pl-3 pr-7 text-sm font-semibold text-[#35405F] shadow-[0_2px_8px_rgba(0,0,0,.04)] outline-none"
           aria-label="Sort courses"
         >
           <option value="popular">Most Popular</option>
@@ -48,14 +48,14 @@ export function CourseFilterControls({
           <option value="az">A–Z</option>
           <option value="za">Z–A</option>
         </select>
-        <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 size-4 -translate-y-1/2 text-[#6E738D]" />
+        <ChevronDown className="pointer-events-none absolute right-2 top-1/2 size-4 -translate-y-1/2 text-[#6E738D]" />
       </div>
 
       <div className="relative">
         <button
           type="button"
           onClick={() => setOpen((value) => !value)}
-          className="inline-flex h-[38px] items-center gap-2 rounded-lg border border-[#ECECF5] bg-white px-3.5 text-sm font-semibold text-[#35405F] shadow-[0_2px_8px_rgba(0,0,0,.04)]"
+          className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[#ECECF5] bg-white px-3 text-sm font-semibold text-[#35405F] shadow-[0_2px_8px_rgba(0,0,0,.04)]"
           aria-expanded={open}
         >
           <FilterIcon className="size-4" /> Filter{selectedTopics.length ? ` (${selectedTopics.length})` : ""}

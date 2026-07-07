@@ -16,7 +16,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { CEFR_LEVELS, expandLevelToBands, type CefrLevel } from "@/lib/levels";
 
-/** Learner-facing descriptor shown next to each CEFR level pill, matching the redesigned filter bar. */
+/** Accessible tooltip text for each CEFR band pill (not shown in the pill label itself). */
 const LEVEL_DESCRIPTORS: Record<CefrLevel, string> = {
   A1: "Beginner",
   A2: "Elementary",
@@ -25,10 +25,6 @@ const LEVEL_DESCRIPTORS: Record<CefrLevel, string> = {
   C1: "Advanced",
   C2: "Proficiency",
 };
-
-function levelPillLabel(level: CefrLevel) {
-  return `${level} ${LEVEL_DESCRIPTORS[level]}`;
-}
 
 export default async function CoursesPage({
   searchParams,
@@ -82,13 +78,7 @@ export default async function CoursesPage({
 
   const featured = allCourses[0] ?? null;
   const enrolledCount = (enrollments ?? []).length;
-  const bandCourseCounts = new Map<CefrLevel, number>();
-  for (const course of allCourses) {
-    for (const band of expandLevelToBands(course.level)) {
-      bandCourseCounts.set(band, (bandCourseCounts.get(band) ?? 0) + 1);
-    }
-  }
-  const levelPills = CEFR_LEVELS.filter((band) => (bandCourseCounts.get(band) ?? 0) > 0);
+  const levelPills = CEFR_LEVELS;
   const topicMap = new Map<string, number>();
   for (const course of allCourses) {
     if (!course.topic) continue;
@@ -152,11 +142,11 @@ export default async function CoursesPage({
 
           </section>
 
-          <section className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex flex-wrap items-center gap-2">
+          <section className="flex items-center gap-3 overflow-x-auto pb-0.5">
+            <div className="flex shrink-0 items-center gap-1.5">
               <Link
                 href={levelHref("")}
-                className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                className={`shrink-0 rounded-full px-3.5 py-1.5 text-sm font-semibold transition ${
                   !activeLevel
                     ? "bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] text-white"
                     : "border border-[#ECECF5] bg-white text-[#4B5163] hover:border-[#6C3BFF]/40"
@@ -168,23 +158,26 @@ export default async function CoursesPage({
                 <Link
                   key={band}
                   href={levelHref(band)}
-                  className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                  title={LEVEL_DESCRIPTORS[band]}
+                  className={`shrink-0 rounded-full px-3.5 py-1.5 text-sm font-semibold transition ${
                     activeLevel === band
                       ? "bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] text-white"
                       : "border border-[#ECECF5] bg-white text-[#4B5163] hover:border-[#6C3BFF]/40"
                   }`}
                 >
-                  {levelPillLabel(band)}
+                  {band}
                 </Link>
               ))}
             </div>
-            <CourseFilterControls
-              level={activeLevel}
-              q={searchQuery}
-              sort={sort}
-              topics={topicCounts}
-              selectedTopics={selectedTopics}
-            />
+            <div className="ml-auto shrink-0">
+              <CourseFilterControls
+                level={activeLevel}
+                q={searchQuery}
+                sort={sort}
+                topics={topicCounts}
+                selectedTopics={selectedTopics}
+              />
+            </div>
           </section>
 
           {(activeLevel || searchQuery || selectedTopics.length > 0) ? (
