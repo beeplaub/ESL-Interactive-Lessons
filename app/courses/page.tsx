@@ -14,26 +14,20 @@ import { LearnerAppShell } from "@/components/LearnerAppShell";
 import { CourseFilterControls } from "@/components/CourseFilterControls";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { CONTENT_LEVELS } from "@/lib/levels";
-
-const levelOrder = CONTENT_LEVELS;
+import { CEFR_LEVELS, expandLevelToBands, type CefrLevel } from "@/lib/levels";
 
 /** Learner-facing descriptor shown next to each CEFR level pill, matching the redesigned filter bar. */
-const LEVEL_DESCRIPTORS: Record<string, string> = {
+const LEVEL_DESCRIPTORS: Record<CefrLevel, string> = {
   A1: "Beginner",
   A2: "Elementary",
-  "A1-A2": "Beginner\u2013Elementary",
   B1: "Intermediate",
   B2: "Upper Intermediate",
-  "B1-B2": "Intermediate",
   C1: "Advanced",
   C2: "Proficiency",
-  "C1-C2": "Advanced",
 };
 
-function levelPillLabel(level: string) {
-  const descriptor = LEVEL_DESCRIPTORS[level];
-  return descriptor ? `${level} ${descriptor}` : level;
+function levelPillLabel(level: CefrLevel) {
+  return `${level} ${LEVEL_DESCRIPTORS[level]}`;
 }
 
 export default async function CoursesPage({
@@ -55,7 +49,8 @@ export default async function CoursesPage({
   ]);
 
   const params = await searchParams;
-  const activeLevel = typeof params.level === "string" ? params.level : "";
+  const rawLevel = typeof params.level === "string" ? params.level : "";
+  const activeLevel = (CEFR_LEVELS as readonly string[]).includes(rawLevel) ? (rawLevel as CefrLevel) : "";
   const searchQuery = (typeof params.q === "string" ? params.q : "").trim().toLowerCase();
   const rawSort = typeof params.sort === "string" ? params.sort : "";
   const sort = ["popular", "newest", "az", "za"].includes(rawSort) ? rawSort : "popular";
@@ -71,7 +66,7 @@ export default async function CoursesPage({
   }
 
   const filteredCourses = allCourses.filter((course) =>
-    (!activeLevel || course.level === activeLevel) &&
+    (!activeLevel || expandLevelToBands(course.level).includes(activeLevel)) &&
     (!searchQuery || course.title?.toLowerCase().includes(searchQuery) || course.topic?.toLowerCase().includes(searchQuery)) &&
     (selectedTopics.length === 0 || (course.topic ? selectedTopics.includes(course.topic) : false))
   );
@@ -87,9 +82,13 @@ export default async function CoursesPage({
 
   const featured = allCourses[0] ?? null;
   const enrolledCount = (enrollments ?? []).length;
-  const levelCounts = levelOrder
-    .map((level) => ({ level, count: allCourses.filter((course) => course.level === level).length }))
-    .filter((item) => item.count > 0);
+  const bandCourseCounts = new Map<CefrLevel, number>();
+  for (const course of allCourses) {
+    for (const band of expandLevelToBands(course.level)) {
+      bandCourseCounts.set(band, (bandCourseCounts.get(band) ?? 0) + 1);
+    }
+  }
+  const levelPills = CEFR_LEVELS.filter((band) => (bandCourseCounts.get(band) ?? 0) > 0);
   const topicMap = new Map<string, number>();
   for (const course of allCourses) {
     if (!course.topic) continue;
@@ -165,17 +164,17 @@ export default async function CoursesPage({
               >
                 All Levels
               </Link>
-              {levelCounts.map((item) => (
+              {levelPills.map((band) => (
                 <Link
-                  key={item.level}
-                  href={levelHref(item.level)}
+                  key={band}
+                  href={levelHref(band)}
                   className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                    activeLevel === item.level
+                    activeLevel === band
                       ? "bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] text-white"
                       : "border border-[#ECECF5] bg-white text-[#4B5163] hover:border-[#6C3BFF]/40"
                   }`}
                 >
-                  {levelPillLabel(item.level)}
+                  {levelPillLabel(band)}
                 </Link>
               ))}
             </div>

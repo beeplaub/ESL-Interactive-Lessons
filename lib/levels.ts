@@ -62,3 +62,39 @@ export function anchorCefrLevel(level: string | null | undefined): CefrLevel {
   if (level === "C1-C2") return "C1";
   return "B1";
 }
+
+/**
+ * Expands a content level into every single CEFR band it covers.
+ *
+ * - A single band ("B1") expands to just itself.
+ * - "All Levels" expands to all six bands.
+ * - A range "X-Y" (e.g. "A1-A2", "A2-B2", "B1-C1") expands to every band from
+ *   X through Y inclusive, using CEFR_LEVELS order. This intentionally
+ *   supports ranges beyond the three predefined CEFR_LEVEL_RANGES combos —
+ *   the `level` column itself is free text, so a course can be tagged with a
+ *   wider range (e.g. directly via Supabase) and still filter correctly.
+ * - Anything unparseable (including null/empty) expands to no bands.
+ *
+ * Used to decide whether a course should appear under a given level pill:
+ * a course tagged "A2-B2" should show up for A2, B1, and B2, even though
+ * "B1" never appears explicitly in its level string.
+ */
+export function expandLevelToBands(level: string | null | undefined): CefrLevel[] {
+  if (!level) return [];
+  const trimmed = level.trim();
+  if (trimmed === ALL_LEVELS_LABEL) return [...CEFR_LEVELS];
+  if ((CEFR_LEVELS as readonly string[]).includes(trimmed)) return [trimmed as CefrLevel];
+
+  const match = /^([ABC][12])\s*-\s*([ABC][12])$/i.exec(trimmed);
+  if (match) {
+    const start = match[1].toUpperCase();
+    const end = match[2].toUpperCase();
+    const startIndex = (CEFR_LEVELS as readonly string[]).indexOf(start);
+    const endIndex = (CEFR_LEVELS as readonly string[]).indexOf(end);
+    if (startIndex !== -1 && endIndex !== -1 && startIndex <= endIndex) {
+      return CEFR_LEVELS.slice(startIndex, endIndex + 1);
+    }
+  }
+  return [];
+}
+
