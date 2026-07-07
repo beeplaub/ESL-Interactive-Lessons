@@ -79,9 +79,9 @@ export async function LearnerAppShell({
   return (
     <main className="min-h-screen bg-[#F6F7FB] font-sans text-[#14172B]">
       <MobileTopbar active={active} initials={initials} isLoggedIn={Boolean(user)} />
-      <div className="mx-auto flex min-h-screen max-w-[1536px] items-start gap-5 p-3 pb-24 md:p-6 md:pb-6">
+      <div className="mx-auto flex min-h-screen max-w-[1536px] items-start gap-5 p-3 pb-24 min-[1180px]:p-6 min-[1180px]:pb-6">
         <LearnerSidebar active={active} currentLevel={currentLevel} />
-        <section className={`min-w-0 flex-1 pt-[60px] md:pt-0 ${contentClassName}`}>
+        <section className={`min-w-0 flex-1 pt-[60px] min-[1180px]:pt-0 ${contentClassName}`}>
           {showChrome ? (
             <DesktopLearnerChrome
               breadcrumbs={breadcrumbs ?? defaultBreadcrumbs[active]}
@@ -95,6 +95,7 @@ export async function LearnerAppShell({
             />
           ) : null}
           {children}
+          {showRightSidebar && rightSidebarData ? <MobileRightSidebarCards data={rightSidebarData} /> : null}
           {showFooter ? <LearnerFooter /> : null}
         </section>
         {showRightSidebar && rightSidebarData ? <LearnerRightSidebar data={rightSidebarData} /> : null}
@@ -237,7 +238,7 @@ function DesktopLearnerChrome({
   currentLevel: string | null;
 }) {
   return (
-    <header className="mb-4 hidden items-center justify-between gap-4 min-[861px]:flex">
+    <header className="mb-4 hidden items-center justify-between gap-4 min-[1180px]:flex">
       {leading ?? (
         <nav className="flex min-w-0 items-center gap-2 text-sm font-semibold text-[#6E738D]" aria-label="Breadcrumb">
           <Link href="/account" className="grid size-9 shrink-0 place-items-center rounded-xl border border-[#ECECF5] bg-white text-[#6E738D] shadow-[0_2px_8px_rgba(0,0,0,.04)]">
@@ -315,6 +316,28 @@ function AvatarBubble({ initials, avatarUrl }: { initials: string; avatarUrl: st
 function LearnerRightSidebar({ data }: { data: RightSidebarData }) {
   return (
     <aside className="sticky top-6 hidden max-h-[calc(100vh-48px)] w-[285px] min-w-[285px] flex-col gap-4 overflow-y-auto [scrollbar-width:none] min-[1180px]:flex [&::-webkit-scrollbar]:hidden">
+      <RightSidebarCards data={data} />
+    </aside>
+  );
+}
+
+/**
+ * Same cards as the sticky desktop rail, stacked in normal document flow.
+ * Rendered inside the page content (right above the footer) so learners on
+ * viewports below 1180px — where the sticky rail has no room — still see
+ * streak/progress/achievements/badge info instead of losing it entirely.
+ */
+function MobileRightSidebarCards({ data }: { data: RightSidebarData }) {
+  return (
+    <div className="flex flex-col gap-4 min-[1180px]:hidden">
+      <RightSidebarCards data={data} />
+    </div>
+  );
+}
+
+function RightSidebarCards({ data }: { data: RightSidebarData }) {
+  return (
+    <>
       <RightRailCard>
         <div className="mb-1 flex items-center justify-between">
           <div>
@@ -377,7 +400,7 @@ function LearnerRightSidebar({ data }: { data: RightSidebarData }) {
           <div className={`grid size-12 place-items-center rounded-2xl bg-gradient-to-br ${data.currentBadge.gradient} text-xs font-black text-white`}>{data.currentBadge.icon}</div>
         </div>
       </RightRailCard>
-    </aside>
+    </>
   );
 }
 
@@ -449,7 +472,7 @@ function LearnerSidebar({ active, currentLevel }: { active: ActiveItem; currentL
   ];
 
   return (
-    <aside className="sticky top-6 hidden max-h-[calc(100vh-48px)] w-[225px] min-w-[225px] flex-col overflow-y-auto rounded-[24px] bg-gradient-to-b from-[#09112C] to-[#0C1636] p-5 [scrollbar-width:none] min-[861px]:flex [&::-webkit-scrollbar]:hidden">
+    <aside className="sticky top-6 hidden max-h-[calc(100vh-48px)] w-[225px] min-w-[225px] flex-col overflow-y-auto rounded-[24px] bg-gradient-to-b from-[#09112C] to-[#0C1636] p-5 [scrollbar-width:none] min-[1180px]:flex [&::-webkit-scrollbar]:hidden">
       <Link href="/" className="flex items-center gap-2.5 pb-5">
         <div className="grid size-10 place-items-center rounded-xl bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF]">
           <Layers className="size-[22px] text-white" />
@@ -510,7 +533,7 @@ function NavItem({ href, label, icon: Icon, active, disabled, badge }: { href: s
 
 function MobileTopbar({ active, initials, isLoggedIn }: { active: ActiveItem; initials: string; isLoggedIn: boolean }) {
   return (
-    <div className="fixed inset-x-0 top-0 z-40 flex h-[60px] items-center justify-between bg-gradient-to-br from-[#09112C] to-[#0C1636] px-4 min-[861px]:hidden">
+    <div className="fixed inset-x-0 top-0 z-40 flex h-[60px] items-center justify-between bg-gradient-to-br from-[#09112C] to-[#0C1636] px-4 min-[1180px]:hidden">
       <Link href="/" className="flex items-center gap-2">
         <span className="grid size-8 place-items-center rounded-[9px] bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF]"><Layers className="size-[18px] text-white" /></span>
         <span className="text-[15px] font-bold text-white">BrenUp</span>
@@ -557,7 +580,7 @@ function MobileBottomNav({ active }: { active: ActiveItem }) {
     { href: "/profile", label: "Profile", icon: User, key: "profile" }
   ];
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-[#ECECF5] bg-white px-1 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 min-[861px]:hidden">
+    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-[#ECECF5] bg-white px-1 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 min-[1180px]:hidden">
       <div className="flex items-center justify-around">
         {items.map((item) => (
           <Link key={item.label} href={item.href} className={`flex flex-col items-center gap-1 rounded-xl px-3 py-1.5 text-[9px] font-semibold ${active === item.key ? "text-[#6C3BFF]" : "text-[#6E738D]"}`}>

@@ -101,7 +101,7 @@ export default async function CoursesPage({
   return (
     <LearnerAppShell active="courses" showRightSidebar>
         <section className="flex min-w-0 flex-col gap-5">
-          <div className="min-[861px]:hidden">
+          <div className="min-[1180px]:hidden">
             <SearchBox mobile defaultValue={searchQuery} />
             <div className="mt-2 flex gap-2">
               <StatChip icon={<GraduationCap className="size-4 text-[#6C3BFF]" />} value={String(allCourses.length)} label="courses" mobile />

@@ -108,7 +108,7 @@ export default async function AccountPage() {
             </form>
           ) : null}
 
-          <div className="min-[861px]:hidden">
+          <div className="min-[1180px]:hidden">
             <h2 className="text-xl font-bold">Good morning, {firstName}! 👋</h2>
             <p className="mt-0.5 text-[13px] text-[#6E738D]">Let&apos;s continue your English journey.</p>
           </div>
