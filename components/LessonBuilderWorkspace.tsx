@@ -683,6 +683,7 @@ function SelectedSlideEditor({
                 <option value="DRAG_DROP">Drag and Drop</option>
                 <option value="CATEGORIZATION">Categorization</option>
                 <option value="PRONUNCIATION">Pronunciation Practice</option>
+                <option value="AI_ROLEPLAY">AI Conversation Roleplay</option>
               </select>
             </label>
             <button className="w-fit rounded-md bg-ink px-4 py-2 text-sm font-medium text-white">Add activity</button>

@@ -12,6 +12,7 @@ import {
   GraduationCap,
   Library,
   LogOut,
+  Sparkles,
   Target,
   UsersRound,
 } from "lucide-react";
@@ -20,6 +21,7 @@ import { signOut, switchToLearnerView } from "@/app/auth/actions";
 
 const links = [
   { href: "/admin", label: "Overview", Icon: BarChart3 },
+  { href: "/admin/ai-studio", label: "AI Studio", Icon: Sparkles },
   { href: "/admin/analytics", label: "Analytics", Icon: BarChart3 },
   { href: "/admin/organizations", label: "Organizations", Icon: Building2 },
   { href: "/admin/courses", label: "Courses", Icon: GraduationCap },

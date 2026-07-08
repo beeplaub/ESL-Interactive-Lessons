@@ -103,6 +103,7 @@ function labelFor(type: string) {
   if (type === "DRAG_DROP") return "Drag and Drop Activity";
   if (type === "CATEGORIZATION") return "Categorization Activity";
   if (type === "PRONUNCIATION") return "Pronunciation Practice Activity";
+  if (type === "AI_ROLEPLAY") return "AI Conversation Roleplay";
   return `${type.replaceAll("_", " ")} Activity`;
 }
 
@@ -327,6 +328,63 @@ function normalizeReordering(data: Json | null): ReorderData {
   };
 }
 
+function normalizeAiRoleplay(data: Json | null) {
+  const record = asRecord(data);
+  return {
+    prompt: String(record.prompt ?? "Practice speaking English with me."),
+    character: String(record.character ?? "Shop Assistant"),
+    first_turn: String(record.first_turn ?? "Hello! How can I help you today?")
+  };
+}
+
+function AiRoleplayEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
+  const initial = useMemo(() => normalizeAiRoleplay(activity.activity_data), [activity.activity_data]);
+  const [prompt, setPrompt] = useState(initial.prompt);
+  const [character, setCharacter] = useState(initial.character);
+  const [firstTurn, setFirstTurn] = useState(initial.first_turn);
+
+  const needsReview = !prompt.trim() || !character.trim() || !firstTurn.trim();
+
+  return (
+    <div className="grid gap-4">
+      <label className="text-sm font-medium">
+        Scenario / Prompt Description
+        <textarea
+          value={prompt}
+          onChange={(event) => setPrompt(event.target.value)}
+          className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 min-h-[80px]"
+          placeholder="Describe the situation for the roleplay conversation..."
+        />
+      </label>
+      <div className="grid gap-4 md:grid-cols-2">
+        <label className="text-sm font-medium">
+          AI Role Name
+          <input
+            type="text"
+            value={character}
+            onChange={(event) => setCharacter(event.target.value)}
+            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+            placeholder="e.g. Barista"
+          />
+        </label>
+        <label className="text-sm font-medium">
+          First Message (AI Turn)
+          <input
+            type="text"
+            value={firstTurn}
+            onChange={(event) => setFirstTurn(event.target.value)}
+            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+            placeholder="e.g. Welcome! What can I make for you today?"
+          />
+        </label>
+      </div>
+      <div className="flex justify-end gap-3 mt-2">
+        <SaveButton onClick={() => onSave({ prompt, character, first_turn: firstTurn } as Json, needsReview)} />
+      </div>
+    </div>
+  );
+}
+
 export function InLessonActivitiesEditor({
   lessonId,
   initialActivities,
@@ -464,7 +522,8 @@ function ActivityPanel({
               {activity.activity_type === "SHORT_ANSWER" ? <ShortAnswerEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "DRAG_DROP" || activity.activity_type === "CATEGORIZATION" ? <DragDropEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "PRONUNCIATION" ? <PronunciationEditor activity={activity} onSave={save} /> : null}
-              {!["MCQ", "GAP_FILL", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION"].includes(activity.activity_type) ? (
+              {activity.activity_type === "AI_ROLEPLAY" ? <AiRoleplayEditor activity={activity} onSave={save} /> : null}
+              {!["MCQ", "GAP_FILL", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "AI_ROLEPLAY"].includes(activity.activity_type) ? (
                 <p className="rounded-md bg-slate-50 p-3 text-sm text-black/60">
                   This activity type has starter data and preview support. A detailed visual editor for it will be added in the next activity-builder pass.
                 </p>

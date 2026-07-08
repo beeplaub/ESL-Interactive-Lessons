@@ -2,24 +2,6 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import type { CookieOptions } from "@supabase/ssr";
 
-async function readFreshRole(userId: string) {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !serviceKey) return null;
-
-  const response = await fetch(`${url}/rest/v1/profiles?id=eq.${userId}&select=role`, {
-    headers: {
-      apikey: serviceKey,
-      authorization: `Bearer ${serviceKey}`
-    },
-    cache: "no-store"
-  });
-
-  if (!response.ok) return null;
-  const rows = (await response.json().catch(() => [])) as Array<{ role?: string }>;
-  return rows[0]?.role ?? null;
-}
-
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({ request });
 
@@ -50,7 +32,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/dashboard") ||
     pathname.startsWith("/admin");
 
-  // Unauthenticated user trying to access a protected route -> send to login.
+  // 1. Unauthenticated user → send to login.
   if (!user && isProtectedPath) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
@@ -58,28 +40,40 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  const role = user ? await readFreshRole(user.id) : null;
+  // 2. Read role from JWT user_metadata (no extra DB round-trip needed).
+  //    Supabase sets app_metadata.role when you update profiles.role via service role.
+  //    Falls back to user_metadata.role if present.
+  //    NOTE: The authoritative admin check is done in requireAdmin() in the layout.
   const viewMode = request.cookies.get("view_mode")?.value;
+  const jwtRole =
+    (user?.app_metadata?.role as string | undefined) ??
+    (user?.user_metadata?.role as string | undefined);
 
-  if (user && role === "ADMIN" && viewMode !== "learner" && (pathname.startsWith("/dashboard") || pathname.startsWith("/account"))) {
+  // 3. Admins landing on /dashboard or /account (when not in learner-view) → send to /admin.
+  if (
+    user &&
+    jwtRole === "ADMIN" &&
+    viewMode !== "learner" &&
+    (pathname.startsWith("/dashboard") || pathname.startsWith("/account"))
+  ) {
     const url = request.nextUrl.clone();
     url.pathname = "/admin";
     url.search = "";
     return NextResponse.redirect(url);
   }
 
-  if (user && role !== "ADMIN" && pathname.startsWith("/admin")) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/lessons";
-    url.search = "";
-    return NextResponse.redirect(url);
-  }
-
-  // Authenticated user trying to visit login -> send to the intended page or lessons.
+  // 4. Authenticated user on /login → send them home.
+  //    We intentionally do NOT block /admin here — requireAdmin() in the layout handles that
+  //    reliably. Doing it in middleware with a DB call is what caused the /lessons redirect bug.
   if (user && pathname.startsWith("/login")) {
     const url = request.nextUrl.clone();
     const nextPath = request.nextUrl.searchParams.get("next");
-    url.pathname = role === "ADMIN" ? "/admin" : nextPath?.startsWith("/") && !nextPath.startsWith("/admin") ? nextPath : "/account";
+    const isAdminUser = jwtRole === "ADMIN";
+    url.pathname = isAdminUser
+      ? "/admin"
+      : nextPath?.startsWith("/") && !nextPath.startsWith("/admin")
+        ? nextPath
+        : "/account";
     url.search = "";
     return NextResponse.redirect(url);
   }

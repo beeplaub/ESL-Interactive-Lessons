@@ -1513,6 +1513,7 @@ function defaultActivityPrompt(activityType: string) {
   if (activityType === "SHORT_ANSWER") return "Write a short answer.";
   if (activityType === "ERROR_CORRECTION") return "Find and correct the mistake.";
   if (activityType === "PRONUNCIATION") return "Say each highlighted word clearly.";
+  if (activityType === "AI_ROLEPLAY") return "Practice speaking English with me.";
   return "Choose the best answer.";
 }
 
@@ -1555,6 +1556,9 @@ function defaultActivityData(activityType: string, prompt: string): Json {
   }
   if (activityType === "ERROR_CORRECTION") {
     return { prompt, items: [{ mode: "rewrite", text: "", error_span: "", correction: "", note: null }] };
+  }
+  if (activityType === "AI_ROLEPLAY") {
+    return { prompt, character: "Shop Assistant", first_turn: "Hello! How can I help you today?" };
   }
   return { prompt, questions: [{ id: 1, text: "", options: { A: "", B: "", C: "", D: "" }, answer: "A" }] };
 }

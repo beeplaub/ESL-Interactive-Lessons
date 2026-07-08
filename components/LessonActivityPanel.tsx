@@ -1,10 +1,11 @@
 "use client";
 
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useState, useTransition } from "react";
+import { ChevronLeft, ChevronRight, Send, MessageCircle, Award, RefreshCw, Loader2 } from "lucide-react";
+import { useState, useTransition, useRef, useCallback, useEffect } from "react";
 import { recordQuizAttempt } from "@/app/quizzes/actions";
 import { QuestionCard, hasAnswer, type QuizQuestion } from "@/components/QuizPlayer";
 import { isCorrect, questionScore, questionTotal } from "@/lib/quizScoring";
+import { startRoleplaySessionAction, submitRoleplayTurnAction, completeRoleplaySessionAction } from "@/app/admin/lessons/aiActions";
 import type { Json } from "@/types/database.types";
 
 type LessonSlideActivity = {
@@ -297,8 +298,301 @@ function activityLabel(type: string) {
   if (type === "DRAG_DROP") return "Drag and Drop";
   if (type === "CATEGORIZATION") return "Categorization";
   if (type === "PRONUNCIATION") return "Pronunciation Practice";
+  if (type === "AI_ROLEPLAY") return "AI Conversation Roleplay";
   return "Activity";
 }
+
+/* ─── AI Roleplay Chat ──────────────────────────────────────────── */
+
+type ChatMessage = { sender: "AI" | "LEARNER"; text: string; corrections?: any };
+
+function AiRoleplayPanel({ activity, onNext, previewOnly }: {
+  activity: LessonSlideActivity; onNext: () => void; previewOnly?: boolean;
+}) {
+  const data = asRecord(activity.activity_data);
+  const scenario = String(data.prompt ?? "Practice speaking English with me.");
+  const character = String(data.character ?? "Assistant");
+  const firstTurn = String(data.first_turn ?? "Hello! Shall we begin?");
+
+  const [phase, setPhase] = useState<"idle" | "chatting" | "finishing" | "done">("idle");
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [scorecard, setScorecard] = useState<any>(null);
+  const [isPending, startTransition] = useTransition();
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll chat to bottom
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, phase]);
+
+  const startSession = useCallback(() => {
+    startTransition(async () => {
+      try {
+        setError(null);
+        const sid = await startRoleplaySessionAction(activity.id);
+        setSessionId(sid);
+        setMessages([{ sender: "AI", text: firstTurn }]);
+        setPhase("chatting");
+      } catch (err: any) {
+        setError(err.message || "Could not start conversation.");
+      }
+    });
+  }, [activity.id, firstTurn, startTransition]);
+
+  const sendMessage = useCallback(() => {
+    const text = input.trim();
+    if (!text || !sessionId || isPending) return;
+
+    setMessages((prev) => [...prev, { sender: "LEARNER", text }]);
+    setInput("");
+
+    startTransition(async () => {
+      try {
+        setError(null);
+        const result = await submitRoleplayTurnAction(sessionId, text);
+        setMessages((prev) => [
+          ...prev,
+          { sender: "AI", text: result.characterReply, corrections: result.corrections }
+        ]);
+      } catch (err: any) {
+        setError(err.message || "Failed to get response.");
+      }
+    });
+  }, [input, sessionId, isPending, startTransition]);
+
+  const finishConversation = useCallback(() => {
+    if (!sessionId) return;
+    setPhase("finishing");
+    startTransition(async () => {
+      try {
+        setError(null);
+        const result = await completeRoleplaySessionAction(sessionId);
+        setScorecard(result);
+        setPhase("done");
+      } catch (err: any) {
+        setError(err.message || "Could not generate scorecard.");
+        setPhase("chatting");
+      }
+    });
+  }, [sessionId, startTransition]);
+
+  const resetConversation = useCallback(() => {
+    setPhase("idle");
+    setSessionId(null);
+    setMessages([]);
+    setInput("");
+    setError(null);
+    setScorecard(null);
+  }, []);
+
+  // ── Idle state ──
+  if (phase === "idle") {
+    return (
+      <section className="rounded-lg border border-black/10 bg-white p-5 shadow-sm">
+        <p className="text-xs font-semibold uppercase tracking-wide text-moss">Activity</p>
+        <h2 className="mt-1 text-lg font-semibold flex items-center gap-2">
+          <MessageCircle size={20} className="text-moss" /> AI Conversation Roleplay
+        </h2>
+        <div className="mt-3 rounded-md bg-gradient-to-br from-emerald-50 to-teal-50 p-4 border border-emerald-100">
+          <p className="text-sm font-medium text-emerald-800">Scenario</p>
+          <p className="mt-1 text-sm text-emerald-700">{scenario}</p>
+          <p className="mt-3 text-sm text-black/50">You'll practice with <strong className="text-black/70">{character}</strong></p>
+        </div>
+        {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+        <button
+          type="button"
+          onClick={startSession}
+          disabled={isPending}
+          className="mt-4 inline-flex items-center gap-2 rounded-md bg-moss px-5 py-2.5 text-sm font-semibold text-white hover:bg-moss/90 disabled:opacity-50 transition-colors"
+        >
+          {isPending ? <><Loader2 size={15} className="animate-spin" /> Starting…</> : <><MessageCircle size={15} /> Start Conversation</>}
+        </button>
+      </section>
+    );
+  }
+
+  // ── Done / Scorecard ──
+  if (phase === "done" && scorecard) {
+    const scores = scorecard.scores ?? {};
+    const feedback = scorecard.feedback ?? {};
+    return (
+      <section className="rounded-lg border border-black/10 bg-white p-5 shadow-sm">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-moss">Results</p>
+            <h2 className="mt-1 text-lg font-semibold flex items-center gap-2">
+              <Award size={20} className="text-amber-500" /> Conversation Scorecard
+            </h2>
+          </div>
+          <span className="rounded-full bg-moss/10 px-3 py-1 text-sm font-bold text-moss">
+            {scores.overall ?? "–"}/10
+          </span>
+        </div>
+
+        {/* Score bars */}
+        <div className="mt-4 grid gap-2.5">
+          {[
+            { label: "Task Achievement", value: scores.task_achievement },
+            { label: "Vocabulary Range", value: scores.vocabulary_range },
+            { label: "Grammar Accuracy", value: scores.grammar_accuracy },
+          ].map((s) => (
+            <div key={s.label} className="flex items-center gap-3">
+              <span className="text-xs text-black/60 w-36">{s.label}</span>
+              <div className="flex-1 h-2 rounded-full bg-black/5 overflow-hidden">
+                <div className="h-full rounded-full bg-moss transition-all" style={{ width: `${((s.value ?? 0) / 10) * 100}%` }} />
+              </div>
+              <span className="text-xs font-semibold w-6 text-right">{s.value ?? "–"}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Feedback */}
+        <div className="mt-4 space-y-3">
+          {feedback.cefr_alignment && (
+            <p className="text-xs rounded-md bg-blue-50 border border-blue-100 px-3 py-2 text-blue-700">
+              <strong>CEFR Level:</strong> {feedback.cefr_alignment}
+            </p>
+          )}
+          {Array.isArray(feedback.strengths) && feedback.strengths.length > 0 && (
+            <div className="rounded-md bg-emerald-50 border border-emerald-100 px-3 py-2">
+              <p className="text-xs font-semibold text-emerald-700 mb-1">✓ Strengths</p>
+              <ul className="text-xs text-emerald-600 list-disc list-inside space-y-0.5">
+                {feedback.strengths.map((s: string, i: number) => <li key={i}>{s}</li>)}
+              </ul>
+            </div>
+          )}
+          {Array.isArray(feedback.weaknesses) && feedback.weaknesses.length > 0 && (
+            <div className="rounded-md bg-amber-50 border border-amber-100 px-3 py-2">
+              <p className="text-xs font-semibold text-amber-700 mb-1">⚠ Areas to Improve</p>
+              <ul className="text-xs text-amber-600 list-disc list-inside space-y-0.5">
+                {feedback.weaknesses.map((s: string, i: number) => <li key={i}>{s}</li>)}
+              </ul>
+            </div>
+          )}
+          {Array.isArray(feedback.improvement_tips) && feedback.improvement_tips.length > 0 && (
+            <div className="rounded-md bg-slate-50 border border-black/5 px-3 py-2">
+              <p className="text-xs font-semibold text-black/60 mb-1">💡 Tips</p>
+              <ul className="text-xs text-black/55 list-disc list-inside space-y-0.5">
+                {feedback.improvement_tips.map((t: string, i: number) => <li key={i}>{t}</li>)}
+              </ul>
+            </div>
+          )}
+        </div>
+
+        <div className="mt-4 flex gap-2 border-t border-black/10 pt-3">
+          <button type="button" onClick={resetConversation} className="inline-flex items-center gap-1.5 rounded-md border border-black/15 px-4 py-2 text-sm font-semibold hover:bg-black/5">
+            <RefreshCw size={14} /> Try Again
+          </button>
+          <button type="button" onClick={onNext} className="inline-flex items-center gap-2 rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white">
+            Next <ChevronRight size={15} />
+          </button>
+        </div>
+      </section>
+    );
+  }
+
+  // ── Chatting / Finishing state ──
+  const learnerTurnCount = messages.filter((m) => m.sender === "LEARNER").length;
+
+  return (
+    <section className="rounded-lg border border-black/10 bg-white shadow-sm overflow-hidden">
+      {/* Header */}
+      <div className="p-4 border-b border-black/10 bg-gradient-to-r from-emerald-50 to-teal-50">
+        <p className="text-xs font-semibold uppercase tracking-wide text-moss">Live Conversation</p>
+        <p className="text-sm text-black/50 mt-0.5">Speaking with <strong className="text-black/70">{character}</strong> · {scenario}</p>
+      </div>
+
+      {/* Messages */}
+      <div className="max-h-[340px] overflow-y-auto p-4 space-y-3">
+        {messages.map((msg, i) => (
+          <div key={i} className={`flex ${msg.sender === "LEARNER" ? "justify-end" : "justify-start"}`}>
+            <div className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 text-sm ${
+              msg.sender === "LEARNER"
+                ? "bg-moss text-white rounded-br-md"
+                : "bg-black/[0.04] text-black/80 rounded-bl-md"
+            }`}>
+              {msg.sender === "AI" && <p className="text-[10px] font-semibold text-moss/80 mb-0.5">{character}</p>}
+              <p>{msg.text}</p>
+              {/* Inline correction badges */}
+              {msg.corrections?.has_errors && Array.isArray(msg.corrections.errors) && msg.corrections.errors.length > 0 && (
+                <div className="mt-2 border-t border-white/20 pt-2 space-y-1.5">
+                  {msg.corrections.errors.map((err: any, ei: number) => (
+                    <div key={ei} className="rounded-md bg-amber-50 border border-amber-200 px-2.5 py-1.5 text-xs text-amber-800">
+                      <span className="line-through text-red-500">{err.original}</span>
+                      {" → "}
+                      <strong className="text-emerald-700">{err.corrected}</strong>
+                      <p className="text-[11px] text-amber-600 mt-0.5">{err.explanation}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+        {isPending && phase === "chatting" && (
+          <div className="flex justify-start">
+            <div className="rounded-2xl rounded-bl-md bg-black/[0.04] px-4 py-3 text-sm text-black/50 flex items-center gap-2">
+              <Loader2 size={14} className="animate-spin" /> {character} is typing…
+            </div>
+          </div>
+        )}
+        <div ref={chatEndRef} />
+      </div>
+
+      {/* Input area */}
+      {phase === "chatting" && (
+        <div className="p-3 border-t border-black/10 bg-white">
+          {error && <p className="text-xs text-red-600 mb-2 px-1">{error}</p>}
+          <form
+            onSubmit={(e) => { e.preventDefault(); sendMessage(); }}
+            className="flex gap-2"
+          >
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Type your reply…"
+              disabled={isPending}
+              className="flex-1 rounded-lg border border-black/15 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-moss/30 disabled:opacity-50"
+              autoFocus
+            />
+            <button
+              type="submit"
+              disabled={!input.trim() || isPending}
+              className="rounded-lg bg-moss px-3 py-2 text-white disabled:opacity-40 hover:bg-moss/90 transition-colors"
+            >
+              <Send size={16} />
+            </button>
+          </form>
+          <div className="flex items-center justify-between mt-2 px-1">
+            <p className="text-[11px] text-black/40">{learnerTurnCount} turn{learnerTurnCount !== 1 ? "s" : ""} so far</p>
+            {learnerTurnCount >= 2 && (
+              <button
+                type="button"
+                onClick={finishConversation}
+                disabled={isPending}
+                className="text-xs font-medium text-moss hover:underline disabled:opacity-50"
+              >
+                End conversation & get feedback →
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {phase === "finishing" && (
+        <div className="p-4 border-t border-black/10 flex items-center justify-center gap-2 text-sm text-black/50">
+          <Loader2 size={16} className="animate-spin" /> Generating your scorecard…
+        </div>
+      )}
+    </section>
+  );
+}
+
+/* ─── Main Activity Panel ────────────────────────────────────────── */
 
 export function LessonActivityPanel({
   activity, onNext, previewOnly = false, initialAttempt = null, attempts = [], onSavedAttempt, courseItemId = null,
@@ -307,6 +601,11 @@ export function LessonActivityPanel({
   previewOnly?: boolean; initialAttempt?: SavedAttempt | null; attempts?: SavedAttempt[]; onSavedAttempt?: (attempt: SavedAttempt) => void;
   courseItemId?: string | null;
 }) {
+  // ── AI Roleplay: full chat UI instead of quiz carousel ──
+  if (activity.activity_type === "AI_ROLEPLAY") {
+    return <AiRoleplayPanel activity={activity} onNext={onNext} previewOnly={previewOnly} />;
+  }
+
   const questions = questionsFromData(activity.activity_data, activity.activity_type, activity.id);
   const initialAnswers = asRecord(initialAttempt?.answers);
   const [answers, setAnswers] = useState<Record<string, unknown>>(initialAnswers);

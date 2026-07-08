@@ -1,0 +1,359 @@
+import { GoogleGenAI } from "@google/genai";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { z } from "zod";
+
+// Initialize Gemini client lazily when first called
+let aiClient: GoogleGenAI | null = null;
+
+function getGeminiClient(): GoogleGenAI {
+  if (aiClient) return aiClient;
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error(
+      "GEMINI_API_KEY environment variable is not defined. Please add it to your .env.local file."
+    );
+  }
+
+  aiClient = new GoogleGenAI({ apiKey });
+  return aiClient;
+}
+
+// 1. Default fallback prompt templates in case DB isn't seeded yet
+export const DEFAULT_PROMPTS: Record<string, { role_description: string; prompt_text: string }> = {
+  creator_course_architect: {
+    role_description: "You are an expert ESL Curriculum Architect.",
+    prompt_text: `Create a structured ESL course path on the topic: "{topic}" at CEFR level: {level}.
+Target audience: {audience}.
+Course length: {length}.
+Additional requirements: {requirements}.
+
+Your response must follow this JSON schema exactly:
+{
+  "title": "Course Title",
+  "subtitle": "Short subtitle explaining what this course achieves",
+  "description": "Comprehensive course description and overview",
+  "outcomes": ["Detailed student learning outcome 1", "Detailed student learning outcome 2"],
+  "faqs": [
+    {"question": "FAQ Question 1", "answer": "FAQ Answer 1"}
+  ],
+  "sections": [
+    {
+      "title": "Section Title",
+      "position": 1,
+      "items": [
+        {
+          "title": "Lesson/Quiz Title",
+          "item_type": "LESSON",
+          "position": 1,
+          "description": "What will be covered in this lesson/quiz"
+        }
+      ]
+    }
+  ]
+}`
+  },
+
+  creator_lesson_designer: {
+    role_description: "You are a professional ESL Lesson Content Designer.",
+    prompt_text: `Generate a complete ESL lesson draft about: "{topic}" at CEFR level: {level}.
+Lesson outcomes: {outcomes}.
+Teaching style: {style}.
+Number of slides requested: {slideCount}.
+
+Create a sequence of slides. Each slide contains visual blocks and/or interactive activities.
+Ensure that the language is perfectly appropriate for level {level}.
+
+Your response must follow this JSON schema exactly:
+{
+  "title": "Lesson Title",
+  "topic": "Lesson Topic",
+  "description": "Short explanation of lesson content",
+  "slides": [
+    {
+      "slide_number": 1,
+      "title": "Slide Title",
+      "section_label": "e.g. Vocabulary / Grammar / Reading / Discussion",
+      "blocks": [
+        {
+          "block_type": "HEADING",
+          "content": {"text": "Header Text", "level": "H1"}
+        },
+        {
+          "block_type": "TEXT",
+          "content": {"body": "Paragraph of text"}
+        }
+      ],
+      "activities": [
+        {
+          "activity_type": "MCQ",
+          "activity_data": {
+            "prompt": "Choose the correct sentence.",
+            "questions": [
+              {
+                "id": 1,
+                "text": "Question text?",
+                "options": {"A": "Choice A", "B": "Choice B", "C": "Choice C", "D": "Choice D"},
+                "answer": "A"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}`
+  },
+
+  creator_quiz_builder: {
+    role_description: "You are an expert ESL Assessment Designer.",
+    prompt_text: `Generate a standalone ESL quiz about: "{topic}" at CEFR level: {level}.
+Number of questions: {questionCount}.
+Include question types: {types}.
+
+Ensure the correct answers are accurate and all distractors are plausible but incorrect.
+
+Your response must follow this JSON schema exactly:
+{
+  "title": "Quiz Title",
+  "topic": "Quiz Topic",
+  "level": "CEFR Level",
+  "questions": [
+    {
+      "question_text": "Question prompt or sentence",
+      "question_type": "MCQ",
+      "options": {"A": "Option A", "B": "Option B", "C": "Option C", "D": "Option D"},
+      "correct_answer": "A",
+      "explanation": "Why A is correct and other choices are wrong."
+    }
+  ]
+}`
+  },
+
+  learner_roleplay_coach: {
+    role_description: "You are an interactive ESL conversation roleplay partner.",
+    prompt_text: `You are playing the character: "{character}" in this scenario: "{scenario}".
+Target CEFR level: {level}.
+The learner's response is: "{learnerResponse}".
+Conversation history: {history}.
+
+Generate the next character turn in the conversation. The tone must be natural and appropriate for {level} level.
+Also, analyze the learner's response for any grammar, spelling, vocabulary, or pronunciation errors. Provide helpful corrections if needed.
+
+Your response must follow this JSON schema exactly:
+{
+  "character_reply": "Your spoken reply in character",
+  "corrections": {
+    "has_errors": true,
+    "errors": [
+      {
+        "original": "learner's segment with error",
+        "corrected": "corrected segment",
+        "explanation": "Short, clear explanation of why this was corrected."
+      }
+    ]
+  }
+}`
+  },
+
+  learner_roleplay_evaluator: {
+    role_description: "You are an expert ESL Speaking Assessor.",
+    prompt_text: `Evaluate the following completed roleplay conversation:
+Scenario: "{scenario}"
+Target level: {level}
+Conversation transcript: {transcript}
+
+Grade the learner's performance and provide detailed feedback.
+
+Your response must follow this JSON schema exactly:
+{
+  "scores": {
+    "task_achievement": 80,
+    "vocabulary_range": 75,
+    "grammar_accuracy": 85,
+    "overall": 80
+  },
+  "feedback": {
+    "strengths": ["Strong points here"],
+    "weaknesses": ["Errors or weak sentences here"],
+    "cefr_alignment": "Analysis of their performance against target CEFR",
+    "improvement_tips": ["Concrete tip 1", "Concrete tip 2"]
+  }
+}`
+  },
+
+  learner_hint_coach: {
+    role_description: "You are a supportive ESL Tutor giving hints.",
+    prompt_text: `Question context: "{questionText}"
+Learner is stuck and needs a hint. Do NOT give the direct answer. Provide a helpful hint or clue that guides them to think.
+CEFR level: {level}.
+
+Your response must follow this JSON schema:
+{
+  "hint": "Clue text"
+}`
+  },
+
+  learner_answer_explainer: {
+    role_description: "You are an encouraging ESL Teacher explaining answers.",
+    prompt_text: `Question context: "{questionText}"
+Correct answer: "{correctAnswer}"
+Learner's answer: "{learnerAnswer}"
+
+Explain why the correct answer is correct and why the learner's response was incorrect in simple, CEFR-appropriate English.
+
+Your response must follow this JSON schema:
+{
+  "explanation": "Clear explanation of the answer rules."
+}`
+  },
+
+  learner_writing_feedback: {
+    role_description: "You are a professional CEFR Writing Examiner.",
+    prompt_text: `Writing prompt: "{prompt}"
+Learner writing submission: "{submission}"
+Target level: {level}.
+
+Evaluate the writing against IELTS/CEFR rubrics.
+
+Your response must follow this JSON schema exactly:
+{
+  "scores": {
+    "task_response": 80,
+    "coherence": 75,
+    "lexical_resource": 70,
+    "grammar_range": 80,
+    "overall": 76
+  },
+  "feedback": "Overall review summary",
+  "corrections": [
+    {"original": "original text", "corrected": "corrected text", "explanation": "Why"}
+  ]
+}`
+  }
+};
+
+// 2. Core callGemini function with structured validation and retries
+export async function callGemini<T>({
+  templateKey,
+  variables,
+  responseSchema,
+  fallbackModel
+}: {
+  templateKey: string;
+  variables: Record<string, string>;
+  responseSchema?: any;
+  fallbackModel?: string;
+}): Promise<T> {
+  const modelName = fallbackModel || process.env.GEMINI_DEFAULT_MODEL || "gemini-3.5-flash";
+  const ai = getGeminiClient();
+  const supabase = createAdminClient();
+
+  // A. Fetch template from DB, fallback to code default if not present
+  let roleDescription = "";
+  let promptText = "";
+
+  try {
+    const { data: dbTemplate } = await supabase
+      .from("ai_prompt_templates")
+      .select("role_description, prompt_text")
+      .eq("template_key", templateKey)
+      .maybeSingle();
+
+    if (dbTemplate) {
+      roleDescription = dbTemplate.role_description;
+      promptText = dbTemplate.prompt_text;
+    }
+  } catch {
+    // If table read fails or doesn't exist, proceed with defaults
+  }
+
+  if (!roleDescription || !promptText) {
+    const codeDefault = DEFAULT_PROMPTS[templateKey];
+    if (!codeDefault) {
+      throw new Error(`AI prompt template key "${templateKey}" is not defined in database or code defaults.`);
+    }
+    roleDescription = codeDefault.role_description;
+    promptText = codeDefault.prompt_text;
+  }
+
+  // B. Inject variables into prompt text
+  let finalPrompt = promptText;
+  for (const [key, value] of Object.entries(variables)) {
+    finalPrompt = finalPrompt.replace(new RegExp(`{${key}}`, "g"), value);
+  }
+
+  // C. Execute generative call with structured JSON parameters
+  const generateCall = async (promptOverride?: string): Promise<string> => {
+    const response = await ai.models.generateContent({
+      model: modelName,
+      contents: promptOverride || finalPrompt,
+      config: {
+        systemInstruction: roleDescription,
+        responseMimeType: "application/json",
+        responseSchema: responseSchema // Passes JSON schema constraints directly to Gemini
+      }
+    });
+
+    const text = response.text;
+    if (!text) {
+      throw new Error("Gemini returned an empty response.");
+    }
+    return text;
+  };
+
+  // D. Execution with retry/repair loop for Free Tier limits
+  let lastError: any = null;
+  let rawText = "";
+
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      rawText = await generateCall(attempt > 1 ? undefined : undefined);
+      
+      // Basic JSON validation before returning
+      const parsed = JSON.parse(rawText);
+      return parsed as T;
+    } catch (error: any) {
+      lastError = error;
+
+      // Handle Free Tier 429 Rate Limit (RPM/RPD)
+      if (error?.status === 429 || error?.message?.includes("429")) {
+        // Sleep for 2.5 seconds before retrying on rate limit
+        await new Promise((resolve) => setTimeout(resolve, 2500));
+        continue;
+      }
+
+      // If it was a JSON parse error, trigger a repair instruction for attempt 2
+      if (error instanceof SyntaxError && attempt < 2) {
+        const repairPrompt = `${finalPrompt}\n\nCRITICAL ERROR: Your previous response was not valid JSON: "${rawText}".\nPlease fix any missing brackets, trailing commas, or escape characters. Output ONLY valid JSON.`;
+        try {
+          rawText = await generateCall(repairPrompt);
+          const parsed = JSON.parse(rawText);
+          return parsed as T;
+        } catch (repairError) {
+          lastError = repairError;
+        }
+      }
+    }
+  }
+
+  // E. Log failures to the audit table (ai_generations) for tracing
+  try {
+    await supabase.from("ai_generations").insert({
+      user_role: "SYSTEM",
+      feature_key: templateKey,
+      model_used: modelName,
+      prompt_raw: finalPrompt,
+      response_preview: rawText ? rawText.slice(0, 500) : null,
+      error_message: lastError instanceof Error ? lastError.message : String(lastError)
+    });
+  } catch {
+    // Audit log table failure must not crash client execution
+  }
+
+  throw new Error(
+    `Failed to get a valid response from Gemini after retries. Error: ${
+      lastError instanceof Error ? lastError.message : String(lastError)
+    }`
+  );
+}
