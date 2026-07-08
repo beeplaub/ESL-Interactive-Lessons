@@ -34,7 +34,7 @@ export default async function EditLessonPage({ params }: { params: Promise<{ id:
   const { id } = await params;
   const supabase = createAdminClient();
 
-  const { data: lesson } = await supabase.from("lessons").select("*").eq("id", id).single();
+  const { data: lesson } = await supabase.from("lessons").select("*").eq("id", id).maybeSingle();
   if (!lesson) notFound();
 
   const [{ data: slides }, { data: audioFiles }, { data: lessonSlideActivities }] = await Promise.all([
