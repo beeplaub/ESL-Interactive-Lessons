@@ -269,14 +269,16 @@ export async function explainQuizAnswerAction(
   correctAnswer: string,
   learnerAnswer: string
 ) {
-  const { user, profile } = await getSessionUser();
-
-  const quota = await checkUsageQuota(user.id, profile.role);
-  if (!quota.allowed) {
-    return { error: quota.message };
-  }
-
+  let isAdmin = false;
   try {
+    const { user, profile } = await getSessionUser();
+    isAdmin = profile?.role === "ADMIN";
+
+    const quota = await checkUsageQuota(user.id, profile.role);
+    if (!quota.allowed) {
+      return { error: quota.message };
+    }
+
     const response = await callGemini<{ explanation: string }>({
       templateKey: "learner_answer_explainer",
       variables: {
@@ -290,7 +292,12 @@ export async function explainQuizAnswerAction(
     await recordUsageEvent(user.id, "learner_answer_explainer", 300);
     return { explanation: response.explanation };
   } catch (error: any) {
-    return { error: error.message || "Failed to fetch explanation from Gemini." };
+    console.error("Error in explainQuizAnswerAction:", error);
+    return {
+      error: isAdmin
+        ? (error.message || "Failed to fetch explanation from Gemini.")
+        : "We couldn't generate an explanation right now. Please try again shortly."
+    };
   }
 }
 
@@ -298,8 +305,10 @@ export async function explainQuizAnswerAction(
  * Action: Starts a new AI Roleplay Session.
  */
 export async function startRoleplaySessionAction(activityId: string) {
+  let isAdmin = false;
   try {
-    const { user } = await getSessionUser();
+    const { user, profile } = await getSessionUser();
+    isAdmin = profile?.role === "ADMIN";
     const supabase = createAdminClient();
 
     // Fetch the roleplay activity details to capture context
@@ -341,7 +350,12 @@ export async function startRoleplaySessionAction(activityId: string) {
 
     return { sessionId: session.id };
   } catch (error: any) {
-    return { error: error.message || "Failed to start conversation." };
+    console.error("Error in startRoleplaySessionAction:", error);
+    return {
+      error: isAdmin
+        ? (error.message || "Failed to start conversation.")
+        : "We are having trouble connecting to the AI tutor. Please try again shortly."
+    };
   }
 }
 
@@ -349,8 +363,10 @@ export async function startRoleplaySessionAction(activityId: string) {
  * Action: Submits a learner turn message to an active roleplay session and returns character reply.
  */
 export async function submitRoleplayTurnAction(sessionId: string, learnerText: string) {
+  let isAdmin = false;
   try {
     const { user, profile } = await getSessionUser();
+    isAdmin = profile?.role === "ADMIN";
     const supabase = createAdminClient();
 
     // Check quota
@@ -418,7 +434,13 @@ export async function submitRoleplayTurnAction(sessionId: string, learnerText: s
       corrections: response.corrections
     };
   } catch (error: any) {
-    return { error: error.message || "Failed to submit roleplay turn." };
+    console.error("Error in submitRoleplayTurnAction:", error);
+    const isQuotaError = error.message?.includes("quota") || error.message?.includes("limit");
+    return {
+      error: (isAdmin || isQuotaError)
+        ? (error.message || "Failed to submit roleplay turn.")
+        : "We couldn't get a response from the AI tutor. Please check your connection and try again."
+    };
   }
 }
 
@@ -426,8 +448,10 @@ export async function submitRoleplayTurnAction(sessionId: string, learnerText: s
  * Action: Completes a roleplay session, grades it, and generates scorecard.
  */
 export async function completeRoleplaySessionAction(sessionId: string) {
+  let isAdmin = false;
   try {
     const { user, profile } = await getSessionUser();
+    isAdmin = profile?.role === "ADMIN";
     const supabase = createAdminClient();
 
     const { data: session } = await supabase
@@ -473,7 +497,12 @@ export async function completeRoleplaySessionAction(sessionId: string) {
 
     return { scorecard };
   } catch (error: any) {
-    return { error: error.message || "Failed to complete session." };
+    console.error("Error in completeRoleplaySessionAction:", error);
+    return {
+      error: isAdmin
+        ? (error.message || "Failed to complete session.")
+        : "We couldn't generate your scorecard right now. Please try again shortly."
+    };
   }
 }
 
