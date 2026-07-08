@@ -21,7 +21,9 @@ import {
 import { switchToAdminView } from "@/app/auth/actions";
 import { requireUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getLatestLevelTestSummary, type LevelTestSummary } from "@/lib/levelTestSummary";
 import { LearnerAppShell } from "@/components/LearnerAppShell";
+import { LevelTestScoreCard } from "@/components/LevelTestScoreCard";
 import { PendingAttemptSaver } from "@/components/PendingAttemptSaver";
 
 const levelNames: Record<string, string> = {
@@ -46,7 +48,8 @@ export default async function AccountPage() {
     { data: savedLessons },
     { data: courseEnrollments },
     { data: courseProgress },
-    { data: certificates }
+    { data: certificates },
+    levelTestSummary
   ] = await Promise.all([
     adminSupabase.from("quiz_attempts").select("*, quizzes(title, level)").eq("user_id", user.id).not("quiz_id", "is", null).order("completed_at", { ascending: false }),
     adminSupabase.from("wishlist_items").select("*, quizzes(title, topic, level)").eq("user_id", user.id).not("quiz_id", "is", null).order("created_at", { ascending: false }),
@@ -54,7 +57,8 @@ export default async function AccountPage() {
     adminSupabase.from("wishlist_items").select("*, lessons(title, topic, level)").eq("user_id", user.id).not("lesson_id", "is", null).order("created_at", { ascending: false }),
     adminSupabase.from("course_enrollments").select("*, courses(title, level, topic)").eq("user_id", user.id).order("enrolled_at", { ascending: false }),
     adminSupabase.from("course_progress").select("*").eq("user_id", user.id),
-    adminSupabase.from("course_certificates").select("*, courses(title, level)").eq("user_id", user.id).order("issued_at", { ascending: false })
+    adminSupabase.from("course_certificates").select("*, courses(title, level)").eq("user_id", user.id).order("issued_at", { ascending: false }),
+    getLatestLevelTestSummary(adminSupabase, user.id)
   ]);
 
   const firstName = profile?.first_name?.trim() || profile?.full_name?.split(" ")?.[0]?.trim() || "there";
@@ -113,7 +117,7 @@ export default async function AccountPage() {
             <p className="mt-0.5 text-[13px] text-[#6E738D]">Let&apos;s continue your English journey.</p>
           </div>
 
-          <ProgressCard currentLevel={currentLevel} activeLevelIndex={activeLevelIndex} />
+          <ProgressCard currentLevel={currentLevel} activeLevelIndex={activeLevelIndex} levelTestSummary={levelTestSummary} />
 
           <DashboardCard className="p-5 md:px-6">
             <SectionHeader title="Continue Learning" href="/courses" />
@@ -203,7 +207,15 @@ function SectionHeader({ title, href, small }: { title: string; href: string; sm
   );
 }
 
-function ProgressCard({ currentLevel, activeLevelIndex }: { currentLevel: string; activeLevelIndex: number }) {
+function ProgressCard({
+  currentLevel,
+  activeLevelIndex,
+  levelTestSummary
+}: {
+  currentLevel: string;
+  activeLevelIndex: number;
+  levelTestSummary: LevelTestSummary | null;
+}) {
   const progress = Math.max(12, Math.round(((activeLevelIndex + 1) / 6) * 86));
   return (
     <div className="flex flex-col gap-4 rounded-[24px] bg-gradient-to-br from-[#1A1060] via-[#0C1945] to-[#0E1F5A] p-5 text-white shadow-[0_16px_48px_rgba(20,23,80,.25)] md:p-7 min-[1100px]:flex-row min-[1100px]:gap-8">
@@ -228,25 +240,19 @@ function ProgressCard({ currentLevel, activeLevelIndex }: { currentLevel: string
         </div>
         <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-gradient-to-r from-[#6C3BFF] via-[#8A58FF] to-[#B06AFF]" style={{ width: `${progress}%` }} /></div>
       </div>
-      <div className="min-[1100px]:w-[220px] rounded-[18px] bg-white/[.07] p-5">
-        <div className="text-[11px] font-medium text-white/55">Weighted Score</div>
-        <div className="mt-1 text-[40px] font-extrabold leading-none">82%<span className="ml-2 text-[13px] font-semibold text-[#00C98D]">↑ 8%</span></div>
-        <div className="mt-4 space-y-2">
-          <SubScore label="Use of English" value={84} />
-          <SubScore label="Reading" value={80} green />
+      {levelTestSummary ? (
+        <LevelTestScoreCard
+          summary={levelTestSummary}
+          primaryHref={`/level-test/result?resultId=${levelTestSummary.resultId}`}
+          primaryLabel="View Level Test Results"
+        />
+      ) : (
+        <div className="min-[1100px]:w-[220px] rounded-[18px] bg-white/[.07] p-5">
+          <div className="text-[11px] font-medium text-white/55">Level Test</div>
+          <div className="mt-2 text-sm font-semibold leading-5 text-white/80">Take the level test to see your weighted score and section breakdown here.</div>
+          <Link href="/level-test" className="mt-4 flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] px-4 py-3 text-xs font-semibold text-white">Take Level Test <ChevronRight className="size-[13px]" /></Link>
         </div>
-        <Link href="/level-test/result" className="mt-4 flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] px-4 py-3 text-xs font-semibold text-white">View Level Test Results <ChevronRight className="size-[13px]" /></Link>
-      </div>
-    </div>
-  );
-}
-
-function SubScore({ label, value, green }: { label: string; value: number; green?: boolean }) {
-  return (
-    <div className="flex items-center gap-2">
-      <span className="w-[100px] text-xs text-white/60">{label}</span>
-      <span className="h-1.5 flex-1 rounded-full bg-white/10"><span className={`block h-full rounded-full ${green ? "bg-[#00C98D]" : "bg-[#4E8DFF]"}`} style={{ width: `${value}%` }} /></span>
-      <span className="w-8 text-right text-xs text-white/70">{value}%</span>
+      )}
     </div>
   );
 }

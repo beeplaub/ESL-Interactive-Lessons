@@ -1,12 +1,16 @@
 import Link from "next/link";
 import { ArrowRight, BadgeCheck, BookOpen, CheckCircle2, Clock3, FileQuestion, ShieldCheck, Sparkles, Target } from "lucide-react";
 import { LearnerAppShell } from "@/components/LearnerAppShell";
+import { LevelTestScoreCard } from "@/components/LevelTestScoreCard";
 import { getPublishedLevelTest } from "@/lib/configurableLevelTest";
+import { getLatestLevelTestSummary } from "@/lib/levelTestSummary";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function LevelTestPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  const levelTestSummary = user ? await getLatestLevelTestSummary(createAdminClient(), user.id) : null;
   const test = await getPublishedLevelTest();
   const questionCount = test.sections.reduce((sum, section) => sum + section.questions.length, 0);
   const startHref = user ? "/level-test/test" : `/login?next=${encodeURIComponent("/level-test/test")}`;
@@ -33,6 +37,17 @@ export default async function LevelTestPage() {
             </Link>
           </div>
         </div>
+
+        {levelTestSummary ? (
+          <LevelTestScoreCard
+            summary={levelTestSummary}
+            wrapped
+            primaryHref={`/level-test/result?resultId=${levelTestSummary.resultId}`}
+            primaryLabel="View full results"
+            secondaryHref="/level-test/test"
+            secondaryLabel="Retake level test"
+          />
+        ) : null}
 
         <div className="rounded-[24px] border border-[#ECECF5] bg-white p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)] sm:p-6">
           <div className="flex items-center gap-3">

@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { signOut } from "@/app/auth/actions";
 import { getNextQuizBadge, getQuizBadge } from "@/lib/quizBadges";
+import { getLatestLevelTestSummary } from "@/lib/levelTestSummary";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { LearnerSidebar } from "@/components/LearnerSidebar";
@@ -69,7 +70,7 @@ export async function LearnerAppShell({
   const currentLevel = profile?.cefr_level || null;
   const notifications = await buildNotifications(admin, user?.id ?? null, currentLevel);
   const rightSidebarData = showRightSidebar ? await buildRightSidebarData(admin, user?.id ?? null, currentLevel) : null;
-  const levelProgressPercent = user ? await getLatestLevelTestPercent(admin, user.id) : null;
+  const levelProgressPercent = user ? (await getLatestLevelTestSummary(admin, user.id))?.weightedPercent ?? null : null;
 
   return (
     <main className="min-h-screen bg-[#F6F7FB] font-sans text-[#14172B]">
@@ -109,29 +110,6 @@ export async function LearnerAppShell({
 
 function toDateKey(date: Date) {
   return date.toISOString().slice(0, 10);
-}
-
-/**
- * Real "position within the current level" signal for the CEFR card's
- * progress bar. Rather than a hardcoded fill, this is the learner's most
- * recent level-test percentage — a genuine measurement instead of a
- * placeholder. Returns null when the learner hasn't taken a level test yet,
- * so the UI can show an honest "not measured" state instead of a fake number.
- */
-async function getLatestLevelTestPercent(admin: ReturnType<typeof createAdminClient>, userId: string): Promise<number | null> {
-  const { data } = await admin
-    .from("level_test_results")
-    .select("percentage,raw_score,total_questions")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (!data) return null;
-  const total = Number(data.total_questions ?? 0);
-  const percentage = data.percentage === null || data.percentage === undefined
-    ? (total ? Math.round((Number(data.raw_score ?? 0) / total) * 100) : null)
-    : Math.round(Number(data.percentage));
-  return percentage === null ? null : Math.min(100, Math.max(0, percentage));
 }
 
 export type WeekActivityDay = { label: string; active: boolean; isToday: boolean };
