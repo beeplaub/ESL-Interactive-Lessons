@@ -118,9 +118,7 @@ async function getSessionUser() {
   if (!user) throw new Error("Unauthorized access. Please log in.");
   
   const profile = await getFreshProfile(user.id);
-  if (!profile) throw new Error("Learner profile not found.");
-  
-  return { user, profile };
+  return { user, profile: profile || { id: user.id, role: "LEARNER" } };
 }
 
 /**
@@ -300,171 +298,183 @@ export async function explainQuizAnswerAction(
  * Action: Starts a new AI Roleplay Session.
  */
 export async function startRoleplaySessionAction(activityId: string) {
-  const { user } = await getSessionUser();
-  const supabase = createAdminClient();
+  try {
+    const { user } = await getSessionUser();
+    const supabase = createAdminClient();
 
-  // Fetch the roleplay activity details to capture context
-  const { data: activity } = await supabase
-    .from("lesson_slide_activities")
-    .select("activity_data, lessons(level)")
-    .eq("id", activityId)
-    .single();
+    // Fetch the roleplay activity details to capture context
+    const { data: activity } = await supabase
+      .from("lesson_slide_activities")
+      .select("activity_data, lessons(level)")
+      .eq("id", activityId)
+      .single();
 
-  if (!activity) throw new Error("AI Roleplay activity not found.");
+    if (!activity) throw new Error("AI Roleplay activity not found.");
 
-  const data = activity.activity_data as any;
-  const scenario = data?.prompt || "Standard Conversation";
-  const character = data?.character || "Assistant";
-  const firstTurn = data?.first_turn || "Hello! Shall we begin?";
-  const level = (activity.lessons as any)?.level || "B1";
+    const data = activity.activity_data as any;
+    const scenario = data?.prompt || "Standard Conversation";
+    const character = data?.character || "Assistant";
+    const firstTurn = data?.first_turn || "Hello! Shall we begin?";
+    const level = (activity.lessons as any)?.level || "B1";
 
-  // Create session
-  const { data: session, error } = await supabase
-    .from("ai_roleplay_sessions")
-    .insert({
-      user_id: user.id,
-      lesson_activity_id: activityId,
-      scenario_context: `Scenario: ${scenario} · Partner: ${character}`,
-      cefr_level: level,
-      status: "IN_PROGRESS"
-    })
-    .select("id")
-    .single();
+    // Create session
+    const { data: session, error } = await supabase
+      .from("ai_roleplay_sessions")
+      .insert({
+        user_id: user.id,
+        lesson_activity_id: activityId,
+        scenario_context: `Scenario: ${scenario} · Partner: ${character}`,
+        cefr_level: level,
+        status: "IN_PROGRESS"
+      })
+      .select("id")
+      .single();
 
-  if (error) throw error;
+    if (error) throw error;
 
-  // Insert first character turn message
-  await supabase.from("ai_roleplay_messages").insert({
-    session_id: session.id,
-    sender: "AI",
-    message_text: firstTurn
-  });
+    // Insert first character turn message
+    await supabase.from("ai_roleplay_messages").insert({
+      session_id: session.id,
+      sender: "AI",
+      message_text: firstTurn
+    });
 
-  return session.id;
+    return { sessionId: session.id };
+  } catch (error: any) {
+    return { error: error.message || "Failed to start conversation." };
+  }
 }
 
 /**
  * Action: Submits a learner turn message to an active roleplay session and returns character reply.
  */
 export async function submitRoleplayTurnAction(sessionId: string, learnerText: string) {
-  const { user, profile } = await getSessionUser();
-  const supabase = createAdminClient();
+  try {
+    const { user, profile } = await getSessionUser();
+    const supabase = createAdminClient();
 
-  // Check quota
-  const quota = await checkUsageQuota(user.id, profile.role);
-  if (!quota.allowed) {
-    throw new Error(quota.message || "Daily quota exceeded.");
+    // Check quota
+    const quota = await checkUsageQuota(user.id, profile.role);
+    if (!quota.allowed) {
+      throw new Error(quota.message || "Daily quota exceeded.");
+    }
+
+    // A. Fetch session and message history
+    const { data: session } = await supabase
+      .from("ai_roleplay_sessions")
+      .select("scenario_context, cefr_level")
+      .eq("id", sessionId)
+      .single();
+
+    if (!session) throw new Error("Conversation session not found.");
+
+    const { data: history } = await supabase
+      .from("ai_roleplay_messages")
+      .select("sender, message_text")
+      .eq("session_id", sessionId)
+      .order("created_at", { ascending: true });
+
+    const historyStr = (history ?? [])
+      .map((m) => `${m.sender}: ${m.message_text}`)
+      .join("\n");
+
+    const scenarioMeta = session.scenario_context.split("·");
+    const scenario = scenarioMeta[0]?.replace("Scenario:", "").trim() || "";
+    const character = scenarioMeta[1]?.replace("Partner:", "").trim() || "";
+
+    // B. Call Gemini
+    const response = await callGemini<any>({
+      templateKey: "learner_roleplay_coach",
+      variables: {
+        character,
+        scenario,
+        learnerResponse: learnerText,
+        level: session.cefr_level,
+        history: historyStr
+      },
+      responseSchema: roleplayTurnSchema
+    });
+
+    // C. Insert learner turn with corrections metadata
+    await supabase.from("ai_roleplay_messages").insert({
+      session_id: sessionId,
+      sender: "LEARNER",
+      message_text: learnerText,
+      corrections: response.corrections
+    });
+
+    // D. Insert AI characters response
+    await supabase.from("ai_roleplay_messages").insert({
+      session_id: sessionId,
+      sender: "AI",
+      message_text: response.character_reply
+    });
+
+    // E. Record usage event
+    await recordUsageEvent(user.id, "learner_roleplay_coach", 500);
+
+    return {
+      characterReply: response.character_reply,
+      corrections: response.corrections
+    };
+  } catch (error: any) {
+    return { error: error.message || "Failed to submit roleplay turn." };
   }
-
-  // A. Fetch session and message history
-  const { data: session } = await supabase
-    .from("ai_roleplay_sessions")
-    .select("scenario_context, cefr_level")
-    .eq("id", sessionId)
-    .single();
-
-  if (!session) throw new Error("Conversation session not found.");
-
-  const { data: history } = await supabase
-    .from("ai_roleplay_messages")
-    .select("sender, message_text")
-    .eq("session_id", sessionId)
-    .order("created_at", { ascending: true });
-
-  const historyStr = (history ?? [])
-    .map((m) => `${m.sender}: ${m.message_text}`)
-    .join("\n");
-
-  const scenarioMeta = session.scenario_context.split("·");
-  const scenario = scenarioMeta[0]?.replace("Scenario:", "").trim() || "";
-  const character = scenarioMeta[1]?.replace("Partner:", "").trim() || "";
-
-  // B. Call Gemini
-  const response = await callGemini<any>({
-    templateKey: "learner_roleplay_coach",
-    variables: {
-      character,
-      scenario,
-      learnerResponse: learnerText,
-      level: session.cefr_level,
-      history: historyStr
-    },
-    responseSchema: roleplayTurnSchema
-  });
-
-  // C. Insert learner turn with corrections metadata
-  await supabase.from("ai_roleplay_messages").insert({
-    session_id: sessionId,
-    sender: "LEARNER",
-    message_text: learnerText,
-    corrections: response.corrections
-  });
-
-  // D. Insert AI characters response
-  await supabase.from("ai_roleplay_messages").insert({
-    session_id: sessionId,
-    sender: "AI",
-    message_text: response.character_reply
-  });
-
-  // E. Record usage event
-  await recordUsageEvent(user.id, "learner_roleplay_coach", 500);
-
-  return {
-    characterReply: response.character_reply,
-    corrections: response.corrections
-  };
 }
 
 /**
  * Action: Completes a roleplay session, grades it, and generates scorecard.
  */
 export async function completeRoleplaySessionAction(sessionId: string) {
-  const { user, profile } = await getSessionUser();
-  const supabase = createAdminClient();
+  try {
+    const { user, profile } = await getSessionUser();
+    const supabase = createAdminClient();
 
-  const { data: session } = await supabase
-    .from("ai_roleplay_sessions")
-    .select("scenario_context, cefr_level")
-    .eq("id", sessionId)
-    .single();
+    const { data: session } = await supabase
+      .from("ai_roleplay_sessions")
+      .select("scenario_context, cefr_level")
+      .eq("id", sessionId)
+      .single();
 
-  if (!session) throw new Error("Conversation session not found.");
+    if (!session) throw new Error("Conversation session not found.");
 
-  const { data: history } = await supabase
-    .from("ai_roleplay_messages")
-    .select("sender, message_text")
-    .eq("session_id", sessionId)
-    .order("created_at", { ascending: true });
+    const { data: history } = await supabase
+      .from("ai_roleplay_messages")
+      .select("sender, message_text")
+      .eq("session_id", sessionId)
+      .order("created_at", { ascending: true });
 
-  const transcript = (history ?? [])
-    .map((m) => `${m.sender}: ${m.message_text}`)
-    .join("\n");
+    const transcript = (history ?? [])
+      .map((m) => `${m.sender}: ${m.message_text}`)
+      .join("\n");
 
-  // Call Gemini evaluator
-  const scorecard = await callGemini<any>({
-    templateKey: "learner_roleplay_evaluator",
-    variables: {
-      scenario: session.scenario_context,
-      level: session.cefr_level,
-      transcript
-    },
-    responseSchema: scorecardSchema
-  });
+    // Call Gemini evaluator
+    const scorecard = await callGemini<any>({
+      templateKey: "learner_roleplay_evaluator",
+      variables: {
+        scenario: session.scenario_context,
+        level: session.cefr_level,
+        transcript
+      },
+      responseSchema: scorecardSchema
+    });
 
-  // Save evaluation scorecard to DB
-  await supabase
-    .from("ai_roleplay_sessions")
-    .update({
-      status: "COMPLETED",
-      scorecard
-    })
-    .eq("id", sessionId);
+    // Save evaluation scorecard to DB
+    await supabase
+      .from("ai_roleplay_sessions")
+      .update({
+        status: "COMPLETED",
+        scorecard
+      })
+      .eq("id", sessionId);
 
-  // Record usage event
-  await recordUsageEvent(user.id, "learner_roleplay_evaluator", 800);
+    // Record usage event
+    await recordUsageEvent(user.id, "learner_roleplay_evaluator", 800);
 
-  return scorecard;
+    return { scorecard };
+  } catch (error: any) {
+    return { error: error.message || "Failed to complete session." };
+  }
 }
 
 /**

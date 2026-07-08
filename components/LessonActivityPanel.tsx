@@ -332,7 +332,12 @@ function AiRoleplayPanel({ activity, onNext, previewOnly }: {
     startTransition(async () => {
       try {
         setError(null);
-        const sid = await startRoleplaySessionAction(activity.id);
+        const result = await startRoleplaySessionAction(activity.id);
+        if (result && "error" in result && result.error) {
+          setError(String(result.error));
+          return;
+        }
+        const sid = (result as any).sessionId;
         setSessionId(sid);
         setMessages([{ sender: "AI", text: firstTurn }]);
         setPhase("chatting");
@@ -353,9 +358,16 @@ function AiRoleplayPanel({ activity, onNext, previewOnly }: {
       try {
         setError(null);
         const result = await submitRoleplayTurnAction(sessionId, text);
+        if (result && "error" in result && result.error) {
+          setError(String(result.error));
+          // Remove the learner's message if it failed to submit so they can retry
+          setMessages((prev) => prev.slice(0, -1));
+          setInput(text);
+          return;
+        }
         setMessages((prev) => [
           ...prev,
-          { sender: "AI", text: result.characterReply, corrections: result.corrections }
+          { sender: "AI", text: (result as any).characterReply, corrections: (result as any).corrections }
         ]);
       } catch (err: any) {
         setError(err.message || "Failed to get response.");
@@ -370,7 +382,13 @@ function AiRoleplayPanel({ activity, onNext, previewOnly }: {
       try {
         setError(null);
         const result = await completeRoleplaySessionAction(sessionId);
-        setScorecard(result);
+        if (result && "error" in result && result.error) {
+          setError(String(result.error));
+          setPhase("chatting");
+          return;
+        }
+        const card = (result as any).scorecard;
+        setScorecard(card);
         setPhase("done");
       } catch (err: any) {
         setError(err.message || "Could not generate scorecard.");
