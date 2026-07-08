@@ -399,7 +399,7 @@ function AiRoleplayPanel({ activity, onNext, previewOnly }: {
         <div className="mt-3 rounded-md bg-gradient-to-br from-emerald-50 to-teal-50 p-4 border border-emerald-100">
           <p className="text-sm font-medium text-emerald-800">Scenario</p>
           <p className="mt-1 text-sm text-emerald-700">{scenario}</p>
-          <p className="mt-3 text-sm text-black/50">You'll practice with <strong className="text-black/70">{character}</strong></p>
+          <p className="mt-3 text-sm text-black/50">You&apos;ll practice with <strong className="text-black/70">{character}</strong></p>
         </div>
         {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
         <button
@@ -601,11 +601,6 @@ export function LessonActivityPanel({
   previewOnly?: boolean; initialAttempt?: SavedAttempt | null; attempts?: SavedAttempt[]; onSavedAttempt?: (attempt: SavedAttempt) => void;
   courseItemId?: string | null;
 }) {
-  // ── AI Roleplay: full chat UI instead of quiz carousel ──
-  if (activity.activity_type === "AI_ROLEPLAY") {
-    return <AiRoleplayPanel activity={activity} onNext={onNext} previewOnly={previewOnly} />;
-  }
-
   const questions = questionsFromData(activity.activity_data, activity.activity_type, activity.id);
   const initialAnswers = asRecord(initialAttempt?.answers);
   const [answers, setAnswers] = useState<Record<string, unknown>>(initialAnswers);
@@ -616,6 +611,11 @@ export function LessonActivityPanel({
 
   // Carousel state
   const [qIndex, setQIndex] = useState(0);
+
+  // ── AI Roleplay: full chat UI instead of quiz carousel ──
+  if (activity.activity_type === "AI_ROLEPLAY") {
+    return <AiRoleplayPanel activity={activity} onNext={onNext} previewOnly={previewOnly} />;
+  }
 
   const currentQuestion = questions[qIndex] ?? null;
   const allAnswered = questions.length > 0 && questions.every((q) => hasAnswer(q, answers[q.id]));
