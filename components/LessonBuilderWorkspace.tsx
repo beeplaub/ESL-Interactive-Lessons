@@ -22,6 +22,8 @@ import {
   updateLessonBuilderDetails,
   updateLessonStatus
 } from "@/app/admin/lessons/actions";
+import { generateLessonDraftAction, insertDraftIntoLessonAction } from "@/app/admin/lessons/aiActions";
+import { Sparkles, Loader2 } from "lucide-react";
 import { InLessonActivitiesEditor } from "@/components/InLessonActivitiesEditor";
 import { LessonActivityPanel } from "@/components/LessonActivityPanel";
 import { LessonBlockPreview } from "@/components/LessonBlockPreview";
@@ -225,6 +227,246 @@ function DuplicateSlideModal({
   );
 }
 
+function AiGeneratorModal({
+  lesson,
+  obe,
+  onClose,
+  onBusy,
+  onComplete,
+}: {
+  lesson: Lesson;
+  obe?: ObeData;
+  onClose: () => void;
+  onBusy: (msg: string | null) => void;
+  onComplete: () => void;
+}) {
+  const [topic, setTopic] = useState(lesson.topic || "");
+  const [level, setLevel] = useState(lesson.level || "B1");
+  const [outcomes, setOutcomes] = useState(() => {
+    if (obe?.lessonOutcomes) {
+      return obe.lessonOutcomes.map((o) => o.outcome).join(", ");
+    }
+    return "Develop vocabulary and reading comprehension.";
+  });
+  const [style, setStyle] = useState("Communicative ESL");
+  const [slideCount, setSlideCount] = useState(6);
+
+  const [phase, setPhase] = useState<"form" | "loading" | "preview">("form");
+  const [error, setError] = useState<string | null>(null);
+  const [draftId, setDraftId] = useState<string | null>(null);
+  const [draftContent, setDraftContent] = useState<any | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  async function handleGenerate(e: React.FormEvent) {
+    e.preventDefault();
+    setPhase("loading");
+    setError(null);
+
+    const formData = new FormData();
+    formData.append("topic", topic);
+    formData.append("level", level);
+    formData.append("outcomes", outcomes);
+    formData.append("style", style);
+    formData.append("slideCount", String(slideCount));
+
+    startTransition(async () => {
+      try {
+        const result = await generateLessonDraftAction(formData);
+        if (result.draftContent) {
+          setDraftId(result.draftId);
+          setDraftContent(result.draftContent);
+          setPhase("preview");
+        } else {
+          throw new Error("No content generated.");
+        }
+      } catch (err: any) {
+        setError(err.message || "Failed to generate lesson draft.");
+        setPhase("form");
+      }
+    });
+  }
+
+  function handleInsert() {
+    if (!draftId) return;
+    onBusy("Inserting generated slides...");
+    onClose();
+    startTransition(async () => {
+      try {
+        await insertDraftIntoLessonAction(draftId, lesson.id);
+        onBusy(null);
+        onComplete();
+      } catch (err: any) {
+        alert(err.message || "Failed to insert draft.");
+        onBusy(null);
+      }
+    });
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 px-4 py-6">
+      <div className="flex flex-col max-h-[90vh] w-full max-w-2xl overflow-hidden rounded-xl bg-white shadow-2xl">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-black/10 px-5 py-4">
+          <div className="flex items-center gap-2">
+            <Sparkles className="text-moss size-5" />
+            <h2 className="text-lg font-semibold">Generate Lesson with Gemini</h2>
+          </div>
+          <button type="button" onClick={onClose} className="rounded-md border border-black/10 p-1.5 hover:bg-black/5">
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-5">
+          {phase === "form" && (
+            <form onSubmit={handleGenerate} className="grid gap-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="text-sm font-medium">
+                  Topic
+                  <input
+                    required
+                    value={topic}
+                    onChange={(e) => setTopic(e.target.value)}
+                    placeholder="e.g. Ordering Food at a Restaurant"
+                    className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+                  />
+                </label>
+                <label className="text-sm font-medium">
+                  CEFR Level
+                  <select
+                    value={level}
+                    onChange={(e) => setLevel(e.target.value)}
+                    className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+                  >
+                    {levelOptions.map((l) => (
+                      <option key={l} value={l}>{l}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+
+              <label className="text-sm font-medium">
+                Target Outcomes
+                <textarea
+                  required
+                  value={outcomes}
+                  onChange={(e) => setOutcomes(e.target.value)}
+                  placeholder="What should the learners achieve?"
+                  className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm min-h-[80px]"
+                />
+              </label>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="text-sm font-medium">
+                  Teaching Style
+                  <input
+                    value={style}
+                    onChange={(e) => setStyle(e.target.value)}
+                    placeholder="e.g. Communicative ESL, Gamified"
+                    className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+                  />
+                </label>
+                <label className="text-sm font-medium">
+                  Slide Count
+                  <input
+                    type="number"
+                    min="1"
+                    max="15"
+                    value={slideCount}
+                    onChange={(e) => setSlideCount(Math.max(1, parseInt(e.target.value) || 6))}
+                    className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+                  />
+                </label>
+              </div>
+
+              {error && <p className="text-xs font-medium text-red-600">{error}</p>}
+
+              <div className="mt-4 flex justify-end gap-2">
+                <button type="button" onClick={onClose} className="rounded-md border border-black/15 px-4 py-2 text-sm hover:bg-black/5">
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="inline-flex items-center gap-1.5 rounded-md bg-moss px-5 py-2 text-sm font-semibold text-white hover:bg-moss/90"
+                >
+                  <Sparkles size={14} /> Generate Draft
+                </button>
+              </div>
+            </form>
+          )}
+
+          {phase === "loading" && (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <Loader2 className="animate-spin text-moss size-10 mb-4" />
+              <h3 className="text-base font-semibold">Gemini is drafting your lesson...</h3>
+              <p className="mt-1 text-sm text-black/55 max-w-sm">
+                Generating level-appropriate vocabulary, grammar tips, readings, and interactive activities.
+              </p>
+            </div>
+          )}
+
+          {phase === "preview" && draftContent && (
+            <div className="grid gap-4">
+              <div className="rounded-md bg-slate-50 border border-black/5 p-4">
+                <h3 className="font-semibold text-moss">{draftContent.title || "Untitled Lesson"}</h3>
+                <p className="text-xs text-black/60 mt-0.5">{draftContent.topic} · Level {draftContent.level}</p>
+                <p className="text-xs text-black/55 mt-2 italic">{draftContent.description}</p>
+              </div>
+
+              <div className="space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-wider text-black/45">Generated Slides</p>
+                {(draftContent.slides || []).map((s: any, idx: number) => (
+                  <div key={idx} className="rounded-md border border-black/10 p-3 bg-white hover:border-black/20 transition-all">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <span className="text-[10px] uppercase font-bold text-moss bg-moss/10 px-1.5 py-0.5 rounded">
+                          Slide {s.slide_number}
+                        </span>
+                        <h4 className="text-sm font-semibold mt-1">{s.title}</h4>
+                        {s.section_label && <p className="text-xs text-black/40">{s.section_label}</p>}
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs text-black/60">{(s.blocks || []).length} Visual Blocks</p>
+                        <p className="text-xs text-black/60">{(s.activities || []).length} Activities</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-4 flex justify-between gap-2 border-t border-black/10 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setPhase("form")}
+                  className="rounded-md border border-black/15 px-4 py-2 text-sm hover:bg-black/5"
+                >
+                  Regenerate / Adjust
+                </button>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="rounded-md border border-black/15 px-4 py-2 text-sm hover:bg-black/5"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleInsert}
+                    className="rounded-md bg-moss px-5 py-2 text-sm font-semibold text-white hover:bg-moss/90"
+                  >
+                    Merge to Lesson
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function LessonBuilderWorkspace({ lesson, slides, blocks, activities, obe }: Props) {
   const [localSlides, setLocalSlides] = useState(slides);
   const [selectedSlideId, setSelectedSlideId] = useState(() => {
@@ -233,6 +475,7 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities, obe
     return saved && slides.some((slide) => slide.id === saved) ? saved : slides[0]?.id ?? "";
   });
   const [isMetadataOpen, setIsMetadataOpen] = useState(false);
+  const [isAiGeneratorOpen, setIsAiGeneratorOpen] = useState(false);
   const [busyMessage, setBusyMessage] = useState<string | null>(null);
   const [draggedSlideId, setDraggedSlideId] = useState<string | null>(null);
   const [addAfter, setAddAfter] = useState<number | null>(null);
@@ -384,6 +627,17 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities, obe
           </div>
         </div>
       )}
+      {isAiGeneratorOpen && (
+        <AiGeneratorModal
+          lesson={lesson}
+          obe={obe}
+          onClose={() => setIsAiGeneratorOpen(false)}
+          onBusy={setBusyMessage}
+          onComplete={() => {
+            window.location.reload();
+          }}
+        />
+      )}
 
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
@@ -396,6 +650,13 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities, obe
           <p className="mt-1 text-sm text-black/55">Build slides, preview the learner view, and edit the selected slide.</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setIsAiGeneratorOpen(true)}
+            className="inline-flex items-center gap-2 rounded-md bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2 text-sm font-semibold text-white shadow hover:from-emerald-700 hover:to-teal-700 transition-all"
+          >
+            <Sparkles size={16} /> Generate with AI
+          </button>
           <Link href="/admin/content-library?type=LESSON_BLOCK" className="inline-flex items-center gap-2 rounded-md border border-black/15 bg-white px-4 py-2 text-sm font-medium hover:bg-black/5">
             <Library size={16} /> Content library
           </Link>
