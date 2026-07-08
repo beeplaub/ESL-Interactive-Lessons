@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import Link from "next/link";
 import {
   BarChart2,
@@ -12,27 +13,18 @@ import {
   Menu,
   Target,
   Trophy,
-  User,
-  Users
+  User
 } from "lucide-react";
 import { signOut } from "@/app/auth/actions";
 import { getNextQuizBadge, getQuizBadge } from "@/lib/quizBadges";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { LearnerSidebar } from "@/components/LearnerSidebar";
 
-const levelNames: Record<string, string> = {
-  A1: "Beginner",
-  A2: "Elementary",
-  B1: "Intermediate",
-  B2: "Upper Intermediate",
-  C1: "Advanced",
-  C2: "Mastery"
-};
-
-type ActiveItem = "home" | "quizzes" | "courses" | "level-test" | "leaderboard" | "language-profile" | "profile";
+export type ActiveItem = "home" | "quizzes" | "courses" | "level-test" | "leaderboard" | "language-profile" | "profile";
 
 type BreadcrumbItem = { label: string; href?: string };
-type NotificationItem = { title: string; detail: string; href: string; tone: "purple" | "orange" | "green" | "blue" };
+export type NotificationItem = { title: string; detail: string; href: string; tone: "purple" | "orange" | "green" | "blue" };
 
 const defaultBreadcrumbs: Record<ActiveItem, BreadcrumbItem[]> = {
   home: [{ label: "Home" }],
@@ -65,6 +57,8 @@ export async function LearnerAppShell({
 }) {
   const supabase = await createClient();
   const admin = createAdminClient();
+  const cookieStore = await cookies();
+  const sidebarCollapsed = cookieStore.get("brenup_sidebar_collapsed")?.value === "1";
   const { data: { user } } = await supabase.auth.getUser();
   const { data: profile } = user
     ? await admin.from("profiles").select("first_name,last_name,full_name,cefr_level,avatar_url").eq("id", user.id).maybeSingle()
@@ -87,7 +81,7 @@ export async function LearnerAppShell({
         notifications={notifications}
       />
       <div className="mx-auto flex min-h-screen max-w-[1536px] items-start gap-5 p-3 pb-24 min-[1180px]:p-6 min-[1180px]:pb-6">
-        <LearnerSidebar active={active} currentLevel={currentLevel} />
+        <LearnerSidebar active={active} currentLevel={currentLevel} initialCollapsed={sidebarCollapsed} />
         <section className={`min-w-0 flex-1 pt-[60px] min-[1180px]:pt-0 ${contentClassName}`}>
           {showChrome ? (
             <DesktopLearnerChrome
@@ -465,77 +459,6 @@ function LearnerFooter() {
       </div>
     </footer>
   );
-}
-
-function LearnerSidebar({ active, currentLevel }: { active: ActiveItem; currentLevel: string | null }) {
-  const navItems = [
-    { href: "/account", label: "Home", icon: Home, key: "home" },
-    { href: "/quizzes", label: "Quizzes", icon: HelpCircle, key: "quizzes" },
-    { href: "/courses", label: "Courses", icon: GraduationCap, key: "courses" },
-    { href: "/level-test", label: "Level Test", icon: Target, key: "level-test" },
-    { href: "/language-profile", label: "Language Profile", icon: BarChart2, key: "language-profile" },
-    { href: "/leaderboard", label: "Leaderboard", icon: BarChart2, key: "leaderboard" },
-    { href: "#", label: "Community", icon: Users, key: "community", disabled: true, badge: "NEW" }
-  ];
-
-  return (
-    <aside className="sticky top-6 hidden max-h-[calc(100vh-48px)] w-[225px] min-w-[225px] flex-col overflow-y-auto rounded-[24px] bg-gradient-to-b from-[#09112C] to-[#0C1636] p-5 [scrollbar-width:none] min-[1180px]:flex [&::-webkit-scrollbar]:hidden">
-      <Link href="/" className="flex items-center gap-2.5 pb-5">
-        <div className="grid size-10 place-items-center rounded-xl bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF]">
-          <Layers className="size-[22px] text-white" />
-        </div>
-        <div>
-          <div className="text-base font-bold leading-tight text-white">BrenUp</div>
-          <div className="text-[10px] font-medium text-[#8890B8]">Level Up Your English</div>
-        </div>
-      </Link>
-      <nav className="flex flex-1 flex-col gap-0.5">
-        {navItems.map(({ key, ...item }) => (
-          <NavItem key={item.label} {...item} active={active === key} />
-        ))}
-      </nav>
-      {currentLevel ? (
-        <div className="mt-4 rounded-[20px] bg-gradient-to-br from-[#6C3BFF] to-[#4520D9] p-[18px] text-white">
-          <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide opacity-75">Current CEFR Level</div>
-          <div className="text-[40px] font-extrabold leading-none">{currentLevel}</div>
-          <div className="mb-3 text-xs opacity-80">{levelNames[currentLevel] ?? "English level"}</div>
-          <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-white/20">
-            <div className="h-full w-[72%] rounded-full bg-gradient-to-r from-white to-white/70" />
-          </div>
-          <Link href="/level-test" className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-white/30 bg-white/20 p-2.5 text-xs font-semibold text-white">
-            View Level Roadmap <ChevronRight className="size-[13px]" />
-          </Link>
-        </div>
-      ) : (
-        <div className="mt-4 rounded-[20px] bg-gradient-to-br from-[#6C3BFF] to-[#4520D9] p-[18px] text-white">
-          <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide opacity-75">Find Your Level</div>
-          <div className="text-[30px] font-extrabold leading-none">A1-C2</div>
-          <div className="mb-3 mt-1 text-xs opacity-80">Take the free CEFR check and get a learning direction.</div>
-          <Link href="/level-test" className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-white/30 bg-white/20 p-2.5 text-xs font-semibold text-white">
-            Take Level Test <ChevronRight className="size-[13px]" />
-          </Link>
-        </div>
-      )}
-      <PremiumCard />
-    </aside>
-  );
-}
-
-function PremiumCard() {
-  return (
-    <div className="mt-3 rounded-[20px] border border-[#6B4A00] bg-gradient-to-br from-[#2A1A00] to-[#3D2800] p-4 text-white">
-      <div className="mb-1.5 flex items-center gap-2"><span>👑</span><span className="text-sm font-bold">Go Premium</span></div>
-      <p className="mb-3 text-[11px] leading-5 text-[#B8996A]">Unlock all courses, detailed feedback, and more!</p>
-      <button type="button" className="w-full cursor-default rounded-xl bg-gradient-to-br from-[#FFB545] to-[#FF8C00] p-2.5 text-xs font-bold text-[#1A0D00]">Upgrade Now</button>
-    </div>
-  );
-}
-
-function NavItem({ href, label, icon: Icon, active, disabled, badge }: { href: string; label: string; icon: React.ElementType; active?: boolean; disabled?: boolean; badge?: string }) {
-  const className = `flex h-12 items-center gap-3 rounded-[14px] px-3.5 text-sm font-semibold no-underline transition ${active ? "bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] text-white shadow-[0_8px_20px_rgba(108,59,255,.35)]" : "text-[#C5C8DC] hover:bg-[#6C3BFF]/20 hover:text-white"} ${disabled ? "cursor-default opacity-80" : ""}`;
-  const content = <><span className="grid size-5 shrink-0 place-items-center"><Icon className="size-[18px]" /></span><span>{label}</span>{badge ? <span className="ml-auto rounded-full bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] px-2 py-0.5 text-[9px] font-bold tracking-wide text-white">{badge}</span> : null}</>;
-  if (disabled) return <span className={className}>{content}</span>;
-  return <Link href={href} className={className}>{content}</Link>;
 }
 
 function MobileTopbar({
