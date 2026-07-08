@@ -29,10 +29,12 @@ export function LearnerSidebar({
   active,
   currentLevel,
   initialCollapsed = false,
+  levelProgressPercent = null,
 }: {
   active: ActiveItem;
   currentLevel: string | null;
   initialCollapsed?: boolean;
+  levelProgressPercent?: number | null;
 }) {
   const [collapsed, setCollapsed] = useState(initialCollapsed);
 
@@ -87,9 +89,15 @@ export function LearnerSidebar({
         <div className="mt-4 rounded-[20px] bg-gradient-to-br from-[#6C3BFF] to-[#4520D9] p-[18px] text-white">
           <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide opacity-75">Current CEFR Level</div>
           <div className="text-[40px] font-extrabold leading-none">{currentLevel}</div>
-          <div className="mb-3 text-xs opacity-80">{levelNames[currentLevel] ?? "English level"}</div>
-          <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-white/20">
-            <div className="h-full w-[72%] rounded-full bg-gradient-to-r from-white to-white/70" />
+          <div className="mb-1 text-xs opacity-80">{levelNames[currentLevel] ?? "English level"}</div>
+          <div className="mb-1 h-1.5 overflow-hidden rounded-full bg-white/20">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-white to-white/70"
+              style={{ width: `${Math.min(100, Math.max(0, levelProgressPercent ?? 0))}%` }}
+            />
+          </div>
+          <div className="mb-3 text-[10px] opacity-70">
+            {levelProgressPercent === null ? "Take a level check to see your score" : `${levelProgressPercent}% on your last level check`}
           </div>
           <Link href="/level-test" className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-white/30 bg-white/20 p-2.5 text-xs font-semibold text-white">
             View Level Roadmap <ChevronRightSmall />
