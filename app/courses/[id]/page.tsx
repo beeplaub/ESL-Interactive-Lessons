@@ -180,6 +180,27 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
     </div>
   );
 
+  // Dynamic stats & styling for course progress panel
+  let bannerClass = "bg-[#F9FAFC] border-[#ECECF5] text-[#53607D]";
+  let bannerText = "🔥 Ready to begin? Enroll now to start your learning path.";
+  let statusText = "Not enrolled";
+
+  if (isEnrolled) {
+    if (progressPercent === 100) {
+      bannerClass = "bg-[#F1FFF8] border-[#BCEBDA] text-[#245C4B]";
+      bannerText = "🏆 Congratulations! You have fully completed this course!";
+      statusText = "Completed!";
+    } else if (progressPercent > 0) {
+      bannerClass = "bg-[#F3F0FF] border-[#D3C5FF] text-[#4F26CC]";
+      bannerText = "⚡ Great progress! Keep going to finish your course path.";
+      statusText = "Active path";
+    } else {
+      bannerClass = "bg-[#F1FFF8] border-[#BCEBDA] text-[#245C4B]";
+      bannerText = "🔥 Keep it up! Your course path is ready whenever you are.";
+      statusText = "Enrolled (Not started)";
+    }
+  }
+
   const progressPanel = (
     <Panel title="Your Progress">
       <div className="flex items-center gap-5">
@@ -202,15 +223,16 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
         </div>
         <div className="grid flex-1 gap-3 text-sm">
           <Legend dot="#00C98D" label="Completed" value={`${completedItems} items`} />
-          <Legend dot="#2F80ED" label="In Progress" value={isEnrolled && progressPercent < 100 ? "Active path" : "Not started"} />
+          <Legend dot={isEnrolled && progressPercent < 100 ? "#2F80ED" : progressPercent === 100 ? "#00C98D" : "#D5D9E6"} label="In Progress" value={statusText} />
           <Legend dot="#D5D9E6" label="Remaining" value={`${Math.max(0, totalItems - completedItems)} items`} />
         </div>
       </div>
-      <div className="mt-5 rounded-[14px] border border-[#BCEBDA] bg-[#F1FFF8] p-4 text-sm font-semibold leading-6 text-[#245C4B]">
-        🔥 Keep it up! Your course path is ready whenever you are.
+      <div className={`mt-5 rounded-[14px] border p-4 text-sm font-semibold leading-6 ${bannerClass}`}>
+        {bannerText}
       </div>
     </Panel>
   );
+
 
   const outcomesPanel = (
     <Panel title="What You’ll Learn">
