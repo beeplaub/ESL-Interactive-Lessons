@@ -19,6 +19,61 @@ export default async function LessonPage({
   if (!user) redirect(`/login?next=${encodeURIComponent(`/lessons/${lessonId}`)}`);
 
   const admin = createAdminClient();
+
+  // Enforce global sequential lock guard for enrolled courses
+  let courseId = null;
+  if (courseItem) {
+    const { data: cItem } = await admin
+      .from("course_items")
+      .select("course_id")
+      .eq("id", courseItem)
+      .maybeSingle();
+    if (cItem) courseId = cItem.course_id;
+  } else {
+    const { data: enrollments } = await admin
+      .from("course_enrollments")
+      .select("course_id")
+      .eq("user_id", user.id)
+      .eq("status", "ACTIVE");
+    
+    if (enrollments && enrollments.length > 0) {
+      const courseIds = enrollments.map(e => e.course_id);
+      const { data: cItem } = await admin
+        .from("course_items")
+        .select("id, course_id")
+        .eq("lesson_id", lessonId)
+        .in("course_id", courseIds)
+        .limit(1)
+        .maybeSingle();
+      if (cItem) {
+        courseId = cItem.course_id;
+      }
+    }
+  }
+
+  if (courseId) {
+    const [{ data: items }, { data: itemProgress }] = await Promise.all([
+      admin.from("course_items").select("id, lesson_id, is_free_preview").eq("course_id", courseId).order("position", { ascending: true }),
+      admin.from("course_item_progress").select("course_item_id,completed").eq("course_id", courseId).eq("user_id", user.id),
+    ]);
+
+    const courseItems = items ?? [];
+    const completedIds = new Set((itemProgress ?? []).filter((ip) => ip.completed).map((ip) => ip.course_item_id));
+    
+    const matchingItem = courseItem 
+      ? courseItems.find((i) => i.id === courseItem)
+      : courseItems.find((i) => i.lesson_id === lessonId);
+
+    if (matchingItem) {
+      const globalIndex = courseItems.findIndex((ci) => ci.id === matchingItem.id);
+      const isComplete = completedIds.has(matchingItem.id);
+      const unlocked = globalIndex === 0 || isComplete || (globalIndex > 0 && completedIds.has(courseItems[globalIndex - 1].id)) || Boolean(matchingItem.is_free_preview);
+
+      if (!unlocked) {
+        redirect(`/courses/${courseId}`);
+      }
+    }
+  }
   const [
     { data: lesson },
     { data: slides },

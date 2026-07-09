@@ -41,8 +41,24 @@ export default async function CourseLearnPage({ params, searchParams }: { params
 
   const courseItems = (items ?? []) as CourseItemView[];
   const completedIds = new Set((itemProgress ?? []).filter((row) => row.completed).map((row) => row.course_item_id));
-  const firstIncomplete = courseItems.find((item) => item.is_required && !completedIds.has(item.id)) ?? courseItems[0] ?? null;
-  const currentItem = courseItems.find((item) => item.id === requestedItemId) ?? firstIncomplete;
+
+  // Sequential unlock helper: item is unlocked if it's the first, already complete, or the preceding item is complete
+  function isItemUnlocked(itemId: string): boolean {
+    const idx = courseItems.findIndex((ci) => ci.id === itemId);
+    if (idx <= 0) return true; // first item or not found
+    if (completedIds.has(itemId)) return true; // already done
+    return completedIds.has(courseItems[idx - 1].id); // previous is done
+  }
+
+  const firstIncomplete = courseItems.find((item) => !completedIds.has(item.id) && isItemUnlocked(item.id)) ?? courseItems[0] ?? null;
+
+  // If user requested a locked item via URL, redirect to the correct unlocked item
+  const requestedItem = requestedItemId ? courseItems.find((item) => item.id === requestedItemId) : null;
+  if (requestedItem && !isItemUnlocked(requestedItem.id)) {
+    redirect(`/courses/${id}/learn${firstIncomplete ? `?item=${firstIncomplete.id}` : ""}`);
+  }
+
+  const currentItem = requestedItem ?? firstIncomplete;
   const completedCount = progress?.completed_items ?? completedIds.size;
   const totalCount = progress?.total_items ?? courseItems.filter((item) => item.is_required).length;
   const percent = progress?.progress_percent ?? (totalCount ? Math.round((completedCount / totalCount) * 100) : 0);
@@ -88,16 +104,35 @@ export default async function CourseLearnPage({ params, searchParams }: { params
                 <div key={section.id}>
                   <p className="text-xs font-extrabold uppercase tracking-wide text-[#8B90A7]">{section.title}</p>
                   <div className="mt-2 grid gap-1.5">
-                    {sectionItems.map((item) => (
-                      <Link
-                        key={item.id}
-                        href={`/courses/${course.id}/learn?item=${item.id}`}
-                        className={`flex items-center gap-2 rounded-[12px] px-3 py-2 text-sm font-semibold ${currentItem?.id === item.id ? "bg-[#6C3BFF]/10 text-[#6C3BFF]" : "text-[#53607D] hover:bg-[#F6F7FB]"}`}
-                      >
-                        {completedIds.has(item.id) ? <CheckCircle2 size={15} className="shrink-0 text-[#00A978]" /> : <span className="size-[15px] shrink-0 rounded-full border border-[#C8CDDA]" />}
-                        <span className="min-w-0 flex-1 truncate">{itemLabel(item)}</span>
-                      </Link>
-                    ))}
+                    {sectionItems.map((item) => {
+                      const globalIdx = courseItems.findIndex((ci) => ci.id === item.id);
+                      const isComplete = completedIds.has(item.id);
+                      const isUnlocked = globalIdx === 0 || isComplete || (globalIdx > 0 && completedIds.has(courseItems[globalIdx - 1].id));
+                      const isCurrent = currentItem?.id === item.id;
+
+                      if (isUnlocked) {
+                        return (
+                          <Link
+                            key={item.id}
+                            href={`/courses/${course.id}/learn?item=${item.id}`}
+                            className={`flex items-center gap-2 rounded-[12px] px-3 py-2 text-sm font-semibold ${isCurrent ? "bg-[#6C3BFF]/10 text-[#6C3BFF]" : "text-[#53607D] hover:bg-[#F6F7FB]"}`}
+                          >
+                            {isComplete ? <CheckCircle2 size={15} className="shrink-0 text-[#00A978]" /> : <span className="size-[15px] shrink-0 rounded-full border-2 border-[#6C3BFF]" />}
+                            <span className="min-w-0 flex-1 truncate">{itemLabel(item)}</span>
+                          </Link>
+                        );
+                      }
+
+                      return (
+                        <div
+                          key={item.id}
+                          className="flex items-center gap-2 rounded-[12px] px-3 py-2 text-sm font-semibold text-[#B0B5C8] cursor-not-allowed"
+                        >
+                          <LockKeyhole size={15} className="shrink-0" />
+                          <span className="min-w-0 flex-1 truncate">{itemLabel(item)}</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               );

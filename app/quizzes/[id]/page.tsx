@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { Clock3, Gamepad2, HelpCircle, Sparkles } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -21,6 +21,63 @@ export default async function QuizPage({
   const { data: { user } } = await supabase.auth.getUser();
 
   const admin = createAdminClient();
+
+  if (user) {
+    // Enforce global sequential lock guard for enrolled courses
+    let courseId = null;
+    if (courseItem) {
+      const { data: cItem } = await admin
+        .from("course_items")
+        .select("course_id")
+        .eq("id", courseItem)
+        .maybeSingle();
+      if (cItem) courseId = cItem.course_id;
+    } else {
+      const { data: enrollments } = await admin
+        .from("course_enrollments")
+        .select("course_id")
+        .eq("user_id", user.id)
+        .eq("status", "ACTIVE");
+      
+      if (enrollments && enrollments.length > 0) {
+        const courseIds = enrollments.map(e => e.course_id);
+        const { data: cItem } = await admin
+          .from("course_items")
+          .select("id, course_id")
+          .eq("quiz_id", id)
+          .in("course_id", courseIds)
+          .limit(1)
+          .maybeSingle();
+        if (cItem) {
+          courseId = cItem.course_id;
+        }
+      }
+    }
+
+    if (courseId) {
+      const [{ data: items }, { data: itemProgress }] = await Promise.all([
+        admin.from("course_items").select("id, quiz_id, is_free_preview").eq("course_id", courseId).order("position", { ascending: true }),
+        admin.from("course_item_progress").select("course_item_id,completed").eq("course_id", courseId).eq("user_id", user.id),
+      ]);
+
+      const courseItems = items ?? [];
+      const completedIds = new Set((itemProgress ?? []).filter((ip) => ip.completed).map((ip) => ip.course_item_id));
+      
+      const matchingItem = courseItem 
+        ? courseItems.find((i) => i.id === courseItem)
+        : courseItems.find((i) => i.quiz_id === id);
+
+      if (matchingItem) {
+        const globalIndex = courseItems.findIndex((ci) => ci.id === matchingItem.id);
+        const isComplete = completedIds.has(matchingItem.id);
+        const unlocked = globalIndex === 0 || isComplete || (globalIndex > 0 && completedIds.has(courseItems[globalIndex - 1].id)) || Boolean(matchingItem.is_free_preview);
+
+        if (!unlocked) {
+          redirect(`/courses/${courseId}`);
+        }
+      }
+    }
+  }
   const [{ data: quiz }, { data: questions }, { data: attempts }] = await Promise.all([
     admin.from("quizzes").select("*").eq("id", id).eq("status", "PUBLISHED").is("deleted_at", null).single(),
     admin.from("quiz_questions").select("*").eq("quiz_id", id).order("question_number", { ascending: true }),

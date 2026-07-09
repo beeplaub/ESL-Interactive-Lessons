@@ -43,6 +43,34 @@ export async function enrollInCourse(courseId: string) {
     updated_at: new Date().toISOString(),
   }, { onConflict: "user_id,course_id" });
 
+  // Fetch the first course item to mark it as In Progress (completed: false)
+  const { data: firstItem } = await admin
+    .from("course_items")
+    .select("id")
+    .eq("course_id", courseId)
+    .order("position", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (firstItem) {
+    const { data: existingProgress } = await admin
+      .from("course_item_progress")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("course_item_id", firstItem.id)
+      .maybeSingle();
+
+    if (!existingProgress) {
+      await admin.from("course_item_progress").insert({
+        user_id: user.id,
+        course_id: courseId,
+        course_item_id: firstItem.id,
+        completed: false,
+        updated_at: new Date().toISOString(),
+      });
+    }
+  }
+
   revalidatePath("/account");
   revalidatePath("/courses");
   revalidatePath(`/courses/${courseId}`);
@@ -64,6 +92,30 @@ export async function markCourseItemComplete(courseId: string, itemId: string) {
     throw new Error("You need to enroll before saving course progress.");
   }
 
+  // Enforce sequential completion: the preceding item must be completed first
+  const { data: allItems } = await admin
+    .from("course_items")
+    .select("id")
+    .eq("course_id", courseId)
+    .order("position", { ascending: true });
+
+  const orderedIds = (allItems ?? []).map((i) => i.id);
+  const currentIdx = orderedIds.indexOf(itemId);
+
+  if (currentIdx > 0) {
+    const prevItemId = orderedIds[currentIdx - 1];
+    const { data: prevProgress } = await admin
+      .from("course_item_progress")
+      .select("completed")
+      .eq("user_id", user.id)
+      .eq("course_item_id", prevItemId)
+      .maybeSingle();
+
+    if (!prevProgress?.completed) {
+      throw new Error("You must complete the previous item first.");
+    }
+  }
+
   await admin.from("course_item_progress").upsert({
     user_id: user.id,
     course_id: courseId,
@@ -72,6 +124,27 @@ export async function markCourseItemComplete(courseId: string, itemId: string) {
     completed_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   }, { onConflict: "user_id,course_item_id" });
+
+  // Automatically mark the next lesson as In Progress (completed: false)
+  if (currentIdx !== -1 && currentIdx < orderedIds.length - 1) {
+    const nextItemId = orderedIds[currentIdx + 1];
+    const { data: existingNextProgress } = await admin
+      .from("course_item_progress")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("course_item_id", nextItemId)
+      .maybeSingle();
+
+    if (!existingNextProgress) {
+      await admin.from("course_item_progress").insert({
+        user_id: user.id,
+        course_id: courseId,
+        course_item_id: nextItemId,
+        completed: false,
+        updated_at: new Date().toISOString(),
+      });
+    }
+  }
 
   await recalculateCourseProgress(user.id, courseId, itemId);
 
