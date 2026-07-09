@@ -168,9 +168,25 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
                 </div>
               </summary>
               <div className="mt-4 grid gap-2 border-l-2 border-[#ECECF5] pl-4 sm:ml-4">
-                {sectionItems.length ? sectionItems.map((item, itemIndex) => (
-                  <CourseItemLink key={item.id} item={item} itemIndex={itemIndex} isEnrolled={isEnrolled} isComplete={completedIds.has(item.id)} />
-                )) : <p className="rounded-xl bg-[#F6F7FB] p-4 text-sm text-[#6E738D]">Items coming soon.</p>}
+                {sectionItems.length ? sectionItems.map((item, itemIndex) => {
+                  const globalIndex = courseItems.findIndex((ci) => ci.id === item.id);
+                  const isComplete = completedIds.has(item.id);
+                  const unlocked = (isEnrolled && (
+                    globalIndex === 0 ||
+                    isComplete ||
+                    (globalIndex > 0 && completedIds.has(courseItems[globalIndex - 1].id))
+                  )) || Boolean(item.is_free_preview);
+
+                  return (
+                    <CourseItemLink
+                      key={item.id}
+                      item={item}
+                      itemIndex={itemIndex}
+                      isComplete={isComplete}
+                      unlocked={unlocked}
+                    />
+                  );
+                }) : <p className="rounded-xl bg-[#F6F7FB] p-4 text-sm text-[#6E738D]">Items coming soon.</p>}
               </div>
             </details>
           );
@@ -183,22 +199,46 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
   // Dynamic stats & styling for course progress panel
   let bannerClass = "bg-[#F9FAFC] border-[#ECECF5] text-[#53607D]";
   let bannerText = "🔥 Ready to begin? Enroll now to start your learning path.";
-  let statusText = "Not enrolled";
+  let inProgressNode: React.ReactNode = "Not enrolled";
 
   if (isEnrolled) {
     if (progressPercent === 100) {
       bannerClass = "bg-[#F1FFF8] border-[#BCEBDA] text-[#245C4B]";
       bannerText = "🏆 Congratulations! You have fully completed this course!";
-      statusText = "Completed!";
-    } else if (progressPercent > 0) {
-      bannerClass = "bg-[#F3F0FF] border-[#D3C5FF] text-[#4F26CC]";
-      bannerText = "⚡ Great progress! Keep going to finish your course path.";
-      statusText = "Active path";
+      inProgressNode = <span className="text-emerald-600 font-bold">Completed!</span>;
     } else {
-      bannerClass = "bg-[#F1FFF8] border-[#BCEBDA] text-[#245C4B]";
-      bannerText = "🔥 Keep it up! Your course path is ready whenever you are.";
-      statusText = "Enrolled (Not started)";
+      const currentItem = courseItems.find((item) => !completedIds.has(item.id));
+      if (currentItem) {
+        const itemLabel = currentItem.lessons?.title ?? currentItem.quizzes?.title ?? currentItem.title ?? currentItem.item_type.replaceAll("_", " ");
+        const itemHref = currentItem.item_type === "LESSON" && currentItem.lesson_id
+          ? `/lessons/${currentItem.lesson_id}?courseItem=${currentItem.id}`
+          : currentItem.item_type === "QUIZ" && currentItem.quiz_id
+            ? `/quizzes/${currentItem.quiz_id}?courseItem=${currentItem.id}`
+            : currentItem.resource_url;
+
+        if (itemHref) {
+          inProgressNode = (
+            <Link href={itemHref} className="text-[#6C3BFF] hover:underline font-bold inline-flex items-center gap-1">
+              {itemLabel}
+            </Link>
+          );
+        } else {
+          inProgressNode = <span className="font-bold">{itemLabel}</span>;
+        }
+      } else {
+        inProgressNode = "None";
+      }
+
+      if (progressPercent > 0) {
+        bannerClass = "bg-[#F3F0FF] border-[#D3C5FF] text-[#4F26CC]";
+        bannerText = "⚡ Great progress! Keep going to finish your course path.";
+      } else {
+        bannerClass = "bg-[#F1FFF8] border-[#BCEBDA] text-[#245C4B]";
+        bannerText = "🔥 Keep it up! Your course path is ready whenever you are.";
+      }
     }
+  } else {
+    inProgressNode = "Not started";
   }
 
   const progressPanel = (
@@ -221,9 +261,9 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
             <div className="text-xs font-semibold text-[#6E738D]">Completed</div>
           </div>
         </div>
-        <div className="grid flex-1 gap-3 text-sm">
+        <div className="grid flex-1 gap-3 text-sm min-w-0">
           <Legend dot="#00C98D" label="Completed" value={`${completedItems} items`} />
-          <Legend dot={isEnrolled && progressPercent < 100 ? "#2F80ED" : progressPercent === 100 ? "#00C98D" : "#D5D9E6"} label="In Progress" value={statusText} />
+          <Legend dot={isEnrolled && progressPercent < 100 ? "#2F80ED" : progressPercent === 100 ? "#00C98D" : "#D5D9E6"} label="In Progress" value={inProgressNode} />
           <Legend dot="#D5D9E6" label="Remaining" value={`${Math.max(0, totalItems - completedItems)} items`} />
         </div>
       </div>
@@ -335,14 +375,13 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
   );
 }
 
-function CourseItemLink({ item, itemIndex, isEnrolled, isComplete }: { item: CourseItemView; itemIndex: number; isEnrolled: boolean; isComplete: boolean }) {
+function CourseItemLink({ item, itemIndex, isComplete, unlocked }: { item: CourseItemView; itemIndex: number; isComplete: boolean; unlocked: boolean }) {
   const label = item.lessons?.title ?? item.quizzes?.title ?? item.title ?? item.item_type.replaceAll("_", " ");
   const href = item.item_type === "LESSON" && item.lesson_id
     ? `/lessons/${item.lesson_id}?courseItem=${item.id}`
     : item.item_type === "QUIZ" && item.quiz_id
       ? `/quizzes/${item.quiz_id}?courseItem=${item.id}`
       : item.resource_url;
-  const unlocked = isEnrolled || item.is_free_preview;
   return (
     <div className="flex items-center gap-3 rounded-[14px] px-2 py-2 text-sm transition hover:bg-[#F6F7FB]">
       <span className={`grid size-6 shrink-0 place-items-center rounded-full text-[11px] font-bold ${isComplete ? "bg-[#00C98D] text-white" : "bg-[#F1F3FA] text-[#8D94AA]"}`}>
@@ -358,7 +397,7 @@ function CourseItemLink({ item, itemIndex, isEnrolled, isComplete }: { item: Cou
         </Link>
       ) : (
         <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#F6F7FB] px-2.5 py-1 text-xs font-bold text-[#8D94AA]">
-          <LockKeyhole className="size-3.5" /> Enroll
+          <LockKeyhole className="size-3.5" /> Locked
         </span>
       )}
     </div>
@@ -396,6 +435,14 @@ function Meta({ icon: Icon, label, star }: { icon: React.ElementType; label: str
   return <span className="inline-flex items-center gap-1.5"><Icon className={`size-4 ${star ? "fill-[#FFB545] text-[#FFB545]" : "text-[#6E738D]"}`} /> {label}</span>;
 }
 
-function Legend({ dot, label, value }: { dot: string; label: string; value: string }) {
-  return <div className="flex items-start gap-2"><span className="mt-1.5 size-2.5 rounded-full" style={{ backgroundColor: dot }} /><div><p className="font-bold text-[#35405F]">{label}</p><p className="text-xs text-[#6E738D]">{value}</p></div></div>;
+function Legend({ dot, label, value }: { dot: string; label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex items-start gap-2 min-w-0">
+      <span className="mt-1.5 size-2.5 shrink-0 rounded-full" style={{ backgroundColor: dot }} />
+      <div className="min-w-0 flex-1">
+        <p className="font-bold text-[#35405F]">{label}</p>
+        <div className="text-xs text-[#6E738D] min-w-0 truncate">{value}</div>
+      </div>
+    </div>
+  );
 }
