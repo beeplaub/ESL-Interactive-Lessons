@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { Archive, BarChart3, Eye, GraduationCap, Pencil, Plus, Trash2 } from "lucide-react";
+import { Archive, BarChart3, Eye, GraduationCap, Pencil, Trash2 } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createCourse, deleteCourse, setCourseStatus } from "@/app/admin/courses/actions";
-import { CONTENT_LEVELS } from "@/lib/levels";
+import { deleteCourse, setCourseStatus } from "@/app/admin/courses/actions";
+import { NewCourseModal } from "@/components/NewCourseModal";
 
 export default async function AdminCoursesPage() {
   const admin = createAdminClient();
@@ -27,25 +27,9 @@ export default async function AdminCoursesPage() {
           <Link href="/admin/courses/trash" className="inline-flex items-center gap-2 rounded-md border border-black/15 px-4 py-2 text-sm font-semibold hover:bg-black/5">
             <Trash2 size={16} /> Trash{trashedCount ? ` (${trashedCount})` : ""}
           </Link>
-          <Link href="#new-course" className="inline-flex items-center gap-2 rounded-md bg-moss px-4 py-2 text-sm font-semibold text-white">
-            <Plus size={16} /> New course
-          </Link>
+          <NewCourseModal />
         </div>
       </div>
-
-      <section id="new-course" className="mb-5 rounded-lg border border-black/10 bg-white p-4 shadow-sm">
-        <h2 className="font-semibold">Create course shell</h2>
-        <form action={createCourse} className="mt-4 grid gap-3 md:grid-cols-2">
-          <input name="title" required placeholder="Course title" className="rounded-md border border-black/15 px-3 py-2 text-sm md:col-span-2" />
-          <input name="subtitle" placeholder="Short subtitle" className="rounded-md border border-black/15 px-3 py-2 text-sm md:col-span-2" />
-          <input name="topic" placeholder="Topic" className="rounded-md border border-black/15 px-3 py-2 text-sm" />
-          <select name="level" defaultValue="All Levels" className="rounded-md border border-black/15 px-3 py-2 text-sm">
-            {CONTENT_LEVELS.map((level) => <option key={level}>{level}</option>)}
-          </select>
-          <textarea name="description" placeholder="Course description" rows={3} className="rounded-md border border-black/15 px-3 py-2 text-sm md:col-span-2" />
-          <button className="w-fit rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white">Create and open builder</button>
-        </form>
-      </section>
 
       <section className="overflow-hidden rounded-lg border border-black/10 bg-white shadow-sm">
         <div className="hidden grid-cols-[1.4fr_0.7fr_0.7fr_0.7fr_1.2fr] gap-3 border-b border-black/10 bg-slate-50 p-3 text-xs font-semibold uppercase tracking-wide text-black/50 md:grid">
