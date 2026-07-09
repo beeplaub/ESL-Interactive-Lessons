@@ -9,6 +9,7 @@ import { markCourseItemComplete } from "@/app/courses/actions";
 type CourseItemView = {
   id: string;
   section_id: string | null;
+  position: number;
   item_type: "LESSON" | "QUIZ" | "LEVEL_TEST" | "RESOURCE" | "EXTERNAL_LINK";
   lesson_id: string | null;
   quiz_id: string | null;
@@ -39,7 +40,21 @@ export default async function CourseLearnPage({ params, searchParams }: { params
   if (!course) notFound();
   if (!enrollment || enrollment.status === "CANCELLED") redirect(`/courses/${id}`);
 
-  const courseItems = (items ?? []) as CourseItemView[];
+  const rawItems = (items ?? []) as CourseItemView[];
+  const sectionsList = sections ?? [];
+  const orderedCourseItems: CourseItemView[] = [];
+  for (const sec of sectionsList) {
+    const secItems = rawItems
+      .filter((item) => item.section_id === sec.id)
+      .sort((a, b) => a.position - b.position);
+    orderedCourseItems.push(...secItems);
+  }
+  const unsectionedItems = rawItems
+    .filter((item) => !item.section_id)
+    .sort((a, b) => a.position - b.position);
+  orderedCourseItems.push(...unsectionedItems);
+
+  const courseItems = orderedCourseItems;
   const completedIds = new Set((itemProgress ?? []).filter((row) => row.completed).map((row) => row.course_item_id));
 
   // Sequential unlock helper: item is unlocked if it's the first, already complete, or the preceding item is complete

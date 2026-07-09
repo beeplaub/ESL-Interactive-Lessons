@@ -43,14 +43,27 @@ export async function enrollInCourse(courseId: string) {
     updated_at: new Date().toISOString(),
   }, { onConflict: "user_id,course_id" });
 
-  // Fetch the first course item to mark it as In Progress (completed: false)
-  const { data: firstItem } = await admin
-    .from("course_items")
-    .select("id")
-    .eq("course_id", courseId)
-    .order("position", { ascending: true })
-    .limit(1)
-    .maybeSingle();
+  // Fetch sections and items, sort them globally, and get the first item
+  const [{ data: sections }, { data: items }] = await Promise.all([
+    admin.from("course_sections").select("id").eq("course_id", courseId).order("position", { ascending: true }),
+    admin.from("course_items").select("id, section_id, position").eq("course_id", courseId)
+  ]);
+
+  const rawItems = items ?? [];
+  const sectionsList = sections ?? [];
+  const orderedItems: typeof rawItems = [];
+  for (const sec of sectionsList) {
+    const secItems = rawItems
+      .filter((item) => item.section_id === sec.id)
+      .sort((a, b) => a.position - b.position);
+    orderedItems.push(...secItems);
+  }
+  const unsectionedItems = rawItems
+    .filter((item) => !item.section_id)
+    .sort((a, b) => a.position - b.position);
+  orderedItems.push(...unsectionedItems);
+
+  const firstItem = orderedItems[0] ?? null;
 
   if (firstItem) {
     const { data: existingProgress } = await admin
@@ -93,13 +106,26 @@ export async function markCourseItemComplete(courseId: string, itemId: string) {
   }
 
   // Enforce sequential completion: the preceding item must be completed first
-  const { data: allItems } = await admin
-    .from("course_items")
-    .select("id")
-    .eq("course_id", courseId)
-    .order("position", { ascending: true });
+  const [{ data: cSections }, { data: cItems }] = await Promise.all([
+    admin.from("course_sections").select("id").eq("course_id", courseId).order("position", { ascending: true }),
+    admin.from("course_items").select("id, section_id, position").eq("course_id", courseId)
+  ]);
 
-  const orderedIds = (allItems ?? []).map((i) => i.id);
+  const rawCItems = cItems ?? [];
+  const cSectionsList = cSections ?? [];
+  const orderedCItems: typeof rawCItems = [];
+  for (const sec of cSectionsList) {
+    const secItems = rawCItems
+      .filter((item) => item.section_id === sec.id)
+      .sort((a, b) => a.position - b.position);
+    orderedCItems.push(...secItems);
+  }
+  const unsectionedCItems = rawCItems
+    .filter((item) => !item.section_id)
+    .sort((a, b) => a.position - b.position);
+  orderedCItems.push(...unsectionedCItems);
+
+  const orderedIds = orderedCItems.map((i) => i.id);
   const currentIdx = orderedIds.indexOf(itemId);
 
   if (currentIdx > 0) {

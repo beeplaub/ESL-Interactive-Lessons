@@ -52,12 +52,27 @@ export default async function LessonPage({
   }
 
   if (courseId) {
-    const [{ data: items }, { data: itemProgress }] = await Promise.all([
-      admin.from("course_items").select("id, lesson_id, is_free_preview").eq("course_id", courseId).order("position", { ascending: true }),
+    const [{ data: sections }, { data: items }, { data: itemProgress }] = await Promise.all([
+      admin.from("course_sections").select("id").eq("course_id", courseId).order("position", { ascending: true }),
+      admin.from("course_items").select("id, lesson_id, section_id, position, is_free_preview").eq("course_id", courseId),
       admin.from("course_item_progress").select("course_item_id,completed").eq("course_id", courseId).eq("user_id", user.id),
     ]);
 
-    const courseItems = items ?? [];
+    const rawItems = items ?? [];
+    const sectionsList = sections ?? [];
+    const orderedCourseItems: typeof rawItems = [];
+    for (const sec of sectionsList) {
+      const secItems = rawItems
+        .filter((item) => item.section_id === sec.id)
+        .sort((a, b) => a.position - b.position);
+      orderedCourseItems.push(...secItems);
+    }
+    const unsectionedItems = rawItems
+      .filter((item) => !item.section_id)
+      .sort((a, b) => a.position - b.position);
+    orderedCourseItems.push(...unsectionedItems);
+
+    const courseItems = orderedCourseItems;
     const completedIds = new Set((itemProgress ?? []).filter((ip) => ip.completed).map((ip) => ip.course_item_id));
     
     const matchingItem = courseItem 

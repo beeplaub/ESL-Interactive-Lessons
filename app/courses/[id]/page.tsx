@@ -25,6 +25,7 @@ import { getFreshProfile } from "@/lib/auth";
 type CourseItemView = {
   id: string;
   section_id: string | null;
+  position: number;
   item_type: string;
   lesson_id: string | null;
   quiz_id: string | null;
@@ -76,7 +77,21 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
 
   if (!course) notFound();
 
-  const courseItems = (items ?? []) as CourseItemView[];
+  const rawItems = (items ?? []) as CourseItemView[];
+  const sectionsList = sections ?? [];
+  const orderedCourseItems: CourseItemView[] = [];
+  for (const sec of sectionsList) {
+    const secItems = rawItems
+      .filter((item) => item.section_id === sec.id)
+      .sort((a, b) => a.position - b.position);
+    orderedCourseItems.push(...secItems);
+  }
+  const unsectionedItems = rawItems
+    .filter((item) => !item.section_id)
+    .sort((a, b) => a.position - b.position);
+  orderedCourseItems.push(...unsectionedItems);
+
+  const courseItems = orderedCourseItems;
   const isEnrolled = enrollment?.status === "ACTIVE" || enrollment?.status === "COMPLETED";
   const completedIds = new Set((itemProgress ?? []).filter((item) => item.completed).map((item) => item.course_item_id));
   const totalItems = courseItems.length;
