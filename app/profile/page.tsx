@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BadgeCheck, ChevronRight, KeyRound, Mail, ShieldCheck, Sparkles, Trophy, UserRound } from "lucide-react";
+import { BadgeCheck, ChevronRight, KeyRound, Mail, ShieldCheck, Sparkles, Trophy, UserRound, LogOut } from "lucide-react";
 import { LearnerAppShell } from "@/components/LearnerAppShell";
 import { requireUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -7,6 +7,7 @@ import { AvatarUploader } from "@/components/AvatarUploader";
 import { ProfileForm } from "@/components/ProfileForm";
 import { ChangePasswordForm } from "@/components/ChangePasswordForm";
 import { levelGuidance, type CefrLevel } from "@/lib/levelTestBank";
+import { signOut } from "@/app/auth/actions";
 
 export default async function ProfilePage() {
   const { user, profile } = await requireUser();
@@ -61,6 +62,11 @@ export default async function ProfilePage() {
               <AvatarUploader initialUrl={profile?.avatar_url ?? null} initials={initials} />
               <h2 className="mt-5 text-xl font-extrabold">{displayName}</h2>
               <p className="mt-1 break-words text-sm font-semibold text-[#6E738D]">{user.email}</p>
+              <form action={signOut} className="mt-5 border-t border-[#ECECF5] pt-4">
+                <button type="submit" className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-bold text-red-600 hover:bg-red-100/70 transition">
+                  <LogOut size={16} /> Sign out
+                </button>
+              </form>
             </div>
 
             <div className="rounded-[22px] border border-[#ECECF5] bg-white p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)]">
