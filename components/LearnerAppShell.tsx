@@ -21,11 +21,12 @@ import { getLatestLevelTestSummary } from "@/lib/levelTestSummary";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { LearnerSidebar } from "@/components/LearnerSidebar";
+import { NotificationsDropdown } from "@/components/NotificationsDropdown";
 
 export type ActiveItem = "home" | "quizzes" | "courses" | "level-test" | "leaderboard" | "language-profile" | "profile";
 
 type BreadcrumbItem = { label: string; href?: string };
-export type NotificationItem = { title: string; detail: string; href: string; tone: "purple" | "orange" | "green" | "blue" };
+export type NotificationItem = { key: string; title: string; detail: string; href: string; tone: "purple" | "orange" | "green" | "blue" };
 
 const defaultBreadcrumbs: Record<ActiveItem, BreadcrumbItem[]> = {
   home: [{ label: "Home" }],
@@ -229,20 +230,52 @@ async function buildNotifications(admin: ReturnType<typeof createAdminClient>, u
       : Promise.resolve({ data: [] }),
   ]);
   const items: NotificationItem[] = [];
-  if (currentLevel) items.push({ title: `Your level is ${currentLevel}`, detail: "Use it to choose better courses and quizzes.", href: "/level-test/result", tone: "purple" });
+  if (currentLevel) {
+    items.push({
+      key: `level-${currentLevel}`,
+      title: `Your level is ${currentLevel}`,
+      detail: "Use it to choose better courses and quizzes.",
+      href: "/level-test/result",
+      tone: "purple"
+    });
+  }
   for (const attempt of attempts ?? []) {
     const percent = attempt.total ? Math.round((Number(attempt.score) / Number(attempt.total)) * 100) : 0;
     const quiz = Array.isArray(attempt.quizzes) ? attempt.quizzes[0] : attempt.quizzes;
-    items.push({ title: `Quiz completed: ${percent}%`, detail: quiz?.title ?? "Your latest quiz attempt was saved.", href: attempt.quiz_id ? `/quizzes/${attempt.quiz_id}` : "/quizzes", tone: "green" });
+    items.push({
+      key: `attempt-${attempt.quiz_id}-${attempt.completed_at}`,
+      title: `Quiz completed: ${percent}%`,
+      detail: quiz?.title ?? "Your latest quiz attempt was saved.",
+      href: attempt.quiz_id ? `/quizzes/${attempt.quiz_id}` : "/quizzes",
+      tone: "green"
+    });
   }
   for (const point of points ?? []) {
-    items.push({ title: `+${Number(point.points ?? 0)} leaderboard points`, detail: "Your quiz activity moved your badge progress.", href: "/leaderboard", tone: "orange" });
+    items.push({
+      key: `point-${point.created_at}`,
+      title: `+${Number(point.points ?? 0)} leaderboard points`,
+      detail: "Your quiz activity moved your badge progress.",
+      href: "/leaderboard",
+      tone: "orange"
+    });
   }
   for (const quiz of quizzes ?? []) {
-    items.push({ title: "New quiz published", detail: `${quiz.title}${quiz.level ? ` · ${quiz.level}` : ""}`, href: `/quizzes/${quiz.id}`, tone: "blue" });
+    items.push({
+      key: `quiz-${quiz.id}`,
+      title: "New quiz published",
+      detail: `${quiz.title}${quiz.level ? ` · ${quiz.level}` : ""}`,
+      href: `/quizzes/${quiz.id}`,
+      tone: "blue"
+    });
   }
   for (const course of courses ?? []) {
-    items.push({ title: "Course available", detail: `${course.title}${course.level ? ` · ${course.level}` : ""}`, href: `/courses/${course.id}`, tone: "purple" });
+    items.push({
+      key: `course-${course.id}`,
+      title: "Course available",
+      detail: `${course.title}${course.level ? ` · ${course.level}` : ""}`,
+      href: `/courses/${course.id}`,
+      tone: "purple"
+    });
   }
   return items.slice(0, 6);
 }
@@ -289,47 +322,13 @@ function DesktopLearnerChrome({
         <Link href="/level-test" className="hidden items-center gap-1.5 rounded-[14px] border border-[#ECECF5] bg-white px-3 py-2 text-xs font-bold text-[#6E738D] shadow-[0_2px_8px_rgba(0,0,0,.04)] transition hover:text-[#6C3BFF] min-[1120px]:inline-flex">
           <Target className="size-4 text-[#6C3BFF]" /> {currentLevel ? `${currentLevel} level` : "Find your level"}
         </Link>
-        <details className="group relative">
-          <summary className="relative grid size-11 cursor-pointer list-none place-items-center rounded-[14px] border border-[#ECECF5] bg-white shadow-[0_2px_8px_rgba(0,0,0,.04)] marker:hidden [&::-webkit-details-marker]:hidden" aria-label="Notifications">
-            <Bell className="size-[18px] text-[#6E738D]" />
-            {notifications.length ? <span className="absolute -right-1 -top-1 grid size-5 place-items-center rounded-full border-2 border-[#F6F7FB] bg-[#FF5D73] text-[10px] font-black text-white">{notifications.length}</span> : null}
-          </summary>
-          <div className="absolute right-0 top-14 z-40 w-[360px] overflow-hidden rounded-[22px] border border-[#ECECF5] bg-white shadow-[0_24px_60px_rgba(20,23,43,.18)]">
-            <div className="border-b border-[#ECECF5] px-4 py-3">
-              <p className="text-sm font-black text-[#14172B]">Notifications</p>
-              <p className="text-xs font-semibold text-[#6E738D]">Latest learning and platform updates</p>
-            </div>
-            <div className="max-h-[360px] overflow-y-auto p-2">
-              {notifications.length ? notifications.map((item, index) => <NotificationRow key={`${item.title}-${index}`} item={item} />) : (
-                <p className="rounded-2xl bg-[#F6F7FB] px-4 py-6 text-center text-sm font-semibold text-[#6E738D]">No notifications yet.</p>
-              )}
-            </div>
-          </div>
-        </details>
+        <NotificationsDropdown initialNotifications={notifications} mode="desktop" />
         <Link href={isLoggedIn ? "/profile" : "/login"} className="flex items-center gap-2 rounded-full border border-[#ECECF5] bg-white p-1.5 pr-3 shadow-[0_2px_8px_rgba(0,0,0,.04)]">
           <AvatarBubble initials={initials} avatarUrl={avatarUrl} />
           <span className="hidden max-w-[130px] truncate text-xs font-bold text-[#14172B] min-[1120px]:block">{isLoggedIn ? userName : "My Account"}</span>
         </Link>
       </div>
     </header>
-  );
-}
-
-function NotificationRow({ item }: { item: NotificationItem }) {
-  const tones = {
-    purple: "bg-[#6C3BFF]",
-    orange: "bg-[#FF8C00]",
-    green: "bg-[#00C98D]",
-    blue: "bg-[#4E8DFF]",
-  };
-  return (
-    <Link href={item.href} className="flex gap-3 rounded-2xl px-3 py-3 transition hover:bg-[#F6F7FB]">
-      <span className={`mt-1 size-2.5 shrink-0 rounded-full ${tones[item.tone]}`} />
-      <span className="min-w-0">
-        <span className="block truncate text-sm font-extrabold text-[#14172B]">{item.title}</span>
-        <span className="mt-0.5 block line-clamp-2 text-xs font-semibold leading-5 text-[#6E738D]">{item.detail}</span>
-      </span>
-    </Link>
   );
 }
 
@@ -519,23 +518,7 @@ function MobileTopbar({
           <Target className="size-[15px] text-[#9C8DFF]" />
           {currentLevel ? <span>{currentLevel}</span> : null}
         </Link>
-        <details className="group relative">
-          <summary className="relative grid size-9 cursor-pointer list-none place-items-center rounded-[10px] text-white marker:hidden [&::-webkit-details-marker]:hidden" aria-label="Notifications">
-            <Bell className="size-5" />
-            {notifications.length ? <span className="absolute right-0.5 top-0.5 grid size-3.5 place-items-center rounded-full border border-[#09112C] bg-[#FF5D73] text-[8px] font-bold">{notifications.length}</span> : null}
-          </summary>
-          <div className="fixed inset-x-3 top-[68px] z-50 max-h-[70vh] overflow-y-auto rounded-[22px] border border-[#ECECF5] bg-white shadow-2xl shadow-black/20">
-            <div className="border-b border-[#ECECF5] px-4 py-3">
-              <p className="text-sm font-black text-[#14172B]">Notifications</p>
-              <p className="text-xs font-semibold text-[#6E738D]">Latest learning and platform updates</p>
-            </div>
-            <div className="p-2">
-              {notifications.length ? notifications.map((item, index) => <NotificationRow key={`${item.title}-${index}`} item={item} />) : (
-                <p className="rounded-2xl bg-[#F6F7FB] px-4 py-6 text-center text-sm font-semibold text-[#6E738D]">No notifications yet.</p>
-              )}
-            </div>
-          </div>
-        </details>
+        <NotificationsDropdown initialNotifications={notifications} mode="mobile" />
         <Link href={isLoggedIn ? "/profile" : "/login"} aria-label={isLoggedIn ? "Profile" : "My Account"}>
           <AvatarBubble initials={initials} avatarUrl={avatarUrl} />
         </Link>
