@@ -159,11 +159,12 @@ function normalizeMultipleSelect(data: Json | null): { prompt: string; questions
   };
 }
 
-function normalizeShortAnswer(data: Json | null): { prompt: string; questions: ShortAnswerQuestion[] } {
+function normalizeShortAnswer(data: Json | null): { prompt: string; enableAiFeedback: boolean; questions: ShortAnswerQuestion[] } {
   const record = asRecord(data);
   const questions = Array.isArray(record.questions) ? record.questions : [];
   return {
     prompt: String(record.prompt ?? "Write a short answer."),
+    enableAiFeedback: record.enable_ai_feedback === true,
     questions: questions.map((item, index) => {
       const question = asRecord(item);
       const requiredWords = Array.isArray(question.required_words) ? question.required_words.map(String).filter(Boolean) : [];
@@ -1021,6 +1022,7 @@ function MultipleSelectEditor({ activity, onSave }: { activity: Activity; onSave
 function ShortAnswerEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
   const initial = useMemo(() => normalizeShortAnswer(activity.activity_data), [activity.activity_data]);
   const [prompt, setPrompt] = useState(initial.prompt);
+  const [enableAiFeedback, setEnableAiFeedback] = useState(initial.enableAiFeedback);
   const [questions, setQuestions] = useState<ShortAnswerQuestion[]>(
     initial.questions.length ? initial.questions : [{ id: 1, text: "", sampleAnswer: "", minWords: null, requiredWordsText: "", showRequiredWords: true }]
   );
@@ -1036,6 +1038,23 @@ function ShortAnswerEditor({ activity, onSave }: { activity: Activity; onSave: (
         Instruction
         <input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
       </label>
+
+      {/* AI Feedback toggle */}
+      <div className="rounded-md border border-purple-200 bg-purple-50/50 p-3">
+        <label className="flex items-center gap-2 text-sm font-medium">
+          <input
+            type="checkbox"
+            checked={enableAiFeedback}
+            onChange={(event) => setEnableAiFeedback(event.target.checked)}
+            className="accent-purple-600"
+          />
+          ✨ Enable AI Feedback &amp; Correction
+        </label>
+        <p className="mt-1 ml-6 text-xs text-black/45">
+          When enabled, learners receive automated AI feedback with a corrected version of their response and a brief explanation after submitting. Uses API quota.
+        </p>
+      </div>
+
       {questions.map((question, index) => (
         <div key={String(question.id)} className="rounded-md border border-black/10 p-4">
           <div className="mb-3 flex items-center justify-between gap-3">
@@ -1101,6 +1120,7 @@ function ShortAnswerEditor({ activity, onSave }: { activity: Activity; onSave: (
         </button>
         <SaveButton onClick={() => onSave({
           prompt,
+          enable_ai_feedback: enableAiFeedback,
           questions: questions.map((question, index) => ({
             id: index + 1,
             text: question.text,

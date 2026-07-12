@@ -909,7 +909,7 @@ function ShortAnswer({
   submitted: boolean;
   onChange: (value: { text?: string; selfMarked?: boolean }) => void;
 }) {
-  const opts = asRecord(question.options) as { sample_answer?: string; min_words?: number; required_words?: string[]; show_required_words?: boolean };
+  const opts = asRecord(question.options) as { sample_answer?: string; min_words?: number; required_words?: string[]; show_required_words?: boolean; enable_ai_feedback?: boolean };
   const text = value?.text ?? "";
   const selfMarked = value?.selfMarked;
   const minWords = Number(opts.min_words ?? 0);
@@ -926,9 +926,9 @@ function ShortAnswer({
   const [loadingFeedback, setLoadingFeedback] = useState(false);
   const [feedbackError, setFeedbackError] = useState<string | null>(null);
 
-  // Fetch AI feedback when submitted
+  // Fetch AI feedback when submitted (only if creator enabled it)
   useEffect(() => {
-    if (submitted && text.trim() && !aiFeedback && !loadingFeedback && !feedbackError) {
+    if (submitted && text.trim() && !aiFeedback && !loadingFeedback && !feedbackError && opts.enable_ai_feedback === true) {
       setLoadingFeedback(true);
       setFeedbackError(null);
       import("@/app/admin/lessons/aiActions").then(async ({ getShortAnswerAiFeedbackAction }) => {
@@ -950,7 +950,7 @@ function ShortAnswer({
         }
       });
     }
-  }, [submitted, text, question.question_text, opts.sample_answer, aiFeedback, loadingFeedback, feedbackError]);
+  }, [submitted, text, question.question_text, opts.sample_answer, opts.enable_ai_feedback, aiFeedback, loadingFeedback, feedbackError]);
 
   // Reset feedback state when retaking
   useEffect(() => {

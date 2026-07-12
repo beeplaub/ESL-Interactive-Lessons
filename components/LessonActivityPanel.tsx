@@ -67,6 +67,7 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
   }
   if (activityType === "SHORT_ANSWER") {
     const questions = Array.isArray(data.questions) ? data.questions : [];
+    const enableAiFeedback = data.enable_ai_feedback === true;
     return questions.map((item, index) => {
       const q = asRecord(item as Json);
       const requiredWords = Array.isArray(q.required_words) ? q.required_words.map(String).filter(Boolean) : [];
@@ -80,6 +81,7 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
           min_words: Number(q.min_words ?? 0),
           required_words: requiredWords,
           show_required_words: q.show_required_words !== false,
+          enable_ai_feedback: enableAiFeedback,
         } as Json,
         correct_answer: null,
       };
