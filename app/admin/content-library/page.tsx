@@ -2,6 +2,7 @@ import { Filter, Library, Plus, Trash2 } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/auth";
 import { deleteLibraryItem, insertLibraryCopy, saveExistingContentToLibrary } from "./actions";
+import { DeleteButton } from "@/components/DeleteButton";
 
 const itemTypes = ["QUESTION", "ACTIVITY", "LESSON_BLOCK", "SLIDE", "LESSON", "COURSE_TEMPLATE"] as const;
 
@@ -141,7 +142,14 @@ export default async function ContentLibraryPage({
                 <p className="mt-1 text-xs text-black/45">From {item.source_title || item.source_type} · saved by {item.created_by ? creatorNames.get(item.created_by) ?? "Creator" : "Unknown"} · reused {reuseCounts.get(item.id) ?? 0} times</p>
               </div>
               <form action={deleteLibraryItem.bind(null, item.id)}>
-                <button className="rounded-md border border-coral/25 p-2 text-coral hover:bg-coral/5" aria-label="Delete library item"><Trash2 size={15} /></button>
+                <DeleteButton
+                  title="Delete library item?"
+                  message={`Are you sure you want to permanently delete "${item.title}" from the content library?`}
+                  isSoftDelete={false}
+                  className="rounded-md border border-coral/25 p-2 text-coral hover:bg-coral/5"
+                >
+                  <Trash2 size={15} />
+                </DeleteButton>
               </form>
             </div>
             <form action={insertLibraryCopy.bind(null, item.id)} className="mt-4 flex min-w-0 gap-2 border-t border-black/10 pt-4">

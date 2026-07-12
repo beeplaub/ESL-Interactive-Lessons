@@ -33,6 +33,7 @@ import {
   setLevelTestPublished,
   type LevelTestActionResult
 } from "@/app/admin/level-test/actions";
+import { useDeleteConfirm } from "@/components/DeleteConfirmModal";
 
 type TestRow = {
   id: string;
@@ -118,6 +119,7 @@ export function LevelTestAdminWorkspace({
   const [questionEditor, setQuestionEditor] = useState<QuestionRow | "new" | null>(null);
   const [sectionEditor, setSectionEditor] = useState<SectionRow | "new" | null>(null);
   const [passageEditor, setPassageEditor] = useState<PassageRow | "new" | null>(null);
+  const { confirmDelete } = useDeleteConfirm();
   const activeQuestions = questions.length;
   const requestedQuestions = sections.reduce((sum, section) => sum + (section.questions_to_draw || questions.filter((q) => q.section_id === section.id).length), 0);
 
@@ -201,7 +203,7 @@ export function LevelTestAdminWorkspace({
             <div className="grid gap-3">
               {sections.map((section) => (
                 <ItemCard key={section.id} title={`${section.position}. ${section.title}`} meta={`${questions.filter((q) => q.section_id === section.id).length} available · draws ${section.questions_to_draw || "all"} · ${section.randomize_questions ? "random order" : "fixed order"}`} onEdit={() => setSectionEditor(section)} onDelete={() => {
-                  if (confirm("Delete this section? Its questions will also be removed.")) run(() => deleteLevelTestSection(section.id), "Section deleted.");
+                  confirmDelete({ title: "Delete section?", message: "This section and all its questions will be permanently removed.", isSoftDelete: false, onConfirm: () => run(() => deleteLevelTestSection(section.id), "Section deleted.") });
                 }} />
               ))}
             </div>
@@ -209,7 +211,7 @@ export function LevelTestAdminWorkspace({
         ) : null}
         {tab === "questions" ? (
           <QuestionsPanel questions={questions} sections={sections} onAdd={() => setQuestionEditor("new")} onEdit={setQuestionEditor} onDelete={(id) => {
-            if (confirm("Delete this question permanently?")) run(() => deleteLevelTestQuestion(id), "Question deleted.");
+            confirmDelete({ title: "Delete question?", message: "This question will be permanently removed from the level test.", isSoftDelete: false, onConfirm: () => run(() => deleteLevelTestQuestion(id), "Question deleted.") });
           }} onImport={() => run(() => importStarterLevelTestBank(test.id), "Starter question bank imported.")} busy={isPending} />
         ) : null}
         {tab === "passages" ? (
@@ -217,7 +219,7 @@ export function LevelTestAdminWorkspace({
             <div className="grid gap-3">
               {passages.map((passage) => (
                 <ItemCard key={passage.id} title={passage.title} meta={`${passage.cefr_band.replace("_", "–")} · ${passage.body.split(/\s+/).length} words`} onEdit={() => setPassageEditor(passage)} onDelete={() => {
-                  if (confirm("Delete this passage? Questions linked to it will remain but lose their passage.")) run(() => deleteReadingPassage(passage.id), "Passage deleted.");
+                  confirmDelete({ title: "Delete passage?", message: "This passage will be permanently removed. Questions linked to it will remain but lose their passage.", isSoftDelete: false, onConfirm: () => run(() => deleteReadingPassage(passage.id), "Passage deleted.") });
                 }} />
               ))}
               {!passages.length ? <Empty text="No reading passages yet." /> : null}

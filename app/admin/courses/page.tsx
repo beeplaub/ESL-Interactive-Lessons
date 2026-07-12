@@ -3,6 +3,7 @@ import { Archive, BarChart3, Eye, GraduationCap, Pencil, Trash2 } from "lucide-r
 import { createAdminClient } from "@/lib/supabase/admin";
 import { deleteCourse, setCourseStatus } from "@/app/admin/courses/actions";
 import { NewCourseModal } from "@/components/NewCourseModal";
+import { DeleteButton } from "@/components/DeleteButton";
 
 export default async function AdminCoursesPage() {
   const admin = createAdminClient();
@@ -55,7 +56,16 @@ export default async function AdminCoursesPage() {
                 ) : (
                   <form action={setCourseStatus.bind(null, course.id, "PUBLISHED")}><button className="inline-flex items-center gap-1 rounded-md bg-moss px-2.5 py-1.5 text-xs font-semibold text-white"><Eye size={13} /> Publish</button></form>
                 )}
-                <form action={deleteCourse.bind(null, course.id)}><button className="inline-flex items-center gap-1 rounded-md border border-coral/30 px-2.5 py-1.5 text-xs font-semibold text-coral hover:bg-coral/5"><Trash2 size={13} /> Move to trash</button></form>
+                <form action={deleteCourse.bind(null, course.id)}>
+                  <DeleteButton
+                    title="Move course to trash?"
+                    message={`Are you sure you want to move "${course.title}" to the trash?`}
+                    isSoftDelete={true}
+                    className="inline-flex items-center gap-1 rounded-md border border-coral/30 px-2.5 py-1.5 text-xs font-semibold text-coral hover:bg-coral/5"
+                  >
+                    <Trash2 size={13} /> Move to trash
+                  </DeleteButton>
+                </form>
               </div>
             </div>
           ))}

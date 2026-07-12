@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Edit, Plus, Trash2 } from "lucide-react";
 import { deleteQuiz, updateQuizStatus } from "@/app/admin/quizzes/actions";
+import { DeleteButton } from "@/components/DeleteButton";
 import { requireAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -58,7 +59,14 @@ export default async function AdminQuizzesPage() {
                       <button className="rounded-md border border-black/15 px-3 py-2 text-xs hover:bg-black/5">{quiz.status === "PUBLISHED" ? "Unpublish" : "Publish"}</button>
                     </form>
                     <form action={async () => { "use server"; await deleteQuiz(quiz.id); }}>
-                      <button className="rounded-md border border-black/15 p-2 text-coral hover:bg-coral/10" aria-label="Move to trash" title="Move to trash"><Trash2 size={16} /></button>
+                      <DeleteButton
+                        title="Move quiz to trash?"
+                        message={`Are you sure you want to move "${quiz.title}" to the trash?`}
+                        isSoftDelete={true}
+                        className="rounded-md border border-black/15 p-2 text-coral hover:bg-coral/10"
+                      >
+                        <Trash2 size={16} />
+                      </DeleteButton>
                     </form>
                   </div>
                 </td>

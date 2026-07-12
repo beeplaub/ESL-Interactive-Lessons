@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { HeaderGate } from "@/components/HeaderGate";
 import { SiteHeader } from "@/components/SiteHeader";
+import { DeleteConfirmProvider } from "@/components/DeleteConfirmModal";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -24,10 +25,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         `}} />
       </head>
       <body>
-        <HeaderGate>
-          <SiteHeader />
-        </HeaderGate>
-        {children}
+        <DeleteConfirmProvider>
+          <HeaderGate>
+            <SiteHeader />
+          </HeaderGate>
+          {children}
+        </DeleteConfirmProvider>
       </body>
     </html>
   );

@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { Check, Edit3, Search, Trash2, X } from "lucide-react";
+import { useDeleteConfirm } from "@/components/DeleteConfirmModal";
 
 type Option = { id: string; title: string; level: string | null; topic: string | null; status: string };
 type SectionOption = { id: string; title: string };
@@ -102,15 +103,23 @@ export function EditItemModal({ action, deleteAction, item, label, sections, les
     });
   }
 
+  const { confirmDelete } = useDeleteConfirm();
+
   function handleDelete() {
-    if (!window.confirm("Delete this item?")) return;
-    startTransition(async () => {
-      try {
-        await deleteAction();
-        close();
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Could not delete item.");
-      }
+    confirmDelete({
+      title: "Delete this item?",
+      message: "This course item will be permanently removed from the curriculum.",
+      isSoftDelete: false,
+      onConfirm: async () => {
+        startTransition(async () => {
+          try {
+            await deleteAction();
+            close();
+          } catch (err) {
+            setError(err instanceof Error ? err.message : "Could not delete item.");
+          }
+        });
+      },
     });
   }
 

@@ -34,6 +34,8 @@ import { BlockMediaUploader } from "@/components/BlockMediaUploader";
 import { CONTENT_LEVELS } from "@/lib/levels";
 import type { LessonOutcome } from "@/types/obe.types";
 import type { Json } from "@/types/database.types";
+import { useDeleteConfirm } from "@/components/DeleteConfirmModal";
+import { DeleteButton } from "@/components/DeleteButton";
 
 const blockTypes = [
   "HEADING", "TEXT", "BULLETS", "QUOTE", "CALLOUT",
@@ -481,6 +483,7 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities, obe
   const [addAfter, setAddAfter] = useState<number | null>(null);
   const [duplicateSlide, setDuplicateSlide] = useState<Slide | null>(null);
   const [isReordering, startReorderTransition] = useTransition();
+  const { confirmDelete } = useDeleteConfirm();
   const timelineRef = useRef<HTMLDivElement>(null);
   const selectedTimelineItemRef = useRef<HTMLDivElement>(null);
 
@@ -563,14 +566,20 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities, obe
   }
 
   function optimisticDeleteSlide(slideId: string) {
-    if (!window.confirm("Delete this slide?")) return;
-    const currentIndex = localSlides.findIndex((slide) => slide.id === slideId);
-    const next = renumberSlides(localSlides.filter((slide) => slide.id !== slideId));
-    setLocalSlides(next);
-    const nextSelected = next[Math.min(currentIndex, next.length - 1)] ?? next[0] ?? null;
-    if (nextSelected) selectSlide(nextSelected.id);
-    setBusyMessage("Deleting slide...");
-    startReorderTransition(async () => { await deleteBuilderSlide(lesson.id, slideId); });
+    confirmDelete({
+      title: "Delete this slide?",
+      message: "This slide and all its content blocks and activities will be permanently removed.",
+      isSoftDelete: false,
+      onConfirm: async () => {
+        const currentIndex = localSlides.findIndex((slide) => slide.id === slideId);
+        const next = renumberSlides(localSlides.filter((slide) => slide.id !== slideId));
+        setLocalSlides(next);
+        const nextSelected = next[Math.min(currentIndex, next.length - 1)] ?? next[0] ?? null;
+        if (nextSelected) selectSlide(nextSelected.id);
+        setBusyMessage("Deleting slide...");
+        startReorderTransition(async () => { await deleteBuilderSlide(lesson.id, slideId); });
+      }
+    });
   }
 
   useEffect(() => { setBusyMessage(null); }, [lesson.status, localSlides.length, blocks.length, activities.length, selectedSlide?.title]);
@@ -996,7 +1005,14 @@ function BlockEditModal({
               <button disabled={blockIndex === blockCount - 1} className="inline-flex items-center gap-2 rounded-md border border-black/15 px-3 py-2 text-xs font-medium hover:bg-black/5 disabled:opacity-35"><ArrowDown size={14} /> Down</button>
             </form>
             <form action={deleteLessonBlock.bind(null, lessonId, slideId, block.id)} data-busy-message="Deleting block...">
-              <button className="inline-flex items-center gap-2 rounded-md border border-coral/30 px-3 py-2 text-xs font-medium text-coral hover:bg-coral/10"><Trash2 size={14} /> Delete block</button>
+              <DeleteButton
+                title="Delete block?"
+                message="This content block will be permanently removed from this slide."
+                isSoftDelete={false}
+                className="inline-flex items-center gap-2 rounded-md border border-coral/30 px-3 py-2 text-xs font-medium text-coral hover:bg-coral/10"
+              >
+                <Trash2 size={14} /> Delete block
+              </DeleteButton>
             </form>
           </div>
         </div>

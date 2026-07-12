@@ -1,5 +1,6 @@
 import { Search, Trash2 } from "lucide-react";
 import { createUserManually, deleteUser, updateUserRole } from "@/app/admin/users/actions";
+import { DeleteButton } from "@/components/DeleteButton";
 import { requireAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -71,7 +72,14 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
                       <button className="ml-2 rounded-md border border-black/15 px-3 py-2 text-xs">Save</button>
                     </form>
                     <form action={async () => { "use server"; await deleteUser(profile.id); }}>
-                      <button className="rounded-md border border-coral/30 p-2 text-coral"><Trash2 size={16} /></button>
+                      <DeleteButton
+                        title="Delete user?"
+                        message={`Are you sure you want to permanently delete user "${profile.full_name || profile.email}"? This will terminate their access.`}
+                        isSoftDelete={false}
+                        className="rounded-md border border-coral/30 p-2 text-coral hover:bg-coral/5"
+                      >
+                        <Trash2 size={16} />
+                      </DeleteButton>
                     </form>
                   </div>
                 </td>

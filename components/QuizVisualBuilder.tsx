@@ -9,6 +9,7 @@ import { LessonActivityPanel } from "@/components/LessonActivityPanel";
 import { parseQuizText } from "@/lib/quizParser";
 import type { QuizQuestion } from "@/components/QuizPlayer";
 import type { Json } from "@/types/database.types";
+import { useDeleteConfirm } from "@/components/DeleteConfirmModal";
 
 type BuilderQuestion = {
   id: string;
@@ -279,6 +280,7 @@ export function QuizVisualBuilder({
   const [parseText, setParseText] = useState(parseSample);
   const [message, setMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const { confirmDelete } = useDeleteConfirm();
 
   const selected = questions.find((question) => question.id === selectedId) ?? questions[0];
   const selectedIndex = selected ? questions.findIndex((question) => question.id === selected.id) : -1;
@@ -530,7 +532,7 @@ export function QuizVisualBuilder({
                   <ArrowDown size={15} /> Move down
                 </button>
               </div>
-              <button type="button" onClick={() => { if (window.confirm("Delete this question?")) deleteQuestion(selected.id); }} className="inline-flex items-center justify-center gap-2 rounded-md border border-coral/30 px-3 py-2 text-sm font-semibold text-coral hover:bg-coral/10">
+              <button type="button" onClick={() => { confirmDelete({ title: "Delete this question?", message: "This question will be permanently removed from the quiz.", isSoftDelete: false, onConfirm: () => deleteQuestion(selected.id) }); }} className="inline-flex items-center justify-center gap-2 rounded-md border border-coral/30 px-3 py-2 text-sm font-semibold text-coral hover:bg-coral/10">
                 <Trash2 size={15} /> Delete question
               </button>
             </div>
@@ -558,7 +560,7 @@ export function QuizVisualBuilder({
           onChange={updateSelected}
           onClose={() => setEditorOpen(false)}
           onDelete={() => {
-            if (window.confirm("Delete this question?")) deleteQuestion(selected.id);
+            confirmDelete({ title: "Delete this question?", message: "This question will be permanently removed from the quiz.", isSoftDelete: false, onConfirm: () => deleteQuestion(selected.id) });
           }}
           skills={skills}
           learningTargets={learningTargets}

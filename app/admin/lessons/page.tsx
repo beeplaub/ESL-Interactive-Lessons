@@ -7,6 +7,7 @@ import {
   duplicateLesson,
   updateLessonStatus,
 } from "@/app/admin/lessons/actions";
+import { DeleteButton } from "@/components/DeleteButton";
 
 export default async function AdminLessonsPage({
   searchParams,
@@ -149,13 +150,14 @@ export default async function AdminLessonsPage({
                 </button>
               </form>
               <form action={deleteLesson.bind(null, lesson.id)}>
-                <button
+                <DeleteButton
+                  title="Move lesson to trash?"
+                  message={`Are you sure you want to move "${lesson.title}" to the trash?`}
+                  isSoftDelete={true}
                   className="h-full rounded-md border border-coral/30 px-3 py-2 text-coral hover:bg-coral/10"
-                  aria-label="Move to trash"
-                  title="Move to trash"
                 >
                   <Trash2 size={16} />
-                </button>
+                </DeleteButton>
               </form>
             </div>
           </article>
@@ -224,13 +226,14 @@ export default async function AdminLessonsPage({
                       </button>
                     </form>
                     <form action={deleteLesson.bind(null, lesson.id)}>
-                      <button
+                      <DeleteButton
+                        title="Move lesson to trash?"
+                        message={`Are you sure you want to move "${lesson.title}" to the trash?`}
+                        isSoftDelete={true}
                         className="rounded-md border border-coral/30 p-2 text-coral hover:bg-coral/10"
-                        aria-label="Move to trash"
-                        title="Move to trash"
                       >
                         <Trash2 size={16} />
-                      </button>
+                      </DeleteButton>
                     </form>
                   </div>
                 </td>

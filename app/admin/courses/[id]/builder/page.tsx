@@ -17,6 +17,7 @@ import { AddItemModal } from "@/app/admin/courses/[id]/builder/AddItemModal";
 import { BuilderDialog, CurriculumWorkspace } from "@/app/admin/courses/[id]/builder/CourseBuilderChrome";
 import { EditItemModal } from "@/app/admin/courses/[id]/builder/EditItemModal";
 import { CourseQuizOutcomeMapper } from "@/components/CourseQuizOutcomeMapper";
+import { DeleteButton } from "@/components/DeleteButton";
 import {
   addCourseFaq,
   addCourseItem,
@@ -153,13 +154,15 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
               >
                 <ArrowDown size={14} />
               </button>
-              <button
-                formAction={deleteCourseSection.bind(null, course.id, section.id)}
-                title="Delete section"
+              <DeleteButton
+                title="Delete section?"
+                message={`Are you sure you want to delete the section "${section.title}"? All items inside will be disconnected.`}
+                isSoftDelete={false}
                 className="grid size-9 place-items-center rounded-lg border border-coral/30 bg-white text-coral"
+                action={deleteCourseSection.bind(null, course.id, section.id)}
               >
                 <Trash2 size={14} />
-              </button>
+              </DeleteButton>
             </div>
           </div>
         </form>
@@ -364,9 +367,15 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
                 </div>
                 <div className="flex justify-end gap-2">
                   <button className="rounded-lg border border-black/15 px-3 py-2 text-xs font-semibold">Save outcome</button>
-                  <button formAction={deleteCourseOutcome.bind(null, course.id, outcome.id)} className="inline-flex items-center gap-1 rounded-lg border border-coral/30 px-3 py-2 text-xs font-semibold text-coral" title="Delete outcome">
+                  <DeleteButton
+                    title="Delete outcome?"
+                    message={`Are you sure you want to delete the outcome "${outcome.code || "CO"}"? It will also remove all mappings.`}
+                    isSoftDelete={false}
+                    className="inline-flex items-center gap-1 rounded-lg border border-coral/30 px-3 py-2 text-xs font-semibold text-coral"
+                    action={deleteCourseOutcome.bind(null, course.id, outcome.id)}
+                  >
                     <Trash2 size={14} /> Delete
-                  </button>
+                  </DeleteButton>
                 </div>
               </form>
             ))}
@@ -419,7 +428,15 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
                 </label>
                 <div className="flex gap-2">
                   <button className="rounded-lg border border-black/15 px-3 py-2 text-xs font-semibold">Save FAQ</button>
-                  <button formAction={deleteCourseFaq.bind(null, course.id, faq.id)} className="rounded-lg border border-coral/30 px-3 py-2 text-xs font-semibold text-coral">Delete</button>
+                  <DeleteButton
+                    title="Delete FAQ?"
+                    message={`Are you sure you want to delete this FAQ?`}
+                    isSoftDelete={false}
+                    className="rounded-lg border border-coral/30 px-3 py-2 text-xs font-semibold text-coral"
+                    action={deleteCourseFaq.bind(null, course.id, faq.id)}
+                  >
+                    Delete
+                  </DeleteButton>
                 </div>
               </form>
             ))}

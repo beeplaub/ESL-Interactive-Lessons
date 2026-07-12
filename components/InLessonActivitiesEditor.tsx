@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { deleteSlideActivity, updateSlideActivity } from "@/app/admin/lessons/actions";
 import type { Json } from "@/types/database.types";
+import { useDeleteConfirm } from "@/components/DeleteConfirmModal";
 
 type Activity = {
   id: string;
@@ -439,6 +440,7 @@ function ActivityPanel({
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const { confirmDelete } = useDeleteConfirm();
   const title = activity.slides?.title || `Slide ${activity.slide_number}`;
   const displaySlideNumber = activity.slides?.slide_number ?? activity.slide_number;
 
@@ -465,17 +467,23 @@ function ActivityPanel({
   }
 
   function remove() {
-    if (!window.confirm("Remove this activity? The slide will revert to a plain image slide.")) return;
-    setStatus("saving");
-    setError(null);
-    startTransition(async () => {
-      const result = await deleteSlideActivity({ activityId: activity.id, lessonId });
-      if (!result.success) {
-        setStatus("error");
-        setError(result.error ?? "Could not remove activity.");
-        return;
-      }
-      onDelete();
+    confirmDelete({
+      title: "Remove this activity?",
+      message: "The slide will revert to a plain content slide. This action is permanent.",
+      isSoftDelete: false,
+      onConfirm: async () => {
+        setStatus("saving");
+        setError(null);
+        startTransition(async () => {
+          const result = await deleteSlideActivity({ activityId: activity.id, lessonId });
+          if (!result.success) {
+            setStatus("error");
+            setError(result.error ?? "Could not remove activity.");
+            return;
+          }
+          onDelete();
+        });
+      },
     });
   }
 

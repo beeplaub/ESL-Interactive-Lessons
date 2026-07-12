@@ -1,9 +1,10 @@
 "use client";
 
 import type { FormEvent, ReactNode } from "react";
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { ObeActionResult } from "@/app/admin/obe/actions";
+import { useDeleteConfirm } from "@/components/DeleteConfirmModal";
 
 export function ObeActionForm({
   action,
@@ -22,12 +23,10 @@ export function ObeActionForm({
   const [success, setSuccess] = useState(false);
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+  const { confirmDelete } = useDeleteConfirm();
+  const formRef = useRef<HTMLFormElement>(null);
 
-  function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (confirmMessage && !window.confirm(confirmMessage)) return;
-    const form = event.currentTarget;
-    const formData = new FormData(form);
+  function doSubmit(formData: FormData) {
     setMessage(null);
     startTransition(async () => {
       const result = await action(formData);
@@ -37,6 +36,21 @@ export function ObeActionForm({
         router.refresh();
       }
     });
+  }
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    if (confirmMessage) {
+      confirmDelete({
+        title: "Confirm delete?",
+        message: confirmMessage,
+        isSoftDelete: false,
+        onConfirm: () => doSubmit(formData),
+      });
+      return;
+    }
+    doSubmit(formData);
   }
 
   return (
