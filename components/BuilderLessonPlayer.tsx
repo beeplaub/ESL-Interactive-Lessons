@@ -379,7 +379,7 @@ export function BuilderLessonPlayer({
   }
 
   return (
-    <main className="mx-auto max-w-7xl">
+    <main className="mx-auto max-w-7xl overflow-x-hidden px-3 sm:px-4 min-[1180px]:px-0">
       {/* ── Header ── */}
       <div className="mb-3 rounded-[22px] border border-[#ECECF5] bg-white px-3 py-2 shadow-[0_12px_32px_rgba(0,0,0,.06)]">
         <div className="flex flex-wrap items-center gap-3">
@@ -393,7 +393,7 @@ export function BuilderLessonPlayer({
               {lesson.topic ? <span className="truncate text-xs font-semibold text-[#8B90A7]">{lesson.topic}</span> : null}
             </div>
             <div className="mt-1.5 flex items-center gap-2">
-              <div className="grid h-1.5 flex-1 grid-flow-col gap-1">
+              <div className="grid h-1.5 flex-1 auto-cols-fr grid-flow-col gap-1">
                 {slides.map((item, slideIndex) => (
                   <span
                     key={item.id}
@@ -471,10 +471,10 @@ export function BuilderLessonPlayer({
         >
 
       {/* ── Main two-column grid ── */}
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(340px,0.85fr)]">
+      <div className="grid grid-cols-1 gap-5 min-[1180px]:grid-cols-[minmax(0,1.15fr)_minmax(340px,0.85fr)]">
 
         {/* ── LEFT column: slide + notes ── */}
-        <div className="flex flex-col gap-4">
+        <div className="flex min-w-0 flex-col gap-4">
 
           {/* Slide card */}
           <div className="relative">
@@ -544,7 +544,7 @@ export function BuilderLessonPlayer({
         </div>
 
         {/* ── RIGHT column: activity only ── */}
-        <aside className="flex flex-col gap-4">
+        <aside className="flex min-w-0 flex-col gap-4">
           {slideActivities.length ? (
             <div className="space-y-4">
               {slideActivities.map((activity) => (
