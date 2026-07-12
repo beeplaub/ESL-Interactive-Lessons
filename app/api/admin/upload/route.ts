@@ -33,9 +33,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ url: data.publicUrl });
   }
 
-  const { data } = await admin.storage
-    .from("lesson-audio")
-    .createSignedUrl(path, 60 * 60 * 24 * 7);
+  // lesson-audio is a public bucket (same as "lessons" for images) — no need to
+  // sign this URL. A signed URL bakes in an expiry (this one used 7 days) and
+  // that exact URL string gets saved permanently into lesson_blocks.content,
+  // so it silently died a week after upload with no error anywhere. Use the
+  // same getPublicUrl() pattern as the image branch above, which never expires.
+  const { data } = admin.storage.from("lesson-audio").getPublicUrl(path);
 
-  return NextResponse.json({ url: data?.signedUrl ?? null });
+  return NextResponse.json({ url: data.publicUrl });
 }
