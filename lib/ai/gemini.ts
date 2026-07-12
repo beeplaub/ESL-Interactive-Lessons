@@ -230,6 +230,20 @@ Your response must follow this JSON schema exactly:
     {"original": "original text", "corrected": "corrected text", "explanation": "Why"}
   ]
 }`
+  },
+
+  learner_short_answer_feedback: {
+    role_description: "You are a professional ESL Coach giving brief writing corrections.",
+    prompt_text: `Writing prompt: "{prompt}"
+Student's submission: "{submission}"
+Model sample answer: "{sampleAnswer}"
+
+Provide a brief correction and feedback.
+Your response must follow this JSON schema exactly:
+{
+  "corrected_text": "The full corrected text (or original text if it is perfect)",
+  "explanation": "Brief explanation of the correction or praise if perfect"
+}`
   }
 };
 

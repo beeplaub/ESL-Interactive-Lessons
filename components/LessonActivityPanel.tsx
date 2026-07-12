@@ -306,8 +306,18 @@ function activityLabel(type: string) {
 
 type ChatMessage = { sender: "AI" | "LEARNER"; text: string; corrections?: any };
 
-function AiRoleplayPanel({ activity, onNext, previewOnly }: {
-  activity: LessonSlideActivity; onNext: () => void; previewOnly?: boolean;
+function AiRoleplayPanel({
+  activity,
+  onNext,
+  previewOnly,
+  attempts = [],
+  onSavedAttempt
+}: {
+  activity: LessonSlideActivity;
+  onNext: () => void;
+  previewOnly?: boolean;
+  attempts?: SavedAttempt[];
+  onSavedAttempt?: (attempt: SavedAttempt) => void;
 }) {
   const data = asRecord(activity.activity_data);
   const scenario = String(data.prompt ?? "Practice speaking English with me.");
@@ -323,10 +333,64 @@ function AiRoleplayPanel({ activity, onNext, previewOnly }: {
   const [isPending, startTransition] = useTransition();
   const chatEndRef = useRef<HTMLDivElement>(null);
 
+  // States for viewing historical attempt
+  const [viewingPastAttempt, setViewingPastAttempt] = useState<SavedAttempt | null>(null);
+  const [pastMessages, setPastMessages] = useState<ChatMessage[]>([]);
+  const [loadingPastMessages, setLoadingPastMessages] = useState(false);
+
   // Auto-scroll chat to bottom
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, phase]);
+
+  // Resume active session on mount/change
+  useEffect(() => {
+    let active = true;
+    async function loadActiveSession() {
+      if (previewOnly) return;
+      try {
+        setError(null);
+        const { getActiveRoleplaySessionAction } = await import("@/app/admin/lessons/aiActions");
+        const result = await getActiveRoleplaySessionAction(activity.id);
+        if (!active) return;
+        if (result && result.session) {
+          setSessionId(result.session.id);
+          setMessages(result.messages);
+          setPhase("chatting");
+        } else {
+          setPhase("idle");
+        }
+      } catch (err: any) {
+        console.error("Error loading active session:", err);
+      }
+    }
+    loadActiveSession();
+    return () => {
+      active = false;
+    };
+  }, [activity.id, previewOnly]);
+
+  // Load messages for a past attempt
+  const handleViewAttempt = useCallback((attempt: SavedAttempt) => {
+    const attemptSessionId = (attempt.answers as any)?.sessionId;
+    if (!attemptSessionId) return;
+
+    setViewingPastAttempt(attempt);
+    setLoadingPastMessages(true);
+    setPastMessages([]);
+
+    startTransition(async () => {
+      try {
+        const { getRoleplaySessionMessagesAction } = await import("@/app/admin/lessons/aiActions");
+        const result = await getRoleplaySessionMessagesAction(attemptSessionId);
+        setPastMessages(result.messages);
+      } catch (err) {
+        console.error("Failed to load past messages:", err);
+      } finally {
+        setLoadingPastMessages(false);
+      }
+    });
+  }, []);
 
   const startSession = useCallback(() => {
     startTransition(async () => {
@@ -345,7 +409,7 @@ function AiRoleplayPanel({ activity, onNext, previewOnly }: {
         setError(err.message || "Could not start conversation.");
       }
     });
-  }, [activity.id, firstTurn, startTransition]);
+  }, [activity.id, firstTurn]);
 
   const sendMessage = useCallback(() => {
     const text = input.trim();
@@ -373,7 +437,7 @@ function AiRoleplayPanel({ activity, onNext, previewOnly }: {
         setError(err.message || "Failed to get response.");
       }
     });
-  }, [input, sessionId, isPending, startTransition]);
+  }, [input, sessionId, isPending]);
 
   const finishConversation = useCallback(() => {
     if (!sessionId) return;
@@ -390,12 +454,21 @@ function AiRoleplayPanel({ activity, onNext, previewOnly }: {
         const card = (result as any).scorecard;
         setScorecard(card);
         setPhase("done");
+
+        // Notify parent about new completed attempt
+        const newAttempt: SavedAttempt = {
+          score: card.scores?.overall ?? 0,
+          total: 100,
+          answers: { sessionId, scorecard: card } as any,
+          completed_at: new Date().toISOString()
+        };
+        onSavedAttempt?.(newAttempt);
       } catch (err: any) {
         setError(err.message || "Could not generate scorecard.");
         setPhase("chatting");
       }
     });
-  }, [sessionId, startTransition]);
+  }, [sessionId, onSavedAttempt]);
 
   const resetConversation = useCallback(() => {
     setPhase("idle");
@@ -405,6 +478,124 @@ function AiRoleplayPanel({ activity, onNext, previewOnly }: {
     setError(null);
     setScorecard(null);
   }, []);
+
+  // ── Viewing past attempt state ──
+  if (viewingPastAttempt) {
+    const card = (viewingPastAttempt.answers as any)?.scorecard ?? {};
+    const scores = card.scores ?? {};
+    const feedback = card.feedback ?? {};
+
+    return (
+      <section className="rounded-lg border border-black/10 bg-white p-5 shadow-sm">
+        <div className="flex items-center justify-between border-b border-black/10 pb-3 mb-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-moss">Past Attempt Results</p>
+            <span className="text-xs text-black/40">{new Date(viewingPastAttempt.completed_at || "").toLocaleString()}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setViewingPastAttempt(null)}
+            className="text-xs font-semibold text-moss hover:underline"
+          >
+            ← Back to Activity
+          </button>
+        </div>
+
+        {/* Scorecard */}
+        <div className="mb-6">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-black/80 flex items-center gap-1.5">
+              <Award size={16} className="text-amber-500" /> Scorecard
+            </h3>
+            <span className="rounded-full bg-moss/10 px-3 py-1 text-xs font-bold text-moss">
+              {scores.overall ?? viewingPastAttempt.score}/100
+            </span>
+          </div>
+
+          <div className="mt-3 grid gap-2.5">
+            {[
+              { label: "Task Achievement", value: scores.task_achievement },
+              { label: "Vocabulary Range", value: scores.vocabulary_range },
+              { label: "Grammar Accuracy", value: scores.grammar_accuracy },
+            ].map((s) => (
+              <div key={s.label} className="flex items-center gap-3">
+                <span className="text-xs text-black/60 w-36">{s.label}</span>
+                <div className="flex-1 h-2 rounded-full bg-black/5 overflow-hidden">
+                  <div className="h-full rounded-full bg-moss transition-all" style={{ width: `${s.value ?? 0}%` }} />
+                </div>
+                <span className="text-xs font-semibold w-8 text-right">{s.value ?? "–"}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Feedback tips */}
+          <div className="mt-4 space-y-2.5">
+            {feedback.cefr_alignment && (
+              <p className="text-xs rounded-md bg-blue-50 border border-blue-100 px-3 py-2 text-blue-700">
+                <strong>CEFR Level:</strong> {feedback.cefr_alignment}
+              </p>
+            )}
+            {Array.isArray(feedback.strengths) && feedback.strengths.length > 0 && (
+              <div className="rounded-md bg-emerald-50 border border-emerald-100 px-3 py-2">
+                <p className="text-xs font-semibold text-emerald-700 mb-0.5">✓ Strengths</p>
+                <ul className="text-xs text-emerald-600 list-disc list-inside space-y-0.5">
+                  {feedback.strengths.map((s: string, i: number) => <li key={i}>{s}</li>)}
+                </ul>
+              </div>
+            )}
+            {Array.isArray(feedback.weaknesses) && feedback.weaknesses.length > 0 && (
+              <div className="rounded-md bg-amber-50 border border-amber-100 px-3 py-2">
+                <p className="text-xs font-semibold text-amber-700 mb-0.5">⚠ Areas to Improve</p>
+                <ul className="text-xs text-amber-600 list-disc list-inside space-y-0.5">
+                  {feedback.weaknesses.map((s: string, i: number) => <li key={i}>{s}</li>)}
+                </ul>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Conversation history */}
+        <div className="border-t border-black/10 pt-4">
+          <h3 className="text-sm font-semibold text-black/80 mb-3 flex items-center gap-1.5">
+            <MessageCircle size={16} className="text-moss" /> Conversation Transcript
+          </h3>
+
+          {loadingPastMessages ? (
+            <div className="py-4 text-center text-xs text-black/40 flex items-center justify-center gap-1.5">
+              <Loader2 size={14} className="animate-spin" /> Loading transcript…
+            </div>
+          ) : (
+            <div className="max-h-[300px] overflow-y-auto space-y-3 rounded-lg border border-black/5 bg-slate-50/50 p-3">
+              {pastMessages.map((msg, i) => (
+                <div key={i} className={`flex ${msg.sender === "LEARNER" ? "justify-end" : "justify-start"}`}>
+                  <div className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm ${
+                    msg.sender === "LEARNER"
+                      ? "bg-moss text-white rounded-br-md"
+                      : "bg-black/[0.04] text-black/80 rounded-bl-md"
+                  }`}>
+                    {msg.sender === "AI" && <p className="text-[10px] font-semibold text-moss/80 mb-0.5">{character}</p>}
+                    <p>{msg.text}</p>
+                    {msg.corrections?.has_errors && Array.isArray(msg.corrections.errors) && msg.corrections.errors.length > 0 && (
+                      <div className="mt-2 border-t border-white/20 pt-2 space-y-1.5">
+                        {msg.corrections.errors.map((err: any, ei: number) => (
+                          <div key={ei} className="rounded-md bg-white border border-amber-200 px-2.5 py-1.5 text-xs text-amber-900">
+                            <span className="line-through text-red-500">{err.original}</span>
+                            {" → "}
+                            <strong className="text-emerald-700">{err.corrected}</strong>
+                            <p className="text-[11px] text-amber-600 mt-0.5">{err.explanation}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+    );
+  }
 
   // ── Idle state ──
   if (phase === "idle") {
@@ -428,6 +619,29 @@ function AiRoleplayPanel({ activity, onNext, previewOnly }: {
         >
           {isPending ? <><Loader2 size={15} className="animate-spin" /> Starting…</> : <><MessageCircle size={15} /> Start Conversation</>}
         </button>
+
+        {attempts && attempts.length > 0 && (
+          <div className="mt-5 rounded-lg bg-slate-50 p-3.5 border border-black/5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-black/45">Completed Attempts</p>
+            <div className="mt-2.5 grid gap-2">
+              {attempts.slice(0, 5).map((attempt, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  onClick={() => handleViewAttempt(attempt)}
+                  className="flex items-center justify-between text-left rounded-md border border-black/5 bg-white p-2.5 hover:bg-black/[0.02] text-xs transition"
+                >
+                  <span className="text-black/60 font-medium">
+                    {attempt.completed_at ? new Date(attempt.completed_at).toLocaleString() : `Attempt ${index + 1}`}
+                  </span>
+                  <span className="font-bold text-moss bg-moss/5 px-2 py-0.5 rounded-full">
+                    {attempt.score}/100
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </section>
     );
   }
@@ -446,7 +660,7 @@ function AiRoleplayPanel({ activity, onNext, previewOnly }: {
             </h2>
           </div>
           <span className="rounded-full bg-moss/10 px-3 py-1 text-sm font-bold text-moss">
-            {scores.overall ?? "–"}/10
+            {scores.overall ?? "–"}/100
           </span>
         </div>
 
@@ -460,7 +674,7 @@ function AiRoleplayPanel({ activity, onNext, previewOnly }: {
             <div key={s.label} className="flex items-center gap-3">
               <span className="text-xs text-black/60 w-36">{s.label}</span>
               <div className="flex-1 h-2 rounded-full bg-black/5 overflow-hidden">
-                <div className="h-full rounded-full bg-moss transition-all" style={{ width: `${((s.value ?? 0) / 10) * 100}%` }} />
+                <div className="h-full rounded-full bg-moss transition-all" style={{ width: `${s.value ?? 0}%` }} />
               </div>
               <span className="text-xs font-semibold w-6 text-right">{s.value ?? "–"}</span>
             </div>
@@ -470,7 +684,7 @@ function AiRoleplayPanel({ activity, onNext, previewOnly }: {
         {/* Feedback */}
         <div className="mt-4 space-y-3">
           {feedback.cefr_alignment && (
-            <p className="text-xs rounded-md bg-blue-50 border border-blue-100 px-3 py-2 text-blue-700">
+            <p className="text-xs rounded-md bg-blue-50 border border-blue-100 px-3 py-2 text-blue-750">
               <strong>CEFR Level:</strong> {feedback.cefr_alignment}
             </p>
           )}
@@ -508,6 +722,29 @@ function AiRoleplayPanel({ activity, onNext, previewOnly }: {
             Next <ChevronRight size={15} />
           </button>
         </div>
+
+        {attempts && attempts.length > 0 && (
+          <div className="mt-5 rounded-lg bg-slate-50 p-3.5 border border-black/5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-black/45">Completed Attempts</p>
+            <div className="mt-2.5 grid gap-2">
+              {attempts.slice(0, 5).map((attempt, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  onClick={() => handleViewAttempt(attempt)}
+                  className="flex items-center justify-between text-left rounded-md border border-black/5 bg-white p-2.5 hover:bg-black/[0.02] text-xs transition"
+                >
+                  <span className="text-black/60 font-medium">
+                    {attempt.completed_at ? new Date(attempt.completed_at).toLocaleString() : `Attempt ${index + 1}`}
+                  </span>
+                  <span className="font-bold text-moss bg-moss/5 px-2 py-0.5 rounded-full">
+                    {attempt.score}/100
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </section>
     );
   }
@@ -632,7 +869,18 @@ export function LessonActivityPanel({
 
   // ── AI Roleplay: full chat UI instead of quiz carousel ──
   if (activity.activity_type === "AI_ROLEPLAY") {
-    return <AiRoleplayPanel activity={activity} onNext={onNext} previewOnly={previewOnly} />;
+    return (
+      <AiRoleplayPanel
+        activity={activity}
+        onNext={onNext}
+        previewOnly={previewOnly}
+        attempts={localAttempts}
+        onSavedAttempt={(a) => {
+          setLocalAttempts((prev) => [a, ...prev]);
+          if (onSavedAttempt) onSavedAttempt(a);
+        }}
+      />
+    );
   }
 
   const currentQuestion = questions[qIndex] ?? null;

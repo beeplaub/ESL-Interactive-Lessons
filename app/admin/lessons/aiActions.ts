@@ -111,6 +111,16 @@ const scorecardSchema = {
   required: ["scores", "feedback"]
 };
 
+// Schema for short answer AI feedback
+const shortAnswerFeedbackSchema = {
+  type: "object",
+  properties: {
+    corrected_text: { type: "string" },
+    explanation: { type: "string" }
+  },
+  required: ["corrected_text", "explanation"]
+};
+
 // Helper to retrieve the current session user details
 async function getSessionUser() {
   const supabase = await createClient();
@@ -455,7 +465,7 @@ export async function completeRoleplaySessionAction(sessionId: string) {
 
     const { data: session } = await supabase
       .from("ai_roleplay_sessions")
-      .select("scenario_context, cefr_level")
+      .select("lesson_activity_id, scenario_context, cefr_level")
       .eq("id", sessionId)
       .single();
 
@@ -490,6 +500,21 @@ export async function completeRoleplaySessionAction(sessionId: string) {
         scorecard
       })
       .eq("id", sessionId);
+
+    // Save attempt to quiz_attempts table so standard components fetch it
+    const overallScore = scorecard.scores?.overall ?? 0;
+    await supabase
+      .from("quiz_attempts")
+      .insert({
+        user_id: user.id,
+        lesson_slide_activity_id: session.lesson_activity_id,
+        score: overallScore,
+        total: 100,
+        answers: {
+          sessionId: sessionId,
+          scorecard: scorecard
+        }
+      });
 
     // Record usage event
     await recordUsageEvent(user.id, "learner_roleplay_evaluator", 800);
@@ -622,5 +647,97 @@ export async function testPromptAction(templateKey: string, variablesJson: strin
   });
 
   return result;
+}
+
+/**
+ * Action: Finds any IN_PROGRESS roleplay session for the user & activity, and retrieves history.
+ */
+export async function getActiveRoleplaySessionAction(activityId: string) {
+  try {
+    const { user } = await getSessionUser();
+    const supabase = createAdminClient();
+
+    // Check for active session
+    const { data: session } = await supabase
+      .from("ai_roleplay_sessions")
+      .select("id, status, scorecard")
+      .eq("user_id", user.id)
+      .eq("lesson_activity_id", activityId)
+      .eq("status", "IN_PROGRESS")
+      .maybeSingle();
+
+    if (!session) return { session: null, messages: [] };
+
+    // Fetch messages
+    const { data: messages } = await supabase
+      .from("ai_roleplay_messages")
+      .select("sender, message_text, corrections")
+      .eq("session_id", session.id)
+      .order("created_at", { ascending: true });
+
+    return {
+      session: {
+        id: session.id,
+        status: session.status,
+        scorecard: session.scorecard
+      },
+      messages: (messages ?? []).map((m) => ({
+        sender: m.sender,
+        text: m.message_text,
+        corrections: m.corrections
+      }))
+    };
+  } catch (error) {
+    console.error("Error in getActiveRoleplaySessionAction:", error);
+    return { session: null, messages: [] };
+  }
+}
+
+/**
+ * Action: Retrieves all messages for a specific session ID (for past attempts viewing).
+ */
+export async function getRoleplaySessionMessagesAction(sessionId: string) {
+  try {
+    const supabase = createAdminClient();
+    const { data: messages } = await supabase
+      .from("ai_roleplay_messages")
+      .select("sender, message_text, corrections")
+      .eq("session_id", sessionId)
+      .order("created_at", { ascending: true });
+
+    return {
+      messages: (messages ?? []).map((m) => ({
+        sender: m.sender,
+        text: m.message_text,
+        corrections: m.corrections
+      }))
+    };
+  } catch (error) {
+    console.error("Error in getRoleplaySessionMessagesAction:", error);
+    return { messages: [] };
+  }
+}
+
+/**
+ * Action: Generates brief, structured AI feedback with corrected text and explanation for Short Answer submissions.
+ */
+export async function getShortAnswerAiFeedbackAction(prompt: string, submission: string, sampleAnswer: string) {
+  try {
+    const feedback = await callGemini<{ corrected_text: string; explanation: string }>({
+      templateKey: "learner_short_answer_feedback",
+      variables: {
+        prompt: prompt || "Write a response.",
+        submission: submission || "",
+        sampleAnswer: sampleAnswer || ""
+      },
+      responseSchema: shortAnswerFeedbackSchema
+    });
+    return { feedback };
+  } catch (error) {
+    console.error("Error generating short answer feedback:", error);
+    return {
+      error: "We couldn't generate AI feedback for this response. Please try again shortly."
+    };
+  }
 }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import type { TouchEvent } from "react";
-import { AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Mic, MicOff, RotateCcw, Sparkles, TrendingUp } from "lucide-react";
+import { AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Mic, MicOff, RotateCcw, Sparkles, TrendingUp, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { recordQuizAttempt } from "@/app/quizzes/actions";
 import { GuestScorePopup, type PendingAttempt } from "@/components/GuestScorePopup";
@@ -922,12 +922,85 @@ function ShortAnswer({
     wordsOk: !showRequiredWords || requiredWords.length === 0 || requiredWords.every((word) => lowerText.includes(word.toLowerCase()))
   };
 
+  const [aiFeedback, setAiFeedback] = useState<{ corrected_text: string; explanation: string } | null>(null);
+  const [loadingFeedback, setLoadingFeedback] = useState(false);
+  const [feedbackError, setFeedbackError] = useState<string | null>(null);
+
+  // Fetch AI feedback when submitted
+  useEffect(() => {
+    if (submitted && text.trim() && !aiFeedback && !loadingFeedback && !feedbackError) {
+      setLoadingFeedback(true);
+      setFeedbackError(null);
+      import("@/app/admin/lessons/aiActions").then(async ({ getShortAnswerAiFeedbackAction }) => {
+        try {
+          const res = await getShortAnswerAiFeedbackAction(
+            question.question_text,
+            text,
+            opts.sample_answer || ""
+          );
+          if (res && res.feedback) {
+            setAiFeedback(res.feedback);
+          } else if (res && res.error) {
+            setFeedbackError(res.error);
+          }
+        } catch (err: any) {
+          setFeedbackError("Could not retrieve AI feedback.");
+        } finally {
+          setLoadingFeedback(false);
+        }
+      });
+    }
+  }, [submitted, text, question.question_text, opts.sample_answer, aiFeedback, loadingFeedback, feedbackError]);
+
+  // Reset feedback state when retaking
+  useEffect(() => {
+    if (!submitted) {
+      setAiFeedback(null);
+      setFeedbackError(null);
+    }
+  }, [submitted]);
+
   if (submitted) {
     return (
       <div className="grid gap-3">
         <div className="rounded-[14px] bg-[#F6F7FB] p-3 text-sm leading-6 whitespace-pre-wrap">
           {text || <span className="text-[#6E738D]">(No answer written)</span>}
         </div>
+
+        {loadingFeedback && (
+          <div className="rounded-[14px] border border-black/5 bg-[#F6F7FB] p-4 text-xs text-black/50 flex items-center justify-center gap-2">
+            <Loader2 size={14} className="animate-spin" /> Analyzing your response with AI Coach…
+          </div>
+        )}
+
+        {feedbackError && (
+          <div className="rounded-[14px] border border-red-200 bg-red-50 p-3 text-xs text-red-700">
+            {feedbackError}
+          </div>
+        )}
+
+        {aiFeedback && (
+          <div className="rounded-[14px] border border-moss/20 bg-emerald-50/20 p-4 text-sm leading-6 space-y-3">
+            <p className="text-xs font-bold uppercase tracking-wide text-moss flex items-center gap-1.5">
+              ✨ AI Feedback & Correction
+            </p>
+            <div className="space-y-2">
+              <div>
+                <span className="text-xs font-semibold text-black/40">Suggested Correction:</span>
+                <p className="mt-0.5 font-semibold text-emerald-800 bg-emerald-50 border border-emerald-100/50 rounded-md px-2.5 py-1.5">
+                  {aiFeedback.corrected_text}
+                </p>
+              </div>
+              <div>
+                <span className="text-xs font-semibold text-black/40">Explanation:</span>
+                <p className="mt-0.5 text-xs text-black/60 leading-relaxed">
+                  {aiFeedback.explanation}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {opts.sample_answer ? (
           <div className="rounded-[14px] border border-[#00C98D]/30 bg-[#00C98D]/5 p-3 text-sm leading-6">
             <p className="mb-1 text-xs font-medium uppercase tracking-wide text-[#00A977]">Model answer</p>
