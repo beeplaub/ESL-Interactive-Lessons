@@ -33,6 +33,7 @@ export function DeleteButton({
 
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
+    const currentTarget = event.currentTarget;
 
     confirmDelete({
       title,
@@ -44,7 +45,7 @@ export function DeleteButton({
           await action();
         } else {
           // Submit the closest parent <form>
-          const form = event.currentTarget?.closest?.("form") ?? (event.currentTarget as HTMLButtonElement).form;
+          const form = currentTarget?.closest?.("form") ?? currentTarget.form;
           if (form) {
             const submitBtn = document.createElement("button");
             submitBtn.type = "submit";
