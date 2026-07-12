@@ -19,14 +19,19 @@ export function roleHomePath(role?: string | null) {
 
 export async function requireUser() {
   const supabase = await createClient();
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
+  // getClaims() verifies the JWT locally (cached JWKS + WebCrypto) when the
+  // project uses asymmetric signing keys, instead of the network round-trip
+  // to the Auth server that getUser() always makes. Every page that calls
+  // requireUser()/requireAdmin() was paying that cost a second time on top
+  // of middleware's own auth check — this closes that gap the same way.
+  const { data } = await supabase.auth.getClaims();
+  const claims = data?.claims ?? null;
 
-  if (!user) {
+  if (!claims) {
     redirect("/login");
   }
 
+  const user = { id: claims.sub, email: claims.email };
   const profile = await getFreshProfile(user.id);
 
   return { user, profile };
