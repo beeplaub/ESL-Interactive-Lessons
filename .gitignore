@@ -9,3 +9,4 @@ pnpm-debug.log*
 tsconfig.tsbuildinfo
 .vercel
 .DS_Store
+.env*

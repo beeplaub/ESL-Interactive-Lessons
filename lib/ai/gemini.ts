@@ -245,7 +245,15 @@ export async function callGemini<T>({
   responseSchema?: any;
   fallbackModel?: string;
 }): Promise<T> {
-  const modelName = fallbackModel || process.env.GEMINI_DEFAULT_MODEL || "gemini-3.5-flash";
+  const primaryModel = fallbackModel || process.env.GEMINI_DEFAULT_MODEL || "gemini-3.5-flash";
+  const modelCandidates = [
+    primaryModel,
+    "gemini-2.5-flash",
+    "gemini-2.0-flash",
+    "gemini-1.5-flash",
+    "gemini-3.5-flash"
+  ].filter((val, index, self) => self.indexOf(val) === index); // remove duplicates
+
   const ai = getGeminiClient();
   const supabase = createAdminClient();
 
@@ -283,55 +291,65 @@ export async function callGemini<T>({
     finalPrompt = finalPrompt.replace(new RegExp(`{${key}}`, "g"), value);
   }
 
-  // C. Execute generative call with structured JSON parameters
-  const generateCall = async (promptOverride?: string): Promise<string> => {
-    const response = await ai.models.generateContent({
-      model: modelName,
-      contents: promptOverride || finalPrompt,
-      config: {
-        systemInstruction: roleDescription,
-        responseMimeType: "application/json",
-        responseSchema: responseSchema // Passes JSON schema constraints directly to Gemini
-      }
-    });
-
-    const text = response.text;
-    if (!text) {
-      throw new Error("Gemini returned an empty response.");
-    }
-    return text;
-  };
-
-  // D. Execution with retry/repair loop for Free Tier limits
+  // C. Execute generative call with structured JSON parameters over model candidates
   let lastError: any = null;
   let rawText = "";
+  let successfulModel = "";
 
-  for (let attempt = 1; attempt <= 2; attempt++) {
-    try {
-      rawText = await generateCall(attempt > 1 ? undefined : undefined);
-      
-      // Basic JSON validation before returning
-      const parsed = JSON.parse(rawText);
-      return parsed as T;
-    } catch (error: any) {
-      lastError = error;
+  for (const modelName of modelCandidates) {
+    const generateCall = async (promptOverride?: string): Promise<string> => {
+      const response = await ai.models.generateContent({
+        model: modelName,
+        contents: promptOverride || finalPrompt,
+        config: {
+          systemInstruction: roleDescription,
+          responseMimeType: "application/json",
+          responseSchema: responseSchema // Passes JSON schema constraints directly to Gemini
+        }
+      });
 
-      // Handle Free Tier 429 Rate Limit (RPM/RPD)
-      if (error?.status === 429 || error?.message?.includes("429")) {
-        // Sleep for 2.5 seconds before retrying on rate limit
-        await new Promise((resolve) => setTimeout(resolve, 2500));
-        continue;
+      const text = response.text;
+      if (!text) {
+        throw new Error("Gemini returned an empty response.");
       }
+      return text;
+    };
 
-      // If it was a JSON parse error, trigger a repair instruction for attempt 2
-      if (error instanceof SyntaxError && attempt < 2) {
-        const repairPrompt = `${finalPrompt}\n\nCRITICAL ERROR: Your previous response was not valid JSON: "${rawText}".\nPlease fix any missing brackets, trailing commas, or escape characters. Output ONLY valid JSON.`;
-        try {
-          rawText = await generateCall(repairPrompt);
-          const parsed = JSON.parse(rawText);
-          return parsed as T;
-        } catch (repairError) {
-          lastError = repairError;
+    // D. Execution with retry/repair loop for Free Tier limits
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        rawText = await generateCall(attempt > 1 ? undefined : undefined);
+        
+        // Basic JSON validation before returning
+        const parsed = JSON.parse(rawText);
+        successfulModel = modelName;
+        return parsed as T;
+      } catch (error: any) {
+        lastError = error;
+
+        // Handle Free Tier 429 Rate Limit (RPM/RPD)
+        if (error?.status === 429 || error?.message?.includes("429")) {
+          // Sleep for 2.5 seconds before retrying on rate limit
+          await new Promise((resolve) => setTimeout(resolve, 2500));
+          continue;
+        }
+
+        // If it's a 503 Service Unavailable or other temporary error, fall back to next model
+        if (error?.status === 503 || error?.message?.includes("503") || error?.message?.toLowerCase().includes("unavailable")) {
+          break; // break the attempt loop to try next modelName
+        }
+
+        // If it was a JSON parse error, trigger a repair instruction for attempt 2
+        if (error instanceof SyntaxError && attempt < 2) {
+          const repairPrompt = `${finalPrompt}\n\nCRITICAL ERROR: Your previous response was not valid JSON: "${rawText}".\nPlease fix any missing brackets, trailing commas, or escape characters. Output ONLY valid JSON.`;
+          try {
+            rawText = await generateCall(repairPrompt);
+            const parsed = JSON.parse(rawText);
+            successfulModel = modelName;
+            return parsed as T;
+          } catch (repairError) {
+            lastError = repairError;
+          }
         }
       }
     }
@@ -342,7 +360,7 @@ export async function callGemini<T>({
     await supabase.from("ai_generations").insert({
       user_role: "SYSTEM",
       feature_key: templateKey,
-      model_used: modelName,
+      model_used: successfulModel || primaryModel,
       prompt_raw: finalPrompt,
       response_preview: rawText ? rawText.slice(0, 500) : null,
       error_message: lastError instanceof Error ? lastError.message : String(lastError)

@@ -352,9 +352,7 @@ export async function startRoleplaySessionAction(activityId: string) {
   } catch (error: any) {
     console.error("Error in startRoleplaySessionAction:", error);
     return {
-      error: isAdmin
-        ? (error.message || "Failed to start conversation.")
-        : "We are having trouble connecting to the AI tutor. Please try again shortly."
+      error: "We are having trouble connecting to the AI tutor right now. Please try again shortly."
     };
   }
 }
@@ -436,10 +434,11 @@ export async function submitRoleplayTurnAction(sessionId: string, learnerText: s
   } catch (error: any) {
     console.error("Error in submitRoleplayTurnAction:", error);
     const isQuotaError = error.message?.includes("quota") || error.message?.includes("limit");
+    if (isQuotaError) {
+      return { error: error.message || "Daily conversation quota exceeded." };
+    }
     return {
-      error: (isAdmin || isQuotaError)
-        ? (error.message || "Failed to submit roleplay turn.")
-        : "We couldn't get a response from the AI tutor. Please check your connection and try again."
+      error: "We couldn't get a response from the AI tutor right now. Please try again shortly."
     };
   }
 }
@@ -499,9 +498,7 @@ export async function completeRoleplaySessionAction(sessionId: string) {
   } catch (error: any) {
     console.error("Error in completeRoleplaySessionAction:", error);
     return {
-      error: isAdmin
-        ? (error.message || "Failed to complete session.")
-        : "We couldn't generate your scorecard right now. Please try again shortly."
+      error: "We couldn't generate your scorecard right now. Please try again shortly."
     };
   }
 }
