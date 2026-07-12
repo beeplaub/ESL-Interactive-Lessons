@@ -321,6 +321,14 @@ export async function startRoleplaySessionAction(activityId: string) {
     isAdmin = profile?.role === "ADMIN";
     const supabase = createAdminClient();
 
+    // Close/complete any lingering IN_PROGRESS sessions first to prevent duplicate active sessions
+    await supabase
+      .from("ai_roleplay_sessions")
+      .update({ status: "COMPLETED" })
+      .eq("user_id", user.id)
+      .eq("lesson_activity_id", activityId)
+      .eq("status", "IN_PROGRESS");
+
     // Fetch the roleplay activity details to capture context
     const { data: activity } = await supabase
       .from("lesson_slide_activities")
@@ -657,14 +665,17 @@ export async function getActiveRoleplaySessionAction(activityId: string) {
     const { user } = await getSessionUser();
     const supabase = createAdminClient();
 
-    // Check for active session
-    const { data: session } = await supabase
+    // Check for active session (select the latest IN_PROGRESS one)
+    const { data: sessions } = await supabase
       .from("ai_roleplay_sessions")
       .select("id, status, scorecard")
       .eq("user_id", user.id)
       .eq("lesson_activity_id", activityId)
       .eq("status", "IN_PROGRESS")
-      .maybeSingle();
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    const session = sessions && sessions.length > 0 ? sessions[0] : null;
 
     if (!session) return { session: null, messages: [] };
 
