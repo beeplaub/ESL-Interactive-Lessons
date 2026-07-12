@@ -355,6 +355,46 @@ export async function callGemini<T>({
     }
   }
 
+  // F. Final fallback: OpenRouter (if API key is present)
+  if (process.env.OPENROUTER_API_KEY) {
+    try {
+      console.log("Gemini models exhausted. Attempting fallback via OpenRouter...");
+      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": "https://brenup.com",
+          "X-Title": "BrenUp ESL"
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash:free",
+          messages: [
+            { role: "system", content: roleDescription },
+            { role: "user", content: finalPrompt }
+          ],
+          response_format: responseSchema ? { type: "json_object" } : undefined
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const content = data.choices?.[0]?.message?.content;
+        if (content) {
+          const parsed = JSON.parse(content.trim());
+          successfulModel = "openrouter/google/gemini-2.5-flash:free";
+          return parsed as T;
+        }
+      } else {
+        const errorText = await response.text();
+        console.error(`OpenRouter API failed: ${response.status} - ${errorText}`);
+      }
+    } catch (openRouterError: any) {
+      console.error("OpenRouter fallback failed:", openRouterError);
+      lastError = openRouterError;
+    }
+  }
+
   // E. Log failures to the audit table (ai_generations) for tracing
   try {
     await supabase.from("ai_generations").insert({
