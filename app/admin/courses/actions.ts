@@ -292,6 +292,87 @@ export async function addCourseItem(courseId: string, formData: FormData) {
   revalidatePath(`/courses/${courseId}`);
 }
 
+/**
+ * "+ Create" in the course builder: starts a brand-new blank draft lesson or
+ * quiz (distinct from "Pick item", which links an existing one) and adds it
+ * to this section in the same step, so a creator can go straight into the
+ * builder for a lesson/quiz that doesn't exist yet.
+ */
+export async function createAndAddCourseItem(
+  courseId: string,
+  formData: FormData
+): Promise<{ id: string; itemType: "LESSON" | "QUIZ" }> {
+  await requireAdmin();
+  const admin = createAdminClient();
+
+  const itemType = String(formData.get("itemType") || "LESSON") as "LESSON" | "QUIZ";
+  const sectionId = String(formData.get("sectionId") || "") || null;
+  const title = String(formData.get("title") || "").trim();
+  const topic = String(formData.get("topic") || "").trim() || "General";
+  const level = String(formData.get("level") || ALL_LEVELS_LABEL);
+
+  if (title.length < 2) throw new Error("Give it a title (at least 2 characters) before creating.");
+
+  let lessonId: string | null = null;
+  let quizId: string | null = null;
+
+  if (itemType === "QUIZ") {
+    const { data, error } = await admin
+      .from("quizzes")
+      .insert({ title, topic, level, status: "DRAFT" })
+      .select("id")
+      .single();
+    if (error || !data) throw new Error(error?.message ?? "Could not create quiz.");
+    quizId = data.id;
+  } else {
+    const newLessonId = crypto.randomUUID();
+    const { error: lessonError } = await admin.from("lessons").insert({
+      id: newLessonId,
+      title,
+      topic,
+      level,
+      description: "",
+      pdf_path: `builder/${newLessonId}`,
+      status: "DRAFT",
+    });
+    if (lessonError) throw new Error(lessonError.message);
+
+    const { error: slideError } = await admin.from("slides").insert({
+      lesson_id: newLessonId,
+      slide_number: 1,
+      title,
+      section_label: "Introduction",
+      raw_text: title,
+      type: "INFO",
+    });
+    if (slideError) throw new Error(slideError.message);
+
+    lessonId = newLessonId;
+  }
+
+  let positionQuery = admin.from("course_items").select("id", { count: "exact", head: true }).eq("course_id", courseId);
+  positionQuery = sectionId ? positionQuery.eq("section_id", sectionId) : positionQuery.is("section_id", null);
+  const { count } = await positionQuery;
+
+  const { error: itemError } = await admin.from("course_items").insert({
+    course_id: courseId,
+    section_id: sectionId,
+    item_type: itemType,
+    position: (count ?? 0) + 1,
+    lesson_id: lessonId,
+    quiz_id: quizId,
+    is_required: true,
+    is_free_preview: false,
+    assessment_weight: 1,
+  });
+  if (itemError) throw new Error(itemError.message);
+
+  revalidatePath(`/admin/courses/${courseId}/builder`);
+  revalidatePath(`/courses/${courseId}`);
+
+  return { id: (lessonId ?? quizId) as string, itemType };
+}
+
 export async function updateCourseItem(courseId: string, itemId: string, formData: FormData) {
   await requireAdmin();
   const itemType = String(formData.get("itemType") || "LESSON") as "LESSON" | "QUIZ" | "LEVEL_TEST" | "RESOURCE" | "EXTERNAL_LINK";

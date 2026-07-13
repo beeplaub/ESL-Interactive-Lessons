@@ -15,6 +15,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { CONTENT_LEVELS } from "@/lib/levels";
 import { AddItemModal } from "@/app/admin/courses/[id]/builder/AddItemModal";
 import { BuilderDialog, CurriculumWorkspace } from "@/app/admin/courses/[id]/builder/CourseBuilderChrome";
+import { CreateItemModal } from "@/app/admin/courses/[id]/builder/CreateItemModal";
 import { EditItemModal } from "@/app/admin/courses/[id]/builder/EditItemModal";
 import { CourseQuizOutcomeMapper } from "@/components/CourseQuizOutcomeMapper";
 import { DeleteButton } from "@/components/DeleteButton";
@@ -23,6 +24,7 @@ import {
   addCourseItem,
   addCourseOutcome,
   addCourseSection,
+  createAndAddCourseItem,
   deleteCourseFaq,
   deleteCourseItem,
   deleteCourseOutcome,
@@ -172,12 +174,20 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
             <h3 className="text-sm font-semibold text-ink">Section content</h3>
             <p className="text-xs text-black/45">{sectionItems.length} {sectionItems.length === 1 ? "item" : "items"} in learning order</p>
           </div>
-          <AddItemModal
-            action={addCourseItem.bind(null, course.id)}
-            sectionId={section.id}
-            lessons={lessonOptions}
-            quizzes={quizOptions}
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            <CreateItemModal
+              action={createAndAddCourseItem.bind(null, course.id)}
+              sectionId={section.id}
+              defaultTopic={course.topic ?? ""}
+              defaultLevel={course.level}
+            />
+            <AddItemModal
+              action={addCourseItem.bind(null, course.id)}
+              sectionId={section.id}
+              lessons={lessonOptions}
+              quizzes={quizOptions}
+            />
+          </div>
         </div>
 
         <div className="mt-3 space-y-2">

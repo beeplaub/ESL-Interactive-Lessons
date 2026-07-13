@@ -99,7 +99,7 @@ export function AddItemModal({ action, sectionId, lessons, quizzes }: Props) {
         onClick={() => setOpen(true)}
         className="inline-flex items-center gap-2 rounded-md border border-black/15 bg-white px-3 py-1.5 text-xs font-semibold hover:bg-black/5"
       >
-        <Plus size={14} /> Add item
+        <Plus size={14} /> Pick item
       </button>
 
       {open ? (
@@ -107,8 +107,8 @@ export function AddItemModal({ action, sectionId, lessons, quizzes }: Props) {
           <div className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
             <div className="flex items-start justify-between gap-4 border-b border-black/10 px-5 py-4">
               <div>
-                <h2 className="text-xl font-semibold">Add item to section</h2>
-                <p className="mt-1 text-sm text-black/55">Search and pick a lesson or quiz, or add a resource/external link/level test.</p>
+                <h2 className="text-xl font-semibold">Pick an item for this section</h2>
+                <p className="mt-1 text-sm text-black/55">Search and pick an existing lesson or quiz, or add a resource/external link/level test.</p>
               </div>
               <button type="button" onClick={close} className="rounded-md border border-black/10 p-2 hover:bg-black/5" aria-label="Close">
                 <X size={16} />
@@ -233,7 +233,7 @@ export function AddItemModal({ action, sectionId, lessons, quizzes }: Props) {
               <div className="flex items-center justify-end gap-2 border-t border-black/10 pt-4">
                 <button type="button" onClick={close} className="rounded-md border border-black/15 px-4 py-2 text-sm">Cancel</button>
                 <button type="submit" disabled={isPending} className="rounded-md bg-moss px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
-                  {isPending ? "Adding\u2026" : "Add item"}
+                  {isPending ? "Adding\u2026" : "Add to section"}
                 </button>
               </div>
             </form>

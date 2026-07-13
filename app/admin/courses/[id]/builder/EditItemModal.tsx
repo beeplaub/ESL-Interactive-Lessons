@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Check, Edit3, Search, Trash2, X } from "lucide-react";
+import { Check, Edit3, Hammer, Search, Trash2, X } from "lucide-react";
 import { useDeleteConfirm } from "@/components/DeleteConfirmModal";
 
 type Option = { id: string; title: string; level: string | null; topic: string | null; status: string };
@@ -130,13 +130,35 @@ export function EditItemModal({ action, deleteAction, item, label, sections, les
           <p className="truncate text-sm font-semibold">{label}</p>
           <p className="mt-0.5 text-xs text-black/45">{item.item_type.replaceAll("_", " ")}{item.is_free_preview ? " \u00b7 Free preview" : ""}{item.is_required ? " \u00b7 Required" : " \u00b7 Optional"}</p>
         </div>
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-black/15 px-3 py-1.5 text-xs font-semibold hover:bg-black/5"
-        >
-          <Edit3 size={13} /> Edit
-        </button>
+        <div className="flex shrink-0 items-center gap-1.5">
+          {item.item_type === "LESSON" && item.lesson_id ? (
+            <a
+              href={`/admin/lessons/${item.lesson_id}/builder`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-md border border-moss/30 px-3 py-1.5 text-xs font-semibold text-moss hover:bg-moss/10"
+            >
+              <Hammer size={13} /> Build
+            </a>
+          ) : null}
+          {item.item_type === "QUIZ" && item.quiz_id ? (
+            <a
+              href={`/admin/quizzes/${item.quiz_id}/edit`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-md border border-moss/30 px-3 py-1.5 text-xs font-semibold text-moss hover:bg-moss/10"
+            >
+              <Hammer size={13} /> Build
+            </a>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-md border border-black/15 px-3 py-1.5 text-xs font-semibold hover:bg-black/5"
+          >
+            <Edit3 size={13} /> Edit
+          </button>
+        </div>
       </div>
 
       {open ? (
