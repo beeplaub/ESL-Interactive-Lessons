@@ -345,14 +345,12 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
   const curriculumSubtitle = `${sectionCount} modules · ${totalItems} items · ${Math.max(1, Math.round(totalMinutes / 60))}h total`;
 
   const curriculumCard = (
-    <div id="curriculum" className="scroll-mt-20">
-      <CourseCurriculumTabs
-        curriculumSubtitle={curriculumSubtitle}
-        curriculumContent={curriculumContent}
-        overviewContent={overviewContent}
-        questionsContent={questionsContent}
-      />
-    </div>
+    <CourseCurriculumTabs
+      curriculumSubtitle={curriculumSubtitle}
+      curriculumContent={curriculumContent}
+      overviewContent={overviewContent}
+      questionsContent={questionsContent}
+    />
   );
 
   return (

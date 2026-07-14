@@ -67,6 +67,16 @@ export default async function AccountPage() {
   const activeLevelIndex = Math.max(0, levelSteps.indexOf(currentLevel));
   const completedLessons = (lessonProgress ?? []).filter((item) => item.completed);
   const activeLessons = (lessonProgress ?? []).filter((item) => !item.completed);
+  const enrolledCourseIds = (courseEnrollments ?? []).map((item) => item.course_id);
+  const activeLessonIds = activeLessons.map((item) => item.lesson_id).filter(Boolean);
+  const { data: matchingCourseItems } = activeLessonIds.length && enrolledCourseIds.length
+    ? await adminSupabase
+        .from("course_items")
+        .select("id, lesson_id")
+        .in("lesson_id", activeLessonIds)
+        .in("course_id", enrolledCourseIds)
+    : { data: [] as { id: string; lesson_id: string | null }[] };
+  const courseItemByLessonId = new Map((matchingCourseItems ?? []).map((item) => [item.lesson_id, item.id]));
   const courseProgressByCourse = new Map((courseProgress ?? []).map((item) => [item.course_id, item]));
   const savedCount = (wishlistItems ?? []).length + (savedLessons ?? []).length;
   const learningItems = [
@@ -81,7 +91,9 @@ export default async function AccountPage() {
     })),
     ...activeLessons.map((item, index) => ({
       id: `lesson-${item.id}`,
-      href: `/lessons/${item.lesson_id}`,
+      href: courseItemByLessonId.has(item.lesson_id)
+        ? `/lessons/${item.lesson_id}?courseItem=${courseItemByLessonId.get(item.lesson_id)}`
+        : `/lessons/${item.lesson_id}`,
       title: item.lessons?.title ?? "Lesson",
       meta: `Continue at slide ${item.current_slide_number}`,
       level: item.lessons?.level ?? "Lesson",

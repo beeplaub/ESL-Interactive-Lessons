@@ -39,7 +39,7 @@ export default async function LessonPage({
       .from("course_enrollments")
       .select("course_id")
       .eq("user_id", user.id)
-      .eq("status", "ACTIVE");
+      .in("status", ["ACTIVE", "COMPLETED"]);
 
     if (enrollments && enrollments.length > 0) {
       const courseIds = enrollments.map(e => e.course_id);

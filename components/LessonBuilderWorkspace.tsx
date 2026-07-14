@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { FormEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { AlignCenter, AlignLeft, AlignRight, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, AlignVerticalJustifyStart, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Copy, Eye, Library, Plus, Settings, Trash2, X } from "lucide-react";
+import { AlignCenter, AlignLeft, AlignRight, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, AlignVerticalJustifyStart, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Copy, Eye, Library, Plus, Settings, Target, Trash2, X } from "lucide-react";
 import {
   addBuilderSlideAt,
   addLessonBlock,
@@ -823,6 +823,7 @@ function SelectedSlideEditor({
 }) {
   const [openBlockId, setOpenBlockId] = useState<string | null>(null);
   const [isActivityBankOpen, setIsActivityBankOpen] = useState(false);
+  const [isMappingOpen, setIsMappingOpen] = useState(false);
   const openBlock = blocks.find((block) => block.id === openBlockId) ?? null;
   const openBlockIndex = openBlock ? blocks.findIndex((block) => block.id === openBlock.id) : -1;
 
@@ -910,9 +911,21 @@ function SelectedSlideEditor({
             <p className="text-xs font-semibold uppercase tracking-wide text-moss">Activity</p>
             <h2 className="mt-1 text-lg font-semibold">Add or edit interactivity</h2>
           </div>
-          {activities.some((activity) => activity.slide_id !== slide.id) ? (
-            <button type="button" onClick={() => setIsActivityBankOpen(true)} className="rounded-md border border-black/15 bg-white px-3 py-2 text-xs font-semibold hover:bg-black/5">Activity bank</button>
-          ) : null}
+          <div className="flex flex-wrap gap-2">
+            {slideActivities.length > 0 && obe && (
+              <button
+                type="button"
+                onClick={() => setIsMappingOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-md border border-black/15 bg-white px-3 py-2 text-xs font-semibold hover:bg-black/5"
+              >
+                <Target size={14} className="text-[#6C3BFF]" />
+                Mapping
+              </button>
+            )}
+            {activities.some((activity) => activity.slide_id !== slide.id) ? (
+              <button type="button" onClick={() => setIsActivityBankOpen(true)} className="rounded-md border border-black/15 bg-white px-3 py-2 text-xs font-semibold hover:bg-black/5">Activity bank</button>
+            ) : null}
+          </div>
         </div>
         <div className="mt-4 grid gap-3">
           {slideActivities.length ? (
@@ -925,17 +938,6 @@ function SelectedSlideEditor({
           {slideActivities.map((activity) => (
             <div key={activity.id} className="grid gap-3">
               <ActivityMoveCopyControls lessonId={lessonId} activity={activity} currentSlide={slide} slides={slides} activities={activities} />
-              {obe ? (
-                <LessonAssessmentMetadataEditor
-                  activity={{ id: activity.id, activity_type: activity.activity_type, activity_data: activity.activity_data }}
-                  lessonOutcomes={obe.lessonOutcomes}
-                  skills={obe.skills}
-                  targets={obe.learningTargets}
-                  metadata={obe.assessmentItems}
-                  metadataSkills={obe.assessmentSkills}
-                  metadataTargets={obe.assessmentTargets}
-                />
-              ) : null}
             </div>
           ))}
           <form action={addLessonSlideActivity.bind(null, lessonId, slide.id, slide.slide_number)} data-busy-message="Adding activity..." className="grid gap-3 rounded-lg border border-dashed border-black/15 p-3">
@@ -962,6 +964,35 @@ function SelectedSlideEditor({
         {isActivityBankOpen ? (
           <ActivityBankModal lessonId={lessonId} slide={slide} slides={slides} activities={activities} onClose={() => setIsActivityBankOpen(false)} />
         ) : null}
+        {isMappingOpen && obe && (
+          <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 px-3 py-6">
+            <div className="flex max-h-[90vh] w-full max-w-3xl flex-col rounded-xl bg-white p-4 shadow-2xl sm:p-5">
+              <div className="flex items-start justify-between gap-4 border-b border-black/10 pb-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[#6C3BFF] font-bold">Outcome &amp; Scoring Mapping</p>
+                  <h3 className="mt-1 text-lg font-semibold text-ink">Connect questions to measurable learning evidence</h3>
+                </div>
+                <button type="button" onClick={() => setIsMappingOpen(false)} className="rounded-md border border-black/10 p-2 hover:bg-black/5" aria-label="Close mapping"><X size={16} /></button>
+              </div>
+              <div className="mt-4 flex-1 overflow-y-auto pr-1 grid gap-4">
+                {slideActivities.map((activity, idx) => (
+                  <div key={activity.id} className="rounded-lg border border-black/10 bg-slate-50 p-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-moss mb-2">Activity {idx + 1}: {activity.activity_type.replaceAll("_", " ")}</p>
+                    <LessonAssessmentMetadataEditor
+                      activity={{ id: activity.id, activity_type: activity.activity_type, activity_data: activity.activity_data }}
+                      lessonOutcomes={obe.lessonOutcomes}
+                      skills={obe.skills}
+                      targets={obe.learningTargets}
+                      metadata={obe.assessmentItems}
+                      metadataSkills={obe.assessmentSkills}
+                      metadataTargets={obe.assessmentTargets}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </section>
     </div>
   );
