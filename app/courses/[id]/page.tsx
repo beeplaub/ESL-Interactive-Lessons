@@ -19,7 +19,7 @@ import { CourseCurriculumTabs } from "@/components/CourseCurriculumTabs";
 import { LearnerAppShell } from "@/components/LearnerAppShell";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { enrollInCourse } from "@/app/courses/actions";
+import { enrollInCourse, markCourseItemComplete } from "@/app/courses/actions";
 import { getFreshProfile } from "@/lib/auth";
 
 type CourseItemView = {
@@ -38,6 +38,13 @@ type CourseItemView = {
 };
 
 const demoImage = "https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=1200&q=80";
+
+function getItemHref(item: CourseItemView): string | null {
+  if (item.item_type === "LESSON" && item.lesson_id) return `/lessons/${item.lesson_id}?courseItem=${item.id}`;
+  if (item.item_type === "QUIZ" && item.quiz_id) return `/quizzes/${item.quiz_id}?courseItem=${item.id}`;
+  if (item.item_type === "LEVEL_TEST") return "/level-test";
+  return item.resource_url;
+}
 
 export default async function CourseLandingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -94,6 +101,13 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
   const courseItems = orderedCourseItems;
   const isEnrolled = enrollment?.status === "ACTIVE" || enrollment?.status === "COMPLETED";
   const completedIds = new Set((itemProgress ?? []).filter((item) => item.completed).map((item) => item.course_item_id));
+
+  const continueItem = isEnrolled ? (courseItems.find((item) => !completedIds.has(item.id)) ?? courseItems[0] ?? null) : null;
+  const continueLabel = continueItem
+    ? continueItem.lessons?.title ?? continueItem.quizzes?.title ?? continueItem.title ?? continueItem.item_type.replaceAll("_", " ")
+    : null;
+  const continueHref = continueItem ? getItemHref(continueItem) : null;
+
   const totalItems = courseItems.length;
   const completedItems = progress?.completed_items ?? completedIds.size;
   const progressPercent = Math.max(0, Math.min(100, progress?.progress_percent ?? (totalItems ? Math.round((completedItems / totalItems) * 100) : 0)));
@@ -133,9 +147,15 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
           <div className="mt-7 flex flex-col gap-3 sm:flex-row">
             {user ? (
               isEnrolled ? (
-                <Link href={`/courses/${course.id}/learn`} className="inline-flex items-center justify-center gap-2 rounded-[12px] bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] px-6 py-3 text-sm font-extrabold text-white shadow-[0_8px_20px_rgba(108,59,255,.35)]">
-                  <Play className="size-4 fill-white" /> Continue Learning
-                </Link>
+                continueHref ? (
+                  <Link href={continueHref} className="inline-flex items-center justify-center gap-2 rounded-[12px] bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] px-6 py-3 text-sm font-extrabold text-white shadow-[0_8px_20px_rgba(108,59,255,.35)]">
+                    <Play className="size-4 fill-white" /> Continue Learning
+                  </Link>
+                ) : (
+                  <Link href="#curriculum" className="inline-flex items-center justify-center gap-2 rounded-[12px] bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] px-6 py-3 text-sm font-extrabold text-white shadow-[0_8px_20px_rgba(108,59,255,.35)]">
+                    <Play className="size-4 fill-white" /> View curriculum
+                  </Link>
+                )
               ) : (
                 <form action={enrollInCourse.bind(null, course.id)}>
                   <button className="inline-flex w-full items-center justify-center gap-2 rounded-[12px] bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] px-6 py-3 text-sm font-extrabold text-white shadow-[0_8px_20px_rgba(108,59,255,.35)]">
@@ -195,6 +215,7 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
                   return (
                     <CourseItemLink
                       key={item.id}
+                      courseId={course.id}
                       item={item}
                       itemIndex={itemIndex}
                       isComplete={isComplete}
@@ -222,23 +243,15 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
       bannerText = "🏆 Congratulations! You have fully completed this course!";
       inProgressNode = <span className="text-emerald-600 font-bold">Completed!</span>;
     } else {
-      const currentItem = courseItems.find((item) => !completedIds.has(item.id));
-      if (currentItem) {
-        const itemLabel = currentItem.lessons?.title ?? currentItem.quizzes?.title ?? currentItem.title ?? currentItem.item_type.replaceAll("_", " ");
-        const itemHref = currentItem.item_type === "LESSON" && currentItem.lesson_id
-          ? `/lessons/${currentItem.lesson_id}?courseItem=${currentItem.id}`
-          : currentItem.item_type === "QUIZ" && currentItem.quiz_id
-            ? `/quizzes/${currentItem.quiz_id}?courseItem=${currentItem.id}`
-            : currentItem.resource_url;
-
-        if (itemHref) {
+      if (continueItem) {
+        if (continueHref) {
           inProgressNode = (
-            <Link href={itemHref} className="text-[#6C3BFF] hover:underline font-bold inline-flex items-center gap-1">
-              {itemLabel}
+            <Link href={continueHref} className="text-[#6C3BFF] hover:underline font-bold inline-flex items-center gap-1">
+              {continueLabel}
             </Link>
           );
         } else {
-          inProgressNode = <span className="font-bold">{itemLabel}</span>;
+          inProgressNode = <span className="font-bold">{continueLabel}</span>;
         }
       } else {
         inProgressNode = "None";
@@ -332,12 +345,14 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
   const curriculumSubtitle = `${sectionCount} modules · ${totalItems} items · ${Math.max(1, Math.round(totalMinutes / 60))}h total`;
 
   const curriculumCard = (
-    <CourseCurriculumTabs
-      curriculumSubtitle={curriculumSubtitle}
-      curriculumContent={curriculumContent}
-      overviewContent={overviewContent}
-      questionsContent={questionsContent}
-    />
+    <div id="curriculum" className="scroll-mt-20">
+      <CourseCurriculumTabs
+        curriculumSubtitle={curriculumSubtitle}
+        curriculumContent={curriculumContent}
+        overviewContent={overviewContent}
+        questionsContent={questionsContent}
+      />
+    </div>
   );
 
   return (
@@ -390,13 +405,10 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
   );
 }
 
-function CourseItemLink({ item, itemIndex, isComplete, unlocked }: { item: CourseItemView; itemIndex: number; isComplete: boolean; unlocked: boolean }) {
+function CourseItemLink({ courseId, item, itemIndex, isComplete, unlocked }: { courseId: string; item: CourseItemView; itemIndex: number; isComplete: boolean; unlocked: boolean }) {
   const label = item.lessons?.title ?? item.quizzes?.title ?? item.title ?? item.item_type.replaceAll("_", " ");
-  const href = item.item_type === "LESSON" && item.lesson_id
-    ? `/lessons/${item.lesson_id}?courseItem=${item.id}`
-    : item.item_type === "QUIZ" && item.quiz_id
-      ? `/quizzes/${item.quiz_id}?courseItem=${item.id}`
-      : item.resource_url;
+  const href = getItemHref(item);
+  const isManuallyCompleted = (item.item_type === "RESOURCE" || item.item_type === "EXTERNAL_LINK") && !isComplete;
   return (
     <div className="flex items-center gap-3 rounded-[14px] px-2 py-2 text-sm transition hover:bg-[#F6F7FB]">
       <span className={`grid size-6 shrink-0 place-items-center rounded-full text-[11px] font-bold ${isComplete ? "bg-[#00C98D] text-white" : "bg-[#F1F3FA] text-[#8D94AA]"}`}>
@@ -407,9 +419,18 @@ function CourseItemLink({ item, itemIndex, isComplete, unlocked }: { item: Cours
         <p className="mt-0.5 text-xs text-[#8D94AA]">{item.item_type.replaceAll("_", " ")}{item.is_free_preview ? " · Free preview" : ""}</p>
       </div>
       {unlocked && href ? (
-        <Link href={href} className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#F6F7FB] px-2.5 py-1 text-xs font-bold text-[#6C3BFF]">
-          <PlayCircle className="size-3.5" /> Open
-        </Link>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <Link href={href} target={item.item_type === "RESOURCE" || item.item_type === "EXTERNAL_LINK" ? "_blank" : undefined} className="inline-flex items-center gap-1 rounded-full bg-[#F6F7FB] px-2.5 py-1 text-xs font-bold text-[#6C3BFF]">
+            <PlayCircle className="size-3.5" /> Open
+          </Link>
+          {isManuallyCompleted ? (
+            <form action={markCourseItemComplete.bind(null, courseId, item.id)}>
+              <button className="inline-flex items-center gap-1 rounded-full border border-[#ECECF5] px-2.5 py-1 text-xs font-bold text-[#6E738D] hover:bg-[#F6F7FB]">
+                <CheckCircle2 className="size-3.5" /> Mark complete
+              </button>
+            </form>
+          ) : null}
+        </div>
       ) : (
         <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#F6F7FB] px-2.5 py-1 text-xs font-bold text-[#8D94AA]">
           <LockKeyhole className="size-3.5" /> Locked

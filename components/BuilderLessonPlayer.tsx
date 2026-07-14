@@ -174,13 +174,14 @@ function NarrationPill({ src }: { src: string }) {
 }
 
 export function BuilderLessonPlayer({
-  lesson, slides, blocks, activities, initialProgress, activityAttempts = [], initialNotes = {}, narrationMap = {}, courseItemId = null,
+  lesson, slides, blocks, activities, initialProgress, activityAttempts = [], initialNotes = {}, narrationMap = {}, courseItemId = null, backHref = "/courses",
 }: {
   lesson: Lesson; slides: Slide[]; blocks: Block[]; activities: Activity[];
   initialProgress: Progress; activityAttempts?: ActivityAttempt[];
   initialNotes?: Record<string, string>;
   narrationMap?: Record<string, string>;
   courseItemId?: string | null;
+  backHref?: string;
 }) {
   const initialIndex = Math.max(0, Math.min(slides.length - 1, (initialProgress?.current_slide_number ?? 1) - 1));
   const [index, setIndex] = useState(initialIndex);
@@ -370,7 +371,7 @@ export function BuilderLessonPlayer({
   if (!slide) {
     return (
     <main className="mx-auto max-w-5xl px-4 py-10">
-        <Link href="/courses" className="text-sm font-bold text-[#6E738D] hover:text-[#6C3BFF]">Back to courses</Link>
+        <Link href={backHref} className="text-sm font-bold text-[#6E738D] hover:text-[#6C3BFF]">Back to courses</Link>
         <div className="mt-6 rounded-[22px] border border-[#ECECF5] bg-white p-8 text-center text-sm font-semibold text-[#6E738D] shadow-[0_12px_32px_rgba(0,0,0,.06)]">
           This lesson has no slides yet.
         </div>
@@ -383,7 +384,7 @@ export function BuilderLessonPlayer({
       {/* ── Header ── */}
       <div className="mb-3 rounded-[22px] border border-[#ECECF5] bg-white px-3 py-2 shadow-[0_12px_32px_rgba(0,0,0,.06)]">
         <div className="flex flex-wrap items-center gap-3">
-          <Link href="/courses" className="inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-[#ECECF5] text-[#6E738D] hover:bg-[#F6F7FB] hover:text-[#6C3BFF]" aria-label="Back to courses">
+          <Link href={backHref} className="inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-[#ECECF5] text-[#6E738D] hover:bg-[#F6F7FB] hover:text-[#6C3BFF]" aria-label="Back to courses">
             <ArrowLeft size={15} />
           </Link>
           <div className="min-w-0 flex-1">

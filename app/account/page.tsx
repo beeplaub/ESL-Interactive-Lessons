@@ -72,7 +72,7 @@ export default async function AccountPage() {
   const learningItems = [
     ...(courseEnrollments ?? []).map((item, index) => ({
       id: `course-${item.id}`,
-      href: `/courses/${item.course_id}/learn`,
+      href: `/courses/${item.course_id}`,
       title: item.courses?.title ?? "Course",
       meta: `${courseProgressByCourse.get(item.course_id)?.current_module_order ?? 1} module started`,
       level: item.courses?.level ?? "Course",

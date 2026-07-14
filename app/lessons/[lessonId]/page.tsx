@@ -21,21 +21,26 @@ export default async function LessonPage({
   const admin = createAdminClient();
 
   // Enforce global sequential lock guard for enrolled courses
-  let courseId = null;
+  let courseId: string | null = null;
+  let resolvedCourseItemId: string | null = null;
+  let courseTitle: string | null = null;
   if (courseItem) {
     const { data: cItem } = await admin
       .from("course_items")
       .select("course_id")
       .eq("id", courseItem)
       .maybeSingle();
-    if (cItem) courseId = cItem.course_id;
+    if (cItem) {
+      courseId = cItem.course_id;
+      resolvedCourseItemId = courseItem;
+    }
   } else {
     const { data: enrollments } = await admin
       .from("course_enrollments")
       .select("course_id")
       .eq("user_id", user.id)
       .eq("status", "ACTIVE");
-    
+
     if (enrollments && enrollments.length > 0) {
       const courseIds = enrollments.map(e => e.course_id);
       const { data: cItem } = await admin
@@ -47,8 +52,32 @@ export default async function LessonPage({
         .maybeSingle();
       if (cItem) {
         courseId = cItem.course_id;
+        resolvedCourseItemId = cItem.id;
       }
     }
+  }
+
+  // Opening a course item marks it "in progress" app-wide, regardless of
+  // whether the learner got here from the course landing page, the
+  // dashboard, or a direct link. This is the only place that needs to know
+  // about it - no separate "learn" page or manual step required.
+  if (resolvedCourseItemId && courseId) {
+    const { data: existingItemProgress } = await admin
+      .from("course_item_progress")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("course_item_id", resolvedCourseItemId)
+      .maybeSingle();
+    if (!existingItemProgress) {
+      await admin.from("course_item_progress").insert({
+        user_id: user.id,
+        course_id: courseId,
+        course_item_id: resolvedCourseItemId,
+        completed: false,
+      });
+    }
+    const { data: courseRow } = await admin.from("courses").select("title").eq("id", courseId).maybeSingle();
+    courseTitle = courseRow?.title ?? null;
   }
 
   if (courseId) {
@@ -131,11 +160,20 @@ export default async function LessonPage({
       contentClassName="block"
       showRightSidebar={false}
       showFooter={false}
-      breadcrumbs={[
-        { label: "Home", href: "/account" },
-        { label: "Courses", href: "/courses" },
-        { label: lesson.title },
-      ]}
+      breadcrumbs={
+        courseId && courseTitle
+          ? [
+              { label: "Home", href: "/account" },
+              { label: "Courses", href: "/courses" },
+              { label: courseTitle, href: `/courses/${courseId}` },
+              { label: lesson.title },
+            ]
+          : [
+              { label: "Home", href: "/account" },
+              { label: "Courses", href: "/courses" },
+              { label: lesson.title },
+            ]
+      }
     >
       <BuilderLessonPlayer
         lesson={lesson}
@@ -147,6 +185,7 @@ export default async function LessonPage({
         initialNotes={progress?.notes ?? {}}
         narrationMap={narrationMap}
         courseItemId={courseItem}
+        backHref={courseId ? `/courses/${courseId}` : "/courses"}
       />
     </LearnerAppShell>
   );

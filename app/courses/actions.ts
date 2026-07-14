@@ -87,7 +87,7 @@ export async function enrollInCourse(courseId: string) {
   revalidatePath("/account");
   revalidatePath("/courses");
   revalidatePath(`/courses/${courseId}`);
-  redirect(`/courses/${courseId}/learn`);
+  redirect(`/courses/${courseId}`);
 }
 
 export async function markCourseItemComplete(courseId: string, itemId: string) {
@@ -176,5 +176,4 @@ export async function markCourseItemComplete(courseId: string, itemId: string) {
 
   revalidatePath("/account");
   revalidatePath(`/courses/${courseId}`);
-  revalidatePath(`/courses/${courseId}/learn`);
 }

@@ -24,14 +24,18 @@ export default async function QuizPage({
 
   if (user) {
     // Enforce global sequential lock guard for enrolled courses
-    let courseId = null;
+    let courseId: string | null = null;
+    let resolvedCourseItemId: string | null = null;
     if (courseItem) {
       const { data: cItem } = await admin
         .from("course_items")
         .select("course_id")
         .eq("id", courseItem)
         .maybeSingle();
-      if (cItem) courseId = cItem.course_id;
+      if (cItem) {
+        courseId = cItem.course_id;
+        resolvedCourseItemId = courseItem;
+      }
     } else {
       const { data: enrollments } = await admin
         .from("course_enrollments")
@@ -50,7 +54,28 @@ export default async function QuizPage({
           .maybeSingle();
         if (cItem) {
           courseId = cItem.course_id;
+          resolvedCourseItemId = cItem.id;
         }
+      }
+    }
+
+    // Opening a course item marks it "in progress" app-wide, same as lessons -
+    // regardless of whether the learner got here from the course landing
+    // page, the dashboard, or a direct link.
+    if (resolvedCourseItemId && courseId) {
+      const { data: existingItemProgress } = await admin
+        .from("course_item_progress")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("course_item_id", resolvedCourseItemId)
+        .maybeSingle();
+      if (!existingItemProgress) {
+        await admin.from("course_item_progress").insert({
+          user_id: user.id,
+          course_id: courseId,
+          course_item_id: resolvedCourseItemId,
+          completed: false,
+        });
       }
     }
 
