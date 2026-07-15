@@ -1,13 +1,24 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Check, CheckCircle2, CircleDashed, Edit3, Hammer, Search, Trash2, X } from "lucide-react";
+import { BookOpen, Check, CheckCircle2, CircleDashed, Edit3, ExternalLink as ExternalLinkIcon, FileText, Hammer, HelpCircle, Search, Target, Trash2, X } from "lucide-react";
 import { useDeleteConfirm } from "@/components/DeleteConfirmModal";
 
 type Option = { id: string; title: string; level: string | null; topic: string | null; status: string };
 type SectionOption = { id: string; title: string };
 
 const itemTypes = ["LESSON", "QUIZ", "RESOURCE", "EXTERNAL_LINK", "LEVEL_TEST"] as const;
+
+// Same icons used app-wide for these concepts (learner sidebar/nav: BookOpen for
+// Courses, HelpCircle for Quizzes, Target for Level Test) so a lesson/quiz/level
+// test reads the same way here as it does everywhere else in the app.
+const itemTypeIcons: Record<typeof itemTypes[number], typeof BookOpen> = {
+  LESSON: BookOpen,
+  QUIZ: HelpCircle,
+  LEVEL_TEST: Target,
+  RESOURCE: FileText,
+  EXTERNAL_LINK: ExternalLinkIcon,
+};
 
 type ItemShape = {
   id: string;
@@ -38,6 +49,7 @@ type Props = {
 };
 
 export function EditItemModal({ action, deleteAction, item, label, status, count, sections, lessons, quizzes }: Props) {
+  const TypeIcon = itemTypeIcons[item.item_type];
   const [open, setOpen] = useState(false);
   const [itemType, setItemType] = useState<typeof itemTypes[number]>(item.item_type);
   const [lessonId, setLessonId] = useState(item.lesson_id ?? "");
@@ -128,7 +140,11 @@ export function EditItemModal({ action, deleteAction, item, label, status, count
   return (
     <>
       <div className="flex items-center justify-between gap-2 rounded-lg border border-black/10 bg-white p-3">
-        <div className="min-w-0">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-moss/10 text-moss">
+            <TypeIcon size={18} />
+          </span>
+          <div className="min-w-0">
           <p className="flex min-w-0 items-center gap-1.5 truncate text-sm font-semibold">
             <span className="truncate">{label}</span>
             {typeof count === "number" ? <span className="shrink-0 font-normal text-black/40">({count})</span> : null}
@@ -139,6 +155,7 @@ export function EditItemModal({ action, deleteAction, item, label, status, count
             ) : null}
           </p>
           <p className="mt-0.5 text-xs text-black/45">{item.item_type.replaceAll("_", " ")}{item.is_free_preview ? " \u00b7 Free preview" : ""}{item.is_required ? " \u00b7 Required" : " \u00b7 Optional"}</p>
+          </div>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
           {item.item_type === "LESSON" && item.lesson_id ? (
