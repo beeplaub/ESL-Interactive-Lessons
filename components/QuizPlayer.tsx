@@ -748,40 +748,132 @@ function Matching({ question, value, disabled, onChange }: { question: QuizQuest
   const aItems = Array.isArray(opts.a_items) ? opts.a_items.map(String) : [];
   const bItems = Array.isArray(opts.b_items) ? opts.b_items.map(String) : [];
   const rows = aItems.map((leftLabel, i) => ({ key: String(i + 1), leftLabel }));
+  const letters = bItems.map((_, i) => String.fromCharCode(65 + i));
+  const [active, setActive] = useState<string | null>(null);
+  const matched = value ?? {};
+
+  // Read-only, presentation-only correctness lookup per row — mirrors isCorrect()'s own MATCHING
+  // logic in lib/quizScoring.ts but never feeds back into scoring, only into which color a card gets.
+  function expectedFor(rowKey: string): string | null {
+    if (Array.isArray(question.correct_answer)) {
+      const pair = (question.correct_answer as Array<{ a: number; b: string }>).find((p) => String(p.a) === rowKey);
+      return pair ? String(pair.b).trim().toUpperCase() : null;
+    }
+    const correct = asRecord(question.correct_answer);
+    return correct[rowKey] != null ? String(correct[rowKey]).trim().toUpperCase() : null;
+  }
+
+  function pick(rowKey: string, letter: string) {
+    if (disabled) return;
+    const next = { ...matched };
+    if (next[rowKey] === letter) {
+      delete next[rowKey]; // tapping the same letter again clears the match
+    } else {
+      next[rowKey] = letter;
+    }
+    onChange(next);
+    setActive(null);
+  }
+
+  function clearRow(rowKey: string) {
+    if (disabled) return;
+    const next = { ...matched };
+    delete next[rowKey];
+    onChange(next);
+  }
+
   return (
-    <div className="grid gap-3">
-      {bItems.length > 0 && (
-        <div className="flex flex-wrap gap-2 rounded-[14px] bg-[#F6F7FB] p-3 text-sm">
-          {bItems.map((item, i) => {
-            const letter = String.fromCharCode(65 + i);
-            return (
-              <span key={letter} className="rounded border border-[#ECECF5] bg-white px-2 py-1 text-xs">
-                <strong>{letter}.</strong> {item}
+    <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-2">
+        <p className="text-xs font-semibold uppercase tracking-wide text-[#A0A5BA]">Tap a number, then its match</p>
+        {rows.map(({ key, leftLabel }) => {
+          const pickedLetter = matched[key];
+          const expected = disabled ? expectedFor(key) : null;
+          const rowCorrect = disabled && expected ? pickedLetter?.toUpperCase() === expected : false;
+          const rowWrong = disabled && Boolean(pickedLetter) && expected !== null && !rowCorrect;
+          return (
+            <motion.button
+              key={key}
+              type="button"
+              disabled={disabled}
+              onClick={() => setActive(active === key ? null : key)}
+              whileTap={{ scale: disabled ? 1 : 0.97 }}
+              className={`flex items-center justify-between gap-2 rounded-[14px] border-2 px-3 py-2.5 text-left text-sm font-semibold shadow-sm transition-colors ${
+                rowCorrect
+                  ? "border-[#00C98D] bg-[#00C98D]/10"
+                  : rowWrong
+                  ? "border-[#FF5D73] bg-[#FF5D73]/10"
+                  : active === key
+                  ? "border-[#6C3BFF] bg-[#6C3BFF]/5"
+                  : pickedLetter
+                  ? "border-[#6C3BFF]/30 bg-white"
+                  : "border-[#ECECF5] bg-white"
+              }`}
+            >
+              <span>{key}. {leftLabel}</span>
+              <span className="flex items-center gap-1">
+                {pickedLetter ? (
+                  <motion.span
+                    key={pickedLetter}
+                    initial={{ scale: 0.5, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ type: "spring", stiffness: 500, damping: 24 }}
+                    className={`grid size-6 place-items-center rounded-full text-xs font-extrabold text-white ${
+                      rowCorrect ? "bg-[#00C98D]" : rowWrong ? "bg-[#FF5D73]" : "bg-[#6C3BFF]"
+                    }`}
+                  >
+                    {pickedLetter}
+                  </motion.span>
+                ) : (
+                  <span className="grid size-6 place-items-center rounded-full border border-dashed border-[#A0A5BA] text-xs text-[#A0A5BA]">?</span>
+                )}
+                {pickedLetter && !disabled ? (
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => { e.stopPropagation(); clearRow(key); }}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); clearRow(key); } }}
+                    className="text-[#A0A5BA] hover:text-[#FF5D73]"
+                    aria-label={`Clear match for ${key}`}
+                  >
+                    ×
+                  </span>
+                ) : null}
+                {disabled && rowCorrect ? <CheckCircle2 size={16} className="text-[#00C98D]" /> : null}
+                {disabled && rowWrong ? <XCircle size={16} className="text-[#FF5D73]" /> : null}
               </span>
-            );
-          })}
-        </div>
-      )}
-      {rows.map(({ key, leftLabel }) => (
-        <div key={key} className="flex items-center gap-3 text-sm">
-          <span className="min-w-[120px] shrink-0 font-medium">{key}. {leftLabel}</span>
-          <select
-            disabled={disabled}
-            value={value[key] ?? ""}
-            onChange={(e) => onChange({ ...value, [key]: e.target.value })}
-            className="flex-1 rounded-[14px] border border-[#ECECF5] bg-[#F6F7FB] px-3 py-2 text-sm font-semibold outline-none focus:border-[#6C3BFF] focus:bg-white"
-          >
-            <option value="">Select...</option>
-            {bItems.map((_, i) => {
-              const letter = String.fromCharCode(65 + i);
-              return <option key={letter} value={letter}>{letter}</option>;
-            })}
-          </select>
-        </div>
-      ))}
+            </motion.button>
+          );
+        })}
+      </div>
+      <div className="grid gap-2">
+        <p className="text-xs font-semibold uppercase tracking-wide text-[#A0A5BA]">{active ? `Now tap ${bItems.length ? "the match" : ""} for ${active}` : "Options"}</p>
+        {bItems.map((label, i) => {
+          const letter = letters[i];
+          const linkedRows = rows.filter((r) => matched[r.key] === letter).map((r) => r.key);
+          return (
+            <motion.button
+              key={letter}
+              type="button"
+              disabled={disabled || !active}
+              onClick={() => { if (active) pick(active, letter); }}
+              whileTap={{ scale: disabled || !active ? 1 : 0.97 }}
+              className={`flex items-center justify-between gap-2 rounded-[14px] border-2 px-3 py-2.5 text-left text-sm shadow-sm transition-colors ${
+                linkedRows.length > 0 ? "border-[#6C3BFF]/30 bg-[#6C3BFF]/5" : "border-[#ECECF5] bg-white"
+              } ${active && !disabled ? "cursor-pointer hover:border-[#6C3BFF]" : ""} disabled:opacity-60`}
+            >
+              <span><strong>{letter}.</strong> {label}</span>
+              {linkedRows.length > 0 ? (
+                <span className="rounded-full bg-[#6C3BFF]/15 px-2 py-0.5 text-xs font-extrabold text-[#6C3BFF]">{linkedRows.join(", ")}</span>
+              ) : null}
+            </motion.button>
+          );
+        })}
+      </div>
     </div>
   );
 }
+
 
 function ErrorCorrection({
   question,
