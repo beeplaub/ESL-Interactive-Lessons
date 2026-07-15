@@ -7,6 +7,11 @@ import { QuestionCard, hasAnswer, type QuizQuestion } from "@/components/QuizPla
 import { isCorrect, questionScore, questionTotal } from "@/lib/quizScoring";
 import { startRoleplaySessionAction, submitRoleplayTurnAction, completeRoleplaySessionAction } from "@/app/admin/lessons/aiActions";
 import type { Json } from "@/types/database.types";
+import { useStreakEngine } from "@/lib/gamification/useStreakEngine";
+import { StreakBadge, ComboToast } from "@/components/gamification/StreakBadge";
+import { SoundToggle } from "@/components/gamification/SoundToggle";
+import { fireCompletionConfetti } from "@/lib/gamification/confetti";
+import { playCelebration, playCorrect, playPartial, playWrong } from "@/lib/gamification/sounds";
 
 type LessonSlideActivity = {
   id: string; activity_type: string; activity_data: Json | null;
@@ -865,9 +870,38 @@ export function LessonActivityPanel({
   const [message, setMessage] = useState<string | null>(null);
   const [localAttempts, setLocalAttempts] = useState<SavedAttempt[]>(attempts);
   const [isPending, startTransition] = useTransition();
+  const streakEngine = useStreakEngine();
+  const celebratedRef = useRef(false);
+  const handleQuestionResult = useCallback((result: "correct" | "wrong" | "partial") => {
+    if (result === "correct") {
+      streakEngine.reportResult(true);
+      playCorrect();
+    } else if (result === "partial") {
+      streakEngine.reportResult(false);
+      playPartial();
+    } else {
+      streakEngine.reportResult(false);
+      playWrong();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [streakEngine.reportResult]);
 
   // Carousel state
   const [qIndex, setQIndex] = useState(0);
+
+  // Fire a one-time confetti + chime celebration once a strong score is revealed. Presentational only.
+  // Computed from `questions` directly (rather than the later `score`/`total` consts) so this hook can
+  // run before the AI_ROLEPLAY early return below and keep hook order stable across renders.
+  useEffect(() => {
+    if (!submitted || celebratedRef.current || questions.length === 0) return;
+    const finalScore = questions.reduce((sum, q) => sum + questionScore(q, answers[q.id]), 0);
+    const finalTotal = questions.reduce((sum, q) => sum + questionTotal(q), 0);
+    if (finalTotal > 0 && finalScore / finalTotal >= 0.8) {
+      celebratedRef.current = true;
+      fireCompletionConfetti();
+      playCelebration();
+    }
+  }, [submitted, answers, questions]);
 
   // ── AI Roleplay: full chat UI instead of quiz carousel ──
   if (activity.activity_type === "AI_ROLEPLAY") {
@@ -938,6 +972,8 @@ export function LessonActivityPanel({
     setSubmitted(false);
     setMessage(null);
     setQIndex(0);
+    streakEngine.reset();
+    celebratedRef.current = false;
   }
 
   return (
@@ -948,12 +984,17 @@ export function LessonActivityPanel({
           <p className="text-xs font-semibold uppercase tracking-wide text-moss">Activity</p>
           <h2 className="text-lg font-semibold">{activityLabel(activity.activity_type)}</h2>
         </div>
-        {submitted && (
-          <span className="rounded-full bg-moss/10 px-3 py-1 text-xs font-semibold text-moss">
-            {score}/{total}
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          <StreakBadge streak={streakEngine.streak} />
+          {submitted && (
+            <span className="rounded-full bg-moss/10 px-3 py-1 text-xs font-semibold text-moss">
+              {score}/{total}
+            </span>
+          )}
+          <SoundToggle />
+        </div>
       </div>
+      <ComboToast milestone={streakEngine.activeMilestone} onDone={streakEngine.ackMilestone} />
 
       {/* Question carousel */}
       {currentQuestion && (
@@ -1005,6 +1046,7 @@ export function LessonActivityPanel({
               value={answers[currentQuestion.id]}
               submitted={submitted}
               onChange={(value) => setAnswers((prev) => ({ ...prev, [currentQuestion.id]: value }))}
+              onResult={handleQuestionResult}
             />
           </div>
 

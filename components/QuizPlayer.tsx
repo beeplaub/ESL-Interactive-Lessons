@@ -1,13 +1,19 @@
 "use client";
 
 import type { TouchEvent } from "react";
-import { AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Mic, MicOff, RotateCcw, Sparkles, TrendingUp, Loader2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Mic, MicOff, RotateCcw, Sparkles, TrendingUp, Loader2, XCircle } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { motion } from "framer-motion";
 import { recordQuizAttempt } from "@/app/quizzes/actions";
 import { GuestScorePopup, type PendingAttempt } from "@/components/GuestScorePopup";
 import type { Json } from "@/types/database.types";
 import { getSpeechRecognitionConstructor, transcriptContainsTarget } from "@/lib/speechRecognition";
 import { asRecord, isCorrect, partialCreditStats, questionScore, questionTotal } from "@/lib/quizScoring";
+import { useStreakEngine } from "@/lib/gamification/useStreakEngine";
+import { StreakBadge, ComboToast } from "@/components/gamification/StreakBadge";
+import { SoundToggle } from "@/components/gamification/SoundToggle";
+import { fireCompletionConfetti } from "@/lib/gamification/confetti";
+import { playCelebration, playCorrect, playPartial, playWrong } from "@/lib/gamification/sounds";
 
 export type QuizQuestion = {
   id: string;
@@ -242,6 +248,21 @@ export function QuizPlayer({
   const [remainingSeconds, setRemainingSeconds] = useState(() => timerMinutes ? timerMinutes * 60 : null);
   const attemptStartRef = useRef(Date.now());
   const [isPending, startTransition] = useTransition();
+  const streakEngine = useStreakEngine();
+  const celebratedRef = useRef(false);
+  const handleQuestionResult = useCallback((result: "correct" | "wrong" | "partial") => {
+    if (result === "correct") {
+      streakEngine.reportResult(true);
+      playCorrect();
+    } else if (result === "partial") {
+      streakEngine.reportResult(false);
+      playPartial();
+    } else {
+      streakEngine.reportResult(false);
+      playWrong();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [streakEngine.reportResult]);
   const answered = questions.every((question) => hasAnswer(question, answers[question.id]));
   const totalPoints = questions.reduce((sum, question) => sum + questionTotal(question), 0);
   const currentScore = questions.reduce((sum, question) => sum + questionScore(question, answers[question.id]), 0);
@@ -280,7 +301,20 @@ export function QuizPlayer({
     setCurrentIndex(0);
     setRemainingSeconds(timerMinutes ? timerMinutes * 60 : null);
     attemptStartRef.current = Date.now();
+    streakEngine.reset();
+    celebratedRef.current = false;
   }
+
+  // Fire a one-time confetti + chime celebration once the final score is revealed and it's a strong result.
+  // Purely presentational — score/totalPoints here are the same values already used for the score display.
+  useEffect(() => {
+    if (!submitted || celebratedRef.current) return;
+    if (totalPoints > 0 && score / totalPoints >= 0.8) {
+      celebratedRef.current = true;
+      fireCompletionConfetti();
+      playCelebration();
+    }
+  }, [submitted, score, totalPoints]);
 
   function goToQuestion(nextIndex: number) {
     setCurrentIndex(Math.max(0, Math.min(questions.length - 1, nextIndex)));
@@ -365,17 +399,20 @@ export function QuizPlayer({
             <p className="mt-1 inline-flex items-center gap-2 text-sm font-semibold text-[#6E738D]"><Sparkles size={15} className="text-[#6C3BFF]" /> {encouragement}</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <StreakBadge streak={streakEngine.streak} />
             {remainingSeconds !== null ? (
               <div className={`rounded-full px-3 py-1.5 text-sm font-extrabold ${timerUrgent ? "bg-[#FF5D73]/10 text-[#FF5D73]" : "bg-[#00C98D]/10 text-[#00A977]"}`}>
                 {formatTime(remainingSeconds)}
               </div>
             ) : null}
             <div className="rounded-full bg-[#F6F7FB] px-3 py-1.5 text-sm font-extrabold text-[#14172B]">{answeredCount}/{questions.length} answered</div>
+            <SoundToggle />
           </div>
         </div>
         <div className="mt-4 h-2 overflow-hidden rounded-full bg-[#F6F7FB]">
           <div className="h-full rounded-full bg-gradient-to-r from-[#6C3BFF] to-[#8A58FF] transition-all duration-500" style={{ width: `${progressPercent}%` }} />
         </div>
+        <ComboToast milestone={streakEngine.activeMilestone} onDone={streakEngine.ackMilestone} />
       </div>
 
       {submitted ? (
@@ -386,6 +423,7 @@ export function QuizPlayer({
             {Math.round((score / Math.max(1, totalPoints)) * 100)}% — {encouragement}
           </p>
           {timerMinutes ? <p className="mt-1 text-xs font-semibold text-white/65">Time used: {formatTime(timeTakenSeconds)}</p> : null}
+          {streakEngine.bestStreak >= 2 ? <p className="mt-1 text-xs font-semibold text-white/65">🔥 Best streak: {streakEngine.bestStreak} in a row</p> : null}
           </div>
           {isGuest ? (
             <button
@@ -422,6 +460,7 @@ export function QuizPlayer({
             value={answers[currentQuestion.id]}
             submitted={submitted}
             onChange={(value) => setAnswers((current) => ({ ...current, [currentQuestion.id]: value }))}
+            onResult={handleQuestionResult}
           />
         ) : null}
       </div>
@@ -503,12 +542,15 @@ export function QuestionCard({
   question,
   value,
   submitted,
-  onChange
+  onChange,
+  onResult
 }: {
   question: QuizQuestion;
   value: unknown;
   submitted: boolean;
   onChange: (value: unknown) => void;
+  /** Fired once, the first time this question's result becomes visible (submitted flips true for it). Purely presentational (streak/sound hooks) — never affects scoring. */
+  onResult?: (result: "correct" | "wrong" | "partial") => void;
 }) {
   const isSelfChecked = question.question_type === "SHORT_ANSWER";
   const isPartialCredit = question.question_type === "DRAG_DROP" || question.question_type === "CATEGORIZATION" || question.question_type === "FILL" || question.question_type === "PRONUNCIATION";
@@ -518,6 +560,7 @@ export function QuestionCard({
   const partial = Boolean(stats && stats.correctCount > 0 && stats.correctCount < stats.total);
   const allCorrect = Boolean(stats && stats.correctCount === stats.total);
   const allWrong = Boolean(stats && stats.correctCount === 0);
+  const isResolved = correct || allCorrect || wrong || allWrong || partial;
   const borderClass = correct || allCorrect
     ? "border-[#00C98D]"
     : partial
@@ -525,8 +568,51 @@ export function QuestionCard({
     : wrong || allWrong
     ? "border-[#FF5D73]"
     : "border-[#ECECF5]";
+
+  const reportedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!submitted || !isResolved) return;
+    // Only report once per question per submission pass (guards against re-renders re-firing sound/streak effects).
+    if (reportedRef.current === question.id) return;
+    reportedRef.current = question.id;
+    if (!onResult) return;
+    if (correct || allCorrect) onResult("correct");
+    else if (partial) onResult("partial");
+    else onResult("wrong");
+  }, [submitted, isResolved, correct, allCorrect, partial, question.id, onResult]);
+
   return (
-    <fieldset className={`rounded-[20px] border bg-white p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)] sm:p-6 ${borderClass}`}>
+    <motion.fieldset
+      animate={
+        correct || allCorrect
+          ? { scale: [1, 1.015, 1] }
+          : wrong || allWrong
+          ? { x: [0, -6, 6, -4, 4, 0] }
+          : partial
+          ? { scale: [1, 1.008, 1] }
+          : { scale: 1, x: 0 }
+      }
+      transition={{ duration: 0.4, ease: "easeOut" }}
+      className={`relative rounded-[20px] border bg-white p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)] sm:p-6 ${borderClass}`}
+    >
+      {isResolved ? (
+        <motion.div
+          initial={{ scale: 0, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: "spring", stiffness: 500, damping: 20, delay: 0.1 }}
+          className={`absolute -right-2 -top-2 grid size-8 place-items-center rounded-full shadow-md ${
+            correct || allCorrect ? "bg-[#00C98D]" : partial ? "bg-[#FFB545]" : "bg-[#FF5D73]"
+          }`}
+        >
+          {correct || allCorrect ? (
+            <CheckCircle2 size={18} className="text-white" />
+          ) : partial ? (
+            <Sparkles size={16} className="text-white" />
+          ) : (
+            <XCircle size={18} className="text-white" />
+          )}
+        </motion.div>
+      ) : null}
       <legend className="px-2 text-lg font-extrabold leading-snug text-[#14172B] sm:text-xl">
         <span className="mr-2 inline-grid size-8 place-items-center rounded-full bg-[#6C3BFF]/10 text-sm font-black text-[#6C3BFF]">{question.question_number}</span>{question.question_text}
       </legend>
@@ -553,7 +639,7 @@ export function QuestionCard({
           Correct answer: {answerText(question)}
         </p>
       ) : null}
-    </fieldset>
+    </motion.fieldset>
   );
 }
 
