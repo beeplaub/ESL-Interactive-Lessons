@@ -12,7 +12,7 @@ import { asRecord, isCorrect, partialCreditStats, questionScore, questionTotal }
 import { useStreakEngine } from "@/lib/gamification/useStreakEngine";
 import { StreakBadge, ComboToast } from "@/components/gamification/StreakBadge";
 import { SoundToggle } from "@/components/gamification/SoundToggle";
-import { fireCompletionConfetti } from "@/lib/gamification/confetti";
+import { CELEBRATION_SCORE_THRESHOLD, fireCompletionConfetti } from "@/lib/gamification/confetti";
 import { playCelebration, playCorrect, playPartial, playWrong } from "@/lib/gamification/sounds";
 
 export type QuizQuestion = {
@@ -250,15 +250,15 @@ export function QuizPlayer({
   const [isPending, startTransition] = useTransition();
   const streakEngine = useStreakEngine();
   const celebratedRef = useRef(false);
-  const handleQuestionResult = useCallback((result: "correct" | "wrong" | "partial") => {
+  const handleQuestionResult = useCallback((result: "correct" | "wrong" | "partial", questionId: string) => {
     if (result === "correct") {
-      streakEngine.reportResult(true);
+      streakEngine.reportResult(true, questionId);
       playCorrect();
     } else if (result === "partial") {
-      streakEngine.reportResult(false);
+      streakEngine.reportResult(false, questionId);
       playPartial();
     } else {
-      streakEngine.reportResult(false);
+      streakEngine.reportResult(false, questionId);
       playWrong();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -309,7 +309,7 @@ export function QuizPlayer({
   // Purely presentational — score/totalPoints here are the same values already used for the score display.
   useEffect(() => {
     if (!submitted || celebratedRef.current) return;
-    if (totalPoints > 0 && score / totalPoints >= 0.8) {
+    if (totalPoints > 0 && score / totalPoints >= CELEBRATION_SCORE_THRESHOLD) {
       celebratedRef.current = true;
       fireCompletionConfetti();
       playCelebration();
@@ -550,7 +550,7 @@ export function QuestionCard({
   submitted: boolean;
   onChange: (value: unknown) => void;
   /** Fired once, the first time this question's result becomes visible (submitted flips true for it). Purely presentational (streak/sound hooks) — never affects scoring. */
-  onResult?: (result: "correct" | "wrong" | "partial") => void;
+  onResult?: (result: "correct" | "wrong" | "partial", questionId: string) => void;
 }) {
   const isSelfChecked = question.question_type === "SHORT_ANSWER";
   const isPartialCredit = question.question_type === "DRAG_DROP" || question.question_type === "CATEGORIZATION" || question.question_type === "FILL" || question.question_type === "PRONUNCIATION";
@@ -576,9 +576,9 @@ export function QuestionCard({
     if (reportedRef.current === question.id) return;
     reportedRef.current = question.id;
     if (!onResult) return;
-    if (correct || allCorrect) onResult("correct");
-    else if (partial) onResult("partial");
-    else onResult("wrong");
+    if (correct || allCorrect) onResult("correct", question.id);
+    else if (partial) onResult("partial", question.id);
+    else onResult("wrong", question.id);
   }, [submitted, isResolved, correct, allCorrect, partial, question.id, onResult]);
 
   return (

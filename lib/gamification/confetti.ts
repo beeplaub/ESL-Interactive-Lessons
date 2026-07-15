@@ -4,7 +4,18 @@ import confetti from "canvas-confetti";
 
 const BRAND_COLORS = ["#6C3BFF", "#8A58FF", "#3CCEFF", "#FFB545", "#00C98D"];
 
-/** Fired once when a learner finishes a quiz/activity with a strong score (>= 80%). */
+/**
+ * Minimum score (as a fraction of total points, e.g. 0.8 = 80%) required to trigger the
+ * completion celebration (confetti + chime). Applies uniformly to every quiz and lesson
+ * activity regardless of which question/activity types it's made of — the score/total used
+ * to compare against this threshold comes from the same questionScore()/questionTotal()
+ * functions that already produce the score shown on the completion card, so there is no
+ * per-type gating anywhere in this logic. Below this threshold, nothing fires — including a
+ * 0% (all-wrong) result, since 0 can never reach the threshold.
+ */
+export const CELEBRATION_SCORE_THRESHOLD = 0.8;
+
+/** Fired once when a learner finishes a quiz/activity with a score at or above CELEBRATION_SCORE_THRESHOLD. */
 export function fireCompletionConfetti() {
   if (typeof window === "undefined") return;
   const duration = 900;

@@ -10,7 +10,7 @@ import type { Json } from "@/types/database.types";
 import { useStreakEngine } from "@/lib/gamification/useStreakEngine";
 import { StreakBadge, ComboToast } from "@/components/gamification/StreakBadge";
 import { SoundToggle } from "@/components/gamification/SoundToggle";
-import { fireCompletionConfetti } from "@/lib/gamification/confetti";
+import { CELEBRATION_SCORE_THRESHOLD, fireCompletionConfetti } from "@/lib/gamification/confetti";
 import { playCelebration, playCorrect, playPartial, playWrong } from "@/lib/gamification/sounds";
 
 type LessonSlideActivity = {
@@ -872,15 +872,15 @@ export function LessonActivityPanel({
   const [isPending, startTransition] = useTransition();
   const streakEngine = useStreakEngine();
   const celebratedRef = useRef(false);
-  const handleQuestionResult = useCallback((result: "correct" | "wrong" | "partial") => {
+  const handleQuestionResult = useCallback((result: "correct" | "wrong" | "partial", questionId: string) => {
     if (result === "correct") {
-      streakEngine.reportResult(true);
+      streakEngine.reportResult(true, questionId);
       playCorrect();
     } else if (result === "partial") {
-      streakEngine.reportResult(false);
+      streakEngine.reportResult(false, questionId);
       playPartial();
     } else {
-      streakEngine.reportResult(false);
+      streakEngine.reportResult(false, questionId);
       playWrong();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -896,7 +896,7 @@ export function LessonActivityPanel({
     if (!submitted || celebratedRef.current || questions.length === 0) return;
     const finalScore = questions.reduce((sum, q) => sum + questionScore(q, answers[q.id]), 0);
     const finalTotal = questions.reduce((sum, q) => sum + questionTotal(q), 0);
-    if (finalTotal > 0 && finalScore / finalTotal >= 0.8) {
+    if (finalTotal > 0 && finalScore / finalTotal >= CELEBRATION_SCORE_THRESHOLD) {
       celebratedRef.current = true;
       fireCompletionConfetti();
       playCelebration();
