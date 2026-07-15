@@ -3,7 +3,7 @@
 import type { TouchEvent } from "react";
 import { AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Mic, MicOff, RotateCcw, Sparkles, TrendingUp, Loader2, XCircle } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
-import { motion } from "framer-motion";
+import { motion, Reorder } from "framer-motion";
 import { recordQuizAttempt } from "@/app/quizzes/actions";
 import { GuestScorePopup, type PendingAttempt } from "@/components/GuestScorePopup";
 import type { Json } from "@/types/database.types";
@@ -922,7 +922,6 @@ function Reordering({
   const byId = new Map(items.map((item) => [String(item.id), String(item.text ?? "")]));
   const order = value && value.length === items.length ? value : items.map((item) => String(item.id));
   const isWordLevel = opts.level === "word";
-  const dragIndex = { current: -1 };
 
   function move(from: number, to: number) {
     if (to < 0 || to >= order.length || from === to) return;
@@ -934,42 +933,50 @@ function Reordering({
 
   if (isWordLevel) {
     return (
-      <div className="flex flex-wrap gap-2 rounded-[14px] bg-[#F6F7FB] p-3">
+      <Reorder.Group
+        as="div"
+        axis="x"
+        values={order}
+        onReorder={onChange}
+        className="flex flex-wrap gap-2 rounded-[14px] bg-[#F6F7FB] p-3"
+      >
         {order.map((id, i) => (
-          <div
+          <Reorder.Item
             key={id}
-            draggable={!disabled}
-            onDragStart={() => { dragIndex.current = i; }}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={() => { move(dragIndex.current, i); dragIndex.current = -1; }}
-            className="flex items-center gap-1 rounded-[14px] border border-[#ECECF5] bg-white px-2 py-1 text-sm shadow-sm"
+            value={id}
+            drag={!disabled}
+            dragElastic={0.15}
+            whileDrag={{ scale: 1.08, boxShadow: "0 8px 20px rgba(108,59,255,.25)", zIndex: 10 }}
+            transition={{ type: "spring", stiffness: 500, damping: 32 }}
+            className="flex touch-none select-none items-center gap-1 rounded-[14px] border border-[#ECECF5] bg-white px-2 py-1 text-sm shadow-sm"
           >
             <button type="button" disabled={disabled || i === 0} onClick={() => move(i, i - 1)} className="text-[#6E738D] hover:text-[#14172B] disabled:opacity-25" aria-label="Move left">
               ←
             </button>
-            <span className="cursor-grab select-none px-1">{byId.get(id) ?? ""}</span>
+            <span className={`px-1 ${disabled ? "" : "cursor-grab active:cursor-grabbing"}`}>{byId.get(id) ?? ""}</span>
             <button type="button" disabled={disabled || i === order.length - 1} onClick={() => move(i, i + 1)} className="text-[#6E738D] hover:text-[#14172B] disabled:opacity-25" aria-label="Move right">
               →
             </button>
-          </div>
+          </Reorder.Item>
         ))}
-      </div>
+      </Reorder.Group>
     );
   }
 
   return (
-    <div className="grid gap-2">
+    <Reorder.Group as="div" axis="y" values={order} onReorder={onChange} className="grid gap-2">
       {order.map((id, i) => (
-        <div
+        <Reorder.Item
           key={id}
-          draggable={!disabled}
-          onDragStart={() => { dragIndex.current = i; }}
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={() => { move(dragIndex.current, i); dragIndex.current = -1; }}
-          className="flex items-center gap-3 rounded-[14px] border border-[#ECECF5] bg-white px-3 py-2 text-sm shadow-sm"
+          value={id}
+          drag={!disabled}
+          dragElastic={0.15}
+          whileDrag={{ scale: 1.02, boxShadow: "0 8px 20px rgba(108,59,255,.2)", zIndex: 10 }}
+          transition={{ type: "spring", stiffness: 500, damping: 32 }}
+          className="flex touch-none items-center gap-3 rounded-[14px] border border-[#ECECF5] bg-white px-3 py-2 text-sm shadow-sm"
         >
-          <span className="cursor-grab select-none text-[#A0A5BA]">⠿</span>
-          <span className="flex-1">{byId.get(id) ?? ""}</span>
+          <span className={`select-none text-[#A0A5BA] ${disabled ? "" : "cursor-grab active:cursor-grabbing"}`}>⠿</span>
+          <span className="flex-1 select-none">{byId.get(id) ?? ""}</span>
           <div className="flex gap-1">
             <button type="button" disabled={disabled || i === 0} onClick={() => move(i, i - 1)} className="rounded border border-[#ECECF5] px-2 py-1 text-xs text-[#6E738D] hover:bg-white disabled:opacity-25" aria-label="Move up">
               ↑
@@ -978,9 +985,9 @@ function Reordering({
               ↓
             </button>
           </div>
-        </div>
+        </Reorder.Item>
       ))}
-    </div>
+    </Reorder.Group>
   );
 }
 
@@ -1195,63 +1202,75 @@ function DragDrop({
 
   return (
     <div className="grid gap-4">
-      <div className="flex flex-wrap gap-2 rounded-[14px] bg-[#F6F7FB] p-3 min-h-[3rem]">
+      <motion.div layout className="flex flex-wrap gap-2 rounded-[14px] bg-[#F6F7FB] p-3 min-h-[3rem]">
         {unplacedItems.length === 0 ? (
           <span className="text-xs text-[#6E738D]">All items placed.</span>
         ) : (
           unplacedItems.map((item) => {
             const id = String(item.id);
             return (
-              <button
+              <motion.button
                 key={id}
+                layoutId={`dragdrop-${question.id}-${id}`}
+                layout
                 type="button"
                 disabled={disabled}
                 draggable={!disabled}
+                whileTap={{ scale: 0.95 }}
                 onDragStart={() => { dragItemId.current = id; }}
                 onClick={() => setPicked(picked === id ? null : id)}
+                transition={{ type: "spring", stiffness: 500, damping: 30 }}
                 className={`rounded-[14px] border px-3 py-1.5 text-sm shadow-sm transition-colors ${
                   picked === id ? "border-[#00C98D] bg-[#00C98D]/10 text-[#00A977]" : "border-[#ECECF5] bg-white hover:bg-white"
                 }`}
               >
                 {String(item.text ?? "")}
-              </button>
+              </motion.button>
             );
           })
         )}
-      </div>
+      </motion.div>
       {picked ? <p className="text-xs text-[#6E738D]">Now tap a box below to place it there.</p> : null}
       <div className="grid gap-2 sm:grid-cols-2">
         {targets.map((target) => {
           const placedItems = items.filter((item) => value[String(item.id)] === target);
           return (
-            <div
+            <motion.div
               key={target}
+              layout
+              animate={picked ? { scale: [1, 1.015, 1] } : { scale: 1 }}
+              transition={{ duration: 1.1, repeat: picked ? Infinity : 0, ease: "easeInOut" }}
               onDragOver={(e) => e.preventDefault()}
               onDrop={() => { if (dragItemId.current) { place(dragItemId.current, target); dragItemId.current = null; } }}
               onClick={() => { if (picked) place(picked, target); }}
               className={`rounded-[14px] border-2 border-dashed p-3 text-sm transition-colors ${
-                picked ? "cursor-pointer border-[#00C98D]/40 hover:border-[#00C98D]" : "border-[#ECECF5]"
+                picked ? "cursor-pointer border-[#00C98D]/40 bg-[#00C98D]/5 hover:border-[#00C98D]" : "border-[#ECECF5]"
               }`}
             >
               <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[#6E738D]">{target}</p>
               {placedItems.length > 0 ? (
-                <div className="flex flex-wrap gap-1.5">
+                <motion.div layout className="flex flex-wrap gap-1.5">
                   {placedItems.map((placedItem) => (
-                    <button
+                    <motion.button
                       key={String(placedItem.id)}
+                      layoutId={`dragdrop-${question.id}-${String(placedItem.id)}`}
+                      layout
+                      initial={{ scale: 0.7, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ type: "spring", stiffness: 500, damping: 30 }}
                       type="button"
                       disabled={disabled}
                       onClick={(e) => { e.stopPropagation(); unplace(String(placedItem.id)); }}
                       className="rounded-[14px] border border-[#00C98D]/30 bg-[#00C98D]/10 px-3 py-1.5 text-sm text-[#14172B]"
                     >
                       {String(placedItem.text ?? "")} <span className="text-[#6E738D]">×</span>
-                    </button>
+                    </motion.button>
                   ))}
-                </div>
+                </motion.div>
               ) : (
                 <span className="text-xs text-[#A0A5BA]">Empty</span>
               )}
-            </div>
+            </motion.div>
           );
         })}
       </div>
