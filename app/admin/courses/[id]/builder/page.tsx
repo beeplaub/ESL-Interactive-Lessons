@@ -58,8 +58,8 @@ type CourseItem = {
   assessment_weight: number;
   mastery_threshold_override: number | null;
   evidence_selection_override: string | null;
-  lessons?: { title?: string | null; level?: string | null } | null;
-  quizzes?: { title?: string | null; level?: string | null } | null;
+  lessons?: { title?: string | null; level?: string | null; status?: string | null } | null;
+  quizzes?: { title?: string | null; level?: string | null; status?: string | null } | null;
 };
 
 export default async function CourseBuilderPage({ params }: { params: Promise<{ id: string }> }) {
@@ -79,7 +79,7 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
     admin.from("course_outcomes").select("*").eq("course_id", id).order("position", { ascending: true }),
     admin.from("course_faqs").select("*").eq("course_id", id).order("position", { ascending: true }),
     admin.from("course_sections").select("*").eq("course_id", id).order("position", { ascending: true }),
-    admin.from("course_items").select("*, lessons(title,level), quizzes(title,level)").eq("course_id", id).order("position", { ascending: true }),
+    admin.from("course_items").select("*, lessons(title,level,status), quizzes(title,level,status)").eq("course_id", id).order("position", { ascending: true }),
     admin.from("lessons").select("id,title,level,topic,status").is("deleted_at", null).order("created_at", { ascending: false }),
     admin.from("quizzes").select("id,title,level,topic,status").is("deleted_at", null).order("created_at", { ascending: false }),
     admin.from("organizations").select("id,name").order("name", { ascending: true }),
@@ -102,6 +102,20 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
   const { data: quizOutcomeMappings } = courseQuizAssessmentIds.length
     ? await admin.from("assessment_item_course_outcomes").select("*").in("assessment_item_id", courseQuizAssessmentIds).in("course_item_id", quizCourseItemIds)
     : { data: [] };
+  const lessonItemRows = courseItems.filter((item) => item.item_type === "LESSON" && item.lesson_id);
+  const courseLessonIds = lessonItemRows.map((item) => item.lesson_id).filter((value): value is string => Boolean(value));
+  const { data: courseLessonSlides } = courseLessonIds.length
+    ? await admin.from("slides").select("lesson_id").in("lesson_id", courseLessonIds)
+    : { data: [] as { lesson_id: string }[] };
+  const slideCountByLessonId = new Map<string, number>();
+  for (const slide of courseLessonSlides ?? []) {
+    slideCountByLessonId.set(slide.lesson_id, (slideCountByLessonId.get(slide.lesson_id) ?? 0) + 1);
+  }
+  const questionCountByQuizId = new Map<string, number>();
+  for (const question of courseQuizQuestions ?? []) {
+    questionCountByQuizId.set(question.quiz_id, (questionCountByQuizId.get(question.quiz_id) ?? 0) + 1);
+  }
+
   const lessonOptions = (lessons ?? []) as LessonOption[];
   const quizOptions = (quizzes ?? []) as QuizOption[];
   const sectionOptions = (sections ?? []).map((section) => ({ id: section.id, title: section.title }));
@@ -193,6 +207,12 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
         <div className="mt-3 space-y-2">
           {sectionItems.map((item, itemIndex) => {
             const label = item.title?.trim() || item.lessons?.title || item.quizzes?.title || item.item_type.replaceAll("_", " ");
+            const status = item.item_type === "LESSON" ? item.lessons?.status ?? null : item.item_type === "QUIZ" ? item.quizzes?.status ?? null : null;
+            const count = item.item_type === "LESSON" && item.lesson_id
+              ? slideCountByLessonId.get(item.lesson_id) ?? 0
+              : item.item_type === "QUIZ" && item.quiz_id
+                ? questionCountByQuizId.get(item.quiz_id) ?? 0
+                : null;
             return (
               <div key={item.id} className="flex min-w-0 items-start gap-2">
                 <div className="min-w-0 flex-1">
@@ -201,6 +221,8 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
                     deleteAction={deleteCourseItem.bind(null, course.id, item.id)}
                     item={item}
                     label={label}
+                    status={status}
+                    count={count}
                     sections={sectionOptions}
                     lessons={lessonOptions}
                     quizzes={quizOptions}

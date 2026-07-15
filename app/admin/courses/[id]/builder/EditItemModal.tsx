@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Check, Edit3, Hammer, Search, Trash2, X } from "lucide-react";
+import { Check, CheckCircle2, CircleDashed, Edit3, Hammer, Search, Trash2, X } from "lucide-react";
 import { useDeleteConfirm } from "@/components/DeleteConfirmModal";
 
 type Option = { id: string; title: string; level: string | null; topic: string | null; status: string };
@@ -30,12 +30,14 @@ type Props = {
   deleteAction: () => void | Promise<void>;
   item: ItemShape;
   label: string;
+  status?: string | null;
+  count?: number | null;
   sections: SectionOption[];
   lessons: Option[];
   quizzes: Option[];
 };
 
-export function EditItemModal({ action, deleteAction, item, label, sections, lessons, quizzes }: Props) {
+export function EditItemModal({ action, deleteAction, item, label, status, count, sections, lessons, quizzes }: Props) {
   const [open, setOpen] = useState(false);
   const [itemType, setItemType] = useState<typeof itemTypes[number]>(item.item_type);
   const [lessonId, setLessonId] = useState(item.lesson_id ?? "");
@@ -127,7 +129,15 @@ export function EditItemModal({ action, deleteAction, item, label, sections, les
     <>
       <div className="flex items-center justify-between gap-2 rounded-lg border border-black/10 bg-white p-3">
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold">{label}</p>
+          <p className="flex min-w-0 items-center gap-1.5 truncate text-sm font-semibold">
+            <span className="truncate">{label}</span>
+            {typeof count === "number" ? <span className="shrink-0 font-normal text-black/40">({count})</span> : null}
+            {status === "PUBLISHED" ? (
+              <span title="Published" className="shrink-0"><CheckCircle2 size={13} className="text-emerald-600" aria-label="Published" /></span>
+            ) : status === "DRAFT" ? (
+              <span title="Draft" className="shrink-0"><CircleDashed size={13} className="text-amber-500" aria-label="Draft" /></span>
+            ) : null}
+          </p>
           <p className="mt-0.5 text-xs text-black/45">{item.item_type.replaceAll("_", " ")}{item.is_free_preview ? " \u00b7 Free preview" : ""}{item.is_required ? " \u00b7 Required" : " \u00b7 Optional"}</p>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
