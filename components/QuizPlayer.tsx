@@ -9,11 +9,12 @@ import { GuestScorePopup, type PendingAttempt } from "@/components/GuestScorePop
 import type { Json } from "@/types/database.types";
 import { getSpeechRecognitionConstructor, transcriptContainsTarget } from "@/lib/speechRecognition";
 import { asRecord, isCorrect, partialCreditStats, questionScore, questionTotal } from "@/lib/quizScoring";
-import { useStreakEngine } from "@/lib/gamification/useStreakEngine";
-import { StreakBadge, ComboToast } from "@/components/gamification/StreakBadge";
 import { SoundToggle } from "@/components/gamification/SoundToggle";
 import { CELEBRATION_SCORE_THRESHOLD, fireCompletionConfetti } from "@/lib/gamification/confetti";
 import { playCelebration, playCorrect, playPartial, playWrong } from "@/lib/gamification/sounds";
+import { ResultsOverview } from "@/components/gamification/ResultsOverview";
+import { StreakPopup } from "@/components/gamification/StreakPopup";
+import { computeBestStreak, NOTABLE_STREAK_THRESHOLD } from "@/lib/gamification/resultsOverview";
 
 export type QuizQuestion = {
   id: string;
@@ -244,29 +245,23 @@ export function QuizPlayer({
   const [showPopup, setShowPopup] = useState(false);
   const [guestAttempt, setGuestAttempt] = useState<PendingAttempt | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [reviewMode, setReviewMode] = useState<"overview" | "detail">("overview");
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const [remainingSeconds, setRemainingSeconds] = useState(() => timerMinutes ? timerMinutes * 60 : null);
   const attemptStartRef = useRef(Date.now());
   const [isPending, startTransition] = useTransition();
-  const streakEngine = useStreakEngine();
+  const [streakPopupDismissed, setStreakPopupDismissed] = useState(false);
   const celebratedRef = useRef(false);
-  const handleQuestionResult = useCallback((result: "correct" | "wrong" | "partial", questionId: string) => {
-    if (result === "correct") {
-      streakEngine.reportResult(true, questionId);
-      playCorrect();
-    } else if (result === "partial") {
-      streakEngine.reportResult(false, questionId);
-      playPartial();
-    } else {
-      streakEngine.reportResult(false, questionId);
-      playWrong();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [streakEngine.reportResult]);
+  const handleQuestionResult = useCallback((result: "correct" | "wrong" | "partial") => {
+    if (result === "correct") playCorrect();
+    else if (result === "partial") playPartial();
+    else playWrong();
+  }, []);
   const answered = questions.every((question) => hasAnswer(question, answers[question.id]));
   const totalPoints = questions.reduce((sum, question) => sum + questionTotal(question), 0);
   const currentScore = questions.reduce((sum, question) => sum + questionScore(question, answers[question.id]), 0);
   const score = submitted ? currentScore : 0;
+  const bestStreak = submitted ? computeBestStreak(questions, answers) : 0;
   const currentQuestion = questions[currentIndex];
   const currentAnswered = currentQuestion ? hasAnswer(currentQuestion, answers[currentQuestion.id]) : false;
   const answeredCount = questions.filter((question) => hasAnswer(question, answers[question.id])).length;
@@ -299,9 +294,10 @@ export function QuizPlayer({
     setShowPopup(false);
     setGuestAttempt(null);
     setCurrentIndex(0);
+    setReviewMode("overview");
     setRemainingSeconds(timerMinutes ? timerMinutes * 60 : null);
     attemptStartRef.current = Date.now();
-    streakEngine.reset();
+    setStreakPopupDismissed(false);
     celebratedRef.current = false;
   }
 
@@ -318,6 +314,7 @@ export function QuizPlayer({
 
   function goToQuestion(nextIndex: number) {
     setCurrentIndex(Math.max(0, Math.min(questions.length - 1, nextIndex)));
+    if (submitted) setReviewMode("detail");
   }
 
   function handleTouchMove(event: TouchEvent<HTMLDivElement>) {
@@ -349,6 +346,7 @@ export function QuizPlayer({
     const finalTotal = questions.reduce((sum, question) => sum + questionTotal(question), 0);
     const finalTimeTakenSeconds = Math.max(0, Math.round((Date.now() - attemptStartRef.current) / 1000));
     setSubmitted(true);
+    setReviewMode("overview");
     if (isGuest) {
       setGuestAttempt({ quizId, score: finalScore, total: finalTotal, answers: answers as Record<string, unknown> });
       setShowPopup(true);
@@ -399,42 +397,63 @@ export function QuizPlayer({
             <p className="mt-1 inline-flex items-center gap-2 text-sm font-semibold text-[#6E738D]"><Sparkles size={15} className="text-[#6C3BFF]" /> {encouragement}</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <StreakBadge streak={streakEngine.streak} />
             {remainingSeconds !== null ? (
               <div className={`rounded-full px-3 py-1.5 text-sm font-extrabold ${timerUrgent ? "bg-[#FF5D73]/10 text-[#FF5D73]" : "bg-[#00C98D]/10 text-[#00A977]"}`}>
                 {formatTime(remainingSeconds)}
               </div>
             ) : null}
-            <div className="rounded-full bg-[#F6F7FB] px-3 py-1.5 text-sm font-extrabold text-[#14172B]">{answeredCount}/{questions.length} answered</div>
+            {submitted ? (
+              <span className="relative inline-block rounded-full bg-[#6C3BFF]/10 px-3 py-1.5 text-sm font-extrabold text-[#6C3BFF]">
+                {score}/{totalPoints}
+                <StreakPopup
+                  streak={!streakPopupDismissed && bestStreak >= NOTABLE_STREAK_THRESHOLD ? bestStreak : 0}
+                  onDismiss={() => setStreakPopupDismissed(true)}
+                />
+              </span>
+            ) : (
+              <div className="rounded-full bg-[#F6F7FB] px-3 py-1.5 text-sm font-extrabold text-[#14172B]">{answeredCount}/{questions.length} answered</div>
+            )}
             <SoundToggle />
           </div>
         </div>
         <div className="mt-4 h-2 overflow-hidden rounded-full bg-[#F6F7FB]">
           <div className="h-full rounded-full bg-gradient-to-r from-[#6C3BFF] to-[#8A58FF] transition-all duration-500" style={{ width: `${progressPercent}%` }} />
         </div>
-        <ComboToast milestone={streakEngine.activeMilestone} onDone={streakEngine.ackMilestone} />
       </div>
 
-      {submitted ? (
-        <div className="overflow-hidden rounded-[20px] border border-[#ECECF5] bg-white p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)] transition-all duration-300">
-          <div className="rounded-[18px] bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] p-5 text-white">
-          <p className="text-2xl font-extrabold">Score: {score} out of {totalPoints}</p>
-          <p className="mt-1 text-sm font-semibold text-white/75">
-            {Math.round((score / Math.max(1, totalPoints)) * 100)}% — {encouragement}
-          </p>
-          {timerMinutes ? <p className="mt-1 text-xs font-semibold text-white/65">Time used: {formatTime(timeTakenSeconds)}</p> : null}
-          {streakEngine.bestStreak >= 2 ? <p className="mt-1 text-xs font-semibold text-white/65">🔥 Best streak: {streakEngine.bestStreak} in a row</p> : null}
-          </div>
-          {isGuest ? (
-            <button
-              type="button"
-              onClick={() => setShowPopup(true)}
-              className="mt-4 inline-flex items-center gap-2 rounded-[14px] bg-[#14172B] px-4 py-2.5 text-sm font-extrabold text-white"
-            >
-              Save this score →
-            </button>
-          ) : null}
-        </div>
+      {submitted && reviewMode === "overview" ? (
+        <ResultsOverview
+          questions={questions}
+          answers={answers}
+          score={score}
+          total={totalPoints}
+          encouragement={encouragement}
+          timeTakenSeconds={timerMinutes ? timeTakenSeconds : undefined}
+          bestStreak={bestStreak}
+          onSelectQuestion={goToQuestion}
+          onRetake={reset}
+          headerExtra={
+            isGuest ? (
+              <button
+                type="button"
+                onClick={() => setShowPopup(true)}
+                className="mt-4 inline-flex items-center gap-2 rounded-[14px] bg-[#14172B] px-4 py-2.5 text-sm font-extrabold text-white"
+              >
+                Save this score →
+              </button>
+            ) : null
+          }
+        />
+      ) : null}
+
+      {submitted && reviewMode === "detail" ? (
+        <button
+          type="button"
+          onClick={() => setReviewMode("overview")}
+          className="inline-flex items-center gap-2 rounded-[14px] border border-[#ECECF5] bg-white px-4 py-2 text-sm font-bold text-[#6E738D] shadow-[0_8px_20px_rgba(0,0,0,.04)] hover:bg-[#F6F7FB]"
+        >
+          <ChevronLeft size={16} /> Back to overview ({score}/{totalPoints})
+        </button>
       ) : null}
 
       {/* Score history — also shown after submitting, now including the new attempt */}
@@ -442,6 +461,8 @@ export function QuizPlayer({
         <ScoreHistory attempts={allAttempts} total={totalPoints} />
       )}
 
+      {!submitted || reviewMode === "detail" ? (
+      <>
       <div
         className="overflow-hidden"
         style={{ touchAction: "pan-y" }}
@@ -504,10 +525,13 @@ export function QuizPlayer({
           Next <ChevronRight size={16} />
         </button>
       </div>
+      </>
+      ) : null}
 
+      {!submitted || reviewMode === "detail" ? (
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-[20px] border border-[#ECECF5] bg-white p-4 shadow-[0_12px_32px_rgba(0,0,0,.06)]">
         <p className="text-sm font-semibold text-[#6E738D]">
-          {submitted ? isGuest ? "Create a free account to save your score and track progress." : "Review each question with the dots above." : currentAnswered ? "Answered. Move on when ready." : "Answer this question, then continue."}
+          {submitted ? isGuest ? "Create a free account to save your score and track progress." : "Review each question, or head back to the overview." : currentAnswered ? "Answered. Move on when ready." : "Answer this question, then continue."}
         </p>
         <div className="flex gap-2">
           {submitted ? (
@@ -529,6 +553,7 @@ export function QuizPlayer({
           </button>
         </div>
       </div>
+      ) : null}
       {message ? <p className="text-center text-sm font-semibold text-[#6E738D]">{message}</p> : null}
     </div>
     {showPopup && guestAttempt ? (

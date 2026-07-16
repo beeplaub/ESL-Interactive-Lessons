@@ -7,11 +7,12 @@ import { QuestionCard, hasAnswer, type QuizQuestion } from "@/components/QuizPla
 import { isCorrect, questionScore, questionTotal } from "@/lib/quizScoring";
 import { startRoleplaySessionAction, submitRoleplayTurnAction, completeRoleplaySessionAction } from "@/app/admin/lessons/aiActions";
 import type { Json } from "@/types/database.types";
-import { useStreakEngine } from "@/lib/gamification/useStreakEngine";
-import { StreakBadge, ComboToast } from "@/components/gamification/StreakBadge";
 import { SoundToggle } from "@/components/gamification/SoundToggle";
 import { CELEBRATION_SCORE_THRESHOLD, fireCompletionConfetti } from "@/lib/gamification/confetti";
 import { playCelebration, playCorrect, playPartial, playWrong } from "@/lib/gamification/sounds";
+import { ResultsOverview } from "@/components/gamification/ResultsOverview";
+import { computeBestStreak, NOTABLE_STREAK_THRESHOLD } from "@/lib/gamification/resultsOverview";
+import { StreakPopup } from "@/components/gamification/StreakPopup";
 
 type LessonSlideActivity = {
   id: string; activity_type: string; activity_data: Json | null;
@@ -870,24 +871,17 @@ export function LessonActivityPanel({
   const [message, setMessage] = useState<string | null>(null);
   const [localAttempts, setLocalAttempts] = useState<SavedAttempt[]>(attempts);
   const [isPending, startTransition] = useTransition();
-  const streakEngine = useStreakEngine();
+  const [streakPopupDismissed, setStreakPopupDismissed] = useState(false);
   const celebratedRef = useRef(false);
-  const handleQuestionResult = useCallback((result: "correct" | "wrong" | "partial", questionId: string) => {
-    if (result === "correct") {
-      streakEngine.reportResult(true, questionId);
-      playCorrect();
-    } else if (result === "partial") {
-      streakEngine.reportResult(false, questionId);
-      playPartial();
-    } else {
-      streakEngine.reportResult(false, questionId);
-      playWrong();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [streakEngine.reportResult]);
+  const handleQuestionResult = useCallback((result: "correct" | "wrong" | "partial") => {
+    if (result === "correct") playCorrect();
+    else if (result === "partial") playPartial();
+    else playWrong();
+  }, []);
 
   // Carousel state
   const [qIndex, setQIndex] = useState(0);
+  const [reviewMode, setReviewMode] = useState<"overview" | "detail">("overview");
 
   // Fire a one-time confetti + chime celebration once a strong score is revealed. Presentational only.
   // Computed from `questions` directly (rather than the later `score`/`total` consts) so this hook can
@@ -923,6 +917,7 @@ export function LessonActivityPanel({
   const allAnswered = questions.length > 0 && questions.every((q) => hasAnswer(q, answers[q.id]));
   const score = questions.reduce((sum, q) => sum + questionScore(q, answers[q.id]), 0);
   const total = questions.reduce((sum, q) => sum + questionTotal(q), 0);
+  const bestStreak = submitted ? computeBestStreak(questions, answers) : 0;
 
   if (questions.length === 0) {
     const data = asRecord(activity.activity_data);
@@ -940,6 +935,7 @@ export function LessonActivityPanel({
   function submit() {
     const finalScore = questions.reduce((sum, q) => sum + questionScore(q, answers[q.id]), 0);
     setSubmitted(true);
+    setReviewMode("overview");
     if (previewOnly) { setMessage("Preview only."); return; }
     startTransition(async () => {
       try {
@@ -972,7 +968,8 @@ export function LessonActivityPanel({
     setSubmitted(false);
     setMessage(null);
     setQIndex(0);
-    streakEngine.reset();
+    setReviewMode("overview");
+    setStreakPopupDismissed(false);
     celebratedRef.current = false;
   }
 
@@ -985,19 +982,43 @@ export function LessonActivityPanel({
           <h2 className="text-lg font-semibold">{activityLabel(activity.activity_type)}</h2>
         </div>
         <div className="flex items-center gap-2">
-          <StreakBadge streak={streakEngine.streak} />
           {submitted && (
-            <span className="rounded-full bg-moss/10 px-3 py-1 text-xs font-semibold text-moss">
+            <span className="relative inline-block rounded-full bg-moss/10 px-3 py-1 text-xs font-semibold text-moss">
               {score}/{total}
+              <StreakPopup
+                streak={!streakPopupDismissed && bestStreak >= NOTABLE_STREAK_THRESHOLD ? bestStreak : 0}
+                onDismiss={() => setStreakPopupDismissed(true)}
+              />
             </span>
           )}
           <SoundToggle />
         </div>
       </div>
-      <ComboToast milestone={streakEngine.activeMilestone} onDone={streakEngine.ackMilestone} />
+
+      {submitted && reviewMode === "overview" ? (
+        <ResultsOverview
+          questions={questions}
+          answers={answers}
+          score={score}
+          total={total}
+          bestStreak={bestStreak}
+          onSelectQuestion={(index) => { setQIndex(index); setReviewMode("detail"); }}
+          onRetake={retake}
+        />
+      ) : null}
+
+      {submitted && reviewMode === "detail" ? (
+        <button
+          type="button"
+          onClick={() => setReviewMode("overview")}
+          className="mb-3 inline-flex items-center gap-1.5 rounded-md border border-black/10 px-3 py-1.5 text-xs font-semibold text-black/60 hover:bg-black/5"
+        >
+          <ChevronLeft size={14} /> Back to overview ({score}/{total})
+        </button>
+      ) : null}
 
       {/* Question carousel */}
-      {currentQuestion && (
+      {currentQuestion && (!submitted || reviewMode === "detail") && (
         <div>
           {/* Question counter + arrows */}
           <div className="mb-3 flex items-center justify-between gap-2">
@@ -1075,9 +1096,11 @@ export function LessonActivityPanel({
         <div className="flex gap-2">
           {submitted ? (
             <>
-              <button type="button" onClick={retake} className="rounded-md border border-black/15 px-4 py-2 text-sm font-semibold hover:bg-black/5">
-                Retake
-              </button>
+              {reviewMode === "detail" ? (
+                <button type="button" onClick={retake} className="rounded-md border border-black/15 px-4 py-2 text-sm font-semibold hover:bg-black/5">
+                  Retake
+                </button>
+              ) : null}
               <button type="button" onClick={onNext} className="inline-flex items-center gap-2 rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white">
                 Next <ChevronRight size={15} />
               </button>
