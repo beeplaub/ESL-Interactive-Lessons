@@ -3,8 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/auth";
+import { ALL_LEVELS_LABEL, anchorCefrLevel } from "@/lib/levels";
+import { forkQuizForCourse } from "@/lib/quizFork";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { ALL_LEVELS_LABEL } from "@/lib/levels";
 
 function slugify(value: string) {
   return value
@@ -269,7 +270,12 @@ export async function addCourseItem(courseId: string, formData: FormData) {
   positionQuery = sectionId ? positionQuery.eq("section_id", sectionId) : positionQuery.is("section_id", null);
   const { count } = await positionQuery;
   const lessonId = itemType === "LESSON" ? String(formData.get("lessonId") || "") || null : null;
-  const quizId = itemType === "QUIZ" ? String(formData.get("quizId") || "") || null : null;
+  const pickedQuizId = itemType === "QUIZ" ? String(formData.get("quizId") || "") || null : null;
+  // Picking a quiz makes a full, independent copy for this course - editing it
+  // from here never touches the library quiz it was copied from, and the
+  // copy itself never shows up in the standalone quiz library or this same
+  // picker again (both are scoped to quizzes.course_id is null).
+  const quizId = pickedQuizId ? await forkQuizForCourse(admin, pickedQuizId, courseId) : null;
   const startingPosition = count ?? 0;
   const row = {
     course_id: courseId,
@@ -319,7 +325,7 @@ export async function createAndAddCourseItem(
   if (itemType === "QUIZ") {
     const { data, error } = await admin
       .from("quizzes")
-      .insert({ title, topic, level, status: "DRAFT" })
+      .insert({ title, topic, level: anchorCefrLevel(level), status: "DRAFT", course_id: courseId })
       .select("id")
       .single();
     if (error || !data) throw new Error(error?.message ?? "Could not create quiz.");
