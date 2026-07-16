@@ -105,9 +105,9 @@ export default async function CourseQuizPage({
       backHref={`/courses/${courseId}`}
       showRightSidebar={false}
       showFooter={false}
+      active="courses"
       breadcrumbs={[
         { label: "Home", href: "/account" },
-        { label: "Courses", href: "/courses" },
         { label: course.title, href: `/courses/${courseId}` },
         { label: quiz.title },
       ]}

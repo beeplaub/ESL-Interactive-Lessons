@@ -12,7 +12,7 @@ export default async function QuizzesPage() {
   } = await supabase.auth.getUser();
 
   const [{ data: quizzes }, { data: questionCounts }, { data: wishlist }, { data: attempts }] = await Promise.all([
-    admin.from("quizzes").select("*").eq("status", "PUBLISHED").is("deleted_at", null).order("created_at", { ascending: false }),
+    admin.from("quizzes").select("*").eq("status", "PUBLISHED").is("deleted_at", null).is("course_id", null).order("created_at", { ascending: false }),
     admin.rpc("get_quiz_question_counts"),
     user
       ? admin.from("wishlist_items").select("quiz_id").eq("user_id", user.id).not("quiz_id", "is", null)

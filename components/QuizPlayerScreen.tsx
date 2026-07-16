@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowLeft, Clock3, Gamepad2, HelpCircle, Sparkles } from "lucide-react";
-import { LearnerAppShell } from "@/components/LearnerAppShell";
+import { LearnerAppShell, type ActiveItem } from "@/components/LearnerAppShell";
 import { QuizPlayer } from "@/components/QuizPlayer";
 
 type BreadcrumbItem = { label: string; href?: string };
@@ -17,6 +17,7 @@ export function QuizPlayerScreen({
   backHref,
   showRightSidebar = true,
   showFooter = true,
+  active = "quizzes",
 }: {
   quiz: { id: string; title: string; level: string | null; topic: string | null; timer_minutes: number | null };
   questionCount: number;
@@ -28,10 +29,11 @@ export function QuizPlayerScreen({
   backHref?: string;
   showRightSidebar?: boolean;
   showFooter?: boolean;
+  active?: ActiveItem;
 }) {
   return (
     <LearnerAppShell
-      active="quizzes"
+      active={active}
       contentClassName="block"
       showRightSidebar={showRightSidebar}
       showFooter={showFooter}

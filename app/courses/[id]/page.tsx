@@ -39,9 +39,9 @@ type CourseItemView = {
 
 const demoImage = "https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=1200&q=80";
 
-function getItemHref(item: CourseItemView): string | null {
+function getItemHref(item: CourseItemView, courseId: string): string | null {
   if (item.item_type === "LESSON" && item.lesson_id) return `/lessons/${item.lesson_id}?courseItem=${item.id}`;
-  if (item.item_type === "QUIZ" && item.quiz_id) return `/quizzes/${item.quiz_id}?courseItem=${item.id}`;
+  if (item.item_type === "QUIZ" && item.quiz_id) return `/courses/${courseId}/quiz/${item.quiz_id}`;
   if (item.item_type === "LEVEL_TEST") return "/level-test";
   return item.resource_url;
 }
@@ -106,7 +106,7 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
   const continueLabel = continueItem
     ? continueItem.lessons?.title ?? continueItem.quizzes?.title ?? continueItem.title ?? continueItem.item_type.replaceAll("_", " ")
     : null;
-  const continueHref = continueItem ? getItemHref(continueItem) : null;
+  const continueHref = continueItem ? getItemHref(continueItem, course.id) : null;
 
   const totalItems = courseItems.length;
   const completedItems = progress?.completed_items ?? completedIds.size;
@@ -405,7 +405,7 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
 
 function CourseItemLink({ courseId, item, itemIndex, isComplete, unlocked }: { courseId: string; item: CourseItemView; itemIndex: number; isComplete: boolean; unlocked: boolean }) {
   const label = item.lessons?.title ?? item.quizzes?.title ?? item.title ?? item.item_type.replaceAll("_", " ");
-  const href = getItemHref(item);
+  const href = getItemHref(item, courseId);
   const isManuallyCompleted = (item.item_type === "RESOURCE" || item.item_type === "EXTERNAL_LINK") && !isComplete;
   return (
     <div className="flex items-center gap-3 rounded-[14px] px-2 py-2 text-sm transition hover:bg-[#F6F7FB]">

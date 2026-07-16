@@ -45,7 +45,10 @@ export default async function AdminQuizzesPage() {
           <tbody>
             {(quizzes ?? []).map((quiz) => (
               <tr key={quiz.id} className="border-t border-black/10">
-                <td className="p-3 font-medium">{quiz.title}</td>
+                <td className="p-3 font-medium">
+                  {quiz.title}
+                  {quiz.course_id ? <span className="ml-2 rounded-full bg-moss/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-moss">Course</span> : null}
+                </td>
                 <td className="p-3">{quiz.level}</td>
                 <td className="p-3">{quiz.topic}</td>
                 <td className="p-3">{counts.get(quiz.id) ?? 0}</td>

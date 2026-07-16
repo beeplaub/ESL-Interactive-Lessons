@@ -81,7 +81,7 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
     admin.from("course_sections").select("*").eq("course_id", id).order("position", { ascending: true }),
     admin.from("course_items").select("*, lessons(title,level,status), quizzes(title,level,status)").eq("course_id", id).order("position", { ascending: true }),
     admin.from("lessons").select("id,title,level,topic,status").is("deleted_at", null).order("created_at", { ascending: false }),
-    admin.from("quizzes").select("id,title,level,topic,status").is("deleted_at", null).order("created_at", { ascending: false }),
+    admin.from("quizzes").select("id,title,level,topic,status").is("deleted_at", null).is("course_id", null).order("created_at", { ascending: false }),
     admin.from("organizations").select("id,name").order("name", { ascending: true }),
   ]);
 
