@@ -752,3 +752,217 @@ export async function getShortAnswerAiFeedbackAction(prompt: string, submission:
   }
 }
 
+// ── AI Question Generation Schemas and Server Action ──
+
+const mcqGenerationSchema = {
+  type: "object",
+  properties: {
+    prompt: { type: "string" },
+    questions: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          text: { type: "string" },
+          options: {
+            type: "object",
+            properties: {
+              A: { type: "string" },
+              B: { type: "string" },
+              C: { type: "string" },
+              D: { type: "string" }
+            },
+            required: ["A", "B", "C", "D"]
+          },
+          answer: { type: "string", enum: ["A", "B", "C", "D"] }
+        },
+        required: ["text", "options", "answer"]
+      }
+    }
+  },
+  required: ["prompt", "questions"]
+};
+
+const multipleSelectGenerationSchema = {
+  type: "object",
+  properties: {
+    prompt: { type: "string" },
+    questions: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          text: { type: "string" },
+          options: {
+            type: "object",
+            properties: {
+              A: { type: "string" },
+              B: { type: "string" },
+              C: { type: "string" },
+              D: { type: "string" }
+            },
+            required: ["A", "B", "C", "D"]
+          },
+          answers: {
+            type: "array",
+            items: { type: "string", enum: ["A", "B", "C", "D"] }
+          }
+        },
+        required: ["text", "options", "answers"]
+      }
+    }
+  },
+  required: ["prompt", "questions"]
+};
+
+const trueFalseGenerationSchema = {
+  type: "object",
+  properties: {
+    prompt: { type: "string" },
+    items: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          statement: { type: "string" },
+          answer: { type: "boolean" }
+        },
+        required: ["statement", "answer"]
+      }
+    }
+  },
+  required: ["prompt", "items"]
+};
+
+const matchingGenerationSchema = {
+  type: "object",
+  properties: {
+    prompt: { type: "string" },
+    questions: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          question_type: { type: "string", enum: ["MATCHING"] },
+          question_text: { type: "string" },
+          options: {
+            type: "object",
+            properties: {
+              a_items: { type: "array", items: { type: "string" } },
+              b_items: { type: "array", items: { type: "string" } }
+            },
+            required: ["a_items", "b_items"]
+          },
+          correct_answer: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                a: { type: "string" },
+                b: { type: "string" }
+              },
+              required: ["a", "b"]
+            }
+          }
+        },
+        required: ["question_type", "question_text", "options", "correct_answer"]
+      }
+    }
+  },
+  required: ["prompt", "questions"]
+};
+
+export async function generateActivityQuestionsAction(input: {
+  slideId: string;
+  activityType: string;
+  guidelines?: string;
+}): Promise<{ success: boolean; data?: any; error?: string }> {
+  try {
+    await requireAdmin();
+    const { user, profile } = await getSessionUser();
+    const quota = await checkUsageQuota(user.id, profile.role);
+    if (!quota.allowed) {
+      return { success: false, error: quota.message || "Quota limit reached." };
+    }
+
+    const supabase = createAdminClient();
+    const { data: blocks, error: blocksError } = await supabase
+      .from("lesson_blocks")
+      .select("*")
+      .eq("slide_id", input.slideId)
+      .order("position", { ascending: true });
+
+    if (blocksError) throw blocksError;
+
+    let context = "";
+    for (const block of blocks ?? []) {
+      const content = block.content || {};
+      const type = block.block_type;
+      if (type === "HEADING") {
+        context += `Heading: ${content.text || ""}\n`;
+      } else if (type === "TEXT" || type === "BULLETS") {
+        context += `Text: ${content.body || ""}\n`;
+      } else if (type === "CALLOUT") {
+        context += `Callout: ${content.title ? content.title + " - " : ""}${content.body || ""}\n`;
+      } else if (type === "IMAGE" || type === "IMAGE_TEXT") {
+        context += `Image details: Caption: "${content.caption || ""}", Alt text: "${content.alt || ""}", Heading: "${content.heading || ""}", Body: "${content.body || ""}"\n`;
+      } else if (type === "AUDIO" || type === "VIDEO") {
+        context += `Media details: Label: "${content.label || content.title || ""}", URL: "${content.path || content.url || ""}"\n`;
+      } else if (type === "VOCABULARY") {
+        const entries = Array.isArray(content.entries) ? content.entries : [];
+        const words = entries.map((e: any) => `${e.word || ""}: ${e.meaning || ""} (${e.example || ""})`).join("; ");
+        context += `Vocabulary items: ${words}\n`;
+      } else if (type === "GRAMMAR") {
+        const examples = Array.isArray(content.examples) ? content.examples.join("; ") : "";
+        context += `Grammar focus: Title: "${content.title || ""}", Explanation: "${content.explanation || ""}", Examples: "${examples}"\n`;
+      } else if (type === "READING") {
+        context += `Reading passage: Title: "${content.title || ""}", Text: "${content.passage || ""}"\n`;
+      } else if (type === "DIALOGUE") {
+        const turns = Array.isArray(content.turns) ? content.turns : [];
+        const transcript = turns.map((t: any) => `${t.speaker || ""}: ${t.line || ""}`).join("\n");
+        context += `Dialogue:\n${transcript}\n`;
+      } else if (type === "FLASHCARD") {
+        context += `Flashcard info: Front: "${content.front || ""}", Back: "${content.back || ""}"\n`;
+      }
+    }
+    context = context.trim();
+
+    if (context.length < 15) {
+      return {
+        success: false,
+        error: "Your slide does not contain enough educational content to generate questions. Please add text, grammar explanations, readings, dialogues, images or vocabulary first."
+      };
+    }
+
+    let responseSchema;
+    if (input.activityType === "MCQ") {
+      responseSchema = mcqGenerationSchema;
+    } else if (input.activityType === "MULTIPLE_SELECT") {
+      responseSchema = multipleSelectGenerationSchema;
+    } else if (input.activityType === "TRUE_FALSE") {
+      responseSchema = trueFalseGenerationSchema;
+    } else if (input.activityType === "MATCHING") {
+      responseSchema = matchingGenerationSchema;
+    } else {
+      return { success: false, error: `AI generation is not supported for activity type: ${input.activityType}` };
+    }
+
+    const result = await callGemini<any>({
+      templateKey: "creator_activity_generator",
+      variables: {
+        slideContent: context,
+        guidelines: input.guidelines || "Keep it simple and engaging.",
+        activityType: input.activityType
+      },
+      responseSchema: responseSchema
+    });
+
+    await recordUsageEvent(user.id, "creator_activity_generator", 500);
+
+    return { success: true, data: result };
+  } catch (error: any) {
+    console.error("generateActivityQuestionsAction failed:", error);
+    return { success: false, error: error?.message || "Failed to generate activity questions." };
+  }
+}
+

@@ -1699,3 +1699,125 @@ function hasMissingActivityAnswers(activityData: Json | null) {
   }
   return false;
 }
+
+export async function insertGeneratedQuestionsAction(input: {
+  lessonId: string;
+  slideId: string;
+  slideNumber: number;
+  activityType: string;
+  generatedData: any;
+  appendActivityId?: string;
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    await requireAdmin();
+    const supabase = createAdminClient();
+
+    const localAsRecord = (val: unknown): Record<string, any> => {
+      return val && typeof val === "object" && !Array.isArray(val) ? (val as Record<string, any>) : {};
+    };
+
+    if (input.appendActivityId) {
+      const { data: existing, error: fetchError } = await supabase
+        .from("lesson_slide_activities")
+        .select("activity_data")
+        .eq("id", input.appendActivityId)
+        .single();
+      if (fetchError || !existing) {
+        throw new Error("Target activity to append to was not found.");
+      }
+
+      const existingData = localAsRecord(existing.activity_data);
+      const newData = localAsRecord(input.generatedData);
+
+      let mergedData: any = {};
+
+      if (input.activityType === "MCQ" || input.activityType === "MULTIPLE_SELECT") {
+        const existingQs = Array.isArray(existingData.questions) ? existingData.questions : [];
+        const newQs = Array.isArray(newData.questions) ? newData.questions : [];
+        const maxExistingId = existingQs.reduce((max: number, q: any) => {
+          const idVal = parseInt(String(localAsRecord(q).id), 10);
+          return isNaN(idVal) ? max : Math.max(max, idVal);
+        }, 0);
+
+        const mappedNewQs = newQs.map((q: any, idx: number) => ({
+          ...localAsRecord(q),
+          id: String(maxExistingId + idx + 1)
+        }));
+
+        mergedData = {
+          prompt: existingData.prompt || newData.prompt || "Choose the correct answer(s).",
+          questions: [...existingQs, ...mappedNewQs]
+        };
+      } else if (input.activityType === "TRUE_FALSE") {
+        const existingItems = Array.isArray(existingData.items) ? existingData.items : [];
+        const newItems = Array.isArray(newData.items) ? newData.items : [];
+        mergedData = {
+          prompt: existingData.prompt || newData.prompt || "True or False?",
+          items: [...existingItems, ...newItems]
+        };
+      } else if (input.activityType === "MATCHING") {
+        const existingQs = Array.isArray(existingData.questions) ? existingData.questions : [];
+        const newQs = Array.isArray(newData.questions) ? newData.questions : [];
+        
+        if (existingQs.length > 0 && newQs.length > 0) {
+          const exQ = localAsRecord(existingQs[0]);
+          const newQ = localAsRecord(newQs[0]);
+          const exOpts = localAsRecord(exQ.options);
+          const newOpts = localAsRecord(newQ.options);
+          const exAnswers = Array.isArray(exQ.correct_answer) ? exQ.correct_answer : [];
+          const newAnswers = Array.isArray(newQ.correct_answer) ? newQ.correct_answer : [];
+
+          const mergedAItems = [...(Array.isArray(exOpts.a_items) ? exOpts.a_items : []), ...(Array.isArray(newOpts.a_items) ? newOpts.a_items : [])];
+          const mergedBItems = [...(Array.isArray(exOpts.b_items) ? exOpts.b_items : []), ...(Array.isArray(newOpts.b_items) ? newOpts.b_items : [])];
+          const mergedCorrect = [...exAnswers, ...newAnswers];
+
+          mergedData = {
+            prompt: existingData.prompt || newData.prompt || "Match the items.",
+            questions: [{
+              question_type: "MATCHING",
+              question_text: exQ.question_text || newQ.question_text || "Match the items.",
+              options: {
+                a_items: mergedAItems,
+                b_items: mergedBItems
+              },
+              correct_answer: mergedCorrect
+            }]
+          };
+        } else {
+          mergedData = existingQs.length > 0 ? existingData : newData;
+        }
+      } else {
+        throw new Error(`Appending questions is not supported for activity type: ${input.activityType}`);
+      }
+
+      const { error: updateError } = await supabase
+        .from("lesson_slide_activities")
+        .update({
+          activity_data: mergedData,
+          needs_review: hasMissingActivityAnswers(mergedData),
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", input.appendActivityId);
+      if (updateError) throw updateError;
+    } else {
+      const { error: insertError } = await supabase
+        .from("lesson_slide_activities")
+        .insert({
+          lesson_id: input.lessonId,
+          slide_id: input.slideId,
+          slide_number: input.slideNumber,
+          activity_type: input.activityType,
+          activity_data: input.generatedData,
+          needs_review: hasMissingActivityAnswers(input.generatedData),
+          updated_at: new Date().toISOString()
+        });
+      if (insertError) throw insertError;
+    }
+
+    revalidateLessonBuilder(input.lessonId);
+    return { success: true };
+  } catch (error: any) {
+    console.error("insertGeneratedQuestionsAction failed:", error);
+    return { success: false, error: error?.message || "Failed to insert generated questions." };
+  }
+}

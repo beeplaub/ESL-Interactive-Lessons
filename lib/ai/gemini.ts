@@ -244,6 +244,19 @@ Your response must follow this JSON schema exactly:
   "corrected_text": "The full corrected text (or original text if it is perfect)",
   "explanation": "Brief explanation of the correction or praise if perfect"
 }`
+  },
+
+  creator_activity_generator: {
+    role_description: "You are an expert ESL Curriculum Content Developer.",
+    prompt_text: `Based on the following slide content and optional guidelines, generate high-quality ESL activity questions.
+Slide Content:
+{slideContent}
+
+Optional creator guidelines:
+{guidelines}
+
+Activity Type to generate: {activityType}
+`
   }
 };
 

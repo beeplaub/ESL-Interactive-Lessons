@@ -25,6 +25,7 @@ import {
 import { generateLessonDraftAction, insertDraftIntoLessonAction } from "@/app/admin/lessons/aiActions";
 import { Sparkles, Loader2 } from "lucide-react";
 import { InLessonActivitiesEditor } from "@/components/InLessonActivitiesEditor";
+import AiActivityGeneratorModal from "@/components/AiActivityGeneratorModal";
 import { LessonActivityPanel } from "@/components/LessonActivityPanel";
 import { LessonBlockPreview } from "@/components/LessonBlockPreview";
 import { LessonAssessmentMetadataEditor } from "@/components/AssessmentMetadataEditor";
@@ -824,6 +825,7 @@ function SelectedSlideEditor({
   const [openBlockId, setOpenBlockId] = useState<string | null>(null);
   const [isActivityBankOpen, setIsActivityBankOpen] = useState(false);
   const [isMappingOpen, setIsMappingOpen] = useState(false);
+  const [isAiGenOpen, setIsAiGenOpen] = useState(false);
   const openBlock = blocks.find((block) => block.id === openBlockId) ?? null;
   const openBlockIndex = openBlock ? blocks.findIndex((block) => block.id === openBlock.id) : -1;
 
@@ -958,7 +960,16 @@ function SelectedSlideEditor({
                 <option value="AI_ROLEPLAY">AI Conversation Roleplay</option>
               </select>
             </label>
-            <button className="w-fit rounded-md bg-ink px-4 py-2 text-sm font-medium text-white">Add activity</button>
+            <div className="flex items-center gap-2">
+              <button className="w-fit rounded-md bg-ink px-4 py-2 text-sm font-medium text-white">Add activity</button>
+              <button
+                type="button"
+                onClick={() => setIsAiGenOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-md border border-[#6C3BFF]/20 bg-[#6C3BFF]/5 px-3.5 py-2 text-sm font-semibold text-[#6C3BFF] hover:bg-[#6C3BFF]/10 transition-colors"
+              >
+                <Sparkles className="size-4 shrink-0 text-[#6C3BFF]" /> Generate with AI
+              </button>
+            </div>
           </form>
         </div>
         {isActivityBankOpen ? (
@@ -992,6 +1003,15 @@ function SelectedSlideEditor({
               </div>
             </div>
           </div>
+        )}
+        {isAiGenOpen && (
+          <AiActivityGeneratorModal
+            lessonId={lessonId}
+            slideId={slide.id}
+            slideNumber={slide.slide_number}
+            slideActivities={slideActivities}
+            onClose={() => setIsAiGenOpen(false)}
+          />
         )}
       </section>
     </div>
