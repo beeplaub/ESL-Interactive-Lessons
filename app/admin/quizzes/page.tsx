@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Edit, Plus, Trash2 } from "lucide-react";
+import { Edit, Plus, Trash2, Printer } from "lucide-react";
 import { deleteQuiz, updateQuizStatus } from "@/app/admin/quizzes/actions";
 import { DeleteButton } from "@/components/DeleteButton";
 import { requireAdmin } from "@/lib/auth";
@@ -58,6 +58,7 @@ export default async function AdminQuizzesPage() {
                 <td className="p-3">
                   <div className="flex gap-2">
                     <Link href={`/admin/quizzes/${quiz.id}/edit`} className="rounded-md border border-black/15 p-2 hover:bg-black/5" aria-label="Edit"><Edit size={16} /></Link>
+                    <a href={`/admin/quizzes/${quiz.id}/print`} target="_blank" rel="noopener noreferrer" className="rounded-md border border-black/15 p-2 hover:bg-black/5 text-slate-600" title="Print / PDF" aria-label="Print / PDF"><Printer size={16} /></a>
                     <form action={async () => { "use server"; await updateQuizStatus(quiz.id, quiz.status === "PUBLISHED" ? "DRAFT" : "PUBLISHED"); }}>
                       <button className="rounded-md border border-black/15 px-3 py-2 text-xs hover:bg-black/5">{quiz.status === "PUBLISHED" ? "Unpublish" : "Publish"}</button>
                     </form>

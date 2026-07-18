@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowDown, ArrowUp, Clock3, Copy, Edit3, Eye, FileText, Library, Search, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Clock3, Copy, Edit3, Eye, FileText, Library, Search, Trash2, X, Printer } from "lucide-react";
 import { saveQuizBuilder } from "@/app/admin/quizzes/actions";
 import { LessonActivityPanel } from "@/components/LessonActivityPanel";
 import { parseQuizText } from "@/lib/quizParser";
@@ -462,6 +462,11 @@ export function QuizVisualBuilder({
             <button type="button" onClick={() => setTimerOpen(true)} className="inline-flex items-center gap-2 rounded-md border border-black/15 px-3 py-2 text-sm font-medium hover:bg-black/5">
               <Clock3 size={15} /> {quiz.timerMinutes ? `${quiz.timerMinutes} min` : "Timer"}
             </button>
+            {quiz.id && (
+              <a href={`/admin/quizzes/${quiz.id}/print`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-md border border-black/15 px-4 py-2 text-sm font-semibold hover:bg-black/5">
+                <Printer size={15} /> Print / PDF
+              </a>
+            )}
             <button type="button" disabled={isPending} onClick={() => save("DRAFT")} className="rounded-md border border-black/15 px-4 py-2 text-sm font-semibold hover:bg-black/5 disabled:opacity-45">Save draft</button>
             <button type="button" disabled={isPending} onClick={() => save("PUBLISHED")} className="rounded-md bg-moss px-4 py-2 text-sm font-semibold text-white disabled:opacity-45">Publish</button>
           </div>
