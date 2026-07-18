@@ -42,11 +42,7 @@ export default async function QuizPrintPage({ params }: { params: Promise<{ id: 
           <div className="flex items-center gap-3">
             <span className="text-xs font-semibold text-slate-500">Press Print to Save as PDF</span>
             <button
-              onClick={() => {}}
-              // Next.js client-side triggers print, we can hook it up using a client-side button wrapper or inline trigger
               className="inline-flex items-center gap-2 rounded-lg bg-[#6C3BFF] hover:bg-[#5308e7] px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-[#6C3BFF]/25"
-              // We'll add client-side script for trigger or use client components. Standard HTML onload also works.
-              // Let's use simple window.print() trigger
               data-trigger-print="true"
             >
               <Printer size={16} /> Print / Save PDF
