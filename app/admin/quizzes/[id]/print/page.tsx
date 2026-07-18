@@ -43,7 +43,6 @@ export default async function QuizPrintPage({ params }: { params: Promise<{ id: 
           <div className="flex items-center gap-3">
             <span className="text-xs font-semibold text-slate-500">Press Print to Save as PDF</span>
             <button
-              onClick={() => {}}
               className="inline-flex items-center gap-2 rounded-lg bg-[#6C3BFF] hover:bg-[#5308e7] px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-[#6C3BFF]/25"
               data-trigger-print="true"
             >
