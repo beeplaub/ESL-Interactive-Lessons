@@ -14,6 +14,7 @@ type QuizQuestion = {
   question_text: string;
   options: Json | null;
   correct_answer: Json;
+  description?: string;
 };
 
 export default async function QuizPrintPage({ params }: { params: Promise<{ id: string }> }) {
@@ -42,6 +43,7 @@ export default async function QuizPrintPage({ params }: { params: Promise<{ id: 
           <div className="flex items-center gap-3">
             <span className="text-xs font-semibold text-slate-500">Press Print to Save as PDF</span>
             <button
+              onClick={() => {}}
               className="inline-flex items-center gap-2 rounded-lg bg-[#6C3BFF] hover:bg-[#5308e7] px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-[#6C3BFF]/25"
               data-trigger-print="true"
             >
@@ -52,41 +54,34 @@ export default async function QuizPrintPage({ params }: { params: Promise<{ id: 
       </div>
 
       {/* PRINTABLE PAGE WRAPPER */}
-      <main className="mx-auto max-w-4xl bg-white p-8 shadow-sm print:shadow-none sm:my-8 sm:rounded-2xl print:my-0 print:rounded-none">
-        {/* STUDENT INFO HEADER BLOCK */}
-        <div className="mb-8 border-b border-black/10 pb-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight text-black">{quiz.title}</h1>
-              <div className="mt-3 flex flex-wrap gap-4 text-xs font-bold uppercase tracking-wider text-slate-500 print:text-slate-600">
-                {quiz.topic && (
-                  <span className="rounded bg-slate-100 px-2 py-1 print:bg-none print:p-0">
-                    Topic: {quiz.topic}
-                  </span>
-                )}
-                {quiz.level && (
-                  <span className="rounded bg-slate-100 px-2 py-1 print:bg-none print:p-0">
-                    Level: {quiz.level}
-                  </span>
-                )}
-                {quiz.timer_minutes && (
-                  <span className="rounded bg-slate-100 px-2 py-1 print:bg-none print:p-0">
-                    Time Limit: {quiz.timer_minutes} minutes
-                  </span>
-                )}
-              </div>
-            </div>
+      <main className="mx-auto max-w-4xl bg-white p-10 shadow-sm print:shadow-none sm:my-8 sm:rounded-2xl print:my-0 print:rounded-none">
+        
+        {/* EXCLUSIVELY CUSTOM BRAND HEADER (NO ADMIN LINKS OR MENUS) */}
+        <div className="text-center mb-8 border-b-2 border-black pb-4">
+          <h1 className="text-4xl font-black tracking-tight text-black font-sans">BrenUp</h1>
+          <p className="text-xs font-bold uppercase tracking-widest text-slate-500 mt-1">Level Up Your English</p>
+        </div>
 
-            {/* Printable Name / Date Fields */}
-            <div className="flex flex-col gap-2 border-l-2 border-slate-300 pl-4 sm:w-64">
-              <div className="flex items-end gap-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Name:</span>
-                <div className="flex-1 border-b border-dashed border-black/30 h-5" />
-              </div>
-              <div className="flex items-end gap-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Date:</span>
-                <div className="flex-1 border-b border-dashed border-black/30 h-5" />
-              </div>
+        {/* METADATA & STUDENT INFO BLOCKS */}
+        <div className="mb-8 bg-slate-50 p-6 rounded-2xl border border-slate-100 flex flex-col md:flex-row gap-6 justify-between print:bg-none print:border-none print:p-0 print:mb-6">
+          <div className="space-y-2">
+            <h2 className="text-xl font-bold text-black">{quiz.title}</h2>
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs font-bold text-slate-500">
+              {quiz.topic && <span>Topic: {quiz.topic}</span>}
+              {quiz.level && <span>Level: {quiz.level}</span>}
+              {quiz.timer_minutes && <span>Time: {quiz.timer_minutes} mins</span>}
+            </div>
+          </div>
+
+          {/* Printable Fields */}
+          <div className="flex flex-col gap-3 min-w-[240px] print:min-w-[200px] border-l border-slate-200 pl-6 print:border-black/10">
+            <div className="flex items-end gap-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400 print:text-black">Name:</span>
+              <div className="flex-1 border-b border-dashed border-black/30 h-5" />
+            </div>
+            <div className="flex items-end gap-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400 print:text-black">Date:</span>
+              <div className="flex-1 border-b border-dashed border-black/30 h-5" />
             </div>
           </div>
         </div>
@@ -94,12 +89,13 @@ export default async function QuizPrintPage({ params }: { params: Promise<{ id: 
         {/* QUESTIONS STACK */}
         <div className="space-y-8 divide-y divide-slate-100 print:divide-slate-200">
           {(questions ?? []).map((question, index) => (
-            <div key={question.id} className={`pt-6 first:pt-0 break-inside-avoid`}>
-              <div className="flex items-start gap-3">
+            <div key={question.id} className="pt-6 first:pt-0 break-inside-avoid">
+              <div className="flex items-start gap-4">
                 <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-slate-100 text-sm font-extrabold text-slate-800 print:bg-none print:border print:border-black print:text-black">
                   {index + 1}
                 </span>
                 <div className="flex-1">
+                  {/* Print Question Text */}
                   <p className="text-base font-semibold leading-relaxed text-black">
                     {question.question_text}
                   </p>
@@ -109,8 +105,8 @@ export default async function QuizPrintPage({ params }: { params: Promise<{ id: 
                     </p>
                   )}
 
-                  {/* QUESTION TYPE SPECIFIC RENDERERS */}
-                  <div className="mt-4">
+                  {/* Render Question Inputs */}
+                  <div className="mt-3">
                     {renderPrintQuestion(question)}
                   </div>
                 </div>
@@ -125,9 +121,38 @@ export default async function QuizPrintPage({ params }: { params: Promise<{ id: 
             </p>
           )}
         </div>
+
+        {/* TEACHER ANSWER KEY CONTAINER (Dotted scissor line separator) */}
+        {questions && questions.length > 0 && (
+          <div className="mt-16 pt-10 border-t-2 border-dashed border-slate-400 relative break-inside-avoid">
+            <div className="absolute -top-3.5 left-0 right-0 flex justify-between text-slate-400 font-bold text-xs select-none px-4">
+              <span>✂ Fold & Cut Here ----------------------------------------</span>
+              <span>---------------------------------------- Fold & Cut Here ✂</span>
+            </div>
+            
+            <h2 className="text-xl font-bold text-black mb-4">Teacher's Answer Key</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 text-sm">
+              {questions.map((q, idx) => (
+                <div key={q.id} className="flex items-start gap-2 border-b border-slate-100 pb-1.5 print:border-black/5">
+                  <span className="font-extrabold text-[#6C3BFF] print:text-black">Q{idx + 1}.</span>
+                  <div className="flex-1 min-w-0">
+                    <span className="font-medium text-slate-700 print:text-black break-words">
+                      {getAnswerText(q)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* LEARNER-FACING BRAND FOOTER */}
+        <div className="mt-16 pt-6 border-t border-slate-100 text-center text-xs font-bold text-slate-400 print:text-slate-500 print:border-black/10">
+          Practice English online at <span className="text-[#6C3BFF] print:text-black underline">www.brenup.com</span>
+        </div>
       </main>
 
-      {/* Script to trigger browser print */}
+      {/* Client-side Script to trigger browser print */}
       <script dangerouslySetInnerHTML={{ __html: `
         document.querySelector('[data-trigger-print="true"]')?.addEventListener('click', () => {
           window.print();
@@ -174,10 +199,18 @@ function renderPrintQuestion(question: QuizQuestion) {
     }
 
     case "FILL": {
+      const sentenceText = options?.text as string | undefined;
       return (
-        <div className="mt-2 flex flex-col gap-2">
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Answer:</p>
-          <div className="border-b border-slate-300 print:border-black max-w-sm h-7" />
+        <div className="space-y-3">
+          {sentenceText && (
+            <p className="text-sm font-semibold italic text-slate-700 print:text-black leading-relaxed">
+              "{sentenceText}"
+            </p>
+          )}
+          <div className="flex flex-col gap-2">
+            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Answer:</span>
+            <div className="border-b border-slate-300 print:border-black max-w-sm h-6" />
+          </div>
         </div>
       );
     }
@@ -203,7 +236,7 @@ function renderPrintQuestion(question: QuizQuestion) {
           <div className="space-y-2">
             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Column B</p>
             {right.map((item, idx) => {
-              const letter = String.fromCharCode(65 + idx); // A, B, C...
+              const letter = String.fromCharCode(65 + idx);
               return (
                 <div key={idx} className="flex items-start gap-2 text-sm text-slate-800">
                   <span className="grid size-5 shrink-0 place-items-center rounded border border-slate-200 text-[10px] font-black text-slate-400 mr-1 print:border-black print:text-black">
@@ -252,10 +285,18 @@ function renderPrintQuestion(question: QuizQuestion) {
     }
 
     case "ERROR_CORRECTION": {
+      const sentenceText = options?.text as string | undefined;
       return (
-        <div className="mt-2 flex flex-col gap-2">
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Correction:</p>
-          <div className="border-b border-slate-300 print:border-black max-w-md h-7" />
+        <div className="space-y-3">
+          {sentenceText && (
+            <p className="text-sm font-semibold italic text-slate-700 print:text-black leading-relaxed">
+              "{sentenceText}"
+            </p>
+          )}
+          <div className="flex flex-col gap-2">
+            <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Correction:</span>
+            <div className="border-b border-slate-300 print:border-black max-w-md h-6" />
+          </div>
         </div>
       );
     }
@@ -266,15 +307,22 @@ function renderPrintQuestion(question: QuizQuestion) {
       return (
         <div className="space-y-4">
           <div className="flex flex-wrap gap-2">
-            {items.map((item, idx) => (
+            {items.map((item) => (
               <span key={item.id} className="bg-slate-100 border border-slate-200 text-xs px-2.5 py-1 rounded-lg text-slate-800 font-semibold print:bg-none print:border-black">
                 {item.text}
               </span>
             ))}
           </div>
-          <div className="flex flex-col gap-2">
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Correct order:</p>
-            <div className="border-b border-slate-300 print:border-black max-w-lg h-7" />
+          
+          {/* EQUAL NUMBER OF WRITING LINES TO REORDERING ITEMS */}
+          <div className="space-y-2">
+            <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Write in order:</p>
+            {items.map((_, idx) => (
+              <div key={idx} className="flex items-end gap-2">
+                <span className="text-xs text-slate-400 font-bold">{idx + 1}.</span>
+                <div className="flex-grow border-b border-dashed border-slate-300 print:border-black/30 h-5" />
+              </div>
+            ))}
           </div>
         </div>
       );
@@ -314,14 +362,14 @@ function renderPrintQuestion(question: QuizQuestion) {
       const text = options?.text as string | undefined;
 
       return (
-        <div className="bg-slate-50 border border-slate-100 p-4 rounded-xl print:bg-none print:border-slate-200">
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Read Aloud / Speaking practice:</p>
+        <div className="bg-slate-50 border border-[#ECECF5] p-4 rounded-xl print:bg-none print:border-slate-200">
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Target Vocabulary / Sentence:</p>
           {text ? (
-            <p className="text-sm font-medium italic text-slate-800">"{text}"</p>
+            <p className="text-sm font-semibold italic text-slate-800 print:text-black">"{text}"</p>
           ) : (
             <div className="flex flex-wrap gap-2">
               {words.map((w, idx) => (
-                <span key={idx} className="bg-white border border-slate-200 text-xs px-2.5 py-1 rounded-lg text-slate-800 font-semibold print:border-black">
+                <span key={idx} className="bg-white border border-slate-200 text-xs px-2.5 py-1 rounded-lg text-slate-800 font-semibold print:border-black shadow-sm">
                   {w}
                 </span>
               ))}
@@ -334,4 +382,80 @@ function renderPrintQuestion(question: QuizQuestion) {
     default:
       return null;
   }
+}
+
+function getAnswerText(question: QuizQuestion): string {
+  const ans = question.correct_answer;
+  const type = question.question_type;
+
+  if (ans === undefined || ans === null) return "N/A";
+
+  if (type === "TRUE_FALSE") {
+    return ans === true ? "True" : ans === false ? "False" : String(ans);
+  }
+
+  if (type === "FILL" || type === "MULTIPLE_SELECT") {
+    if (Array.isArray(ans)) return ans.join(", ");
+    return String(ans);
+  }
+
+  if (type === "MATCHING") {
+    if (Array.isArray(ans)) {
+      return (ans as Array<{ a: number; b: string }>)
+        .map((p) => `${p.a}-${p.b}`)
+        .join(", ");
+    }
+    if (typeof ans === "object") {
+      return Object.entries(ans as Record<string, string>)
+        .map(([k, v]) => `${k}-${v}`)
+        .join(", ");
+    }
+  }
+
+  if (type === "ERROR_CORRECTION") {
+    if (typeof ans === "object" && ans !== null && "correction" in ans) {
+      return String((ans as any).correction);
+    }
+  }
+
+  if (type === "REORDERING" && Array.isArray(ans)) {
+    // Look at items to resolve order if ids are used
+    const items = (question.options as any)?.items as Array<{ id: string; text: string }> | undefined;
+    if (items) {
+      const itemMap = new Map(items.map((it) => [it.id, it.text]));
+      return ans.map((id) => itemMap.get(String(id)) ?? String(id)).join(" → ");
+    }
+    return ans.join(", ");
+  }
+
+  if ((type === "DRAG_DROP" || type === "CATEGORIZATION") && typeof ans === "object" && ans !== null) {
+    // Group items by category for easy teacher reading
+    const items = (question.options as any)?.items as Array<{ id: string; text: string }> | undefined;
+    if (items) {
+      const itemMap = new Map(items.map((it) => [it.id, it.text]));
+      const categories: Record<string, string[]> = {};
+      Object.entries(ans as Record<string, string>).forEach(([itemId, cat]) => {
+        const txt = itemMap.get(itemId) ?? itemId;
+        if (!categories[cat]) categories[cat] = [];
+        categories[cat].push(txt);
+      });
+      return Object.entries(categories)
+        .map(([cat, list]) => `[${cat}]: ${list.join(", ")}`)
+        .join(" | ");
+    }
+  }
+
+  if (type === "PRONUNCIATION") {
+    if (Array.isArray(ans)) return ans.join(", ");
+    const words = (question.options as any)?.words as string[] | undefined;
+    if (words) return words.join(", ");
+    const text = (question.options as any)?.text as string | undefined;
+    if (text) return text;
+  }
+
+  if (typeof ans === "object") {
+    return JSON.stringify(ans);
+  }
+
+  return String(ans);
 }

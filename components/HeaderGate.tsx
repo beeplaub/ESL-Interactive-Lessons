@@ -7,6 +7,7 @@ export function HeaderGate({ children }: { children: React.ReactNode }) {
   if (
     pathname === "/level-test/test" ||
     pathname === "/account" ||
+    pathname.includes("/print") ||
     pathname.startsWith("/courses") ||
     pathname.startsWith("/quizzes") ||
     pathname.startsWith("/leaderboard") ||
