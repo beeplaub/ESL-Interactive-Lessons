@@ -526,6 +526,9 @@ export type Database = {
           deleted_by: string | null;
           created_at: string;
           updated_at: string;
+          price_bdt: number | null;
+          original_price_bdt: number | null;
+          payment_instructions: string | null;
         };
         Insert: {
           id?: string;
@@ -548,6 +551,9 @@ export type Database = {
           deleted_by?: string | null;
           created_at?: string;
           updated_at?: string;
+          price_bdt?: number | null;
+          original_price_bdt?: number | null;
+          payment_instructions?: string | null;
         };
         Update: {
           id?: string;
@@ -568,6 +574,63 @@ export type Database = {
           organization_id?: string | null;
           deleted_at?: string | null;
           deleted_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          price_bdt?: number | null;
+          original_price_bdt?: number | null;
+          payment_instructions?: string | null;
+        };
+        Relationships: [];
+      };
+      course_orders: {
+        Row: {
+          id: string;
+          user_id: string;
+          course_id: string;
+          status: "PENDING" | "CONFIRMED" | "REJECTED" | "CANCELLED";
+          amount_bdt: number;
+          payment_method: "BKASH" | "NAGAD" | "BANK_TRANSFER" | "OTHER";
+          transaction_id: string | null;
+          sender_number: string | null;
+          receipt_path: string | null;
+          note: string | null;
+          admin_note: string | null;
+          confirmed_by: string | null;
+          confirmed_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          course_id: string;
+          status?: "PENDING" | "CONFIRMED" | "REJECTED" | "CANCELLED";
+          amount_bdt: number;
+          payment_method: "BKASH" | "NAGAD" | "BANK_TRANSFER" | "OTHER";
+          transaction_id?: string | null;
+          sender_number?: string | null;
+          receipt_path?: string | null;
+          note?: string | null;
+          admin_note?: string | null;
+          confirmed_by?: string | null;
+          confirmed_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          course_id?: string;
+          status?: "PENDING" | "CONFIRMED" | "REJECTED" | "CANCELLED";
+          amount_bdt?: number;
+          payment_method?: "BKASH" | "NAGAD" | "BANK_TRANSFER" | "OTHER";
+          transaction_id?: string | null;
+          sender_number?: string | null;
+          receipt_path?: string | null;
+          note?: string | null;
+          admin_note?: string | null;
+          confirmed_by?: string | null;
+          confirmed_at?: string | null;
           created_at?: string;
           updated_at?: string;
         };

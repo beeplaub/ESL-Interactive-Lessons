@@ -225,7 +225,7 @@ function CourseCard({
   totalItems,
   tone
 }: {
-  course: { id: string; title: string; subtitle?: string | null; topic?: string | null; level?: string | null; estimated_completion_minutes?: number | null; thumbnail_path?: string | null; cover_image_path?: string | null };
+  course: { id: string; title: string; subtitle?: string | null; topic?: string | null; level?: string | null; estimated_completion_minutes?: number | null; thumbnail_path?: string | null; cover_image_path?: string | null; price_bdt?: number | null; original_price_bdt?: number | null };
   status?: string;
   progress: number;
   completedItems: number;
@@ -272,9 +272,23 @@ function CourseCard({
             <div className="h-full rounded-full bg-gradient-to-r from-[#6C3BFF] to-[#8A58FF]" style={{ width: `${progress}%` }} />
           </div>
         </div>
-        <span className="mt-4 inline-flex items-center gap-1 text-sm font-bold text-[#6C3BFF]">
-          {status ? "Continue course" : "View course"} <ChevronRight className="size-4 transition group-hover:translate-x-0.5" />
-        </span>
+        <div className="mt-4 flex items-center justify-between">
+          <span className="inline-flex items-center gap-1 text-sm font-bold text-[#6C3BFF]">
+            {status ? "Continue course" : "View course"} <ChevronRight className="size-4 transition group-hover:translate-x-0.5" />
+          </span>
+          <div className="text-right">
+            {course.price_bdt ? (
+              <div className="flex items-center gap-1.5 justify-end">
+                {course.original_price_bdt ? (
+                  <span className="text-xs text-[#6E738D] line-through">৳{course.original_price_bdt}</span>
+                ) : null}
+                <span className="text-sm font-extrabold text-slate-900 bg-slate-100 rounded-lg px-2 py-0.5">৳{course.price_bdt}</span>
+              </div>
+            ) : (
+              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 rounded-lg px-2 py-0.5">Free</span>
+            )}
+          </div>
+        </div>
       </div>
     </Link>
   );

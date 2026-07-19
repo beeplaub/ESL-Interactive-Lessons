@@ -69,6 +69,10 @@ export async function setCourseStatus(courseId: string, status: "DRAFT" | "PUBLI
 export async function updateCourseMetadata(courseId: string, formData: FormData) {
   await requireAdmin();
   const admin = createAdminClient();
+  
+  const priceVal = formData.get("priceBdt");
+  const origPriceVal = formData.get("originalPriceBdt");
+
   const { error } = await admin
     .from("courses")
     .update({
@@ -83,6 +87,9 @@ export async function updateCourseMetadata(courseId: string, formData: FormData)
       estimated_completion_minutes: Number(formData.get("estimatedCompletionMinutes") || "") || null,
       duration_minutes: Number(formData.get("durationMinutes") || "") || null,
       organization_id: String(formData.get("organizationId") || "") || null,
+      price_bdt: priceVal && priceVal !== "" ? Number(priceVal) : null,
+      original_price_bdt: origPriceVal && origPriceVal !== "" ? Number(origPriceVal) : null,
+      payment_instructions: String(formData.get("paymentInstructions") || "").trim() || null,
       updated_at: new Date().toISOString(),
     })
     .eq("id", courseId);
@@ -495,4 +502,150 @@ export async function permanentlyDeleteCourse(courseId: string) {
   revalidatePath("/admin/courses");
   revalidatePath("/admin/courses/trash");
   revalidatePath("/courses");
+}
+
+export async function enrollUserInCourseDirectly(userId: string, courseId: string) {
+  const admin = createAdminClient();
+  
+  const { count } = await admin
+    .from("course_items")
+    .select("id", { count: "exact", head: true })
+    .eq("course_id", courseId)
+    .eq("is_required", true);
+
+  await admin.from("course_enrollments").upsert({
+    user_id: userId,
+    course_id: courseId,
+    status: "ACTIVE",
+  }, { onConflict: "user_id,course_id" });
+
+  await admin.from("course_progress").upsert({
+    user_id: userId,
+    course_id: courseId,
+    total_items: count ?? 0,
+    completed_items: 0,
+    progress_percent: 0,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: "user_id,course_id" });
+
+  const [{ data: sections }, { data: items }] = await Promise.all([
+    admin.from("course_sections").select("id").eq("course_id", courseId).order("position", { ascending: true }),
+    admin.from("course_items").select("id, section_id, position").eq("course_id", courseId)
+  ]);
+
+  const rawItems = items ?? [];
+  const sectionsList = sections ?? [];
+  const orderedItems: typeof rawItems = [];
+  for (const sec of sectionsList) {
+    const secItems = rawItems
+      .filter((item) => item.section_id === sec.id)
+      .sort((a, b) => a.position - b.position);
+    orderedItems.push(...secItems);
+  }
+  const unsectionedItems = rawItems
+    .filter((item) => !item.section_id)
+    .sort((a, b) => a.position - b.position);
+  orderedItems.push(...unsectionedItems);
+
+  const firstItem = orderedItems[0] ?? null;
+
+  if (firstItem) {
+    const { data: existingProgress } = await admin
+      .from("course_item_progress")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("course_item_id", firstItem.id)
+      .maybeSingle();
+
+    if (!existingProgress) {
+      await admin.from("course_item_progress").insert({
+        user_id: userId,
+        course_id: courseId,
+        course_item_id: firstItem.id,
+        completed: false,
+        updated_at: new Date().toISOString(),
+      });
+    }
+  }
+}
+
+export async function confirmCourseOrder(orderId: string) {
+  const { user } = await requireAdmin();
+  const admin = createAdminClient();
+
+  const { data: order, error: fetchError } = await admin
+    .from("course_orders")
+    .select("*")
+    .eq("id", orderId)
+    .single();
+
+  if (fetchError || !order) {
+    throw new Error("Order not found.");
+  }
+
+  if (order.status !== "PENDING") {
+    throw new Error("Only pending orders can be confirmed.");
+  }
+
+  // Update order status
+  const { error: updateError } = await admin
+    .from("course_orders")
+    .update({
+      status: "CONFIRMED",
+      confirmed_by: user.id,
+      confirmed_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    })
+    .eq("id", orderId);
+
+  if (updateError) {
+    throw new Error(`Failed to update order status: ${updateError.message}`);
+  }
+
+  // Enroll user
+  await enrollUserInCourseDirectly(order.user_id, order.course_id);
+
+  revalidatePath("/admin/orders");
+  revalidatePath(`/admin/orders/${orderId}`);
+  revalidatePath("/courses");
+  revalidatePath(`/courses/${order.course_id}`);
+}
+
+export async function rejectCourseOrder(orderId: string, adminNote: string) {
+  const { user } = await requireAdmin();
+  const admin = createAdminClient();
+
+  const { data: order, error: fetchError } = await admin
+    .from("course_orders")
+    .select("*")
+    .eq("id", orderId)
+    .single();
+
+  if (fetchError || !order) {
+    throw new Error("Order not found.");
+  }
+
+  if (order.status !== "PENDING") {
+    throw new Error("Only pending orders can be rejected.");
+  }
+
+  const { error: updateError } = await admin
+    .from("course_orders")
+    .update({
+      status: "REJECTED",
+      admin_note: adminNote || null,
+      confirmed_by: user.id,
+      confirmed_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    })
+    .eq("id", orderId);
+
+  if (updateError) {
+    throw new Error(`Failed to reject order: ${updateError.message}`);
+  }
+
+  revalidatePath("/admin/orders");
+  revalidatePath(`/admin/orders/${orderId}`);
+  revalidatePath("/courses");
+  revalidatePath(`/courses/${order.course_id}`);
 }

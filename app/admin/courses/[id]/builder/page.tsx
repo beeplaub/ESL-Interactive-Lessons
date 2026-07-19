@@ -376,6 +376,45 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
         </BuilderDialog>
 
         <BuilderDialog
+          icon="pricing"
+          triggerLabel="Pricing & Payment"
+          countLabel={course.price_bdt ? `৳${course.price_bdt}` : "Free Course"}
+          title="Pricing & Payment details"
+          description="Configure course purchase price and payment instructions (bKash/Nagad/Bank Transfer info)."
+        >
+          <form action={updateCourseMetadata.bind(null, course.id)} className="grid gap-4">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="text-sm font-medium">
+                Price (BDT)
+                <input name="priceBdt" type="number" min="0" defaultValue={course.price_bdt ?? ""} placeholder="e.g. 500 (leave empty for Free)" className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2 text-sm" />
+              </label>
+              <label className="text-sm font-medium">
+                Original Price (BDT) - Optional
+                <input name="originalPriceBdt" type="number" min="0" defaultValue={course.original_price_bdt ?? ""} placeholder="e.g. 1000" className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2 text-sm" />
+              </label>
+              <label className="text-sm font-medium sm:col-span-2">
+                Payment Instructions (displayed to buyers)
+                <textarea name="paymentInstructions" defaultValue={course.payment_instructions ?? ""} rows={6} placeholder="Send Money to:&#10;bKash Personal: 017xxxxxxxx&#10;Nagad Personal: 019xxxxxxxx&#10;Bank Details: Account #xxxxxx" className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2 text-sm font-mono" />
+              </label>
+            </div>
+            {/* Hidden fields to preserve other metadata values when saving from this modal */}
+            <input type="hidden" name="title" value={course.title} />
+            <input type="hidden" name="subtitle" value={course.subtitle ?? ""} />
+            <input type="hidden" name="topic" value={course.topic ?? ""} />
+            <input type="hidden" name="category" value={course.category ?? ""} />
+            <input type="hidden" name="level" value={course.level} />
+            <input type="hidden" name="organizationId" value={course.organization_id ?? ""} />
+            <input type="hidden" name="estimatedCompletionMinutes" value={course.estimated_completion_minutes ?? ""} />
+            <input type="hidden" name="durationMinutes" value={course.duration_minutes ?? ""} />
+            <input type="hidden" name="description" value={course.description ?? ""} />
+            <input type="hidden" name="coverImagePath" value={course.cover_image_path ?? ""} />
+            <input type="hidden" name="thumbnailPath" value={course.thumbnail_path ?? ""} />
+            
+            <button className="w-fit rounded-lg bg-ink px-4 py-2 text-sm font-semibold text-white">Save pricing</button>
+          </form>
+        </BuilderDialog>
+
+        <BuilderDialog
           icon="outcomes"
           triggerLabel="Learning outcomes"
           countLabel={`${outcomes?.length ?? 0} outcomes`}

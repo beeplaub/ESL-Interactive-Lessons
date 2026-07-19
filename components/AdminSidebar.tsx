@@ -15,6 +15,7 @@ import {
   Sparkles,
   Target,
   UsersRound,
+  CreditCard,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { signOut, switchToLearnerView } from "@/app/auth/actions";
@@ -23,6 +24,7 @@ const links = [
   { href: "/admin", label: "Overview", Icon: BarChart3 },
   { href: "/admin/ai-studio", label: "AI Studio", Icon: Sparkles },
   { href: "/admin/analytics", label: "Analytics", Icon: BarChart3 },
+  { href: "/admin/orders", label: "Orders", Icon: CreditCard },
   { href: "/admin/organizations", label: "Organizations", Icon: Building2 },
   { href: "/admin/courses", label: "Courses", Icon: GraduationCap },
   { href: "/admin/content-library", label: "Content Library", Icon: Library },
