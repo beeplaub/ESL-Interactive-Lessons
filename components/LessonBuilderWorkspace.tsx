@@ -105,7 +105,7 @@ type ObeData = {
   assessmentTargets: Array<{ assessment_item_id: string; learning_target_id: string }>;
 };
 
-type Props = { lesson: Lesson; slides: Slide[]; blocks: LessonBlock[]; activities: Activity[]; obe?: ObeData };
+type Props = { lesson: Lesson; slides: Slide[]; blocks: LessonBlock[]; activities: Activity[]; obe?: ObeData; isAdmin?: boolean };
 
 function asRecord(value: Json | null | undefined): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -470,7 +470,7 @@ function AiGeneratorModal({
   );
 }
 
-export function LessonBuilderWorkspace({ lesson, slides, blocks, activities, obe }: Props) {
+export function LessonBuilderWorkspace({ lesson, slides, blocks, activities, obe, isAdmin = false }: Props) {
   const [localSlides, setLocalSlides] = useState(slides);
   const [selectedSlideId, setSelectedSlideId] = useState(() => {
     if (typeof window === "undefined") return slides[0]?.id ?? "";
@@ -660,13 +660,15 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities, obe
           <p className="mt-1 text-sm text-black/55">Build slides, preview the learner view, and edit the selected slide.</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => setIsAiGeneratorOpen(true)}
-            className="inline-flex items-center gap-2 rounded-md bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2 text-sm font-semibold text-white shadow hover:from-emerald-700 hover:to-teal-700 transition-all"
-          >
-            <Sparkles size={16} /> Generate with AI
-          </button>
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={() => setIsAiGeneratorOpen(true)}
+              className="inline-flex items-center gap-2 rounded-md bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2 text-sm font-semibold text-white shadow hover:from-emerald-700 hover:to-teal-700 transition-all"
+            >
+              <Sparkles size={16} /> Generate with AI
+            </button>
+          )}
           <Link href="/admin/content-library?type=LESSON_BLOCK" className="inline-flex items-center gap-2 rounded-md border border-black/15 bg-white px-4 py-2 text-sm font-medium hover:bg-black/5">
             <Library size={16} /> Content library
           </Link>

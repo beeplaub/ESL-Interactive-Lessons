@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireAdmin, getFreshProfile } from "@/lib/auth";
+import { requireAdmin, requireLessonAccess, getFreshProfile } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { callGemini } from "@/lib/ai/gemini";
@@ -878,7 +878,10 @@ export async function generateActivityQuestionsAction(input: {
   guidelines?: string;
 }): Promise<{ success: boolean; data?: any; error?: string }> {
   try {
-    await requireAdmin();
+    const lookupClient = createAdminClient();
+    const { data: slideRow } = await lookupClient.from("slides").select("lesson_id").eq("id", input.slideId).maybeSingle();
+    if (!slideRow) throw new Error("That slide no longer exists.");
+    await requireLessonAccess(slideRow.lesson_id);
     const { user, profile } = await getSessionUser();
     const quota = await checkUsageQuota(user.id, profile.role);
     if (!quota.allowed) {

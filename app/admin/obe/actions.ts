@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdmin, requireCourseAccess, requireLessonAccess, requireQuizAccess } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type ObeActionResult = { success: boolean; error?: string };
@@ -16,7 +16,7 @@ function text(value: FormDataEntryValue | null) {
 
 export async function saveCourseAssessmentPolicy(courseId: string, formData: FormData): Promise<ObeActionResult> {
   try {
-    await requireAdmin();
+    await requireCourseAccess(courseId);
     const admin = createAdminClient();
     const masteryThreshold = Number(formData.get("masteryThreshold"));
     const minimumCoverage = Number(formData.get("minimumEvidenceCoverage"));
@@ -41,7 +41,7 @@ export async function saveCourseAssessmentPolicy(courseId: string, formData: For
 
 export async function addLessonOutcome(lessonId: string, formData: FormData): Promise<ObeActionResult> {
   try {
-    await requireAdmin();
+    await requireLessonAccess(lessonId);
     const outcome = text(formData.get("outcome"));
     if (!outcome) throw new Error("Write an outcome first.");
     const admin = createAdminClient();
@@ -75,7 +75,7 @@ export async function updateLessonOutcome(
   formData: FormData,
 ): Promise<ObeActionResult> {
   try {
-    await requireAdmin();
+    await requireLessonAccess(lessonId);
     const code = text(formData.get("code"));
     const outcome = text(formData.get("outcome"));
     if (!code || !outcome) throw new Error("Outcome code and statement are required.");
@@ -101,7 +101,7 @@ export async function moveLessonOutcome(
   direction: "up" | "down",
 ): Promise<ObeActionResult> {
   try {
-    await requireAdmin();
+    await requireLessonAccess(lessonId);
     const admin = createAdminClient();
     const { data, error } = await admin
       .from("lesson_outcomes")
@@ -130,7 +130,7 @@ export async function moveLessonOutcome(
 
 export async function deleteLessonOutcome(lessonId: string, outcomeId: string): Promise<ObeActionResult> {
   try {
-    await requireAdmin();
+    await requireLessonAccess(lessonId);
     const admin = createAdminClient();
     const { error } = await admin.from("lesson_outcomes").delete().eq("id", outcomeId).eq("lesson_id", lessonId);
     if (error) throw error;
@@ -144,11 +144,13 @@ export async function deleteLessonOutcome(lessonId: string, outcomeId: string): 
 
 export async function placeLessonInCourse(lessonId: string, formData: FormData): Promise<ObeActionResult> {
   try {
-    await requireAdmin();
+    await requireLessonAccess(lessonId);
     const courseId = text(formData.get("courseId"));
+    if (!courseId) throw new Error("Choose a course and section.");
+    await requireCourseAccess(courseId);
     const sectionId = text(formData.get("sectionId"));
     const requestedPosition = Number(formData.get("position"));
-    if (!courseId || !sectionId) throw new Error("Choose a course and section.");
+    if (!sectionId) throw new Error("Choose a course and section.");
     const admin = createAdminClient();
     const { data: section } = await admin.from("course_sections").select("id,course_id").eq("id", sectionId).maybeSingle();
     if (!section || section.course_id !== courseId) throw new Error("That section does not belong to the selected course.");
@@ -186,7 +188,7 @@ export async function placeLessonInCourse(lessonId: string, formData: FormData):
 
 export async function removeLessonPlacement(lessonId: string, courseItemId: string): Promise<ObeActionResult> {
   try {
-    await requireAdmin();
+    await requireLessonAccess(lessonId);
     const admin = createAdminClient();
     const { data: item } = await admin.from("course_items").select("course_id").eq("id", courseItemId).eq("lesson_id", lessonId).maybeSingle();
     const { error } = await admin.from("course_items").delete().eq("id", courseItemId).eq("lesson_id", lessonId);
@@ -207,10 +209,13 @@ export async function saveLessonOutcomeMapping(
   formData: FormData,
 ): Promise<ObeActionResult> {
   try {
-    await requireAdmin();
+    await requireLessonAccess(lessonId);
+    const admin = createAdminClient();
+    const { data: courseItem } = await admin.from("course_items").select("course_id").eq("id", courseItemId).maybeSingle();
+    if (!courseItem) throw new Error("That course placement no longer exists.");
+    await requireCourseAccess(courseItem.course_id);
     const courseOutcomeId = text(formData.get("courseOutcomeId"));
     const contributionWeight = Number(formData.get("contributionWeight") || 1);
-    const admin = createAdminClient();
     if (!courseOutcomeId) {
       const { error } = await admin
         .from("course_lesson_outcome_mappings")
@@ -238,19 +243,30 @@ export async function saveLessonOutcomeMapping(
 
 export async function saveAssessmentItemMetadata(formData: FormData): Promise<ObeActionResult> {
   try {
-    await requireAdmin();
     const sourceType = text(formData.get("sourceType"));
     const sourceId = text(formData.get("sourceId"));
+    if (!["QUIZ_QUESTION", "LESSON_ACTIVITY_QUESTION"].includes(sourceType)) throw new Error("Invalid assessment source.");
+    if (!sourceId) throw new Error("Complete the scoring fields.");
+
+    const admin = createAdminClient();
+    if (sourceType === "LESSON_ACTIVITY_QUESTION") {
+      const { data: activity } = await admin.from("lesson_slide_activities").select("lesson_id").eq("id", sourceId).maybeSingle();
+      if (!activity) throw new Error("That activity no longer exists.");
+      await requireLessonAccess(activity.lesson_id);
+    } else {
+      const { data: question } = await admin.from("quiz_questions").select("quiz_id").eq("id", sourceId).maybeSingle();
+      if (!question) throw new Error("That question no longer exists.");
+      await requireQuizAccess(question.quiz_id);
+    }
+
     const sourceItemKey = text(formData.get("sourceItemKey"));
     const promptSnapshot = text(formData.get("promptSnapshot")) || null;
     const lessonOutcomeId = text(formData.get("lessonOutcomeId")) || null;
     const primarySkillId = text(formData.get("primarySkillId")) || null;
     const maxPoints = Number(formData.get("maxPoints") || 1);
     const analyticalWeight = Number(formData.get("analyticalWeight") || 1);
-    if (!["QUIZ_QUESTION", "LESSON_ACTIVITY_QUESTION"].includes(sourceType)) throw new Error("Invalid assessment source.");
-    if (!sourceId || !sourceItemKey || maxPoints <= 0 || analyticalWeight <= 0) throw new Error("Complete the scoring fields.");
+    if (!sourceItemKey || maxPoints <= 0 || analyticalWeight <= 0) throw new Error("Complete the scoring fields.");
 
-    const admin = createAdminClient();
     const query = admin.from("assessment_items").select("id");
     const { data: existing, error: readError } = sourceType === "QUIZ_QUESTION"
       ? await query.eq("quiz_question_id", sourceId).maybeSingle()
@@ -370,7 +386,7 @@ export async function saveQuizQuestionCourseOutcomeMapping(
   formData: FormData,
 ): Promise<ObeActionResult> {
   try {
-    await requireAdmin();
+    await requireCourseAccess(courseId);
     const courseOutcomeId = text(formData.get("courseOutcomeId"));
     const contributionWeight = Math.max(0.01, Number(formData.get("contributionWeight") || 1));
     const admin = createAdminClient();

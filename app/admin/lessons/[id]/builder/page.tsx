@@ -1,11 +1,11 @@
 import { notFound } from "next/navigation";
-import { requireLessonAccess } from "@/lib/auth";
+import { requireLessonAccess, isPlatformAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { LessonBuilderWorkspace } from "@/components/LessonBuilderWorkspace";
 
 export default async function LessonBuilderPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  await requireLessonAccess(id);
+  const { profile } = await requireLessonAccess(id);
   const supabase = createAdminClient();
 
   const [{ data: lesson }, { data: slides }, { data: activities }, { data: blocks }] = await Promise.all([
@@ -63,6 +63,7 @@ export default async function LessonBuilderPage({ params }: { params: Promise<{ 
       slides={slides ?? []}
       blocks={blocks ?? []}
       activities={activities ?? []}
+      isAdmin={isPlatformAdmin(profile?.role)}
       obe={{
         lessonOutcomes: lessonOutcomes ?? [],
         courses: courses ?? [],

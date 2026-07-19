@@ -284,8 +284,8 @@ export async function addCourseItem(courseId: string, formData: FormData) {
     // lessons - never another teacher's private draft, even if they craft
     // the lessonId directly instead of going through the picker UI.
     const { data: pickedLesson } = await admin.from("lessons").select("created_by, status").eq("id", lessonId).maybeSingle();
-    const allowed = !!pickedLesson && (pickedLesson.created_by === user.id || pickedLesson.status === "PUBLISHED");
-    if (!allowed) throw new Error("You can only add your own lessons, or lessons that are already published.");
+    const allowed = !!pickedLesson && pickedLesson.created_by === user.id;
+    if (!allowed) throw new Error("You can only add lessons you created yourself.");
   }
 
   // Picking a quiz makes a full, independent copy for this course - editing it
@@ -405,8 +405,8 @@ export async function updateCourseItem(courseId: string, itemId: string, formDat
 
   if (nextLessonId && !isPlatformAdmin(profile?.role)) {
     const { data: pickedLesson } = await admin.from("lessons").select("created_by, status").eq("id", nextLessonId).maybeSingle();
-    const allowed = !!pickedLesson && (pickedLesson.created_by === user.id || pickedLesson.status === "PUBLISHED");
-    if (!allowed) throw new Error("You can only add your own lessons, or lessons that are already published.");
+    const allowed = !!pickedLesson && pickedLesson.created_by === user.id;
+    if (!allowed) throw new Error("You can only add lessons you created yourself.");
   }
 
   const { error } = await admin.from("course_items").update({
