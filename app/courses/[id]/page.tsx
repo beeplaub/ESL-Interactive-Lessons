@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
-  ArrowRight,
   BookOpen,
   CheckCircle2,
   ChevronDown,
@@ -15,11 +14,12 @@ import {
   ShieldCheck,
   Star
 } from "lucide-react";
+import { BuyCourseButton, SignInToEnrollButton } from "@/components/BuyCourseButton";
 import { CourseCurriculumTabs } from "@/components/CourseCurriculumTabs";
 import { LearnerAppShell } from "@/components/LearnerAppShell";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { enrollInCourse, markCourseItemComplete, submitCourseOrder } from "@/app/courses/actions";
+import { enrollInCourse, markCourseItemComplete } from "@/app/courses/actions";
 import { getFreshProfile } from "@/lib/auth";
 
 type CourseItemView = {
@@ -160,15 +160,13 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
                   </Link>
                 )
               ) : isPaidCourse ? (
-                activeOrder?.status === "PENDING" ? (
-                  <button disabled className="inline-flex items-center justify-center gap-2 rounded-[12px] bg-[#EBEBEF] cursor-not-allowed px-6 py-3 text-sm font-extrabold text-[#8D94AA]">
-                    <Clock3 className="size-4" /> Under Review
-                  </button>
-                ) : (
-                  <Link href="#payment" className="inline-flex items-center justify-center gap-2 rounded-[12px] bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] px-6 py-3 text-sm font-extrabold text-white shadow-[0_8px_20px_rgba(108,59,255,.35)]">
-                    Buy Course · ৳{course.price_bdt}
-                  </Link>
-                )
+                <BuyCourseButton
+                  courseId={course.id}
+                  priceBdt={course.price_bdt!}
+                  originalPriceBdt={course.original_price_bdt}
+                  paymentInstructions={course.payment_instructions}
+                  activeOrder={activeOrder}
+                />
               ) : (
                 <form action={enrollInCourse.bind(null, course.id)}>
                   <button className="inline-flex w-full items-center justify-center gap-2 rounded-[12px] bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] px-6 py-3 text-sm font-extrabold text-white shadow-[0_8px_20px_rgba(108,59,255,.35)]">
@@ -177,9 +175,7 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
                 </form>
               )
             ) : (
-              <Link href="/login" className="inline-flex items-center justify-center gap-2 rounded-[12px] bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] px-6 py-3 text-sm font-extrabold text-white shadow-[0_8px_20px_rgba(108,59,255,.35)]">
-                Sign in to enroll <ArrowRight className="size-4" />
-              </Link>
+              <SignInToEnrollButton />
             )}
             <Link href="#curriculum" className="inline-flex items-center justify-center gap-2 rounded-[12px] border border-[#ECECF5] bg-white px-6 py-3 text-sm font-extrabold text-[#35405F] shadow-[0_2px_8px_rgba(0,0,0,.04)]">
               View curriculum
@@ -343,71 +339,7 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
     </Panel>
   );
 
-  const paymentPanel = (isPaidCourse && !isEnrolled) ? (
-    <div id="payment" className="scroll-mt-5 rounded-[24px] border border-violet-100 bg-white p-6 shadow-[0_12px_32px_rgba(0,0,0,.04)]">
-      {activeOrder?.status === "PENDING" ? (
-        <div className="text-center py-6">
-          <div className="mx-auto grid size-12 place-items-center rounded-2xl bg-amber-50 text-amber-600 mb-4">
-            <Clock3 className="size-6" />
-          </div>
-          <h3 className="text-lg font-bold text-slate-900">Payment Under Review</h3>
-          <p className="mt-2 text-sm text-[#53607D] max-w-md mx-auto leading-relaxed">
-            We are reviewing your payment (Method: {activeOrder.payment_method}, Number: {activeOrder.sender_number || "N/A"}).
-            Once confirmed by our team, you will be enrolled automatically.
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-6">
-          {activeOrder?.status === "REJECTED" && (
-            <div className="rounded-xl border border-red-100 bg-red-50 p-4 text-sm text-red-800">
-              <p className="font-bold">Payment Verification Rejected</p>
-              <p className="mt-1 font-medium">{activeOrder.admin_note || "Your previous transaction details could not be verified. Please review the details below and try again."}</p>
-            </div>
-          )}
-          <div className="rounded-xl border border-violet-100 bg-violet-50/50 p-4 text-slate-800">
-            <h3 className="text-sm font-extrabold text-violet-950 uppercase tracking-wider mb-2">Payment Details</h3>
-            <div className="text-sm font-medium text-violet-900 leading-relaxed whitespace-pre-line bg-white/60 p-3 rounded-lg border border-violet-50">
-              {course.payment_instructions || `Send BDT ৳${course.price_bdt} using Send Money to our mobile banking wallets:\n\n- bKash Personal: 017xxxxxxxx\n- Nagad Personal: 019xxxxxxxx\n\nReference: Use course title as reference.`}
-            </div>
-          </div>
-          
-          <form action={submitCourseOrder.bind(null, course.id)} className="space-y-4" method="POST" encType="multipart/form-data">
-            <h3 className="text-base font-bold text-slate-900">Submit Payment Verification</h3>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
-                Payment Method *
-                <select name="paymentMethod" required className="mt-1.5 w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-sm text-slate-800 font-semibold focus:border-[#6C3BFF]">
-                  <option value="BKASH">bKash</option>
-                  <option value="NAGAD">Nagad</option>
-                  <option value="BANK_TRANSFER">Bank Transfer</option>
-                  <option value="OTHER">Other</option>
-                </select>
-              </label>
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
-                Sender Number / Account Number *
-                <input name="senderNumber" type="text" required placeholder="e.g. 017xxxxxxxx" className="mt-1.5 w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-sm text-slate-800 font-semibold focus:border-[#6C3BFF]" />
-              </label>
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
-                Transaction ID *
-                <input name="transactionId" type="text" required placeholder="e.g. Trx98765432" className="mt-1.5 w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-sm text-slate-800 font-semibold focus:border-[#6C3BFF]" />
-              </label>
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
-                Receipt Screenshot
-                <input name="receiptFile" type="file" accept="image/*" className="mt-1.5 w-full rounded-lg border border-black/10 bg-white px-3 py-1.5 text-xs text-slate-800 font-semibold focus:border-[#6C3BFF]" />
-              </label>
-              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block sm:col-span-2">
-                Additional Note (optional)
-                <input name="note" type="text" placeholder="e.g. paid from personal wallet" className="mt-1.5 w-full rounded-lg border border-black/10 bg-white px-3 py-2 text-sm text-slate-800 font-semibold focus:border-[#6C3BFF]" />
-              </label>
-            </div>
-            <button type="submit" className="w-full sm:w-fit rounded-xl bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] px-6 py-3 text-sm font-extrabold text-white shadow-[0_8px_20px_rgba(108,59,255,.35)] hover:-translate-y-0.5 transition">
-              Submit Verification
-            </button>
-          </form>
-        </div>
-      )}
-    </div>
-  ) : null;
+
 
   const overviewContent = course.description ? (
     <p className="whitespace-pre-line text-sm leading-6 text-[#53607D]">{course.description}</p>
@@ -452,7 +384,6 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
           <div className="grid min-w-0 gap-5 min-[1130px]:hidden">
             <section className="grid min-w-0 gap-5">
               {headerCard}
-              {paymentPanel}
               <aside className="grid min-w-0 gap-4">
                 {progressPanel}
                 {outcomesPanel}
@@ -470,7 +401,6 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
           <div className="hidden min-[1130px]:grid min-[1130px]:grid-cols-[minmax(0,1fr)_360px] min-[1130px]:items-start min-[1130px]:gap-5">
             <div className="grid min-w-0 gap-5">
               {headerCard}
-              {paymentPanel}
               {curriculumCard}
             </div>
             <aside className="grid min-w-0 content-start gap-4">
