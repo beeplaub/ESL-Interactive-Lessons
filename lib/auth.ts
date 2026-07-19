@@ -44,3 +44,80 @@ export async function requireAdmin() {
   }
   return session;
 }
+
+/** True platform admin: full cross-course, cross-user access. */
+export function isPlatformAdmin(role?: string | null) {
+  return role === "ADMIN";
+}
+
+/** ADMIN or TEACHER — anyone allowed inside the /admin area at all. */
+export function isStaff(role?: string | null) {
+  return role === "ADMIN" || role === "TEACHER";
+}
+
+/**
+ * Gate for any /admin page a TEACHER should be able to reach at all
+ * (course-scoped creator tools). Platform-wide pages (Users, Organizations,
+ * global Analytics, AI Studio, Level Test) must call requireAdmin() instead,
+ * on top of this, since this only confirms "some kind of staff member."
+ */
+export async function requireStaff() {
+  const session = await requireUser();
+  if (!isStaff(session.profile?.role)) {
+    redirect("/account");
+  }
+  return session;
+}
+
+/**
+ * Gate for a single course's admin pages/actions (builder, outcomes,
+ * analytics, course-item mutations). ADMIN can access any course. TEACHER
+ * can only access a course they own (courses.owner_id / created_by).
+ */
+export async function requireCourseAccess(courseId: string) {
+  const session = await requireStaff();
+  if (isPlatformAdmin(session.profile?.role)) return session;
+
+  const admin = createAdminClient();
+  const { data: course } = await admin
+    .from("courses")
+    .select("id, owner_id, created_by")
+    .eq("id", courseId)
+    .maybeSingle();
+
+  const owns = !!course && (course.owner_id === session.user.id || course.created_by === session.user.id);
+  if (!owns) redirect("/admin/courses");
+  return session;
+}
+
+/** Gate for a single lesson's builder/edit pages and mutation actions. */
+export async function requireLessonAccess(lessonId: string) {
+  const session = await requireStaff();
+  if (isPlatformAdmin(session.profile?.role)) return session;
+
+  const admin = createAdminClient();
+  const { data: lesson } = await admin
+    .from("lessons")
+    .select("id, created_by")
+    .eq("id", lessonId)
+    .maybeSingle();
+
+  if (!lesson || lesson.created_by !== session.user.id) redirect("/admin/lessons");
+  return session;
+}
+
+/** Gate for a single quiz's edit pages and mutation actions. */
+export async function requireQuizAccess(quizId: string) {
+  const session = await requireStaff();
+  if (isPlatformAdmin(session.profile?.role)) return session;
+
+  const admin = createAdminClient();
+  const { data: quiz } = await admin
+    .from("quizzes")
+    .select("id, created_by")
+    .eq("id", quizId)
+    .maybeSingle();
+
+  if (!quiz || quiz.created_by !== session.user.id) redirect("/admin/quizzes");
+  return session;
+}

@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, BarChart3 } from "lucide-react";
+import { requireCourseAccess } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export default async function CourseAnalyticsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  await requireCourseAccess(id);
   const admin = createAdminClient();
   const [
     { data: course },

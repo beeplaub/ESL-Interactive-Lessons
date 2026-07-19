@@ -22,29 +22,32 @@ import { signOut, switchToLearnerView } from "@/app/auth/actions";
 
 const links = [
   { href: "/admin", label: "Overview", Icon: BarChart3 },
-  { href: "/admin/ai-studio", label: "AI Studio", Icon: Sparkles },
-  { href: "/admin/analytics", label: "Analytics", Icon: BarChart3 },
-  { href: "/admin/orders", label: "Orders", Icon: CreditCard },
-  { href: "/admin/organizations", label: "Organizations", Icon: Building2 },
+  { href: "/admin/ai-studio", label: "AI Studio", Icon: Sparkles, adminOnly: true },
+  { href: "/admin/analytics", label: "Analytics", Icon: BarChart3, adminOnly: true },
+  { href: "/admin/orders", label: "Orders", Icon: CreditCard, adminOnly: true },
+  { href: "/admin/organizations", label: "Organizations", Icon: Building2, adminOnly: true },
   { href: "/admin/courses", label: "Courses", Icon: GraduationCap },
   { href: "/admin/content-library", label: "Content Library", Icon: Library },
-  { href: "/admin/obe", label: "Outcomes", Icon: Target },
+  { href: "/admin/obe", label: "Outcomes", Icon: Target, adminOnly: true },
   { href: "/admin/lessons", label: "Lessons", Icon: BookOpen },
   { href: "/admin/quizzes", label: "Quizzes", Icon: ClipboardList },
-  { href: "/admin/users", label: "Users", Icon: UsersRound },
-  { href: "/admin/level-test", label: "Level Test", Icon: FlaskConical },
+  { href: "/admin/users", label: "Users", Icon: UsersRound, adminOnly: true },
+  { href: "/admin/level-test", label: "Level Test", Icon: FlaskConical, adminOnly: true },
 ];
 
 const STORAGE_KEY = "adminSidebarCollapsed";
 
 export function AdminSidebar({
   name,
+  role = "ADMIN",
   mobileTop = false,
 }: {
   name: string | null | undefined;
+  role?: "ADMIN" | "TEACHER";
   mobileTop?: boolean;
 }) {
   const pathname = usePathname();
+  const visibleLinks = role === "ADMIN" ? links : links.filter((link) => !link.adminOnly);
   const [collapsed, setCollapsed] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -72,7 +75,7 @@ export function AdminSidebar({
           <p className="mt-1 truncate font-semibold">{name ?? "BrenUp"}</p>
         </div>
         <nav className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-          {links.map(({ href, label, Icon }) => {
+          {visibleLinks.map(({ href, label, Icon }) => {
             const isActive =
               href === "/admin" ? pathname === "/admin" : pathname.startsWith(href);
             return (
@@ -141,7 +144,7 @@ export function AdminSidebar({
 
       {/* Nav links */}
       <nav className={`mt-3 flex flex-col gap-1 ${collapsed ? "px-1" : "px-2"}`}>
-        {links.map(({ href, label, Icon }) => {
+        {visibleLinks.map(({ href, label, Icon }) => {
           const isActive =
             href === "/admin" ? pathname === "/admin" : pathname.startsWith(href);
           return (

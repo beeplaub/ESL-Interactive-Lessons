@@ -1,9 +1,34 @@
 import Link from "next/link";
 import { BarChart3, BookOpen, Building2, ClipboardList, FlaskConical, GraduationCap, UsersRound } from "lucide-react";
+import { requireStaff, isPlatformAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export default async function AdminPage() {
+  const { user, profile } = await requireStaff();
   const admin = createAdminClient();
+
+  if (!isPlatformAdmin(profile?.role)) {
+    const [{ data: courses }, { data: lessons }, { data: quizzes }] = await Promise.all([
+      admin.from("courses").select("status").is("deleted_at", null).or(`owner_id.eq.${user.id},created_by.eq.${user.id}`),
+      admin.from("lessons").select("status").is("deleted_at", null).eq("created_by", user.id),
+      admin.from("quizzes").select("status").is("deleted_at", null).eq("created_by", user.id)
+    ]);
+
+    return (
+      <main className="min-w-0 overflow-hidden">
+        <div className="mb-6">
+          <h1 className="text-2xl font-semibold sm:text-3xl">My teaching overview</h1>
+          <p className="mt-2 text-sm text-black/60">Your own courses, lessons, and quizzes.</p>
+        </div>
+        <section className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <AdminCard href="/admin/courses" icon={GraduationCap} label="My courses" value={courses?.length ?? 0} detail={`${countStatus(courses, "PUBLISHED")} published · ${countStatus(courses, "DRAFT")} draft`} />
+          <AdminCard href="/admin/lessons" icon={BookOpen} label="My lessons" value={lessons?.length ?? 0} detail={`${countStatus(lessons, "PUBLISHED")} published · ${countStatus(lessons, "DRAFT")} draft`} />
+          <AdminCard href="/admin/quizzes" icon={ClipboardList} label="My quizzes" value={quizzes?.length ?? 0} detail={`${countStatus(quizzes, "PUBLISHED")} published · ${countStatus(quizzes, "DRAFT")} draft`} />
+        </section>
+      </main>
+    );
+  }
+
   const [{ data: courses }, { data: organizations }, { data: lessons }, { data: quizzes }, { data: profiles }, { data: attempts }, { data: levelResults }] = await Promise.all([
     admin.from("courses").select("status").is("deleted_at", null),
     admin.from("organizations").select("id"),

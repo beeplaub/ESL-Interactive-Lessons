@@ -1,16 +1,22 @@
 import Link from "next/link";
 import { ArrowLeft, RotateCcw, Trash2, GraduationCap } from "lucide-react";
+import { requireStaff, isPlatformAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { permanentlyDeleteCourse, restoreCourse } from "@/app/admin/courses/actions";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 
 export default async function AdminCoursesTrashPage() {
+  const { user, profile } = await requireStaff();
   const admin = createAdminClient();
-  const { data: courses } = await admin
+  let query = admin
     .from("courses")
     .select("*")
     .not("deleted_at", "is", null)
     .order("deleted_at", { ascending: false });
+  if (!isPlatformAdmin(profile?.role)) {
+    query = query.or(`owner_id.eq.${user.id},created_by.eq.${user.id}`);
+  }
+  const { data: courses } = await query;
 
   return (
     <main className="min-w-0 overflow-hidden">

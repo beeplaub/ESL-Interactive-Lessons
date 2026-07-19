@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { BookOpen, Sparkles } from "lucide-react";
-import { requireAdmin } from "@/lib/auth";
+import { requireStaff } from "@/lib/auth";
 import { createVisualLesson } from "@/app/admin/lessons/actions";
 import { CONTENT_LEVELS } from "@/lib/levels";
 
 export default async function NewLessonPage() {
-  await requireAdmin();
+  await requireStaff();
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-8">

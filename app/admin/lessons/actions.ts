@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { requireAdmin } from "@/lib/auth";
+import { requireStaff, requireLessonAccess } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { parsePdfPages } from "@/lib/pdfParser";
 import { parseLessonSlideActivities } from "@/lib/lessonTextParser";
@@ -347,6 +347,7 @@ async function createLessonRowsFromPdf(params: {
   pdfPath: string;
   pdfBuffer: Buffer;
   audioPaths: Array<{ label: string; path: string }>;
+  createdBy: string;
 }) {
   const supabase = createAdminClient();
 
@@ -357,7 +358,8 @@ async function createLessonRowsFromPdf(params: {
     level: params.level,
     description: params.description,
     pdf_path: params.pdfPath,
-    status: "DRAFT"
+    status: "DRAFT",
+    created_by: params.createdBy
   });
   if (lessonError) throwStep("Create lesson row failed", lessonError);
 
@@ -401,7 +403,7 @@ async function createLessonRowsFromPdf(params: {
 }
 
 export async function createLessonFromPaths(formData: FormData): Promise<LessonActionState> {
-  await requireAdmin();
+  const { user } = await requireStaff();
 
   let parsed: z.infer<typeof pathLessonSchema> | null = null;
   let audioPaths: Array<{ label: string; path: string }> = [];
@@ -431,7 +433,8 @@ export async function createLessonFromPaths(formData: FormData): Promise<LessonA
       description: parsed.description,
       pdfPath: parsed.pdfPath,
       pdfBuffer: Buffer.from(await pdfBlob.arrayBuffer()),
-      audioPaths
+      audioPaths,
+      createdBy: user.id
     });
 
     revalidatePath("/admin/lessons");
@@ -455,7 +458,7 @@ export async function createLessonFromPaths(formData: FormData): Promise<LessonA
 }
 
 export async function createSignedStorageUpload(input: { bucket: "lessons" | "lesson-audio"; path: string }) {
-  await requireAdmin();
+  await requireStaff();
 
   try {
     const parsed = signedUploadSchema.parse(input);
@@ -472,7 +475,7 @@ export async function createSignedStorageUpload(input: { bucket: "lessons" | "le
 }
 
 export async function createLesson(formData: FormData) {
-  await requireAdmin();
+  const { user } = await requireStaff();
   const supabase = createAdminClient();
 
   const parsed = lessonSchema.parse({
@@ -504,7 +507,8 @@ export async function createLesson(formData: FormData) {
     level: parsed.level,
     description: parsed.description,
     pdf_path: pdfPath,
-    status: "DRAFT"
+    status: "DRAFT",
+    created_by: user.id
   });
   if (lessonError) throw lessonError;
 
@@ -554,7 +558,7 @@ export async function createLesson(formData: FormData) {
 }
 
 export async function createVisualLesson(formData: FormData) {
-  await requireAdmin();
+  const { user } = await requireStaff();
   const supabase = createAdminClient();
 
   const parsed = builderLessonSchema.parse({
@@ -588,7 +592,8 @@ export async function createVisualLesson(formData: FormData) {
     estimated_completion_minutes: optionalPositiveInt(parsed.estimatedCompletionMinutes),
     timer_minutes: optionalPositiveInt(parsed.timerMinutes),
     pdf_path: `builder/${lessonId}`,
-    status: "DRAFT"
+    status: "DRAFT",
+    created_by: user.id
   });
   if (lessonError) throw lessonError;
 
@@ -608,7 +613,7 @@ export async function createVisualLesson(formData: FormData) {
 }
 
 export async function updateLessonStatus(lessonId: string, status: "DRAFT" | "PUBLISHED") {
-  await requireAdmin();
+  await requireLessonAccess(lessonId);
   const supabase = createAdminClient();
   const { error } = await supabase.from("lessons").update({ status }).eq("id", lessonId);
   if (error) throw error;
@@ -617,7 +622,7 @@ export async function updateLessonStatus(lessonId: string, status: "DRAFT" | "PU
 }
 
 export async function updateLessonDetails(lessonId: string, formData: FormData) {
-  await requireAdmin();
+  await requireLessonAccess(lessonId);
   const supabase = createAdminClient();
   const parsed = lessonSchema.parse({
     title: formData.get("title"),
@@ -643,7 +648,7 @@ export async function updateLessonDetails(lessonId: string, formData: FormData) 
 }
 
 export async function updateLessonBuilderDetails(lessonId: string, formData: FormData) {
-  await requireAdmin();
+  await requireLessonAccess(lessonId);
   const supabase = createAdminClient();
   const parsed = builderLessonSchema.parse({
     title: formData.get("title"),
@@ -685,7 +690,7 @@ export async function updateLessonBuilderDetails(lessonId: string, formData: For
 }
 
 export async function deleteLesson(lessonId: string) {
-  const { user } = await requireAdmin();
+  const { user } = await requireLessonAccess(lessonId);
   const supabase = createAdminClient();
   const { error } = await supabase
     .from("lessons")
@@ -699,7 +704,7 @@ export async function deleteLesson(lessonId: string) {
 }
 
 export async function restoreLesson(lessonId: string) {
-  await requireAdmin();
+  await requireLessonAccess(lessonId);
   const supabase = createAdminClient();
   const { error } = await supabase
     .from("lessons")
@@ -713,7 +718,7 @@ export async function restoreLesson(lessonId: string) {
 }
 
 export async function permanentlyDeleteLesson(lessonId: string) {
-  await requireAdmin();
+  await requireLessonAccess(lessonId);
   const supabase = createAdminClient();
   const { error } = await supabase
     .from("lessons")
@@ -728,7 +733,7 @@ export async function permanentlyDeleteLesson(lessonId: string) {
 }
 
 export async function duplicateLesson(lessonId: string) {
-  await requireAdmin();
+  await requireLessonAccess(lessonId);
   const supabase = createAdminClient();
 
   const { data: source, error: lessonErr } = await supabase
@@ -855,10 +860,10 @@ export async function duplicateLesson(lessonId: string) {
 }
 
 export async function updateSlide(formData: FormData) {
-  await requireAdmin();
-  const supabase = createAdminClient();
   const slideId = String(formData.get("slideId"));
   const lessonId = String(formData.get("lessonId"));
+  await requireLessonAccess(lessonId);
+  const supabase = createAdminClient();
   const activityId = String(formData.get("activityId") || "");
   const linkedAnswerSlideId = String(formData.get("linkedAnswerSlideId") || "") || null;
 
@@ -904,7 +909,7 @@ export async function updateSlide(formData: FormData) {
 }
 
 export async function addBuilderSlide(lessonId: string, formData: FormData) {
-  await requireAdmin();
+  await requireLessonAccess(lessonId);
   const supabase = createAdminClient();
   const { data: slides, error: slidesError } = await supabase
     .from("slides")
@@ -938,7 +943,7 @@ export async function addBuilderSlideAt(
   title: string,
   sectionLabel: string
 ) {
-  await requireAdmin();
+  await requireLessonAccess(lessonId);
   const supabase = createAdminClient();
 
   const { data: slidesToShift } = await supabase
@@ -971,7 +976,7 @@ export async function addBuilderSlideAt(
 }
 
 export async function updateBuilderSlide(lessonId: string, slideId: string, formData: FormData) {
-  await requireAdmin();
+  await requireLessonAccess(lessonId);
   const supabase = createAdminClient();
   const title = String(formData.get("title") || "").trim();
   const rawText = String(formData.get("rawText") || "").trim();
@@ -992,7 +997,7 @@ export async function updateBuilderSlide(lessonId: string, slideId: string, form
 }
 
 export async function duplicateBuilderSlide(lessonId: string, slideId: string, afterSlideNumber?: number) {
-  await requireAdmin();
+  await requireLessonAccess(lessonId);
   const supabase = createAdminClient();
   const [{ data: source, error: sourceError }, { data: slides, error: slidesError }] = await Promise.all([
     supabase.from("slides").select("*").eq("id", slideId).eq("lesson_id", lessonId).single(),
@@ -1074,7 +1079,7 @@ export async function duplicateBuilderSlide(lessonId: string, slideId: string, a
 }
 
 export async function deleteBuilderSlide(lessonId: string, slideId: string) {
-  await requireAdmin();
+  await requireLessonAccess(lessonId);
   const supabase = createAdminClient();
   const { data: slide, error: slideError } = await supabase
     .from("slides")
@@ -1106,7 +1111,7 @@ export async function deleteBuilderSlide(lessonId: string, slideId: string) {
 }
 
 export async function moveBuilderSlide(lessonId: string, slideId: string, direction: "up" | "down") {
-  await requireAdmin();
+  await requireLessonAccess(lessonId);
   const supabase = createAdminClient();
   const { data: slides, error } = await supabase
     .from("slides")
@@ -1127,7 +1132,7 @@ export async function moveBuilderSlide(lessonId: string, slideId: string, direct
 }
 
 export async function moveBuilderSlideToPosition(lessonId: string, slideId: string, formData: FormData) {
-  await requireAdmin();
+  await requireLessonAccess(lessonId);
   const targetPosition = Number(formData.get("position"));
   if (!Number.isFinite(targetPosition) || targetPosition < 1) return;
 
@@ -1151,13 +1156,13 @@ export async function moveBuilderSlideToPosition(lessonId: string, slideId: stri
 }
 
 export async function reorderBuilderSlides(lessonId: string, orderedIds: string[]) {
-  await requireAdmin();
+  await requireLessonAccess(lessonId);
   await reorderSlides(lessonId, orderedIds);
   revalidateLessonBuilder(lessonId);
 }
 
 export async function addLessonBlock(lessonId: string, slideId: string, formData: FormData) {
-  await requireAdmin();
+  await requireLessonAccess(lessonId);
   const supabase = createAdminClient();
   const parsed = lessonBlockSchema.parse({ blockType: formData.get("blockType") });
 
@@ -1182,7 +1187,7 @@ export async function addLessonBlock(lessonId: string, slideId: string, formData
 }
 
 export async function updateLessonBlock(lessonId: string, blockId: string, formData: FormData) {
-  await requireAdmin();
+  await requireLessonAccess(lessonId);
   const supabase = createAdminClient();
   const parsed = lessonBlockSchema.parse({ blockType: formData.get("blockType") });
 
@@ -1200,7 +1205,7 @@ export async function updateLessonBlock(lessonId: string, blockId: string, formD
 }
 
 export async function deleteLessonBlock(lessonId: string, slideId: string, blockId: string) {
-  await requireAdmin();
+  await requireLessonAccess(lessonId);
   const supabase = createAdminClient();
   const { error } = await supabase
     .from("lesson_blocks")
@@ -1221,7 +1226,7 @@ export async function deleteLessonBlock(lessonId: string, slideId: string, block
 }
 
 export async function moveLessonBlock(lessonId: string, slideId: string, blockId: string, direction: "up" | "down") {
-  await requireAdmin();
+  await requireLessonAccess(lessonId);
   const supabase = createAdminClient();
   const { data: blocks, error } = await supabase
     .from("lesson_blocks")
@@ -1243,7 +1248,7 @@ export async function moveLessonBlock(lessonId: string, slideId: string, blockId
 
 export async function moveSlideActivityToSlide(lessonId: string, activityId: string, formData: FormData) {
   try {
-    await requireAdmin();
+    await requireLessonAccess(lessonId);
     const targetSlideId = String(formData.get("slideId") || "");
     const replaceExisting = formData.get("replaceExisting") === "true";
     if (!targetSlideId) return;
@@ -1287,7 +1292,7 @@ export async function moveSlideActivityToSlide(lessonId: string, activityId: str
 
 export async function copySlideActivityToSlide(lessonId: string, activityId: string, formData: FormData) {
   try {
-    await requireAdmin();
+    await requireLessonAccess(lessonId);
     const targetSlideId = String(formData.get("slideId") || "");
     const replaceExisting = formData.get("replaceExisting") === "true";
     if (!targetSlideId) return;
@@ -1346,7 +1351,7 @@ export async function moveOrCopySlideActivityToSlide(lessonId: string, activityI
 
 export async function addLessonSlideActivity(lessonId: string, slideId: string, slideNumber: number, formData: FormData) {
   try {
-    await requireAdmin();
+    await requireLessonAccess(lessonId);
     const supabase = createAdminClient();
     const activityType = String(formData.get("activityType") || "MCQ");
     const prompt = String(formData.get("prompt") || defaultActivityPrompt(activityType)).trim();
@@ -1371,13 +1376,13 @@ export async function addLessonSlideActivity(lessonId: string, slideId: string, 
 }
 
 export async function rerunParser(lessonId: string) {
-  await requireAdmin();
+  await requireLessonAccess(lessonId);
   await classifyAndExtractLesson(lessonId);
   revalidatePath(`/admin/lessons/${lessonId}/edit`);
 }
 
 export async function generateInLessonQuizzes(lessonId: string, formData: FormData) {
-  await requireAdmin();
+  await requireLessonAccess(lessonId);
   const fullText = String(formData.get("fullText") || "");
   const parsedActivities = parseLessonSlideActivities(fullText);
   const supabase = createAdminClient();
@@ -1444,7 +1449,7 @@ export async function updateSlideActivity(input: {
   needsReview?: boolean;
 }): Promise<{ success: boolean; error?: string }> {
   try {
-    await requireAdmin();
+    await requireLessonAccess(input.lessonId);
     const supabase = createAdminClient();
     const activityData =
       typeof input.activityData === "string"
@@ -1476,7 +1481,7 @@ export async function deleteSlideActivity(input: {
   lessonId: string;
 }): Promise<{ success: boolean; error?: string }> {
   try {
-    await requireAdmin();
+    await requireLessonAccess(input.lessonId);
     const supabase = createAdminClient();
     const { error } = await supabase.from("lesson_slide_activities").delete().eq("id", input.activityId);
     if (error) throw error;
@@ -1709,7 +1714,7 @@ export async function insertGeneratedQuestionsAction(input: {
   appendActivityId?: string;
 }): Promise<{ success: boolean; error?: string }> {
   try {
-    await requireAdmin();
+    await requireLessonAccess(input.lessonId);
     const supabase = createAdminClient();
 
     const localAsRecord = (val: unknown): Record<string, any> => {

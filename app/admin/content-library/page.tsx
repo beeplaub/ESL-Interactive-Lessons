@@ -1,6 +1,6 @@
 import { Filter, Library, Plus, Trash2 } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { requireAdmin } from "@/lib/auth";
+import { requireStaff } from "@/lib/auth";
 import { deleteLibraryItem, insertLibraryCopy, saveExistingContentToLibrary } from "./actions";
 import { DeleteButton } from "@/components/DeleteButton";
 
@@ -11,7 +11,7 @@ export default async function ContentLibraryPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  await requireAdmin();
+  await requireStaff();
   const params = await searchParams;
   const admin = createAdminClient();
   const [

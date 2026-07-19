@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { requireAdmin } from "@/lib/auth";
+import { requireStaff, requireQuizAccess } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Json } from "@/types/database.types";
 
@@ -32,7 +32,7 @@ const quizSchema = z.object({
 });
 
 export async function saveQuiz(payload: unknown) {
-  const { user } = await requireAdmin();
+  const { user } = await requireStaff();
   const parsed = quizSchema.parse(payload);
   const admin = createAdminClient();
   const { data: quiz, error: quizError } = await admin
@@ -69,7 +69,8 @@ export async function saveQuiz(payload: unknown) {
 }
 
 export async function saveQuizBuilder(payload: unknown) {
-  const { user } = await requireAdmin();
+  const quizIdForAuth = typeof payload === "object" && payload && "quizId" in payload ? String((payload as { quizId?: unknown }).quizId || "") : "";
+  const { user } = quizIdForAuth ? await requireQuizAccess(quizIdForAuth) : await requireStaff();
   const parsed = quizSchema.parse(payload);
   const quizId = typeof payload === "object" && payload && "quizId" in payload ? String((payload as { quizId?: unknown }).quizId || "") : "";
   const admin = createAdminClient();
@@ -190,7 +191,7 @@ async function saveQuestionAssessmentMetadata(
 }
 
 export async function updateQuizStatus(quizId: string, status: "DRAFT" | "PUBLISHED") {
-  await requireAdmin();
+  await requireQuizAccess(quizId);
   const admin = createAdminClient();
   await admin.from("quizzes").update({ status }).eq("id", quizId);
   revalidatePath("/admin/quizzes");
@@ -198,8 +199,8 @@ export async function updateQuizStatus(quizId: string, status: "DRAFT" | "PUBLIS
 }
 
 export async function updateQuizDetails(formData: FormData) {
-  await requireAdmin();
   const quizId = String(formData.get("quizId"));
+  await requireQuizAccess(quizId);
   const title = String(formData.get("title") ?? "");
   const topic = String(formData.get("topic") ?? "");
   const level = String(formData.get("level") ?? "B1");
@@ -212,7 +213,7 @@ export async function updateQuizDetails(formData: FormData) {
 }
 
 export async function deleteQuiz(quizId: string) {
-  const { user } = await requireAdmin();
+  const { user } = await requireQuizAccess(quizId);
   const admin = createAdminClient();
   await admin
     .from("quizzes")
@@ -225,7 +226,7 @@ export async function deleteQuiz(quizId: string) {
 }
 
 export async function restoreQuiz(quizId: string) {
-  await requireAdmin();
+  await requireQuizAccess(quizId);
   const admin = createAdminClient();
   await admin.from("quizzes").update({ deleted_at: null, deleted_by: null }).eq("id", quizId);
   revalidatePath("/admin");
@@ -235,7 +236,7 @@ export async function restoreQuiz(quizId: string) {
 }
 
 export async function permanentlyDeleteQuiz(quizId: string) {
-  await requireAdmin();
+  await requireQuizAccess(quizId);
   const admin = createAdminClient();
   await admin.from("quizzes").delete().eq("id", quizId).not("deleted_at", "is", null);
   revalidatePath("/admin");
@@ -245,10 +246,10 @@ export async function permanentlyDeleteQuiz(quizId: string) {
 }
 
 export async function updateQuizQuestion(formData: FormData) {
-  await requireAdmin();
-  const admin = createAdminClient();
   const questionId = String(formData.get("questionId"));
   const quizId = String(formData.get("quizId"));
+  await requireQuizAccess(quizId);
+  const admin = createAdminClient();
   const questionType = String(formData.get("questionType")) as "MCQ" | "TRUE_FALSE" | "FILL" | "MATCHING" | "ERROR_CORRECTION" | "REORDERING" | "MULTIPLE_SELECT" | "SHORT_ANSWER" | "DRAG_DROP" | "CATEGORIZATION" | "PRONUNCIATION";
   const questionText = String(formData.get("questionText") ?? "");
   const description = String(formData.get("description") ?? "").trim() || null;
@@ -297,9 +298,9 @@ export async function updateQuizQuestion(formData: FormData) {
 }
 
 export async function addQuizQuestion(formData: FormData) {
-  await requireAdmin();
-  const admin = createAdminClient();
   const quizId = String(formData.get("quizId"));
+  await requireQuizAccess(quizId);
+  const admin = createAdminClient();
   const questionType = String(formData.get("questionType") || "MCQ");
   const { data: existing } = await admin
     .from("quiz_questions")
@@ -323,9 +324,9 @@ export async function addQuizQuestion(formData: FormData) {
 }
 
 export async function deleteQuizQuestion(formData: FormData) {
-  await requireAdmin();
-  const admin = createAdminClient();
   const quizId = String(formData.get("quizId"));
+  await requireQuizAccess(quizId);
+  const admin = createAdminClient();
   const questionId = String(formData.get("questionId"));
   const { error } = await admin.from("quiz_questions").delete().eq("id", questionId).eq("quiz_id", quizId);
   if (error) throw new Error(error.message);

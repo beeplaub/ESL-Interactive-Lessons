@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { notFound } from "next/navigation";
-import { requireAdmin } from "@/lib/auth";
+import { requireLessonAccess } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { CONTENT_LEVELS } from "@/lib/levels";
 import {
@@ -30,8 +30,8 @@ const slideTypes: SlideType[] = [
 ];
 
 export default async function EditLessonPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireAdmin();
   const { id } = await params;
+  await requireLessonAccess(id);
   const supabase = createAdminClient();
 
   const { data: lesson } = await supabase.from("lessons").select("*").eq("id", id).maybeSingle();

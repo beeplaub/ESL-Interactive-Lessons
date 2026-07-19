@@ -2,21 +2,23 @@ import { AdminSidebar } from "@/components/AdminSidebar";
 
 export function AdminShell({
   name,
+  role = "ADMIN",
   children,
 }: {
   name: string | null | undefined;
+  role?: "ADMIN" | "TEACHER";
   children: React.ReactNode;
 }) {
   return (
     <div className="mx-auto w-full max-w-7xl px-3 py-4 sm:px-4 sm:py-6">
       {/* Mobile: top bar (original behaviour) */}
       <div className="mb-4 md:hidden">
-        <AdminSidebar name={name} mobileTop />
+        <AdminSidebar name={name} role={role} mobileTop />
       </div>
 
       {/* Desktop: collapsible side rail */}
       <div className="hidden md:flex md:gap-4">
-        <AdminSidebar name={name} />
+        <AdminSidebar name={name} role={role} />
         <div className="min-w-0 flex-1 overflow-hidden">{children}</div>
       </div>
 

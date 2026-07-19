@@ -1,17 +1,28 @@
 import Link from "next/link";
 import { Archive, BarChart3, Eye, GraduationCap, Pencil, Trash2 } from "lucide-react";
+import { requireStaff, isPlatformAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { deleteCourse, setCourseStatus } from "@/app/admin/courses/actions";
 import { NewCourseModal } from "@/components/NewCourseModal";
 import { DeleteButton } from "@/components/DeleteButton";
 
 export default async function AdminCoursesPage() {
+  const { user, profile } = await requireStaff();
   const admin = createAdminClient();
+  const scopedToOwn = !isPlatformAdmin(profile?.role);
+
+  let coursesQuery = admin.from("courses").select("*").is("deleted_at", null).order("created_at", { ascending: false });
+  let trashedQuery = admin.from("courses").select("id", { count: "exact", head: true }).not("deleted_at", "is", null);
+  if (scopedToOwn) {
+    coursesQuery = coursesQuery.or(`owner_id.eq.${user.id},created_by.eq.${user.id}`);
+    trashedQuery = trashedQuery.or(`owner_id.eq.${user.id},created_by.eq.${user.id}`);
+  }
+
   const [{ data: courses }, { data: enrollments }, { data: items }, { count: trashedCount }] = await Promise.all([
-    admin.from("courses").select("*").is("deleted_at", null).order("created_at", { ascending: false }),
+    coursesQuery,
     admin.from("course_enrollments").select("course_id"),
     admin.from("course_items").select("course_id"),
-    admin.from("courses").select("id", { count: "exact", head: true }).not("deleted_at", "is", null),
+    trashedQuery,
   ]);
 
   const enrollmentCounts = countByCourse(enrollments ?? []);

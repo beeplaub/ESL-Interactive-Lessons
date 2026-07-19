@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, CheckCircle2, ShieldAlert } from "lucide-react";
+import { requireCourseAccess } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { calculateCourseOutcomeRows } from "@/lib/obeReports";
 
@@ -10,6 +11,7 @@ function pct(value: number) {
 
 export default async function CourseOutcomeReportPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  await requireCourseAccess(id);
   const admin = createAdminClient();
   const [{ data: course }, { data: outcomes }, { data: items }] = await Promise.all([
     admin.from("courses").select("*").eq("id", id).maybeSingle(),

@@ -11,6 +11,7 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
+import { requireCourseAccess, isPlatformAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { CONTENT_LEVELS } from "@/lib/levels";
 import { AddItemModal } from "@/app/admin/courses/[id]/builder/AddItemModal";
@@ -64,7 +65,18 @@ type CourseItem = {
 
 export default async function CourseBuilderPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const { user, profile } = await requireCourseAccess(id);
   const admin = createAdminClient();
+
+  let lessonsPickerQuery = admin.from("lessons").select("id,title,level,topic,status").is("deleted_at", null).order("created_at", { ascending: false });
+  let quizzesPickerQuery = admin.from("quizzes").select("id,title,level,topic,status").is("deleted_at", null).is("course_id", null).order("created_at", { ascending: false });
+  if (!isPlatformAdmin(profile?.role)) {
+    // Teachers can attach their own content (any status) or already-published
+    // shared content, but shouldn't see/pull another teacher's private drafts.
+    lessonsPickerQuery = lessonsPickerQuery.or(`created_by.eq.${user.id},status.eq.PUBLISHED`);
+    quizzesPickerQuery = quizzesPickerQuery.or(`created_by.eq.${user.id},status.eq.PUBLISHED`);
+  }
+
   const [
     { data: course },
     { data: outcomes },
@@ -80,8 +92,8 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
     admin.from("course_faqs").select("*").eq("course_id", id).order("position", { ascending: true }),
     admin.from("course_sections").select("*").eq("course_id", id).order("position", { ascending: true }),
     admin.from("course_items").select("*, lessons(title,level,status), quizzes(title,level,status)").eq("course_id", id).order("position", { ascending: true }),
-    admin.from("lessons").select("id,title,level,topic,status").is("deleted_at", null).order("created_at", { ascending: false }),
-    admin.from("quizzes").select("id,title,level,topic,status").is("deleted_at", null).is("course_id", null).order("created_at", { ascending: false }),
+    lessonsPickerQuery,
+    quizzesPickerQuery,
     admin.from("organizations").select("id,name").order("name", { ascending: true }),
   ]);
 

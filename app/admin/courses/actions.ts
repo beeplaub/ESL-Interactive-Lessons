@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requireAdmin } from "@/lib/auth";
+import { requireAdmin, requireCourseAccess, requireStaff, isPlatformAdmin } from "@/lib/auth";
 import { ALL_LEVELS_LABEL, anchorCefrLevel } from "@/lib/levels";
 import { forkQuizForCourse } from "@/lib/quizFork";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -17,7 +17,7 @@ function slugify(value: string) {
 }
 
 export async function createCourse(formData: FormData) {
-  const { user } = await requireAdmin();
+  const { user } = await requireStaff();
   const title = String(formData.get("title") || "").trim();
   if (!title) throw new Error("Course title is required.");
 
@@ -53,7 +53,7 @@ export async function createCourse(formData: FormData) {
 }
 
 export async function setCourseStatus(courseId: string, status: "DRAFT" | "PUBLISHED" | "ARCHIVED") {
-  await requireAdmin();
+  await requireCourseAccess(courseId);
   const admin = createAdminClient();
   const { error } = await admin
     .from("courses")
@@ -67,7 +67,7 @@ export async function setCourseStatus(courseId: string, status: "DRAFT" | "PUBLI
 }
 
 export async function updateCourseMetadata(courseId: string, formData: FormData) {
-  await requireAdmin();
+  await requireCourseAccess(courseId);
   const admin = createAdminClient();
   
   const priceVal = formData.get("priceBdt");
@@ -101,7 +101,7 @@ export async function updateCourseMetadata(courseId: string, formData: FormData)
 }
 
 export async function addCourseOutcome(courseId: string, formData: FormData) {
-  await requireAdmin();
+  await requireCourseAccess(courseId);
   const outcome = String(formData.get("outcome") || "").trim();
   if (!outcome) return;
   const admin = createAdminClient();
@@ -121,7 +121,7 @@ export async function addCourseOutcome(courseId: string, formData: FormData) {
 }
 
 export async function updateCourseOutcome(courseId: string, outcomeId: string, formData: FormData) {
-  await requireAdmin();
+  await requireCourseAccess(courseId);
   const outcome = String(formData.get("outcome") || "").trim();
   if (!outcome) return;
   const admin = createAdminClient();
@@ -142,7 +142,7 @@ export async function updateCourseOutcome(courseId: string, outcomeId: string, f
 }
 
 export async function updateCourseAssessmentPolicy(courseId: string, formData: FormData) {
-  await requireAdmin();
+  await requireCourseAccess(courseId);
   const masteryThreshold = Number(formData.get("masteryThreshold"));
   const minimumEvidenceCoverage = Number(formData.get("minimumEvidenceCoverage"));
   const evidenceSelection = String(formData.get("evidenceSelection") || "LATEST");
@@ -165,7 +165,7 @@ export async function updateCourseAssessmentPolicy(courseId: string, formData: F
 }
 
 export async function deleteCourseOutcome(courseId: string, outcomeId: string) {
-  await requireAdmin();
+  await requireCourseAccess(courseId);
   const admin = createAdminClient();
   const { error } = await admin.from("course_outcomes").delete().eq("id", outcomeId).eq("course_id", courseId);
   if (error) throw new Error(error.message);
@@ -174,7 +174,7 @@ export async function deleteCourseOutcome(courseId: string, outcomeId: string) {
 }
 
 export async function addCourseFaq(courseId: string, formData: FormData) {
-  await requireAdmin();
+  await requireCourseAccess(courseId);
   const question = String(formData.get("question") || "").trim();
   const answer = String(formData.get("answer") || "").trim();
   if (!question || !answer) return;
@@ -187,7 +187,7 @@ export async function addCourseFaq(courseId: string, formData: FormData) {
 }
 
 export async function updateCourseFaq(courseId: string, faqId: string, formData: FormData) {
-  await requireAdmin();
+  await requireCourseAccess(courseId);
   const admin = createAdminClient();
   const { error } = await admin.from("course_faqs").update({
     question: String(formData.get("question") || "").trim(),
@@ -199,7 +199,7 @@ export async function updateCourseFaq(courseId: string, faqId: string, formData:
 }
 
 export async function deleteCourseFaq(courseId: string, faqId: string) {
-  await requireAdmin();
+  await requireCourseAccess(courseId);
   const admin = createAdminClient();
   const { error } = await admin.from("course_faqs").delete().eq("id", faqId).eq("course_id", courseId);
   if (error) throw new Error(error.message);
@@ -208,7 +208,7 @@ export async function deleteCourseFaq(courseId: string, faqId: string) {
 }
 
 export async function addCourseSection(courseId: string, formData: FormData) {
-  await requireAdmin();
+  await requireCourseAccess(courseId);
   const title = String(formData.get("title") || "").trim();
   if (!title) return;
   const admin = createAdminClient();
@@ -225,7 +225,7 @@ export async function addCourseSection(courseId: string, formData: FormData) {
 }
 
 export async function updateCourseSection(courseId: string, sectionId: string, formData: FormData) {
-  await requireAdmin();
+  await requireCourseAccess(courseId);
   const admin = createAdminClient();
   const { error } = await admin.from("course_sections").update({
     title: String(formData.get("title") || "").trim(),
@@ -238,7 +238,7 @@ export async function updateCourseSection(courseId: string, sectionId: string, f
 }
 
 export async function deleteCourseSection(courseId: string, sectionId: string) {
-  await requireAdmin();
+  await requireCourseAccess(courseId);
   const admin = createAdminClient();
   const { error } = await admin.from("course_sections").delete().eq("id", sectionId).eq("course_id", courseId);
   if (error) throw new Error(error.message);
@@ -247,7 +247,7 @@ export async function deleteCourseSection(courseId: string, sectionId: string) {
 }
 
 export async function moveCourseSection(courseId: string, sectionId: string, direction: "up" | "down") {
-  await requireAdmin();
+  await requireCourseAccess(courseId);
   const admin = createAdminClient();
   const { data: sections, error } = await admin
     .from("course_sections")
@@ -269,7 +269,7 @@ export async function moveCourseSection(courseId: string, sectionId: string, dir
 }
 
 export async function addCourseItem(courseId: string, formData: FormData) {
-  await requireAdmin();
+  const { user, profile } = await requireCourseAccess(courseId);
   const sectionId = String(formData.get("sectionId") || "") || null;
   const itemType = String(formData.get("itemType") || "LESSON") as "LESSON" | "QUIZ" | "LEVEL_TEST" | "RESOURCE" | "EXTERNAL_LINK";
   const admin = createAdminClient();
@@ -278,11 +278,21 @@ export async function addCourseItem(courseId: string, formData: FormData) {
   const { count } = await positionQuery;
   const lessonId = itemType === "LESSON" ? String(formData.get("lessonId") || "") || null : null;
   const pickedQuizId = itemType === "QUIZ" ? String(formData.get("quizId") || "") || null : null;
+
+  if (lessonId && !isPlatformAdmin(profile?.role)) {
+    // A teacher may only link their own lessons, or already-published shared
+    // lessons - never another teacher's private draft, even if they craft
+    // the lessonId directly instead of going through the picker UI.
+    const { data: pickedLesson } = await admin.from("lessons").select("created_by, status").eq("id", lessonId).maybeSingle();
+    const allowed = !!pickedLesson && (pickedLesson.created_by === user.id || pickedLesson.status === "PUBLISHED");
+    if (!allowed) throw new Error("You can only add your own lessons, or lessons that are already published.");
+  }
+
   // Picking a quiz makes a full, independent copy for this course - editing it
   // from here never touches the library quiz it was copied from, and the
   // copy itself never shows up in the standalone quiz library or this same
   // picker again (both are scoped to quizzes.course_id is null).
-  const quizId = pickedQuizId ? await forkQuizForCourse(admin, pickedQuizId, courseId) : null;
+  const quizId = pickedQuizId ? await forkQuizForCourse(admin, pickedQuizId, courseId, user.id) : null;
   const startingPosition = count ?? 0;
   const row = {
     course_id: courseId,
@@ -315,7 +325,7 @@ export async function createAndAddCourseItem(
   courseId: string,
   formData: FormData
 ): Promise<{ id: string; itemType: "LESSON" | "QUIZ" }> {
-  await requireAdmin();
+  const { user } = await requireCourseAccess(courseId);
   const admin = createAdminClient();
 
   const itemType = String(formData.get("itemType") || "LESSON") as "LESSON" | "QUIZ";
@@ -332,7 +342,7 @@ export async function createAndAddCourseItem(
   if (itemType === "QUIZ") {
     const { data, error } = await admin
       .from("quizzes")
-      .insert({ title, topic, level: anchorCefrLevel(level), status: "DRAFT", course_id: courseId })
+      .insert({ title, topic, level: anchorCefrLevel(level), status: "DRAFT", course_id: courseId, created_by: user.id })
       .select("id")
       .single();
     if (error || !data) throw new Error(error?.message ?? "Could not create quiz.");
@@ -347,6 +357,7 @@ export async function createAndAddCourseItem(
       description: "",
       pdf_path: `builder/${newLessonId}`,
       status: "DRAFT",
+      created_by: user.id,
     });
     if (lessonError) throw new Error(lessonError.message);
 
@@ -387,13 +398,21 @@ export async function createAndAddCourseItem(
 }
 
 export async function updateCourseItem(courseId: string, itemId: string, formData: FormData) {
-  await requireAdmin();
+  const { user, profile } = await requireCourseAccess(courseId);
   const itemType = String(formData.get("itemType") || "LESSON") as "LESSON" | "QUIZ" | "LEVEL_TEST" | "RESOURCE" | "EXTERNAL_LINK";
   const admin = createAdminClient();
+  const nextLessonId = itemType === "LESSON" ? String(formData.get("lessonId") || "") || null : null;
+
+  if (nextLessonId && !isPlatformAdmin(profile?.role)) {
+    const { data: pickedLesson } = await admin.from("lessons").select("created_by, status").eq("id", nextLessonId).maybeSingle();
+    const allowed = !!pickedLesson && (pickedLesson.created_by === user.id || pickedLesson.status === "PUBLISHED");
+    if (!allowed) throw new Error("You can only add your own lessons, or lessons that are already published.");
+  }
+
   const { error } = await admin.from("course_items").update({
     section_id: String(formData.get("sectionId") || "") || null,
     item_type: itemType,
-    lesson_id: itemType === "LESSON" ? String(formData.get("lessonId") || "") || null : null,
+    lesson_id: nextLessonId,
     quiz_id: itemType === "QUIZ" ? String(formData.get("quizId") || "") || null : null,
     title: String(formData.get("title") || "").trim() || null,
     description: String(formData.get("description") || "").trim() || null,
@@ -415,7 +434,7 @@ export async function updateCourseItem(courseId: string, itemId: string, formDat
 }
 
 export async function deleteCourseItem(courseId: string, itemId: string) {
-  await requireAdmin();
+  await requireCourseAccess(courseId);
   const admin = createAdminClient();
   const { error } = await admin.from("course_items").delete().eq("id", itemId).eq("course_id", courseId);
   if (error) throw new Error(error.message);
@@ -424,7 +443,7 @@ export async function deleteCourseItem(courseId: string, itemId: string) {
 }
 
 export async function moveCourseItem(courseId: string, itemId: string, direction: "up" | "down") {
-  await requireAdmin();
+  await requireCourseAccess(courseId);
   const admin = createAdminClient();
   const { data: selectedItem, error: selectedItemError } = await admin
     .from("course_items")
@@ -458,7 +477,7 @@ export async function moveCourseItem(courseId: string, itemId: string, direction
 }
 
 export async function deleteCourse(courseId: string) {
-  const { user } = await requireAdmin();
+  const { user } = await requireCourseAccess(courseId);
   const admin = createAdminClient();
   // Soft delete: move to trash instead of permanently destroying the row.
   // Admins can restore from /admin/courses/trash, or permanently delete from there.
@@ -474,7 +493,7 @@ export async function deleteCourse(courseId: string) {
 }
 
 export async function restoreCourse(courseId: string) {
-  await requireAdmin();
+  await requireCourseAccess(courseId);
   const admin = createAdminClient();
   const { error } = await admin
     .from("courses")
@@ -488,7 +507,7 @@ export async function restoreCourse(courseId: string) {
 }
 
 export async function permanentlyDeleteCourse(courseId: string) {
-  await requireAdmin();
+  await requireCourseAccess(courseId);
   const admin = createAdminClient();
   // Hard delete. Only ever called from the trash view on a course that is
   // already soft-deleted, and cascades to sections/items/outcomes/faqs via FK.

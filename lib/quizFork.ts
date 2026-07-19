@@ -22,7 +22,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 export async function forkQuizForCourse(
   admin: SupabaseClient,
   sourceQuizId: string,
-  courseId: string
+  courseId: string,
+  createdBy?: string
 ): Promise<string> {
   const { data: sourceQuiz, error: sourceError } = await admin
     .from("quizzes")
@@ -42,6 +43,7 @@ export async function forkQuizForCourse(
       timer_minutes: sourceQuiz.timer_minutes,
       course_id: courseId,
       source_quiz_id: sourceQuizId,
+      created_by: createdBy ?? null,
     })
     .select("id")
     .single();

@@ -2,19 +2,28 @@ import Link from "next/link";
 import { Edit, Plus, Trash2, Printer } from "lucide-react";
 import { deleteQuiz, updateQuizStatus } from "@/app/admin/quizzes/actions";
 import { DeleteButton } from "@/components/DeleteButton";
-import { requireAdmin } from "@/lib/auth";
+import { requireStaff, isPlatformAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminQuizzesPage() {
-  await requireAdmin();
+  const { user, profile } = await requireStaff();
   const admin = createAdminClient();
+  const scopedToOwn = !isPlatformAdmin(profile?.role);
+
+  let quizzesQuery = admin.from("quizzes").select("*").is("deleted_at", null).order("created_at", { ascending: false });
+  let trashedQuery = admin.from("quizzes").select("id", { count: "exact", head: true }).not("deleted_at", "is", null);
+  if (scopedToOwn) {
+    quizzesQuery = quizzesQuery.eq("created_by", user.id);
+    trashedQuery = trashedQuery.eq("created_by", user.id);
+  }
+
   const [{ data: quizzes }, { data: questions }, { data: attempts }, { count: trashedCount }] = await Promise.all([
-    admin.from("quizzes").select("*").is("deleted_at", null).order("created_at", { ascending: false }),
+    quizzesQuery,
     admin.from("quiz_questions").select("quiz_id").limit(10000),
     admin.from("quiz_attempts").select("quiz_id").limit(10000),
-    admin.from("quizzes").select("id", { count: "exact", head: true }).not("deleted_at", "is", null)
+    trashedQuery
   ]);
   const counts = new Map<string, number>();
   for (const question of questions ?? []) counts.set(question.quiz_id, (counts.get(question.quiz_id) ?? 0) + 1);

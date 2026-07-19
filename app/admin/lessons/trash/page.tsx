@@ -1,18 +1,18 @@
 import Link from "next/link";
 import { ArrowLeft, RotateCcw, Trash2, BookOpen } from "lucide-react";
-import { requireAdmin } from "@/lib/auth";
+import { requireStaff, isPlatformAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { permanentlyDeleteLesson, restoreLesson } from "@/app/admin/lessons/actions";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 
 export default async function AdminLessonsTrashPage() {
-  await requireAdmin();
+  const { user, profile } = await requireStaff();
   const supabase = createAdminClient();
-  const { data: lessons } = await supabase
-    .from("lessons")
-    .select("*")
-    .not("deleted_at", "is", null)
-    .order("deleted_at", { ascending: false });
+  let query = supabase.from("lessons").select("*").not("deleted_at", "is", null).order("deleted_at", { ascending: false });
+  if (!isPlatformAdmin(profile?.role)) {
+    query = query.eq("created_by", user.id);
+  }
+  const { data: lessons } = await query;
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">

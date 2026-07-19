@@ -1,11 +1,11 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { QuizVisualBuilder } from "@/components/QuizVisualBuilder";
-import { requireAdmin } from "@/lib/auth";
+import { requireStaff } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export default async function NewQuizPage() {
-  await requireAdmin();
+  await requireStaff();
   const admin = createAdminClient();
   const [{ data: bankQuestions }, { data: skills }, { data: targets }] = await Promise.all([
     admin

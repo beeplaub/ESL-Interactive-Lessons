@@ -1,4 +1,5 @@
 import { Plus, Target } from "lucide-react";
+import { requireAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createLearningSkill, createLearningTarget } from "@/app/admin/obe/actions";
 import { ObeActionForm } from "@/components/ObeActionForm";
@@ -13,6 +14,11 @@ const targetTypes = [
 ];
 
 export default async function ObeAdminPage() {
+  // This is the shared, platform-wide skills/targets taxonomy — reused
+  // across every teacher's courses. Keep it admin-managed so it doesn't
+  // fragment; teachers still select from it when mapping their own
+  // lesson/quiz questions inside the lesson builder.
+  await requireAdmin();
   const admin = createAdminClient();
   const [{ data: skills }, { data: targets }] = await Promise.all([
     admin.from("learning_skills").select("id,parent_id,name,slug,status").order("position"),

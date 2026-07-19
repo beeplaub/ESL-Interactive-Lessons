@@ -1,9 +1,13 @@
+import { requireAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { AdminAiStudioWorkspace } from "@/components/AdminAiStudioWorkspace";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminAiStudioPage() {
+  // Prompt templates, feature flags, and usage/cost are platform-wide
+  // settings, not something any individual course teacher should control.
+  await requireAdmin();
   const admin = createAdminClient();
   const todayStr = new Date().toISOString().split("T")[0];
 

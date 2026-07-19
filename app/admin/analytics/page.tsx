@@ -1,8 +1,12 @@
 import Link from "next/link";
 import { BarChart3, BookOpen, CheckCircle2, ClipboardList, GraduationCap, UsersRound } from "lucide-react";
+import { requireAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export default async function AdminAnalyticsPage() {
+  // Cross-platform analytics span every course/teacher. Teachers get the
+  // same kind of view scoped to their own course at /admin/courses/[id]/analytics.
+  await requireAdmin();
   const admin = createAdminClient();
   const [
     { data: courses },

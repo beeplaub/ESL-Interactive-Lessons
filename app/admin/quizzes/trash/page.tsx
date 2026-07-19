@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowLeft, RotateCcw, Trash2, ListChecks } from "lucide-react";
-import { requireAdmin } from "@/lib/auth";
+import { requireStaff, isPlatformAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { permanentlyDeleteQuiz, restoreQuiz } from "@/app/admin/quizzes/actions";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
@@ -8,13 +8,13 @@ import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 export const dynamic = "force-dynamic";
 
 export default async function AdminQuizzesTrashPage() {
-  await requireAdmin();
+  const { user, profile } = await requireStaff();
   const admin = createAdminClient();
-  const { data: quizzes } = await admin
-    .from("quizzes")
-    .select("*")
-    .not("deleted_at", "is", null)
-    .order("deleted_at", { ascending: false });
+  let query = admin.from("quizzes").select("*").not("deleted_at", "is", null).order("deleted_at", { ascending: false });
+  if (!isPlatformAdmin(profile?.role)) {
+    query = query.eq("created_by", user.id);
+  }
+  const { data: quizzes } = await query;
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">

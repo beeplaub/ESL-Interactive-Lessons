@@ -1,8 +1,12 @@
 import { Building2, Plus, School } from "lucide-react";
+import { requireAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClass, createClassAssignment, createOrganization } from "@/app/admin/organizations/actions";
 
 export default async function AdminOrganizationsPage() {
+  // Site/school administration (creating orgs, classes, and assigning
+  // teachers to them) is a platform-admin action, not a teacher self-serve one.
+  await requireAdmin();
   const admin = createAdminClient();
   const [{ data: organizations }, { data: classes }, { data: teachers }, { data: courses }, { data: lessons }, { data: quizzes }, { data: assignments }] = await Promise.all([
     admin.from("organizations").select("*").order("created_at", { ascending: false }),

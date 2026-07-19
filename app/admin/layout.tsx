@@ -1,7 +1,12 @@
-import { requireAdmin } from "@/lib/auth";
+import { requireStaff } from "@/lib/auth";
 import { AdminShell } from "@/components/AdminShell";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { profile } = await requireAdmin();
-  return <AdminShell name={profile?.full_name}>{children}</AdminShell>;
+  const { profile } = await requireStaff();
+  const role = profile?.role === "ADMIN" ? "ADMIN" : "TEACHER";
+  return (
+    <AdminShell name={profile?.full_name} role={role}>
+      {children}
+    </AdminShell>
+  );
 }

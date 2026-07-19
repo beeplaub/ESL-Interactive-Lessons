@@ -2,12 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { QuizVisualBuilder } from "@/components/QuizVisualBuilder";
-import { requireAdmin } from "@/lib/auth";
+import { requireQuizAccess } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export default async function EditQuizPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireAdmin();
   const { id } = await params;
+  await requireQuizAccess(id);
   const admin = createAdminClient();
   const [{ data: quiz }, { data: questions }, { data: bankQuestions }, { data: skills }, { data: targets }] = await Promise.all([
     admin.from("quizzes").select("*").eq("id", id).single(),

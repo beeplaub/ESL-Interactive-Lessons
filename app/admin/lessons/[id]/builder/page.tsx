@@ -1,11 +1,11 @@
 import { notFound } from "next/navigation";
-import { requireAdmin } from "@/lib/auth";
+import { requireLessonAccess } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { LessonBuilderWorkspace } from "@/components/LessonBuilderWorkspace";
 
 export default async function LessonBuilderPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireAdmin();
   const { id } = await params;
+  await requireLessonAccess(id);
   const supabase = createAdminClient();
 
   const [{ data: lesson }, { data: slides }, { data: activities }, { data: blocks }] = await Promise.all([

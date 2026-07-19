@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Copy, Filter, Hammer, Plus, Trash2 } from "lucide-react";
-import { requireAdmin } from "@/lib/auth";
+import { requireStaff, isPlatformAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   deleteLesson,
@@ -14,16 +14,21 @@ export default async function AdminLessonsPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  await requireAdmin();
+  const { user, profile } = await requireStaff();
   const params = await searchParams;
   const supabase = createAdminClient();
+  const scopedToOwn = !isPlatformAdmin(profile?.role);
+
+  let lessonsQuery = supabase.from("lessons").select("*").is("deleted_at", null).order("created_at", { ascending: false });
+  let trashedQuery = supabase.from("lessons").select("id", { count: "exact", head: true }).not("deleted_at", "is", null);
+  if (scopedToOwn) {
+    lessonsQuery = lessonsQuery.eq("created_by", user.id);
+    trashedQuery = trashedQuery.eq("created_by", user.id);
+  }
+
   const [{ data: allLessons }, { count: trashedCount }] = await Promise.all([
-    supabase
-      .from("lessons")
-      .select("*")
-      .is("deleted_at", null)
-      .order("created_at", { ascending: false }),
-    supabase.from("lessons").select("id", { count: "exact", head: true }).not("deleted_at", "is", null),
+    lessonsQuery,
+    trashedQuery,
   ]);
 
   const value = (key: string) => (typeof params[key] === "string" ? (params[key] as string) : "");
