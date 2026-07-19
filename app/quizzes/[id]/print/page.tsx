@@ -418,7 +418,6 @@ function getAnswerText(question: QuizQuestion): string {
   }
 
   if (type === "REORDERING" && Array.isArray(ans)) {
-    // Look at items to resolve order if ids are used
     const items = (question.options as any)?.items as Array<{ id: string; text: string }> | undefined;
     if (items) {
       const itemMap = new Map(items.map((it) => [it.id, it.text]));
@@ -428,7 +427,6 @@ function getAnswerText(question: QuizQuestion): string {
   }
 
   if ((type === "DRAG_DROP" || type === "CATEGORIZATION") && typeof ans === "object" && ans !== null) {
-    // Group items by category for easy teacher reading
     const items = (question.options as any)?.items as Array<{ id: string; text: string }> | undefined;
     if (items) {
       const itemMap = new Map(items.map((it) => [it.id, it.text]));

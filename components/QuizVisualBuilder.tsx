@@ -463,7 +463,7 @@ export function QuizVisualBuilder({
               <Clock3 size={15} /> {quiz.timerMinutes ? `${quiz.timerMinutes} min` : "Timer"}
             </button>
             {quiz.id && (
-              <a href={`/admin/quizzes/${quiz.id}/print`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-md border border-black/15 px-4 py-2 text-sm font-semibold hover:bg-black/5">
+              <a href={`/quizzes/${quiz.id}/print`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-md border border-black/15 px-4 py-2 text-sm font-semibold hover:bg-black/5">
                 <Printer size={15} /> Print / PDF
               </a>
             )}
