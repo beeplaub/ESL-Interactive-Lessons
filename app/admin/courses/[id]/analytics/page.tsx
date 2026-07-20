@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, BarChart3 } from "lucide-react";
+import { ArrowLeft, BarChart3, UserPlus } from "lucide-react";
 import { requireCourseAccess } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { enrollStudentByEmail, updateEnrollmentStatusAction } from "@/app/admin/courses/actions";
 
 export default async function CourseAnalyticsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -49,8 +50,27 @@ export default async function CourseAnalyticsPage({ params }: { params: Promise<
         <Metric label="Average progress" value={`${averageProgress}%`} />
       </section>
 
+      <section className="mt-5 rounded-xl border border-black/10 bg-white p-4 shadow-sm">
+        <form action={async (formData: FormData) => { "use server"; await enrollStudentByEmail(id, formData); }} className="flex flex-wrap items-end gap-3">
+          <label className="flex-1 min-w-[220px]">
+            <span className="block text-xs font-semibold uppercase tracking-wide text-black/45">Enroll a student</span>
+            <input
+              type="email"
+              name="email"
+              required
+              placeholder="student@email.com"
+              className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+            />
+          </label>
+          <button type="submit" className="inline-flex items-center gap-1.5 rounded-md bg-moss px-4 py-2 text-sm font-semibold text-white">
+            <UserPlus size={15} /> Enroll
+          </button>
+        </form>
+        <p className="mt-1 text-xs text-black/45">They need an existing BrenUp account with this exact email — enrollment doesn't create a new account.</p>
+      </section>
+
       <section className="mt-6 overflow-hidden rounded-xl border border-black/10 bg-white shadow-sm">
-        <div className="hidden grid-cols-[1.2fr_1.3fr_0.7fr_0.8fr_0.8fr] gap-3 border-b border-black/10 bg-slate-50 p-3 text-xs font-semibold uppercase tracking-wide text-black/45 md:grid">
+        <div className="hidden grid-cols-[1.1fr_1.2fr_0.9fr_0.7fr_0.8fr] gap-3 border-b border-black/10 bg-slate-50 p-3 text-xs font-semibold uppercase tracking-wide text-black/45 md:grid">
           <span>Learner</span><span>Email</span><span>Status</span><span>Items</span><span>Progress</span>
         </div>
         <div className="divide-y divide-black/10">
@@ -61,10 +81,23 @@ export default async function CourseAnalyticsPage({ params }: { params: Promise<
               || [profile?.first_name, profile?.last_name].filter(Boolean).join(" ")
               || "Learner";
             return (
-              <div key={enrollment.id} className="grid gap-2 p-4 md:grid-cols-[1.2fr_1.3fr_0.7fr_0.8fr_0.8fr] md:items-center">
-                <span className="font-semibold">{name}</span>
+              <div key={enrollment.id} className="grid gap-2 p-4 md:grid-cols-[1.1fr_1.2fr_0.9fr_0.7fr_0.8fr] md:items-center">
+                <Link href={`/admin/students/${enrollment.user_id}`} className="font-semibold text-moss hover:underline">{name}</Link>
                 <span className="min-w-0 truncate text-sm text-black/55">{emailByUser.get(enrollment.user_id) || "No email"}</span>
-                <span className="text-xs font-semibold text-black/55">{enrollment.status}</span>
+                <form
+                  action={async (formData: FormData) => {
+                    "use server";
+                    await updateEnrollmentStatusAction(id, enrollment.id, String(formData.get("status")) as "ACTIVE" | "COMPLETED" | "CANCELLED");
+                  }}
+                  className="flex items-center gap-1.5"
+                >
+                  <select name="status" defaultValue={enrollment.status} className="rounded-md border border-black/15 px-2 py-1.5 text-xs" aria-label={`Change enrollment status for ${name}`}>
+                    <option value="ACTIVE">Active</option>
+                    <option value="COMPLETED">Completed</option>
+                    <option value="CANCELLED">Cancelled</option>
+                  </select>
+                  <button type="submit" className="rounded-md border border-black/15 px-2 py-1.5 text-xs font-semibold hover:bg-black/5">Save</button>
+                </form>
                 <span className="text-sm">{progress?.completed_items ?? 0}/{progress?.total_items ?? 0}</span>
                 <span className="font-semibold text-moss">{progress?.progress_percent ?? 0}%</span>
               </div>

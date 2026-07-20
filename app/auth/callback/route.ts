@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
         // ── 4. Redirect based on role ────────────────────────────────────────
         const role = existing?.role ?? "LEARNER";
         redirectPath =
-          role === "ADMIN"
+          role === "ADMIN" || role === "TEACHER" || role === "SCHOOL_ADMIN"
             ? "/admin"
             : nextPath?.startsWith("/") && !nextPath.startsWith("/admin")
               ? nextPath

@@ -14,7 +14,7 @@ export async function getFreshProfile(userId: string) {
 }
 
 export function roleHomePath(role?: string | null) {
-  return role === "ADMIN" ? "/admin" : "/account";
+  return role === "ADMIN" || role === "TEACHER" || role === "SCHOOL_ADMIN" ? "/admin" : "/account";
 }
 
 export async function requireUser() {

@@ -61,7 +61,7 @@ export async function middleware(request: NextRequest) {
   // 3. Admins landing on /dashboard or /account (when not in learner-view) → send to /admin.
   if (
     claims &&
-    jwtRole === "ADMIN" &&
+    (jwtRole === "ADMIN" || jwtRole === "TEACHER" || jwtRole === "SCHOOL_ADMIN") &&
     viewMode !== "learner" &&
     (pathname.startsWith("/dashboard") || pathname.startsWith("/account"))
   ) {
@@ -77,7 +77,7 @@ export async function middleware(request: NextRequest) {
   if (claims && pathname.startsWith("/login")) {
     const url = request.nextUrl.clone();
     const nextPath = request.nextUrl.searchParams.get("next");
-    const isAdminUser = jwtRole === "ADMIN";
+    const isAdminUser = jwtRole === "ADMIN" || jwtRole === "TEACHER" || jwtRole === "SCHOOL_ADMIN";
     url.pathname = isAdminUser
       ? "/admin"
       : nextPath?.startsWith("/") && !nextPath.startsWith("/admin")

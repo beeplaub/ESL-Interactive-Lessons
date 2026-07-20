@@ -668,3 +668,52 @@ export async function rejectCourseOrder(orderId: string, adminNote: string) {
   revalidatePath("/courses");
   revalidatePath(`/courses/${order.course_id}`);
 }
+
+export async function enrollStudentByEmail(courseId: string, formData: FormData): Promise<{ success: boolean; error?: string }> {
+  try {
+    await requireCourseAccess(courseId);
+    const email = String(formData.get("email") || "").trim().toLowerCase();
+    if (!email) return { success: false, error: "Enter a student email." };
+
+    const admin = createAdminClient();
+    // No direct "get user by email" in this supabase-js version's admin API,
+    // so page through listUsers and match - mirrors the lookup already done
+    // for the enrollment table's email column on this same analytics page.
+    let matchedUserId: string | null = null;
+    for (let page = 1; page <= 10 && !matchedUserId; page++) {
+      const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
+      if (error) return { success: false, error: error.message };
+      const match = data.users.find((u) => (u.email ?? "").toLowerCase() === email);
+      if (match) matchedUserId = match.id;
+      if (data.users.length < 1000) break;
+    }
+    if (!matchedUserId) return { success: false, error: "No account found with that email." };
+
+    const { data: existing } = await admin
+      .from("course_enrollments")
+      .select("id")
+      .eq("course_id", courseId)
+      .eq("user_id", matchedUserId)
+      .maybeSingle();
+    if (existing) return { success: false, error: "That student is already enrolled." };
+
+    await enrollUserInCourseDirectly(matchedUserId, courseId);
+    revalidatePath(`/admin/courses/${courseId}/analytics`);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Could not enroll that student." };
+  }
+}
+
+export async function updateEnrollmentStatusAction(courseId: string, enrollmentId: string, status: "ACTIVE" | "COMPLETED" | "CANCELLED") {
+  await requireCourseAccess(courseId);
+  const admin = createAdminClient();
+  // Confirm the enrollment actually belongs to this course before touching it,
+  // so a crafted enrollmentId from elsewhere can't be used to edit another course's row.
+  const { data: enrollment } = await admin.from("course_enrollments").select("id, course_id").eq("id", enrollmentId).maybeSingle();
+  if (!enrollment || enrollment.course_id !== courseId) throw new Error("That enrollment doesn't belong to this course.");
+
+  const { error } = await admin.from("course_enrollments").update({ status }).eq("id", enrollmentId);
+  if (error) throw new Error(error.message);
+  revalidatePath(`/admin/courses/${courseId}/analytics`);
+}

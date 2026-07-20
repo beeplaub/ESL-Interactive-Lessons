@@ -15,7 +15,8 @@ import {
   Trophy,
   User
 } from "lucide-react";
-import { signOut } from "@/app/auth/actions";
+import { signOut, switchToAdminView } from "@/app/auth/actions";
+import { isStaff } from "@/lib/auth";
 import { getNextQuizBadge, getQuizBadge } from "@/lib/quizBadges";
 import { getLatestLevelTestSummary } from "@/lib/levelTestSummary";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -63,12 +64,13 @@ export async function LearnerAppShell({
   const sidebarCollapsed = cookieStore.get("brenup_sidebar_collapsed")?.value === "1";
   const { data: { user } } = await supabase.auth.getUser();
   const { data: profile } = user
-    ? await admin.from("profiles").select("first_name,last_name,full_name,cefr_level,avatar_url").eq("id", user.id).maybeSingle()
+    ? await admin.from("profiles").select("first_name,last_name,full_name,cefr_level,avatar_url,role").eq("id", user.id).maybeSingle()
     : { data: null };
 
   const name = [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || profile?.full_name || "Guest";
   const initials = name.split(/\s+/).slice(0, 2).map((part: string) => part[0]?.toUpperCase()).join("") || "BU";
   const currentLevel = profile?.cefr_level || null;
+  const isStaffUser = isStaff(profile?.role);
   const notifications = await buildNotifications(admin, user?.id ?? null, currentLevel);
   const rightSidebarData = showRightSidebar ? await buildRightSidebarData(admin, user?.id ?? null, currentLevel) : null;
   const levelProgressPercent = user ? (await getLatestLevelTestSummary(admin, user.id))?.weightedPercent ?? null : null;
@@ -82,6 +84,7 @@ export async function LearnerAppShell({
         isLoggedIn={Boolean(user)}
         currentLevel={currentLevel}
         notifications={notifications}
+        isStaffUser={isStaffUser}
       />
       <div className="mx-auto flex min-h-screen max-w-[1536px] items-start gap-5 p-3 pb-24 min-[1180px]:p-6 min-[1180px]:pb-6">
         <LearnerSidebar active={active} currentLevel={currentLevel} initialCollapsed={sidebarCollapsed} levelProgressPercent={levelProgressPercent} />
@@ -96,6 +99,7 @@ export async function LearnerAppShell({
               avatarUrl={profile?.avatar_url ?? null}
               isLoggedIn={Boolean(user)}
               currentLevel={currentLevel}
+              isStaffUser={isStaffUser}
             />
           ) : null}
           {children}
@@ -289,6 +293,7 @@ function DesktopLearnerChrome({
   avatarUrl,
   isLoggedIn,
   currentLevel,
+  isStaffUser,
 }: {
   breadcrumbs: BreadcrumbItem[];
   leading?: React.ReactNode;
@@ -298,6 +303,7 @@ function DesktopLearnerChrome({
   avatarUrl: string | null;
   isLoggedIn: boolean;
   currentLevel: string | null;
+  isStaffUser?: boolean;
 }) {
   return (
     <header className="mb-4 hidden items-center justify-between gap-4 min-[1180px]:flex">
@@ -319,6 +325,16 @@ function DesktopLearnerChrome({
         </nav>
       )}
       <div className="flex shrink-0 items-center gap-3">
+        {isStaffUser ? (
+          <form action={switchToAdminView}>
+            <button
+              type="submit"
+              className="hidden items-center gap-1.5 rounded-[14px] border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-900 shadow-[0_2px_8px_rgba(0,0,0,.04)] transition hover:bg-amber-100 min-[1120px]:inline-flex"
+            >
+              Switch to Admin
+            </button>
+          </form>
+        ) : null}
         <Link href="/level-test" className="hidden items-center gap-1.5 rounded-[14px] border border-[#ECECF5] bg-white px-3 py-2 text-xs font-bold text-[#6E738D] shadow-[0_2px_8px_rgba(0,0,0,.04)] transition hover:text-[#6C3BFF] min-[1120px]:inline-flex">
           <Target className="size-4 text-[#6C3BFF]" /> {currentLevel ? `${currentLevel} level` : "Find your level"}
         </Link>
@@ -495,6 +511,7 @@ function MobileTopbar({
   isLoggedIn,
   currentLevel,
   notifications,
+  isStaffUser,
 }: {
   active: ActiveItem;
   initials: string;
@@ -502,6 +519,7 @@ function MobileTopbar({
   isLoggedIn: boolean;
   currentLevel: string | null;
   notifications: NotificationItem[];
+  isStaffUser?: boolean;
 }) {
   return (
     <div className="fixed inset-x-0 top-0 z-40 flex h-[60px] items-center justify-between gap-2 bg-gradient-to-br from-[#09112C] to-[#0C1636] px-3 min-[1180px]:hidden">
@@ -510,6 +528,17 @@ function MobileTopbar({
         <span className="truncate text-[15px] font-bold text-white">BrenUp</span>
       </Link>
       <div className="flex shrink-0 items-center gap-1.5">
+        {isStaffUser ? (
+          <form action={switchToAdminView}>
+            <button
+              type="submit"
+              aria-label="Switch to Admin"
+              className="flex h-9 items-center gap-1 rounded-[10px] border border-amber-300/40 bg-amber-400/20 px-2 text-[11px] font-bold text-amber-200"
+            >
+              Admin
+            </button>
+          </form>
+        ) : null}
         <Link
           href="/level-test"
           aria-label={currentLevel ? `Your level: ${currentLevel}` : "Take level test"}

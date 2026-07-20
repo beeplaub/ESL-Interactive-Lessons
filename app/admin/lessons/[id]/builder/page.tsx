@@ -5,8 +5,19 @@ import { LessonBuilderWorkspace } from "@/components/LessonBuilderWorkspace";
 
 export default async function LessonBuilderPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { profile } = await requireLessonAccess(id);
+  const { user, profile } = await requireLessonAccess(id);
   const supabase = createAdminClient();
+  const isAdminUser = isPlatformAdmin(profile?.role);
+
+  let ownCourseIds: string[] | null = null;
+  if (!isAdminUser) {
+    const { data: ownCourses } = await supabase
+      .from("courses")
+      .select("id")
+      .is("deleted_at", null)
+      .or(`owner_id.eq.${user.id},created_by.eq.${user.id}`);
+    ownCourseIds = (ownCourses ?? []).map((c) => c.id);
+  }
 
   const [{ data: lesson }, { data: slides }, { data: activities }, { data: blocks }] = await Promise.all([
     supabase.from("lessons").select("*").eq("id", id).maybeSingle(),
@@ -18,6 +29,17 @@ export default async function LessonBuilderPage({ params }: { params: Promise<{ 
   if (!lesson) notFound();
 
   const activityIds = (activities ?? []).map((activity) => activity.id);
+  let coursesQuery = supabase.from("courses").select("id,title,status").is("deleted_at", null).order("created_at", { ascending: false });
+  let courseSectionsQuery = supabase.from("course_sections").select("id,course_id,title,position").order("position", { ascending: true });
+  let courseOutcomesQuery = supabase.from("course_outcomes").select("id,course_id,code,outcome").order("position", { ascending: true });
+  if (ownCourseIds !== null) {
+    // Teachers can only place this lesson into, or map its outcomes to,
+    // courses they own — never every published course platform-wide.
+    coursesQuery = coursesQuery.in("id", ownCourseIds);
+    courseSectionsQuery = courseSectionsQuery.in("course_id", ownCourseIds);
+    courseOutcomesQuery = courseOutcomesQuery.in("course_id", ownCourseIds);
+  }
+
   const [
     { data: lessonOutcomes },
     { data: courses },
@@ -29,14 +51,14 @@ export default async function LessonBuilderPage({ params }: { params: Promise<{ 
     { data: assessmentItems },
   ] = await Promise.all([
     supabase.from("lesson_outcomes").select("*").eq("lesson_id", id).order("position", { ascending: true }),
-    supabase.from("courses").select("id,title,status").is("deleted_at", null).order("created_at", { ascending: false }),
-    supabase.from("course_sections").select("id,course_id,title,position").order("position", { ascending: true }),
+    coursesQuery,
+    courseSectionsQuery,
     supabase
       .from("course_items")
       .select("id,course_id,section_id,position,assessment_weight,courses(title),course_sections(title)")
       .eq("lesson_id", id)
       .order("position", { ascending: true }),
-    supabase.from("course_outcomes").select("id,course_id,code,outcome").order("position", { ascending: true }),
+    courseOutcomesQuery,
     supabase.from("learning_skills").select("id,parent_id,name,slug").eq("status", "ACTIVE").order("position", { ascending: true }),
     supabase.from("learning_targets").select("id,target_type,label").eq("status", "ACTIVE").order("label", { ascending: true }),
     activityIds.length
