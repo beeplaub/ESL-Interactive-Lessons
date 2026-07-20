@@ -81,7 +81,7 @@ export function AdminSidebar({
                 key={href}
                 href={href}
                 className={`inline-flex min-w-0 items-center gap-2 rounded-md px-3 py-2 text-sm
-                  ${isActive ? "bg-moss/10 font-semibold text-moss" : "hover:bg-black/5"}`}
+                  ${isActive ? "bg-violetglow/10 font-semibold text-violetglow" : "hover:bg-black/5"}`}
               >
                 <Icon size={16} /> {label}
               </Link>
@@ -128,7 +128,7 @@ export function AdminSidebar({
       <div className={`border-b border-black/10 p-3 ${collapsed ? "px-2" : ""}`}>
         {collapsed ? (
           <div className="flex justify-center py-1">
-            <span className="flex size-7 items-center justify-center rounded-full bg-moss text-xs font-bold text-white">
+            <span className="flex size-7 items-center justify-center rounded-full bg-violetglow text-xs font-bold text-white">
               {(name ?? "B")[0].toUpperCase()}
             </span>
           </div>
@@ -151,7 +151,7 @@ export function AdminSidebar({
               href={href}
               title={collapsed ? label : undefined}
               className={`flex min-w-0 items-center gap-2 rounded-md px-2 py-2 text-sm
-                ${isActive ? "bg-moss/10 font-semibold text-moss" : "text-black/70 hover:bg-black/5"}
+                ${isActive ? "bg-violetglow/10 font-semibold text-violetglow" : "text-black/70 hover:bg-black/5"}
                 ${collapsed ? "justify-center" : ""}
               `}
             >

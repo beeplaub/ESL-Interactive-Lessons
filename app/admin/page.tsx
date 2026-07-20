@@ -61,11 +61,11 @@ function countStatus(rows: Array<{ status: string }> | null, status: string) {
 
 function AdminCard({ href, icon: Icon, label, value, detail }: { href: string; icon: typeof ClipboardList; label: string; value: number; detail: string }) {
   return (
-    <Link href={href} className="min-w-0 rounded-lg border border-black/10 bg-white p-4 shadow-sm hover:bg-slate-50 sm:p-5">
-      <Icon className="text-moss" size={22} />
-      <p className="mt-4 text-3xl font-semibold">{value}</p>
-      <p className="mt-1 text-sm font-medium">{label}</p>
-      <p className="mt-1 text-xs text-black/50">{detail}</p>
+    <Link href={href} className="min-w-0 br-card rounded-20 p-4 transition-all duration-300 hover:scale-[1.015] hover:shadow-md sm:p-5">
+      <Icon className="text-violetglow" size={22} />
+      <p className="mt-4 text-3xl font-extrabold text-ink">{value}</p>
+      <p className="mt-1 text-sm font-bold text-ink">{label}</p>
+      <p className="mt-1 text-xs text-slate-500">{detail}</p>
     </Link>
   );
 }

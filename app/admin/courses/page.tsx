@@ -36,15 +36,15 @@ export default async function AdminCoursesPage() {
           <p className="mt-2 text-sm text-black/60">Build the LMS layer: course landing pages, curriculum, and enrollments.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Link href="/admin/courses/trash" className="inline-flex items-center gap-2 rounded-md border border-black/15 px-4 py-2 text-sm font-semibold hover:bg-black/5">
+          <Link href="/admin/courses/trash" className="inline-flex items-center gap-2 rounded-xl border border-black/15 px-4 py-2 text-sm font-bold hover:bg-black/5">
             <Trash2 size={16} /> Trash{trashedCount ? ` (${trashedCount})` : ""}
           </Link>
           <NewCourseModal />
         </div>
       </div>
 
-      <section className="overflow-hidden rounded-lg border border-black/10 bg-white shadow-sm">
-        <div className="hidden grid-cols-[1.4fr_0.7fr_0.7fr_0.7fr_1.2fr] gap-3 border-b border-black/10 bg-slate-50 p-3 text-xs font-semibold uppercase tracking-wide text-black/50 md:grid">
+      <section className="overflow-hidden br-card rounded-20">
+        <div className="hidden grid-cols-[1.4fr_0.7fr_0.7fr_0.7fr_1.2fr] gap-3 border-b border-black/10 bg-slate-50/50 p-4 text-xs font-semibold uppercase tracking-wide text-black/50 md:grid">
           <span>Course</span><span>Status</span><span>Items</span><span>Enrollments</span><span>Actions</span>
         </div>
         <div className="divide-y divide-black/10">
@@ -54,7 +54,7 @@ export default async function AdminCoursesPage() {
                 <p className="font-semibold">{course.title}</p>
                 <p className="mt-1 truncate text-xs text-black/50">{course.level} · {course.topic ?? "No topic"}</p>
               </div>
-              <span className={`w-fit rounded-full px-2.5 py-1 text-xs font-semibold ${course.status === "PUBLISHED" ? "bg-moss/10 text-moss" : course.status === "ARCHIVED" ? "bg-black/10 text-black/50" : "bg-amber-50 text-amber-800"}`}>
+              <span className={`w-fit rounded-full px-2.5 py-1 text-xs font-semibold ${course.status === "PUBLISHED" ? "bg-violetglow/10 text-violetglow" : course.status === "ARCHIVED" ? "bg-black/10 text-black/50" : "bg-amber-50 text-amber-800"}`}>
                 {course.status}
               </span>
               <span className="text-sm text-black/60">{itemCounts.get(course.id) ?? 0}</span>
@@ -65,7 +65,7 @@ export default async function AdminCoursesPage() {
                 {course.status === "PUBLISHED" ? (
                   <form action={setCourseStatus.bind(null, course.id, "DRAFT")}><button className="inline-flex items-center gap-1 rounded-md border border-black/15 px-2.5 py-1.5 text-xs font-semibold hover:bg-black/5"><Archive size={13} /> Unpublish</button></form>
                 ) : (
-                  <form action={setCourseStatus.bind(null, course.id, "PUBLISHED")}><button className="inline-flex items-center gap-1 rounded-md bg-moss px-2.5 py-1.5 text-xs font-semibold text-white"><Eye size={13} /> Publish</button></form>
+                  <form action={setCourseStatus.bind(null, course.id, "PUBLISHED")}><button className="inline-flex items-center gap-1 rounded-md bg-violetglow px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-violetglow/90"><Eye size={13} /> Publish</button></form>
                 )}
                 <form action={deleteCourse.bind(null, course.id)}>
                   <DeleteButton

@@ -17,7 +17,7 @@ export function NewCourseModal() {
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="inline-flex items-center gap-2 rounded-md bg-moss px-4 py-2 text-sm font-semibold text-white hover:bg-moss/90 transition shadow-sm"
+        className="inline-flex items-center gap-2 rounded-xl bg-violetglow px-4 py-2.5 text-sm font-bold text-white hover:bg-violetglow/90 transition shadow-sm"
       >
         <Plus size={16} /> New course
       </button>
