@@ -104,6 +104,7 @@ function labelFor(type: string) {
   if (type === "DRAG_DROP") return "Drag and Drop Activity";
   if (type === "CATEGORIZATION") return "Categorization Activity";
   if (type === "PRONUNCIATION") return "Pronunciation Practice Activity";
+  if (type === "SUMMARIZATION") return "Summarization Activity";
   if (type === "AI_ROLEPLAY") return "AI Conversation Roleplay";
   return `${type.replaceAll("_", " ")} Activity`;
 }
@@ -179,6 +180,16 @@ function normalizeShortAnswer(data: Json | null): { prompt: string; enableAiFeed
         showRequiredWords: question.show_required_words !== false
       };
     })
+  };
+}
+
+function normalizeSummarization(data: Json | null) {
+  const record = asRecord(data);
+  return {
+    prompt: String(record.prompt ?? "Summarize the passage in your own words."),
+    passage: String(record.passage ?? ""),
+    maxWords: record.max_words === null || record.max_words === undefined || Number(record.max_words) <= 0 ? 30 : Number(record.max_words),
+    sampleAnswer: String(record.sample_answer ?? "")
   };
 }
 
@@ -531,8 +542,9 @@ function ActivityPanel({
               {activity.activity_type === "SHORT_ANSWER" ? <ShortAnswerEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "DRAG_DROP" || activity.activity_type === "CATEGORIZATION" ? <DragDropEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "PRONUNCIATION" ? <PronunciationEditor activity={activity} onSave={save} /> : null}
+              {activity.activity_type === "SUMMARIZATION" ? <SummarizationEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "AI_ROLEPLAY" ? <AiRoleplayEditor activity={activity} onSave={save} /> : null}
-              {!["MCQ", "GAP_FILL", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "AI_ROLEPLAY"].includes(activity.activity_type) ? (
+              {!["MCQ", "GAP_FILL", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "SUMMARIZATION", "AI_ROLEPLAY"].includes(activity.activity_type) ? (
                 <p className="rounded-md bg-slate-50 p-3 text-sm text-black/60">
                   This activity type has starter data and preview support. A detailed visual editor for it will be added in the next activity-builder pass.
                 </p>
@@ -1137,6 +1149,70 @@ function ShortAnswerEditor({ activity, onSave }: { activity: Activity; onSave: (
             required_words: question.requiredWordsText.split(",").map((w) => w.trim()).filter(Boolean),
             show_required_words: question.showRequiredWords
           }))
+        } as Json, needsReview)} />
+      </div>
+    </div>
+  );
+}
+
+function SummarizationEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
+  const initial = useMemo(() => normalizeSummarization(activity.activity_data), [activity.activity_data]);
+  const [prompt, setPrompt] = useState(initial.prompt);
+  const [passage, setPassage] = useState(initial.passage);
+  const [maxWords, setMaxWords] = useState<number>(initial.maxWords);
+  const [sampleAnswer, setSampleAnswer] = useState(initial.sampleAnswer);
+  
+  const needsReview = !prompt.trim() || !passage.trim() || !sampleAnswer.trim();
+
+  return (
+    <div className="grid gap-4">
+      <label className="text-sm font-medium">
+        Instruction / Prompt
+        <input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+      </label>
+
+      <label className="text-sm font-medium">
+        Passage to Summarize
+        <textarea
+          rows={6}
+          value={passage}
+          onChange={(event) => setPassage(event.target.value)}
+          placeholder="Enter the source passage text..."
+          className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+        />
+      </label>
+
+      <label className="text-sm font-medium">
+        Maximum word count (optional)
+        <input
+          type="number"
+          min={1}
+          value={maxWords || ""}
+          onChange={(event) => setMaxWords(event.target.value === "" ? 0 : Math.max(1, Number(event.target.value)))}
+          placeholder="e.g. 30"
+          className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+        />
+      </label>
+
+      <label className="text-sm font-medium">
+        Model / sample summary (shown to learners after they submit, for self-checking)
+        <textarea
+          rows={3}
+          value={sampleAnswer}
+          onChange={(event) => setSampleAnswer(event.target.value)}
+          className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+        />
+      </label>
+      <p className="text-xs text-black/45">
+        This activity is self-checked — learners write a summary, then compare it to your sample and self-evaluate.
+      </p>
+
+      <div className="flex flex-wrap gap-3">
+        <SaveButton onClick={() => onSave({
+          prompt,
+          passage,
+          max_words: maxWords || null,
+          sample_answer: sampleAnswer
         } as Json, needsReview)} />
       </div>
     </div>

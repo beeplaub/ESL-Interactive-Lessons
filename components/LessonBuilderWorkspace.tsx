@@ -975,6 +975,7 @@ function SelectedSlideEditor({
                 <option value="ERROR_CORRECTION">Error Correction</option>
                 <option value="DRAG_DROP">Drag and Drop</option>
                 <option value="CATEGORIZATION">Categorization</option>
+                <option value="SUMMARIZATION">Summarization</option>
                 <option value="PRONUNCIATION">Pronunciation Practice</option>
                 <option value="AI_ROLEPLAY">AI Conversation Roleplay</option>
               </select>

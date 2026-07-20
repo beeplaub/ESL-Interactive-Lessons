@@ -13,7 +13,8 @@ export type ScoredQuestion = {
     | "SHORT_ANSWER"
     | "DRAG_DROP"
     | "CATEGORIZATION"
-    | "PRONUNCIATION";
+    | "PRONUNCIATION"
+    | "SUMMARIZATION";
   options: Json | null;
   correct_answer: Json;
   max_points?: number | null;
@@ -145,7 +146,7 @@ export function isCorrect(question: ScoredQuestion, value: unknown): boolean {
     return given.every((v) => correctSet.has(v));
   }
 
-  if (question.question_type === "SHORT_ANSWER") {
+  if (question.question_type === "SHORT_ANSWER" || question.question_type === "SUMMARIZATION") {
     return asRecord(value as Json).selfMarked === true;
   }
 

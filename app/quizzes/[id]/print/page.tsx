@@ -378,6 +378,26 @@ function renderPrintQuestion(question: QuizQuestion) {
       );
     }
 
+    case "SUMMARIZATION": {
+      const passage = options?.passage as string | undefined;
+      const maxWords = Number(options?.max_words ?? 0);
+
+      return (
+        <div className="bg-slate-50 border border-[#ECECF5] p-4 rounded-xl print:bg-none print:border-slate-200 space-y-3">
+          {passage ? (
+            <div>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Passage:</p>
+              <p className="text-sm text-slate-800 print:text-black whitespace-pre-wrap">{passage}</p>
+            </div>
+          ) : null}
+          {maxWords > 0 ? (
+            <p className="text-xs text-slate-500">Maximum {maxWords} words</p>
+          ) : null}
+          <div className="border-t border-dashed border-slate-300 pt-3 mt-3 min-h-[4rem]" />
+        </div>
+      );
+    }
+
     default:
       return null;
   }
@@ -448,6 +468,11 @@ function getAnswerText(question: QuizQuestion): string {
     if (words) return words.join(", ");
     const text = (question.options as any)?.text as string | undefined;
     if (text) return text;
+  }
+
+  if (type === "SUMMARIZATION") {
+    const sampleAnswer = (question.options as any)?.sample_answer as string | undefined;
+    return sampleAnswer ?? "(Self-checked)";
   }
 
   if (typeof ans === "object") {

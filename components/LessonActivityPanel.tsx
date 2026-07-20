@@ -93,6 +93,23 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
       };
     });
   }
+  if (activityType === "SUMMARIZATION") {
+    const maxWords = Number(data.max_words ?? 0);
+    const sampleAnswer = String(data.sample_answer ?? "");
+    const passage = String(data.passage ?? "");
+    return [{
+      id: "1",
+      question_number: 1,
+      question_type: "SUMMARIZATION",
+      question_text: String(data.prompt ?? "Summarize the passage in your own words."),
+      options: {
+        passage,
+        max_words: maxWords,
+        sample_answer: sampleAnswer,
+      } as Json,
+      correct_answer: true as Json,
+    }];
+  }
   if (activityType === "DRAG_DROP") {
     const rawItems: unknown[] = Array.isArray(data.items) ? data.items : [];
     const items = rawItems.map((item, index) => {
@@ -306,6 +323,7 @@ function activityLabel(type: string) {
   if (type === "DRAG_DROP") return "Drag and Drop";
   if (type === "CATEGORIZATION") return "Categorization";
   if (type === "PRONUNCIATION") return "Pronunciation Practice";
+  if (type === "SUMMARIZATION") return "Summarization";
   if (type === "AI_ROLEPLAY") return "AI Conversation Roleplay";
   return "Activity";
 }

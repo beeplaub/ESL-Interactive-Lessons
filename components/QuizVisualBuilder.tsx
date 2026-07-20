@@ -49,7 +49,7 @@ type QuestionBankItem = {
 
 const questionTypes: BuilderQuestion["questionType"][] = [
   "MCQ", "TRUE_FALSE", "FILL", "MATCHING", "MULTIPLE_SELECT",
-  "SHORT_ANSWER", "ERROR_CORRECTION", "REORDERING", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION"
+  "SHORT_ANSWER", "ERROR_CORRECTION", "REORDERING", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "SUMMARIZATION"
 ];
 
 const typeLabels: Record<string, string> = {
@@ -63,7 +63,8 @@ const typeLabels: Record<string, string> = {
   REORDERING: "Reordering",
   DRAG_DROP: "Drag & Drop",
   CATEGORIZATION: "Categorization",
-  PRONUNCIATION: "Pronunciation"
+  PRONUNCIATION: "Pronunciation",
+  SUMMARIZATION: "Summarization"
 };
 
 const PRONUNCIATION_COLORS = ["#fbbf24", "#34d399", "#60a5fa", "#f472b6", "#a78bfa", "#fb923c"];
@@ -151,6 +152,7 @@ function defaultQuestion(type: BuilderQuestion["questionType"]): BuilderQuestion
   if (type === "DRAG_DROP") return { id, questionType: type, questionText: "Place each item in the correct group.", description: "", options: { targets: ["Group A", "Group B"], items: [{ id: "1", text: "Item 1" }, { id: "2", text: "Item 2" }] }, correctAnswer: { "1": "Group A", "2": "Group B" }, assessment };
   if (type === "CATEGORIZATION") return { id, questionType: type, questionText: "Sort each item into the correct category.", description: "", options: { targets: ["Category A", "Category B"], items: [{ id: "1", text: "Item 1" }, { id: "2", text: "Item 2" }] }, correctAnswer: { "1": "Category A", "2": "Category B" }, assessment };
   if (type === "PRONUNCIATION") return { id, questionType: type, questionText: "Practise the pronunciation.", description: "", options: { level: "word", passage: "", targets: [{ id: "1", text: "comfortable", color: "#fbbf24" }], max_attempts: 3 }, correctAnswer: ["1"], assessment };
+  if (type === "SUMMARIZATION") return { id, questionType: type, questionText: "Summarize the passage in your own words.", description: "", options: { passage: "Enter the source passage here.", max_words: 30, sample_answer: "A concise summary." }, correctAnswer: true, assessment };
   return { id, questionType: "MCQ", questionText: "Choose the best answer.", description: "", options: { A: "Option A", B: "Option B", C: "Option C", D: "Option D" }, correctAnswer: "A", assessment };
 }
 
@@ -855,6 +857,18 @@ function questionToPreviewActivity(question: BuilderQuestion) {
       } as Json
     };
   }
+  if (question.questionType === "SUMMARIZATION") {
+    return {
+      id: question.id,
+      activity_type: "SUMMARIZATION",
+      activity_data: {
+        prompt: question.questionText,
+        passage: String(options.passage ?? ""),
+        max_words: Number(options.max_words ?? 0),
+        sample_answer: String(options.sample_answer ?? "")
+      } as Json
+    };
+  }
   if (question.questionType === "SHORT_ANSWER") {
     return {
       id: question.id,
@@ -1119,6 +1133,46 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             onChange({ options: { ...options, items: [...items, { id: nextId, text: "" }] } as Json, correctAnswer: { ...correct, [nextId]: targets[0] ?? "" } as Json });
           }} className="mt-3 rounded-md border border-black/15 px-3 py-1.5 text-sm">Add item</button>
         </div>
+      </div>
+    );
+  }
+
+  if (question.questionType === "SUMMARIZATION") {
+    return (
+      <div className="grid gap-3">
+        <label className="text-sm font-medium">
+          Passage to Summarize
+          <textarea
+            rows={6}
+            value={String(options.passage ?? "")}
+            onChange={(event) => onChange({ options: { ...options, passage: event.target.value } as Json })}
+            placeholder="Enter the source passage text..."
+            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+          />
+        </label>
+        <label className="text-sm font-medium">
+          Maximum word count
+          <input
+            type="number"
+            min={1}
+            value={Number(options.max_words ?? 30) || ""}
+            onChange={(event) => onChange({ options: { ...options, max_words: event.target.value === "" ? 0 : Math.max(1, Number(event.target.value)) } as Json })}
+            placeholder="e.g. 30"
+            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+          />
+        </label>
+        <label className="text-sm font-medium">
+          Model / sample summary
+          <textarea
+            rows={3}
+            value={String(options.sample_answer ?? "")}
+            onChange={(event) => onChange({ options: { ...options, sample_answer: event.target.value } as Json })}
+            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+          />
+        </label>
+        <p className="rounded-md border border-black/10 bg-slate-50 p-3 text-xs text-black/55">
+          Self-checked activity — learners write a summary, compare it to your model answer, then mark themselves.
+        </p>
       </div>
     );
   }

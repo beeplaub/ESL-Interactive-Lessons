@@ -20,7 +20,7 @@ const PARTIAL_CREDIT_TYPES = new Set(["DRAG_DROP", "CATEGORIZATION", "FILL", "PR
  * discouraging for an answer nobody has judged, so it gets its own neutral treatment instead.
  */
 export function overviewStatus(question: ScoredQuestion, value: unknown): OverviewStatus {
-  if (question.question_type === "SHORT_ANSWER") {
+  if (question.question_type === "SHORT_ANSWER" || question.question_type === "SUMMARIZATION") {
     const selfMarked = asRecord(value as Json).selfMarked;
     if (selfMarked === true) return "correct";
     if (selfMarked === false) return "incorrect";

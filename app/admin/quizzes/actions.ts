@@ -9,7 +9,7 @@ import type { Json } from "@/types/database.types";
 const questionSchema = z.object({
   questionId: z.string().optional(),
   questionNumber: z.number(),
-  questionType: z.enum(["MCQ", "TRUE_FALSE", "FILL", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION"]),
+  questionType: z.enum(["MCQ", "TRUE_FALSE", "FILL", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "SUMMARIZATION"]),
   questionText: z.string().min(1),
   description: z.string().optional(),
   options: z.unknown().nullable(),
@@ -250,14 +250,14 @@ export async function updateQuizQuestion(formData: FormData) {
   const quizId = String(formData.get("quizId"));
   await requireQuizAccess(quizId);
   const admin = createAdminClient();
-  const questionType = String(formData.get("questionType")) as "MCQ" | "TRUE_FALSE" | "FILL" | "MATCHING" | "ERROR_CORRECTION" | "REORDERING" | "MULTIPLE_SELECT" | "SHORT_ANSWER" | "DRAG_DROP" | "CATEGORIZATION" | "PRONUNCIATION";
+  const questionType = String(formData.get("questionType")) as "MCQ" | "TRUE_FALSE" | "FILL" | "MATCHING" | "ERROR_CORRECTION" | "REORDERING" | "MULTIPLE_SELECT" | "SHORT_ANSWER" | "DRAG_DROP" | "CATEGORIZATION" | "PRONUNCIATION" | "SUMMARIZATION";
   const questionText = String(formData.get("questionText") ?? "");
   const description = String(formData.get("description") ?? "").trim() || null;
   const correctAnswerRaw = String(formData.get("correctAnswer") ?? "");
   let options: unknown = null;
   let correctAnswer: unknown = correctAnswerRaw;
 
-  if (["ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION"].includes(questionType)) {
+  if (["ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "SUMMARIZATION"].includes(questionType)) {
     options = JSON.parse(String(formData.get("options") || "{}"));
     correctAnswer = JSON.parse(correctAnswerRaw || "null");
   } else if (questionType === "FILL") {
@@ -349,6 +349,7 @@ function defaultQuestionText(type: string) {
   if (type === "DRAG_DROP") return "Place each item in the correct group.";
   if (type === "CATEGORIZATION") return "Sort each item into the correct category.";
   if (type === "PRONUNCIATION") return "Practise the pronunciation.";
+  if (type === "SUMMARIZATION") return "Summarize the passage in your own words.";
   return "Choose the best answer.";
 }
 
@@ -361,6 +362,7 @@ function defaultOptions(type: string) {
   if (type === "SHORT_ANSWER") return { sample_answer: "A good sample answer.", min_words: 10, required_words: [], show_required_words: true };
   if (type === "DRAG_DROP" || type === "CATEGORIZATION") return { targets: ["Group A", "Group B"], items: [{ id: "1", text: "Item 1" }, { id: "2", text: "Item 2" }] };
   if (type === "PRONUNCIATION") return { level: "word", passage: "", targets: [{ id: "1", text: "comfortable", color: "#fbbf24" }], max_attempts: 3 };
+  if (type === "SUMMARIZATION") return { passage: "Read the passage and summarize it.", max_words: 30, sample_answer: "A concise summary of the passage." };
   return null;
 }
 
@@ -374,5 +376,6 @@ function defaultCorrectAnswer(type: string) {
   if (type === "SHORT_ANSWER") return true;
   if (type === "DRAG_DROP" || type === "CATEGORIZATION") return { "1": "Group A", "2": "Group B" };
   if (type === "PRONUNCIATION") return ["1"];
+  if (type === "SUMMARIZATION") return true;
   return "A";
 }

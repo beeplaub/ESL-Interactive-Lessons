@@ -19,7 +19,7 @@ import { computeBestStreak, NOTABLE_STREAK_THRESHOLD } from "@/lib/gamification/
 export type QuizQuestion = {
   id: string;
   question_number: number;
-  question_type: "MCQ" | "TRUE_FALSE" | "FILL" | "MATCHING" | "ERROR_CORRECTION" | "REORDERING" | "MULTIPLE_SELECT" | "SHORT_ANSWER" | "DRAG_DROP" | "CATEGORIZATION" | "PRONUNCIATION";
+  question_type: "MCQ" | "TRUE_FALSE" | "FILL" | "MATCHING" | "ERROR_CORRECTION" | "REORDERING" | "MULTIPLE_SELECT" | "SHORT_ANSWER" | "DRAG_DROP" | "CATEGORIZATION" | "PRONUNCIATION" | "SUMMARIZATION";
   question_text: string;
   description?: string | null;
   options: Json | null;
@@ -78,6 +78,15 @@ export function hasAnswer(question: QuizQuestion, value: unknown): boolean {
       const lowerText = text.toLowerCase();
       if (!requiredWords.every((word) => lowerText.includes(word))) return false;
     }
+    return true;
+  }
+  if (question.question_type === "SUMMARIZATION") {
+    const opts = asRecord(question.options);
+    const given = asRecord(value as Json);
+    const text = String(given.text ?? "").trim();
+    if (!text) return false;
+    const maxWords = Number(opts.max_words ?? 0);
+    if (maxWords > 0 && text.split(/\s+/).filter(Boolean).length > maxWords) return false;
     return true;
   }
   if (question.question_type === "DRAG_DROP" || question.question_type === "CATEGORIZATION") {
@@ -151,6 +160,10 @@ function answerText(question: QuizQuestion): string {
     const opts = asRecord(question.options) as { targets?: unknown[] };
     const targets = Array.isArray(opts.targets) ? opts.targets.map((t) => asRecord(t as Json)) : [];
     return targets.map((t) => String(t.text ?? "")).join(", ");
+  }
+  if (question.question_type === "SUMMARIZATION") {
+    const opts = asRecord(question.options);
+    return String(opts.sample_answer ?? "A concise summary of the passage.");
   }
   return "";
 }
@@ -651,6 +664,7 @@ export function QuestionCard({
         {question.question_type === "REORDERING" ? <Reordering question={question} value={value as string[] | undefined} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "MULTIPLE_SELECT" ? <MultipleSelect question={question} value={value as string[] | undefined} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "SHORT_ANSWER" ? <ShortAnswer question={question} value={value as { text?: string; selfMarked?: boolean } | undefined} submitted={submitted} onChange={onChange} /> : null}
+        {question.question_type === "SUMMARIZATION" ? <Summarization question={question} value={value as { text?: string; selfMarked?: boolean } | undefined} submitted={submitted} onChange={onChange} /> : null}
         {question.question_type === "DRAG_DROP" || question.question_type === "CATEGORIZATION" ? <DragDrop question={question} value={(value as Record<string, string>) ?? {}} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "PRONUNCIATION" ? <Pronunciation question={question} value={value as PronunciationValue | undefined} disabled={submitted} onChange={onChange} /> : null}
       </div>
@@ -1284,6 +1298,111 @@ function ShortAnswer({
             : "Use all the required words above before you can check your answer."}
         </p>
       ) : null}
+    </div>
+  );
+}
+
+function Summarization({
+  question,
+  value,
+  submitted,
+  onChange
+}: {
+  question: QuizQuestion;
+  value?: { text?: string; selfMarked?: boolean };
+  submitted: boolean;
+  onChange: (value: { text?: string; selfMarked?: boolean }) => void;
+}) {
+  const opts = asRecord(question.options) as { passage?: string; max_words?: number; sample_answer?: string };
+  const text = value?.text ?? "";
+  const selfMarked = value?.selfMarked;
+  const maxWords = Number(opts.max_words ?? 0);
+  const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
+  const passage = String(opts.passage ?? "");
+  const lengthOk = maxWords === 0 || wordCount <= maxWords;
+
+  if (submitted) {
+    return (
+      <div className="grid gap-4">
+        {passage ? (
+          <div className="rounded-[14px] bg-[#F6F7FB] border border-[#ECECF5] p-4 text-sm leading-6 text-[#14172B]">
+            <p className="mb-2 text-xs font-bold uppercase tracking-wider text-[#6E738D]">Passage</p>
+            <div className="whitespace-pre-wrap font-medium">{passage}</div>
+          </div>
+        ) : null}
+
+        <div>
+          <p className="mb-2 text-xs font-bold uppercase tracking-wider text-[#6E738D]">Your Summary</p>
+          <div className="rounded-[14px] bg-[#F6F7FB] border border-[#ECECF5] p-4 text-sm leading-6 whitespace-pre-wrap font-semibold">
+            {text || <span className="text-[#6E738D]">(No summary written)</span>}
+          </div>
+          {maxWords > 0 ? (
+            <p className="mt-1.5 text-xs text-[#6E738D]">
+              Word count: <span className={lengthOk ? "text-[#00A977] font-bold" : "text-[#FF5D73] font-bold"}>{wordCount}</span> / {maxWords} words
+            </p>
+          ) : null}
+        </div>
+
+        {opts.sample_answer ? (
+          <div className="rounded-[14px] border border-[#00C98D]/30 bg-[#00C98D]/5 p-4 text-sm leading-6">
+            <p className="mb-2 text-xs font-bold uppercase tracking-wider text-[#00A977]">Model Summary</p>
+            <div className="font-semibold text-[#14172B]">{opts.sample_answer}</div>
+          </div>
+        ) : null}
+
+        <div className="flex flex-wrap items-center gap-2 border-t border-[#ECECF5] pt-3">
+          <span className="text-sm font-semibold text-[#6E738D]">How did you do?</span>
+          <button
+            type="button"
+            onClick={() => onChange({ text, selfMarked: true })}
+            className={`rounded-[14px] border px-4 py-2 text-sm font-extrabold transition-colors ${
+              selfMarked === true ? "border-[#00C98D] bg-[#00C98D]/10 text-[#00A977]" : "border-[#ECECF5] text-[#6E738D] hover:bg-slate-50"
+            }`}
+          >
+            Got it
+          </button>
+          <button
+            type="button"
+            onClick={() => onChange({ text, selfMarked: false })}
+            className={`rounded-[14px] border px-4 py-2 text-sm font-extrabold transition-colors ${
+              selfMarked === false ? "border-[#FF5D73] bg-[#FF5D73]/10 text-[#FF5D73]" : "border-[#ECECF5] text-[#6E738D] hover:bg-slate-50"
+            }`}
+          >
+            Needs work
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-4">
+      {passage ? (
+        <div className="rounded-[14px] bg-[#F6F7FB] border border-[#ECECF5] p-4 text-sm leading-6 text-[#14172B]">
+          <p className="mb-2 text-xs font-bold uppercase tracking-wider text-[#6E738D]">Passage to Summarize</p>
+          <div className="whitespace-pre-wrap font-medium">{passage}</div>
+        </div>
+      ) : null}
+
+      <div className="grid gap-2">
+        <textarea
+          rows={5}
+          value={text}
+          onChange={(e) => onChange({ text: e.target.value, selfMarked: undefined })}
+          placeholder="Write your summary here..."
+          className="w-full rounded-[14px] border border-[#ECECF5] bg-[#F6F7FB] px-3 py-3 text-sm font-semibold outline-none focus:border-[#6C3BFF] focus:bg-white"
+        />
+        {maxWords > 0 ? (
+          <div className="flex justify-between items-center text-xs">
+            <span className={lengthOk ? "text-[#00A977] font-semibold" : "text-[#FF5D73] font-semibold"}>
+              {wordCount} / {maxWords} words maximum
+            </span>
+            {!lengthOk ? (
+              <span className="text-[#FF5D73] font-bold">Word limit exceeded!</span>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }
