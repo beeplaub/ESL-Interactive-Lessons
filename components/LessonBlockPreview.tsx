@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, FlipHorizontal2, Headphones, ImageIcon, ListChecks, Maximize, MessageSquareQuote, Pause, Play, PlayCircle, Settings, Volume2 } from "lucide-react";
+import { BookOpen, FlipHorizontal2, Headphones, ImageIcon, ListChecks, Maximize, MessageSquareQuote, Pause, Play, PlayCircle, Settings, Volume2, RotateCcw, RotateCw } from "lucide-react";
 import type { RefObject } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Json } from "@/types/database.types";
@@ -635,6 +635,7 @@ function CustomYouTubeVideoPlayer({
   const [openSettings, setOpenSettings] = useState(false);
   const [openVolume, setOpenVolume] = useState(false);
   const [speed, setSpeed] = useState(1);
+  const [currentTime, setCurrentTime] = useState(0);
 
   const startSeconds = useMemo(() => parseTimeToSeconds(startTime) || 0, [startTime]);
   const endSeconds = useMemo(() => parseTimeToSeconds(endTime), [endTime]);
@@ -647,10 +648,77 @@ function CustomYouTubeVideoPlayer({
   }, [videoId, startSeconds, endSeconds]);
 
   function command(func: string, args: unknown[] = []) { iframeRef.current?.contentWindow?.postMessage(JSON.stringify({ event: "command", func, args }), "*"); }
-  useEffect(() => { command("setVolume", [volume]); command("setPlaybackRate", [speed]); }, [volume, speed]);
-  function toggle() { if (!started) setStarted(true); if (playing) { command("pauseVideo"); setPlaying(false); } else { command("playVideo"); setPlaying(true); } }
-  function restart() { if (!started) setStarted(true); command("seekTo", [startSeconds, true]); command("playVideo"); setPlaying(true); }
+  
+  useEffect(() => {
+    command("unMute");
+    command("setVolume", [volume]);
+    command("setPlaybackRate", [speed]);
+  }, [volume, speed, playing]);
+
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (typeof event.data === "string") {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.event === "infoDelivery" && data.info) {
+            if (typeof data.info.currentTime === "number") {
+              setCurrentTime(data.info.currentTime);
+            }
+            if (typeof data.info.playerState === "number") {
+              if (data.info.playerState === 1) {
+                setPlaying(true);
+                setStarted(true);
+              } else if (data.info.playerState === 2 || data.info.playerState === 0) {
+                setPlaying(false);
+              }
+            }
+          } else if (data.event === "onStateChange") {
+            const state = Number(data.info);
+            if (state === 1) {
+              setPlaying(true);
+              setStarted(true);
+            } else if (state === 2 || state === 0) {
+              setPlaying(false);
+            }
+          }
+        } catch (e) {
+          // not JSON
+        }
+      }
+    };
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, []);
+
+  function toggle() {
+    if (!started) setStarted(true);
+    if (playing) {
+      command("pauseVideo");
+      setPlaying(false);
+    } else {
+      command("playVideo");
+      command("unMute");
+      command("setVolume", [volume]);
+      command("setPlaybackRate", [speed]);
+      setPlaying(true);
+    }
+  }
+
+  function restart() {
+    if (!started) setStarted(true);
+    command("seekTo", [startSeconds, true]);
+    command("playVideo");
+    setPlaying(true);
+  }
+
+  function seekRelative(seconds: number) {
+    const targetTime = Math.max(startSeconds, Math.min(endSeconds || 99999, currentTime + seconds));
+    command("seekTo", [targetTime, true]);
+    setCurrentTime(targetTime);
+  }
+
   function fullscreen() { void wrapperRef.current?.requestFullscreen?.(); }
+
   return (
     <div ref={wrapperRef} className="overflow-hidden rounded-lg bg-ink text-white">
       <div className="relative aspect-video bg-black overflow-hidden">
@@ -658,18 +726,32 @@ function CustomYouTubeVideoPlayer({
           ref={iframeRef}
           src={src}
           title={title}
-          className={`absolute h-[108%] w-[108%] -top-[4%] -left-[4%] pointer-events-none transition-opacity duration-300 ${started ? "opacity-100" : "opacity-0"}`}
+          className={`absolute h-full w-full inset-0 pointer-events-none transition-opacity duration-300 ${started ? "opacity-100" : "opacity-0"}`}
           allow="autoplay; encrypted-media; picture-in-picture"
         />
-        {started ? (
-          <div onClick={toggle} className="absolute inset-0 cursor-pointer" aria-label="Toggle play/pause" />
+        {playing ? (
+          <div onClick={toggle} className="absolute inset-0 cursor-pointer z-10" aria-label="Pause video" />
         ) : null}
-        {!started ? (<button type="button" onClick={toggle} className="absolute inset-0 grid place-items-center bg-ink text-white"><span className="grid size-16 place-items-center rounded-full bg-white text-ink shadow-xl"><Play size={26} /></span><span className="sr-only">Play video</span></button>) : null}
+        {!playing ? (
+          <button
+            type="button"
+            onClick={toggle}
+            className="absolute inset-0 z-20 grid place-items-center bg-black/60 bg-cover bg-center transition-all hover:bg-black/50"
+            style={{ backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url(https://img.youtube.com/vi/${videoId}/hqdefault.jpg)` }}
+          >
+            <span className="grid size-16 place-items-center rounded-full bg-white text-ink shadow-xl transition-transform hover:scale-105">
+              <Play size={26} className="ml-1" />
+            </span>
+            <span className="sr-only">Play video</span>
+          </button>
+        ) : null}
       </div>
       <div className="flex items-center gap-1 overflow-x-auto p-2">
-        <button type="button" onClick={toggle} className="inline-flex shrink-0 items-center gap-1 rounded-md bg-white px-2.5 py-1.5 text-xs font-semibold text-ink">{playing ? <Pause size={14} /> : <Play size={14} />} {playing ? "Pause" : "Play"}</button>
+        <button type="button" onClick={toggle} className="inline-flex shrink-0 items-center gap-1 rounded-md bg-white px-2.5 py-1.5 text-xs font-semibold text-ink z-30">{playing ? <Pause size={14} /> : <Play size={14} />} {playing ? "Pause" : "Play"}</button>
         <button type="button" onClick={restart} className="shrink-0 rounded-md bg-white/10 px-2.5 py-1.5 text-xs font-semibold hover:bg-white/20">Restart</button>
-        <div className="relative ml-auto shrink-0">
+        <button type="button" onClick={() => seekRelative(-10)} className="shrink-0 rounded-md bg-white/10 p-1.5 hover:bg-white/20" aria-label="Rewind 10 seconds"><RotateCcw size={15} /></button>
+        <button type="button" onClick={() => seekRelative(10)} className="shrink-0 rounded-md bg-white/10 p-1.5 hover:bg-white/20" aria-label="Forward 10 seconds"><RotateCw size={15} /></button>
+        <div className="relative ml-auto shrink-0 z-30">
           <button type="button" onClick={() => setOpenVolume((current) => !current)} className="rounded-md bg-white/10 p-1.5 hover:bg-white/20" aria-label="Volume"><Volume2 size={15} /></button>
           {openVolume ? (<div className="absolute bottom-9 right-0 rounded-md bg-ink/95 p-3 shadow-xl"><input aria-label="Volume" type="range" min="0" max="100" step="5" value={volume} onChange={(event) => setVolume(Number(event.target.value))} className="h-24 w-6 [writing-mode:vertical-rl]" /></div>) : null}
         </div>
