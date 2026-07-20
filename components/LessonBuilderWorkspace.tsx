@@ -1345,6 +1345,10 @@ function BlockFields({ blockType, content, lessonId }: { blockType: string; cont
       <div className="grid gap-3">
         <label className="text-sm">Video URL<input name="url" defaultValue={asString(data.url ?? data.src)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
         <label className="text-sm">Title <span className="font-normal text-black/45">(optional)</span><input name="title" defaultValue={asString(data.title)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="text-sm">Start time <span className="font-normal text-black/45">(optional, e.g. 1:30 or 90)</span><input name="startTime" defaultValue={asString(data.startTime)} placeholder="0:00" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+          <label className="text-sm">End time <span className="font-normal text-black/45">(optional, e.g. 2:15 or 135)</span><input name="endTime" defaultValue={asString(data.endTime)} placeholder="Keep default" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+        </div>
       </div>
     );
   }

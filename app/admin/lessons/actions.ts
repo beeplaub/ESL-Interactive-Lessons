@@ -196,7 +196,9 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
   if (blockType === "VIDEO") {
     return {
       url: String(formData.get("url") || "").trim(),
-      title: nullableText(formData.get("title"))
+      title: nullableText(formData.get("title")),
+      startTime: nullableText(formData.get("startTime")),
+      endTime: nullableText(formData.get("endTime"))
     };
   }
   if (blockType === "VOCABULARY") {

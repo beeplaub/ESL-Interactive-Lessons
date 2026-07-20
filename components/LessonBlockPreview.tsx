@@ -285,7 +285,12 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
     return (
       <div className="overflow-hidden rounded-lg border border-black/10 bg-slate-50">
         {youtubeId ? (
-          <CustomYouTubeVideoPlayer videoId={youtubeId} title={asString(content.title) || "Lesson video"} />
+          <CustomYouTubeVideoPlayer
+            videoId={youtubeId}
+            title={asString(content.title) || "Lesson video"}
+            startTime={asString(content.startTime)}
+            endTime={asString(content.endTime)}
+          />
         ) : (
           <div className="grid aspect-video place-items-center p-4 text-center">
             <div>
@@ -594,7 +599,34 @@ function YouTubeAudioPlayer({ videoId }: { videoId: string }) {
   );
 }
 
-function CustomYouTubeVideoPlayer({ videoId, title }: { videoId: string; title: string }) {
+function parseTimeToSeconds(timeStr: string | null | undefined): number | null {
+  if (!timeStr) return null;
+  const clean = timeStr.trim();
+  if (!clean) return null;
+  if (/^\d+(\.\d+)?$/.test(clean)) {
+    return parseFloat(clean);
+  }
+  const parts = clean.split(":").map(Number);
+  if (parts.some(isNaN)) return null;
+  if (parts.length === 2) {
+    return parts[0] * 60 + parts[1];
+  } else if (parts.length === 3) {
+    return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  }
+  return null;
+}
+
+function CustomYouTubeVideoPlayer({
+  videoId,
+  title,
+  startTime,
+  endTime
+}: {
+  videoId: string;
+  title: string;
+  startTime?: string | null;
+  endTime?: string | null;
+}) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [started, setStarted] = useState(false);
@@ -603,16 +635,35 @@ function CustomYouTubeVideoPlayer({ videoId, title }: { videoId: string; title: 
   const [openSettings, setOpenSettings] = useState(false);
   const [openVolume, setOpenVolume] = useState(false);
   const [speed, setSpeed] = useState(1);
-  const src = useMemo(() => `https://www.youtube-nocookie.com/embed/${videoId}?enablejsapi=1&controls=0&rel=0&modestbranding=1&playsinline=1&iv_load_policy=3&disablekb=1&fs=0`, [videoId]);
+
+  const startSeconds = useMemo(() => parseTimeToSeconds(startTime) || 0, [startTime]);
+  const endSeconds = useMemo(() => parseTimeToSeconds(endTime), [endTime]);
+
+  const src = useMemo(() => {
+    let url = `https://www.youtube-nocookie.com/embed/${videoId}?enablejsapi=1&controls=0&rel=0&modestbranding=1&playsinline=1&iv_load_policy=3&disablekb=1&fs=0`;
+    if (startSeconds > 0) url += `&start=${startSeconds}`;
+    if (endSeconds !== null && endSeconds > startSeconds) url += `&end=${endSeconds}`;
+    return url;
+  }, [videoId, startSeconds, endSeconds]);
+
   function command(func: string, args: unknown[] = []) { iframeRef.current?.contentWindow?.postMessage(JSON.stringify({ event: "command", func, args }), "*"); }
   useEffect(() => { command("setVolume", [volume]); command("setPlaybackRate", [speed]); }, [volume, speed]);
   function toggle() { if (!started) setStarted(true); if (playing) { command("pauseVideo"); setPlaying(false); } else { command("playVideo"); setPlaying(true); } }
-  function restart() { if (!started) setStarted(true); command("seekTo", [0, true]); command("playVideo"); setPlaying(true); }
+  function restart() { if (!started) setStarted(true); command("seekTo", [startSeconds, true]); command("playVideo"); setPlaying(true); }
   function fullscreen() { void wrapperRef.current?.requestFullscreen?.(); }
   return (
     <div ref={wrapperRef} className="overflow-hidden rounded-lg bg-ink text-white">
-      <div className="relative aspect-video bg-black">
-        <iframe ref={iframeRef} src={src} title={title} className={`h-full w-full ${started ? "opacity-100" : "opacity-0"}`} allow="autoplay; encrypted-media; picture-in-picture" />
+      <div className="relative aspect-video bg-black overflow-hidden">
+        <iframe
+          ref={iframeRef}
+          src={src}
+          title={title}
+          className={`absolute h-[108%] w-[108%] -top-[4%] -left-[4%] pointer-events-none transition-opacity duration-300 ${started ? "opacity-100" : "opacity-0"}`}
+          allow="autoplay; encrypted-media; picture-in-picture"
+        />
+        {started ? (
+          <div onClick={toggle} className="absolute inset-0 cursor-pointer" aria-label="Toggle play/pause" />
+        ) : null}
         {!started ? (<button type="button" onClick={toggle} className="absolute inset-0 grid place-items-center bg-ink text-white"><span className="grid size-16 place-items-center rounded-full bg-white text-ink shadow-xl"><Play size={26} /></span><span className="sr-only">Play video</span></button>) : null}
       </div>
       <div className="flex items-center gap-1 overflow-x-auto p-2">
