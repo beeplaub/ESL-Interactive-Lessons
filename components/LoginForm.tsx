@@ -138,7 +138,7 @@ export function LoginForm() {
           <label className="block text-sm font-medium">
             First name
             <input
-              className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 font-normal"
+              className="mt-1.5 w-full rounded-xl border border-[#ECECF5] px-3.5 py-2.5 text-sm font-semibold placeholder-[#B0B5C8] focus:border-violetglow focus:outline-none focus:ring-4 focus:ring-violetglow/10 transition"
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
               placeholder="Maria"
@@ -148,7 +148,7 @@ export function LoginForm() {
           <label className="block text-sm font-medium">
             Last name
             <input
-              className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 font-normal"
+              className="mt-1.5 w-full rounded-xl border border-[#ECECF5] px-3.5 py-2.5 text-sm font-semibold placeholder-[#B0B5C8] focus:border-violetglow focus:outline-none focus:ring-4 focus:ring-violetglow/10 transition"
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
               placeholder="Santos"
@@ -162,7 +162,7 @@ export function LoginForm() {
         Email
         <input
           type="email"
-          className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 font-normal"
+          className="mt-1.5 w-full rounded-xl border border-[#ECECF5] px-3.5 py-2.5 text-sm font-semibold placeholder-[#B0B5C8] focus:border-violetglow focus:outline-none focus:ring-4 focus:ring-violetglow/10 transition"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           autoComplete="email"
@@ -173,7 +173,7 @@ export function LoginForm() {
         Password
         <input
           type="password"
-          className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 font-normal"
+          className="mt-1.5 w-full rounded-xl border border-[#ECECF5] px-3.5 py-2.5 text-sm font-semibold placeholder-[#B0B5C8] focus:border-violetglow focus:outline-none focus:ring-4 focus:ring-violetglow/10 transition"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           autoComplete={mode === "signup" ? "new-password" : "current-password"}
@@ -183,7 +183,7 @@ export function LoginForm() {
       {/* Forgot password link — sign in only */}
       {mode === "signin" ? (
         <div className="flex justify-end">
-          <Link href="/forgot-password" className="text-xs text-moss hover:underline">
+          <Link href="/forgot-password" className="text-xs text-violetglow hover:underline">
             Forgot password?
           </Link>
         </div>
@@ -193,7 +193,7 @@ export function LoginForm() {
         type="button"
         disabled={isPending}
         onClick={submit}
-        className="w-full rounded-md bg-ink px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+        className="w-full rounded-xl bg-violetglow px-4 py-2.5 text-sm font-bold text-white shadow-[0_4px_14px_rgba(124,58,237,0.25)] hover:bg-[#6c2ee5] disabled:opacity-60 transition"
       >
         {isPending ? "Working..." : mode === "signin" ? "Sign in" : "Create account"}
       </button>

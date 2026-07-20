@@ -33,7 +33,7 @@ export function NewCourseModal() {
           />
 
           {/* Modal content wrapper */}
-          <div className="relative w-full max-w-xl scale-100 transform overflow-hidden rounded-[24px] border border-[#ECECF5] bg-white p-6 shadow-[0_24px_64px_rgba(10,13,44,0.18)] transition-all">
+          <div className="relative w-full max-w-xl scale-100 transform overflow-hidden rounded-[24px] border border-[#ECECF5] bg-white p-6 shadow-[0_24px_64px_rgba(10,13,44,0.18)] transition-all animate-[modal-zoom_0.2s_ease-out]">
             {/* Header */}
             <div className="flex items-center justify-between border-b border-[#ECECF5] pb-4">
               <div>
@@ -72,7 +72,7 @@ export function NewCourseModal() {
                   name="title"
                   required
                   placeholder="e.g. Intermediate Business English"
-                  className="mt-1.5 w-full rounded-xl border border-[#ECECF5] px-3.5 py-2.5 text-sm font-semibold placeholder-[#B0B5C8] focus:border-[#6C3BFF] focus:outline-none transition"
+                  className="mt-1.5 w-full rounded-xl border border-[#ECECF5] px-3.5 py-2.5 text-sm font-semibold placeholder-[#B0B5C8] focus:border-violetglow focus:outline-none focus:ring-4 focus:ring-violetglow/10 transition"
                 />
               </div>
 
@@ -83,7 +83,7 @@ export function NewCourseModal() {
                 <input
                   name="subtitle"
                   placeholder="e.g. Master essential vocabulary and communication strategies"
-                  className="mt-1.5 w-full rounded-xl border border-[#ECECF5] px-3.5 py-2.5 text-sm font-semibold placeholder-[#B0B5C8] focus:border-[#6C3BFF] focus:outline-none transition"
+                  className="mt-1.5 w-full rounded-xl border border-[#ECECF5] px-3.5 py-2.5 text-sm font-semibold placeholder-[#B0B5C8] focus:border-violetglow focus:outline-none focus:ring-4 focus:ring-violetglow/10 transition"
                 />
               </div>
 
@@ -94,7 +94,7 @@ export function NewCourseModal() {
                 <input
                   name="topic"
                   placeholder="e.g. Business Communication"
-                  className="mt-1.5 w-full rounded-xl border border-[#ECECF5] px-3.5 py-2.5 text-sm font-semibold placeholder-[#B0B5C8] focus:border-[#6C3BFF] focus:outline-none transition"
+                  className="mt-1.5 w-full rounded-xl border border-[#ECECF5] px-3.5 py-2.5 text-sm font-semibold placeholder-[#B0B5C8] focus:border-violetglow focus:outline-none focus:ring-4 focus:ring-violetglow/10 transition"
                 />
               </div>
 
@@ -105,7 +105,7 @@ export function NewCourseModal() {
                 <select
                   name="level"
                   defaultValue="All Levels"
-                  className="mt-1.5 w-full rounded-xl border border-[#ECECF5] bg-white px-3.5 py-2.5 text-sm font-semibold placeholder-[#B0B5C8] focus:border-[#6C3BFF] focus:outline-none transition"
+                  className="mt-1.5 w-full rounded-xl border border-[#ECECF5] bg-white px-3.5 py-2.5 text-sm font-semibold placeholder-[#B0B5C8] focus:border-violetglow focus:outline-none focus:ring-4 focus:ring-violetglow/10 transition"
                 >
                   {CONTENT_LEVELS.map((level) => (
                     <option key={level}>{level}</option>
@@ -121,7 +121,7 @@ export function NewCourseModal() {
                   name="description"
                   placeholder="Write a brief overview of the learning outcomes and target audience..."
                   rows={3}
-                  className="mt-1.5 w-full rounded-xl border border-[#ECECF5] px-3.5 py-2.5 text-sm font-semibold placeholder-[#B0B5C8] focus:border-[#6C3BFF] focus:outline-none transition resize-none"
+                  className="mt-1.5 w-full rounded-xl border border-[#ECECF5] px-3.5 py-2.5 text-sm font-semibold placeholder-[#B0B5C8] focus:border-violetglow focus:outline-none focus:ring-4 focus:ring-violetglow/10 transition resize-none"
                 />
               </div>
 
@@ -138,7 +138,7 @@ export function NewCourseModal() {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="inline-flex items-center gap-2 rounded-xl bg-[#6C3BFF] px-5 py-2.5 text-sm font-extrabold text-white shadow-[0_4px_14px_rgba(108,59,255,0.25)] hover:bg-[#5C2EE5] disabled:opacity-50 transition"
+                  className="inline-flex items-center gap-2 rounded-xl bg-violetglow px-5 py-2.5 text-sm font-extrabold text-white shadow-[0_4px_14px_rgba(124,58,237,0.25)] hover:bg-[#6c2ee5] disabled:opacity-50 transition"
                 >
                   {isSubmitting ? "Creating..." : "Create and open builder"}
                 </button>

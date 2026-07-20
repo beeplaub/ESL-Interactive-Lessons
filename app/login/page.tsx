@@ -17,9 +17,9 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
 
   return (
     <main className="mx-auto flex min-h-[calc(100vh-57px)] max-w-md items-center px-4">
-      <div className="w-full rounded-lg border border-black/10 bg-white p-6 shadow-sm">
-        <h1 className="text-2xl font-semibold">Welcome back</h1>
-        <p className="mt-2 text-sm text-black/60">Sign in or create a learner account to continue.</p>
+      <div className="w-full br-card rounded-[24px] p-6 sm:p-8">
+        <h1 className="text-2xl font-extrabold text-ink">Welcome back</h1>
+        <p className="mt-2 text-sm text-slate-500 font-semibold">Sign in or create a learner account to continue.</p>
         <LoginForm />
       </div>
     </main>
