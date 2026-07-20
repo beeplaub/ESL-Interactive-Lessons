@@ -105,7 +105,7 @@ export function AdminSidebar({
   // ── Desktop collapsible sidebar ──
   return (
     <aside
-      className={`relative flex flex-col rounded-lg border border-black/10 bg-white shadow-sm
+      className={`relative flex flex-col br-card rounded-[24px]
         md:sticky md:top-20 md:h-[calc(100vh-96px)]
         ${transitionClass}
         ${collapsed ? "w-[52px] min-w-[52px]" : "w-[220px] min-w-[220px]"}
