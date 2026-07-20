@@ -101,13 +101,21 @@ export default async function AccountPage() {
       tone: index + 2
     }))
   ].slice(0, 4);
+  const currentHour = new Date().getHours();
+  let greeting = "Good morning";
+  if (currentHour >= 18) {
+    greeting = "Good evening";
+  } else if (currentHour >= 12) {
+    greeting = "Good afternoon";
+  }
+
   return (
     <LearnerAppShell
       active="home"
       showRightSidebar
       desktopChromeLeading={
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-[28px] font-bold leading-tight">Good morning, {firstName}! 👋</h1>
+          <h1 className="truncate text-[28px] font-bold leading-tight">{greeting}, {firstName}! 👋</h1>
           <p className="mt-0.5 text-sm text-[#6E738D]">Let&apos;s continue your English journey.</p>
         </div>
       }
@@ -125,7 +133,7 @@ export default async function AccountPage() {
           ) : null}
 
           <div className="min-[1180px]:hidden">
-            <h2 className="text-xl font-bold">Good morning, {firstName}! 👋</h2>
+            <h2 className="text-xl font-bold">{greeting}, {firstName}! 👋</h2>
             <p className="mt-0.5 text-[13px] text-[#6E738D]">Let&apos;s continue your English journey.</p>
           </div>
 
