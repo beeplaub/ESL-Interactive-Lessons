@@ -29,8 +29,6 @@ const links = [
   { href: "/admin/courses", label: "Courses", Icon: GraduationCap },
   { href: "/admin/content-library", label: "Content Library", Icon: Library },
   { href: "/admin/obe", label: "Outcomes", Icon: Target, adminOnly: true },
-  { href: "/admin/lessons", label: "Lessons", Icon: BookOpen },
-  { href: "/admin/quizzes", label: "Quizzes", Icon: ClipboardList },
   { href: "/admin/users", label: "Users", Icon: UsersRound, adminOnly: true },
   { href: "/admin/level-test", label: "Level Test", Icon: FlaskConical, adminOnly: true },
 ];

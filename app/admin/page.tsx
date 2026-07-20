@@ -20,10 +20,8 @@ export default async function AdminPage() {
           <h1 className="text-2xl font-semibold sm:text-3xl">My teaching overview</h1>
           <p className="mt-2 text-sm text-black/60">Your own courses, lessons, and quizzes.</p>
         </div>
-        <section className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <section className="grid min-w-0 gap-3 sm:grid-cols-1 md:grid-cols-2">
           <AdminCard href="/admin/courses" icon={GraduationCap} label="My courses" value={courses?.length ?? 0} detail={`${countStatus(courses, "PUBLISHED")} published · ${countStatus(courses, "DRAFT")} draft`} />
-          <AdminCard href="/admin/lessons" icon={BookOpen} label="My lessons" value={lessons?.length ?? 0} detail={`${countStatus(lessons, "PUBLISHED")} published · ${countStatus(lessons, "DRAFT")} draft`} />
-          <AdminCard href="/admin/quizzes" icon={ClipboardList} label="My quizzes" value={quizzes?.length ?? 0} detail={`${countStatus(quizzes, "PUBLISHED")} published · ${countStatus(quizzes, "DRAFT")} draft`} />
         </section>
       </main>
     );
@@ -45,12 +43,10 @@ export default async function AdminPage() {
         <h1 className="text-2xl font-semibold sm:text-3xl">Admin overview</h1>
         <p className="mt-2 text-sm text-black/60">A central hub for managing BrenUp.</p>
       </div>
-      <section className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-3">
         <AdminCard href="/admin/courses" icon={GraduationCap} label="Courses" value={courses?.length ?? 0} detail={`${countStatus(courses, "PUBLISHED")} published · ${countStatus(courses, "DRAFT")} draft`} />
         <AdminCard href="/admin/organizations" icon={Building2} label="Organizations" value={organizations?.length ?? 0} detail="Schools and class shells" />
         <AdminCard href="/admin/analytics" icon={BarChart3} label="Analytics" value={attempts?.length ?? 0} detail="Courses, lessons and quizzes" />
-        <AdminCard href="/admin/lessons" icon={BookOpen} label="Lessons" value={lessons?.length ?? 0} detail={`${countStatus(lessons, "PUBLISHED")} published · ${countStatus(lessons, "DRAFT")} draft`} />
-        <AdminCard href="/admin/quizzes" icon={ClipboardList} label="Quizzes" value={quizzes?.length ?? 0} detail={`${countStatus(quizzes, "PUBLISHED")} published · ${countStatus(quizzes, "DRAFT")} draft`} />
         <AdminCard href="/admin/users" icon={UsersRound} label="Users" value={profiles?.length ?? 0} detail="Registered users" />
         <AdminCard href="/admin/quiz-attempts" icon={ClipboardList} label="Quiz attempts" value={attempts?.length ?? 0} detail="All learners" />
         <AdminCard href="/admin/level-test/results" icon={FlaskConical} label="Level tests" value={levelResults?.length ?? 0} detail="Results taken" />

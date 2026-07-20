@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { FormEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { AlignCenter, AlignLeft, AlignRight, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, AlignVerticalJustifyStart, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Copy, Eye, Library, Plus, Settings, Target, Trash2, X } from "lucide-react";
+import { AlignCenter, AlignLeft, AlignRight, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, AlignVerticalJustifyStart, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Copy, Eye, Library, Plus, Settings, Target, Trash2, X, ChevronRight } from "lucide-react";
 import {
   addBuilderSlideAt,
   addLessonBlock,
@@ -651,7 +651,24 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities, obe
 
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
-          <Link href="/admin/lessons" className="text-sm text-black/55 hover:text-black">Back to lessons</Link>
+          <nav className="flex flex-wrap items-center gap-1.5 text-sm text-black/45 mb-2">
+            <Link href="/admin/courses" className="hover:text-black/75">Courses</Link>
+            {(() => {
+              const placement = obe?.placements?.[0];
+              if (!placement) return null;
+              const courseTitle = placement.courses?.title || "Course";
+              return (
+                <>
+                  <ChevronRight size={14} className="text-black/25" />
+                  <Link href={`/admin/courses/${placement.course_id}/builder`} className="hover:text-black/75">
+                    {courseTitle}
+                  </Link>
+                </>
+              );
+            })()}
+            <ChevronRight size={14} className="text-black/25" />
+            <span className="font-medium text-black/65">{lesson.title}</span>
+          </nav>
           <div className="mt-2 flex flex-wrap items-center gap-3">
             <h1 className="text-2xl font-semibold tracking-tight">{lesson.title}</h1>
             <span className="rounded-full bg-moss/10 px-3 py-1 text-xs font-semibold text-moss">{lesson.level}</span>

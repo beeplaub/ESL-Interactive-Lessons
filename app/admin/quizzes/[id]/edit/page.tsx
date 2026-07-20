@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ChevronRight } from "lucide-react";
 import { QuizVisualBuilder } from "@/components/QuizVisualBuilder";
 import { requireQuizAccess } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -9,7 +9,7 @@ export default async function EditQuizPage({ params }: { params: Promise<{ id: s
   const { id } = await params;
   await requireQuizAccess(id);
   const admin = createAdminClient();
-  const [{ data: quiz }, { data: questions }, { data: bankQuestions }, { data: skills }, { data: targets }] = await Promise.all([
+  const [{ data: quiz }, { data: questions }, { data: bankQuestions }, { data: skills }, { data: targets }, { data: placements }] = await Promise.all([
     admin.from("quizzes").select("*").eq("id", id).single(),
     admin.from("quiz_questions").select("*").eq("quiz_id", id).order("question_number", { ascending: true }),
     admin
@@ -19,9 +19,16 @@ export default async function EditQuizPage({ params }: { params: Promise<{ id: s
       .limit(500),
     admin.from("learning_skills").select("id,parent_id,name,slug").eq("status", "ACTIVE").order("position"),
     admin.from("learning_targets").select("id,target_type,label").eq("status", "ACTIVE").order("label"),
+    admin.from("course_items").select("id,course_id,courses(title)").eq("quiz_id", id).limit(1)
   ]);
 
   if (!quiz) notFound();
+
+  const placement = placements?.[0];
+  const courseId = placement?.course_id;
+  const courseTitle = Array.isArray(placement?.courses)
+    ? placement?.courses[0]?.title
+    : (placement?.courses as unknown as { title?: string } | null)?.title || "Course";
 
   const questionIds = (questions ?? []).map((question) => question.id);
   const { data: assessmentItems } = questionIds.length
@@ -37,9 +44,17 @@ export default async function EditQuizPage({ params }: { params: Promise<{ id: s
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8">
-      <Link href="/admin/quizzes" className="inline-flex items-center gap-2 text-sm text-black/60 hover:text-black">
-        <ArrowLeft size={16} /> Back to quizzes
-      </Link>
+      <nav className="flex items-center gap-1.5 text-sm text-black/60 mb-5">
+        <Link href="/admin/courses" className="hover:text-black">Courses</Link>
+        {courseId ? (
+          <>
+            <ChevronRight size={14} className="text-black/35" />
+            <Link href={`/admin/courses/${courseId}/builder`} className="hover:text-black">{courseTitle}</Link>
+          </>
+        ) : null}
+        <ChevronRight size={14} className="text-black/35" />
+        <span className="font-medium text-black">{quiz.title}</span>
+      </nav>
       <div className="mt-5">
         <QuizVisualBuilder
           initialQuiz={{
