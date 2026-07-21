@@ -378,6 +378,31 @@ function renderPrintQuestion(question: QuizQuestion) {
       );
     }
 
+    case "INFERENCE_DETECTION": {
+      if (!options) return null;
+      const passage = options.passage as string | undefined;
+      return (
+        <div className="grid gap-3">
+          {passage ? (
+            <div className="bg-slate-50 border border-[#ECECF5] p-4 rounded-xl print:bg-none print:border-slate-200">
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Passage:</p>
+              <p className="text-sm text-slate-800 print:text-black whitespace-pre-wrap">{passage}</p>
+            </div>
+          ) : null}
+          <div className="grid gap-2 sm:grid-cols-2">
+            {Object.entries(options).filter(([key]) => key !== "passage").map(([key, val]) => (
+              <div key={key} className="flex items-start gap-2 text-sm text-slate-800">
+                <span className="grid size-5 shrink-0 place-items-center rounded-full border border-slate-300 text-[10px] font-black text-slate-600 print:border-black print:text-black">
+                  {key}
+                </span>
+                <span>{val}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
     case "SUMMARIZATION": {
       const passage = options?.passage as string | undefined;
       const maxWords = Number(options?.max_words ?? 0);

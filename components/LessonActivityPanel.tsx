@@ -55,6 +55,22 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
       };
     });
   }
+  if (activityType === "INFERENCE_DETECTION") {
+    const passage = String(data.passage ?? "");
+    const questions = Array.isArray(data.questions) ? data.questions : [];
+    return questions.map((item, index) => {
+      const q = asRecord(item as Json);
+      const opts = asRecord(q.options as Json);
+      return {
+        id: String(q.id ?? index + 1),
+        question_number: Number(q.question_number ?? index + 1),
+        question_type: "INFERENCE_DETECTION",
+        question_text: String(q.question_text ?? q.text ?? ""),
+        options: { ...opts, passage } as Json,
+        correct_answer: String(q.correct_answer ?? q.answer ?? "").toUpperCase() as Json,
+      };
+    });
+  }
   if (activityType === "MULTIPLE_SELECT") {
     const questions = Array.isArray(data.questions) ? data.questions : [];
     return questions.map((item, index) => {

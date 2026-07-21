@@ -105,6 +105,7 @@ function labelFor(type: string) {
   if (type === "CATEGORIZATION") return "Categorization Activity";
   if (type === "PRONUNCIATION") return "Pronunciation Practice Activity";
   if (type === "SUMMARIZATION") return "Summarization Activity";
+  if (type === "INFERENCE_DETECTION") return "Inference Detection Activity";
   if (type === "AI_ROLEPLAY") return "AI Conversation Roleplay";
   return `${type.replaceAll("_", " ")} Activity`;
 }
@@ -178,6 +179,30 @@ function normalizeShortAnswer(data: Json | null): { prompt: string; enableAiFeed
         minWords: rawMinWords === null || rawMinWords === undefined || Number(rawMinWords) <= 0 ? null : Number(rawMinWords),
         requiredWordsText: requiredWords.join(", "),
         showRequiredWords: question.show_required_words !== false
+      };
+    })
+  };
+}
+
+function normalizeInferenceDetection(data: Json | null): { prompt: string; passage: string; questions: McqQuestion[] } {
+  const record = asRecord(data);
+  const questions = Array.isArray(record.questions) ? record.questions : [];
+  return {
+    prompt: String(record.prompt ?? "Read the passage. What can we infer?"),
+    passage: String(record.passage ?? ""),
+    questions: questions.map((item, index) => {
+      const question = asRecord(item);
+      const options = asRecord(question.options);
+      return {
+        id: String(question.id ?? index + 1),
+        text: String(question.text ?? question.question_text ?? ""),
+        options: {
+          A: String(options.A ?? ""),
+          B: String(options.B ?? ""),
+          C: String(options.C ?? ""),
+          D: String(options.D ?? "")
+        },
+        answer: String(question.answer ?? question.correct_answer ?? "A")
       };
     })
   };
@@ -543,8 +568,9 @@ function ActivityPanel({
               {activity.activity_type === "DRAG_DROP" || activity.activity_type === "CATEGORIZATION" ? <DragDropEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "PRONUNCIATION" ? <PronunciationEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "SUMMARIZATION" ? <SummarizationEditor activity={activity} onSave={save} /> : null}
+              {activity.activity_type === "INFERENCE_DETECTION" ? <InferenceDetectionEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "AI_ROLEPLAY" ? <AiRoleplayEditor activity={activity} onSave={save} /> : null}
-              {!["MCQ", "GAP_FILL", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "SUMMARIZATION", "AI_ROLEPLAY"].includes(activity.activity_type) ? (
+              {!["MCQ", "GAP_FILL", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "SUMMARIZATION", "INFERENCE_DETECTION", "AI_ROLEPLAY"].includes(activity.activity_type) ? (
                 <p className="rounded-md bg-slate-50 p-3 text-sm text-black/60">
                   This activity type has starter data and preview support. A detailed visual editor for it will be added in the next activity-builder pass.
                 </p>
@@ -616,6 +642,52 @@ function McqEditor({ activity, onSave }: { activity: Activity; onSave: (data: Js
       <div className="flex flex-wrap gap-3">
         <button type="button" onClick={() => setQuestions((current) => [...current, { id: Date.now(), text: "", options: { A: "", B: "", C: "", D: "" }, answer: "A" }])} className="rounded-md border border-black/15 px-4 py-2 text-sm">Add question</button>
         <SaveButton onClick={() => onSave({ prompt, questions: questions.map((question, index) => ({ id: index + 1, text: question.text, options: question.options, answer: question.answer })) } as Json, needsReview)} />
+      </div>
+    </div>
+  );
+}
+
+function InferenceDetectionEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
+  const initial = useMemo(() => normalizeInferenceDetection(activity.activity_data), [activity.activity_data]);
+  const [prompt, setPrompt] = useState(initial.prompt);
+  const [passage, setPassage] = useState(initial.passage);
+  const [questions, setQuestions] = useState<McqQuestion[]>(initial.questions.length ? initial.questions : [{ id: 1, text: "", options: { A: "", B: "", C: "", D: "" }, answer: "A" }]);
+  const needsReview = !passage.trim() || questions.some((question) => !question.text.trim() || !question.answer || Object.values(question.options).some((option) => !option.trim()));
+
+  return (
+    <div className="grid gap-4">
+      <label className="text-sm font-medium">Instruction<input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+      <label className="text-sm font-medium">
+        Passage
+        <textarea
+          rows={6}
+          value={passage}
+          onChange={(event) => setPassage(event.target.value)}
+          placeholder="Enter the source passage text..."
+          className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+        />
+      </label>
+      <p className="text-xs text-black/45">This passage is shown above every inference question in this activity.</p>
+      {questions.map((question, index) => (
+        <div key={String(question.id)} className="rounded-md border border-black/10 p-4">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <p className="font-medium">Question {index + 1}</p>
+            <button type="button" onClick={() => setQuestions((current) => current.filter((_, itemIndex) => itemIndex !== index))} className="text-sm text-coral">Remove question</button>
+          </div>
+          <div className="grid gap-3">
+            <label className="text-sm">Question (e.g. "What can we infer about...?")<input value={question.text} onChange={(event) => setQuestions((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, text: event.target.value } : item))} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+            <div className="grid gap-3 md:grid-cols-2">
+              {(["A", "B", "C", "D"] as const).map((letter) => (
+                <label key={letter} className="text-sm">Option {letter}<input value={question.options[letter]} onChange={(event) => setQuestions((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, options: { ...item.options, [letter]: event.target.value } } : item))} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+              ))}
+            </div>
+            <label className="text-sm">Correct answer<select value={question.answer} onChange={(event) => setQuestions((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, answer: event.target.value } : item))} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">{["A", "B", "C", "D"].map((letter) => <option key={letter}>{letter}</option>)}</select></label>
+          </div>
+        </div>
+      ))}
+      <div className="flex flex-wrap gap-3">
+        <button type="button" onClick={() => setQuestions((current) => [...current, { id: Date.now(), text: "", options: { A: "", B: "", C: "", D: "" }, answer: "A" }])} className="rounded-md border border-black/15 px-4 py-2 text-sm">Add question</button>
+        <SaveButton onClick={() => onSave({ prompt, passage, questions: questions.map((question, index) => ({ id: index + 1, text: question.text, options: question.options, answer: question.answer })) } as Json, needsReview)} />
       </div>
     </div>
   );

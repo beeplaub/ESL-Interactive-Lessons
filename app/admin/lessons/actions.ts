@@ -1521,6 +1521,7 @@ function defaultActivityPrompt(activityType: string) {
   if (activityType === "ERROR_CORRECTION") return "Find and correct the mistake.";
   if (activityType === "PRONUNCIATION") return "Say each highlighted word clearly.";
   if (activityType === "SUMMARIZATION") return "Summarize the passage in your own words.";
+  if (activityType === "INFERENCE_DETECTION") return "Read the passage. What can we infer?";
   if (activityType === "AI_ROLEPLAY") return "Practice speaking English with me.";
   return "Choose the best answer.";
 }
@@ -1552,6 +1553,13 @@ function defaultActivityData(activityType: string, prompt: string): Json {
   }
   if (activityType === "SUMMARIZATION") {
     return { prompt, passage: "Enter the passage text here.", max_words: 30, sample_answer: "A concise summary." };
+  }
+  if (activityType === "INFERENCE_DETECTION") {
+    return {
+      prompt,
+      passage: "Enter the passage text here.",
+      questions: [{ id: 1, text: "What can we infer from the passage?", options: { A: "", B: "", C: "", D: "" }, answer: "A" }]
+    };
   }
   if (activityType === "REORDERING") {
     return {

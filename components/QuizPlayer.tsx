@@ -19,7 +19,7 @@ import { computeBestStreak, NOTABLE_STREAK_THRESHOLD } from "@/lib/gamification/
 export type QuizQuestion = {
   id: string;
   question_number: number;
-  question_type: "MCQ" | "TRUE_FALSE" | "FILL" | "MATCHING" | "ERROR_CORRECTION" | "REORDERING" | "MULTIPLE_SELECT" | "SHORT_ANSWER" | "DRAG_DROP" | "CATEGORIZATION" | "PRONUNCIATION" | "SUMMARIZATION";
+  question_type: "MCQ" | "TRUE_FALSE" | "FILL" | "MATCHING" | "ERROR_CORRECTION" | "REORDERING" | "MULTIPLE_SELECT" | "SHORT_ANSWER" | "DRAG_DROP" | "CATEGORIZATION" | "PRONUNCIATION" | "SUMMARIZATION" | "INFERENCE_DETECTION";
   question_text: string;
   description?: string | null;
   options: Json | null;
@@ -164,6 +164,11 @@ function answerText(question: QuizQuestion): string {
   if (question.question_type === "SUMMARIZATION") {
     const opts = asRecord(question.options);
     return String(opts.sample_answer ?? "A concise summary of the passage.");
+  }
+  if (question.question_type === "INFERENCE_DETECTION") {
+    const opts = asRecord(question.options);
+    const key = String(question.correct_answer);
+    return `${key}. ${opts[key] ?? ""}`;
   }
   return "";
 }
@@ -667,6 +672,7 @@ export function QuestionCard({
         {question.question_type === "SUMMARIZATION" ? <Summarization question={question} value={value as { text?: string; selfMarked?: boolean } | undefined} submitted={submitted} onChange={onChange} /> : null}
         {question.question_type === "DRAG_DROP" || question.question_type === "CATEGORIZATION" ? <DragDrop question={question} value={(value as Record<string, string>) ?? {}} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "PRONUNCIATION" ? <Pronunciation question={question} value={value as PronunciationValue | undefined} disabled={submitted} onChange={onChange} /> : null}
+        {question.question_type === "INFERENCE_DETECTION" ? <InferenceDetection question={question} value={value as string | undefined} disabled={submitted} onChange={onChange} /> : null}
       </div>
       {stats && stats.correctCount < stats.total ? (
         <p className={`mt-4 rounded-[14px] p-3 text-sm font-semibold ${allWrong ? "bg-[#FF5D73]/10 text-[#FF5D73]" : "bg-[#FFB545]/10 text-amber-900"}`}>
@@ -692,6 +698,29 @@ function Mcq({ question, value, disabled, onChange }: { question: QuizQuestion; 
           <strong className="text-[#6C3BFF]">{key}.</strong> {String(text)}
         </label>
       ))}
+    </div>
+  );
+}
+
+function InferenceDetection({ question, value, disabled, onChange }: { question: QuizQuestion; value?: string; disabled: boolean; onChange: (value: string) => void }) {
+  const options = asRecord(question.options);
+  const passage = String(options.passage ?? "");
+  const choices = Object.entries(options).filter(([key]) => key !== "passage");
+  return (
+    <div className="grid gap-4">
+      {passage ? (
+        <div className="rounded-[14px] border border-[#ECECF5] bg-[#F6F7FB] p-4 text-sm leading-6 text-[#14172B] whitespace-pre-wrap">
+          {passage}
+        </div>
+      ) : null}
+      <div className="grid gap-2">
+        {choices.map(([key, text]) => (
+          <label key={key} className="flex cursor-pointer items-center gap-3 rounded-[14px] border border-[#ECECF5] bg-[#F6F7FB] px-3 py-3 text-sm font-semibold text-[#14172B] transition hover:bg-white">
+            <input type="radio" disabled={disabled} checked={value === key} onChange={() => onChange(key)} />
+            <strong className="text-[#6C3BFF]">{key}.</strong> {String(text)}
+          </label>
+        ))}
+      </div>
     </div>
   );
 }

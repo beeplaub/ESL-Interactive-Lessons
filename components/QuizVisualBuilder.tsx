@@ -49,7 +49,7 @@ type QuestionBankItem = {
 
 const questionTypes: BuilderQuestion["questionType"][] = [
   "MCQ", "TRUE_FALSE", "FILL", "MATCHING", "MULTIPLE_SELECT",
-  "SHORT_ANSWER", "ERROR_CORRECTION", "REORDERING", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "SUMMARIZATION"
+  "SHORT_ANSWER", "ERROR_CORRECTION", "REORDERING", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "SUMMARIZATION", "INFERENCE_DETECTION"
 ];
 
 const typeLabels: Record<string, string> = {
@@ -64,7 +64,8 @@ const typeLabels: Record<string, string> = {
   DRAG_DROP: "Drag & Drop",
   CATEGORIZATION: "Categorization",
   PRONUNCIATION: "Pronunciation",
-  SUMMARIZATION: "Summarization"
+  SUMMARIZATION: "Summarization",
+  INFERENCE_DETECTION: "Inference Detection"
 };
 
 const PRONUNCIATION_COLORS = ["#fbbf24", "#34d399", "#60a5fa", "#f472b6", "#a78bfa", "#fb923c"];
@@ -153,6 +154,7 @@ function defaultQuestion(type: BuilderQuestion["questionType"]): BuilderQuestion
   if (type === "CATEGORIZATION") return { id, questionType: type, questionText: "Sort each item into the correct category.", description: "", options: { targets: ["Category A", "Category B"], items: [{ id: "1", text: "Item 1" }, { id: "2", text: "Item 2" }] }, correctAnswer: { "1": "Category A", "2": "Category B" }, assessment };
   if (type === "PRONUNCIATION") return { id, questionType: type, questionText: "Practise the pronunciation.", description: "", options: { level: "word", passage: "", targets: [{ id: "1", text: "comfortable", color: "#fbbf24" }], max_attempts: 3 }, correctAnswer: ["1"], assessment };
   if (type === "SUMMARIZATION") return { id, questionType: type, questionText: "Summarize the passage in your own words.", description: "", options: { passage: "Enter the source passage here.", max_words: 30, sample_answer: "A concise summary." }, correctAnswer: true, assessment };
+  if (type === "INFERENCE_DETECTION") return { id, questionType: type, questionText: "What can we infer from the passage?", description: "", options: { passage: "Enter the source passage here.", A: "Option A", B: "Option B", C: "Option C", D: "Option D" }, correctAnswer: "A", assessment };
   return { id, questionType: "MCQ", questionText: "Choose the best answer.", description: "", options: { A: "Option A", B: "Option B", C: "Option C", D: "Option D" }, correctAnswer: "A", assessment };
 }
 
@@ -904,6 +906,35 @@ function questionToPreviewActivity(question: BuilderQuestion) {
 
 function QuestionFields({ question, onChange }: { question: BuilderQuestion; onChange: (patch: Partial<BuilderQuestion>) => void }) {
   const options = asRecord(question.options);
+
+  if (question.questionType === "INFERENCE_DETECTION") {
+    return (
+      <div className="grid gap-3">
+        <label className="text-sm font-medium">
+          Passage
+          <textarea
+            rows={6}
+            value={String(options.passage ?? "")}
+            onChange={(event) => onChange({ options: { ...options, passage: event.target.value } as Json })}
+            placeholder="Enter the source passage text..."
+            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+          />
+        </label>
+        {["A", "B", "C", "D"].map((key) => (
+          <label key={key} className="text-sm">
+            Option {key}
+            <input value={String(options[key] ?? "")} onChange={(event) => onChange({ options: { ...options, [key]: event.target.value } as Json })} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+          </label>
+        ))}
+        <label className="text-sm">
+          Correct answer
+          <select value={String(question.correctAnswer ?? "A")} onChange={(event) => onChange({ correctAnswer: event.target.value })} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">
+            {["A", "B", "C", "D"].map((key) => <option key={key} value={key}>Option {key}</option>)}
+          </select>
+        </label>
+      </div>
+    );
+  }
 
   if (question.questionType === "MCQ" || question.questionType === "MULTIPLE_SELECT") {
     const correct = Array.isArray(question.correctAnswer) ? question.correctAnswer.map(String) : [String(question.correctAnswer ?? "A")];

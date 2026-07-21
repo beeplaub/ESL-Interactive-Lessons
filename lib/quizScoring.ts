@@ -14,7 +14,8 @@ export type ScoredQuestion = {
     | "DRAG_DROP"
     | "CATEGORIZATION"
     | "PRONUNCIATION"
-    | "SUMMARIZATION";
+    | "SUMMARIZATION"
+    | "INFERENCE_DETECTION";
   options: Json | null;
   correct_answer: Json;
   max_points?: number | null;
@@ -91,7 +92,7 @@ export function scoreQuestions(questions: ScoredQuestion[], answers: Record<stri
 }
 
 export function isCorrect(question: ScoredQuestion, value: unknown): boolean {
-  if (question.question_type === "MCQ") {
+  if (question.question_type === "MCQ" || question.question_type === "INFERENCE_DETECTION") {
     return normalizeAnswer(value) === normalizeAnswer(question.correct_answer);
   }
 

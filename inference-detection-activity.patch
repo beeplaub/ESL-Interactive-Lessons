@@ -1,0 +1,466 @@
+diff --git a/app/admin/lessons/actions.ts b/app/admin/lessons/actions.ts
+index 0982c20..f22a857 100644
+--- a/app/admin/lessons/actions.ts
++++ b/app/admin/lessons/actions.ts
+@@ -1521,6 +1521,7 @@ function defaultActivityPrompt(activityType: string) {
+   if (activityType === "ERROR_CORRECTION") return "Find and correct the mistake.";
+   if (activityType === "PRONUNCIATION") return "Say each highlighted word clearly.";
+   if (activityType === "SUMMARIZATION") return "Summarize the passage in your own words.";
++  if (activityType === "INFERENCE_DETECTION") return "Read the passage. What can we infer?";
+   if (activityType === "AI_ROLEPLAY") return "Practice speaking English with me.";
+   return "Choose the best answer.";
+ }
+@@ -1553,6 +1554,13 @@ function defaultActivityData(activityType: string, prompt: string): Json {
+   if (activityType === "SUMMARIZATION") {
+     return { prompt, passage: "Enter the passage text here.", max_words: 30, sample_answer: "A concise summary." };
+   }
++  if (activityType === "INFERENCE_DETECTION") {
++    return {
++      prompt,
++      passage: "Enter the passage text here.",
++      questions: [{ id: 1, text: "What can we infer from the passage?", options: { A: "", B: "", C: "", D: "" }, answer: "A" }]
++    };
++  }
+   if (activityType === "REORDERING") {
+     return {
+       prompt,
+diff --git a/app/admin/quizzes/actions.ts b/app/admin/quizzes/actions.ts
+index 66a3a36..92fdc54 100644
+--- a/app/admin/quizzes/actions.ts
++++ b/app/admin/quizzes/actions.ts
+@@ -9,7 +9,7 @@ import type { Json } from "@/types/database.types";
+ const questionSchema = z.object({
+   questionId: z.string().optional(),
+   questionNumber: z.number(),
+-  questionType: z.enum(["MCQ", "TRUE_FALSE", "FILL", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "SUMMARIZATION"]),
++  questionType: z.enum(["MCQ", "TRUE_FALSE", "FILL", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "SUMMARIZATION", "INFERENCE_DETECTION"]),
+   questionText: z.string().min(1),
+   description: z.string().optional(),
+   options: z.unknown().nullable(),
+@@ -250,7 +250,7 @@ export async function updateQuizQuestion(formData: FormData) {
+   const quizId = String(formData.get("quizId"));
+   await requireQuizAccess(quizId);
+   const admin = createAdminClient();
+-  const questionType = String(formData.get("questionType")) as "MCQ" | "TRUE_FALSE" | "FILL" | "MATCHING" | "ERROR_CORRECTION" | "REORDERING" | "MULTIPLE_SELECT" | "SHORT_ANSWER" | "DRAG_DROP" | "CATEGORIZATION" | "PRONUNCIATION" | "SUMMARIZATION";
++  const questionType = String(formData.get("questionType")) as "MCQ" | "TRUE_FALSE" | "FILL" | "MATCHING" | "ERROR_CORRECTION" | "REORDERING" | "MULTIPLE_SELECT" | "SHORT_ANSWER" | "DRAG_DROP" | "CATEGORIZATION" | "PRONUNCIATION" | "SUMMARIZATION" | "INFERENCE_DETECTION";
+   const questionText = String(formData.get("questionText") ?? "");
+   const description = String(formData.get("description") ?? "").trim() || null;
+   const correctAnswerRaw = String(formData.get("correctAnswer") ?? "");
+@@ -267,7 +267,7 @@ export async function updateQuizQuestion(formData: FormData) {
+     while ((correctAnswer as string[]).length < blankCount) (correctAnswer as string[]).push("");
+   } else if (questionType === "TRUE_FALSE") {
+     correctAnswer = /^true$/i.test(correctAnswerRaw.trim());
+-  } else if (questionType === "MCQ") {
++  } else if (questionType === "MCQ" || questionType === "INFERENCE_DETECTION") {
+     options = JSON.parse(String(formData.get("options") || "{}"));
+     correctAnswer = correctAnswerRaw.trim().toUpperCase();
+   } else if (questionType === "MATCHING") {
+@@ -350,6 +350,7 @@ function defaultQuestionText(type: string) {
+   if (type === "CATEGORIZATION") return "Sort each item into the correct category.";
+   if (type === "PRONUNCIATION") return "Practise the pronunciation.";
+   if (type === "SUMMARIZATION") return "Summarize the passage in your own words.";
++  if (type === "INFERENCE_DETECTION") return "Read the passage. What can we infer?";
+   return "Choose the best answer.";
+ }
+ 
+@@ -363,6 +364,7 @@ function defaultOptions(type: string) {
+   if (type === "DRAG_DROP" || type === "CATEGORIZATION") return { targets: ["Group A", "Group B"], items: [{ id: "1", text: "Item 1" }, { id: "2", text: "Item 2" }] };
+   if (type === "PRONUNCIATION") return { level: "word", passage: "", targets: [{ id: "1", text: "comfortable", color: "#fbbf24" }], max_attempts: 3 };
+   if (type === "SUMMARIZATION") return { passage: "Read the passage and summarize it.", max_words: 30, sample_answer: "A concise summary of the passage." };
++  if (type === "INFERENCE_DETECTION") return { passage: "Enter the source passage here.", A: "Option A", B: "Option B", C: "Option C", D: "Option D" };
+   return null;
+ }
+ 
+@@ -377,5 +379,6 @@ function defaultCorrectAnswer(type: string) {
+   if (type === "DRAG_DROP" || type === "CATEGORIZATION") return { "1": "Group A", "2": "Group B" };
+   if (type === "PRONUNCIATION") return ["1"];
+   if (type === "SUMMARIZATION") return true;
++  if (type === "INFERENCE_DETECTION") return "A";
+   return "A";
+ }
+diff --git a/app/quizzes/[id]/print/page.tsx b/app/quizzes/[id]/print/page.tsx
+index 6438090..74e22b8 100644
+--- a/app/quizzes/[id]/print/page.tsx
++++ b/app/quizzes/[id]/print/page.tsx
+@@ -378,6 +378,31 @@ function renderPrintQuestion(question: QuizQuestion) {
+       );
+     }
+ 
++    case "INFERENCE_DETECTION": {
++      if (!options) return null;
++      const passage = options.passage as string | undefined;
++      return (
++        <div className="grid gap-3">
++          {passage ? (
++            <div className="bg-slate-50 border border-[#ECECF5] p-4 rounded-xl print:bg-none print:border-slate-200">
++              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Passage:</p>
++              <p className="text-sm text-slate-800 print:text-black whitespace-pre-wrap">{passage}</p>
++            </div>
++          ) : null}
++          <div className="grid gap-2 sm:grid-cols-2">
++            {Object.entries(options).filter(([key]) => key !== "passage").map(([key, val]) => (
++              <div key={key} className="flex items-start gap-2 text-sm text-slate-800">
++                <span className="grid size-5 shrink-0 place-items-center rounded-full border border-slate-300 text-[10px] font-black text-slate-600 print:border-black print:text-black">
++                  {key}
++                </span>
++                <span>{val}</span>
++              </div>
++            ))}
++          </div>
++        </div>
++      );
++    }
++
+     case "SUMMARIZATION": {
+       const passage = options?.passage as string | undefined;
+       const maxWords = Number(options?.max_words ?? 0);
+diff --git a/components/InLessonActivitiesEditor.tsx b/components/InLessonActivitiesEditor.tsx
+index 7266bbc..2e7d87d 100644
+--- a/components/InLessonActivitiesEditor.tsx
++++ b/components/InLessonActivitiesEditor.tsx
+@@ -105,6 +105,7 @@ function labelFor(type: string) {
+   if (type === "CATEGORIZATION") return "Categorization Activity";
+   if (type === "PRONUNCIATION") return "Pronunciation Practice Activity";
+   if (type === "SUMMARIZATION") return "Summarization Activity";
++  if (type === "INFERENCE_DETECTION") return "Inference Detection Activity";
+   if (type === "AI_ROLEPLAY") return "AI Conversation Roleplay";
+   return `${type.replaceAll("_", " ")} Activity`;
+ }
+@@ -183,6 +184,30 @@ function normalizeShortAnswer(data: Json | null): { prompt: string; enableAiFeed
+   };
+ }
+ 
++function normalizeInferenceDetection(data: Json | null): { prompt: string; passage: string; questions: McqQuestion[] } {
++  const record = asRecord(data);
++  const questions = Array.isArray(record.questions) ? record.questions : [];
++  return {
++    prompt: String(record.prompt ?? "Read the passage. What can we infer?"),
++    passage: String(record.passage ?? ""),
++    questions: questions.map((item, index) => {
++      const question = asRecord(item);
++      const options = asRecord(question.options);
++      return {
++        id: String(question.id ?? index + 1),
++        text: String(question.text ?? question.question_text ?? ""),
++        options: {
++          A: String(options.A ?? ""),
++          B: String(options.B ?? ""),
++          C: String(options.C ?? ""),
++          D: String(options.D ?? "")
++        },
++        answer: String(question.answer ?? question.correct_answer ?? "A")
++      };
++    })
++  };
++}
++
+ function normalizeSummarization(data: Json | null) {
+   const record = asRecord(data);
+   return {
+@@ -543,8 +568,9 @@ function ActivityPanel({
+               {activity.activity_type === "DRAG_DROP" || activity.activity_type === "CATEGORIZATION" ? <DragDropEditor activity={activity} onSave={save} /> : null}
+               {activity.activity_type === "PRONUNCIATION" ? <PronunciationEditor activity={activity} onSave={save} /> : null}
+               {activity.activity_type === "SUMMARIZATION" ? <SummarizationEditor activity={activity} onSave={save} /> : null}
++              {activity.activity_type === "INFERENCE_DETECTION" ? <InferenceDetectionEditor activity={activity} onSave={save} /> : null}
+               {activity.activity_type === "AI_ROLEPLAY" ? <AiRoleplayEditor activity={activity} onSave={save} /> : null}
+-              {!["MCQ", "GAP_FILL", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "SUMMARIZATION", "AI_ROLEPLAY"].includes(activity.activity_type) ? (
++              {!["MCQ", "GAP_FILL", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "SUMMARIZATION", "INFERENCE_DETECTION", "AI_ROLEPLAY"].includes(activity.activity_type) ? (
+                 <p className="rounded-md bg-slate-50 p-3 text-sm text-black/60">
+                   This activity type has starter data and preview support. A detailed visual editor for it will be added in the next activity-builder pass.
+                 </p>
+@@ -621,6 +647,52 @@ function McqEditor({ activity, onSave }: { activity: Activity; onSave: (data: Js
+   );
+ }
+ 
++function InferenceDetectionEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
++  const initial = useMemo(() => normalizeInferenceDetection(activity.activity_data), [activity.activity_data]);
++  const [prompt, setPrompt] = useState(initial.prompt);
++  const [passage, setPassage] = useState(initial.passage);
++  const [questions, setQuestions] = useState<McqQuestion[]>(initial.questions.length ? initial.questions : [{ id: 1, text: "", options: { A: "", B: "", C: "", D: "" }, answer: "A" }]);
++  const needsReview = !passage.trim() || questions.some((question) => !question.text.trim() || !question.answer || Object.values(question.options).some((option) => !option.trim()));
++
++  return (
++    <div className="grid gap-4">
++      <label className="text-sm font-medium">Instruction<input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
++      <label className="text-sm font-medium">
++        Passage
++        <textarea
++          rows={6}
++          value={passage}
++          onChange={(event) => setPassage(event.target.value)}
++          placeholder="Enter the source passage text..."
++          className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
++        />
++      </label>
++      <p className="text-xs text-black/45">This passage is shown above every inference question in this activity.</p>
++      {questions.map((question, index) => (
++        <div key={String(question.id)} className="rounded-md border border-black/10 p-4">
++          <div className="mb-3 flex items-center justify-between gap-3">
++            <p className="font-medium">Question {index + 1}</p>
++            <button type="button" onClick={() => setQuestions((current) => current.filter((_, itemIndex) => itemIndex !== index))} className="text-sm text-coral">Remove question</button>
++          </div>
++          <div className="grid gap-3">
++            <label className="text-sm">Question (e.g. "What can we infer about...?")<input value={question.text} onChange={(event) => setQuestions((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, text: event.target.value } : item))} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
++            <div className="grid gap-3 md:grid-cols-2">
++              {(["A", "B", "C", "D"] as const).map((letter) => (
++                <label key={letter} className="text-sm">Option {letter}<input value={question.options[letter]} onChange={(event) => setQuestions((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, options: { ...item.options, [letter]: event.target.value } } : item))} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
++              ))}
++            </div>
++            <label className="text-sm">Correct answer<select value={question.answer} onChange={(event) => setQuestions((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, answer: event.target.value } : item))} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">{["A", "B", "C", "D"].map((letter) => <option key={letter}>{letter}</option>)}</select></label>
++          </div>
++        </div>
++      ))}
++      <div className="flex flex-wrap gap-3">
++        <button type="button" onClick={() => setQuestions((current) => [...current, { id: Date.now(), text: "", options: { A: "", B: "", C: "", D: "" }, answer: "A" }])} className="rounded-md border border-black/15 px-4 py-2 text-sm">Add question</button>
++        <SaveButton onClick={() => onSave({ prompt, passage, questions: questions.map((question, index) => ({ id: index + 1, text: question.text, options: question.options, answer: question.answer })) } as Json, needsReview)} />
++      </div>
++    </div>
++  );
++}
++
+ function GapFillEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
+   const initial = useMemo(() => normalizeGap(activity.activity_data), [activity.activity_data]);
+   const [prompt, setPrompt] = useState(initial.prompt);
+diff --git a/components/LessonActivityPanel.tsx b/components/LessonActivityPanel.tsx
+index 5348ef3..a388ee5 100644
+--- a/components/LessonActivityPanel.tsx
++++ b/components/LessonActivityPanel.tsx
+@@ -55,6 +55,22 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
+       };
+     });
+   }
++  if (activityType === "INFERENCE_DETECTION") {
++    const passage = String(data.passage ?? "");
++    const questions = Array.isArray(data.questions) ? data.questions : [];
++    return questions.map((item, index) => {
++      const q = asRecord(item as Json);
++      const opts = asRecord(q.options as Json);
++      return {
++        id: String(q.id ?? index + 1),
++        question_number: Number(q.question_number ?? index + 1),
++        question_type: "INFERENCE_DETECTION",
++        question_text: String(q.question_text ?? q.text ?? ""),
++        options: { ...opts, passage } as Json,
++        correct_answer: String(q.correct_answer ?? q.answer ?? "").toUpperCase() as Json,
++      };
++    });
++  }
+   if (activityType === "MULTIPLE_SELECT") {
+     const questions = Array.isArray(data.questions) ? data.questions : [];
+     return questions.map((item, index) => {
+diff --git a/components/LessonBuilderWorkspace.tsx b/components/LessonBuilderWorkspace.tsx
+index b1eba67..3a14ba8 100644
+--- a/components/LessonBuilderWorkspace.tsx
++++ b/components/LessonBuilderWorkspace.tsx
+@@ -976,6 +976,7 @@ function SelectedSlideEditor({
+                 <option value="DRAG_DROP">Drag and Drop</option>
+                 <option value="CATEGORIZATION">Categorization</option>
+                 <option value="SUMMARIZATION">Summarization</option>
++                <option value="INFERENCE_DETECTION">Inference Detection</option>
+                 <option value="PRONUNCIATION">Pronunciation Practice</option>
+                 <option value="AI_ROLEPLAY">AI Conversation Roleplay</option>
+               </select>
+diff --git a/components/QuizPlayer.tsx b/components/QuizPlayer.tsx
+index 747386c..c233bde 100644
+--- a/components/QuizPlayer.tsx
++++ b/components/QuizPlayer.tsx
+@@ -19,7 +19,7 @@ import { computeBestStreak, NOTABLE_STREAK_THRESHOLD } from "@/lib/gamification/
+ export type QuizQuestion = {
+   id: string;
+   question_number: number;
+-  question_type: "MCQ" | "TRUE_FALSE" | "FILL" | "MATCHING" | "ERROR_CORRECTION" | "REORDERING" | "MULTIPLE_SELECT" | "SHORT_ANSWER" | "DRAG_DROP" | "CATEGORIZATION" | "PRONUNCIATION" | "SUMMARIZATION";
++  question_type: "MCQ" | "TRUE_FALSE" | "FILL" | "MATCHING" | "ERROR_CORRECTION" | "REORDERING" | "MULTIPLE_SELECT" | "SHORT_ANSWER" | "DRAG_DROP" | "CATEGORIZATION" | "PRONUNCIATION" | "SUMMARIZATION" | "INFERENCE_DETECTION";
+   question_text: string;
+   description?: string | null;
+   options: Json | null;
+@@ -165,6 +165,11 @@ function answerText(question: QuizQuestion): string {
+     const opts = asRecord(question.options);
+     return String(opts.sample_answer ?? "A concise summary of the passage.");
+   }
++  if (question.question_type === "INFERENCE_DETECTION") {
++    const opts = asRecord(question.options);
++    const key = String(question.correct_answer);
++    return `${key}. ${opts[key] ?? ""}`;
++  }
+   return "";
+ }
+ 
+@@ -667,6 +672,7 @@ export function QuestionCard({
+         {question.question_type === "SUMMARIZATION" ? <Summarization question={question} value={value as { text?: string; selfMarked?: boolean } | undefined} submitted={submitted} onChange={onChange} /> : null}
+         {question.question_type === "DRAG_DROP" || question.question_type === "CATEGORIZATION" ? <DragDrop question={question} value={(value as Record<string, string>) ?? {}} disabled={submitted} onChange={onChange} /> : null}
+         {question.question_type === "PRONUNCIATION" ? <Pronunciation question={question} value={value as PronunciationValue | undefined} disabled={submitted} onChange={onChange} /> : null}
++        {question.question_type === "INFERENCE_DETECTION" ? <InferenceDetection question={question} value={value as string | undefined} disabled={submitted} onChange={onChange} /> : null}
+       </div>
+       {stats && stats.correctCount < stats.total ? (
+         <p className={`mt-4 rounded-[14px] p-3 text-sm font-semibold ${allWrong ? "bg-[#FF5D73]/10 text-[#FF5D73]" : "bg-[#FFB545]/10 text-amber-900"}`}>
+@@ -696,6 +702,29 @@ function Mcq({ question, value, disabled, onChange }: { question: QuizQuestion;
+   );
+ }
+ 
++function InferenceDetection({ question, value, disabled, onChange }: { question: QuizQuestion; value?: string; disabled: boolean; onChange: (value: string) => void }) {
++  const options = asRecord(question.options);
++  const passage = String(options.passage ?? "");
++  const choices = Object.entries(options).filter(([key]) => key !== "passage");
++  return (
++    <div className="grid gap-4">
++      {passage ? (
++        <div className="rounded-[14px] border border-[#ECECF5] bg-[#F6F7FB] p-4 text-sm leading-6 text-[#14172B] whitespace-pre-wrap">
++          {passage}
++        </div>
++      ) : null}
++      <div className="grid gap-2">
++        {choices.map(([key, text]) => (
++          <label key={key} className="flex cursor-pointer items-center gap-3 rounded-[14px] border border-[#ECECF5] bg-[#F6F7FB] px-3 py-3 text-sm font-semibold text-[#14172B] transition hover:bg-white">
++            <input type="radio" disabled={disabled} checked={value === key} onChange={() => onChange(key)} />
++            <strong className="text-[#6C3BFF]">{key}.</strong> {String(text)}
++          </label>
++        ))}
++      </div>
++    </div>
++  );
++}
++
+ function MultipleSelect({ question, value, disabled, onChange }: { question: QuizQuestion; value?: string[]; disabled: boolean; onChange: (value: string[]) => void }) {
+   const options = asRecord(question.options);
+   const selected = value ?? [];
+diff --git a/components/QuizVisualBuilder.tsx b/components/QuizVisualBuilder.tsx
+index 3df2cc8..f93d470 100644
+--- a/components/QuizVisualBuilder.tsx
++++ b/components/QuizVisualBuilder.tsx
+@@ -49,7 +49,7 @@ type QuestionBankItem = {
+ 
+ const questionTypes: BuilderQuestion["questionType"][] = [
+   "MCQ", "TRUE_FALSE", "FILL", "MATCHING", "MULTIPLE_SELECT",
+-  "SHORT_ANSWER", "ERROR_CORRECTION", "REORDERING", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "SUMMARIZATION"
++  "SHORT_ANSWER", "ERROR_CORRECTION", "REORDERING", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "SUMMARIZATION", "INFERENCE_DETECTION"
+ ];
+ 
+ const typeLabels: Record<string, string> = {
+@@ -64,7 +64,8 @@ const typeLabels: Record<string, string> = {
+   DRAG_DROP: "Drag & Drop",
+   CATEGORIZATION: "Categorization",
+   PRONUNCIATION: "Pronunciation",
+-  SUMMARIZATION: "Summarization"
++  SUMMARIZATION: "Summarization",
++  INFERENCE_DETECTION: "Inference Detection"
+ };
+ 
+ const PRONUNCIATION_COLORS = ["#fbbf24", "#34d399", "#60a5fa", "#f472b6", "#a78bfa", "#fb923c"];
+@@ -153,6 +154,7 @@ function defaultQuestion(type: BuilderQuestion["questionType"]): BuilderQuestion
+   if (type === "CATEGORIZATION") return { id, questionType: type, questionText: "Sort each item into the correct category.", description: "", options: { targets: ["Category A", "Category B"], items: [{ id: "1", text: "Item 1" }, { id: "2", text: "Item 2" }] }, correctAnswer: { "1": "Category A", "2": "Category B" }, assessment };
+   if (type === "PRONUNCIATION") return { id, questionType: type, questionText: "Practise the pronunciation.", description: "", options: { level: "word", passage: "", targets: [{ id: "1", text: "comfortable", color: "#fbbf24" }], max_attempts: 3 }, correctAnswer: ["1"], assessment };
+   if (type === "SUMMARIZATION") return { id, questionType: type, questionText: "Summarize the passage in your own words.", description: "", options: { passage: "Enter the source passage here.", max_words: 30, sample_answer: "A concise summary." }, correctAnswer: true, assessment };
++  if (type === "INFERENCE_DETECTION") return { id, questionType: type, questionText: "What can we infer from the passage?", description: "", options: { passage: "Enter the source passage here.", A: "Option A", B: "Option B", C: "Option C", D: "Option D" }, correctAnswer: "A", assessment };
+   return { id, questionType: "MCQ", questionText: "Choose the best answer.", description: "", options: { A: "Option A", B: "Option B", C: "Option C", D: "Option D" }, correctAnswer: "A", assessment };
+ }
+ 
+@@ -905,6 +907,35 @@ function questionToPreviewActivity(question: BuilderQuestion) {
+ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onChange: (patch: Partial<BuilderQuestion>) => void }) {
+   const options = asRecord(question.options);
+ 
++  if (question.questionType === "INFERENCE_DETECTION") {
++    return (
++      <div className="grid gap-3">
++        <label className="text-sm font-medium">
++          Passage
++          <textarea
++            rows={6}
++            value={String(options.passage ?? "")}
++            onChange={(event) => onChange({ options: { ...options, passage: event.target.value } as Json })}
++            placeholder="Enter the source passage text..."
++            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
++          />
++        </label>
++        {["A", "B", "C", "D"].map((key) => (
++          <label key={key} className="text-sm">
++            Option {key}
++            <input value={String(options[key] ?? "")} onChange={(event) => onChange({ options: { ...options, [key]: event.target.value } as Json })} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
++          </label>
++        ))}
++        <label className="text-sm">
++          Correct answer
++          <select value={String(question.correctAnswer ?? "A")} onChange={(event) => onChange({ correctAnswer: event.target.value })} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">
++            {["A", "B", "C", "D"].map((key) => <option key={key} value={key}>Option {key}</option>)}
++          </select>
++        </label>
++      </div>
++    );
++  }
++
+   if (question.questionType === "MCQ" || question.questionType === "MULTIPLE_SELECT") {
+     const correct = Array.isArray(question.correctAnswer) ? question.correctAnswer.map(String) : [String(question.correctAnswer ?? "A")];
+     return (
+diff --git a/lib/quizScoring.ts b/lib/quizScoring.ts
+index daaeedb..82a4296 100644
+--- a/lib/quizScoring.ts
++++ b/lib/quizScoring.ts
+@@ -14,7 +14,8 @@ export type ScoredQuestion = {
+     | "DRAG_DROP"
+     | "CATEGORIZATION"
+     | "PRONUNCIATION"
+-    | "SUMMARIZATION";
++    | "SUMMARIZATION"
++    | "INFERENCE_DETECTION";
+   options: Json | null;
+   correct_answer: Json;
+   max_points?: number | null;
+@@ -91,7 +92,7 @@ export function scoreQuestions(questions: ScoredQuestion[], answers: Record<stri
+ }
+ 
+ export function isCorrect(question: ScoredQuestion, value: unknown): boolean {
+-  if (question.question_type === "MCQ") {
++  if (question.question_type === "MCQ" || question.question_type === "INFERENCE_DETECTION") {
+     return normalizeAnswer(value) === normalizeAnswer(question.correct_answer);
+   }
+ 
+diff --git a/supabase/migrations/028_add_inference_detection_type.sql b/supabase/migrations/028_add_inference_detection_type.sql
+new file mode 100644
+index 0000000..c3c5ad8
+--- /dev/null
++++ b/supabase/migrations/028_add_inference_detection_type.sql
+@@ -0,0 +1,45 @@
++-- 028_add_inference_detection_type.sql
++--
++-- 1) Adds the new INFERENCE_DETECTION quiz question type.
++-- 2) Fixes a pre-existing gap: the live quiz_questions_question_type_check
++--    constraint was missing SUMMARIZATION and CATEGORIZATION even though
++--    027_add_summarization_type.sql was written to add SUMMARIZATION and
++--    the app code has fully supported both for a while. This migration
++--    re-adds them defensively so the constraint matches what the app
++--    actually writes.
++
++do $$
++declare
++  constraint_name text;
++begin
++  for constraint_name in
++    select con.conname
++    from pg_constraint con
++    join pg_class rel on rel.oid = con.conrelid
++    join pg_namespace nsp on nsp.oid = rel.relnamespace
++    where nsp.nspname = 'public'
++      and rel.relname = 'quiz_questions'
++      and con.contype = 'c'
++      and pg_get_constraintdef(con.oid) ilike '%question_type%'
++  loop
++    execute format('alter table public.quiz_questions drop constraint if exists %I', constraint_name);
++  end loop;
++end $$;
++
++alter table public.quiz_questions
++  add constraint quiz_questions_question_type_check
++  check (question_type in (
++    'MCQ',
++    'TRUE_FALSE',
++    'FILL',
++    'MATCHING',
++    'ERROR_CORRECTION',
++    'REORDERING',
++    'MULTIPLE_SELECT',
++    'SHORT_ANSWER',
++    'DRAG_DROP',
++    'CATEGORIZATION',
++    'PRONUNCIATION',
++    'SUMMARIZATION',
++    'INFERENCE_DETECTION'
++  ));
