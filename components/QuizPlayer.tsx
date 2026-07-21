@@ -19,7 +19,7 @@ import { computeBestStreak, NOTABLE_STREAK_THRESHOLD } from "@/lib/gamification/
 export type QuizQuestion = {
   id: string;
   question_number: number;
-  question_type: "MCQ" | "TRUE_FALSE" | "FILL" | "MATCHING" | "ERROR_CORRECTION" | "REORDERING" | "MULTIPLE_SELECT" | "SHORT_ANSWER" | "DRAG_DROP" | "CATEGORIZATION" | "PRONUNCIATION" | "SUMMARIZATION" | "INFERENCE_DETECTION";
+  question_type: "MCQ" | "TRUE_FALSE" | "FILL" | "MATCHING" | "ERROR_CORRECTION" | "REORDERING" | "MULTIPLE_SELECT" | "SHORT_ANSWER" | "DRAG_DROP" | "CATEGORIZATION" | "PRONUNCIATION" | "SUMMARIZATION" | "INFERENCE_DETECTION" | "HEADINGS_MATCHING" | "SKIM_CHALLENGE" | "PARAPHRASE_ID";
   question_text: string;
   description?: string | null;
   options: Json | null;
@@ -89,7 +89,7 @@ export function hasAnswer(question: QuizQuestion, value: unknown): boolean {
     if (maxWords > 0 && text.split(/\s+/).filter(Boolean).length > maxWords) return false;
     return true;
   }
-  if (question.question_type === "DRAG_DROP" || question.question_type === "CATEGORIZATION") {
+  if (question.question_type === "DRAG_DROP" || question.question_type === "CATEGORIZATION" || question.question_type === "HEADINGS_MATCHING" || question.question_type === "SKIM_CHALLENGE") {
     const correct = asRecord(question.correct_answer);
     const given = asRecord(value as Json);
     const keys = Object.keys(correct);
@@ -169,6 +169,32 @@ function answerText(question: QuizQuestion): string {
     const opts = asRecord(question.options);
     const key = String(question.correct_answer);
     return `${key}. ${opts[key] ?? ""}`;
+  }
+  if (question.question_type === "PARAPHRASE_ID") {
+    const opts = asRecord(question.options) as { choices?: Record<string, unknown> };
+    const choices = asRecord(opts.choices as Json);
+    const key = String(question.correct_answer);
+    return `${key}. ${choices[key] ?? ""}`;
+  }
+  if (question.question_type === "HEADINGS_MATCHING") {
+    const opts = asRecord(question.options) as { paragraphs?: unknown[]; headings?: unknown[] };
+    const paragraphs = Array.isArray(opts.paragraphs) ? opts.paragraphs.map((p) => asRecord(p as Json)) : [];
+    const headings = Array.isArray(opts.headings) ? opts.headings.map((h) => asRecord(h as Json)) : [];
+    const hMap = new Map(headings.map((h) => [String(h.id), String(h.text ?? "")]));
+    const correct = asRecord(question.correct_answer);
+    return Object.entries(correct).map(([pId, hId]) => `[Paragraph ${pId}]: ${hMap.get(String(hId)) ?? hId}`).join(" | ");
+  }
+  if (question.question_type === "SKIM_CHALLENGE") {
+    const opts = asRecord(question.options) as { questions?: unknown[] };
+    const subQuestions = Array.isArray(opts.questions) ? opts.questions.map((q) => asRecord(q as Json)) : [];
+    const correct = asRecord(question.correct_answer);
+    return subQuestions.map((q) => {
+      const qId = String(q.id);
+      const qText = String(q.question_text ?? "");
+      const qChoices = asRecord(q.options as Json);
+      const ansKey = String(correct[qId]);
+      return `Q: ${qText} → ${ansKey}. ${qChoices[ansKey] ?? ""}`;
+    }).join(" | ");
   }
   return "";
 }
@@ -673,6 +699,9 @@ export function QuestionCard({
         {question.question_type === "DRAG_DROP" || question.question_type === "CATEGORIZATION" ? <DragDrop question={question} value={(value as Record<string, string>) ?? {}} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "PRONUNCIATION" ? <Pronunciation question={question} value={value as PronunciationValue | undefined} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "INFERENCE_DETECTION" ? <InferenceDetection question={question} value={value as string | undefined} disabled={submitted} onChange={onChange} /> : null}
+        {question.question_type === "HEADINGS_MATCHING" ? <HeadingsMatching question={question} value={(value as Record<string, string>) ?? {}} disabled={submitted} onChange={onChange} /> : null}
+        {question.question_type === "SKIM_CHALLENGE" ? <SkimChallenge question={question} value={(value as Record<string, string>) ?? {}} disabled={submitted} onChange={onChange} /> : null}
+        {question.question_type === "PARAPHRASE_ID" ? <ParaphraseId question={question} value={value as string | undefined} disabled={submitted} onChange={onChange} /> : null}
       </div>
       {stats && stats.correctCount < stats.total ? (
         <p className={`mt-4 rounded-[14px] p-3 text-sm font-semibold ${allWrong ? "bg-[#FF5D73]/10 text-[#FF5D73]" : "bg-[#FFB545]/10 text-amber-900"}`}>
@@ -698,6 +727,270 @@ function Mcq({ question, value, disabled, onChange }: { question: QuizQuestion; 
           <strong className="text-[#6C3BFF]">{key}.</strong> {String(text)}
         </label>
       ))}
+    </div>
+  );
+}
+
+function HeadingsMatching({
+  question,
+  value,
+  disabled,
+  onChange
+}: {
+  question: QuizQuestion;
+  value: Record<string, string>;
+  disabled: boolean;
+  onChange: (value: Record<string, string>) => void;
+}) {
+  const opts = asRecord(question.options) as { paragraphs?: unknown[]; headings?: unknown[] };
+  const paragraphs = Array.isArray(opts.paragraphs) ? opts.paragraphs.map((p) => asRecord(p as Json)) : [];
+  const headings = Array.isArray(opts.headings) ? opts.headings.map((h) => asRecord(h as Json)) : [];
+  const matched = value ?? {};
+
+  function expectedFor(pId: string): string | null {
+    const correct = asRecord(question.correct_answer);
+    return correct[pId] != null ? String(correct[pId]).trim() : null;
+  }
+
+  return (
+    <div className="grid gap-4">
+      <p className="text-xs font-semibold uppercase tracking-wide text-[#A0A5BA]">Select the correct heading for each paragraph</p>
+      <div className="space-y-4">
+        {paragraphs.map((p) => {
+          const pId = String(p.id);
+          const pText = String(p.text ?? "");
+          const selectedHId = matched[pId] ?? "";
+          const expected = disabled ? expectedFor(pId) : null;
+          const isRowCorrect = disabled && expected ? selectedHId === expected : false;
+          const isRowWrong = disabled && selectedHId && expected !== null && !isRowCorrect;
+
+          return (
+            <div
+              key={pId}
+              className={`rounded-[14px] border p-4 transition-colors space-y-3 bg-white ${
+                isRowCorrect
+                  ? "border-[#00C98D] bg-[#00C98D]/5"
+                  : isRowWrong
+                  ? "border-[#FF5D73] bg-[#FF5D73]/5"
+                  : "border-[#ECECF5]"
+              }`}
+            >
+              <div className="flex items-start gap-2">
+                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-[#6C3BFF]/10 text-xs font-bold text-[#6C3BFF]">
+                  {pId}
+                </span>
+                <div className="text-sm font-semibold text-[#14172B] leading-relaxed whitespace-pre-wrap">{pText}</div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-3">
+                <label className="text-xs font-bold uppercase tracking-wider text-[#6E738D]">Heading:</label>
+                <select
+                  disabled={disabled}
+                  value={selectedHId}
+                  onChange={(e) => {
+                    const next = { ...matched, [pId]: e.target.value };
+                    if (!e.target.value) delete next[pId];
+                    onChange(next);
+                  }}
+                  className={`rounded-lg border px-3 py-1.5 text-sm font-semibold outline-none transition bg-white ${
+                    isRowCorrect
+                      ? "border-[#00C98D] text-[#00A977]"
+                      : isRowWrong
+                      ? "border-[#FF5D73] text-[#FF5D73]"
+                      : "border-[#ECECF5] focus:border-[#6C3BFF]"
+                  }`}
+                >
+                  <option value="">-- Choose Heading --</option>
+                  {headings.map((h) => (
+                    <option key={String(h.id)} value={String(h.id)}>
+                      Heading {String(h.id)}: {String(h.text ?? "")}
+                    </option>
+                  ))}
+                </select>
+                {disabled && expected ? (
+                  <span className="text-xs font-bold text-[#6E738D]">
+                    Correct: Heading {expected}
+                  </span>
+                ) : null}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function SkimChallenge({
+  question,
+  value,
+  disabled,
+  onChange
+}: {
+  question: QuizQuestion;
+  value: Record<string, string>;
+  disabled: boolean;
+  onChange: (value: Record<string, string>) => void;
+}) {
+  const opts = asRecord(question.options) as { passage?: string; time_limit_seconds?: number; questions?: unknown[] };
+  const passage = String(opts.passage ?? "");
+  const timeLimit = Number(opts.time_limit_seconds ?? 45);
+  const subQuestions = Array.isArray(opts.questions) ? opts.questions.map((q) => asRecord(q as Json)) : [];
+  const matched = value ?? {};
+
+  const [isReading, setIsReading] = useState(!disabled && Object.keys(matched).length === 0);
+  const [timeLeft, setTimeLeft] = useState(timeLimit);
+
+  useEffect(() => {
+    if (!isReading || disabled) return;
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          setIsReading(false);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [isReading, disabled]);
+
+  if (isReading) {
+    return (
+      <div className="grid gap-4">
+        <div className="flex items-center justify-between border-b border-[#ECECF5] pb-3">
+          <div className="flex items-center gap-2">
+            <span className="animate-pulse size-3 rounded-full bg-[#FF5D73]" />
+            <span className="text-sm font-bold text-[#FF5D73]">Reading Time Remaining: {timeLeft}s</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsReading(false)}
+            className="rounded-lg bg-[#6C3BFF] px-4 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-[#592ecc] transition"
+          >
+            I'm Ready for Questions
+          </button>
+        </div>
+        <div className="rounded-[14px] border border-[#ECECF5] bg-[#F6F7FB] p-5 text-sm font-semibold leading-7 text-[#14172B] whitespace-pre-wrap">
+          {passage}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid gap-4">
+      {passage ? (
+        <details className="rounded-[14px] border border-[#ECECF5] bg-[#F6F7FB] p-3 text-sm animate-fade-in" open={disabled}>
+          <summary className="cursor-pointer font-bold text-[#6E738D] select-none">Show/Hide Passage</summary>
+          <div className="mt-3 leading-7 text-[#14172B] whitespace-pre-wrap font-semibold border-t border-[#ECECF5] pt-3">{passage}</div>
+        </details>
+      ) : null}
+
+      <div className="space-y-4">
+        {subQuestions.map((q) => {
+          const qId = String(q.id);
+          const qText = String(q.question_text ?? "");
+          const choices = asRecord(q.options as Json);
+          const selectedVal = matched[qId] ?? "";
+          const correctAns = asRecord(question.correct_answer)[qId];
+
+          return (
+            <div key={qId} className="space-y-2 rounded-[14px] border border-[#ECECF5] p-4 bg-white">
+              <p className="text-sm font-bold text-[#14172B]">{qText}</p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {Object.entries(choices).map(([key, text]) => {
+                  const isSelected = selectedVal === key;
+                  const isCorrectChoice = disabled && correctAns === key;
+                  const isWrongChoice = disabled && isSelected && correctAns !== key;
+
+                  return (
+                    <label
+                      key={key}
+                      className={`flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 text-xs font-bold transition ${
+                        isCorrectChoice
+                          ? "border-[#00C98D] bg-[#00C98D]/10 text-[#00A977]"
+                          : isWrongChoice
+                          ? "border-[#FF5D73] bg-[#FF5D73]/10 text-[#FF5D73]"
+                          : isSelected
+                          ? "border-[#6C3BFF] bg-[#6C3BFF]/5 text-[#6C3BFF]"
+                          : "border-[#ECECF5] bg-[#F6F7FB] text-[#14172B] hover:bg-white"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        disabled={disabled}
+                        name={`skim-${question.id}-${qId}`}
+                        checked={isSelected}
+                        onChange={() => onChange({ ...matched, [qId]: key })}
+                        className="accent-[#6C3BFF]"
+                      />
+                      <span>{key}. {String(text)}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function ParaphraseId({
+  question,
+  value,
+  disabled,
+  onChange
+}: {
+  question: QuizQuestion;
+  value?: string;
+  disabled: boolean;
+  onChange: (value: string) => void;
+}) {
+  const opts = asRecord(question.options) as { passage?: string; choices?: Record<string, unknown> };
+  const passage = String(opts.passage ?? "");
+  const choices = Object.entries(asRecord(opts.choices as Json));
+  return (
+    <div className="grid gap-4">
+      {passage ? (
+        <div className="rounded-[14px] border border-[#ECECF5] bg-[#F6F7FB] p-4 text-sm font-semibold leading-7 text-[#14172B] whitespace-pre-wrap">
+          {passage}
+        </div>
+      ) : null}
+      <div className="grid gap-2">
+        {choices.map(([key, text]) => {
+          const isSelected = value === key;
+          const isCorrectChoice = disabled && question.correct_answer === key;
+          const isWrongChoice = disabled && isSelected && question.correct_answer !== key;
+
+          return (
+            <label
+              key={key}
+              className={`flex cursor-pointer items-center gap-3 rounded-[14px] border px-3 py-3 text-sm font-semibold transition ${
+                isCorrectChoice
+                  ? "border-[#00C98D] bg-[#00C98D]/10 text-[#00A977]"
+                  : isWrongChoice
+                  ? "border-[#FF5D73] bg-[#FF5D73]/10 text-[#FF5D73]"
+                  : isSelected
+                  ? "border-[#6C3BFF] bg-[#6C3BFF]/5 text-[#6C3BFF]"
+                  : "border-[#ECECF5] bg-[#F6F7FB] text-[#14172B] hover:bg-white"
+              }`}
+            >
+              <input
+                type="radio"
+                disabled={disabled}
+                checked={isSelected}
+                onChange={() => onChange(key)}
+                className="accent-[#6C3BFF]"
+              />
+              <strong className="text-[#6C3BFF]">{key}.</strong> {String(text)}
+            </label>
+          );
+        })}
+      </div>
     </div>
   );
 }

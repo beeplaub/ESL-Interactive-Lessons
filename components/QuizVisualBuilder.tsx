@@ -49,7 +49,8 @@ type QuestionBankItem = {
 
 const questionTypes: BuilderQuestion["questionType"][] = [
   "MCQ", "TRUE_FALSE", "FILL", "MATCHING", "MULTIPLE_SELECT",
-  "SHORT_ANSWER", "ERROR_CORRECTION", "REORDERING", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "SUMMARIZATION", "INFERENCE_DETECTION"
+  "SHORT_ANSWER", "ERROR_CORRECTION", "REORDERING", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "SUMMARIZATION", "INFERENCE_DETECTION",
+  "HEADINGS_MATCHING", "SKIM_CHALLENGE", "PARAPHRASE_ID"
 ];
 
 const typeLabels: Record<string, string> = {
@@ -65,7 +66,10 @@ const typeLabels: Record<string, string> = {
   CATEGORIZATION: "Categorization",
   PRONUNCIATION: "Pronunciation",
   SUMMARIZATION: "Summarization",
-  INFERENCE_DETECTION: "Inference Detection"
+  INFERENCE_DETECTION: "Inference Detection",
+  HEADINGS_MATCHING: "Headings Matching",
+  SKIM_CHALLENGE: "Skimming Challenge",
+  PARAPHRASE_ID: "Paraphrase Identification"
 };
 
 const PRONUNCIATION_COLORS = ["#fbbf24", "#34d399", "#60a5fa", "#f472b6", "#a78bfa", "#fb923c"];
@@ -155,6 +159,9 @@ function defaultQuestion(type: BuilderQuestion["questionType"]): BuilderQuestion
   if (type === "PRONUNCIATION") return { id, questionType: type, questionText: "Practise the pronunciation.", description: "", options: { level: "word", passage: "", targets: [{ id: "1", text: "comfortable", color: "#fbbf24" }], max_attempts: 3 }, correctAnswer: ["1"], assessment };
   if (type === "SUMMARIZATION") return { id, questionType: type, questionText: "Summarize the passage in your own words.", description: "", options: { passage: "Enter the source passage here.", max_words: 30, sample_answer: "A concise summary." }, correctAnswer: true, assessment };
   if (type === "INFERENCE_DETECTION") return { id, questionType: type, questionText: "What can we infer from the passage?", description: "", options: { passage: "Enter the source passage here.", A: "Option A", B: "Option B", C: "Option C", D: "Option D" }, correctAnswer: "A", assessment };
+  if (type === "HEADINGS_MATCHING") return { id, questionType: type, questionText: "Match the paragraphs to the correct headings.", description: "", options: { paragraphs: [{ id: "A", text: "Paragraph A text" }, { id: "B", text: "Paragraph B text" }], headings: [{ id: "1", text: "Heading 1" }, { id: "2", text: "Heading 2" }, { id: "3", text: "Distractor heading" }] }, correctAnswer: { A: "1", B: "2" }, assessment };
+  if (type === "SKIM_CHALLENGE") return { id, questionType: type, questionText: "Skimming Challenge", description: "", options: { passage: "Enter the passage to skim here.", time_limit_seconds: 45, questions: [{ id: "1", question_text: "What is the main idea?", options: { A: "Option A", B: "Option B", C: "Option C", D: "Option D" } }] }, correctAnswer: { "1": "A" }, assessment };
+  if (type === "PARAPHRASE_ID") return { id, questionType: type, questionText: "Which option best paraphrases the text?", description: "", options: { passage: "Enter the source text here.", choices: { A: "Paraphrase A", B: "Paraphrase B", C: "Paraphrase C", D: "Paraphrase D" } }, correctAnswer: "A", assessment };
   return { id, questionType: "MCQ", questionText: "Choose the best answer.", description: "", options: { A: "Option A", B: "Option B", C: "Option C", D: "Option D" }, correctAnswer: "A", assessment };
 }
 
@@ -212,7 +219,7 @@ function normalizeInitialQuestion(question: {
 
 function questionPointSuggestion(type: string, correctAnswer: Json) {
   if (["FILL", "PRONUNCIATION"].includes(type) && Array.isArray(correctAnswer)) return Math.max(1, correctAnswer.length);
-  if (["DRAG_DROP", "CATEGORIZATION"].includes(type)) return Math.max(1, Object.keys(asRecord(correctAnswer)).length);
+  if (["DRAG_DROP", "CATEGORIZATION", "HEADINGS_MATCHING", "SKIM_CHALLENGE"].includes(type)) return Math.max(1, Object.keys(asRecord(correctAnswer)).length);
   return 1;
 }
 
@@ -889,6 +896,43 @@ function questionToPreviewActivity(question: BuilderQuestion) {
       } as Json
     };
   }
+  if (question.questionType === "HEADINGS_MATCHING") {
+    return {
+      id: question.id,
+      activity_type: "HEADINGS_MATCHING",
+      activity_data: {
+        prompt: question.questionText,
+        paragraphs: Array.isArray(options.paragraphs) ? options.paragraphs : [],
+        headings: Array.isArray(options.headings) ? options.headings : [],
+        correct_answer: question.correctAnswer
+      } as Json
+    };
+  }
+  if (question.questionType === "SKIM_CHALLENGE") {
+    return {
+      id: question.id,
+      activity_type: "SKIM_CHALLENGE",
+      activity_data: {
+        prompt: question.questionText,
+        passage: String(options.passage ?? ""),
+        time_limit_seconds: Number(options.time_limit_seconds ?? 45),
+        questions: Array.isArray(options.questions) ? options.questions : [],
+        correct_answer: question.correctAnswer
+      } as Json
+    };
+  }
+  if (question.questionType === "PARAPHRASE_ID") {
+    return {
+      id: question.id,
+      activity_type: "PARAPHRASE_ID",
+      activity_data: {
+        prompt: question.questionText,
+        passage: String(options.passage ?? ""),
+        choices: asRecord(options.choices as Json),
+        correct_answer: question.correctAnswer
+      } as Json
+    };
+  }
   return {
     id: question.id,
     activity_type: question.questionType,
@@ -1204,6 +1248,121 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
         <p className="rounded-md border border-black/10 bg-slate-50 p-3 text-xs text-black/55">
           Self-checked activity — learners write a summary, compare it to your model answer, then mark themselves.
         </p>
+      </div>
+    );
+  }
+
+  if (question.questionType === "HEADINGS_MATCHING") {
+    const paragraphs = Array.isArray(options.paragraphs) ? options.paragraphs.map((p) => asRecord(p as Json)) : [];
+    const headings = Array.isArray(options.headings) ? options.headings.map((h) => asRecord(h as Json)) : [];
+    const correct = asRecord(question.correctAnswer);
+
+    function updateParagraphs(next: unknown[]) {
+      onChange({ options: { ...options, paragraphs: next } as Json });
+    }
+    function updateHeadings(next: unknown[]) {
+      onChange({ options: { ...options, headings: next } as Json });
+    }
+
+    return (
+      <div className="grid gap-3">
+        <p className="text-sm font-medium">Paragraphs</p>
+        {paragraphs.map((p, idx) => (
+          <div key={idx} className="rounded-md border border-black/10 p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-indigo-600">Paragraph {String(p.id ?? String.fromCharCode(65 + idx))}</span>
+              {paragraphs.length > 1 ? <button type="button" onClick={() => { const next = paragraphs.filter((_, i) => i !== idx); updateParagraphs(next); const nextCorrect = { ...correct }; delete nextCorrect[String(p.id)]; onChange({ correctAnswer: nextCorrect as Json }); }} className="text-xs text-coral">Remove</button> : null}
+            </div>
+            <textarea rows={3} value={String(p.text ?? "")} onChange={(e) => { const next = [...paragraphs]; next[idx] = { ...p, text: e.target.value }; updateParagraphs(next); }} placeholder="Paragraph text..." className="w-full rounded border border-black/15 p-2 text-xs" />
+            <div className="flex items-center gap-2">
+              <label className="text-xs text-[#6E738D]">Correct Heading:</label>
+              <select value={String(correct[String(p.id)] ?? "")} onChange={(e) => onChange({ correctAnswer: { ...correct, [String(p.id)]: e.target.value } as Json })} className="rounded border px-2 py-0.5 text-xs">
+                <option value="">--</option>
+                {headings.map((h) => <option key={String(h.id)} value={String(h.id)}>Heading {String(h.id)}</option>)}
+              </select>
+            </div>
+          </div>
+        ))}
+        <button type="button" onClick={() => updateParagraphs([...paragraphs, { id: String.fromCharCode(65 + paragraphs.length), text: "" }])} className="rounded border border-dashed border-black/15 py-1.5 text-xs">+ Add Paragraph</button>
+
+        <p className="text-sm font-medium mt-2">Headings (include distractors)</p>
+        {headings.map((h, idx) => (
+          <div key={idx} className="flex items-center gap-2">
+            <span className="text-xs font-bold text-amber-600 shrink-0">Heading {String(h.id ?? idx + 1)}</span>
+            <input value={String(h.text ?? "")} onChange={(e) => { const next = [...headings]; next[idx] = { ...h, text: e.target.value }; updateHeadings(next); }} className="flex-1 rounded border border-black/15 px-2 py-1 text-xs" />
+            {headings.length > 1 ? <button type="button" onClick={() => updateHeadings(headings.filter((_, i) => i !== idx))} className="text-xs text-coral">×</button> : null}
+          </div>
+        ))}
+        <button type="button" onClick={() => updateHeadings([...headings, { id: String(headings.length + 1), text: "" }])} className="rounded border border-dashed border-black/15 py-1.5 text-xs">+ Add Heading</button>
+      </div>
+    );
+  }
+
+  if (question.questionType === "SKIM_CHALLENGE") {
+    const subQuestions = Array.isArray(options.questions) ? options.questions.map((q) => asRecord(q as Json)) : [];
+    const correct = asRecord(question.correctAnswer);
+
+    function updateSubQuestions(next: unknown[]) {
+      onChange({ options: { ...options, questions: next } as Json });
+    }
+
+    return (
+      <div className="grid gap-3">
+        <label className="text-sm font-medium">
+          Passage to Skim
+          <textarea rows={6} value={String(options.passage ?? "")} onChange={(e) => onChange({ options: { ...options, passage: e.target.value } as Json })} placeholder="Enter the source passage..." className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm" />
+        </label>
+        <label className="text-sm font-medium">
+          Reading time limit (seconds)
+          <input type="number" min={5} value={Number(options.time_limit_seconds ?? 45)} onChange={(e) => onChange({ options: { ...options, time_limit_seconds: Math.max(5, Number(e.target.value) || 45) } as Json })} className="mt-1 w-32 rounded-md border border-black/15 px-3 py-2" />
+        </label>
+        <p className="text-sm font-medium">Comprehension Questions</p>
+        {subQuestions.map((q, idx) => {
+          const qId = String(q.id ?? idx + 1);
+          const qOpts = asRecord(q.options as Json);
+          return (
+            <div key={idx} className="rounded-md border border-black/10 p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold">Q{idx + 1}</span>
+                {subQuestions.length > 1 ? <button type="button" onClick={() => { const next = subQuestions.filter((_, i) => i !== idx); updateSubQuestions(next); const nextCorrect = { ...correct }; delete nextCorrect[qId]; onChange({ correctAnswer: nextCorrect as Json }); }} className="text-xs text-coral">Remove</button> : null}
+              </div>
+              <input value={String(q.question_text ?? "")} onChange={(e) => { const next = [...subQuestions]; next[idx] = { ...q, question_text: e.target.value }; updateSubQuestions(next); }} placeholder="Question text" className="w-full rounded border border-black/15 px-2 py-1 text-xs" />
+              <div className="grid gap-1 grid-cols-2">
+                {["A", "B", "C", "D"].map((k) => (
+                  <input key={k} value={String(qOpts[k] ?? "")} onChange={(e) => { const next = [...subQuestions]; next[idx] = { ...q, options: { ...qOpts, [k]: e.target.value } }; updateSubQuestions(next); }} placeholder={`Option ${k}`} className="rounded border border-black/15 px-2 py-1 text-xs" />
+                ))}
+              </div>
+              <select value={String(correct[qId] ?? "A")} onChange={(e) => onChange({ correctAnswer: { ...correct, [qId]: e.target.value } as Json })} className="rounded border px-2 py-0.5 text-xs">
+                {["A", "B", "C", "D"].map((k) => <option key={k} value={k}>{k}</option>)}
+              </select>
+            </div>
+          );
+        })}
+        <button type="button" onClick={() => { const nextId = String(subQuestions.length + 1); updateSubQuestions([...subQuestions, { id: nextId, question_text: "", options: { A: "", B: "", C: "", D: "" } }]); onChange({ correctAnswer: { ...correct, [nextId]: "A" } as Json }); }} className="rounded border border-dashed border-black/15 py-1.5 text-xs">+ Add Question</button>
+      </div>
+    );
+  }
+
+  if (question.questionType === "PARAPHRASE_ID") {
+    const choices = asRecord(options.choices as Json);
+    return (
+      <div className="grid gap-3">
+        <label className="text-sm font-medium">
+          Passage to Paraphrase
+          <textarea rows={4} value={String(options.passage ?? "")} onChange={(e) => onChange({ options: { ...options, passage: e.target.value } as Json })} placeholder="Enter the source text..." className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm" />
+        </label>
+        {["A", "B", "C", "D"].map((key) => (
+          <label key={key} className="text-sm">
+            Option {key}
+            <input value={String(choices[key] ?? "")} onChange={(e) => onChange({ options: { ...options, choices: { ...choices, [key]: e.target.value } } as Json })} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+          </label>
+        ))}
+        <label className="text-sm">
+          Correct answer
+          <select value={String(question.correctAnswer ?? "A")} onChange={(e) => onChange({ correctAnswer: e.target.value })} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">
+            {["A", "B", "C", "D"].map((key) => <option key={key} value={key}>Option {key}</option>)}
+          </select>
+        </label>
       </div>
     );
   }

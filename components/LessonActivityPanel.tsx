@@ -126,6 +126,46 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
       correct_answer: true as Json,
     }];
   }
+  if (activityType === "HEADINGS_MATCHING") {
+    const paragraphs = Array.isArray(data.paragraphs) ? data.paragraphs.map((p) => asRecord(p as Json)) : [];
+    const headings = Array.isArray(data.headings) ? data.headings.map((h) => asRecord(h as Json)) : [];
+    const correctAnswer = asRecord(data.correct_answer as Json);
+    return [{
+      id: "1",
+      question_number: 1,
+      question_type: "HEADINGS_MATCHING",
+      question_text: String(data.prompt ?? "Match the paragraphs to the correct headings."),
+      options: { paragraphs, headings } as Json,
+      correct_answer: correctAnswer as Json,
+    }];
+  }
+  if (activityType === "SKIM_CHALLENGE") {
+    const passage = String(data.passage ?? "");
+    const timeLimit = Number(data.time_limit_seconds ?? 45);
+    const subQuestions = Array.isArray(data.questions) ? data.questions.map((q) => asRecord(q as Json)) : [];
+    const correctAnswer = asRecord(data.correct_answer as Json);
+    return [{
+      id: "1",
+      question_number: 1,
+      question_type: "SKIM_CHALLENGE",
+      question_text: String(data.prompt ?? "Skimming Challenge"),
+      options: { passage, time_limit_seconds: timeLimit, questions: subQuestions } as Json,
+      correct_answer: correctAnswer as Json,
+    }];
+  }
+  if (activityType === "PARAPHRASE_ID") {
+    const passage = String(data.passage ?? "");
+    const choices = asRecord(data.choices as Json);
+    const correctAnswer = String(data.correct_answer ?? "");
+    return [{
+      id: "1",
+      question_number: 1,
+      question_type: "PARAPHRASE_ID",
+      question_text: String(data.prompt ?? "Choose the option that best paraphrases the text."),
+      options: { passage, choices } as Json,
+      correct_answer: correctAnswer as Json,
+    }];
+  }
   if (activityType === "DRAG_DROP") {
     const rawItems: unknown[] = Array.isArray(data.items) ? data.items : [];
     const items = rawItems.map((item, index) => {
@@ -340,6 +380,9 @@ function activityLabel(type: string) {
   if (type === "CATEGORIZATION") return "Categorization";
   if (type === "PRONUNCIATION") return "Pronunciation Practice";
   if (type === "SUMMARIZATION") return "Summarization";
+  if (type === "HEADINGS_MATCHING") return "Headings Matching";
+  if (type === "SKIM_CHALLENGE") return "Skimming Challenge";
+  if (type === "PARAPHRASE_ID") return "Paraphrase Identification";
   if (type === "AI_ROLEPLAY") return "AI Conversation Roleplay";
   return "Activity";
 }

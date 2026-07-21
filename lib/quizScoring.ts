@@ -15,7 +15,10 @@ export type ScoredQuestion = {
     | "CATEGORIZATION"
     | "PRONUNCIATION"
     | "SUMMARIZATION"
-    | "INFERENCE_DETECTION";
+    | "INFERENCE_DETECTION"
+    | "HEADINGS_MATCHING"
+    | "SKIM_CHALLENGE"
+    | "PARAPHRASE_ID";
   options: Json | null;
   correct_answer: Json;
   max_points?: number | null;
@@ -30,7 +33,7 @@ export function normalizeAnswer(value: unknown) {
 }
 
 function baseQuestionTotal(question: ScoredQuestion): number {
-  if (question.question_type === "DRAG_DROP" || question.question_type === "CATEGORIZATION") {
+  if (question.question_type === "DRAG_DROP" || question.question_type === "CATEGORIZATION" || question.question_type === "HEADINGS_MATCHING" || question.question_type === "SKIM_CHALLENGE") {
     return Object.keys(asRecord(question.correct_answer)).length || 1;
   }
 
@@ -51,7 +54,7 @@ export function questionTotal(question: ScoredQuestion): number {
 }
 
 function baseQuestionScore(question: ScoredQuestion, answer: unknown): number {
-  if (question.question_type === "DRAG_DROP" || question.question_type === "CATEGORIZATION") {
+  if (question.question_type === "DRAG_DROP" || question.question_type === "CATEGORIZATION" || question.question_type === "HEADINGS_MATCHING" || question.question_type === "SKIM_CHALLENGE") {
     const correct = asRecord(question.correct_answer);
     const given = asRecord(answer as Json);
     return Object.keys(correct).filter((itemId) => normalizeAnswer(given[itemId]) === normalizeAnswer(correct[itemId])).length;
@@ -92,8 +95,15 @@ export function scoreQuestions(questions: ScoredQuestion[], answers: Record<stri
 }
 
 export function isCorrect(question: ScoredQuestion, value: unknown): boolean {
-  if (question.question_type === "MCQ" || question.question_type === "INFERENCE_DETECTION") {
+  if (question.question_type === "MCQ" || question.question_type === "INFERENCE_DETECTION" || question.question_type === "PARAPHRASE_ID") {
     return normalizeAnswer(value) === normalizeAnswer(question.correct_answer);
+  }
+
+  if (question.question_type === "HEADINGS_MATCHING" || question.question_type === "SKIM_CHALLENGE") {
+    const correct = asRecord(question.correct_answer);
+    const given = asRecord(value as Json);
+    const keys = Object.keys(correct);
+    return keys.length > 0 && keys.every((itemId) => normalizeAnswer(given[itemId]) === normalizeAnswer(correct[itemId]));
   }
 
   if (question.question_type === "TRUE_FALSE") {
@@ -169,7 +179,7 @@ export function isCorrect(question: ScoredQuestion, value: unknown): boolean {
 }
 
 export function partialCreditStats(question: ScoredQuestion, value: unknown): { correctCount: number; total: number } | null {
-  if (!["DRAG_DROP", "CATEGORIZATION", "FILL", "PRONUNCIATION"].includes(question.question_type)) return null;
+  if (!["DRAG_DROP", "CATEGORIZATION", "FILL", "PRONUNCIATION", "HEADINGS_MATCHING", "SKIM_CHALLENGE"].includes(question.question_type)) return null;
   return {
     correctCount: questionScore(question, value),
     total: questionTotal(question),

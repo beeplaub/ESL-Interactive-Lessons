@@ -6,7 +6,7 @@ export type OverviewStatus = "correct" | "incorrect" | "pending";
 /** Minimum best streak worth celebrating with the floating popup. */
 export const NOTABLE_STREAK_THRESHOLD = 3;
 
-const PARTIAL_CREDIT_TYPES = new Set(["DRAG_DROP", "CATEGORIZATION", "FILL", "PRONUNCIATION"]);
+const PARTIAL_CREDIT_TYPES = new Set(["DRAG_DROP", "CATEGORIZATION", "FILL", "PRONUNCIATION", "HEADINGS_MATCHING", "SKIM_CHALLENGE"]);
 
 /**
  * Classifies one question for the results overview grid. Deliberately binary (correct/incorrect)

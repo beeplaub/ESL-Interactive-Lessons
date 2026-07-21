@@ -423,6 +423,103 @@ function renderPrintQuestion(question: QuizQuestion) {
       );
     }
 
+    case "HEADINGS_MATCHING": {
+      if (!options) return null;
+      const paragraphs = (options.paragraphs ?? []) as Array<{ id: string; text: string }>;
+      const headings = (options.headings ?? []) as Array<{ id: string; text: string }>;
+
+      return (
+        <div className="space-y-4">
+          <div className="bg-slate-50 border border-[#ECECF5] p-4 rounded-xl print:bg-none print:border-slate-200">
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Headings:</p>
+            <div className="grid gap-2">
+              {headings.map((h) => (
+                <div key={h.id} className="text-sm text-slate-800 print:text-black">
+                  <span className="font-bold text-indigo-600 mr-2">{h.id}.</span>
+                  {h.text}
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-3">
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Paragraphs (Match the heading number above):</p>
+            {paragraphs.map((p) => (
+              <div key={p.id} className="flex gap-4 items-start border-b border-slate-100 pb-3 print:border-slate-200">
+                <div className="flex items-center gap-1.5 font-bold text-sm shrink-0">
+                  <span>Paragraph {p.id}:</span>
+                  <span className="inline-block border border-slate-300 rounded w-10 h-6 print:border-black" />
+                </div>
+                <p className="text-sm text-slate-800 print:text-black leading-relaxed flex-1">{p.text}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    case "SKIM_CHALLENGE": {
+      if (!options) return null;
+      const passage = options.passage as string | undefined;
+      const timeLimit = Number(options.time_limit_seconds ?? 45);
+      const subQuestions = (options.questions ?? []) as Array<{ id: string; question_text: string; options: Record<string, string> }>;
+
+      return (
+        <div className="space-y-4">
+          {passage ? (
+            <div className="bg-slate-50 border border-[#ECECF5] p-4 rounded-xl print:bg-none print:border-slate-200">
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Skimming Passage ({timeLimit}s time limit):</p>
+              <p className="text-sm text-slate-800 print:text-black whitespace-pre-wrap">{passage}</p>
+            </div>
+          ) : null}
+          <div className="space-y-4 pt-2">
+            {subQuestions.map((q, idx) => {
+              const qOpts = q.options || {};
+              return (
+                <div key={q.id} className="space-y-2">
+                  <p className="text-sm font-semibold text-slate-900 print:text-black">
+                    {idx + 1}. {q.question_text}
+                  </p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {Object.entries(qOpts).map(([key, val]) => (
+                      <div key={key} className="flex items-start gap-2.5 text-sm text-slate-800 print:text-black">
+                        <span className="inline-block size-4 mt-0.5 rounded border border-slate-300 print:border-black shrink-0" />
+                        <span>{key}. {val}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+
+    case "PARAPHRASE_ID": {
+      if (!options) return null;
+      const passage = options.passage as string | undefined;
+      const choices = (options.choices ?? {}) as Record<string, string>;
+
+      return (
+        <div className="space-y-4">
+          {passage ? (
+            <div className="bg-slate-50 border border-[#ECECF5] p-4 rounded-xl print:bg-none print:border-slate-200">
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Original Text:</p>
+              <p className="text-sm text-slate-800 print:text-black whitespace-pre-wrap italic">"{passage}"</p>
+            </div>
+          ) : null}
+          <div className="grid gap-2 sm:grid-cols-2">
+            {Object.entries(choices).map(([key, val]) => (
+              <div key={key} className="flex items-start gap-2.5 text-sm text-slate-800 print:text-black">
+                <span className="inline-block size-4 mt-0.5 rounded border border-slate-300 print:border-black shrink-0" />
+                <span>{key}. {val}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
     default:
       return null;
   }
@@ -493,6 +590,22 @@ function getAnswerText(question: QuizQuestion): string {
     if (words) return words.join(", ");
     const text = (question.options as any)?.text as string | undefined;
     if (text) return text;
+  }
+
+  if (type === "HEADINGS_MATCHING" && typeof ans === "object" && ans !== null) {
+    return Object.entries(ans as Record<string, string>)
+      .map(([paraId, headingId]) => `Paragraph ${paraId} → Heading ${headingId}`)
+      .join(", ");
+  }
+
+  if (type === "SKIM_CHALLENGE" && typeof ans === "object" && ans !== null) {
+    return Object.entries(ans as Record<string, string>)
+      .map(([qId, val]) => `Q${qId}: ${val}`)
+      .join(", ");
+  }
+
+  if (type === "PARAPHRASE_ID") {
+    return String(ans);
   }
 
   if (type === "SUMMARIZATION") {

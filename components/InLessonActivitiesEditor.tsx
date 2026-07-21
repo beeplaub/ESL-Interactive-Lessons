@@ -106,6 +106,9 @@ function labelFor(type: string) {
   if (type === "PRONUNCIATION") return "Pronunciation Practice Activity";
   if (type === "SUMMARIZATION") return "Summarization Activity";
   if (type === "INFERENCE_DETECTION") return "Inference Detection Activity";
+  if (type === "HEADINGS_MATCHING") return "Headings Matching Activity";
+  if (type === "SKIM_CHALLENGE") return "Skimming Challenge Activity";
+  if (type === "PARAPHRASE_ID") return "Paraphrase Identification Activity";
   if (type === "AI_ROLEPLAY") return "AI Conversation Roleplay";
   return `${type.replaceAll("_", " ")} Activity`;
 }
@@ -215,6 +218,69 @@ function normalizeSummarization(data: Json | null) {
     passage: String(record.passage ?? ""),
     maxWords: record.max_words === null || record.max_words === undefined || Number(record.max_words) <= 0 ? 30 : Number(record.max_words),
     sampleAnswer: String(record.sample_answer ?? "")
+  };
+}
+
+function normalizeHeadingsMatching(data: Json | null) {
+  const record = asRecord(data);
+  const rawParagraphs: unknown[] = Array.isArray(record.paragraphs) ? record.paragraphs : [];
+  const rawHeadings: unknown[] = Array.isArray(record.headings) ? record.headings : [];
+  const correct = asRecord(record.correct_answer);
+
+  return {
+    prompt: String(record.prompt ?? "Match the paragraphs to the correct headings."),
+    paragraphs: rawParagraphs.map((p, index) => {
+      const row = asRecord(p);
+      return { id: String(row.id ?? String.fromCharCode(65 + index)), text: String(row.text ?? "") };
+    }),
+    headings: rawHeadings.map((h, index) => {
+      const row = asRecord(h);
+      return { id: String(row.id ?? String(index + 1)), text: String(row.text ?? "") };
+    }),
+    correctAnswer: Object.fromEntries(Object.entries(correct).map(([k, v]) => [k, String(v)])) as Record<string, string>
+  };
+}
+
+function normalizeSkimChallenge(data: Json | null) {
+  const record = asRecord(data);
+  const rawQuestions: unknown[] = Array.isArray(record.questions) ? record.questions : [];
+  const correct = asRecord(record.correct_answer);
+
+  return {
+    prompt: String(record.prompt ?? "Skimming Challenge"),
+    passage: String(record.passage ?? ""),
+    timeLimitSeconds: Number(record.time_limit_seconds ?? 45),
+    questions: rawQuestions.map((q, index) => {
+      const question = asRecord(q);
+      const options = asRecord(question.options);
+      return {
+        id: String(question.id ?? index + 1),
+        text: String(question.text ?? question.question_text ?? ""),
+        options: {
+          A: String(options.A ?? ""),
+          B: String(options.B ?? ""),
+          C: String(options.C ?? ""),
+          D: String(options.D ?? "")
+        },
+        answer: String(correct[String(question.id ?? index + 1)] ?? question.answer ?? "A")
+      };
+    })
+  };
+}
+
+function normalizeParaphraseId(data: Json | null) {
+  const record = asRecord(data);
+  const options = asRecord(record.choices);
+  return {
+    prompt: String(record.prompt ?? "Choose the option that best paraphrases the text."),
+    passage: String(record.passage ?? ""),
+    choices: {
+      A: String(options.A ?? ""),
+      B: String(options.B ?? ""),
+      C: String(options.C ?? ""),
+      D: String(options.D ?? "")
+    },
+    correctAnswer: String(record.correct_answer ?? "A")
   };
 }
 
@@ -569,8 +635,11 @@ function ActivityPanel({
               {activity.activity_type === "PRONUNCIATION" ? <PronunciationEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "SUMMARIZATION" ? <SummarizationEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "INFERENCE_DETECTION" ? <InferenceDetectionEditor activity={activity} onSave={save} /> : null}
+              {activity.activity_type === "HEADINGS_MATCHING" ? <HeadingsMatchingEditor activity={activity} onSave={save} /> : null}
+              {activity.activity_type === "SKIM_CHALLENGE" ? <SkimChallengeEditor activity={activity} onSave={save} /> : null}
+              {activity.activity_type === "PARAPHRASE_ID" ? <ParaphraseIdEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "AI_ROLEPLAY" ? <AiRoleplayEditor activity={activity} onSave={save} /> : null}
-              {!["MCQ", "GAP_FILL", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "SUMMARIZATION", "INFERENCE_DETECTION", "AI_ROLEPLAY"].includes(activity.activity_type) ? (
+              {!["MCQ", "GAP_FILL", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "SUMMARIZATION", "INFERENCE_DETECTION", "HEADINGS_MATCHING", "SKIM_CHALLENGE", "PARAPHRASE_ID", "AI_ROLEPLAY"].includes(activity.activity_type) ? (
                 <p className="rounded-md bg-slate-50 p-3 text-sm text-black/60">
                   This activity type has starter data and preview support. A detailed visual editor for it will be added in the next activity-builder pass.
                 </p>
@@ -688,6 +757,329 @@ function InferenceDetectionEditor({ activity, onSave }: { activity: Activity; on
       <div className="flex flex-wrap gap-3">
         <button type="button" onClick={() => setQuestions((current) => [...current, { id: Date.now(), text: "", options: { A: "", B: "", C: "", D: "" }, answer: "A" }])} className="rounded-md border border-black/15 px-4 py-2 text-sm">Add question</button>
         <SaveButton onClick={() => onSave({ prompt, passage, questions: questions.map((question, index) => ({ id: index + 1, text: question.text, options: question.options, answer: question.answer })) } as Json, needsReview)} />
+      </div>
+    </div>
+  );
+}
+
+function HeadingsMatchingEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
+  const initial = useMemo(() => normalizeHeadingsMatching(activity.activity_data), [activity.activity_data]);
+  const [prompt, setPrompt] = useState(initial.prompt);
+  const [paragraphs, setParagraphs] = useState<{ id: string; text: string }[]>(
+    initial.paragraphs.length ? initial.paragraphs : [{ id: "A", text: "" }]
+  );
+  const [headings, setHeadings] = useState<{ id: string; text: string }[]>(
+    initial.headings.length ? initial.headings : [{ id: "1", text: "" }]
+  );
+  const [correctAnswer, setCorrectAnswer] = useState<Record<string, string>>(initial.correctAnswer);
+
+  const needsReview = paragraphs.some((p) => !p.text.trim()) || headings.some((h) => !h.text.trim()) || paragraphs.some((p) => !correctAnswer[p.id]);
+
+  function updateParagraph(index: number, text: string) {
+    setParagraphs((current) => current.map((p, i) => (i === index ? { ...p, text } : p)));
+  }
+
+  function updateHeading(index: number, text: string) {
+    setHeadings((current) => current.map((h, i) => (i === index ? { ...h, text } : h)));
+  }
+
+  return (
+    <div className="grid gap-4">
+      <label className="text-sm font-medium">
+        Instruction / Prompt
+        <input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+      </label>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        {/* Paragraphs Panel */}
+        <div className="space-y-3 rounded-md border border-black/10 p-4">
+          <p className="font-bold text-sm text-slate-700">Paragraphs</p>
+          {paragraphs.map((p, index) => (
+            <div key={p.id} className="space-y-1 rounded border border-black/5 p-2 bg-slate-50/50">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-bold text-indigo-600">Paragraph {p.id}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setParagraphs((current) => current.filter((_, i) => i !== index));
+                    const nextCorrect = { ...correctAnswer };
+                    delete nextCorrect[p.id];
+                    setCorrectAnswer(nextCorrect);
+                  }}
+                  className="text-xs text-coral"
+                >
+                  Remove
+                </button>
+              </div>
+              <textarea
+                rows={3}
+                value={p.text}
+                onChange={(e) => updateParagraph(index, e.target.value)}
+                placeholder="Enter paragraph text..."
+                className="w-full rounded border border-black/15 p-2 text-xs"
+              />
+              <div className="flex items-center gap-2 mt-1">
+                <label className="text-xs text-[#6E738D]">Correct Heading:</label>
+                <select
+                  value={correctAnswer[p.id] ?? ""}
+                  onChange={(e) => setCorrectAnswer((prev) => ({ ...prev, [p.id]: e.target.value }))}
+                  className="rounded border px-2 py-0.5 text-xs font-semibold"
+                >
+                  <option value="">-- Select Heading --</option>
+                  {headings.map((h) => (
+                    <option key={h.id} value={h.id}>Heading {h.id}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={() => setParagraphs((current) => [...current, { id: String.fromCharCode(65 + current.length), text: "" }])}
+            className="w-full rounded border border-dashed border-black/15 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+          >
+            + Add Paragraph
+          </button>
+        </div>
+
+        {/* Headings Panel */}
+        <div className="space-y-3 rounded-md border border-black/10 p-4">
+          <p className="font-bold text-sm text-slate-700">Headings (inc. distractors)</p>
+          {headings.map((h, index) => (
+            <div key={h.id} className="space-y-1 rounded border border-black/5 p-2 bg-slate-50/50">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-bold text-amber-600">Heading {h.id}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setHeadings((current) => current.filter((_, i) => i !== index));
+                    // Clean up incorrect answer links
+                    const nextCorrect = { ...correctAnswer };
+                    Object.entries(nextCorrect).forEach(([pId, hId]) => {
+                      if (hId === h.id) delete nextCorrect[pId];
+                    });
+                    setCorrectAnswer(nextCorrect);
+                  }}
+                  className="text-xs text-coral"
+                >
+                  Remove
+                </button>
+              </div>
+              <input
+                value={h.text}
+                onChange={(e) => updateHeading(index, e.target.value)}
+                placeholder="Enter heading text..."
+                className="w-full rounded border border-black/15 p-2 text-xs"
+              />
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={() => setHeadings((current) => [...current, { id: String(current.length + 1), text: "" }])}
+            className="w-full rounded border border-dashed border-black/15 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+          >
+            + Add Heading Option
+          </button>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-3">
+        <SaveButton onClick={() => onSave({
+          prompt,
+          paragraphs,
+          headings,
+          correct_answer: correctAnswer
+        } as Json, needsReview)} />
+      </div>
+    </div>
+  );
+}
+
+function SkimChallengeEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
+  const initial = useMemo(() => normalizeSkimChallenge(activity.activity_data), [activity.activity_data]);
+  const [prompt, setPrompt] = useState(initial.prompt);
+  const [passage, setPassage] = useState(initial.passage);
+  const [timeLimitSeconds, setTimeLimitSeconds] = useState(initial.timeLimitSeconds);
+  const [questions, setQuestions] = useState<McqQuestion[]>(
+    initial.questions.length ? initial.questions : [{ id: 1, text: "", options: { A: "", B: "", C: "", D: "" }, answer: "A" }]
+  );
+
+  const needsReview = !passage.trim() || questions.some((q) => !q.text.trim() || !q.answer || Object.values(q.options).some((opt) => !opt.trim()));
+
+  function updateQuestion(index: number, patch: Partial<McqQuestion>) {
+    setQuestions((current) => current.map((item, i) => (i === index ? { ...item, ...patch } : item)));
+  }
+
+  return (
+    <div className="grid gap-4">
+      <label className="text-sm font-medium">
+        Instruction / Prompt
+        <input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+      </label>
+
+      <label className="text-sm font-medium">
+        Passage to Skim
+        <textarea
+          rows={6}
+          value={passage}
+          onChange={(event) => setPassage(event.target.value)}
+          placeholder="Enter the source passage text..."
+          className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+        />
+      </label>
+
+      <label className="text-sm font-medium">
+        Reading Time Limit (seconds)
+        <input
+          type="number"
+          min={5}
+          value={timeLimitSeconds}
+          onChange={(event) => setTimeLimitSeconds(Math.max(5, Number(event.target.value) || 45))}
+          className="mt-1 w-32 rounded-md border border-black/15 px-3 py-2 text-sm"
+        />
+      </label>
+
+      <div className="space-y-4">
+        <p className="font-bold text-sm text-slate-700">Comprehension Questions</p>
+        {questions.map((question, index) => (
+          <div key={String(question.id)} className="rounded-md border border-black/10 p-4 space-y-3 bg-white">
+            <div className="flex items-center justify-between gap-3">
+              <p className="font-medium text-xs">Question {index + 1}</p>
+              <button
+                type="button"
+                onClick={() => setQuestions((current) => current.filter((_, i) => i !== index))}
+                className="text-xs text-coral"
+              >
+                Remove
+              </button>
+            </div>
+            <label className="text-xs">
+              Question text
+              <input
+                value={question.text}
+                onChange={(e) => updateQuestion(index, { text: e.target.value })}
+                className="mt-1 w-full rounded border border-black/15 px-2 py-1.5 text-xs"
+              />
+            </label>
+            <div className="grid gap-2 md:grid-cols-2">
+              {(["A", "B", "C", "D"] as const).map((letter) => (
+                <label key={letter} className="text-xs">
+                  Option {letter}
+                  <input
+                    value={question.options[letter]}
+                    onChange={(e) => updateQuestion(index, { options: { ...question.options, [letter]: e.target.value } })}
+                    className="mt-1 w-full rounded border border-black/15 px-2 py-1.5 text-xs"
+                  />
+                </label>
+              ))}
+            </div>
+            <label className="text-xs">
+              Correct Answer
+              <select
+                value={question.answer}
+                onChange={(e) => updateQuestion(index, { answer: e.target.value })}
+                className="mt-1 w-full rounded border border-black/15 px-2 py-1.5 text-xs"
+              >
+                {["A", "B", "C", "D"].map((letter) => (
+                  <option key={letter} value={letter}>{letter}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+        ))}
+        <button
+          type="button"
+          onClick={() => setQuestions((current) => [...current, { id: Date.now(), text: "", options: { A: "", B: "", C: "", D: "" }, answer: "A" }])}
+          className="w-full rounded border border-dashed border-black/15 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+        >
+          + Add Question
+        </button>
+      </div>
+
+      <div className="flex flex-wrap gap-3">
+        <SaveButton onClick={() => {
+          const ansKey: Record<string, string> = {};
+          questions.forEach((q, idx) => {
+            ansKey[q.id || String(idx + 1)] = q.answer;
+          });
+          onSave({
+            prompt,
+            passage,
+            time_limit_seconds: timeLimitSeconds,
+            questions: questions.map((q, idx) => ({
+              id: q.id || String(idx + 1),
+              question_text: q.text,
+              options: q.options
+            })),
+            correct_answer: ansKey
+          } as Json, needsReview);
+        }} />
+      </div>
+    </div>
+  );
+}
+
+function ParaphraseIdEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
+  const initial = useMemo(() => normalizeParaphraseId(activity.activity_data), [activity.activity_data]);
+  const [prompt, setPrompt] = useState(initial.prompt);
+  const [passage, setPassage] = useState(initial.passage);
+  const [choices, setChoices] = useState<Record<string, string>>(initial.choices);
+  const [correctAnswer, setCorrectAnswer] = useState(initial.correctAnswer);
+
+  const needsReview = !passage.trim() || !correctAnswer || Object.values(choices).some((val) => !val.trim());
+
+  return (
+    <div className="grid gap-4">
+      <label className="text-sm font-medium">
+        Instruction / Prompt
+        <input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+      </label>
+
+      <label className="text-sm font-medium">
+        Passage to Paraphrase
+        <textarea
+          rows={5}
+          value={passage}
+          onChange={(event) => setPassage(event.target.value)}
+          placeholder="Enter the source sentence or paragraph to paraphrase..."
+          className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+        />
+      </label>
+
+      <div className="grid gap-3 rounded-md border border-black/10 p-4">
+        <p className="font-bold text-sm text-slate-700">Paraphrase Options</p>
+        {(["A", "B", "C", "D"] as const).map((letter) => (
+          <label key={letter} className="text-xs">
+            Option {letter}
+            <input
+              value={choices[letter]}
+              onChange={(e) => setChoices((prev) => ({ ...prev, [letter]: e.target.value }))}
+              className="mt-1 w-full rounded border border-black/15 px-2 py-1.5 text-xs"
+            />
+          </label>
+        ))}
+
+        <label className="text-sm mt-2">
+          Correct Paraphrase Option
+          <select
+            value={correctAnswer}
+            onChange={(e) => setCorrectAnswer(e.target.value)}
+            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+          >
+            {["A", "B", "C", "D"].map((letter) => (
+              <option key={letter} value={letter}>{letter}</option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <div className="flex flex-wrap gap-3">
+        <SaveButton onClick={() => onSave({
+          prompt,
+          passage,
+          choices,
+          correct_answer: correctAnswer
+        } as Json, needsReview)} />
       </div>
     </div>
   );

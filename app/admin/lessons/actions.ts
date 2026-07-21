@@ -1702,6 +1702,32 @@ async function reorderBlocks(slideId: string, orderedIds: string[]) {
 function hasMissingActivityAnswers(activityData: Json | null) {
   if (!activityData || typeof activityData !== "object" || Array.isArray(activityData)) return true;
   const data = activityData as Record<string, unknown>;
+  if ("paragraphs" in data && "headings" in data) {
+    const correct = data.correct_answer as Record<string, unknown> | null | undefined;
+    if (!correct || typeof correct !== "object") return true;
+    const paragraphs = Array.isArray(data.paragraphs) ? data.paragraphs : [];
+    if (paragraphs.length === 0) return true;
+    return paragraphs.some((p) => {
+      const pRecord = p as Record<string, unknown>;
+      const pId = String(pRecord.id ?? "");
+      return !correct[pId] || String(correct[pId]).trim() === "";
+    });
+  }
+  if ("questions" in data && "time_limit_seconds" in data) {
+    const correct = data.correct_answer as Record<string, unknown> | null | undefined;
+    if (!correct || typeof correct !== "object") return true;
+    const questions = Array.isArray(data.questions) ? data.questions : [];
+    if (questions.length === 0) return true;
+    return questions.some((q) => {
+      const qRecord = q as Record<string, unknown>;
+      const qId = String(qRecord.id ?? "");
+      return !correct[qId] || String(correct[qId]).trim() === "";
+    });
+  }
+  if ("choices" in data && "passage" in data) {
+    const correct = data.correct_answer;
+    return correct === null || correct === undefined || String(correct).trim() === "";
+  }
   if (Array.isArray(data.questions)) {
     return data.questions.length === 0 || data.questions.some((item) => {
       const question = item as Record<string, unknown>;

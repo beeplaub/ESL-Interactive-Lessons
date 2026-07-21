@@ -977,6 +977,9 @@ function SelectedSlideEditor({
                 <option value="CATEGORIZATION">Categorization</option>
                 <option value="SUMMARIZATION">Summarization</option>
                 <option value="INFERENCE_DETECTION">Inference Detection</option>
+                <option value="HEADINGS_MATCHING">Headings Matching</option>
+                <option value="SKIM_CHALLENGE">Skimming Challenge</option>
+                <option value="PARAPHRASE_ID">Paraphrase Identification</option>
                 <option value="PRONUNCIATION">Pronunciation Practice</option>
                 <option value="AI_ROLEPLAY">AI Conversation Roleplay</option>
               </select>
