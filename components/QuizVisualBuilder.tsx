@@ -160,7 +160,7 @@ function defaultQuestion(type: BuilderQuestion["questionType"]): BuilderQuestion
   if (type === "SUMMARIZATION") return { id, questionType: type, questionText: "Summarize the passage in your own words.", description: "", options: { passage: "Enter the source passage here.", max_words: 30, sample_answer: "A concise summary." }, correctAnswer: true, assessment };
   if (type === "INFERENCE_DETECTION") return { id, questionType: type, questionText: "What can we infer from the passage?", description: "", options: { passage: "Enter the source passage here.", A: "Option A", B: "Option B", C: "Option C", D: "Option D" }, correctAnswer: "A", assessment };
   if (type === "HEADINGS_MATCHING") return { id, questionType: type, questionText: "Match the paragraphs to the correct headings.", description: "", options: { paragraphs: [{ id: "A", text: "Paragraph A text" }, { id: "B", text: "Paragraph B text" }], headings: [{ id: "1", text: "Heading 1" }, { id: "2", text: "Heading 2" }, { id: "3", text: "Distractor heading" }] }, correctAnswer: { A: "1", B: "2" }, assessment };
-  if (type === "SKIM_CHALLENGE") return { id, questionType: type, questionText: "Skimming Challenge", description: "", options: { passage: "Enter the passage to skim here.", time_limit_seconds: 45, questions: [{ id: "1", question_text: "What is the main idea?", options: { A: "Option A", B: "Option B", C: "Option C", D: "Option D" } }] }, correctAnswer: { "1": "A" }, assessment };
+  if (type === "SKIM_CHALLENGE") return { id, questionType: type, questionText: "Skimming Challenge", description: "", options: { passage: "Enter the passage to skim here.", time_limit_seconds: 45, allow_passage_toggle: true, question_time_limit_seconds: 0, questions: [{ id: "1", question_text: "What is the main idea?", options: { A: "Option A", B: "Option B", C: "Option C", D: "Option D" } }] }, correctAnswer: { "1": "A" }, assessment };
   if (type === "PARAPHRASE_ID") return { id, questionType: type, questionText: "Which option best paraphrases the text?", description: "", options: { passage: "Enter the source text here.", choices: { A: "Paraphrase A", B: "Paraphrase B", C: "Paraphrase C", D: "Paraphrase D" } }, correctAnswer: "A", assessment };
   return { id, questionType: "MCQ", questionText: "Choose the best answer.", description: "", options: { A: "Option A", B: "Option B", C: "Option C", D: "Option D" }, correctAnswer: "A", assessment };
 }
@@ -916,6 +916,8 @@ function questionToPreviewActivity(question: BuilderQuestion) {
         prompt: question.questionText,
         passage: String(options.passage ?? ""),
         time_limit_seconds: Number(options.time_limit_seconds ?? 45),
+        allow_passage_toggle: options.allow_passage_toggle !== false,
+        question_time_limit_seconds: Number(options.question_time_limit_seconds ?? 0),
         questions: Array.isArray(options.questions) ? options.questions : [],
         correct_answer: question.correctAnswer
       } as Json
@@ -1312,9 +1314,24 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
           Passage to Skim
           <textarea rows={6} value={String(options.passage ?? "")} onChange={(e) => onChange({ options: { ...options, passage: e.target.value } as Json })} placeholder="Enter the source passage..." className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm" />
         </label>
-        <label className="text-sm font-medium">
-          Reading time limit (seconds)
-          <input type="number" min={5} value={Number(options.time_limit_seconds ?? 45)} onChange={(e) => onChange({ options: { ...options, time_limit_seconds: Math.max(5, Number(e.target.value) || 45) } as Json })} className="mt-1 w-32 rounded-md border border-black/15 px-3 py-2" />
+        <div className="grid gap-3 grid-cols-2">
+          <label className="text-sm font-medium">
+            Reading time limit (seconds)
+            <input type="number" min={5} value={Number(options.time_limit_seconds ?? 45)} onChange={(e) => onChange({ options: { ...options, time_limit_seconds: Math.max(5, Number(e.target.value) || 45) } as Json })} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm" />
+          </label>
+          <label className="text-sm font-medium">
+            Questions time limit (seconds, 0 for untimed)
+            <input type="number" min={0} value={Number(options.question_time_limit_seconds ?? 0)} onChange={(e) => onChange({ options: { ...options, question_time_limit_seconds: Math.max(0, Number(e.target.value) || 0) } as Json })} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm" />
+          </label>
+        </div>
+        <label className="flex items-center gap-2 text-sm font-medium text-slate-700 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={options.allow_passage_toggle !== false}
+            onChange={(e) => onChange({ options: { ...options, allow_passage_toggle: e.target.checked } as Json })}
+            className="size-4 rounded accent-[#6C3BFF]"
+          />
+          Allow learners to re-view passage ("Show/Hide Passage") while answering
         </label>
         <p className="text-sm font-medium">Comprehension Questions</p>
         {subQuestions.map((q, idx) => {

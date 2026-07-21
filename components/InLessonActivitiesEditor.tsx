@@ -250,6 +250,8 @@ function normalizeSkimChallenge(data: Json | null) {
     prompt: String(record.prompt ?? "Skimming Challenge"),
     passage: String(record.passage ?? ""),
     timeLimitSeconds: Number(record.time_limit_seconds ?? 45),
+    allowPassageToggle: record.allow_passage_toggle !== false,
+    questionTimeLimitSeconds: Number(record.question_time_limit_seconds ?? 0),
     questions: rawQuestions.map((q, index) => {
       const question = asRecord(q);
       const options = asRecord(question.options);
@@ -900,6 +902,8 @@ function SkimChallengeEditor({ activity, onSave }: { activity: Activity; onSave:
   const [prompt, setPrompt] = useState(initial.prompt);
   const [passage, setPassage] = useState(initial.passage);
   const [timeLimitSeconds, setTimeLimitSeconds] = useState(initial.timeLimitSeconds);
+  const [allowPassageToggle, setAllowPassageToggle] = useState(initial.allowPassageToggle);
+  const [questionTimeLimitSeconds, setQuestionTimeLimitSeconds] = useState(initial.questionTimeLimitSeconds);
   const [questions, setQuestions] = useState<McqQuestion[]>(
     initial.questions.length ? initial.questions : [{ id: 1, text: "", options: { A: "", B: "", C: "", D: "" }, answer: "A" }]
   );
@@ -928,15 +932,38 @@ function SkimChallengeEditor({ activity, onSave }: { activity: Activity; onSave:
         />
       </label>
 
-      <label className="text-sm font-medium">
-        Reading Time Limit (seconds)
+      <div className="grid gap-4 sm:grid-cols-2">
+        <label className="text-sm font-medium">
+          Reading Time Limit (seconds)
+          <input
+            type="number"
+            min={5}
+            value={timeLimitSeconds}
+            onChange={(event) => setTimeLimitSeconds(Math.max(5, Number(event.target.value) || 45))}
+            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+          />
+        </label>
+
+        <label className="text-sm font-medium">
+          Questions Time Limit (seconds, 0 for untimed)
+          <input
+            type="number"
+            min={0}
+            value={questionTimeLimitSeconds}
+            onChange={(event) => setQuestionTimeLimitSeconds(Math.max(0, Number(event.target.value) || 0))}
+            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+          />
+        </label>
+      </div>
+
+      <label className="flex items-center gap-2 text-sm font-medium text-slate-700 cursor-pointer">
         <input
-          type="number"
-          min={5}
-          value={timeLimitSeconds}
-          onChange={(event) => setTimeLimitSeconds(Math.max(5, Number(event.target.value) || 45))}
-          className="mt-1 w-32 rounded-md border border-black/15 px-3 py-2 text-sm"
+          type="checkbox"
+          checked={allowPassageToggle}
+          onChange={(e) => setAllowPassageToggle(e.target.checked)}
+          className="size-4 rounded accent-[#6C3BFF]"
         />
+        Allow learners to re-view passage ("Show/Hide Passage") while answering questions
       </label>
 
       <div className="space-y-4">
@@ -1006,6 +1033,8 @@ function SkimChallengeEditor({ activity, onSave }: { activity: Activity; onSave:
             prompt,
             passage,
             time_limit_seconds: timeLimitSeconds,
+            allow_passage_toggle: allowPassageToggle,
+            question_time_limit_seconds: questionTimeLimitSeconds,
             questions: questions.map((q, idx) => ({
               id: q.id || String(idx + 1),
               question_text: q.text,

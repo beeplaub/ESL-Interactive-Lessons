@@ -142,6 +142,8 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
   if (activityType === "SKIM_CHALLENGE") {
     const passage = String(data.passage ?? "");
     const timeLimit = Number(data.time_limit_seconds ?? 45);
+    const allowPassageToggle = data.allow_passage_toggle !== false;
+    const questionTimeLimit = Number(data.question_time_limit_seconds ?? 0);
     const subQuestions = Array.isArray(data.questions) ? data.questions.map((q) => asRecord(q as Json)) : [];
     const correctAnswer = asRecord(data.correct_answer as Json);
     return [{
@@ -149,7 +151,13 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
       question_number: 1,
       question_type: "SKIM_CHALLENGE",
       question_text: String(data.prompt ?? "Skimming Challenge"),
-      options: { passage, time_limit_seconds: timeLimit, questions: subQuestions } as Json,
+      options: {
+        passage,
+        time_limit_seconds: timeLimit,
+        allow_passage_toggle: allowPassageToggle,
+        question_time_limit_seconds: questionTimeLimit,
+        questions: subQuestions
+      } as Json,
       correct_answer: correctAnswer as Json,
     }];
   }

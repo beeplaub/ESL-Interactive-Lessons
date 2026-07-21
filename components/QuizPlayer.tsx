@@ -832,44 +832,103 @@ function SkimChallenge({
   disabled: boolean;
   onChange: (value: Record<string, string>) => void;
 }) {
-  const opts = asRecord(question.options) as { passage?: string; time_limit_seconds?: number; questions?: unknown[] };
+  const opts = asRecord(question.options) as {
+    passage?: string;
+    time_limit_seconds?: number;
+    allow_passage_toggle?: boolean;
+    question_time_limit_seconds?: number;
+    questions?: unknown[];
+  };
   const passage = String(opts.passage ?? "");
   const timeLimit = Number(opts.time_limit_seconds ?? 45);
+  const allowPassageToggle = opts.allow_passage_toggle !== false;
+  const questionTimeLimit = Number(opts.question_time_limit_seconds ?? 0);
   const subQuestions = Array.isArray(opts.questions) ? opts.questions.map((q) => asRecord(q as Json)) : [];
   const matched = value ?? {};
 
-  const [isReading, setIsReading] = useState(!disabled && Object.keys(matched).length === 0);
-  const [timeLeft, setTimeLeft] = useState(timeLimit);
+  const isCompleted = disabled || Object.keys(matched).length > 0;
+  const [phase, setPhase] = useState<"NOT_STARTED" | "READING" | "ANSWERING">(isCompleted ? "ANSWERING" : "NOT_STARTED");
+  const [readingTimeLeft, setReadingTimeLeft] = useState(timeLimit);
+  const [questionTimeLeft, setQuestionTimeLeft] = useState(questionTimeLimit);
+  const [isQuestionTimeUp, setIsQuestionTimeUp] = useState(false);
 
+  // Reading Timer
   useEffect(() => {
-    if (!isReading || disabled) return;
+    if (phase !== "READING" || disabled) return;
     const timer = setInterval(() => {
-      setTimeLeft((prev) => {
+      setReadingTimeLeft((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
-          setIsReading(false);
+          setPhase("ANSWERING");
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
     return () => clearInterval(timer);
-  }, [isReading, disabled]);
+  }, [phase, disabled]);
 
-  if (isReading) {
+  // Question Timer (Optional)
+  useEffect(() => {
+    if (phase !== "ANSWERING" || questionTimeLimit <= 0 || disabled || isQuestionTimeUp) return;
+    const timer = setInterval(() => {
+      setQuestionTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          setIsQuestionTimeUp(true);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [phase, questionTimeLimit, disabled, isQuestionTimeUp]);
+
+  // PHASE 1: Not Started yet (Learner chooses when they are ready)
+  if (phase === "NOT_STARTED") {
+    return (
+      <div className="rounded-[16px] border border-[#ECECF5] bg-white p-6 shadow-sm text-center space-y-4">
+        <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-[#6C3BFF]/10 text-[#6C3BFF]">
+          ⏱️
+        </div>
+        <div>
+          <h3 className="text-lg font-bold text-[#14172B]">Skimming Challenge</h3>
+          <p className="text-sm text-[#6E738D] mt-1 max-w-md mx-auto">
+            You will have <span className="font-extrabold text-[#6C3BFF]">{timeLimit} seconds</span> to read and skim the passage.
+            {questionTimeLimit > 0 ? (
+              <span> You will then have <span className="font-extrabold text-[#6C3BFF]">{questionTimeLimit} seconds</span> to answer the questions.</span>
+            ) : null}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setReadingTimeLeft(timeLimit);
+            setPhase("READING");
+          }}
+          className="inline-flex items-center gap-2 rounded-xl bg-[#6C3BFF] px-6 py-3 text-sm font-bold text-white shadow-md shadow-[#6C3BFF]/25 hover:bg-[#592ecc] transition active:scale-95"
+        >
+          🚀 I'm Ready — Start Skimming
+        </button>
+      </div>
+    );
+  }
+
+  // PHASE 2: Reading Passage with Timer
+  if (phase === "READING") {
     return (
       <div className="grid gap-4">
         <div className="flex items-center justify-between border-b border-[#ECECF5] pb-3">
           <div className="flex items-center gap-2">
             <span className="animate-pulse size-3 rounded-full bg-[#FF5D73]" />
-            <span className="text-sm font-bold text-[#FF5D73]">Reading Time Remaining: {timeLeft}s</span>
+            <span className="text-sm font-bold text-[#FF5D73]">Reading Time Remaining: {readingTimeLeft}s</span>
           </div>
           <button
             type="button"
-            onClick={() => setIsReading(false)}
+            onClick={() => setPhase("ANSWERING")}
             className="rounded-lg bg-[#6C3BFF] px-4 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-[#592ecc] transition"
           >
-            I'm Ready for Questions
+            Finished Reading — Go to Questions
           </button>
         </div>
         <div className="rounded-[14px] border border-[#ECECF5] bg-[#F6F7FB] p-5 text-sm font-semibold leading-7 text-[#14172B] whitespace-pre-wrap">
@@ -879,13 +938,31 @@ function SkimChallenge({
     );
   }
 
+  // PHASE 3: Answering Questions
+  const isInputsDisabled = disabled || isQuestionTimeUp;
+
   return (
     <div className="grid gap-4">
-      {passage ? (
+      {/* Optional Question Timer Bar */}
+      {questionTimeLimit > 0 && !disabled ? (
+        <div className="flex items-center justify-between rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-xs font-bold text-amber-900">
+          <span>Answering Time:</span>
+          <span className={isQuestionTimeUp ? "text-coral font-black" : "text-amber-700"}>
+            {isQuestionTimeUp ? "Time's Up!" : `${questionTimeLeft}s remaining`}
+          </span>
+        </div>
+      ) : null}
+
+      {/* Passage Review (Only if enabled by creator OR if reviewing completed quiz) */}
+      {passage && (allowPassageToggle || disabled) ? (
         <details className="rounded-[14px] border border-[#ECECF5] bg-[#F6F7FB] p-3 text-sm animate-fade-in" open={disabled}>
           <summary className="cursor-pointer font-bold text-[#6E738D] select-none">Show/Hide Passage</summary>
           <div className="mt-3 leading-7 text-[#14172B] whitespace-pre-wrap font-semibold border-t border-[#ECECF5] pt-3">{passage}</div>
         </details>
+      ) : passage && !allowPassageToggle && !disabled ? (
+        <div className="rounded-[12px] border border-slate-200 bg-slate-50 p-2.5 text-xs font-semibold text-slate-500 text-center">
+          🔒 Passage re-view is disabled for this challenge.
+        </div>
       ) : null}
 
       <div className="space-y-4">
@@ -920,7 +997,7 @@ function SkimChallenge({
                     >
                       <input
                         type="radio"
-                        disabled={disabled}
+                        disabled={isInputsDisabled}
                         name={`skim-${question.id}-${qId}`}
                         checked={isSelected}
                         onChange={() => onChange({ ...matched, [qId]: key })}
