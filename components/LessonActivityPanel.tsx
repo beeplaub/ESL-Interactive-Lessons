@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, Send, MessageCircle, Award, RefreshCw, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Send, MessageCircle, Award, RefreshCw, Loader2, RotateCcw } from "lucide-react";
 import { useState, useTransition, useRef, useCallback, useEffect } from "react";
 import { recordQuizAttempt } from "@/app/quizzes/actions";
 import { QuestionCard, hasAnswer, type QuizQuestion } from "@/components/QuizPlayer";
@@ -1181,11 +1181,9 @@ export function LessonActivityPanel({
         <div className="flex gap-2">
           {submitted ? (
             <>
-              {reviewMode === "detail" ? (
-                <button type="button" onClick={retake} className="rounded-md border border-black/15 px-4 py-2 text-sm font-semibold hover:bg-black/5">
-                  Retake
-                </button>
-              ) : null}
+              <button type="button" onClick={retake} className="inline-flex items-center gap-1.5 rounded-md border border-black/15 px-4 py-2 text-sm font-semibold hover:bg-black/5">
+                <RotateCcw size={14} /> Retake
+              </button>
               <button type="button" onClick={onNext} className="inline-flex items-center gap-2 rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white">
                 Next <ChevronRight size={15} />
               </button>
