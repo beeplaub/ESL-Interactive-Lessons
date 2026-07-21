@@ -1,0 +1,1041 @@
+diff --git a/app/admin/lessons/actions.ts b/app/admin/lessons/actions.ts
+index 57e3e34..847b99b 100644
+--- a/app/admin/lessons/actions.ts
++++ b/app/admin/lessons/actions.ts
+@@ -340,6 +340,102 @@ function defaultBlockContent(blockType: string): Json {
+   return {};
+ }
+ 
++// ── Media Library capture ──────────────────────────────────────────────
++// Every IMAGE/IMAGE_TEXT/AUDIO/VIDEO/FLASHCARD block a creator saves gets
++// mirrored into media_assets so it shows up in their Media Library — no
++// matter whether the url came from the uploader or a pasted public link.
++// This never throws into the caller: a media_assets hiccup must not break
++// an actual lesson-content save.
++type MediaEntry = { type: "IMAGE" | "AUDIO" | "VIDEO"; url: string; alt?: string | null; caption?: string | null };
++
++function extractMediaFromBlock(blockType: string, content: Record<string, unknown>): MediaEntry[] {
++  const str = (value: unknown) => (typeof value === "string" ? value.trim() : "");
++  const out: MediaEntry[] = [];
++
++  if (blockType === "IMAGE") {
++    const url = str(content.path);
++    if (url) out.push({ type: "IMAGE", url, alt: str(content.alt) || null, caption: str(content.caption) || null });
++  } else if (blockType === "IMAGE_TEXT") {
++    const url = str(content.image_path);
++    if (url) out.push({ type: "IMAGE", url, alt: str(content.alt) || null, caption: str(content.caption) || null });
++  } else if (blockType === "AUDIO") {
++    const url = str(content.path);
++    if (url) out.push({ type: "AUDIO", url, caption: str(content.label) || null });
++  } else if (blockType === "VIDEO") {
++    const url = str(content.url);
++    if (url) out.push({ type: "VIDEO", url, caption: str(content.title) || null });
++  } else if (blockType === "FLASHCARD") {
++    const cards = Array.isArray(content.cards) ? (content.cards as Array<Record<string, unknown>>) : [];
++    for (const card of cards) {
++      const image = str(card.image_path);
++      if (image) out.push({ type: "IMAGE", url: image, alt: str(card.word) || null });
++      const audio = str(card.audio_path);
++      if (audio) out.push({ type: "AUDIO", url: audio, caption: str(card.word) || null });
++    }
++  }
++  return out;
++}
++
++function isUploadedMediaUrl(url: string) {
++  return /supabase\.co\/storage\/v1\/object\/public\/(lessons|lesson-audio)\//i.test(url);
++}
++
++function mediaFileNameFromUrl(url: string) {
++  const clean = url.split("?")[0];
++  const last = clean.split("/").pop();
++  return last || null;
++}
++
++async function upsertMediaAsset(supabase: AdminClient, entry: MediaEntry & { ownerId: string; lessonId: string | null; lessonTitle: string | null }) {
++  const { data: existing } = await supabase
++    .from("media_assets")
++    .select("id, use_count")
++    .eq("owner_id", entry.ownerId)
++    .eq("url", entry.url)
++    .is("deleted_at", null)
++    .maybeSingle();
++
++  if (existing) {
++    const update: Record<string, unknown> = {
++      use_count: (existing.use_count ?? 1) + 1,
++      last_used_at: new Date().toISOString(),
++      lesson_id: entry.lessonId,
++      lesson_title: entry.lessonTitle
++    };
++    if (entry.alt) update.alt_text = entry.alt;
++    if (entry.caption) update.caption = entry.caption;
++    await supabase.from("media_assets").update(update).eq("id", existing.id);
++    return;
++  }
++
++  await supabase.from("media_assets").insert({
++    owner_id: entry.ownerId,
++    type: entry.type,
++    source: isUploadedMediaUrl(entry.url) ? "UPLOAD" : "LINK",
++    url: entry.url,
++    alt_text: entry.alt ?? null,
++    caption: entry.caption ?? null,
++    file_name: mediaFileNameFromUrl(entry.url),
++    lesson_id: entry.lessonId,
++    lesson_title: entry.lessonTitle,
++    use_count: 1,
++    last_used_at: new Date().toISOString()
++  });
++}
++
++async function registerMediaFromBlock(supabase: AdminClient, lessonId: string, blockType: string, content: Json) {
++  const entries = extractMediaFromBlock(blockType, (content as Record<string, unknown>) ?? {});
++  if (!entries.length) return;
++
++  const { data: lesson } = await supabase.from("lessons").select("created_by, title").eq("id", lessonId).maybeSingle();
++  const ownerId = lesson?.created_by;
++  if (!ownerId) return;
++
++  for (const entry of entries) {
++    await upsertMediaAsset(supabase, { ...entry, ownerId, lessonId, lessonTitle: lesson?.title ?? null });
++  }
++}
++
+ async function createLessonRowsFromPdf(params: {
+   lessonId: string;
+   title: string;
+@@ -1198,17 +1294,25 @@ export async function updateLessonBlock(lessonId: string, blockId: string, formD
+   await requireLessonAccess(lessonId);
+   const supabase = createAdminClient();
+   const parsed = lessonBlockSchema.parse({ blockType: formData.get("blockType") });
++  const content = blockContentFromForm(parsed.blockType, formData);
+ 
+   const { error } = await supabase
+     .from("lesson_blocks")
+     .update({
+       block_type: parsed.blockType,
+-      content: blockContentFromForm(parsed.blockType, formData)
++      content
+     })
+     .eq("id", blockId)
+     .eq("lesson_id", lessonId);
+ 
+   if (error) throw error;
++
++  try {
++    await registerMediaFromBlock(supabase, lessonId, parsed.blockType, content);
++  } catch (mediaError) {
++    console.error("media_assets registration failed", mediaError);
++  }
++
+   revalidateLessonBuilder(lessonId);
+ }
+ 
+diff --git a/app/admin/media/actions.ts b/app/admin/media/actions.ts
+new file mode 100644
+index 0000000..fc6739a
+--- /dev/null
++++ b/app/admin/media/actions.ts
+@@ -0,0 +1,147 @@
++"use server";
++
++import { revalidatePath } from "next/cache";
++import { requireStaff, isPlatformAdmin } from "@/lib/auth";
++import { createAdminClient } from "@/lib/supabase/admin";
++
++const MEDIA_TYPES = ["IMAGE", "AUDIO", "VIDEO"] as const;
++type MediaType = (typeof MEDIA_TYPES)[number];
++
++function text(value: FormDataEntryValue | null) {
++  return String(value ?? "").trim();
++}
++
++function mediaPaths() {
++  revalidatePath("/admin/media");
++  revalidatePath("/admin/media/trash");
++}
++
++/**
++ * Every asset mutation must be scoped to a row the current user actually
++ * owns (or, for ADMIN, any row at all) — this is the same
++ * "requireLessonAccess"-style ownership gate used everywhere else in the
++ * app, just inlined here since a single media_assets row has no dedicated
++ * requireXAccess() helper of its own.
++ */
++async function loadOwnedAsset(assetId: string) {
++  const { user, profile } = await requireStaff();
++  const admin = createAdminClient();
++  const { data: asset, error } = await admin.from("media_assets").select("*").eq("id", assetId).maybeSingle();
++  if (error || !asset) throw new Error("Media item not found.");
++  if (!isPlatformAdmin(profile?.role) && asset.owner_id !== user.id) {
++    throw new Error("You don't have access to this media item.");
++  }
++  return { admin, user, profile, asset };
++}
++
++/** Add a public link (typically a video URL, since video upload isn't supported) to the library. */
++export async function addMediaLink(formData: FormData) {
++  const { user } = await requireStaff();
++  const admin = createAdminClient();
++
++  const url = text(formData.get("url"));
++  const typeRaw = text(formData.get("type")).toUpperCase();
++  const type = (MEDIA_TYPES as readonly string[]).includes(typeRaw) ? (typeRaw as MediaType) : null;
++  const title = text(formData.get("title")) || null;
++
++  if (!url || !/^https?:\/\//i.test(url)) throw new Error("Enter a valid public URL (starting with http:// or https://).");
++  if (!type) throw new Error("Choose a media type.");
++
++  const { data: existing } = await admin
++    .from("media_assets")
++    .select("id, use_count")
++    .eq("owner_id", user.id)
++    .eq("url", url)
++    .is("deleted_at", null)
++    .maybeSingle();
++
++  if (existing) {
++    await admin.from("media_assets").update({
++      use_count: (existing.use_count ?? 1) + 1,
++      last_used_at: new Date().toISOString(),
++      ...(title ? { title } : {})
++    }).eq("id", existing.id);
++  } else {
++    const { error } = await admin.from("media_assets").insert({
++      owner_id: user.id,
++      type,
++      source: "LINK",
++      url,
++      title,
++      use_count: 1,
++      last_used_at: new Date().toISOString()
++    });
++    if (error) throw new Error(error.message);
++  }
++
++  mediaPaths();
++}
++
++/** Edit an asset's display title / alt text / caption / tags. */
++export async function updateMediaAssetDetails(assetId: string, formData: FormData) {
++  const { admin } = await loadOwnedAsset(assetId);
++
++  const title = text(formData.get("title")) || null;
++  const altText = text(formData.get("altText")) || null;
++  const caption = text(formData.get("caption")) || null;
++  const tagsRaw = text(formData.get("tags"));
++  const tags = tagsRaw ? tagsRaw.split(",").map((tag) => tag.trim()).filter(Boolean) : [];
++
++  const { error } = await admin
++    .from("media_assets")
++    .update({ title, alt_text: altText, caption, tags, updated_at: new Date().toISOString() })
++    .eq("id", assetId);
++  if (error) throw new Error(error.message);
++
++  mediaPaths();
++}
++
++/** Soft-delete: moves the asset to trash. Never touches the underlying storage object or the lesson content that used it. */
++export async function deleteMediaAsset(assetId: string) {
++  const { admin, user } = await loadOwnedAsset(assetId);
++  const { error } = await admin
++    .from("media_assets")
++    .update({ deleted_at: new Date().toISOString(), deleted_by: user.id })
++    .eq("id", assetId);
++  if (error) throw new Error(error.message);
++
++  mediaPaths();
++}
++
++export async function restoreMediaAsset(assetId: string) {
++  const { admin } = await loadOwnedAsset(assetId);
++  const { error } = await admin
++    .from("media_assets")
++    .update({ deleted_at: null, deleted_by: null })
++    .eq("id", assetId);
++  if (error) throw new Error(error.message);
++
++  mediaPaths();
++}
++
++/**
++ * Permanently deletes the library entry. For an UPLOAD-sourced asset this
++ * also removes the underlying file from Storage — but only if no other
++ * still-active media_assets row (for this owner) references the same
++ * storage path, so it's safe even if the same file was somehow logged twice.
++ */
++export async function permanentlyDeleteMediaAsset(assetId: string) {
++  const { admin, asset } = await loadOwnedAsset(assetId);
++
++  if (asset.source === "UPLOAD" && asset.storage_bucket && asset.storage_path) {
++    const { count } = await admin
++      .from("media_assets")
++      .select("id", { count: "exact", head: true })
++      .eq("owner_id", asset.owner_id)
++      .eq("storage_path", asset.storage_path)
++      .neq("id", assetId);
++    if (!count) {
++      await admin.storage.from(asset.storage_bucket).remove([asset.storage_path]);
++    }
++  }
++
++  const { error } = await admin.from("media_assets").delete().eq("id", assetId);
++  if (error) throw new Error(error.message);
++
++  mediaPaths();
++}
+diff --git a/app/admin/media/page.tsx b/app/admin/media/page.tsx
+new file mode 100644
+index 0000000..31d8c12
+--- /dev/null
++++ b/app/admin/media/page.tsx
+@@ -0,0 +1,176 @@
++import Link from "next/link";
++import { Images, Trash2 } from "lucide-react";
++import { requireStaff, isPlatformAdmin } from "@/lib/auth";
++import { createAdminClient } from "@/lib/supabase/admin";
++import { MediaLibraryUploader } from "@/components/MediaLibraryUploader";
++import { MediaAssetCard, type MediaAssetRow } from "@/components/MediaAssetCard";
++
++type SearchParams = Record<string, string | string[] | undefined>;
++
++export default async function AdminMediaLibraryPage({
++  searchParams,
++}: {
++  searchParams: Promise<SearchParams>;
++}) {
++  const { user, profile } = await requireStaff();
++  const admin = createAdminClient();
++  const params = await searchParams;
++  const value = (key: string) => (typeof params[key] === "string" ? (params[key] as string) : "");
++  const isAdmin = isPlatformAdmin(profile?.role);
++
++  let query = admin.from("media_assets").select("*").is("deleted_at", null);
++  if (!isAdmin) query = query.eq("owner_id", user.id);
++  const { data: rows } = await query.order("created_at", { ascending: false });
++  const assets = (rows ?? []) as MediaAssetRow[];
++
++  // Only ADMIN needs a creator filter/attribution — a TEACHER's query is
++  // already scoped to their own media, so there's nothing else to show.
++  let creatorNames = new Map<string, string>();
++  if (isAdmin) {
++    const ownerIds = Array.from(new Set(assets.map((asset) => asset.owner_id)));
++    const { data: profiles } = ownerIds.length
++      ? await admin.from("profiles").select("id, full_name, first_name, last_name").in("id", ownerIds)
++      : { data: [] };
++    creatorNames = new Map((profiles ?? []).map((p) => [
++      p.id,
++      p.full_name || [p.first_name, p.last_name].filter(Boolean).join(" ") || "Creator",
++    ]));
++  }
++
++  const typeFilter = value("type");
++  const sourceFilter = value("source");
++  const creatorFilter = value("creator");
++  const search = value("q").toLowerCase();
++  const sort = value("sort") || "newest";
++
++  const filtered = assets.filter((asset) => {
++    if (typeFilter && asset.type !== typeFilter) return false;
++    if (sourceFilter && asset.source !== sourceFilter) return false;
++    if (isAdmin && creatorFilter && asset.owner_id !== creatorFilter) return false;
++    if (search) {
++      const haystack = [asset.title, asset.caption, asset.alt_text, asset.file_name, asset.lesson_title, asset.url]
++        .filter(Boolean)
++        .join(" ")
++        .toLowerCase();
++      if (!haystack.includes(search)) return false;
++    }
++    return true;
++  });
++
++  const sorted = [...filtered].sort((a, b) => {
++    if (sort === "oldest") return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
++    if (sort === "most_used") return b.use_count - a.use_count;
++    if (sort === "name") return (a.title || a.file_name || "").localeCompare(b.title || b.file_name || "");
++    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
++  });
++
++  const counts = {
++    all: assets.length,
++    IMAGE: assets.filter((a) => a.type === "IMAGE").length,
++    AUDIO: assets.filter((a) => a.type === "AUDIO").length,
++    VIDEO: assets.filter((a) => a.type === "VIDEO").length,
++  };
++
++  function withParam(name: string, val: string) {
++    const next = new URLSearchParams();
++    for (const key of ["type", "source", "creator", "q", "sort"]) {
++      const v = key === name ? val : value(key);
++      if (v) next.set(key, v);
++    }
++    const qs = next.toString();
++    return qs ? `/admin/media?${qs}` : "/admin/media";
++  }
++
++  return (
++    <main className="min-w-0 space-y-5">
++      <section className="rounded-2xl border border-black/10 bg-white p-4 shadow-sm sm:p-5">
++        <div className="flex flex-wrap items-start justify-between gap-4">
++          <div>
++            <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight sm:text-3xl">
++              <Images size={25} className="text-violetglow" /> Media Library
++            </h1>
++            <p className="mt-2 max-w-2xl text-sm text-black/55">
++              Every image, audio clip, and video link you&apos;ve used across your lessons — in one place, ready to reuse.
++              {!isAdmin ? " Only media you've uploaded or linked is shown here." : " As an admin, you're seeing every creator's media."}
++            </p>
++          </div>
++          <div className="flex items-center gap-2">
++            <Link
++              href="/admin/media/trash"
++              className="inline-flex items-center gap-2 rounded-full border border-black/15 px-3 py-2 text-sm font-semibold text-black/60 hover:bg-black/5"
++            >
++              <Trash2 size={15} /> Trash
++            </Link>
++            <MediaLibraryUploader />
++          </div>
++        </div>
++      </section>
++
++      {/* Type pills */}
++      <section className="flex flex-wrap items-center gap-2">
++        {([
++          ["", `All (${counts.all})`],
++          ["IMAGE", `Images (${counts.IMAGE})`],
++          ["AUDIO", `Audio (${counts.AUDIO})`],
++          ["VIDEO", `Video (${counts.VIDEO})`],
++        ] as const).map(([key, label]) => (
++          <Link
++            key={key || "all"}
++            href={withParam("type", key)}
++            className={`rounded-full px-3.5 py-1.5 text-sm font-semibold transition
++              ${typeFilter === key ? "bg-violetglow text-white" : "bg-white text-black/60 border border-black/10 hover:bg-black/5"}`}
++          >
++            {label}
++          </Link>
++        ))}
++      </section>
++
++      {/* Filters */}
++      <form className="flex flex-wrap items-center gap-2 rounded-2xl border border-black/10 bg-white p-3 shadow-sm">
++        <input type="hidden" name="type" value={typeFilter} />
++        <input
++          name="q"
++          defaultValue={value("q")}
++          placeholder="Search by name, caption, tag, or lesson…"
++          className="min-w-[220px] flex-1 rounded-md border border-black/15 px-3 py-2 text-sm"
++        />
++        <select name="source" defaultValue={sourceFilter} className="rounded-md border border-black/15 px-3 py-2 text-sm">
++          <option value="">All sources</option>
++          <option value="UPLOAD">Uploaded files</option>
++          <option value="LINK">External links</option>
++        </select>
++        {isAdmin ? (
++          <select name="creator" defaultValue={creatorFilter} className="rounded-md border border-black/15 px-3 py-2 text-sm">
++            <option value="">All creators</option>
++            {Array.from(creatorNames.entries()).map(([id, name]) => (
++              <option key={id} value={id}>{name}</option>
++            ))}
++          </select>
++        ) : null}
++        <select name="sort" defaultValue={sort} className="rounded-md border border-black/15 px-3 py-2 text-sm">
++          <option value="newest">Newest first</option>
++          <option value="oldest">Oldest first</option>
++          <option value="most_used">Most reused</option>
++          <option value="name">Name (A–Z)</option>
++        </select>
++        <button className="rounded-md border border-black/15 px-4 py-2 text-sm font-semibold hover:bg-black/5">Apply</button>
++      </form>
++
++      <section className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
++        {sorted.map((asset) => (
++          <div key={asset.id} className="min-w-0">
++            {isAdmin ? (
++              <p className="mb-1 truncate text-[11px] font-medium text-black/40">{creatorNames.get(asset.owner_id) ?? "Creator"}</p>
++            ) : null}
++            <MediaAssetCard asset={asset} canManage />
++          </div>
++        ))}
++        {!sorted.length ? (
++          <div className="col-span-full rounded-2xl border border-dashed border-black/15 p-10 text-center text-sm text-black/50">
++            No media matches these filters yet. Upload a file or add a link to get started.
++          </div>
++        ) : null}
++      </section>
++    </main>
++  );
++}
+diff --git a/app/admin/media/trash/page.tsx b/app/admin/media/trash/page.tsx
+new file mode 100644
+index 0000000..e41871e
+--- /dev/null
++++ b/app/admin/media/trash/page.tsx
+@@ -0,0 +1,74 @@
++import Link from "next/link";
++import { ArrowLeft, Images, RotateCcw, Trash2 } from "lucide-react";
++import { requireStaff, isPlatformAdmin } from "@/lib/auth";
++import { createAdminClient } from "@/lib/supabase/admin";
++import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
++import { permanentlyDeleteMediaAsset, restoreMediaAsset } from "@/app/admin/media/actions";
++
++export default async function AdminMediaTrashPage() {
++  const { user, profile } = await requireStaff();
++  const admin = createAdminClient();
++  const isAdmin = isPlatformAdmin(profile?.role);
++
++  let query = admin.from("media_assets").select("*").not("deleted_at", "is", null).order("deleted_at", { ascending: false });
++  if (!isAdmin) query = query.eq("owner_id", user.id);
++  const { data: assets } = await query;
++
++  return (
++    <main className="mx-auto max-w-6xl px-4 py-8">
++      <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
++        <div>
++          <Link href="/admin/media" className="inline-flex items-center gap-1 text-sm font-semibold text-black/60 hover:text-black">
++            <ArrowLeft size={15} /> Back to Media Library
++          </Link>
++          <h1 className="mt-2 text-2xl font-semibold sm:text-3xl">Media trash</h1>
++          <p className="mt-2 text-sm text-black/60">
++            Deleted media lands here first. Restoring brings it back into your library — nothing in any
++            lesson that already uses this file or link is ever touched by a soft delete.
++          </p>
++        </div>
++      </div>
++
++      <section className="overflow-hidden rounded-lg border border-black/10 bg-white shadow-sm">
++        <div className="hidden grid-cols-[1.6fr_0.7fr_0.9fr_1.2fr] gap-3 border-b border-black/10 bg-slate-50 p-3 text-xs font-semibold uppercase tracking-wide text-black/50 md:grid">
++          <span>Media</span><span>Type</span><span>Deleted at</span><span>Actions</span>
++        </div>
++        <div className="divide-y divide-black/10">
++          {(assets ?? []).map((asset) => (
++            <div key={asset.id} className="grid gap-3 p-4 md:grid-cols-[1.6fr_0.7fr_0.9fr_1.2fr] md:items-center">
++              <div className="min-w-0">
++                <p className="truncate font-semibold">{asset.title || asset.caption || asset.file_name || asset.url}</p>
++                <p className="mt-1 truncate text-xs text-black/50">{asset.url}</p>
++              </div>
++              <span className="w-fit rounded-full bg-black/10 px-2.5 py-1 text-xs font-semibold text-black/50">{asset.type}</span>
++              <span className="text-sm text-black/60">
++                {asset.deleted_at ? new Date(asset.deleted_at).toLocaleString() : "—"}
++              </span>
++              <div className="flex flex-wrap gap-2">
++                <form action={restoreMediaAsset.bind(null, asset.id)}>
++                  <button className="inline-flex items-center gap-1 rounded-md bg-moss px-2.5 py-1.5 text-xs font-semibold text-white">
++                    <RotateCcw size={13} /> Restore
++                  </button>
++                </form>
++                <form action={permanentlyDeleteMediaAsset.bind(null, asset.id)}>
++                  <ConfirmSubmitButton
++                    confirmMessage={`Permanently delete "${asset.title || asset.file_name || asset.url}"? This cannot be undone.`}
++                    className="inline-flex items-center gap-1 rounded-md border border-coral/30 px-2.5 py-1.5 text-xs font-semibold text-coral hover:bg-coral/5"
++                  >
++                    <Trash2 size={13} /> Delete forever
++                  </ConfirmSubmitButton>
++                </form>
++              </div>
++            </div>
++          ))}
++          {(assets?.length ?? 0) === 0 ? (
++            <div className="p-8 text-center text-sm text-black/55">
++              <Images className="mx-auto mb-3 text-black/25" size={32} />
++              Trash is empty. Deleted media will show up here.
++            </div>
++          ) : null}
++        </div>
++      </section>
++    </main>
++  );
++}
+diff --git a/app/api/admin/upload/route.ts b/app/api/admin/upload/route.ts
+index 7ce9d68..6c91621 100644
+--- a/app/api/admin/upload/route.ts
++++ b/app/api/admin/upload/route.ts
+@@ -1,15 +1,18 @@
+ import { NextResponse } from "next/server";
+ import { createAdminClient } from "@/lib/supabase/admin";
+-import { requireAdmin } from "@/lib/auth";
++import { requireStaff } from "@/lib/auth";
++
++const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+ 
+ export async function POST(req: Request) {
+-  await requireAdmin();
++  const { user } = await requireStaff();
+   const admin = createAdminClient();
+ 
+   const formData = await req.formData();
+   const file = formData.get("file");
+   const type = String(formData.get("type") ?? "image");
+-  const lessonId = String(formData.get("lessonId") ?? "unknown");
++  const lessonIdRaw = String(formData.get("lessonId") ?? "unknown");
++  const lessonId = UUID_RE.test(lessonIdRaw) ? lessonIdRaw : null;
+ 
+   if (!(file instanceof File) || file.size === 0) {
+     return NextResponse.json({ error: "No file provided" }, { status: 400 });
+@@ -18,7 +21,10 @@ export async function POST(req: Request) {
+   const ext = file.name.split(".").pop()?.toLowerCase() ?? (type === "audio" ? "mp3" : "jpg");
+   const timestamp = Date.now();
+   const bucket = type === "audio" ? "lesson-audio" : "lessons";
+-  const folder = type === "audio" ? `${lessonId}/audio` : `${lessonId}/images`;
++  // Uploads made from the standalone Media Library (no lesson yet) land in a
++  // shared "library" folder instead of a lesson id folder.
++  const folderScope = lessonId ?? "library";
++  const folder = type === "audio" ? `${folderScope}/audio` : `${folderScope}/images`;
+   const path = `${folder}/${timestamp}.${ext}`;
+   const buffer = new Uint8Array(await file.arrayBuffer());
+ 
+@@ -28,17 +34,43 @@ export async function POST(req: Request) {
+ 
+   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+ 
+-  if (type === "image") {
+-    const { data } = admin.storage.from("lessons").getPublicUrl(path);
+-    return NextResponse.json({ url: data.publicUrl });
++  // Both buckets are public — use getPublicUrl() for both, never
++  // createSignedUrl(). A signed URL bakes in an expiry (this one used 7
++  // days) and that exact URL string gets saved permanently into
++  // lesson_blocks.content, so it silently died a week after upload with no
++  // error anywhere.
++  const { data } = admin.storage.from(bucket).getPublicUrl(path);
++  const url = data.publicUrl;
++
++  // Mirror this upload into the creator's Media Library. Attribute it to the
++  // lesson's own creator (not necessarily whoever clicked upload) so a
++  // teacher's media always lands in *their* library even if an admin makes
++  // the edit — matching how lesson/quiz ownership already works everywhere
++  // else in this app.
++  let ownerId = user.id;
++  if (lessonId) {
++    const { data: lesson } = await admin.from("lessons").select("created_by").eq("id", lessonId).maybeSingle();
++    if (lesson?.created_by) ownerId = lesson.created_by;
+   }
+ 
+-  // lesson-audio is a public bucket (same as "lessons" for images) — no need to
+-  // sign this URL. A signed URL bakes in an expiry (this one used 7 days) and
+-  // that exact URL string gets saved permanently into lesson_blocks.content,
+-  // so it silently died a week after upload with no error anywhere. Use the
+-  // same getPublicUrl() pattern as the image branch above, which never expires.
+-  const { data } = admin.storage.from("lesson-audio").getPublicUrl(path);
++  try {
++    await admin.from("media_assets").insert({
++      owner_id: ownerId,
++      type: type === "audio" ? "AUDIO" : "IMAGE",
++      source: "UPLOAD",
++      url,
++      storage_bucket: bucket,
++      storage_path: path,
++      file_name: file.name,
++      mime_type: file.type || null,
++      file_size: file.size,
++      lesson_id: lessonId,
++      use_count: 1,
++      last_used_at: new Date().toISOString()
++    });
++  } catch (mediaError) {
++    console.error("media_assets insert failed", mediaError);
++  }
+ 
+-  return NextResponse.json({ url: data.publicUrl });
+-}
+\ No newline at end of file
++  return NextResponse.json({ url });
++}
+diff --git a/components/AdminSidebar.tsx b/components/AdminSidebar.tsx
+index e20f306..31c02c1 100644
+--- a/components/AdminSidebar.tsx
++++ b/components/AdminSidebar.tsx
+@@ -10,6 +10,7 @@ import {
+   ClipboardList,
+   FlaskConical,
+   GraduationCap,
++  Images,
+   Library,
+   LogOut,
+   Sparkles,
+@@ -28,6 +29,7 @@ const links = [
+   { href: "/admin/organizations", label: "Organizations", Icon: Building2, adminOnly: true },
+   { href: "/admin/courses", label: "Courses", Icon: GraduationCap },
+   { href: "/admin/content-library", label: "Content Library", Icon: Library },
++  { href: "/admin/media", label: "Media Library", Icon: Images },
+   { href: "/admin/quizzes", label: "Quizzes", Icon: ClipboardList },
+   { href: "/admin/obe", label: "Outcomes", Icon: Target, adminOnly: true },
+   { href: "/admin/users", label: "Users", Icon: UsersRound, adminOnly: true },
+diff --git a/components/MediaAssetCard.tsx b/components/MediaAssetCard.tsx
+new file mode 100644
+index 0000000..9dcab8a
+--- /dev/null
++++ b/components/MediaAssetCard.tsx
+@@ -0,0 +1,186 @@
++"use client";
++
++import { useState } from "react";
++import { Check, Copy, ExternalLink, Music, Pencil, Trash2, Video } from "lucide-react";
++import { DeleteButton } from "@/components/DeleteButton";
++import { deleteMediaAsset, updateMediaAssetDetails } from "@/app/admin/media/actions";
++
++export type MediaAssetRow = {
++  id: string;
++  owner_id: string;
++  type: "IMAGE" | "AUDIO" | "VIDEO";
++  source: "UPLOAD" | "LINK";
++  url: string;
++  title: string | null;
++  alt_text: string | null;
++  caption: string | null;
++  tags: string[] | null;
++  file_name: string | null;
++  lesson_title: string | null;
++  use_count: number;
++  last_used_at: string;
++  created_at: string;
++};
++
++function youtubeThumbnail(url: string) {
++  const match = url.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/|embed\/)|youtu\.be\/)([\w-]{6,})/i);
++  return match ? `https://img.youtube.com/vi/${match[1]}/mqdefault.jpg` : null;
++}
++
++function displayName(asset: MediaAssetRow) {
++  return asset.title || asset.caption || asset.file_name || asset.url.split("/").pop() || "Untitled";
++}
++
++export function MediaAssetCard({ asset, canManage }: { asset: MediaAssetRow; canManage: boolean }) {
++  const [editing, setEditing] = useState(false);
++  const [copied, setCopied] = useState(false);
++  const name = displayName(asset);
++  const ytThumb = asset.type === "VIDEO" ? youtubeThumbnail(asset.url) : null;
++
++  async function copyUrl() {
++    try {
++      await navigator.clipboard.writeText(asset.url);
++      setCopied(true);
++      setTimeout(() => setCopied(false), 1500);
++    } catch {
++      // clipboard API unavailable — silently ignore, the URL is still visible/selectable
++    }
++  }
++
++  return (
++    <article className="group relative flex min-w-0 flex-col overflow-hidden rounded-2xl border border-black/10 bg-white shadow-sm transition hover:shadow-md">
++      {/* Preview */}
++      <div className="relative flex aspect-[4/3] w-full items-center justify-center overflow-hidden bg-slate-50">
++        {asset.type === "IMAGE" ? (
++          // eslint-disable-next-line @next/next/no-img-element
++          <img src={asset.url} alt={asset.alt_text ?? name} className="h-full w-full object-cover" loading="lazy" />
++        ) : asset.type === "VIDEO" ? (
++          ytThumb ? (
++            // eslint-disable-next-line @next/next/no-img-element
++            <img src={ytThumb} alt={name} className="h-full w-full object-cover" loading="lazy" />
++          ) : (
++            <Video size={30} className="text-black/25" />
++          )
++        ) : (
++          <Music size={30} className="text-black/25" />
++        )}
++
++        <span className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
++          {asset.type}
++        </span>
++        <span
++          className={`absolute right-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide
++            ${asset.source === "UPLOAD" ? "bg-moss/90 text-white" : "bg-amber-500/90 text-white"}`}
++        >
++          {asset.source === "UPLOAD" ? "Uploaded" : "Link"}
++        </span>
++      </div>
++
++      {asset.type === "AUDIO" && !/youtube\.com|youtu\.be/i.test(asset.url) ? (
++        <audio controls src={asset.url} className="w-full border-b border-black/5" />
++      ) : null}
++
++      {/* Meta + actions */}
++      <div className="flex min-w-0 flex-1 flex-col gap-2 p-3">
++        {editing ? (
++          <form
++            action={async (formData) => {
++              await updateMediaAssetDetails(asset.id, formData);
++              setEditing(false);
++            }}
++            className="space-y-1.5"
++          >
++            <input
++              name="title"
++              defaultValue={asset.title ?? ""}
++              placeholder="Title"
++              className="w-full rounded-md border border-black/15 px-2 py-1.5 text-xs"
++            />
++            {asset.type === "IMAGE" ? (
++              <input
++                name="altText"
++                defaultValue={asset.alt_text ?? ""}
++                placeholder="Alt text"
++                className="w-full rounded-md border border-black/15 px-2 py-1.5 text-xs"
++              />
++            ) : null}
++            <input
++              name="caption"
++              defaultValue={asset.caption ?? ""}
++              placeholder="Caption / label"
++              className="w-full rounded-md border border-black/15 px-2 py-1.5 text-xs"
++            />
++            <input
++              name="tags"
++              defaultValue={(asset.tags ?? []).join(", ")}
++              placeholder="Tags, comma separated"
++              className="w-full rounded-md border border-black/15 px-2 py-1.5 text-xs"
++            />
++            <div className="flex gap-2">
++              <button className="rounded-md bg-violetglow px-2.5 py-1.5 text-xs font-semibold text-white">Save</button>
++              <button type="button" onClick={() => setEditing(false)} className="rounded-md border border-black/15 px-2.5 py-1.5 text-xs font-semibold">
++                Cancel
++              </button>
++            </div>
++          </form>
++        ) : (
++          <>
++            <p className="truncate text-sm font-semibold" title={name}>{name}</p>
++            <p className="truncate text-[11px] text-black/45">
++              {asset.lesson_title ? `Used in ${asset.lesson_title}` : "Not yet used in a lesson"} · {asset.use_count}× reused
++            </p>
++            {asset.tags && asset.tags.length ? (
++              <div className="flex flex-wrap gap-1">
++                {asset.tags.slice(0, 4).map((tag) => (
++                  <span key={tag} className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-black/55">{tag}</span>
++                ))}
++              </div>
++            ) : null}
++          </>
++        )}
++
++        <div className="mt-auto flex items-center gap-1 border-t border-black/5 pt-2">
++          <button
++            type="button"
++            onClick={copyUrl}
++            title="Copy URL"
++            className="inline-flex flex-1 items-center justify-center gap-1 rounded-md border border-black/10 px-2 py-1.5 text-xs font-semibold text-black/60 hover:bg-black/5"
++          >
++            {copied ? <Check size={13} className="text-moss" /> : <Copy size={13} />}
++            {copied ? "Copied" : "Copy URL"}
++          </button>
++          <a
++            href={asset.url}
++            target="_blank"
++            rel="noreferrer"
++            title="Open"
++            className="inline-flex items-center justify-center rounded-md border border-black/10 p-1.5 text-black/50 hover:bg-black/5"
++          >
++            <ExternalLink size={14} />
++          </a>
++          {canManage ? (
++            <>
++              <button
++                type="button"
++                onClick={() => setEditing((value) => !value)}
++                title="Edit details"
++                className="inline-flex items-center justify-center rounded-md border border-black/10 p-1.5 text-black/50 hover:bg-black/5"
++              >
++                <Pencil size={14} />
++              </button>
++              <DeleteButton
++                title="Move to trash?"
++                message={`"${name}" will move to Media Trash. It won't remove the file from any lesson it's already used in.`}
++                isSoftDelete
++                action={() => deleteMediaAsset(asset.id)}
++                className="inline-flex items-center justify-center rounded-md border border-coral/25 p-1.5 text-coral hover:bg-coral/5"
++              >
++                <Trash2 size={14} />
++              </DeleteButton>
++            </>
++          ) : null}
++        </div>
++      </div>
++    </article>
++  );
++}
+diff --git a/components/MediaLibraryUploader.tsx b/components/MediaLibraryUploader.tsx
+new file mode 100644
+index 0000000..c62fca3
+--- /dev/null
++++ b/components/MediaLibraryUploader.tsx
+@@ -0,0 +1,180 @@
++"use client";
++
++import { useRef, useState } from "react";
++import { useRouter } from "next/navigation";
++import { Link2, Loader2, Music, Plus, UploadCloud, X } from "lucide-react";
++import { addMediaLink } from "@/app/admin/media/actions";
++
++export function MediaLibraryUploader() {
++  const router = useRouter();
++  const [open, setOpen] = useState(false);
++  const [tab, setTab] = useState<"upload" | "link">("upload");
++  const [kind, setKind] = useState<"image" | "audio">("image");
++  const [uploading, setUploading] = useState(false);
++  const [error, setError] = useState<string | null>(null);
++  const [linkPending, setLinkPending] = useState(false);
++  const inputRef = useRef<HTMLInputElement>(null);
++
++  const accept = kind === "image"
++    ? "image/jpeg,image/png,image/webp,image/gif"
++    : "audio/mpeg,audio/mp3,audio/wav,audio/ogg,audio/mp4,audio/webm";
++
++  async function handleFile(file: File) {
++    setError(null);
++    setUploading(true);
++    try {
++      const fd = new FormData();
++      fd.append("file", file);
++      fd.append("type", kind);
++      fd.append("lessonId", "library");
++      const res = await fetch("/api/admin/upload", { method: "POST", body: fd });
++      const data = (await res.json()) as { url?: string; error?: string };
++      if (data.error) throw new Error(data.error);
++      setOpen(false);
++      router.refresh();
++    } catch (e) {
++      setError(e instanceof Error ? e.message : "Upload failed");
++    } finally {
++      setUploading(false);
++      if (inputRef.current) inputRef.current.value = "";
++    }
++  }
++
++  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
++    const file = e.target.files?.[0];
++    if (file) void handleFile(file);
++  }
++
++  function handleDrop(e: React.DragEvent) {
++    e.preventDefault();
++    const file = e.dataTransfer.files?.[0];
++    if (file) void handleFile(file);
++  }
++
++  async function handleAddLink(formData: FormData) {
++    setError(null);
++    setLinkPending(true);
++    try {
++      await addMediaLink(formData);
++      setOpen(false);
++      router.refresh();
++    } catch (e) {
++      setError(e instanceof Error ? e.message : "Couldn't add that link.");
++    } finally {
++      setLinkPending(false);
++    }
++  }
++
++  if (!open) {
++    return (
++      <button
++        type="button"
++        onClick={() => setOpen(true)}
++        className="inline-flex shrink-0 items-center gap-2 rounded-full bg-violetglow px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-violetglow/90"
++      >
++        <Plus size={16} /> Add New
++      </button>
++    );
++  }
++
++  return (
++    <div className="w-full max-w-md rounded-2xl border border-black/10 bg-white p-4 shadow-lg sm:w-[26rem]">
++      <div className="flex items-center justify-between">
++        <div className="inline-flex rounded-full bg-slate-100 p-1 text-sm font-semibold">
++          <button
++            type="button"
++            onClick={() => setTab("upload")}
++            className={`rounded-full px-3 py-1.5 ${tab === "upload" ? "bg-white shadow-sm text-violetglow" : "text-black/50"}`}
++          >
++            Upload
++          </button>
++          <button
++            type="button"
++            onClick={() => setTab("link")}
++            className={`rounded-full px-3 py-1.5 ${tab === "link" ? "bg-white shadow-sm text-violetglow" : "text-black/50"}`}
++          >
++            Add link
++          </button>
++        </div>
++        <button type="button" onClick={() => setOpen(false)} className="rounded-full p-1.5 text-black/40 hover:bg-black/5">
++          <X size={16} />
++        </button>
++      </div>
++
++      {tab === "upload" ? (
++        <div className="mt-4 space-y-3">
++          <div className="inline-flex rounded-full border border-black/10 p-1 text-xs font-semibold">
++            <button
++              type="button"
++              onClick={() => setKind("image")}
++              className={`rounded-full px-3 py-1 ${kind === "image" ? "bg-violetglow text-white" : "text-black/50"}`}
++            >
++              Image
++            </button>
++            <button
++              type="button"
++              onClick={() => setKind("audio")}
++              className={`rounded-full px-3 py-1 ${kind === "audio" ? "bg-violetglow text-white" : "text-black/50"}`}
++            >
++              Audio
++            </button>
++          </div>
++          <p className="text-xs text-black/45">
++            Video isn&apos;t uploaded here — paste a public video link instead using &ldquo;Add link&rdquo;.
++          </p>
++          <div
++            onDrop={handleDrop}
++            onDragOver={(e) => e.preventDefault()}
++            onClick={() => !uploading && inputRef.current?.click()}
++            className={`relative flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-8 text-center transition
++              ${uploading ? "border-violetglow/40 bg-violetglow/5 cursor-wait" : "border-black/15 hover:border-violetglow/40 hover:bg-violetglow/5"}`}
++          >
++            <input ref={inputRef} type="file" accept={accept} onChange={handleChange} className="sr-only" />
++            {uploading ? (
++              <>
++                <Loader2 size={22} className="animate-spin text-violetglow" />
++                <p className="text-xs text-black/55">Uploading…</p>
++              </>
++            ) : (
++              <>
++                {kind === "image" ? <UploadCloud size={22} className="text-black/30" /> : <Music size={22} className="text-black/30" />}
++                <p className="text-xs text-black/50">
++                  <span className="font-medium text-violetglow">Click to upload</span> or drag & drop
++                </p>
++                <p className="text-[11px] text-black/30">{kind === "image" ? "JPG, PNG, WebP, GIF" : "MP3, WAV, OGG, M4A"}</p>
++              </>
++            )}
++          </div>
++        </div>
++      ) : (
++        <form action={handleAddLink} className="mt-4 space-y-2">
++          <select name="type" required defaultValue="VIDEO" className="w-full rounded-md border border-black/15 px-3 py-2 text-sm">
++            <option value="VIDEO">Video link (YouTube, etc.)</option>
++            <option value="IMAGE">Image link</option>
++            <option value="AUDIO">Audio link</option>
++          </select>
++          <input
++            name="url"
++            required
++            placeholder="https://…"
++            className="w-full rounded-md border border-black/15 px-3 py-2 text-sm"
++          />
++          <input
++            name="title"
++            placeholder="Label (optional)"
++            className="w-full rounded-md border border-black/15 px-3 py-2 text-sm"
++          />
++          <button
++            disabled={linkPending}
++            className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-violetglow px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
++          >
++            {linkPending ? <Loader2 size={15} className="animate-spin" /> : <Link2 size={15} />}
++            Add to library
++          </button>
++        </form>
++      )}
++
++      {error && <p className="mt-2 text-xs text-coral">{error}</p>}
++    </div>
++  );
++}

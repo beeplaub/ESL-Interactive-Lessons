@@ -340,6 +340,102 @@ function defaultBlockContent(blockType: string): Json {
   return {};
 }
 
+// ── Media Library capture ──────────────────────────────────────────────
+// Every IMAGE/IMAGE_TEXT/AUDIO/VIDEO/FLASHCARD block a creator saves gets
+// mirrored into media_assets so it shows up in their Media Library — no
+// matter whether the url came from the uploader or a pasted public link.
+// This never throws into the caller: a media_assets hiccup must not break
+// an actual lesson-content save.
+type MediaEntry = { type: "IMAGE" | "AUDIO" | "VIDEO"; url: string; alt?: string | null; caption?: string | null };
+
+function extractMediaFromBlock(blockType: string, content: Record<string, unknown>): MediaEntry[] {
+  const str = (value: unknown) => (typeof value === "string" ? value.trim() : "");
+  const out: MediaEntry[] = [];
+
+  if (blockType === "IMAGE") {
+    const url = str(content.path);
+    if (url) out.push({ type: "IMAGE", url, alt: str(content.alt) || null, caption: str(content.caption) || null });
+  } else if (blockType === "IMAGE_TEXT") {
+    const url = str(content.image_path);
+    if (url) out.push({ type: "IMAGE", url, alt: str(content.alt) || null, caption: str(content.caption) || null });
+  } else if (blockType === "AUDIO") {
+    const url = str(content.path);
+    if (url) out.push({ type: "AUDIO", url, caption: str(content.label) || null });
+  } else if (blockType === "VIDEO") {
+    const url = str(content.url);
+    if (url) out.push({ type: "VIDEO", url, caption: str(content.title) || null });
+  } else if (blockType === "FLASHCARD") {
+    const cards = Array.isArray(content.cards) ? (content.cards as Array<Record<string, unknown>>) : [];
+    for (const card of cards) {
+      const image = str(card.image_path);
+      if (image) out.push({ type: "IMAGE", url: image, alt: str(card.word) || null });
+      const audio = str(card.audio_path);
+      if (audio) out.push({ type: "AUDIO", url: audio, caption: str(card.word) || null });
+    }
+  }
+  return out;
+}
+
+function isUploadedMediaUrl(url: string) {
+  return /supabase\.co\/storage\/v1\/object\/public\/(lessons|lesson-audio)\//i.test(url);
+}
+
+function mediaFileNameFromUrl(url: string) {
+  const clean = url.split("?")[0];
+  const last = clean.split("/").pop();
+  return last || null;
+}
+
+async function upsertMediaAsset(supabase: AdminClient, entry: MediaEntry & { ownerId: string; lessonId: string | null; lessonTitle: string | null }) {
+  const { data: existing } = await supabase
+    .from("media_assets")
+    .select("id, use_count")
+    .eq("owner_id", entry.ownerId)
+    .eq("url", entry.url)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (existing) {
+    const update: Record<string, unknown> = {
+      use_count: (existing.use_count ?? 1) + 1,
+      last_used_at: new Date().toISOString(),
+      lesson_id: entry.lessonId,
+      lesson_title: entry.lessonTitle
+    };
+    if (entry.alt) update.alt_text = entry.alt;
+    if (entry.caption) update.caption = entry.caption;
+    await supabase.from("media_assets").update(update).eq("id", existing.id);
+    return;
+  }
+
+  await supabase.from("media_assets").insert({
+    owner_id: entry.ownerId,
+    type: entry.type,
+    source: isUploadedMediaUrl(entry.url) ? "UPLOAD" : "LINK",
+    url: entry.url,
+    alt_text: entry.alt ?? null,
+    caption: entry.caption ?? null,
+    file_name: mediaFileNameFromUrl(entry.url),
+    lesson_id: entry.lessonId,
+    lesson_title: entry.lessonTitle,
+    use_count: 1,
+    last_used_at: new Date().toISOString()
+  });
+}
+
+async function registerMediaFromBlock(supabase: AdminClient, lessonId: string, blockType: string, content: Json) {
+  const entries = extractMediaFromBlock(blockType, (content as Record<string, unknown>) ?? {});
+  if (!entries.length) return;
+
+  const { data: lesson } = await supabase.from("lessons").select("created_by, title").eq("id", lessonId).maybeSingle();
+  const ownerId = lesson?.created_by;
+  if (!ownerId) return;
+
+  for (const entry of entries) {
+    await upsertMediaAsset(supabase, { ...entry, ownerId, lessonId, lessonTitle: lesson?.title ?? null });
+  }
+}
+
 async function createLessonRowsFromPdf(params: {
   lessonId: string;
   title: string;
@@ -1198,17 +1294,25 @@ export async function updateLessonBlock(lessonId: string, blockId: string, formD
   await requireLessonAccess(lessonId);
   const supabase = createAdminClient();
   const parsed = lessonBlockSchema.parse({ blockType: formData.get("blockType") });
+  const content = blockContentFromForm(parsed.blockType, formData);
 
   const { error } = await supabase
     .from("lesson_blocks")
     .update({
       block_type: parsed.blockType,
-      content: blockContentFromForm(parsed.blockType, formData)
+      content
     })
     .eq("id", blockId)
     .eq("lesson_id", lessonId);
 
   if (error) throw error;
+
+  try {
+    await registerMediaFromBlock(supabase, lessonId, parsed.blockType, content);
+  } catch (mediaError) {
+    console.error("media_assets registration failed", mediaError);
+  }
+
   revalidateLessonBuilder(lessonId);
 }
 
