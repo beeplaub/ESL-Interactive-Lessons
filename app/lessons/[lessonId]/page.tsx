@@ -128,7 +128,7 @@ export default async function LessonPage({
     { data: audioFiles },
   ] = await Promise.all([
     admin.from("lessons").select("id,title,topic,level,status,timer_minutes").eq("id", lessonId).eq("status", "PUBLISHED").is("deleted_at", null).maybeSingle(),
-    admin.from("slides").select("id,slide_number,title,section_label").eq("lesson_id", lessonId).order("slide_number", { ascending: true }),
+    admin.from("slides").select("id,slide_number,title,section_label,content_order,require_practice_before_learn").eq("lesson_id", lessonId).order("slide_number", { ascending: true }),
     admin.from("lesson_blocks").select("id,slide_id,position,block_type,content").eq("lesson_id", lessonId).order("position", { ascending: true }),
     admin.from("lesson_slide_activities").select("id,slide_id,slide_number,activity_type,activity_data").eq("lesson_id", lessonId).order("slide_number", { ascending: true }),
     admin.from("lesson_progress").select("current_slide_number,completed,notes").eq("lesson_id", lessonId).eq("user_id", user.id).maybeSingle(),

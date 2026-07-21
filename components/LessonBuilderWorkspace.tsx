@@ -57,6 +57,8 @@ type Lesson = {
 type Slide = {
   id: string; slide_number: number; title: string;
   section_label: string | null; raw_text: string;
+  content_order?: "LEARN_FIRST" | "PRACTICE_FIRST" | null;
+  require_practice_before_learn?: boolean | null;
 };
 
 type LessonBlock = {
@@ -878,6 +880,22 @@ function SelectedSlideEditor({
           <label className="text-sm">Section label<input name="sectionLabel" defaultValue={slide.section_label ?? ""} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
           <input type="hidden" name="rawText" value={slide.title} />
           <SubmitButton label="Save slide" />
+          <div className="sm:col-span-3 flex flex-wrap items-end gap-4 border-t border-black/10 pt-3">
+            <label className="text-sm">
+              Learner sees first
+              <select name="contentOrder" defaultValue={slide.content_order ?? "LEARN_FIRST"} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">
+                <option value="LEARN_FIRST">Learn tab (content) first</option>
+                <option value="PRACTICE_FIRST">Practice tab (activity) first</option>
+              </select>
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" name="requirePracticeBeforeLearn" defaultChecked={Boolean(slide.require_practice_before_learn)} className="size-4 rounded border-black/25" />
+              Require the activity to be submitted before the Learn tab unlocks
+            </label>
+          </div>
+          <p className="sm:col-span-3 -mt-2 text-xs text-black/45">
+            Only applies when Practice is set first, and only on slides that have both content and an activity.
+          </p>
         </form>
 
         <section className="mt-4 rounded-lg border border-black/10 bg-white p-3">

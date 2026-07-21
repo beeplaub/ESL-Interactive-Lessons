@@ -1,0 +1,390 @@
+diff --git a/app/admin/lessons/[id]/builder/page.tsx b/app/admin/lessons/[id]/builder/page.tsx
+index 44f71b9..c27b90a 100644
+--- a/app/admin/lessons/[id]/builder/page.tsx
++++ b/app/admin/lessons/[id]/builder/page.tsx
+@@ -21,7 +21,7 @@ export default async function LessonBuilderPage({ params }: { params: Promise<{
+ 
+   const [{ data: lesson }, { data: slides }, { data: activities }, { data: blocks }] = await Promise.all([
+     supabase.from("lessons").select("*").eq("id", id).maybeSingle(),
+-    supabase.from("slides").select("id, slide_number, title, section_label, raw_text").eq("lesson_id", id).order("slide_number", { ascending: true }),
++    supabase.from("slides").select("id, slide_number, title, section_label, raw_text, content_order, require_practice_before_learn").eq("lesson_id", id).order("slide_number", { ascending: true }),
+     supabase.from("lesson_slide_activities").select("*, slides(title, slide_number)").eq("lesson_id", id).not("slide_id", "is", null).order("slide_number", { ascending: true }),
+     supabase.from("lesson_blocks").select("*").eq("lesson_id", id).order("position", { ascending: true })
+   ]);
+diff --git a/app/admin/lessons/actions.ts b/app/admin/lessons/actions.ts
+index 9e4f933..57e3e34 100644
+--- a/app/admin/lessons/actions.ts
++++ b/app/admin/lessons/actions.ts
+@@ -983,13 +983,19 @@ export async function updateBuilderSlide(lessonId: string, slideId: string, form
+   const title = String(formData.get("title") || "").trim();
+   const rawText = String(formData.get("rawText") || "").trim();
+ 
++  const contentOrderRaw = String(formData.get("contentOrder") || "LEARN_FIRST");
++  const contentOrder = contentOrderRaw === "PRACTICE_FIRST" ? "PRACTICE_FIRST" : "LEARN_FIRST";
++  const requirePracticeBeforeLearn = contentOrder === "PRACTICE_FIRST" && formData.get("requirePracticeBeforeLearn") === "on";
++
+   const { error } = await supabase
+     .from("slides")
+     .update({
+       title: title || "Untitled slide",
+       section_label: nullableText(formData.get("sectionLabel")),
+       type: String(formData.get("type") || "INFO") as SlideType,
+-      raw_text: rawText || title || "Untitled slide"
++      raw_text: rawText || title || "Untitled slide",
++      content_order: contentOrder,
++      require_practice_before_learn: requirePracticeBeforeLearn
+     })
+     .eq("id", slideId)
+     .eq("lesson_id", lessonId);
+diff --git a/app/lessons/[lessonId]/page.tsx b/app/lessons/[lessonId]/page.tsx
+index b559dcc..ae8e492 100644
+--- a/app/lessons/[lessonId]/page.tsx
++++ b/app/lessons/[lessonId]/page.tsx
+@@ -128,7 +128,7 @@ export default async function LessonPage({
+     { data: audioFiles },
+   ] = await Promise.all([
+     admin.from("lessons").select("id,title,topic,level,status,timer_minutes").eq("id", lessonId).eq("status", "PUBLISHED").is("deleted_at", null).maybeSingle(),
+-    admin.from("slides").select("id,slide_number,title,section_label").eq("lesson_id", lessonId).order("slide_number", { ascending: true }),
++    admin.from("slides").select("id,slide_number,title,section_label,content_order,require_practice_before_learn").eq("lesson_id", lessonId).order("slide_number", { ascending: true }),
+     admin.from("lesson_blocks").select("id,slide_id,position,block_type,content").eq("lesson_id", lessonId).order("position", { ascending: true }),
+     admin.from("lesson_slide_activities").select("id,slide_id,slide_number,activity_type,activity_data").eq("lesson_id", lessonId).order("slide_number", { ascending: true }),
+     admin.from("lesson_progress").select("current_slide_number,completed,notes").eq("lesson_id", lessonId).eq("user_id", user.id).maybeSingle(),
+diff --git a/components/BuilderLessonPlayer.tsx b/components/BuilderLessonPlayer.tsx
+index 2a0a69e..8636eee 100644
+--- a/components/BuilderLessonPlayer.tsx
++++ b/components/BuilderLessonPlayer.tsx
+@@ -2,14 +2,18 @@
+ 
+ import Link from "next/link";
+ import type { TouchEvent } from "react";
+-import { ArrowLeft, ArrowRight, CheckCircle2, ChevronLeft, NotebookPen, Pause, Play, RotateCcw } from "lucide-react";
++import { ArrowLeft, ArrowRight, BookOpen, CheckCircle2, ChevronLeft, Lock, NotebookPen, Pause, Play, PenLine, RotateCcw } from "lucide-react";
+ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+ import { LessonActivityPanel, lessonActivityTotalPoints } from "@/components/LessonActivityPanel";
+ import { LessonBlockPreview } from "@/components/LessonBlockPreview";
+ import type { Json } from "@/types/database.types";
+ 
+ type Lesson = { id: string; title: string; topic: string | null; level: string | null; timer_minutes?: number | null };
+-type Slide = { id: string; slide_number: number; title: string; section_label: string | null };
++type Slide = {
++  id: string; slide_number: number; title: string; section_label: string | null;
++  content_order?: "LEARN_FIRST" | "PRACTICE_FIRST" | null;
++  require_practice_before_learn?: boolean | null;
++};
+ type Block = { id: string; slide_id: string; position: number; block_type: string; content: Json };
+ type Activity = { id: string; slide_id: string | null; slide_number: number; activity_type: string; activity_data: Json | null };
+ type Progress = { current_slide_number: number; completed: boolean } | null;
+@@ -214,6 +218,19 @@ export function BuilderLessonPlayer({
+   const slideActivities = slide
+     ? activities.filter((a) => a.slide_id === slide.id)
+     : [];
++  const learnAvailable = slideBlocks.length > 0;
++  const practiceAvailable = slideActivities.length > 0;
++  const practiceFirst = slide?.content_order === "PRACTICE_FIRST";
++  const defaultTab: "learn" | "practice" =
++    practiceFirst && practiceAvailable ? "practice" : learnAvailable ? "learn" : practiceAvailable ? "practice" : "learn";
++  const [activeTab, setActiveTab] = useState<"learn" | "practice">(defaultTab);
++
++  useEffect(() => {
++    setActiveTab(defaultTab);
++    // Only re-run when the slide itself changes, not on every re-render caused by, e.g., new attempts.
++    // eslint-disable-next-line react-hooks/exhaustive-deps
++  }, [slide?.id]);
++
+   const progressPercent = slides.length ? Math.round(((index + 1) / slides.length) * 100) : 0;
+   const timerUrgent = remainingSeconds !== null && remainingSeconds <= 60;
+   function formatTime(totalSeconds: number) {
+@@ -241,6 +258,17 @@ export function BuilderLessonPlayer({
+   const lessonPercent = totalLessonMarks ? Math.round((earnedLessonMarks / totalLessonMarks) * 100) : 0;
+   const lessonGrade = lessonPercent >= 90 ? "Excellent" : lessonPercent >= 75 ? "Strong" : lessonPercent >= 60 ? "Good" : lessonPercent >= 40 ? "Developing" : "Keep practising";
+ 
++  // Creator-controlled gate: only meaningful when Practice is set first on this slide,
++  // and only while the learner hasn't yet submitted every activity on it.
++  const practiceSubmitted = slideActivities.length > 0 && slideActivities.every((a) => latestAttemptByActivity.has(a.id));
++  const learnLocked = practiceFirst && Boolean(slide?.require_practice_before_learn) && practiceAvailable && !practiceSubmitted;
++
++  function selectTab(tab: "learn" | "practice") {
++    if (tab === "learn" && (!learnAvailable || learnLocked)) return;
++    if (tab === "practice" && !practiceAvailable) return;
++    setActiveTab(tab);
++  }
++
+   // Narration for current slide
+   const narrationUrl = slide ? (narrationMap[slide.id] ?? null) : null;
+ 
+@@ -471,113 +499,145 @@ export function BuilderLessonPlayer({
+           }}
+         >
+ 
+-      {/* ── Main two-column grid ── */}
+-      <div className="grid grid-cols-1 gap-5 min-[1180px]:grid-cols-[minmax(0,1.15fr)_minmax(340px,0.85fr)]">
+-
+-        {/* ── LEFT column: slide + notes ── */}
+-        <div className="flex min-w-0 flex-col gap-4">
+-
+-          {/* Slide card */}
+-          <div className="relative">
+-            <section
+-              className="rounded-[22px] border border-[#ECECF5] bg-white p-2 shadow-[0_12px_32px_rgba(0,0,0,.06)] sm:p-3"
+-            >
+-              {/* Slide header */}
+-              <div className="mb-4 rounded-[18px] bg-gradient-to-br from-[#1A1060] via-[#0C1945] to-[#0E1F5A] px-4 py-3 text-white">
+-
+-                {/* Line 1 — slide counter (left) + narration pill (right) */}
+-                <div className="flex items-center justify-between gap-2">
+-                  <p className="text-xs uppercase tracking-wide text-white/55">
+-                    Slide {index + 1} of {slides.length}
+-                  </p>
+-                  {narrationUrl && (
+-                    <NarrationPill key={slide.id} src={narrationUrl} />
+-                  )}
+-                </div>
++      {/* ── Full-width slide stage ── */}
++      <div className="flex min-w-0 flex-col gap-4">
++
++        <div className="relative">
++          <section className="rounded-[22px] border border-[#ECECF5] bg-white p-2 shadow-[0_12px_32px_rgba(0,0,0,.06)] sm:p-3">
++            {/* Slide header */}
++            <div className="mb-4 rounded-[18px] bg-gradient-to-br from-[#1A1060] via-[#0C1945] to-[#0E1F5A] px-4 py-3 text-white">
++              {/* Line 1 — slide counter (left) + narration pill (right) */}
++              <div className="flex items-center justify-between gap-2">
++                <p className="text-xs uppercase tracking-wide text-white/55">
++                  Slide {index + 1} of {slides.length}
++                </p>
++                {narrationUrl && (
++                  <NarrationPill key={slide.id} src={narrationUrl} />
++                )}
++              </div>
+ 
+-                {/* Line 2 — slide title */}
+-                <h2 className="mt-1 text-2xl font-extrabold">{slide.title}</h2>
++              {/* Line 2 — slide title */}
++              <h2 className="mt-1 text-2xl font-extrabold">{slide.title}</h2>
+ 
+-                {/* Line 3 — section label */}
+-                {slide.section_label && (
+-                  <p className="mt-1 text-sm text-white/60">{slide.section_label}</p>
+-                )}
++              {/* Line 3 — section label */}
++              {slide.section_label && (
++                <p className="mt-1 text-sm text-white/60">{slide.section_label}</p>
++              )}
++            </div>
++
++            {/* ── Learn / Practice tabs — side by side at every breakpoint ── */}
++            {(learnAvailable || practiceAvailable) && (
++              <div className="mb-4 flex gap-2" role="tablist" aria-label="Slide content mode">
++                <button
++                  type="button"
++                  role="tab"
++                  aria-selected={activeTab === "learn"}
++                  disabled={!learnAvailable || learnLocked}
++                  title={!learnAvailable ? "No content" : learnLocked ? "Complete Practice first" : undefined}
++                  onClick={() => selectTab("learn")}
++                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-[14px] px-3 py-2.5 text-sm font-extrabold transition ${
++                    !learnAvailable || learnLocked
++                      ? "cursor-not-allowed bg-[#F1F2F7] text-[#B4B8CB]"
++                      : activeTab === "learn"
++                      ? "bg-[#6C3BFF] text-white shadow-[0_6px_16px_rgba(108,59,255,.28)]"
++                      : "bg-[#EEEAFB] text-[#6C3BFF] hover:bg-[#E3DCFB]"
++                  }`}
++                >
++                  {learnLocked ? <Lock size={14} /> : <BookOpen size={14} />}
++                  Learn
++                </button>
++                <button
++                  type="button"
++                  role="tab"
++                  aria-selected={activeTab === "practice"}
++                  disabled={!practiceAvailable}
++                  title={!practiceAvailable ? "No activity" : undefined}
++                  onClick={() => selectTab("practice")}
++                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-[14px] px-3 py-2.5 text-sm font-extrabold transition ${
++                    !practiceAvailable
++                      ? "cursor-not-allowed bg-[#F1F2F7] text-[#B4B8CB]"
++                      : activeTab === "practice"
++                      ? "bg-[#00A978] text-white shadow-[0_6px_16px_rgba(0,169,120,.28)]"
++                      : "bg-[#E7FBF4] text-[#00A978] hover:bg-[#D3F6E9]"
++                  }`}
++                >
++                  <PenLine size={14} />
++                  Practice
++                </button>
+               </div>
++            )}
+ 
+-              {slideBlocks.length ? (
++            {/* ── Active panel ── */}
++            {activeTab === "learn" ? (
++              slideBlocks.length ? (
+                 <LessonBlockPreview blocks={slideBlocks} />
+-              ) : slideActivities.length ? null : (
++              ) : (
+                 <div className="grid min-h-40 place-items-center rounded-[16px] bg-[#F6F7FB] p-5 text-center text-sm font-semibold text-[#6E738D]">
+                   Take a moment to review this step, then continue when you are ready.
+                 </div>
+-              )}
+-            </section>
+-          </div>
+-
+-          {/* Notes panel */}
+-          <div className="rounded-[22px] border border-[#ECECF5] bg-white shadow-[0_12px_32px_rgba(0,0,0,.06)]">
+-            <div className="flex items-center justify-between border-b border-[#ECECF5] px-4 py-3">
+-              <div className="flex items-center gap-2">
+-                <NotebookPen size={15} className="text-[#6C3BFF]" />
+-                <span className="text-sm font-extrabold">My Notes</span>
+-                <span className="rounded-full bg-[#F6F7FB] px-2 py-0.5 text-[10px] font-bold text-[#8B90A7]">
+-                  Slide {index + 1}
+-                </span>
++              )
++            ) : slideActivities.length ? (
++              <div className="space-y-4">
++                {slideActivities.map((activity) => (
++                  <LessonActivityPanel
++                    key={activity.id}
++                    activity={{
++                      id: activity.id,
++                      activity_type: activity.activity_type,
++                      activity_data: activity.activity_data,
++                    }}
++                    onNext={() => move(1)}
++                    courseItemId={courseItemId}
++                    initialAttempt={latestAttemptByActivity.get(activity.id) ?? null}
++                    attempts={savedActivityAttempts.filter((attempt) => attempt.lesson_slide_activity_id === activity.id)}
++                    onSavedAttempt={(attempt) => {
++                      setSavedActivityAttempts((current) => [{
++                        lesson_slide_activity_id: activity.id,
++                        score: attempt.score,
++                        total: attempt.total,
++                        answers: attempt.answers,
++                        completed_at: attempt.completed_at ?? new Date().toISOString()
++                      }, ...current]);
++                    }}
++                  />
++                ))}
+               </div>
+-              <span className={`text-[11px] font-bold transition-opacity duration-300 ${notesSaved ? "text-[#00A978] opacity-100" : "opacity-0"}`}>
+-                ✓ Saved
++            ) : (
++              <div className="rounded-[22px] border border-[#ECECF5] bg-white p-5 text-sm font-semibold text-[#6E738D] shadow-[0_12px_32px_rgba(0,0,0,.06)]">
++                No activity on this slide. Use Next when you are ready.
++              </div>
++            )}
++          </section>
++        </div>
++
++        {/* Notes panel — always visible, full width, not tied to either tab */}
++        <div className="rounded-[22px] border border-[#ECECF5] bg-white shadow-[0_12px_32px_rgba(0,0,0,.06)]">
++          <div className="flex items-center justify-between border-b border-[#ECECF5] px-4 py-3">
++            <div className="flex items-center gap-2">
++              <NotebookPen size={15} className="text-[#6C3BFF]" />
++              <span className="text-sm font-extrabold">My Notes</span>
++              <span className="rounded-full bg-[#F6F7FB] px-2 py-0.5 text-[10px] font-bold text-[#8B90A7]">
++                Slide {index + 1}
+               </span>
+             </div>
+-            <div className="p-3">
+-              <textarea
+-                key={slide.id}
+-                value={notesMap[slide.id] ?? ""}
+-                onChange={handleNotesChange}
+-                placeholder="Type your notes here… they save automatically."
+-                rows={4}
+-                className="w-full resize-none rounded-[16px] border border-[#ECECF5] bg-[#F8F8FC] px-3 py-2.5 text-sm font-semibold leading-relaxed text-[#35405F] placeholder:text-[#A0A5BA] focus:border-[#6C3BFF]/40 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#6C3BFF]/15"
+-              />
+-              <p className="mt-1.5 text-[11px] font-semibold text-[#8B90A7]">
+-                Notes are saved per slide and will be here when you return.
+-              </p>
+-            </div>
++            <span className={`text-[11px] font-bold transition-opacity duration-300 ${notesSaved ? "text-[#00A978] opacity-100" : "opacity-0"}`}>
++              ✓ Saved
++            </span>
++          </div>
++          <div className="p-3">
++            <textarea
++              key={slide.id}
++              value={notesMap[slide.id] ?? ""}
++              onChange={handleNotesChange}
++              placeholder="Type your notes here… they save automatically."
++              rows={4}
++              className="w-full resize-none rounded-[16px] border border-[#ECECF5] bg-[#F8F8FC] px-3 py-2.5 text-sm font-semibold leading-relaxed text-[#35405F] placeholder:text-[#A0A5BA] focus:border-[#6C3BFF]/40 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#6C3BFF]/15"
++            />
++            <p className="mt-1.5 text-[11px] font-semibold text-[#8B90A7]">
++              Notes are saved per slide and will be here when you return.
++            </p>
+           </div>
+         </div>
+-
+-        {/* ── RIGHT column: activity only ── */}
+-        <aside className="flex min-w-0 flex-col gap-4">
+-          {slideActivities.length ? (
+-            <div className="space-y-4">
+-              {slideActivities.map((activity) => (
+-                <LessonActivityPanel
+-                  key={activity.id}
+-                  activity={{
+-                    id: activity.id,
+-                    activity_type: activity.activity_type,
+-                    activity_data: activity.activity_data,
+-                  }}
+-                  onNext={() => move(1)}
+-                  courseItemId={courseItemId}
+-                  initialAttempt={latestAttemptByActivity.get(activity.id) ?? null}
+-                  attempts={savedActivityAttempts.filter((attempt) => attempt.lesson_slide_activity_id === activity.id)}
+-                  onSavedAttempt={(attempt) => {
+-                    setSavedActivityAttempts((current) => [{
+-                      lesson_slide_activity_id: activity.id,
+-                      score: attempt.score,
+-                      total: attempt.total,
+-                      answers: attempt.answers,
+-                      completed_at: attempt.completed_at ?? new Date().toISOString()
+-                    }, ...current]);
+-                  }}
+-                />
+-              ))}
+-            </div>
+-          ) : (
+-            <div className="rounded-[22px] border border-[#ECECF5] bg-white p-5 text-sm font-semibold text-[#6E738D] shadow-[0_12px_32px_rgba(0,0,0,.06)]">
+-              No activity on this slide. Use Next when you are ready.
+-            </div>
+-          )}
+-        </aside>
+       </div>
+ 
+       {/* ── Bottom navigation bar ── */}
+diff --git a/components/LessonBuilderWorkspace.tsx b/components/LessonBuilderWorkspace.tsx
+index 435ea27..bba719f 100644
+--- a/components/LessonBuilderWorkspace.tsx
++++ b/components/LessonBuilderWorkspace.tsx
+@@ -57,6 +57,8 @@ type Lesson = {
+ type Slide = {
+   id: string; slide_number: number; title: string;
+   section_label: string | null; raw_text: string;
++  content_order?: "LEARN_FIRST" | "PRACTICE_FIRST" | null;
++  require_practice_before_learn?: boolean | null;
+ };
+ 
+ type LessonBlock = {
+@@ -878,6 +880,22 @@ function SelectedSlideEditor({
+           <label className="text-sm">Section label<input name="sectionLabel" defaultValue={slide.section_label ?? ""} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+           <input type="hidden" name="rawText" value={slide.title} />
+           <SubmitButton label="Save slide" />
++          <div className="sm:col-span-3 flex flex-wrap items-end gap-4 border-t border-black/10 pt-3">
++            <label className="text-sm">
++              Learner sees first
++              <select name="contentOrder" defaultValue={slide.content_order ?? "LEARN_FIRST"} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">
++                <option value="LEARN_FIRST">Learn tab (content) first</option>
++                <option value="PRACTICE_FIRST">Practice tab (activity) first</option>
++              </select>
++            </label>
++            <label className="flex items-center gap-2 text-sm">
++              <input type="checkbox" name="requirePracticeBeforeLearn" defaultChecked={Boolean(slide.require_practice_before_learn)} className="size-4 rounded border-black/25" />
++              Require the activity to be submitted before the Learn tab unlocks
++            </label>
++          </div>
++          <p className="sm:col-span-3 -mt-2 text-xs text-black/45">
++            Only applies when Practice is set first, and only on slides that have both content and an activity.
++          </p>
+         </form>
+ 
+         <section className="mt-4 rounded-lg border border-black/10 bg-white p-3">

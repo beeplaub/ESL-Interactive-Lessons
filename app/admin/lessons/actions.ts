@@ -983,13 +983,19 @@ export async function updateBuilderSlide(lessonId: string, slideId: string, form
   const title = String(formData.get("title") || "").trim();
   const rawText = String(formData.get("rawText") || "").trim();
 
+  const contentOrderRaw = String(formData.get("contentOrder") || "LEARN_FIRST");
+  const contentOrder = contentOrderRaw === "PRACTICE_FIRST" ? "PRACTICE_FIRST" : "LEARN_FIRST";
+  const requirePracticeBeforeLearn = contentOrder === "PRACTICE_FIRST" && formData.get("requirePracticeBeforeLearn") === "on";
+
   const { error } = await supabase
     .from("slides")
     .update({
       title: title || "Untitled slide",
       section_label: nullableText(formData.get("sectionLabel")),
       type: String(formData.get("type") || "INFO") as SlideType,
-      raw_text: rawText || title || "Untitled slide"
+      raw_text: rawText || title || "Untitled slide",
+      content_order: contentOrder,
+      require_practice_before_learn: requirePracticeBeforeLearn
     })
     .eq("id", slideId)
     .eq("lesson_id", lessonId);

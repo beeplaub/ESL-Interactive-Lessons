@@ -2,14 +2,18 @@
 
 import Link from "next/link";
 import type { TouchEvent } from "react";
-import { ArrowLeft, ArrowRight, CheckCircle2, ChevronLeft, NotebookPen, Pause, Play, RotateCcw } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, CheckCircle2, ChevronLeft, Lock, NotebookPen, Pause, Play, PenLine, RotateCcw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { LessonActivityPanel, lessonActivityTotalPoints } from "@/components/LessonActivityPanel";
 import { LessonBlockPreview } from "@/components/LessonBlockPreview";
 import type { Json } from "@/types/database.types";
 
 type Lesson = { id: string; title: string; topic: string | null; level: string | null; timer_minutes?: number | null };
-type Slide = { id: string; slide_number: number; title: string; section_label: string | null };
+type Slide = {
+  id: string; slide_number: number; title: string; section_label: string | null;
+  content_order?: "LEARN_FIRST" | "PRACTICE_FIRST" | null;
+  require_practice_before_learn?: boolean | null;
+};
 type Block = { id: string; slide_id: string; position: number; block_type: string; content: Json };
 type Activity = { id: string; slide_id: string | null; slide_number: number; activity_type: string; activity_data: Json | null };
 type Progress = { current_slide_number: number; completed: boolean } | null;
@@ -214,6 +218,19 @@ export function BuilderLessonPlayer({
   const slideActivities = slide
     ? activities.filter((a) => a.slide_id === slide.id)
     : [];
+  const learnAvailable = slideBlocks.length > 0;
+  const practiceAvailable = slideActivities.length > 0;
+  const practiceFirst = slide?.content_order === "PRACTICE_FIRST";
+  const defaultTab: "learn" | "practice" =
+    practiceFirst && practiceAvailable ? "practice" : learnAvailable ? "learn" : practiceAvailable ? "practice" : "learn";
+  const [activeTab, setActiveTab] = useState<"learn" | "practice">(defaultTab);
+
+  useEffect(() => {
+    setActiveTab(defaultTab);
+    // Only re-run when the slide itself changes, not on every re-render caused by, e.g., new attempts.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slide?.id]);
+
   const progressPercent = slides.length ? Math.round(((index + 1) / slides.length) * 100) : 0;
   const timerUrgent = remainingSeconds !== null && remainingSeconds <= 60;
   function formatTime(totalSeconds: number) {
@@ -240,6 +257,17 @@ export function BuilderLessonPlayer({
   const earnedLessonMarks = activities.reduce((sum, activity) => sum + (latestAttemptByActivity.get(activity.id)?.score ?? 0), 0);
   const lessonPercent = totalLessonMarks ? Math.round((earnedLessonMarks / totalLessonMarks) * 100) : 0;
   const lessonGrade = lessonPercent >= 90 ? "Excellent" : lessonPercent >= 75 ? "Strong" : lessonPercent >= 60 ? "Good" : lessonPercent >= 40 ? "Developing" : "Keep practising";
+
+  // Creator-controlled gate: only meaningful when Practice is set first on this slide,
+  // and only while the learner hasn't yet submitted every activity on it.
+  const practiceSubmitted = slideActivities.length > 0 && slideActivities.every((a) => latestAttemptByActivity.has(a.id));
+  const learnLocked = practiceFirst && Boolean(slide?.require_practice_before_learn) && practiceAvailable && !practiceSubmitted;
+
+  function selectTab(tab: "learn" | "practice") {
+    if (tab === "learn" && (!learnAvailable || learnLocked)) return;
+    if (tab === "practice" && !practiceAvailable) return;
+    setActiveTab(tab);
+  }
 
   // Narration for current slide
   const narrationUrl = slide ? (narrationMap[slide.id] ?? null) : null;
@@ -471,113 +499,145 @@ export function BuilderLessonPlayer({
           }}
         >
 
-      {/* ── Main two-column grid ── */}
-      <div className="grid grid-cols-1 gap-5 min-[1180px]:grid-cols-[minmax(0,1.15fr)_minmax(340px,0.85fr)]">
+      {/* ── Full-width slide stage ── */}
+      <div className="flex min-w-0 flex-col gap-4">
 
-        {/* ── LEFT column: slide + notes ── */}
-        <div className="flex min-w-0 flex-col gap-4">
-
-          {/* Slide card */}
-          <div className="relative">
-            <section
-              className="rounded-[22px] border border-[#ECECF5] bg-white p-2 shadow-[0_12px_32px_rgba(0,0,0,.06)] sm:p-3"
-            >
-              {/* Slide header */}
-              <div className="mb-4 rounded-[18px] bg-gradient-to-br from-[#1A1060] via-[#0C1945] to-[#0E1F5A] px-4 py-3 text-white">
-
-                {/* Line 1 — slide counter (left) + narration pill (right) */}
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs uppercase tracking-wide text-white/55">
-                    Slide {index + 1} of {slides.length}
-                  </p>
-                  {narrationUrl && (
-                    <NarrationPill key={slide.id} src={narrationUrl} />
-                  )}
-                </div>
-
-                {/* Line 2 — slide title */}
-                <h2 className="mt-1 text-2xl font-extrabold">{slide.title}</h2>
-
-                {/* Line 3 — section label */}
-                {slide.section_label && (
-                  <p className="mt-1 text-sm text-white/60">{slide.section_label}</p>
+        <div className="relative">
+          <section className="rounded-[22px] border border-[#ECECF5] bg-white p-2 shadow-[0_12px_32px_rgba(0,0,0,.06)] sm:p-3">
+            {/* Slide header */}
+            <div className="mb-4 rounded-[18px] bg-gradient-to-br from-[#1A1060] via-[#0C1945] to-[#0E1F5A] px-4 py-3 text-white">
+              {/* Line 1 — slide counter (left) + narration pill (right) */}
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs uppercase tracking-wide text-white/55">
+                  Slide {index + 1} of {slides.length}
+                </p>
+                {narrationUrl && (
+                  <NarrationPill key={slide.id} src={narrationUrl} />
                 )}
               </div>
 
-              {slideBlocks.length ? (
+              {/* Line 2 — slide title */}
+              <h2 className="mt-1 text-2xl font-extrabold">{slide.title}</h2>
+
+              {/* Line 3 — section label */}
+              {slide.section_label && (
+                <p className="mt-1 text-sm text-white/60">{slide.section_label}</p>
+              )}
+            </div>
+
+            {/* ── Learn / Practice tabs — side by side at every breakpoint ── */}
+            {(learnAvailable || practiceAvailable) && (
+              <div className="mb-4 flex gap-2" role="tablist" aria-label="Slide content mode">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={activeTab === "learn"}
+                  disabled={!learnAvailable || learnLocked}
+                  title={!learnAvailable ? "No content" : learnLocked ? "Complete Practice first" : undefined}
+                  onClick={() => selectTab("learn")}
+                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-[14px] px-3 py-2.5 text-sm font-extrabold transition ${
+                    !learnAvailable || learnLocked
+                      ? "cursor-not-allowed bg-[#F1F2F7] text-[#B4B8CB]"
+                      : activeTab === "learn"
+                      ? "bg-[#6C3BFF] text-white shadow-[0_6px_16px_rgba(108,59,255,.28)]"
+                      : "bg-[#EEEAFB] text-[#6C3BFF] hover:bg-[#E3DCFB]"
+                  }`}
+                >
+                  {learnLocked ? <Lock size={14} /> : <BookOpen size={14} />}
+                  Learn
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={activeTab === "practice"}
+                  disabled={!practiceAvailable}
+                  title={!practiceAvailable ? "No activity" : undefined}
+                  onClick={() => selectTab("practice")}
+                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-[14px] px-3 py-2.5 text-sm font-extrabold transition ${
+                    !practiceAvailable
+                      ? "cursor-not-allowed bg-[#F1F2F7] text-[#B4B8CB]"
+                      : activeTab === "practice"
+                      ? "bg-[#00A978] text-white shadow-[0_6px_16px_rgba(0,169,120,.28)]"
+                      : "bg-[#E7FBF4] text-[#00A978] hover:bg-[#D3F6E9]"
+                  }`}
+                >
+                  <PenLine size={14} />
+                  Practice
+                </button>
+              </div>
+            )}
+
+            {/* ── Active panel ── */}
+            {activeTab === "learn" ? (
+              slideBlocks.length ? (
                 <LessonBlockPreview blocks={slideBlocks} />
-              ) : slideActivities.length ? null : (
+              ) : (
                 <div className="grid min-h-40 place-items-center rounded-[16px] bg-[#F6F7FB] p-5 text-center text-sm font-semibold text-[#6E738D]">
                   Take a moment to review this step, then continue when you are ready.
                 </div>
-              )}
-            </section>
-          </div>
-
-          {/* Notes panel */}
-          <div className="rounded-[22px] border border-[#ECECF5] bg-white shadow-[0_12px_32px_rgba(0,0,0,.06)]">
-            <div className="flex items-center justify-between border-b border-[#ECECF5] px-4 py-3">
-              <div className="flex items-center gap-2">
-                <NotebookPen size={15} className="text-[#6C3BFF]" />
-                <span className="text-sm font-extrabold">My Notes</span>
-                <span className="rounded-full bg-[#F6F7FB] px-2 py-0.5 text-[10px] font-bold text-[#8B90A7]">
-                  Slide {index + 1}
-                </span>
+              )
+            ) : slideActivities.length ? (
+              <div className="space-y-4">
+                {slideActivities.map((activity) => (
+                  <LessonActivityPanel
+                    key={activity.id}
+                    activity={{
+                      id: activity.id,
+                      activity_type: activity.activity_type,
+                      activity_data: activity.activity_data,
+                    }}
+                    onNext={() => move(1)}
+                    courseItemId={courseItemId}
+                    initialAttempt={latestAttemptByActivity.get(activity.id) ?? null}
+                    attempts={savedActivityAttempts.filter((attempt) => attempt.lesson_slide_activity_id === activity.id)}
+                    onSavedAttempt={(attempt) => {
+                      setSavedActivityAttempts((current) => [{
+                        lesson_slide_activity_id: activity.id,
+                        score: attempt.score,
+                        total: attempt.total,
+                        answers: attempt.answers,
+                        completed_at: attempt.completed_at ?? new Date().toISOString()
+                      }, ...current]);
+                    }}
+                  />
+                ))}
               </div>
-              <span className={`text-[11px] font-bold transition-opacity duration-300 ${notesSaved ? "text-[#00A978] opacity-100" : "opacity-0"}`}>
-                ✓ Saved
-              </span>
-            </div>
-            <div className="p-3">
-              <textarea
-                key={slide.id}
-                value={notesMap[slide.id] ?? ""}
-                onChange={handleNotesChange}
-                placeholder="Type your notes here… they save automatically."
-                rows={4}
-                className="w-full resize-none rounded-[16px] border border-[#ECECF5] bg-[#F8F8FC] px-3 py-2.5 text-sm font-semibold leading-relaxed text-[#35405F] placeholder:text-[#A0A5BA] focus:border-[#6C3BFF]/40 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#6C3BFF]/15"
-              />
-              <p className="mt-1.5 text-[11px] font-semibold text-[#8B90A7]">
-                Notes are saved per slide and will be here when you return.
-              </p>
-            </div>
-          </div>
+            ) : (
+              <div className="rounded-[22px] border border-[#ECECF5] bg-white p-5 text-sm font-semibold text-[#6E738D] shadow-[0_12px_32px_rgba(0,0,0,.06)]">
+                No activity on this slide. Use Next when you are ready.
+              </div>
+            )}
+          </section>
         </div>
 
-        {/* ── RIGHT column: activity only ── */}
-        <aside className="flex min-w-0 flex-col gap-4">
-          {slideActivities.length ? (
-            <div className="space-y-4">
-              {slideActivities.map((activity) => (
-                <LessonActivityPanel
-                  key={activity.id}
-                  activity={{
-                    id: activity.id,
-                    activity_type: activity.activity_type,
-                    activity_data: activity.activity_data,
-                  }}
-                  onNext={() => move(1)}
-                  courseItemId={courseItemId}
-                  initialAttempt={latestAttemptByActivity.get(activity.id) ?? null}
-                  attempts={savedActivityAttempts.filter((attempt) => attempt.lesson_slide_activity_id === activity.id)}
-                  onSavedAttempt={(attempt) => {
-                    setSavedActivityAttempts((current) => [{
-                      lesson_slide_activity_id: activity.id,
-                      score: attempt.score,
-                      total: attempt.total,
-                      answers: attempt.answers,
-                      completed_at: attempt.completed_at ?? new Date().toISOString()
-                    }, ...current]);
-                  }}
-                />
-              ))}
+        {/* Notes panel — always visible, full width, not tied to either tab */}
+        <div className="rounded-[22px] border border-[#ECECF5] bg-white shadow-[0_12px_32px_rgba(0,0,0,.06)]">
+          <div className="flex items-center justify-between border-b border-[#ECECF5] px-4 py-3">
+            <div className="flex items-center gap-2">
+              <NotebookPen size={15} className="text-[#6C3BFF]" />
+              <span className="text-sm font-extrabold">My Notes</span>
+              <span className="rounded-full bg-[#F6F7FB] px-2 py-0.5 text-[10px] font-bold text-[#8B90A7]">
+                Slide {index + 1}
+              </span>
             </div>
-          ) : (
-            <div className="rounded-[22px] border border-[#ECECF5] bg-white p-5 text-sm font-semibold text-[#6E738D] shadow-[0_12px_32px_rgba(0,0,0,.06)]">
-              No activity on this slide. Use Next when you are ready.
-            </div>
-          )}
-        </aside>
+            <span className={`text-[11px] font-bold transition-opacity duration-300 ${notesSaved ? "text-[#00A978] opacity-100" : "opacity-0"}`}>
+              ✓ Saved
+            </span>
+          </div>
+          <div className="p-3">
+            <textarea
+              key={slide.id}
+              value={notesMap[slide.id] ?? ""}
+              onChange={handleNotesChange}
+              placeholder="Type your notes here… they save automatically."
+              rows={4}
+              className="w-full resize-none rounded-[16px] border border-[#ECECF5] bg-[#F8F8FC] px-3 py-2.5 text-sm font-semibold leading-relaxed text-[#35405F] placeholder:text-[#A0A5BA] focus:border-[#6C3BFF]/40 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#6C3BFF]/15"
+            />
+            <p className="mt-1.5 text-[11px] font-semibold text-[#8B90A7]">
+              Notes are saved per slide and will be here when you return.
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* ── Bottom navigation bar ── */}
