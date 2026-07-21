@@ -517,7 +517,7 @@ export function BuilderLessonPlayer({
               </div>
 
               {/* Line 2 — slide title */}
-              <h2 className="mt-1 text-2xl font-extrabold">{slide.title}</h2>
+              <h2 className="mt-1 text-[22px] font-extrabold">{slide.title}</h2>
 
               {/* Line 3 — section label */}
               {slide.section_label && (
@@ -631,7 +631,7 @@ export function BuilderLessonPlayer({
               onChange={handleNotesChange}
               placeholder="Type your notes here… they save automatically."
               rows={4}
-              className="w-full resize-none rounded-[16px] border border-[#ECECF5] bg-[#F8F8FC] px-3 py-2.5 text-sm font-semibold leading-relaxed text-[#35405F] placeholder:text-[#A0A5BA] focus:border-[#6C3BFF]/40 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#6C3BFF]/15"
+              className="w-full resize-none rounded-[16px] border border-[#ECECF5] bg-[#F8F8FC] px-3 py-2.5 text-base font-semibold leading-relaxed text-[#35405F] placeholder:text-[#A0A5BA] focus:border-[#6C3BFF]/40 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#6C3BFF]/15"
             />
             <p className="mt-1.5 text-[11px] font-semibold text-[#8B90A7]">
               Notes are saved per slide and will be here when you return.

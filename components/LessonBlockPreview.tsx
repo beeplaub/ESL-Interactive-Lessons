@@ -149,7 +149,7 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
           <ListChecks size={18} className="text-moss" /> {asString(content.title) || "Key points"}
         </div>
         {items.length ? (
-          <ul className="space-y-2 text-sm leading-6 text-black/70">
+          <ul className="space-y-2 text-base leading-6 text-black/70">
             {items.map((item, index) => (
               <li key={index} className="flex gap-2">
                 <span className="mt-2 size-1.5 shrink-0 rounded-full bg-moss" />
@@ -186,7 +186,7 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
           <MessageSquareQuote className="mt-0.5 shrink-0 text-amber-700" size={18} />
           <div className={align}>
             {asString(content.title) ? <h3 className="font-semibold text-amber-950">{asString(content.title)}</h3> : null}
-            <p className="mt-1 text-sm leading-6 text-amber-900">{asString(content.body) || "Add a callout message."}</p>
+            <p className="mt-1 text-base leading-6 text-amber-900">{asString(content.body) || "Add a callout message."}</p>
           </div>
         </div>
       </div>
@@ -324,7 +324,7 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
                   <p className="font-semibold text-ink">{asString(entry.word) || "Word"}</p>
                   {asString(entry.pronunciation) ? <p className="text-xs text-black/45">{asString(entry.pronunciation)}</p> : null}
                 </div>
-                <div className="text-sm leading-6 text-black/65">
+                <div className="text-base leading-6 text-black/65">
                   <p>{asString(entry.meaning) || "Meaning"}</p>
                   {asString(entry.example) ? <p className="mt-1 italic text-black/55">{asString(entry.example)}</p> : null}
                   {asString(entry.notes) ? <p className="mt-1 text-xs text-black/45">{asString(entry.notes)}</p> : null}
@@ -341,9 +341,9 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
     return (
       <div className="rounded-lg border border-blue-100 bg-blue-50 p-4">
         <h3 className="font-semibold text-ink">{asString(content.title) || "Grammar focus"}</h3>
-        <p className="mt-2 text-sm leading-6 text-black/65">{asString(content.explanation) || "Add a grammar explanation."}</p>
+        <p className="mt-2 text-base leading-6 text-black/65">{asString(content.explanation) || "Add a grammar explanation."}</p>
         {asArray(content.examples).length ? (
-          <ul className="mt-3 space-y-2 text-sm text-black/70">
+          <ul className="mt-3 space-y-2 text-base text-black/70">
             {asArray(content.examples).map((example, index) => (
               <li key={index} className="rounded-md bg-white px-3 py-2">{String(example)}</li>
             ))}
@@ -364,8 +364,8 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
         <FormattedText text={asString(content.passage) || "Add a reading passage."} />
         {asArray(content.questions).length ? (
           <div className="mt-4 rounded-md bg-slate-50 p-3">
-            <p className="text-sm font-semibold">Questions</p>
-            <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-black/65">
+            <p className="text-base font-semibold">Questions</p>
+            <ol className="mt-2 list-decimal space-y-1 pl-5 text-base text-black/65">
               {asArray(content.questions).map((question, index) => (
                 <li key={index}>{String(question)}</li>
               ))}
@@ -386,7 +386,7 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
           return (
             <div key={index} className="rounded-lg border border-black/10 bg-white p-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-moss">{asString(turn.speaker) || "Speaker"}</p>
-              <p className="mt-1 text-sm leading-6 text-black/70">{asString(turn.line) || "Dialogue line"}</p>
+              <p className="mt-1 text-base leading-6 text-black/70">{asString(turn.line) || "Dialogue line"}</p>
             </div>
           );
         }) : <p className="rounded-lg border border-dashed border-black/15 p-4 text-sm text-black/50">Add dialogue turns.</p>}
@@ -418,9 +418,9 @@ function TableBlock({ content }: { content: Record<string, unknown> }) {
 
   return (
     <div className="overflow-hidden rounded-lg border border-black/10 shadow-sm">
-      {caption ? <p className="border-b border-black/10 bg-slate-50 px-4 py-2 text-sm font-medium text-black/70">{caption}</p> : null}
+      {caption ? <p className="border-b border-black/10 bg-slate-50 px-4 py-2 text-base font-medium text-black/70">{caption}</p> : null}
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[420px] border-collapse text-sm">
+        <table className="w-full min-w-[420px] border-collapse text-base">
           <thead>
             <tr style={{ backgroundColor: fill }}>
               {headers.map((header, index) => (
@@ -540,7 +540,7 @@ function FormattedText({ text, align = "text-left" }: { text: string; align?: st
   const paragraphs = text.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
   if (!paragraphs.length) return <p className={`text-sm text-black/50 ${align}`}>Add text.</p>;
   return (
-    <div className={`space-y-3 text-sm leading-7 text-black/70 ${align}`}>
+    <div className={`space-y-3 text-base leading-7 text-black/70 ${align}`}>
       {paragraphs.map((paragraph, index) => <p key={index}>{paragraph}</p>)}
     </div>
   );
