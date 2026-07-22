@@ -2433,17 +2433,54 @@ function NoteTakingChallengePlayer({
   const opts = asRecord(question.options);
   const mediaUrl = String(opts.media_url ?? opts.audio_url ?? "");
   const isVideo = mediaUrl.endsWith(".mp4") || mediaUrl.includes("youtube") || mediaUrl.includes("vimeo");
+  const maxPlays = Number(opts.max_plays ?? 0);
+  const [playsCount, setPlaysCount] = useState(0);
   const subQuestions = Array.isArray(opts.questions) ? opts.questions.map((q) => asRecord(q as Json)) : [];
   const [notes, setNotes] = useState("");
+  const mediaRef = useRef<HTMLAudioElement | HTMLVideoElement | null>(null);
+
+  const isPlayLimitReached = maxPlays > 0 && playsCount >= maxPlays;
+
+  function handleMediaPlay() {
+    if (maxPlays > 0 && playsCount >= maxPlays) {
+      if (mediaRef.current) mediaRef.current.pause();
+      return;
+    }
+    setPlaysCount((prev) => prev + 1);
+  }
 
   return (
     <div className="space-y-5">
       {mediaUrl && (
-        <div className="rounded-xl border border-black/10 bg-black/5 p-3">
-          {isVideo ? (
-            <video controls src={mediaUrl} className="w-full max-h-64 rounded-lg" />
+        <div className="rounded-xl border border-black/10 bg-black/5 p-3 space-y-2">
+          {maxPlays > 0 && (
+            <div className="flex items-center justify-between text-xs font-semibold text-black/60 px-1">
+              <span>Media Play Limit:</span>
+              <span className={isPlayLimitReached ? "text-coral font-bold" : "text-moss font-bold"}>
+                {playsCount} / {maxPlays} plays used {isPlayLimitReached ? "(Limit Reached)" : ""}
+              </span>
+            </div>
+          )}
+          {isPlayLimitReached ? (
+            <div className="rounded-lg bg-black/10 p-3 text-center text-xs font-bold text-coral">
+              Maximum audio play limit ({maxPlays}) reached for this activity.
+            </div>
+          ) : isVideo ? (
+            <video
+              ref={mediaRef as any}
+              controls
+              onPlay={handleMediaPlay}
+              src={mediaUrl}
+              className="w-full max-h-64 rounded-lg"
+            />
           ) : (
-            <audio controls src={mediaUrl} className="w-full" />
+            <audio
+              ref={mediaRef as any}
+              controls
+              onPlay={handleMediaPlay}
+              src={mediaUrl}
+              className="w-full"
+            />
           )}
         </div>
       )}

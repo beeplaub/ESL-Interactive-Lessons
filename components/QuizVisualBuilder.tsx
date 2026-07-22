@@ -1558,14 +1558,29 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
           value={String(options.media_url ?? options.audio_url ?? "")}
           onChange={(url) => onChange({ options: { ...options, media_url: url, audio_url: url } as Json })}
         />
+        <label className="text-sm font-medium">
+          Media Play Limit (0 for unlimited plays)
+          <input
+            type="number"
+            min={0}
+            value={Number(options.max_plays ?? 0)}
+            onChange={(e) => onChange({ options: { ...options, max_plays: Math.max(0, Number(e.target.value) || 0) } as Json })}
+            placeholder="e.g. 2"
+            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+          />
+          <span className="mt-1 block text-xs text-black/50">
+            Set how many times learners are allowed to press play on the audio/video during this challenge (0 = unlimited).
+          </span>
+        </label>
+
         <p className="text-sm font-medium mt-2">Comprehension Questions</p>
         {subQuestions.map((q, idx) => {
           const qId = String(q.id ?? idx + 1);
-          const qOpts = Array.isArray(q.options) ? q.options.map(String) : [];
+          const qOpts = Array.isArray(q.options) ? q.options.map(String) : ["Option A", "Option B"];
           return (
-            <div key={idx} className="rounded-md border border-black/10 p-3 space-y-2">
+            <div key={idx} className="rounded-md border border-black/10 p-3 space-y-3 bg-slate-50/50">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold">Q{idx + 1}</span>
+                <span className="text-xs font-bold text-moss">Question {idx + 1}</span>
                 {subQuestions.length > 1 ? (
                   <button
                     type="button"
@@ -1575,7 +1590,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
                     }}
                     className="text-xs text-coral"
                   >
-                    Remove
+                    Remove Question
                   </button>
                 ) : null}
               </div>
@@ -1587,27 +1602,64 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
                   onChange({ options: { ...options, questions: next } as Json });
                 }}
                 placeholder="Question text"
-                className="w-full rounded border border-black/15 px-2 py-1 text-xs"
+                className="w-full rounded border border-black/15 px-2.5 py-1.5 text-xs bg-white font-medium"
               />
-              <label className="text-xs text-black/60">Options (comma separated or multiple lines):</label>
-              <textarea
-                rows={2}
-                value={qOpts.join("\n")}
-                onChange={(e) => {
-                  const optsArr = e.target.value.split(/\n|,/).map((s) => s.trim()).filter(Boolean);
-                  const next = [...subQuestions];
-                  next[idx] = { ...q, options: optsArr };
-                  onChange({ options: { ...options, questions: next } as Json });
-                }}
-                placeholder="Option A&#10;Option B&#10;Option C"
-                className="w-full rounded border border-black/15 px-2 py-1 text-xs"
-              />
-              <label className="text-xs font-medium">Correct Answer:</label>
+
+              {/* Discrete Options Fields */}
+              <div className="space-y-2 bg-white p-3 rounded-lg border border-black/10">
+                <label className="text-xs font-semibold text-black/70 block">Question Options:</label>
+                {qOpts.map((opt, optIdx) => (
+                  <div key={optIdx} className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-black/40 w-4">{String.fromCharCode(65 + optIdx)}.</span>
+                    <input
+                      type="text"
+                      value={opt}
+                      onChange={(e) => {
+                        const nextOpts = [...qOpts];
+                        nextOpts[optIdx] = e.target.value;
+                        const next = [...subQuestions];
+                        next[idx] = { ...q, options: nextOpts };
+                        onChange({ options: { ...options, questions: next } as Json });
+                      }}
+                      placeholder={`Option ${String.fromCharCode(65 + optIdx)}`}
+                      className="flex-1 rounded border border-black/15 px-2 py-1 text-xs"
+                    />
+                    {qOpts.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const nextOpts = qOpts.filter((_, i) => i !== optIdx);
+                          const next = [...subQuestions];
+                          next[idx] = { ...q, options: nextOpts };
+                          onChange({ options: { ...options, questions: next } as Json });
+                        }}
+                        className="text-xs text-coral hover:underline"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nextOpts = [...qOpts, ""];
+                    const next = [...subQuestions];
+                    next[idx] = { ...q, options: nextOpts };
+                    onChange({ options: { ...options, questions: next } as Json });
+                  }}
+                  className="rounded border border-dashed border-black/20 px-2.5 py-1 text-[11px] font-semibold text-black/60 hover:bg-black/5 mt-1"
+                >
+                  + Add Option
+                </button>
+              </div>
+
+              <label className="text-xs font-semibold text-black/70 block">Correct Answer:</label>
               <input
                 value={String(correct[qId] ?? "")}
                 onChange={(e) => onChange({ correctAnswer: { ...correct, [qId]: e.target.value } as Json })}
-                placeholder="Exact correct answer string"
-                className="w-full rounded border border-black/15 px-2 py-1 text-xs"
+                placeholder="Exact correct answer string (must match one of the options above)"
+                className="w-full rounded border border-black/15 px-2.5 py-1.5 text-xs bg-white"
               />
             </div>
           );
@@ -1619,11 +1671,11 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             onChange({
               options: {
                 ...options,
-                questions: [...subQuestions, { id: nextId, text: "", options: [] }],
+                questions: [...subQuestions, { id: nextId, text: "", options: ["Option A", "Option B"] }],
               } as Json,
             });
           }}
-          className="rounded border border-dashed border-black/15 py-1.5 text-xs"
+          className="rounded border border-dashed border-black/15 py-1.5 text-xs font-semibold text-black/70 hover:bg-black/5"
         >
           + Add Comprehension Question
         </button>

@@ -2191,6 +2191,7 @@ function NoteTakingChallengeEditor({ activity, onSave }: { activity: Activity; o
   const data = asRecord(activity.activity_data);
   const [prompt, setPrompt] = useState(String(data.prompt ?? "Listen to the clip, take notes in the scratchpad, and answer the questions."));
   const [mediaUrl, setMediaUrl] = useState(String(data.media_url ?? data.audio_url ?? ""));
+  const [maxPlays, setMaxPlays] = useState<number>(Number(data.max_plays ?? 0));
 
   const rawQuestions = Array.isArray(data.questions) ? data.questions : [];
   const [questions, setQuestions] = useState<Array<{ id: string; text: string; options: string[]; answer: string }>>(
@@ -2203,11 +2204,11 @@ function NoteTakingChallengeEditor({ activity, onSave }: { activity: Activity; o
           return {
             id,
             text: String(row.text ?? row.question ?? ""),
-            options: opts,
+            options: opts.length ? opts : ["Option A", "Option B"],
             answer: String(correct[id] ?? row.answer ?? ""),
           };
         })
-      : [{ id: "1", text: "", options: ["Option 1", "Option 2"], answer: "Option 1" }]
+      : [{ id: "1", text: "", options: ["Option A", "Option B"], answer: "" }]
   );
 
   const needsReview = questions.some((q) => !q.text.trim());
@@ -2225,10 +2226,25 @@ function NoteTakingChallengeEditor({ activity, onSave }: { activity: Activity; o
         onChange={setMediaUrl}
       />
 
+      <label className="text-sm font-medium">
+        Media Play Limit (0 for unlimited plays)
+        <input
+          type="number"
+          min={0}
+          value={maxPlays}
+          onChange={(e) => setMaxPlays(Math.max(0, Number(e.target.value) || 0))}
+          placeholder="e.g. 2"
+          className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+        />
+        <span className="mt-1 block text-xs text-black/50">
+          Set how many times learners are allowed to press play on the audio/video during this challenge (0 = unlimited).
+        </span>
+      </label>
+
       <div className="rounded-md border border-black/10 p-4 space-y-3">
         <p className="font-semibold text-sm">Comprehension Questions</p>
         {questions.map((q, i) => (
-          <div key={q.id} className="rounded-lg border border-black/10 p-3 space-y-2 bg-slate-50/50">
+          <div key={q.id} className="rounded-lg border border-black/10 p-3 space-y-3 bg-slate-50/50">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-moss">Question {i + 1}</span>
               {questions.length > 1 && (
@@ -2237,7 +2253,7 @@ function NoteTakingChallengeEditor({ activity, onSave }: { activity: Activity; o
                   onClick={() => setQuestions((curr) => curr.filter((_, idx) => idx !== i))}
                   className="text-xs text-coral"
                 >
-                  Remove
+                  Remove Question
                 </button>
               )}
             </div>
@@ -2249,22 +2265,59 @@ function NoteTakingChallengeEditor({ activity, onSave }: { activity: Activity; o
                 setQuestions(next);
               }}
               placeholder="Question text"
-              className="w-full rounded-md border border-black/15 px-3 py-1.5 text-sm"
+              className="w-full rounded-md border border-black/15 px-3 py-1.5 text-sm font-medium bg-white"
             />
-            <label className="text-xs text-black/60 font-medium">Options (one per line):</label>
-            <textarea
-              rows={2}
-              value={q.options.join("\n")}
-              onChange={(e) => {
-                const opts = e.target.value.split("\n").map((s) => s.trim()).filter(Boolean);
-                const next = [...questions];
-                next[i] = { ...q, options: opts };
-                setQuestions(next);
-              }}
-              placeholder="Option 1&#10;Option 2"
-              className="w-full rounded-md border border-black/15 px-3 py-1.5 text-xs"
-            />
-            <label className="text-xs font-semibold text-black/70">Correct Answer:</label>
+
+            {/* Discrete Options Fields */}
+            <div className="space-y-2 bg-white p-3 rounded-lg border border-black/10">
+              <label className="text-xs font-semibold text-black/70 block">Question Options:</label>
+              {q.options.map((opt, optIdx) => (
+                <div key={optIdx} className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-black/40 w-4">{String.fromCharCode(65 + optIdx)}.</span>
+                  <input
+                    type="text"
+                    value={opt}
+                    onChange={(e) => {
+                      const nextOpts = [...q.options];
+                      nextOpts[optIdx] = e.target.value;
+                      const next = [...questions];
+                      next[i] = { ...q, options: nextOpts };
+                      setQuestions(next);
+                    }}
+                    placeholder={`Option ${String.fromCharCode(65 + optIdx)}`}
+                    className="flex-1 rounded-md border border-black/15 px-2.5 py-1 text-xs"
+                  />
+                  {q.options.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const nextOpts = q.options.filter((_, idx) => idx !== optIdx);
+                        const next = [...questions];
+                        next[i] = { ...q, options: nextOpts };
+                        setQuestions(next);
+                      }}
+                      className="text-xs text-coral hover:underline"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => {
+                  const nextOpts = [...q.options, ""];
+                  const next = [...questions];
+                  next[i] = { ...q, options: nextOpts };
+                  setQuestions(next);
+                }}
+                className="rounded border border-dashed border-black/20 px-2.5 py-1 text-[11px] font-semibold text-black/60 hover:bg-black/5 mt-1"
+              >
+                + Add Option
+              </button>
+            </div>
+
+            <label className="text-xs font-semibold text-black/70 block">Correct Answer:</label>
             <input
               value={q.answer}
               onChange={(e) => {
@@ -2272,8 +2325,8 @@ function NoteTakingChallengeEditor({ activity, onSave }: { activity: Activity; o
                 next[i] = { ...q, answer: e.target.value };
                 setQuestions(next);
               }}
-              placeholder="Correct answer text"
-              className="w-full rounded-md border border-black/15 px-3 py-1.5 text-xs"
+              placeholder="Correct answer text (must match one of the options above)"
+              className="w-full rounded-md border border-black/15 px-3 py-1.5 text-xs bg-white"
             />
           </div>
         ))}
@@ -2282,7 +2335,7 @@ function NoteTakingChallengeEditor({ activity, onSave }: { activity: Activity; o
           onClick={() =>
             setQuestions((curr) => [
               ...curr,
-              { id: String(curr.length + 1), text: "", options: [], answer: "" },
+              { id: String(curr.length + 1), text: "", options: ["Option A", "Option B"], answer: "" },
             ])
           }
           className="rounded-md border border-dashed border-black/20 px-3 py-1.5 text-xs font-semibold text-black/70 hover:bg-black/5"
@@ -2303,6 +2356,7 @@ function NoteTakingChallengeEditor({ activity, onSave }: { activity: Activity; o
                 prompt,
                 media_url: mediaUrl,
                 audio_url: mediaUrl,
+                max_plays: maxPlays,
                 questions: questions.map((q) => ({ id: q.id, text: q.text, options: q.options })),
                 correct_answer: correctAnswer,
               } as Json,

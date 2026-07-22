@@ -222,7 +222,7 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
       question_number: 1,
       question_type: "NOTE_TAKING_CHALLENGE",
       question_text: String(data.prompt ?? "Listen to the clip, take notes in the scratchpad, and answer the questions."),
-      options: { media_url: mediaUrl, questions: subQuestions } as Json,
+      options: { media_url: mediaUrl, max_plays: data.max_plays, questions: subQuestions } as Json,
       correct_answer: correctAnswer as Json,
     }];
   }
