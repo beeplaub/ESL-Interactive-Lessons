@@ -2769,19 +2769,25 @@ function SentenceCompletionPlayer({
   const connectors = Array.isArray(opts.suggested_connectors) ? opts.suggested_connectors.map(String) : [];
   const text = value?.text ?? "";
 
+  const allowSelfGraded = opts.allow_self_graded !== false;
+  const allowAiFeedback = opts.allow_ai_feedback !== false;
+  const allowTeacherReview = opts.allow_teacher_review !== false;
+
   return (
-    <div className="space-y-4">
-      <div className="rounded-xl border border-black/10 bg-black/5 p-4 space-y-2">
-        <p className="text-xs font-bold text-black/50 uppercase tracking-wider">Sentence Stem to Complete:</p>
-        <p className="text-base font-bold text-ink">{stem}</p>
+    <div className="space-y-5">
+      <div className="rounded-3xl border border-[#6C3BFF]/15 bg-[#6C3BFF]/5 p-5 space-y-3">
+        <p className="text-xs font-black text-[#6C3BFF] uppercase tracking-wider">Sentence Stem to Complete</p>
+        <p className="text-base font-bold text-ink leading-relaxed">{stem}</p>
         {connectors.length > 0 && (
-          <div className="flex flex-wrap items-center gap-1.5 pt-1">
-            <span className="text-xs font-semibold text-black/50">Suggested connectors:</span>
-            {connectors.map((c) => (
-              <span key={c} className="rounded-md bg-moss/10 border border-moss/20 px-2 py-0.5 text-xs font-bold text-moss">
-                {c}
-              </span>
-            ))}
+          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-[#6C3BFF]/10">
+            <span className="text-[11px] font-bold text-black/50 uppercase tracking-wide">Suggested Connectors:</span>
+            <div className="flex flex-wrap gap-1.5">
+              {connectors.map((c) => (
+                <span key={c} className="rounded-xl bg-[#6C3BFF]/10 border border-[#6C3BFF]/20 px-2.5 py-1 text-xs font-bold text-[#6C3BFF]">
+                  {c}
+                </span>
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -2791,19 +2797,24 @@ function SentenceCompletionPlayer({
         disabled={submitted}
         value={text}
         onChange={(e) => onChange({ ...value, text: e.target.value })}
-        placeholder="Finish or elaborate the sentence here..."
-        className="w-full rounded-xl border border-black/15 p-3.5 text-sm font-medium text-ink focus:border-moss focus:outline-hidden disabled:bg-black/5"
+        placeholder="Type here to finish or expand the sentence..."
+        className="w-full rounded-2xl border border-black/10 p-4 text-sm font-medium text-ink bg-white shadow-xs focus:border-[#6C3BFF] focus:ring-1 focus:ring-[#6C3BFF] focus:outline-hidden disabled:bg-black/5 transition"
       />
 
-      <WritingEvaluationInterface
-        activityId={question.id}
-        activityType="SENTENCE_COMPLETION"
-        prompt={question.question_text}
-        submissionText={text}
-        modelAnswer={modelAnswer}
-        modelDescription={modelDescription}
-        onSelfGraded={(passed) => onChange({ ...value, selfMarked: passed })}
-      />
+      {submitted && (
+        <WritingEvaluationInterface
+          activityId={question.id}
+          activityType="SENTENCE_COMPLETION"
+          prompt={question.question_text || stem}
+          submissionText={text}
+          modelAnswer={modelAnswer}
+          modelDescription={modelDescription}
+          allowSelfGraded={allowSelfGraded}
+          allowAiFeedback={allowAiFeedback}
+          allowTeacherReview={allowTeacherReview}
+          onSelfGraded={(passed) => onChange({ ...value, selfMarked: passed })}
+        />
+      )}
     </div>
   );
 }
@@ -2827,11 +2838,15 @@ function EssayWritingPlayer({
   const text = value?.text ?? "";
   const wordCount = text.split(/\s+/).filter(Boolean).length;
 
+  const allowSelfGraded = opts.allow_self_graded !== false;
+  const allowAiFeedback = opts.allow_ai_feedback !== false;
+  const allowTeacherReview = opts.allow_teacher_review !== false;
+
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between rounded-xl border border-black/10 bg-slate-50 p-3 text-xs font-bold">
-        <span className="text-black/60">Target Length: {minWords}–{maxWords} words</span>
-        <span className={wordCount >= minWords && wordCount <= maxWords ? "text-moss" : "text-amber-800"}>
+    <div className="space-y-5">
+      <div className="flex items-center justify-between rounded-2xl border border-black/10 bg-black/5 px-4 py-3 text-xs font-bold shadow-xs">
+        <span className="text-black/50">Target Length: {minWords}–{maxWords} words</span>
+        <span className={wordCount >= minWords && wordCount <= maxWords ? "text-[#6C3BFF]" : "text-amber-700"}>
           Current Count: {wordCount} words
         </span>
       </div>
@@ -2841,20 +2856,25 @@ function EssayWritingPlayer({
         disabled={submitted}
         value={text}
         onChange={(e) => onChange({ ...value, text: e.target.value })}
-        placeholder="Write your essay response here..."
-        className="w-full rounded-xl border border-black/15 p-4 text-sm font-medium text-ink focus:border-moss focus:outline-hidden disabled:bg-black/5 leading-relaxed"
+        placeholder="Begin writing your response essay here..."
+        className="w-full rounded-2xl border border-black/10 p-4 text-sm font-medium text-ink bg-white shadow-xs focus:border-[#6C3BFF] focus:ring-1 focus:ring-[#6C3BFF] focus:outline-hidden disabled:bg-black/5 leading-relaxed transition"
       />
 
-      <WritingEvaluationInterface
-        activityId={question.id}
-        activityType="ESSAY_WRITING"
-        prompt={question.question_text}
-        submissionText={text}
-        modelAnswer={sampleEssay}
-        modelDescription={rubricGuidelines}
-        rubricGuidance={rubricGuidelines}
-        onSelfGraded={(passed) => onChange({ ...value, selfMarked: passed })}
-      />
+      {submitted && (
+        <WritingEvaluationInterface
+          activityId={question.id}
+          activityType="ESSAY_WRITING"
+          prompt={question.question_text}
+          submissionText={text}
+          modelAnswer={sampleEssay}
+          modelDescription={rubricGuidelines}
+          rubricGuidance={rubricGuidelines}
+          allowSelfGraded={allowSelfGraded}
+          allowAiFeedback={allowAiFeedback}
+          allowTeacherReview={allowTeacherReview}
+          onSelfGraded={(passed) => onChange({ ...value, selfMarked: passed })}
+        />
+      )}
     </div>
   );
 }
@@ -2877,16 +2897,20 @@ function EmailLetterWritingPlayer({
   const modelDescription = String(opts.model_description ?? "");
   const text = value?.text ?? "";
 
+  const allowSelfGraded = opts.allow_self_graded !== false;
+  const allowAiFeedback = opts.allow_ai_feedback !== false;
+  const allowTeacherReview = opts.allow_teacher_review !== false;
+
   return (
-    <div className="space-y-4">
-      <div className="rounded-xl border border-black/10 bg-white p-4 space-y-2 font-mono text-xs">
-        <div className="flex items-center gap-2 border-b border-black/10 pb-2">
-          <span className="font-bold text-black/50 w-16">To:</span>
-          <span className="font-bold text-moss">{recipient}</span>
+    <div className="space-y-5">
+      <div className="rounded-2xl border border-black/10 bg-white p-4 space-y-2 text-xs shadow-xs">
+        <div className="flex items-center gap-2 border-b border-black/5 pb-2">
+          <span className="font-bold text-black/40 w-16 uppercase">To:</span>
+          <span className="font-black text-[#6C3BFF]">{recipient}</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="font-bold text-black/50 w-16">Required Tone:</span>
-          <span className="rounded bg-skywash px-2 py-0.5 font-bold text-ink uppercase">{tone}</span>
+          <span className="font-bold text-black/40 w-16 uppercase">Tone:</span>
+          <span className="rounded-xl bg-[#6C3BFF]/10 px-3 py-1 font-black text-[#6C3BFF] uppercase tracking-wider">{tone}</span>
         </div>
       </div>
 
@@ -2895,19 +2919,24 @@ function EmailLetterWritingPlayer({
         disabled={submitted}
         value={text}
         onChange={(e) => onChange({ ...value, text: e.target.value })}
-        placeholder="Dear Sir/Madam..."
-        className="w-full rounded-xl border border-black/15 p-4 text-sm font-medium text-ink focus:border-moss focus:outline-hidden disabled:bg-black/5"
+        placeholder="Compose your email/letter here..."
+        className="w-full rounded-2xl border border-black/10 p-4 text-sm font-medium text-ink bg-white shadow-xs focus:border-[#6C3BFF] focus:ring-1 focus:ring-[#6C3BFF] focus:outline-hidden disabled:bg-black/5 transition"
       />
 
-      <WritingEvaluationInterface
-        activityId={question.id}
-        activityType="EMAIL_LETTER_WRITING"
-        prompt={question.question_text}
-        submissionText={text}
-        modelAnswer={modelEmail}
-        modelDescription={modelDescription}
-        onSelfGraded={(passed) => onChange({ ...value, selfMarked: passed })}
-      />
+      {submitted && (
+        <WritingEvaluationInterface
+          activityId={question.id}
+          activityType="EMAIL_LETTER_WRITING"
+          prompt={question.question_text}
+          submissionText={text}
+          modelAnswer={modelEmail}
+          modelDescription={modelDescription}
+          allowSelfGraded={allowSelfGraded}
+          allowAiFeedback={allowAiFeedback}
+          allowTeacherReview={allowTeacherReview}
+          onSelfGraded={(passed) => onChange({ ...value, selfMarked: passed })}
+        />
+      )}
     </div>
   );
 }
@@ -2931,13 +2960,18 @@ function TranslationPlayer({
   const grammarNotes = String(opts.grammar_notes ?? "");
   const text = value?.text ?? "";
 
+  const allowSelfGraded = opts.allow_self_graded !== false;
+  const allowAiFeedback = opts.allow_ai_feedback !== false;
+  const allowTeacherReview = opts.allow_teacher_review !== false;
+
   return (
-    <div className="space-y-4">
-      <div className="rounded-xl border border-black/10 bg-indigo-50/50 p-4 space-y-2">
-        <div className="flex items-center justify-between text-xs font-bold text-indigo-900">
-          <span>Translate from {sourceLang} to {targetLang}:</span>
+    <div className="space-y-5">
+      <div className="rounded-3xl border border-[#6C3BFF]/15 bg-[#6C3BFF]/5 p-5 space-y-3">
+        <div className="flex items-center justify-between text-xs font-black text-[#6C3BFF] uppercase tracking-wider">
+          <span>Translate to {targetLang}</span>
+          <span className="text-[10px] text-black/40">From: {sourceLang}</span>
         </div>
-        <p className="text-base font-bold text-ink">&quot;{sourceText}&quot;</p>
+        <p className="text-lg font-bold text-ink leading-relaxed">&quot;{sourceText}&quot;</p>
       </div>
 
       <textarea
@@ -2945,19 +2979,24 @@ function TranslationPlayer({
         disabled={submitted}
         value={text}
         onChange={(e) => onChange({ ...value, text: e.target.value })}
-        placeholder={`Write translation in ${targetLang}...`}
-        className="w-full rounded-xl border border-black/15 p-3.5 text-sm font-medium text-ink focus:border-moss focus:outline-hidden disabled:bg-black/5"
+        placeholder={`Write your translation in ${targetLang} here...`}
+        className="w-full rounded-2xl border border-black/10 p-4 text-sm font-medium text-ink bg-white shadow-xs focus:border-[#6C3BFF] focus:ring-1 focus:ring-[#6C3BFF] focus:outline-hidden disabled:bg-black/5 transition"
       />
 
-      <WritingEvaluationInterface
-        activityId={question.id}
-        activityType="TRANSLATION"
-        prompt={question.question_text}
-        submissionText={text}
-        modelAnswer={acceptable[0] || "Target translation"}
-        modelDescription={grammarNotes}
-        onSelfGraded={(passed) => onChange({ ...value, selfMarked: passed })}
-      />
+      {submitted && (
+        <WritingEvaluationInterface
+          activityId={question.id}
+          activityType="TRANSLATION"
+          prompt={question.question_text || sourceText}
+          submissionText={text}
+          modelAnswer={acceptable[0] || "Target translation"}
+          modelDescription={grammarNotes}
+          allowSelfGraded={allowSelfGraded}
+          allowAiFeedback={allowAiFeedback}
+          allowTeacherReview={allowTeacherReview}
+          onSelfGraded={(passed) => onChange({ ...value, selfMarked: passed })}
+        />
+      )}
     </div>
   );
 }
@@ -2980,19 +3019,25 @@ function ParaphrasePracticePlayer({
   const forbidden = Array.isArray(opts.forbidden_phrases) ? opts.forbidden_phrases.map(String) : [];
   const text = value?.text ?? "";
 
+  const allowSelfGraded = opts.allow_self_graded !== false;
+  const allowAiFeedback = opts.allow_ai_feedback !== false;
+  const allowTeacherReview = opts.allow_teacher_review !== false;
+
   return (
-    <div className="space-y-4">
-      <div className="rounded-xl border border-black/10 bg-slate-50 p-4 space-y-2">
-        <p className="text-xs font-bold text-black/50 uppercase tracking-wider">Original Text to Paraphrase:</p>
+    <div className="space-y-5">
+      <div className="rounded-3xl border border-black/10 bg-black/5 p-5 space-y-3">
+        <p className="text-xs font-black text-black/50 uppercase tracking-wider">Original Text to Paraphrase</p>
         <p className="text-sm font-semibold text-ink leading-relaxed">&quot;{originalText}&quot;</p>
         {forbidden.length > 0 && (
-          <div className="flex flex-wrap items-center gap-1.5 pt-1 text-xs">
-            <span className="font-bold text-coral">Do not copy directly:</span>
-            {forbidden.map((f) => (
-              <span key={f} className="rounded bg-coral/10 border border-coral/20 px-2 py-0.5 font-bold text-coral">
-                {f}
-              </span>
-            ))}
+          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-black/10 text-xs">
+            <span className="font-bold text-rose-600 uppercase tracking-wider text-[10px]">Avoid these words:</span>
+            <div className="flex flex-wrap gap-1">
+              {forbidden.map((f) => (
+                <span key={f} className="rounded-lg bg-rose-50 border border-rose-100 px-2 py-0.5 font-bold text-rose-600">
+                  {f}
+                </span>
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -3002,19 +3047,24 @@ function ParaphrasePracticePlayer({
         disabled={submitted}
         value={text}
         onChange={(e) => onChange({ ...value, text: e.target.value })}
-        placeholder="Rewrite the text in your own words..."
-        className="w-full rounded-xl border border-black/15 p-3.5 text-sm font-medium text-ink focus:border-moss focus:outline-hidden disabled:bg-black/5"
+        placeholder="Paraphrase the original sentence..."
+        className="w-full rounded-2xl border border-black/10 p-4 text-sm font-medium text-ink bg-white shadow-xs focus:border-[#6C3BFF] focus:ring-1 focus:ring-[#6C3BFF] focus:outline-hidden disabled:bg-black/5 transition"
       />
 
-      <WritingEvaluationInterface
-        activityId={question.id}
-        activityType="PARAPHRASE_PRACTICE"
-        prompt={question.question_text}
-        submissionText={text}
-        modelAnswer={modelParaphrase}
-        modelDescription={explanation}
-        onSelfGraded={(passed) => onChange({ ...value, selfMarked: passed })}
-      />
+      {submitted && (
+        <WritingEvaluationInterface
+          activityId={question.id}
+          activityType="PARAPHRASE_PRACTICE"
+          prompt={question.question_text || originalText}
+          submissionText={text}
+          modelAnswer={modelParaphrase}
+          modelDescription={explanation}
+          allowSelfGraded={allowSelfGraded}
+          allowAiFeedback={allowAiFeedback}
+          allowTeacherReview={allowTeacherReview}
+          onSelfGraded={(passed) => onChange({ ...value, selfMarked: passed })}
+        />
+      )}
     </div>
   );
 }
@@ -3036,11 +3086,15 @@ function SentenceCombiningPlayer({
   const explanation = String(opts.explanation ?? "");
   const text = value?.text ?? "";
 
+  const allowSelfGraded = opts.allow_self_graded !== false;
+  const allowAiFeedback = opts.allow_ai_feedback !== false;
+  const allowTeacherReview = opts.allow_teacher_review !== false;
+
   return (
-    <div className="space-y-4">
-      <div className="rounded-xl border border-black/10 bg-emerald-50/50 p-4 space-y-2">
-        <p className="text-xs font-bold text-emerald-900 uppercase tracking-wider">Simple Sentences to Combine:</p>
-        <ul className="list-disc pl-5 space-y-1 text-sm font-bold text-ink">
+    <div className="space-y-5">
+      <div className="rounded-3xl border border-[#6C3BFF]/15 bg-[#6C3BFF]/5 p-5 space-y-3">
+        <p className="text-xs font-black text-[#6C3BFF] uppercase tracking-wider">Sentences to Combine</p>
+        <ul className="list-disc pl-5 space-y-1.5 text-sm font-bold text-ink leading-relaxed">
           {inputSentences.map((s, i) => (
             <li key={i}>{s}</li>
           ))}
@@ -3052,19 +3106,24 @@ function SentenceCombiningPlayer({
         disabled={submitted}
         value={text}
         onChange={(e) => onChange({ ...value, text: e.target.value })}
-        placeholder="Combine into one well-structured complex sentence..."
-        className="w-full rounded-xl border border-black/15 p-3.5 text-sm font-medium text-ink focus:border-moss focus:outline-hidden disabled:bg-black/5"
+        placeholder="Combine into one elegant complex sentence..."
+        className="w-full rounded-2xl border border-black/10 p-4 text-sm font-medium text-ink bg-white shadow-xs focus:border-[#6C3BFF] focus:ring-1 focus:ring-[#6C3BFF] focus:outline-hidden disabled:bg-black/5 transition"
       />
 
-      <WritingEvaluationInterface
-        activityId={question.id}
-        activityType="SENTENCE_COMBINING"
-        prompt={question.question_text}
-        submissionText={text}
-        modelAnswer={modelCombined}
-        modelDescription={explanation}
-        onSelfGraded={(passed) => onChange({ ...value, selfMarked: passed })}
-      />
+      {submitted && (
+        <WritingEvaluationInterface
+          activityId={question.id}
+          activityType="SENTENCE_COMBINING"
+          prompt={question.question_text}
+          submissionText={text}
+          modelAnswer={modelCombined}
+          modelDescription={explanation}
+          allowSelfGraded={allowSelfGraded}
+          allowAiFeedback={allowAiFeedback}
+          allowTeacherReview={allowTeacherReview}
+          onSelfGraded={(passed) => onChange({ ...value, selfMarked: passed })}
+        />
+      )}
     </div>
   );
 }
@@ -3088,37 +3147,43 @@ function CreativeWritingPlayer({
   const modelDescription = String(opts.model_description ?? "");
   const text = value?.text ?? "";
 
+  const allowSelfGraded = opts.allow_self_graded !== false;
+  const allowAiFeedback = opts.allow_ai_feedback !== false;
+  const allowTeacherReview = opts.allow_teacher_review !== false;
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {imageUrl && (
-        <div className="rounded-xl border border-black/10 bg-black/5 p-2 text-center">
-          <img src={imageUrl} alt="Creative prompt" className="max-h-64 mx-auto rounded-lg object-contain" />
+        <div className="rounded-3xl border border-black/10 bg-black/5 p-3 text-center overflow-hidden">
+          <img src={imageUrl} alt="Creative prompt" className="max-h-64 mx-auto rounded-2xl object-contain shadow-xs transition hover:scale-[1.01]" />
         </div>
       )}
 
       {storyStarter && (
-        <div className="rounded-xl border border-purple-200 bg-purple-50/50 p-3.5 space-y-1">
-          <p className="text-xs font-bold text-purple-900 uppercase tracking-wider">Story Starter:</p>
-          <p className="text-sm font-semibold text-ink italic">&quot;{storyStarter}&quot;</p>
+        <div className="rounded-3xl border border-[#6C3BFF]/15 bg-[#6C3BFF]/5 p-5 space-y-1.5 shadow-xs">
+          <p className="text-xs font-black text-[#6C3BFF] uppercase tracking-wider">Story Starter</p>
+          <p className="text-sm font-semibold text-ink italic leading-relaxed">&quot;{storyStarter}&quot;</p>
         </div>
       )}
 
       {requiredVocab.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5 text-xs">
-          <span className="font-bold text-black/60">Include key vocabulary:</span>
-          {requiredVocab.map((word) => {
-            const included = text.toLowerCase().includes(word.toLowerCase());
-            return (
-              <span
-                key={word}
-                className={`rounded-md px-2 py-0.5 font-bold transition ${
-                  included ? "bg-moss text-white" : "bg-black/10 text-black/70"
-                }`}
-              >
-                {word} {included ? "✓" : ""}
-              </span>
-            );
-          })}
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <span className="font-bold text-black/50 uppercase tracking-wide text-[10px]">Required Vocabulary:</span>
+          <div className="flex flex-wrap gap-1">
+            {requiredVocab.map((word) => {
+              const included = text.toLowerCase().includes(word.toLowerCase());
+              return (
+                <span
+                  key={word}
+                  className={`rounded-lg px-2.5 py-1 font-bold transition-all duration-300 ${
+                    included ? "bg-[#6C3BFF] text-white shadow-xs" : "bg-black/5 text-black/50"
+                  }`}
+                >
+                  {word} {included ? "✓" : ""}
+                </span>
+              );
+            })}
+          </div>
         </div>
       )}
 
@@ -3127,19 +3192,24 @@ function CreativeWritingPlayer({
         disabled={submitted}
         value={text}
         onChange={(e) => onChange({ ...value, text: e.target.value })}
-        placeholder="Continue the story..."
-        className="w-full rounded-xl border border-black/15 p-4 text-sm font-medium text-ink focus:border-moss focus:outline-hidden disabled:bg-black/5 leading-relaxed"
+        placeholder="Continue the story writing response here..."
+        className="w-full rounded-2xl border border-black/10 p-4 text-sm font-medium text-ink bg-white shadow-xs focus:border-[#6C3BFF] focus:ring-1 focus:ring-[#6C3BFF] focus:outline-hidden disabled:bg-black/5 leading-relaxed transition"
       />
 
-      <WritingEvaluationInterface
-        activityId={question.id}
-        activityType="CREATIVE_WRITING"
-        prompt={question.question_text}
-        submissionText={text}
-        modelAnswer={modelStory}
-        modelDescription={modelDescription}
-        onSelfGraded={(passed) => onChange({ ...value, selfMarked: passed })}
-      />
+      {submitted && (
+        <WritingEvaluationInterface
+          activityId={question.id}
+          activityType="CREATIVE_WRITING"
+          prompt={question.question_text || storyStarter}
+          submissionText={text}
+          modelAnswer={modelStory}
+          modelDescription={modelDescription}
+          allowSelfGraded={allowSelfGraded}
+          allowAiFeedback={allowAiFeedback}
+          allowTeacherReview={allowTeacherReview}
+          onSelfGraded={(passed) => onChange({ ...value, selfMarked: passed })}
+        />
+      )}
     </div>
   );
 }
@@ -3162,21 +3232,27 @@ function PeerReviewEditingPlayer({
   const focusAreas = Array.isArray(opts.error_focus_areas) ? opts.error_focus_areas.map(String) : [];
   const text = value?.text ?? "";
 
+  const allowSelfGraded = opts.allow_self_graded !== false;
+  const allowAiFeedback = opts.allow_ai_feedback !== false;
+  const allowTeacherReview = opts.allow_teacher_review !== false;
+
   return (
-    <div className="space-y-4">
-      <div className="rounded-xl border border-black/10 bg-slate-50 p-4 space-y-2">
-        <p className="text-xs font-bold text-black/50 uppercase tracking-wider">Sample Peer Draft to Edit:</p>
-        <div className="rounded-lg bg-white p-3 border border-black/10 text-sm font-medium text-ink leading-relaxed">
+    <div className="space-y-5">
+      <div className="rounded-3xl border border-black/10 bg-black/5 p-5 space-y-3">
+        <p className="text-xs font-black text-black/50 uppercase tracking-wider">Sample Peer Draft to Edit</p>
+        <div className="rounded-2xl bg-white p-4 border border-black/5 text-sm font-medium text-ink leading-relaxed shadow-xs">
           {sampleDraft}
         </div>
         {focusAreas.length > 0 && (
-          <div className="flex flex-wrap items-center gap-1.5 pt-1 text-xs">
-            <span className="font-bold text-black/60">Focus areas:</span>
-            {focusAreas.map((f) => (
-              <span key={f} className="rounded bg-skywash px-2 py-0.5 font-bold text-ink">
-                {f}
-              </span>
-            ))}
+          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-black/10 text-xs">
+            <span className="font-bold text-black/50 uppercase tracking-wide text-[10px]">Focus Areas:</span>
+            <div className="flex flex-wrap gap-1">
+              {focusAreas.map((f) => (
+                <span key={f} className="rounded-lg bg-[#6C3BFF]/10 border border-[#6C3BFF]/20 px-2.5 py-0.5 font-bold text-[#6C3BFF]">
+                  {f}
+                </span>
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -3186,19 +3262,24 @@ function PeerReviewEditingPlayer({
         disabled={submitted}
         value={text}
         onChange={(e) => onChange({ ...value, text: e.target.value })}
-        placeholder="Provide your corrected version and peer feedback comments..."
-        className="w-full rounded-xl border border-black/15 p-3.5 text-sm font-medium text-ink focus:border-moss focus:outline-hidden disabled:bg-black/5 leading-relaxed"
+        placeholder="Input your corrected version and constructive comments here..."
+        className="w-full rounded-2xl border border-black/10 p-4 text-sm font-medium text-ink bg-white shadow-xs focus:border-[#6C3BFF] focus:ring-1 focus:ring-[#6C3BFF] focus:outline-hidden disabled:bg-black/5 leading-relaxed transition"
       />
 
-      <WritingEvaluationInterface
-        activityId={question.id}
-        activityType="PEER_REVIEW_EDITING"
-        prompt={question.question_text}
-        submissionText={text}
-        modelAnswer={modelEdited}
-        modelDescription={modelFeedback}
-        onSelfGraded={(passed) => onChange({ ...value, selfMarked: passed })}
-      />
+      {submitted && (
+        <WritingEvaluationInterface
+          activityId={question.id}
+          activityType="PEER_REVIEW_EDITING"
+          prompt={question.question_text}
+          submissionText={text}
+          modelAnswer={modelEdited}
+          modelDescription={modelFeedback}
+          allowSelfGraded={allowSelfGraded}
+          allowAiFeedback={allowAiFeedback}
+          allowTeacherReview={allowTeacherReview}
+          onSelfGraded={(passed) => onChange({ ...value, selfMarked: passed })}
+        />
+      )}
     </div>
   );
 }

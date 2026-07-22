@@ -1899,6 +1899,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-xs"
           />
         </label>
+        <WritingGradingSettings options={options} onChange={(opts) => onChange({ options: opts })} />
       </div>
     );
   }
@@ -1946,6 +1947,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-xs"
           />
         </label>
+        <WritingGradingSettings options={options} onChange={(opts) => onChange({ options: opts })} />
       </div>
     );
   }
@@ -1986,6 +1988,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-sm font-mono"
           />
         </label>
+        <WritingGradingSettings options={options} onChange={(opts) => onChange({ options: opts })} />
       </div>
     );
   }
@@ -2059,6 +2062,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             + Add Alternative Translation
           </button>
         </div>
+        <WritingGradingSettings options={options} onChange={(opts) => onChange({ options: opts })} />
       </div>
     );
   }
@@ -2095,6 +2099,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-sm font-mono"
           />
         </label>
+        <WritingGradingSettings options={options} onChange={(opts) => onChange({ options: opts })} />
       </div>
     );
   }
@@ -2152,6 +2157,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-sm font-mono"
           />
         </label>
+        <WritingGradingSettings options={options} onChange={(opts) => onChange({ options: opts })} />
       </div>
     );
   }
@@ -2194,6 +2200,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-sm font-mono"
           />
         </label>
+        <WritingGradingSettings options={options} onChange={(opts) => onChange({ options: opts })} />
       </div>
     );
   }
@@ -2241,6 +2248,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-xs"
           />
         </label>
+        <WritingGradingSettings options={options} onChange={(opts) => onChange({ options: opts })} />
       </div>
     );
   }
@@ -2336,6 +2344,55 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
       <p className="rounded-md border border-black/10 bg-slate-50 p-3 text-xs text-black/55">
         This uses the learner browser&apos;s speech recognition. It works best in Chrome and Edge.
       </p>
+    </div>
+  );
+}
+
+function WritingGradingSettings({
+  options,
+  onChange,
+}: {
+  options: any;
+  onChange: (opts: any) => void;
+}) {
+  const allowSelf = options.allow_self_graded !== false;
+  const allowAi = options.allow_ai_feedback !== false;
+  const allowTeacher = options.allow_teacher_review !== false;
+
+  return (
+    <div className="mt-3 rounded-2xl border border-[#6C3BFF]/15 bg-[#6C3BFF]/5 p-4 space-y-3">
+      <div className="flex items-center gap-1.5 text-xs font-black text-[#6C3BFF] uppercase tracking-wider">
+        <span>Evaluation Mode Permissions</span>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer text-ink selection:bg-transparent">
+          <input
+            type="checkbox"
+            checked={allowAi}
+            onChange={(e) => onChange({ ...options, allow_ai_feedback: e.target.checked })}
+            className="rounded border-black/15 text-[#6C3BFF] focus:ring-[#6C3BFF]"
+          />
+          AI Instant Feedback
+        </label>
+        <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer text-ink selection:bg-transparent">
+          <input
+            type="checkbox"
+            checked={allowSelf}
+            onChange={(e) => onChange({ ...options, allow_self_graded: e.target.checked })}
+            className="rounded border-black/15 text-[#6C3BFF] focus:ring-[#6C3BFF]"
+          />
+          Model Answer & Self Check
+        </label>
+        <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer text-ink selection:bg-transparent">
+          <input
+            type="checkbox"
+            checked={allowTeacher}
+            onChange={(e) => onChange({ ...options, allow_teacher_review: e.target.checked })}
+            className="rounded border-black/15 text-[#6C3BFF] focus:ring-[#6C3BFF]"
+          />
+          Teacher Review Queue
+        </label>
+      </div>
     </div>
   );
 }
