@@ -592,30 +592,50 @@ export function QuizPlayer({
       ) : null}
 
       {!submitted || reviewMode === "detail" ? (
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-[20px] border border-[#ECECF5] bg-white p-4 shadow-[0_12px_32px_rgba(0,0,0,.06)]">
-        <p className="text-sm font-semibold text-[#6E738D]">
-          {submitted ? isGuest ? "Create a free account to save your score and track progress." : "Review each question, or head back to the overview." : currentAnswered ? "Answered. Move on when ready." : "Answer this question, then continue."}
-        </p>
-        <div className="flex gap-2">
-          {submitted ? (
-            <button
-              type="button"
-              onClick={reset}
-              className="inline-flex items-center gap-2 rounded-[14px] border border-[#ECECF5] bg-[#F6F7FB] px-4 py-2 text-sm font-bold text-[#6E738D]"
-            >
-              <RotateCcw size={16} /> Retake
-            </button>
-          ) : null}
-          <button
-            type="button"
-            disabled={!answered || submitted}
-            onClick={submit}
-            className="inline-flex items-center gap-2 rounded-[14px] bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] px-4 py-2 text-sm font-extrabold text-white shadow-[0_8px_20px_rgba(108,59,255,.25)] disabled:opacity-45"
-          >
-            <CheckCircle2 size={16} /> {isPending ? "Saving..." : "Submit"}
-          </button>
-        </div>
-      </div>
+        (() => {
+          const isWritingCurrent = currentQuestion && [
+            "SHORT_ANSWER",
+            "SENTENCE_COMPLETION",
+            "ESSAY_WRITING",
+            "EMAIL_LETTER_WRITING",
+            "TRANSLATION",
+            "PARAPHRASE_PRACTICE",
+            "SENTENCE_COMBINING",
+            "CREATIVE_WRITING",
+            "PEER_REVIEW_EDITING",
+          ].includes(currentQuestion.question_type);
+
+          if (isWritingCurrent && !submitted) return null;
+
+          return (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-[20px] border border-[#ECECF5] bg-white p-4 shadow-[0_12px_32px_rgba(0,0,0,.06)]">
+              <p className="text-sm font-semibold text-[#6E738D]">
+                {submitted ? isGuest ? "Create a free account to save your score and track progress." : "Review each question, or head back to the overview." : currentAnswered ? "Answered. Move on when ready." : "Answer this question, then continue."}
+              </p>
+              <div className="flex gap-2">
+                {submitted ? (
+                  <button
+                    type="button"
+                    onClick={reset}
+                    className="inline-flex items-center gap-2 rounded-[14px] border border-[#ECECF5] bg-[#F6F7FB] px-4 py-2 text-sm font-bold text-[#6E738D]"
+                  >
+                    <RotateCcw size={16} /> Retake
+                  </button>
+                ) : null}
+                {!isWritingCurrent && (
+                  <button
+                    type="button"
+                    disabled={!answered || submitted}
+                    onClick={submit}
+                    className="inline-flex items-center gap-2 rounded-[14px] bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] px-4 py-2 text-sm font-extrabold text-white shadow-[0_8px_20px_rgba(108,59,255,.25)] disabled:opacity-45"
+                  >
+                    <CheckCircle2 size={16} /> {isPending ? "Saving..." : "Submit"}
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })()
       ) : null}
       {message ? <p className="text-center text-sm font-semibold text-[#6E738D]">{message}</p> : null}
     </div>

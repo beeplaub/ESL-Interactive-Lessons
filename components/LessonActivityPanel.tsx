@@ -259,6 +259,7 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
       question_number: 1,
       question_type: "SENTENCE_COMPLETION",
       question_text: String(data.prompt ?? "Complete the sentence stem."),
+      description: data.description ? String(data.description) : undefined,
       options: {
         sentence_stem: data.sentence_stem,
         suggested_connectors: data.suggested_connectors,

@@ -1862,7 +1862,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
     return (
       <div className="grid gap-3">
         <label className="text-sm font-medium">
-          Sentence Stem
+          Sentence Stem to Complete
           <input
             value={String(options.sentence_stem ?? question.questionText ?? "")}
             onChange={(e) => onChange({ options: { ...options, sentence_stem: e.target.value } as Json })}

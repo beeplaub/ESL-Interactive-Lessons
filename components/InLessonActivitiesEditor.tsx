@@ -2626,6 +2626,7 @@ function SentenceCompletionEditor({
 }) {
   const currentOptions = asRecord(activity.activity_data);
   const [prompt, setPrompt] = useState<string>(String(currentOptions.prompt || "Complete the sentence stem below."));
+  const [description, setDescription] = useState<string>(String(currentOptions.description || ""));
   const [stem, setStem] = useState<string>(String(currentOptions.sentence_stem || ""));
   const [connectors, setConnectors] = useState<string>(
     Array.isArray(currentOptions.suggested_connectors) ? currentOptions.suggested_connectors.join(", ") : ""
@@ -2642,6 +2643,11 @@ function SentenceCompletionEditor({
       <label className="text-sm font-medium">
         Activity Prompt
         <input value={prompt} onChange={(e) => setPrompt(e.target.value)} className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm" />
+      </label>
+
+      <label className="text-sm font-medium">
+        Context / Instructions (Optional Description)
+        <textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Additional context or grammatical rules to guide the learner..." className="mt-1 w-full rounded-md border border-black/15 p-2 text-xs" />
       </label>
 
       <label className="text-sm font-medium">
@@ -2702,6 +2708,7 @@ function SentenceCompletionEditor({
           onSave(
             {
               prompt,
+              description,
               sentence_stem: stem,
               suggested_connectors: connectors.split(",").map((s) => s.trim()).filter(Boolean),
               model_answer: modelAnswer,
