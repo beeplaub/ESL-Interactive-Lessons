@@ -1,7 +1,7 @@
 "use client";
 
 import type { TouchEvent } from "react";
-import { AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Mic, MicOff, RotateCcw, Sparkles, TrendingUp, Loader2, XCircle } from "lucide-react";
+import { AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Mic, MicOff, RotateCcw, Sparkles, TrendingUp, Loader2, XCircle, Volume2, Play, Pause, FileText, Headphones } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { motion, Reorder } from "framer-motion";
 import { recordQuizAttempt } from "@/app/quizzes/actions";
@@ -19,7 +19,7 @@ import { computeBestStreak, NOTABLE_STREAK_THRESHOLD } from "@/lib/gamification/
 export type QuizQuestion = {
   id: string;
   question_number: number;
-  question_type: "MCQ" | "TRUE_FALSE" | "FILL" | "MATCHING" | "ERROR_CORRECTION" | "REORDERING" | "MULTIPLE_SELECT" | "SHORT_ANSWER" | "DRAG_DROP" | "CATEGORIZATION" | "PRONUNCIATION" | "SUMMARIZATION" | "INFERENCE_DETECTION" | "HEADINGS_MATCHING" | "SKIM_CHALLENGE" | "PARAPHRASE_ID";
+  question_type: "MCQ" | "TRUE_FALSE" | "FILL" | "MATCHING" | "ERROR_CORRECTION" | "REORDERING" | "MULTIPLE_SELECT" | "SHORT_ANSWER" | "DRAG_DROP" | "CATEGORIZATION" | "PRONUNCIATION" | "SUMMARIZATION" | "INFERENCE_DETECTION" | "HEADINGS_MATCHING" | "SKIM_CHALLENGE" | "PARAPHRASE_ID" | "DICTATION" | "LISTEN_AND_SELECT" | "SHADOWING" | "NOTE_TAKING_CHALLENGE" | "SOUND_DISCRIMINATION";
   question_text: string;
   description?: string | null;
   options: Json | null;
@@ -95,14 +95,21 @@ export function hasAnswer(question: QuizQuestion, value: unknown): boolean {
     const keys = Object.keys(correct);
     return keys.length > 0 && keys.every((itemId) => Boolean(given[itemId]));
   }
-  if (question.question_type === "PRONUNCIATION") {
-    const targetIds = Array.isArray(question.correct_answer) ? question.correct_answer.map(String) : [];
-    if (targetIds.length === 0) return false;
-    const opts = asRecord(question.options);
-    const maxAttempts = Number(opts.max_attempts ?? 3);
-    const results = asRecord((value as { results?: Json })?.results ?? {});
-    const attemptsUsed = asRecord((value as { attemptsUsed?: Json })?.attemptsUsed ?? {});
-    return targetIds.every((id) => results[id] === true || Number(attemptsUsed[id] ?? 0) >= maxAttempts);
+  if (question.question_type === "PRONUNCIATION" || question.question_type === "SHADOWING") {
+    const rec = asRecord(value as Json);
+    return rec.passed === true || String(rec.transcript ?? "").trim().length > 0 || Number(rec.accuracy ?? 0) > 0;
+  }
+  if (question.question_type === "DICTATION") {
+    return String(value ?? "").trim().length > 0;
+  }
+  if (question.question_type === "LISTEN_AND_SELECT" || question.question_type === "SOUND_DISCRIMINATION") {
+    return value !== undefined && value !== null && String(value).trim() !== "";
+  }
+  if (question.question_type === "NOTE_TAKING_CHALLENGE") {
+    const correct = asRecord(question.correct_answer);
+    const given = asRecord(value as Json);
+    const keys = Object.keys(correct);
+    return keys.length > 0 && keys.every((k) => Boolean(given[k]));
   }
   return true;
 }
@@ -702,6 +709,11 @@ export function QuestionCard({
         {question.question_type === "HEADINGS_MATCHING" ? <HeadingsMatching question={question} value={(value as Record<string, string>) ?? {}} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "SKIM_CHALLENGE" ? <SkimChallenge question={question} value={(value as Record<string, string>) ?? {}} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "PARAPHRASE_ID" ? <ParaphraseId question={question} value={value as string | undefined} disabled={submitted} onChange={onChange} /> : null}
+        {question.question_type === "DICTATION" ? <DictationPlayer question={question} value={value as string | undefined} disabled={submitted} onChange={onChange} /> : null}
+        {question.question_type === "LISTEN_AND_SELECT" ? <ListenSelectPlayer question={question} value={value as string | undefined} disabled={submitted} onChange={onChange} /> : null}
+        {question.question_type === "SHADOWING" ? <ShadowingPlayer question={question} value={value as { transcript?: string; accuracy?: number; passed?: boolean } | undefined} disabled={submitted} onChange={onChange} /> : null}
+        {question.question_type === "NOTE_TAKING_CHALLENGE" ? <NoteTakingChallengePlayer question={question} value={(value as Record<string, string>) ?? {}} disabled={submitted} onChange={onChange} /> : null}
+        {question.question_type === "SOUND_DISCRIMINATION" ? <SoundDiscriminationPlayer question={question} value={value as string | undefined} disabled={submitted} onChange={onChange} /> : null}
       </div>
       {stats && stats.correctCount < stats.total ? (
         <p className={`mt-4 rounded-[14px] p-3 text-sm font-semibold ${allWrong ? "bg-[#FF5D73]/10 text-[#FF5D73]" : "bg-[#FFB545]/10 text-amber-900"}`}>
@@ -2129,6 +2141,447 @@ function Pronunciation({
           {allRecognized ? "All words recognized" : isActive ? "Stop" : `Record (${maxAttempts - used} left)`}
         </button>
         {outOfAttempts && !allRecognized ? <span className="text-xs text-[#FF5D73]">No more attempts.</span> : null}
+      </div>
+    </div>
+  );
+}
+
+function DictationPlayer({
+  question,
+  value,
+  disabled,
+  onChange,
+}: {
+  question: QuizQuestion;
+  value?: string;
+  disabled: boolean;
+  onChange: (val: string) => void;
+}) {
+  const opts = asRecord(question.options);
+  const audioUrl = String(opts.audio_url ?? "");
+  const hint = String(opts.hint ?? "");
+  const [speed, setSpeed] = useState<number>(1.0);
+  const [playsCount, setPlaysCount] = useState<number>(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  function togglePlay() {
+    if (!audioRef.current) return;
+    if (audioRef.current.paused) {
+      audioRef.current.playbackRate = speed;
+      audioRef.current.play();
+      setPlaysCount((c) => c + 1);
+    } else {
+      audioRef.current.pause();
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      {audioUrl ? (
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-moss/20 bg-moss/5 p-3.5">
+          <audio ref={audioRef} src={audioUrl} />
+          <button
+            type="button"
+            onClick={togglePlay}
+            className="inline-flex items-center gap-2 rounded-lg bg-moss px-4 py-2 text-sm font-semibold text-white shadow-xs hover:bg-moss/90"
+          >
+            <Volume2 size={16} /> Play Audio ({playsCount > 0 ? `${playsCount}x` : "Tap to listen"})
+          </button>
+
+          <div className="flex items-center gap-1 rounded-lg border border-black/10 bg-white px-2 py-1 text-xs">
+            <span className="text-black/50 font-medium mr-1">Speed:</span>
+            {[0.75, 1.0, 1.25].map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => {
+                  setSpeed(s);
+                  if (audioRef.current) audioRef.current.playbackRate = s;
+                }}
+                className={`px-2 py-0.5 rounded font-bold transition ${
+                  speed === s ? "bg-moss text-white" : "text-black/70 hover:bg-black/5"
+                }`}
+              >
+                {s}x
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <p className="text-xs text-black/50 italic">No audio clip provided.</p>
+      )}
+
+      {hint && (
+        <p className="text-xs text-black/60 bg-black/5 px-3 py-2 rounded-lg border border-black/5">
+          <span className="font-bold">Hint:</span> {hint}
+        </p>
+      )}
+
+      <div>
+        <label className="block text-xs font-semibold text-black/70 mb-1">Type what you hear:</label>
+        <textarea
+          rows={3}
+          disabled={disabled}
+          value={value ?? ""}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="Listen carefully and type the exact sentence..."
+          className="w-full rounded-xl border border-black/15 bg-white p-3 text-sm font-medium text-ink focus:border-moss focus:outline-hidden disabled:bg-black/5"
+        />
+      </div>
+    </div>
+  );
+}
+
+function ListenSelectPlayer({
+  question,
+  value,
+  disabled,
+  onChange,
+}: {
+  question: QuizQuestion;
+  value?: string;
+  disabled: boolean;
+  onChange: (val: string) => void;
+}) {
+  const opts = asRecord(question.options);
+  const audioUrl = String(opts.audio_url ?? "");
+  const choices = Array.isArray(opts.choices) ? opts.choices.map((c) => asRecord(c as Json)) : [];
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  return (
+    <div className="space-y-4">
+      {audioUrl && (
+        <div className="flex items-center gap-3 rounded-xl border border-moss/20 bg-moss/5 p-3.5">
+          <audio ref={audioRef} src={audioUrl} />
+          <button
+            type="button"
+            onClick={() => audioRef.current?.play()}
+            className="inline-flex items-center gap-2 rounded-lg bg-moss px-4 py-2 text-sm font-semibold text-white shadow-xs hover:bg-moss/90"
+          >
+            <Volume2 size={16} /> Listen Prompt Audio
+          </button>
+        </div>
+      )}
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        {choices.map((choice, i) => {
+          const id = String(choice.id ?? i);
+          const label = String(choice.text ?? choice.label ?? "");
+          const imageUrl = String(choice.image_url ?? choice.imageUrl ?? "");
+          const isSelected = value === id;
+
+          return (
+            <button
+              key={id}
+              type="button"
+              disabled={disabled}
+              onClick={() => onChange(id)}
+              className={`flex flex-col items-center justify-center gap-2 rounded-xl border-2 p-3.5 text-center transition ${
+                isSelected
+                  ? "border-moss bg-moss/10 shadow-xs"
+                  : "border-black/10 bg-white hover:border-moss/40 hover:bg-moss/5"
+              }`}
+            >
+              {imageUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={imageUrl} alt={label} className="max-h-32 w-full rounded-lg object-cover" />
+              )}
+              {label && <span className="text-sm font-semibold text-ink">{label}</span>}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function ShadowingPlayer({
+  question,
+  value,
+  disabled,
+  onChange,
+}: {
+  question: QuizQuestion;
+  value?: { transcript?: string; accuracy?: number; passed?: boolean };
+  disabled: boolean;
+  onChange: (val: { transcript?: string; accuracy?: number; passed?: boolean }) => void;
+}) {
+  const opts = asRecord(question.options);
+  const audioUrl = String(opts.audio_url ?? "");
+  const targetText = String(opts.target_text ?? question.correct_answer ?? "");
+
+  const [recording, setRecording] = useState(false);
+  const [transcript, setTranscript] = useState(value?.transcript ?? "");
+  const recognitionRef = useRef<any>(null);
+
+  function playNativeAudio() {
+    if (!audioUrl) return;
+    const a = new Audio(audioUrl);
+    a.play();
+  }
+
+  function startSpeechRecognition() {
+    const SpeechConstructor = getSpeechRecognitionConstructor();
+    if (!SpeechConstructor) {
+      alert("Speech recognition is not supported in this browser. Please try Chrome or Edge.");
+      return;
+    }
+
+    const rec = new SpeechConstructor();
+    rec.continuous = false;
+    rec.interimResults = true;
+    rec.lang = "en-US";
+
+    rec.onresult = (e: any) => {
+      let finalStr = "";
+      for (let i = 0; i < e.results.length; i++) {
+        finalStr += e.results[i][0].transcript;
+      }
+      setTranscript(finalStr);
+    };
+
+    rec.onend = () => {
+      setRecording(false);
+      const targetWords = targetText.toLowerCase().replace(/[^a-z0-9 ]/g, "").split(/\s+/).filter(Boolean);
+      const spokenWords = transcript.toLowerCase().replace(/[^a-z0-9 ]/g, "").split(/\s+/).filter(Boolean);
+      const matches = targetWords.filter((w) => spokenWords.includes(w)).length;
+      const acc = targetWords.length > 0 ? Math.round((matches / targetWords.length) * 100) : 100;
+
+      onChange({
+        transcript,
+        accuracy: acc,
+        passed: acc >= 70,
+      });
+    };
+
+    rec.start();
+    recognitionRef.current = rec;
+    setRecording(true);
+  }
+
+  function stopSpeechRecognition() {
+    recognitionRef.current?.stop();
+    setRecording(false);
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-xl border border-black/10 bg-black/5 p-4 space-y-2">
+        <p className="text-xs font-bold text-black/50 uppercase tracking-wider">Target Phrase to Shadow:</p>
+        <p className="text-base font-bold text-ink">{targetText}</p>
+        {audioUrl && (
+          <button
+            type="button"
+            onClick={playNativeAudio}
+            className="inline-flex items-center gap-2 rounded-lg bg-moss px-3 py-1.5 text-xs font-semibold text-white hover:bg-moss/90"
+          >
+            <Volume2 size={14} /> Listen to Native Pronunciation
+          </button>
+        )}
+      </div>
+
+      <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-black/15 p-5 text-center">
+        {!recording ? (
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={startSpeechRecognition}
+            className="inline-flex items-center gap-2 rounded-xl bg-coral px-5 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-coral/90 disabled:opacity-50"
+          >
+            <Mic size={18} /> Repeat After Me (Record)
+          </button>
+        ) : (
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={stopSpeechRecognition}
+              className="inline-flex items-center gap-2 rounded-xl bg-coral px-5 py-2.5 text-sm font-semibold text-white animate-pulse"
+            >
+              <MicOff size={18} /> Recording... Tap to Finish
+            </button>
+            <p className="text-xs text-coral font-medium">Listening to your voice...</p>
+          </div>
+        )}
+
+        {transcript && (
+          <div className="w-full space-y-1 rounded-lg bg-white p-3 border border-black/10 text-left">
+            <p className="text-xs font-semibold text-black/50">Your Spoken Speech:</p>
+            <p className="text-sm font-medium text-ink">&quot;{transcript}&quot;</p>
+            {value?.accuracy !== undefined && (
+              <p className={`text-xs font-bold ${value.accuracy >= 70 ? "text-moss" : "text-coral"}`}>
+                Pronunciation Match Score: {value.accuracy}% {value.accuracy >= 70 ? "✓ Great Job!" : "Try again for 70%+"}
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function NoteTakingChallengePlayer({
+  question,
+  value,
+  disabled,
+  onChange,
+}: {
+  question: QuizQuestion;
+  value: Record<string, string>;
+  disabled: boolean;
+  onChange: (val: Record<string, string>) => void;
+}) {
+  const opts = asRecord(question.options);
+  const mediaUrl = String(opts.media_url ?? opts.audio_url ?? "");
+  const isVideo = mediaUrl.endsWith(".mp4") || mediaUrl.includes("youtube") || mediaUrl.includes("vimeo");
+  const subQuestions = Array.isArray(opts.questions) ? opts.questions.map((q) => asRecord(q as Json)) : [];
+  const [notes, setNotes] = useState("");
+
+  return (
+    <div className="space-y-5">
+      {mediaUrl && (
+        <div className="rounded-xl border border-black/10 bg-black/5 p-3">
+          {isVideo ? (
+            <video controls src={mediaUrl} className="w-full max-h-64 rounded-lg" />
+          ) : (
+            <audio controls src={mediaUrl} className="w-full" />
+          )}
+        </div>
+      )}
+
+      <div className="grid gap-4 lg:grid-cols-12">
+        <div className="lg:col-span-5 rounded-xl border border-amber-200 bg-amber-50/50 p-3.5 space-y-2">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-amber-900">
+            <FileText size={14} /> Scratchpad / Note-Taking Drawer
+          </div>
+          <textarea
+            rows={6}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Jot down notes while listening..."
+            className="w-full rounded-lg border border-amber-200 bg-white p-2.5 text-xs text-ink focus:border-amber-400 focus:outline-hidden"
+          />
+        </div>
+
+        <div className="lg:col-span-7 space-y-3">
+          <p className="text-xs font-bold text-black/60 uppercase tracking-wide">Comprehension Questions:</p>
+          {subQuestions.map((subQ, i) => {
+            const id = String(subQ.id ?? i);
+            const text = String(subQ.text ?? subQ.question ?? "");
+            const choices = Array.isArray(subQ.options) ? subQ.options.map(String) : [];
+
+            return (
+              <div key={id} className="rounded-xl border border-black/10 bg-white p-3 space-y-2">
+                <p className="text-xs font-bold text-ink">
+                  {i + 1}. {text}
+                </p>
+                {choices.length > 0 ? (
+                  <div className="grid gap-1.5 sm:grid-cols-2">
+                    {choices.map((choice) => (
+                      <label
+                        key={choice}
+                        className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
+                          value[id] === choice
+                            ? "border-moss bg-moss/10 font-bold text-moss"
+                            : "border-black/10 hover:bg-black/5"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name={`notetaking-${question.id}-${id}`}
+                          disabled={disabled}
+                          checked={value[id] === choice}
+                          onChange={() => onChange({ ...value, [id]: choice })}
+                        />
+                        {choice}
+                      </label>
+                    ))}
+                  </div>
+                ) : (
+                  <input
+                    type="text"
+                    disabled={disabled}
+                    value={value[id] ?? ""}
+                    onChange={(e) => onChange({ ...value, [id]: e.target.value })}
+                    placeholder="Answer..."
+                    className="w-full rounded-lg border border-black/15 p-2 text-xs text-ink"
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SoundDiscriminationPlayer({
+  question,
+  value,
+  disabled,
+  onChange,
+}: {
+  question: QuizQuestion;
+  value?: string;
+  disabled: boolean;
+  onChange: (val: string) => void;
+}) {
+  const opts = asRecord(question.options);
+  const audioUrl = String(opts.audio_url ?? "");
+  const pairs = Array.isArray(opts.pairs) ? opts.pairs.map((p) => asRecord(p as Json)) : [];
+
+  return (
+    <div className="space-y-4">
+      {audioUrl && (
+        <div className="flex items-center gap-3 rounded-xl border border-moss/20 bg-moss/5 p-3.5">
+          <button
+            type="button"
+            onClick={() => new Audio(audioUrl).play()}
+            className="inline-flex items-center gap-2 rounded-lg bg-moss px-4 py-2 text-sm font-semibold text-white shadow-xs hover:bg-moss/90"
+          >
+            <Volume2 size={16} /> Listen to Minimal Pair Sound
+          </button>
+        </div>
+      )}
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        {pairs.map((pair, i) => {
+          const id = String(pair.id ?? pair.word ?? i);
+          const word = String(pair.word ?? pair.text ?? "");
+          const phonetic = String(pair.phonetic ?? "");
+          const pairAudio = String(pair.audio_url ?? "");
+          const isSelected = value === id;
+
+          return (
+            <div
+              key={id}
+              onClick={() => !disabled && onChange(id)}
+              className={`flex cursor-pointer items-center justify-between gap-3 rounded-xl border-2 p-4 transition ${
+                isSelected
+                  ? "border-moss bg-moss/10 shadow-xs"
+                  : "border-black/10 bg-white hover:border-moss/40 hover:bg-moss/5"
+              }`}
+            >
+              <div>
+                <p className="text-base font-bold text-ink">{word}</p>
+                {phonetic && <p className="text-xs text-black/50 italic">{phonetic}</p>}
+              </div>
+
+              {pairAudio && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    new Audio(pairAudio).play();
+                  }}
+                  className="rounded-full bg-black/5 p-2 text-moss hover:bg-moss hover:text-white transition"
+                >
+                  <Volume2 size={16} />
+                </button>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

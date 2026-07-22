@@ -10,6 +10,7 @@ import { parseQuizText } from "@/lib/quizParser";
 import type { QuizQuestion } from "@/components/QuizPlayer";
 import type { Json } from "@/types/database.types";
 import { useDeleteConfirm } from "@/components/DeleteConfirmModal";
+import { MediaRecorderInput } from "@/components/MediaRecorderInput";
 
 type BuilderQuestion = {
   id: string;
@@ -50,7 +51,8 @@ type QuestionBankItem = {
 const questionTypes: BuilderQuestion["questionType"][] = [
   "MCQ", "TRUE_FALSE", "FILL", "MATCHING", "MULTIPLE_SELECT",
   "SHORT_ANSWER", "ERROR_CORRECTION", "REORDERING", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "SUMMARIZATION", "INFERENCE_DETECTION",
-  "HEADINGS_MATCHING", "SKIM_CHALLENGE", "PARAPHRASE_ID"
+  "HEADINGS_MATCHING", "SKIM_CHALLENGE", "PARAPHRASE_ID",
+  "DICTATION", "LISTEN_AND_SELECT", "SHADOWING", "NOTE_TAKING_CHALLENGE", "SOUND_DISCRIMINATION"
 ];
 
 const typeLabels: Record<string, string> = {
@@ -69,7 +71,12 @@ const typeLabels: Record<string, string> = {
   INFERENCE_DETECTION: "Inference Detection",
   HEADINGS_MATCHING: "Headings Matching",
   SKIM_CHALLENGE: "Skimming Challenge",
-  PARAPHRASE_ID: "Paraphrase Identification"
+  PARAPHRASE_ID: "Paraphrase Identification",
+  DICTATION: "Dictation (Listen & Type)",
+  LISTEN_AND_SELECT: "Listen & Select",
+  SHADOWING: "Shadowing / Repeat After Me",
+  NOTE_TAKING_CHALLENGE: "Note-Taking Challenge",
+  SOUND_DISCRIMINATION: "Sound Discrimination"
 };
 
 const PRONUNCIATION_COLORS = ["#fbbf24", "#34d399", "#60a5fa", "#f472b6", "#a78bfa", "#fb923c"];
@@ -1378,6 +1385,333 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
           Correct answer
           <select value={String(question.correctAnswer ?? "A")} onChange={(e) => onChange({ correctAnswer: e.target.value })} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">
             {["A", "B", "C", "D"].map((key) => <option key={key} value={key}>Option {key}</option>)}
+          </select>
+        </label>
+      </div>
+    );
+  }
+
+  if (question.questionType === "DICTATION") {
+    return (
+      <div className="grid gap-3">
+        <MediaRecorderInput
+          label="Audio Prompt (Record live, upload, or paste link)"
+          value={String(options.audio_url ?? "")}
+          onChange={(url) => onChange({ options: { ...options, audio_url: url } as Json })}
+        />
+        <label className="text-sm font-medium">
+          Correct Sentence (Target transcript to be typed)
+          <textarea
+            rows={2}
+            value={String(question.correctAnswer ?? "")}
+            onChange={(e) => onChange({ correctAnswer: e.target.value })}
+            placeholder="e.g. The quick brown fox jumps over the lazy dog."
+            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+          />
+        </label>
+        <label className="text-sm font-medium">
+          Hint for learners (optional)
+          <input
+            value={String(options.hint ?? "")}
+            onChange={(e) => onChange({ options: { ...options, hint: e.target.value } as Json })}
+            placeholder="e.g. Pay attention to past tense verbs."
+            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+          />
+        </label>
+        <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
+          <input
+            type="checkbox"
+            checked={options.ignore_punctuation !== false}
+            onChange={(e) => onChange({ options: { ...options, ignore_punctuation: e.target.checked } as Json })}
+            className="size-4 rounded accent-[#6C3BFF]"
+          />
+          Ignore punctuation differences during grading (recommended)
+        </label>
+      </div>
+    );
+  }
+
+  if (question.questionType === "LISTEN_AND_SELECT") {
+    const choices = Array.isArray(options.choices) ? options.choices.map((c) => asRecord(c as Json)) : [];
+    return (
+      <div className="grid gap-3">
+        <MediaRecorderInput
+          label="Audio Prompt (Record, upload, or URL)"
+          value={String(options.audio_url ?? "")}
+          onChange={(url) => onChange({ options: { ...options, audio_url: url } as Json })}
+        />
+        <p className="text-sm font-medium mt-2">Choices / Options</p>
+        {choices.map((choice, i) => {
+          const id = String(choice.id ?? i);
+          return (
+            <div key={id} className="rounded-md border border-black/10 p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-indigo-600">Option {i + 1}</span>
+                {choices.length > 1 ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = choices.filter((_, idx) => idx !== i);
+                      onChange({ options: { ...options, choices: next } as Json });
+                    }}
+                    className="text-xs text-coral"
+                  >
+                    Remove
+                  </button>
+                ) : null}
+              </div>
+              <input
+                value={String(choice.text ?? choice.label ?? "")}
+                onChange={(e) => {
+                  const next = [...choices];
+                  next[i] = { ...choice, text: e.target.value };
+                  onChange({ options: { ...options, choices: next } as Json });
+                }}
+                placeholder="Option label/phrase"
+                className="w-full rounded border border-black/15 px-2 py-1 text-xs"
+              />
+              <MediaRecorderInput
+                type="image"
+                label="Option Image (optional)"
+                value={String(choice.image_url ?? choice.imageUrl ?? "")}
+                onChange={(url) => {
+                  const next = [...choices];
+                  next[i] = { ...choice, image_url: url };
+                  onChange({ options: { ...options, choices: next } as Json });
+                }}
+              />
+            </div>
+          );
+        })}
+        <button
+          type="button"
+          onClick={() => {
+            const nextId = String(choices.length);
+            onChange({ options: { ...options, choices: [...choices, { id: nextId, text: "" }] } as Json });
+          }}
+          className="rounded border border-dashed border-black/15 py-1.5 text-xs"
+        >
+          + Add Choice
+        </button>
+        <label className="text-sm font-medium">
+          Correct Choice
+          <select
+            value={String(question.correctAnswer ?? "0")}
+            onChange={(e) => onChange({ correctAnswer: e.target.value })}
+            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+          >
+            {choices.map((choice, i) => (
+              <option key={i} value={String(choice.id ?? i)}>
+                Choice {i + 1}: {String(choice.text ?? choice.label ?? `Item ${i + 1}`)}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+    );
+  }
+
+  if (question.questionType === "SHADOWING") {
+    return (
+      <div className="grid gap-3">
+        <MediaRecorderInput
+          label="Native Pronunciation Audio (Record live, upload, or paste URL)"
+          value={String(options.audio_url ?? "")}
+          onChange={(url) => onChange({ options: { ...options, audio_url: url } as Json })}
+        />
+        <label className="text-sm font-medium">
+          Target Sentence to Shadow & Repeat
+          <textarea
+            rows={3}
+            value={String(question.correctAnswer ?? options.target_text ?? "")}
+            onChange={(e) =>
+              onChange({
+                correctAnswer: e.target.value,
+                options: { ...options, target_text: e.target.value } as Json,
+              })
+            }
+            placeholder="e.g. Excuse me, could you tell me how to get to the station?"
+            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+          />
+        </label>
+        <p className="text-xs text-black/50">
+          Learners will listen to your audio and repeat after you. Speech recognition evaluates their spoken response match score.
+        </p>
+      </div>
+    );
+  }
+
+  if (question.questionType === "NOTE_TAKING_CHALLENGE") {
+    const subQuestions = Array.isArray(options.questions) ? options.questions.map((q) => asRecord(q as Json)) : [];
+    const correct = asRecord(question.correctAnswer);
+
+    return (
+      <div className="grid gap-3">
+        <MediaRecorderInput
+          type="audio"
+          label="Main Lecture Audio or Video (Record live, upload file, or paste URL)"
+          value={String(options.media_url ?? options.audio_url ?? "")}
+          onChange={(url) => onChange({ options: { ...options, media_url: url, audio_url: url } as Json })}
+        />
+        <p className="text-sm font-medium mt-2">Comprehension Questions</p>
+        {subQuestions.map((q, idx) => {
+          const qId = String(q.id ?? idx + 1);
+          const qOpts = Array.isArray(q.options) ? q.options.map(String) : [];
+          return (
+            <div key={idx} className="rounded-md border border-black/10 p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold">Q{idx + 1}</span>
+                {subQuestions.length > 1 ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = subQuestions.filter((_, i) => i !== idx);
+                      onChange({ options: { ...options, questions: next } as Json });
+                    }}
+                    className="text-xs text-coral"
+                  >
+                    Remove
+                  </button>
+                ) : null}
+              </div>
+              <input
+                value={String(q.question ?? q.text ?? "")}
+                onChange={(e) => {
+                  const next = [...subQuestions];
+                  next[idx] = { ...q, text: e.target.value };
+                  onChange({ options: { ...options, questions: next } as Json });
+                }}
+                placeholder="Question text"
+                className="w-full rounded border border-black/15 px-2 py-1 text-xs"
+              />
+              <label className="text-xs text-black/60">Options (comma separated or multiple lines):</label>
+              <textarea
+                rows={2}
+                value={qOpts.join("\n")}
+                onChange={(e) => {
+                  const optsArr = e.target.value.split(/\n|,/).map((s) => s.trim()).filter(Boolean);
+                  const next = [...subQuestions];
+                  next[idx] = { ...q, options: optsArr };
+                  onChange({ options: { ...options, questions: next } as Json });
+                }}
+                placeholder="Option A&#10;Option B&#10;Option C"
+                className="w-full rounded border border-black/15 px-2 py-1 text-xs"
+              />
+              <label className="text-xs font-medium">Correct Answer:</label>
+              <input
+                value={String(correct[qId] ?? "")}
+                onChange={(e) => onChange({ correctAnswer: { ...correct, [qId]: e.target.value } as Json })}
+                placeholder="Exact correct answer string"
+                className="w-full rounded border border-black/15 px-2 py-1 text-xs"
+              />
+            </div>
+          );
+        })}
+        <button
+          type="button"
+          onClick={() => {
+            const nextId = String(subQuestions.length + 1);
+            onChange({
+              options: {
+                ...options,
+                questions: [...subQuestions, { id: nextId, text: "", options: [] }],
+              } as Json,
+            });
+          }}
+          className="rounded border border-dashed border-black/15 py-1.5 text-xs"
+        >
+          + Add Comprehension Question
+        </button>
+      </div>
+    );
+  }
+
+  if (question.questionType === "SOUND_DISCRIMINATION") {
+    const pairs = Array.isArray(options.pairs) ? options.pairs.map((p) => asRecord(p as Json)) : [];
+
+    return (
+      <div className="grid gap-3">
+        <MediaRecorderInput
+          label="Main Target Audio (Optional)"
+          value={String(options.audio_url ?? "")}
+          onChange={(url) => onChange({ options: { ...options, audio_url: url } as Json })}
+        />
+        <p className="text-sm font-medium mt-2">Minimal Pair Cards (e.g. ship vs sheep)</p>
+        {pairs.map((pair, idx) => {
+          const pId = String(pair.id ?? pair.word ?? idx);
+          return (
+            <div key={idx} className="rounded-md border border-black/10 p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-indigo-600 font-mono">Pair Option {idx + 1}</span>
+                {pairs.length > 1 ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = pairs.filter((_, i) => i !== idx);
+                      onChange({ options: { ...options, pairs: next } as Json });
+                    }}
+                    className="text-xs text-coral"
+                  >
+                    Remove
+                  </button>
+                ) : null}
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <input
+                  value={String(pair.word ?? pair.text ?? "")}
+                  onChange={(e) => {
+                    const next = [...pairs];
+                    next[idx] = { ...pair, word: e.target.value };
+                    onChange({ options: { ...options, pairs: next } as Json });
+                  }}
+                  placeholder="Word (e.g. ship)"
+                  className="rounded border border-black/15 px-2 py-1 text-xs"
+                />
+                <input
+                  value={String(pair.phonetic ?? "")}
+                  onChange={(e) => {
+                    const next = [...pairs];
+                    next[idx] = { ...pair, phonetic: e.target.value };
+                    onChange({ options: { ...options, pairs: next } as Json });
+                  }}
+                  placeholder="Phonetic IPA (e.g. /ʃɪp/)"
+                  className="rounded border border-black/15 px-2 py-1 text-xs font-mono"
+                />
+              </div>
+              <MediaRecorderInput
+                label="Audio pronunciation for this word"
+                value={String(pair.audio_url ?? "")}
+                onChange={(url) => {
+                  const next = [...pairs];
+                  next[idx] = { ...pair, audio_url: url };
+                  onChange({ options: { ...options, pairs: next } as Json });
+                }}
+              />
+            </div>
+          );
+        })}
+        <button
+          type="button"
+          onClick={() => {
+            const nextId = String(pairs.length);
+            onChange({ options: { ...options, pairs: [...pairs, { id: nextId, word: "", phonetic: "" }] } as Json });
+          }}
+          className="rounded border border-dashed border-black/15 py-1.5 text-xs"
+        >
+          + Add Minimal Pair Word
+        </button>
+        <label className="text-sm font-medium">
+          Correct Target Word
+          <select
+            value={String(question.correctAnswer ?? "0")}
+            onChange={(e) => onChange({ correctAnswer: e.target.value })}
+            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+          >
+            {pairs.map((pair, idx) => (
+              <option key={idx} value={String(pair.id ?? pair.word ?? idx)}>
+                {String(pair.word ?? `Option ${idx + 1}`)}
+              </option>
+            ))}
           </select>
         </label>
       </div>

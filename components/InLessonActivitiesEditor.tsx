@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { deleteSlideActivity, updateSlideActivity } from "@/app/admin/lessons/actions";
 import type { Json } from "@/types/database.types";
 import { useDeleteConfirm } from "@/components/DeleteConfirmModal";
+import { MediaRecorderInput } from "@/components/MediaRecorderInput";
 
 type Activity = {
   id: string;
@@ -109,6 +110,11 @@ function labelFor(type: string) {
   if (type === "HEADINGS_MATCHING") return "Headings Matching Activity";
   if (type === "SKIM_CHALLENGE") return "Skimming Challenge Activity";
   if (type === "PARAPHRASE_ID") return "Paraphrase Identification Activity";
+  if (type === "DICTATION") return "Dictation (Listen & Type) Activity";
+  if (type === "LISTEN_AND_SELECT") return "Listen & Select Activity";
+  if (type === "SHADOWING") return "Shadowing / Repeat After Me Activity";
+  if (type === "NOTE_TAKING_CHALLENGE") return "Note-Taking Challenge Activity";
+  if (type === "SOUND_DISCRIMINATION") return "Sound Discrimination Activity";
   if (type === "AI_ROLEPLAY") return "AI Conversation Roleplay";
   return `${type.replaceAll("_", " ")} Activity`;
 }
@@ -640,8 +646,13 @@ function ActivityPanel({
               {activity.activity_type === "HEADINGS_MATCHING" ? <HeadingsMatchingEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "SKIM_CHALLENGE" ? <SkimChallengeEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "PARAPHRASE_ID" ? <ParaphraseIdEditor activity={activity} onSave={save} /> : null}
+              {activity.activity_type === "DICTATION" ? <DictationEditor activity={activity} onSave={save} /> : null}
+              {activity.activity_type === "LISTEN_AND_SELECT" ? <ListenSelectEditor activity={activity} onSave={save} /> : null}
+              {activity.activity_type === "SHADOWING" ? <ShadowingEditor activity={activity} onSave={save} /> : null}
+              {activity.activity_type === "NOTE_TAKING_CHALLENGE" ? <NoteTakingChallengeEditor activity={activity} onSave={save} /> : null}
+              {activity.activity_type === "SOUND_DISCRIMINATION" ? <SoundDiscriminationEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "AI_ROLEPLAY" ? <AiRoleplayEditor activity={activity} onSave={save} /> : null}
-              {!["MCQ", "GAP_FILL", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "SUMMARIZATION", "INFERENCE_DETECTION", "HEADINGS_MATCHING", "SKIM_CHALLENGE", "PARAPHRASE_ID", "AI_ROLEPLAY"].includes(activity.activity_type) ? (
+              {!["MCQ", "GAP_FILL", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "SUMMARIZATION", "INFERENCE_DETECTION", "HEADINGS_MATCHING", "SKIM_CHALLENGE", "PARAPHRASE_ID", "DICTATION", "LISTEN_AND_SELECT", "SHADOWING", "NOTE_TAKING_CHALLENGE", "SOUND_DISCRIMINATION", "AI_ROLEPLAY"].includes(activity.activity_type) ? (
                 <p className="rounded-md bg-slate-50 p-3 text-sm text-black/60">
                   This activity type has starter data and preview support. A detailed visual editor for it will be added in the next activity-builder pass.
                 </p>
@@ -1937,3 +1948,503 @@ function PronunciationEditor({ activity, onSave }: { activity: Activity; onSave:
     </div>
   );
 }
+
+function DictationEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
+  const data = asRecord(activity.activity_data);
+  const [prompt, setPrompt] = useState(String(data.prompt ?? "Listen to the audio and type what you hear."));
+  const [audioUrl, setAudioUrl] = useState(String(data.audio_url ?? ""));
+  const [correctAnswer, setCorrectAnswer] = useState(String(data.correct_answer ?? ""));
+  const [hint, setHint] = useState(String(data.hint ?? ""));
+  const [ignorePunctuation, setIgnorePunctuation] = useState(data.ignore_punctuation !== false);
+
+  const needsReview = !correctAnswer.trim();
+
+  return (
+    <div className="grid gap-4">
+      <label className="text-sm font-medium">
+        Instruction Prompt
+        <input value={prompt} onChange={(e) => setPrompt(e.target.value)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+      </label>
+
+      <MediaRecorderInput
+        label="Audio Prompt (Record live voice, upload file, or paste URL)"
+        value={audioUrl}
+        onChange={setAudioUrl}
+      />
+
+      <label className="text-sm font-medium">
+        Target Sentence / Phrase (Correct Transcript)
+        <textarea
+          rows={3}
+          value={correctAnswer}
+          onChange={(e) => setCorrectAnswer(e.target.value)}
+          placeholder="e.g. She sells seashells by the seashore."
+          className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm font-medium"
+        />
+      </label>
+
+      <label className="text-sm font-medium">
+        Optional Hint for Learners
+        <input value={hint} onChange={(e) => setHint(e.target.value)} placeholder="e.g. Pay attention to tongue twister S sound." className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+      </label>
+
+      <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
+        <input
+          type="checkbox"
+          checked={ignorePunctuation}
+          onChange={(e) => setIgnorePunctuation(e.target.checked)}
+          className="size-4 rounded accent-moss"
+        />
+        Ignore punctuation differences when scoring
+      </label>
+
+      <div className="flex flex-wrap gap-3">
+        <SaveButton
+          onClick={() =>
+            onSave(
+              {
+                prompt,
+                audio_url: audioUrl,
+                correct_answer: correctAnswer,
+                hint,
+                ignore_punctuation: ignorePunctuation,
+              } as Json,
+              needsReview
+            )
+          }
+        />
+      </div>
+    </div>
+  );
+}
+
+function ListenSelectEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
+  const data = asRecord(activity.activity_data);
+  const [prompt, setPrompt] = useState(String(data.prompt ?? "Listen to the audio clip and select the matching option."));
+  const [audioUrl, setAudioUrl] = useState(String(data.audio_url ?? ""));
+  const rawChoices = Array.isArray(data.choices) ? data.choices : [];
+  const [choices, setChoices] = useState<Array<{ id: string; text: string; image_url: string }>>(
+    rawChoices.length
+      ? rawChoices.map((c, idx) => {
+          const row = asRecord(c as Json);
+          return {
+            id: String(row.id ?? idx),
+            text: String(row.text ?? row.label ?? ""),
+            image_url: String(row.image_url ?? row.imageUrl ?? ""),
+          };
+        })
+      : [
+          { id: "0", text: "Option A", image_url: "" },
+          { id: "1", text: "Option B", image_url: "" },
+        ]
+  );
+  const [correctAnswer, setCorrectAnswer] = useState(String(data.correct_answer ?? "0"));
+
+  const needsReview = choices.some((c) => !c.text.trim() && !c.image_url.trim());
+
+  return (
+    <div className="grid gap-4">
+      <label className="text-sm font-medium">
+        Instruction Prompt
+        <input value={prompt} onChange={(e) => setPrompt(e.target.value)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+      </label>
+
+      <MediaRecorderInput
+        label="Audio Prompt (Record, upload file, or paste URL)"
+        value={audioUrl}
+        onChange={setAudioUrl}
+      />
+
+      <div className="rounded-md border border-black/10 p-4 space-y-3">
+        <p className="font-semibold text-sm">Options / Choice Cards</p>
+        {choices.map((choice, i) => (
+          <div key={choice.id} className="rounded-lg border border-black/10 p-3 space-y-2 bg-slate-50/50">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-moss">Choice {i + 1}</span>
+              {choices.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setChoices((curr) => curr.filter((_, idx) => idx !== i))}
+                  className="text-xs text-coral"
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+            <input
+              value={choice.text}
+              onChange={(e) => {
+                const next = [...choices];
+                next[i] = { ...choice, text: e.target.value };
+                setChoices(next);
+              }}
+              placeholder="Choice text or phrase"
+              className="w-full rounded-md border border-black/15 px-3 py-1.5 text-sm"
+            />
+            <MediaRecorderInput
+              type="image"
+              label="Choice Image (optional)"
+              value={choice.image_url}
+              onChange={(url) => {
+                const next = [...choices];
+                next[i] = { ...choice, image_url: url };
+                setChoices(next);
+              }}
+            />
+          </div>
+        ))}
+        <button
+          type="button"
+          onClick={() => setChoices((curr) => [...curr, { id: String(curr.length), text: "", image_url: "" }])}
+          className="rounded-md border border-dashed border-black/20 px-3 py-1.5 text-xs font-semibold text-black/70 hover:bg-black/5"
+        >
+          + Add Choice Card
+        </button>
+      </div>
+
+      <label className="text-sm font-medium">
+        Correct Choice
+        <select
+          value={correctAnswer}
+          onChange={(e) => setCorrectAnswer(e.target.value)}
+          className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+        >
+          {choices.map((choice, i) => (
+            <option key={choice.id} value={choice.id}>
+              Choice {i + 1}: {choice.text || `Card ${i + 1}`}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <div className="flex flex-wrap gap-3">
+        <SaveButton
+          onClick={() =>
+            onSave(
+              {
+                prompt,
+                audio_url: audioUrl,
+                choices,
+                correct_answer: correctAnswer,
+              } as Json,
+              needsReview
+            )
+          }
+        />
+      </div>
+    </div>
+  );
+}
+
+function ShadowingEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
+  const data = asRecord(activity.activity_data);
+  const [prompt, setPrompt] = useState(String(data.prompt ?? "Listen to the native speaker and repeat the phrase into your microphone."));
+  const [audioUrl, setAudioUrl] = useState(String(data.audio_url ?? ""));
+  const [targetText, setTargetText] = useState(String(data.target_text ?? data.correct_answer ?? ""));
+
+  const needsReview = !targetText.trim();
+
+  return (
+    <div className="grid gap-4">
+      <label className="text-sm font-medium">
+        Instruction Prompt
+        <input value={prompt} onChange={(e) => setPrompt(e.target.value)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+      </label>
+
+      <MediaRecorderInput
+        label="Native Pronunciation Audio (Record live voice, upload file, or paste URL)"
+        value={audioUrl}
+        onChange={setAudioUrl}
+      />
+
+      <label className="text-sm font-medium">
+        Target Phrase to Shadow & Repeat
+        <textarea
+          rows={3}
+          value={targetText}
+          onChange={(e) => setTargetText(e.target.value)}
+          placeholder="e.g. Could I have a glass of water, please?"
+          className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm font-medium"
+        />
+      </label>
+
+      <div className="flex flex-wrap gap-3">
+        <SaveButton
+          onClick={() =>
+            onSave(
+              {
+                prompt,
+                audio_url: audioUrl,
+                target_text: targetText,
+                correct_answer: targetText,
+              } as Json,
+              needsReview
+            )
+          }
+        />
+      </div>
+    </div>
+  );
+}
+
+function NoteTakingChallengeEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
+  const data = asRecord(activity.activity_data);
+  const [prompt, setPrompt] = useState(String(data.prompt ?? "Listen to the clip, take notes in the scratchpad, and answer the questions."));
+  const [mediaUrl, setMediaUrl] = useState(String(data.media_url ?? data.audio_url ?? ""));
+
+  const rawQuestions = Array.isArray(data.questions) ? data.questions : [];
+  const [questions, setQuestions] = useState<Array<{ id: string; text: string; options: string[]; answer: string }>>(
+    rawQuestions.length
+      ? rawQuestions.map((q, idx) => {
+          const row = asRecord(q as Json);
+          const opts = Array.isArray(row.options) ? row.options.map(String) : [];
+          const correct = asRecord(data.correct_answer as Json);
+          const id = String(row.id ?? idx + 1);
+          return {
+            id,
+            text: String(row.text ?? row.question ?? ""),
+            options: opts,
+            answer: String(correct[id] ?? row.answer ?? ""),
+          };
+        })
+      : [{ id: "1", text: "", options: ["Option 1", "Option 2"], answer: "Option 1" }]
+  );
+
+  const needsReview = questions.some((q) => !q.text.trim());
+
+  return (
+    <div className="grid gap-4">
+      <label className="text-sm font-medium">
+        Instruction Prompt
+        <input value={prompt} onChange={(e) => setPrompt(e.target.value)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+      </label>
+
+      <MediaRecorderInput
+        label="Main Lecture Audio or Video (Record, upload file, or URL)"
+        value={mediaUrl}
+        onChange={setMediaUrl}
+      />
+
+      <div className="rounded-md border border-black/10 p-4 space-y-3">
+        <p className="font-semibold text-sm">Comprehension Questions</p>
+        {questions.map((q, i) => (
+          <div key={q.id} className="rounded-lg border border-black/10 p-3 space-y-2 bg-slate-50/50">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-moss">Question {i + 1}</span>
+              {questions.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setQuestions((curr) => curr.filter((_, idx) => idx !== i))}
+                  className="text-xs text-coral"
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+            <input
+              value={q.text}
+              onChange={(e) => {
+                const next = [...questions];
+                next[i] = { ...q, text: e.target.value };
+                setQuestions(next);
+              }}
+              placeholder="Question text"
+              className="w-full rounded-md border border-black/15 px-3 py-1.5 text-sm"
+            />
+            <label className="text-xs text-black/60 font-medium">Options (one per line):</label>
+            <textarea
+              rows={2}
+              value={q.options.join("\n")}
+              onChange={(e) => {
+                const opts = e.target.value.split("\n").map((s) => s.trim()).filter(Boolean);
+                const next = [...questions];
+                next[i] = { ...q, options: opts };
+                setQuestions(next);
+              }}
+              placeholder="Option 1&#10;Option 2"
+              className="w-full rounded-md border border-black/15 px-3 py-1.5 text-xs"
+            />
+            <label className="text-xs font-semibold text-black/70">Correct Answer:</label>
+            <input
+              value={q.answer}
+              onChange={(e) => {
+                const next = [...questions];
+                next[i] = { ...q, answer: e.target.value };
+                setQuestions(next);
+              }}
+              placeholder="Correct answer text"
+              className="w-full rounded-md border border-black/15 px-3 py-1.5 text-xs"
+            />
+          </div>
+        ))}
+        <button
+          type="button"
+          onClick={() =>
+            setQuestions((curr) => [
+              ...curr,
+              { id: String(curr.length + 1), text: "", options: [], answer: "" },
+            ])
+          }
+          className="rounded-md border border-dashed border-black/20 px-3 py-1.5 text-xs font-semibold text-black/70 hover:bg-black/5"
+        >
+          + Add Question
+        </button>
+      </div>
+
+      <div className="flex flex-wrap gap-3">
+        <SaveButton
+          onClick={() => {
+            const correctAnswer: Record<string, string> = {};
+            questions.forEach((q) => {
+              correctAnswer[q.id] = q.answer;
+            });
+            onSave(
+              {
+                prompt,
+                media_url: mediaUrl,
+                audio_url: mediaUrl,
+                questions: questions.map((q) => ({ id: q.id, text: q.text, options: q.options })),
+                correct_answer: correctAnswer,
+              } as Json,
+              needsReview
+            );
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function SoundDiscriminationEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
+  const data = asRecord(activity.activity_data);
+  const [prompt, setPrompt] = useState(String(data.prompt ?? "Listen to the sound and identify the correct minimal pair word."));
+  const [audioUrl, setAudioUrl] = useState(String(data.audio_url ?? ""));
+  const rawPairs = Array.isArray(data.pairs) ? data.pairs : [];
+
+  const [pairs, setPairs] = useState<Array<{ id: string; word: string; phonetic: string; audio_url: string }>>(
+    rawPairs.length
+      ? rawPairs.map((p, idx) => {
+          const row = asRecord(p as Json);
+          return {
+            id: String(row.id ?? idx),
+            word: String(row.word ?? row.text ?? ""),
+            phonetic: String(row.phonetic ?? ""),
+            audio_url: String(row.audio_url ?? ""),
+          };
+        })
+      : [
+          { id: "0", word: "ship", phonetic: "/ʃɪp/", audio_url: "" },
+          { id: "1", word: "sheep", phonetic: "/ʃiːp/", audio_url: "" },
+        ]
+  );
+  const [correctAnswer, setCorrectAnswer] = useState(String(data.correct_answer ?? "0"));
+
+  const needsReview = pairs.some((p) => !p.word.trim());
+
+  return (
+    <div className="grid gap-4">
+      <label className="text-sm font-medium">
+        Instruction Prompt
+        <input value={prompt} onChange={(e) => setPrompt(e.target.value)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+      </label>
+
+      <MediaRecorderInput
+        label="Main Prompt Audio (Optional)"
+        value={audioUrl}
+        onChange={setAudioUrl}
+      />
+
+      <div className="rounded-md border border-black/10 p-4 space-y-3">
+        <p className="font-semibold text-sm">Minimal Pair Cards (e.g. ship vs sheep)</p>
+        {pairs.map((pair, i) => (
+          <div key={pair.id} className="rounded-lg border border-black/10 p-3 space-y-2 bg-slate-50/50">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-moss">Pair Word {i + 1}</span>
+              {pairs.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setPairs((curr) => curr.filter((_, idx) => idx !== i))}
+                  className="text-xs text-coral"
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <input
+                value={pair.word}
+                onChange={(e) => {
+                  const next = [...pairs];
+                  next[i] = { ...pair, word: e.target.value };
+                  setPairs(next);
+                }}
+                placeholder="Word (e.g. ship)"
+                className="rounded-md border border-black/15 px-3 py-1.5 text-sm"
+              />
+              <input
+                value={pair.phonetic}
+                onChange={(e) => {
+                  const next = [...pairs];
+                  next[i] = { ...pair, phonetic: e.target.value };
+                  setPairs(next);
+                }}
+                placeholder="Phonetic (e.g. /ʃɪp/)"
+                className="rounded-md border border-black/15 px-3 py-1.5 text-sm font-mono"
+              />
+            </div>
+            <MediaRecorderInput
+              label="Individual word pronunciation audio"
+              value={pair.audio_url}
+              onChange={(url) => {
+                const next = [...pairs];
+                next[i] = { ...pair, audio_url: url };
+                setPairs(next);
+              }}
+            />
+          </div>
+        ))}
+        <button
+          type="button"
+          onClick={() =>
+            setPairs((curr) => [...curr, { id: String(curr.length), word: "", phonetic: "", audio_url: "" }])
+          }
+          className="rounded-md border border-dashed border-black/20 px-3 py-1.5 text-xs font-semibold text-black/70 hover:bg-black/5"
+        >
+          + Add Minimal Pair Word
+        </button>
+      </div>
+
+      <label className="text-sm font-medium">
+        Correct Target Pair Word
+        <select
+          value={correctAnswer}
+          onChange={(e) => setCorrectAnswer(e.target.value)}
+          className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+        >
+          {pairs.map((pair, i) => (
+            <option key={pair.id} value={pair.id}>
+              {pair.word || `Word ${i + 1}`} ({pair.phonetic})
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <div className="flex flex-wrap gap-3">
+        <SaveButton
+          onClick={() =>
+            onSave(
+              {
+                prompt,
+                audio_url: audioUrl,
+                pairs,
+                correct_answer: correctAnswer,
+              } as Json,
+              needsReview
+            )
+          }
+        />
+      </div>
+    </div>
+  );
+}
+

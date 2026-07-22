@@ -174,6 +174,71 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
       correct_answer: correctAnswer as Json,
     }];
   }
+  if (activityType === "DICTATION") {
+    const audioUrl = String(data.audio_url ?? "");
+    const hint = String(data.hint ?? "");
+    const ignorePunctuation = data.ignore_punctuation !== false;
+    const correctAnswer = String(data.correct_answer ?? "");
+    return [{
+      id: "1",
+      question_number: 1,
+      question_type: "DICTATION",
+      question_text: String(data.prompt ?? "Listen to the audio and type what you hear."),
+      options: { audio_url: audioUrl, hint, ignore_punctuation: ignorePunctuation } as Json,
+      correct_answer: correctAnswer as Json,
+    }];
+  }
+  if (activityType === "LISTEN_AND_SELECT") {
+    const audioUrl = String(data.audio_url ?? "");
+    const choices = Array.isArray(data.choices) ? data.choices : [];
+    const correctAnswer = String(data.correct_answer ?? "0");
+    return [{
+      id: "1",
+      question_number: 1,
+      question_type: "LISTEN_AND_SELECT",
+      question_text: String(data.prompt ?? "Listen to the audio clip and select the matching option."),
+      options: { audio_url: audioUrl, choices } as Json,
+      correct_answer: correctAnswer as Json,
+    }];
+  }
+  if (activityType === "SHADOWING") {
+    const audioUrl = String(data.audio_url ?? "");
+    const targetText = String(data.target_text ?? data.correct_answer ?? "");
+    return [{
+      id: "1",
+      question_number: 1,
+      question_type: "SHADOWING",
+      question_text: String(data.prompt ?? "Listen to the native speaker and repeat the phrase into your microphone."),
+      options: { audio_url: audioUrl, target_text: targetText } as Json,
+      correct_answer: targetText as Json,
+    }];
+  }
+  if (activityType === "NOTE_TAKING_CHALLENGE") {
+    const mediaUrl = String(data.media_url ?? data.audio_url ?? "");
+    const subQuestions = Array.isArray(data.questions) ? data.questions : [];
+    const correctAnswer = asRecord(data.correct_answer as Json);
+    return [{
+      id: "1",
+      question_number: 1,
+      question_type: "NOTE_TAKING_CHALLENGE",
+      question_text: String(data.prompt ?? "Listen to the clip, take notes in the scratchpad, and answer the questions."),
+      options: { media_url: mediaUrl, questions: subQuestions } as Json,
+      correct_answer: correctAnswer as Json,
+    }];
+  }
+  if (activityType === "SOUND_DISCRIMINATION") {
+    const audioUrl = String(data.audio_url ?? "");
+    const pairs = Array.isArray(data.pairs) ? data.pairs : [];
+    const correctAnswer = String(data.correct_answer ?? "0");
+    return [{
+      id: "1",
+      question_number: 1,
+      question_type: "SOUND_DISCRIMINATION",
+      question_text: String(data.prompt ?? "Listen to the sound and identify the correct minimal pair word."),
+      options: { audio_url: audioUrl, pairs } as Json,
+      correct_answer: correctAnswer as Json,
+    }];
+  }
   if (activityType === "DRAG_DROP") {
     const rawItems: unknown[] = Array.isArray(data.items) ? data.items : [];
     const items = rawItems.map((item, index) => {
@@ -391,6 +456,11 @@ function activityLabel(type: string) {
   if (type === "HEADINGS_MATCHING") return "Headings Matching";
   if (type === "SKIM_CHALLENGE") return "Skimming Challenge";
   if (type === "PARAPHRASE_ID") return "Paraphrase Identification";
+  if (type === "DICTATION") return "Dictation (Listen & Type)";
+  if (type === "LISTEN_AND_SELECT") return "Listen & Select";
+  if (type === "SHADOWING") return "Shadowing / Repeat After Me";
+  if (type === "NOTE_TAKING_CHALLENGE") return "Note-Taking Challenge";
+  if (type === "SOUND_DISCRIMINATION") return "Sound Discrimination";
   if (type === "AI_ROLEPLAY") return "AI Conversation Roleplay";
   return "Activity";
 }

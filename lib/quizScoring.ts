@@ -18,7 +18,12 @@ export type ScoredQuestion = {
     | "INFERENCE_DETECTION"
     | "HEADINGS_MATCHING"
     | "SKIM_CHALLENGE"
-    | "PARAPHRASE_ID";
+    | "PARAPHRASE_ID"
+    | "DICTATION"
+    | "LISTEN_AND_SELECT"
+    | "SHADOWING"
+    | "NOTE_TAKING_CHALLENGE"
+    | "SOUND_DISCRIMINATION";
   options: Json | null;
   correct_answer: Json;
   max_points?: number | null;
@@ -95,8 +100,39 @@ export function scoreQuestions(questions: ScoredQuestion[], answers: Record<stri
 }
 
 export function isCorrect(question: ScoredQuestion, value: unknown): boolean {
-  if (question.question_type === "MCQ" || question.question_type === "INFERENCE_DETECTION" || question.question_type === "PARAPHRASE_ID") {
+  if (
+    question.question_type === "MCQ" ||
+    question.question_type === "INFERENCE_DETECTION" ||
+    question.question_type === "PARAPHRASE_ID" ||
+    question.question_type === "LISTEN_AND_SELECT" ||
+    question.question_type === "SOUND_DISCRIMINATION"
+  ) {
     return normalizeAnswer(value) === normalizeAnswer(question.correct_answer);
+  }
+
+  if (question.question_type === "DICTATION") {
+    const opts = asRecord(question.options);
+    const ignorePunctuation = opts.ignore_punctuation !== false;
+    let correctStr = String(question.correct_answer ?? "").trim().toLowerCase();
+    let givenStr = String(value ?? "").trim().toLowerCase();
+    if (ignorePunctuation) {
+      correctStr = correctStr.replace(/[.,/#!$%^&*;:{}=\-_`~()?'"]/g, "").replace(/\s+/g, " ");
+      givenStr = givenStr.replace(/[.,/#!$%^&*;:{}=\-_`~()?'"]/g, "").replace(/\s+/g, " ");
+    }
+    return correctStr === givenStr;
+  }
+
+  if (question.question_type === "SHADOWING") {
+    const rec = asRecord(value as Json);
+    return rec.passed === true || Number(rec.accuracy ?? 0) >= 70;
+  }
+
+  if (question.question_type === "NOTE_TAKING_CHALLENGE") {
+    const correct = asRecord(question.correct_answer);
+    const given = asRecord(value as Json);
+    const keys = Object.keys(correct);
+    if (keys.length === 0) return true;
+    return keys.every((qId) => normalizeAnswer(given[qId]) === normalizeAnswer(correct[qId]));
   }
 
   if (question.question_type === "HEADINGS_MATCHING" || question.question_type === "SKIM_CHALLENGE") {
