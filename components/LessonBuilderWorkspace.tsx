@@ -1004,6 +1004,14 @@ function SelectedSlideEditor({
                 <option value="NOTE_TAKING_CHALLENGE">Note-Taking Challenge</option>
                 <option value="SOUND_DISCRIMINATION">Sound Discrimination</option>
                 <option value="LISTEN_AND_GAP_FILL">Gap Fill while Listening</option>
+                <option value="SENTENCE_COMPLETION">Sentence Completion / Expansion</option>
+                <option value="ESSAY_WRITING">Essay Writing with Rubric</option>
+                <option value="EMAIL_LETTER_WRITING">Email / Letter Prompt</option>
+                <option value="TRANSLATION">Translation (L1 ↔ L2)</option>
+                <option value="PARAPHRASE_PRACTICE">Paraphrasing Tool</option>
+                <option value="SENTENCE_COMBINING">Sentence Combining</option>
+                <option value="CREATIVE_WRITING">Prompted Creative Writing</option>
+                <option value="PEER_REVIEW_EDITING">Peer Review / Editing</option>
                 <option value="PRONUNCIATION">Pronunciation Practice</option>
                 <option value="AI_ROLEPLAY">AI Conversation Roleplay</option>
               </select>

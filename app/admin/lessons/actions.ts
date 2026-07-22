@@ -1636,8 +1636,15 @@ function defaultActivityPrompt(activityType: string) {
   if (activityType === "LISTEN_AND_SELECT") return "Listen to the audio clip and select the matching option.";
   if (activityType === "SHADOWING") return "Listen to the native speaker and repeat the phrase into your microphone.";
   if (activityType === "NOTE_TAKING_CHALLENGE") return "Listen to the clip, take notes in the scratchpad, and answer the questions.";
-  if (activityType === "SOUND_DISCRIMINATION") return "Listen to the sound and identify the correct minimal pair word.";
   if (activityType === "LISTEN_AND_GAP_FILL") return "Listen to the audio and fill in the missing blanks in the transcript.";
+  if (activityType === "SENTENCE_COMPLETION") return "Complete the sentence stem.";
+  if (activityType === "ESSAY_WRITING") return "Write an essay responding to the prompt below.";
+  if (activityType === "EMAIL_LETTER_WRITING") return "Write a formal email based on the situation.";
+  if (activityType === "TRANSLATION") return "Translate the sentence into target language.";
+  if (activityType === "PARAPHRASE_PRACTICE") return "Paraphrase the original sentence in your own words.";
+  if (activityType === "SENTENCE_COMBINING") return "Combine the simple sentences into a complex sentence.";
+  if (activityType === "CREATIVE_WRITING") return "Write a short creative story incorporating the required vocabulary.";
+  if (activityType === "PEER_REVIEW_EDITING") return "Edit and critique the sample peer text below.";
   if (activityType === "AI_ROLEPLAY") return "Practice speaking English with me.";
   return "Choose the best answer.";
 }
@@ -1715,6 +1722,88 @@ function defaultActivityData(activityType: string, prompt: string): Json {
       transcript: "I have been working at this ___ for two years.",
       answers: ["company"],
       correct_answer: ["company"]
+    };
+  }
+  if (activityType === "SENTENCE_COMPLETION") {
+    return {
+      prompt,
+      sentence_stem: "Although it was raining,",
+      suggested_connectors: ["nevertheless", "on the other hand"],
+      model_answer: "Although it was raining, we decided to go for a hike in the national park.",
+      correct_answer: "we decided to go for a hike in the national park.",
+      model_description: "Completes the clause with logical contrast and correct punctuation."
+    };
+  }
+  if (activityType === "ESSAY_WRITING") {
+    return {
+      prompt,
+      min_words: 100,
+      max_words: 250,
+      sample_essay: "Modern technology has significantly changed how we communicate...",
+      model_answer: "Modern technology has significantly changed how we communicate...",
+      correct_answer: "Sample Essay Response",
+      rubric_guidelines: "Check grammar, structure, tone, and word count."
+    };
+  }
+  if (activityType === "EMAIL_LETTER_WRITING") {
+    return {
+      prompt,
+      recipient_role: "Course Director",
+      required_tone: "FORMAL",
+      model_email: "Dear Director,\n\nI am writing to inquire about...",
+      correct_answer: "Formal Email Response",
+      model_description: "Formal salutation and clear request."
+    };
+  }
+  if (activityType === "TRANSLATION") {
+    return {
+      prompt,
+      source_text: "Ella ha estado estudiando inglés durante dos años.",
+      source_language: "Spanish",
+      target_language: "English",
+      acceptable_translations: ["She has been studying English for two years."],
+      correct_answer: "She has been studying English for two years.",
+      grammar_notes: "Uses present perfect continuous."
+    };
+  }
+  if (activityType === "PARAPHRASE_PRACTICE") {
+    return {
+      prompt,
+      original_text: "Due to unforeseen circumstances, the meeting has been postponed.",
+      forbidden_phrases: ["due to", "unforeseen circumstances"],
+      model_paraphrase: "Because of unexpected events, the meeting will take place later.",
+      correct_answer: "Paraphrased sentence",
+      explanation: "Replaces key phrases while retaining core meaning."
+    };
+  }
+  if (activityType === "SENTENCE_COMBINING") {
+    return {
+      prompt,
+      input_sentences: ["The weather was cold.", "We stayed inside.", "We drank hot chocolate."],
+      model_combined_sentence: "Because the weather was cold, we stayed inside and drank hot chocolate.",
+      correct_answer: "Because the weather was cold, we stayed inside and drank hot chocolate.",
+      explanation: "Uses causal conjunction 'because'."
+    };
+  }
+  if (activityType === "CREATIVE_WRITING") {
+    return {
+      prompt,
+      image_url: "",
+      story_starter: "As the sun set over the quiet town...",
+      required_vocabulary: ["whisper", "shadow", "discovery"],
+      model_story: "As the sun set over the quiet town, Maria heard a faint whisper...",
+      correct_answer: "Creative story response",
+      model_description: "Includes all 3 required vocabulary words."
+    };
+  }
+  if (activityType === "PEER_REVIEW_EDITING") {
+    return {
+      prompt,
+      sample_draft: "Yesterday I go to market and buyed many apples.",
+      error_focus_areas: ["Past tense verbs", "Article usage"],
+      model_edited_draft: "Yesterday I went to the market and bought many apples.",
+      correct_answer: "Yesterday I went to the market and bought many apples.",
+      model_feedback_comments: "Remember irregular past tense verbs 'went' and 'bought'."
     };
   }
   if (activityType === "REORDERING") {
