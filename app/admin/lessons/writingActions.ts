@@ -1,4 +1,3 @@
-"use me";
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
@@ -15,6 +14,35 @@ export type WritingSubmissionInput = {
   submissionText: string;
 };
 
+async function tryEnsureWritingSubmissionsTable(adminSupabase: ReturnType<typeof createAdminClient>) {
+  try {
+    await adminSupabase.rpc("exec_sql", {
+      sql: `
+        create table if not exists public.writing_submissions (
+          id uuid primary key default gen_random_uuid(),
+          lesson_id uuid references public.lessons(id) on delete cascade,
+          quiz_id uuid references public.quizzes(id) on delete cascade,
+          activity_id text not null,
+          learner_id uuid not null references public.profiles(id) on delete cascade,
+          activity_type text not null,
+          prompt text,
+          submission_text text not null,
+          status text not null default 'PENDING' check (status in ('PENDING', 'GRADED')),
+          teacher_score numeric(5,2),
+          teacher_feedback text,
+          created_at timestamptz not null default now(),
+          updated_at timestamptz not null default now()
+        );
+        create index if not exists writing_submissions_status_idx on public.writing_submissions(status, created_at desc);
+        create index if not exists writing_submissions_learner_idx on public.writing_submissions(learner_id);
+        notify pgrst, 'reload schema';
+      `
+    });
+  } catch (e) {
+    // Ignore RPC missing error
+  }
+}
+
 export async function submitWritingForTeacherReviewAction(input: WritingSubmissionInput) {
   try {
     const supabase = await createClient();
@@ -29,14 +57,32 @@ export async function submitWritingForTeacherReviewAction(input: WritingSubmissi
 
     const adminSupabase = createAdminClient();
 
-    // Check if learner already has a pending submission for this activity
-    const { data: existing } = await adminSupabase
+    let existing: { id: string } | null = null;
+    let fetchError: any = null;
+
+    const res = await adminSupabase
       .from("writing_submissions")
       .select("id")
       .eq("activity_id", input.activityId)
       .eq("learner_id", user.id)
       .eq("status", "PENDING")
       .maybeSingle();
+
+    existing = res.data;
+    fetchError = res.error;
+
+    if (fetchError && (fetchError.code === "PGRST204" || fetchError.message?.includes("writing_submissions"))) {
+      await tryEnsureWritingSubmissionsTable(adminSupabase);
+      const retry = await adminSupabase
+        .from("writing_submissions")
+        .select("id")
+        .eq("activity_id", input.activityId)
+        .eq("learner_id", user.id)
+        .eq("status", "PENDING")
+        .maybeSingle();
+      existing = retry.data;
+      fetchError = retry.error;
+    }
 
     if (existing) {
       const { error: updateError } = await adminSupabase
@@ -67,7 +113,30 @@ export async function submitWritingForTeacherReviewAction(input: WritingSubmissi
       .select("id")
       .single();
 
-    if (insertError) throw insertError;
+    if (insertError) {
+      if (insertError.code === "PGRST204" || insertError.message?.includes("writing_submissions")) {
+        await tryEnsureWritingSubmissionsTable(adminSupabase);
+        const retryInsert = await adminSupabase
+          .from("writing_submissions")
+          .insert({
+            lesson_id: input.lessonId ?? null,
+            quiz_id: input.quizId ?? null,
+            activity_id: input.activityId,
+            learner_id: user.id,
+            activity_type: input.activityType,
+            prompt: input.prompt ?? null,
+            submission_text: input.submissionText.trim(),
+            status: "PENDING",
+          })
+          .select("id")
+          .single();
+
+        if (retryInsert.data) {
+          return { success: true, submissionId: retryInsert.data.id };
+        }
+      }
+      throw insertError;
+    }
 
     return { success: true, submissionId: inserted.id };
   } catch (error: any) {
