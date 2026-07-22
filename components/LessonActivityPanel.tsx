@@ -264,6 +264,9 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
         suggested_connectors: data.suggested_connectors,
         model_answer: data.model_answer,
         model_description: data.model_description,
+        allow_self_graded: data.allow_self_graded !== false,
+        allow_ai_feedback: data.allow_ai_feedback !== false,
+        allow_teacher_review: data.allow_teacher_review !== false,
       } as Json,
       correct_answer: String(data.model_answer ?? data.correct_answer ?? "") as Json,
     }];

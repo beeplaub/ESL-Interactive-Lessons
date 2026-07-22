@@ -2633,6 +2633,10 @@ function SentenceCompletionEditor({
   const [modelAnswer, setModelAnswer] = useState<string>(String(currentOptions.model_answer || ""));
   const [modelDescription, setModelDescription] = useState<string>(String(currentOptions.model_description || ""));
 
+  const [allowSelfGraded, setAllowSelfGraded] = useState<boolean>(currentOptions.allow_self_graded !== false);
+  const [allowAiFeedback, setAllowAiFeedback] = useState<boolean>(currentOptions.allow_ai_feedback !== false);
+  const [allowTeacherReview, setAllowTeacherReview] = useState<boolean>(currentOptions.allow_teacher_review !== false);
+
   return (
     <div className="grid gap-4">
       <label className="text-sm font-medium">
@@ -2660,6 +2664,39 @@ function SentenceCompletionEditor({
         <textarea rows={2} value={modelDescription} onChange={(e) => setModelDescription(e.target.value)} placeholder="Explanation of model answer..." className="mt-1 w-full rounded-md border border-black/15 p-2 text-xs" />
       </label>
 
+      <div className="rounded-2xl border border-[#6C3BFF]/20 bg-[#6C3BFF]/5 p-4 space-y-2">
+        <p className="text-xs font-black text-[#6C3BFF] uppercase tracking-wider">Evaluation Options Allowed for Learner</p>
+        <div className="grid gap-2 sm:grid-cols-3">
+          <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer text-ink">
+            <input
+              type="checkbox"
+              checked={allowAiFeedback}
+              onChange={(e) => setAllowAiFeedback(e.target.checked)}
+              className="rounded border-black/15 text-[#6C3BFF] focus:ring-[#6C3BFF]"
+            />
+            AI Instant Feedback
+          </label>
+          <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer text-ink">
+            <input
+              type="checkbox"
+              checked={allowSelfGraded}
+              onChange={(e) => setAllowSelfGraded(e.target.checked)}
+              className="rounded border-black/15 text-[#6C3BFF] focus:ring-[#6C3BFF]"
+            />
+            Model Answer / Self Check
+          </label>
+          <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer text-ink">
+            <input
+              type="checkbox"
+              checked={allowTeacherReview}
+              onChange={(e) => setAllowTeacherReview(e.target.checked)}
+              className="rounded border-black/15 text-[#6C3BFF] focus:ring-[#6C3BFF]"
+            />
+            Teacher Review Queue
+          </label>
+        </div>
+      </div>
+
       <SaveButton
         onClick={() =>
           onSave(
@@ -2670,6 +2707,9 @@ function SentenceCompletionEditor({
               model_answer: modelAnswer,
               correct_answer: modelAnswer,
               model_description: modelDescription,
+              allow_self_graded: allowSelfGraded,
+              allow_ai_feedback: allowAiFeedback,
+              allow_teacher_review: allowTeacherReview,
             } as Json,
             !stem.trim()
           )

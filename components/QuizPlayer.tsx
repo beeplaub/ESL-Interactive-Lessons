@@ -640,7 +640,16 @@ export function QuestionCard({
   /** Fired once, the first time this question's result becomes visible (submitted flips true for it). Purely presentational (streak/sound hooks) — never affects scoring. */
   onResult?: (result: "correct" | "wrong" | "partial", questionId: string) => void;
 }) {
-  const isSelfChecked = question.question_type === "SHORT_ANSWER";
+  const isSelfChecked =
+    question.question_type === "SHORT_ANSWER" ||
+    question.question_type === "SENTENCE_COMPLETION" ||
+    question.question_type === "ESSAY_WRITING" ||
+    question.question_type === "EMAIL_LETTER_WRITING" ||
+    question.question_type === "TRANSLATION" ||
+    question.question_type === "PARAPHRASE_PRACTICE" ||
+    question.question_type === "SENTENCE_COMBINING" ||
+    question.question_type === "CREATIVE_WRITING" ||
+    question.question_type === "PEER_REVIEW_EDITING";
   const isPartialCredit = question.question_type === "DRAG_DROP" || question.question_type === "CATEGORIZATION" || question.question_type === "FILL" || question.question_type === "PRONUNCIATION" || question.question_type === "LISTEN_AND_GAP_FILL";
   const stats = isPartialCredit && submitted ? partialCreditStats(question, value) : null;
   const correct = submitted && !isSelfChecked && !isPartialCredit ? isCorrect(question, value) : false;
