@@ -998,6 +998,11 @@ function SelectedSlideEditor({
                 <option value="HEADINGS_MATCHING">Headings Matching</option>
                 <option value="SKIM_CHALLENGE">Skimming Challenge</option>
                 <option value="PARAPHRASE_ID">Paraphrase Identification</option>
+                <option value="DICTATION">Dictation (Listen & Type)</option>
+                <option value="LISTEN_AND_SELECT">Listen & Select</option>
+                <option value="SHADOWING">Shadowing / Repeat After Me</option>
+                <option value="NOTE_TAKING_CHALLENGE">Note-Taking Challenge</option>
+                <option value="SOUND_DISCRIMINATION">Sound Discrimination</option>
                 <option value="PRONUNCIATION">Pronunciation Practice</option>
                 <option value="AI_ROLEPLAY">AI Conversation Roleplay</option>
               </select>

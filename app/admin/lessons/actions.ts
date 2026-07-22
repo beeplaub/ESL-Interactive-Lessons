@@ -1632,6 +1632,11 @@ function defaultActivityPrompt(activityType: string) {
   if (activityType === "PRONUNCIATION") return "Say each highlighted word clearly.";
   if (activityType === "SUMMARIZATION") return "Summarize the passage in your own words.";
   if (activityType === "INFERENCE_DETECTION") return "Read the passage. What can we infer?";
+  if (activityType === "DICTATION") return "Listen to the audio and type what you hear.";
+  if (activityType === "LISTEN_AND_SELECT") return "Listen to the audio clip and select the matching option.";
+  if (activityType === "SHADOWING") return "Listen to the native speaker and repeat the phrase into your microphone.";
+  if (activityType === "NOTE_TAKING_CHALLENGE") return "Listen to the clip, take notes in the scratchpad, and answer the questions.";
+  if (activityType === "SOUND_DISCRIMINATION") return "Listen to the sound and identify the correct minimal pair word.";
   if (activityType === "AI_ROLEPLAY") return "Practice speaking English with me.";
   return "Choose the best answer.";
 }
@@ -1669,6 +1674,37 @@ function defaultActivityData(activityType: string, prompt: string): Json {
       prompt,
       passage: "Enter the passage text here.",
       questions: [{ id: 1, text: "What can we infer from the passage?", options: { A: "", B: "", C: "", D: "" }, answer: "A" }]
+    };
+  }
+  if (activityType === "DICTATION") {
+    return { prompt, audio_url: "", correct_answer: "Enter target dictation text here.", hint: "", ignore_punctuation: true };
+  }
+  if (activityType === "LISTEN_AND_SELECT") {
+    return {
+      prompt,
+      audio_url: "",
+      choices: [{ id: "0", text: "Option A", image_url: "" }, { id: "1", text: "Option B", image_url: "" }],
+      correct_answer: "0"
+    };
+  }
+  if (activityType === "SHADOWING") {
+    return { prompt, audio_url: "", target_text: "Repeat after me.", correct_answer: "Repeat after me." };
+  }
+  if (activityType === "NOTE_TAKING_CHALLENGE") {
+    return {
+      prompt,
+      media_url: "",
+      audio_url: "",
+      questions: [{ id: "1", text: "What was the main topic?", options: ["Topic A", "Topic B"] }],
+      correct_answer: { "1": "Topic A" }
+    };
+  }
+  if (activityType === "SOUND_DISCRIMINATION") {
+    return {
+      prompt,
+      audio_url: "",
+      pairs: [{ id: "0", word: "ship", phonetic: "/ʃɪp/", audio_url: "" }, { id: "1", word: "sheep", phonetic: "/ʃiːp/", audio_url: "" }],
+      correct_answer: "0"
     };
   }
   if (activityType === "REORDERING") {
