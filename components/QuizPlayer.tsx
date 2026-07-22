@@ -2792,7 +2792,15 @@ function SentenceCompletionPlayer({
   onChange: (val: { text?: string; selfMarked?: boolean }) => void;
 }) {
   const opts = asRecord(question.options);
-  const stem = String(opts.sentence_stem ?? question.question_text ?? "");
+
+  const rawStem = String(opts.sentence_stem || "").trim();
+  const rawText = String(question.question_text || "").trim();
+  const isGeneric = !rawText || rawText.toLowerCase().replaceAll(".", "") === "complete the sentence stem";
+  
+  const stem = rawStem || (!isGeneric ? rawText : "") || String(opts.prompt || "").trim() || "Although the project was difficult,";
+  
+  const descriptionContext = question.description || String(opts.description || opts.context || opts.instructions || "").trim();
+
   const modelAnswer = String(opts.model_answer ?? question.correct_answer ?? "");
   const modelDescription = String(opts.model_description ?? opts.explanation ?? "");
   const connectors = Array.isArray(opts.suggested_connectors) ? opts.suggested_connectors.map(String) : [];
@@ -2806,6 +2814,13 @@ function SentenceCompletionPlayer({
 
   return (
     <div className="space-y-5">
+      {descriptionContext ? (
+        <div className="rounded-2xl border border-black/10 bg-[#F6F7FB] p-4 text-xs font-semibold leading-relaxed text-[#6E738D]">
+          <span className="font-bold text-ink uppercase tracking-wider block mb-1">Context / Instructions:</span>
+          {descriptionContext}
+        </div>
+      ) : null}
+
       <div className="rounded-3xl border border-[#6C3BFF]/15 bg-[#6C3BFF]/5 p-5 space-y-3">
         <p className="text-xs font-black text-[#6C3BFF] uppercase tracking-wider">Sentence Stem to Complete</p>
         <p className="text-base font-bold text-ink leading-relaxed">{stem}</p>
