@@ -1395,21 +1395,27 @@ export function LessonActivityPanel({
       {/* Footer */}
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-black/10 pt-3">
         <p className="text-sm text-black/55">
-          {submitted
+          {hasWritingActivity
+            ? "Complete your response and evaluation above, then continue."
+            : submitted
             ? message ?? "Review your feedback, then continue."
             : allAnswered
             ? "All answered — ready to check!"
             : `${Object.keys(answers).length} of ${questions.length} answered`}
         </p>
         <div className="flex gap-2">
-          {submitted ? (
+          {hasWritingActivity || submitted ? (
             <>
-              <button type="button" onClick={retake} className="inline-flex items-center gap-1.5 rounded-md border border-black/15 px-4 py-2 text-sm font-semibold hover:bg-black/5">
-                <RotateCcw size={14} /> Retake
-              </button>
-              <button type="button" onClick={onNext} className="inline-flex items-center gap-2 rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white">
-                Next <ChevronRight size={15} />
-              </button>
+              {submitted ? (
+                <button type="button" onClick={retake} className="inline-flex items-center gap-1.5 rounded-md border border-black/15 px-4 py-2 text-sm font-semibold hover:bg-black/5">
+                  <RotateCcw size={14} /> Retake
+                </button>
+              ) : null}
+              {onNext ? (
+                <button type="button" onClick={onNext} className="inline-flex items-center gap-2 rounded-md bg-[#6C3BFF] px-4 py-2 text-sm font-semibold text-white shadow-xs">
+                  Next <ChevronRight size={15} />
+                </button>
+              ) : null}
             </>
           ) : (
             <button
