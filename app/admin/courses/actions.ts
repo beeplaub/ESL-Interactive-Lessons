@@ -476,6 +476,25 @@ export async function moveCourseItem(courseId: string, itemId: string, direction
   revalidatePath(`/courses/${courseId}`);
 }
 
+export async function reorderCourseItems(courseId: string, itemIds: string[]) {
+  await requireCourseAccess(courseId);
+  const admin = createAdminClient();
+  const updates = itemIds.map((id, index) =>
+    admin
+      .from("course_items")
+      .update({ position: index + 1, updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .eq("course_id", courseId)
+  );
+  const results = await Promise.all(updates);
+  for (const res of results) {
+    if (res.error) throw new Error(res.error.message);
+  }
+  revalidatePath(`/admin/courses/${courseId}/builder`);
+  revalidatePath(`/courses/${courseId}`);
+}
+
+
 export async function deleteCourse(courseId: string) {
   const { user } = await requireCourseAccess(courseId);
   const admin = createAdminClient();

@@ -20,6 +20,7 @@ import { CreateItemModal } from "@/app/admin/courses/[id]/builder/CreateItemModa
 import { EditItemModal } from "@/app/admin/courses/[id]/builder/EditItemModal";
 import { CourseQuizOutcomeMapper } from "@/components/CourseQuizOutcomeMapper";
 import { DeleteButton } from "@/components/DeleteButton";
+import { CourseItemsList } from "@/app/admin/courses/[id]/builder/CourseItemsList";
 import {
   addCourseFaq,
   addCourseItem,
@@ -39,6 +40,7 @@ import {
   updateCourseMetadata,
   updateCourseOutcome,
   updateCourseSection,
+  reorderCourseItems,
 } from "@/app/admin/courses/actions";
 
 const levels = CONTENT_LEVELS;
@@ -120,13 +122,13 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
   const { data: courseLessonSlides } = courseLessonIds.length
     ? await admin.from("slides").select("lesson_id").in("lesson_id", courseLessonIds)
     : { data: [] as { lesson_id: string }[] };
-  const slideCountByLessonId = new Map<string, number>();
+  const slideCounts: Record<string, number> = {};
   for (const slide of courseLessonSlides ?? []) {
-    slideCountByLessonId.set(slide.lesson_id, (slideCountByLessonId.get(slide.lesson_id) ?? 0) + 1);
+    slideCounts[slide.lesson_id] = (slideCounts[slide.lesson_id] ?? 0) + 1;
   }
-  const questionCountByQuizId = new Map<string, number>();
+  const questionCounts: Record<string, number> = {};
   for (const question of courseQuizQuestions ?? []) {
-    questionCountByQuizId.set(question.quiz_id, (questionCountByQuizId.get(question.quiz_id) ?? 0) + 1);
+    questionCounts[question.quiz_id] = (questionCounts[question.quiz_id] ?? 0) + 1;
   }
 
   const lessonOptions = (lessons ?? []) as LessonOption[];
@@ -217,60 +219,17 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
           </div>
         </div>
 
-        <div className="mt-3 space-y-2">
-          {sectionItems.map((item, itemIndex) => {
-            const label = item.title?.trim() || item.lessons?.title || item.quizzes?.title || item.item_type.replaceAll("_", " ");
-            const status = item.item_type === "LESSON" ? item.lessons?.status ?? null : item.item_type === "QUIZ" ? item.quizzes?.status ?? null : null;
-            const count = item.item_type === "LESSON" && item.lesson_id
-              ? slideCountByLessonId.get(item.lesson_id) ?? 0
-              : item.item_type === "QUIZ" && item.quiz_id
-                ? questionCountByQuizId.get(item.quiz_id) ?? 0
-                : null;
-            return (
-              <div key={item.id} className="flex min-w-0 items-start gap-2">
-                <div className="min-w-0 flex-1">
-                  <EditItemModal
-                    action={updateCourseItem.bind(null, course.id, item.id)}
-                    deleteAction={deleteCourseItem.bind(null, course.id, item.id)}
-                    item={item}
-                    label={label}
-                    status={status}
-                    count={count}
-                    sections={sectionOptions}
-                    lessons={lessonOptions}
-                    quizzes={quizOptions}
-                  />
-                </div>
-                <div className="flex shrink-0 flex-col gap-1">
-                  <form action={moveCourseItem.bind(null, course.id, item.id, "up")}>
-                    <button
-                      disabled={itemIndex === 0}
-                      title="Move item up"
-                      className="grid size-8 place-items-center rounded-lg border border-black/15 bg-white disabled:opacity-35"
-                    >
-                      <ArrowUp size={13} />
-                    </button>
-                  </form>
-                  <form action={moveCourseItem.bind(null, course.id, item.id, "down")}>
-                    <button
-                      disabled={itemIndex === sectionItems.length - 1}
-                      title="Move item down"
-                      className="grid size-8 place-items-center rounded-lg border border-black/15 bg-white disabled:opacity-35"
-                    >
-                      <ArrowDown size={13} />
-                    </button>
-                  </form>
-                </div>
-              </div>
-            );
-          })}
-          {sectionItems.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-black/15 bg-slate-50 px-4 py-10 text-center">
-              <p className="text-sm font-semibold text-ink">This section is ready for content</p>
-              <p className="mt-1 text-xs text-black/45">Add a lesson, quiz, level test, resource, or external link.</p>
-            </div>
-          ) : null}
-        </div>
+        <CourseItemsList
+          courseId={course.id}
+          initialItems={sectionItems}
+          slideCountByLessonId={slideCounts}
+          questionCountByQuizId={questionCounts}
+          lessonOptions={lessonOptions}
+          quizOptions={quizOptions}
+          sectionOptions={sectionOptions}
+          updateItemAction={updateCourseItem.bind(null, course.id)}
+          deleteItemAction={deleteCourseItem.bind(null, course.id)}
+        />
       </div>
     );
   });
