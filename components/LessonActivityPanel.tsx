@@ -1411,7 +1411,7 @@ export function LessonActivityPanel({
                 Next <ChevronRight size={15} />
               </button>
             </>
-          ) : (
+          ) : activity.activity_type !== "SENTENCE_COMPLETION" ? (
             <button
               type="button"
               onClick={submit}
@@ -1420,7 +1420,7 @@ export function LessonActivityPanel({
             >
               {isPending ? "Saving…" : "Check answers"}
             </button>
-          )}
+          ) : null}
         </div>
       </div>
       {localAttempts.length ? (
