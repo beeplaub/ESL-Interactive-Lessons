@@ -1637,6 +1637,7 @@ function defaultActivityPrompt(activityType: string) {
   if (activityType === "SHADOWING") return "Listen to the native speaker and repeat the phrase into your microphone.";
   if (activityType === "NOTE_TAKING_CHALLENGE") return "Listen to the clip, take notes in the scratchpad, and answer the questions.";
   if (activityType === "SOUND_DISCRIMINATION") return "Listen to the sound and identify the correct minimal pair word.";
+  if (activityType === "LISTEN_AND_GAP_FILL") return "Listen to the audio and fill in the missing blanks in the transcript.";
   if (activityType === "AI_ROLEPLAY") return "Practice speaking English with me.";
   return "Choose the best answer.";
 }
@@ -1705,6 +1706,15 @@ function defaultActivityData(activityType: string, prompt: string): Json {
       audio_url: "",
       pairs: [{ id: "0", word: "ship", phonetic: "/ʃɪp/", audio_url: "" }, { id: "1", word: "sheep", phonetic: "/ʃiːp/", audio_url: "" }],
       correct_answer: "0"
+    };
+  }
+  if (activityType === "LISTEN_AND_GAP_FILL") {
+    return {
+      prompt,
+      audio_url: "",
+      transcript: "I have been working at this ___ for two years.",
+      answers: ["company"],
+      correct_answer: ["company"]
     };
   }
   if (activityType === "REORDERING") {

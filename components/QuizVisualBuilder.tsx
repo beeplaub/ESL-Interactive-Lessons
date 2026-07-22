@@ -52,7 +52,7 @@ const questionTypes: BuilderQuestion["questionType"][] = [
   "MCQ", "TRUE_FALSE", "FILL", "MATCHING", "MULTIPLE_SELECT",
   "SHORT_ANSWER", "ERROR_CORRECTION", "REORDERING", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "SUMMARIZATION", "INFERENCE_DETECTION",
   "HEADINGS_MATCHING", "SKIM_CHALLENGE", "PARAPHRASE_ID",
-  "DICTATION", "LISTEN_AND_SELECT", "SHADOWING", "NOTE_TAKING_CHALLENGE", "SOUND_DISCRIMINATION"
+  "DICTATION", "LISTEN_AND_SELECT", "SHADOWING", "NOTE_TAKING_CHALLENGE", "SOUND_DISCRIMINATION", "LISTEN_AND_GAP_FILL"
 ];
 
 const typeLabels: Record<string, string> = {
@@ -76,7 +76,8 @@ const typeLabels: Record<string, string> = {
   LISTEN_AND_SELECT: "Listen & Select",
   SHADOWING: "Shadowing / Repeat After Me",
   NOTE_TAKING_CHALLENGE: "Note-Taking Challenge",
-  SOUND_DISCRIMINATION: "Sound Discrimination"
+  SOUND_DISCRIMINATION: "Sound Discrimination",
+  LISTEN_AND_GAP_FILL: "Gap Fill while Listening"
 };
 
 const PRONUNCIATION_COLORS = ["#fbbf24", "#34d399", "#60a5fa", "#f472b6", "#a78bfa", "#fb923c"];
@@ -174,6 +175,7 @@ function defaultQuestion(type: BuilderQuestion["questionType"]): BuilderQuestion
   if (type === "SHADOWING") return { id, questionType: type, questionText: "Listen to the native speaker and repeat the phrase into your microphone.", description: "", options: { audio_url: "", target_text: "Repeat after me." }, correctAnswer: "Repeat after me.", assessment };
   if (type === "NOTE_TAKING_CHALLENGE") return { id, questionType: type, questionText: "Listen to the clip, take notes in the scratchpad, and answer the questions.", description: "", options: { media_url: "", audio_url: "", questions: [{ id: "1", text: "What was the main topic?", options: { A: "Topic A", B: "Topic B", C: "Topic C", D: "Topic D" } }] }, correctAnswer: { "1": "A" }, assessment };
   if (type === "SOUND_DISCRIMINATION") return { id, questionType: type, questionText: "Listen to the sound and identify the correct minimal pair word.", description: "", options: { audio_url: "", pairs: [{ id: "0", word: "ship", phonetic: "/ʃɪp/", audio_url: "" }, { id: "1", word: "sheep", phonetic: "/ʃiːp/", audio_url: "" }] }, correctAnswer: "0", assessment };
+  if (type === "LISTEN_AND_GAP_FILL") return { id, questionType: type, questionText: "Listen to the audio and fill in the missing blanks in the transcript.", description: "", options: { audio_url: "", transcript: "I have been working at this ___ for two years." }, correctAnswer: ["company"], assessment };
   return { id, questionType: type, questionText: "Choose the best answer.", description: "", options: { A: "Option A", B: "Option B", C: "Option C", D: "Option D" }, correctAnswer: "A", assessment };
 }
 
@@ -1771,6 +1773,69 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             ))}
           </select>
         </label>
+      </div>
+    );
+  }
+
+  if (question.questionType === "LISTEN_AND_GAP_FILL") {
+    const rawAnswers = Array.isArray(question.correctAnswer) ? question.correctAnswer.map(String) : [String(question.correctAnswer ?? "")];
+
+    return (
+      <div className="grid gap-3">
+        <MediaRecorderInput
+          label="Audio or Video Clip (Record live, upload file, or paste URL)"
+          value={String(options.audio_url ?? options.media_url ?? "")}
+          onChange={(url) => onChange({ options: { ...options, audio_url: url, media_url: url } as Json })}
+        />
+        <label className="text-sm font-medium">
+          Full Transcript Text with Blanks (Use ___ or [blank] for missing words)
+          <textarea
+            rows={4}
+            value={String(options.transcript ?? options.sentence ?? "")}
+            onChange={(e) => onChange({ options: { ...options, transcript: e.target.value, sentence: e.target.value } as Json })}
+            placeholder="e.g. I have been working at this ___ for two years."
+            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm font-mono"
+          />
+        </label>
+
+        <div className="rounded-md border border-black/10 p-3 space-y-2 bg-slate-50/50">
+          <p className="font-semibold text-xs text-black/70">Correct Answers for Blanks (in order of appearance)</p>
+          {rawAnswers.map((ans, idx) => (
+            <div key={idx} className="flex items-center gap-2">
+              <span className="text-xs font-bold text-moss w-16">Blank ({idx + 1}):</span>
+              <input
+                type="text"
+                value={ans}
+                onChange={(e) => {
+                  const next = [...rawAnswers];
+                  next[idx] = e.target.value;
+                  onChange({ correctAnswer: next });
+                }}
+                placeholder={`Answer for blank ${idx + 1}`}
+                className="flex-1 rounded border border-black/15 px-2 py-1 text-xs bg-white"
+              />
+              {rawAnswers.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = rawAnswers.filter((_, i) => i !== idx);
+                    onChange({ correctAnswer: next });
+                  }}
+                  className="text-xs text-coral hover:underline"
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={() => onChange({ correctAnswer: [...rawAnswers, ""] })}
+            className="rounded border border-dashed border-black/20 px-2.5 py-1 text-[11px] font-semibold text-black/60 hover:bg-black/5"
+          >
+            + Add Answer Blank
+          </button>
+        </div>
       </div>
     );
   }

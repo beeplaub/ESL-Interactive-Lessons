@@ -19,7 +19,7 @@ import { computeBestStreak, NOTABLE_STREAK_THRESHOLD } from "@/lib/gamification/
 export type QuizQuestion = {
   id: string;
   question_number: number;
-  question_type: "MCQ" | "TRUE_FALSE" | "FILL" | "MATCHING" | "ERROR_CORRECTION" | "REORDERING" | "MULTIPLE_SELECT" | "SHORT_ANSWER" | "DRAG_DROP" | "CATEGORIZATION" | "PRONUNCIATION" | "SUMMARIZATION" | "INFERENCE_DETECTION" | "HEADINGS_MATCHING" | "SKIM_CHALLENGE" | "PARAPHRASE_ID" | "DICTATION" | "LISTEN_AND_SELECT" | "SHADOWING" | "NOTE_TAKING_CHALLENGE" | "SOUND_DISCRIMINATION";
+  question_type: "MCQ" | "TRUE_FALSE" | "FILL" | "MATCHING" | "ERROR_CORRECTION" | "REORDERING" | "MULTIPLE_SELECT" | "SHORT_ANSWER" | "DRAG_DROP" | "CATEGORIZATION" | "PRONUNCIATION" | "SUMMARIZATION" | "INFERENCE_DETECTION" | "HEADINGS_MATCHING" | "SKIM_CHALLENGE" | "PARAPHRASE_ID" | "DICTATION" | "LISTEN_AND_SELECT" | "SHADOWING" | "NOTE_TAKING_CHALLENGE" | "SOUND_DISCRIMINATION" | "LISTEN_AND_GAP_FILL";
   question_text: string;
   description?: string | null;
   options: Json | null;
@@ -629,7 +629,7 @@ export function QuestionCard({
   onResult?: (result: "correct" | "wrong" | "partial", questionId: string) => void;
 }) {
   const isSelfChecked = question.question_type === "SHORT_ANSWER";
-  const isPartialCredit = question.question_type === "DRAG_DROP" || question.question_type === "CATEGORIZATION" || question.question_type === "FILL" || question.question_type === "PRONUNCIATION";
+  const isPartialCredit = question.question_type === "DRAG_DROP" || question.question_type === "CATEGORIZATION" || question.question_type === "FILL" || question.question_type === "PRONUNCIATION" || question.question_type === "LISTEN_AND_GAP_FILL";
   const stats = isPartialCredit && submitted ? partialCreditStats(question, value) : null;
   const correct = submitted && !isSelfChecked && !isPartialCredit ? isCorrect(question, value) : false;
   const wrong = submitted && !isSelfChecked && !isPartialCredit && !correct;
@@ -714,6 +714,7 @@ export function QuestionCard({
         {question.question_type === "SHADOWING" ? <ShadowingPlayer question={question} value={value as { transcript?: string; accuracy?: number; passed?: boolean } | undefined} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "NOTE_TAKING_CHALLENGE" ? <NoteTakingChallengePlayer question={question} value={(value as Record<string, string>) ?? {}} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "SOUND_DISCRIMINATION" ? <SoundDiscriminationPlayer question={question} value={value as string | undefined} disabled={submitted} onChange={onChange} /> : null}
+        {question.question_type === "LISTEN_AND_GAP_FILL" ? <ListenGapFillPlayer question={question} value={value as string[] | undefined} disabled={submitted} onChange={onChange} /> : null}
       </div>
       {stats && stats.correctCount < stats.total ? (
         <p className={`mt-4 rounded-[14px] p-3 text-sm font-semibold ${allWrong ? "bg-[#FF5D73]/10 text-[#FF5D73]" : "bg-[#FFB545]/10 text-amber-900"}`}>
@@ -2619,6 +2620,110 @@ function SoundDiscriminationPlayer({
             </div>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+function ListenGapFillPlayer({
+  question,
+  value = [],
+  disabled,
+  onChange,
+}: {
+  question: QuizQuestion;
+  value?: string[];
+  disabled: boolean;
+  onChange: (val: string[]) => void;
+}) {
+  const opts = asRecord(question.options);
+  const audioUrl = String(opts.audio_url ?? opts.media_url ?? "");
+  const transcriptText = String(opts.transcript ?? opts.sentence ?? question.question_text ?? "");
+  const [playbackSpeed, setPlaybackSpeed] = useState<number>(1.0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Split transcript by blank placeholders: ___ or [blank] or [target]
+  const parts = transcriptText.split(/(___|\[[^\]]+\])/g);
+  const answers = Array.isArray(question.correct_answer) ? question.correct_answer : [question.correct_answer];
+  const blankCount = parts.filter((p) => /^(___|\[[^\]]+\])$/.test(p)).length || Math.max(1, answers.length);
+
+  function handlePlaybackRate(rate: number) {
+    setPlaybackSpeed(rate);
+    if (audioRef.current) {
+      audioRef.current.playbackRate = rate;
+    }
+  }
+
+  function handleInputChange(blankIdx: number, val: string) {
+    const next = [...value];
+    next[blankIdx] = val;
+    onChange(next);
+  }
+
+  let currentBlankIdx = 0;
+
+  return (
+    <div className="space-y-4">
+      {audioUrl && (
+        <div className="rounded-xl border border-black/10 bg-black/5 p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs font-bold text-black/60">
+              <Headphones size={16} className="text-moss" /> Listen & Complete the Transcript
+            </div>
+            <div className="flex items-center gap-1 text-xs">
+              <span className="text-black/50 font-medium mr-1">Speed:</span>
+              {[0.75, 1.0, 1.25].map((speed) => (
+                <button
+                  key={speed}
+                  type="button"
+                  onClick={() => handlePlaybackRate(speed)}
+                  className={`rounded-md px-2 py-0.5 font-bold transition ${
+                    playbackSpeed === speed ? "bg-moss text-white" : "bg-black/10 text-black/70 hover:bg-black/20"
+                  }`}
+                >
+                  {speed}x
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <audio
+            ref={audioRef}
+            controls
+            src={audioUrl}
+            onPlay={() => {
+              if (audioRef.current) audioRef.current.playbackRate = playbackSpeed;
+            }}
+            className="w-full"
+          />
+        </div>
+      )}
+
+      <div className="rounded-xl border border-black/10 bg-white p-5 space-y-3 leading-relaxed text-base font-medium text-ink">
+        <p className="text-xs font-bold text-black/40 uppercase tracking-wider mb-2">Transcript:</p>
+        <div className="flex flex-wrap items-center gap-2">
+          {parts.map((part, idx) => {
+            const isBlank = /^(___|\[[^\]]+\])$/.test(part);
+            if (!isBlank) {
+              return <span key={idx}>{part}</span>;
+            }
+            const bIdx = currentBlankIdx++;
+            return (
+              <span key={idx} className="inline-flex items-center gap-1">
+                <span className="text-xs font-bold text-moss">({bIdx + 1})</span>
+                <input
+                  type="text"
+                  disabled={disabled}
+                  value={value[bIdx] ?? ""}
+                  onChange={(e) => handleInputChange(bIdx, e.target.value)}
+                  placeholder="type word..."
+                  className="rounded-lg border-2 border-moss/40 bg-moss/5 px-2.5 py-1 text-sm font-bold text-ink focus:border-moss focus:outline-hidden disabled:bg-black/5"
+                  style={{ width: `${Math.max(100, (value[bIdx]?.length || 8) * 10)}px` }}
+                />
+              </span>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

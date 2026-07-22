@@ -239,6 +239,20 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
       correct_answer: correctAnswer as Json,
     }];
   }
+  if (activityType === "LISTEN_AND_GAP_FILL") {
+    const audioUrl = String(data.audio_url ?? data.media_url ?? "");
+    const transcript = String(data.transcript ?? data.sentence ?? "");
+    const rawAnswers = data.answers ?? data.correct_answer ?? [];
+    const answers = Array.isArray(rawAnswers) ? rawAnswers.map(String) : [String(rawAnswers)];
+    return [{
+      id: "1",
+      question_number: 1,
+      question_type: "LISTEN_AND_GAP_FILL",
+      question_text: String(data.prompt ?? "Listen to the audio and fill in the missing blanks in the transcript."),
+      options: { audio_url: audioUrl, transcript } as Json,
+      correct_answer: answers as Json,
+    }];
+  }
   if (activityType === "DRAG_DROP") {
     const rawItems: unknown[] = Array.isArray(data.items) ? data.items : [];
     const items = rawItems.map((item, index) => {
@@ -461,6 +475,7 @@ function activityLabel(type: string) {
   if (type === "SHADOWING") return "Shadowing / Repeat After Me";
   if (type === "NOTE_TAKING_CHALLENGE") return "Note-Taking Challenge";
   if (type === "SOUND_DISCRIMINATION") return "Sound Discrimination";
+  if (type === "LISTEN_AND_GAP_FILL") return "Gap Fill while Listening";
   if (type === "AI_ROLEPLAY") return "AI Conversation Roleplay";
   return "Activity";
 }

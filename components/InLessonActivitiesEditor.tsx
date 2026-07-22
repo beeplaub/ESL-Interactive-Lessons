@@ -651,8 +651,9 @@ function ActivityPanel({
               {activity.activity_type === "SHADOWING" ? <ShadowingEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "NOTE_TAKING_CHALLENGE" ? <NoteTakingChallengeEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "SOUND_DISCRIMINATION" ? <SoundDiscriminationEditor activity={activity} onSave={save} /> : null}
+              {activity.activity_type === "LISTEN_AND_GAP_FILL" ? <ListenGapFillEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "AI_ROLEPLAY" ? <AiRoleplayEditor activity={activity} onSave={save} /> : null}
-              {!["MCQ", "GAP_FILL", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "SUMMARIZATION", "INFERENCE_DETECTION", "HEADINGS_MATCHING", "SKIM_CHALLENGE", "PARAPHRASE_ID", "DICTATION", "LISTEN_AND_SELECT", "SHADOWING", "NOTE_TAKING_CHALLENGE", "SOUND_DISCRIMINATION", "AI_ROLEPLAY"].includes(activity.activity_type) ? (
+              {!["MCQ", "GAP_FILL", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "SUMMARIZATION", "INFERENCE_DETECTION", "HEADINGS_MATCHING", "SKIM_CHALLENGE", "PARAPHRASE_ID", "DICTATION", "LISTEN_AND_SELECT", "SHADOWING", "NOTE_TAKING_CHALLENGE", "SOUND_DISCRIMINATION", "LISTEN_AND_GAP_FILL", "AI_ROLEPLAY"].includes(activity.activity_type) ? (
                 <p className="rounded-md bg-slate-50 p-3 text-sm text-black/60">
                   This activity type has starter data and preview support. A detailed visual editor for it will be added in the next activity-builder pass.
                 </p>
@@ -2492,6 +2493,102 @@ function SoundDiscriminationEditor({ activity, onSave }: { activity: Activity; o
                 audio_url: audioUrl,
                 pairs,
                 correct_answer: correctAnswer,
+              } as Json,
+              needsReview
+            )
+          }
+        />
+      </div>
+    </div>
+  );
+}
+
+function ListenGapFillEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
+  const data = asRecord(activity.activity_data);
+  const [prompt, setPrompt] = useState(String(data.prompt ?? "Listen to the audio and fill in the missing blanks in the transcript."));
+  const [audioUrl, setAudioUrl] = useState(String(data.audio_url ?? data.media_url ?? ""));
+  const [transcript, setTranscript] = useState(String(data.transcript ?? data.sentence ?? "I have been working at this ___ for two years."));
+
+  const rawAnswers = data.answers ?? data.correct_answer ?? ["company"];
+  const initialAnswers = Array.isArray(rawAnswers) ? rawAnswers.map(String) : [String(rawAnswers)];
+  const [answers, setAnswers] = useState<string[]>(initialAnswers);
+
+  const needsReview = !audioUrl.trim() || !transcript.trim() || answers.some((a) => !a.trim());
+
+  return (
+    <div className="grid gap-4">
+      <label className="text-sm font-medium">
+        Instruction Prompt
+        <input value={prompt} onChange={(e) => setPrompt(e.target.value)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+      </label>
+
+      <MediaRecorderInput
+        label="Audio or Video Clip (Record live, upload file, or paste URL)"
+        value={audioUrl}
+        onChange={setAudioUrl}
+      />
+
+      <label className="text-sm font-medium">
+        Full Transcript Text with Blanks (Use ___ or [blank] for missing words)
+        <textarea
+          rows={4}
+          value={transcript}
+          onChange={(e) => setTranscript(e.target.value)}
+          placeholder="e.g. Yesterday I went to the ___ to buy some ___."
+          className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm font-mono"
+        />
+        <span className="mt-1 block text-xs text-black/50">
+          Tip: Place triple underscores (___) wherever you want learners to fill in a missing word.
+        </span>
+      </label>
+
+      <div className="rounded-md border border-black/10 p-4 space-y-3 bg-slate-50/50">
+        <p className="font-semibold text-sm">Target Answers for Blanks (in order of appearance)</p>
+        {answers.map((ans, idx) => (
+          <div key={idx} className="flex items-center gap-2">
+            <span className="text-xs font-bold text-moss w-16">Blank ({idx + 1}):</span>
+            <input
+              type="text"
+              value={ans}
+              onChange={(e) => {
+                const next = [...answers];
+                next[idx] = e.target.value;
+                setAnswers(next);
+              }}
+              placeholder={`Correct word for blank ${idx + 1}`}
+              className="flex-1 rounded-md border border-black/15 px-3 py-1.5 text-sm bg-white"
+            />
+            {answers.length > 1 && (
+              <button
+                type="button"
+                onClick={() => setAnswers((curr) => curr.filter((_, i) => i !== idx))}
+                className="text-xs text-coral hover:underline"
+              >
+                Remove
+              </button>
+            )}
+          </div>
+        ))}
+        <button
+          type="button"
+          onClick={() => setAnswers((curr) => [...curr, ""])}
+          className="rounded border border-dashed border-black/20 px-2.5 py-1 text-xs font-semibold text-black/60 hover:bg-black/5"
+        >
+          + Add Answer Blank
+        </button>
+      </div>
+
+      <div className="flex flex-wrap gap-3">
+        <SaveButton
+          onClick={() =>
+            onSave(
+              {
+                prompt,
+                audio_url: audioUrl,
+                media_url: audioUrl,
+                transcript,
+                answers,
+                correct_answer: answers,
               } as Json,
               needsReview
             )

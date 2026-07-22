@@ -23,7 +23,8 @@ export type ScoredQuestion = {
     | "LISTEN_AND_SELECT"
     | "SHADOWING"
     | "NOTE_TAKING_CHALLENGE"
-    | "SOUND_DISCRIMINATION";
+    | "SOUND_DISCRIMINATION"
+    | "LISTEN_AND_GAP_FILL";
   options: Json | null;
   correct_answer: Json;
   max_points?: number | null;
@@ -46,7 +47,7 @@ function baseQuestionTotal(question: ScoredQuestion): number {
     return (Array.isArray(question.correct_answer) ? question.correct_answer.length : 0) || 1;
   }
 
-  if (question.question_type === "FILL") {
+  if (question.question_type === "FILL" || question.question_type === "LISTEN_AND_GAP_FILL") {
     return Array.isArray(question.correct_answer) ? Math.max(1, question.correct_answer.length) : 1;
   }
 
@@ -65,7 +66,7 @@ function baseQuestionScore(question: ScoredQuestion, answer: unknown): number {
     return Object.keys(correct).filter((itemId) => normalizeAnswer(given[itemId]) === normalizeAnswer(correct[itemId])).length;
   }
 
-  if (question.question_type === "FILL") {
+  if (question.question_type === "FILL" || question.question_type === "LISTEN_AND_GAP_FILL") {
     const correct = Array.isArray(question.correct_answer) ? question.correct_answer : [question.correct_answer];
     const given = Array.isArray(answer) ? answer : [answer];
     return correct.filter((c, i) => normalizeAnswer(given[i]) === normalizeAnswer(c)).length;
@@ -146,7 +147,7 @@ export function isCorrect(question: ScoredQuestion, value: unknown): boolean {
     return value === question.correct_answer;
   }
 
-  if (question.question_type === "FILL") {
+  if (question.question_type === "FILL" || question.question_type === "LISTEN_AND_GAP_FILL") {
     const correct = Array.isArray(question.correct_answer) ? question.correct_answer : [question.correct_answer];
     const given = Array.isArray(value) ? value : [value];
     return correct.every((c, i) => normalizeAnswer(given[i]) === normalizeAnswer(c));
