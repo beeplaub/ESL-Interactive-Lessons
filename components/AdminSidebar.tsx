@@ -13,6 +13,7 @@ import {
   Images,
   Library,
   LogOut,
+  Settings,
   Sparkles,
   Target,
   UsersRound,
@@ -96,6 +97,13 @@ export function AdminSidebar({
             Switch to Learner View
           </button>
         </form>
+        <Link
+          href="/admin/account"
+          className={`mt-2 inline-flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm
+            ${pathname.startsWith("/admin/account") ? "bg-violetglow/10 font-semibold text-violetglow" : "text-black/60 hover:bg-black/5"}`}
+        >
+          <Settings size={16} /> Account settings
+        </Link>
         <form action={signOut} className="mt-2">
           <button className="inline-flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-black/60 hover:bg-black/5">
             <LogOut size={16} /> Sign out
@@ -183,8 +191,19 @@ export function AdminSidebar({
         </form>
       )}
 
-      {/* Sign out pinned to bottom */}
+      {/* Account settings + Sign out pinned to bottom */}
       <div className={`mt-auto ${collapsed ? "px-1 pb-3" : "px-2 pb-3"}`}>
+        <Link
+          href="/admin/account"
+          title={collapsed ? "Account settings" : undefined}
+          className={`mb-1 flex w-full items-center gap-2 rounded-md px-2 py-2 text-sm
+            ${pathname.startsWith("/admin/account") ? "bg-violetglow/10 font-semibold text-violetglow" : "text-black/70 hover:bg-black/5"}
+            ${collapsed ? "justify-center" : ""}
+          `}
+        >
+          <Settings size={16} className="shrink-0" />
+          {!collapsed && <span className="truncate">Account settings</span>}
+        </Link>
         <form action={signOut}>
           {collapsed ? (
             <button

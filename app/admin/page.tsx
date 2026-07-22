@@ -1,7 +1,11 @@
 import Link from "next/link";
-import { BarChart3, BookOpen, Building2, ClipboardList, FlaskConical, GraduationCap, UsersRound } from "lucide-react";
+import { ArrowRight, BarChart3, BookOpen, Building2, ClipboardList, FlaskConical, GraduationCap, PenSquare, UsersRound } from "lucide-react";
 import { requireStaff, isPlatformAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+
+type OwnedContentRow = { id: string; status: string; title: string | null; updated_at: string | null };
+type LearnerProfileRow = { id: string; first_name: string | null; last_name: string | null; full_name: string | null };
+type ActivityEvent = { id: string; at: string; node: React.ReactNode };
 
 export default async function AdminPage() {
   const { user, profile } = await requireStaff();
@@ -9,10 +13,77 @@ export default async function AdminPage() {
 
   if (!isPlatformAdmin(profile?.role)) {
     const [{ data: courses }, { data: lessons }, { data: quizzes }] = await Promise.all([
-      admin.from("courses").select("status").is("deleted_at", null).or(`owner_id.eq.${user.id},created_by.eq.${user.id}`),
-      admin.from("lessons").select("status").is("deleted_at", null).eq("created_by", user.id),
-      admin.from("quizzes").select("status").is("deleted_at", null).eq("created_by", user.id)
+      admin.from("courses").select("id, status, title, updated_at").is("deleted_at", null).or(`owner_id.eq.${user.id},created_by.eq.${user.id}`),
+      admin.from("lessons").select("id, status, title, updated_at").is("deleted_at", null).eq("created_by", user.id),
+      admin.from("quizzes").select("id, status, title, updated_at").is("deleted_at", null).eq("created_by", user.id)
     ]);
+
+    const courseRows = (courses ?? []) as OwnedContentRow[];
+    const lessonRows = (lessons ?? []) as OwnedContentRow[];
+    const quizRows = (quizzes ?? []) as OwnedContentRow[];
+    const courseIds = courseRows.map((row) => row.id);
+    const quizIds = quizRows.map((row) => row.id);
+
+    // Scoped the same way requireCourseAccess/requireQuizAccess scope reads:
+    // only rows tied to content this teacher actually owns, never platform-wide.
+    const [{ data: attemptRows }, { data: enrollmentRows }] = await Promise.all([
+      quizIds.length
+        ? admin.from("quiz_attempts").select("id, quiz_id, user_id, score, completed_at").in("quiz_id", quizIds).order("completed_at", { ascending: false }).limit(8)
+        : Promise.resolve({ data: [] as Array<{ id: string; quiz_id: string; user_id: string; score: number | null; completed_at: string | null }> }),
+      courseIds.length
+        ? admin.from("course_enrollments").select("id, course_id, user_id, status, enrolled_at").in("course_id", courseIds).order("enrolled_at", { ascending: false }).limit(8)
+        : Promise.resolve({ data: [] as Array<{ id: string; course_id: string; user_id: string; status: string; enrolled_at: string | null }> })
+    ]);
+
+    const learnerIds = Array.from(new Set([...(attemptRows ?? []).map((row) => row.user_id), ...(enrollmentRows ?? []).map((row) => row.user_id)]));
+    const { data: learnerProfileRows } = learnerIds.length
+      ? await admin.from("profiles").select("id, first_name, last_name, full_name").in("id", learnerIds)
+      : { data: [] as LearnerProfileRow[] };
+    const learnerProfiles = (learnerProfileRows ?? []) as LearnerProfileRow[];
+
+    const learnerName = (id: string) => {
+      const match = learnerProfiles.find((row) => row.id === id);
+      if (!match) return "A learner";
+      return [match.first_name, match.last_name].filter(Boolean).join(" ") || match.full_name || "A learner";
+    };
+    const quizTitle = (id: string) => quizRows.find((row) => row.id === id)?.title ?? "a quiz";
+    const courseTitle = (id: string) => courseRows.find((row) => row.id === id)?.title ?? "a course";
+
+    const activity: ActivityEvent[] = [
+      ...(attemptRows ?? [])
+        .filter((row) => row.completed_at)
+        .map((row) => ({
+          id: `attempt-${row.id}`,
+          at: row.completed_at as string,
+          node: (
+            <>
+              <strong className="font-bold text-ink">{learnerName(row.user_id)}</strong> scored{" "}
+              <strong className="font-bold text-ink">{row.score ?? "--"}%</strong> on <em className="not-italic font-semibold">{quizTitle(row.quiz_id)}</em>
+            </>
+          )
+        })),
+      ...(enrollmentRows ?? [])
+        .filter((row) => row.enrolled_at)
+        .map((row) => ({
+          id: `enrollment-${row.id}`,
+          at: row.enrolled_at as string,
+          node: (
+            <>
+              <strong className="font-bold text-ink">{learnerName(row.user_id)}</strong> enrolled in{" "}
+              <em className="not-italic font-semibold">{courseTitle(row.course_id)}</em>
+            </>
+          )
+        }))
+    ]
+      .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
+      .slice(0, 6);
+
+    // Most recently-touched draft across everything this teacher owns, for a one-click "keep going" shortcut.
+    const latestDraft = [
+      ...courseRows.filter((row) => row.status === "DRAFT").map((row) => ({ href: `/admin/courses/${row.id}/builder`, title: row.title, updatedAt: row.updated_at, kind: "course" })),
+      ...lessonRows.filter((row) => row.status === "DRAFT").map((row) => ({ href: `/admin/lessons/${row.id}/builder`, title: row.title, updatedAt: row.updated_at, kind: "lesson" })),
+      ...quizRows.filter((row) => row.status === "DRAFT").map((row) => ({ href: `/admin/quizzes/${row.id}/edit`, title: row.title, updatedAt: row.updated_at, kind: "quiz" }))
+    ].sort((a, b) => new Date(b.updatedAt ?? 0).getTime() - new Date(a.updatedAt ?? 0).getTime())[0];
 
     return (
       <main className="min-w-0 overflow-hidden">
@@ -20,9 +91,41 @@ export default async function AdminPage() {
           <h1 className="text-2xl font-semibold sm:text-3xl">My teaching overview</h1>
           <p className="mt-2 text-sm text-black/60">Your own courses, lessons, and quizzes.</p>
         </div>
-        <section className="grid min-w-0 gap-3 sm:grid-cols-1 md:grid-cols-2">
-          <AdminCard href="/admin/courses" icon={GraduationCap} label="My courses" value={courses?.length ?? 0} detail={`${countStatus(courses, "PUBLISHED")} published · ${countStatus(courses, "DRAFT")} draft`} />
+
+        <section className="grid min-w-0 gap-3 sm:grid-cols-2 md:grid-cols-3">
+          <AdminCard href="/admin/courses" icon={GraduationCap} label="My courses" value={courseRows.length} detail={`${countStatus(courseRows, "PUBLISHED")} published · ${countStatus(courseRows, "DRAFT")} draft`} />
+          <AdminCard href="/admin/lessons" icon={BookOpen} label="My lessons" value={lessonRows.length} detail={`${countStatus(lessonRows, "PUBLISHED")} published · ${countStatus(lessonRows, "DRAFT")} draft`} />
+          <AdminCard href="/admin/quizzes" icon={ClipboardList} label="My quizzes" value={quizRows.length} detail={`${countStatus(quizRows, "PUBLISHED")} published · ${countStatus(quizRows, "DRAFT")} draft`} />
         </section>
+
+        {latestDraft ? (
+          <Link
+            href={latestDraft.href}
+            className="mt-4 flex min-w-0 items-center justify-between gap-3 rounded-20 border border-violetglow/20 bg-violetglow/5 p-4 transition-all duration-300 hover:bg-violetglow/10 sm:p-5"
+          >
+            <div className="min-w-0">
+              <p className="text-xs font-bold uppercase tracking-wide text-violetglow">Continue building</p>
+              <p className="mt-1 truncate text-sm font-bold text-ink">{latestDraft.title || "Untitled draft"}</p>
+            </div>
+            <ArrowRight className="shrink-0 text-violetglow" size={18} />
+          </Link>
+        ) : null}
+
+        <div className="mt-6 br-card rounded-20 p-4 sm:p-5">
+          <h2 className="text-sm font-bold text-ink">Recent activity on my content</h2>
+          {activity.length === 0 ? (
+            <p className="mt-3 text-sm text-slate-500">No learner activity yet on your courses or quizzes.</p>
+          ) : (
+            <ul className="mt-3 grid gap-2.5">
+              {activity.map((event) => (
+                <li key={event.id} className="flex items-start gap-2 text-sm text-slate-600">
+                  <PenSquare className="mt-0.5 shrink-0 text-slate-400" size={14} />
+                  <span>{event.node}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </main>
     );
   }

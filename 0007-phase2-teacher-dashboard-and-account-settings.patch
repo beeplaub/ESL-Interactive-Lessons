@@ -1,0 +1,290 @@
+From bb2c6c8228035d365bedf95eba409d49cd2429f7 Mon Sep 17 00:00:00 2001
+From: Claude <claude@brenup.dev>
+Date: Wed, 22 Jul 2026 00:50:05 +0000
+Subject: [PATCH] Phase 2: teacher dashboard parity + staff account settings
+ page
+
+---
+ app/admin/account/page.tsx  |  79 +++++++++++++++++++++++++
+ app/admin/page.tsx          | 115 ++++++++++++++++++++++++++++++++++--
+ components/AdminSidebar.tsx |  21 ++++++-
+ 3 files changed, 208 insertions(+), 7 deletions(-)
+ create mode 100644 app/admin/account/page.tsx
+
+diff --git a/app/admin/account/page.tsx b/app/admin/account/page.tsx
+new file mode 100644
+index 0000000..a6871e3
+--- /dev/null
++++ b/app/admin/account/page.tsx
+@@ -0,0 +1,79 @@
++import { KeyRound, Mail, UserRound } from "lucide-react";
++import { requireStaff } from "@/lib/auth";
++import { createAdminClient } from "@/lib/supabase/admin";
++import { AvatarUploader } from "@/components/AvatarUploader";
++import { ProfileForm } from "@/components/ProfileForm";
++import { ChangePasswordForm } from "@/components/ChangePasswordForm";
++
++// This is the ADMIN/TEACHER equivalent of /profile. It reuses the exact same
++// form components (ProfileForm/AvatarUploader/ChangePasswordForm are already
++// generic and prop-driven), but drops every learner-only framing element
++// (CEFR badge, streak/"learning status" copy, level test) since neither
++// speaks to a creator managing their own account. /profile stays the
++// learner-facing version, used only while a staff member is in Learner View.
++export default async function StaffAccountPage() {
++  const { user, profile } = await requireStaff();
++  const admin = createAdminClient();
++  const { data: authUser } = await admin.auth.admin.getUserById(user.id);
++  const provider = authUser?.user?.app_metadata?.provider ?? "email";
++  const isEmailUser = provider === "email";
++
++  const displayName = [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || profile?.full_name || "BrenUp creator";
++  const initials = displayName.split(/\s+/).slice(0, 2).map((part: string) => part[0]?.toUpperCase()).join("") || user.email?.[0]?.toUpperCase() || "U";
++  const roleLabel = profile?.role === "ADMIN" ? "Admin" : "Teacher";
++
++  return (
++    <main className="min-w-0 overflow-hidden">
++      <div className="mb-6">
++        <h1 className="text-2xl font-semibold sm:text-3xl">Account settings</h1>
++        <p className="mt-2 text-sm text-black/60">Manage your name, avatar, and password.</p>
++      </div>
++
++      <section className="grid gap-5 xl:grid-cols-[300px_minmax(0,1fr)]">
++        <aside className="content-start">
++          <div className="br-card rounded-20 p-6 text-center">
++            <AvatarUploader initialUrl={profile?.avatar_url ?? null} initials={initials} />
++            <h2 className="mt-5 text-lg font-extrabold text-ink">{displayName}</h2>
++            <p className="mt-1 break-words text-sm font-semibold text-slate-500">{user.email}</p>
++            <span className="mt-3 inline-flex items-center rounded-full bg-violetglow/10 px-3 py-1 text-xs font-bold text-violetglow">{roleLabel}</span>
++          </div>
++        </aside>
++
++        <div className="grid gap-5">
++          <section className="br-card rounded-20 p-5 sm:p-6">
++            <div className="mb-5 flex items-center gap-3">
++              <span className="grid size-11 place-items-center rounded-[14px] bg-[#E7FBF4] text-[#00A978]">
++                <UserRound className="size-5" />
++              </span>
++              <div>
++                <h2 className="text-lg font-extrabold text-ink">Personal details</h2>
++                <p className="text-xs font-semibold text-slate-500">Update the name shown across the admin area.</p>
++              </div>
++            </div>
++            <ProfileForm email={user.email ?? ""} firstName={profile?.first_name ?? ""} lastName={profile?.last_name ?? ""} />
++          </section>
++
++          <section className="br-card rounded-20 p-5 sm:p-6">
++            <div className="mb-4 flex items-center gap-3">
++              <span className={`grid size-11 place-items-center rounded-[14px] ${isEmailUser ? "bg-[#FFF5E7] text-[#E47A00]" : "bg-slate-100 text-slate-500"}`}>
++                <KeyRound className="size-5" />
++              </span>
++              <div>
++                <h2 className="text-lg font-extrabold text-ink">Password</h2>
++                <p className="text-xs font-semibold text-slate-500">{isEmailUser ? "Change your BrenUp password." : "Managed by your sign-in provider."}</p>
++              </div>
++            </div>
++            {isEmailUser ? (
++              <ChangePasswordForm />
++            ) : (
++              <div className="flex items-start gap-3 rounded-[18px] bg-slate-50 p-4">
++                <Mail className="mt-0.5 size-5 shrink-0 text-violetglow" />
++                <p className="text-sm font-semibold leading-6 text-slate-600">You signed in with Google. Password management is handled by your Google account.</p>
++              </div>
++            )}
++          </section>
++        </div>
++      </section>
++    </main>
++  );
++}
+diff --git a/app/admin/page.tsx b/app/admin/page.tsx
+index 35beef6..8ba9aa5 100644
+--- a/app/admin/page.tsx
++++ b/app/admin/page.tsx
+@@ -1,28 +1,131 @@
+ import Link from "next/link";
+-import { BarChart3, BookOpen, Building2, ClipboardList, FlaskConical, GraduationCap, UsersRound } from "lucide-react";
++import { ArrowRight, BarChart3, BookOpen, Building2, ClipboardList, FlaskConical, GraduationCap, PenSquare, UsersRound } from "lucide-react";
+ import { requireStaff, isPlatformAdmin } from "@/lib/auth";
+ import { createAdminClient } from "@/lib/supabase/admin";
+ 
++type OwnedContentRow = { id: string; status: string; title: string | null; updated_at: string | null };
++type LearnerProfileRow = { id: string; first_name: string | null; last_name: string | null; full_name: string | null };
++type ActivityEvent = { id: string; at: string; node: React.ReactNode };
++
+ export default async function AdminPage() {
+   const { user, profile } = await requireStaff();
+   const admin = createAdminClient();
+ 
+   if (!isPlatformAdmin(profile?.role)) {
+     const [{ data: courses }, { data: lessons }, { data: quizzes }] = await Promise.all([
+-      admin.from("courses").select("status").is("deleted_at", null).or(`owner_id.eq.${user.id},created_by.eq.${user.id}`),
+-      admin.from("lessons").select("status").is("deleted_at", null).eq("created_by", user.id),
+-      admin.from("quizzes").select("status").is("deleted_at", null).eq("created_by", user.id)
++      admin.from("courses").select("id, status, title, updated_at").is("deleted_at", null).or(`owner_id.eq.${user.id},created_by.eq.${user.id}`),
++      admin.from("lessons").select("id, status, title, updated_at").is("deleted_at", null).eq("created_by", user.id),
++      admin.from("quizzes").select("id, status, title, updated_at").is("deleted_at", null).eq("created_by", user.id)
++    ]);
++
++    const courseRows = (courses ?? []) as OwnedContentRow[];
++    const lessonRows = (lessons ?? []) as OwnedContentRow[];
++    const quizRows = (quizzes ?? []) as OwnedContentRow[];
++    const courseIds = courseRows.map((row) => row.id);
++    const quizIds = quizRows.map((row) => row.id);
++
++    // Scoped the same way requireCourseAccess/requireQuizAccess scope reads:
++    // only rows tied to content this teacher actually owns, never platform-wide.
++    const [{ data: attemptRows }, { data: enrollmentRows }] = await Promise.all([
++      quizIds.length
++        ? admin.from("quiz_attempts").select("id, quiz_id, user_id, score, completed_at").in("quiz_id", quizIds).order("completed_at", { ascending: false }).limit(8)
++        : Promise.resolve({ data: [] as Array<{ id: string; quiz_id: string; user_id: string; score: number | null; completed_at: string | null }> }),
++      courseIds.length
++        ? admin.from("course_enrollments").select("id, course_id, user_id, status, enrolled_at").in("course_id", courseIds).order("enrolled_at", { ascending: false }).limit(8)
++        : Promise.resolve({ data: [] as Array<{ id: string; course_id: string; user_id: string; status: string; enrolled_at: string | null }> })
+     ]);
+ 
++    const learnerIds = Array.from(new Set([...(attemptRows ?? []).map((row) => row.user_id), ...(enrollmentRows ?? []).map((row) => row.user_id)]));
++    const { data: learnerProfileRows } = learnerIds.length
++      ? await admin.from("profiles").select("id, first_name, last_name, full_name").in("id", learnerIds)
++      : { data: [] as LearnerProfileRow[] };
++    const learnerProfiles = (learnerProfileRows ?? []) as LearnerProfileRow[];
++
++    const learnerName = (id: string) => {
++      const match = learnerProfiles.find((row) => row.id === id);
++      if (!match) return "A learner";
++      return [match.first_name, match.last_name].filter(Boolean).join(" ") || match.full_name || "A learner";
++    };
++    const quizTitle = (id: string) => quizRows.find((row) => row.id === id)?.title ?? "a quiz";
++    const courseTitle = (id: string) => courseRows.find((row) => row.id === id)?.title ?? "a course";
++
++    const activity: ActivityEvent[] = [
++      ...(attemptRows ?? [])
++        .filter((row) => row.completed_at)
++        .map((row) => ({
++          id: `attempt-${row.id}`,
++          at: row.completed_at as string,
++          node: (
++            <>
++              <strong className="font-bold text-ink">{learnerName(row.user_id)}</strong> scored{" "}
++              <strong className="font-bold text-ink">{row.score ?? "--"}%</strong> on <em className="not-italic font-semibold">{quizTitle(row.quiz_id)}</em>
++            </>
++          )
++        })),
++      ...(enrollmentRows ?? [])
++        .filter((row) => row.enrolled_at)
++        .map((row) => ({
++          id: `enrollment-${row.id}`,
++          at: row.enrolled_at as string,
++          node: (
++            <>
++              <strong className="font-bold text-ink">{learnerName(row.user_id)}</strong> enrolled in{" "}
++              <em className="not-italic font-semibold">{courseTitle(row.course_id)}</em>
++            </>
++          )
++        }))
++    ]
++      .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
++      .slice(0, 6);
++
++    // Most recently-touched draft across everything this teacher owns, for a one-click "keep going" shortcut.
++    const latestDraft = [
++      ...courseRows.filter((row) => row.status === "DRAFT").map((row) => ({ href: `/admin/courses/${row.id}/builder`, title: row.title, updatedAt: row.updated_at, kind: "course" })),
++      ...lessonRows.filter((row) => row.status === "DRAFT").map((row) => ({ href: `/admin/lessons/${row.id}/builder`, title: row.title, updatedAt: row.updated_at, kind: "lesson" })),
++      ...quizRows.filter((row) => row.status === "DRAFT").map((row) => ({ href: `/admin/quizzes/${row.id}/edit`, title: row.title, updatedAt: row.updated_at, kind: "quiz" }))
++    ].sort((a, b) => new Date(b.updatedAt ?? 0).getTime() - new Date(a.updatedAt ?? 0).getTime())[0];
++
+     return (
+       <main className="min-w-0 overflow-hidden">
+         <div className="mb-6">
+           <h1 className="text-2xl font-semibold sm:text-3xl">My teaching overview</h1>
+           <p className="mt-2 text-sm text-black/60">Your own courses, lessons, and quizzes.</p>
+         </div>
+-        <section className="grid min-w-0 gap-3 sm:grid-cols-1 md:grid-cols-2">
+-          <AdminCard href="/admin/courses" icon={GraduationCap} label="My courses" value={courses?.length ?? 0} detail={`${countStatus(courses, "PUBLISHED")} published · ${countStatus(courses, "DRAFT")} draft`} />
++
++        <section className="grid min-w-0 gap-3 sm:grid-cols-2 md:grid-cols-3">
++          <AdminCard href="/admin/courses" icon={GraduationCap} label="My courses" value={courseRows.length} detail={`${countStatus(courseRows, "PUBLISHED")} published · ${countStatus(courseRows, "DRAFT")} draft`} />
++          <AdminCard href="/admin/lessons" icon={BookOpen} label="My lessons" value={lessonRows.length} detail={`${countStatus(lessonRows, "PUBLISHED")} published · ${countStatus(lessonRows, "DRAFT")} draft`} />
++          <AdminCard href="/admin/quizzes" icon={ClipboardList} label="My quizzes" value={quizRows.length} detail={`${countStatus(quizRows, "PUBLISHED")} published · ${countStatus(quizRows, "DRAFT")} draft`} />
+         </section>
++
++        {latestDraft ? (
++          <Link
++            href={latestDraft.href}
++            className="mt-4 flex min-w-0 items-center justify-between gap-3 rounded-20 border border-violetglow/20 bg-violetglow/5 p-4 transition-all duration-300 hover:bg-violetglow/10 sm:p-5"
++          >
++            <div className="min-w-0">
++              <p className="text-xs font-bold uppercase tracking-wide text-violetglow">Continue building</p>
++              <p className="mt-1 truncate text-sm font-bold text-ink">{latestDraft.title || "Untitled draft"}</p>
++            </div>
++            <ArrowRight className="shrink-0 text-violetglow" size={18} />
++          </Link>
++        ) : null}
++
++        <div className="mt-6 br-card rounded-20 p-4 sm:p-5">
++          <h2 className="text-sm font-bold text-ink">Recent activity on my content</h2>
++          {activity.length === 0 ? (
++            <p className="mt-3 text-sm text-slate-500">No learner activity yet on your courses or quizzes.</p>
++          ) : (
++            <ul className="mt-3 grid gap-2.5">
++              {activity.map((event) => (
++                <li key={event.id} className="flex items-start gap-2 text-sm text-slate-600">
++                  <PenSquare className="mt-0.5 shrink-0 text-slate-400" size={14} />
++                  <span>{event.node}</span>
++                </li>
++              ))}
++            </ul>
++          )}
++        </div>
+       </main>
+     );
+   }
+diff --git a/components/AdminSidebar.tsx b/components/AdminSidebar.tsx
+index 31c02c1..3ea2e90 100644
+--- a/components/AdminSidebar.tsx
++++ b/components/AdminSidebar.tsx
+@@ -13,6 +13,7 @@ import {
+   Images,
+   Library,
+   LogOut,
++  Settings,
+   Sparkles,
+   Target,
+   UsersRound,
+@@ -96,6 +97,13 @@ export function AdminSidebar({
+             Switch to Learner View
+           </button>
+         </form>
++        <Link
++          href="/admin/account"
++          className={`mt-2 inline-flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm
++            ${pathname.startsWith("/admin/account") ? "bg-violetglow/10 font-semibold text-violetglow" : "text-black/60 hover:bg-black/5"}`}
++        >
++          <Settings size={16} /> Account settings
++        </Link>
+         <form action={signOut} className="mt-2">
+           <button className="inline-flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-black/60 hover:bg-black/5">
+             <LogOut size={16} /> Sign out
+@@ -183,8 +191,19 @@ export function AdminSidebar({
+         </form>
+       )}
+ 
+-      {/* Sign out pinned to bottom */}
++      {/* Account settings + Sign out pinned to bottom */}
+       <div className={`mt-auto ${collapsed ? "px-1 pb-3" : "px-2 pb-3"}`}>
++        <Link
++          href="/admin/account"
++          title={collapsed ? "Account settings" : undefined}
++          className={`mb-1 flex w-full items-center gap-2 rounded-md px-2 py-2 text-sm
++            ${pathname.startsWith("/admin/account") ? "bg-violetglow/10 font-semibold text-violetglow" : "text-black/70 hover:bg-black/5"}
++            ${collapsed ? "justify-center" : ""}
++          `}
++        >
++          <Settings size={16} className="shrink-0" />
++          {!collapsed && <span className="truncate">Account settings</span>}
++        </Link>
+         <form action={signOut}>
+           {collapsed ? (
+             <button
+-- 
+2.43.0
+
