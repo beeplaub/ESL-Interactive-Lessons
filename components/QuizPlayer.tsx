@@ -2782,6 +2782,8 @@ function SentenceCompletionPlayer({
   const allowAiFeedback = opts.allow_ai_feedback !== false;
   const allowTeacherReview = opts.allow_teacher_review !== false;
 
+  const [draftSubmitted, setDraftSubmitted] = useState(submitted);
+
   return (
     <div className="space-y-5">
       <div className="rounded-3xl border border-[#6C3BFF]/15 bg-[#6C3BFF]/5 p-5 space-y-3">
@@ -2803,14 +2805,25 @@ function SentenceCompletionPlayer({
 
       <textarea
         rows={4}
-        disabled={submitted}
+        disabled={draftSubmitted}
         value={text}
         onChange={(e) => onChange({ ...value, text: e.target.value })}
         placeholder="Type here to finish or expand the sentence..."
         className="w-full rounded-2xl border border-black/10 p-4 text-sm font-medium text-ink bg-white shadow-xs focus:border-[#6C3BFF] focus:ring-1 focus:ring-[#6C3BFF] focus:outline-hidden disabled:bg-black/5 transition"
       />
 
-      {submitted && (
+      {!draftSubmitted ? (
+        <div className="flex justify-end pt-2">
+          <button
+            type="button"
+            disabled={!text.trim()}
+            onClick={() => setDraftSubmitted(true)}
+            className="inline-flex items-center gap-2 rounded-2xl bg-[#6C3BFF] px-6 py-3 text-sm font-bold text-white shadow-md shadow-[#6C3BFF]/20 hover:bg-[#592ecc] active:scale-95 transition disabled:opacity-40"
+          >
+            Submit Draft for Evaluation <ChevronRight size={16} />
+          </button>
+        </div>
+      ) : (
         <WritingEvaluationInterface
           activityId={question.id}
           activityType="SENTENCE_COMPLETION"
@@ -2822,6 +2835,7 @@ function SentenceCompletionPlayer({
           allowAiFeedback={allowAiFeedback}
           allowTeacherReview={allowTeacherReview}
           onSelfGraded={(passed) => onChange({ ...value, selfMarked: passed })}
+          onReset={() => setDraftSubmitted(false)}
         />
       )}
     </div>

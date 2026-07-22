@@ -1176,11 +1176,25 @@ export function LessonActivityPanel({
   const [qIndex, setQIndex] = useState(0);
   const [reviewMode, setReviewMode] = useState<"overview" | "detail">("overview");
 
+  const hasWritingActivity = questions.some((q) =>
+    [
+      "SHORT_ANSWER",
+      "SENTENCE_COMPLETION",
+      "ESSAY_WRITING",
+      "EMAIL_LETTER_WRITING",
+      "TRANSLATION",
+      "PARAPHRASE_PRACTICE",
+      "SENTENCE_COMBINING",
+      "CREATIVE_WRITING",
+      "PEER_REVIEW_EDITING",
+    ].includes(q.question_type)
+  );
+
   // Fire a one-time confetti + chime celebration once a strong score is revealed. Presentational only.
   // Computed from `questions` directly (rather than the later `score`/`total` consts) so this hook can
   // run before the AI_ROLEPLAY early return below and keep hook order stable across renders.
   useEffect(() => {
-    if (!submitted || celebratedRef.current || questions.length === 0) return;
+    if (!submitted || celebratedRef.current || questions.length === 0 || hasWritingActivity) return;
     const finalScore = questions.reduce((sum, q) => sum + questionScore(q, answers[q.id]), 0);
     const finalTotal = questions.reduce((sum, q) => sum + questionTotal(q), 0);
     if (finalTotal > 0 && finalScore / finalTotal >= CELEBRATION_SCORE_THRESHOLD) {
@@ -1188,7 +1202,7 @@ export function LessonActivityPanel({
       fireCompletionConfetti();
       playCelebration();
     }
-  }, [submitted, answers, questions]);
+  }, [submitted, answers, questions, hasWritingActivity]);
 
   // ── AI Roleplay: full chat UI instead of quiz carousel ──
   if (activity.activity_type === "AI_ROLEPLAY") {
