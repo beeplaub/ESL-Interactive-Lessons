@@ -1,6 +1,6 @@
 import { Filter, Library, Plus, Trash2 } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { requireStaff } from "@/lib/auth";
+import { requireStaff, isPlatformAdmin } from "@/lib/auth";
 import { deleteLibraryItem, insertLibraryCopy, saveExistingContentToLibrary } from "./actions";
 import { DeleteButton } from "@/components/DeleteButton";
 
@@ -11,9 +11,54 @@ export default async function ContentLibraryPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  await requireStaff();
+  const { user, profile } = await requireStaff();
+  const isAdmin = isPlatformAdmin(profile?.role);
   const params = await searchParams;
   const admin = createAdminClient();
+
+  // A TEACHER only ever sees/saves-from/pastes-into their *own* lessons,
+  // quizzes, and courses — never another creator's. Everything below scopes
+  // to these three id sets for non-admins, the same ownership boundary
+  // requireLessonAccess/requireQuizAccess/requireCourseAccess already
+  // enforce on the builders themselves.
+  let ownedLessonIds: string[] | null = null;
+  let ownedQuizIds: string[] | null = null;
+  let ownedCourseIds: string[] | null = null;
+  if (!isAdmin) {
+    const [{ data: myLessons }, { data: myQuizzes }, { data: myCourses }] = await Promise.all([
+      admin.from("lessons").select("id").eq("created_by", user.id),
+      admin.from("quizzes").select("id").eq("created_by", user.id),
+      admin.from("courses").select("id").or(`owner_id.eq.${user.id},created_by.eq.${user.id}`),
+    ]);
+    ownedLessonIds = (myLessons ?? []).map((row) => row.id);
+    ownedQuizIds = (myQuizzes ?? []).map((row) => row.id);
+    ownedCourseIds = (myCourses ?? []).map((row) => row.id);
+  }
+
+  let itemsQuery = admin.from("content_library_items").select("*").order("created_at", { ascending: false });
+  if (!isAdmin) itemsQuery = itemsQuery.eq("created_by", user.id);
+
+  let lessonsQuery = admin.from("lessons").select("id,title,level,topic,status").is("deleted_at", null).order("created_at", { ascending: false });
+  if (!isAdmin) lessonsQuery = lessonsQuery.in("id", ownedLessonIds ?? []);
+
+  let quizzesQuery = admin.from("quizzes").select("id,title,level,topic,status").is("deleted_at", null).order("created_at", { ascending: false });
+  if (!isAdmin) quizzesQuery = quizzesQuery.in("id", ownedQuizIds ?? []);
+
+  let coursesQuery = admin.from("courses").select("id,title,level,topic,status").is("deleted_at", null).order("created_at", { ascending: false });
+  if (!isAdmin) coursesQuery = coursesQuery.in("id", ownedCourseIds ?? []);
+
+  let questionsQuery = admin.from("quiz_questions").select("id,question_text,question_type,quiz_id,quizzes(title)").order("created_at", { ascending: false }).limit(500);
+  if (!isAdmin) questionsQuery = questionsQuery.in("quiz_id", ownedQuizIds ?? []);
+
+  let activitiesQuery = admin.from("lesson_slide_activities").select("id,activity_type,slide_number,lesson_id,lessons(title)").order("created_at", { ascending: false }).limit(500);
+  if (!isAdmin) activitiesQuery = activitiesQuery.in("lesson_id", ownedLessonIds ?? []);
+
+  let blocksQuery = admin.from("lesson_blocks").select("id,block_type,position,lesson_id,lessons(title),slides(title)").order("created_at", { ascending: false }).limit(500);
+  if (!isAdmin) blocksQuery = blocksQuery.in("lesson_id", ownedLessonIds ?? []);
+
+  let slidesQuery = admin.from("slides").select("id,title,slide_number,lesson_id,lessons(title)").order("created_at", { ascending: false }).limit(500);
+  if (!isAdmin) slidesQuery = slidesQuery.in("lesson_id", ownedLessonIds ?? []);
+
   const [
     { data: items },
     { data: reuseEvents },
@@ -26,16 +71,18 @@ export default async function ContentLibraryPage({
     { data: courses },
     { data: profiles },
   ] = await Promise.all([
-    admin.from("content_library_items").select("*").order("created_at", { ascending: false }),
+    itemsQuery,
     admin.from("content_reuse_events").select("library_item_id"),
-    admin.from("quiz_questions").select("id,question_text,question_type,quizzes(title)").order("created_at", { ascending: false }).limit(500),
-    admin.from("lesson_slide_activities").select("id,activity_type,slide_number,lessons(title)").order("created_at", { ascending: false }).limit(500),
-    admin.from("lesson_blocks").select("id,block_type,position,lessons(title),slides(title)").order("created_at", { ascending: false }).limit(500),
-    admin.from("slides").select("id,title,slide_number,lessons(title)").order("created_at", { ascending: false }).limit(500),
-    admin.from("lessons").select("id,title,level,topic,status").is("deleted_at", null).order("created_at", { ascending: false }),
-    admin.from("quizzes").select("id,title,level,topic,status").is("deleted_at", null).order("created_at", { ascending: false }),
-    admin.from("courses").select("id,title,level,topic,status").is("deleted_at", null).order("created_at", { ascending: false }),
-    admin.from("profiles").select("id,full_name,first_name,last_name"),
+    questionsQuery,
+    activitiesQuery,
+    blocksQuery,
+    slidesQuery,
+    lessonsQuery,
+    quizzesQuery,
+    coursesQuery,
+    // Creator names/attribution only matter once ADMIN is looking across
+    // everyone's content — a TEACHER's library is entirely their own.
+    isAdmin ? admin.from("profiles").select("id,full_name,first_name,last_name") : Promise.resolve({ data: [] }),
   ]);
 
   const value = (key: string) => typeof params[key] === "string" ? params[key] as string : "";
@@ -53,7 +100,7 @@ export default async function ContentLibraryPage({
     && (!value("topic") || item.topic === value("topic"))
     && (!value("activity") || item.activity_type === value("activity"))
     && (!value("course") || item.source_title === value("course"))
-    && (!value("creator") || item.created_by === value("creator"))
+    && (!isAdmin || !value("creator") || item.created_by === value("creator"))
   );
 
   const levels = unique((items ?? []).map((item) => item.level));
@@ -119,10 +166,12 @@ export default async function ContentLibraryPage({
           <FilterSelect name="topic" current={value("topic")} label="All topics" values={topics} />
           <FilterSelect name="activity" current={value("activity")} label="All activities" values={activityTypes} />
           <FilterSelect name="course" current={value("course")} label="All sources/courses" values={sourceTitles} />
-          <select name="creator" defaultValue={value("creator")} className="min-w-0 rounded-md border border-black/15 px-3 py-2 text-sm">
-            <option value="">All creators</option>
-            {creators.map((id) => <option key={id} value={id}>{creatorNames.get(id) ?? "Creator"}</option>)}
-          </select>
+          {isAdmin ? (
+            <select name="creator" defaultValue={value("creator")} className="min-w-0 rounded-md border border-black/15 px-3 py-2 text-sm">
+              <option value="">All creators</option>
+              {creators.map((id) => <option key={id} value={id}>{creatorNames.get(id) ?? "Creator"}</option>)}
+            </select>
+          ) : null}
         </div>
         <button className="mt-3 rounded-md border border-black/15 px-4 py-2 text-sm font-semibold">Apply filters</button>
       </form>
@@ -139,7 +188,11 @@ export default async function ContentLibraryPage({
                   {item.activity_type ? <Badge>{item.activity_type.replaceAll("_", " ")}</Badge> : null}
                 </div>
                 <h2 className="mt-3 break-words text-lg font-semibold">{item.title}</h2>
-                <p className="mt-1 text-xs text-black/45">From {item.source_title || item.source_type} · saved by {item.created_by ? creatorNames.get(item.created_by) ?? "Creator" : "Unknown"} · reused {reuseCounts.get(item.id) ?? 0} times</p>
+                <p className="mt-1 text-xs text-black/45">
+                  From {item.source_title || item.source_type}
+                  {isAdmin ? ` · saved by ${item.created_by ? creatorNames.get(item.created_by) ?? "Creator" : "Unknown"}` : ""}
+                  {" "}· reused {reuseCounts.get(item.id) ?? 0} times
+                </p>
               </div>
               <form action={deleteLibraryItem.bind(null, item.id)}>
                 <DeleteButton

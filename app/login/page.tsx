@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { getFreshProfile, roleHomePath } from "@/lib/auth";
+import { getFreshProfile, resolvePostLoginPath } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { LoginForm } from "@/components/LoginForm";
 
@@ -12,7 +12,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
 
   if (user) {
     const profile = await getFreshProfile(user.id);
-    redirect(next?.startsWith("/") && !next.startsWith("/admin") ? next : roleHomePath(profile?.role));
+    redirect(resolvePostLoginPath(profile?.role, next));
   }
 
   return (

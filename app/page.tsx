@@ -22,7 +22,7 @@ import {
   Trophy,
   Zap
 } from "lucide-react";
-import { getFreshProfile } from "@/lib/auth";
+import { getFreshProfile, isStaff } from "@/lib/auth";
 import { getQuizBadge } from "@/lib/quizBadges";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -43,7 +43,7 @@ export default async function HomePage() {
 
   if (user) {
     const profile = await getFreshProfile(user.id);
-    if (profile?.role === "ADMIN") redirect("/admin");
+    if (isStaff(profile?.role)) redirect("/admin");
   }
 
   const [{ count: publishedQuizCount }, { data: latestQuiz }, { count: publishedCourseCount }, { data: topPoints }] = await Promise.all([

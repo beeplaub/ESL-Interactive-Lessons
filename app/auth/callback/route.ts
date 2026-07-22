@@ -1,7 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { roleHomePath } from "@/lib/auth";
+import { isStaff, roleHomePath } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
@@ -90,15 +91,19 @@ export async function GET(request: NextRequest) {
 
         // ── 4. Redirect based on role ────────────────────────────────────────
         const role = existing?.role ?? "LEARNER";
-        redirectPath =
-          role === "ADMIN" || role === "TEACHER" || role === "SCHOOL_ADMIN"
-            ? "/admin"
-            : nextPath?.startsWith("/") && !nextPath.startsWith("/admin")
-              ? nextPath
-              : roleHomePath(role);
+        redirectPath = isStaff(role)
+          ? "/admin"
+          : nextPath?.startsWith("/") && !nextPath.startsWith("/admin")
+            ? nextPath
+            : roleHomePath(role);
       }
     }
   }
+
+  // A stale "view as learner" cookie from a previous session must never
+  // carry over into a fresh sign-in.
+  const cookieStore = await cookies();
+  cookieStore.delete("view_mode");
 
   return NextResponse.redirect(new URL(redirectPath, request.url));
 }

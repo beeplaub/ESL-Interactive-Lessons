@@ -2,9 +2,39 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requireAdmin } from "@/lib/auth";
+import { requireStaff, isPlatformAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Json } from "@/types/database.types";
+
+type AdminClient = ReturnType<typeof createAdminClient>;
+
+/**
+ * A TEACHER may only save-from or paste-into a lesson/quiz/course they
+ * actually own — mirrors requireLessonAccess/requireQuizAccess/
+ * requireCourseAccess, inlined here since we already have the row's id from
+ * an earlier query and don't want a second full auth+redirect round trip.
+ */
+async function assertOwnsParent(
+  admin: AdminClient,
+  table: "lessons" | "quizzes" | "courses",
+  id: string | null | undefined,
+  userId: string,
+  isAdmin: boolean
+) {
+  if (isAdmin) return;
+  if (!id) throw new Error("Couldn't verify ownership of that content.");
+  if (table === "courses") {
+    const { data } = await admin.from("courses").select("owner_id, created_by").eq("id", id).maybeSingle();
+    if (!data || (data.owner_id !== userId && data.created_by !== userId)) {
+      throw new Error("You don't have access to that course.");
+    }
+    return;
+  }
+  const { data } = await admin.from(table).select("created_by").eq("id", id).maybeSingle();
+  if (!data || data.created_by !== userId) {
+    throw new Error(`You don't have access to that ${table === "lessons" ? "lesson" : "quiz"}.`);
+  }
+}
 
 type LibraryType = "QUESTION" | "ACTIVITY" | "LESSON_BLOCK" | "SLIDE" | "LESSON" | "COURSE_TEMPLATE";
 // Snapshot rows vary by library item type and are validated by their destination insert.
@@ -59,7 +89,8 @@ async function addLibraryItem(input: {
 }
 
 export async function saveExistingContentToLibrary(formData: FormData) {
-  const { user } = await requireAdmin();
+  const { user, profile } = await requireStaff();
+  const isAdmin = isPlatformAdmin(profile?.role);
   const itemType = text(formData.get("itemType")) as LibraryType;
   const sourceId = text(formData.get("sourceId"));
   if (!sourceId) throw new Error("Choose content to save.");
@@ -75,6 +106,7 @@ export async function saveExistingContentToLibrary(formData: FormData) {
   if (itemType === "QUESTION") {
     const { data, error } = await admin.from("quiz_questions").select("*, quizzes(title,topic,level)").eq("id", sourceId).single();
     if (error || !data) throw new Error(error?.message ?? "Question not found.");
+    await assertOwnsParent(admin, "quizzes", data.quiz_id, user.id, isAdmin);
     const quiz = Array.isArray(data.quizzes) ? data.quizzes[0] : data.quizzes;
     await addLibraryItem({
       itemType,
@@ -103,6 +135,7 @@ export async function saveExistingContentToLibrary(formData: FormData) {
   if (itemType === "ACTIVITY") {
     const { data, error } = await admin.from("lesson_slide_activities").select("*, lessons(title,topic,level), slides(title,section_label)").eq("id", sourceId).single();
     if (error || !data) throw new Error(error?.message ?? "Activity not found.");
+    await assertOwnsParent(admin, "lessons", data.lesson_id, user.id, isAdmin);
     const lesson = Array.isArray(data.lessons) ? data.lessons[0] : data.lessons;
     const slide = Array.isArray(data.slides) ? data.slides[0] : data.slides;
     await addLibraryItem({
@@ -131,6 +164,7 @@ export async function saveExistingContentToLibrary(formData: FormData) {
   if (itemType === "LESSON_BLOCK") {
     const { data, error } = await admin.from("lesson_blocks").select("*, lessons(title,topic,level), slides(title,section_label)").eq("id", sourceId).single();
     if (error || !data) throw new Error(error?.message ?? "Block not found.");
+    await assertOwnsParent(admin, "lessons", data.lesson_id, user.id, isAdmin);
     const lesson = Array.isArray(data.lessons) ? data.lessons[0] : data.lessons;
     const slide = Array.isArray(data.slides) ? data.slides[0] : data.slides;
     await addLibraryItem({
@@ -157,6 +191,7 @@ export async function saveExistingContentToLibrary(formData: FormData) {
       admin.from("lesson_slide_activities").select("activity_type,activity_data,needs_review,raw_text").eq("slide_id", sourceId).order("created_at"),
     ]);
     if (error || !slide) throw new Error(error?.message ?? "Slide not found.");
+    await assertOwnsParent(admin, "lessons", slide.lesson_id, user.id, isAdmin);
     const lesson = Array.isArray(slide.lessons) ? slide.lessons[0] : slide.lessons;
     await addLibraryItem({
       itemType,
@@ -190,6 +225,7 @@ export async function saveExistingContentToLibrary(formData: FormData) {
       admin.from("lesson_slide_activities").select("*").eq("lesson_id", sourceId).order("slide_number"),
     ]);
     if (error || !lesson) throw new Error(error?.message ?? "Lesson not found.");
+    await assertOwnsParent(admin, "lessons", lesson.id, user.id, isAdmin);
     await addLibraryItem({
       itemType,
       title: overrides.title || lesson.title,
@@ -212,6 +248,7 @@ export async function saveExistingContentToLibrary(formData: FormData) {
     admin.from("course_items").select("*").eq("course_id", sourceId).order("position"),
   ]);
   if (error || !course) throw new Error(error?.message ?? "Course not found.");
+  await assertOwnsParent(admin, "courses", course.id, user.id, isAdmin);
   await addLibraryItem({
     itemType: "COURSE_TEMPLATE",
     title: overrides.title || course.title,
@@ -227,8 +264,13 @@ export async function saveExistingContentToLibrary(formData: FormData) {
 }
 
 export async function deleteLibraryItem(itemId: string) {
-  await requireAdmin();
+  const { user, profile } = await requireStaff();
   const admin = createAdminClient();
+  const { data: item } = await admin.from("content_library_items").select("id, created_by").eq("id", itemId).maybeSingle();
+  if (!item) throw new Error("Library item not found.");
+  if (!isPlatformAdmin(profile?.role) && item.created_by !== user.id) {
+    throw new Error("You don't have access to that library item.");
+  }
   const { error } = await admin.from("content_library_items").delete().eq("id", itemId);
   if (error) throw new Error(error.message);
   libraryPath();
@@ -246,16 +288,19 @@ async function recordReuse(itemId: string, userId: string, destinationType: stri
 }
 
 export async function insertLibraryCopy(itemId: string, formData: FormData) {
-  const { user } = await requireAdmin();
+  const { user, profile } = await requireStaff();
+  const isAdmin = isPlatformAdmin(profile?.role);
   const admin = createAdminClient();
   const { data: item, error } = await admin.from("content_library_items").select("*").eq("id", itemId).single();
   if (error || !item) throw new Error(error?.message ?? "Library item not found.");
+  if (!isAdmin && item.created_by !== user.id) throw new Error("You don't have access to that library item.");
   // Library snapshots are intentionally polymorphic across six content types.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const snapshot = item.content_snapshot as Record<string, any>;
   const targetId = text(formData.get("targetId"));
 
   if (item.item_type === "QUESTION") {
+    await assertOwnsParent(admin, "quizzes", targetId, user.id, isAdmin);
     const { count } = await admin.from("quiz_questions").select("id", { count: "exact", head: true }).eq("quiz_id", targetId);
     const { data, error: copyError } = await admin.from("quiz_questions").insert({
       quiz_id: targetId,
@@ -272,6 +317,7 @@ export async function insertLibraryCopy(itemId: string, formData: FormData) {
   } else if (item.item_type === "ACTIVITY") {
     const { data: slide } = await admin.from("slides").select("lesson_id,slide_number").eq("id", targetId).single();
     if (!slide) throw new Error("Target slide not found.");
+    await assertOwnsParent(admin, "lessons", slide.lesson_id, user.id, isAdmin);
     const { data, error: copyError } = await admin.from("lesson_slide_activities").insert({
       lesson_id: slide.lesson_id,
       slide_id: targetId,
@@ -287,6 +333,7 @@ export async function insertLibraryCopy(itemId: string, formData: FormData) {
   } else if (item.item_type === "LESSON_BLOCK") {
     const { data: slide } = await admin.from("slides").select("lesson_id").eq("id", targetId).single();
     if (!slide) throw new Error("Target slide not found.");
+    await assertOwnsParent(admin, "lessons", slide.lesson_id, user.id, isAdmin);
     const { count } = await admin.from("lesson_blocks").select("id", { count: "exact", head: true }).eq("slide_id", targetId);
     const { data, error: copyError } = await admin.from("lesson_blocks").insert({
       lesson_id: slide.lesson_id,
@@ -299,6 +346,7 @@ export async function insertLibraryCopy(itemId: string, formData: FormData) {
     await recordReuse(item.id, user.id, "lesson_block", data.id, targetId);
     revalidatePath(`/admin/lessons/${slide.lesson_id}/builder`);
   } else if (item.item_type === "SLIDE") {
+    await assertOwnsParent(admin, "lessons", targetId, user.id, isAdmin);
     const { data: currentSlides } = await admin.from("slides").select("slide_number").eq("lesson_id", targetId).order("slide_number", { ascending: false }).limit(1);
     const slideNumber = (currentSlides?.[0]?.slide_number ?? 0) + 1;
     const { data: newSlide, error: slideError } = await admin.from("slides").insert({
@@ -336,6 +384,7 @@ export async function insertLibraryCopy(itemId: string, formData: FormData) {
       category: source.category ?? null,
       duration_minutes: source.duration_minutes ?? null,
       estimated_completion_minutes: source.estimated_completion_minutes ?? null,
+      created_by: user.id,
     }).select("id").single();
     if (lessonError) throw new Error(lessonError.message);
     const slideMap = new Map<string, string>();

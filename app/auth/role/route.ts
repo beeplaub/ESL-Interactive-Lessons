@@ -1,12 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getFreshProfile, roleHomePath } from "@/lib/auth";
+import { cookies } from "next/headers";
+import { getFreshProfile, resolvePostLoginPath } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-
-function safeNext(nextPath: string | null, role?: string | null) {
-  if (role === "ADMIN") return "/admin";
-  if (nextPath?.startsWith("/") && !nextPath.startsWith("/admin")) return nextPath;
-  return roleHomePath(role);
-}
 
 export async function GET(request: NextRequest) {
   const supabase = await createClient();
@@ -20,5 +15,12 @@ export async function GET(request: NextRequest) {
 
   const profile = await getFreshProfile(user.id);
   const nextPath = request.nextUrl.searchParams.get("next");
-  return NextResponse.json({ redirectTo: safeNext(nextPath, profile?.role) });
+
+  // A stale "view as learner" cookie from a previous session must never
+  // carry over into a fresh sign-in — every login starts staff back in
+  // creator mode, no exceptions.
+  const cookieStore = await cookies();
+  cookieStore.delete("view_mode");
+
+  return NextResponse.json({ redirectTo: resolvePostLoginPath(profile?.role, nextPath) });
 }

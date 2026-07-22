@@ -17,6 +17,20 @@ export function roleHomePath(role?: string | null) {
   return role === "ADMIN" || role === "TEACHER" || role === "SCHOOL_ADMIN" ? "/admin" : "/account";
 }
 
+/**
+ * Where to send someone immediately after a successful sign-in (password,
+ * signup, or OAuth callback). Staff (ADMIN/TEACHER/SCHOOL_ADMIN) always land
+ * in /admin — never on a `next` deep link into learner-only pages, and never
+ * in Learner View — so "every admin/teacher lands on the app as a creator"
+ * holds regardless of what URL brought them to /login. Non-staff still get
+ * their deep link honored when there is one.
+ */
+export function resolvePostLoginPath(role: string | null | undefined, nextPath?: string | null) {
+  if (isStaff(role)) return "/admin";
+  if (nextPath?.startsWith("/") && !nextPath.startsWith("/admin")) return nextPath;
+  return roleHomePath(role);
+}
+
 export async function requireUser() {
   const supabase = await createClient();
   // getClaims() verifies the JWT locally (cached JWKS + WebCrypto) when the
