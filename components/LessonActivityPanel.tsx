@@ -253,6 +253,126 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
       correct_answer: answers as Json,
     }];
   }
+  if (activityType === "SENTENCE_COMPLETION") {
+    return [{
+      id: "1",
+      question_number: 1,
+      question_type: "SENTENCE_COMPLETION",
+      question_text: String(data.prompt ?? "Complete the sentence stem."),
+      options: {
+        sentence_stem: data.sentence_stem,
+        suggested_connectors: data.suggested_connectors,
+        model_answer: data.model_answer,
+        model_description: data.model_description,
+      } as Json,
+      correct_answer: String(data.model_answer ?? data.correct_answer ?? "") as Json,
+    }];
+  }
+  if (activityType === "ESSAY_WRITING") {
+    return [{
+      id: "1",
+      question_number: 1,
+      question_type: "ESSAY_WRITING",
+      question_text: String(data.prompt ?? "Write an essay responding to the prompt."),
+      options: {
+        min_words: data.min_words,
+        max_words: data.max_words,
+        sample_essay: data.sample_essay,
+        rubric_guidelines: data.rubric_guidelines,
+      } as Json,
+      correct_answer: String(data.sample_essay ?? data.correct_answer ?? "") as Json,
+    }];
+  }
+  if (activityType === "EMAIL_LETTER_WRITING") {
+    return [{
+      id: "1",
+      question_number: 1,
+      question_type: "EMAIL_LETTER_WRITING",
+      question_text: String(data.prompt ?? "Write a formal email based on the situation."),
+      options: {
+        recipient_role: data.recipient_role,
+        required_tone: data.required_tone,
+        model_email: data.model_email,
+      } as Json,
+      correct_answer: String(data.model_email ?? data.correct_answer ?? "") as Json,
+    }];
+  }
+  if (activityType === "TRANSLATION") {
+    return [{
+      id: "1",
+      question_number: 1,
+      question_type: "TRANSLATION",
+      question_text: String(data.prompt ?? "Translate the sentence into target language."),
+      options: {
+        source_text: data.source_text,
+        source_language: data.source_language,
+        target_language: data.target_language,
+        acceptable_translations: data.acceptable_translations,
+        grammar_notes: data.grammar_notes,
+      } as Json,
+      correct_answer: String(data.correct_answer ?? "") as Json,
+    }];
+  }
+  if (activityType === "PARAPHRASE_PRACTICE") {
+    return [{
+      id: "1",
+      question_number: 1,
+      question_type: "PARAPHRASE_PRACTICE",
+      question_text: String(data.prompt ?? "Paraphrase the original sentence in your own words."),
+      options: {
+        original_text: data.original_text,
+        forbidden_phrases: data.forbidden_phrases,
+        model_paraphrase: data.model_paraphrase,
+        explanation: data.explanation,
+      } as Json,
+      correct_answer: String(data.model_paraphrase ?? data.correct_answer ?? "") as Json,
+    }];
+  }
+  if (activityType === "SENTENCE_COMBINING") {
+    return [{
+      id: "1",
+      question_number: 1,
+      question_type: "SENTENCE_COMBINING",
+      question_text: String(data.prompt ?? "Combine the simple sentences into a complex sentence."),
+      options: {
+        input_sentences: data.input_sentences,
+        model_combined_sentence: data.model_combined_sentence,
+        explanation: data.explanation,
+      } as Json,
+      correct_answer: String(data.model_combined_sentence ?? data.correct_answer ?? "") as Json,
+    }];
+  }
+  if (activityType === "CREATIVE_WRITING") {
+    return [{
+      id: "1",
+      question_number: 1,
+      question_type: "CREATIVE_WRITING",
+      question_text: String(data.prompt ?? "Write a creative story based on the prompt."),
+      options: {
+        image_url: data.image_url,
+        story_starter: data.story_starter,
+        required_vocabulary: data.required_vocabulary,
+        model_story: data.model_story,
+        model_description: data.model_description,
+      } as Json,
+      correct_answer: String(data.model_story ?? data.correct_answer ?? "") as Json,
+    }];
+  }
+  if (activityType === "PEER_REVIEW_EDITING") {
+    return [{
+      id: "1",
+      question_number: 1,
+      question_type: "PEER_REVIEW_EDITING",
+      question_text: String(data.prompt ?? "Edit the sample peer text and provide constructive feedback."),
+      options: {
+        sample_draft: data.sample_draft,
+        error_focus_areas: data.error_focus_areas,
+        model_edited_draft: data.model_edited_draft,
+        model_feedback_comments: data.model_feedback_comments,
+      } as Json,
+      correct_answer: String(data.model_edited_draft ?? data.correct_answer ?? "") as Json,
+    }];
+  }
   if (activityType === "DRAG_DROP") {
     const rawItems: unknown[] = Array.isArray(data.items) ? data.items : [];
     const items = rawItems.map((item, index) => {

@@ -669,7 +669,7 @@ function ActivityPanel({
               {activity.activity_type === "CREATIVE_WRITING" ? <CreativeWritingEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "PEER_REVIEW_EDITING" ? <PeerReviewEditingEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "AI_ROLEPLAY" ? <AiRoleplayEditor activity={activity} onSave={save} /> : null}
-              {!["MCQ", "GAP_FILL", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "SUMMARIZATION", "INFERENCE_DETECTION", "HEADINGS_MATCHING", "SKIM_CHALLENGE", "PARAPHRASE_ID", "DICTATION", "LISTEN_AND_SELECT", "SHADOWING", "NOTE_TAKING_CHALLENGE", "SOUND_DISCRIMINATION", "LISTEN_AND_GAP_FILL", "AI_ROLEPLAY"].includes(activity.activity_type) ? (
+              {!["MCQ", "GAP_FILL", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "SUMMARIZATION", "INFERENCE_DETECTION", "HEADINGS_MATCHING", "SKIM_CHALLENGE", "PARAPHRASE_ID", "DICTATION", "LISTEN_AND_SELECT", "SHADOWING", "NOTE_TAKING_CHALLENGE", "SOUND_DISCRIMINATION", "LISTEN_AND_GAP_FILL", "SENTENCE_COMPLETION", "ESSAY_WRITING", "EMAIL_LETTER_WRITING", "TRANSLATION", "PARAPHRASE_PRACTICE", "SENTENCE_COMBINING", "CREATIVE_WRITING", "PEER_REVIEW_EDITING", "AI_ROLEPLAY"].includes(activity.activity_type) ? (
                 <p className="rounded-md bg-slate-50 p-3 text-sm text-black/60">
                   This activity type has starter data and preview support. A detailed visual editor for it will be added in the next activity-builder pass.
                 </p>
