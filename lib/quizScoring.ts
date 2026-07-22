@@ -24,7 +24,15 @@ export type ScoredQuestion = {
     | "SHADOWING"
     | "NOTE_TAKING_CHALLENGE"
     | "SOUND_DISCRIMINATION"
-    | "LISTEN_AND_GAP_FILL";
+    | "LISTEN_AND_GAP_FILL"
+    | "SENTENCE_COMPLETION"
+    | "ESSAY_WRITING"
+    | "EMAIL_LETTER_WRITING"
+    | "TRANSLATION"
+    | "PARAPHRASE_PRACTICE"
+    | "SENTENCE_COMBINING"
+    | "CREATIVE_WRITING"
+    | "PEER_REVIEW_EDITING";
   options: Json | null;
   correct_answer: Json;
   max_points?: number | null;
@@ -194,8 +202,22 @@ export function isCorrect(question: ScoredQuestion, value: unknown): boolean {
     return given.every((v) => correctSet.has(v));
   }
 
-  if (question.question_type === "SHORT_ANSWER" || question.question_type === "SUMMARIZATION") {
-    return asRecord(value as Json).selfMarked === true;
+  if (
+    question.question_type === "SHORT_ANSWER" ||
+    question.question_type === "SUMMARIZATION" ||
+    question.question_type === "SENTENCE_COMPLETION" ||
+    question.question_type === "ESSAY_WRITING" ||
+    question.question_type === "EMAIL_LETTER_WRITING" ||
+    question.question_type === "TRANSLATION" ||
+    question.question_type === "PARAPHRASE_PRACTICE" ||
+    question.question_type === "SENTENCE_COMBINING" ||
+    question.question_type === "CREATIVE_WRITING" ||
+    question.question_type === "PEER_REVIEW_EDITING"
+  ) {
+    const val = asRecord(value as Json);
+    if (val.selfMarked === true) return true;
+    const text = String(val.text ?? value ?? "").trim();
+    return text.length > 0;
   }
 
   if (question.question_type === "DRAG_DROP" || question.question_type === "CATEGORIZATION") {

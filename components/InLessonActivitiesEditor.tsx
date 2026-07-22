@@ -114,7 +114,15 @@ function labelFor(type: string) {
   if (type === "LISTEN_AND_SELECT") return "Listen & Select Activity";
   if (type === "SHADOWING") return "Shadowing / Repeat After Me Activity";
   if (type === "NOTE_TAKING_CHALLENGE") return "Note-Taking Challenge Activity";
-  if (type === "SOUND_DISCRIMINATION") return "Sound Discrimination Activity";
+  if (type === "LISTEN_AND_GAP_FILL") return "Gap Fill while Listening Activity";
+  if (type === "SENTENCE_COMPLETION") return "Sentence Completion / Expansion";
+  if (type === "ESSAY_WRITING") return "Essay Writing with Rubric Feedback";
+  if (type === "EMAIL_LETTER_WRITING") return "Email / Letter Prompt";
+  if (type === "TRANSLATION") return "Translation (L1 ↔ L2)";
+  if (type === "PARAPHRASE_PRACTICE") return "Paraphrasing Tool";
+  if (type === "SENTENCE_COMBINING") return "Sentence Combining";
+  if (type === "CREATIVE_WRITING") return "Prompted Creative Writing";
+  if (type === "PEER_REVIEW_EDITING") return "Peer Review / Collaborative Editing";
   if (type === "AI_ROLEPLAY") return "AI Conversation Roleplay";
   return `${type.replaceAll("_", " ")} Activity`;
 }
@@ -652,6 +660,14 @@ function ActivityPanel({
               {activity.activity_type === "NOTE_TAKING_CHALLENGE" ? <NoteTakingChallengeEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "SOUND_DISCRIMINATION" ? <SoundDiscriminationEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "LISTEN_AND_GAP_FILL" ? <ListenGapFillEditor activity={activity} onSave={save} /> : null}
+              {activity.activity_type === "SENTENCE_COMPLETION" ? <SentenceCompletionEditor activity={activity} onSave={save} /> : null}
+              {activity.activity_type === "ESSAY_WRITING" ? <EssayWritingEditor activity={activity} onSave={save} /> : null}
+              {activity.activity_type === "EMAIL_LETTER_WRITING" ? <EmailLetterWritingEditor activity={activity} onSave={save} /> : null}
+              {activity.activity_type === "TRANSLATION" ? <TranslationEditor activity={activity} onSave={save} /> : null}
+              {activity.activity_type === "PARAPHRASE_PRACTICE" ? <ParaphrasePracticeEditor activity={activity} onSave={save} /> : null}
+              {activity.activity_type === "SENTENCE_COMBINING" ? <SentenceCombiningEditor activity={activity} onSave={save} /> : null}
+              {activity.activity_type === "CREATIVE_WRITING" ? <CreativeWritingEditor activity={activity} onSave={save} /> : null}
+              {activity.activity_type === "PEER_REVIEW_EDITING" ? <PeerReviewEditingEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "AI_ROLEPLAY" ? <AiRoleplayEditor activity={activity} onSave={save} /> : null}
               {!["MCQ", "GAP_FILL", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "SUMMARIZATION", "INFERENCE_DETECTION", "HEADINGS_MATCHING", "SKIM_CHALLENGE", "PARAPHRASE_ID", "DICTATION", "LISTEN_AND_SELECT", "SHADOWING", "NOTE_TAKING_CHALLENGE", "SOUND_DISCRIMINATION", "LISTEN_AND_GAP_FILL", "AI_ROLEPLAY"].includes(activity.activity_type) ? (
                 <p className="rounded-md bg-slate-50 p-3 text-sm text-black/60">
@@ -2595,6 +2611,497 @@ function ListenGapFillEditor({ activity, onSave }: { activity: Activity; onSave:
           }
         />
       </div>
+    </div>
+  );
+}
+
+/* ─── 8 Writing Activity Editors ───────────────────────────────────────── */
+
+function SentenceCompletionEditor({
+  activity,
+  onSave,
+}: {
+  activity: Activity;
+  onSave: (options: Json, needsReview: boolean) => void;
+}) {
+  const currentOptions = asRecord(activity.activity_data);
+  const [prompt, setPrompt] = useState<string>(String(currentOptions.prompt || "Complete the sentence stem below."));
+  const [stem, setStem] = useState<string>(String(currentOptions.sentence_stem || ""));
+  const [connectors, setConnectors] = useState<string>(
+    Array.isArray(currentOptions.suggested_connectors) ? currentOptions.suggested_connectors.join(", ") : ""
+  );
+  const [modelAnswer, setModelAnswer] = useState<string>(String(currentOptions.model_answer || ""));
+  const [modelDescription, setModelDescription] = useState<string>(String(currentOptions.model_description || ""));
+
+  return (
+    <div className="grid gap-4">
+      <label className="text-sm font-medium">
+        Activity Prompt
+        <input value={prompt} onChange={(e) => setPrompt(e.target.value)} className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm" />
+      </label>
+
+      <label className="text-sm font-medium">
+        Sentence Stem
+        <input value={stem} onChange={(e) => setStem(e.target.value)} placeholder="e.g. Although it was raining," className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm" />
+      </label>
+
+      <label className="text-sm font-medium">
+        Suggested Connectors (comma-separated)
+        <input value={connectors} onChange={(e) => setConnectors(e.target.value)} placeholder="e.g. nevertheless, furthermore" className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm" />
+      </label>
+
+      <label className="text-sm font-medium">
+        Model Answer Response
+        <textarea rows={3} value={modelAnswer} onChange={(e) => setModelAnswer(e.target.value)} placeholder="High-quality sample answer..." className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm font-mono" />
+      </label>
+
+      <label className="text-sm font-medium">
+        Model Description / Explanation
+        <textarea rows={2} value={modelDescription} onChange={(e) => setModelDescription(e.target.value)} placeholder="Explanation of model answer..." className="mt-1 w-full rounded-md border border-black/15 p-2 text-xs" />
+      </label>
+
+      <SaveButton
+        onClick={() =>
+          onSave(
+            {
+              prompt,
+              sentence_stem: stem,
+              suggested_connectors: connectors.split(",").map((s) => s.trim()).filter(Boolean),
+              model_answer: modelAnswer,
+              correct_answer: modelAnswer,
+              model_description: modelDescription,
+            } as Json,
+            !stem.trim()
+          )
+        }
+      />
+    </div>
+  );
+}
+
+function EssayWritingEditor({
+  activity,
+  onSave,
+}: {
+  activity: Activity;
+  onSave: (options: Json, needsReview: boolean) => void;
+}) {
+  const currentOptions = asRecord(activity.activity_data);
+  const [prompt, setPrompt] = useState<string>(String(currentOptions.prompt || "Write an essay responding to the prompt below."));
+  const [minWords, setMinWords] = useState<number>(Number(currentOptions.min_words ?? 100));
+  const [maxWords, setMaxWords] = useState<number>(Number(currentOptions.max_words ?? 250));
+  const [sampleEssay, setSampleEssay] = useState<string>(String(currentOptions.sample_essay || ""));
+  const [rubricGuidelines, setRubricGuidelines] = useState<string>(String(currentOptions.rubric_guidelines || ""));
+
+  return (
+    <div className="grid gap-4">
+      <label className="text-sm font-medium">
+        Essay Prompt
+        <textarea rows={3} value={prompt} onChange={(e) => setPrompt(e.target.value)} className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm" />
+      </label>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="text-sm font-medium">
+          Min Words
+          <input type="number" value={minWords} onChange={(e) => setMinWords(Number(e.target.value))} className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm" />
+        </label>
+
+        <label className="text-sm font-medium">
+          Max Words
+          <input type="number" value={maxWords} onChange={(e) => setMaxWords(Number(e.target.value))} className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm" />
+        </label>
+      </div>
+
+      <label className="text-sm font-medium">
+        Sample Model Essay
+        <textarea rows={6} value={sampleEssay} onChange={(e) => setSampleEssay(e.target.value)} placeholder="Model essay text..." className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm font-mono" />
+      </label>
+
+      <label className="text-sm font-medium">
+        Rubric Evaluation Guidelines
+        <textarea rows={3} value={rubricGuidelines} onChange={(e) => setRubricGuidelines(e.target.value)} placeholder="Key evaluation points for AI/Teacher review..." className="mt-1 w-full rounded-md border border-black/15 p-2 text-xs" />
+      </label>
+
+      <SaveButton
+        onClick={() =>
+          onSave(
+            {
+              prompt,
+              min_words: minWords,
+              max_words: maxWords,
+              sample_essay: sampleEssay,
+              model_answer: sampleEssay,
+              correct_answer: sampleEssay,
+              rubric_guidelines: rubricGuidelines,
+            } as Json,
+            !prompt.trim()
+          )
+        }
+      />
+    </div>
+  );
+}
+
+function EmailLetterWritingEditor({
+  activity,
+  onSave,
+}: {
+  activity: Activity;
+  onSave: (options: Json, needsReview: boolean) => void;
+}) {
+  const currentOptions = asRecord(activity.activity_data);
+  const [prompt, setPrompt] = useState<string>(String(currentOptions.prompt || "Write a formal email requesting information."));
+  const [recipient, setRecipient] = useState<string>(String(currentOptions.recipient_role || "Course Director"));
+  const [tone, setTone] = useState<string>(String(currentOptions.required_tone || "FORMAL"));
+  const [modelEmail, setModelEmail] = useState<string>(String(currentOptions.model_email || ""));
+
+  return (
+    <div className="grid gap-4">
+      <label className="text-sm font-medium">
+        Email Task Prompt
+        <textarea rows={3} value={prompt} onChange={(e) => setPrompt(e.target.value)} className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm" />
+      </label>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="text-sm font-medium">
+          Recipient Role
+          <input value={recipient} onChange={(e) => setRecipient(e.target.value)} className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm" />
+        </label>
+        <label className="text-sm font-medium">
+          Required Tone
+          <select value={tone} onChange={(e) => setTone(e.target.value)} className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm">
+            <option value="FORMAL">Formal</option>
+            <option value="SEMI_FORMAL">Semi-Formal</option>
+            <option value="INFORMAL">Informal</option>
+          </select>
+        </label>
+      </div>
+
+      <label className="text-sm font-medium">
+        Model Email Answer
+        <textarea rows={5} value={modelEmail} onChange={(e) => setModelEmail(e.target.value)} className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm font-mono" />
+      </label>
+
+      <SaveButton
+        onClick={() =>
+          onSave(
+            {
+              prompt,
+              recipient_role: recipient,
+              required_tone: tone,
+              model_email: modelEmail,
+              correct_answer: modelEmail,
+            } as Json,
+            !prompt.trim()
+          )
+        }
+      />
+    </div>
+  );
+}
+
+function TranslationEditor({
+  activity,
+  onSave,
+}: {
+  activity: Activity;
+  onSave: (options: Json, needsReview: boolean) => void;
+}) {
+  const currentOptions = asRecord(activity.activity_data);
+  const [prompt, setPrompt] = useState<string>(String(currentOptions.prompt || "Translate the sentence into English."));
+  const [sourceText, setSourceText] = useState<string>(String(currentOptions.source_text || ""));
+  const [sourceLang, setSourceLang] = useState<string>(String(currentOptions.source_language || "Spanish"));
+  const [targetLang, setTargetLang] = useState<string>(String(currentOptions.target_language || "English"));
+  const [acceptable, setAcceptable] = useState<string[]>(
+    Array.isArray(currentOptions.acceptable_translations) ? currentOptions.acceptable_translations.map(String) : [""]
+  );
+
+  return (
+    <div className="grid gap-4">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="text-sm font-medium">
+          Source Language
+          <input value={sourceLang} onChange={(e) => setSourceLang(e.target.value)} className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm" />
+        </label>
+        <label className="text-sm font-medium">
+          Target Language
+          <input value={targetLang} onChange={(e) => setTargetLang(e.target.value)} className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm" />
+        </label>
+      </div>
+
+      <label className="text-sm font-medium">
+        Source Text to Translate
+        <textarea rows={2} value={sourceText} onChange={(e) => setSourceText(e.target.value)} className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm" />
+      </label>
+
+      <div className="rounded-md border border-black/10 p-3 space-y-2 bg-slate-50/50">
+        <p className="font-semibold text-xs text-black/70">Acceptable Target Translations</p>
+        {acceptable.map((ans, idx) => (
+          <div key={idx} className="flex items-center gap-2">
+            <input
+              type="text"
+              value={ans}
+              onChange={(e) => {
+                const next = [...acceptable];
+                next[idx] = e.target.value;
+                setAcceptable(next);
+              }}
+              placeholder={`Translation ${idx + 1}`}
+              className="flex-1 rounded border border-black/15 px-2 py-1 text-xs bg-white"
+            />
+            {acceptable.length > 1 && (
+              <button type="button" onClick={() => setAcceptable((curr) => curr.filter((_, i) => i !== idx))} className="text-xs text-coral hover:underline">
+                Remove
+              </button>
+            )}
+          </div>
+        ))}
+        <button type="button" onClick={() => setAcceptable((curr) => [...curr, ""])} className="rounded border border-dashed border-black/20 px-2.5 py-1 text-xs font-semibold text-black/60 hover:bg-black/5">
+          + Add Alternative Translation
+        </button>
+      </div>
+
+      <SaveButton
+        onClick={() =>
+          onSave(
+            {
+              prompt,
+              source_text: sourceText,
+              source_language: sourceLang,
+              target_language: targetLang,
+              acceptable_translations: acceptable,
+              correct_answer: acceptable[0] || "",
+            } as Json,
+            !sourceText.trim()
+          )
+        }
+      />
+    </div>
+  );
+}
+
+function ParaphrasePracticeEditor({
+  activity,
+  onSave,
+}: {
+  activity: Activity;
+  onSave: (options: Json, needsReview: boolean) => void;
+}) {
+  const currentOptions = asRecord(activity.activity_data);
+  const [prompt, setPrompt] = useState<string>(String(currentOptions.prompt || "Paraphrase the passage in your own words."));
+  const [originalText, setOriginalText] = useState<string>(String(currentOptions.original_text || ""));
+  const [forbidden, setForbidden] = useState<string>(
+    Array.isArray(currentOptions.forbidden_phrases) ? currentOptions.forbidden_phrases.join(", ") : ""
+  );
+  const [modelParaphrase, setModelParaphrase] = useState<string>(String(currentOptions.model_paraphrase || ""));
+
+  return (
+    <div className="grid gap-4">
+      <label className="text-sm font-medium">
+        Original Text
+        <textarea rows={3} value={originalText} onChange={(e) => setOriginalText(e.target.value)} className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm" />
+      </label>
+
+      <label className="text-sm font-medium">
+        Forbidden Phrases (comma-separated)
+        <input value={forbidden} onChange={(e) => setForbidden(e.target.value)} placeholder="Phrases learners cannot copy directly..." className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm" />
+      </label>
+
+      <label className="text-sm font-medium">
+        Model Paraphrase
+        <textarea rows={3} value={modelParaphrase} onChange={(e) => setModelParaphrase(e.target.value)} className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm font-mono" />
+      </label>
+
+      <SaveButton
+        onClick={() =>
+          onSave(
+            {
+              prompt,
+              original_text: originalText,
+              forbidden_phrases: forbidden.split(",").map((s) => s.trim()).filter(Boolean),
+              model_paraphrase: modelParaphrase,
+              correct_answer: modelParaphrase,
+            } as Json,
+            !originalText.trim()
+          )
+        }
+      />
+    </div>
+  );
+}
+
+function SentenceCombiningEditor({
+  activity,
+  onSave,
+}: {
+  activity: Activity;
+  onSave: (options: Json, needsReview: boolean) => void;
+}) {
+  const currentOptions = asRecord(activity.activity_data);
+  const [prompt, setPrompt] = useState<string>(String(currentOptions.prompt || "Combine the simple sentences below into a complex sentence."));
+  const [inputSentences, setInputSentences] = useState<string[]>(
+    Array.isArray(currentOptions.input_sentences) ? currentOptions.input_sentences.map(String) : ["Sentence 1", "Sentence 2"]
+  );
+  const [modelCombined, setModelCombined] = useState<string>(String(currentOptions.model_combined_sentence || ""));
+
+  return (
+    <div className="grid gap-4">
+      <div className="rounded-md border border-black/10 p-3 space-y-2 bg-slate-50/50">
+        <p className="font-semibold text-xs text-black/70">Simple Sentences to Combine</p>
+        {inputSentences.map((s, idx) => (
+          <div key={idx} className="flex items-center gap-2">
+            <span className="text-xs font-bold text-black/50">({idx + 1}):</span>
+            <input
+              type="text"
+              value={s}
+              onChange={(e) => {
+                const next = [...inputSentences];
+                next[idx] = e.target.value;
+                setInputSentences(next);
+              }}
+              className="flex-1 rounded border border-black/15 px-2 py-1 text-xs bg-white"
+            />
+            {inputSentences.length > 2 && (
+              <button type="button" onClick={() => setInputSentences((curr) => curr.filter((_, i) => i !== idx))} className="text-xs text-coral hover:underline">
+                Remove
+              </button>
+            )}
+          </div>
+        ))}
+        <button type="button" onClick={() => setInputSentences((curr) => [...curr, ""])} className="rounded border border-dashed border-black/20 px-2.5 py-1 text-xs font-semibold text-black/60 hover:bg-black/5">
+          + Add Sentence
+        </button>
+      </div>
+
+      <label className="text-sm font-medium">
+        Model Combined Sentence
+        <textarea rows={3} value={modelCombined} onChange={(e) => setModelCombined(e.target.value)} className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm font-mono" />
+      </label>
+
+      <SaveButton
+        onClick={() =>
+          onSave(
+            {
+              prompt,
+              input_sentences: inputSentences,
+              model_combined_sentence: modelCombined,
+              correct_answer: modelCombined,
+            } as Json,
+            inputSentences.length < 2
+          )
+        }
+      />
+    </div>
+  );
+}
+
+function CreativeWritingEditor({
+  activity,
+  onSave,
+}: {
+  activity: Activity;
+  onSave: (options: Json, needsReview: boolean) => void;
+}) {
+  const currentOptions = asRecord(activity.activity_data);
+  const [prompt, setPrompt] = useState<string>(String(currentOptions.prompt || "Write a creative story based on the prompt."));
+  const [imageUrl, setImageUrl] = useState<string>(String(currentOptions.image_url || ""));
+  const [storyStarter, setStoryStarter] = useState<string>(String(currentOptions.story_starter || ""));
+  const [vocab, setVocab] = useState<string>(
+    Array.isArray(currentOptions.required_vocabulary) ? currentOptions.required_vocabulary.join(", ") : ""
+  );
+  const [modelStory, setModelStory] = useState<string>(String(currentOptions.model_story || ""));
+
+  return (
+    <div className="grid gap-4">
+      <MediaRecorderInput label="Picture Prompt Image (Optional)" value={imageUrl} onChange={setImageUrl} type="image" />
+
+      <label className="text-sm font-medium">
+        Story Starter Line
+        <input value={storyStarter} onChange={(e) => setStoryStarter(e.target.value)} placeholder="e.g. As the sun set over the quiet town..." className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm" />
+      </label>
+
+      <label className="text-sm font-medium">
+        Required Vocabulary Words (comma-separated)
+        <input value={vocab} onChange={(e) => setVocab(e.target.value)} placeholder="e.g. whisper, shadow, discovery" className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm" />
+      </label>
+
+      <label className="text-sm font-medium">
+        Model Story Response
+        <textarea rows={5} value={modelStory} onChange={(e) => setModelStory(e.target.value)} className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm font-mono" />
+      </label>
+
+      <SaveButton
+        onClick={() =>
+          onSave(
+            {
+              prompt,
+              image_url: imageUrl,
+              story_starter: storyStarter,
+              required_vocabulary: vocab.split(",").map((s) => s.trim()).filter(Boolean),
+              model_story: modelStory,
+              correct_answer: modelStory,
+            } as Json,
+            !prompt.trim()
+          )
+        }
+      />
+    </div>
+  );
+}
+
+function PeerReviewEditingEditor({
+  activity,
+  onSave,
+}: {
+  activity: Activity;
+  onSave: (options: Json, needsReview: boolean) => void;
+}) {
+  const currentOptions = asRecord(activity.activity_data);
+  const [prompt, setPrompt] = useState<string>(String(currentOptions.prompt || "Edit the sample peer text and provide constructive feedback."));
+  const [sampleDraft, setSampleDraft] = useState<string>(String(currentOptions.sample_draft || ""));
+  const [focusAreas, setFocusAreas] = useState<string>(
+    Array.isArray(currentOptions.error_focus_areas) ? currentOptions.error_focus_areas.join(", ") : ""
+  );
+  const [modelEdited, setModelEdited] = useState<string>(String(currentOptions.model_edited_draft || ""));
+  const [modelComments, setModelComments] = useState<string>(String(currentOptions.model_feedback_comments || ""));
+
+  return (
+    <div className="grid gap-4">
+      <label className="text-sm font-medium">
+        Sample Peer Draft to Edit
+        <textarea rows={4} value={sampleDraft} onChange={(e) => setSampleDraft(e.target.value)} className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm font-mono" />
+      </label>
+
+      <label className="text-sm font-medium">
+        Focus Areas for Correction (comma-separated)
+        <input value={focusAreas} onChange={(e) => setFocusAreas(e.target.value)} placeholder="e.g. Past tense verbs, Article usage" className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm" />
+      </label>
+
+      <label className="text-sm font-medium">
+        Model Corrected Draft
+        <textarea rows={4} value={modelEdited} onChange={(e) => setModelEdited(e.target.value)} className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm font-mono" />
+      </label>
+
+      <label className="text-sm font-medium">
+        Model Peer Feedback Comments
+        <textarea rows={3} value={modelComments} onChange={(e) => setModelComments(e.target.value)} className="mt-1 w-full rounded-md border border-black/15 p-2 text-xs" />
+      </label>
+
+      <SaveButton
+        onClick={() =>
+          onSave(
+            {
+              prompt,
+              sample_draft: sampleDraft,
+              error_focus_areas: focusAreas.split(",").map((s) => s.trim()).filter(Boolean),
+              model_edited_draft: modelEdited,
+              correct_answer: modelEdited,
+              model_feedback_comments: modelComments,
+            } as Json,
+            !sampleDraft.trim()
+          )
+        }
+      />
     </div>
   );
 }

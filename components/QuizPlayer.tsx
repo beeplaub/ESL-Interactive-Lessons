@@ -15,11 +15,12 @@ import { playCelebration, playCorrect, playPartial, playWrong } from "@/lib/gami
 import { ResultsOverview } from "@/components/gamification/ResultsOverview";
 import { StreakPopup } from "@/components/gamification/StreakPopup";
 import { computeBestStreak, NOTABLE_STREAK_THRESHOLD } from "@/lib/gamification/resultsOverview";
+import { WritingEvaluationInterface } from "@/components/WritingEvaluationInterface";
 
 export type QuizQuestion = {
   id: string;
   question_number: number;
-  question_type: "MCQ" | "TRUE_FALSE" | "FILL" | "MATCHING" | "ERROR_CORRECTION" | "REORDERING" | "MULTIPLE_SELECT" | "SHORT_ANSWER" | "DRAG_DROP" | "CATEGORIZATION" | "PRONUNCIATION" | "SUMMARIZATION" | "INFERENCE_DETECTION" | "HEADINGS_MATCHING" | "SKIM_CHALLENGE" | "PARAPHRASE_ID" | "DICTATION" | "LISTEN_AND_SELECT" | "SHADOWING" | "NOTE_TAKING_CHALLENGE" | "SOUND_DISCRIMINATION" | "LISTEN_AND_GAP_FILL";
+  question_type: "MCQ" | "TRUE_FALSE" | "FILL" | "MATCHING" | "ERROR_CORRECTION" | "REORDERING" | "MULTIPLE_SELECT" | "SHORT_ANSWER" | "DRAG_DROP" | "CATEGORIZATION" | "PRONUNCIATION" | "SUMMARIZATION" | "INFERENCE_DETECTION" | "HEADINGS_MATCHING" | "SKIM_CHALLENGE" | "PARAPHRASE_ID" | "DICTATION" | "LISTEN_AND_SELECT" | "SHADOWING" | "NOTE_TAKING_CHALLENGE" | "SOUND_DISCRIMINATION" | "LISTEN_AND_GAP_FILL" | "SENTENCE_COMPLETION" | "ESSAY_WRITING" | "EMAIL_LETTER_WRITING" | "TRANSLATION" | "PARAPHRASE_PRACTICE" | "SENTENCE_COMBINING" | "CREATIVE_WRITING" | "PEER_REVIEW_EDITING";
   question_text: string;
   description?: string | null;
   options: Json | null;
@@ -99,8 +100,19 @@ export function hasAnswer(question: QuizQuestion, value: unknown): boolean {
     const rec = asRecord(value as Json);
     return rec.passed === true || String(rec.transcript ?? "").trim().length > 0 || Number(rec.accuracy ?? 0) > 0;
   }
-  if (question.question_type === "DICTATION") {
-    return String(value ?? "").trim().length > 0;
+  if (
+    question.question_type === "SENTENCE_COMPLETION" ||
+    question.question_type === "ESSAY_WRITING" ||
+    question.question_type === "EMAIL_LETTER_WRITING" ||
+    question.question_type === "TRANSLATION" ||
+    question.question_type === "PARAPHRASE_PRACTICE" ||
+    question.question_type === "SENTENCE_COMBINING" ||
+    question.question_type === "CREATIVE_WRITING" ||
+    question.question_type === "PEER_REVIEW_EDITING"
+  ) {
+    const val = asRecord(value as Json);
+    const text = String(val.text ?? value ?? "").trim();
+    return text.length > 0;
   }
   if (question.question_type === "LISTEN_AND_SELECT" || question.question_type === "SOUND_DISCRIMINATION") {
     return value !== undefined && value !== null && String(value).trim() !== "";
@@ -715,6 +727,14 @@ export function QuestionCard({
         {question.question_type === "NOTE_TAKING_CHALLENGE" ? <NoteTakingChallengePlayer question={question} value={(value as Record<string, string>) ?? {}} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "SOUND_DISCRIMINATION" ? <SoundDiscriminationPlayer question={question} value={value as string | undefined} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "LISTEN_AND_GAP_FILL" ? <ListenGapFillPlayer question={question} value={value as string[] | undefined} disabled={submitted} onChange={onChange} /> : null}
+        {question.question_type === "SENTENCE_COMPLETION" ? <SentenceCompletionPlayer question={question} value={value as { text?: string; selfMarked?: boolean } | undefined} submitted={submitted} onChange={onChange} /> : null}
+        {question.question_type === "ESSAY_WRITING" ? <EssayWritingPlayer question={question} value={value as { text?: string; selfMarked?: boolean } | undefined} submitted={submitted} onChange={onChange} /> : null}
+        {question.question_type === "EMAIL_LETTER_WRITING" ? <EmailLetterWritingPlayer question={question} value={value as { text?: string; selfMarked?: boolean } | undefined} submitted={submitted} onChange={onChange} /> : null}
+        {question.question_type === "TRANSLATION" ? <TranslationPlayer question={question} value={value as { text?: string; selfMarked?: boolean } | undefined} submitted={submitted} onChange={onChange} /> : null}
+        {question.question_type === "PARAPHRASE_PRACTICE" ? <ParaphrasePracticePlayer question={question} value={value as { text?: string; selfMarked?: boolean } | undefined} submitted={submitted} onChange={onChange} /> : null}
+        {question.question_type === "SENTENCE_COMBINING" ? <SentenceCombiningPlayer question={question} value={value as { text?: string; selfMarked?: boolean } | undefined} submitted={submitted} onChange={onChange} /> : null}
+        {question.question_type === "CREATIVE_WRITING" ? <CreativeWritingPlayer question={question} value={value as { text?: string; selfMarked?: boolean } | undefined} submitted={submitted} onChange={onChange} /> : null}
+        {question.question_type === "PEER_REVIEW_EDITING" ? <PeerReviewEditingPlayer question={question} value={value as { text?: string; selfMarked?: boolean } | undefined} submitted={submitted} onChange={onChange} /> : null}
       </div>
       {stats && stats.correctCount < stats.total ? (
         <p className={`mt-4 rounded-[14px] p-3 text-sm font-semibold ${allWrong ? "bg-[#FF5D73]/10 text-[#FF5D73]" : "bg-[#FFB545]/10 text-amber-900"}`}>
@@ -2725,6 +2745,460 @@ function ListenGapFillPlayer({
           })}
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ─── 8 Writing Activity Players ────────────────────────────────────────── */
+
+function SentenceCompletionPlayer({
+  question,
+  value,
+  submitted,
+  onChange,
+}: {
+  question: QuizQuestion;
+  value?: { text?: string; selfMarked?: boolean };
+  submitted: boolean;
+  onChange: (val: { text?: string; selfMarked?: boolean }) => void;
+}) {
+  const opts = asRecord(question.options);
+  const stem = String(opts.sentence_stem ?? question.question_text ?? "");
+  const modelAnswer = String(opts.model_answer ?? question.correct_answer ?? "");
+  const modelDescription = String(opts.model_description ?? opts.explanation ?? "");
+  const connectors = Array.isArray(opts.suggested_connectors) ? opts.suggested_connectors.map(String) : [];
+  const text = value?.text ?? "";
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-xl border border-black/10 bg-black/5 p-4 space-y-2">
+        <p className="text-xs font-bold text-black/50 uppercase tracking-wider">Sentence Stem to Complete:</p>
+        <p className="text-base font-bold text-ink">{stem}</p>
+        {connectors.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5 pt-1">
+            <span className="text-xs font-semibold text-black/50">Suggested connectors:</span>
+            {connectors.map((c) => (
+              <span key={c} className="rounded-md bg-moss/10 border border-moss/20 px-2 py-0.5 text-xs font-bold text-moss">
+                {c}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <textarea
+        rows={4}
+        disabled={submitted}
+        value={text}
+        onChange={(e) => onChange({ ...value, text: e.target.value })}
+        placeholder="Finish or elaborate the sentence here..."
+        className="w-full rounded-xl border border-black/15 p-3.5 text-sm font-medium text-ink focus:border-moss focus:outline-hidden disabled:bg-black/5"
+      />
+
+      <WritingEvaluationInterface
+        activityId={question.id}
+        activityType="SENTENCE_COMPLETION"
+        prompt={question.question_text}
+        submissionText={text}
+        modelAnswer={modelAnswer}
+        modelDescription={modelDescription}
+        onSelfGraded={(passed) => onChange({ ...value, selfMarked: passed })}
+      />
+    </div>
+  );
+}
+
+function EssayWritingPlayer({
+  question,
+  value,
+  submitted,
+  onChange,
+}: {
+  question: QuizQuestion;
+  value?: { text?: string; selfMarked?: boolean };
+  submitted: boolean;
+  onChange: (val: { text?: string; selfMarked?: boolean }) => void;
+}) {
+  const opts = asRecord(question.options);
+  const minWords = Number(opts.min_words ?? 100);
+  const maxWords = Number(opts.max_words ?? 250);
+  const sampleEssay = String(opts.sample_essay ?? opts.model_answer ?? question.correct_answer ?? "");
+  const rubricGuidelines = String(opts.rubric_guidelines ?? opts.explanation ?? "");
+  const text = value?.text ?? "";
+  const wordCount = text.split(/\s+/).filter(Boolean).length;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between rounded-xl border border-black/10 bg-slate-50 p-3 text-xs font-bold">
+        <span className="text-black/60">Target Length: {minWords}–{maxWords} words</span>
+        <span className={wordCount >= minWords && wordCount <= maxWords ? "text-moss" : "text-amber-800"}>
+          Current Count: {wordCount} words
+        </span>
+      </div>
+
+      <textarea
+        rows={10}
+        disabled={submitted}
+        value={text}
+        onChange={(e) => onChange({ ...value, text: e.target.value })}
+        placeholder="Write your essay response here..."
+        className="w-full rounded-xl border border-black/15 p-4 text-sm font-medium text-ink focus:border-moss focus:outline-hidden disabled:bg-black/5 leading-relaxed"
+      />
+
+      <WritingEvaluationInterface
+        activityId={question.id}
+        activityType="ESSAY_WRITING"
+        prompt={question.question_text}
+        submissionText={text}
+        modelAnswer={sampleEssay}
+        modelDescription={rubricGuidelines}
+        rubricGuidance={rubricGuidelines}
+        onSelfGraded={(passed) => onChange({ ...value, selfMarked: passed })}
+      />
+    </div>
+  );
+}
+
+function EmailLetterWritingPlayer({
+  question,
+  value,
+  submitted,
+  onChange,
+}: {
+  question: QuizQuestion;
+  value?: { text?: string; selfMarked?: boolean };
+  submitted: boolean;
+  onChange: (val: { text?: string; selfMarked?: boolean }) => void;
+}) {
+  const opts = asRecord(question.options);
+  const recipient = String(opts.recipient_role ?? "Course Manager");
+  const tone = String(opts.required_tone ?? "FORMAL");
+  const modelEmail = String(opts.model_email ?? question.correct_answer ?? "");
+  const modelDescription = String(opts.model_description ?? "");
+  const text = value?.text ?? "";
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-xl border border-black/10 bg-white p-4 space-y-2 font-mono text-xs">
+        <div className="flex items-center gap-2 border-b border-black/10 pb-2">
+          <span className="font-bold text-black/50 w-16">To:</span>
+          <span className="font-bold text-moss">{recipient}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="font-bold text-black/50 w-16">Required Tone:</span>
+          <span className="rounded bg-skywash px-2 py-0.5 font-bold text-ink uppercase">{tone}</span>
+        </div>
+      </div>
+
+      <textarea
+        rows={8}
+        disabled={submitted}
+        value={text}
+        onChange={(e) => onChange({ ...value, text: e.target.value })}
+        placeholder="Dear Sir/Madam..."
+        className="w-full rounded-xl border border-black/15 p-4 text-sm font-medium text-ink focus:border-moss focus:outline-hidden disabled:bg-black/5"
+      />
+
+      <WritingEvaluationInterface
+        activityId={question.id}
+        activityType="EMAIL_LETTER_WRITING"
+        prompt={question.question_text}
+        submissionText={text}
+        modelAnswer={modelEmail}
+        modelDescription={modelDescription}
+        onSelfGraded={(passed) => onChange({ ...value, selfMarked: passed })}
+      />
+    </div>
+  );
+}
+
+function TranslationPlayer({
+  question,
+  value,
+  submitted,
+  onChange,
+}: {
+  question: QuizQuestion;
+  value?: { text?: string; selfMarked?: boolean };
+  submitted: boolean;
+  onChange: (val: { text?: string; selfMarked?: boolean }) => void;
+}) {
+  const opts = asRecord(question.options);
+  const sourceText = String(opts.source_text ?? question.question_text ?? "");
+  const sourceLang = String(opts.source_language ?? "Spanish / L1");
+  const targetLang = String(opts.target_language ?? "English / L2");
+  const acceptable = Array.isArray(opts.acceptable_translations) ? opts.acceptable_translations.map(String) : [String(question.correct_answer ?? "")];
+  const grammarNotes = String(opts.grammar_notes ?? "");
+  const text = value?.text ?? "";
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-xl border border-black/10 bg-indigo-50/50 p-4 space-y-2">
+        <div className="flex items-center justify-between text-xs font-bold text-indigo-900">
+          <span>Translate from {sourceLang} to {targetLang}:</span>
+        </div>
+        <p className="text-base font-bold text-ink">&quot;{sourceText}&quot;</p>
+      </div>
+
+      <textarea
+        rows={4}
+        disabled={submitted}
+        value={text}
+        onChange={(e) => onChange({ ...value, text: e.target.value })}
+        placeholder={`Write translation in ${targetLang}...`}
+        className="w-full rounded-xl border border-black/15 p-3.5 text-sm font-medium text-ink focus:border-moss focus:outline-hidden disabled:bg-black/5"
+      />
+
+      <WritingEvaluationInterface
+        activityId={question.id}
+        activityType="TRANSLATION"
+        prompt={question.question_text}
+        submissionText={text}
+        modelAnswer={acceptable[0] || "Target translation"}
+        modelDescription={grammarNotes}
+        onSelfGraded={(passed) => onChange({ ...value, selfMarked: passed })}
+      />
+    </div>
+  );
+}
+
+function ParaphrasePracticePlayer({
+  question,
+  value,
+  submitted,
+  onChange,
+}: {
+  question: QuizQuestion;
+  value?: { text?: string; selfMarked?: boolean };
+  submitted: boolean;
+  onChange: (val: { text?: string; selfMarked?: boolean }) => void;
+}) {
+  const opts = asRecord(question.options);
+  const originalText = String(opts.original_text ?? question.question_text ?? "");
+  const modelParaphrase = String(opts.model_paraphrase ?? question.correct_answer ?? "");
+  const explanation = String(opts.explanation ?? "");
+  const forbidden = Array.isArray(opts.forbidden_phrases) ? opts.forbidden_phrases.map(String) : [];
+  const text = value?.text ?? "";
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-xl border border-black/10 bg-slate-50 p-4 space-y-2">
+        <p className="text-xs font-bold text-black/50 uppercase tracking-wider">Original Text to Paraphrase:</p>
+        <p className="text-sm font-semibold text-ink leading-relaxed">&quot;{originalText}&quot;</p>
+        {forbidden.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5 pt-1 text-xs">
+            <span className="font-bold text-coral">Do not copy directly:</span>
+            {forbidden.map((f) => (
+              <span key={f} className="rounded bg-coral/10 border border-coral/20 px-2 py-0.5 font-bold text-coral">
+                {f}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <textarea
+        rows={5}
+        disabled={submitted}
+        value={text}
+        onChange={(e) => onChange({ ...value, text: e.target.value })}
+        placeholder="Rewrite the text in your own words..."
+        className="w-full rounded-xl border border-black/15 p-3.5 text-sm font-medium text-ink focus:border-moss focus:outline-hidden disabled:bg-black/5"
+      />
+
+      <WritingEvaluationInterface
+        activityId={question.id}
+        activityType="PARAPHRASE_PRACTICE"
+        prompt={question.question_text}
+        submissionText={text}
+        modelAnswer={modelParaphrase}
+        modelDescription={explanation}
+        onSelfGraded={(passed) => onChange({ ...value, selfMarked: passed })}
+      />
+    </div>
+  );
+}
+
+function SentenceCombiningPlayer({
+  question,
+  value,
+  submitted,
+  onChange,
+}: {
+  question: QuizQuestion;
+  value?: { text?: string; selfMarked?: boolean };
+  submitted: boolean;
+  onChange: (val: { text?: string; selfMarked?: boolean }) => void;
+}) {
+  const opts = asRecord(question.options);
+  const inputSentences = Array.isArray(opts.input_sentences) ? opts.input_sentences.map(String) : [question.question_text];
+  const modelCombined = String(opts.model_combined_sentence ?? question.correct_answer ?? "");
+  const explanation = String(opts.explanation ?? "");
+  const text = value?.text ?? "";
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-xl border border-black/10 bg-emerald-50/50 p-4 space-y-2">
+        <p className="text-xs font-bold text-emerald-900 uppercase tracking-wider">Simple Sentences to Combine:</p>
+        <ul className="list-disc pl-5 space-y-1 text-sm font-bold text-ink">
+          {inputSentences.map((s, i) => (
+            <li key={i}>{s}</li>
+          ))}
+        </ul>
+      </div>
+
+      <textarea
+        rows={4}
+        disabled={submitted}
+        value={text}
+        onChange={(e) => onChange({ ...value, text: e.target.value })}
+        placeholder="Combine into one well-structured complex sentence..."
+        className="w-full rounded-xl border border-black/15 p-3.5 text-sm font-medium text-ink focus:border-moss focus:outline-hidden disabled:bg-black/5"
+      />
+
+      <WritingEvaluationInterface
+        activityId={question.id}
+        activityType="SENTENCE_COMBINING"
+        prompt={question.question_text}
+        submissionText={text}
+        modelAnswer={modelCombined}
+        modelDescription={explanation}
+        onSelfGraded={(passed) => onChange({ ...value, selfMarked: passed })}
+      />
+    </div>
+  );
+}
+
+function CreativeWritingPlayer({
+  question,
+  value,
+  submitted,
+  onChange,
+}: {
+  question: QuizQuestion;
+  value?: { text?: string; selfMarked?: boolean };
+  submitted: boolean;
+  onChange: (val: { text?: string; selfMarked?: boolean }) => void;
+}) {
+  const opts = asRecord(question.options);
+  const imageUrl = String(opts.image_url ?? "");
+  const storyStarter = String(opts.story_starter ?? "");
+  const requiredVocab = Array.isArray(opts.required_vocabulary) ? opts.required_vocabulary.map(String) : [];
+  const modelStory = String(opts.model_story ?? question.correct_answer ?? "");
+  const modelDescription = String(opts.model_description ?? "");
+  const text = value?.text ?? "";
+
+  return (
+    <div className="space-y-4">
+      {imageUrl && (
+        <div className="rounded-xl border border-black/10 bg-black/5 p-2 text-center">
+          <img src={imageUrl} alt="Creative prompt" className="max-h-64 mx-auto rounded-lg object-contain" />
+        </div>
+      )}
+
+      {storyStarter && (
+        <div className="rounded-xl border border-purple-200 bg-purple-50/50 p-3.5 space-y-1">
+          <p className="text-xs font-bold text-purple-900 uppercase tracking-wider">Story Starter:</p>
+          <p className="text-sm font-semibold text-ink italic">&quot;{storyStarter}&quot;</p>
+        </div>
+      )}
+
+      {requiredVocab.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 text-xs">
+          <span className="font-bold text-black/60">Include key vocabulary:</span>
+          {requiredVocab.map((word) => {
+            const included = text.toLowerCase().includes(word.toLowerCase());
+            return (
+              <span
+                key={word}
+                className={`rounded-md px-2 py-0.5 font-bold transition ${
+                  included ? "bg-moss text-white" : "bg-black/10 text-black/70"
+                }`}
+              >
+                {word} {included ? "✓" : ""}
+              </span>
+            );
+          })}
+        </div>
+      )}
+
+      <textarea
+        rows={8}
+        disabled={submitted}
+        value={text}
+        onChange={(e) => onChange({ ...value, text: e.target.value })}
+        placeholder="Continue the story..."
+        className="w-full rounded-xl border border-black/15 p-4 text-sm font-medium text-ink focus:border-moss focus:outline-hidden disabled:bg-black/5 leading-relaxed"
+      />
+
+      <WritingEvaluationInterface
+        activityId={question.id}
+        activityType="CREATIVE_WRITING"
+        prompt={question.question_text}
+        submissionText={text}
+        modelAnswer={modelStory}
+        modelDescription={modelDescription}
+        onSelfGraded={(passed) => onChange({ ...value, selfMarked: passed })}
+      />
+    </div>
+  );
+}
+
+function PeerReviewEditingPlayer({
+  question,
+  value,
+  submitted,
+  onChange,
+}: {
+  question: QuizQuestion;
+  value?: { text?: string; selfMarked?: boolean };
+  submitted: boolean;
+  onChange: (val: { text?: string; selfMarked?: boolean }) => void;
+}) {
+  const opts = asRecord(question.options);
+  const sampleDraft = String(opts.sample_draft ?? question.question_text ?? "");
+  const modelEdited = String(opts.model_edited_draft ?? question.correct_answer ?? "");
+  const modelFeedback = String(opts.model_feedback_comments ?? opts.explanation ?? "");
+  const focusAreas = Array.isArray(opts.error_focus_areas) ? opts.error_focus_areas.map(String) : [];
+  const text = value?.text ?? "";
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-xl border border-black/10 bg-slate-50 p-4 space-y-2">
+        <p className="text-xs font-bold text-black/50 uppercase tracking-wider">Sample Peer Draft to Edit:</p>
+        <div className="rounded-lg bg-white p-3 border border-black/10 text-sm font-medium text-ink leading-relaxed">
+          {sampleDraft}
+        </div>
+        {focusAreas.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5 pt-1 text-xs">
+            <span className="font-bold text-black/60">Focus areas:</span>
+            {focusAreas.map((f) => (
+              <span key={f} className="rounded bg-skywash px-2 py-0.5 font-bold text-ink">
+                {f}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <textarea
+        rows={6}
+        disabled={submitted}
+        value={text}
+        onChange={(e) => onChange({ ...value, text: e.target.value })}
+        placeholder="Provide your corrected version and peer feedback comments..."
+        className="w-full rounded-xl border border-black/15 p-3.5 text-sm font-medium text-ink focus:border-moss focus:outline-hidden disabled:bg-black/5 leading-relaxed"
+      />
+
+      <WritingEvaluationInterface
+        activityId={question.id}
+        activityType="PEER_REVIEW_EDITING"
+        prompt={question.question_text}
+        submissionText={text}
+        modelAnswer={modelEdited}
+        modelDescription={modelFeedback}
+        onSelfGraded={(passed) => onChange({ ...value, selfMarked: passed })}
+      />
     </div>
   );
 }

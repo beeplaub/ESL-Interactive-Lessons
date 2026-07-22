@@ -52,7 +52,8 @@ const questionTypes: BuilderQuestion["questionType"][] = [
   "MCQ", "TRUE_FALSE", "FILL", "MATCHING", "MULTIPLE_SELECT",
   "SHORT_ANSWER", "ERROR_CORRECTION", "REORDERING", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "SUMMARIZATION", "INFERENCE_DETECTION",
   "HEADINGS_MATCHING", "SKIM_CHALLENGE", "PARAPHRASE_ID",
-  "DICTATION", "LISTEN_AND_SELECT", "SHADOWING", "NOTE_TAKING_CHALLENGE", "SOUND_DISCRIMINATION", "LISTEN_AND_GAP_FILL"
+  "DICTATION", "LISTEN_AND_SELECT", "SHADOWING", "NOTE_TAKING_CHALLENGE", "SOUND_DISCRIMINATION", "LISTEN_AND_GAP_FILL",
+  "SENTENCE_COMPLETION", "ESSAY_WRITING", "EMAIL_LETTER_WRITING", "TRANSLATION", "PARAPHRASE_PRACTICE", "SENTENCE_COMBINING", "CREATIVE_WRITING", "PEER_REVIEW_EDITING"
 ];
 
 const typeLabels: Record<string, string> = {
@@ -77,7 +78,15 @@ const typeLabels: Record<string, string> = {
   SHADOWING: "Shadowing / Repeat After Me",
   NOTE_TAKING_CHALLENGE: "Note-Taking Challenge",
   SOUND_DISCRIMINATION: "Sound Discrimination",
-  LISTEN_AND_GAP_FILL: "Gap Fill while Listening"
+  LISTEN_AND_GAP_FILL: "Gap Fill while Listening",
+  SENTENCE_COMPLETION: "Sentence Completion / Expansion",
+  ESSAY_WRITING: "Essay Writing with Rubric",
+  EMAIL_LETTER_WRITING: "Email / Letter Prompt",
+  TRANSLATION: "Translation (L1 ↔ L2)",
+  PARAPHRASE_PRACTICE: "Paraphrasing Tool",
+  SENTENCE_COMBINING: "Sentence Combining",
+  CREATIVE_WRITING: "Prompted Creative Writing",
+  PEER_REVIEW_EDITING: "Peer Review / Editing"
 };
 
 const PRONUNCIATION_COLORS = ["#fbbf24", "#34d399", "#60a5fa", "#f472b6", "#a78bfa", "#fb923c"];
@@ -176,6 +185,14 @@ function defaultQuestion(type: BuilderQuestion["questionType"]): BuilderQuestion
   if (type === "NOTE_TAKING_CHALLENGE") return { id, questionType: type, questionText: "Listen to the clip, take notes in the scratchpad, and answer the questions.", description: "", options: { media_url: "", audio_url: "", questions: [{ id: "1", text: "What was the main topic?", options: { A: "Topic A", B: "Topic B", C: "Topic C", D: "Topic D" } }] }, correctAnswer: { "1": "A" }, assessment };
   if (type === "SOUND_DISCRIMINATION") return { id, questionType: type, questionText: "Listen to the sound and identify the correct minimal pair word.", description: "", options: { audio_url: "", pairs: [{ id: "0", word: "ship", phonetic: "/ʃɪp/", audio_url: "" }, { id: "1", word: "sheep", phonetic: "/ʃiːp/", audio_url: "" }] }, correctAnswer: "0", assessment };
   if (type === "LISTEN_AND_GAP_FILL") return { id, questionType: type, questionText: "Listen to the audio and fill in the missing blanks in the transcript.", description: "", options: { audio_url: "", transcript: "I have been working at this ___ for two years." }, correctAnswer: ["company"], assessment };
+  if (type === "SENTENCE_COMPLETION") return { id, questionType: type, questionText: "Complete the sentence stem.", description: "", options: { sentence_stem: "Although it was raining,", model_answer: "Although it was raining, we decided to go for a hike in the national park.", model_description: "Completes the clause with logical contrast and correct punctuation." }, correctAnswer: "we decided to go for a hike.", assessment };
+  if (type === "ESSAY_WRITING") return { id, questionType: type, questionText: "Write an essay response on the prompt below.", description: "", options: { min_words: 100, max_words: 250, sample_essay: "Modern technology has significantly changed how we communicate...", rubric_guidelines: "Check grammar, structure, tone, and word count." }, correctAnswer: "Sample Essay Response", assessment };
+  if (type === "EMAIL_LETTER_WRITING") return { id, questionType: type, questionText: "Write a formal email based on the situation.", description: "", options: { recipient_role: "Course Director", required_tone: "FORMAL", model_email: "Dear Director,\n\nI am writing to inquire about...", model_description: "Formal salutation and clear request." }, correctAnswer: "Formal Email Response", assessment };
+  if (type === "TRANSLATION") return { id, questionType: type, questionText: "Translate the sentence into target language.", description: "", options: { source_text: "Ella ha estado estudiando inglés durante dos años.", source_language: "Spanish", target_language: "English", acceptable_translations: ["She has been studying English for two years."], grammar_notes: "Uses present perfect continuous." }, correctAnswer: "She has been studying English for two years.", assessment };
+  if (type === "PARAPHRASE_PRACTICE") return { id, questionType: type, questionText: "Paraphrase the original sentence in your own words.", description: "", options: { original_text: "Due to unforeseen circumstances, the meeting has been postponed.", forbidden_phrases: ["due to", "unforeseen circumstances"], model_paraphrase: "Because of unexpected events, the meeting will take place later.", explanation: "Replaces key phrases while retaining core meaning." }, correctAnswer: "Paraphrased sentence", assessment };
+  if (type === "SENTENCE_COMBINING") return { id, questionType: type, questionText: "Combine the simple sentences into a complex sentence.", description: "", options: { input_sentences: ["The weather was cold.", "We stayed inside.", "We drank hot chocolate."], model_combined_sentence: "Because the weather was cold, we stayed inside and drank hot chocolate.", explanation: "Uses causal conjunction 'because'." }, correctAnswer: "Combined sentence", assessment };
+  if (type === "CREATIVE_WRITING") return { id, questionType: type, questionText: "Write a short creative story incorporating the required vocabulary.", description: "", options: { story_starter: "As the sun set over the quiet town...", required_vocabulary: ["whisper", "shadow", "discovery"], model_story: "As the sun set over the quiet town, Maria heard a faint whisper...", model_description: "Includes all 3 required vocabulary words." }, correctAnswer: "Creative story response", assessment };
+  if (type === "PEER_REVIEW_EDITING") return { id, questionType: type, questionText: "Edit and critique the sample peer text below.", description: "", options: { sample_draft: "Yesterday I go to market and buyed many apples.", error_focus_areas: ["Past tense verbs", "Article usage"], model_edited_draft: "Yesterday I went to the market and bought many apples.", model_feedback_comments: "Remember irregular past tense verbs 'went' and 'bought'." }, correctAnswer: "Edited peer draft", assessment };
   return { id, questionType: type, questionText: "Choose the best answer.", description: "", options: { A: "Option A", B: "Option B", C: "Option C", D: "Option D" }, correctAnswer: "A", assessment };
 }
 
@@ -1836,6 +1853,394 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             + Add Answer Blank
           </button>
         </div>
+      </div>
+    );
+  }
+
+  if (question.questionType === "SENTENCE_COMPLETION") {
+    const connectors = Array.isArray(options.suggested_connectors) ? options.suggested_connectors.map(String) : [];
+    return (
+      <div className="grid gap-3">
+        <label className="text-sm font-medium">
+          Sentence Stem
+          <input
+            value={String(options.sentence_stem ?? question.questionText ?? "")}
+            onChange={(e) => onChange({ options: { ...options, sentence_stem: e.target.value } as Json })}
+            placeholder="e.g. Although the project was difficult,"
+            className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-sm"
+          />
+        </label>
+        <label className="text-sm font-medium">
+          Suggested Connectors / Grammar Words (comma separated)
+          <input
+            value={connectors.join(", ")}
+            onChange={(e) => onChange({ options: { ...options, suggested_connectors: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) } as Json })}
+            placeholder="e.g. nevertheless, on the other hand"
+            className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-sm"
+          />
+        </label>
+        <label className="text-sm font-medium">
+          Model Answer Response
+          <textarea
+            rows={3}
+            value={String(options.model_answer ?? question.correctAnswer ?? "")}
+            onChange={(e) => onChange({ correctAnswer: e.target.value, options: { ...options, model_answer: e.target.value } as Json })}
+            placeholder="Sample model completion"
+            className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-sm font-mono"
+          />
+        </label>
+        <label className="text-sm font-medium">
+          Model Description / Explanation
+          <textarea
+            rows={2}
+            value={String(options.model_description ?? options.explanation ?? "")}
+            onChange={(e) => onChange({ options: { ...options, model_description: e.target.value, explanation: e.target.value } as Json })}
+            placeholder="Notes explaining why this model answer is effective"
+            className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-xs"
+          />
+        </label>
+      </div>
+    );
+  }
+
+  if (question.questionType === "ESSAY_WRITING") {
+    return (
+      <div className="grid gap-3">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="text-sm font-medium">
+            Min Word Count
+            <input
+              type="number"
+              value={Number(options.min_words ?? 100)}
+              onChange={(e) => onChange({ options: { ...options, min_words: Number(e.target.value) } as Json })}
+              className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-sm"
+            />
+          </label>
+          <label className="text-sm font-medium">
+            Max Word Count
+            <input
+              type="number"
+              value={Number(options.max_words ?? 250)}
+              onChange={(e) => onChange({ options: { ...options, max_words: Number(e.target.value) } as Json })}
+              className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-sm"
+            />
+          </label>
+        </div>
+        <label className="text-sm font-medium">
+          Sample Model Essay Response
+          <textarea
+            rows={6}
+            value={String(options.sample_essay ?? options.model_answer ?? question.correctAnswer ?? "")}
+            onChange={(e) => onChange({ correctAnswer: e.target.value, options: { ...options, sample_essay: e.target.value, model_answer: e.target.value } as Json })}
+            placeholder="Provide a high-scoring sample essay..."
+            className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-sm font-mono"
+          />
+        </label>
+        <label className="text-sm font-medium">
+          Rubric Guidelines for Evaluation
+          <textarea
+            rows={3}
+            value={String(options.rubric_guidelines ?? options.explanation ?? "")}
+            onChange={(e) => onChange({ options: { ...options, rubric_guidelines: e.target.value, explanation: e.target.value } as Json })}
+            placeholder="Guidelines for AI & Teacher evaluation (e.g. check for 4 paragraphs, formal tone, relative clauses)"
+            className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-xs"
+          />
+        </label>
+      </div>
+    );
+  }
+
+  if (question.questionType === "EMAIL_LETTER_WRITING") {
+    return (
+      <div className="grid gap-3">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="text-sm font-medium">
+            Recipient Role / Title
+            <input
+              value={String(options.recipient_role ?? "Hiring Manager")}
+              onChange={(e) => onChange({ options: { ...options, recipient_role: e.target.value } as Json })}
+              placeholder="e.g. Hiring Manager"
+              className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-sm"
+            />
+          </label>
+          <label className="text-sm font-medium">
+            Required Tone
+            <select
+              value={String(options.required_tone ?? "FORMAL")}
+              onChange={(e) => onChange({ options: { ...options, required_tone: e.target.value } as Json })}
+              className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-sm"
+            >
+              <option value="FORMAL">Formal</option>
+              <option value="SEMI_FORMAL">Semi-Formal</option>
+              <option value="INFORMAL">Informal</option>
+            </select>
+          </label>
+        </div>
+        <label className="text-sm font-medium">
+          Model Email Response
+          <textarea
+            rows={5}
+            value={String(options.model_email ?? question.correctAnswer ?? "")}
+            onChange={(e) => onChange({ correctAnswer: e.target.value, options: { ...options, model_email: e.target.value } as Json })}
+            placeholder="Model email format..."
+            className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-sm font-mono"
+          />
+        </label>
+      </div>
+    );
+  }
+
+  if (question.questionType === "TRANSLATION") {
+    const acceptable = Array.isArray(options.acceptable_translations) ? options.acceptable_translations.map(String) : [String(question.correctAnswer ?? "")];
+
+    return (
+      <div className="grid gap-3">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="text-sm font-medium">
+            Source Language (L1)
+            <input
+              value={String(options.source_language ?? "Spanish")}
+              onChange={(e) => onChange({ options: { ...options, source_language: e.target.value } as Json })}
+              className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-sm"
+            />
+          </label>
+          <label className="text-sm font-medium">
+            Target Language (L2)
+            <input
+              value={String(options.target_language ?? "English")}
+              onChange={(e) => onChange({ options: { ...options, target_language: e.target.value } as Json })}
+              className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-sm"
+            />
+          </label>
+        </div>
+        <label className="text-sm font-medium">
+          Source Text to Translate
+          <textarea
+            rows={3}
+            value={String(options.source_text ?? question.questionText ?? "")}
+            onChange={(e) => onChange({ options: { ...options, source_text: e.target.value } as Json })}
+            className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-sm"
+          />
+        </label>
+        <div className="rounded-md border border-black/10 p-3 space-y-2 bg-slate-50/50">
+          <p className="font-semibold text-xs text-black/70">Acceptable Target Translations</p>
+          {acceptable.map((ans, idx) => (
+            <div key={idx} className="flex items-center gap-2">
+              <input
+                type="text"
+                value={ans}
+                onChange={(e) => {
+                  const next = [...acceptable];
+                  next[idx] = e.target.value;
+                  onChange({ options: { ...options, acceptable_translations: next } as Json, correctAnswer: next[0] });
+                }}
+                placeholder={`Acceptable translation ${idx + 1}`}
+                className="flex-1 rounded border border-black/15 px-2 py-1 text-xs bg-white"
+              />
+              {acceptable.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = acceptable.filter((_, i) => i !== idx);
+                    onChange({ options: { ...options, acceptable_translations: next } as Json, correctAnswer: next[0] ?? "" });
+                  }}
+                  className="text-xs text-coral hover:underline"
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={() => onChange({ options: { ...options, acceptable_translations: [...acceptable, ""] } as Json })}
+            className="rounded border border-dashed border-black/20 px-2.5 py-1 text-[11px] font-semibold text-black/60 hover:bg-black/5"
+          >
+            + Add Alternative Translation
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (question.questionType === "PARAPHRASE_PRACTICE") {
+    const forbidden = Array.isArray(options.forbidden_phrases) ? options.forbidden_phrases.map(String) : [];
+
+    return (
+      <div className="grid gap-3">
+        <label className="text-sm font-medium">
+          Original Sentence / Text
+          <textarea
+            rows={3}
+            value={String(options.original_text ?? question.questionText ?? "")}
+            onChange={(e) => onChange({ options: { ...options, original_text: e.target.value } as Json })}
+            className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-sm"
+          />
+        </label>
+        <label className="text-sm font-medium">
+          Forbidden Copy-Paste Phrases (comma separated)
+          <input
+            value={forbidden.join(", ")}
+            onChange={(e) => onChange({ options: { ...options, forbidden_phrases: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) } as Json })}
+            placeholder="e.g. due to, unforeseen circumstances"
+            className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-sm"
+          />
+        </label>
+        <label className="text-sm font-medium">
+          Model Paraphrase
+          <textarea
+            rows={3}
+            value={String(options.model_paraphrase ?? question.correctAnswer ?? "")}
+            onChange={(e) => onChange({ correctAnswer: e.target.value, options: { ...options, model_paraphrase: e.target.value } as Json })}
+            className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-sm font-mono"
+          />
+        </label>
+      </div>
+    );
+  }
+
+  if (question.questionType === "SENTENCE_COMBINING") {
+    const inputSentences = Array.isArray(options.input_sentences) ? options.input_sentences.map(String) : ["Sentence 1", "Sentence 2"];
+
+    return (
+      <div className="grid gap-3">
+        <div className="rounded-md border border-black/10 p-3 space-y-2 bg-slate-50/50">
+          <p className="font-semibold text-xs text-black/70">Simple Input Sentences to Combine</p>
+          {inputSentences.map((s, idx) => (
+            <div key={idx} className="flex items-center gap-2">
+              <span className="text-xs font-bold text-black/50 w-6">({idx + 1}):</span>
+              <input
+                type="text"
+                value={s}
+                onChange={(e) => {
+                  const next = [...inputSentences];
+                  next[idx] = e.target.value;
+                  onChange({ options: { ...options, input_sentences: next } as Json });
+                }}
+                placeholder={`Sentence ${idx + 1}`}
+                className="flex-1 rounded border border-black/15 px-2 py-1 text-xs bg-white"
+              />
+              {inputSentences.length > 2 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = inputSentences.filter((_, i) => i !== idx);
+                    onChange({ options: { ...options, input_sentences: next } as Json });
+                  }}
+                  className="text-xs text-coral hover:underline"
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={() => onChange({ options: { ...options, input_sentences: [...inputSentences, ""] } as Json })}
+            className="rounded border border-dashed border-black/20 px-2.5 py-1 text-[11px] font-semibold text-black/60 hover:bg-black/5"
+          >
+            + Add Sentence
+          </button>
+        </div>
+
+        <label className="text-sm font-medium">
+          Model Combined Sentence
+          <textarea
+            rows={3}
+            value={String(options.model_combined_sentence ?? question.correctAnswer ?? "")}
+            onChange={(e) => onChange({ correctAnswer: e.target.value, options: { ...options, model_combined_sentence: e.target.value } as Json })}
+            className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-sm font-mono"
+          />
+        </label>
+      </div>
+    );
+  }
+
+  if (question.questionType === "CREATIVE_WRITING") {
+    const vocab = Array.isArray(options.required_vocabulary) ? options.required_vocabulary.map(String) : [];
+
+    return (
+      <div className="grid gap-3">
+        <MediaRecorderInput
+          type="image"
+          label="Creative Picture Prompt (Optional upload or URL)"
+          value={String(options.image_url ?? "")}
+          onChange={(url) => onChange({ options: { ...options, image_url: url } as Json })}
+        />
+        <label className="text-sm font-medium">
+          Story Starter Line (Optional)
+          <input
+            value={String(options.story_starter ?? "")}
+            onChange={(e) => onChange({ options: { ...options, story_starter: e.target.value } as Json })}
+            placeholder="e.g. As the sun set over the quiet town..."
+            className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-sm"
+          />
+        </label>
+        <label className="text-sm font-medium">
+          Required Vocabulary Words (comma separated)
+          <input
+            value={vocab.join(", ")}
+            onChange={(e) => onChange({ options: { ...options, required_vocabulary: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) } as Json })}
+            placeholder="e.g. whisper, shadow, discovery"
+            className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-sm"
+          />
+        </label>
+        <label className="text-sm font-medium">
+          Model Creative Story Response
+          <textarea
+            rows={5}
+            value={String(options.model_story ?? question.correctAnswer ?? "")}
+            onChange={(e) => onChange({ correctAnswer: e.target.value, options: { ...options, model_story: e.target.value } as Json })}
+            className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-sm font-mono"
+          />
+        </label>
+      </div>
+    );
+  }
+
+  if (question.questionType === "PEER_REVIEW_EDITING") {
+    const focusAreas = Array.isArray(options.error_focus_areas) ? options.error_focus_areas.map(String) : [];
+
+    return (
+      <div className="grid gap-3">
+        <label className="text-sm font-medium">
+          Sample Peer Draft to Edit
+          <textarea
+            rows={4}
+            value={String(options.sample_draft ?? question.questionText ?? "")}
+            onChange={(e) => onChange({ options: { ...options, sample_draft: e.target.value } as Json })}
+            placeholder="Draft containing grammar or structural errors..."
+            className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-sm font-mono"
+          />
+        </label>
+        <label className="text-sm font-medium">
+          Focus Areas for Editing (comma separated)
+          <input
+            value={focusAreas.join(", ")}
+            onChange={(e) => onChange({ options: { ...options, error_focus_areas: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) } as Json })}
+            placeholder="e.g. Tense consistency, Punctuation"
+            className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-sm"
+          />
+        </label>
+        <label className="text-sm font-medium">
+          Model Corrected Draft
+          <textarea
+            rows={4}
+            value={String(options.model_edited_draft ?? question.correctAnswer ?? "")}
+            onChange={(e) => onChange({ correctAnswer: e.target.value, options: { ...options, model_edited_draft: e.target.value } as Json })}
+            className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-sm font-mono"
+          />
+        </label>
+        <label className="text-sm font-medium">
+          Model Feedback Comments
+          <textarea
+            rows={3}
+            value={String(options.model_feedback_comments ?? options.explanation ?? "")}
+            onChange={(e) => onChange({ options: { ...options, model_feedback_comments: e.target.value, explanation: e.target.value } as Json })}
+            placeholder="Constructive feedback points to highlight"
+            className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-xs"
+          />
+        </label>
       </div>
     );
   }
