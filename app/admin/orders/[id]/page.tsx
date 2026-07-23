@@ -118,47 +118,61 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
             )}
           </div>
 
-          {/* ADMIN VERIFICATION ACTIONS */}
-          {order.status === "PENDING" && (
-            <div className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm space-y-5">
-              <h2 className="text-lg font-bold flex items-center gap-2 text-black"><Shield size={18} /> Verify Payment</h2>
-              <p className="text-sm text-black/55">
-                Verify the payment on your mobile wallet dashboard. Once confirmed, you can approve the order to enroll the user.
-              </p>
+          {/* ADMIN VERIFICATION & MANUAL STATUS UPDATE ACTIONS */}
+          <div className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm space-y-5">
+            <h2 className="text-lg font-bold flex items-center gap-2 text-black"><Shield size={18} /> Manage Order Status</h2>
+            <p className="text-sm text-black/55">
+              Current status: <strong className="text-black">{order.status}</strong>. You can manually change the order status below at any time.
+            </p>
 
-              <div className="flex flex-wrap gap-3">
+            <div className="space-y-4">
+              {order.status !== "CONFIRMED" && (
                 <form action={confirmCourseOrder.bind(null, order.id)}>
-                  <button className="rounded-xl bg-emerald-600 hover:bg-emerald-700 px-5 py-3 text-sm font-extrabold text-white transition">
-                    Confirm & Enroll User
+                  <button className="rounded-xl bg-emerald-600 hover:bg-emerald-700 px-5 py-2.5 text-sm font-extrabold text-white transition">
+                    Mark as Confirmed & Enroll User
                   </button>
                 </form>
+              )}
 
-                {/* Reject Form Toggle/Note */}
+              {order.status !== "PENDING" && (
+                <form
+                  action={async () => {
+                    "use server";
+                    const { updateOrderStatusDirectly } = await import("@/app/admin/courses/actions");
+                    await updateOrderStatusDirectly(order.id, "PENDING");
+                  }}
+                >
+                  <button className="rounded-xl bg-amber-600 hover:bg-amber-700 px-5 py-2.5 text-sm font-extrabold text-white transition">
+                    Reset to Pending
+                  </button>
+                </form>
+              )}
+
+              {order.status !== "REJECTED" && (
                 <form
                   action={async (fd) => {
                     "use server";
                     const note = String(fd.get("adminNote") || "").trim();
                     await rejectCourseOrder(order.id, note);
                   }}
-                  className="w-full border-t border-dashed border-black/10 pt-4 mt-2 space-y-3"
+                  className="w-full border-t border-dashed border-black/10 pt-4 space-y-3"
                 >
                   <label className="text-sm font-bold block text-slate-700">
                     Rejection Reason
                     <input
                       name="adminNote"
                       type="text"
-                      placeholder="e.g. Transaction ID mismatch / Amount insufficient"
-                      required
-                      className="mt-1.5 w-full rounded-lg border border-black/15 px-3 py-2 text-sm text-slate-800"
+                      placeholder="e.g. Transaction ID mismatch / Amount insufficient (optional)"
+                      className="mt-1.5 w-full rounded-lg border border-black/15 px-3 py-2 text-sm text-slate-800 font-normal"
                     />
                   </label>
                   <button className="rounded-xl bg-red-600 hover:bg-red-700 px-5 py-2.5 text-sm font-extrabold text-white transition">
-                    Reject Payment
+                    Mark as Rejected
                   </button>
                 </form>
-              </div>
+              )}
             </div>
-          )}
+          </div>
 
           {/* REJECTED OR CONFIRMED METADATA */}
           {order.status !== "PENDING" && (

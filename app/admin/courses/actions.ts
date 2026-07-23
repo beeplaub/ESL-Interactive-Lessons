@@ -607,7 +607,7 @@ export async function enrollUserInCourseDirectly(userId: string, courseId: strin
   }
 }
 
-export async function confirmCourseOrder(orderId: string) {
+export async function updateOrderStatusDirectly(orderId: string, newStatus: "PENDING" | "CONFIRMED" | "REJECTED", adminNote?: string) {
   const { user } = await requireAdmin();
   const admin = createAdminClient();
 
@@ -621,17 +621,13 @@ export async function confirmCourseOrder(orderId: string) {
     throw new Error("Order not found.");
   }
 
-  if (order.status !== "PENDING") {
-    throw new Error("Only pending orders can be confirmed.");
-  }
-
-  // Update order status
   const { error: updateError } = await admin
     .from("course_orders")
     .update({
-      status: "CONFIRMED",
+      status: newStatus,
+      admin_note: adminNote !== undefined ? adminNote : order.admin_note,
       confirmed_by: user.id,
-      confirmed_at: new Date().toISOString(),
+      confirmed_at: newStatus !== "PENDING" ? new Date().toISOString() : null,
       updated_at: new Date().toISOString()
     })
     .eq("id", orderId);
@@ -640,8 +636,9 @@ export async function confirmCourseOrder(orderId: string) {
     throw new Error(`Failed to update order status: ${updateError.message}`);
   }
 
-  // Enroll user
-  await enrollUserInCourseDirectly(order.user_id, order.course_id);
+  if (newStatus === "CONFIRMED") {
+    await enrollUserInCourseDirectly(order.user_id, order.course_id);
+  }
 
   revalidatePath("/admin/orders");
   revalidatePath(`/admin/orders/${orderId}`);
@@ -649,43 +646,12 @@ export async function confirmCourseOrder(orderId: string) {
   revalidatePath(`/courses/${order.course_id}`);
 }
 
+export async function confirmCourseOrder(orderId: string) {
+  await updateOrderStatusDirectly(orderId, "CONFIRMED");
+}
+
 export async function rejectCourseOrder(orderId: string, adminNote: string) {
-  const { user } = await requireAdmin();
-  const admin = createAdminClient();
-
-  const { data: order, error: fetchError } = await admin
-    .from("course_orders")
-    .select("*")
-    .eq("id", orderId)
-    .single();
-
-  if (fetchError || !order) {
-    throw new Error("Order not found.");
-  }
-
-  if (order.status !== "PENDING") {
-    throw new Error("Only pending orders can be rejected.");
-  }
-
-  const { error: updateError } = await admin
-    .from("course_orders")
-    .update({
-      status: "REJECTED",
-      admin_note: adminNote || null,
-      confirmed_by: user.id,
-      confirmed_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
-    })
-    .eq("id", orderId);
-
-  if (updateError) {
-    throw new Error(`Failed to reject order: ${updateError.message}`);
-  }
-
-  revalidatePath("/admin/orders");
-  revalidatePath(`/admin/orders/${orderId}`);
-  revalidatePath("/courses");
-  revalidatePath(`/courses/${order.course_id}`);
+  await updateOrderStatusDirectly(orderId, "REJECTED", adminNote || undefined);
 }
 
 export async function enrollStudentByEmail(courseId: string, formData: FormData): Promise<{ success: boolean; error?: string }> {
