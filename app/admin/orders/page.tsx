@@ -17,24 +17,36 @@ export default async function AdminOrdersPage({
 
   let query = admin
     .from("course_orders")
-    .select(`
-      id,
-      amount_bdt,
-      payment_method,
-      transaction_id,
-      sender_number,
-      status,
-      created_at,
-      profiles!course_orders_user_id_fkey (full_name),
-      courses!course_orders_course_id_fkey (title)
-    `)
+    .select("id, user_id, course_id, amount_bdt, payment_method, transaction_id, sender_number, status, created_at")
     .order("created_at", { ascending: false });
 
   if (filterStatus !== "ALL") {
     query = query.eq("status", filterStatus);
   }
 
-  const { data: orders } = await query;
+  const { data: rawOrders } = await query;
+
+  // Manually fetch associated profiles and courses (avoiding schema FK relationship mismatch)
+  const userIds = [...new Set((rawOrders ?? []).map((o) => o.user_id))];
+  const courseIds = [...new Set((rawOrders ?? []).map((o) => o.course_id))];
+
+  const [{ data: profiles }, { data: courses }] = await Promise.all([
+    userIds.length > 0
+      ? admin.from("profiles").select("id, full_name").in("id", userIds)
+      : Promise.resolve({ data: [] }),
+    courseIds.length > 0
+      ? admin.from("courses").select("id, title").in("id", courseIds)
+      : Promise.resolve({ data: [] }),
+  ]);
+
+  const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
+  const courseMap = new Map((courses ?? []).map((c) => [c.id, c]));
+
+  const orders = (rawOrders ?? []).map((order) => ({
+    ...order,
+    profile: profileMap.get(order.user_id),
+    course: courseMap.get(order.course_id),
+  }));
 
   // Fetch count of pending orders for badge
   const { count: pendingCount } = await admin
@@ -101,12 +113,10 @@ export default async function AdminOrdersPage({
           </thead>
           <tbody>
             {(orders ?? []).map((order) => {
-              const profile = Array.isArray(order.profiles) ? order.profiles[0] : order.profiles;
-              const course = Array.isArray(order.courses) ? order.courses[0] : order.courses;
               return (
                 <tr key={order.id} className="border-t border-black/10">
-                  <td className="p-3 font-semibold">{profile?.full_name ?? "Unknown"}</td>
-                  <td className="p-3 font-medium">{course?.title ?? "Course Deleted"}</td>
+                  <td className="p-3 font-semibold">{order.profile?.full_name ?? "Unknown"}</td>
+                  <td className="p-3 font-medium">{order.course?.title ?? "Course Deleted"}</td>
                   <td className="p-3 font-bold">৳{order.amount_bdt}</td>
                   <td className="p-3">
                     <span className="rounded bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-700">

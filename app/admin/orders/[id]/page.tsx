@@ -14,18 +14,16 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
 
   const { data: order, error } = await admin
     .from("course_orders")
-    .select(`
-      *,
-      profiles!course_orders_user_id_fkey (full_name, avatar_url),
-      courses!course_orders_course_id_fkey (title, price_bdt, level, topic)
-    `)
+    .select("*")
     .eq("id", id)
     .single();
 
   if (error || !order) notFound();
 
-  const profile = Array.isArray(order.profiles) ? order.profiles[0] : order.profiles;
-  const course = Array.isArray(order.courses) ? order.courses[0] : order.courses;
+  const [{ data: profile }, { data: course }] = await Promise.all([
+    admin.from("profiles").select("full_name, avatar_url").eq("id", order.user_id).single(),
+    admin.from("courses").select("title, price_bdt, level, topic").eq("id", order.course_id).single(),
+  ]);
 
   // Generate a signed URL for the payment receipt screenshot if it exists
   let receiptUrl: string | null = null;
