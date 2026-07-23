@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { CheckCircle, XCircle, Clock, Eye } from "lucide-react";
+import { OrderStatusSelector } from "./OrderStatusSelector";
 
 export const dynamic = "force-dynamic";
 
@@ -153,25 +154,7 @@ export default async function AdminOrdersPage({
                       >
                         <Eye size={12} /> Review
                       </Link>
-                      <form
-                        action={async (fd: FormData) => {
-                          "use server";
-                          const newStatus = String(fd.get("status")) as "PENDING" | "CONFIRMED" | "REJECTED";
-                          const { updateOrderStatusDirectly } = await import("@/app/admin/courses/actions");
-                          await updateOrderStatusDirectly(order.id, newStatus);
-                        }}
-                      >
-                        <select
-                          name="status"
-                          defaultValue={order.status}
-                          onChange={(e) => e.target.form?.requestSubmit()}
-                          className="rounded-md border border-black/15 bg-white px-2 py-1 text-xs font-semibold shadow-sm focus:outline-none"
-                        >
-                          <option value="PENDING">Set Pending</option>
-                          <option value="CONFIRMED">Set Confirmed</option>
-                          <option value="REJECTED">Set Rejected</option>
-                        </select>
-                      </form>
+                      <OrderStatusSelector orderId={order.id} currentStatus={order.status} />
                     </div>
                   </td>
                 </tr>
