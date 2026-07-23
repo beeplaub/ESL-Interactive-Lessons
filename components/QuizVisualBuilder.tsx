@@ -966,6 +966,31 @@ function questionToPreviewActivity(question: BuilderQuestion) {
       } as Json
     };
   }
+  // These types store their fields flat on activity_data (e.g. activity_data.sentence_stem),
+  // not nested inside a questions[] array — that's how LessonActivityPanel's questionsFromData()
+  // reads them (see components/LessonActivityPanel.tsx). The generic fallback below wraps
+  // everything in { questions: [{ options, correct_answer }] }, which none of these types
+  // understand, so without this branch the live Preview pane shows a broken/placeholder
+  // rendering (missing sentence stem, model answer, connectors, audio, etc.) even though the
+  // question is saved and delivered correctly to real learners in the published quiz.
+  const FLAT_ACTIVITY_TYPES: BuilderQuestion["questionType"][] = [
+    "SENTENCE_COMPLETION", "ESSAY_WRITING", "EMAIL_LETTER_WRITING", "TRANSLATION",
+    "PARAPHRASE_PRACTICE", "SENTENCE_COMBINING", "CREATIVE_WRITING", "PEER_REVIEW_EDITING",
+    "DICTATION", "LISTEN_AND_SELECT", "SHADOWING", "NOTE_TAKING_CHALLENGE",
+    "SOUND_DISCRIMINATION", "LISTEN_AND_GAP_FILL"
+  ];
+  if (FLAT_ACTIVITY_TYPES.includes(question.questionType)) {
+    return {
+      id: question.id,
+      activity_type: question.questionType,
+      activity_data: {
+        prompt: question.questionText,
+        description: question.description || undefined,
+        ...options,
+        correct_answer: question.correctAnswer
+      } as Json
+    };
+  }
   return {
     id: question.id,
     activity_type: question.questionType,
