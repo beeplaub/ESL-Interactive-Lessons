@@ -136,12 +136,33 @@ export default async function AdminOrdersPage({
                     )}
                   </td>
                   <td className="p-3">
-                    <Link
-                      href={`/admin/orders/${order.id}`}
-                      className="inline-flex items-center gap-1 rounded-md border border-black/15 px-2.5 py-1.5 hover:bg-black/5 font-semibold text-xs"
-                    >
-                      <Eye size={12} /> Review
-                    </Link>
+                    <div className="flex items-center gap-2">
+                      <Link
+                        href={`/admin/orders/${order.id}`}
+                        className="inline-flex items-center gap-1 rounded-md border border-black/15 px-2.5 py-1.5 hover:bg-black/5 font-semibold text-xs"
+                      >
+                        <Eye size={12} /> Review
+                      </Link>
+                      <form
+                        action={async (fd: FormData) => {
+                          "use server";
+                          const newStatus = String(fd.get("status")) as "PENDING" | "CONFIRMED" | "REJECTED";
+                          const { updateOrderStatusDirectly } = await import("@/app/admin/courses/actions");
+                          await updateOrderStatusDirectly(order.id, newStatus);
+                        }}
+                      >
+                        <select
+                          name="status"
+                          defaultValue={order.status}
+                          onChange={(e) => e.target.form?.requestSubmit()}
+                          className="rounded-md border border-black/15 bg-white px-2 py-1 text-xs font-semibold shadow-sm focus:outline-none"
+                        >
+                          <option value="PENDING">Set Pending</option>
+                          <option value="CONFIRMED">Set Confirmed</option>
+                          <option value="REJECTED">Set Rejected</option>
+                        </select>
+                      </form>
+                    </div>
                   </td>
                 </tr>
               );
