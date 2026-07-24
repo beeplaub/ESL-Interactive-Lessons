@@ -2869,6 +2869,13 @@ function EssayWritingPlayer({
 
   return (
     <div className="space-y-5">
+      {question.question_text && question.question_text !== "Write an essay responding to the prompt." && (
+        <div className="rounded-3xl border border-[#6C3BFF]/15 bg-[#6C3BFF]/5 p-5 space-y-2">
+          <p className="text-xs font-black text-[#6C3BFF] uppercase tracking-wider">Essay Prompt & Task</p>
+          <p className="text-base font-bold text-ink leading-relaxed whitespace-pre-wrap">{question.question_text}</p>
+        </div>
+      )}
+
       <div className="flex items-center justify-between rounded-2xl border border-black/10 bg-black/5 px-4 py-3 text-xs font-bold shadow-xs">
         <span className="text-black/50">Target Length: {minWords}–{maxWords} words</span>
         <span className={wordCount >= minWords && wordCount <= maxWords ? "text-[#6C3BFF]" : "text-amber-700"}>
@@ -2936,6 +2943,13 @@ function EmailLetterWritingPlayer({
 
   return (
     <div className="space-y-5">
+      {question.question_text && question.question_text !== "Write a formal email based on the situation." && (
+        <div className="rounded-3xl border border-[#6C3BFF]/15 bg-[#6C3BFF]/5 p-5 space-y-2">
+          <p className="text-xs font-black text-[#6C3BFF] uppercase tracking-wider">Writing Task & Situation</p>
+          <p className="text-base font-bold text-ink leading-relaxed whitespace-pre-wrap">{question.question_text}</p>
+        </div>
+      )}
+
       <div className="rounded-2xl border border-black/10 bg-white p-4 space-y-2 text-xs shadow-xs">
         <div className="flex items-center gap-2 border-b border-black/5 pb-2">
           <span className="font-bold text-black/40 w-16 uppercase">To:</span>
