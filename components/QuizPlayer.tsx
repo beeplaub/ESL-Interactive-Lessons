@@ -623,10 +623,6 @@ export function QuizPlayer({
 
       {!submitted || reviewMode === "detail" ? (
         (() => {
-          const isWritingCurrent = currentQuestion && isWritingQuestionType(currentQuestion.question_type);
-
-          if (isWritingCurrent && !submitted) return null;
-
           return (
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-[20px] border border-[#ECECF5] bg-white p-4 shadow-[0_12px_32px_rgba(0,0,0,.06)]">
               <p className="text-sm font-semibold text-[#6E738D]">
@@ -642,7 +638,7 @@ export function QuizPlayer({
                     <RotateCcw size={16} /> Retake
                   </button>
                 ) : null}
-                {!isWritingCurrent && (
+                {!submitted && (
                   <button
                     type="button"
                     disabled={!answered || submitted}

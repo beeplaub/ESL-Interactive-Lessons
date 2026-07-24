@@ -1423,16 +1423,16 @@ export function LessonActivityPanel({
                 Next <ChevronRight size={15} />
               </button>
             </>
-          ) : !isWritingQuestionType(activity.activity_type) ? (
+          ) : (
             <button
               type="button"
               onClick={submit}
               disabled={!allAnswered || isPending}
               className="rounded-md bg-moss px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
             >
-              {isPending ? "Saving…" : "Check answers"}
+              {isPending ? "Saving…" : isWritingQuestionType(activity.activity_type) ? "Submit for grading" : "Check answers"}
             </button>
-          ) : null}
+          )}
         </div>
       </div>
       {localAttempts.length ? (
