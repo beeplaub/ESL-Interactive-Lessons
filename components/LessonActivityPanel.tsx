@@ -304,7 +304,7 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
         model_answer: item.model_answer,
         model_description: item.model_description,
       },
-      correctAnswer: String(item.model_answer ?? item.correct_answer ?? ""),
+      correctAnswer: null,
     }));
   }
   if (activityType === "ESSAY_WRITING") {

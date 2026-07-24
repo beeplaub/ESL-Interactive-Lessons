@@ -2777,11 +2777,11 @@ function SentenceCompletionPlayer({
   const rawText = String(question.question_text || "").trim();
   const isGeneric = !rawText || rawText.toLowerCase().replaceAll(".", "") === "complete the sentence stem";
   
-  const stem = rawStem || (!isGeneric ? rawText : "") || String(opts.prompt || "").trim() || "Although the project was difficult,";
+  const stem = rawStem || (!isGeneric ? rawText : "") || String(opts.prompt || "").trim() || "Complete the sentence stem:";
   
   const descriptionContext = question.description || String(opts.description || opts.context || opts.instructions || "").trim();
 
-  const modelAnswer = String(opts.model_answer ?? question.correct_answer ?? "");
+  const modelAnswer = String(opts.model_answer || "");
   const modelDescription = String(opts.model_description ?? opts.explanation ?? "");
   const connectors = Array.isArray(opts.suggested_connectors) ? opts.suggested_connectors.map(String) : [];
   const text = value?.text ?? "";
