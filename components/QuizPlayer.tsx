@@ -427,7 +427,19 @@ export function QuizPlayer({
     const finalTotal = questions.reduce((sum, question) => sum + questionTotal(question), 0);
     const finalTimeTakenSeconds = Math.max(0, Math.round((Date.now() - attemptStartRef.current) / 1000));
     setSubmitted(true);
-    setReviewMode("overview");
+
+    // Check if any writing question needs grading resolution (mode picker or teacher evaluation)
+    const firstPendingIdx = questions.findIndex(
+      (q) => isWritingQuestionType(q.question_type) && isAwaitingResolution(answers[q.id])
+    );
+
+    if (firstPendingIdx !== -1) {
+      setReviewMode("detail");
+      setCurrentIndex(firstPendingIdx);
+    } else {
+      setReviewMode("overview");
+    }
+
     if (isGuest) {
       setGuestAttempt({ quizId, score: finalScore, total: finalTotal, answers: answers as Record<string, unknown> });
       setShowPopup(true);
