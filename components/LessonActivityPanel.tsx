@@ -9,6 +9,7 @@ import { startRoleplaySessionAction, submitRoleplayTurnAction, completeRoleplayS
 import type { Json } from "@/types/database.types";
 import { SoundToggle } from "@/components/gamification/SoundToggle";
 import { CELEBRATION_SCORE_THRESHOLD, fireCompletionConfetti } from "@/lib/gamification/confetti";
+import { asWritingValue, isAwaitingResolution, isWritingQuestionType } from "@/lib/writingGrading";
 import { playCelebration, playCorrect, playPartial, playWrong } from "@/lib/gamification/sounds";
 import { ResultsOverview } from "@/components/gamification/ResultsOverview";
 import { computeBestStreak, NOTABLE_STREAK_THRESHOLD } from "@/lib/gamification/resultsOverview";
@@ -37,6 +38,46 @@ function seededShuffle<T>(list: T[], seed: string): T[] {
     [result[i], result[j]] = [result[j], result[i]];
   }
   return result;
+}
+
+/**
+ * Shared builder for the 8 newer writing types (Sentence Completion, Essay, Email/Letter,
+ * Translation, Paraphrase, Sentence Combining, Creative Writing, Peer Review). Reads
+ * `data.questions: [...]` when present (several prompts bundled in one activity, same
+ * pattern SHORT_ANSWER already supports) and falls back to treating the whole
+ * `activity_data` object as a single question, for backward compatibility with activities
+ * authored before this array support existed. Grading-option toggles (allow_self_graded /
+ * allow_ai_feedback / allow_teacher_review) may be set per-question or, if omitted on a
+ * question, fall back to the activity-level value.
+ */
+function writingQuestionsFromData(
+  data: Record<string, unknown>,
+  activityType: QuizQuestion["question_type"],
+  defaultPrompt: string,
+  buildFields: (item: Record<string, unknown>, data: Record<string, unknown>) => { options: Record<string, unknown>; correctAnswer: unknown }
+): QuizQuestion[] {
+  const rawQuestions = Array.isArray(data.questions) ? data.questions : null;
+  const items: Record<string, unknown>[] = rawQuestions && rawQuestions.length > 0
+    ? rawQuestions.map((item) => asRecord(item as Json))
+    : [data];
+  return items.map((item, index) => {
+    const { options, correctAnswer } = buildFields(item, data);
+    const description = item.description ?? data.description;
+    return {
+      id: String(item.id ?? index + 1),
+      question_number: Number(item.question_number ?? index + 1),
+      question_type: activityType,
+      question_text: String(item.prompt ?? (items.length === 1 ? data.prompt : undefined) ?? defaultPrompt),
+      description: description ? String(description) : undefined,
+      options: {
+        ...options,
+        allow_self_graded: (item.allow_self_graded ?? data.allow_self_graded) !== false,
+        allow_ai_feedback: (item.allow_ai_feedback ?? data.allow_ai_feedback) !== false,
+        allow_teacher_review: (item.allow_teacher_review ?? data.allow_teacher_review) !== false,
+      } as Json,
+      correct_answer: correctAnswer as Json,
+    };
+  });
 }
 
 function questionsFromData(value: Json | null, activityType: string, seed: string): QuizQuestion[] {
@@ -89,7 +130,7 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
   }
   if (activityType === "SHORT_ANSWER") {
     const questions = Array.isArray(data.questions) ? data.questions : [];
-    const enableAiFeedback = data.enable_ai_feedback === true;
+    const legacyEnableAiFeedback = data.enable_ai_feedback === true;
     return questions.map((item, index) => {
       const q = asRecord(item as Json);
       const requiredWords = Array.isArray(q.required_words) ? q.required_words.map(String).filter(Boolean) : [];
@@ -103,7 +144,9 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
           min_words: Number(q.min_words ?? 0),
           required_words: requiredWords,
           show_required_words: q.show_required_words !== false,
-          enable_ai_feedback: enableAiFeedback,
+          allow_self_graded: (q.allow_self_graded ?? data.allow_self_graded) !== false,
+          allow_ai_feedback: (q.allow_ai_feedback ?? data.allow_ai_feedback ?? legacyEnableAiFeedback) !== false,
+          allow_teacher_review: (q.allow_teacher_review ?? data.allow_teacher_review) !== false,
         } as Json,
         correct_answer: null,
       };
@@ -254,128 +297,92 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
     }];
   }
   if (activityType === "SENTENCE_COMPLETION") {
-    return [{
-      id: "1",
-      question_number: 1,
-      question_type: "SENTENCE_COMPLETION",
-      question_text: String(data.prompt ?? "Complete the sentence stem."),
-      description: data.description ? String(data.description) : undefined,
+    return writingQuestionsFromData(data, "SENTENCE_COMPLETION", "Complete the sentence stem.", (item) => ({
       options: {
-        sentence_stem: data.sentence_stem,
-        suggested_connectors: data.suggested_connectors,
-        model_answer: data.model_answer,
-        model_description: data.model_description,
-        allow_self_graded: data.allow_self_graded !== false,
-        allow_ai_feedback: data.allow_ai_feedback !== false,
-        allow_teacher_review: data.allow_teacher_review !== false,
-      } as Json,
-      correct_answer: String(data.model_answer ?? data.correct_answer ?? "") as Json,
-    }];
+        sentence_stem: item.sentence_stem,
+        suggested_connectors: item.suggested_connectors,
+        model_answer: item.model_answer,
+        model_description: item.model_description,
+      },
+      correctAnswer: String(item.model_answer ?? item.correct_answer ?? ""),
+    }));
   }
   if (activityType === "ESSAY_WRITING") {
-    return [{
-      id: "1",
-      question_number: 1,
-      question_type: "ESSAY_WRITING",
-      question_text: String(data.prompt ?? "Write an essay responding to the prompt."),
+    return writingQuestionsFromData(data, "ESSAY_WRITING", "Write an essay responding to the prompt.", (item) => ({
       options: {
-        min_words: data.min_words,
-        max_words: data.max_words,
-        sample_essay: data.sample_essay,
-        rubric_guidelines: data.rubric_guidelines,
-      } as Json,
-      correct_answer: String(data.sample_essay ?? data.correct_answer ?? "") as Json,
-    }];
+        min_words: item.min_words,
+        max_words: item.max_words,
+        sample_essay: item.sample_essay,
+        rubric_guidelines: item.rubric_guidelines,
+      },
+      correctAnswer: String(item.sample_essay ?? item.correct_answer ?? ""),
+    }));
   }
   if (activityType === "EMAIL_LETTER_WRITING") {
-    return [{
-      id: "1",
-      question_number: 1,
-      question_type: "EMAIL_LETTER_WRITING",
-      question_text: String(data.prompt ?? "Write a formal email based on the situation."),
+    return writingQuestionsFromData(data, "EMAIL_LETTER_WRITING", "Write a formal email based on the situation.", (item) => ({
       options: {
-        recipient_role: data.recipient_role,
-        required_tone: data.required_tone,
-        model_email: data.model_email,
-      } as Json,
-      correct_answer: String(data.model_email ?? data.correct_answer ?? "") as Json,
-    }];
+        recipient_role: item.recipient_role,
+        required_tone: item.required_tone,
+        model_email: item.model_email,
+      },
+      correctAnswer: String(item.model_email ?? item.correct_answer ?? ""),
+    }));
   }
   if (activityType === "TRANSLATION") {
-    return [{
-      id: "1",
-      question_number: 1,
-      question_type: "TRANSLATION",
-      question_text: String(data.prompt ?? "Translate the sentence into target language."),
+    return writingQuestionsFromData(data, "TRANSLATION", "Translate the sentence into the target language.", (item) => ({
       options: {
-        source_text: data.source_text,
-        source_language: data.source_language,
-        target_language: data.target_language,
-        acceptable_translations: data.acceptable_translations,
-        grammar_notes: data.grammar_notes,
-      } as Json,
-      correct_answer: String(data.correct_answer ?? "") as Json,
-    }];
+        source_text: item.source_text,
+        source_language: item.source_language,
+        target_language: item.target_language,
+        acceptable_translations: item.acceptable_translations,
+        grammar_notes: item.grammar_notes,
+      },
+      correctAnswer: String(item.correct_answer ?? ""),
+    }));
   }
   if (activityType === "PARAPHRASE_PRACTICE") {
-    return [{
-      id: "1",
-      question_number: 1,
-      question_type: "PARAPHRASE_PRACTICE",
-      question_text: String(data.prompt ?? "Paraphrase the original sentence in your own words."),
+    return writingQuestionsFromData(data, "PARAPHRASE_PRACTICE", "Paraphrase the original sentence in your own words.", (item) => ({
       options: {
-        original_text: data.original_text,
-        forbidden_phrases: data.forbidden_phrases,
-        model_paraphrase: data.model_paraphrase,
-        explanation: data.explanation,
-      } as Json,
-      correct_answer: String(data.model_paraphrase ?? data.correct_answer ?? "") as Json,
-    }];
+        original_text: item.original_text,
+        forbidden_phrases: item.forbidden_phrases,
+        model_paraphrase: item.model_paraphrase,
+        explanation: item.explanation,
+      },
+      correctAnswer: String(item.model_paraphrase ?? item.correct_answer ?? ""),
+    }));
   }
   if (activityType === "SENTENCE_COMBINING") {
-    return [{
-      id: "1",
-      question_number: 1,
-      question_type: "SENTENCE_COMBINING",
-      question_text: String(data.prompt ?? "Combine the simple sentences into a complex sentence."),
+    return writingQuestionsFromData(data, "SENTENCE_COMBINING", "Combine the simple sentences into a complex sentence.", (item) => ({
       options: {
-        input_sentences: data.input_sentences,
-        model_combined_sentence: data.model_combined_sentence,
-        explanation: data.explanation,
-      } as Json,
-      correct_answer: String(data.model_combined_sentence ?? data.correct_answer ?? "") as Json,
-    }];
+        input_sentences: item.input_sentences,
+        model_combined_sentence: item.model_combined_sentence,
+        explanation: item.explanation,
+      },
+      correctAnswer: String(item.model_combined_sentence ?? item.correct_answer ?? ""),
+    }));
   }
   if (activityType === "CREATIVE_WRITING") {
-    return [{
-      id: "1",
-      question_number: 1,
-      question_type: "CREATIVE_WRITING",
-      question_text: String(data.prompt ?? "Write a creative story based on the prompt."),
+    return writingQuestionsFromData(data, "CREATIVE_WRITING", "Write a creative story based on the prompt.", (item) => ({
       options: {
-        image_url: data.image_url,
-        story_starter: data.story_starter,
-        required_vocabulary: data.required_vocabulary,
-        model_story: data.model_story,
-        model_description: data.model_description,
-      } as Json,
-      correct_answer: String(data.model_story ?? data.correct_answer ?? "") as Json,
-    }];
+        image_url: item.image_url,
+        story_starter: item.story_starter,
+        required_vocabulary: item.required_vocabulary,
+        model_story: item.model_story,
+        model_description: item.model_description,
+      },
+      correctAnswer: String(item.model_story ?? item.correct_answer ?? ""),
+    }));
   }
   if (activityType === "PEER_REVIEW_EDITING") {
-    return [{
-      id: "1",
-      question_number: 1,
-      question_type: "PEER_REVIEW_EDITING",
-      question_text: String(data.prompt ?? "Edit the sample peer text and provide constructive feedback."),
+    return writingQuestionsFromData(data, "PEER_REVIEW_EDITING", "Edit the sample peer text and provide constructive feedback.", (item) => ({
       options: {
-        sample_draft: data.sample_draft,
-        error_focus_areas: data.error_focus_areas,
-        model_edited_draft: data.model_edited_draft,
-        model_feedback_comments: data.model_feedback_comments,
-      } as Json,
-      correct_answer: String(data.model_edited_draft ?? data.correct_answer ?? "") as Json,
-    }];
+        sample_draft: item.sample_draft,
+        error_focus_areas: item.error_focus_areas,
+        model_edited_draft: item.model_edited_draft,
+        model_feedback_comments: item.model_feedback_comments,
+      },
+      correctAnswer: String(item.model_edited_draft ?? item.correct_answer ?? ""),
+    }));
   }
   if (activityType === "DRAG_DROP") {
     const rawItems: unknown[] = Array.isArray(data.items) ? data.items : [];
@@ -1177,25 +1184,28 @@ export function LessonActivityPanel({
   const [qIndex, setQIndex] = useState(0);
   const [reviewMode, setReviewMode] = useState<"overview" | "detail">("overview");
 
-  const hasWritingActivity = questions.some((q) =>
-    [
-      "SHORT_ANSWER",
-      "SENTENCE_COMPLETION",
-      "ESSAY_WRITING",
-      "EMAIL_LETTER_WRITING",
-      "TRANSLATION",
-      "PARAPHRASE_PRACTICE",
-      "SENTENCE_COMBINING",
-      "CREATIVE_WRITING",
-      "PEER_REVIEW_EDITING",
-    ].includes(q.question_type)
+  const hasWritingActivity = questions.some((q) => isWritingQuestionType(q.question_type));
+  // True once submitted but at least one writing question hasn't reached a final graded
+  // outcome yet (no grading mode chosen, or a teacher review still pending) — held back from
+  // celebrating until every question is actually resolved, not just "has text been typed".
+  const hasPendingWritingGrading = submitted && questions.some(
+    (q) => isWritingQuestionType(q.question_type) && isAwaitingResolution(answers[q.id])
   );
+  // Self-grading is the learner's own honest self-assessment, not an independent evaluation —
+  // it should never, on its own, be the basis for a celebration (mirrors the same rule in
+  // components/QuizPlayer.tsx). If every question in this activity is a self-graded writing
+  // question, confetti is suppressed even at 100%; a mix with objective/AI/teacher-graded
+  // questions is unaffected.
+  const isSelfGradedOnly = questions.length > 0 && questions.every((q) => {
+    if (!isWritingQuestionType(q.question_type)) return false;
+    return asWritingValue(answers[q.id]).mode === "SELF_GRADED";
+  });
 
   // Fire a one-time confetti + chime celebration once a strong score is revealed. Presentational only.
   // Computed from `questions` directly (rather than the later `score`/`total` consts) so this hook can
   // run before the AI_ROLEPLAY early return below and keep hook order stable across renders.
   useEffect(() => {
-    if (!submitted || celebratedRef.current || questions.length === 0 || hasWritingActivity) return;
+    if (!submitted || celebratedRef.current || questions.length === 0 || hasPendingWritingGrading || isSelfGradedOnly) return;
     const finalScore = questions.reduce((sum, q) => sum + questionScore(q, answers[q.id]), 0);
     const finalTotal = questions.reduce((sum, q) => sum + questionTotal(q), 0);
     if (finalTotal > 0 && finalScore / finalTotal >= CELEBRATION_SCORE_THRESHOLD) {
@@ -1203,7 +1213,7 @@ export function LessonActivityPanel({
       fireCompletionConfetti();
       playCelebration();
     }
-  }, [submitted, answers, questions, hasWritingActivity]);
+  }, [submitted, answers, questions, hasPendingWritingGrading, isSelfGradedOnly]);
 
   // ── AI Roleplay: full chat UI instead of quiz carousel ──
   if (activity.activity_type === "AI_ROLEPLAY") {
@@ -1396,7 +1406,9 @@ export function LessonActivityPanel({
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-black/10 pt-3">
         <p className="text-sm text-black/55">
           {submitted
-            ? message ?? "Review your feedback, then continue."
+            ? hasPendingWritingGrading
+              ? "Saved. Choose how each written answer should be evaluated below — your result isn't final until grading is complete."
+              : message ?? "Review your feedback, then continue."
             : allAnswered
             ? "All answered — ready to check!"
             : `${Object.keys(answers).length} of ${questions.length} answered`}
@@ -1411,7 +1423,7 @@ export function LessonActivityPanel({
                 Next <ChevronRight size={15} />
               </button>
             </>
-          ) : activity.activity_type !== "SENTENCE_COMPLETION" ? (
+          ) : !isWritingQuestionType(activity.activity_type) ? (
             <button
               type="button"
               onClick={submit}

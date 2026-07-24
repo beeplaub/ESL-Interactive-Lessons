@@ -916,6 +916,9 @@ function questionToPreviewActivity(question: BuilderQuestion) {
       activity_data: {
         prompt: question.questionText,
         enable_ai_feedback: options.enable_ai_feedback === true,
+        allow_self_graded: options.allow_self_graded !== false,
+        allow_ai_feedback: options.allow_ai_feedback !== false,
+        allow_teacher_review: options.allow_teacher_review !== false,
         questions: [{
           id: 1,
           text: question.questionText,
@@ -1137,13 +1140,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
           Show required words to learners while they write
         </label>
         <p className="-mt-1 text-xs text-black/45">When off, required words still count toward correctness but aren&rsquo;t revealed as a hint.</p>
-        <div className="rounded-md border border-purple-200 bg-purple-50/50 p-3">
-          <label className="flex items-center gap-2 text-sm font-medium">
-            <input type="checkbox" checked={options.enable_ai_feedback === true} onChange={(event) => onChange({ options: { ...options, enable_ai_feedback: event.target.checked } as Json })} className="accent-purple-600" />
-            ✨ Enable AI Feedback &amp; Correction
-          </label>
-          <p className="mt-1 ml-6 text-xs text-black/45">When enabled, learners receive automated AI feedback with corrected text and explanation after submitting. Uses API quota.</p>
-        </div>
+        <WritingGradingSettings options={options} onChange={(opts) => onChange({ options: opts })} />
       </div>
     );
   }

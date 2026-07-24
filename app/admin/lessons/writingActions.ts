@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Json } from "@/types/database.types";
 import { revalidatePath } from "next/cache";
+import { callGemini } from "@/lib/ai/gemini";
 
 function asRecord(value: Json | null | undefined): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
@@ -18,229 +19,137 @@ export type WritingSubmissionInput = {
   submissionText: string;
 };
 
-export async function submitWritingForTeacherReviewAction(input: WritingSubmissionInput) {
+export type EvaluationMode = "SELF_GRADED" | "AI_FEEDBACK" | "TEACHER_REVIEW";
+
+/**
+ * Single upsert path for ALL 3 grading modes against the real writing_submissions table —
+ * previously only TEACHER_REVIEW was persisted at all (in a fragile quiz_attempts fallback
+ * with an unindexed full-history scan); AI and self-graded outcomes were never saved anywhere,
+ * so they vanished on refresh and never fed the audit trail. `questionKey` addresses the
+ * individual question within an activity that bundles several (mirrors assessment_items'
+ * source_item_key convention) — defaults to "1" for single-question activities.
+ */
+export async function saveWritingGradingOutcomeAction(input: WritingSubmissionInput & {
+  questionKey?: string;
+  mode: EvaluationMode;
+  status: "PENDING" | "GRADED";
+  selfMarked?: boolean;
+  aiScore?: number;
+  aiFeedback?: Json;
+  teacherScore?: number;
+  teacherFeedback?: string;
+}) {
   try {
     const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
-      return { success: false, error: "Please log in to submit your writing for teacher review." };
+      return { success: false, error: "Please log in to save your answer." };
     }
-
     if (!input.submissionText.trim()) {
       return { success: false, error: "Submission text cannot be empty." };
     }
 
     const adminSupabase = createAdminClient();
+    const questionKey = input.questionKey ?? "1";
 
-    // 1. Try dedicated writing_submissions table
-    try {
-      const { data: existing } = await adminSupabase
-        .from("writing_submissions")
-        .select("id")
-        .eq("activity_id", input.activityId)
-        .eq("learner_id", user.id)
-        .eq("status", "PENDING")
-        .maybeSingle();
-
-      if (existing) {
-        const { error: updateError } = await adminSupabase
-          .from("writing_submissions")
-          .update({
-            submission_text: input.submissionText.trim(),
-            prompt: input.prompt ?? null,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", existing.id);
-
-        if (!updateError) return { success: true, submissionId: existing.id, updated: true };
-      }
-
-      const { data: inserted, error: insertError } = await adminSupabase
-        .from("writing_submissions")
-        .insert({
+    const { data: upserted, error } = await adminSupabase
+      .from("writing_submissions")
+      .upsert(
+        {
           lesson_id: input.lessonId ?? null,
           quiz_id: input.quizId ?? null,
           activity_id: input.activityId,
+          question_key: questionKey,
           learner_id: user.id,
           activity_type: input.activityType,
           prompt: input.prompt ?? null,
           submission_text: input.submissionText.trim(),
-          status: "PENDING",
-        })
-        .select("id")
-        .single();
-
-      if (!insertError && inserted) {
-        return { success: true, submissionId: inserted.id };
-      }
-    } catch (e) {
-      // Table writing_submissions not in PostgREST schema cache yet; fall back to quiz_attempts below
-    }
-
-    // 2. Reliable Fallback: Save writing submission into core quiz_attempts table
-    const { data: attempts } = await adminSupabase
-      .from("quiz_attempts")
-      .select("id, answers")
-      .eq("user_id", user.id);
-
-    let existingAttemptId: string | null = null;
-    if (attempts) {
-      for (const att of attempts) {
-        const ans = asRecord(att.answers as Json);
-        if (
-          ans.is_writing_submission === true &&
-          ans.activity_id === input.activityId &&
-          ans.status === "PENDING"
-        ) {
-          existingAttemptId = att.id;
-          break;
-        }
-      }
-    }
-
-    if (existingAttemptId) {
-      const { error: updateError } = await adminSupabase
-        .from("quiz_attempts")
-        .update({
-          answers: {
-            is_writing_submission: true,
-            activity_id: input.activityId,
-            activity_type: input.activityType,
-            prompt: input.prompt ?? null,
-            submission_text: input.submissionText.trim(),
-            status: "PENDING",
-            teacher_score: null,
-            teacher_feedback: null,
-            created_at: new Date().toISOString(),
-          },
-          completed_at: new Date().toISOString(),
-        })
-        .eq("id", existingAttemptId);
-
-      if (updateError) throw updateError;
-      return { success: true, submissionId: existingAttemptId, updated: true };
-    }
-
-    const { data: fallbackInsert, error: fallbackError } = await adminSupabase
-      .from("quiz_attempts")
-      .insert({
-        user_id: user.id,
-        quiz_id: input.quizId ?? null,
-        score: 0,
-        total: 100,
-        answers: {
-          is_writing_submission: true,
-          activity_id: input.activityId,
-          activity_type: input.activityType,
-          prompt: input.prompt ?? null,
-          submission_text: input.submissionText.trim(),
-          status: "PENDING",
-          teacher_score: null,
-          teacher_feedback: null,
-          created_at: new Date().toISOString(),
+          mode: input.mode,
+          status: input.status,
+          self_marked: input.selfMarked ?? null,
+          ai_score: input.aiScore ?? null,
+          ai_feedback: input.aiFeedback ?? null,
+          teacher_score: input.teacherScore ?? null,
+          teacher_feedback: input.teacherFeedback ?? null,
+          updated_at: new Date().toISOString()
         },
-        completed_at: new Date().toISOString(),
-      })
+        { onConflict: "learner_id,activity_id,question_key" }
+      )
       .select("id")
       .single();
 
-    if (fallbackError || !fallbackInsert) {
-      throw fallbackError || new Error("Failed to save submission fallback.");
-    }
+    if (error || !upserted) throw error || new Error("Failed to save grading outcome.");
 
-    return { success: true, submissionId: fallbackInsert.id };
+    if (input.mode === "TEACHER_REVIEW") revalidatePath("/admin/submissions");
+
+    return { success: true, submissionId: upserted.id };
   } catch (error: any) {
-    console.error("submitWritingForTeacherReviewAction failed:", error);
-    return { success: false, error: error?.message || "Failed to submit writing for teacher review." };
+    console.error("saveWritingGradingOutcomeAction failed:", error);
+    return { success: false, error: error?.message || "Failed to save your answer." };
+  }
+}
+
+/** Back-compat wrapper for the teacher-review-specific call sites. */
+export async function submitWritingForTeacherReviewAction(
+  input: WritingSubmissionInput & { questionKey?: string }
+) {
+  return saveWritingGradingOutcomeAction({ ...input, mode: "TEACHER_REVIEW", status: "PENDING" });
+}
+
+/** Lets the learner poll their own pending submission to see if a teacher has graded it yet. */
+export async function getWritingSubmissionStatusAction(activityId: string, questionKey = "1") {
+  try {
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) return { success: false as const, error: "Not logged in." };
+
+    const adminSupabase = createAdminClient();
+    const { data, error } = await adminSupabase
+      .from("writing_submissions")
+      .select("id, status, mode, self_marked, ai_score, ai_feedback, teacher_score, teacher_feedback")
+      .eq("learner_id", user.id)
+      .eq("activity_id", activityId)
+      .eq("question_key", questionKey)
+      .maybeSingle();
+
+    if (error) throw error;
+    return { success: true as const, submission: data };
+  } catch (error: any) {
+    console.error("getWritingSubmissionStatusAction failed:", error);
+    return { success: false as const, error: error?.message || "Failed to check submission status." };
   }
 }
 
 export async function getPendingTeacherSubmissionsAction() {
   try {
     const adminSupabase = createAdminClient();
-    const list: any[] = [];
+    const { data, error } = await adminSupabase
+      .from("writing_submissions")
+      .select(`
+        id,
+        lesson_id,
+        quiz_id,
+        activity_id,
+        activity_type,
+        prompt,
+        submission_text,
+        status,
+        teacher_score,
+        teacher_feedback,
+        created_at,
+        learner_id,
+        profiles (
+          full_name,
+          email,
+          avatar_url
+        )
+      `)
+      .eq("mode", "TEACHER_REVIEW")
+      .eq("status", "PENDING")
+      .order("created_at", { ascending: false });
 
-    // 1. Fetch from writing_submissions if table exists
-    try {
-      const { data, error } = await adminSupabase
-        .from("writing_submissions")
-        .select(`
-          id,
-          lesson_id,
-          quiz_id,
-          activity_id,
-          activity_type,
-          prompt,
-          submission_text,
-          status,
-          teacher_score,
-          teacher_feedback,
-          created_at,
-          learner_id,
-          profiles (
-            full_name,
-            email,
-            avatar_url
-          )
-        `)
-        .order("created_at", { ascending: false });
-
-      if (!error && data) {
-        list.push(...data);
-      }
-    } catch (e) {
-      // Ignore if table missing
-    }
-
-    // 2. Fetch fallback writing submissions from quiz_attempts
-    try {
-      const { data: attempts } = await adminSupabase
-        .from("quiz_attempts")
-        .select(`
-          id,
-          user_id,
-          answers,
-          completed_at,
-          profiles:user_id (
-            full_name,
-            email,
-            avatar_url
-          )
-        `)
-        .order("completed_at", { ascending: false });
-
-      if (attempts) {
-        for (const att of attempts) {
-          const ans = asRecord(att.answers as Json);
-          if (ans.is_writing_submission === true) {
-            // Avoid duplicate if already fetched from writing_submissions
-            if (!list.some((item) => item.id === att.id)) {
-              list.push({
-                id: att.id,
-                lesson_id: null,
-                quiz_id: null,
-                activity_id: String(ans.activity_id ?? ""),
-                activity_type: String(ans.activity_type ?? "WRITING"),
-                prompt: ans.prompt ? String(ans.prompt) : null,
-                submission_text: String(ans.submission_text ?? ""),
-                status: String(ans.status ?? "PENDING"),
-                teacher_score: ans.teacher_score !== undefined && ans.teacher_score !== null ? Number(ans.teacher_score) : null,
-                teacher_feedback: ans.teacher_feedback ? String(ans.teacher_feedback) : null,
-                created_at: String(ans.created_at ?? att.completed_at),
-                profiles: att.profiles,
-                is_fallback: true,
-              });
-            }
-          }
-        }
-      }
-    } catch (e) {
-      // Ignore fallback errors
-    }
-
-    list.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
-    return { success: true, submissions: list };
+    if (error) throw error;
+    return { success: true, submissions: data ?? [] };
   } catch (error: any) {
     console.error("getPendingTeacherSubmissionsAction failed:", error);
     return { success: false, submissions: [], error: error?.message || "Failed to fetch submissions." };
@@ -254,57 +163,18 @@ export async function gradeWritingSubmissionAction(input: {
 }) {
   try {
     const adminSupabase = createAdminClient();
-
-    // 1. Try updating writing_submissions table
-    try {
-      const { error, count } = await adminSupabase
-        .from("writing_submissions")
-        .update({
-          status: "GRADED",
-          teacher_score: input.score,
-          teacher_feedback: input.feedback,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", input.submissionId);
-
-      if (!error && (count === null || count > 0)) {
-        revalidatePath("/admin/submissions");
-        return { success: true };
-      }
-    } catch (e) {
-      // Fallback update below
-    }
-
-    // 2. Fallback update on quiz_attempts
-    const { data: attempt } = await adminSupabase
-      .from("quiz_attempts")
-      .select("answers")
-      .eq("id", input.submissionId)
-      .maybeSingle();
-
-    if (attempt) {
-      const ans = asRecord(attempt.answers as Json);
-      const updatedAnswers = {
-        ...ans,
+    const { error } = await adminSupabase
+      .from("writing_submissions")
+      .update({
         status: "GRADED",
         teacher_score: input.score,
         teacher_feedback: input.feedback,
-        graded_at: new Date().toISOString(),
-      };
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", input.submissionId);
 
-      const { error: updateError } = await adminSupabase
-        .from("quiz_attempts")
-        .update({
-          score: input.score,
-          answers: updatedAnswers,
-        })
-        .eq("id", input.submissionId);
-
-      if (updateError) throw updateError;
-      revalidatePath("/admin/submissions");
-      return { success: true };
-    }
-
+    if (error) throw error;
+    revalidatePath("/admin/submissions");
     return { success: true };
   } catch (error: any) {
     console.error("gradeWritingSubmissionAction failed:", error);
@@ -312,6 +182,49 @@ export async function gradeWritingSubmissionAction(input: {
   }
 }
 
+const writingFeedbackSchema = {
+  type: "object",
+  properties: {
+    scores: {
+      type: "object",
+      properties: {
+        task_response: { type: "number" },
+        coherence: { type: "number" },
+        lexical_resource: { type: "number" },
+        grammar_range: { type: "number" },
+        overall: { type: "number" }
+      },
+      required: ["task_response", "coherence", "lexical_resource", "grammar_range", "overall"]
+    },
+    feedback: { type: "string" },
+    corrections: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          original: { type: "string" },
+          corrected: { type: "string" },
+          explanation: { type: "string" }
+        },
+        required: ["original", "corrected", "explanation"]
+      }
+    }
+  },
+  required: ["scores", "feedback", "corrections"]
+};
+
+type WritingFeedbackResult = {
+  scores: { task_response: number; coherence: number; lexical_resource: number; grammar_range: number; overall: number };
+  feedback: string;
+  corrections: { original: string; corrected: string; explanation: string }[];
+};
+
+/**
+ * Real AI grading, routed through the shared callGemini pipeline (DB-overridable prompt
+ * template, model fallback chain, OpenRouter fallback) instead of a raw, unwrapped fetch.
+ * On genuine failure this throws / returns an error — it must never fabricate a score, since
+ * that score is shown to the learner as a real evaluation and can count toward their result.
+ */
 export async function evaluateWritingWithAiAction(input: {
   activityType: string;
   prompt: string;
@@ -320,88 +233,44 @@ export async function evaluateWritingWithAiAction(input: {
   modelAnswer?: string;
 }) {
   try {
-    const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+    const contextParts = [
+      input.modelAnswer ? `Model/reference answer: "${input.modelAnswer}"` : "",
+      input.rubricGuidance ? `Rubric guidelines: ${input.rubricGuidance}` : "",
+      `Activity type: ${input.activityType}`
+    ].filter(Boolean).join("\n");
 
-    if (!apiKey) {
-      const wordCount = input.submissionText.split(/\s+/).filter(Boolean).length;
-      return {
-        success: true,
-        data: {
-          score: Math.min(100, Math.max(60, wordCount * 5)),
-          feedbackSummary: "Good effort on your writing! Your submission covers the key prompt points clearly.",
-          grammarFeedback: "Pay attention to sentence structure, article usage, and punctuation consistency.",
-          vocabularyFeedback: "Try incorporating more varied transition words and descriptive vocabulary.",
-          suggestions: [
-            "Use linking words to connect your sentences smoothly.",
-            "Double-check past tense verb forms and subject-verb agreement."
-          ]
-        }
-      };
+    const result = await callGemini<WritingFeedbackResult>({
+      templateKey: "learner_writing_feedback",
+      variables: {
+        prompt: `${input.prompt}\n${contextParts}`,
+        submission: input.submissionText,
+        level: "B1"
+      },
+      responseSchema: writingFeedbackSchema
+    });
+
+    const overall = Number(result.scores?.overall);
+    if (!Number.isFinite(overall)) {
+      throw new Error("AI evaluation did not return a valid overall score.");
     }
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [
-            {
-              role: "user",
-              parts: [
-                {
-                  text: `You are an expert ESL/EFL writing evaluator.
-Activity Type: ${input.activityType}
-Prompt: ${input.prompt}
-${input.modelAnswer ? `Model Answer: ${input.modelAnswer}` : ""}
-${input.rubricGuidance ? `Rubric Guidelines: ${input.rubricGuidance}` : ""}
-
-Learner Submission:
-"${input.submissionText}"
-
-Provide constructive feedback and a score (0-100%). Return ONLY a raw JSON object with this exact schema:
-{
-  "score": number,
-  "feedbackSummary": "string",
-  "grammarFeedback": "string",
-  "vocabularyFeedback": "string",
-  "suggestions": ["string", "string"]
-}`
-                }
-              ]
-            }
-          ]
-        })
-      }
-    );
-
-    const json = await response.json();
-    const rawText = json?.candidates?.[0]?.content?.parts?.[0]?.text || "";
-    const cleanJson = rawText.replace(/```json\s*|\s*```/g, "").trim();
-    const parsed = JSON.parse(cleanJson);
-
     return {
-      success: true,
+      success: true as const,
       data: {
-        score: Number(parsed.score ?? 80),
-        feedbackSummary: String(parsed.feedbackSummary ?? "Solid writing submission!"),
-        grammarFeedback: String(parsed.grammarFeedback ?? "Grammar structure is clear."),
-        vocabularyFeedback: String(parsed.vocabularyFeedback ?? "Good word choices."),
-        suggestions: Array.isArray(parsed.suggestions) ? parsed.suggestions.map(String) : []
+        score: Math.max(0, Math.min(100, Math.round(overall))),
+        feedbackSummary: String(result.feedback ?? ""),
+        grammarFeedback: `Grammar range: ${result.scores?.grammar_range ?? "-"}/100`,
+        vocabularyFeedback: `Lexical resource: ${result.scores?.lexical_resource ?? "-"}/100`,
+        suggestions: Array.isArray(result.corrections)
+          ? result.corrections.map((c) => `"${c.original}" → "${c.corrected}" — ${c.explanation}`)
+          : []
       }
     };
-  } catch (error: any) {
+  } catch (error) {
     console.error("evaluateWritingWithAiAction failed:", error);
-    const wordCount = input.submissionText.split(/\s+/).filter(Boolean).length;
     return {
-      success: true,
-      data: {
-        score: Math.min(100, Math.max(65, wordCount * 6)),
-        feedbackSummary: "Your response is clear and directly addresses the assignment prompt.",
-        grammarFeedback: "Review punctuation and sentence boundary markers.",
-        vocabularyFeedback: "Consider expanding academic/topic vocabulary.",
-        suggestions: ["Review model answers to see alternative sentence structures."]
-      }
+      success: false as const,
+      error: "We couldn't generate an AI evaluation for this response right now. Please try again shortly, or choose a different grading option."
     };
   }
 }

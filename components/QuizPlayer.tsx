@@ -16,6 +16,7 @@ import { ResultsOverview } from "@/components/gamification/ResultsOverview";
 import { StreakPopup } from "@/components/gamification/StreakPopup";
 import { computeBestStreak, NOTABLE_STREAK_THRESHOLD } from "@/lib/gamification/resultsOverview";
 import { WritingEvaluationInterface } from "@/components/WritingEvaluationInterface";
+import { asWritingValue, isAwaitingResolution, isWritingQuestionType, resolveWritingOutcome, type WritingAnswerValue } from "@/lib/writingGrading";
 
 export type QuizQuestion = {
   id: string;
@@ -100,19 +101,8 @@ export function hasAnswer(question: QuizQuestion, value: unknown): boolean {
     const rec = asRecord(value as Json);
     return rec.passed === true || String(rec.transcript ?? "").trim().length > 0 || Number(rec.accuracy ?? 0) > 0;
   }
-  if (
-    question.question_type === "SENTENCE_COMPLETION" ||
-    question.question_type === "ESSAY_WRITING" ||
-    question.question_type === "EMAIL_LETTER_WRITING" ||
-    question.question_type === "TRANSLATION" ||
-    question.question_type === "PARAPHRASE_PRACTICE" ||
-    question.question_type === "SENTENCE_COMBINING" ||
-    question.question_type === "CREATIVE_WRITING" ||
-    question.question_type === "PEER_REVIEW_EDITING"
-  ) {
-    const val = asRecord(value as Json);
-    const text = String(val.text ?? value ?? "").trim();
-    return text.length > 0;
+  if (isWritingQuestionType(question.question_type)) {
+    return resolveWritingOutcome(value).hasText;
   }
   if (question.question_type === "LISTEN_AND_SELECT" || question.question_type === "SOUND_DISCRIMINATION") {
     return value !== undefined && value !== null && String(value).trim() !== "";
@@ -324,6 +314,21 @@ export function QuizPlayer({
   const totalPoints = questions.reduce((sum, question) => sum + questionTotal(question), 0);
   const currentScore = questions.reduce((sum, question) => sum + questionScore(question, answers[question.id]), 0);
   const score = submitted ? currentScore : 0;
+  // True once the quiz has been submitted but at least one writing question still hasn't
+  // reached a final grading outcome (no mode chosen yet, or a teacher-review still pending).
+  // While this is true, the score/percentage/confetti are not final and should not be shown/fired.
+  const hasPendingWritingGrading = submitted && questions.some(
+    (question) => isWritingQuestionType(question.question_type) && isAwaitingResolution(answers[question.id])
+  );
+  // Self-grading is a learner's own honest self-assessment, not an independent evaluation — it should
+  // never, on its own, be the basis for a celebration. If literally every question in the quiz is a
+  // self-graded writing question, confetti is suppressed even at 100%. A quiz mixing self-graded
+  // questions with objective/AI/teacher-graded ones is unaffected — the celebration is simply not
+  // "caused by" the self-graded portion.
+  const isSelfGradedOnly = questions.length > 0 && questions.every((question) => {
+    if (!isWritingQuestionType(question.question_type)) return false;
+    return asWritingValue(answers[question.id]).mode === "SELF_GRADED";
+  });
   const bestStreak = submitted ? computeBestStreak(questions, answers) : 0;
   const currentQuestion = questions[currentIndex];
   const currentAnswered = currentQuestion ? hasAnswer(currentQuestion, answers[currentQuestion.id]) : false;
@@ -364,16 +369,29 @@ export function QuizPlayer({
     celebratedRef.current = false;
   }
 
-  // Fire a one-time confetti + chime celebration once the final score is revealed and it's a strong result.
-  // Purely presentational — score/totalPoints here are the same values already used for the score display.
+  // Fire a one-time confetti + chime celebration once the final score is revealed and it's a strong
+  // result. Held back entirely while any writing question is still awaiting a grading-mode choice or
+  // a pending teacher grade (hasPendingWritingGrading) — the tally isn't final yet, so an early
+  // confetti burst driven only by draft text or objectively-graded questions would be premature.
+  // Re-armed (celebratedRef reset) whenever a question transitions out of "pending" so that an AI
+  // score landing, or a teacher grade being revealed later, can still trigger the celebration the
+  // first time the *complete* tally crosses the threshold — not just at the original submit click.
+  const prevPendingRef = useRef(hasPendingWritingGrading);
   useEffect(() => {
-    if (!submitted || celebratedRef.current) return;
+    if (prevPendingRef.current && !hasPendingWritingGrading) {
+      celebratedRef.current = false;
+    }
+    prevPendingRef.current = hasPendingWritingGrading;
+  }, [hasPendingWritingGrading]);
+
+  useEffect(() => {
+    if (!submitted || hasPendingWritingGrading || isSelfGradedOnly || celebratedRef.current) return;
     if (totalPoints > 0 && score / totalPoints >= CELEBRATION_SCORE_THRESHOLD) {
       celebratedRef.current = true;
       fireCompletionConfetti();
       playCelebration();
     }
-  }, [submitted, score, totalPoints]);
+  }, [submitted, hasPendingWritingGrading, isSelfGradedOnly, score, totalPoints]);
 
   function goToQuestion(nextIndex: number) {
     setCurrentIndex(Math.max(0, Math.min(questions.length - 1, nextIndex)));
@@ -465,7 +483,11 @@ export function QuizPlayer({
                 {formatTime(remainingSeconds)}
               </div>
             ) : null}
-            {submitted ? (
+            {submitted && hasPendingWritingGrading ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F6A609]/10 px-3 py-1.5 text-sm font-extrabold text-[#B5790A]">
+                <Loader2 size={14} className="animate-spin" /> Pending grading
+              </span>
+            ) : submitted ? (
               <span className="relative inline-block rounded-full bg-[#6C3BFF]/10 px-3 py-1.5 text-sm font-extrabold text-[#6C3BFF]">
                 {score}/{totalPoints}
                 <StreakPopup
@@ -483,6 +505,13 @@ export function QuizPlayer({
           <div className="h-full rounded-full bg-gradient-to-r from-[#6C3BFF] to-[#8A58FF] transition-all duration-500" style={{ width: `${progressPercent}%` }} />
         </div>
       </div>
+
+      {submitted && hasPendingWritingGrading && reviewMode === "overview" ? (
+        <div className="rounded-[16px] border border-[#F6A609]/30 bg-[#F6A609]/5 p-4 text-sm font-semibold text-[#8A5A00]">
+          Your written answers are saved. Choose how you'd like each one evaluated below — your final score
+          will be ready once every question has been graded.
+        </div>
+      ) : null}
 
       {submitted && reviewMode === "overview" ? (
         <ResultsOverview
@@ -545,6 +574,7 @@ export function QuizPlayer({
             submitted={submitted}
             onChange={(value) => setAnswers((current) => ({ ...current, [currentQuestion.id]: value }))}
             onResult={handleQuestionResult}
+            quizId={quizId}
           />
         ) : null}
       </div>
@@ -593,17 +623,7 @@ export function QuizPlayer({
 
       {!submitted || reviewMode === "detail" ? (
         (() => {
-          const isWritingCurrent = currentQuestion && [
-            "SHORT_ANSWER",
-            "SENTENCE_COMPLETION",
-            "ESSAY_WRITING",
-            "EMAIL_LETTER_WRITING",
-            "TRANSLATION",
-            "PARAPHRASE_PRACTICE",
-            "SENTENCE_COMBINING",
-            "CREATIVE_WRITING",
-            "PEER_REVIEW_EDITING",
-          ].includes(currentQuestion.question_type);
+          const isWritingCurrent = currentQuestion && isWritingQuestionType(currentQuestion.question_type);
 
           if (isWritingCurrent && !submitted) return null;
 
@@ -651,7 +671,9 @@ export function QuestionCard({
   value,
   submitted,
   onChange,
-  onResult
+  onResult,
+  quizId,
+  lessonId
 }: {
   question: QuizQuestion;
   value: unknown;
@@ -659,6 +681,8 @@ export function QuestionCard({
   onChange: (value: unknown) => void;
   /** Fired once, the first time this question's result becomes visible (submitted flips true for it). Purely presentational (streak/sound hooks) — never affects scoring. */
   onResult?: (result: "correct" | "wrong" | "partial", questionId: string) => void;
+  quizId?: string | null;
+  lessonId?: string | null;
 }) {
   const isSelfChecked =
     question.question_type === "SHORT_ANSWER" ||
@@ -742,7 +766,7 @@ export function QuestionCard({
         {question.question_type === "ERROR_CORRECTION" ? <ErrorCorrection question={question} value={(value as { selected_span?: string; correction?: string }) ?? {}} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "REORDERING" ? <Reordering question={question} value={value as string[] | undefined} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "MULTIPLE_SELECT" ? <MultipleSelect question={question} value={value as string[] | undefined} disabled={submitted} onChange={onChange} /> : null}
-        {question.question_type === "SHORT_ANSWER" ? <ShortAnswer question={question} value={value as { text?: string; selfMarked?: boolean } | undefined} submitted={submitted} onChange={onChange} /> : null}
+        {question.question_type === "SHORT_ANSWER" ? <ShortAnswer question={question} value={value as WritingAnswerValue | undefined} submitted={submitted} onChange={onChange} quizId={quizId} lessonId={lessonId} /> : null}
         {question.question_type === "SUMMARIZATION" ? <Summarization question={question} value={value as { text?: string; selfMarked?: boolean } | undefined} submitted={submitted} onChange={onChange} /> : null}
         {question.question_type === "DRAG_DROP" || question.question_type === "CATEGORIZATION" ? <DragDrop question={question} value={(value as Record<string, string>) ?? {}} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "PRONUNCIATION" ? <Pronunciation question={question} value={value as PronunciationValue | undefined} disabled={submitted} onChange={onChange} /> : null}
@@ -756,14 +780,14 @@ export function QuestionCard({
         {question.question_type === "NOTE_TAKING_CHALLENGE" ? <NoteTakingChallengePlayer question={question} value={(value as Record<string, string>) ?? {}} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "SOUND_DISCRIMINATION" ? <SoundDiscriminationPlayer question={question} value={value as string | undefined} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "LISTEN_AND_GAP_FILL" ? <ListenGapFillPlayer question={question} value={value as string[] | undefined} disabled={submitted} onChange={onChange} /> : null}
-        {question.question_type === "SENTENCE_COMPLETION" ? <SentenceCompletionPlayer question={question} value={value as { text?: string; selfMarked?: boolean } | undefined} submitted={submitted} onChange={onChange} /> : null}
-        {question.question_type === "ESSAY_WRITING" ? <EssayWritingPlayer question={question} value={value as { text?: string; selfMarked?: boolean } | undefined} submitted={submitted} onChange={onChange} /> : null}
-        {question.question_type === "EMAIL_LETTER_WRITING" ? <EmailLetterWritingPlayer question={question} value={value as { text?: string; selfMarked?: boolean } | undefined} submitted={submitted} onChange={onChange} /> : null}
-        {question.question_type === "TRANSLATION" ? <TranslationPlayer question={question} value={value as { text?: string; selfMarked?: boolean } | undefined} submitted={submitted} onChange={onChange} /> : null}
-        {question.question_type === "PARAPHRASE_PRACTICE" ? <ParaphrasePracticePlayer question={question} value={value as { text?: string; selfMarked?: boolean } | undefined} submitted={submitted} onChange={onChange} /> : null}
-        {question.question_type === "SENTENCE_COMBINING" ? <SentenceCombiningPlayer question={question} value={value as { text?: string; selfMarked?: boolean } | undefined} submitted={submitted} onChange={onChange} /> : null}
-        {question.question_type === "CREATIVE_WRITING" ? <CreativeWritingPlayer question={question} value={value as { text?: string; selfMarked?: boolean } | undefined} submitted={submitted} onChange={onChange} /> : null}
-        {question.question_type === "PEER_REVIEW_EDITING" ? <PeerReviewEditingPlayer question={question} value={value as { text?: string; selfMarked?: boolean } | undefined} submitted={submitted} onChange={onChange} /> : null}
+        {question.question_type === "SENTENCE_COMPLETION" ? <SentenceCompletionPlayer question={question} value={value as WritingAnswerValue | undefined} submitted={submitted} onChange={onChange} quizId={quizId} lessonId={lessonId} /> : null}
+        {question.question_type === "ESSAY_WRITING" ? <EssayWritingPlayer question={question} value={value as WritingAnswerValue | undefined} submitted={submitted} onChange={onChange} quizId={quizId} lessonId={lessonId} /> : null}
+        {question.question_type === "EMAIL_LETTER_WRITING" ? <EmailLetterWritingPlayer question={question} value={value as WritingAnswerValue | undefined} submitted={submitted} onChange={onChange} quizId={quizId} lessonId={lessonId} /> : null}
+        {question.question_type === "TRANSLATION" ? <TranslationPlayer question={question} value={value as WritingAnswerValue | undefined} submitted={submitted} onChange={onChange} quizId={quizId} lessonId={lessonId} /> : null}
+        {question.question_type === "PARAPHRASE_PRACTICE" ? <ParaphrasePracticePlayer question={question} value={value as WritingAnswerValue | undefined} submitted={submitted} onChange={onChange} quizId={quizId} lessonId={lessonId} /> : null}
+        {question.question_type === "SENTENCE_COMBINING" ? <SentenceCombiningPlayer question={question} value={value as WritingAnswerValue | undefined} submitted={submitted} onChange={onChange} quizId={quizId} lessonId={lessonId} /> : null}
+        {question.question_type === "CREATIVE_WRITING" ? <CreativeWritingPlayer question={question} value={value as WritingAnswerValue | undefined} submitted={submitted} onChange={onChange} quizId={quizId} lessonId={lessonId} /> : null}
+        {question.question_type === "PEER_REVIEW_EDITING" ? <PeerReviewEditingPlayer question={question} value={value as WritingAnswerValue | undefined} submitted={submitted} onChange={onChange} quizId={quizId} lessonId={lessonId} /> : null}
       </div>
       {stats && stats.correctCount < stats.total ? (
         <p className={`mt-4 rounded-[14px] p-3 text-sm font-semibold ${allWrong ? "bg-[#FF5D73]/10 text-[#FF5D73]" : "bg-[#FFB545]/10 text-amber-900"}`}>
@@ -1587,16 +1611,27 @@ function ShortAnswer({
   question,
   value,
   submitted,
-  onChange
+  onChange,
+  quizId,
+  lessonId
 }: {
   question: QuizQuestion;
-  value?: { text?: string; selfMarked?: boolean };
+  value?: WritingAnswerValue;
   submitted: boolean;
-  onChange: (value: { text?: string; selfMarked?: boolean }) => void;
+  onChange: (value: WritingAnswerValue) => void;
+  quizId?: string | null;
+  lessonId?: string | null;
 }) {
-  const opts = asRecord(question.options) as { sample_answer?: string; min_words?: number; required_words?: string[]; show_required_words?: boolean; enable_ai_feedback?: boolean };
+  const opts = asRecord(question.options) as {
+    sample_answer?: string;
+    min_words?: number;
+    required_words?: string[];
+    show_required_words?: boolean;
+    allow_self_graded?: boolean;
+    allow_ai_feedback?: boolean;
+    allow_teacher_review?: boolean;
+  };
   const text = value?.text ?? "";
-  const selfMarked = value?.selfMarked;
   const minWords = Number(opts.min_words ?? 0);
   const requiredWords = Array.isArray(opts.required_words) ? opts.required_words.filter(Boolean) : [];
   const showRequiredWords = opts.show_required_words !== false;
@@ -1607,43 +1642,12 @@ function ShortAnswer({
     wordsOk: !showRequiredWords || requiredWords.length === 0 || requiredWords.every((word) => lowerText.includes(word.toLowerCase()))
   };
 
-  const [aiFeedback, setAiFeedback] = useState<{ corrected_text: string; explanation: string } | null>(null);
-  const [loadingFeedback, setLoadingFeedback] = useState(false);
-  const [feedbackError, setFeedbackError] = useState<string | null>(null);
-
-  // Fetch AI feedback when submitted (only if creator enabled it)
-  useEffect(() => {
-    if (submitted && text.trim() && !aiFeedback && !loadingFeedback && !feedbackError && opts.enable_ai_feedback === true) {
-      setLoadingFeedback(true);
-      setFeedbackError(null);
-      import("@/app/admin/lessons/aiActions").then(async ({ getShortAnswerAiFeedbackAction }) => {
-        try {
-          const res = await getShortAnswerAiFeedbackAction(
-            question.question_text,
-            text,
-            opts.sample_answer || ""
-          );
-          if (res && res.feedback) {
-            setAiFeedback(res.feedback);
-          } else if (res && res.error) {
-            setFeedbackError(res.error);
-          }
-        } catch (err: any) {
-          setFeedbackError("Could not retrieve AI feedback.");
-        } finally {
-          setLoadingFeedback(false);
-        }
-      });
-    }
-  }, [submitted, text, question.question_text, opts.sample_answer, opts.enable_ai_feedback, aiFeedback, loadingFeedback, feedbackError]);
-
-  // Reset feedback state when retaking
-  useEffect(() => {
-    if (!submitted) {
-      setAiFeedback(null);
-      setFeedbackError(null);
-    }
-  }, [submitted]);
+  // Unified onto the same 3-mode grading system (Self-graded / AI Feedback / Teacher Review) as the
+  // other 8 writing types, replacing the old bespoke "Got it / Needs work" self-mark buttons and the
+  // separate auto-triggered correction-only AI feedback flow.
+  const allowSelfGraded = opts.allow_self_graded !== false;
+  const allowAiFeedback = opts.allow_ai_feedback !== false;
+  const allowTeacherReview = opts.allow_teacher_review !== false;
 
   if (submitted) {
     return (
@@ -1652,67 +1656,31 @@ function ShortAnswer({
           {text || <span className="text-[#6E738D]">(No answer written)</span>}
         </div>
 
-        {loadingFeedback && (
-          <div className="rounded-[14px] border border-black/5 bg-[#F6F7FB] p-4 text-xs text-black/50 flex items-center justify-center gap-2">
-            <Loader2 size={14} className="animate-spin" /> Analyzing your response with AI Coach…
-          </div>
-        )}
-
-        {feedbackError && (
-          <div className="rounded-[14px] border border-red-200 bg-red-50 p-3 text-xs text-red-700">
-            {feedbackError}
-          </div>
-        )}
-
-        {aiFeedback && (
-          <div className="rounded-[14px] border border-moss/20 bg-emerald-50/20 p-4 text-sm leading-6 space-y-3">
-            <p className="text-xs font-bold uppercase tracking-wide text-moss flex items-center gap-1.5">
-              ✨ AI Feedback & Correction
-            </p>
-            <div className="space-y-2">
-              <div>
-                <span className="text-xs font-semibold text-black/40">Suggested Correction:</span>
-                <p className="mt-0.5 font-semibold text-emerald-800 bg-emerald-50 border border-emerald-100/50 rounded-md px-2.5 py-1.5">
-                  {aiFeedback.corrected_text}
-                </p>
-              </div>
-              <div>
-                <span className="text-xs font-semibold text-black/40">Explanation:</span>
-                <p className="mt-0.5 text-xs text-black/60 leading-relaxed">
-                  {aiFeedback.explanation}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {opts.sample_answer ? (
-          <div className="rounded-[14px] border border-[#00C98D]/30 bg-[#00C98D]/5 p-3 text-sm leading-6">
-            <p className="mb-1 text-xs font-medium uppercase tracking-wide text-[#00A977]">Model answer</p>
-            {opts.sample_answer}
-          </div>
+        {!unmet.lengthOk || !unmet.wordsOk ? (
+          <p className="rounded-[14px] border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
+            {!unmet.lengthOk && !unmet.wordsOk
+              ? `You submitted without meeting the ${minWords}-word minimum or using all required words.`
+              : !unmet.lengthOk
+              ? `You submitted without meeting the ${minWords}-word minimum.`
+              : "You submitted without using all the required words."}
+          </p>
         ) : null}
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm text-[#6E738D]">How did you do?</span>
-          <button
-            type="button"
-            onClick={() => onChange({ text, selfMarked: true })}
-            className={`rounded-[14px] border px-3 py-1.5 text-sm font-medium transition-colors ${
-              selfMarked === true ? "border-[#00C98D] bg-[#00C98D]/10 text-[#00A977]" : "border-[#ECECF5] text-[#6E738D] hover:bg-white"
-            }`}
-          >
-            Got it
-          </button>
-          <button
-            type="button"
-            onClick={() => onChange({ text, selfMarked: false })}
-            className={`rounded-[14px] border px-3 py-1.5 text-sm font-medium transition-colors ${
-              selfMarked === false ? "border-[#FF5D73] bg-[#FF5D73]/10 text-[#FF5D73]" : "border-[#ECECF5] text-[#6E738D] hover:bg-white"
-            }`}
-          >
-            Needs work
-          </button>
-        </div>
+
+        <WritingEvaluationInterface
+          activityId={question.id}
+          activityType="SHORT_ANSWER"
+          prompt={question.question_text}
+          submissionText={text}
+          modelAnswer={opts.sample_answer}
+          allowSelfGraded={allowSelfGraded}
+          allowAiFeedback={allowAiFeedback}
+          allowTeacherReview={allowTeacherReview}
+          onGraded={(outcome) => onChange(outcome)}
+          initialValue={value}
+          questionKey="1"
+          quizId={quizId}
+          lessonId={lessonId}
+        />
       </div>
     );
   }
@@ -1722,7 +1690,7 @@ function ShortAnswer({
       <textarea
         rows={5}
         value={text}
-        onChange={(e) => onChange({ text: e.target.value, selfMarked: undefined })}
+        onChange={(e) => onChange({ ...value, text: e.target.value })}
         placeholder="Write your answer..."
         className="w-full rounded-[14px] border border-[#ECECF5] bg-[#F6F7FB] px-3 py-3 text-sm font-semibold outline-none focus:border-[#6C3BFF] focus:bg-white"
       />
@@ -2785,11 +2753,15 @@ function SentenceCompletionPlayer({
   value,
   submitted,
   onChange,
+  quizId,
+  lessonId,
 }: {
   question: QuizQuestion;
-  value?: { text?: string; selfMarked?: boolean };
+  value?: WritingAnswerValue;
   submitted: boolean;
-  onChange: (val: { text?: string; selfMarked?: boolean }) => void;
+  onChange: (val: WritingAnswerValue) => void;
+  quizId?: string | null;
+  lessonId?: string | null;
 }) {
   const opts = asRecord(question.options);
 
@@ -2809,8 +2781,6 @@ function SentenceCompletionPlayer({
   const allowSelfGraded = opts.allow_self_graded !== false;
   const allowAiFeedback = opts.allow_ai_feedback !== false;
   const allowTeacherReview = opts.allow_teacher_review !== false;
-
-  const [draftSubmitted, setDraftSubmitted] = useState(submitted);
 
   return (
     <div className="space-y-5">
@@ -2840,25 +2810,14 @@ function SentenceCompletionPlayer({
 
       <textarea
         rows={4}
-        disabled={draftSubmitted}
+        disabled={submitted}
         value={text}
         onChange={(e) => onChange({ ...value, text: e.target.value })}
         placeholder="Type here to finish or expand the sentence..."
         className="w-full rounded-2xl border border-black/10 p-4 text-sm font-medium text-ink bg-white shadow-xs focus:border-[#6C3BFF] focus:ring-1 focus:ring-[#6C3BFF] focus:outline-hidden disabled:bg-black/5 transition"
       />
 
-      {!draftSubmitted ? (
-        <div className="flex justify-end pt-2">
-          <button
-            type="button"
-            disabled={!text.trim()}
-            onClick={() => setDraftSubmitted(true)}
-            className="inline-flex items-center gap-2 rounded-2xl bg-[#6C3BFF] px-6 py-3 text-sm font-bold text-white shadow-md shadow-[#6C3BFF]/20 hover:bg-[#592ecc] active:scale-95 transition disabled:opacity-40"
-          >
-            Submit Draft for Evaluation <ChevronRight size={16} />
-          </button>
-        </div>
-      ) : (
+      {submitted && (
         <WritingEvaluationInterface
           activityId={question.id}
           activityType="SENTENCE_COMPLETION"
@@ -2869,8 +2828,11 @@ function SentenceCompletionPlayer({
           allowSelfGraded={allowSelfGraded}
           allowAiFeedback={allowAiFeedback}
           allowTeacherReview={allowTeacherReview}
-          onSelfGraded={(passed) => onChange({ ...value, selfMarked: passed })}
-          onReset={() => setDraftSubmitted(false)}
+          onGraded={(outcome) => onChange(outcome)}
+          initialValue={value}
+          questionKey="1"
+          quizId={quizId}
+          lessonId={lessonId}
         />
       )}
     </div>
@@ -2882,11 +2844,15 @@ function EssayWritingPlayer({
   value,
   submitted,
   onChange,
+  quizId,
+  lessonId,
 }: {
   question: QuizQuestion;
-  value?: { text?: string; selfMarked?: boolean };
+  value?: WritingAnswerValue;
   submitted: boolean;
-  onChange: (val: { text?: string; selfMarked?: boolean }) => void;
+  onChange: (val: WritingAnswerValue) => void;
+  quizId?: string | null;
+  lessonId?: string | null;
 }) {
   const opts = asRecord(question.options);
   const minWords = Number(opts.min_words ?? 100);
@@ -2930,7 +2896,11 @@ function EssayWritingPlayer({
           allowSelfGraded={allowSelfGraded}
           allowAiFeedback={allowAiFeedback}
           allowTeacherReview={allowTeacherReview}
-          onSelfGraded={(passed) => onChange({ ...value, selfMarked: passed })}
+          onGraded={(outcome) => onChange(outcome)}
+          initialValue={value}
+          questionKey="1"
+          quizId={quizId}
+          lessonId={lessonId}
         />
       )}
     </div>
@@ -2942,11 +2912,15 @@ function EmailLetterWritingPlayer({
   value,
   submitted,
   onChange,
+  quizId,
+  lessonId,
 }: {
   question: QuizQuestion;
-  value?: { text?: string; selfMarked?: boolean };
+  value?: WritingAnswerValue;
   submitted: boolean;
-  onChange: (val: { text?: string; selfMarked?: boolean }) => void;
+  onChange: (val: WritingAnswerValue) => void;
+  quizId?: string | null;
+  lessonId?: string | null;
 }) {
   const opts = asRecord(question.options);
   const recipient = String(opts.recipient_role ?? "Course Manager");
@@ -2992,7 +2966,11 @@ function EmailLetterWritingPlayer({
           allowSelfGraded={allowSelfGraded}
           allowAiFeedback={allowAiFeedback}
           allowTeacherReview={allowTeacherReview}
-          onSelfGraded={(passed) => onChange({ ...value, selfMarked: passed })}
+          onGraded={(outcome) => onChange(outcome)}
+          initialValue={value}
+          questionKey="1"
+          quizId={quizId}
+          lessonId={lessonId}
         />
       )}
     </div>
@@ -3004,11 +2982,15 @@ function TranslationPlayer({
   value,
   submitted,
   onChange,
+  quizId,
+  lessonId,
 }: {
   question: QuizQuestion;
-  value?: { text?: string; selfMarked?: boolean };
+  value?: WritingAnswerValue;
   submitted: boolean;
-  onChange: (val: { text?: string; selfMarked?: boolean }) => void;
+  onChange: (val: WritingAnswerValue) => void;
+  quizId?: string | null;
+  lessonId?: string | null;
 }) {
   const opts = asRecord(question.options);
   const sourceText = String(opts.source_text ?? question.question_text ?? "");
@@ -3052,7 +3034,11 @@ function TranslationPlayer({
           allowSelfGraded={allowSelfGraded}
           allowAiFeedback={allowAiFeedback}
           allowTeacherReview={allowTeacherReview}
-          onSelfGraded={(passed) => onChange({ ...value, selfMarked: passed })}
+          onGraded={(outcome) => onChange(outcome)}
+          initialValue={value}
+          questionKey="1"
+          quizId={quizId}
+          lessonId={lessonId}
         />
       )}
     </div>
@@ -3064,11 +3050,15 @@ function ParaphrasePracticePlayer({
   value,
   submitted,
   onChange,
+  quizId,
+  lessonId,
 }: {
   question: QuizQuestion;
-  value?: { text?: string; selfMarked?: boolean };
+  value?: WritingAnswerValue;
   submitted: boolean;
-  onChange: (val: { text?: string; selfMarked?: boolean }) => void;
+  onChange: (val: WritingAnswerValue) => void;
+  quizId?: string | null;
+  lessonId?: string | null;
 }) {
   const opts = asRecord(question.options);
   const originalText = String(opts.original_text ?? question.question_text ?? "");
@@ -3120,7 +3110,11 @@ function ParaphrasePracticePlayer({
           allowSelfGraded={allowSelfGraded}
           allowAiFeedback={allowAiFeedback}
           allowTeacherReview={allowTeacherReview}
-          onSelfGraded={(passed) => onChange({ ...value, selfMarked: passed })}
+          onGraded={(outcome) => onChange(outcome)}
+          initialValue={value}
+          questionKey="1"
+          quizId={quizId}
+          lessonId={lessonId}
         />
       )}
     </div>
@@ -3132,11 +3126,15 @@ function SentenceCombiningPlayer({
   value,
   submitted,
   onChange,
+  quizId,
+  lessonId,
 }: {
   question: QuizQuestion;
-  value?: { text?: string; selfMarked?: boolean };
+  value?: WritingAnswerValue;
   submitted: boolean;
-  onChange: (val: { text?: string; selfMarked?: boolean }) => void;
+  onChange: (val: WritingAnswerValue) => void;
+  quizId?: string | null;
+  lessonId?: string | null;
 }) {
   const opts = asRecord(question.options);
   const inputSentences = Array.isArray(opts.input_sentences) ? opts.input_sentences.map(String) : [question.question_text];
@@ -3179,7 +3177,11 @@ function SentenceCombiningPlayer({
           allowSelfGraded={allowSelfGraded}
           allowAiFeedback={allowAiFeedback}
           allowTeacherReview={allowTeacherReview}
-          onSelfGraded={(passed) => onChange({ ...value, selfMarked: passed })}
+          onGraded={(outcome) => onChange(outcome)}
+          initialValue={value}
+          questionKey="1"
+          quizId={quizId}
+          lessonId={lessonId}
         />
       )}
     </div>
@@ -3191,11 +3193,15 @@ function CreativeWritingPlayer({
   value,
   submitted,
   onChange,
+  quizId,
+  lessonId,
 }: {
   question: QuizQuestion;
-  value?: { text?: string; selfMarked?: boolean };
+  value?: WritingAnswerValue;
   submitted: boolean;
-  onChange: (val: { text?: string; selfMarked?: boolean }) => void;
+  onChange: (val: WritingAnswerValue) => void;
+  quizId?: string | null;
+  lessonId?: string | null;
 }) {
   const opts = asRecord(question.options);
   const imageUrl = String(opts.image_url ?? "");
@@ -3265,7 +3271,11 @@ function CreativeWritingPlayer({
           allowSelfGraded={allowSelfGraded}
           allowAiFeedback={allowAiFeedback}
           allowTeacherReview={allowTeacherReview}
-          onSelfGraded={(passed) => onChange({ ...value, selfMarked: passed })}
+          onGraded={(outcome) => onChange(outcome)}
+          initialValue={value}
+          questionKey="1"
+          quizId={quizId}
+          lessonId={lessonId}
         />
       )}
     </div>
@@ -3277,11 +3287,15 @@ function PeerReviewEditingPlayer({
   value,
   submitted,
   onChange,
+  quizId,
+  lessonId,
 }: {
   question: QuizQuestion;
-  value?: { text?: string; selfMarked?: boolean };
+  value?: WritingAnswerValue;
   submitted: boolean;
-  onChange: (val: { text?: string; selfMarked?: boolean }) => void;
+  onChange: (val: WritingAnswerValue) => void;
+  quizId?: string | null;
+  lessonId?: string | null;
 }) {
   const opts = asRecord(question.options);
   const sampleDraft = String(opts.sample_draft ?? question.question_text ?? "");
@@ -3335,7 +3349,11 @@ function PeerReviewEditingPlayer({
           allowSelfGraded={allowSelfGraded}
           allowAiFeedback={allowAiFeedback}
           allowTeacherReview={allowTeacherReview}
-          onSelfGraded={(passed) => onChange({ ...value, selfMarked: passed })}
+          onGraded={(outcome) => onChange(outcome)}
+          initialValue={value}
+          questionKey="1"
+          quizId={quizId}
+          lessonId={lessonId}
         />
       )}
     </div>

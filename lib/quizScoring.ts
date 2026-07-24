@@ -1,4 +1,5 @@
 import type { Json } from "@/types/database.types";
+import { isWritingQuestionType, resolveWritingOutcome } from "@/lib/writingGrading";
 
 export type ScoredQuestion = {
   id?: string;
@@ -202,22 +203,20 @@ export function isCorrect(question: ScoredQuestion, value: unknown): boolean {
     return given.every((v) => correctSet.has(v));
   }
 
-  if (
-    question.question_type === "SHORT_ANSWER" ||
-    question.question_type === "SUMMARIZATION" ||
-    question.question_type === "SENTENCE_COMPLETION" ||
-    question.question_type === "ESSAY_WRITING" ||
-    question.question_type === "EMAIL_LETTER_WRITING" ||
-    question.question_type === "TRANSLATION" ||
-    question.question_type === "PARAPHRASE_PRACTICE" ||
-    question.question_type === "SENTENCE_COMBINING" ||
-    question.question_type === "CREATIVE_WRITING" ||
-    question.question_type === "PEER_REVIEW_EDITING"
-  ) {
+  if (question.question_type === "SUMMARIZATION") {
+    // SUMMARIZATION isn't part of the unified writing-grading rollout (no dedicated
+    // player wiring it to WritingEvaluationInterface) — keep its prior lenient behavior.
     const val = asRecord(value as Json);
-    if (val.selfMarked === true) return true;
     const text = String(val.text ?? value ?? "").trim();
     return text.length > 0;
+  }
+
+  if (isWritingQuestionType(question.question_type)) {
+    // A writing question is only "correct" once it has an actual graded outcome —
+    // self-marked pass, an AI score, or a teacher score — at/above the pass threshold.
+    // Merely having typed text is not enough (that was the source of writing
+    // activities always awarding full credit/confetti regardless of grading state).
+    return resolveWritingOutcome(value).passed;
   }
 
   if (question.question_type === "DRAG_DROP" || question.question_type === "CATEGORIZATION") {

@@ -1,11 +1,25 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { CheckCircle2, Clock, Sparkles, Send, FileText, UserCheck, RefreshCw, ChevronRight, RotateCcw } from "lucide-react";
-import { evaluateWritingWithAiAction, submitWritingForTeacherReviewAction } from "@/app/admin/lessons/writingActions";
+import { CheckCircle2, Sparkles, Send, FileText, UserCheck, RotateCcw, RefreshCw } from "lucide-react";
+import {
+  evaluateWritingWithAiAction,
+  saveWritingGradingOutcomeAction,
+  getWritingSubmissionStatusAction
+} from "@/app/admin/lessons/writingActions";
 import { motion, AnimatePresence } from "framer-motion";
+import type { EvaluationMode, WritingAnswerValue } from "@/lib/writingGrading";
+import type { Json } from "@/types/database.types";
 
-export type EvaluationMode = "SELF_GRADED" | "AI_FEEDBACK" | "TEACHER_REVIEW";
+export type { EvaluationMode };
+
+type AiResultShape = {
+  score: number;
+  feedbackSummary: string;
+  grammarFeedback: string;
+  vocabularyFeedback: string;
+  suggestions: string[];
+};
 
 export function WritingEvaluationInterface({
   activityId,
@@ -18,8 +32,11 @@ export function WritingEvaluationInterface({
   allowSelfGraded = true,
   allowAiFeedback = true,
   allowTeacherReview = true,
-  onSelfGraded,
-  onReset,
+  questionKey = "1",
+  lessonId,
+  quizId,
+  initialValue,
+  onGraded
 }: {
   activityId: string;
   activityType: string;
@@ -31,46 +48,83 @@ export function WritingEvaluationInterface({
   allowSelfGraded?: boolean;
   allowAiFeedback?: boolean;
   allowTeacherReview?: boolean;
-  onSelfGraded?: (passed: boolean) => void;
-  onReset?: () => void;
+  questionKey?: string;
+  lessonId?: string | null;
+  quizId?: string | null;
+  /** The persisted outcome from a previous save (if any) — resumes straight into the graded/pending
+   * view instead of resetting to the mode picker, so a chosen grading result survives a page refresh. */
+  initialValue?: WritingAnswerValue | null;
+  /** Fires with the full outcome any time it changes — the parent question player persists this into
+   * its answers state (and, for AI/self, it's also independently saved server-side for the record). */
+  onGraded?: (outcome: WritingAnswerValue) => void;
 }) {
-  // Chosen evaluation mode state (null = selecting mode, locked once chosen)
-  const [chosenMode, setChosenMode] = useState<EvaluationMode | null>(null);
+  // Chosen evaluation mode — once set (and resolved), it is locked for the remainder of this attempt.
+  // The only way to pick a different method is to retake the whole activity (see the parent's Retake
+  // button), not an in-place reset here — otherwise a learner could see a weak AI/teacher score and
+  // simply switch to self-marking themselves as correct.
+  const [chosenMode, setChosenMode] = useState<EvaluationMode | null>(initialValue?.mode ?? null);
 
-  // AI Evaluation State
-  const [aiResult, setAiResult] = useState<{
-    score: number;
-    feedbackSummary: string;
-    grammarFeedback: string;
-    vocabularyFeedback: string;
-    suggestions: string[];
-  } | null>(null);
+  const [aiResult, setAiResult] = useState<AiResultShape | null>(
+    initialValue?.mode === "AI_FEEDBACK" && initialValue.aiFeedback
+      ? (initialValue.aiFeedback as unknown as AiResultShape)
+      : null
+  );
 
-  // Teacher Review State
-  const [teacherSubmitted, setTeacherSubmitted] = useState(false);
+  const [teacherState, setTeacherState] = useState<"PENDING" | "GRADED">(
+    initialValue?.mode === "TEACHER_REVIEW" ? (initialValue.gradingState === "GRADED" ? "GRADED" : "PENDING") : "PENDING"
+  );
+  const [teacherScore, setTeacherScore] = useState<number | null>(
+    initialValue?.mode === "TEACHER_REVIEW" && typeof initialValue.score === "number" ? initialValue.score : null
+  );
+  const [teacherFeedback, setTeacherFeedback] = useState<string | null>(initialValue?.teacherFeedback ?? null);
 
-  // Self Graded State
-  const [selfGradedChoice, setSelfGradedChoice] = useState<boolean | null>(null);
+  const [selfGradedChoice, setSelfGradedChoice] = useState<boolean | null>(
+    initialValue?.mode === "SELF_GRADED" ? initialValue.selfMarked ?? null : null
+  );
 
   const [isPending, startTransition] = useTransition();
+  const [isChecking, startCheckTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
   function handleRunAiFeedback() {
     setError(null);
-    setChosenMode("AI_FEEDBACK");
     startTransition(async () => {
       const res = await evaluateWritingWithAiAction({
         activityType,
         prompt,
         submissionText,
         rubricGuidance,
-        modelAnswer,
+        modelAnswer
       });
 
       if (res.success && res.data) {
+        setChosenMode("AI_FEEDBACK");
         setAiResult(res.data);
+        const outcome: WritingAnswerValue = {
+          text: submissionText,
+          mode: "AI_FEEDBACK",
+          gradingState: "GRADED",
+          score: res.data.score,
+          aiFeedback: res.data as unknown as Record<string, unknown>
+        };
+        onGraded?.(outcome);
+        void saveWritingGradingOutcomeAction({
+          lessonId,
+          quizId,
+          activityId,
+          activityType,
+          questionKey,
+          prompt,
+          submissionText,
+          mode: "AI_FEEDBACK",
+          status: "GRADED",
+          aiScore: res.data.score,
+          aiFeedback: res.data as unknown as Json
+        });
       } else {
-        setError("AI evaluation encountered an issue. Please try again.");
+        // A genuine AI/system failure — not a completed grading choice — so it's fine to let the
+        // learner try again rather than treating this as a locked-in outcome.
+        setError((res as { error?: string }).error || "AI evaluation encountered an issue. Please try again.");
       }
     });
   }
@@ -78,18 +132,47 @@ export function WritingEvaluationInterface({
   function handleSubmitToTeacher() {
     setError(null);
     setChosenMode("TEACHER_REVIEW");
+    setTeacherState("PENDING");
     startTransition(async () => {
-      const res = await submitWritingForTeacherReviewAction({
+      const res = await saveWritingGradingOutcomeAction({
+        lessonId,
+        quizId,
         activityId,
         activityType,
+        questionKey,
         prompt,
         submissionText,
+        mode: "TEACHER_REVIEW",
+        status: "PENDING"
       });
 
       if (res.success) {
-        setTeacherSubmitted(true);
+        onGraded?.({ text: submissionText, mode: "TEACHER_REVIEW", gradingState: "PENDING", submissionId: res.submissionId });
       } else {
+        setChosenMode(null);
         setError(res.error || "Failed to submit writing for teacher review.");
+      }
+    });
+  }
+
+  function handleCheckTeacherStatus() {
+    setError(null);
+    startCheckTransition(async () => {
+      const res = await getWritingSubmissionStatusAction(activityId, questionKey);
+      if (res.success && res.submission?.status === "GRADED") {
+        const score = Number(res.submission.teacher_score ?? 0);
+        setTeacherState("GRADED");
+        setTeacherScore(score);
+        setTeacherFeedback(res.submission.teacher_feedback ?? null);
+        onGraded?.({
+          text: submissionText,
+          mode: "TEACHER_REVIEW",
+          gradingState: "GRADED",
+          score,
+          teacherFeedback: res.submission.teacher_feedback ?? null
+        });
+      } else if (!res.success) {
+        setError(res.error || "Couldn't check grading status.");
       }
     });
   }
@@ -97,16 +180,20 @@ export function WritingEvaluationInterface({
   function handleSelectSelfGraded(passed: boolean) {
     setChosenMode("SELF_GRADED");
     setSelfGradedChoice(passed);
-    if (onSelfGraded) onSelfGraded(passed);
-  }
-
-  function handleResetChoice() {
-    setChosenMode(null);
-    setAiResult(null);
-    setTeacherSubmitted(false);
-    setSelfGradedChoice(null);
-    setError(null);
-    if (onReset) onReset();
+    const outcome: WritingAnswerValue = { text: submissionText, mode: "SELF_GRADED", gradingState: "GRADED", selfMarked: passed, score: passed ? 100 : 0 };
+    onGraded?.(outcome);
+    void saveWritingGradingOutcomeAction({
+      lessonId,
+      quizId,
+      activityId,
+      activityType,
+      questionKey,
+      prompt,
+      submissionText,
+      mode: "SELF_GRADED",
+      status: "GRADED",
+      selfMarked: passed
+    });
   }
 
   return (
@@ -125,7 +212,7 @@ export function WritingEvaluationInterface({
               <h4 className="text-sm font-bold text-ink flex items-center gap-1.5">
                 <Award className="size-4 text-[#6C3BFF]" /> Select 1 Evaluation Method
               </h4>
-              <p className="text-xs text-black/50">Choose 1 evaluation option to complete your submission:</p>
+              <p className="text-xs text-black/50">Choose one — once picked, this is your grading method for this attempt.</p>
             </div>
           </div>
 
@@ -133,15 +220,15 @@ export function WritingEvaluationInterface({
             {allowAiFeedback && (
               <button
                 type="button"
-                disabled={!submissionText.trim()}
+                disabled={!submissionText.trim() || isPending}
                 onClick={handleRunAiFeedback}
                 className="group rounded-3xl border border-[#6C3BFF]/20 bg-[#6C3BFF]/5 p-5 text-left transition-all duration-300 hover:border-[#6C3BFF] hover:bg-[#6C3BFF]/10 hover:shadow-md hover:-translate-y-0.5 disabled:opacity-40"
               >
                 <div className="w-10 h-10 rounded-2xl bg-[#6C3BFF]/15 flex items-center justify-center text-[#6C3BFF] mb-3 group-hover:scale-110 transition">
-                  <Sparkles size={20} />
+                  {isPending ? <div className="h-5 w-5 animate-spin rounded-full border-2 border-[#6C3BFF] border-t-transparent" /> : <Sparkles size={20} />}
                 </div>
                 <h5 className="text-sm font-bold text-ink">AI Evaluation</h5>
-                <p className="mt-1 text-xs text-black/50">Instant feedback on grammar, tone & score.</p>
+                <p className="mt-1 text-xs text-black/50">Real, instant feedback and a score on grammar, tone & task response.</p>
               </button>
             )}
 
@@ -155,14 +242,14 @@ export function WritingEvaluationInterface({
                   <UserCheck size={20} />
                 </div>
                 <h5 className="text-sm font-bold text-ink">Self Check</h5>
-                <p className="mt-1 text-xs text-black/50">Compare your draft with the model response.</p>
+                <p className="mt-1 text-xs text-black/50">Compare your draft with the model response yourself.</p>
               </button>
             )}
 
             {allowTeacherReview && (
               <button
                 type="button"
-                disabled={!submissionText.trim()}
+                disabled={!submissionText.trim() || isPending}
                 onClick={handleSubmitToTeacher}
                 className="group rounded-3xl border border-purple-200 bg-purple-50/40 p-5 text-left transition-all duration-300 hover:border-purple-400 hover:bg-purple-50 hover:shadow-md hover:-translate-y-0.5 disabled:opacity-40"
               >
@@ -170,14 +257,14 @@ export function WritingEvaluationInterface({
                   <Send size={20} />
                 </div>
                 <h5 className="text-sm font-bold text-ink">Teacher Review</h5>
-                <p className="mt-1 text-xs text-black/50">Submit to instructor queue for manual feedback.</p>
+                <p className="mt-1 text-xs text-black/50">Submit to your instructor's queue for manual grading.</p>
               </button>
             )}
           </div>
         </div>
       )}
 
-      {/* Step B: Display ONLY the Chosen Evaluation Mode (other options are hidden) */}
+      {/* Step B: Display ONLY the Chosen Evaluation Mode (other options are hidden and cannot be reopened) */}
       <AnimatePresence mode="wait">
         {chosenMode === "AI_FEEDBACK" && (
           <motion.div
@@ -187,14 +274,7 @@ export function WritingEvaluationInterface({
             exit={{ opacity: 0, y: -10 }}
             className="rounded-3xl border border-[#6C3BFF]/20 bg-[#6C3BFF]/5 p-5 space-y-4 shadow-xs"
           >
-            {isPending ? (
-              <div className="text-center py-8 space-y-3">
-                <div className="mx-auto w-12 h-12 rounded-2xl bg-[#6C3BFF]/10 flex items-center justify-center text-[#6C3BFF]">
-                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#6C3BFF] border-t-transparent" />
-                </div>
-                <p className="text-sm font-bold text-ink">Analyzing draft with AI...</p>
-              </div>
-            ) : aiResult ? (
+            {aiResult ? (
               <div className="space-y-5">
                 <div className="flex items-center justify-between border-b border-[#6C3BFF]/10 pb-4">
                   <span className="text-xs font-black text-[#6C3BFF] uppercase tracking-wider flex items-center gap-1.5">
@@ -235,15 +315,8 @@ export function WritingEvaluationInterface({
                   </div>
                 )}
 
-                <div className="pt-2 border-t border-[#6C3BFF]/10 flex items-center justify-between">
-                  <span className="text-[11px] text-black/40 font-medium">Selected Method: AI Evaluation</span>
-                  <button
-                    type="button"
-                    onClick={handleResetChoice}
-                    className="inline-flex items-center gap-1 text-xs font-bold text-[#6C3BFF] hover:underline"
-                  >
-                    <RotateCcw size={12} /> Retake / Choose Another Method
-                  </button>
+                <div className="pt-2 border-t border-[#6C3BFF]/10">
+                  <span className="text-[11px] text-black/40 font-medium">Evaluation method: AI Evaluation (locked for this attempt)</span>
                 </div>
               </div>
             ) : null}
@@ -276,41 +349,32 @@ export function WritingEvaluationInterface({
 
             <div className="border-t border-amber-200/30 pt-4 space-y-3">
               <p className="text-xs font-bold text-black/70">Self Assessment:</p>
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => handleSelectSelfGraded(true)}
-                  className={`flex-1 rounded-2xl py-3 px-4 text-xs font-bold border-2 transition duration-300 active:scale-95 ${
-                    selfGradedChoice === true
-                      ? "bg-[#6C3BFF] text-white border-[#6C3BFF] shadow-md shadow-[#6C3BFF]/20"
-                      : "bg-white border-black/10 text-black/70 hover:border-[#6C3BFF] hover:text-[#6C3BFF]"
-                  }`}
-                >
-                  ✓ My draft matches key points
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSelectSelfGraded(false)}
-                  className={`flex-1 rounded-2xl py-3 px-4 text-xs font-bold border-2 transition duration-300 active:scale-95 ${
-                    selfGradedChoice === false
-                      ? "bg-rose-500 text-white border-rose-500 shadow-md shadow-rose-500/20"
-                      : "bg-white border-black/10 text-black/70 hover:border-rose-500 hover:text-rose-500"
-                  }`}
-                >
-                  ✗ Needs revision
-                </button>
-              </div>
+              {selfGradedChoice === null ? (
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => handleSelectSelfGraded(true)}
+                    className="flex-1 rounded-2xl py-3 px-4 text-xs font-bold border-2 transition duration-300 active:scale-95 bg-white border-black/10 text-black/70 hover:border-[#6C3BFF] hover:text-[#6C3BFF]"
+                  >
+                    ✓ My draft matches key points
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSelectSelfGraded(false)}
+                    className="flex-1 rounded-2xl py-3 px-4 text-xs font-bold border-2 transition duration-300 active:scale-95 bg-white border-black/10 text-black/70 hover:border-rose-500 hover:text-rose-500"
+                  >
+                    ✗ Needs revision
+                  </button>
+                </div>
+              ) : (
+                <div className={`rounded-2xl py-3 px-4 text-xs font-bold border-2 ${selfGradedChoice ? "bg-[#6C3BFF] text-white border-[#6C3BFF]" : "bg-rose-500 text-white border-rose-500"}`}>
+                  {selfGradedChoice ? "✓ You marked this as matching the key points." : "✗ You marked this as needing revision."}
+                </div>
+              )}
             </div>
 
-            <div className="pt-2 border-t border-amber-200/30 flex items-center justify-between">
-              <span className="text-[11px] text-black/40 font-medium">Selected Method: Self Check</span>
-              <button
-                type="button"
-                onClick={handleResetChoice}
-                className="inline-flex items-center gap-1 text-xs font-bold text-amber-800 hover:underline"
-              >
-                <RotateCcw size={12} /> Retake / Choose Another Method
-              </button>
+            <div className="pt-2 border-t border-amber-200/30">
+              <span className="text-[11px] text-black/40 font-medium">Evaluation method: Self Check (locked for this attempt — this is not eligible for the celebration score, since it's your own self-assessment)</span>
             </div>
           </motion.div>
         )}
@@ -330,7 +394,19 @@ export function WritingEvaluationInterface({
                 </div>
                 <p className="text-sm font-bold text-ink">Submitting to teacher queue...</p>
               </div>
-            ) : teacherSubmitted ? (
+            ) : teacherState === "GRADED" ? (
+              <div className="rounded-2xl bg-white p-5 border border-purple-100 space-y-3 shadow-xs">
+                <div className="flex items-center justify-between border-b border-purple-100 pb-3">
+                  <span className="text-xs font-black text-purple-700 uppercase tracking-wider flex items-center gap-1.5">
+                    <CheckCircle2 size={14} /> Teacher Feedback
+                  </span>
+                  <span className="rounded-2xl bg-gradient-to-r from-purple-600 to-purple-500 px-4 py-1.5 text-sm font-black text-white shadow-sm">
+                    Score: {teacherScore ?? "-"}%
+                  </span>
+                </div>
+                {teacherFeedback ? <p className="text-xs font-medium text-ink leading-relaxed">{teacherFeedback}</p> : null}
+              </div>
+            ) : (
               <div className="rounded-2xl bg-white p-5 border border-purple-100 text-center space-y-3 shadow-xs">
                 <div className="inline-flex rounded-full bg-emerald-100 p-2.5 text-emerald-600">
                   <CheckCircle2 size={24} />
@@ -347,14 +423,15 @@ export function WritingEvaluationInterface({
                 <div className="pt-2 border-t border-black/5 flex items-center justify-center">
                   <button
                     type="button"
-                    onClick={handleResetChoice}
-                    className="inline-flex items-center gap-1 text-xs font-bold text-purple-700 hover:underline"
+                    onClick={handleCheckTeacherStatus}
+                    disabled={isChecking}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-purple-700 hover:underline disabled:opacity-50"
                   >
-                    <RotateCcw size={12} /> Retake / Choose Another Method
+                    <RefreshCw size={12} className={isChecking ? "animate-spin" : ""} /> Check if it's been graded
                   </button>
                 </div>
               </div>
-            ) : null}
+            )}
           </motion.div>
         )}
       </AnimatePresence>
