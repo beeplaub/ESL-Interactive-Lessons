@@ -1253,7 +1253,18 @@ export function LessonActivityPanel({
   function submit() {
     const finalScore = questions.reduce((sum, q) => sum + questionScore(q, answers[q.id]), 0);
     setSubmitted(true);
-    setReviewMode("overview");
+
+    const firstPendingIdx = questions.findIndex(
+      (q) => isWritingQuestionType(q.question_type) && isAwaitingResolution(answers[q.id])
+    );
+
+    if (firstPendingIdx !== -1) {
+      setReviewMode("detail");
+      setQIndex(firstPendingIdx);
+    } else {
+      setReviewMode("overview");
+    }
+
     if (previewOnly) { setMessage("Preview only."); return; }
     startTransition(async () => {
       try {
