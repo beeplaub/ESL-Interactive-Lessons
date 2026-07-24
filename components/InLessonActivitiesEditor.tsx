@@ -2734,7 +2734,8 @@ function EssayWritingEditor({
   onSave: (options: Json, needsReview: boolean) => void;
 }) {
   const currentOptions = asRecord(activity.activity_data);
-  const [prompt, setPrompt] = useState<string>(String(currentOptions.prompt || "Write an essay responding to the prompt below."));
+  const [instruction, setInstruction] = useState<string>(String(currentOptions.instruction || currentOptions.title || "Write an essay responding to the prompt below."));
+  const [prompt, setPrompt] = useState<string>(String(currentOptions.prompt || ""));
   const [minWords, setMinWords] = useState<number>(Number(currentOptions.min_words ?? 100));
   const [maxWords, setMaxWords] = useState<number>(Number(currentOptions.max_words ?? 250));
   const [sampleEssay, setSampleEssay] = useState<string>(String(currentOptions.sample_essay || ""));
@@ -2743,8 +2744,13 @@ function EssayWritingEditor({
   return (
     <div className="grid gap-4">
       <label className="text-sm font-medium">
-        Essay Prompt
-        <textarea rows={3} value={prompt} onChange={(e) => setPrompt(e.target.value)} className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm" />
+        Activity Instruction (Heading)
+        <input value={instruction} onChange={(e) => setInstruction(e.target.value)} placeholder="e.g. Write an essay responding to the prompt below." className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm" />
+      </label>
+
+      <label className="text-sm font-medium">
+        Essay Prompt & Situation
+        <textarea rows={3} value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Full essay prompt description..." className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm" />
       </label>
 
       <div className="grid gap-3 sm:grid-cols-2">
@@ -2773,6 +2779,7 @@ function EssayWritingEditor({
         onClick={() =>
           onSave(
             {
+              instruction,
               prompt,
               min_words: minWords,
               max_words: maxWords,
@@ -2781,7 +2788,7 @@ function EssayWritingEditor({
               correct_answer: sampleEssay,
               rubric_guidelines: rubricGuidelines,
             } as Json,
-            !prompt.trim()
+            !prompt.trim() && !instruction.trim()
           )
         }
       />
@@ -2797,7 +2804,8 @@ function EmailLetterWritingEditor({
   onSave: (options: Json, needsReview: boolean) => void;
 }) {
   const currentOptions = asRecord(activity.activity_data);
-  const [prompt, setPrompt] = useState<string>(String(currentOptions.prompt || "Write a formal email requesting information."));
+  const [instruction, setInstruction] = useState<string>(String(currentOptions.instruction || currentOptions.title || "Write a formal email based on the situation below."));
+  const [prompt, setPrompt] = useState<string>(String(currentOptions.prompt || ""));
   const [recipient, setRecipient] = useState<string>(String(currentOptions.recipient_role || "Course Director"));
   const [tone, setTone] = useState<string>(String(currentOptions.required_tone || "FORMAL"));
   const [modelEmail, setModelEmail] = useState<string>(String(currentOptions.model_email || ""));
@@ -2805,8 +2813,13 @@ function EmailLetterWritingEditor({
   return (
     <div className="grid gap-4">
       <label className="text-sm font-medium">
-        Email Task Prompt
-        <textarea rows={3} value={prompt} onChange={(e) => setPrompt(e.target.value)} className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm" />
+        Activity Instruction (Heading)
+        <input value={instruction} onChange={(e) => setInstruction(e.target.value)} placeholder="e.g. Write a formal email based on the situation below." className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm" />
+      </label>
+
+      <label className="text-sm font-medium">
+        Email Task & Situation Prompt
+        <textarea rows={3} value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Full email prompt description..." className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm" />
       </label>
 
       <div className="grid gap-3 sm:grid-cols-2">
@@ -2833,13 +2846,14 @@ function EmailLetterWritingEditor({
         onClick={() =>
           onSave(
             {
+              instruction,
               prompt,
               recipient_role: recipient,
               required_tone: tone,
               model_email: modelEmail,
               correct_answer: modelEmail,
             } as Json,
-            !prompt.trim()
+            !prompt.trim() && !instruction.trim()
           )
         }
       />

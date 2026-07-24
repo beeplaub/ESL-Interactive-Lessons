@@ -63,14 +63,17 @@ function writingQuestionsFromData(
   return items.map((item, index) => {
     const { options, correctAnswer } = buildFields(item, data);
     const description = item.description ?? data.description;
+    const instructionHeading = String(item.instruction ?? data.instruction ?? defaultPrompt);
+    const detailedPrompt = item.prompt ?? (items.length === 1 ? data.prompt : undefined);
     return {
       id: String(item.id ?? index + 1),
       question_number: Number(item.question_number ?? index + 1),
       question_type: activityType,
-      question_text: String(item.prompt ?? (items.length === 1 ? data.prompt : undefined) ?? defaultPrompt),
+      question_text: instructionHeading,
       description: description ? String(description) : undefined,
       options: {
         ...options,
+        prompt_body: detailedPrompt ? String(detailedPrompt) : undefined,
         allow_self_graded: (item.allow_self_graded ?? data.allow_self_graded) !== false,
         allow_ai_feedback: (item.allow_ai_feedback ?? data.allow_ai_feedback) !== false,
         allow_teacher_review: (item.allow_teacher_review ?? data.allow_teacher_review) !== false,

@@ -2867,12 +2867,14 @@ function EssayWritingPlayer({
   const allowAiFeedback = opts.allow_ai_feedback !== false;
   const allowTeacherReview = opts.allow_teacher_review !== false;
 
+  const promptText = String(opts.prompt_body || opts.prompt || "").trim();
+
   return (
     <div className="space-y-5">
-      {question.question_text && question.question_text !== "Write an essay responding to the prompt." && (
+      {promptText && promptText !== question.question_text && (
         <div className="rounded-3xl border border-[#6C3BFF]/15 bg-[#6C3BFF]/5 p-5 space-y-2">
           <p className="text-xs font-black text-[#6C3BFF] uppercase tracking-wider">Essay Prompt & Task</p>
-          <p className="text-base font-bold text-ink leading-relaxed whitespace-pre-wrap">{question.question_text}</p>
+          <p className="text-base font-bold text-ink leading-relaxed whitespace-pre-wrap">{promptText}</p>
         </div>
       )}
 
@@ -2941,12 +2943,14 @@ function EmailLetterWritingPlayer({
   const allowAiFeedback = opts.allow_ai_feedback !== false;
   const allowTeacherReview = opts.allow_teacher_review !== false;
 
+  const promptText = String(opts.prompt_body || opts.prompt || "").trim();
+
   return (
     <div className="space-y-5">
-      {question.question_text && question.question_text !== "Write a formal email based on the situation." && (
+      {promptText && promptText !== question.question_text && (
         <div className="rounded-3xl border border-[#6C3BFF]/15 bg-[#6C3BFF]/5 p-5 space-y-2">
           <p className="text-xs font-black text-[#6C3BFF] uppercase tracking-wider">Writing Task & Situation</p>
-          <p className="text-base font-bold text-ink leading-relaxed whitespace-pre-wrap">{question.question_text}</p>
+          <p className="text-base font-bold text-ink leading-relaxed whitespace-pre-wrap">{promptText}</p>
         </div>
       )}
 
