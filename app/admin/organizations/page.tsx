@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClass, createClassAssignment, createOrganization, removeClassMember } from "@/app/admin/organizations/actions";
 import { ClassMemberForm } from "./ClassMemberForm";
+import { AssignmentControls, ClassControls, OrganizationControls } from "./OrganizationControls";
 
 export default async function AdminOrganizationsPage() {
   // Site/school administration (creating orgs, classes, and assigning
@@ -132,7 +133,7 @@ export default async function AdminOrganizationsPage() {
                     <p className="truncate font-semibold">{org.name}</p>
                     <p className="mt-0.5 text-xs text-black/45">{classCounts.get(org.id) ?? 0} classes</p>
                   </div>
-                  <span className="rounded-full bg-skywash px-2.5 py-1 text-xs font-semibold text-ink">School shell</span>
+                  <OrganizationControls organization={{ id: org.id, name: org.name, description: org.description, classCount: classCounts.get(org.id) ?? 0 }} />
                 </div>
               ))}
               {(organizations?.length ?? 0) === 0 ? <p className="py-6 text-center text-sm text-black/55">No organizations yet.</p> : null}
@@ -162,6 +163,11 @@ export default async function AdminOrganizationsPage() {
                       </span>
                     )) : <span className="text-xs font-medium text-black/45">No learners yet</span>}
                   </div>
+                  <ClassControls
+                    klass={{ id: klass.id, name: klass.name, description: klass.description, level: klass.level, status: klass.status, organizationId: klass.organization_id, teacherId: klass.teacher_id }}
+                    organizations={(organizations ?? []).map((org) => ({ id: org.id, label: org.name }))}
+                    teachers={(teachers ?? []).map((teacher) => ({ id: teacher.id, label: displayName(teacher) }))}
+                  />
                 </div>
               ))}
               {(classes?.length ?? 0) === 0 ? <p className="py-6 text-center text-sm text-black/55">No classes yet.</p> : null}
@@ -180,6 +186,7 @@ export default async function AdminOrganizationsPage() {
                   <p className="mt-1 text-xs text-black/50">
                     {assignment.classes?.name ?? "Class"}{assignment.due_at ? ` · Due ${new Date(assignment.due_at).toLocaleString()}` : ""}{assignment.required_score ? ` · ${assignment.required_score}% required` : ""}
                   </p>
+                  <AssignmentControls assignment={{ id: assignment.id, title: assignment.title, dueAt: assignment.due_at, requiredScore: assignment.required_score, label: assignment.title || assignment.item_type.replaceAll("_", " ") }} />
                 </div>
               ))}
               {(assignments?.length ?? 0) === 0 ? <p className="py-6 text-center text-sm text-black/55">No assignments yet.</p> : null}

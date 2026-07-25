@@ -25,6 +25,29 @@ export async function createOrganization(formData: FormData) {
   revalidatePath("/admin/organizations");
 }
 
+export async function updateOrganization(formData: FormData) {
+  await requireAdmin();
+  const id = String(formData.get("id") || "").trim();
+  const name = String(formData.get("name") || "").trim();
+  if (!id || !name) throw new Error("Organization name is required.");
+  const admin = createAdminClient();
+  const { error } = await admin.from("organizations").update({
+    name,
+    description: String(formData.get("description") || "").trim() || null,
+    updated_at: new Date().toISOString(),
+  }).eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/organizations");
+}
+
+export async function deleteOrganization(organizationId: string) {
+  await requireAdmin();
+  const admin = createAdminClient();
+  const { error } = await admin.from("organizations").delete().eq("id", organizationId);
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/organizations");
+}
+
 export async function createClass(formData: FormData) {
   const { user } = await requireAdmin();
   const name = String(formData.get("name") || "").trim();
@@ -40,6 +63,34 @@ export async function createClass(formData: FormData) {
     teacher_id: teacherId,
     created_by: user.id,
   });
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/organizations");
+}
+
+export async function updateClass(formData: FormData) {
+  await requireAdmin();
+  const id = String(formData.get("id") || "").trim();
+  const name = String(formData.get("name") || "").trim();
+  if (!id || !name) throw new Error("Class name is required.");
+  const admin = createAdminClient();
+  const { error } = await admin.from("classes").update({
+    name,
+    organization_id: String(formData.get("organizationId") || "") || null,
+    teacher_id: String(formData.get("teacherId") || "") || null,
+    level: String(formData.get("level") || "").trim() || null,
+    description: String(formData.get("description") || "").trim() || null,
+    status: String(formData.get("status") || "ACTIVE") === "ARCHIVED" ? "ARCHIVED" : "ACTIVE",
+    updated_at: new Date().toISOString(),
+  }).eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/organizations");
+  revalidatePath(`/admin/organizations/classes/${id}`);
+}
+
+export async function deleteClass(classId: string) {
+  await requireAdmin();
+  const admin = createAdminClient();
+  const { error } = await admin.from("classes").delete().eq("id", classId);
   if (error) throw new Error(error.message);
   revalidatePath("/admin/organizations");
 }
@@ -158,8 +209,32 @@ export async function removeClassMember(classMemberId: string) {
 export async function removeClassAssignment(assignmentId: string) {
   await requireAdmin();
   const admin = createAdminClient();
+  const { data: assignment } = await admin.from("class_assignments").select("class_id").eq("id", assignmentId).maybeSingle();
   const { error } = await admin.from("class_assignments").delete().eq("id", assignmentId);
   if (error) throw new Error(error.message);
   revalidatePath("/admin/organizations");
+  if (assignment?.class_id) revalidatePath(`/admin/organizations/classes/${assignment.class_id}`);
+  revalidatePath("/assignments");
+}
+
+export async function updateClassAssignment(formData: FormData) {
+  await requireAdmin();
+  const id = String(formData.get("id") || "").trim();
+  if (!id) throw new Error("Assignment not found.");
+  const rawScore = String(formData.get("requiredScore") || "").trim();
+  const requiredScore = rawScore ? Number(rawScore) : null;
+  if (requiredScore !== null && (!Number.isFinite(requiredScore) || requiredScore < 0 || requiredScore > 100)) {
+    throw new Error("Required score must be between 0 and 100.");
+  }
+  const admin = createAdminClient();
+  const { data: assignment } = await admin.from("class_assignments").select("class_id").eq("id", id).maybeSingle();
+  const { error } = await admin.from("class_assignments").update({
+    title: String(formData.get("title") || "").trim() || null,
+    due_at: String(formData.get("dueAt") || "") || null,
+    required_score: requiredScore,
+  }).eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/organizations");
+  if (assignment?.class_id) revalidatePath(`/admin/organizations/classes/${assignment.class_id}`);
   revalidatePath("/assignments");
 }
