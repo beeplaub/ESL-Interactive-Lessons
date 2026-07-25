@@ -10,6 +10,7 @@ import {
   HelpCircle,
   Home,
   Layers,
+  ClipboardList,
   Users,
   Zap,
   Award
@@ -50,6 +51,7 @@ export function LearnerSidebar({
     { href: "/account", label: "Home", icon: Home, key: "home" },
     { href: "/quizzes", label: "Quizzes", icon: HelpCircle, key: "quizzes" },
     { href: "/courses", label: "Courses", icon: GraduationCap, key: "courses" },
+    { href: "/assignments", label: "Assignments", icon: ClipboardList, key: "assignments" },
     { href: "/language-profile", label: "Language Profile", icon: BarChart2, key: "language-profile" },
     { href: "/leaderboard", label: "Leaderboard", icon: Award, key: "leaderboard" },
     { href: "#", label: "Community", icon: Users, key: "community", disabled: true, badge: "NEW" }

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { enrollUserInCourseDirectly } from "@/app/admin/courses/actions";
 
 function slugify(value: string) {
   return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80);
@@ -71,10 +72,13 @@ export async function createClassAssignment(formData: FormData) {
   if (itemType === "LESSON") {
     const { data } = await admin.from("lessons").select("id").eq("id", resourceId).eq("status", "PUBLISHED").is("deleted_at", null).maybeSingle();
     if (!data) throw new Error("Only published lessons can be assigned.");
+    const { data: placement } = await admin.from("course_items").select("id").eq("lesson_id", resourceId).limit(1).maybeSingle();
+    if (placement) throw new Error("This lesson belongs to a course. Assign its course so learners get the complete path.");
   }
   if (itemType === "QUIZ") {
-    const { data } = await admin.from("quizzes").select("id").eq("id", resourceId).eq("status", "PUBLISHED").is("deleted_at", null).maybeSingle();
+    const { data } = await admin.from("quizzes").select("id,course_id").eq("id", resourceId).eq("status", "PUBLISHED").is("deleted_at", null).maybeSingle();
     if (!data) throw new Error("Only published quizzes can be assigned.");
+    if (data.course_id) throw new Error("This quiz belongs to a course. Assign its course so learners get the right learning context.");
   }
 
   const { error } = await admin.from("class_assignments").insert({
@@ -89,6 +93,11 @@ export async function createClassAssignment(formData: FormData) {
     created_by: user.id,
   });
   if (error) throw new Error(error.message);
+
+  if (itemType === "COURSE") {
+    const { data: members } = await admin.from("class_members").select("user_id,role").eq("class_id", classId).eq("role", "STUDENT");
+    await Promise.all((members ?? []).map((member) => enrollUserInCourseDirectly(member.user_id, resourceId)));
+  }
   revalidatePath("/admin/organizations");
 }
 
@@ -120,7 +129,18 @@ export async function addClassMemberByEmail(formData: FormData): Promise<{ succe
     }, { onConflict: "class_id,user_id", ignoreDuplicates: true });
     if (error) return { success: false, error: error.message };
 
+    const { data: courseAssignments } = await admin
+      .from("class_assignments")
+      .select("course_id")
+      .eq("class_id", classId)
+      .eq("item_type", "COURSE")
+      .not("course_id", "is", null);
+    await Promise.all((courseAssignments ?? []).flatMap((assignment) => assignment.course_id ? [enrollUserInCourseDirectly(learnerId!, assignment.course_id)] : []));
+
     revalidatePath("/admin/organizations");
+    revalidatePath("/assignments");
+    revalidatePath("/courses");
+    revalidatePath("/account");
     return { success: true };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : "Could not add the learner." };

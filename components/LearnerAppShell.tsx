@@ -4,6 +4,7 @@ import {
   BarChart2,
   Bell,
   BookOpen,
+  ClipboardList,
   ChevronRight,
   GraduationCap,
   HelpCircle,
@@ -24,7 +25,7 @@ import { createClient } from "@/lib/supabase/server";
 import { LearnerSidebar } from "@/components/LearnerSidebar";
 import { NotificationsDropdown } from "@/components/NotificationsDropdown";
 
-export type ActiveItem = "home" | "quizzes" | "courses" | "level-test" | "leaderboard" | "language-profile" | "profile";
+export type ActiveItem = "home" | "quizzes" | "courses" | "assignments" | "level-test" | "leaderboard" | "language-profile" | "profile";
 
 type BreadcrumbItem = { label: string; href?: string };
 export type NotificationItem = { key: string; title: string; detail: string; href: string; tone: "purple" | "orange" | "green" | "blue" };
@@ -33,6 +34,7 @@ const defaultBreadcrumbs: Record<ActiveItem, BreadcrumbItem[]> = {
   home: [{ label: "Home" }],
   quizzes: [{ label: "Home", href: "/account" }, { label: "Quizzes" }],
   courses: [{ label: "Home", href: "/account" }, { label: "Courses" }],
+  assignments: [{ label: "Home", href: "/account" }, { label: "Assignments" }],
   "level-test": [{ label: "Home", href: "/account" }, { label: "Level Test" }],
   leaderboard: [{ label: "Home", href: "/account" }, { label: "Leaderboard" }],
   "language-profile": [{ label: "Home", href: "/account" }, { label: "Language Profile" }],
@@ -558,6 +560,7 @@ function MobileTopbar({
               <MobileDrawerLink href="/account" label="Home" icon={Home} active={active === "home"} />
               <MobileDrawerLink href="/quizzes" label="Quizzes" icon={HelpCircle} active={active === "quizzes"} />
               <MobileDrawerLink href="/courses" label="Courses" icon={GraduationCap} active={active === "courses"} />
+              <MobileDrawerLink href="/assignments" label="Assignments" icon={ClipboardList} active={active === "assignments"} />
               <MobileDrawerLink href="/level-test" label="Level Test" icon={Target} active={active === "level-test"} />
               <MobileDrawerLink href="/language-profile" label="Language Profile" icon={BarChart2} active={active === "language-profile"} />
               <MobileDrawerLink href="/leaderboard" label="Leaderboard" icon={Trophy} active={active === "leaderboard"} />
