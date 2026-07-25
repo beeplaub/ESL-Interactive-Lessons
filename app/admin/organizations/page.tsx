@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClass, createClassAssignment, createOrganization, removeClassMember } from "@/app/admin/organizations/actions";
 import { ClassMemberForm } from "./ClassMemberForm";
 import { AssignmentControls, ClassControls, OrganizationControls } from "./OrganizationControls";
+import { SchoolAdminForm } from "./SchoolAdminForm";
 
 export default async function AdminOrganizationsPage() {
   // Site/school administration (creating orgs, classes, and assigning
@@ -84,6 +85,8 @@ export default async function AdminOrganizationsPage() {
               <button className="inline-flex w-fit items-center gap-2 rounded-md bg-moss px-4 py-2 text-sm font-semibold text-white"><Plus size={15} /> Create class</button>
             </div>
           </form>
+
+          <SchoolAdminForm organizations={(organizations ?? []).map((organization) => ({ id: organization.id, name: organization.name }))} />
 
           <form action={createClassAssignment} className="rounded-xl border border-black/10 bg-white p-5 shadow-sm">
             <div className="flex items-center gap-2">

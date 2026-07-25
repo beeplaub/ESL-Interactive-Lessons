@@ -29,6 +29,38 @@ export async function createOrganization(formData: FormData) {
   revalidatePath("/admin/organizations");
 }
 
+export async function appointOrganizationSchoolAdmin(formData: FormData): Promise<{ success: boolean; error?: string }> {
+  try {
+    await requireAdmin();
+    const organizationId = String(formData.get("organizationId") || "").trim();
+    const email = String(formData.get("email") || "").trim().toLowerCase();
+    if (!organizationId || !email) return { success: false, error: "Choose a school and enter an email address." };
+    const admin = createAdminClient();
+    const { data: organization } = await admin.from("organizations").select("id").eq("id", organizationId).maybeSingle();
+    if (!organization) return { success: false, error: "That organization no longer exists." };
+    let userId: string | null = null;
+    for (let page = 1; page <= 10 && !userId; page += 1) {
+      const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
+      if (error) return { success: false, error: error.message };
+      userId = data.users.find((candidate) => candidate.email?.toLowerCase() === email)?.id ?? null;
+      if (data.users.length < 1000) break;
+    }
+    if (!userId) return { success: false, error: "No BrenUp account matches that email. Create or invite the account first." };
+    const { data: profile } = await admin.from("profiles").select("role").eq("id", userId).maybeSingle();
+    if (profile?.role !== "ADMIN") {
+      const { error } = await admin.from("profiles").update({ role: "SCHOOL_ADMIN" }).eq("id", userId);
+      if (error) return { success: false, error: error.message };
+    }
+    const { error } = await admin.from("organization_members").upsert({ organization_id: organizationId, user_id: userId, role: "SCHOOL_ADMIN" }, { onConflict: "organization_id,user_id" });
+    if (error) return { success: false, error: error.message };
+    revalidatePath("/admin/organizations");
+    revalidatePath("/admin/school");
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Could not appoint the school admin." };
+  }
+}
+
 export async function updateOrganization(formData: FormData) {
   await requireAdmin();
   const id = String(formData.get("id") || "").trim();
