@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireStaff, requireQuizAccess } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { assertCreatorCanCreate } from "@/lib/entitlements";
 import type { Json } from "@/types/database.types";
 
 const questionSchema = z.object({
@@ -32,7 +33,8 @@ const quizSchema = z.object({
 });
 
 export async function saveQuiz(payload: unknown) {
-  const { user } = await requireStaff();
+  const { user, profile } = await requireStaff();
+  await assertCreatorCanCreate(user.id, profile?.role, "QUIZZES");
   const parsed = quizSchema.parse(payload);
   const admin = createAdminClient();
   const { data: quiz, error: quizError } = await admin
@@ -70,7 +72,9 @@ export async function saveQuiz(payload: unknown) {
 
 export async function saveQuizBuilder(payload: unknown) {
   const quizIdForAuth = typeof payload === "object" && payload && "quizId" in payload ? String((payload as { quizId?: unknown }).quizId || "") : "";
-  const { user } = quizIdForAuth ? await requireQuizAccess(quizIdForAuth) : await requireStaff();
+  const session = quizIdForAuth ? await requireQuizAccess(quizIdForAuth) : await requireStaff();
+  const { user, profile } = session;
+  if (!quizIdForAuth) await assertCreatorCanCreate(user.id, profile?.role, "QUIZZES");
   const parsed = quizSchema.parse(payload);
   const quizId = typeof payload === "object" && payload && "quizId" in payload ? String((payload as { quizId?: unknown }).quizId || "") : "";
   const admin = createAdminClient();

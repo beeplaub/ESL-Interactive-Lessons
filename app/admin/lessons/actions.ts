@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireStaff, requireLessonAccess } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { assertCreatorWithinLimit } from "@/lib/entitlements";
 import { parsePdfPages } from "@/lib/pdfParser";
 import { parseLessonSlideActivities } from "@/lib/lessonTextParser";
 import { classifyAndExtractLesson } from "@/lib/slideClassifier";
@@ -1007,7 +1008,7 @@ export async function updateSlide(formData: FormData) {
 }
 
 export async function addBuilderSlide(lessonId: string, formData: FormData) {
-  await requireLessonAccess(lessonId);
+  const { user, profile } = await requireLessonAccess(lessonId);
   const supabase = createAdminClient();
   const { data: slides, error: slidesError } = await supabase
     .from("slides")
@@ -1018,6 +1019,7 @@ export async function addBuilderSlide(lessonId: string, formData: FormData) {
   if (slidesError) throw slidesError;
 
   const nextSlideNumber = (slides?.[0]?.slide_number ?? 0) + 1;
+  await assertCreatorWithinLimit(user.id, profile?.role, "SLIDES_PER_LESSON", nextSlideNumber - 1, "slides in this lesson");
   const title = String(formData.get("title") || `Slide ${nextSlideNumber}`).trim();
   const type = String(formData.get("type") || "INFO") as SlideType;
   const rawText = String(formData.get("rawText") || title).trim();
@@ -1041,8 +1043,11 @@ export async function addBuilderSlideAt(
   title: string,
   sectionLabel: string
 ) {
-  await requireLessonAccess(lessonId);
+  const { user, profile } = await requireLessonAccess(lessonId);
   const supabase = createAdminClient();
+
+  const { count: slideCount } = await supabase.from("slides").select("id", { count: "exact", head: true }).eq("lesson_id", lessonId);
+  await assertCreatorWithinLimit(user.id, profile?.role, "SLIDES_PER_LESSON", slideCount ?? 0, "slides in this lesson");
 
   const { data: slidesToShift } = await supabase
     .from("slides")

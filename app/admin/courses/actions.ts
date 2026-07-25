@@ -6,6 +6,7 @@ import { requireAdmin, requireCourseAccess, requireStaff, isPlatformAdmin } from
 import { ALL_LEVELS_LABEL, anchorCefrLevel } from "@/lib/levels";
 import { forkQuizForCourse } from "@/lib/quizFork";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { assertCreatorCanCreate, assertCreatorWithinLimit } from "@/lib/entitlements";
 
 function slugify(value: string) {
   return value
@@ -17,7 +18,8 @@ function slugify(value: string) {
 }
 
 export async function createCourse(formData: FormData) {
-  const { user } = await requireStaff();
+  const { user, profile } = await requireStaff();
+  await assertCreatorCanCreate(user.id, profile?.role, "COURSES");
   const title = String(formData.get("title") || "").trim();
   if (!title) throw new Error("Course title is required.");
 
@@ -278,6 +280,10 @@ export async function addCourseItem(courseId: string, formData: FormData) {
   const { count } = await positionQuery;
   const lessonId = itemType === "LESSON" ? String(formData.get("lessonId") || "") || null : null;
   const pickedQuizId = itemType === "QUIZ" ? String(formData.get("quizId") || "") || null : null;
+  if (itemType === "LESSON") {
+    const { count: lessonCount } = await admin.from("course_items").select("id", { count: "exact", head: true }).eq("course_id", courseId).eq("item_type", "LESSON");
+    await assertCreatorWithinLimit(user.id, profile?.role, "LESSONS_PER_COURSE", lessonCount ?? 0, "lessons in this course");
+  }
 
   if (lessonId && !isPlatformAdmin(profile?.role)) {
     // A teacher may only link their own lessons, or already-published shared
@@ -325,7 +331,7 @@ export async function createAndAddCourseItem(
   courseId: string,
   formData: FormData
 ): Promise<{ id: string; itemType: "LESSON" | "QUIZ" }> {
-  const { user } = await requireCourseAccess(courseId);
+  const { user, profile } = await requireCourseAccess(courseId);
   const admin = createAdminClient();
 
   const itemType = String(formData.get("itemType") || "LESSON") as "LESSON" | "QUIZ";
@@ -335,6 +341,11 @@ export async function createAndAddCourseItem(
   const level = String(formData.get("level") || ALL_LEVELS_LABEL);
 
   if (title.length < 2) throw new Error("Give it a title (at least 2 characters) before creating.");
+
+  if (itemType === "LESSON") {
+    const { count: lessonCount } = await admin.from("course_items").select("id", { count: "exact", head: true }).eq("course_id", courseId).eq("item_type", "LESSON");
+    await assertCreatorWithinLimit(user.id, profile?.role, "LESSONS_PER_COURSE", lessonCount ?? 0, "lessons in this course");
+  }
 
   let lessonId: string | null = null;
   let quizId: string | null = null;

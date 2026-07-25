@@ -18,6 +18,7 @@ import {
   Target,
   UsersRound,
   CreditCard,
+  Crown,
   FileCheck,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -29,6 +30,7 @@ const links = [
   { href: "/admin/analytics", label: "Analytics", Icon: BarChart3, adminOnly: true },
   { href: "/admin/submissions", label: "Submissions", Icon: FileCheck },
   { href: "/admin/orders", label: "Orders", Icon: CreditCard, adminOnly: true },
+  { href: "/admin/plans", label: "Plans", Icon: Crown, adminOnly: true },
   { href: "/admin/organizations", label: "Organizations", Icon: Building2, adminOnly: true },
   { href: "/admin/courses", label: "Courses", Icon: GraduationCap },
   { href: "/admin/content-library", label: "Content Library", Icon: Library },
