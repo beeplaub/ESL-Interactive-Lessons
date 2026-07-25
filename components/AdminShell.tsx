@@ -6,7 +6,7 @@ export function AdminShell({
   children,
 }: {
   name: string | null | undefined;
-  role?: "ADMIN" | "TEACHER";
+  role?: "ADMIN" | "TEACHER" | "SCHOOL_ADMIN";
   children: React.ReactNode;
 }) {
   return (

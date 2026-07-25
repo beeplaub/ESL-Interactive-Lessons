@@ -51,7 +51,7 @@ export function AdminSidebar({
   mobileTop = false,
 }: {
   name: string | null | undefined;
-  role?: "ADMIN" | "TEACHER";
+  role?: "ADMIN" | "TEACHER" | "SCHOOL_ADMIN";
   mobileTop?: boolean;
 }) {
   const pathname = usePathname();

@@ -66,7 +66,7 @@ export function isPlatformAdmin(role?: string | null) {
 
 /** ADMIN or TEACHER — anyone allowed inside the /admin area at all. */
 export function isStaff(role?: string | null) {
-  return role === "ADMIN" || role === "TEACHER";
+  return role === "ADMIN" || role === "TEACHER" || role === "SCHOOL_ADMIN";
 }
 
 /**

@@ -3,7 +3,7 @@ import { AdminShell } from "@/components/AdminShell";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const { profile } = await requireStaff();
-  const role = profile?.role === "ADMIN" ? "ADMIN" : "TEACHER";
+  const role = profile?.role === "ADMIN" ? "ADMIN" : profile?.role === "SCHOOL_ADMIN" ? "SCHOOL_ADMIN" : "TEACHER";
   return (
     <AdminShell name={profile?.full_name} role={role}>
       {children}
