@@ -20,6 +20,7 @@ import {
   CreditCard,
   Crown,
   FileCheck,
+  School,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { signOut, switchToLearnerView } from "@/app/auth/actions";
@@ -33,6 +34,7 @@ const links = [
   { href: "/admin/plans", label: "Plans", Icon: Crown, adminOnly: true },
   { href: "/admin/organizations", label: "Organizations", Icon: Building2, adminOnly: true },
   { href: "/admin/courses", label: "Courses", Icon: GraduationCap },
+  { href: "/admin/classes", label: "My Classes", Icon: School },
   { href: "/admin/content-library", label: "Content Library", Icon: Library },
   { href: "/admin/media", label: "Media Library", Icon: Images },
   { href: "/admin/quizzes", label: "Quizzes", Icon: ClipboardList },
