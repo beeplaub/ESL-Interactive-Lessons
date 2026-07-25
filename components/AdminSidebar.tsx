@@ -34,7 +34,8 @@ const links = [
   { href: "/admin/plans", label: "Plans", Icon: Crown, adminOnly: true },
   { href: "/admin/organizations", label: "Organizations", Icon: Building2, adminOnly: true },
   { href: "/admin/courses", label: "Courses", Icon: GraduationCap },
-  { href: "/admin/classes", label: "My Classes", Icon: School },
+  { href: "/admin/classes", label: "My Classes", Icon: School, teacherOnly: true },
+  { href: "/admin/school", label: "School Workspace", Icon: Building2, schoolAdminOnly: true },
   { href: "/admin/content-library", label: "Content Library", Icon: Library },
   { href: "/admin/media", label: "Media Library", Icon: Images },
   { href: "/admin/quizzes", label: "Quizzes", Icon: ClipboardList },
@@ -55,7 +56,11 @@ export function AdminSidebar({
   mobileTop?: boolean;
 }) {
   const pathname = usePathname();
-  const visibleLinks = role === "ADMIN" ? links : links.filter((link) => !link.adminOnly);
+  const visibleLinks = role === "ADMIN"
+    ? links.filter((link) => !link.teacherOnly && !link.schoolAdminOnly)
+    : role === "SCHOOL_ADMIN"
+      ? links.filter((link) => !link.adminOnly && !link.teacherOnly)
+      : links.filter((link) => !link.adminOnly && !link.schoolAdminOnly);
   const [collapsed, setCollapsed] = useState(false);
   const [mounted, setMounted] = useState(false);
 
