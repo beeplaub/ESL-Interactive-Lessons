@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, BarChart3, BookOpen, Building2, ClipboardList, FlaskConical, GraduationCap, PenSquare, UsersRound } from "lucide-react";
+import { ArrowRight, BarChart3, BookOpen, Building2, ClipboardList, FileCheck, FlaskConical, GraduationCap, Images, Library, PenSquare, Plus, UsersRound } from "lucide-react";
 import { requireStaff, isPlatformAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -26,13 +26,23 @@ export default async function AdminPage() {
 
     // Scoped the same way requireCourseAccess/requireQuizAccess scope reads:
     // only rows tied to content this teacher actually owns, never platform-wide.
-    const [{ data: attemptRows }, { data: enrollmentRows }] = await Promise.all([
+    const [{ data: attemptRows }, { data: enrollmentRows }, { count: pendingSubmissionCount }, { count: libraryCount }, { count: mediaCount }] = await Promise.all([
       quizIds.length
         ? admin.from("quiz_attempts").select("id, quiz_id, user_id, score, completed_at").in("quiz_id", quizIds).order("completed_at", { ascending: false }).limit(8)
         : Promise.resolve({ data: [] as Array<{ id: string; quiz_id: string; user_id: string; score: number | null; completed_at: string | null }> }),
       courseIds.length
         ? admin.from("course_enrollments").select("id, course_id, user_id, status, enrolled_at").in("course_id", courseIds).order("enrolled_at", { ascending: false }).limit(8)
-        : Promise.resolve({ data: [] as Array<{ id: string; course_id: string; user_id: string; status: string; enrolled_at: string | null }> })
+        : Promise.resolve({ data: [] as Array<{ id: string; course_id: string; user_id: string; status: string; enrolled_at: string | null }> }),
+      (() => {
+        if (!lessonRows.length && !quizRows.length) return Promise.resolve({ count: 0 });
+        const filters = [
+          lessonRows.length ? `lesson_id.in.(${lessonRows.map((row) => row.id).join(",")})` : null,
+          quizRows.length ? `quiz_id.in.(${quizRows.map((row) => row.id).join(",")})` : null,
+        ].filter(Boolean).join(",");
+        return admin.from("writing_submissions").select("id", { count: "exact", head: true }).eq("status", "PENDING").or(filters);
+      })(),
+      admin.from("content_library_items").select("id", { count: "exact", head: true }).eq("created_by", user.id),
+      admin.from("media_assets").select("id", { count: "exact", head: true }).eq("owner_id", user.id).is("deleted_at", null)
     ]);
 
     const learnerIds = Array.from(new Set([...(attemptRows ?? []).map((row) => row.user_id), ...(enrollmentRows ?? []).map((row) => row.user_id)]));
@@ -85,6 +95,10 @@ export default async function AdminPage() {
       ...quizRows.filter((row) => row.status === "DRAFT").map((row) => ({ href: `/admin/quizzes/${row.id}/edit`, title: row.title, updatedAt: row.updated_at, kind: "quiz" }))
     ].sort((a, b) => new Date(b.updatedAt ?? 0).getTime() - new Date(a.updatedAt ?? 0).getTime())[0];
 
+    const pendingCount = pendingSubmissionCount ?? 0;
+    const savedContentCount = libraryCount ?? 0;
+    const mediaAssetCount = mediaCount ?? 0;
+
     return (
       <main className="min-w-0 overflow-hidden">
         <div className="mb-6">
@@ -96,6 +110,27 @@ export default async function AdminPage() {
           <AdminCard href="/admin/courses" icon={GraduationCap} label="My courses" value={courseRows.length} detail={`${countStatus(courseRows, "PUBLISHED")} published · ${countStatus(courseRows, "DRAFT")} draft`} />
           <AdminCard href="/admin/lessons" icon={BookOpen} label="My lessons" value={lessonRows.length} detail={`${countStatus(lessonRows, "PUBLISHED")} published · ${countStatus(lessonRows, "DRAFT")} draft`} />
           <AdminCard href="/admin/quizzes" icon={ClipboardList} label="My quizzes" value={quizRows.length} detail={`${countStatus(quizRows, "PUBLISHED")} published · ${countStatus(quizRows, "DRAFT")} draft`} />
+        </section>
+
+        <section className="mt-6 br-card rounded-20 p-4 sm:p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-bold text-ink">Create something new</h2>
+              <p className="mt-1 text-xs text-slate-500">Start with the format that fits your teaching plan.</p>
+            </div>
+            <Link href="/admin/content-library" className="text-xs font-bold text-violetglow hover:underline">Open content library</Link>
+          </div>
+          <div className="mt-4 grid gap-2 sm:grid-cols-3">
+            <QuickAction href="/admin/courses" icon={GraduationCap} label="New course" />
+            <QuickAction href="/admin/lessons/new" icon={BookOpen} label="New lesson" />
+            <QuickAction href="/admin/quizzes/new" icon={ClipboardList} label="New quiz" />
+          </div>
+        </section>
+
+        <section className="mt-4 grid min-w-0 gap-3 sm:grid-cols-3">
+          <WorkspaceSignal href="/admin/submissions" icon={FileCheck} label="Submissions to review" value={pendingCount} detail={pendingCount ? "Learners are waiting for feedback." : "Nothing waiting right now."} tone={pendingCount ? "amber" : "neutral"} />
+          <WorkspaceSignal href="/admin/content-library" icon={Library} label="Reusable content" value={savedContentCount} detail="Your saved blocks, activities, and slides." tone="violet" />
+          <WorkspaceSignal href="/admin/media" icon={Images} label="Media assets" value={mediaAssetCount} detail="Images, audio, and video for your content." tone="blue" />
         </section>
 
         {latestDraft ? (
@@ -169,6 +204,30 @@ function AdminCard({ href, icon: Icon, label, value, detail }: { href: string; i
       <p className="mt-4 text-3xl font-extrabold text-ink">{value}</p>
       <p className="mt-1 text-sm font-bold text-ink">{label}</p>
       <p className="mt-1 text-xs text-slate-500">{detail}</p>
+    </Link>
+  );
+}
+
+function QuickAction({ href, icon: Icon, label }: { href: string; icon: typeof ClipboardList; label: string }) {
+  return (
+    <Link href={href} className="group flex min-w-0 items-center gap-3 rounded-xl border border-black/10 bg-white/70 px-3 py-3 transition hover:-translate-y-0.5 hover:border-violetglow/30 hover:bg-violetglow/5">
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-violetglow/10 text-violetglow"><Icon size={16} /></span>
+      <span className="min-w-0 flex-1 truncate text-sm font-bold text-ink">{label}</span>
+      <Plus size={15} className="shrink-0 text-slate-400 transition group-hover:text-violetglow" />
+    </Link>
+  );
+}
+
+function WorkspaceSignal({ href, icon: Icon, label, value, detail, tone }: { href: string; icon: typeof ClipboardList; label: string; value: number; detail: string; tone: "amber" | "violet" | "blue" | "neutral" }) {
+  const toneClass = tone === "amber" ? "bg-amber-50 text-amber-700" : tone === "blue" ? "bg-sky-50 text-sky-700" : tone === "violet" ? "bg-violetglow/10 text-violetglow" : "bg-slate-100 text-slate-600";
+  return (
+    <Link href={href} className="br-card min-w-0 rounded-20 p-4 transition hover:-translate-y-0.5 hover:shadow-md">
+      <div className="flex items-start justify-between gap-2">
+        <span className={`flex size-8 items-center justify-center rounded-lg ${toneClass}`}><Icon size={16} /></span>
+        <span className="text-2xl font-extrabold text-ink">{value}</span>
+      </div>
+      <p className="mt-3 text-sm font-bold text-ink">{label}</p>
+      <p className="mt-1 text-xs leading-relaxed text-slate-500">{detail}</p>
     </Link>
   );
 }
