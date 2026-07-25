@@ -179,12 +179,15 @@ function normalizeMultipleSelect(data: Json | null): { prompt: string; questions
   };
 }
 
-function normalizeShortAnswer(data: Json | null): { prompt: string; enableAiFeedback: boolean; questions: ShortAnswerQuestion[] } {
+function normalizeShortAnswer(data: Json | null): { prompt: string; enableAiFeedback: boolean; allowSelfGraded: boolean; allowAiFeedback: boolean; allowTeacherReview: boolean; questions: ShortAnswerQuestion[] } {
   const record = asRecord(data);
   const questions = Array.isArray(record.questions) ? record.questions : [];
   return {
     prompt: String(record.prompt ?? "Write a short answer."),
     enableAiFeedback: record.enable_ai_feedback === true,
+    allowSelfGraded: record.allow_self_graded !== false,
+    allowAiFeedback: record.allow_ai_feedback !== undefined ? record.allow_ai_feedback !== false : record.enable_ai_feedback !== false,
+    allowTeacherReview: record.allow_teacher_review !== false,
     questions: questions.map((item, index) => {
       const question = asRecord(item);
       const requiredWords = Array.isArray(question.required_words) ? question.required_words.map(String).filter(Boolean) : [];
@@ -1563,7 +1566,9 @@ function MultipleSelectEditor({ activity, onSave }: { activity: Activity; onSave
 function ShortAnswerEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
   const initial = useMemo(() => normalizeShortAnswer(activity.activity_data), [activity.activity_data]);
   const [prompt, setPrompt] = useState(initial.prompt);
-  const [enableAiFeedback, setEnableAiFeedback] = useState(initial.enableAiFeedback);
+  const [allowSelfGraded, setAllowSelfGraded] = useState(initial.allowSelfGraded);
+  const [allowAiFeedback, setAllowAiFeedback] = useState(initial.allowAiFeedback);
+  const [allowTeacherReview, setAllowTeacherReview] = useState(initial.allowTeacherReview);
   const [questions, setQuestions] = useState<ShortAnswerQuestion[]>(
     initial.questions.length ? initial.questions : [{ id: 1, text: "", sampleAnswer: "", minWords: null, requiredWordsText: "", showRequiredWords: true }]
   );
@@ -1580,20 +1585,38 @@ function ShortAnswerEditor({ activity, onSave }: { activity: Activity; onSave: (
         <input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
       </label>
 
-      {/* AI Feedback toggle */}
-      <div className="rounded-md border border-purple-200 bg-purple-50/50 p-3">
-        <label className="flex items-center gap-2 text-sm font-medium">
-          <input
-            type="checkbox"
-            checked={enableAiFeedback}
-            onChange={(event) => setEnableAiFeedback(event.target.checked)}
-            className="accent-purple-600"
-          />
-          ✨ Enable AI Feedback &amp; Correction
-        </label>
-        <p className="mt-1 ml-6 text-xs text-black/45">
-          When enabled, learners receive automated AI feedback with a corrected version of their response and a brief explanation after submitting. Uses API quota.
-        </p>
+      <div className="rounded-2xl border border-[#6C3BFF]/20 bg-[#6C3BFF]/5 p-4 space-y-2">
+        <p className="text-xs font-black text-[#6C3BFF] uppercase tracking-wider">Evaluation Options Allowed for Learner</p>
+        <div className="grid gap-2 sm:grid-cols-3">
+          <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer text-ink">
+            <input
+              type="checkbox"
+              checked={allowAiFeedback}
+              onChange={(e) => setAllowAiFeedback(e.target.checked)}
+              className="rounded border-black/15 text-[#6C3BFF] focus:ring-[#6C3BFF]"
+            />
+            AI Instant Feedback
+          </label>
+          <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer text-ink">
+            <input
+              type="checkbox"
+              checked={allowSelfGraded}
+              onChange={(e) => setAllowSelfGraded(e.target.checked)}
+              className="rounded border-black/15 text-[#6C3BFF] focus:ring-[#6C3BFF]"
+            />
+            Model Answer / Self Check
+          </label>
+          <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer text-ink">
+            <input
+              type="checkbox"
+              checked={allowTeacherReview}
+              onChange={(e) => setAllowTeacherReview(e.target.checked)}
+              className="rounded border-black/15 text-[#6C3BFF] focus:ring-[#6C3BFF]"
+            />
+            Teacher Review Queue
+          </label>
+        </div>
+        <p className="text-xs text-black/45">Uses API quota when a learner picks AI Instant Feedback.</p>
       </div>
 
       {questions.map((question, index) => (
@@ -1661,7 +1684,9 @@ function ShortAnswerEditor({ activity, onSave }: { activity: Activity; onSave: (
         </button>
         <SaveButton onClick={() => onSave({
           prompt,
-          enable_ai_feedback: enableAiFeedback,
+          allow_self_graded: allowSelfGraded,
+          allow_ai_feedback: allowAiFeedback,
+          allow_teacher_review: allowTeacherReview,
           questions: questions.map((question, index) => ({
             id: index + 1,
             text: question.text,
