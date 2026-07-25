@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import type { Json } from "@/types/database.types";
 import { revalidatePath } from "next/cache";
 import { callGemini } from "@/lib/ai/gemini";
+import { notifyUser } from "@/lib/notifications";
 
 function asRecord(value: Json | null | undefined): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
@@ -163,7 +164,7 @@ export async function gradeWritingSubmissionAction(input: {
 }) {
   try {
     const adminSupabase = createAdminClient();
-    const { error } = await adminSupabase
+    const { data: gradedSubmission, error } = await adminSupabase
       .from("writing_submissions")
       .update({
         status: "GRADED",
@@ -171,9 +172,22 @@ export async function gradeWritingSubmissionAction(input: {
         teacher_feedback: input.feedback,
         updated_at: new Date().toISOString()
       })
-      .eq("id", input.submissionId);
+      .eq("id", input.submissionId)
+      .select("learner_id")
+      .maybeSingle();
 
     if (error) throw error;
+    if (gradedSubmission?.learner_id) {
+      await notifyUser({
+        userId: gradedSubmission.learner_id,
+        type: "WRITING_GRADED",
+        title: "Your writing received feedback",
+        detail: `Your teacher awarded ${input.score}% and left feedback for you.`,
+        href: "/account",
+        tone: "purple",
+        dedupeKey: `writing-graded:${input.submissionId}`,
+      });
+    }
     revalidatePath("/admin/submissions");
     return { success: true };
   } catch (error: any) {

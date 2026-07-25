@@ -7,6 +7,7 @@ import { ALL_LEVELS_LABEL, anchorCefrLevel } from "@/lib/levels";
 import { forkQuizForCourse } from "@/lib/quizFork";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { assertCreatorCanCreate, assertCreatorWithinLimit } from "@/lib/entitlements";
+import { notifyUser } from "@/lib/notifications";
 
 function slugify(value: string) {
   return value
@@ -673,6 +674,15 @@ export async function updateOrderStatusDirectly(
 
   if (newStatus === "CONFIRMED") {
     await enrollUserInCourseDirectly(order.user_id, order.course_id);
+    await notifyUser({
+      userId: order.user_id,
+      type: "ORDER_CONFIRMED",
+      title: "Payment approved",
+      detail: "Your course access is ready. You can start learning now.",
+      href: `/courses/${order.course_id}`,
+      tone: "green",
+      dedupeKey: `order-confirmed:${orderId}`,
+    });
   }
 
   revalidatePath("/admin/orders");

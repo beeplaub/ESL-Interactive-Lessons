@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { notifyUser } from "@/lib/notifications";
 
 type ContentReference =
   | { kind: "QUIZ"; id: string }
@@ -76,6 +77,15 @@ export async function recalculateCourseProgress(userId: string, courseId: string
       certificate_code: `BRN-${courseId.slice(0, 8).toUpperCase()}-${userId.slice(0, 8).toUpperCase()}`,
       issued_at: new Date().toISOString(),
     }, { onConflict: "user_id,course_id" });
+    await notifyUser({
+      userId,
+      type: "COURSE_COMPLETED",
+      title: "Course completed!",
+      detail: "Your BrenUp certificate is ready to view and print.",
+      href: "/certificates",
+      tone: "green",
+      dedupeKey: `course-completed:${userId}:${courseId}`,
+    });
   } else {
     await admin
       .from("course_enrollments")

@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { Bell } from "lucide-react";
 import type { NotificationItem } from "./LearnerAppShell";
+import { markNotificationRead } from "@/app/notifications/actions";
 
 type Props = {
   initialNotifications: NotificationItem[];
@@ -12,6 +13,7 @@ type Props = {
 
 export function NotificationsDropdown({ initialNotifications, mode }: Props) {
   const [readKeys, setReadKeys] = useState<string[]>([]);
+  const [readNotificationIds, setReadNotificationIds] = useState<string[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const detailsRef = useRef<HTMLDetailsElement>(null);
 
@@ -48,7 +50,17 @@ export function NotificationsDropdown({ initialNotifications, mode }: Props) {
     setIsOpen(e.currentTarget.open);
   };
 
-  const handleRead = (key: string) => {
+  const handleRead = (item: NotificationItem) => {
+    if (item.notificationId) {
+      if (item.isRead || readNotificationIds.includes(item.notificationId)) return;
+      setReadNotificationIds((current) => [...current, item.notificationId!]);
+      void markNotificationRead(item.notificationId).catch((error) => {
+        console.error("Failed to mark notification as read:", error);
+        setReadNotificationIds((current) => current.filter((id) => id !== item.notificationId));
+      });
+      return;
+    }
+    const key = item.key;
     if (readKeys.includes(key)) return;
     const updated = [...readKeys, key];
     setReadKeys(updated);
@@ -59,7 +71,7 @@ export function NotificationsDropdown({ initialNotifications, mode }: Props) {
     }
   };
 
-  const unreadCount = initialNotifications.filter((n) => !readKeys.includes(n.key)).length;
+  const unreadCount = initialNotifications.filter((item) => item.notificationId ? !item.isRead && !readNotificationIds.includes(item.notificationId) : !readKeys.includes(item.key)).length;
 
   const tones = {
     purple: "bg-[#6C3BFF]",
@@ -90,12 +102,12 @@ export function NotificationsDropdown({ initialNotifications, mode }: Props) {
           <div className="max-h-[360px] overflow-y-auto p-2">
             {initialNotifications.length ? (
               initialNotifications.map((item, index) => {
-                const isRead = readKeys.includes(item.key);
+                const isRead = item.notificationId ? Boolean(item.isRead || readNotificationIds.includes(item.notificationId)) : readKeys.includes(item.key);
                 return (
                   <Link
                     key={`${item.key}-${index}`}
                     href={item.href}
-                    onClick={() => handleRead(item.key)}
+                    onClick={() => handleRead(item)}
                     className={`flex gap-3 rounded-2xl px-3 py-3 transition hover:bg-[#F6F7FB] ${
                       isRead ? "opacity-65" : ""
                     }`}
@@ -153,12 +165,12 @@ export function NotificationsDropdown({ initialNotifications, mode }: Props) {
         <div className="p-2">
           {initialNotifications.length ? (
             initialNotifications.map((item, index) => {
-              const isRead = readKeys.includes(item.key);
+              const isRead = item.notificationId ? Boolean(item.isRead || readNotificationIds.includes(item.notificationId)) : readKeys.includes(item.key);
               return (
                 <Link
                   key={`${item.key}-${index}`}
                   href={item.href}
-                  onClick={() => handleRead(item.key)}
+                  onClick={() => handleRead(item)}
                   className={`flex gap-3 rounded-2xl px-3 py-3 transition hover:bg-[#F6F7FB] ${
                     isRead ? "opacity-65" : ""
                   }`}

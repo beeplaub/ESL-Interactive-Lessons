@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { enrollUserInCourseDirectly } from "@/app/admin/courses/actions";
+import { notifyUsers } from "@/lib/notifications";
 
 function slugify(value: string) {
   return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80);
@@ -132,7 +133,7 @@ export async function createClassAssignment(formData: FormData) {
     if (data.course_id) throw new Error("This quiz belongs to a course. Assign its course so learners get the right learning context.");
   }
 
-  const { error } = await admin.from("class_assignments").insert({
+  const { data: createdAssignment, error } = await admin.from("class_assignments").insert({
     class_id: classId,
     item_type: itemType,
     course_id: itemType === "COURSE" ? String(formData.get("courseId") || "") || null : null,
@@ -142,13 +143,22 @@ export async function createClassAssignment(formData: FormData) {
     due_at: String(formData.get("dueAt") || "") || null,
     required_score: Number(formData.get("requiredScore") || "") || null,
     created_by: user.id,
-  });
+  }).select("id").single();
   if (error) throw new Error(error.message);
 
   if (itemType === "COURSE") {
     const { data: members } = await admin.from("class_members").select("user_id,role").eq("class_id", classId).eq("role", "STUDENT");
     await Promise.all((members ?? []).map((member) => enrollUserInCourseDirectly(member.user_id, resourceId)));
   }
+  const { data: learners } = await admin.from("class_members").select("user_id").eq("class_id", classId).eq("role", "STUDENT");
+  await notifyUsers((learners ?? []).map((learner) => learner.user_id), {
+    type: "CLASS_ASSIGNMENT",
+    title: "New class assignment",
+    detail: String(formData.get("title") || "").trim() || `${itemType.replace("_", " ")} assigned by your teacher`,
+    href: "/assignments",
+    tone: "blue",
+    dedupeKeyPrefix: `assignment:${createdAssignment?.id ?? classId}`,
+  });
   revalidatePath("/admin/organizations");
 }
 

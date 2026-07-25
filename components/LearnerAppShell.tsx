@@ -29,7 +29,7 @@ import { NotificationsDropdown } from "@/components/NotificationsDropdown";
 export type ActiveItem = "home" | "quizzes" | "courses" | "assignments" | "certificates" | "level-test" | "leaderboard" | "language-profile" | "profile";
 
 type BreadcrumbItem = { label: string; href?: string };
-export type NotificationItem = { key: string; title: string; detail: string; href: string; tone: "purple" | "orange" | "green" | "blue" };
+export type NotificationItem = { key: string; title: string; detail: string; href: string; tone: "purple" | "orange" | "green" | "blue"; notificationId?: string; isRead?: boolean };
 
 const defaultBreadcrumbs: Record<ActiveItem, BreadcrumbItem[]> = {
   home: [{ label: "Home" }],
@@ -227,7 +227,7 @@ async function buildRightSidebarData(
 }
 
 async function buildNotifications(admin: ReturnType<typeof createAdminClient>, userId: string | null, currentLevel: string | null): Promise<NotificationItem[]> {
-  const [{ data: quizzes }, { data: courses }, { data: attempts }, { data: points }] = await Promise.all([
+  const [{ data: quizzes }, { data: courses }, { data: attempts }, { data: points }, { data: savedNotifications }] = await Promise.all([
     admin.from("quizzes").select("id,title,level,created_at").eq("status", "PUBLISHED").is("deleted_at", null).order("created_at", { ascending: false }).limit(2),
     admin.from("courses").select("id,title,level,created_at").eq("status", "PUBLISHED").is("deleted_at", null).order("created_at", { ascending: false }).limit(2),
     userId
@@ -236,8 +236,23 @@ async function buildNotifications(admin: ReturnType<typeof createAdminClient>, u
     userId
       ? admin.from("quiz_leaderboard_points").select("points,created_at,quiz_id").eq("user_id", userId).order("created_at", { ascending: false }).limit(1)
       : Promise.resolve({ data: [] }),
+    userId
+      ? admin.from("user_notifications").select("id,title,detail,href,tone,read_at,created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(8)
+      : Promise.resolve({ data: [] }),
   ]);
   const items: NotificationItem[] = [];
+  for (const notification of savedNotifications ?? []) {
+    const tone = notification.tone === "orange" || notification.tone === "green" || notification.tone === "blue" ? notification.tone : "purple";
+    items.push({
+      key: `saved-${notification.id}`,
+      notificationId: notification.id,
+      isRead: Boolean(notification.read_at),
+      title: notification.title,
+      detail: notification.detail ?? "BrenUp has an update for you.",
+      href: notification.href ?? "/account",
+      tone,
+    });
+  }
   if (currentLevel) {
     items.push({
       key: `level-${currentLevel}`,
