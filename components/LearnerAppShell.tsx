@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import Link from "next/link";
 import {
+  Award,
   BarChart2,
   Bell,
   BookOpen,
@@ -25,7 +26,7 @@ import { createClient } from "@/lib/supabase/server";
 import { LearnerSidebar } from "@/components/LearnerSidebar";
 import { NotificationsDropdown } from "@/components/NotificationsDropdown";
 
-export type ActiveItem = "home" | "quizzes" | "courses" | "assignments" | "level-test" | "leaderboard" | "language-profile" | "profile";
+export type ActiveItem = "home" | "quizzes" | "courses" | "assignments" | "certificates" | "level-test" | "leaderboard" | "language-profile" | "profile";
 
 type BreadcrumbItem = { label: string; href?: string };
 export type NotificationItem = { key: string; title: string; detail: string; href: string; tone: "purple" | "orange" | "green" | "blue" };
@@ -35,6 +36,7 @@ const defaultBreadcrumbs: Record<ActiveItem, BreadcrumbItem[]> = {
   quizzes: [{ label: "Home", href: "/account" }, { label: "Quizzes" }],
   courses: [{ label: "Home", href: "/account" }, { label: "Courses" }],
   assignments: [{ label: "Home", href: "/account" }, { label: "Assignments" }],
+  certificates: [{ label: "Home", href: "/account" }, { label: "Certificates" }],
   "level-test": [{ label: "Home", href: "/account" }, { label: "Level Test" }],
   leaderboard: [{ label: "Home", href: "/account" }, { label: "Leaderboard" }],
   "language-profile": [{ label: "Home", href: "/account" }, { label: "Language Profile" }],
@@ -561,6 +563,7 @@ function MobileTopbar({
               <MobileDrawerLink href="/quizzes" label="Quizzes" icon={HelpCircle} active={active === "quizzes"} />
               <MobileDrawerLink href="/courses" label="Courses" icon={GraduationCap} active={active === "courses"} />
               <MobileDrawerLink href="/assignments" label="Assignments" icon={ClipboardList} active={active === "assignments"} />
+              <MobileDrawerLink href="/certificates" label="Certificates" icon={Award} active={active === "certificates"} />
               <MobileDrawerLink href="/level-test" label="Level Test" icon={Target} active={active === "level-test"} />
               <MobileDrawerLink href="/language-profile" label="Language Profile" icon={BarChart2} active={active === "language-profile"} />
               <MobileDrawerLink href="/leaderboard" label="Leaderboard" icon={Trophy} active={active === "leaderboard"} />

@@ -52,6 +52,7 @@ export function LearnerSidebar({
     { href: "/quizzes", label: "Quizzes", icon: HelpCircle, key: "quizzes" },
     { href: "/courses", label: "Courses", icon: GraduationCap, key: "courses" },
     { href: "/assignments", label: "Assignments", icon: ClipboardList, key: "assignments" },
+    { href: "/certificates", label: "Certificates", icon: Award, key: "certificates" },
     { href: "/language-profile", label: "Language Profile", icon: BarChart2, key: "language-profile" },
     { href: "/leaderboard", label: "Leaderboard", icon: Award, key: "leaderboard" },
     { href: "#", label: "Community", icon: Users, key: "community", disabled: true, badge: "NEW" }
