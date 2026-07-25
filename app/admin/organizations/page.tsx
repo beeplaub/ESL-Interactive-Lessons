@@ -1,208 +1,22 @@
 import Link from "next/link";
-import { Building2, Plus, School, UserMinus, UsersRound } from "lucide-react";
+import { Building2, ChevronRight, GraduationCap, UsersRound } from "lucide-react";
 import { requireAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClass, createClassAssignment, createOrganization, removeClassMember } from "@/app/admin/organizations/actions";
-import { ClassMemberForm } from "./ClassMemberForm";
-import { AssignmentControls, ClassControls, OrganizationControls } from "./OrganizationControls";
-import { SchoolAdminForm } from "./SchoolAdminForm";
+import { OrganizationControls } from "./OrganizationControls";
+import { CreateOrganizationPopup } from "./OrganizationPopups";
 
 export default async function AdminOrganizationsPage() {
-  // Site/school administration (creating orgs, classes, and assigning
-  // teachers to them) is a platform-admin action, not a teacher self-serve one.
   await requireAdmin();
   const admin = createAdminClient();
-  const [{ data: organizations }, { data: classes }, { data: teachers }, { data: courses }, { data: lessons }, { data: quizzes }, { data: assignments }, { data: classMembers }] = await Promise.all([
-    admin.from("organizations").select("*").order("created_at", { ascending: false }),
-    admin.from("classes").select("*, organizations(name)").order("created_at", { ascending: false }),
-    admin.from("profiles").select("id,full_name,first_name,last_name,role").in("role", ["TEACHER", "SCHOOL_ADMIN", "ADMIN"]).order("full_name", { ascending: true }),
-    admin.from("courses").select("id,title,status").is("deleted_at", null).order("created_at", { ascending: false }),
-    admin.from("lessons").select("id,title,status").is("deleted_at", null).order("created_at", { ascending: false }),
-    admin.from("quizzes").select("id,title,status").is("deleted_at", null).order("created_at", { ascending: false }),
-    admin.from("class_assignments").select("*, classes(name)").order("created_at", { ascending: false }).limit(20),
-    admin.from("class_members").select("id,class_id,user_id,role").order("joined_at", { ascending: false }),
+  const [{ data: organizations }, { data: classes }, { data: members }, { data: assignments }] = await Promise.all([
+    admin.from("organizations").select("id,name,slug,description,brand_name,logo_url,accent_color").order("created_at", { ascending: false }),
+    admin.from("classes").select("id,organization_id"),
+    admin.from("organization_members").select("organization_id,role"),
+    admin.from("class_assignments").select("id,class_id"),
   ]);
-
-  const classCounts = new Map<string, number>();
-  const teacherMap = new Map((teachers ?? []).map((teacher) => [teacher.id, teacher]));
-  const memberUserIds = [...new Set((classMembers ?? []).map((member) => member.user_id))];
-  const { data: memberProfiles } = memberUserIds.length
-    ? await admin.from("profiles").select("id,full_name,first_name,last_name").in("id", memberUserIds)
-    : { data: [] };
-  const memberProfileMap = new Map((memberProfiles ?? []).map((profile) => [profile.id, profile]));
-  const membersByClass = new Map<string, typeof classMembers>();
-  for (const member of classMembers ?? []) {
-    const rows = membersByClass.get(member.class_id) ?? [];
-    rows.push(member);
-    membersByClass.set(member.class_id, rows);
-  }
-  for (const row of classes ?? []) {
-    if (!row.organization_id) continue;
-    classCounts.set(row.organization_id, (classCounts.get(row.organization_id) ?? 0) + 1);
-  }
-
-  return (
-    <main className="min-w-0 overflow-hidden">
-      <div className="mb-6">
-        <p className="text-xs font-semibold uppercase tracking-wide text-moss">School readiness</p>
-        <h1 className="mt-1 text-2xl font-semibold sm:text-3xl">Organizations</h1>
-        <p className="mt-2 text-sm text-black/60">Create schools or organizations and prepare classes for future assignments.</p>
-      </div>
-
-      <section className="grid gap-5 xl:grid-cols-[0.8fr_1.2fr]">
-        <div className="space-y-5">
-          <form action={createOrganization} className="rounded-xl border border-black/10 bg-white p-5 shadow-sm">
-            <div className="flex items-center gap-2">
-              <Building2 size={18} className="text-moss" />
-              <h2 className="font-semibold">Add organization</h2>
-            </div>
-            <div className="mt-4 grid gap-3">
-              <input name="name" required placeholder="Organization or school name" className="rounded-md border border-black/15 px-3 py-2 text-sm" />
-              <input name="brandName" placeholder="Display name (optional)" className="rounded-md border border-black/15 px-3 py-2 text-sm" />
-              <textarea name="description" rows={3} placeholder="Description" className="rounded-md border border-black/15 px-3 py-2 text-sm" />
-              <div className="grid gap-3 sm:grid-cols-[1fr_112px]"><input name="logoUrl" type="url" placeholder="Logo image URL (optional)" className="rounded-md border border-black/15 px-3 py-2 text-sm" /><input name="accentColor" type="color" defaultValue="#6C3BFF" aria-label="Brand accent color" className="h-10 w-full rounded-md border border-black/15 bg-white px-1" /></div>
-              <button className="inline-flex w-fit items-center gap-2 rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white"><Plus size={15} /> Create organization</button>
-            </div>
-          </form>
-
-          <form action={createClass} className="rounded-xl border border-black/10 bg-white p-5 shadow-sm">
-            <div className="flex items-center gap-2">
-              <School size={18} className="text-moss" />
-              <h2 className="font-semibold">Add class</h2>
-            </div>
-            <div className="mt-4 grid gap-3">
-              <input name="name" required placeholder="Class name" className="rounded-md border border-black/15 px-3 py-2 text-sm" />
-              <select name="organizationId" className="rounded-md border border-black/15 px-3 py-2 text-sm">
-                <option value="">No organization</option>
-                {(organizations ?? []).map((org) => <option key={org.id} value={org.id}>{org.name}</option>)}
-              </select>
-              <select name="teacherId" className="rounded-md border border-black/15 px-3 py-2 text-sm">
-                <option value="">No teacher assigned</option>
-                {(teachers ?? []).map((teacher) => <option key={teacher.id} value={teacher.id}>{displayName(teacher)}</option>)}
-              </select>
-              <input name="level" placeholder="Level e.g. B1" className="rounded-md border border-black/15 px-3 py-2 text-sm" />
-              <textarea name="description" rows={3} placeholder="Description" className="rounded-md border border-black/15 px-3 py-2 text-sm" />
-              <button className="inline-flex w-fit items-center gap-2 rounded-md bg-moss px-4 py-2 text-sm font-semibold text-white"><Plus size={15} /> Create class</button>
-            </div>
-          </form>
-
-          <SchoolAdminForm organizations={(organizations ?? []).map((organization) => ({ id: organization.id, name: organization.name }))} />
-
-          <form action={createClassAssignment} className="rounded-xl border border-black/10 bg-white p-5 shadow-sm">
-            <div className="flex items-center gap-2">
-              <Plus size={18} className="text-moss" />
-              <h2 className="font-semibold">Assign to class</h2>
-            </div>
-            <div className="mt-4 grid gap-3">
-              <select name="classId" required className="rounded-md border border-black/15 px-3 py-2 text-sm">
-                <option value="">Choose class...</option>
-                {(classes ?? []).map((klass) => <option key={klass.id} value={klass.id}>{klass.name}</option>)}
-              </select>
-              <select name="itemType" className="rounded-md border border-black/15 px-3 py-2 text-sm">
-                <option value="COURSE">Course</option>
-                <option value="LESSON">Lesson</option>
-                <option value="QUIZ">Quiz</option>
-                <option value="LEVEL_TEST">Level Test</option>
-              </select>
-              <select name="courseId" className="rounded-md border border-black/15 px-3 py-2 text-sm">
-                <option value="">Choose course...</option>
-                {(courses ?? []).map((course) => <option key={course.id} value={course.id}>{course.title} ({course.status})</option>)}
-              </select>
-              <select name="lessonId" className="rounded-md border border-black/15 px-3 py-2 text-sm">
-                <option value="">Choose lesson...</option>
-                {(lessons ?? []).map((lesson) => <option key={lesson.id} value={lesson.id}>{lesson.title} ({lesson.status})</option>)}
-              </select>
-              <select name="quizId" className="rounded-md border border-black/15 px-3 py-2 text-sm">
-                <option value="">Choose quiz...</option>
-                {(quizzes ?? []).map((quiz) => <option key={quiz.id} value={quiz.id}>{quiz.title} ({quiz.status})</option>)}
-              </select>
-              <input name="title" placeholder="Optional assignment title" className="rounded-md border border-black/15 px-3 py-2 text-sm" />
-              <div className="grid gap-3 sm:grid-cols-2">
-                <input name="dueAt" type="datetime-local" className="rounded-md border border-black/15 px-3 py-2 text-sm" />
-                <input name="requiredScore" type="number" min="0" max="100" placeholder="Required score %" className="rounded-md border border-black/15 px-3 py-2 text-sm" />
-              </div>
-              <button className="inline-flex w-fit items-center gap-2 rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white"><Plus size={15} /> Create assignment</button>
-            </div>
-          </form>
-
-          <ClassMemberForm classes={(classes ?? []).map((klass) => ({ id: klass.id, name: klass.name }))} />
-        </div>
-
-        <div className="space-y-5">
-          <section className="rounded-xl border border-black/10 bg-white p-5 shadow-sm">
-            <h2 className="font-semibold">Organizations</h2>
-            <div className="mt-4 divide-y divide-black/10">
-              {(organizations ?? []).map((org) => (
-                <div key={org.id} className="flex items-center justify-between gap-3 py-3">
-                  <div className="min-w-0">
-                    <p className="truncate font-semibold">{org.name}</p>
-                    <p className="mt-0.5 text-xs text-black/45">{classCounts.get(org.id) ?? 0} classes</p>
-                  </div>
-                  <OrganizationControls organization={{ id: org.id, name: org.name, description: org.description, brandName: org.brand_name, logoUrl: org.logo_url, accentColor: org.accent_color, classCount: classCounts.get(org.id) ?? 0 }} />
-                </div>
-              ))}
-              {(organizations?.length ?? 0) === 0 ? <p className="py-6 text-center text-sm text-black/55">No organizations yet.</p> : null}
-            </div>
-          </section>
-
-          <section className="rounded-xl border border-black/10 bg-white p-5 shadow-sm">
-            <h2 className="font-semibold">Classes</h2>
-            <div className="mt-4 divide-y divide-black/10">
-              {(classes ?? []).map((klass) => (
-                <div key={klass.id} className="py-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <Link href={`/admin/organizations/classes/${klass.id}`} className="font-semibold hover:text-moss hover:underline">{klass.name}</Link>
-                    <span className="rounded-full bg-moss/10 px-2.5 py-1 text-xs font-semibold text-moss">{klass.status}</span>
-                  </div>
-                  <p className="mt-1 text-xs text-black/50">
-                    {klass.organizations?.name ?? "No organization"} · {klass.level ?? "No level"} · Teacher: {klass.teacher_id && teacherMap.get(klass.teacher_id) ? displayName(teacherMap.get(klass.teacher_id)!) : "Unassigned"}
-                  </p>
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <UsersRound size={14} className="text-black/45" />
-                    {(membersByClass.get(klass.id) ?? []).length ? (membersByClass.get(klass.id) ?? []).map((member) => (
-                      <span key={member.id} className="inline-flex items-center gap-1 rounded-full bg-slate-100 py-1 pl-2 pr-1 text-xs font-semibold text-slate-700">
-                        {displayName(memberProfileMap.get(member.user_id) ?? {})}
-                        <form action={removeClassMember.bind(null, member.id)}>
-                          <button aria-label={`Remove ${displayName(memberProfileMap.get(member.user_id) ?? {})} from class`} className="grid size-5 place-items-center rounded-full text-slate-400 hover:bg-white hover:text-red-600"><UserMinus size={12} /></button>
-                        </form>
-                      </span>
-                    )) : <span className="text-xs font-medium text-black/45">No learners yet</span>}
-                  </div>
-                  <ClassControls
-                    klass={{ id: klass.id, name: klass.name, description: klass.description, level: klass.level, status: klass.status, organizationId: klass.organization_id, teacherId: klass.teacher_id }}
-                    organizations={(organizations ?? []).map((org) => ({ id: org.id, label: org.name }))}
-                    teachers={(teachers ?? []).map((teacher) => ({ id: teacher.id, label: displayName(teacher) }))}
-                  />
-                </div>
-              ))}
-              {(classes?.length ?? 0) === 0 ? <p className="py-6 text-center text-sm text-black/55">No classes yet.</p> : null}
-            </div>
-          </section>
-
-          <section className="rounded-xl border border-black/10 bg-white p-5 shadow-sm">
-            <h2 className="font-semibold">Recent assignments</h2>
-            <div className="mt-4 divide-y divide-black/10">
-              {(assignments ?? []).map((assignment) => (
-                <div key={assignment.id} className="py-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="font-semibold">{assignment.title || assignment.item_type.replaceAll("_", " ")}</p>
-                    <span className="rounded-full bg-skywash px-2.5 py-1 text-xs font-semibold text-ink">{assignment.item_type}</span>
-                  </div>
-                  <p className="mt-1 text-xs text-black/50">
-                    {assignment.classes?.name ?? "Class"}{assignment.due_at ? ` · Due ${new Date(assignment.due_at).toLocaleString()}` : ""}{assignment.required_score ? ` · ${assignment.required_score}% required` : ""}
-                  </p>
-                  <AssignmentControls assignment={{ id: assignment.id, title: assignment.title, dueAt: assignment.due_at, requiredScore: assignment.required_score, label: assignment.title || assignment.item_type.replaceAll("_", " ") }} />
-                </div>
-              ))}
-              {(assignments?.length ?? 0) === 0 ? <p className="py-6 text-center text-sm text-black/55">No assignments yet.</p> : null}
-            </div>
-          </section>
-        </div>
-      </section>
-    </main>
-  );
-}
-
-function displayName(profile: { full_name?: string | null; first_name?: string | null; last_name?: string | null }) {
-  return profile.full_name?.trim() || [profile.first_name, profile.last_name].filter(Boolean).join(" ") || "Unnamed user";
+  const classIdsByOrganization = new Map<string, string[]>();
+  for (const klass of classes ?? []) if (klass.organization_id) classIdsByOrganization.set(klass.organization_id, [...(classIdsByOrganization.get(klass.organization_id) ?? []), klass.id]);
+  const memberCounts = new Map<string, number>();
+  for (const member of members ?? []) memberCounts.set(member.organization_id, (memberCounts.get(member.organization_id) ?? 0) + 1);
+  return <main className="min-w-0"><div className="mb-6 flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs font-semibold uppercase tracking-wide text-violetglow">Platform schools</p><h1 className="mt-1 text-2xl font-semibold sm:text-3xl">Organizations</h1><p className="mt-2 text-sm text-black/60">Open a school to manage its people, classes, assignments, and identity.</p></div><CreateOrganizationPopup /></div><section className="overflow-hidden rounded-xl border border-black/10 bg-white shadow-sm"><div className="hidden grid-cols-[minmax(0,1.5fr)_120px_120px_1fr_auto] gap-4 border-b border-black/10 bg-slate-50 px-5 py-3 text-[11px] font-bold uppercase tracking-wide text-black/45 md:grid"><span>Organization</span><span>Classes</span><span>Members</span><span>Brand</span><span /></div><div className="divide-y divide-black/10">{(organizations ?? []).map((organization) => { const classIds = classIdsByOrganization.get(organization.id) ?? []; const assignmentCount = (assignments ?? []).filter((assignment) => classIds.includes(assignment.class_id)).length; return <article key={organization.id} className="grid gap-3 px-5 py-4 md:grid-cols-[minmax(0,1.5fr)_120px_120px_1fr_auto] md:items-center"><Link href={`/admin/organizations/${organization.slug}`} className="min-w-0 group"><div className="flex items-center gap-3"><div className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-xl bg-violetglow/10 text-violetglow">{organization.logo_url ? <img src={organization.logo_url} alt="" className="size-full object-cover" /> : <Building2 size={18} />}</div><div className="min-w-0"><h2 className="truncate font-semibold group-hover:text-violetglow">{organization.brand_name || organization.name}</h2><p className="mt-1 line-clamp-1 text-xs text-black/50">{organization.description || "No description yet."}</p></div></div></Link><p className="text-sm font-semibold"><span className="mr-1 text-black/45 md:hidden">Classes: </span>{classIds.length}</p><p className="text-sm font-semibold"><span className="mr-1 text-black/45 md:hidden">Members: </span>{memberCounts.get(organization.id) ?? 0}</p><p className="text-xs text-black/50">{assignmentCount} active assignment{assignmentCount === 1 ? "" : "s"}</p><div className="flex items-center justify-between gap-2 md:justify-end"><OrganizationControls organization={{ id: organization.id, name: organization.name, description: organization.description, brandName: organization.brand_name, logoUrl: organization.logo_url, accentColor: organization.accent_color, classCount: classIds.length }} /><Link href={`/admin/organizations/${organization.slug}`} className="grid size-8 place-items-center rounded-md border border-black/15 hover:bg-black/5" aria-label={`Open ${organization.name}`}><ChevronRight size={16} /></Link></div></article>; })}{!(organizations?.length) ? <div className="grid min-h-64 place-items-center p-6 text-center"><div><GraduationCap className="mx-auto text-black/25" size={30} /><h2 className="mt-3 font-semibold">No organizations yet</h2><p className="mt-1 text-sm text-black/55">Create the first school to begin building its workspace.</p></div></div> : null}</div></section></main>;
 }
