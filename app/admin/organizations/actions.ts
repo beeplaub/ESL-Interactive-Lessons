@@ -49,6 +49,34 @@ export async function createClassAssignment(formData: FormData) {
   const itemType = String(formData.get("itemType") || "COURSE") as "COURSE" | "LESSON" | "QUIZ" | "LEVEL_TEST";
   if (!classId) return;
   const admin = createAdminClient();
+  const resourceId = itemType === "COURSE"
+    ? String(formData.get("courseId") || "")
+    : itemType === "LESSON"
+      ? String(formData.get("lessonId") || "")
+      : itemType === "QUIZ"
+        ? String(formData.get("quizId") || "")
+        : "";
+
+  const { data: klass } = await admin.from("classes").select("id").eq("id", classId).maybeSingle();
+  if (!klass) throw new Error("That class no longer exists.");
+
+  if (itemType !== "LEVEL_TEST" && !resourceId) {
+    throw new Error(`Choose a ${itemType.toLowerCase()} to assign.`);
+  }
+
+  if (itemType === "COURSE") {
+    const { data } = await admin.from("courses").select("id").eq("id", resourceId).eq("status", "PUBLISHED").is("deleted_at", null).maybeSingle();
+    if (!data) throw new Error("Only published courses can be assigned.");
+  }
+  if (itemType === "LESSON") {
+    const { data } = await admin.from("lessons").select("id").eq("id", resourceId).eq("status", "PUBLISHED").is("deleted_at", null).maybeSingle();
+    if (!data) throw new Error("Only published lessons can be assigned.");
+  }
+  if (itemType === "QUIZ") {
+    const { data } = await admin.from("quizzes").select("id").eq("id", resourceId).eq("status", "PUBLISHED").is("deleted_at", null).maybeSingle();
+    if (!data) throw new Error("Only published quizzes can be assigned.");
+  }
+
   const { error } = await admin.from("class_assignments").insert({
     class_id: classId,
     item_type: itemType,
@@ -60,6 +88,49 @@ export async function createClassAssignment(formData: FormData) {
     required_score: Number(formData.get("requiredScore") || "") || null,
     created_by: user.id,
   });
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/organizations");
+}
+
+export async function addClassMemberByEmail(formData: FormData): Promise<{ success: boolean; error?: string }> {
+  try {
+    await requireAdmin();
+    const classId = String(formData.get("classId") || "").trim();
+    const email = String(formData.get("email") || "").trim().toLowerCase();
+    if (!classId || !email) return { success: false, error: "Choose a class and enter the learner's email." };
+
+    const admin = createAdminClient();
+    const { data: klass } = await admin.from("classes").select("id").eq("id", classId).maybeSingle();
+    if (!klass) return { success: false, error: "That class no longer exists." };
+
+    let learnerId: string | null = null;
+    for (let page = 1; page <= 10 && !learnerId; page += 1) {
+      const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
+      if (error) return { success: false, error: error.message };
+      learnerId = data.users.find((candidate) => candidate.email?.toLowerCase() === email)?.id ?? null;
+      if (data.users.length < 1000) break;
+    }
+
+    if (!learnerId) return { success: false, error: "No BrenUp account matches that email." };
+
+    const { error } = await admin.from("class_members").upsert({
+      class_id: classId,
+      user_id: learnerId,
+      role: "STUDENT",
+    }, { onConflict: "class_id,user_id", ignoreDuplicates: true });
+    if (error) return { success: false, error: error.message };
+
+    revalidatePath("/admin/organizations");
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Could not add the learner." };
+  }
+}
+
+export async function removeClassMember(classMemberId: string) {
+  await requireAdmin();
+  const admin = createAdminClient();
+  const { error } = await admin.from("class_members").delete().eq("id", classMemberId);
   if (error) throw new Error(error.message);
   revalidatePath("/admin/organizations");
 }

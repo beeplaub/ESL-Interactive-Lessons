@@ -1,14 +1,15 @@
-import { Building2, Plus, School } from "lucide-react";
+import { Building2, Plus, School, UserMinus, UsersRound } from "lucide-react";
 import { requireAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClass, createClassAssignment, createOrganization } from "@/app/admin/organizations/actions";
+import { createClass, createClassAssignment, createOrganization, removeClassMember } from "@/app/admin/organizations/actions";
+import { ClassMemberForm } from "./ClassMemberForm";
 
 export default async function AdminOrganizationsPage() {
   // Site/school administration (creating orgs, classes, and assigning
   // teachers to them) is a platform-admin action, not a teacher self-serve one.
   await requireAdmin();
   const admin = createAdminClient();
-  const [{ data: organizations }, { data: classes }, { data: teachers }, { data: courses }, { data: lessons }, { data: quizzes }, { data: assignments }] = await Promise.all([
+  const [{ data: organizations }, { data: classes }, { data: teachers }, { data: courses }, { data: lessons }, { data: quizzes }, { data: assignments }, { data: classMembers }] = await Promise.all([
     admin.from("organizations").select("*").order("created_at", { ascending: false }),
     admin.from("classes").select("*, organizations(name)").order("created_at", { ascending: false }),
     admin.from("profiles").select("id,full_name,first_name,last_name,role").in("role", ["TEACHER", "SCHOOL_ADMIN", "ADMIN"]).order("full_name", { ascending: true }),
@@ -16,10 +17,22 @@ export default async function AdminOrganizationsPage() {
     admin.from("lessons").select("id,title,status").is("deleted_at", null).order("created_at", { ascending: false }),
     admin.from("quizzes").select("id,title,status").is("deleted_at", null).order("created_at", { ascending: false }),
     admin.from("class_assignments").select("*, classes(name)").order("created_at", { ascending: false }).limit(20),
+    admin.from("class_members").select("id,class_id,user_id,role").order("joined_at", { ascending: false }),
   ]);
 
   const classCounts = new Map<string, number>();
   const teacherMap = new Map((teachers ?? []).map((teacher) => [teacher.id, teacher]));
+  const memberUserIds = [...new Set((classMembers ?? []).map((member) => member.user_id))];
+  const { data: memberProfiles } = memberUserIds.length
+    ? await admin.from("profiles").select("id,full_name,first_name,last_name").in("id", memberUserIds)
+    : { data: [] };
+  const memberProfileMap = new Map((memberProfiles ?? []).map((profile) => [profile.id, profile]));
+  const membersByClass = new Map<string, typeof classMembers>();
+  for (const member of classMembers ?? []) {
+    const rows = membersByClass.get(member.class_id) ?? [];
+    rows.push(member);
+    membersByClass.set(member.class_id, rows);
+  }
   for (const row of classes ?? []) {
     if (!row.organization_id) continue;
     classCounts.set(row.organization_id, (classCounts.get(row.organization_id) ?? 0) + 1);
@@ -104,6 +117,8 @@ export default async function AdminOrganizationsPage() {
               <button className="inline-flex w-fit items-center gap-2 rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white"><Plus size={15} /> Create assignment</button>
             </div>
           </form>
+
+          <ClassMemberForm classes={(classes ?? []).map((klass) => ({ id: klass.id, name: klass.name }))} />
         </div>
 
         <div className="space-y-5">
@@ -135,6 +150,17 @@ export default async function AdminOrganizationsPage() {
                   <p className="mt-1 text-xs text-black/50">
                     {klass.organizations?.name ?? "No organization"} · {klass.level ?? "No level"} · Teacher: {klass.teacher_id && teacherMap.get(klass.teacher_id) ? displayName(teacherMap.get(klass.teacher_id)!) : "Unassigned"}
                   </p>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <UsersRound size={14} className="text-black/45" />
+                    {(membersByClass.get(klass.id) ?? []).length ? (membersByClass.get(klass.id) ?? []).map((member) => (
+                      <span key={member.id} className="inline-flex items-center gap-1 rounded-full bg-slate-100 py-1 pl-2 pr-1 text-xs font-semibold text-slate-700">
+                        {displayName(memberProfileMap.get(member.user_id) ?? {})}
+                        <form action={removeClassMember.bind(null, member.id)}>
+                          <button aria-label={`Remove ${displayName(memberProfileMap.get(member.user_id) ?? {})} from class`} className="grid size-5 place-items-center rounded-full text-slate-400 hover:bg-white hover:text-red-600"><UserMinus size={12} /></button>
+                        </form>
+                      </span>
+                    )) : <span className="text-xs font-medium text-black/45">No learners yet</span>}
+                  </div>
                 </div>
               ))}
               {(classes?.length ?? 0) === 0 ? <p className="py-6 text-center text-sm text-black/55">No classes yet.</p> : null}
