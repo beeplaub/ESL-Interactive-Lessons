@@ -33,11 +33,13 @@ export function LearnerSidebar({
   currentLevel,
   initialCollapsed = false,
   levelProgressPercent = null,
+  schoolBrand = null,
 }: {
   active: ActiveItem;
   currentLevel: string | null;
   initialCollapsed?: boolean;
   levelProgressPercent?: number | null;
+  schoolBrand?: { name: string; logoUrl: string | null; accentColor: string | null } | null;
 }) {
   const [collapsed, setCollapsed] = useState(initialCollapsed);
 
@@ -67,13 +69,13 @@ export function LearnerSidebar({
       {/* Brand logo & collapse button */}
       <div className={`flex items-center pb-8 ${collapsed ? "flex-col gap-2" : "justify-between gap-2"}`}>
         <Link href="/" className="flex min-w-0 items-center gap-3">
-          <div className="grid size-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] shadow-md shadow-[#6C3BFF]/25">
-            <Layers className="size-[22px] text-white" />
+          <div className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-xl bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] shadow-md shadow-[#6C3BFF]/25" style={schoolBrand?.accentColor ? { background: schoolBrand.accentColor } : undefined}>
+            {schoolBrand?.logoUrl ? <img src={schoolBrand.logoUrl} alt="" className="size-full object-cover" /> : <Layers className="size-[22px] text-white" />}
           </div>
           {collapsed ? null : (
             <div className="min-w-0">
-              <div className="truncate text-base font-extrabold leading-tight text-white tracking-tight">BrenUp</div>
-              <div className="truncate text-[10px] font-bold text-[#e6e0ef]/50 uppercase tracking-wider">Level Up English</div>
+              <div className="truncate text-base font-extrabold leading-tight text-white tracking-tight">{schoolBrand?.name || "BrenUp"}</div>
+              <div className="truncate text-[10px] font-bold text-[#e6e0ef]/50 uppercase tracking-wider">{schoolBrand ? "Powered by BrenUp" : "Level Up English"}</div>
             </div>
           )}
         </Link>
@@ -90,7 +92,7 @@ export function LearnerSidebar({
       {/* Main Nav Items */}
       <nav className="flex flex-1 flex-col gap-1">
         {navItems.map(({ key, ...item }) => (
-          <NavItem key={item.label} {...item} active={active === key} collapsed={collapsed} />
+          <NavItem key={item.label} {...item} active={active === key} collapsed={collapsed} accentColor={schoolBrand?.accentColor ?? undefined} />
         ))}
       </nav>
 
@@ -147,6 +149,7 @@ function NavItem({
   disabled,
   badge,
   collapsed,
+  accentColor,
 }: {
   href: string;
   label: string;
@@ -155,12 +158,13 @@ function NavItem({
   disabled?: boolean;
   badge?: string;
   collapsed?: boolean;
+  accentColor?: string;
 }) {
   const className = `flex h-11 items-center rounded-[12px] text-sm font-semibold no-underline transition ${
     collapsed ? "justify-center px-0 mx-1" : "gap-3 px-3.5 mx-2 my-0.5"
   } ${
     active
-      ? "bg-[#6C3BFF] text-white shadow-md shadow-[#6c3bff]/20"
+      ? "text-white shadow-md shadow-[#6c3bff]/20"
       : "text-[#cac3d9]/70 hover:bg-white/10 hover:text-white"
   } ${disabled ? "cursor-default opacity-60" : ""}`;
 
@@ -179,8 +183,9 @@ function NavItem({
   );
 
   const title = collapsed ? label : undefined;
-  if (disabled) return <span className={className} title={title}>{content}</span>;
-  return <Link href={href} className={className} title={title}>{content}</Link>;
+  const style = active ? { backgroundColor: accentColor || "#6C3BFF" } : undefined;
+  if (disabled) return <span className={className} title={title} style={style}>{content}</span>;
+  return <Link href={href} className={className} title={title} style={style}>{content}</Link>;
 }
 
 function PremiumCard() {

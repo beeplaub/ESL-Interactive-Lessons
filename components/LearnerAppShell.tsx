@@ -71,6 +71,29 @@ export async function LearnerAppShell({
     ? await admin.from("profiles").select("first_name,last_name,full_name,cefr_level,avatar_url,role").eq("id", user.id).maybeSingle()
     : { data: null };
 
+  // A learner can belong to a school through a class even when the older
+  // organization-membership record has not been created. Prefer their most
+  // recently joined school class, then fall back to direct membership.
+  const { data: classMemberships } = user
+    ? await admin.from("class_members").select("class_id,joined_at").eq("user_id", user.id).eq("role", "STUDENT").order("joined_at", { ascending: false }).limit(1)
+    : { data: [] };
+  const classId = classMemberships?.[0]?.class_id;
+  const { data: learnerClass } = classId
+    ? await admin.from("classes").select("organization_id").eq("id", classId).maybeSingle()
+    : { data: null };
+  const { data: directMembership } = user && !learnerClass?.organization_id
+    ? await admin.from("organization_members").select("organization_id,created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle()
+    : { data: null };
+  const organizationId = learnerClass?.organization_id ?? directMembership?.organization_id ?? null;
+  const { data: organizationBrand } = organizationId
+    ? await admin.from("organizations").select("name,brand_name,logo_url,accent_color").eq("id", organizationId).maybeSingle()
+    : { data: null };
+  const schoolBrand = organizationBrand ? {
+    name: organizationBrand.brand_name?.trim() || organizationBrand.name,
+    logoUrl: organizationBrand.logo_url ?? null,
+    accentColor: organizationBrand.accent_color ?? null,
+  } : null;
+
   const name = [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || profile?.full_name || "Guest";
   const initials = name.split(/\s+/).slice(0, 2).map((part: string) => part[0]?.toUpperCase()).join("") || "BU";
   const currentLevel = profile?.cefr_level || null;
@@ -91,7 +114,7 @@ export async function LearnerAppShell({
         isStaffUser={isStaffUser}
       />
       <div className="mx-auto flex min-h-screen max-w-[1536px] items-start gap-5 p-3 pb-24 min-[1180px]:p-6 min-[1180px]:pb-6">
-        <LearnerSidebar active={active} currentLevel={currentLevel} initialCollapsed={sidebarCollapsed} levelProgressPercent={levelProgressPercent} />
+        <LearnerSidebar active={active} currentLevel={currentLevel} initialCollapsed={sidebarCollapsed} levelProgressPercent={levelProgressPercent} schoolBrand={schoolBrand} />
         <section className={`min-w-0 flex-1 pt-[60px] min-[1180px]:pt-0 ${contentClassName}`}>
           {showChrome ? (
             <DesktopLearnerChrome

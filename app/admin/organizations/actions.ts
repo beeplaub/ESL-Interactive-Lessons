@@ -20,6 +20,9 @@ export async function createOrganization(formData: FormData) {
     name,
     slug: `${baseSlug}-${Date.now().toString(36)}`,
     description: String(formData.get("description") || "").trim() || null,
+    brand_name: String(formData.get("brandName") || "").trim() || null,
+    logo_url: String(formData.get("logoUrl") || "").trim() || null,
+    accent_color: normalizeAccentColor(formData.get("accentColor")),
     created_by: user.id,
   });
   if (error) throw new Error(error.message);
@@ -35,10 +38,18 @@ export async function updateOrganization(formData: FormData) {
   const { error } = await admin.from("organizations").update({
     name,
     description: String(formData.get("description") || "").trim() || null,
+    brand_name: String(formData.get("brandName") || "").trim() || null,
+    logo_url: String(formData.get("logoUrl") || "").trim() || null,
+    accent_color: normalizeAccentColor(formData.get("accentColor")),
     updated_at: new Date().toISOString(),
   }).eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath("/admin/organizations");
+}
+
+function normalizeAccentColor(value: FormDataEntryValue | null) {
+  const color = String(value || "").trim();
+  return /^#[0-9A-Fa-f]{6}$/.test(color) ? color : null;
 }
 
 export async function deleteOrganization(organizationId: string) {

@@ -57,7 +57,9 @@ export default async function AdminOrganizationsPage() {
             </div>
             <div className="mt-4 grid gap-3">
               <input name="name" required placeholder="Organization or school name" className="rounded-md border border-black/15 px-3 py-2 text-sm" />
+              <input name="brandName" placeholder="Display name (optional)" className="rounded-md border border-black/15 px-3 py-2 text-sm" />
               <textarea name="description" rows={3} placeholder="Description" className="rounded-md border border-black/15 px-3 py-2 text-sm" />
+              <div className="grid gap-3 sm:grid-cols-[1fr_112px]"><input name="logoUrl" type="url" placeholder="Logo image URL (optional)" className="rounded-md border border-black/15 px-3 py-2 text-sm" /><input name="accentColor" type="color" defaultValue="#6C3BFF" aria-label="Brand accent color" className="h-10 w-full rounded-md border border-black/15 bg-white px-1" /></div>
               <button className="inline-flex w-fit items-center gap-2 rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white"><Plus size={15} /> Create organization</button>
             </div>
           </form>
@@ -133,7 +135,7 @@ export default async function AdminOrganizationsPage() {
                     <p className="truncate font-semibold">{org.name}</p>
                     <p className="mt-0.5 text-xs text-black/45">{classCounts.get(org.id) ?? 0} classes</p>
                   </div>
-                  <OrganizationControls organization={{ id: org.id, name: org.name, description: org.description, classCount: classCounts.get(org.id) ?? 0 }} />
+                  <OrganizationControls organization={{ id: org.id, name: org.name, description: org.description, brandName: org.brand_name, logoUrl: org.logo_url, accentColor: org.accent_color, classCount: classCounts.get(org.id) ?? 0 }} />
                 </div>
               ))}
               {(organizations?.length ?? 0) === 0 ? <p className="py-6 text-center text-sm text-black/55">No organizations yet.</p> : null}

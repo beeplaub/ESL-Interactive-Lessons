@@ -6,7 +6,7 @@ import { ConfirmActionButton } from "./ConfirmActionButton";
 
 type Option = { id: string; label: string };
 
-export function OrganizationControls({ organization }: { organization: { id: string; name: string; description?: string | null; classCount: number } }) {
+export function OrganizationControls({ organization }: { organization: { id: string; name: string; description?: string | null; brandName?: string | null; logoUrl?: string | null; accentColor?: string | null; classCount: number } }) {
   return (
     <details className="group min-w-[180px]">
       <summary className="cursor-pointer list-none rounded-md border border-black/15 px-2.5 py-1.5 text-xs font-semibold text-black/65 hover:bg-black/5 [&::-webkit-details-marker]:hidden"><span className="inline-flex items-center gap-1"><FilePenLine size={13} /> Manage</span></summary>
@@ -14,7 +14,10 @@ export function OrganizationControls({ organization }: { organization: { id: str
         <form action={updateOrganization} className="grid gap-2">
           <input type="hidden" name="id" value={organization.id} />
           <input name="name" required defaultValue={organization.name} aria-label="Organization name" className="rounded-md border border-black/15 bg-white px-2.5 py-1.5 text-xs" />
+          <input name="brandName" defaultValue={organization.brandName ?? ""} placeholder="Display name" className="rounded-md border border-black/15 bg-white px-2.5 py-1.5 text-xs" />
           <textarea name="description" rows={2} defaultValue={organization.description ?? ""} placeholder="Description" className="rounded-md border border-black/15 bg-white px-2.5 py-1.5 text-xs" />
+          <input name="logoUrl" type="url" defaultValue={organization.logoUrl ?? ""} placeholder="Logo image URL" className="rounded-md border border-black/15 bg-white px-2.5 py-1.5 text-xs" />
+          <label className="flex items-center gap-2 text-xs font-semibold text-black/55">Accent <input name="accentColor" type="color" defaultValue={organization.accentColor ?? "#6C3BFF"} className="h-7 w-12 rounded border border-black/15 bg-white p-0.5" /></label>
           <button className="inline-flex w-fit items-center gap-1 rounded-md bg-ink px-2.5 py-1.5 text-xs font-semibold text-white"><Save size={13} /> Save</button>
         </form>
         <div className="mt-3 border-t border-black/10 pt-3">
