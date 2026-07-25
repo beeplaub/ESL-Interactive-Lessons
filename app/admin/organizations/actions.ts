@@ -154,3 +154,12 @@ export async function removeClassMember(classMemberId: string) {
   if (error) throw new Error(error.message);
   revalidatePath("/admin/organizations");
 }
+
+export async function removeClassAssignment(assignmentId: string) {
+  await requireAdmin();
+  const admin = createAdminClient();
+  const { error } = await admin.from("class_assignments").delete().eq("id", assignmentId);
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/organizations");
+  revalidatePath("/assignments");
+}

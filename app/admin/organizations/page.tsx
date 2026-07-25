@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Building2, Plus, School, UserMinus, UsersRound } from "lucide-react";
 import { requireAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -144,7 +145,7 @@ export default async function AdminOrganizationsPage() {
               {(classes ?? []).map((klass) => (
                 <div key={klass.id} className="py-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="font-semibold">{klass.name}</p>
+                    <Link href={`/admin/organizations/classes/${klass.id}`} className="font-semibold hover:text-moss hover:underline">{klass.name}</Link>
                     <span className="rounded-full bg-moss/10 px-2.5 py-1 text-xs font-semibold text-moss">{klass.status}</span>
                   </div>
                   <p className="mt-1 text-xs text-black/50">
