@@ -2,8 +2,9 @@ import Link from "next/link";
 import { ArrowRight, BarChart3, BookOpen, Building2, ClipboardList, FileCheck, FlaskConical, GraduationCap, Images, Library, PenSquare, Plus, UsersRound } from "lucide-react";
 import { requireStaff, isPlatformAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getCreatorEntitlements, type ResolvedEntitlement } from "@/lib/entitlements";
 
-type OwnedContentRow = { id: string; status: string; title: string | null; updated_at: string | null };
+type OwnedContentRow = { id: string; status: string; title: string | null; updated_at: string | null; course_id?: string | null };
 type LearnerProfileRow = { id: string; first_name: string | null; last_name: string | null; full_name: string | null };
 type ActivityEvent = { id: string; at: string; node: React.ReactNode };
 
@@ -15,7 +16,7 @@ export default async function AdminPage() {
     const [{ data: courses }, { data: lessons }, { data: quizzes }] = await Promise.all([
       admin.from("courses").select("id, status, title, updated_at").is("deleted_at", null).or(`owner_id.eq.${user.id},created_by.eq.${user.id}`),
       admin.from("lessons").select("id, status, title, updated_at").is("deleted_at", null).eq("created_by", user.id),
-      admin.from("quizzes").select("id, status, title, updated_at").is("deleted_at", null).eq("created_by", user.id)
+      admin.from("quizzes").select("id, status, title, updated_at, course_id").is("deleted_at", null).eq("created_by", user.id)
     ]);
 
     const courseRows = (courses ?? []) as OwnedContentRow[];
@@ -26,7 +27,7 @@ export default async function AdminPage() {
 
     // Scoped the same way requireCourseAccess/requireQuizAccess scope reads:
     // only rows tied to content this teacher actually owns, never platform-wide.
-    const [{ data: attemptRows }, { data: enrollmentRows }, { count: pendingSubmissionCount }, { count: libraryCount }, { count: mediaCount }] = await Promise.all([
+    const [{ data: attemptRows }, { data: enrollmentRows }, { count: pendingSubmissionCount }, { count: libraryCount }, { count: mediaCount }, entitlements] = await Promise.all([
       quizIds.length
         ? admin.from("quiz_attempts").select("id, quiz_id, user_id, score, completed_at").in("quiz_id", quizIds).order("completed_at", { ascending: false }).limit(8)
         : Promise.resolve({ data: [] as Array<{ id: string; quiz_id: string; user_id: string; score: number | null; completed_at: string | null }> }),
@@ -42,7 +43,8 @@ export default async function AdminPage() {
         return admin.from("writing_submissions").select("id", { count: "exact", head: true }).eq("status", "PENDING").or(filters);
       })(),
       admin.from("content_library_items").select("id", { count: "exact", head: true }).eq("created_by", user.id),
-      admin.from("media_assets").select("id", { count: "exact", head: true }).eq("owner_id", user.id).is("deleted_at", null)
+      admin.from("media_assets").select("id", { count: "exact", head: true }).eq("owner_id", user.id).is("deleted_at", null),
+      getCreatorEntitlements(user.id, profile?.role)
     ]);
 
     const learnerIds = Array.from(new Set([...(attemptRows ?? []).map((row) => row.user_id), ...(enrollmentRows ?? []).map((row) => row.user_id)]));
@@ -98,6 +100,7 @@ export default async function AdminPage() {
     const pendingCount = pendingSubmissionCount ?? 0;
     const savedContentCount = libraryCount ?? 0;
     const mediaAssetCount = mediaCount ?? 0;
+    const standaloneQuizCount = quizRows.filter((row) => !row.course_id).length;
 
     return (
       <main className="min-w-0 overflow-hidden">
@@ -110,6 +113,22 @@ export default async function AdminPage() {
           <AdminCard href="/admin/courses" icon={GraduationCap} label="My courses" value={courseRows.length} detail={`${countStatus(courseRows, "PUBLISHED")} published · ${countStatus(courseRows, "DRAFT")} draft`} />
           <AdminCard href="/admin/lessons" icon={BookOpen} label="My lessons" value={lessonRows.length} detail={`${countStatus(lessonRows, "PUBLISHED")} published · ${countStatus(lessonRows, "DRAFT")} draft`} />
           <AdminCard href="/admin/quizzes" icon={ClipboardList} label="My quizzes" value={quizRows.length} detail={`${countStatus(quizRows, "PUBLISHED")} published · ${countStatus(quizRows, "DRAFT")} draft`} />
+        </section>
+
+        <section className="mt-4 rounded-20 border border-violetglow/15 bg-gradient-to-br from-violetglow/10 via-white to-sky-50 p-4 sm:p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide text-violetglow">Your creator plan</p>
+              <h2 className="mt-1 text-lg font-extrabold text-ink">{entitlements.planName}</h2>
+              <p className="mt-1 text-xs text-slate-600">Status: {entitlements.status.toLowerCase().replace(/_/g, " ")}</p>
+            </div>
+            <Link href="/admin/account" className="rounded-lg border border-violetglow/25 bg-white px-3 py-2 text-xs font-bold text-violetglow hover:bg-violetglow/5">Plan details</Link>
+          </div>
+          <div className="mt-4 grid gap-2 sm:grid-cols-3">
+            <UsageRule label="Courses" used={courseRows.length} rule={entitlements.values.COURSES} />
+            <UsageRule label="Standalone quizzes" used={standaloneQuizCount} rule={entitlements.values.QUIZZES} />
+            <UsageRule label="Creator AI" used={null} rule={entitlements.values.AI_CREATOR} />
+          </div>
         </section>
 
         <section className="mt-6 br-card rounded-20 p-4 sm:p-5">
@@ -230,4 +249,9 @@ function WorkspaceSignal({ href, icon: Icon, label, value, detail, tone }: { hre
       <p className="mt-1 text-xs leading-relaxed text-slate-500">{detail}</p>
     </Link>
   );
+}
+
+function UsageRule({ label, used, rule }: { label: string; used: number | null; rule: ResolvedEntitlement }) {
+  const detail = !rule.enabled ? "Not included" : used === null ? "Included" : rule.limit === null ? `${used} used · Unlimited` : `${used} of ${rule.limit} used`;
+  return <div className="rounded-xl border border-black/5 bg-white/80 px-3 py-2.5"><p className="text-xs font-bold text-ink">{label}</p><p className={`mt-1 text-xs font-medium ${rule.enabled ? "text-slate-600" : "text-slate-400"}`}>{detail}</p></div>;
 }
