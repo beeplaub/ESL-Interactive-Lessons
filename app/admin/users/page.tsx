@@ -1,5 +1,6 @@
 import { Search, Trash2 } from "lucide-react";
 import { createUserManually, deleteUser, updateUserRole } from "@/app/admin/users/actions";
+import { InviteTeacherForm } from "./InviteTeacherForm";
 import { DeleteButton } from "@/components/DeleteButton";
 import { requireAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -42,6 +43,12 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
           </select>
           <button className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white">Add user</button>
         </form>
+      </section>
+
+      <section className="mb-6 rounded-lg border border-moss/20 bg-moss/5 p-5 shadow-sm">
+        <h2 className="font-semibold">Invite a teacher</h2>
+        <p className="mt-1 text-sm text-black/60">BrenUp sends a secure invitation link. When they accept, their account opens directly into the teacher workspace.</p>
+        <div className="mt-4"><InviteTeacherForm /></div>
       </section>
 
       <form className="mb-4 flex max-w-md items-center gap-2 rounded-md border border-black/10 bg-white px-3 py-2 shadow-sm">

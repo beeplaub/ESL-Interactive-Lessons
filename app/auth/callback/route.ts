@@ -89,8 +89,25 @@ export async function GET(request: NextRequest) {
         }
         // else: profile already has a name — don't touch it
 
-        // ── 4. Redirect based on role ────────────────────────────────────────
-        const role = existing?.role ?? "LEARNER";
+        // ── 4. Accept a pending teacher invitation, if this sign-in came from
+        // one. The invitation row is created only by a platform admin using the
+        // service role, so learner-controlled metadata can never self-promote an
+        // account to staff.
+        const { data: invitation } = await admin
+          .from("teacher_invitations")
+          .select("id")
+          .eq("user_id", user.id)
+          .is("accepted_at", null)
+          .is("revoked_at", null)
+          .maybeSingle();
+        let role = existing?.role ?? "LEARNER";
+        if (invitation) {
+          await admin.from("teacher_invitations").update({ accepted_at: new Date().toISOString() }).eq("id", invitation.id);
+          await admin.from("profiles").update({ role: "TEACHER" }).eq("id", user.id);
+          role = "TEACHER";
+        }
+
+        // ── 5. Redirect based on role ────────────────────────────────────────
         redirectPath = isStaff(role)
           ? "/admin"
           : nextPath?.startsWith("/") && !nextPath.startsWith("/admin")
