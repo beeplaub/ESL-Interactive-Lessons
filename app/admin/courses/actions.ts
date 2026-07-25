@@ -635,7 +635,12 @@ export async function enrollUserInCourseDirectly(userId: string, courseId: strin
   }
 }
 
-export async function updateOrderStatusDirectly(orderId: string, newStatus: "PENDING" | "CONFIRMED" | "REJECTED", adminNote?: string) {
+export async function updateOrderStatusDirectly(
+  orderId: string,
+  newStatus: "PENDING" | "CONFIRMED" | "REJECTED",
+  adminNote?: string,
+): Promise<{ success: true } | { success: false; error: string }> {
+  try {
   const { user } = await requireAdmin();
   const admin = createAdminClient();
 
@@ -646,22 +651,24 @@ export async function updateOrderStatusDirectly(orderId: string, newStatus: "PEN
     .single();
 
   if (fetchError || !order) {
-    throw new Error("Order not found.");
+    return { success: false, error: "Order not found." };
   }
+
+  if (order.status === newStatus) return { success: true };
 
   const { error: updateError } = await admin
     .from("course_orders")
     .update({
       status: newStatus,
       admin_note: adminNote !== undefined ? adminNote : order.admin_note,
-      confirmed_by: user.id,
-      confirmed_at: newStatus !== "PENDING" ? new Date().toISOString() : null,
+      confirmed_by: newStatus === "CONFIRMED" ? user.id : null,
+      confirmed_at: newStatus === "CONFIRMED" ? new Date().toISOString() : null,
       updated_at: new Date().toISOString()
     })
     .eq("id", orderId);
 
   if (updateError) {
-    throw new Error(`Failed to update order status: ${updateError.message}`);
+    return { success: false, error: `Failed to update order status: ${updateError.message}` };
   }
 
   if (newStatus === "CONFIRMED") {
@@ -672,6 +679,12 @@ export async function updateOrderStatusDirectly(orderId: string, newStatus: "PEN
   revalidatePath(`/admin/orders/${orderId}`);
   revalidatePath("/courses");
   revalidatePath(`/courses/${order.course_id}`);
+  revalidatePath("/account");
+  return { success: true };
+  } catch (error) {
+    console.error("updateOrderStatusDirectly failed", error);
+    return { success: false, error: error instanceof Error ? error.message : "Could not update the order." };
+  }
 }
 
 export async function confirmCourseOrder(orderId: string) {

@@ -183,71 +183,116 @@ export async function markCourseItemComplete(courseId: string, itemId: string) {
   revalidatePath(`/courses/${courseId}`);
 }
 
-export async function submitCourseOrder(courseId: string, formData: FormData) {
-  const { user } = await requireUser();
-  const admin = createAdminClient();
+export async function submitCourseOrder(
+  courseId: string,
+  formData: FormData,
+): Promise<{ success: true } | { success: false; error: string }> {
+  try {
+    const { user } = await requireUser();
+    const admin = createAdminClient();
 
-  const { data: course } = await admin
-    .from("courses")
-    .select("id,status,price_bdt")
-    .eq("id", courseId)
-    .eq("status", "PUBLISHED")
-    .is("deleted_at", null)
-    .maybeSingle();
+    const { data: course } = await admin
+      .from("courses")
+      .select("id,status,price_bdt")
+      .eq("id", courseId)
+      .eq("status", "PUBLISHED")
+      .is("deleted_at", null)
+      .maybeSingle();
 
-  if (!course || course.price_bdt === null || course.price_bdt <= 0) {
-    throw new Error("This course is not available for purchase.");
-  }
-
-  const paymentMethod = formData.get("paymentMethod") as "BKASH" | "NAGAD" | "BANK_TRANSFER" | "OTHER";
-  const transactionId = String(formData.get("transactionId") || "").trim() || null;
-  const senderNumber = String(formData.get("senderNumber") || "").trim() || null;
-  const note = String(formData.get("note") || "").trim() || null;
-
-  if (!paymentMethod) {
-    throw new Error("Please select a payment method.");
-  }
-
-  const file = formData.get("receiptFile");
-  let receiptPath: string | null = null;
-
-  if (file instanceof File && file.size > 0) {
-    const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-    const path = `${user.id}/${Date.now()}-receipt.${ext}`;
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = new Uint8Array(arrayBuffer);
-
-    const supabase = await createClient();
-    const { error: uploadError } = await supabase.storage
-      .from("payment-receipts")
-      .upload(path, buffer, {
-        upsert: true,
-        contentType: file.type || "image/jpeg",
-      });
-
-    if (uploadError) {
-      throw new Error(`Receipt upload failed: ${uploadError.message}`);
+    if (!course || course.price_bdt === null || course.price_bdt <= 0) {
+      return { success: false, error: "This course is not available for purchase." };
     }
-    receiptPath = path;
+
+    const paymentMethod = formData.get("paymentMethod") as "BKASH" | "NAGAD" | "BANK_TRANSFER" | "OTHER";
+    const transactionId = String(formData.get("transactionId") || "").trim() || null;
+    const senderNumber = String(formData.get("senderNumber") || "").trim() || null;
+    const note = String(formData.get("note") || "").trim() || null;
+
+    if (!paymentMethod || !transactionId || !senderNumber) {
+      return { success: false, error: "Add a payment method, sender number, and transaction ID." };
+    }
+
+    const [{ data: enrollment }, { data: openOrder }, { data: matchingTransaction }] = await Promise.all([
+      admin
+        .from("course_enrollments")
+        .select("id,status")
+        .eq("user_id", user.id)
+        .eq("course_id", courseId)
+        .maybeSingle(),
+      admin
+        .from("course_orders")
+        .select("id,status")
+        .eq("user_id", user.id)
+        .eq("course_id", courseId)
+        .in("status", ["PENDING", "CONFIRMED"])
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      admin
+        .from("course_orders")
+        .select("id,user_id,status")
+        .eq("transaction_id", transactionId)
+        .in("status", ["PENDING", "CONFIRMED"])
+        .limit(1)
+        .maybeSingle(),
+    ]);
+
+    if (enrollment?.status === "ACTIVE" || enrollment?.status === "COMPLETED" || openOrder?.status === "CONFIRMED") {
+      return { success: false, error: "You are already enrolled in this course." };
+    }
+    if (openOrder?.status === "PENDING") {
+      return { success: false, error: "Your payment is already under review. Please wait for a decision." };
+    }
+    if (matchingTransaction && matchingTransaction.user_id !== user.id) {
+      return { success: false, error: "That transaction ID is already being used for another order." };
+    }
+
+    const file = formData.get("receiptFile");
+    let receiptPath: string | null = null;
+
+    if (file instanceof File && file.size > 0) {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      const path = `${user.id}/${Date.now()}-receipt.${ext}`;
+      const arrayBuffer = await file.arrayBuffer();
+      const buffer = new Uint8Array(arrayBuffer);
+
+      const supabase = await createClient();
+      const { error: uploadError } = await supabase.storage
+        .from("payment-receipts")
+        .upload(path, buffer, {
+          upsert: true,
+          contentType: file.type || "image/jpeg",
+        });
+
+      if (uploadError) {
+        return { success: false, error: `Receipt upload failed: ${uploadError.message}` };
+      }
+      receiptPath = path;
+    }
+
+    const { error } = await admin.from("course_orders").insert({
+      user_id: user.id,
+      course_id: courseId,
+      amount_bdt: course.price_bdt,
+      payment_method: paymentMethod,
+      transaction_id: transactionId,
+      sender_number: senderNumber,
+      receipt_path: receiptPath,
+      note: note,
+      status: "PENDING"
+    });
+
+    if (error) {
+      if (receiptPath) await admin.storage.from("payment-receipts").remove([receiptPath]);
+      return { success: false, error: `Could not submit payment details: ${error.message}` };
+    }
+
+    revalidatePath(`/courses/${courseId}`);
+    revalidatePath("/courses");
+    revalidatePath("/account");
+    return { success: true };
+  } catch (error) {
+    console.error("submitCourseOrder failed", error);
+    return { success: false, error: error instanceof Error ? error.message : "Could not submit payment details." };
   }
-
-  const { error } = await admin.from("course_orders").insert({
-    user_id: user.id,
-    course_id: courseId,
-    amount_bdt: course.price_bdt,
-    payment_method: paymentMethod,
-    transaction_id: transactionId,
-    sender_number: senderNumber,
-    receipt_path: receiptPath,
-    note: note,
-    status: "PENDING"
-  });
-
-  if (error) {
-    throw new Error(`Failed to submit payment details: ${error.message}`);
-  }
-
-  revalidatePath(`/courses/${courseId}`);
-  revalidatePath("/courses");
-  revalidatePath("/account");
 }

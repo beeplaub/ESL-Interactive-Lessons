@@ -29,6 +29,8 @@ export function BuyCourseButton({
 }: BuyCourseButtonProps) {
   const [open, setOpen] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
 
@@ -163,8 +165,12 @@ export function BuyCourseButton({
                 </div>
                 <form
                   action={async (formData) => {
-                    await submitCourseOrder(courseId, formData);
-                    setSubmitted(true);
+                    setSubmitError(null);
+                    setIsSubmitting(true);
+                    const result = await submitCourseOrder(courseId, formData);
+                    setIsSubmitting(false);
+                    if (result.success) setSubmitted(true);
+                    else setSubmitError(result.error);
                   }}
                   className="space-y-3"
                   method="POST"
@@ -230,11 +236,13 @@ export function BuyCourseButton({
                       />
                     </label>
                   </div>
+                  {submitError ? <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm font-semibold text-red-700">{submitError}</p> : null}
                   <button
                     type="submit"
-                    className="w-full rounded-xl bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] px-6 py-3 text-sm font-extrabold text-white shadow-[0_8px_20px_rgba(108,59,255,.35)] hover:-translate-y-0.5 transition-transform mt-2"
+                    disabled={isSubmitting}
+                    className="mt-2 w-full rounded-xl bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] px-6 py-3 text-sm font-extrabold text-white shadow-[0_8px_20px_rgba(108,59,255,.35)] transition-transform hover:-translate-y-0.5 disabled:cursor-wait disabled:opacity-65"
                   >
-                    Submit Verification
+                    {isSubmitting ? "Submitting…" : "Submit Verification"}
                   </button>
                 </form>
               </div>
