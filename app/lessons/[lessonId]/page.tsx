@@ -20,48 +20,60 @@ export default async function LessonPage({
 
   const admin = createAdminClient();
 
-  // Enforce global sequential lock guard for enrolled courses
+  // Lessons that belong to a course must be opened in a verified course
+  // context. This prevents a direct lesson URL from bypassing paid enrollment
+  // or sequential unlocking.
   let courseId: string | null = null;
   let resolvedCourseItemId: string | null = null;
   let courseTitle: string | null = null;
+  let isEnrolledInCourse = false;
+  let isFreePreview = false;
   if (courseItem) {
     const { data: cItem } = await admin
       .from("course_items")
-      .select("course_id")
+      .select("course_id, lesson_id, is_free_preview")
       .eq("id", courseItem)
       .maybeSingle();
-    if (cItem) {
+    if (cItem?.lesson_id === lessonId) {
       courseId = cItem.course_id;
       resolvedCourseItemId = courseItem;
+      isFreePreview = Boolean(cItem.is_free_preview);
+    } else {
+      notFound();
     }
   } else {
-    const { data: enrollments } = await admin
-      .from("course_enrollments")
+    const { data: placement } = await admin
+      .from("course_items")
       .select("course_id")
-      .eq("user_id", user.id)
-      .in("status", ["ACTIVE", "COMPLETED"]);
-
-    if (enrollments && enrollments.length > 0) {
-      const courseIds = enrollments.map(e => e.course_id);
-      const { data: cItem } = await admin
-        .from("course_items")
-        .select("id, course_id")
-        .eq("lesson_id", lessonId)
-        .in("course_id", courseIds)
-        .limit(1)
-        .maybeSingle();
-      if (cItem) {
-        courseId = cItem.course_id;
-        resolvedCourseItemId = cItem.id;
-      }
+      .eq("lesson_id", lessonId)
+      .limit(1)
+      .maybeSingle();
+    if (placement?.course_id) {
+      redirect(`/courses/${placement.course_id}`);
     }
+  }
+
+  if (courseId) {
+    const [{ data: enrollment }, { data: course }] = await Promise.all([
+      admin
+        .from("course_enrollments")
+        .select("status")
+        .eq("user_id", user.id)
+        .eq("course_id", courseId)
+        .maybeSingle(),
+      admin.from("courses").select("title,status").eq("id", courseId).is("deleted_at", null).maybeSingle(),
+    ]);
+    if (!course || course.status !== "PUBLISHED") notFound();
+    courseTitle = course.title;
+    isEnrolledInCourse = enrollment?.status === "ACTIVE" || enrollment?.status === "COMPLETED";
+    if (!isEnrolledInCourse && !isFreePreview) redirect(`/courses/${courseId}`);
   }
 
   // Opening a course item marks it "in progress" app-wide, regardless of
   // whether the learner got here from the course landing page, the
   // dashboard, or a direct link. This is the only place that needs to know
   // about it - no separate "learn" page or manual step required.
-  if (resolvedCourseItemId && courseId) {
+  if (resolvedCourseItemId && courseId && isEnrolledInCourse) {
     const { data: existingItemProgress } = await admin
       .from("course_item_progress")
       .select("id")
@@ -76,8 +88,6 @@ export default async function LessonPage({
         completed: false,
       });
     }
-    const { data: courseRow } = await admin.from("courses").select("title").eq("id", courseId).maybeSingle();
-    courseTitle = courseRow?.title ?? null;
   }
 
   if (courseId) {
@@ -111,7 +121,13 @@ export default async function LessonPage({
     if (matchingItem) {
       const globalIndex = courseItems.findIndex((ci) => ci.id === matchingItem.id);
       const isComplete = completedIds.has(matchingItem.id);
-      const unlocked = globalIndex === 0 || isComplete || (globalIndex > 0 && completedIds.has(courseItems[globalIndex - 1].id)) || Boolean(matchingItem.is_free_preview);
+      const unlocked = Boolean(matchingItem.is_free_preview) || (
+        isEnrolledInCourse && (
+          globalIndex === 0 ||
+          isComplete ||
+          (globalIndex > 0 && completedIds.has(courseItems[globalIndex - 1].id))
+        )
+      );
 
       if (!unlocked) {
         redirect(`/courses/${courseId}`);

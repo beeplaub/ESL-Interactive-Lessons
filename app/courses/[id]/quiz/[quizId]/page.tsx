@@ -24,31 +24,35 @@ export default async function CourseQuizPage({
 
   const admin = createAdminClient();
 
-  const [{ data: quiz }, { data: course }, { data: courseItem }] = await Promise.all([
-    admin.from("quizzes").select("*").eq("id", quizId).is("deleted_at", null).maybeSingle(),
-    admin.from("courses").select("title").eq("id", courseId).maybeSingle(),
+  const [{ data: quiz }, { data: course }, { data: courseItem }, { data: enrollment }] = await Promise.all([
+    admin.from("quizzes").select("*").eq("id", quizId).eq("status", "PUBLISHED").is("deleted_at", null).maybeSingle(),
+    admin.from("courses").select("title,status").eq("id", courseId).is("deleted_at", null).maybeSingle(),
     admin.from("course_items").select("id, section_id, position, is_free_preview").eq("course_id", courseId).eq("quiz_id", quizId).maybeSingle(),
+    admin.from("course_enrollments").select("status").eq("course_id", courseId).eq("user_id", user.id).maybeSingle(),
   ]);
 
   // A course-native quiz only belongs to the one course it was picked/created
   // into - guard against a mismatched courseId in the URL.
-  if (!quiz || quiz.course_id !== courseId || !course || !courseItem) notFound();
+  if (!quiz || quiz.course_id !== courseId || !course || course.status !== "PUBLISHED" || !courseItem) notFound();
+  const isEnrolled = enrollment?.status === "ACTIVE" || enrollment?.status === "COMPLETED";
 
   // Opening it marks it "in progress" app-wide, same as lessons and
   // standalone-path quizzes - regardless of how the learner navigated here.
-  const { data: existingItemProgress } = await admin
-    .from("course_item_progress")
-    .select("id")
-    .eq("user_id", user.id)
-    .eq("course_item_id", courseItem.id)
-    .maybeSingle();
-  if (!existingItemProgress) {
-    await admin.from("course_item_progress").insert({
-      user_id: user.id,
-      course_id: courseId,
-      course_item_id: courseItem.id,
-      completed: false,
-    });
+  if (isEnrolled) {
+    const { data: existingItemProgress } = await admin
+      .from("course_item_progress")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("course_item_id", courseItem.id)
+      .maybeSingle();
+    if (!existingItemProgress) {
+      await admin.from("course_item_progress").insert({
+        user_id: user.id,
+        course_id: courseId,
+        course_item_id: courseItem.id,
+        completed: false,
+      });
+    }
   }
 
   // Enforce the same sequential lock guard lessons/standalone quizzes use.
@@ -71,11 +75,13 @@ export default async function CourseQuizPage({
   const completedIds = new Set((itemProgress ?? []).filter((ip) => ip.completed).map((ip) => ip.course_item_id));
   const globalIndex = orderedCourseItems.findIndex((ci) => ci.id === courseItem.id);
   const isComplete = completedIds.has(courseItem.id);
-  const unlocked =
-    globalIndex === 0 ||
-    isComplete ||
-    (globalIndex > 0 && completedIds.has(orderedCourseItems[globalIndex - 1].id)) ||
-    Boolean(courseItem.is_free_preview);
+  const unlocked = Boolean(courseItem.is_free_preview) || (
+    isEnrolled && (
+      globalIndex === 0 ||
+      isComplete ||
+      (globalIndex > 0 && completedIds.has(orderedCourseItems[globalIndex - 1].id))
+    )
+  );
 
   if (!unlocked) redirect(`/courses/${courseId}`);
 
