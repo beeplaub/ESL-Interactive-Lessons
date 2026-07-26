@@ -261,10 +261,10 @@ export function BuilderLessonPlayer({
 
   useEffect(() => {
     if (!liveSession) return;
-    const heartbeat = () => { void fetch(`/api/live/${liveSession.sessionId}/presence`, { method: "POST" }); };
+    const heartbeat = () => { void fetch(`/api/live/${liveSession.sessionId}/presence`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ currentSlideNumber: index + 1 }) }); };
     heartbeat(); const interval = window.setInterval(heartbeat, 15_000);
     return () => window.clearInterval(interval);
-  }, [liveSession]);
+  }, [index, liveSession]);
 
   useEffect(() => {
     const hasActivityTimer = Object.values(liveActivityStates).some((activity) => Boolean(activity.closesAt));
