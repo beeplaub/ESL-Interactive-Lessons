@@ -21,6 +21,7 @@ import {
   Crown,
   FileCheck,
   School,
+  Radio,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { signOut, switchToLearnerView } from "@/app/auth/actions";
@@ -35,6 +36,7 @@ const links = [
   { href: "/admin/organizations", label: "Organizations", Icon: Building2, adminOnly: true },
   { href: "/admin/courses", label: "Courses", Icon: GraduationCap },
   { href: "/admin/classes", label: "My Classes", Icon: School, teacherOnly: true },
+  { href: "/admin/live-classes", label: "Live Classes", Icon: Radio },
   { href: "/admin/school", label: "School Workspace", Icon: Building2, schoolAdminOnly: true },
   { href: "/admin/school/reports", label: "School Reports", Icon: BarChart3, schoolAdminOnly: true },
   { href: "/admin/school/guardians", label: "Guardian Access", Icon: UsersRound, schoolAdminOnly: true },
