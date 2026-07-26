@@ -26,7 +26,8 @@ becomes one coherent product, rather than a collection of disconnected tools.
 
 ## Classroom Operations
 
-- [ ] Calendar views: upcoming, live, past, and drafts
+- [x] Live Classes dashboard: upcoming, live, drafts, completed, and scheduling
+- [x] Scheduled-class calendar view
 - [ ] Session settings, duplicate, cancel, invitations, and participant management
 - [ ] Temporary/manual breakout groups with teacher overview
 - [ ] Built-in meeting provider adapter and external-link fallback
