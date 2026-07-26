@@ -24,9 +24,20 @@ export function LiveVoiceNotes({ sessionId, teacher: initialTeacher = false }: {
   const teacher = data?.teacher ?? initialTeacher;
   const ownGroup = data?.groups.find((group) => group.id === data.ownGroupId) ?? null;
 
+  useEffect(() => {
+    if (channel === "GROUP" && !ownGroup) setChannel("EVERYONE");
+  }, [channel, ownGroup]);
+
   const refresh = useCallback(async () => {
     const response = await fetch(`/api/live/${sessionId}/voice`, { cache: "no-store" });
-    if (response.ok) setData(await response.json());
+    if (response.ok) {
+      const next = await response.json() as VoiceData;
+      setData((current) => {
+        if (!current) return next;
+        const cachedUrls = new Map(current.messages.map((message) => [message.id, message.url]));
+        return { ...next, messages: next.messages.map((message) => ({ ...message, url: cachedUrls.get(message.id) || message.url })) };
+      });
+    }
   }, [sessionId]);
 
   useEffect(() => {
@@ -43,7 +54,8 @@ export function LiveVoiceNotes({ sessionId, teacher: initialTeacher = false }: {
     setSending(true); setError(null);
     try {
       const formData = new FormData();
-      formData.append("file", new File([blob], `voice-${Date.now()}.webm`, { type: blob.type || "audio/webm" }));
+      const extension = blob.type.includes("mp4") ? "m4a" : blob.type.includes("ogg") ? "ogg" : "webm";
+      formData.append("file", new File([blob], `voice-${Date.now()}.${extension}`, { type: blob.type || "audio/webm" }));
       formData.append("channel", channel);
       formData.append("durationSeconds", String(duration));
       const response = await fetch(`/api/live/${sessionId}/voice`, { method: "POST", body: formData });
@@ -69,7 +81,7 @@ export function LiveVoiceNotes({ sessionId, teacher: initialTeacher = false }: {
         const blob = new Blob(chunks.current, { type: next.mimeType || "audio/webm" });
         void upload(blob, elapsedRef.current);
       };
-      recorder.current = next; elapsedRef.current = 0; setElapsed(0); next.start(); setRecording(true);
+      recorder.current = next; elapsedRef.current = 0; setElapsed(0); next.start(500); setRecording(true);
       timer.current = window.setInterval(() => setElapsed((current) => { const nextElapsed = current + 1; elapsedRef.current = nextElapsed; return nextElapsed; }), 1000);
     } catch { setError("Microphone access is unavailable. Please allow microphone access and try again."); }
   }

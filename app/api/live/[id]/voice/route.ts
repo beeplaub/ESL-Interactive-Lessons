@@ -39,7 +39,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   const { data: profiles } = ids.length ? await admin.from("profiles").select("id,full_name,first_name,last_name").in("id", ids) : { data: [] };
   const names = new Map((profiles ?? []).map((profile) => [profile.id, displayName(profile)]));
   const enriched = await Promise.all(visible.map(async (message) => {
-    const { data } = await admin.storage.from("live-voice").createSignedUrl(message.storage_path, 60 * 15);
+    const { data } = await admin.storage.from("live-voice").createSignedUrl(message.storage_path, 60 * 60);
     return { ...message, sender_name: names.get(message.sender_id) || "Learner", url: data?.signedUrl ?? null };
   }));
   return NextResponse.json({ messages: enriched.filter((message) => message.url), ownGroupId, groups: groups ?? [], teacher });

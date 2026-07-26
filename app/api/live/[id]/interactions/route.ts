@@ -116,6 +116,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       const { error: membershipError } = await admin.from("live_group_members").insert(students.map((student, index) => ({ group_id: created[index % created.length].id, user_id: student.user_id })));
       if (membershipError) return NextResponse.json({ error: membershipError.message }, { status: 400 });
     }
+  } else if (action === "resetGroups" && teacher) {
+    const { data: existing } = await admin.from("live_groups").select("id").eq("session_id", id);
+    const groupIds = (existing ?? []).map((group) => group.id);
+    if (groupIds.length) await admin.from("live_group_members").delete().in("group_id", groupIds);
+    const { error } = await admin.from("live_groups").delete().eq("session_id", id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
   } else return NextResponse.json({ error: "Action is not allowed." }, { status: 403 });
   await admin.from("live_events").insert({ session_id: id, actor_id: user.id, event_type: `LIVE_${action.toUpperCase()}`, payload: {} });
   return NextResponse.json({ ok: true });
