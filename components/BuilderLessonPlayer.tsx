@@ -8,6 +8,7 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 import { LessonActivityPanel, lessonActivityTotalPoints } from "@/components/LessonActivityPanel";
 import { LessonBlockPreview } from "@/components/LessonBlockPreview";
 import { createClient } from "@/lib/supabase/client";
+import { LiveTeacherToolbar } from "@/components/LiveTeacherToolbar";
 import type { Json } from "@/types/database.types";
 
 type Lesson = { id: string; title: string; topic: string | null; level: string | null; timer_minutes?: number | null };
@@ -488,6 +489,7 @@ export function BuilderLessonPlayer({
           </div>
         ) : null}
       </div>
+      {isLiveTeacher && liveSession ? <LiveTeacherToolbar sessionId={liveSession.sessionId} activities={slideActivities.map((activity) => ({ id: activity.id, activity_type: activity.activity_type }))} navigationLocked={Boolean(liveSession.navigationLocked)} /> : null}
 
       <div
         className="relative overflow-hidden"

@@ -13,11 +13,13 @@ becomes one coherent product, rather than a collection of disconnected tools.
 
 ## MVP Interaction Layer
 
-- [ ] Realtime presence, participant status, hand raises, and help requests
-- [ ] Everyone, group, and teacher-private chat with moderation controls
+- [ ] Realtime presence and participant status
+- [x] Hand raises and help requests
+- [x] Everyone chat and teacher-private messages
+- [ ] Group chat and moderation controls
 - [ ] Teacher activity controls: open, close, extend, reset, reveal answers
 - [ ] Timed live activities and learner progress monitoring
-- [ ] Teacher-created live polls: MCQ, true/false, word cloud, emoji, rating
+- [x] Teacher-created live polls: MCQ, true/false, word cloud, emoji, rating
 - [ ] Voice notes with secure storage and accessible transcripts/captions where available
 
 ## Classroom Operations
