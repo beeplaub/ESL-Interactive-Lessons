@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { requireOrganizationAdmin } from "@/lib/schoolAccess";
 import { enrollUserInCourseDirectly } from "@/app/admin/courses/actions";
 import { notifyUsers } from "@/lib/notifications";
+import { assertOrganizationCanUse } from "@/lib/entitlements";
 
 function refresh(organizationId: string) {
   revalidatePath("/admin/school");
@@ -12,10 +13,12 @@ function refresh(organizationId: string) {
 }
 
 export async function createSchoolClass(organizationId: string, formData: FormData) {
-  const { user } = await requireOrganizationAdmin(organizationId);
+  const { user, profile } = await requireOrganizationAdmin(organizationId);
   const name = String(formData.get("name") || "").trim();
   if (!name) throw new Error("Class name is required.");
   const admin = createAdminClient();
+  const { count } = await admin.from("classes").select("id", { count: "exact", head: true }).eq("organization_id", organizationId);
+  await assertOrganizationCanUse(organizationId, profile?.role, "SCHOOL_CLASSES", count ?? 0, "classes");
   const teacherId = String(formData.get("teacherId") || "").trim() || null;
   if (teacherId) {
     const { data: teacher } = await admin.from("organization_members").select("id").eq("organization_id", organizationId).eq("user_id", teacherId).eq("role", "TEACHER").maybeSingle();
@@ -36,11 +39,13 @@ export async function createSchoolClass(organizationId: string, formData: FormDa
 
 export async function addSchoolMemberByEmail(organizationId: string, formData: FormData): Promise<{ success: boolean; error?: string }> {
   try {
-    await requireOrganizationAdmin(organizationId);
+    const { profile } = await requireOrganizationAdmin(organizationId);
     const email = String(formData.get("email") || "").trim().toLowerCase();
     const role = String(formData.get("role") || "STUDENT") === "TEACHER" ? "TEACHER" : "STUDENT";
     if (!email) return { success: false, error: "Enter an email address." };
     const admin = createAdminClient();
+    const { count } = await admin.from("organization_members").select("id", { count: "exact", head: true }).eq("organization_id", organizationId).eq("role", role);
+    await assertOrganizationCanUse(organizationId, profile?.role, role === "TEACHER" ? "SCHOOL_TEACHERS" : "SCHOOL_LEARNERS", count ?? 0, role === "TEACHER" ? "teachers" : "learners");
     let memberId: string | null = null;
     for (let page = 1; page <= 10 && !memberId; page += 1) {
       const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
@@ -63,7 +68,8 @@ export async function addSchoolMemberByEmail(organizationId: string, formData: F
 }
 
 export async function updateSchoolBranding(organizationId: string, formData: FormData) {
-  await requireOrganizationAdmin(organizationId);
+  const { profile } = await requireOrganizationAdmin(organizationId);
+  await assertOrganizationCanUse(organizationId, profile?.role, "SCHOOL_BRANDING", undefined, "custom branding");
   const color = String(formData.get("accentColor") || "").trim();
   const accentColor = /^#[0-9A-Fa-f]{6}$/.test(color) ? color : null;
   const admin = createAdminClient();
@@ -78,7 +84,8 @@ export async function updateSchoolBranding(organizationId: string, formData: For
 }
 
 export async function createSchoolAssignment(organizationId: string, formData: FormData) {
-  const { user } = await requireOrganizationAdmin(organizationId);
+  const { user, profile } = await requireOrganizationAdmin(organizationId);
+  await assertOrganizationCanUse(organizationId, profile?.role, "SCHOOL_WORKSPACE", undefined, "school assignments");
   const classId = String(formData.get("classId") || "").trim();
   const itemType = String(formData.get("itemType") || "COURSE") as "COURSE" | "LESSON" | "QUIZ" | "LEVEL_TEST";
   const resourceId = itemType === "COURSE" ? String(formData.get("courseId") || "") : itemType === "LESSON" ? String(formData.get("lessonId") || "") : itemType === "QUIZ" ? String(formData.get("quizId") || "") : "";

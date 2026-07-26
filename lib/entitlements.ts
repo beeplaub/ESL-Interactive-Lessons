@@ -32,6 +32,13 @@ export type CreatorEntitlements = {
   values: Record<EntitlementKey, ResolvedEntitlement>;
 };
 
+export type OrganizationEntitlements = {
+  planKey: string;
+  planName: string;
+  status: string;
+  values: Record<EntitlementKey, ResolvedEntitlement>;
+};
+
 const fallbackValues = (): Record<EntitlementKey, ResolvedEntitlement> => ({
   COURSES: { enabled: true, limit: 1 },
   LESSONS_PER_COURSE: { enabled: true, limit: 3 },
@@ -139,6 +146,90 @@ export async function assertCreatorWithinLimit(
   if (!rule.enabled) throw new Error(`${entitlements.planName} does not include ${label}.`);
   if (rule.limit !== null && currentCount >= rule.limit) {
     throw new Error(`You have reached your ${entitlements.planName} plan limit of ${rule.limit} ${label}.`);
+  }
+  return entitlements;
+}
+
+/**
+ * Organization plans are deliberately independent of a staff member's plan.
+ * Organizations without a subscription stay on legacy access so adding the
+ * commercial layer never locks an existing school out mid-term.
+ */
+export async function getOrganizationEntitlements(
+  organizationId: string,
+  role?: string | null,
+): Promise<OrganizationEntitlements> {
+  if (role === "ADMIN") {
+    return {
+      planKey: "PLATFORM_ADMIN",
+      planName: "Platform admin",
+      status: "ACTIVE",
+      values: Object.fromEntries(entitlementKeys.map((key) => [key, { enabled: true, limit: null }])) as Record<EntitlementKey, ResolvedEntitlement>,
+    };
+  }
+
+  const admin = createAdminClient();
+  try {
+    const { data: subscription } = await admin
+      .from("organization_subscriptions")
+      .select("status, subscription_plans(id,plan_key,name)")
+      .eq("organization_id", organizationId)
+      .maybeSingle();
+    const plan: { id: string; plan_key: string; name: string } | null | undefined = Array.isArray(subscription?.subscription_plans)
+      ? subscription.subscription_plans[0]
+      : subscription?.subscription_plans;
+
+    // Keep already-created schools operating until a platform admin assigns a plan.
+    if (!plan) {
+      return {
+        planKey: "LEGACY_SCHOOL",
+        planName: "Legacy school access",
+        status: "ACTIVE",
+        values: Object.fromEntries(entitlementKeys.map((key) => [key, { enabled: true, limit: null }])) as Record<EntitlementKey, ResolvedEntitlement>,
+      };
+    }
+
+    const [{ data: planValues }, { data: overrides }] = await Promise.all([
+      admin.from("plan_entitlements").select("feature_key,is_enabled,limit_value").eq("plan_id", plan.id),
+      admin.from("organization_entitlement_overrides").select("feature_key,is_enabled,limit_value").eq("organization_id", organizationId),
+    ]);
+    const values = fallbackValues();
+    for (const row of planValues ?? []) {
+      if (entitlementKeys.includes(row.feature_key as EntitlementKey)) {
+        values[row.feature_key as EntitlementKey] = { enabled: row.is_enabled, limit: row.limit_value };
+      }
+    }
+    for (const row of overrides ?? []) {
+      if (!entitlementKeys.includes(row.feature_key as EntitlementKey)) continue;
+      const previous = values[row.feature_key as EntitlementKey];
+      values[row.feature_key as EntitlementKey] = { enabled: row.is_enabled ?? previous.enabled, limit: row.limit_value ?? previous.limit };
+    }
+    return { planKey: plan.plan_key, planName: plan.name, status: subscription?.status ?? "ACTIVE", values };
+  } catch (error) {
+    console.error("Unable to resolve organization entitlements; retaining legacy school access.", error);
+    return {
+      planKey: "LEGACY_SCHOOL",
+      planName: "Legacy school access",
+      status: "ACTIVE",
+      values: Object.fromEntries(entitlementKeys.map((key) => [key, { enabled: true, limit: null }])) as Record<EntitlementKey, ResolvedEntitlement>,
+    };
+  }
+}
+
+export async function assertOrganizationCanUse(
+  organizationId: string,
+  role: string | null | undefined,
+  key: "SCHOOL_WORKSPACE" | "SCHOOL_CLASSES" | "SCHOOL_LEARNERS" | "SCHOOL_TEACHERS" | "SCHOOL_REPORTS" | "SCHOOL_BRANDING",
+  currentCount?: number,
+  label?: string,
+) {
+  const entitlements = await getOrganizationEntitlements(organizationId, role);
+  const rule = entitlements.values[key];
+  if (!rule.enabled || !["TRIALING", "ACTIVE"].includes(entitlements.status)) {
+    throw new Error(`${entitlements.planName} does not include ${label ?? key.toLowerCase().replaceAll("_", " ")}.`);
+  }
+  if (rule.limit !== null && currentCount !== undefined && currentCount >= rule.limit) {
+    throw new Error(`${entitlements.planName} allows up to ${rule.limit} ${label ?? key.toLowerCase().replaceAll("_", " ")}.`);
   }
   return entitlements;
 }
