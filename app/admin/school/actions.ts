@@ -115,3 +115,52 @@ export async function createSchoolAssignment(organizationId: string, formData: F
   refresh(organizationId);
   revalidatePath("/assignments");
 }
+
+export async function reassignSchoolClassTeacher(
+  organizationId: string,
+  classId: string,
+  formData: FormData,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await requireOrganizationAdmin(organizationId);
+    const teacherId = String(formData.get("teacherId") || "").trim() || null;
+    const admin = createAdminClient();
+    const { data: klass } = await admin.from("classes").select("id").eq("id", classId).eq("organization_id", organizationId).maybeSingle();
+    if (!klass) return { success: false, error: "That class no longer belongs to this school." };
+    if (teacherId) {
+      const { data: teacher } = await admin.from("organization_members").select("id").eq("organization_id", organizationId).eq("user_id", teacherId).eq("role", "TEACHER").maybeSingle();
+      if (!teacher) return { success: false, error: "Choose a teacher who belongs to this school." };
+    }
+    const { error } = await admin.from("classes").update({ teacher_id: teacherId, updated_at: new Date().toISOString() }).eq("id", classId);
+    if (error) return { success: false, error: error.message };
+    refresh(organizationId);
+    revalidatePath(`/admin/classes/${classId}`);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Could not reassign the teacher." };
+  }
+}
+
+export async function removeSchoolMember(
+  organizationId: string,
+  userId: string,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { user } = await requireOrganizationAdmin(organizationId);
+    const admin = createAdminClient();
+    const { data: member } = await admin.from("organization_members").select("role").eq("organization_id", organizationId).eq("user_id", userId).maybeSingle();
+    if (!member) return { success: false, error: "That person is no longer part of this school." };
+    if (member.role === "OWNER" || member.role === "SCHOOL_ADMIN") return { success: false, error: "School owners and school administrators must be changed by a platform admin." };
+    if (userId === user.id) return { success: false, error: "You cannot remove your own school membership." };
+    if (member.role === "TEACHER") {
+      const { count } = await admin.from("classes").select("id", { count: "exact", head: true }).eq("organization_id", organizationId).eq("teacher_id", userId);
+      if ((count ?? 0) > 0) return { success: false, error: "Reassign or unassign this teacher’s classes before removing them." };
+    }
+    const { error } = await admin.from("organization_members").delete().eq("organization_id", organizationId).eq("user_id", userId);
+    if (error) return { success: false, error: error.message };
+    refresh(organizationId);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Could not remove the school member." };
+  }
+}

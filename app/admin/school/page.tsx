@@ -3,7 +3,7 @@ import { BarChart3, Building2, ClipboardList, GraduationCap, UsersRound } from "
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireSchoolWorkspace } from "@/lib/schoolAccess";
 import { updateSchoolBranding } from "./actions";
-import { SchoolMemberForm } from "./SchoolMemberForm";
+import { SchoolMembersPanel } from "./SchoolMembersPanel";
 import { SchoolWorkspacePopups } from "./SchoolWorkspacePopups";
 
 export default async function SchoolWorkspacePage({
@@ -167,7 +167,7 @@ export default async function SchoolWorkspacePage({
               {!assignments?.length ? <p className="py-5 text-center text-sm text-black/55">No assignments yet.</p> : null}
             </div>
           </section>
-          <section className="rounded-xl border border-black/10 bg-white p-5 shadow-sm"><div className="flex items-center gap-2"><UsersRound size={18} className="text-violetglow" /><h2 className="font-semibold">School members</h2></div><SchoolMemberForm organizationId={organization.id} /></section>
+          <SchoolMembersPanel organizationId={organization.id} members={(members ?? []).filter((member) => member.role === "TEACHER" || member.role === "STUDENT").map((member) => ({ id: member.user_id, name: names.get(member.user_id) || (member.role === "TEACHER" ? "Teacher" : "Learner"), role: member.role as "TEACHER" | "STUDENT", assignedClassIds: (classes ?? []).filter((klass) => klass.teacher_id === member.user_id).map((klass) => klass.id) }))} classes={(classes ?? []).map((klass) => ({ id: klass.id, name: klass.name, teacherId: klass.teacher_id }))} teachers={teachers.map((member) => ({ id: member.user_id, name: names.get(member.user_id) || "Teacher" }))} />
           <form action={updateSchoolBranding.bind(null, organization.id)} className="rounded-xl border border-black/10 bg-white p-5 shadow-sm">
             <h2 className="font-semibold">School identity</h2>
             <div className="mt-3 grid gap-3"><input name="brandName" defaultValue={organization.brand_name ?? ""} placeholder="Display name" className="rounded-md border border-black/15 px-3 py-2 text-sm" /><input name="logoUrl" type="url" defaultValue={organization.logo_url ?? ""} placeholder="Logo image URL" className="rounded-md border border-black/15 px-3 py-2 text-sm" /><label className="text-xs font-semibold text-black/55">Accent color <input name="accentColor" type="color" defaultValue={organization.accent_color ?? "#6C3BFF"} className="ml-2 h-8 w-12 rounded border border-black/15 bg-white p-0.5 align-middle" /></label><button className="w-fit rounded-md border border-black/15 px-3 py-2 text-sm font-semibold hover:bg-black/5">Save identity</button></div>
