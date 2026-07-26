@@ -36,6 +36,7 @@ const links = [
   { href: "/admin/courses", label: "Courses", Icon: GraduationCap },
   { href: "/admin/classes", label: "My Classes", Icon: School, teacherOnly: true },
   { href: "/admin/school", label: "School Workspace", Icon: Building2, schoolAdminOnly: true },
+  { href: "/admin/school/reports", label: "School Reports", Icon: BarChart3, schoolAdminOnly: true },
   { href: "/admin/content-library", label: "Content Library", Icon: Library },
   { href: "/admin/media", label: "Media Library", Icon: Images },
   { href: "/admin/quizzes", label: "Quizzes", Icon: ClipboardList },
