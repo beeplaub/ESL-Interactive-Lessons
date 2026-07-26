@@ -1,14 +1,15 @@
-import { CreditCard, ShieldCheck, SlidersHorizontal, UsersRound } from "lucide-react";
+import { Building2, CreditCard, ShieldCheck, SlidersHorizontal, UsersRound } from "lucide-react";
 import { requireAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { entitlementKeys } from "@/lib/entitlements";
-import { assignCreatorPlan, saveCreatorEntitlementOverride, updatePlanEntitlement, updateSubscriptionPlan } from "./actions";
+import { assignCreatorPlan, assignOrganizationPlan, saveCreatorEntitlementOverride, updatePlanEntitlement, updateSubscriptionPlan } from "./actions";
 
-type Plan = { id: string; plan_key: string; name: string; description: string | null; monthly_price: number; yearly_price: number; trial_days: number; is_active: boolean };
+type Plan = { id: string; plan_key: string; name: string; description: string | null; monthly_price: number; yearly_price: number; trial_days: number; is_active: boolean; audience?: "TEACHER" | "SCHOOL" | "BOTH" };
 type Entitlement = { id: string; plan_id: string; feature_key: string; is_enabled: boolean; limit_value: number | null };
 type Creator = { id: string; full_name: string | null; first_name: string | null; last_name: string | null; role: string };
 type Subscription = { user_id: string; plan_id: string; status: string; billing_interval: string | null; admin_note: string | null };
 type Override = { user_id: string; feature_key: string; is_enabled: boolean | null; limit_value: number | null; note: string | null };
+type OrganizationSubscription = { organization_id: string; plan_id: string; status: string; billing_interval: string | null; admin_note: string | null };
 
 const featureLabels: Record<string, string> = {
   COURSES: "Courses",
@@ -19,23 +20,32 @@ const featureLabels: Record<string, string> = {
   AI_CREATOR: "Creator AI",
   AI_LEARNER: "Learner AI",
   CUSTOM_BRANDING: "Custom branding",
+  SCHOOL_WORKSPACE: "School workspace",
+  SCHOOL_CLASSES: "School classes",
+  SCHOOL_LEARNERS: "School learners",
+  SCHOOL_TEACHERS: "School teachers",
+  SCHOOL_REPORTS: "School reports",
+  SCHOOL_BRANDING: "School branding",
 };
 
 export default async function AdminPlansPage() {
   await requireAdmin();
   const admin = createAdminClient();
-  const [{ data: planRows }, { data: entitlementRows }, { data: creatorRows }, { data: subscriptionRows }, { data: overrideRows }] = await Promise.all([
+  const [{ data: planRows }, { data: entitlementRows }, { data: creatorRows }, { data: subscriptionRows }, { data: overrideRows }, { data: organizations }, { data: organizationSubscriptions }] = await Promise.all([
     admin.from("subscription_plans").select("*").order("position"),
     admin.from("plan_entitlements").select("*").order("feature_key"),
     admin.from("profiles").select("id,full_name,first_name,last_name,role").in("role", ["TEACHER", "SCHOOL_ADMIN"]).order("full_name"),
     admin.from("creator_subscriptions").select("user_id,plan_id,status,billing_interval,admin_note"),
     admin.from("creator_entitlement_overrides").select("user_id,feature_key,is_enabled,limit_value,note"),
+    admin.from("organizations").select("id,name,brand_name").order("name"),
+    admin.from("organization_subscriptions").select("organization_id,plan_id,status,billing_interval,admin_note"),
   ]);
   const plans = (planRows ?? []) as Plan[];
   const entitlements = (entitlementRows ?? []) as Entitlement[];
   const creators = (creatorRows ?? []) as Creator[];
   const subscriptions = (subscriptionRows ?? []) as Subscription[];
   const overrides = (overrideRows ?? []) as Override[];
+  const schoolPlans = plans.filter((plan) => plan.audience === "SCHOOL" || plan.audience === "BOTH");
 
   return (
     <main className="min-w-0 space-y-6">
@@ -48,6 +58,12 @@ export default async function AdminPlansPage() {
           </div>
           <ShieldCheck className="text-white/75" size={34} />
         </div>
+      </section>
+
+      <section className="space-y-4">
+        <div className="flex items-center gap-2"><Building2 size={18} className="text-violetglow" /><h2 className="text-lg font-bold text-ink">School access</h2></div>
+        <p className="-mt-2 text-sm text-slate-500">School plans belong to organizations, not individual staff accounts. Assign them manually until payments are connected.</p>
+        <div className="overflow-x-auto br-card rounded-20"><table className="min-w-[760px] w-full text-left text-sm"><thead className="border-b border-black/10 bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><tr><th className="p-3">Organization</th><th className="p-3">School plan</th><th className="p-3">Status</th><th className="p-3">Billing</th></tr></thead><tbody>{(organizations ?? []).map((organization) => { const subscription = (organizationSubscriptions ?? []).find((row) => row.organization_id === organization.id) as OrganizationSubscription | undefined; return <tr key={organization.id} className="border-b border-black/5 last:border-0"><td className="p-3 font-semibold text-ink">{organization.brand_name || organization.name}</td><td className="p-3"><form action={assignOrganizationPlan} className="flex items-center gap-2"><input type="hidden" name="organizationId" value={organization.id} /><select name="planId" defaultValue={subscription?.plan_id ?? schoolPlans[0]?.id} className="rounded-lg border border-black/15 bg-white px-2 py-1.5 text-xs">{schoolPlans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name}</option>)}</select><select name="status" defaultValue={subscription?.status ?? "ACTIVE"} className="rounded-lg border border-black/15 bg-white px-2 py-1.5 text-xs"><option value="ACTIVE">Active</option><option value="TRIALING">Trialing</option><option value="PAST_DUE">Past due</option><option value="CANCELLED">Cancelled</option><option value="EXPIRED">Expired</option></select><button className="rounded-lg bg-ink px-2 py-1.5 text-xs font-bold text-white">Save</button></form></td><td className="p-3 text-xs text-slate-600">{subscription?.status ?? "Not assigned"}</td><td className="p-3 text-xs text-slate-600">{subscription?.billing_interval ?? "Manual"}</td></tr>; })}{!(organizations ?? []).length ? <tr><td colSpan={4} className="p-6 text-center text-sm text-slate-500">No organizations yet.</td></tr> : null}</tbody></table></div>
       </section>
 
       <section className="space-y-4">
@@ -79,7 +95,7 @@ export default async function AdminPlansPage() {
 }
 
 function PlanCard({ plan, entitlements }: { plan: Plan; entitlements: Entitlement[] }) {
-  return <article className="br-card rounded-20 p-4 sm:p-5"><form action={updateSubscriptionPlan} className="grid gap-3 sm:grid-cols-2"><input type="hidden" name="planId" value={plan.id} /><label className="text-xs font-bold text-slate-600">Plan name<input name="name" defaultValue={plan.name} className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2 text-sm font-medium text-ink" /></label><label className="text-xs font-bold text-slate-600">Trial days<input name="trialDays" type="number" min="0" defaultValue={plan.trial_days} className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2 text-sm text-ink" /></label><label className="text-xs font-bold text-slate-600">Monthly price<input name="monthlyPrice" type="number" min="0" step="0.01" defaultValue={plan.monthly_price} className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2 text-sm text-ink" /></label><label className="text-xs font-bold text-slate-600">Yearly price<input name="yearlyPrice" type="number" min="0" step="0.01" defaultValue={plan.yearly_price} className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2 text-sm text-ink" /></label><label className="sm:col-span-2 text-xs font-bold text-slate-600">Description<input name="description" defaultValue={plan.description ?? ""} className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2 text-sm text-ink" /></label><label className="flex items-center gap-2 text-xs font-bold text-slate-600"><input name="isActive" type="checkbox" defaultChecked={plan.is_active} /> Available for assignment</label><div className="text-right"><button className="rounded-lg bg-violetglow px-3 py-2 text-xs font-bold text-white">Save {plan.plan_key}</button></div></form><div className="mt-5 border-t border-black/10 pt-4"><div className="flex items-center gap-2"><SlidersHorizontal size={15} className="text-violetglow" /><h3 className="text-sm font-bold text-ink">Features and limits</h3></div><div className="mt-3 grid gap-2 sm:grid-cols-2">{entitlementKeys.map((featureKey) => { const rule = entitlements.find((row) => row.feature_key === featureKey); return <form key={featureKey} action={updatePlanEntitlement} className="flex items-center gap-2 rounded-xl border border-black/10 p-2"><input type="hidden" name="planId" value={plan.id} /><input type="hidden" name="featureKey" value={featureKey} /><input type="checkbox" name="isEnabled" defaultChecked={rule?.is_enabled ?? false} aria-label={`Enable ${featureLabels[featureKey]}`} /><span className="min-w-0 flex-1 truncate text-xs font-semibold text-ink">{featureLabels[featureKey]}</span><input name="limitValue" type="number" min="0" placeholder="Unlimited" defaultValue={rule?.limit_value ?? ""} className="w-20 rounded-md border border-black/15 px-1.5 py-1 text-xs" /><button className="text-xs font-bold text-violetglow">Save</button></form>; })}</div></div></article>;
+  return <article className="br-card rounded-20 p-4 sm:p-5"><form action={updateSubscriptionPlan} className="grid gap-3 sm:grid-cols-2"><input type="hidden" name="planId" value={plan.id} /><label className="text-xs font-bold text-slate-600">Plan name<input name="name" defaultValue={plan.name} className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2 text-sm font-medium text-ink" /></label><label className="text-xs font-bold text-slate-600">Audience<select name="audience" defaultValue={plan.audience ?? "TEACHER"} className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2 text-sm text-ink"><option value="TEACHER">Teachers</option><option value="SCHOOL">Schools</option><option value="BOTH">Teachers and schools</option></select></label><label className="text-xs font-bold text-slate-600">Trial days<input name="trialDays" type="number" min="0" defaultValue={plan.trial_days} className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2 text-sm text-ink" /></label><label className="text-xs font-bold text-slate-600">Monthly price<input name="monthlyPrice" type="number" min="0" step="0.01" defaultValue={plan.monthly_price} className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2 text-sm text-ink" /></label><label className="text-xs font-bold text-slate-600">Yearly price<input name="yearlyPrice" type="number" min="0" step="0.01" defaultValue={plan.yearly_price} className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2 text-sm text-ink" /></label><label className="sm:col-span-2 text-xs font-bold text-slate-600">Description<input name="description" defaultValue={plan.description ?? ""} className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2 text-sm text-ink" /></label><label className="flex items-center gap-2 text-xs font-bold text-slate-600"><input name="isActive" type="checkbox" defaultChecked={plan.is_active} /> Available for assignment</label><div className="text-right"><button className="rounded-lg bg-violetglow px-3 py-2 text-xs font-bold text-white">Save {plan.plan_key}</button></div></form><div className="mt-5 border-t border-black/10 pt-4"><div className="flex items-center gap-2"><SlidersHorizontal size={15} className="text-violetglow" /><h3 className="text-sm font-bold text-ink">Features and limits</h3></div><div className="mt-3 grid gap-2 sm:grid-cols-2">{entitlementKeys.map((featureKey) => { const rule = entitlements.find((row) => row.feature_key === featureKey); return <form key={featureKey} action={updatePlanEntitlement} className="flex items-center gap-2 rounded-xl border border-black/10 p-2"><input type="hidden" name="planId" value={plan.id} /><input type="hidden" name="featureKey" value={featureKey} /><input type="checkbox" name="isEnabled" defaultChecked={rule?.is_enabled ?? false} aria-label={`Enable ${featureLabels[featureKey]}`} /><span className="min-w-0 flex-1 truncate text-xs font-semibold text-ink">{featureLabels[featureKey]}</span><input name="limitValue" type="number" min="0" placeholder="Unlimited" defaultValue={rule?.limit_value ?? ""} className="w-20 rounded-md border border-black/15 px-1.5 py-1 text-xs" /><button className="text-xs font-bold text-violetglow">Save</button></form>; })}</div></div></article>;
 }
 
 function CreatorOverrideForm({ creatorId, overrides }: { creatorId: string; overrides: Override[] }) {

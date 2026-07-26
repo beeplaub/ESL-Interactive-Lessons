@@ -27,11 +27,29 @@ export async function updateSubscriptionPlan(formData: FormData) {
     monthly_price: positiveNumber(formData.get("monthlyPrice")),
     yearly_price: positiveNumber(formData.get("yearlyPrice")),
     trial_days: Math.floor(positiveNumber(formData.get("trialDays"))),
+    audience: ["TEACHER", "SCHOOL", "BOTH"].includes(String(formData.get("audience"))) ? String(formData.get("audience")) : "TEACHER",
     is_active: formData.get("isActive") === "on",
     updated_at: new Date().toISOString(),
   }).eq("id", planId);
   if (error) throw new Error(error.message);
   revalidatePath("/admin/plans");
+}
+
+export async function assignOrganizationPlan(formData: FormData) {
+  await requireAdmin();
+  const organizationId = String(formData.get("organizationId") || "");
+  const planId = String(formData.get("planId") || "");
+  if (!organizationId || !planId) throw new Error("Organization and school plan are required.");
+  const admin = createAdminClient();
+  const { error } = await admin.from("organization_subscriptions").upsert({
+    organization_id: organizationId,
+    plan_id: planId,
+    status: String(formData.get("status") || "ACTIVE"),
+    updated_at: new Date().toISOString(),
+  }, { onConflict: "organization_id" });
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/plans");
+  revalidatePath("/admin/school");
 }
 
 export async function updatePlanEntitlement(formData: FormData) {

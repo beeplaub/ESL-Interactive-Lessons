@@ -9,6 +9,12 @@ export const entitlementKeys = [
   "AI_CREATOR",
   "AI_LEARNER",
   "CUSTOM_BRANDING",
+  "SCHOOL_WORKSPACE",
+  "SCHOOL_CLASSES",
+  "SCHOOL_LEARNERS",
+  "SCHOOL_TEACHERS",
+  "SCHOOL_REPORTS",
+  "SCHOOL_BRANDING",
 ] as const;
 
 export type EntitlementKey = typeof entitlementKeys[number];
@@ -35,6 +41,12 @@ const fallbackValues = (): Record<EntitlementKey, ResolvedEntitlement> => ({
   AI_CREATOR: { enabled: false, limit: 0 },
   AI_LEARNER: { enabled: false, limit: 0 },
   CUSTOM_BRANDING: { enabled: false, limit: 0 },
+  SCHOOL_WORKSPACE: { enabled: false, limit: 0 },
+  SCHOOL_CLASSES: { enabled: false, limit: 0 },
+  SCHOOL_LEARNERS: { enabled: false, limit: 0 },
+  SCHOOL_TEACHERS: { enabled: false, limit: 0 },
+  SCHOOL_REPORTS: { enabled: false, limit: 0 },
+  SCHOOL_BRANDING: { enabled: false, limit: 0 },
 });
 
 /**

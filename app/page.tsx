@@ -91,6 +91,9 @@ export default async function HomePage() {
                 <Link href="/courses" className="inline-flex items-center justify-center gap-2 rounded-[14px] border border-[#ECECF5] bg-white px-5 py-3 text-sm font-bold text-[#14172B] shadow-[0_2px_8px_rgba(0,0,0,.04)]">
                   Explore courses
                 </Link>
+                <Link href="/pricing" className="inline-flex items-center justify-center gap-2 rounded-[14px] border border-[#ECECF5] bg-white px-5 py-3 text-sm font-bold text-[#14172B] shadow-[0_2px_8px_rgba(0,0,0,.04)]">
+                  Teacher & school plans
+                </Link>
               </div>
               <div className="mt-7 grid gap-3 text-sm font-semibold text-[#6E738D] sm:grid-cols-3">
                 <TrustItem text="Instant feedback" />
