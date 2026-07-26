@@ -4,8 +4,10 @@ import Link from "next/link";
 import type { TouchEvent } from "react";
 import { ArrowLeft, ArrowRight, BookOpen, CheckCircle2, ChevronLeft, Lock, NotebookPen, Pause, Play, PenLine, RotateCcw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { LessonActivityPanel, lessonActivityTotalPoints } from "@/components/LessonActivityPanel";
 import { LessonBlockPreview } from "@/components/LessonBlockPreview";
+import { createClient } from "@/lib/supabase/client";
 import type { Json } from "@/types/database.types";
 
 type Lesson = { id: string; title: string; topic: string | null; level: string | null; timer_minutes?: number | null };
@@ -18,6 +20,7 @@ type Block = { id: string; slide_id: string; position: number; block_type: strin
 type Activity = { id: string; slide_id: string | null; slide_number: number; activity_type: string; activity_data: Json | null };
 type Progress = { current_slide_number: number; completed: boolean } | null;
 type ActivityAttempt = { lesson_slide_activity_id: string | null; score: number; total: number; answers: Json | null; completed_at: string };
+type LiveSessionMode = { sessionId: string; role: "TEACHER" | "STUDENT"; initialSlideNumber: number; navigationLocked: boolean };
 
 function NarrationPill({ src }: { src: string }) {
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -178,7 +181,7 @@ function NarrationPill({ src }: { src: string }) {
 }
 
 export function BuilderLessonPlayer({
-  lesson, slides, blocks, activities, initialProgress, activityAttempts = [], initialNotes = {}, narrationMap = {}, courseItemId = null, backHref = "/courses",
+  lesson, slides, blocks, activities, initialProgress, activityAttempts = [], initialNotes = {}, narrationMap = {}, courseItemId = null, backHref = "/courses", liveSession = null,
 }: {
   lesson: Lesson; slides: Slide[]; blocks: Block[]; activities: Activity[];
   initialProgress: Progress; activityAttempts?: ActivityAttempt[];
@@ -186,8 +189,9 @@ export function BuilderLessonPlayer({
   narrationMap?: Record<string, string>;
   courseItemId?: string | null;
   backHref?: string;
+  liveSession?: LiveSessionMode | null;
 }) {
-  const initialIndex = Math.max(0, Math.min(slides.length - 1, (initialProgress?.current_slide_number ?? 1) - 1));
+  const initialIndex = Math.max(0, Math.min(slides.length - 1, (liveSession?.initialSlideNumber ?? initialProgress?.current_slide_number ?? 1) - 1));
   const [index, setIndex] = useState(initialIndex);
   const [completed, setCompleted] = useState(Boolean(initialProgress?.completed));
   const [remainingSeconds, setRemainingSeconds] = useState(() => lesson.timer_minutes ? lesson.timer_minutes * 60 : null);
@@ -205,8 +209,33 @@ export function BuilderLessonPlayer({
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const [dragX, setDragX] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+  const liveChannelRef = useRef<RealtimeChannel | null>(null);
+  const isLiveStudent = liveSession?.role === "STUDENT";
+  const isLiveTeacher = liveSession?.role === "TEACHER";
 
   const slide = slides[index] ?? null;
+
+  useEffect(() => {
+    if (!liveSession) return;
+    const supabase = createClient();
+    const channel = supabase.channel(`brenup-live:${liveSession.sessionId}`)
+      .on("broadcast", { event: "slide" }, ({ payload }) => {
+        const slideNumber = Number(payload?.slideNumber);
+        if (Number.isFinite(slideNumber)) setIndex(Math.max(0, Math.min(slides.length - 1, slideNumber - 1)));
+      })
+      .subscribe();
+    liveChannelRef.current = channel;
+    const refreshState = async () => {
+      if (!isLiveStudent) return;
+      const response = await fetch(`/api/live/${liveSession.sessionId}/state`, { cache: "no-store" });
+      if (!response.ok) return;
+      const state = await response.json() as { currentSlideNumber?: number };
+      if (state.currentSlideNumber) setIndex(Math.max(0, Math.min(slides.length - 1, state.currentSlideNumber - 1)));
+    };
+    void refreshState();
+    const interval = window.setInterval(refreshState, 2500);
+    return () => { window.clearInterval(interval); liveChannelRef.current = null; void supabase.removeChannel(channel); };
+  }, [isLiveStudent, liveSession, slides.length]);
 
   const blocksBySlide = useMemo(() => {
     const map = new Map<string, Block[]>();
@@ -312,18 +341,24 @@ export function BuilderLessonPlayer({
   }
 
   function move(direction: -1 | 1) {
+    if (isLiveStudent && liveSession?.navigationLocked) return;
     const next = Math.max(0, Math.min(slides.length - 1, index + direction));
     if (next === index) return;
     jumpTo(next);
   }
 
   function jumpTo(next: number) {
+    if (isLiveStudent && liveSession?.navigationLocked) return;
     const normalized = Math.max(0, Math.min(slides.length - 1, next));
     setJumpOpen(false);
     if (normalized === index) return;
     setIndex(normalized);
     setMessage(null);
     scheduleProgressSave(normalized);
+    if (isLiveTeacher && liveSession) {
+      void fetch(`/api/live/${liveSession.sessionId}/state`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ currentSlideNumber: normalized + 1 }) });
+      void liveChannelRef.current?.send({ type: "broadcast", event: "slide", payload: { slideNumber: normalized + 1 } });
+    }
   }
 
   function handleLessonTouchMove(event: TouchEvent<HTMLElement>) {
@@ -340,6 +375,7 @@ export function BuilderLessonPlayer({
   }
 
   function handleLessonTouchEnd(event: TouchEvent<HTMLElement>) {
+    if (isLiveStudent && liveSession?.navigationLocked) return;
     const start = touchStartRef.current;
     touchStartRef.current = null;
     setIsDragging(false);
@@ -418,6 +454,7 @@ export function BuilderLessonPlayer({
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="min-w-0 truncate text-base font-extrabold tracking-tight sm:text-lg">{lesson.title}</h1>
+              {liveSession ? <span className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold ${isLiveTeacher ? "bg-[#6C3BFF]/10 text-[#6C3BFF]" : "bg-[#E7FBF4] text-[#00A978]"}`}>{isLiveTeacher ? "TEACHER VIEW" : "LIVE"}</span> : null}
               <span className="rounded-full bg-[#EEEAFB] px-2 py-0.5 text-[11px] font-extrabold text-[#6C3BFF]">{lesson.level}</span>
               {lesson.topic ? <span className="truncate text-xs font-semibold text-[#8B90A7]">{lesson.topic}</span> : null}
             </div>
@@ -645,7 +682,7 @@ export function BuilderLessonPlayer({
         <button
           type="button"
           onClick={() => move(-1)}
-          disabled={index === 0}
+          disabled={index === 0 || (isLiveStudent && Boolean(liveSession?.navigationLocked))}
           className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[#ECECF5] px-2.5 py-1.5 text-xs font-bold text-[#53607D] hover:bg-[#F6F7FB] disabled:opacity-35 sm:gap-2 sm:px-4 sm:py-2 sm:text-sm"
         >
           <ChevronLeft size={14} className="shrink-0" /> Previous
@@ -655,6 +692,7 @@ export function BuilderLessonPlayer({
           <button
             type="button"
             onClick={() => setJumpOpen((open) => !open)}
+            disabled={isLiveStudent && Boolean(liveSession?.navigationLocked)}
             aria-expanded={jumpOpen}
             aria-label="Jump to slide"
             className="shrink-0 whitespace-nowrap rounded-full border border-[#ECECF5] bg-white px-2 py-1 text-xs font-extrabold text-[#14172B] outline-none transition hover:bg-[#F6F7FB] focus:border-[#6C3BFF]/50 focus:ring-2 focus:ring-[#6C3BFF]/15 sm:px-3 sm:py-1.5 sm:text-sm"
@@ -694,6 +732,7 @@ export function BuilderLessonPlayer({
           <button
             type="button"
             onClick={() => move(1)}
+            disabled={isLiveStudent && Boolean(liveSession?.navigationLocked)}
             className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] px-2.5 py-1.5 text-xs font-extrabold text-white shadow-[0_8px_20px_rgba(108,59,255,.28)] disabled:opacity-45 sm:gap-2 sm:px-4 sm:py-2 sm:text-sm"
           >
             Next <ArrowRight size={14} className="shrink-0" />

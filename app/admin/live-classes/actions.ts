@@ -13,10 +13,23 @@ export async function createLiveSession(formData: FormData) {
   const { user } = await requireClassAccess(classId);
   const title = String(formData.get("title") || "").trim();
   if (!title) throw new Error("Give the live class a title.");
-  const lessonId = String(formData.get("lessonId") || "").trim() || null;
+  let lessonId = String(formData.get("lessonId") || "").trim() || null;
   const courseId = String(formData.get("courseId") || "").trim() || null;
   if (!lessonId && !courseId) throw new Error("Choose a course or lesson to teach.");
   const admin = createAdminClient();
+  // A course-led class still needs one concrete lesson for the shared player.
+  if (!lessonId && courseId) {
+    const { data: firstItem } = await admin
+      .from("course_items")
+      .select("lesson_id,position")
+      .eq("course_id", courseId)
+      .not("lesson_id", "is", null)
+      .order("position")
+      .limit(1)
+      .maybeSingle();
+    lessonId = firstItem?.lesson_id ?? null;
+  }
+  if (!lessonId) throw new Error("Choose a lesson, or a course with at least one lesson.");
   const scheduledValue = String(formData.get("scheduledAt") || "").trim();
   const duration = Math.max(5, Math.min(480, Number(formData.get("durationMinutes") || 60)));
   const { data: session, error } = await admin.from("live_sessions").insert({ class_id: classId, course_id: courseId, lesson_id: lessonId, title, description: String(formData.get("description") || "").trim() || null, teacher_id: user.id, scheduled_at: scheduledValue ? new Date(scheduledValue).toISOString() : null, duration_minutes: duration, external_meeting_url: String(formData.get("externalMeetingUrl") || "").trim() || null, session_code: crypto.randomUUID().replaceAll("-", "").slice(0, 8).toUpperCase(), status: scheduledValue ? "SCHEDULED" : "DRAFT", created_by: user.id }).select("id").single();
