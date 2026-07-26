@@ -20,7 +20,7 @@ becomes one coherent product, rather than a collection of disconnected tools.
 - [ ] Group-chat moderation controls
 - [x] Teacher activity controls: open, close, extend, reset, reveal answers
 - [x] Teacher-controlled visible session timer
-- [ ] Timed live activities
+- [x] Timed live activities with teacher open, extend, close, and learner countdown states
 - [ ] Learner progress monitoring
 - [x] Teacher-created live polls: MCQ, true/false, word cloud, emoji, rating
 - [ ] Voice notes with secure storage and accessible transcripts/captions where available

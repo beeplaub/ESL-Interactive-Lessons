@@ -210,7 +210,7 @@ export function BuilderLessonPlayer({
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const [dragX, setDragX] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
-  const [liveActivityStates, setLiveActivityStates] = useState<Record<string, string>>({});
+  const [liveActivityStates, setLiveActivityStates] = useState<Record<string, { state: string; closesAt: string | null }>>({});
   const [liveTimerEndsAt, setLiveTimerEndsAt] = useState<string | null>(null);
   const [liveNavigationLocked, setLiveNavigationLocked] = useState(Boolean(liveSession?.navigationLocked));
   const [, setLiveClock] = useState(0);
@@ -248,11 +248,11 @@ export function BuilderLessonPlayer({
     const refreshControls = async () => {
       const response = await fetch(`/api/live/${liveSession.sessionId}/controls`, { cache: "no-store" });
       if (!response.ok || !active) return;
-      const data = await response.json() as { timer_ends_at?: string | null; navigation_locked?: boolean; activities?: Array<{ activity_id: string; state: string }> };
+      const data = await response.json() as { timer_ends_at?: string | null; navigation_locked?: boolean; activities?: Array<{ activity_id: string; state: string; closes_at?: string | null }> };
       if (!active) return;
       setLiveTimerEndsAt(data.timer_ends_at ?? null);
       setLiveNavigationLocked(Boolean(data.navigation_locked));
-      setLiveActivityStates(Object.fromEntries((data.activities ?? []).filter((item) => item.activity_id).map((item) => [item.activity_id, item.state])));
+      setLiveActivityStates(Object.fromEntries((data.activities ?? []).filter((item) => item.activity_id).map((item) => [item.activity_id, { state: item.state, closesAt: item.closes_at ?? null }])));
     };
     void refreshControls();
     const interval = window.setInterval(refreshControls, 2500);
@@ -267,10 +267,11 @@ export function BuilderLessonPlayer({
   }, [liveSession]);
 
   useEffect(() => {
-    if (!liveTimerEndsAt) return;
+    const hasActivityTimer = Object.values(liveActivityStates).some((activity) => Boolean(activity.closesAt));
+    if (!liveTimerEndsAt && !hasActivityTimer) return;
     const interval = window.setInterval(() => setLiveClock((current) => current + 1), 1000);
     return () => window.clearInterval(interval);
-  }, [liveTimerEndsAt]);
+  }, [liveActivityStates, liveTimerEndsAt]);
 
   const blocksBySlide = useMemo(() => {
     const map = new Map<string, Block[]>();
@@ -298,6 +299,11 @@ export function BuilderLessonPlayer({
   const progressPercent = slides.length ? Math.round(((index + 1) / slides.length) * 100) : 0;
   const timerUrgent = remainingSeconds !== null && remainingSeconds <= 60;
   const liveTimerSeconds = liveTimerEndsAt ? Math.max(0, Math.ceil((new Date(liveTimerEndsAt).getTime() - Date.now()) / 1000)) : null;
+  const activityState = (activityId: string) => liveActivityStates[activityId] ?? { state: "CLOSED", closesAt: null };
+  const liveActivitySeconds = (activityId: string) => {
+    const closesAt = activityState(activityId).closesAt;
+    return closesAt ? Math.max(0, Math.ceil((new Date(closesAt).getTime() - Date.now()) / 1000)) : null;
+  };
   function formatTime(totalSeconds: number) {
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
@@ -654,9 +660,10 @@ export function BuilderLessonPlayer({
             ) : slideActivities.length ? (
               <div className="space-y-4">
                 {slideActivities.map((activity) => (
-                  liveSession && !isLiveTeacher && (liveActivityStates[activity.id] ?? "CLOSED") === "CLOSED" ? <div key={activity.id} className="rounded-lg border border-dashed border-[#6C3BFF]/25 bg-[#F8F6FF] p-5 text-center text-sm font-semibold text-[#6E738D]">Your teacher will open this activity when the class is ready.</div> :
-                  <LessonActivityPanel
-                    key={activity.id}
+                  liveSession && !isLiveTeacher && (activityState(activity.id).state === "CLOSED" || liveActivitySeconds(activity.id) === 0) ? <div key={activity.id} className="rounded-lg border border-dashed border-[#6C3BFF]/25 bg-[#F8F6FF] p-5 text-center text-sm font-semibold text-[#6E738D]">{liveActivitySeconds(activity.id) === 0 ? "Time is up. Your teacher may extend or reveal this activity." : "Your teacher will open this activity when the class is ready."}</div> :
+                  <div key={activity.id}>
+                    {liveSession && liveActivitySeconds(activity.id) !== null ? <p className="mb-2 text-xs font-extrabold text-[#6C3BFF]">Activity time: {formatTime(liveActivitySeconds(activity.id) ?? 0)}</p> : null}
+                    <LessonActivityPanel
                     activity={{
                       id: activity.id,
                       activity_type: activity.activity_type,
@@ -681,7 +688,8 @@ export function BuilderLessonPlayer({
                         });
                       }
                     }}
-                  />
+                    />
+                  </div>
                 ))}
               </div>
             ) : (

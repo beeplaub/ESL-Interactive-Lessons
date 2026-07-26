@@ -36,7 +36,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const activityId = String(body.activityId || ""); const state = ["OPEN", "CLOSED", "REVEALED", "RESET", "EXTEND"].includes(body.state) ? body.state : "CLOSED";
     const { data: activity } = await admin.from("lesson_slide_activities").select("id,slide_id").eq("id", activityId).maybeSingle();
     if (!activity) return NextResponse.json({ error: "Activity not found" }, { status: 404 });
-    const closesAt = state === "EXTEND" ? new Date(Date.now() + Math.max(30, Math.min(1800, Number(body.seconds) || 120)) * 1000).toISOString() : null;
+    const durationSeconds = Math.max(0, Math.min(1800, Number(body.seconds) || 0));
+    const closesAt = state === "EXTEND" || (state === "OPEN" && durationSeconds)
+      ? new Date(Date.now() + Math.max(30, durationSeconds || 120) * 1000).toISOString()
+      : null;
     await admin.from("live_activity_states").upsert({ session_id: id, activity_id: activityId, slide_id: activity.slide_id, state: state === "EXTEND" ? "OPEN" : state, opens_at: state === "OPEN" ? new Date().toISOString() : null, closes_at: closesAt, updated_by: user.id, updated_at: new Date().toISOString() }, { onConflict: "session_id,activity_id" });
   } else return NextResponse.json({ error: "Unknown control" }, { status: 400 });
   await admin.from("live_events").insert({ session_id: id, actor_id: user.id, event_type: `CONTROL_${action.toUpperCase()}`, payload: body });
