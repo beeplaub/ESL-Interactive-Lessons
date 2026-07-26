@@ -60,12 +60,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (channel === "GROUP") {
       const { data: membership } = await admin
         .from("live_group_members")
-        .select("group_id,live_groups!inner(session_id)")
+        .select("group_id,live_groups!inner(session_id,status)")
         .eq("user_id", user.id)
         .eq("live_groups.session_id", id)
         .maybeSingle();
       groupId = membership?.group_id ?? null;
       if (!groupId) return NextResponse.json({ error: "You have not been assigned to a group yet." }, { status: 400 });
+      const linkedGroup = Array.isArray(membership?.live_groups) ? membership?.live_groups[0] : membership?.live_groups;
+      if (!teacher && linkedGroup?.status === "CLOSED") return NextResponse.json({ error: "Your teacher has closed group chat for now." }, { status: 400 });
     }
     const { error } = await admin.from("live_messages").insert({ session_id: id, sender_id: user.id, recipient_id: channel === "TEACHER" ? session.teacher_id : null, channel, group_id: groupId, body });
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
@@ -76,6 +78,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     await admin.from("live_hand_raises").delete().eq("session_id", id).eq("user_id", user.id);
   } else if (action === "resolveHand" && teacher) {
     await admin.from("live_hand_raises").update({ resolved_at: new Date().toISOString(), resolved_by: user.id }).eq("id", String(payload.handId || ""));
+  } else if (action === "moderateMessage" && teacher) {
+    const messageId = String(payload.messageId || "");
+    if (!messageId) return NextResponse.json({ error: "Message is required." }, { status: 400 });
+    const { error } = await admin.from("live_messages").update({ deleted_at: new Date().toISOString() }).eq("id", messageId).eq("session_id", id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  } else if (action === "groupState" && teacher) {
+    const groupId = String(payload.groupId || "");
+    const status = payload.status === "CLOSED" ? "CLOSED" : "OPEN";
+    if (!groupId) return NextResponse.json({ error: "Group is required." }, { status: 400 });
+    const { error } = await admin.from("live_groups").update({ status }).eq("id", groupId).eq("session_id", id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
   } else if (action === "createPoll" && teacher) {
     const question = String(payload.question || "").trim(); if (!question) return NextResponse.json({ error: "Add a poll question." }, { status: 400 });
     const type = ["MCQ", "TRUE_FALSE", "WORD_CLOUD", "EMOJI", "RATING"].includes(payload.pollType) ? payload.pollType : "MCQ";

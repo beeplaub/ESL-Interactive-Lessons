@@ -17,13 +17,14 @@ becomes one coherent product, rather than a collection of disconnected tools.
 - [x] Hand raises and help requests
 - [x] Everyone chat and teacher-private messages
 - [x] Temporary group assignment and private group chat
-- [ ] Group-chat moderation controls
+- [x] Group-chat moderation: remove messages and open/close group chat
 - [x] Teacher activity controls: open, close, extend, reset, reveal answers
 - [x] Teacher-controlled visible session timer
 - [x] Timed live activities with teacher open, extend, close, and learner countdown states
 - [x] Learner presence, live slide location, and submitted-activity monitoring
 - [x] Teacher-created live polls: MCQ, true/false, word cloud, emoji, rating
-- [ ] Voice notes with secure storage and accessible transcripts/captions where available
+- [x] Secure live voice notes with session-scoped storage and teacher moderation
+- [ ] Voice-note transcripts/captions (requires a speech-to-text provider)
 
 ## Classroom Operations
 
