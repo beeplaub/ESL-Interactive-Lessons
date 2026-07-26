@@ -15,7 +15,8 @@ import {
   Menu,
   Target,
   Trophy,
-  User
+  User,
+  Radio
 } from "lucide-react";
 import { signOut, switchToAdminView } from "@/app/auth/actions";
 import { isStaff } from "@/lib/auth";
@@ -601,6 +602,7 @@ function MobileTopbar({
               <MobileDrawerLink href="/account" label="Home" icon={Home} active={active === "home"} />
               <MobileDrawerLink href="/quizzes" label="Quizzes" icon={HelpCircle} active={active === "quizzes"} />
               <MobileDrawerLink href="/courses" label="Courses" icon={GraduationCap} active={active === "courses"} />
+              <MobileDrawerLink href="/live-classes" label="Live Classes" icon={Radio} active={active === "live-classes"} />
               <MobileDrawerLink href="/assignments" label="Assignments" icon={ClipboardList} active={active === "assignments"} />
               <MobileDrawerLink href="/certificates" label="Certificates" icon={Award} active={active === "certificates"} />
               <MobileDrawerLink href="/level-test" label="Level Test" icon={Target} active={active === "level-test"} />
