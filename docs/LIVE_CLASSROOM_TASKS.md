@@ -16,7 +16,8 @@ becomes one coherent product, rather than a collection of disconnected tools.
 - [x] Realtime-style presence and participant status with heartbeat recovery
 - [x] Hand raises and help requests
 - [x] Everyone chat and teacher-private messages
-- [ ] Group chat and moderation controls (group schema prepared)
+- [x] Temporary group assignment and private group chat
+- [ ] Group-chat moderation controls
 - [x] Teacher activity controls: open, close, extend, reset, reveal answers
 - [x] Teacher-controlled visible session timer
 - [ ] Timed live activities
@@ -29,7 +30,8 @@ becomes one coherent product, rather than a collection of disconnected tools.
 - [x] Live Classes dashboard: upcoming, live, drafts, completed, and scheduling
 - [x] Scheduled-class calendar view
 - [ ] Session settings, duplicate, cancel, invitations, and participant management
-- [ ] Temporary/manual breakout groups with teacher overview (schema prepared)
+- [x] Temporary automatic breakout groups with teacher overview
+- [ ] Manual group membership management and breakout-room controls
 - [ ] Built-in meeting provider adapter and external-link fallback
 - [ ] Live student mobile command bar: chat, hand, notes, more
 
