@@ -260,6 +260,13 @@ export function BuilderLessonPlayer({
   }, [liveSession]);
 
   useEffect(() => {
+    if (!liveSession) return;
+    const heartbeat = () => { void fetch(`/api/live/${liveSession.sessionId}/presence`, { method: "POST" }); };
+    heartbeat(); const interval = window.setInterval(heartbeat, 15_000);
+    return () => window.clearInterval(interval);
+  }, [liveSession]);
+
+  useEffect(() => {
     if (!liveTimerEndsAt) return;
     const interval = window.setInterval(() => setLiveClock((current) => current + 1), 1000);
     return () => window.clearInterval(interval);

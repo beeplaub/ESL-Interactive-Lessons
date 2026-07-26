@@ -13,7 +13,7 @@ becomes one coherent product, rather than a collection of disconnected tools.
 
 ## MVP Interaction Layer
 
-- [ ] Realtime presence and participant status
+- [x] Realtime-style presence and participant status with heartbeat recovery
 - [x] Hand raises and help requests
 - [x] Everyone chat and teacher-private messages
 - [ ] Group chat and moderation controls
