@@ -210,6 +210,10 @@ export function BuilderLessonPlayer({
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const [dragX, setDragX] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+  const [liveActivityStates, setLiveActivityStates] = useState<Record<string, string>>({});
+  const [liveTimerEndsAt, setLiveTimerEndsAt] = useState<string | null>(null);
+  const [liveNavigationLocked, setLiveNavigationLocked] = useState(Boolean(liveSession?.navigationLocked));
+  const [, setLiveClock] = useState(0);
   const liveChannelRef = useRef<RealtimeChannel | null>(null);
   const isLiveStudent = liveSession?.role === "STUDENT";
   const isLiveTeacher = liveSession?.role === "TEACHER";
@@ -238,6 +242,29 @@ export function BuilderLessonPlayer({
     return () => { window.clearInterval(interval); liveChannelRef.current = null; void supabase.removeChannel(channel); };
   }, [isLiveStudent, liveSession, slides.length]);
 
+  useEffect(() => {
+    if (!liveSession) return;
+    let active = true;
+    const refreshControls = async () => {
+      const response = await fetch(`/api/live/${liveSession.sessionId}/controls`, { cache: "no-store" });
+      if (!response.ok || !active) return;
+      const data = await response.json() as { timer_ends_at?: string | null; navigation_locked?: boolean; activities?: Array<{ activity_id: string; state: string }> };
+      if (!active) return;
+      setLiveTimerEndsAt(data.timer_ends_at ?? null);
+      setLiveNavigationLocked(Boolean(data.navigation_locked));
+      setLiveActivityStates(Object.fromEntries((data.activities ?? []).filter((item) => item.activity_id).map((item) => [item.activity_id, item.state])));
+    };
+    void refreshControls();
+    const interval = window.setInterval(refreshControls, 2500);
+    return () => { active = false; window.clearInterval(interval); };
+  }, [liveSession]);
+
+  useEffect(() => {
+    if (!liveTimerEndsAt) return;
+    const interval = window.setInterval(() => setLiveClock((current) => current + 1), 1000);
+    return () => window.clearInterval(interval);
+  }, [liveTimerEndsAt]);
+
   const blocksBySlide = useMemo(() => {
     const map = new Map<string, Block[]>();
     for (const block of blocks) map.set(block.slide_id, [...(map.get(block.slide_id) ?? []), block]);
@@ -263,6 +290,7 @@ export function BuilderLessonPlayer({
 
   const progressPercent = slides.length ? Math.round(((index + 1) / slides.length) * 100) : 0;
   const timerUrgent = remainingSeconds !== null && remainingSeconds <= 60;
+  const liveTimerSeconds = liveTimerEndsAt ? Math.max(0, Math.ceil((new Date(liveTimerEndsAt).getTime() - Date.now()) / 1000)) : null;
   function formatTime(totalSeconds: number) {
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
@@ -342,14 +370,14 @@ export function BuilderLessonPlayer({
   }
 
   function move(direction: -1 | 1) {
-    if (isLiveStudent && liveSession?.navigationLocked) return;
+    if (isLiveStudent && liveNavigationLocked) return;
     const next = Math.max(0, Math.min(slides.length - 1, index + direction));
     if (next === index) return;
     jumpTo(next);
   }
 
   function jumpTo(next: number) {
-    if (isLiveStudent && liveSession?.navigationLocked) return;
+    if (isLiveStudent && liveNavigationLocked) return;
     const normalized = Math.max(0, Math.min(slides.length - 1, next));
     setJumpOpen(false);
     if (normalized === index) return;
@@ -376,7 +404,7 @@ export function BuilderLessonPlayer({
   }
 
   function handleLessonTouchEnd(event: TouchEvent<HTMLElement>) {
-    if (isLiveStudent && liveSession?.navigationLocked) return;
+    if (isLiveStudent && liveNavigationLocked) return;
     const start = touchStartRef.current;
     touchStartRef.current = null;
     setIsDragging(false);
@@ -481,6 +509,7 @@ export function BuilderLessonPlayer({
               {completed ? `${lesson.timer_minutes} min timer` : formatTime(remainingSeconds ?? lesson.timer_minutes * 60)}
             </span>
           ) : null}
+          {liveTimerSeconds !== null ? <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-extrabold ${liveTimerSeconds <= 60 ? "bg-[#FFF0F2] text-[#D9324A]" : "bg-[#EEEAFB] text-[#6C3BFF]"}`}>Class {formatTime(liveTimerSeconds)}</span> : null}
         </div>
         {totalLessonMarks ? (
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs font-semibold text-[#6E738D]">
@@ -489,7 +518,7 @@ export function BuilderLessonPlayer({
           </div>
         ) : null}
       </div>
-      {isLiveTeacher && liveSession ? <LiveTeacherToolbar sessionId={liveSession.sessionId} activities={slideActivities.map((activity) => ({ id: activity.id, activity_type: activity.activity_type }))} navigationLocked={Boolean(liveSession.navigationLocked)} /> : null}
+      {isLiveTeacher && liveSession ? <LiveTeacherToolbar sessionId={liveSession.sessionId} activities={slideActivities.map((activity) => ({ id: activity.id, activity_type: activity.activity_type }))} navigationLocked={liveNavigationLocked} /> : null}
 
       <div
         className="relative overflow-hidden"
@@ -618,6 +647,7 @@ export function BuilderLessonPlayer({
             ) : slideActivities.length ? (
               <div className="space-y-4">
                 {slideActivities.map((activity) => (
+                  liveSession && !isLiveTeacher && (liveActivityStates[activity.id] ?? "CLOSED") === "CLOSED" ? <div key={activity.id} className="rounded-lg border border-dashed border-[#6C3BFF]/25 bg-[#F8F6FF] p-5 text-center text-sm font-semibold text-[#6E738D]">Your teacher will open this activity when the class is ready.</div> :
                   <LessonActivityPanel
                     key={activity.id}
                     activity={{
@@ -684,7 +714,7 @@ export function BuilderLessonPlayer({
         <button
           type="button"
           onClick={() => move(-1)}
-          disabled={index === 0 || (isLiveStudent && Boolean(liveSession?.navigationLocked))}
+          disabled={index === 0 || (isLiveStudent && liveNavigationLocked)}
           className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[#ECECF5] px-2.5 py-1.5 text-xs font-bold text-[#53607D] hover:bg-[#F6F7FB] disabled:opacity-35 sm:gap-2 sm:px-4 sm:py-2 sm:text-sm"
         >
           <ChevronLeft size={14} className="shrink-0" /> Previous
@@ -694,7 +724,7 @@ export function BuilderLessonPlayer({
           <button
             type="button"
             onClick={() => setJumpOpen((open) => !open)}
-            disabled={isLiveStudent && Boolean(liveSession?.navigationLocked)}
+                  disabled={isLiveStudent && liveNavigationLocked}
             aria-expanded={jumpOpen}
             aria-label="Jump to slide"
             className="shrink-0 whitespace-nowrap rounded-full border border-[#ECECF5] bg-white px-2 py-1 text-xs font-extrabold text-[#14172B] outline-none transition hover:bg-[#F6F7FB] focus:border-[#6C3BFF]/50 focus:ring-2 focus:ring-[#6C3BFF]/15 sm:px-3 sm:py-1.5 sm:text-sm"
@@ -734,7 +764,7 @@ export function BuilderLessonPlayer({
           <button
             type="button"
             onClick={() => move(1)}
-            disabled={isLiveStudent && Boolean(liveSession?.navigationLocked)}
+                  disabled={isLiveStudent && liveNavigationLocked}
             className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] px-2.5 py-1.5 text-xs font-extrabold text-white shadow-[0_8px_20px_rgba(108,59,255,.28)] disabled:opacity-45 sm:gap-2 sm:px-4 sm:py-2 sm:text-sm"
           >
             Next <ArrowRight size={14} className="shrink-0" />

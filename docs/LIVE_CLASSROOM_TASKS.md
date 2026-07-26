@@ -18,6 +18,7 @@ becomes one coherent product, rather than a collection of disconnected tools.
 - [x] Everyone chat and teacher-private messages
 - [ ] Group chat and moderation controls
 - [ ] Teacher activity controls: open, close, extend, reset, reveal answers
+- [x] Teacher-controlled visible session timer
 - [ ] Timed live activities and learner progress monitoring
 - [x] Teacher-created live polls: MCQ, true/false, word cloud, emoji, rating
 - [ ] Voice notes with secure storage and accessible transcripts/captions where available
