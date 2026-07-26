@@ -95,12 +95,16 @@ export async function requireCourseAccess(courseId: string) {
   const admin = createAdminClient();
   const { data: course } = await admin
     .from("courses")
-    .select("id, owner_id, created_by")
+    .select("id, owner_id, created_by, organization_id")
     .eq("id", courseId)
     .maybeSingle();
 
   const owns = !!course && (course.owner_id === session.user.id || course.created_by === session.user.id);
-  if (!owns) redirect("/admin/courses");
+  const { data: memberships } = session.profile?.role === "SCHOOL_ADMIN"
+    ? await admin.from("organization_members").select("organization_id").eq("user_id", session.user.id).in("role", ["OWNER", "SCHOOL_ADMIN"])
+    : { data: [] };
+  const schoolOwns = Boolean(course?.organization_id && (memberships ?? []).some((membership) => membership.organization_id === course.organization_id));
+  if (!owns && !schoolOwns) redirect("/admin/courses");
   return session;
 }
 

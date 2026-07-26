@@ -8,6 +8,7 @@ import { forkQuizForCourse } from "@/lib/quizFork";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { assertCreatorCanCreate, assertCreatorWithinLimit } from "@/lib/entitlements";
 import { notifyUser } from "@/lib/notifications";
+import { getSchoolAdminOrganizationIds } from "@/lib/schoolAccess";
 
 function slugify(value: string) {
   return value
@@ -25,6 +26,11 @@ export async function createCourse(formData: FormData) {
   if (!title) throw new Error("Course title is required.");
 
   const admin = createAdminClient();
+  const organizationId = String(formData.get("organizationId") || "").trim() || null;
+  if (profile?.role === "SCHOOL_ADMIN") {
+    const organizationIds = await getSchoolAdminOrganizationIds(user.id);
+    if (!organizationId || !organizationIds.includes(organizationId)) throw new Error("Choose one of your schools for this course.");
+  }
   const baseSlug = slugify(title) || "course";
   const { data, error } = await admin
     .from("courses")
@@ -37,6 +43,7 @@ export async function createCourse(formData: FormData) {
       slug: `${baseSlug}-${Date.now().toString(36)}`,
       created_by: user.id,
       owner_id: user.id,
+      organization_id: organizationId,
       status: "DRAFT",
     })
     .select("id")

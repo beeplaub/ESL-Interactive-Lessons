@@ -5,7 +5,7 @@ import { Plus, X } from "lucide-react";
 import { createCourse } from "@/app/admin/courses/actions";
 import { CONTENT_LEVELS } from "@/lib/levels";
 
-export function NewCourseModal() {
+export function NewCourseModal({ organizations = [] }: { organizations?: Array<{ id: string; name: string }> }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -75,6 +75,8 @@ export function NewCourseModal() {
                   className="mt-1.5 w-full rounded-xl border border-[#ECECF5] px-3.5 py-2.5 text-sm font-semibold placeholder-[#B0B5C8] focus:border-violetglow focus:outline-none focus:ring-4 focus:ring-violetglow/10 transition"
                 />
               </div>
+
+              {organizations.length ? <div className="sm:col-span-2"><label className="text-xs font-bold uppercase tracking-wider text-[#8B90A7]">School <span className="text-red-500">*</span></label><select name="organizationId" required className="mt-1.5 w-full rounded-xl border border-[#ECECF5] bg-white px-3.5 py-2.5 text-sm font-semibold focus:border-violetglow focus:outline-none focus:ring-4 focus:ring-violetglow/10"><option value="">Choose school...</option>{organizations.map((organization) => <option key={organization.id} value={organization.id}>{organization.name}</option>)}</select></div> : null}
 
               <div className="sm:col-span-2">
                 <label className="text-xs font-bold uppercase tracking-wider text-[#8B90A7]">

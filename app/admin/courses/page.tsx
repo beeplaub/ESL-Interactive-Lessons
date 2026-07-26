@@ -5,15 +5,20 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { deleteCourse, setCourseStatus } from "@/app/admin/courses/actions";
 import { NewCourseModal } from "@/components/NewCourseModal";
 import { DeleteButton } from "@/components/DeleteButton";
+import { getSchoolAdminOrganizationIds } from "@/lib/schoolAccess";
 
 export default async function AdminCoursesPage() {
   const { user, profile } = await requireStaff();
   const admin = createAdminClient();
   const scopedToOwn = !isPlatformAdmin(profile?.role);
+  const schoolOrganizationIds = profile?.role === "SCHOOL_ADMIN" ? await getSchoolAdminOrganizationIds(user.id) : [];
 
   let coursesQuery = admin.from("courses").select("*").is("deleted_at", null).order("created_at", { ascending: false });
   let trashedQuery = admin.from("courses").select("id", { count: "exact", head: true }).not("deleted_at", "is", null);
-  if (scopedToOwn) {
+  if (profile?.role === "SCHOOL_ADMIN") {
+    coursesQuery = schoolOrganizationIds.length ? coursesQuery.in("organization_id", schoolOrganizationIds) : coursesQuery.eq("id", "00000000-0000-0000-0000-000000000000");
+    trashedQuery = schoolOrganizationIds.length ? trashedQuery.in("organization_id", schoolOrganizationIds) : trashedQuery.eq("id", "00000000-0000-0000-0000-000000000000");
+  } else if (scopedToOwn) {
     coursesQuery = coursesQuery.or(`owner_id.eq.${user.id},created_by.eq.${user.id}`);
     trashedQuery = trashedQuery.or(`owner_id.eq.${user.id},created_by.eq.${user.id}`);
   }
@@ -39,7 +44,7 @@ export default async function AdminCoursesPage() {
           <Link href="/admin/courses/trash" className="inline-flex items-center gap-2 rounded-xl border border-black/15 px-4 py-2 text-sm font-bold hover:bg-black/5">
             <Trash2 size={16} /> Trash{trashedCount ? ` (${trashedCount})` : ""}
           </Link>
-          <NewCourseModal />
+          <NewCourseModal organizations={profile?.role === "SCHOOL_ADMIN" ? (await admin.from("organizations").select("id,name").in("id", schoolOrganizationIds).order("name")).data ?? [] : []} />
         </div>
       </div>
 
