@@ -26,7 +26,7 @@ import { createClient } from "@/lib/supabase/server";
 import { LearnerSidebar } from "@/components/LearnerSidebar";
 import { NotificationsDropdown } from "@/components/NotificationsDropdown";
 
-export type ActiveItem = "home" | "quizzes" | "courses" | "assignments" | "certificates" | "level-test" | "leaderboard" | "language-profile" | "profile";
+export type ActiveItem = "home" | "quizzes" | "courses" | "live-classes" | "assignments" | "certificates" | "level-test" | "leaderboard" | "language-profile" | "profile";
 
 type BreadcrumbItem = { label: string; href?: string };
 export type NotificationItem = { key: string; title: string; detail: string; href: string; tone: "purple" | "orange" | "green" | "blue"; notificationId?: string; isRead?: boolean };
@@ -35,6 +35,7 @@ const defaultBreadcrumbs: Record<ActiveItem, BreadcrumbItem[]> = {
   home: [{ label: "Home" }],
   quizzes: [{ label: "Home", href: "/account" }, { label: "Quizzes" }],
   courses: [{ label: "Home", href: "/account" }, { label: "Courses" }],
+  "live-classes": [{ label: "Home", href: "/account" }, { label: "Live Classes" }],
   assignments: [{ label: "Home", href: "/account" }, { label: "Assignments" }],
   certificates: [{ label: "Home", href: "/account" }, { label: "Certificates" }],
   "level-test": [{ label: "Home", href: "/account" }, { label: "Level Test" }],

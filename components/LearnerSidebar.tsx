@@ -14,6 +14,7 @@ import {
   Users,
   Zap,
   Award
+  , Radio
 } from "lucide-react";
 import type { ActiveItem } from "@/components/LearnerAppShell";
 
@@ -53,6 +54,7 @@ export function LearnerSidebar({
     { href: "/account", label: "Home", icon: Home, key: "home" },
     { href: "/quizzes", label: "Quizzes", icon: HelpCircle, key: "quizzes" },
     { href: "/courses", label: "Courses", icon: GraduationCap, key: "courses" },
+    { href: "/live-classes", label: "Live Classes", icon: Radio, key: "live-classes" },
     { href: "/assignments", label: "Assignments", icon: ClipboardList, key: "assignments" },
     { href: "/certificates", label: "Certificates", icon: Award, key: "certificates" },
     { href: "/language-profile", label: "Language Profile", icon: BarChart2, key: "language-profile" },
