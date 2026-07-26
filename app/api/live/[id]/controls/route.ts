@@ -33,10 +33,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     const seconds = Math.max(0, Math.min(60 * 60 * 4, Number(body.seconds) || 0));
     await admin.from("live_sessions").update({ timer_ends_at: seconds ? new Date(Date.now() + seconds * 1000).toISOString() : null, updated_at: new Date().toISOString() }).eq("id", id);
   } else if (action === "activity") {
-    const activityId = String(body.activityId || ""); const state = ["OPEN", "CLOSED", "REVEALED", "RESET"].includes(body.state) ? body.state : "CLOSED";
+    const activityId = String(body.activityId || ""); const state = ["OPEN", "CLOSED", "REVEALED", "RESET", "EXTEND"].includes(body.state) ? body.state : "CLOSED";
     const { data: activity } = await admin.from("lesson_slide_activities").select("id,slide_id").eq("id", activityId).maybeSingle();
     if (!activity) return NextResponse.json({ error: "Activity not found" }, { status: 404 });
-    await admin.from("live_activity_states").upsert({ session_id: id, activity_id: activityId, slide_id: activity.slide_id, state, opens_at: state === "OPEN" ? new Date().toISOString() : null, updated_by: user.id, updated_at: new Date().toISOString() }, { onConflict: "session_id,activity_id" });
+    const closesAt = state === "EXTEND" ? new Date(Date.now() + Math.max(30, Math.min(1800, Number(body.seconds) || 120)) * 1000).toISOString() : null;
+    await admin.from("live_activity_states").upsert({ session_id: id, activity_id: activityId, slide_id: activity.slide_id, state: state === "EXTEND" ? "OPEN" : state, opens_at: state === "OPEN" ? new Date().toISOString() : null, closes_at: closesAt, updated_by: user.id, updated_at: new Date().toISOString() }, { onConflict: "session_id,activity_id" });
   } else return NextResponse.json({ error: "Unknown control" }, { status: 400 });
   await admin.from("live_events").insert({ session_id: id, actor_id: user.id, event_type: `CONTROL_${action.toUpperCase()}`, payload: body });
   return NextResponse.json({ ok: true });

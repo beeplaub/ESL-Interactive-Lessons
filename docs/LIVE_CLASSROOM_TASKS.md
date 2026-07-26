@@ -17,7 +17,7 @@ becomes one coherent product, rather than a collection of disconnected tools.
 - [x] Hand raises and help requests
 - [x] Everyone chat and teacher-private messages
 - [ ] Group chat and moderation controls
-- [ ] Teacher activity controls: open, close, extend, reset, reveal answers
+- [x] Teacher activity controls: open, close, extend, reset, reveal answers
 - [x] Teacher-controlled visible session timer
 - [ ] Timed live activities
 - [ ] Learner progress monitoring
