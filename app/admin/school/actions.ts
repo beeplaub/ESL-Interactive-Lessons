@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireOrganizationAdmin } from "@/lib/schoolAccess";
+import { enrollUserInCourseDirectly } from "@/app/admin/courses/actions";
+import { notifyUsers } from "@/lib/notifications";
 
 function refresh(organizationId: string) {
   revalidatePath("/admin/school");
@@ -73,4 +75,36 @@ export async function updateSchoolBranding(organizationId: string, formData: For
   }).eq("id", organizationId);
   if (error) throw new Error(error.message);
   refresh(organizationId);
+}
+
+export async function createSchoolAssignment(organizationId: string, formData: FormData) {
+  const { user } = await requireOrganizationAdmin(organizationId);
+  const classId = String(formData.get("classId") || "").trim();
+  const itemType = String(formData.get("itemType") || "COURSE") as "COURSE" | "LESSON" | "QUIZ" | "LEVEL_TEST";
+  const resourceId = itemType === "COURSE" ? String(formData.get("courseId") || "") : itemType === "LESSON" ? String(formData.get("lessonId") || "") : itemType === "QUIZ" ? String(formData.get("quizId") || "") : "";
+  if (!classId || (itemType !== "LEVEL_TEST" && !resourceId)) throw new Error("Choose a class and learning item.");
+  const admin = createAdminClient();
+  const { data: klass } = await admin.from("classes").select("id").eq("id", classId).eq("organization_id", organizationId).maybeSingle();
+  if (!klass) throw new Error("Choose a class in this school.");
+  if (itemType === "COURSE") {
+    const { data: course } = await admin.from("courses").select("id,organization_id").eq("id", resourceId).eq("status", "PUBLISHED").is("deleted_at", null).maybeSingle();
+    if (!course || (course.organization_id && course.organization_id !== organizationId)) throw new Error("This course is not available to your school.");
+  }
+  if (itemType === "LESSON") {
+    const { data: lesson } = await admin.from("lessons").select("id").eq("id", resourceId).eq("status", "PUBLISHED").is("deleted_at", null).maybeSingle();
+    if (!lesson) throw new Error("Only published lessons can be assigned.");
+  }
+  if (itemType === "QUIZ") {
+    const { data: quiz } = await admin.from("quizzes").select("id,course_id").eq("id", resourceId).eq("status", "PUBLISHED").is("deleted_at", null).maybeSingle();
+    if (!quiz || quiz.course_id) throw new Error("Choose a published standalone quiz.");
+  }
+  const rawScore = String(formData.get("requiredScore") || "").trim();
+  const requiredScore = rawScore ? Number(rawScore) : null;
+  const { data: assignment, error } = await admin.from("class_assignments").insert({ class_id: classId, item_type: itemType, course_id: itemType === "COURSE" ? resourceId : null, lesson_id: itemType === "LESSON" ? resourceId : null, quiz_id: itemType === "QUIZ" ? resourceId : null, title: String(formData.get("title") || "").trim() || null, due_at: String(formData.get("dueAt") || "") || null, required_score: requiredScore, created_by: user.id }).select("id").single();
+  if (error) throw new Error(error.message);
+  const { data: learners } = await admin.from("class_members").select("user_id").eq("class_id", classId).eq("role", "STUDENT");
+  if (itemType === "COURSE") await Promise.all((learners ?? []).map((learner) => enrollUserInCourseDirectly(learner.user_id, resourceId)));
+  await notifyUsers((learners ?? []).map((learner) => learner.user_id), { type: "CLASS_ASSIGNMENT", title: "New class assignment", detail: String(formData.get("title") || "").trim() || `${itemType.replace("_", " ")} assigned by your school`, href: "/assignments", tone: "blue", dedupeKeyPrefix: `assignment:${assignment?.id ?? classId}` });
+  refresh(organizationId);
+  revalidatePath("/assignments");
 }
