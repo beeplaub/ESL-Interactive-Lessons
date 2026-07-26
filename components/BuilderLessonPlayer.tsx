@@ -667,6 +667,12 @@ export function BuilderLessonPlayer({
                         answers: attempt.answers,
                         completed_at: attempt.completed_at ?? new Date().toISOString()
                       }, ...current]);
+                      if (liveSession) {
+                        void fetch(`/api/live/${liveSession.sessionId}/evidence`, {
+                          method: "POST", headers: { "content-type": "application/json" },
+                          body: JSON.stringify({ activityId: activity.id, score: attempt.score, total: attempt.total, answers: attempt.answers }),
+                        });
+                      }
                     }}
                   />
                 ))}
