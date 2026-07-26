@@ -4,6 +4,7 @@ import { requireUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getLiveLessonPlayerData } from "@/lib/liveLesson";
 import { BuilderLessonPlayer } from "@/components/BuilderLessonPlayer";
+import { LiveClassTools } from "@/components/LiveClassTools";
 
 export default async function LearnerLiveSessionPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -43,7 +44,7 @@ export default async function LearnerLiveSessionPage({ params }: { params: Promi
             <div className="min-w-0"><p className="truncate text-xs font-bold uppercase tracking-wide text-[#6C3BFF]">{klass?.name || "Live class"}</p><p className="truncate text-sm font-extrabold">{session.title}</p></div>
             <span className="inline-flex items-center gap-1 rounded-full bg-[#E7FBF4] px-2.5 py-1 text-[11px] font-extrabold text-[#00A978]"><Radio size={12} /> LIVE</span>
           </div>
-          <BuilderLessonPlayer
+          <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_280px]"><BuilderLessonPlayer
             lesson={player.lesson}
             slides={player.slides}
             blocks={player.blocks}
@@ -54,7 +55,7 @@ export default async function LearnerLiveSessionPage({ params }: { params: Promi
             narrationMap={player.narrationMap}
             backHref="/account"
             liveSession={{ sessionId: id, role: session.teacher_id === user.id ? "TEACHER" : "STUDENT", initialSlideNumber: session.current_slide_number ?? 1, navigationLocked: Boolean(session.navigation_locked) }}
-          />
+          /><div className="order-first xl:order-none"><LiveClassTools sessionId={id} teacher={session.teacher_id === user.id} /></div></div>
         </div>
       </main>
     );
