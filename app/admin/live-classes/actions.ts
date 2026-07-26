@@ -54,3 +54,20 @@ export async function endLiveSession(sessionId: string) {
   const { error } = await admin.from("live_sessions").update({ status: "COMPLETED", ended_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", sessionId).eq("teacher_id", user.id);
   if (error) throw new Error(error.message); await admin.from("live_events").insert({ session_id: sessionId, actor_id: user.id, event_type: "SESSION_ENDED" }); refresh(); revalidatePath(`/admin/live-classes/${sessionId}`); revalidatePath(`/live/${sessionId}`);
 }
+
+export async function cancelLiveSession(sessionId: string) {
+  const admin = createAdminClient(); const { data: session } = await admin.from("live_sessions").select("class_id").eq("id", sessionId).maybeSingle();
+  if (!session) throw new Error("Live class not found."); const { user } = await requireClassAccess(session.class_id);
+  const { error } = await admin.from("live_sessions").update({ status: "CANCELLED", updated_at: new Date().toISOString() }).eq("id", sessionId);
+  if (error) throw new Error(error.message); await admin.from("live_events").insert({ session_id: sessionId, actor_id: user.id, event_type: "SESSION_CANCELLED" }); refresh(); revalidatePath(`/admin/live-classes/${sessionId}`); revalidatePath(`/live/${sessionId}`);
+}
+
+export async function duplicateLiveSession(sessionId: string) {
+  const admin = createAdminClient(); const { data: source } = await admin.from("live_sessions").select("class_id,course_id,lesson_id,title,description,duration_minutes,external_meeting_url").eq("id", sessionId).maybeSingle();
+  if (!source) throw new Error("Live class not found."); const { user } = await requireClassAccess(source.class_id);
+  const { data: copy, error } = await admin.from("live_sessions").insert({ ...source, title: `${source.title} (copy)`, teacher_id: user.id, created_by: user.id, session_code: crypto.randomUUID().replaceAll("-", "").slice(0, 8).toUpperCase(), status: "DRAFT", scheduled_at: null }).select("id").single();
+  if (error || !copy) throw new Error(error?.message || "Could not duplicate live class.");
+  const { data: members } = await admin.from("live_session_members").select("user_id,role").eq("session_id", sessionId);
+  if (members?.length) await admin.from("live_session_members").insert(members.map((member) => ({ session_id: copy.id, user_id: member.user_id, role: member.role, status: member.role === "TEACHER" ? "JOINED" : "INVITED", joined_at: member.role === "TEACHER" ? new Date().toISOString() : null })));
+  await admin.from("live_events").insert({ session_id: copy.id, actor_id: user.id, event_type: "SESSION_DUPLICATED", payload: { sourceSessionId: sessionId } }); refresh(); redirect(`/admin/live-classes/${copy.id}`);
+}
