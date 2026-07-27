@@ -53,7 +53,6 @@ export async function LearnerAppShell({
   desktopChromeLeading,
   showRightSidebar = true,
   showChrome = true,
-  showFooter = true,
 }: {
   active: ActiveItem;
   children: React.ReactNode;
@@ -133,7 +132,6 @@ export async function LearnerAppShell({
           ) : null}
           {children}
           {showRightSidebar && rightSidebarData ? <MobileRightSidebarCards data={rightSidebarData} /> : null}
-          {showFooter ? <LearnerFooter /> : null}
         </section>
         {showRightSidebar && rightSidebarData ? <LearnerRightSidebar data={rightSidebarData} /> : null}
       </div>
@@ -520,31 +518,6 @@ function AchievementIcon({ emoji, label, tone }: { emoji: string; label: string;
       <div className={`grid size-[52px] place-items-center rounded-[14px] bg-gradient-to-br ${tones[tone]} text-[22px]`}>{emoji}</div>
       <div className="text-center text-[9px] font-semibold leading-tight text-[#6E738D]">{label}</div>
     </div>
-  );
-}
-
-function LearnerFooter() {
-  return (
-    <footer className="mt-8 rounded-[24px] border border-[#ECECF5] bg-white px-5 py-5 shadow-[0_12px_32px_rgba(0,0,0,.04)]">
-      <div className="flex flex-col gap-4 min-[760px]:flex-row min-[760px]:items-center min-[760px]:justify-between">
-        <div className="flex items-center gap-3">
-          <span className="grid size-10 place-items-center rounded-[14px] bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF]">
-            <Layers className="size-5 text-white" />
-          </span>
-          <div>
-            <p className="text-sm font-black text-[#14172B]">BrenUp</p>
-            <p className="text-xs font-semibold text-[#6E738D]">Level Up Your English</p>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-3 text-xs font-bold text-[#6E738D]">
-          <Link href="/courses" className="hover:text-[#6C3BFF]">Courses</Link>
-          <Link href="/quizzes" className="hover:text-[#6C3BFF]">Quizzes</Link>
-          <Link href="/level-test" className="hover:text-[#6C3BFF]">Level Test</Link>
-          <Link href="/leaderboard" className="hover:text-[#6C3BFF]">Leaderboard</Link>
-        </div>
-        <p className="text-xs font-semibold text-[#A0A5BA]">© {new Date().getFullYear()} BrenUp</p>
-      </div>
-    </footer>
   );
 }
 

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { HeaderGate } from "@/components/HeaderGate";
 import { SiteHeader } from "@/components/SiteHeader";
+import { SiteFooter } from "@/components/SiteFooter";
 import { DeleteConfirmProvider } from "@/components/DeleteConfirmModal";
 import "./globals.css";
 
@@ -37,6 +38,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <SiteHeader />
           </HeaderGate>
           {children}
+          <SiteFooter />
         </DeleteConfirmProvider>
       </body>
     </html>

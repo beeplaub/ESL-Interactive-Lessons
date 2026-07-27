@@ -4,23 +4,15 @@ import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import {
   ArrowRight,
-  BarChart2,
-  BookOpen,
   CheckCircle2,
   ChevronRight,
-  Flame,
-  Gamepad2,
-  GraduationCap,
-  HelpCircle,
-  Search,
-  ShieldCheck,
-  Target,
-  Trophy,
-  Zap
+  Clock3,
+  Lightbulb,
+  LayoutDashboard,
+  Mic2,
+  PlayCircle
 } from "lucide-react";
 import { getFreshProfile, isStaff } from "@/lib/auth";
-import { getQuizBadge } from "@/lib/quizBadges";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
@@ -32,7 +24,6 @@ export const metadata: Metadata = {
 
 export default async function HomePage() {
   const supabase = await createClient();
-  const admin = createAdminClient();
   const {
     data: { user }
   } = await supabase.auth.getUser();
@@ -41,23 +32,6 @@ export default async function HomePage() {
     const profile = await getFreshProfile(user.id);
     if (isStaff(profile?.role)) redirect("/admin");
   }
-
-  const [{ count: publishedQuizCount }, { data: latestQuiz }, { data: topPoints }] = await Promise.all([
-    admin.from("quizzes").select("id", { count: "exact", head: true }).eq("status", "PUBLISHED").is("deleted_at", null),
-    admin
-      .from("quizzes")
-      .select("id, title, level, topic, created_at, timer_minutes")
-      .eq("status", "PUBLISHED")
-      .is("deleted_at", null)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-    admin.from("quiz_leaderboard_points").select("points").order("points", { ascending: false }).limit(1000)
-  ]);
-
-  const quizCount = publishedQuizCount ?? 0;
-  const topTotal = (topPoints ?? []).reduce((sum, row) => sum + Number(row.points ?? 0), 0);
-  const topBadge = getQuizBadge(topTotal);
 
   return (
     <main className="min-h-screen overflow-hidden bg-[#F6F7FB] text-[#14172B]">
@@ -123,67 +97,28 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="mx-auto max-w-[1536px] px-4 pb-12 sm:px-6 lg:pb-16">
-        <div className="grid gap-4 md:grid-cols-3">
-          <LiveCard quizCount={quizCount} latestQuiz={latestQuiz} />
-          <BadgeEnergyCard topBadge={topBadge} topTotal={topTotal} />
-          <HowItWorksCard />
+      <section className="bg-[#fafafc] px-6 py-16 sm:py-20">
+        <div className="mx-auto grid max-w-[1200px] gap-6 lg:grid-cols-3">
+          <ValueCard icon={Mic2} title="Built for Speech" text="Our audio-native interface prioritizes vocal output. Use interactive waveforms to match pitch and rhythm with native speakers." tone="coral" />
+          <ValueCard icon={Lightbulb} title="Learner Companion" text="A stress-free environment designed for adults. Low-friction practice sessions that adapt to your specific learning pace." tone="indigo" />
+          <ValueCard icon={LayoutDashboard} title="Teacher Cockpit" text="A powerful, precision dashboard for educators. Orchestrate live classes and track student growth with high-resolution data." tone="green" />
         </div>
       </section>
 
-      <section className="border-y border-[#ECECF5] bg-white">
-        <div className="mx-auto grid max-w-[1536px] gap-8 px-4 py-12 sm:px-6 lg:grid-cols-[0.85fr_1.15fr] lg:items-center lg:py-16">
-          <div>
-            <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#6C3BFF]">For independent learners</p>
-            <h2 className="mt-3 text-3xl font-extrabold tracking-tight sm:text-5xl">Free practice first. Courses when you want structure.</h2>
-            <p className="mt-4 text-sm leading-7 text-[#6E738D] sm:text-base">
-              BrenUp separates quick practice from enrolled learning. Visitors can play quizzes freely; logged-in learners keep progress; enrolled learners follow complete course paths.
-            </p>
+      <section className="bg-[#f1f1f6] px-6 py-16 sm:py-20">
+        <div className="mx-auto max-w-[1200px]">
+          <div className="mb-10 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div><h2 className="text-4xl font-bold tracking-tight text-[#1b1b3a]">Featured Courses</h2><p className="mt-2 text-[#6e6e85]">Curated paths from our top linguistic experts.</p></div>
+            <Link href="/courses" className="inline-flex items-center gap-2 font-bold text-[#28235a] transition hover:gap-3">View all courses <ChevronRight className="size-5" /></Link>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <FeatureCard icon={Gamepad2} title="Free quiz play" text="Try grammar, vocabulary, reading, and skill quizzes without committing to a course." tone="pink" />
-            <FeatureCard icon={Target} title="CEFR level test" text="Get a reference level from A1 to C2 and choose suitable practice." tone="orange" />
-            <FeatureCard icon={Trophy} title="Leaderboard badges" text="Earn points, climb rankings, and move through badge levels." tone="purple" />
-            <FeatureCard icon={GraduationCap} title="Courses for enrolled users" text="Lessons live inside course paths so learning stays organized." tone="blue" />
-          </div>
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3"><CourseCard title="Everyday Conversational Mastery" level="A2 Elementary" hours="12 Hours" lessons="24 Lessons" image="linear-gradient(135deg, #ffb199 0%, #3e3a72 100%)" /><CourseCard title="Business Pitching & Presentation" level="B2 Upper Int" hours="18 Hours" lessons="36 Lessons" image="linear-gradient(135deg, #3e3a72 0%, #aba6e6 100%)" /><CourseCard title="Linguistic Nuance & Idioms" level="C1 Advanced" hours="15 Hours" lessons="30 Lessons" image="linear-gradient(135deg, #f2b705 0%, #28235a 100%)" /></div>
         </div>
       </section>
 
-      <section className="mx-auto max-w-[1536px] px-4 py-12 sm:px-6 lg:py-16">
-        <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#6C3BFF]">What you can do today</p>
-            <h2 className="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl">Start from the door that fits you.</h2>
-          </div>
-          <Link href="/quizzes" className="inline-flex items-center gap-2 rounded-[14px] bg-[#14172B] px-4 py-3 text-sm font-bold text-white">
-            Browse quizzes <ArrowRight className="size-4" />
-          </Link>
-        </div>
-        <div className="grid gap-4 lg:grid-cols-3">
-          <PathCard number="01" title="Play a quiz" text="Answer one question at a time, submit, check, and retake when you want." href="/quizzes" icon={HelpCircle} />
-          <PathCard number="02" title="Take the level test" text="Get a CEFR reference point and guidance for your next practice level." href="/level-test" icon={ShieldCheck} />
-          <PathCard number="03" title="Join a course path" text="Use courses for structured lessons, assignments, certificates, and progress." href="/courses" icon={BookOpen} />
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-[1536px] px-4 pb-12 sm:px-6 lg:pb-16">
-        <div className="relative overflow-hidden rounded-[24px] bg-gradient-to-br from-[#1A1060] via-[#0C1945] to-[#0E1F5A] p-6 text-white shadow-[0_16px_48px_rgba(20,23,80,.25)] sm:p-10">
-          <div className="absolute -right-20 -top-24 size-72 rounded-full bg-[#6C3BFF]/25" />
-          <div className="relative z-10 grid gap-6 lg:grid-cols-[1fr_auto] lg:items-center">
-            <div>
-              <p className="text-sm font-bold text-white/70">Ready to level up?</p>
-              <h2 className="mt-2 text-3xl font-extrabold tracking-tight sm:text-5xl">Start with one quiz. Build from there.</h2>
-              <p className="mt-3 max-w-2xl text-sm leading-7 text-white/65">BrenUp is built for repeat practice: play, check, retake, track, and climb.</p>
-            </div>
-            <div className="grid gap-3 sm:flex">
-              <Link href="/quizzes" className="inline-flex items-center justify-center gap-2 rounded-[14px] bg-white px-5 py-3 text-sm font-extrabold text-[#6C3BFF]">
-                Start practising <ArrowRight className="size-4" />
-              </Link>
-              <Link href="/login" className="inline-flex items-center justify-center gap-2 rounded-[14px] border border-white/20 bg-white/10 px-5 py-3 text-sm font-extrabold text-white">
-                Create account
-              </Link>
-            </div>
-          </div>
+      <section className="bg-white px-6 py-16 sm:py-20">
+        <div className="relative mx-auto max-w-[1200px] overflow-hidden rounded-[20px] bg-[#1b1b3a] p-8 text-white shadow-[0_24px_60px_rgba(27,27,58,.24)] md:p-16">
+          <div className="pointer-events-none absolute -right-32 -top-56 size-[600px] rounded-full bg-[#ff7a59]/20 blur-[120px]" />
+          <div className="relative z-10 grid gap-10 md:grid-cols-2 md:items-center"><div><span className="text-xs font-bold uppercase tracking-[.18em] text-[#ffb199]">Quick Assessment</span><h2 className="mt-3 text-4xl font-bold tracking-tight sm:text-5xl">Find your CEFR level in 15 minutes.</h2><p className="mt-5 max-w-xl font-serif text-lg leading-7 text-[#b8b8c9]">Our intelligent level test analyzes your pronunciation, vocabulary, and grammar in real-time to place you in the perfect learning bracket.</p><Link href="/level-test" className="mt-7 inline-flex rounded-xl bg-white px-8 py-4 text-lg font-bold text-[#1b1b3a] transition hover:bg-[#f1f1f6]">Start Test <ArrowRight className="ml-2 mt-0.5 size-5" /></Link></div><div className="hidden justify-center md:flex"><div className="relative grid size-64 place-items-center rounded-full border-4 border-white/10"><div className="grid size-48 place-items-center rounded-full border-4 border-[#ff7a59] text-center"><span className="text-5xl font-bold text-[#ffb199]">B2</span><span className="text-xs text-[#e4e4ee]">Upper-Intermediate</span></div><span className="absolute -top-5 grid size-10 place-items-center rounded-full bg-white text-[#1b1b3a] shadow-lg"><CheckCircle2 className="size-5" /></span></div></div></div>
         </div>
       </section>
     </main>
@@ -194,85 +129,15 @@ function TrustItem({ text }: { text: string }) {
   return <div className="flex items-center gap-2"><CheckCircle2 className="size-4 text-[#00C98D]" /><span>{text}</span></div>;
 }
 
-function LiveCard({ quizCount, latestQuiz }: { quizCount: number; latestQuiz: { id: string; title: string; level: string | null; topic: string | null; timer_minutes: number | null } | null }) {
+function ValueCard({ icon: Icon, title, text, tone }: { icon: React.ElementType; title: string; text: string; tone: "coral" | "indigo" | "green" }) {
+  const tones = { coral: "bg-[#ff7a59]/10 text-[#ff7a59] group-hover:bg-[#ff7a59]", indigo: "bg-[#28235a]/10 text-[#28235a] group-hover:bg-[#28235a]", green: "bg-[#2fae7a]/10 text-[#2fae7a] group-hover:bg-[#2fae7a]" };
   return (
-    <div className="rounded-[20px] border border-[#ECECF5] bg-white p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)]">
-      <div className="mb-4 flex items-center justify-between">
-        <div className="grid size-11 place-items-center rounded-[14px] bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] text-white"><Zap className="size-5" /></div>
-        <span className="rounded-full bg-[#F6F7FB] px-3 py-1 text-xs font-bold text-[#6E738D]">Live</span>
-      </div>
-      <p className="text-[34px] font-extrabold leading-none">{quizCount}</p>
-      <h2 className="mt-2 text-lg font-bold">published quiz{quizCount === 1 ? "" : "zes"}</h2>
-      <p className="mt-2 text-sm leading-6 text-[#6E738D]">Only published standalone quizzes are counted here.</p>
-      {latestQuiz ? <Link href={`/quizzes/${latestQuiz.id}`} className="mt-4 inline-flex items-center gap-2 text-sm font-extrabold text-[#6C3BFF]">Try latest: {latestQuiz.title} <ChevronRight className="size-4" /></Link> : null}
-    </div>
+    <article className="group rounded-[20px] border border-[#e4e4ee] bg-white p-8 transition duration-300 hover:-translate-y-1 hover:shadow-xl"><span className={`grid size-16 place-items-center rounded-xl transition-colors duration-300 group-hover:text-white ${tones[tone]}`}><Icon className="size-8" /></span><h3 className="mt-6 text-2xl font-bold text-[#1b1b3a]">{title}</h3><p className="mt-3 leading-6 text-[#6e6e85]">{text}</p></article>
   );
 }
 
-function BadgeEnergyCard({ topBadge, topTotal }: { topBadge: { name: string; icon: string; gradient: string }; topTotal: number }) {
+function CourseCard({ title, level, hours, lessons, image }: { title: string; level: string; hours: string; lessons: string; image: string }) {
   return (
-    <div className="rounded-[20px] border border-[#ECECF5] bg-white p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)]">
-      <div className="mb-4 flex items-center justify-between">
-        <div className={`grid size-12 place-items-center rounded-[16px] bg-gradient-to-br ${topBadge.gradient} text-xs font-black text-white`}>{topBadge.icon}</div>
-        <Flame className="size-7 fill-[#FFB545] text-[#FFB545]" />
-      </div>
-      <h2 className="text-lg font-bold">Badge energy</h2>
-      <p className="mt-2 text-sm leading-6 text-[#6E738D]">Learners collect quiz points and climb from Bronze to Legend.</p>
-      <div className="mt-4 rounded-[14px] bg-[#F6F7FB] px-3 py-2 text-sm">
-        <span className="font-bold text-[#14172B]">{topBadge.name}</span>
-        <span className="ml-2 text-[#6E738D]">{topTotal.toLocaleString()} live points tracked</span>
-      </div>
-    </div>
-  );
-}
-
-function HowItWorksCard() {
-  const items = [
-    { title: "Choose", text: "Pick level, topic, quiz, or course.", icon: Search },
-    { title: "Answer", text: "Submit attempts with instant feedback.", icon: CheckCircle2 },
-    { title: "Climb", text: "Earn points and visible badges.", icon: BarChart2 }
-  ];
-  return (
-    <div className="rounded-[20px] border border-[#ECECF5] bg-white p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)]">
-      <h2 className="text-lg font-bold">How practice works</h2>
-      <div className="mt-4 space-y-3">
-        {items.map(({ title, text, icon: Icon }) => (
-          <div key={title} className="flex items-center gap-3 rounded-[14px] border border-[#ECECF5] bg-[#F6F7FB] p-3">
-            <span className="grid size-9 place-items-center rounded-xl bg-white text-[#6C3BFF]"><Icon className="size-4" /></span>
-            <div><div className="text-sm font-extrabold">{title}</div><div className="text-xs text-[#6E738D]">{text}</div></div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function FeatureCard({ icon: Icon, title, text, tone }: { icon: React.ElementType; title: string; text: string; tone: "pink" | "orange" | "purple" | "blue" }) {
-  const tones = {
-    pink: "from-[#FF6B9D] to-[#FF8E53]",
-    orange: "from-[#FFB545] to-[#FF8C00]",
-    purple: "from-[#6C3BFF] to-[#8A58FF]",
-    blue: "from-[#4E8DFF] to-[#3CCEFF]"
-  };
-  return (
-    <div className="rounded-[20px] border border-[#ECECF5] bg-white p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)]">
-      <span className={`grid size-11 place-items-center rounded-[14px] bg-gradient-to-br ${tones[tone]} text-white`}><Icon className="size-5" /></span>
-      <h3 className="mt-4 text-base font-extrabold">{title}</h3>
-      <p className="mt-2 text-sm leading-6 text-[#6E738D]">{text}</p>
-    </div>
-  );
-}
-
-function PathCard({ number, title, text, href, icon: Icon }: { number: string; title: string; text: string; href: string; icon: React.ElementType }) {
-  return (
-    <Link href={href} className="group rounded-[20px] border border-[#ECECF5] bg-white p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)] transition hover:scale-[1.01]">
-      <div className="flex items-center justify-between gap-4">
-        <span className="text-sm font-extrabold text-[#6C3BFF]">{number}</span>
-        <span className="grid size-11 place-items-center rounded-[14px] bg-[#F6F7FB] text-[#6C3BFF]"><Icon className="size-5" /></span>
-      </div>
-      <h3 className="mt-5 text-xl font-extrabold">{title}</h3>
-      <p className="mt-2 min-h-[48px] text-sm leading-6 text-[#6E738D]">{text}</p>
-      <span className="mt-4 inline-flex items-center gap-1 text-sm font-extrabold text-[#6C3BFF]">Open <ChevronRight className="size-4 transition group-hover:translate-x-0.5" /></span>
-    </Link>
+    <Link href="/courses" className="group overflow-hidden rounded-[20px] border border-[#e4e4ee] bg-white transition hover:shadow-2xl"><div className="relative h-48 overflow-hidden" style={{ background: image }}><div className="absolute inset-0 bg-[#1b1b3a]/20 transition group-hover:bg-transparent" /><span className="absolute right-3 top-3 rounded bg-white px-2 py-1 font-mono text-sm font-semibold text-[#28235a]">{level}</span></div><div className="p-6"><h3 className="text-xl font-semibold text-[#1b1b3a]">{title}</h3><div className="mt-4 flex gap-4 text-sm text-[#6e6e85]"><span className="inline-flex items-center gap-1"><Clock3 className="size-4" /> {hours}</span><span className="inline-flex items-center gap-1"><PlayCircle className="size-4" /> {lessons}</span></div></div></Link>
   );
 }
