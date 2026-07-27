@@ -40,3 +40,20 @@ create policy "Users insert own live translation usage"
   on public.live_translation_usage for insert to authenticated
   with check (user_id = auth.uid());
 
+-- One permanently cached output per narration and target language. The audio
+-- remains in the private lesson-audio bucket and is served with short signed URLs.
+create table if not exists public.narration_translation_cache (
+  id uuid primary key default gen_random_uuid(),
+  narration_audio_file_id uuid not null references public.lesson_audio_files(id) on delete cascade,
+  target_language_code text not null check (target_language_code in ('en', 'bn')),
+  storage_path text not null,
+  model text not null default 'gemini-3.5-live-translate-preview',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (narration_audio_file_id, target_language_code)
+);
+
+create index if not exists narration_translation_cache_narration_idx
+  on public.narration_translation_cache (narration_audio_file_id);
+
+alter table public.narration_translation_cache enable row level security;

@@ -41,6 +41,7 @@ function pcm16Base64(samples: Float32Array) {
 class PcmPlayer {
   private context: AudioContext;
   private cursor = 0;
+  private chunks: Uint8Array[] = [];
 
   constructor() { this.context = new AudioContext(); }
 
@@ -48,6 +49,7 @@ class PcmPlayer {
 
   play(base64: string) {
     const bytes = bytesFromBase64(base64);
+    this.chunks.push(bytes.slice());
     const sampleCount = Math.floor(bytes.byteLength / 2);
     const buffer = this.context.createBuffer(1, sampleCount, 24000);
     const output = buffer.getChannelData(0);
@@ -62,6 +64,19 @@ class PcmPlayer {
   }
 
   async close() { await this.context.close(); }
+
+  wavBlob() {
+    const pcmSize = this.chunks.reduce((total, chunk) => total + chunk.byteLength, 0);
+    const wav = new Uint8Array(44 + pcmSize);
+    const view = new DataView(wav.buffer);
+    const write = (offset: number, text: string) => text.split("").forEach((character, index) => view.setUint8(offset + index, character.charCodeAt(0)));
+    write(0, "RIFF"); view.setUint32(4, 36 + pcmSize, true); write(8, "WAVE"); write(12, "fmt ");
+    view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true); view.setUint32(24, 24000, true);
+    view.setUint32(28, 48000, true); view.setUint16(32, 2, true); view.setUint16(34, 16, true); write(36, "data"); view.setUint32(40, pcmSize, true);
+    let offset = 44;
+    this.chunks.forEach((chunk) => { wav.set(chunk, offset); offset += chunk.byteLength; });
+    return new Blob([wav], { type: "audio/wav" });
+  }
 }
 
 async function requestToken(request: TokenRequest) {
@@ -100,13 +115,38 @@ async function connect(request: TokenRequest, onAudio: (data: string) => void, o
   return { session, maxSeconds: token.maxSeconds ?? null, targetLanguageCode: token.targetLanguageCode };
 }
 
-/** Stream a saved narration to Gemini only after the learner actively asks for it. */
+async function cachedNarrationUrl(lessonId: string, slideId: string) {
+  const response = await fetch(`/api/ai/narration-translation?lessonId=${encodeURIComponent(lessonId)}&slideId=${encodeURIComponent(slideId)}`);
+  const data = await response.json() as { url?: string | null; targetLanguageCode?: string; error?: string };
+  if (!response.ok) throw new Error(data.error || "Translation is unavailable.");
+  return data;
+}
+
+async function saveNarrationTranslation(lessonId: string, slideId: string, targetLanguageCode: string, audio: Blob) {
+  if (!audio.size) return null;
+  const form = new FormData();
+  form.append("lessonId", lessonId); form.append("slideId", slideId); form.append("targetLanguageCode", targetLanguageCode);
+  form.append("audio", audio, "translated-narration.wav");
+  const response = await fetch("/api/ai/narration-translation", { method: "POST", body: form });
+  const data = await response.json() as { url?: string | null };
+  return response.ok ? data.url ?? null : null;
+}
+
+/** Uses Gemini only for the first request; every later request plays saved lesson audio. */
 export async function playNarrationTranslation({ lessonId, slideId, src, onState }: { lessonId: string; slideId: string; src: string; onState?: (state: "loading" | "playing" | "done" | "error", message?: string) => void }) {
   onState?.("loading");
-  const player = new PcmPlayer();
   try {
+    const cached = await cachedNarrationUrl(lessonId, slideId);
+    if (cached.url) {
+      const audio = new Audio(cached.url);
+      audio.onended = () => onState?.("done");
+      await audio.play();
+      onState?.("playing");
+      return;
+    }
+    const player = new PcmPlayer();
     await player.resume();
-    const { session } = await connect({ mode: "NARRATION", lessonId, slideId }, (audio) => { player.play(audio); onState?.("playing"); }, (message) => onState?.("error", message));
+    const { session, targetLanguageCode } = await connect({ mode: "NARRATION", lessonId, slideId }, (audio) => { player.play(audio); onState?.("playing"); }, (message) => onState?.("error", message));
     const response = await fetch(src);
     const bytes = await response.arrayBuffer();
     const context = new AudioContext();
@@ -123,9 +163,14 @@ export async function playNarrationTranslation({ lessonId, slideId, src, onState
       await new Promise((resolve) => window.setTimeout(resolve, 100));
     }
     session.sendRealtimeInput({ audioStreamEnd: true });
-    window.setTimeout(() => { session.close(); void context.close(); void player.close(); onState?.("done"); }, 4000);
+    window.setTimeout(() => {
+      session.close();
+      void context.close();
+      void saveNarrationTranslation(lessonId, slideId, targetLanguageCode, player.wavBlob());
+      void player.close();
+      onState?.("done");
+    }, 4000);
   } catch (error) {
-    await player.close();
     onState?.("error", error instanceof Error ? error.message : "Translation could not start.");
   }
 }
