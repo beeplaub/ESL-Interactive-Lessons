@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { BadgeCheck, ChevronRight, KeyRound, Mail, ShieldCheck, Sparkles, Trophy, UserRound, LogOut } from "lucide-react";
 import { LearnerAppShell } from "@/components/LearnerAppShell";
+import { LearnerPageHero } from "@/components/LearnerPageHero";
 import { requireUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { AvatarUploader } from "@/components/AvatarUploader";
@@ -25,26 +26,17 @@ export default async function ProfilePage() {
   return (
     <LearnerAppShell active="profile" showRightSidebar>
       <section className="grid gap-5">
-        <div className="relative overflow-hidden rounded-[24px] bg-gradient-to-br from-[#1A1060] via-[#0C1945] to-[#0E1F5A] p-4 text-white shadow-[0_16px_48px_rgba(20,23,80,.25)] sm:p-5">
-          <div className="absolute -right-16 -top-20 size-60 rounded-full bg-[#6C3BFF]/25" />
-          <div className="absolute right-36 top-10 size-20 rounded-full bg-[#3CCEFF]/20 blur-xl" />
-          <div className="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-bold text-white/80">
-                <Sparkles className="size-4" /> Your BrenUp profile
-              </span>
-              <h1 className="mt-3 text-2xl font-extrabold leading-tight tracking-tight sm:text-3xl">{displayName}</h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-white/65">
-                Keep your learning identity, CEFR level, avatar, and account security tidy in one place.
-              </p>
-            </div>
-            <div className="grid gap-2 sm:grid-cols-3 lg:min-w-[420px]">
+        <LearnerPageHero
+          eyebrow="Your BrenUp profile"
+          eyebrowIcon={Sparkles}
+          title={displayName}
+          description="Keep your learning identity, CEFR level, avatar, and account security tidy in one place."
+          aside={<div className="grid gap-2 sm:grid-cols-3 lg:min-w-[420px]">
               <ProfileMetric icon={BadgeCheck} value={level ?? "--"} label={level ? levelGuidance[level].name : "Level pending"} />
               <ProfileMetric icon={ShieldCheck} value={providerLabel} label="Sign-in method" />
               <ProfileMetric icon={Trophy} value="Active" label="Learning status" />
-            </div>
-          </div>
-        </div>
+          </div>}
+        />
 
         {missingName ? (
           <div className="flex items-start gap-3 rounded-[20px] border border-[#BCEBDA] bg-[#F1FFF8] p-4 shadow-[0_8px_22px_rgba(0,0,0,.04)]">
@@ -58,7 +50,7 @@ export default async function ProfilePage() {
 
         <section className="grid gap-5 xl:grid-cols-[360px_minmax(0,1fr)]">
           <aside className="grid content-start gap-5">
-            <div className="rounded-[24px] border border-[#ECECF5] bg-white p-6 text-center shadow-[0_12px_32px_rgba(0,0,0,.06)]">
+            <div className="br-learner-card p-6 text-center">
               <AvatarUploader initialUrl={profile?.avatar_url ?? null} initials={initials} />
               <h2 className="mt-5 text-xl font-extrabold">{displayName}</h2>
               <p className="mt-1 break-words text-sm font-semibold text-[#6E738D]">{user.email}</p>
@@ -69,7 +61,7 @@ export default async function ProfilePage() {
               </form>
             </div>
 
-            <div className="rounded-[22px] border border-[#ECECF5] bg-white p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)]">
+            <div className="br-learner-card p-5">
               <div className="flex items-center gap-3">
                 <span className="grid size-11 place-items-center rounded-[14px] bg-[#EEEAFB] text-[#6C3BFF]"><BadgeCheck className="size-5" /></span>
                 <div>
@@ -93,7 +85,7 @@ export default async function ProfilePage() {
           </aside>
 
           <div className="grid gap-5">
-            <section className="rounded-[24px] border border-[#ECECF5] bg-white p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)] sm:p-6">
+            <section className="br-learner-card p-5 sm:p-6">
               <div className="mb-5 flex items-center gap-3">
                 <span className="grid size-11 place-items-center rounded-[14px] bg-[#E7FBF4] text-[#00A978]"><UserRound className="size-5" /></span>
                 <div>
@@ -104,7 +96,7 @@ export default async function ProfilePage() {
               <ProfileForm email={user.email ?? ""} firstName={profile?.first_name ?? ""} lastName={profile?.last_name ?? ""} />
             </section>
 
-            <section className="rounded-[24px] border border-[#ECECF5] bg-white p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)] sm:p-6">
+            <section className="br-learner-card p-5 sm:p-6">
               <div className="mb-4 flex items-center gap-3">
                 <span className={`grid size-11 place-items-center rounded-[14px] ${isEmailUser ? "bg-[#FFF5E7] text-[#E47A00]" : "bg-[#F6F7FB] text-[#6E738D]"}`}><KeyRound className="size-5" /></span>
                 <div>
