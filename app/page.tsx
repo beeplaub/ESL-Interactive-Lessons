@@ -13,6 +13,7 @@ import {
   PlayCircle
 } from "lucide-react";
 import { getFreshProfile, isStaff } from "@/lib/auth";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
@@ -24,6 +25,7 @@ export const metadata: Metadata = {
 
 export default async function HomePage() {
   const supabase = await createClient();
+  const admin = createAdminClient();
   const {
     data: { user }
   } = await supabase.auth.getUser();
@@ -31,6 +33,22 @@ export default async function HomePage() {
   if (user) {
     const profile = await getFreshProfile(user.id);
     if (isStaff(profile?.role)) redirect("/admin");
+  }
+
+  const { data: featuredCourses } = await admin
+    .from("courses")
+    .select("id,title,level,thumbnail_path,cover_image_path,duration_minutes,estimated_completion_minutes,created_at")
+    .eq("status", "PUBLISHED")
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false })
+    .limit(9);
+  const courseIds = (featuredCourses ?? []).map((course) => course.id);
+  const { data: featuredCourseItems } = courseIds.length
+    ? await admin.from("course_items").select("course_id").in("course_id", courseIds)
+    : { data: [] };
+  const lessonCountByCourse = new Map<string, number>();
+  for (const item of featuredCourseItems ?? []) {
+    lessonCountByCourse.set(item.course_id, (lessonCountByCourse.get(item.course_id) ?? 0) + 1);
   }
 
   return (
@@ -111,7 +129,7 @@ export default async function HomePage() {
             <div><h2 className="text-4xl font-bold tracking-tight text-[#1b1b3a]">Featured Courses</h2><p className="mt-2 text-[#6e6e85]">Curated paths from our top linguistic experts.</p></div>
             <Link href="/courses" className="inline-flex items-center gap-2 font-bold text-[#28235a] transition hover:gap-3">View all courses <ChevronRight className="size-5" /></Link>
           </div>
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3"><CourseCard title="Everyday Conversational Mastery" level="A2 Elementary" hours="12 Hours" lessons="24 Lessons" image="linear-gradient(135deg, #ffb199 0%, #3e3a72 100%)" /><CourseCard title="Business Pitching & Presentation" level="B2 Upper Int" hours="18 Hours" lessons="36 Lessons" image="linear-gradient(135deg, #3e3a72 0%, #aba6e6 100%)" /><CourseCard title="Linguistic Nuance & Idioms" level="C1 Advanced" hours="15 Hours" lessons="30 Lessons" image="linear-gradient(135deg, #f2b705 0%, #28235a 100%)" /></div>
+          {featuredCourses?.length ? <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">{featuredCourses.map((course, index) => <CourseCard key={course.id} course={course} lessonCount={lessonCountByCourse.get(course.id) ?? 0} tone={index} />)}</div> : <div className="rounded-[20px] border border-dashed border-[#c8c5d1] bg-white px-6 py-12 text-center text-[#6e6e85]"><p className="font-semibold text-[#1b1b3a]">No published courses yet</p><p className="mt-2 text-sm">Courses will appear here as soon as they are published.</p></div>}
         </div>
       </section>
 
@@ -136,8 +154,27 @@ function ValueCard({ icon: Icon, title, text, tone }: { icon: React.ElementType;
   );
 }
 
-function CourseCard({ title, level, hours, lessons, image }: { title: string; level: string; hours: string; lessons: string; image: string }) {
+function CourseCard({ course, lessonCount, tone }: { course: { id: string; title: string; level: string | null; thumbnail_path: string | null; cover_image_path: string | null; duration_minutes: number | null; estimated_completion_minutes: number | null }; lessonCount: number; tone: number }) {
+  const imageUrl = resolveCourseImage(course.thumbnail_path || course.cover_image_path);
+  const tones = ["from-[#ffb199] to-[#3e3a72]", "from-[#3e3a72] to-[#aba6e6]", "from-[#f2b705] to-[#28235a]", "from-[#2fae7a] to-[#28235a]", "from-[#ff7a59] to-[#f2b705]", "from-[#28235a] to-[#ffb199]"];
+  const duration = course.estimated_completion_minutes ?? course.duration_minutes;
   return (
-    <Link href="/courses" className="group overflow-hidden rounded-[20px] border border-[#e4e4ee] bg-white transition hover:shadow-2xl"><div className="relative h-48 overflow-hidden" style={{ background: image }}><div className="absolute inset-0 bg-[#1b1b3a]/20 transition group-hover:bg-transparent" /><span className="absolute right-3 top-3 rounded bg-white px-2 py-1 font-mono text-sm font-semibold text-[#28235a]">{level}</span></div><div className="p-6"><h3 className="text-xl font-semibold text-[#1b1b3a]">{title}</h3><div className="mt-4 flex gap-4 text-sm text-[#6e6e85]"><span className="inline-flex items-center gap-1"><Clock3 className="size-4" /> {hours}</span><span className="inline-flex items-center gap-1"><PlayCircle className="size-4" /> {lessons}</span></div></div></Link>
+    <Link href={`/courses/${course.id}`} className="group overflow-hidden rounded-[20px] border border-[#e4e4ee] bg-white transition hover:shadow-2xl">
+      <div className={`relative h-48 overflow-hidden bg-gradient-to-br ${tones[tone % tones.length]}`}>
+        {imageUrl ? <>
+          {/* eslint-disable-next-line @next/next/no-img-element -- course images may be any administrator-supplied URL. */}
+          <img src={imageUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
+          <div className="absolute inset-0 bg-[#1b1b3a]/25 transition group-hover:bg-transparent" />
+        </> : null}
+        <span className="absolute right-3 top-3 rounded bg-white px-2 py-1 font-mono text-sm font-semibold text-[#28235a]">{course.level || "Course"}</span>
+      </div>
+      <div className="p-6"><h3 className="line-clamp-2 text-xl font-semibold text-[#1b1b3a]">{course.title}</h3><div className="mt-4 flex gap-4 text-sm text-[#6e6e85]">{duration ? <span className="inline-flex items-center gap-1"><Clock3 className="size-4" /> {duration} min</span> : null}<span className="inline-flex items-center gap-1"><PlayCircle className="size-4" /> {lessonCount} {lessonCount === 1 ? "Lesson" : "Lessons"}</span></div></div>
+    </Link>
   );
+}
+
+function resolveCourseImage(value?: string | null) {
+  if (!value) return null;
+  if (/^https?:\/\//i.test(value)) return value;
+  return value.startsWith("/") ? value : `/${value}`;
 }
