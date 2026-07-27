@@ -50,18 +50,16 @@ export async function POST(request: Request) {
     if (!activity || activity.activity_type !== "LIVE_SPEAK_TRANSLATE") return NextResponse.json({ error: "This live activity is unavailable." }, { status: 404 });
     const config = (activity.activity_data ?? {}) as Record<string, unknown>;
     maxSeconds = Math.max(5, Math.min(600, Number(config.max_seconds_per_attempt) || 30));
-    const dailyAllowance = Math.max(maxSeconds, Math.min(3600, Number(config.total_seconds_per_learner) || 120));
-    const since = new Date(); since.setHours(0, 0, 0, 0);
+    const totalAllowance = Math.max(maxSeconds, Math.min(3600, Number(config.total_seconds_per_learner) || 120));
     const { data: usage } = await admin
       .from("live_translation_usage")
       .select("seconds_used")
       .eq("user_id", user.id)
       .eq("lesson_slide_activity_id", body.activityId)
-      .eq("usage_kind", "SPEAK_TRANSLATE")
-      .gte("created_at", since.toISOString());
+      .eq("usage_kind", "SPEAK_TRANSLATE");
     const used = (usage ?? []).reduce((total, item) => total + Number(item.seconds_used || 0), 0);
-    const remaining = Math.max(0, dailyAllowance - used);
-    if (remaining < 1) return NextResponse.json({ error: "You have used today’s speaking allowance for this activity." }, { status: 429 });
+    const remaining = Math.max(0, totalAllowance - used);
+    if (remaining < 1) return NextResponse.json({ error: "You have used your speaking allowance for this activity." }, { status: 429 });
     maxSeconds = Math.min(maxSeconds, remaining);
   }
 

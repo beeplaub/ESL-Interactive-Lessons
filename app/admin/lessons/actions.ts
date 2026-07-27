@@ -1831,7 +1831,7 @@ function defaultActivityData(activityType: string, prompt: string): Json {
     return { prompt, character: "Shop Assistant", first_turn: "Hello! How can I help you today?" };
   }
   if (activityType === "LIVE_SPEAK_TRANSLATE") {
-    return { prompt, max_seconds_per_attempt: 30, total_seconds_per_learner: 120, max_attempts: 3, show_transcript: true };
+    return { prompt, max_seconds_per_attempt: 30, total_seconds_per_learner: 120, show_transcript: true };
   }
   return { prompt, questions: [{ id: 1, text: "", options: { A: "", B: "", C: "", D: "" }, answer: "A" }] };
 }
