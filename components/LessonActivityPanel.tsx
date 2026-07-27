@@ -626,7 +626,7 @@ function LiveSpeakTranslatePanel({ activity, lessonId, previewOnly, onNext }: { 
   const [state, setState] = useState<"idle" | "starting" | "recording" | "finished" | "error">("idle");
   const [secondsLeft, setSecondsLeft] = useState(initialSeconds);
   const [allowance, setAllowance] = useState<number | null>(null);
-  const [heard, setHeard] = useState("");
+  const [translation, setTranslation] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const stopRef = useRef<(() => void) | null>(null);
   const startedAt = useRef(0);
@@ -652,11 +652,11 @@ function LiveSpeakTranslatePanel({ activity, lessonId, previewOnly, onNext }: { 
   function start() {
     if (previewOnly) { setMessage("Preview only. This opens for learners in a published lesson."); return; }
     if (!lessonId) { setMessage("This activity needs a saved lesson first."); return; }
-    setMessage(null); setHeard(""); setState("starting");
+    setMessage(null); setTranslation(""); setState("starting");
     void startSpeakTranslation({
       lessonId, activityId: activity.id,
       onAudio: () => setMessage("English audio is playing."),
-      onTranscript: (text) => setHeard((current) => current ? `${current} ${text}` : text),
+      onTranscript: (text) => setTranslation((current) => current ? `${current} ${text}` : text),
       onReady: (stop, maxSeconds) => { stopRef.current = stop; startedAt.current = Date.now(); setSecondsLeft(maxSeconds || initialSeconds); setAllowance(maxSeconds); setState("recording"); },
       onError: (error) => { setMessage(error); setState("error"); },
     });
@@ -674,7 +674,7 @@ function LiveSpeakTranslatePanel({ activity, lessonId, previewOnly, onNext }: { 
         <p className="text-sm font-bold text-ink">{state === "recording" ? `${secondsLeft}s left in this try` : state === "finished" ? "Translation complete" : "Tap to speak"}</p>
         {allowance !== null ? <p className="text-xs font-semibold text-black/50">{allowance}s available for this live activity</p> : null}
       </div>
-      {showTranscript && heard ? <div className="mt-4 rounded-lg border border-black/8 bg-white/80 p-3 text-sm text-black/70"><span className="mr-2 text-xs font-bold uppercase text-violetglow">Heard</span>{heard}</div> : null}
+      {showTranscript && translation ? <div className="mt-4 rounded-lg border border-black/8 bg-white/80 p-3 text-sm text-black/70"><span className="mr-2 text-xs font-bold uppercase text-violetglow">English</span>{translation}</div> : null}
       {message ? <p className={`mt-3 text-center text-xs ${state === "error" ? "text-coral" : "text-black/55"}`}>{message}</p> : null}
       {state === "finished" ? <button type="button" onClick={onNext} className="mt-4 w-full rounded-lg bg-ink px-4 py-2.5 text-sm font-bold text-white">Continue</button> : null}
     </section>

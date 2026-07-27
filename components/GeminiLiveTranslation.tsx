@@ -91,9 +91,9 @@ function extractAudio(message: unknown) {
   return record.serverContent?.modelTurn?.parts?.map((part) => part.inlineData?.data).filter((data): data is string => Boolean(data)) ?? [];
 }
 
-function extractTranscript(message: unknown) {
+function extractTranslationTranscript(message: unknown) {
   const record = message as { serverContent?: { inputTranscription?: { text?: string }; outputTranscription?: { text?: string } } };
-  return [record.serverContent?.inputTranscription?.text, record.serverContent?.outputTranscription?.text].filter((text): text is string => Boolean(text));
+  return [record.serverContent?.outputTranscription?.text].filter((text): text is string => Boolean(text));
 }
 
 async function connect(request: TokenRequest, onAudio: (data: string) => void, onError: (message: string) => void, onTranscript?: (text: string) => void) {
@@ -106,9 +106,10 @@ async function connect(request: TokenRequest, onAudio: (data: string) => void, o
       inputAudioTranscription: {},
       outputAudioTranscription: {},
       translationConfig: { targetLanguageCode: token.targetLanguageCode, echoTargetLanguage: true },
+      ...(request.mode === "SPEAK_TRANSLATE" ? { realtimeInputConfig: { automaticActivityDetection: { silenceDurationMs: 3000 } } } : {}),
     },
     callbacks: {
-      onmessage: (message) => { extractAudio(message).forEach(onAudio); extractTranscript(message).forEach((text) => onTranscript?.(text)); },
+      onmessage: (message) => { extractAudio(message).forEach(onAudio); extractTranslationTranscript(message).forEach((text) => onTranscript?.(text)); },
       onerror: () => onError("The live translation connection was interrupted."),
     },
   });

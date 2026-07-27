@@ -3213,7 +3213,7 @@ function LiveSpeakTranslateEditor({ activity, onSave }: { activity: Activity; on
           <input type="number" min={perAttempt} max={3600} value={total} onChange={(event) => setTotal(Math.max(perAttempt, Number(event.target.value) || perAttempt))} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
         </label>
       </div>
-      <label className="flex items-center gap-2 text-sm text-black/70"><input type="checkbox" checked={showTranscript} onChange={(event) => setShowTranscript(event.target.checked)} /> Show the spoken and translated text when available</label>
+      <label className="flex items-center gap-2 text-sm text-black/70"><input type="checkbox" checked={showTranscript} onChange={(event) => setShowTranscript(event.target.checked)} /> Show the English translation text when available</label>
       <p className="rounded-md border border-violetglow/15 bg-violetglow/[0.04] p-3 text-xs text-black/60">Learners speak in Bangla and hear English audio immediately. Their allowance is checked before every try and updates as they use it.</p>
       <SaveButton onClick={() => onSave({ prompt, max_seconds_per_attempt: perAttempt, total_seconds_per_learner: total, show_transcript: showTranscript } as Json, !prompt.trim())} />
     </div>

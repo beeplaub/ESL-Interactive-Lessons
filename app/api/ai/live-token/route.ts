@@ -77,6 +77,7 @@ export async function POST(request: Request) {
             inputAudioTranscription: {},
             outputAudioTranscription: {},
             translationConfig: { targetLanguageCode, echoTargetLanguage: true },
+            ...(body.mode === "SPEAK_TRANSLATE" ? { realtimeInputConfig: { automaticActivityDetection: { silenceDurationMs: 3000 } } } : {}),
           },
         },
         lockAdditionalFields: [],
