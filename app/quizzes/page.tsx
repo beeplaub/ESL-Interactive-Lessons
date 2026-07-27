@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { QuizzesGrid } from "@/components/QuizzesGrid";
 import { LearnerAppShell } from "@/components/LearnerAppShell";
+import { LearnerPageHero } from "@/components/LearnerPageHero";
 import { Gamepad2, Sparkles } from "lucide-react";
 
 export default async function QuizzesPage() {
@@ -47,21 +48,12 @@ export default async function QuizzesPage() {
   return (
     <LearnerAppShell active="quizzes" showRightSidebar>
       <section>
-        <div className="relative self-start overflow-hidden rounded-[24px] bg-gradient-to-br from-[#1A1060] via-[#0C1945] to-[#0E1F5A] p-4 text-white shadow-[0_16px_48px_rgba(20,23,80,.25)] sm:p-5">
-          <div className="absolute -right-16 -top-20 size-60 rounded-full bg-[#6C3BFF]/25" />
-          <div className="absolute right-36 top-10 size-20 rounded-full bg-[#3CCEFF]/20 blur-xl" />
-          <div className="relative z-10">
-            <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-bold text-white/80">
-              <Sparkles className="size-4" /> Free quiz arena
-            </span>
-            <h1 className="mt-3 max-w-3xl text-2xl font-extrabold leading-tight tracking-tight sm:text-3xl">
-              Choose a quiz, answer one question at a time, and climb.
-            </h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-white/65">
-              Practice grammar, vocabulary, reading, and functional English with instant feedback, optional timers, saved scores, and leaderboard points.
-            </p>
-          </div>
-        </div>
+        <LearnerPageHero
+          eyebrow="Free quiz arena"
+          eyebrowIcon={Sparkles}
+          title="Choose a quiz, answer one question at a time, and climb."
+          description="Practice grammar, vocabulary, reading, and functional English with instant feedback, optional timers, saved scores, and leaderboard points."
+        />
       </section>
 
       <section id="quiz-library" className="mt-6">
