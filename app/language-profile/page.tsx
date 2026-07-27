@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ArrowRight, CheckCircle2, Sparkles, Target, TrendingUp } from "lucide-react";
 import { LearnerAppShell } from "@/components/LearnerAppShell";
+import { LearnerPageHero } from "@/components/LearnerPageHero";
 import { requireUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { summarizeSkillEvidence, summarizeTargetEvidence } from "@/lib/obeReports";
@@ -63,22 +64,13 @@ export default async function LanguageProfilePage() {
 
   return (
     <LearnerAppShell active="language-profile" showRightSidebar>
-      <section className="rounded-[24px] bg-gradient-to-br from-[#6C3BFF] via-[#4223C9] to-[#06184A] p-4 text-white shadow-[0_18px_45px_rgba(41,28,135,.25)] sm:p-5">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-white/65">Language Profile</p>
-            <h1 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">Your English evidence map</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-white/75">
-              BrenUp tracks what your answers prove over time: skills, learning targets, confidence, and Can-Do growth.
-            </p>
-          </div>
-          <div className="grid grid-cols-3 gap-2 text-center sm:min-w-[360px]">
-            <Stat label="Evidence" value={String(responses?.length ?? 0)} />
-            <Stat label="Attempts" value={String(attempts?.length ?? 0)} />
-            <Stat label="Current" value={totalPossible ? pct(overall) : "—"} />
-          </div>
-        </div>
-      </section>
+      <LearnerPageHero
+        eyebrow="Language profile"
+        eyebrowIcon={Sparkles}
+        title="Your English evidence map"
+        description="BrenUp tracks what your answers prove over time: skills, learning targets, confidence, and Can-Do growth."
+        aside={<div className="grid grid-cols-3 gap-2 text-center sm:min-w-[340px]"><Stat label="Evidence" value={String(responses?.length ?? 0)} /><Stat label="Attempts" value={String(attempts?.length ?? 0)} /><Stat label="Current" value={totalPossible ? pct(overall) : "—"} /></div>}
+      />
 
       {responses?.length ? (
         <div className="grid gap-5 xl:grid-cols-[1fr_380px]">
