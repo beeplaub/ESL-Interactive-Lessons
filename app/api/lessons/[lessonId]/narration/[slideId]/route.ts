@@ -10,7 +10,7 @@ export async function GET(_req: Request, { params }: Params) {
   const admin = createAdminClient();
   const { data } = await admin
     .from("lesson_audio_files")
-    .select("id,storage_path,label")
+    .select("id,storage_path,label,translation_enabled,narration_language")
     .eq("lesson_id", lessonId)
     .eq("slide_id", slideId)
     .eq("label", "narration")
@@ -22,7 +22,12 @@ export async function GET(_req: Request, { params }: Params) {
     .from("lesson-audio")
     .createSignedUrl(data.storage_path, 60 * 60);
 
-  return NextResponse.json({ url: signed?.signedUrl ?? null, id: data.id });
+  return NextResponse.json({
+    url: signed?.signedUrl ?? null,
+    id: data.id,
+    translationEnabled: Boolean(data.translation_enabled),
+    narrationLanguage: data.narration_language === "bn" ? "bn" : "en",
+  });
 }
 
 // POST — upload audio blob
@@ -68,7 +73,11 @@ export async function POST(req: Request, { params }: Params) {
   if (existing) {
     await admin
       .from("lesson_audio_files")
-      .update({ storage_path: path })
+    .update({
+      storage_path: path,
+      translation_enabled: formData.get("translationEnabled") === "true",
+      narration_language: formData.get("narrationLanguage") === "bn" ? "bn" : "en",
+    })
       .eq("id", existing.id);
   } else {
     await admin.from("lesson_audio_files").insert({
@@ -77,6 +86,8 @@ export async function POST(req: Request, { params }: Params) {
       storage_path: path,
       label: "narration",
       linked_slide_number: slide?.slide_number ?? null,
+      translation_enabled: formData.get("translationEnabled") === "true",
+      narration_language: formData.get("narrationLanguage") === "bn" ? "bn" : "en",
     });
   }
 
@@ -85,6 +96,28 @@ export async function POST(req: Request, { params }: Params) {
     .createSignedUrl(path, 60 * 60);
 
   return NextResponse.json({ url: signed?.signedUrl ?? null });
+}
+
+// PATCH — update the creator-controlled translation settings without replacing audio.
+export async function PATCH(req: Request, { params }: Params) {
+  await requireAdmin();
+  const { lessonId, slideId } = await params;
+  const body = await req.json().catch(() => null) as { translationEnabled?: boolean; narrationLanguage?: string } | null;
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("lesson_audio_files")
+    .update({
+      translation_enabled: Boolean(body?.translationEnabled),
+      narration_language: body?.narrationLanguage === "bn" ? "bn" : "en",
+    })
+    .eq("lesson_id", lessonId)
+    .eq("slide_id", slideId)
+    .eq("label", "narration");
+  if (error) {
+    console.error("Narration translation settings update failed", error);
+    return NextResponse.json({ error: "Could not save translation settings." }, { status: 500 });
+  }
+  return NextResponse.json({ ok: true });
 }
 
 // DELETE — remove narration

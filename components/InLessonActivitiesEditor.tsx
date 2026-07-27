@@ -124,6 +124,7 @@ function labelFor(type: string) {
   if (type === "CREATIVE_WRITING") return "Prompted Creative Writing";
   if (type === "PEER_REVIEW_EDITING") return "Peer Review / Collaborative Editing";
   if (type === "AI_ROLEPLAY") return "AI Conversation Roleplay";
+  if (type === "LIVE_SPEAK_TRANSLATE") return "Live Bangla to English Speaking";
   return `${type.replaceAll("_", " ")} Activity`;
 }
 
@@ -672,6 +673,7 @@ function ActivityPanel({
               {activity.activity_type === "CREATIVE_WRITING" ? <CreativeWritingEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "PEER_REVIEW_EDITING" ? <PeerReviewEditingEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "AI_ROLEPLAY" ? <AiRoleplayEditor activity={activity} onSave={save} /> : null}
+              {activity.activity_type === "LIVE_SPEAK_TRANSLATE" ? <LiveSpeakTranslateEditor activity={activity} onSave={save} /> : null}
               {!["MCQ", "GAP_FILL", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "SUMMARIZATION", "INFERENCE_DETECTION", "HEADINGS_MATCHING", "SKIM_CHALLENGE", "PARAPHRASE_ID", "DICTATION", "LISTEN_AND_SELECT", "SHADOWING", "NOTE_TAKING_CHALLENGE", "SOUND_DISCRIMINATION", "LISTEN_AND_GAP_FILL", "SENTENCE_COMPLETION", "ESSAY_WRITING", "EMAIL_LETTER_WRITING", "TRANSLATION", "PARAPHRASE_PRACTICE", "SENTENCE_COMBINING", "CREATIVE_WRITING", "PEER_REVIEW_EDITING", "AI_ROLEPLAY"].includes(activity.activity_type) ? (
                 <p className="rounded-md bg-slate-50 p-3 text-sm text-black/60">
                   This activity type has starter data and preview support. A detailed visual editor for it will be added in the next activity-builder pass.
@@ -3192,3 +3194,32 @@ function PeerReviewEditingEditor({
   );
 }
 
+function LiveSpeakTranslateEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
+  const initial = asRecord(activity.activity_data);
+  const [prompt, setPrompt] = useState(String(initial.prompt || "Speak in Bangla. Listen to your English translation."));
+  const [perAttempt, setPerAttempt] = useState(Math.max(5, Number(initial.max_seconds_per_attempt) || 30));
+  const [total, setTotal] = useState(Math.max(5, Number(initial.total_seconds_per_learner) || 120));
+  const [attempts, setAttempts] = useState(Math.max(1, Number(initial.max_attempts) || 3));
+  const [showTranscript, setShowTranscript] = useState(initial.show_transcript !== false);
+  return (
+    <div className="grid gap-4">
+      <label className="text-sm font-medium">Instruction
+        <textarea value={prompt} onChange={(event) => setPrompt(event.target.value)} rows={2} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+      </label>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <label className="text-sm font-medium">Seconds per try
+          <input type="number" min={5} max={600} value={perAttempt} onChange={(event) => setPerAttempt(Math.max(5, Number(event.target.value) || 5))} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+        </label>
+        <label className="text-sm font-medium">Daily seconds per learner
+          <input type="number" min={perAttempt} max={3600} value={total} onChange={(event) => setTotal(Math.max(perAttempt, Number(event.target.value) || perAttempt))} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+        </label>
+        <label className="text-sm font-medium">Tries allowed
+          <input type="number" min={1} max={20} value={attempts} onChange={(event) => setAttempts(Math.max(1, Number(event.target.value) || 1))} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+        </label>
+      </div>
+      <label className="flex items-center gap-2 text-sm text-black/70"><input type="checkbox" checked={showTranscript} onChange={(event) => setShowTranscript(event.target.checked)} /> Show the spoken and translated text when available</label>
+      <p className="rounded-md border border-violetglow/15 bg-violetglow/[0.04] p-3 text-xs text-black/60">Learners speak in Bangla and hear English audio immediately. The daily allowance is checked before every try and updates as they use it.</p>
+      <SaveButton onClick={() => onSave({ prompt, max_seconds_per_attempt: perAttempt, total_seconds_per_learner: total, max_attempts: attempts, show_transcript: showTranscript } as Json, !prompt.trim())} />
+    </div>
+  );
+}

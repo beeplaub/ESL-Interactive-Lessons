@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { TouchEvent } from "react";
-import { ArrowLeft, ArrowRight, BookOpen, CheckCircle2, ChevronLeft, Lock, NotebookPen, Pause, Play, PenLine, RotateCcw } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, CheckCircle2, ChevronLeft, Languages, Lock, NotebookPen, Pause, Play, PenLine, RotateCcw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { LessonActivityPanel, lessonActivityTotalPoints } from "@/components/LessonActivityPanel";
@@ -10,6 +10,7 @@ import { LessonBlockPreview } from "@/components/LessonBlockPreview";
 import { createClient } from "@/lib/supabase/client";
 import { LiveTeacherToolbar } from "@/components/LiveTeacherToolbar";
 import type { Json } from "@/types/database.types";
+import { playNarrationTranslation } from "@/components/GeminiLiveTranslation";
 
 type Lesson = { id: string; title: string; topic: string | null; level: string | null; timer_minutes?: number | null };
 type Slide = {
@@ -23,7 +24,7 @@ type Progress = { current_slide_number: number; completed: boolean } | null;
 type ActivityAttempt = { lesson_slide_activity_id: string | null; score: number; total: number; answers: Json | null; completed_at: string };
 type LiveSessionMode = { sessionId: string; role: "TEACHER" | "STUDENT"; initialSlideNumber: number; navigationLocked: boolean };
 
-function NarrationPill({ src }: { src: string }) {
+function NarrationPill({ src, lessonId, slideId, translationEnabled = false, narrationLanguage = "en" }: { src: string; lessonId: string; slideId: string; translationEnabled?: boolean; narrationLanguage?: "en" | "bn" }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -31,6 +32,9 @@ function NarrationPill({ src }: { src: string }) {
   const [expanded, setExpanded] = useState(false);
   const [speed, setSpeed] = useState(1);
   const [autoplayBlocked, setAutoplayBlocked] = useState(false);
+  const [originalFinished, setOriginalFinished] = useState(false);
+  const [translationState, setTranslationState] = useState<"idle" | "loading" | "playing" | "done" | "error">("idle");
+  const [translationError, setTranslationError] = useState<string | null>(null);
 
   // Autoplay on mount
   useEffect(() => {
@@ -38,6 +42,8 @@ function NarrationPill({ src }: { src: string }) {
     if (!audio) return;
     audio.playbackRate = 1;
     setSpeed(1);
+    setOriginalFinished(false);
+    setTranslationState("idle");
     const attempt = audio.play();
     if (attempt !== undefined) {
       attempt
@@ -86,7 +92,7 @@ function NarrationPill({ src }: { src: string }) {
         preload="auto"
         onPlay={() => setPlaying(true)}
         onPause={() => setPlaying(false)}
-        onEnded={() => { setPlaying(false); setCurrentTime(0); }}
+        onEnded={() => { setPlaying(false); setCurrentTime(duration); setOriginalFinished(true); }}
         onTimeUpdate={() => setCurrentTime(audioRef.current?.currentTime ?? 0)}
         onLoadedMetadata={() => setDuration(audioRef.current?.duration ?? 0)}
       />
@@ -114,6 +120,18 @@ function NarrationPill({ src }: { src: string }) {
           >
             {playing ? <Pause size={10} /> : <Play size={10} />}
           </button>
+          {translationEnabled && originalFinished ? (
+            <button
+              type="button"
+              disabled={translationState === "loading" || translationState === "playing"}
+              onClick={() => void playNarrationTranslation({ lessonId, slideId, src, onState: (state, message) => { setTranslationState(state); setTranslationError(message ?? null); } })}
+              aria-label={narrationLanguage === "bn" ? "Listen in English" : "Listen in Bangla"}
+              title={narrationLanguage === "bn" ? "Listen in English" : "Listen in Bangla"}
+              className="flex size-6 shrink-0 items-center justify-center rounded-full bg-white/15 text-white transition hover:bg-violetglow disabled:opacity-60"
+            >
+              {translationState === "loading" ? <span className="size-3 animate-spin rounded-full border-2 border-white/30 border-t-white" /> : <Languages size={11} />}
+            </button>
+          ) : null}
 
           {/* Progress bar + time */}
           <button
@@ -177,17 +195,19 @@ function NarrationPill({ src }: { src: string }) {
           </button>
         </div>
       )}
+      {translationError ? <p className="max-w-48 text-[10px] text-amber-200">{translationError}</p> : null}
     </div>
   );
 }
 
 export function BuilderLessonPlayer({
-  lesson, slides, blocks, activities, initialProgress, activityAttempts = [], initialNotes = {}, narrationMap = {}, courseItemId = null, backHref = "/courses", liveSession = null,
+  lesson, slides, blocks, activities, initialProgress, activityAttempts = [], initialNotes = {}, narrationMap = {}, narrationConfigMap = {}, courseItemId = null, backHref = "/courses", liveSession = null,
 }: {
   lesson: Lesson; slides: Slide[]; blocks: Block[]; activities: Activity[];
   initialProgress: Progress; activityAttempts?: ActivityAttempt[];
   initialNotes?: Record<string, string>;
   narrationMap?: Record<string, string>;
+  narrationConfigMap?: Record<string, { translationEnabled: boolean; narrationLanguage: "en" | "bn" }>;
   courseItemId?: string | null;
   backHref?: string;
   liveSession?: LiveSessionMode | null;
@@ -342,6 +362,7 @@ export function BuilderLessonPlayer({
 
   // Narration for current slide
   const narrationUrl = slide ? (narrationMap[slide.id] ?? null) : null;
+  const narrationConfig = slide ? narrationConfigMap[slide.id] : undefined;
 
   const saveNotes = useCallback((map: Record<string, string>) => {
     fetch(`/api/lessons/${lesson.id}/progress`, {
@@ -593,7 +614,7 @@ export function BuilderLessonPlayer({
                   Slide {index + 1} of {slides.length}
                 </p>
                 {narrationUrl && (
-                  <NarrationPill key={slide.id} src={narrationUrl} />
+                  <NarrationPill key={slide.id} src={narrationUrl} lessonId={lesson.id} slideId={slide.id} translationEnabled={narrationConfig?.translationEnabled} narrationLanguage={narrationConfig?.narrationLanguage} />
                 )}
               </div>
 
@@ -670,6 +691,7 @@ export function BuilderLessonPlayer({
                       activity_data: activity.activity_data,
                     }}
                     onNext={() => move(1)}
+                    lessonId={lesson.id}
                     courseItemId={courseItemId}
                     initialAttempt={latestAttemptByActivity.get(activity.id) ?? null}
                     attempts={savedActivityAttempts.filter((attempt) => attempt.lesson_slide_activity_id === activity.id)}

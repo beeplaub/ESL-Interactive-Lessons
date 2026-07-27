@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, Send, MessageCircle, Award, RefreshCw, Loader2, RotateCcw } from "lucide-react";
+import { ChevronLeft, ChevronRight, Send, MessageCircle, Award, RefreshCw, Loader2, Mic, Pause, RotateCcw } from "lucide-react";
 import { useState, useTransition, useRef, useCallback, useEffect } from "react";
 import { recordQuizAttempt } from "@/app/quizzes/actions";
 import { QuestionCard, hasAnswer, type QuizQuestion } from "@/components/QuizPlayer";
@@ -14,6 +14,7 @@ import { playCelebration, playCorrect, playPartial, playWrong } from "@/lib/gami
 import { ResultsOverview } from "@/components/gamification/ResultsOverview";
 import { computeBestStreak, NOTABLE_STREAK_THRESHOLD } from "@/lib/gamification/resultsOverview";
 import { StreakPopup } from "@/components/gamification/StreakPopup";
+import { startSpeakTranslation } from "@/components/GeminiLiveTranslation";
 
 type LessonSlideActivity = {
   id: string; activity_type: string; activity_data: Json | null;
@@ -611,10 +612,74 @@ function activityLabel(type: string) {
   if (type === "SOUND_DISCRIMINATION") return "Sound Discrimination";
   if (type === "LISTEN_AND_GAP_FILL") return "Gap Fill while Listening";
   if (type === "AI_ROLEPLAY") return "AI Conversation Roleplay";
+  if (type === "LIVE_SPEAK_TRANSLATE") return "Live Bangla to English";
   return "Activity";
 }
 
 /* ─── AI Roleplay Chat ──────────────────────────────────────────── */
+
+function LiveSpeakTranslatePanel({ activity, lessonId, previewOnly, onNext }: { activity: LessonSlideActivity; lessonId: string | null; previewOnly: boolean; onNext: () => void }) {
+  const data = asRecord(activity.activity_data);
+  const prompt = String(data.prompt || "Speak in Bangla. Listen to your English translation.");
+  const initialSeconds = Math.max(5, Number(data.max_seconds_per_attempt) || 30);
+  const showTranscript = data.show_transcript !== false;
+  const [state, setState] = useState<"idle" | "starting" | "recording" | "finished" | "error">("idle");
+  const [secondsLeft, setSecondsLeft] = useState(initialSeconds);
+  const [allowance, setAllowance] = useState<number | null>(null);
+  const [heard, setHeard] = useState("");
+  const [message, setMessage] = useState<string | null>(null);
+  const stopRef = useRef<(() => void) | null>(null);
+  const startedAt = useRef(0);
+
+  useEffect(() => () => { stopRef.current?.(); }, []);
+  useEffect(() => {
+    if (state !== "recording") return;
+    const id = window.setInterval(() => setSecondsLeft((current) => {
+      if (current <= 1) { stopRef.current?.(); return 0; }
+      return current - 1;
+    }), 1000);
+    return () => window.clearInterval(id);
+  }, [state]);
+
+  function finish() {
+    const elapsed = Math.max(1, Math.round((Date.now() - startedAt.current) / 1000));
+    stopRef.current?.(); stopRef.current = null;
+    setState("finished");
+    setAllowance((current) => current === null ? current : Math.max(0, current - elapsed));
+    if (!previewOnly && lessonId) void fetch("/api/ai/live-translation-usage", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lessonId, activityId: activity.id, secondsUsed: elapsed }) });
+  }
+
+  function start() {
+    if (previewOnly) { setMessage("Preview only. This opens for learners in a published lesson."); return; }
+    if (!lessonId) { setMessage("This activity needs a saved lesson first."); return; }
+    setMessage(null); setHeard(""); setState("starting");
+    void startSpeakTranslation({
+      lessonId, activityId: activity.id,
+      onAudio: () => setMessage("English audio is playing."),
+      onTranscript: (text) => setHeard((current) => current ? `${current} ${text}` : text),
+      onReady: (stop, maxSeconds) => { stopRef.current = stop; startedAt.current = Date.now(); setSecondsLeft(maxSeconds || initialSeconds); setAllowance(maxSeconds); setState("recording"); },
+      onError: (error) => { setMessage(error); setState("error"); },
+    });
+  }
+
+  return (
+    <section className="rounded-xl border border-violetglow/15 bg-gradient-to-br from-violetglow/[0.08] via-white to-sky-50 p-4 shadow-sm">
+      <p className="text-xs font-extrabold uppercase tracking-wide text-violetglow">Live speaking</p>
+      <h2 className="mt-1 text-lg font-bold text-ink">{prompt}</h2>
+      <p className="mt-2 text-sm text-black/60">Speak naturally in Bangla. BrenUp will play the English translation as it arrives.</p>
+      <div className="mt-5 flex flex-col items-center gap-3">
+        <button type="button" onClick={state === "recording" ? finish : start} disabled={state === "starting"} className={`grid size-16 place-items-center rounded-full text-white shadow-lg transition hover:scale-105 disabled:opacity-60 ${state === "recording" ? "bg-coral" : "bg-violetglow"}`} aria-label={state === "recording" ? "Stop speaking" : "Start speaking"}>
+          {state === "starting" ? <Loader2 className="animate-spin" /> : state === "recording" ? <Pause /> : <Mic />}
+        </button>
+        <p className="text-sm font-bold text-ink">{state === "recording" ? `${secondsLeft}s left in this try` : state === "finished" ? "Translation complete" : "Tap to speak"}</p>
+        {allowance !== null ? <p className="text-xs font-semibold text-black/50">{allowance}s available for this live activity</p> : null}
+      </div>
+      {showTranscript && heard ? <div className="mt-4 rounded-lg border border-black/8 bg-white/80 p-3 text-sm text-black/70"><span className="mr-2 text-xs font-bold uppercase text-violetglow">Heard</span>{heard}</div> : null}
+      {message ? <p className={`mt-3 text-center text-xs ${state === "error" ? "text-coral" : "text-black/55"}`}>{message}</p> : null}
+      {state === "finished" ? <button type="button" onClick={onNext} className="mt-4 w-full rounded-lg bg-ink px-4 py-2.5 text-sm font-bold text-white">Continue</button> : null}
+    </section>
+  );
+}
 
 type ChatMessage = { sender: "AI" | "LEARNER"; text: string; corrections?: any };
 
@@ -1162,11 +1227,12 @@ function AiRoleplayPanel({
 /* ─── Main Activity Panel ────────────────────────────────────────── */
 
 export function LessonActivityPanel({
-  activity, onNext, previewOnly = false, initialAttempt = null, attempts = [], onSavedAttempt, courseItemId = null,
+  activity, onNext, previewOnly = false, initialAttempt = null, attempts = [], onSavedAttempt, courseItemId = null, lessonId = null,
 }: {
   activity: LessonSlideActivity; onNext: () => void;
   previewOnly?: boolean; initialAttempt?: SavedAttempt | null; attempts?: SavedAttempt[]; onSavedAttempt?: (attempt: SavedAttempt) => void;
   courseItemId?: string | null;
+  lessonId?: string | null;
 }) {
   const questions = questionsFromData(activity.activity_data, activity.activity_type, activity.id);
   const initialAnswers = asRecord(initialAttempt?.answers);
@@ -1232,6 +1298,10 @@ export function LessonActivityPanel({
         }}
       />
     );
+  }
+
+  if (activity.activity_type === "LIVE_SPEAK_TRANSLATE") {
+    return <LiveSpeakTranslatePanel activity={activity} lessonId={lessonId} previewOnly={previewOnly} onNext={onNext} />;
   }
 
   const currentQuestion = questions[qIndex] ?? null;

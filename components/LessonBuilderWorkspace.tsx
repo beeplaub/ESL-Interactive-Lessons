@@ -1014,6 +1014,7 @@ function SelectedSlideEditor({
                 <option value="PEER_REVIEW_EDITING">Peer Review / Editing</option>
                 <option value="PRONUNCIATION">Pronunciation Practice</option>
                 <option value="AI_ROLEPLAY">AI Conversation Roleplay</option>
+                <option value="LIVE_SPEAK_TRANSLATE">Live Bangla → English Speaking</option>
               </select>
             </label>
             <div className="flex items-center gap-2">

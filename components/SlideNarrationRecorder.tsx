@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Mic, MicOff, Pause, Play, RotateCcw, Trash2, Upload } from "lucide-react";
+import { Languages, Mic, MicOff, Pause, Play, RotateCcw, Trash2, Upload } from "lucide-react";
 
 type State = "loading" | "idle" | "recording" | "recorded" | "uploading" | "saved" | "error";
 
@@ -18,6 +18,9 @@ export function SlideNarrationRecorder({
   const [elapsed, setElapsed] = useState(0);
   const [open, setOpen] = useState(false);
   const [playing, setPlaying] = useState(false);
+  const [translationEnabled, setTranslationEnabled] = useState(false);
+  const [narrationLanguage, setNarrationLanguage] = useState<"en" | "bn">("en");
+  const [savingTranslation, setSavingTranslation] = useState(false);
 
   const mediaRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -32,9 +35,11 @@ export function SlideNarrationRecorder({
     setOpen(false);
     fetch(`/api/lessons/${lessonId}/narration/${slideId}`)
       .then((r) => r.json())
-      .then((data: { url: string | null }) => {
+      .then((data: { url: string | null; translationEnabled?: boolean; narrationLanguage?: "en" | "bn" }) => {
         if (data.url) {
           setExistingUrl(data.url);
+          setTranslationEnabled(Boolean(data.translationEnabled));
+          setNarrationLanguage(data.narrationLanguage === "bn" ? "bn" : "en");
           setState("saved");
         } else {
           setState("idle");
@@ -80,6 +85,8 @@ export function SlideNarrationRecorder({
     const fd = new FormData();
     const ext = blobRef.current.type.includes("mp4") ? "m4a" : "webm";
     fd.append("audio", blobRef.current, `narration.${ext}`);
+    fd.append("translationEnabled", String(translationEnabled));
+    fd.append("narrationLanguage", narrationLanguage);
     const res = await fetch(`/api/lessons/${lessonId}/narration/${slideId}`, {
       method: "POST",
       body: fd,
@@ -92,6 +99,25 @@ export function SlideNarrationRecorder({
       setState("saved");
     } else {
       setState("error");
+    }
+  }
+
+  async function saveTranslationSettings(nextEnabled: boolean, nextLanguage: "en" | "bn") {
+    setTranslationEnabled(nextEnabled);
+    setNarrationLanguage(nextLanguage);
+    if (!existingUrl) return;
+    setSavingTranslation(true);
+    try {
+      const response = await fetch(`/api/lessons/${lessonId}/narration/${slideId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ translationEnabled: nextEnabled, narrationLanguage: nextLanguage }),
+      });
+      if (!response.ok) throw new Error("Could not save");
+    } catch {
+      setState("error");
+    } finally {
+      setSavingTranslation(false);
     }
   }
 
@@ -266,6 +292,39 @@ export function SlideNarrationRecorder({
               >
                 <RotateCcw size={15} /> Re-record
               </button>
+              <div className="rounded-lg border border-violetglow/15 bg-violetglow/[0.04] p-2.5">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <Languages size={14} className="text-violetglow" />
+                    <span className="text-xs font-semibold text-ink">AI narration translation</span>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={translationEnabled}
+                    disabled={savingTranslation}
+                    onClick={() => void saveTranslationSettings(!translationEnabled, narrationLanguage)}
+                    className={`relative h-5 w-9 rounded-full transition ${translationEnabled ? "bg-violetglow" : "bg-black/15"}`}
+                    title="Allow learners to hear this narration translated after the original finishes"
+                  >
+                    <span className={`absolute top-0.5 size-4 rounded-full bg-white shadow transition ${translationEnabled ? "left-[18px]" : "left-0.5"}`} />
+                  </button>
+                </div>
+                {translationEnabled ? (
+                  <label className="mt-2 block text-xs text-black/55">
+                    Original narration language
+                    <select
+                      value={narrationLanguage}
+                      disabled={savingTranslation}
+                      onChange={(event) => void saveTranslationSettings(translationEnabled, event.target.value === "bn" ? "bn" : "en")}
+                      className="mt-1 w-full rounded-md border border-black/10 bg-white px-2 py-1.5 text-xs text-ink"
+                    >
+                      <option value="en">English → Bangla</option>
+                      <option value="bn">Bangla → English</option>
+                    </select>
+                  </label>
+                ) : null}
+              </div>
               <button
                 type="button"
                 onClick={deleteNarration}

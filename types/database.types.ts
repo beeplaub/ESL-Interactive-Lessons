@@ -111,27 +111,36 @@ export type Database = {
         Row: {
           id: string;
           lesson_id: string;
+          slide_id?: string | null;
           label: string;
           storage_path: string;
           linked_slide_number: number | null;
+          translation_enabled?: boolean;
+          narration_language?: "en" | "bn";
           created_at: string;
           updated_at: string;
         };
         Insert: {
           id?: string;
           lesson_id: string;
+          slide_id?: string | null;
           label: string;
           storage_path: string;
           linked_slide_number?: number | null;
+          translation_enabled?: boolean;
+          narration_language?: "en" | "bn";
           created_at?: string;
           updated_at?: string;
         };
         Update: {
           id?: string;
           lesson_id?: string;
+          slide_id?: string | null;
           label?: string;
           storage_path?: string;
           linked_slide_number?: number | null;
+          translation_enabled?: boolean;
+          narration_language?: "en" | "bn";
           created_at?: string;
           updated_at?: string;
         };
