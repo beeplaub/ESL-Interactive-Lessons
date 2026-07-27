@@ -13,7 +13,14 @@ const config: Config = {
         violetglow: "#7c3aed",
         electric: "#2563ff",
         mint: "#12b981",
-        gold: "#f59e0b"
+        gold: "#f59e0b",
+        brand: "var(--br-brand)",
+        action: "var(--br-action)",
+        canvas: "var(--br-canvas)",
+        surface: "var(--br-surface)",
+        muted: "var(--br-text-muted)",
+        success: "var(--br-success)",
+        danger: "var(--br-danger)"
       }
     }
   },

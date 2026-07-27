@@ -22,6 +22,7 @@ import {
   FileCheck,
   School,
   Radio,
+  Palette,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { signOut, switchToLearnerView } from "@/app/auth/actions";
@@ -46,6 +47,7 @@ const links = [
   { href: "/admin/obe", label: "Outcomes", Icon: Target, adminOnly: true },
   { href: "/admin/users", label: "Users", Icon: UsersRound, adminOnly: true },
   { href: "/admin/level-test", label: "Level Test", Icon: FlaskConical, adminOnly: true },
+  { href: "/admin/style", label: "Style System", Icon: Palette, adminOnly: true },
 ];
 
 const STORAGE_KEY = "adminSidebarCollapsed";
