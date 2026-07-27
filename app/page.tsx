@@ -1,11 +1,10 @@
 import Link from "next/link";
+import Image from "next/image";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import {
   ArrowRight,
-  Award,
   BarChart2,
-  Bell,
   BookOpen,
   CheckCircle2,
   ChevronRight,
@@ -13,11 +12,8 @@ import {
   Gamepad2,
   GraduationCap,
   HelpCircle,
-  Layers,
-  Play,
   Search,
   ShieldCheck,
-  Sparkles,
   Target,
   Trophy,
   Zap
@@ -46,7 +42,7 @@ export default async function HomePage() {
     if (isStaff(profile?.role)) redirect("/admin");
   }
 
-  const [{ count: publishedQuizCount }, { data: latestQuiz }, { count: publishedCourseCount }, { data: topPoints }] = await Promise.all([
+  const [{ count: publishedQuizCount }, { data: latestQuiz }, { data: topPoints }] = await Promise.all([
     admin.from("quizzes").select("id", { count: "exact", head: true }).eq("status", "PUBLISHED").is("deleted_at", null),
     admin
       .from("quizzes")
@@ -56,53 +52,73 @@ export default async function HomePage() {
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle(),
-    admin.from("courses").select("id", { count: "exact", head: true }).eq("status", "PUBLISHED").is("deleted_at", null),
     admin.from("quiz_leaderboard_points").select("points").order("points", { ascending: false }).limit(1000)
   ]);
 
   const quizCount = publishedQuizCount ?? 0;
-  const courseCount = publishedCourseCount ?? 0;
   const topTotal = (topPoints ?? []).reduce((sum, row) => sum + Number(row.points ?? 0), 0);
   const topBadge = getQuizBadge(topTotal);
 
   return (
     <main className="min-h-screen overflow-hidden bg-[#F6F7FB] text-[#14172B]">
-      <section className="relative">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_16%_8%,rgba(108,59,255,.16),transparent_28rem),radial-gradient(circle_at_82%_0%,rgba(78,141,255,.18),transparent_26rem)]" />
-        <div className="relative mx-auto max-w-[1536px] px-4 py-10 sm:px-6 lg:py-16">
-          <div className="grid gap-8 lg:grid-cols-[minmax(0,0.95fr)_minmax(430px,0.9fr)] lg:items-center">
-            <div className="max-w-3xl">
-              <div className="inline-flex items-center gap-2 rounded-full border border-[#ECECF5] bg-white px-3 py-1.5 text-xs font-bold text-[#6C3BFF] shadow-[0_2px_8px_rgba(0,0,0,.04)]">
-                <Sparkles className="size-4" /> Free ESL quiz practice plus guided courses
-              </div>
-              <h1 className="mt-5 text-4xl font-extrabold leading-[1.02] tracking-tight sm:text-6xl lg:text-7xl">
-                Practice English like a game. Grow like a learner.
-              </h1>
-              <p className="mt-5 max-w-2xl text-base leading-8 text-[#6E738D] sm:text-lg">
-                Start with free quizzes and a CEFR level test. Track your score, earn badges, and join guided courses when you are ready for a complete learning path.
-              </p>
-              <div className="mt-7 grid gap-3 sm:flex sm:flex-wrap">
-                <Link href="/quizzes" className="inline-flex items-center justify-center gap-2 rounded-[14px] bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] px-5 py-3 text-sm font-bold text-white shadow-[0_10px_24px_rgba(108,59,255,.35)]">
-                  Start a free quiz <ArrowRight className="size-4" />
-                </Link>
-                <Link href="/level-test" className="inline-flex items-center justify-center gap-2 rounded-[14px] border border-[#ECECF5] bg-white px-5 py-3 text-sm font-bold text-[#14172B] shadow-[0_2px_8px_rgba(0,0,0,.04)]">
-                  Find your CEFR level
-                </Link>
-                <Link href="/courses" className="inline-flex items-center justify-center gap-2 rounded-[14px] border border-[#ECECF5] bg-white px-5 py-3 text-sm font-bold text-[#14172B] shadow-[0_2px_8px_rgba(0,0,0,.04)]">
-                  Explore courses
-                </Link>
-                <Link href="/pricing" className="inline-flex items-center justify-center gap-2 rounded-[14px] border border-[#ECECF5] bg-white px-5 py-3 text-sm font-bold text-[#14172B] shadow-[0_2px_8px_rgba(0,0,0,.04)]">
-                  Teacher & school plans
-                </Link>
-              </div>
-              <div className="mt-7 grid gap-3 text-sm font-semibold text-[#6E738D] sm:grid-cols-3">
-                <TrustItem text="Instant feedback" />
-                <TrustItem text="Timed or untimed" />
-                <TrustItem text="Progress when logged in" />
-              </div>
+      <section className="relative flex min-h-[760px] items-center overflow-hidden bg-[#fcf8ff] pt-16 lg:min-h-[820px] lg:pt-24">
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute -right-[10%] -top-[20%] h-[80%] w-[60%] rounded-full bg-gradient-to-br from-[#f5f2fe] via-[#f1f1f6] to-transparent opacity-60 blur-[120px]" />
+          <div className="absolute -bottom-[10%] -left-[5%] h-[60%] w-[40%] rounded-full bg-gradient-to-tr from-[#e3dfff] via-[#efecf8] to-transparent opacity-40 blur-[100px]" />
+          <svg className="absolute bottom-0 left-0 h-auto w-full opacity-20" preserveAspectRatio="none" viewBox="0 0 1440 320" aria-hidden="true">
+            <path d="M0,192L48,197.3C96,203,192,213,288,229.3C384,245,480,267,576,250.7C672,235,768,181,864,181.3C960,181,1056,235,1152,234.7C1248,235,1344,181,1392,154.7L1440,128L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z" fill="#28235a" fillOpacity="0.2" />
+          </svg>
+        </div>
+        <div className="relative z-10 mx-auto grid w-full max-w-[1440px] gap-8 px-6 py-12 sm:px-12 lg:grid-cols-[45%_55%] lg:items-center lg:px-12 lg:py-16">
+          <div className="flex max-w-[540px] flex-col items-start">
+            <span className="rounded-full border border-[#e4e4ee] bg-[#f1f1f6] px-3 py-1 text-xs font-medium uppercase tracking-[0.15em] text-[#6e6e85]">
+              AI-powered English Learning Platform
+            </span>
+            <h1 className="mt-6 text-5xl font-bold leading-[1.16] tracking-tight text-[#1b1b3a] sm:text-6xl lg:text-[48px] lg:leading-[56px]">
+              Speak English <br />with Confidence. <br /><span className="text-[#ff7a59]">Every Day.</span>
+            </h1>
+            <p className="mt-6 max-w-[520px] font-serif text-lg leading-7 text-[#6e6e85]">
+              Interactive lessons, real conversations, and AI feedback that help you go from knowing to saying. Experience the tactical modernism of professional English fluency.
+            </p>
+            <div className="mt-6 flex flex-wrap gap-4">
+              <Link href="/courses" className="rounded-xl bg-[#ff7a59] px-7 py-4 text-base font-bold text-white shadow-lg transition-transform duration-200 hover:scale-[1.02]">
+                Start Learning Free
+              </Link>
+              <Link href="/level-test" className="rounded-xl border-2 border-[#3e3a72] px-7 py-4 text-base font-bold text-[#3e3a72] transition-colors hover:bg-[#fafafc]">
+                Take a Level Test
+              </Link>
             </div>
+            <div className="mt-12 flex w-full max-w-[520px] flex-wrap gap-x-8 gap-y-3 border-t border-[#e4e4ee] pt-6 text-sm font-medium text-[#6e6e85]">
+              <TrustItem text="CEFR aligned" />
+              <TrustItem text="AI Feedback" />
+              <TrustItem text="Learn Anywhere" />
+            </div>
+          </div>
 
-            <HeroDashboard quizCount={quizCount} courseCount={courseCount} latestQuiz={latestQuiz} topBadge={topBadge} />
+          <div className="relative flex h-[500px] w-full items-center justify-center sm:h-[600px]">
+            <div className="absolute h-[80%] w-[80%] -translate-y-10 rounded-full bg-[#efecf8] opacity-50 blur-[40px]" />
+            <div className="relative z-20 w-[78%] max-w-[480px] overflow-hidden rounded-3xl drop-shadow-2xl sm:w-[65%]">
+              <Image src="/images/learner-hero.png" alt="Learner with headphones studying at a laptop" width={1402} height={1122} priority className="h-auto w-full" />
+            </div>
+            <div className="hero-float absolute right-[2%] top-[5%] z-30 min-w-[160px] rounded-xl border border-white/40 bg-white/85 p-4 shadow-md backdrop-blur sm:right-[5%] sm:min-w-[180px]">
+              <div className="mb-2 flex items-center justify-between text-xs font-semibold text-[#6e6e85]"><span>Pronunciation</span><span className="text-lg text-[#ff7a59]">〽</span></div>
+              <div className="flex items-end gap-1"><span className="font-mono text-3xl font-semibold text-[#1b1b3a]">87</span><span className="pb-1 text-xs text-[#b8b8c9]">/100</span></div>
+              <div className="mt-1 text-xs font-bold text-[#2fae7a]">Great Job!</div>
+            </div>
+            <div className="hero-float-slow absolute right-0 top-[40%] z-30 min-w-[170px] rounded-xl border border-white/40 bg-white/85 p-4 shadow-md backdrop-blur sm:-right-[5%] sm:min-w-[200px]">
+              <div className="mb-2 text-xs font-semibold text-[#6e6e85]">CEFR Level</div>
+              <div className="mb-3 flex items-center gap-2"><span className="rounded-md bg-[#28235a] px-2 py-1 text-xl font-bold text-white">B1+</span><span className="text-sm font-medium leading-tight text-[#3e3a72]">Upper <br />Intermediate</span></div>
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#e4e4ee]"><div className="h-full w-[72%] bg-[#ff7a59]" /></div>
+            </div>
+            <div className="hero-float-reverse absolute bottom-[10%] right-[4%] z-30 flex items-center gap-3 rounded-xl border border-white/40 bg-white/85 p-4 shadow-md backdrop-blur sm:right-[10%]">
+              <span className="rounded-lg bg-[#f2b705]/10 p-2 text-xl">🔥</span><div><div className="text-xs font-semibold text-[#6e6e85]">Study Streak</div><div className="text-sm font-bold text-[#1b1b3a]">12 days in a row</div></div>
+            </div>
+            <div className="hero-float absolute bottom-[15%] left-0 z-30 hidden items-center gap-3 rounded-full border border-white/40 bg-white/85 p-3 pr-5 shadow-md backdrop-blur sm:flex">
+              <div className="grid size-10 place-items-center rounded-full border-2 border-white bg-[#e3dfff] text-sm shadow-sm">★</div><p className="text-xs font-medium italic text-[#3e3a72]">“I can express my ideas clearly now!”</p>
+            </div>
+            <div className="absolute left-[10%] top-[20%] size-3 animate-pulse rounded-full bg-[#ff7a59] opacity-60" />
+            <div className="absolute left-[5%] top-[60%] size-2 rounded-full bg-[#28235a] opacity-40" />
+            <svg className="absolute left-[5%] top-[10%] h-24 w-24 fill-none stroke-[#3e3a72] opacity-30" viewBox="0 0 100 100" aria-hidden="true"><path d="M10,80 Q50,10 90,80" strokeDasharray="4 4" strokeWidth="2" /></svg>
           </div>
         </div>
       </section>
@@ -176,69 +192,6 @@ export default async function HomePage() {
 
 function TrustItem({ text }: { text: string }) {
   return <div className="flex items-center gap-2"><CheckCircle2 className="size-4 text-[#00C98D]" /><span>{text}</span></div>;
-}
-
-function HeroDashboard({
-  quizCount,
-  courseCount,
-  latestQuiz,
-  topBadge
-}: {
-  quizCount: number;
-  courseCount: number;
-  latestQuiz: { id: string; title: string; level: string | null; topic: string | null; timer_minutes: number | null } | null;
-  topBadge: { name: string; icon: string; gradient: string };
-}) {
-  return (
-    <div className="relative">
-      <div className="absolute -inset-3 rounded-[32px] bg-gradient-to-br from-[#6C3BFF]/20 to-[#3CCEFF]/20 blur-2xl" />
-      <div className="relative rounded-[28px] border border-white/70 bg-white/80 p-3 shadow-[0_24px_70px_rgba(20,23,43,.16)] backdrop-blur-xl">
-        <div className="rounded-[24px] bg-gradient-to-br from-[#09112C] to-[#0C1636] p-4 text-white">
-          <div className="mb-4 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="grid size-9 place-items-center rounded-xl bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF]"><Layers className="size-5" /></span>
-              <div><div className="text-sm font-extrabold">BrenUp</div><div className="text-[10px] text-[#8890B8]">Live practice dashboard</div></div>
-            </div>
-            <Bell className="size-5 text-white/60" />
-          </div>
-          <div className="rounded-[20px] bg-gradient-to-br from-[#1A1060] via-[#0C1945] to-[#0E1F5A] p-5">
-            <div className="mb-5 flex items-center justify-between">
-              <div>
-                <p className="text-xs font-bold text-white/60">Your Learning Progress</p>
-                <p className="mt-1 text-3xl font-extrabold">B2</p>
-              </div>
-              <span className="rounded-full bg-[#00C98D]/15 px-3 py-1 text-xs font-bold text-[#00C98D]">+8%</span>
-            </div>
-            <div className="grid grid-cols-6 gap-2">
-              {["A1", "A2", "B1", "B2", "C1", "C2"].map((level) => (
-                <div key={level} className={`grid aspect-square place-items-center rounded-full border text-xs font-extrabold ${level === "B2" ? "border-white bg-[#6C3BFF] shadow-[0_0_24px_rgba(108,59,255,.55)]" : "border-white/15 bg-white/10 text-white/65"}`}>{level}</div>
-              ))}
-            </div>
-            <div className="mt-5 h-1.5 rounded-full bg-white/10"><div className="h-full w-[72%] rounded-full bg-gradient-to-r from-[#6C3BFF] to-[#B06AFF]" /></div>
-          </div>
-          <div className="mt-3 grid grid-cols-3 gap-2">
-            <HeroStat label="Quizzes" value={quizCount.toString()} icon={Gamepad2} />
-            <HeroStat label="Courses" value={courseCount.toString()} icon={GraduationCap} />
-            <HeroStat label="Badge" value={topBadge.name} icon={Award} />
-          </div>
-        </div>
-        <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto]">
-          <div className="rounded-[20px] border border-[#ECECF5] bg-white p-4">
-            <p className="text-[11px] font-extrabold uppercase tracking-wide text-[#6E738D]">Latest quiz</p>
-            <h3 className="mt-1 line-clamp-1 text-sm font-extrabold">{latestQuiz?.title ?? "New quizzes coming soon"}</h3>
-            <p className="mt-1 text-xs text-[#6E738D]">{latestQuiz ? [latestQuiz.level, latestQuiz.topic].filter(Boolean).join(" • ") : "The live quiz library updates automatically."}</p>
-          </div>
-          <Link href={latestQuiz ? `/quizzes/${latestQuiz.id}` : "/quizzes"} className="grid place-items-center rounded-[20px] bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] px-5 py-4 text-sm font-extrabold text-white">
-            <Play className="mb-1 size-5 fill-white" /> Try
-          </Link>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function HeroStat({ label, value, icon: Icon }: { label: string; value: string; icon: React.ElementType }) {
-  return <div className="rounded-[16px] bg-white/8 p-3"><Icon className="mb-2 size-4 text-[#3CCEFF]" /><div className="truncate text-lg font-extrabold">{value}</div><div className="text-[10px] font-semibold text-white/50">{label}</div></div>;
 }
 
 function LiveCard({ quizCount, latestQuiz }: { quizCount: number; latestQuiz: { id: string; title: string; level: string | null; topic: string | null; timer_minutes: number | null } | null }) {
