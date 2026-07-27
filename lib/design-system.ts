@@ -38,6 +38,12 @@ export async function getPlatformStyle() {
   return { settings: normalizePlatformStyle(data?.settings), revision: data?.revision ?? 1 };
 }
 
+export async function getPlatformStyleRevisions() {
+  const admin = createAdminClient();
+  const { data } = await admin.from("platform_style_revisions").select("id,revision,settings,created_at").order("revision", { ascending: false }).limit(8);
+  return (data ?? []).map((row) => ({ id: row.id, revision: row.revision, settings: normalizePlatformStyle(row.settings), createdAt: row.created_at }));
+}
+
 export function platformStyleVariables(settings: PlatformStyleSettings) {
   const radiusValue = settings.radius === "SHARP" ? "0.375rem" : settings.radius === "SOFT" ? "1rem" : "0.75rem";
   return {

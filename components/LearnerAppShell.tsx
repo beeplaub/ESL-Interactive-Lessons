@@ -104,7 +104,7 @@ export async function LearnerAppShell({
   const levelProgressPercent = user ? (await getLatestLevelTestSummary(admin, user.id))?.weightedPercent ?? null : null;
 
   return (
-    <main className="min-h-screen bg-[#F6F7FB] font-sans text-[#14172B]">
+    <main className="min-h-screen bg-[var(--br-canvas)] font-sans text-[var(--br-text)]">
       <MobileTopbar
         active={active}
         initials={initials}
@@ -539,9 +539,9 @@ function MobileTopbar({
   isStaffUser?: boolean;
 }) {
   return (
-    <div className="fixed inset-x-0 top-0 z-40 flex h-[60px] items-center justify-between gap-2 bg-gradient-to-br from-[#09112C] to-[#0C1636] px-3 min-[1180px]:hidden">
+    <div className="fixed inset-x-0 top-0 z-40 flex h-[60px] items-center justify-between gap-2 bg-[#1b1b3a] px-3 min-[1180px]:hidden">
       <Link href="/" className="flex min-w-0 items-center gap-2">
-        <span className="grid size-8 shrink-0 place-items-center rounded-[9px] bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF]"><Layers className="size-[18px] text-white" /></span>
+        <span className="grid size-8 shrink-0 place-items-center rounded-[9px] bg-[var(--br-brand)]"><Layers className="size-[18px] text-white" /></span>
         <span className="truncate text-[15px] font-bold text-white">BrenUp</span>
       </Link>
       <div className="flex shrink-0 items-center gap-1.5">
@@ -570,7 +570,7 @@ function MobileTopbar({
         </Link>
         <details className="group relative">
           <summary className="grid size-9 cursor-pointer list-none place-items-center rounded-[10px] text-white marker:hidden [&::-webkit-details-marker]:hidden" aria-label="Menu"><Menu className="size-[22px]" /></summary>
-          <div className="fixed inset-x-3 top-[68px] z-50 rounded-[24px] border border-white/10 bg-[#09112C] p-3 shadow-2xl shadow-black/30">
+          <div className="fixed inset-x-3 top-[68px] z-50 rounded-[24px] border border-white/10 bg-[#1b1b3a] p-3 shadow-2xl shadow-black/30">
             <div className="grid gap-1">
               <MobileDrawerLink href="/account" label="Home" icon={Home} active={active === "home"} />
               <MobileDrawerLink href="/quizzes" label="Quizzes" icon={HelpCircle} active={active === "quizzes"} />
@@ -598,7 +598,7 @@ function MobileTopbar({
 }
 
 function MobileDrawerLink({ href, label, icon: Icon, active }: { href: string; label: string; icon: React.ElementType; active?: boolean }) {
-  return <Link href={href} className={`flex h-11 items-center gap-3 rounded-[14px] px-3.5 text-sm font-semibold ${active ? "bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] text-white" : "text-[#C5C8DC]"}`}><Icon className="size-[18px]" /> {label}</Link>;
+  return <Link href={href} className={`flex h-11 items-center gap-3 rounded-[14px] px-3.5 text-sm font-semibold ${active ? "bg-[var(--br-brand)] text-white" : "text-[#C5C8DC]"}`}><Icon className="size-[18px]" /> {label}</Link>;
 }
 
 function MobileBottomNav({ active }: { active: ActiveItem }) {

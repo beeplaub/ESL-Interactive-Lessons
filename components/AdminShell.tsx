@@ -10,7 +10,8 @@ export function AdminShell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="mx-auto w-full max-w-7xl px-3 py-4 sm:px-4 sm:py-6">
+    <div className="min-h-screen bg-[var(--br-surface-muted)] px-3 py-4 sm:px-4 sm:py-6">
+      <div className="mx-auto w-full max-w-7xl">
       {/* Mobile: top bar (original behaviour) */}
       <div className="mb-4 md:hidden">
         <AdminSidebar name={name} role={role} mobileTop />
@@ -25,6 +26,7 @@ export function AdminShell({
       {/* Mobile children */}
       <div className="md:hidden">
         {children}
+      </div>
       </div>
     </div>
   );

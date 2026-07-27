@@ -92,6 +92,25 @@ select {
     background: linear-gradient(135deg, var(--br-brand), #1b1b3a);
   }
 
+  .br-button-primary {
+    border-radius: var(--br-radius);
+    background: var(--br-action);
+    color: #fff;
+    box-shadow: 0 8px 20px color-mix(in srgb, var(--br-action) 25%, transparent);
+    transition: transform 180ms ease, box-shadow 180ms ease, filter 180ms ease;
+  }
+  .br-button-primary:hover { transform: scale(1.02); filter: brightness(.97); }
+  .br-button-admin {
+    border-radius: min(var(--br-radius), .5rem);
+    background: var(--br-brand);
+    color: #fff;
+    transition: filter 180ms ease;
+  }
+  .br-button-admin:hover { filter: brightness(1.08); }
+
+  [data-learner-density="COMPACT"] .br-learner-card { padding: 1rem; }
+  [data-admin-density="COMFORTABLE"] .br-admin-card { padding: 1.5rem; }
+
   .br-gradient-panel {
     background:
       radial-gradient(circle at 46% 34%, rgba(56, 189, 248, 0.35), transparent 16rem),

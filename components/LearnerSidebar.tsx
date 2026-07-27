@@ -64,14 +64,14 @@ export function LearnerSidebar({
 
   return (
     <aside
-      className={`sticky top-6 hidden max-h-[calc(100vh-48px)] flex-col overflow-y-auto rounded-[24px] border border-white/5 bg-[#0f0c1b]/95 backdrop-blur-xl p-5 shadow-[0_18px_50px_rgba(0,0,0,0.35)] [scrollbar-width:none] transition-[width] duration-200 min-[1180px]:flex [&::-webkit-scrollbar]:hidden ${
+      className={`sticky top-6 hidden max-h-[calc(100vh-48px)] flex-col overflow-y-auto rounded-[24px] border border-white/5 bg-[#1b1b3a]/95 backdrop-blur-xl p-5 shadow-[0_18px_50px_rgba(0,0,0,0.35)] [scrollbar-width:none] transition-[width] duration-200 min-[1180px]:flex [&::-webkit-scrollbar]:hidden ${
         collapsed ? "w-[84px] min-w-[84px] px-3" : "w-[240px] min-w-[240px]"
       }`}
     >
       {/* Brand logo & collapse button */}
       <div className={`flex items-center pb-8 ${collapsed ? "flex-col gap-2" : "justify-between gap-2"}`}>
         <Link href="/" className="flex min-w-0 items-center gap-3">
-          <div className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-xl bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] shadow-md shadow-[#6C3BFF]/25" style={schoolBrand?.accentColor ? { background: schoolBrand.accentColor } : undefined}>
+          <div className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-xl bg-[var(--br-brand)] shadow-md shadow-black/20" style={schoolBrand?.accentColor ? { background: schoolBrand.accentColor } : undefined}>
             {schoolBrand?.logoUrl ? <img src={schoolBrand.logoUrl} alt="" className="size-full object-cover" /> : <Layers className="size-[22px] text-white" />}
           </div>
           {collapsed ? null : (
@@ -100,7 +100,7 @@ export function LearnerSidebar({
 
       {/* Level test promo or current progress card */}
       {collapsed ? null : currentLevel ? (
-        <div className="mt-4 rounded-[20px] bg-gradient-to-br from-[#6C3BFF] to-[#4520D9] p-[18px] text-white relative overflow-hidden group">
+        <div className="mt-4 rounded-[20px] br-panel-dark p-[18px] text-white relative overflow-hidden group">
           <div className="relative z-10">
             <div className="mb-1 text-[10px] font-bold uppercase tracking-wider opacity-75">Current Level</div>
             <div className="text-[36px] font-black leading-none">{currentLevel}</div>
@@ -123,11 +123,11 @@ export function LearnerSidebar({
           </div>
         </div>
       ) : (
-        <div className="mt-4 rounded-[20px] bg-gradient-to-br from-[#6C3BFF] to-[#5308e7] p-4 text-white relative overflow-hidden group shadow-md shadow-[#6C3BFF]/20">
+        <div className="mt-4 rounded-[20px] br-panel-dark p-4 text-white relative overflow-hidden group shadow-md shadow-black/20">
           <div className="relative z-10">
             <h4 className="text-white font-bold text-xs mb-1">Take the Level Test</h4>
             <p className="text-white/80 text-[10px] mb-3 leading-tight">Find your CEFR level and get a tailored path.</p>
-            <Link href="/level-test" className="w-full py-2 bg-white text-[#5308e7] hover:bg-white/95 text-[11px] font-bold rounded-xl flex items-center justify-center shadow-sm">
+            <Link href="/level-test" className="w-full py-2 bg-white text-[var(--br-brand)] hover:bg-white/95 text-[11px] font-bold rounded-xl flex items-center justify-center shadow-sm">
               Take Level Test
             </Link>
           </div>
@@ -166,7 +166,7 @@ function NavItem({
     collapsed ? "justify-center px-0 mx-1" : "gap-3 px-3.5 mx-2 my-0.5"
   } ${
     active
-      ? "text-white shadow-md shadow-[#6c3bff]/20"
+      ? "border-l-2 border-[var(--br-action)] text-white shadow-md shadow-black/20"
       : "text-[#cac3d9]/70 hover:bg-white/10 hover:text-white"
   } ${disabled ? "cursor-default opacity-60" : ""}`;
 
@@ -177,7 +177,7 @@ function NavItem({
       </span>
       {collapsed ? null : <span className="truncate">{label}</span>}
       {!collapsed && badge ? (
-        <span className="ml-auto rounded-full bg-[#6c3bff] px-2 py-0.5 text-[9px] font-bold tracking-wide text-white">
+        <span className="ml-auto rounded-full bg-[var(--br-action)] px-2 py-0.5 text-[9px] font-bold tracking-wide text-white">
           {badge}
         </span>
       ) : null}
@@ -185,7 +185,7 @@ function NavItem({
   );
 
   const title = collapsed ? label : undefined;
-  const style = active ? { backgroundColor: accentColor || "#6C3BFF" } : undefined;
+  const style = active ? { backgroundColor: accentColor || "var(--br-brand)" } : undefined;
   if (disabled) return <span className={className} title={title} style={style}>{content}</span>;
   return <Link href={href} className={className} title={title} style={style}>{content}</Link>;
 }

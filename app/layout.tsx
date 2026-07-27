@@ -23,7 +23,7 @@ export const metadata: Metadata = {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const { settings } = await getPlatformStyle();
   return (
-    <html lang="en" className={`${plusJakartaSans.variable} ${sourceSerif.variable} ${jetBrainsMono.variable}`} style={platformStyleVariables(settings)}>
+    <html lang="en" data-learner-density={settings.learnerDensity} data-admin-density={settings.adminDensity} className={`${plusJakartaSans.variable} ${sourceSerif.variable} ${jetBrainsMono.variable}`} style={platformStyleVariables(settings)}>
       <head>
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#ffffff" />
