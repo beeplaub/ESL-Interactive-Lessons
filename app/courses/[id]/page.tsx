@@ -121,7 +121,7 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
   const isPaidCourse = course.price_bdt !== null && course.price_bdt > 0;
 
   const headerCard = (
-    <div className="rounded-[24px] border border-[#ECECF5] bg-white p-4 shadow-[0_12px_32px_rgba(0,0,0,.06)] md:p-5">
+    <div className="br-learner-card p-4 md:p-5">
       <div className="grid grid-cols-1 gap-6 min-[1130px]:grid-cols-[340px_minmax(0,1fr)]">
         <div className="group relative min-w-0 overflow-hidden rounded-[18px] bg-[#11152E]">
           {/* eslint-disable-next-line @next/next/no-img-element -- Course creators can use arbitrary public image links. */}
@@ -151,11 +151,11 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
             {user ? (
               isEnrolled ? (
                 continueHref ? (
-                  <Link href={continueHref} className="inline-flex items-center justify-center gap-2 rounded-[12px] bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] px-6 py-3 text-sm font-extrabold text-white shadow-[0_8px_20px_rgba(108,59,255,.35)]">
+                  <Link href={continueHref} className="br-button-primary inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-extrabold">
                     <Play className="size-4 fill-white" /> Continue Learning
                   </Link>
                 ) : (
-                  <Link href="#curriculum" className="inline-flex items-center justify-center gap-2 rounded-[12px] bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] px-6 py-3 text-sm font-extrabold text-white shadow-[0_8px_20px_rgba(108,59,255,.35)]">
+                  <Link href="#curriculum" className="br-button-primary inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-extrabold">
                     <Play className="size-4 fill-white" /> View curriculum
                   </Link>
                 )
@@ -169,7 +169,7 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
                 />
               ) : (
                 <form action={enrollInCourse.bind(null, course.id)}>
-                  <button className="inline-flex w-full items-center justify-center gap-2 rounded-[12px] bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] px-6 py-3 text-sm font-extrabold text-white shadow-[0_8px_20px_rgba(108,59,255,.35)]">
+                  <button className="br-button-primary inline-flex w-full items-center justify-center gap-2 px-6 py-3 text-sm font-extrabold">
                     <Play className="size-4 fill-white" /> Enroll free
                   </button>
                 </form>
@@ -177,7 +177,7 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
             ) : (
               <SignInToEnrollButton />
             )}
-            <Link href="#curriculum" className="inline-flex items-center justify-center gap-2 rounded-[12px] border border-[#ECECF5] bg-white px-6 py-3 text-sm font-extrabold text-[#35405F] shadow-[0_2px_8px_rgba(0,0,0,.04)]">
+            <Link href="#curriculum" className="inline-flex items-center justify-center gap-2 rounded-[12px] border border-[var(--br-border)] bg-white px-6 py-3 text-sm font-extrabold text-[var(--br-text-muted)] shadow-[0_2px_8px_rgba(0,0,0,.04)]">
               View curriculum
             </Link>
           </div>
@@ -469,7 +469,7 @@ function resolveImage(value?: string | null) {
 
 function Panel({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-[22px] border border-[#ECECF5] bg-white p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)]">
+    <section className="br-learner-card p-5">
       <h2 className="mb-4 text-lg font-extrabold">{title}</h2>
       {children}
     </section>

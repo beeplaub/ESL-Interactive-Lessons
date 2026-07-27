@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Award, Crown, Gamepad2, Medal, Sparkles, Trophy, Users, Zap, Flame, Star, Crown as CrownIcon, Diamond, ShieldAlert, Award as AwardIcon } from "lucide-react";
 import { LearnerAppShell } from "@/components/LearnerAppShell";
+import { LearnerPageHero } from "@/components/LearnerPageHero";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getQuizBadge, getNextQuizBadge, quizBadges } from "@/lib/quizBadges";
@@ -120,43 +121,22 @@ export default async function LeaderboardPage() {
   const toLegendPercent = Math.min(100, Math.round((currentUserPoints / 6000) * 100));
 
   return (
-    <LearnerAppShell active="leaderboard" showRightSidebar={false}>
+    <LearnerAppShell active="leaderboard" showRightSidebar>
       <div className="max-w-[1440px] mx-auto space-y-6">
-        {/* HERO SECTION */}
-        <section className="relative overflow-hidden rounded-[32px] bg-gradient-to-br from-[#1d0061] to-[#5308e7] p-8 md:p-10 text-white shadow-2xl flex flex-col md:flex-row items-center justify-between">
-          <div className="absolute -right-16 -top-20 size-60 rounded-full bg-[#6C3BFF]/25 blur-lg" />
-          <div className="absolute right-36 top-10 size-20 rounded-full bg-[#3CCEFF]/20 blur-xl" />
-          <div className="relative z-10 max-w-2xl">
-            <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md px-3 py-1 rounded-full mb-6 border border-white/20">
-              <Sparkles className="size-4 text-amber-400" />
-              <span className="text-[11px] font-bold uppercase tracking-widest">Quiz points arena</span>
-            </div>
-            <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-4 font-sans">Leaderboard</h1>
-            <p className="text-base md:text-lg text-white/80 mb-8 max-w-xl leading-relaxed">
-              Complete quizzes, earn points, and climb from Bronze to Legend. Accuracy and consistency both matter in the arena of mastery.
-            </p>
-            <div className="flex gap-4">
-              <Link href="/quizzes" className="bg-white text-[#5308e7] hover:bg-white/90 px-6 py-3 rounded-xl font-bold transition-all flex items-center gap-2 shadow-md">
+        <LearnerPageHero
+          eyebrow="Quiz points arena"
+          eyebrowIcon={Sparkles}
+          title="Leaderboard"
+          description="Complete quizzes, earn points, and climb from Bronze to Legend. Accuracy and consistency both matter in the arena of mastery."
+          aside={<div className="relative z-10 flex items-center justify-center shrink-0"><div className="relative w-28 h-28"><svg className="w-full h-full transform -rotate-90"><circle className="text-white/10" cx="56" cy="56" fill="transparent" r="48" stroke="currentColor" strokeWidth="7" /><circle className="text-[var(--br-achievement)] drop-shadow-[0_0_10px_rgba(242,183,5,0.6)] transition-all duration-1000" cx="56" cy="56" fill="transparent" r="48" stroke="currentColor" strokeDasharray="302" strokeDashoffset={302 - (302 * toLegendPercent) / 100} strokeLinecap="round" strokeWidth="7" /></svg><div className="absolute inset-0 flex flex-col items-center justify-center"><span className="text-2xl font-extrabold text-white">{toLegendPercent}%</span><span className="text-[9px] uppercase font-bold text-white/60 tracking-widest mt-0.5">To Legend</span></div></div></div>}
+        >
+              <Link href="/quizzes" className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2.5 text-sm font-bold text-[var(--br-brand)] shadow-md hover:bg-white/90">
                 <Gamepad2 className="size-5" /> Play a quiz
               </Link>
-              <Link href="/account" className="bg-white/10 hover:bg-white/20 backdrop-blur-md text-white border border-white/30 px-6 py-3 rounded-xl font-bold transition-all">
+              <Link href="/account" className="inline-flex items-center gap-2 rounded-xl border border-white/30 bg-white/10 px-4 py-2.5 text-sm font-bold text-white hover:bg-white/20">
                 My progress
               </Link>
-            </div>
-          </div>
-          <div className="relative z-10 mt-10 md:mt-0 flex items-center justify-center shrink-0">
-            <div className="relative w-40 h-40">
-              <svg className="w-full h-full transform -rotate-90">
-                <circle className="text-white/10" cx="80" cy="80" fill="transparent" r="70" stroke="currentColor" strokeWidth="8"></circle>
-                <circle className="text-yellow-400 drop-shadow-[0_0_10px_rgba(250,204,21,0.6)] transition-all duration-1000" cx="80" cy="80" fill="transparent" r="70" stroke="currentColor" strokeDasharray="440" strokeDashoffset={440 - (440 * toLegendPercent) / 100} strokeLinecap="round" strokeWidth="8"></circle>
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-3xl font-extrabold text-white">{toLegendPercent}%</span>
-                <span className="text-[9px] uppercase font-bold text-white/60 tracking-widest mt-0.5">To Legend</span>
-              </div>
-            </div>
-          </div>
-        </section>
+        </LearnerPageHero>
 
         {/* STATS QUICK VIEW */}
         <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
