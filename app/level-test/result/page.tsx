@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, Award, BarChart3, BookOpen, CheckCircle2, Clock3, RotateCcw, Sparkles, Target } from "lucide-react";
 import { LearnerAppShell } from "@/components/LearnerAppShell";
+import { LearnerPageHero } from "@/components/LearnerPageHero";
 import { notFound, redirect } from "next/navigation";
 import { levelGuidance, type CefrLevel } from "@/lib/levelTestBank";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -42,19 +43,13 @@ export default async function LevelTestResultPage({ searchParams }: { searchPara
       ]}
     >
       <section className="max-w-5xl">
-        <div className="relative overflow-hidden rounded-[24px] bg-gradient-to-br from-[#1A1060] via-[#0C1945] to-[#0E1F5A] p-4 text-white shadow-[0_20px_58px_rgba(20,23,80,.3)] sm:p-5">
-          <div className="absolute -right-16 -top-20 size-64 rounded-full bg-[#6C3BFF]/25" />
-          <div className="relative z-10 grid gap-4 md:grid-cols-[1fr_auto] md:items-center">
-            <div>
-              <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-bold text-white/80"><Sparkles className="size-4" /> Level test complete</span>
-              <p className="mt-3 text-sm font-bold text-white/60">Your CEFR reference level</p>
-              <div className="mt-1 flex flex-wrap items-end gap-3"><h1 className="text-5xl font-black leading-none tracking-tight sm:text-6xl">{level}</h1><div className="pb-1"><p className="text-lg font-extrabold sm:text-xl">{resultName}</p><p className="mt-1 text-sm font-semibold text-white/60">{guidance.summary}</p></div></div>
-            </div>
-            <div className="grid size-32 place-items-center rounded-full border-[8px] border-white/10 bg-white/10 text-center shadow-inner">
-              <div><div className="text-3xl font-black">{percentage}%</div><div className="mt-1 text-[11px] font-bold text-white/60">weighted score</div></div>
-            </div>
-          </div>
-        </div>
+        <LearnerPageHero
+          eyebrow="Level test complete"
+          eyebrowIcon={Sparkles}
+          title={`${level} · ${resultName}`}
+          description={guidance.summary}
+          aside={<div className="grid size-28 place-items-center rounded-full border-[7px] border-white/10 bg-white/10 text-center shadow-inner"><div><div className="text-2xl font-black">{percentage}%</div><div className="mt-1 text-[10px] font-bold text-white/60">weighted score</div></div></div>}
+        />
 
         <section className="mt-5 grid gap-4 md:grid-cols-3">
           <ResultMetric icon={CheckCircle2} value={`${result.raw_score}/${total}`} label="Correct answers" tone="green" />
@@ -63,7 +58,7 @@ export default async function LevelTestResultPage({ searchParams }: { searchPara
         </section>
 
         <section className="mt-5 grid gap-5 lg:grid-cols-[.8fr_1.2fr]">
-          <div className="rounded-[20px] border border-[#ECECF5] bg-white p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)] sm:p-6">
+          <div className="br-learner-card p-5 sm:p-6">
             <div className="flex items-center gap-3"><span className="grid size-11 place-items-center rounded-[14px] bg-[#EEEAFB] text-[#6C3BFF]"><Target className="size-5" /></span><h2 className="text-lg font-extrabold">Score breakdown</h2></div>
             <div className="mt-5 grid gap-4">
               {sectionEntries.length ? sectionEntries.map((section) => {
@@ -72,12 +67,12 @@ export default async function LevelTestResultPage({ searchParams }: { searchPara
               }) : <p className="text-sm font-semibold text-[#6E738D]">Section details are unavailable for this earlier attempt.</p>}
             </div>
           </div>
-          <div className="rounded-[20px] border border-[#ECECF5] bg-white p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)] sm:p-6">
+          <div className="br-learner-card p-5 sm:p-6">
             <div className="flex items-center gap-3"><span className="grid size-11 place-items-center rounded-[14px] bg-[#E7FBF4] text-[#00A978]"><Award className="size-5" /></span><div><h2 className="text-lg font-extrabold">Your next step</h2><p className="text-xs font-semibold text-[#8B90A7]">Guidance selected for your result band.</p></div></div>
             <p className="mt-5 text-sm font-semibold leading-7 text-[#4E536B]">{guidanceText}</p>
             <div className="mt-5 flex flex-wrap gap-2">
-              <Link href="/quizzes" className="inline-flex items-center gap-2 rounded-[13px] bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] px-5 py-3 text-sm font-extrabold text-white">Practice with quizzes <ArrowRight className="size-4" /></Link>
-              <Link href="/courses" className="inline-flex items-center gap-2 rounded-[13px] border border-[#DDD9F4] px-5 py-3 text-sm font-extrabold text-[#6C3BFF]"><BookOpen className="size-4" /> Explore courses</Link>
+              <Link href="/quizzes" className="br-button-primary inline-flex items-center gap-2 px-5 py-3 text-sm font-extrabold">Practice with quizzes <ArrowRight className="size-4" /></Link>
+              <Link href="/courses" className="inline-flex items-center gap-2 rounded-[13px] border border-[var(--br-border)] px-5 py-3 text-sm font-extrabold text-[var(--br-brand)]"><BookOpen className="size-4" /> Explore courses</Link>
             </div>
           </div>
         </section>
@@ -89,8 +84,8 @@ export default async function LevelTestResultPage({ searchParams }: { searchPara
 }
 
 function ResultMetric({ icon: Icon, value, label, tone }: { icon: React.ElementType; value: string; label: string; tone: "green" | "purple" | "orange" }) {
-  const tones = { green: "bg-[#E7FBF4] text-[#00A978]", purple: "bg-[#EEEAFB] text-[#6C3BFF]", orange: "bg-[#FFF5E7] text-[#E47A00]" };
-  return <div className="rounded-[18px] border border-[#ECECF5] bg-white p-4 shadow-[0_10px_28px_rgba(0,0,0,.05)]"><div className="flex items-center gap-3"><span className={`grid size-10 place-items-center rounded-[13px] ${tones[tone]}`}><Icon className="size-5" /></span><div><div className="text-xl font-extrabold">{value}</div><div className="text-xs font-bold text-[#6E738D]">{label}</div></div></div></div>;
+  const tones = { green: "bg-[#E7FBF4] text-[#00A978]", purple: "bg-[#EEEAFB] text-[var(--br-brand)]", orange: "bg-[#FFF5E7] text-[#E47A00]" };
+  return <div className="br-learner-card p-4"><div className="flex items-center gap-3"><span className={`grid size-10 place-items-center rounded-[13px] ${tones[tone]}`}><Icon className="size-5" /></span><div><div className="text-xl font-extrabold">{value}</div><div className="text-xs font-bold text-[var(--br-text-muted)]">{label}</div></div></div></div>;
 }
 function asRecord(value: unknown): Record<string, unknown> { return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {}; }
 function titleCase(value: string) { return value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase()); }
