@@ -71,6 +71,15 @@ export async function POST(req: Request, { params }: Params) {
     .maybeSingle();
 
   if (existing) {
+    // A new original narration invalidates every cached translation for this audio row.
+    const { data: cachedTranslations } = await admin
+      .from("narration_translation_cache")
+      .select("storage_path")
+      .eq("narration_audio_file_id", existing.id);
+    if (cachedTranslations?.length) {
+      await admin.storage.from("lesson-audio").remove(cachedTranslations.map((translation) => translation.storage_path));
+      await admin.from("narration_translation_cache").delete().eq("narration_audio_file_id", existing.id);
+    }
     await admin
       .from("lesson_audio_files")
     .update({
