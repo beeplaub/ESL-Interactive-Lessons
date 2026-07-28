@@ -164,6 +164,8 @@ export type Database = {
           raw_text: string;
           type: SlideType;
           linked_answer_slide_id: string | null;
+          deleted_at: string | null;
+          deleted_by: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -176,6 +178,8 @@ export type Database = {
           raw_text: string;
           type?: SlideType;
           linked_answer_slide_id?: string | null;
+          deleted_at?: string | null;
+          deleted_by?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -188,6 +192,8 @@ export type Database = {
           raw_text?: string;
           type?: SlideType;
           linked_answer_slide_id?: string | null;
+          deleted_at?: string | null;
+          deleted_by?: string | null;
           created_at?: string;
           updated_at?: string;
         };

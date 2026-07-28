@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { FormEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { AlignCenter, AlignLeft, AlignRight, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, AlignVerticalJustifyStart, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Copy, Eye, Library, Plus, Settings, Target, Trash2, X, ChevronRight } from "lucide-react";
+import { AlignCenter, AlignLeft, AlignRight, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, AlignVerticalJustifyStart, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Copy, Eye, Library, Plus, Settings, Target, Trash2, X, ChevronRight, RotateCcw } from "lucide-react";
 import {
   addBuilderSlideAt,
   addLessonBlock,
@@ -17,6 +17,7 @@ import {
   moveLessonBlock,
   moveOrCopySlideActivityToSlide,
   reorderBuilderSlides,
+  restoreBuilderSlide,
   updateBuilderSlide,
   updateLessonBlock,
   updateLessonBuilderDetails,
@@ -60,6 +61,8 @@ type Slide = {
   content_order?: "LEARN_FIRST" | "PRACTICE_FIRST" | null;
   require_practice_before_learn?: boolean | null;
 };
+
+type TrashedSlide = Pick<Slide, "id" | "slide_number" | "title" | "section_label"> & { deleted_at: string | null };
 
 type LessonBlock = {
   id: string; lesson_id: string; slide_id: string;
@@ -107,7 +110,7 @@ type ObeData = {
   assessmentTargets: Array<{ assessment_item_id: string; learning_target_id: string }>;
 };
 
-type Props = { lesson: Lesson; slides: Slide[]; blocks: LessonBlock[]; activities: Activity[]; obe?: ObeData; isAdmin?: boolean };
+type Props = { lesson: Lesson; slides: Slide[]; trashedSlides?: TrashedSlide[]; blocks: LessonBlock[]; activities: Activity[]; obe?: ObeData; isAdmin?: boolean };
 
 function asRecord(value: Json | null | undefined): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -182,17 +185,16 @@ function AddSlideModal({
 }
 
 function DuplicateSlideModal({
-  lessonId, sourceSlide, slides, onClose, onBusy, onDuplicated, onOptimisticDuplicate
+  lessonId, sourceSlide, onClose, onBusy, onDuplicated, onOptimisticDuplicate
 }: {
-  lessonId: string; sourceSlide: Slide; slides: Slide[]; onClose: () => void; onBusy: (msg: string) => void;
+  lessonId: string; sourceSlide: Slide; onClose: () => void; onBusy: (msg: string) => void;
   onDuplicated: (slideId: string) => void; onOptimisticDuplicate: (sourceSlide: Slide, afterSlideNumber: number) => string;
 }) {
-  const [afterSlideNumber, setAfterSlideNumber] = useState(String(sourceSlide.slide_number));
   const [isPending, startTransition] = useTransition();
 
   function submit() {
     onBusy("Duplicating slide...");
-    const insertAfter = Number(afterSlideNumber);
+    const insertAfter = sourceSlide.slide_number;
     const optimisticId = onOptimisticDuplicate(sourceSlide, insertAfter);
     onDuplicated(optimisticId);
     onClose();
@@ -206,27 +208,51 @@ function DuplicateSlideModal({
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 px-4">
       <div className="w-full max-w-md rounded-xl bg-white p-5 shadow-2xl">
         <div className="flex items-start justify-between gap-4">
-          <div>
-            <h2 className="text-lg font-semibold">Duplicate slide</h2>
-            <p className="mt-1 text-sm text-black/55">Choose where the duplicate should appear.</p>
-          </div>
+          <div><h2 className="text-lg font-semibold">Duplicate slide</h2><p className="mt-1 text-sm text-black/55">A full copy will appear immediately after this slide.</p></div>
           <button type="button" onClick={onClose} className="rounded-md border border-black/10 p-1.5 hover:bg-black/5"><X size={16} /></button>
         </div>
-        <label className="mt-4 block text-sm font-medium">
-          Place duplicate
-          <select value={afterSlideNumber} onChange={(event) => setAfterSlideNumber(event.target.value)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">
-            <option value="0">At the beginning</option>
-            {slides.map((slide, index) => (
-              <option key={slide.id} value={slide.slide_number}>After {index + 1}. {slide.title}</option>
-            ))}
-          </select>
-        </label>
         <div className="mt-5 flex justify-end gap-2">
           <button type="button" onClick={onClose} className="rounded-md border border-black/15 px-4 py-2 text-sm hover:bg-black/5">Cancel</button>
           <button type="button" onClick={submit} disabled={isPending} className="rounded-md bg-moss px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
             {isPending ? "Duplicating..." : "Duplicate"}
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function SlideTrashModal({ lessonId, slides, onClose, onRestored, onBusy }: {
+  lessonId: string; slides: TrashedSlide[]; onClose: () => void; onRestored: (slideId: string) => void; onBusy: (message: string) => void;
+}) {
+  const [isPending, startTransition] = useTransition();
+  const [restoringId, setRestoringId] = useState<string | null>(null);
+
+  function restore(slideId: string) {
+    setRestoringId(slideId);
+    onBusy("Restoring slide...");
+    startTransition(async () => {
+      const restoredId = await restoreBuilderSlide(lessonId, slideId);
+      if (restoredId) onRestored(restoredId);
+      setRestoringId(null);
+    });
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 px-4 py-6">
+      <div className="max-h-[80vh] w-full max-w-lg overflow-auto rounded-xl bg-white p-5 shadow-2xl">
+        <div className="flex items-start justify-between gap-4">
+          <div><h2 className="text-lg font-semibold">Slide trash</h2><p className="mt-1 text-sm text-black/55">Restoring a slide brings back its blocks, activity, and saved learner evidence.</p></div>
+          <button type="button" onClick={onClose} className="rounded-md border border-black/10 p-1.5 hover:bg-black/5"><X size={16} /></button>
+        </div>
+        {slides.length ? <div className="mt-4 grid gap-2">
+          {slides.map((slide) => <div key={slide.id} className="flex min-w-0 items-center gap-3 rounded-lg border border-black/10 p-3">
+            <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{slide.title}</p><p className="mt-0.5 text-xs text-black/45">{slide.section_label || "Untitled section"}</p></div>
+            <button type="button" disabled={isPending} onClick={() => restore(slide.id)} className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-moss/25 px-3 py-1.5 text-xs font-semibold text-moss hover:bg-moss/5 disabled:opacity-50">
+              <RotateCcw size={14} /> {restoringId === slide.id ? "Restoring..." : "Restore"}
+            </button>
+          </div>)}
+        </div> : <div className="mt-5 rounded-lg border border-dashed border-black/15 bg-slate-50 p-8 text-center text-sm text-black/50">No deleted slides in this lesson.</div>}
       </div>
     </div>
   );
@@ -472,7 +498,7 @@ function AiGeneratorModal({
   );
 }
 
-export function LessonBuilderWorkspace({ lesson, slides, blocks, activities, obe, isAdmin = false }: Props) {
+export function LessonBuilderWorkspace({ lesson, slides, trashedSlides = [], blocks, activities, obe, isAdmin = false }: Props) {
   const [localSlides, setLocalSlides] = useState(slides);
   const [selectedSlideId, setSelectedSlideId] = useState(() => {
     if (typeof window === "undefined") return slides[0]?.id ?? "";
@@ -485,10 +511,12 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities, obe
   const [draggedSlideId, setDraggedSlideId] = useState<string | null>(null);
   const [addAfter, setAddAfter] = useState<number | null>(null);
   const [duplicateSlide, setDuplicateSlide] = useState<Slide | null>(null);
+  const [isSlideTrashOpen, setIsSlideTrashOpen] = useState(false);
   const [isReordering, startReorderTransition] = useTransition();
   const { confirmDelete } = useDeleteConfirm();
   const timelineRef = useRef<HTMLDivElement>(null);
   const selectedTimelineItemRef = useRef<HTMLDivElement>(null);
+  const optimisticSelectionsRef = useRef(new Map<string, Pick<Slide, "title" | "section_label" | "slide_number">>());
 
   const selectedSlide = localSlides.find((s) => s.id === selectedSlideId) ?? localSlides[0] ?? null;
   const selectedIndex = selectedSlide ? localSlides.findIndex((s) => s.id === selectedSlide.id) : -1;
@@ -502,8 +530,6 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities, obe
   const selectedBlocks = selectedSlide ? blocksBySlide.get(selectedSlide.id) ?? [] : [];
   const selectedActivities = selectedSlide ? activities.filter((a) => a.slide_id === selectedSlide.id) : [];
 
-  useEffect(() => { setLocalSlides(slides); }, [slides]);
-
   function selectRelative(direction: -1 | 1) {
     if (selectedIndex < 0) return;
     const next = localSlides[selectedIndex + direction];
@@ -514,6 +540,21 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities, obe
     setSelectedSlideId(slideId);
     if (typeof window !== "undefined") window.localStorage.setItem(`brenup-builder-slide:${lesson.id}`, slideId);
   }, [lesson.id]);
+
+  useEffect(() => {
+    setLocalSlides(slides);
+    const intended = optimisticSelectionsRef.current.get(selectedSlideId);
+    if (!intended) return;
+    const persisted = slides.find((slide) => (
+      slide.slide_number === intended.slide_number
+      && slide.title === intended.title
+      && slide.section_label === intended.section_label
+    ));
+    if (persisted) {
+      optimisticSelectionsRef.current.delete(selectedSlideId);
+      selectSlide(persisted.id);
+    }
+  }, [slides, selectedSlideId, selectSlide]);
 
   function reorderSlideCards(targetSlideId: string) {
     if (!draggedSlideId || draggedSlideId === targetSlideId || isReordering) return;
@@ -534,6 +575,7 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities, obe
     const id = `optimistic-slide-${Date.now()}`;
     setLocalSlides((current) => {
       const nextSlide: Slide = { id, slide_number: afterSlideNumber + 1, title: title.trim() || "New Slide", section_label: sectionLabel.trim() || null, raw_text: "" };
+      optimisticSelectionsRef.current.set(id, nextSlide);
       const foundIndex = current.findIndex((slide) => slide.slide_number > afterSlideNumber);
       const insertIndex = foundIndex === -1 ? current.length : Math.max(0, foundIndex);
       const next = [...current];
@@ -547,6 +589,7 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities, obe
     const id = `optimistic-slide-${Date.now()}`;
     setLocalSlides((current) => {
       const nextSlide: Slide = { ...sourceSlide, id, slide_number: afterSlideNumber + 1, title: `${sourceSlide.title} copy` };
+      optimisticSelectionsRef.current.set(id, nextSlide);
       const foundIndex = current.findIndex((slide) => slide.slide_number > afterSlideNumber);
       const insertIndex = foundIndex === -1 ? current.length : Math.max(0, foundIndex);
       const next = [...current];
@@ -570,9 +613,9 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities, obe
 
   function optimisticDeleteSlide(slideId: string) {
     confirmDelete({
-      title: "Delete this slide?",
-      message: "This slide and all its content blocks and activities will be permanently removed.",
-      isSoftDelete: false,
+      title: "Move this slide to trash?",
+      message: "Its blocks, activity, and learner evidence stay safe until you restore it.",
+      isSoftDelete: true,
       onConfirm: async () => {
         const currentIndex = localSlides.findIndex((slide) => slide.id === slideId);
         const next = renumberSlides(localSlides.filter((slide) => slide.id !== slideId));
@@ -622,9 +665,8 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities, obe
       {addAfter !== null && (
         <AddSlideModal lessonId={lesson.id} afterSlideNumber={addAfter} onClose={() => setAddAfter(null)} onBusy={setBusyMessage} onAdded={selectSlide} onOptimisticAdd={optimisticAddSlide} />
       )}
-      {duplicateSlide && (
-        <DuplicateSlideModal lessonId={lesson.id} sourceSlide={duplicateSlide} slides={localSlides} onClose={() => setDuplicateSlide(null)} onBusy={setBusyMessage} onDuplicated={selectSlide} onOptimisticDuplicate={optimisticDuplicateSlide} />
-      )}
+      {duplicateSlide && <DuplicateSlideModal lessonId={lesson.id} sourceSlide={duplicateSlide} onClose={() => setDuplicateSlide(null)} onBusy={setBusyMessage} onDuplicated={selectSlide} onOptimisticDuplicate={optimisticDuplicateSlide} />}
+      {isSlideTrashOpen && <SlideTrashModal lessonId={lesson.id} slides={trashedSlides} onClose={() => setIsSlideTrashOpen(false)} onBusy={setBusyMessage} onRestored={selectSlide} />}
       {isMetadataOpen && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 px-4 py-6">
           <div className="max-h-[90vh] w-full max-w-3xl overflow-auto rounded-xl bg-white p-5 shadow-2xl">
@@ -691,6 +733,9 @@ export function LessonBuilderWorkspace({ lesson, slides, blocks, activities, obe
           <Link href="/admin/content-library?type=LESSON_BLOCK" className="inline-flex items-center gap-2 rounded-md border border-black/15 bg-white px-4 py-2 text-sm font-medium hover:bg-black/5">
             <Library size={16} /> Content library
           </Link>
+          <button type="button" onClick={() => setIsSlideTrashOpen(true)} className="inline-flex items-center gap-2 rounded-md border border-black/15 bg-white px-3 py-2 text-sm font-medium hover:bg-black/5" title="Deleted slides">
+            <Trash2 size={16} /> <span className="hidden sm:inline">Trash</span>{trashedSlides.length ? <span className="rounded-full bg-black/10 px-1.5 py-0.5 text-[10px] font-bold">{trashedSlides.length}</span> : null}
+          </button>
           <form action={updateLessonStatus.bind(null, lesson.id, lesson.status === "PUBLISHED" ? "DRAFT" : "PUBLISHED")} data-busy-message={lesson.status === "PUBLISHED" ? "Unpublishing..." : "Publishing..."}>
             <button className={`inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold ${lesson.status === "PUBLISHED" ? "border border-black/15 bg-white text-ink hover:bg-black/5" : "bg-moss text-white"}`}>
               {lesson.status === "PUBLISHED" ? "Unpublish" : "Publish lesson"}
@@ -880,22 +925,22 @@ function SelectedSlideEditor({
           <label className="text-sm">Section label<input name="sectionLabel" defaultValue={slide.section_label ?? ""} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
           <input type="hidden" name="rawText" value={slide.title} />
           <SubmitButton label="Save slide" />
-          <div className="sm:col-span-3 flex flex-wrap items-end gap-4 border-t border-black/10 pt-3">
-            <label className="text-sm">
-              Learner sees first
-              <select name="contentOrder" defaultValue={slide.content_order ?? "LEARN_FIRST"} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">
-                <option value="LEARN_FIRST">Learn tab (content) first</option>
-                <option value="PRACTICE_FIRST">Practice tab (activity) first</option>
-              </select>
-            </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" name="requirePracticeBeforeLearn" defaultChecked={Boolean(slide.require_practice_before_learn)} className="size-4 rounded border-black/25" />
-              Require the activity to be submitted before the Learn tab unlocks
+          <div className="sm:col-span-3 flex flex-wrap items-center gap-3 border-t border-black/10 pt-3">
+            <span className="text-xs font-semibold text-black/50">First view</span>
+            <div className="inline-flex rounded-lg border border-black/10 bg-black/[0.03] p-1">
+              <label className="cursor-pointer rounded-md px-3 py-1.5 text-xs font-semibold has-[:checked]:bg-white has-[:checked]:text-moss has-[:checked]:shadow-sm">
+                <input type="radio" name="contentOrder" value="LEARN_FIRST" defaultChecked={(slide.content_order ?? "LEARN_FIRST") === "LEARN_FIRST"} className="sr-only" /> Learn
+              </label>
+              <label className="cursor-pointer rounded-md px-3 py-1.5 text-xs font-semibold has-[:checked]:bg-white has-[:checked]:text-moss has-[:checked]:shadow-sm">
+                <input type="radio" name="contentOrder" value="PRACTICE_FIRST" defaultChecked={slide.content_order === "PRACTICE_FIRST"} className="sr-only" /> Practice
+              </label>
+            </div>
+            <label className="ml-auto inline-flex cursor-pointer items-center gap-2 text-xs font-semibold text-black/55">
+              <input type="checkbox" name="requirePracticeBeforeLearn" defaultChecked={Boolean(slide.require_practice_before_learn)} className="peer sr-only" />
+              <span className="relative h-5 w-9 rounded-full bg-black/15 transition peer-checked:bg-moss after:absolute after:left-0.5 after:top-0.5 after:size-4 after:rounded-full after:bg-white after:transition peer-checked:after:translate-x-4" />
+              Lock Learn
             </label>
           </div>
-          <p className="sm:col-span-3 -mt-2 text-xs text-black/45">
-            Only applies when Practice is set first, and only on slides that have both content and an activity.
-          </p>
         </form>
 
         <section className="mt-4 rounded-lg border border-black/10 bg-white p-3">

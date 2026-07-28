@@ -187,7 +187,7 @@ function NavItem({
   const title = collapsed ? label : undefined;
   const style = active ? { backgroundColor: accentColor || "var(--br-brand)" } : undefined;
   if (disabled) return <span className={className} title={title} style={style}>{content}</span>;
-  return <Link href={href} className={className} title={title} style={style}>{content}</Link>;
+  return <Link href={href} prefetch className={className} title={title} style={style}>{content}</Link>;
 }
 
 function PremiumCard() {

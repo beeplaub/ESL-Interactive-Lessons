@@ -95,6 +95,7 @@ select {
   .br-learner-page-hero {
     position: relative;
     display: flex;
+    flex-direction: column;
     gap: 1.5rem;
     overflow: hidden;
     border-radius: calc(var(--br-radius) + 0.25rem);
@@ -143,7 +144,7 @@ select {
     color: rgba(255, 255, 255, .72);
   }
   @media (min-width: 640px) {
-    .br-learner-page-hero { padding: 1.5rem; }
+    .br-learner-page-hero { flex-direction: row; padding: 1.5rem; }
   }
 
   .br-button-primary {

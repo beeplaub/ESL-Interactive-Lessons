@@ -1014,6 +1014,7 @@ export async function addBuilderSlide(lessonId: string, formData: FormData) {
     .from("slides")
     .select("slide_number")
     .eq("lesson_id", lessonId)
+    .is("deleted_at", null)
     .order("slide_number", { ascending: false })
     .limit(1);
   if (slidesError) throw slidesError;
@@ -1046,13 +1047,14 @@ export async function addBuilderSlideAt(
   const { user, profile } = await requireLessonAccess(lessonId);
   const supabase = createAdminClient();
 
-  const { count: slideCount } = await supabase.from("slides").select("id", { count: "exact", head: true }).eq("lesson_id", lessonId);
+  const { count: slideCount } = await supabase.from("slides").select("id", { count: "exact", head: true }).eq("lesson_id", lessonId).is("deleted_at", null);
   await assertCreatorWithinLimit(user.id, profile?.role, "SLIDES_PER_LESSON", slideCount ?? 0, "slides in this lesson");
 
   const { data: slidesToShift } = await supabase
     .from("slides")
     .select("id, slide_number")
     .eq("lesson_id", lessonId)
+    .is("deleted_at", null)
     .gt("slide_number", afterSlideNumber)
     .order("slide_number", { ascending: false });
 
@@ -1109,8 +1111,8 @@ export async function duplicateBuilderSlide(lessonId: string, slideId: string, a
   await requireLessonAccess(lessonId);
   const supabase = createAdminClient();
   const [{ data: source, error: sourceError }, { data: slides, error: slidesError }] = await Promise.all([
-    supabase.from("slides").select("*").eq("id", slideId).eq("lesson_id", lessonId).single(),
-    supabase.from("slides").select("id, slide_number").eq("lesson_id", lessonId).order("slide_number", { ascending: true })
+    supabase.from("slides").select("*").eq("id", slideId).eq("lesson_id", lessonId).is("deleted_at", null).single(),
+    supabase.from("slides").select("id, slide_number").eq("lesson_id", lessonId).is("deleted_at", null).order("slide_number", { ascending: true })
   ]);
   if (sourceError) throw sourceError;
   if (slidesError) throw slidesError;
@@ -1141,7 +1143,9 @@ export async function duplicateBuilderSlide(lessonId: string, slideId: string, a
     section_label: source.section_label,
     raw_text: source.raw_text,
     type: source.type,
-    linked_answer_slide_id: null
+    linked_answer_slide_id: null,
+    content_order: source.content_order ?? "LEARN_FIRST",
+    require_practice_before_learn: Boolean(source.require_practice_before_learn),
   }).select("id").single();
 
   if (error) throw error;
@@ -1188,35 +1192,58 @@ export async function duplicateBuilderSlide(lessonId: string, slideId: string, a
 }
 
 export async function deleteBuilderSlide(lessonId: string, slideId: string) {
-  await requireLessonAccess(lessonId);
+  const { user } = await requireLessonAccess(lessonId);
   const supabase = createAdminClient();
   const { data: slide, error: slideError } = await supabase
     .from("slides")
     .select("slide_number")
     .eq("id", slideId)
     .eq("lesson_id", lessonId)
+    .is("deleted_at", null)
     .single();
   if (slideError) throw slideError;
 
-  await supabase.from("slides").update({ linked_answer_slide_id: null }).eq("linked_answer_slide_id", slideId);
-  await supabase.from("lesson_audio_files").update({ linked_slide_number: null }).eq("lesson_id", lessonId).eq("linked_slide_number", slide.slide_number);
-  await supabase.from("lesson_slide_activities").delete().eq("slide_id", slideId).eq("lesson_id", lessonId);
-  await supabase.from("lesson_blocks").delete().eq("slide_id", slideId).eq("lesson_id", lessonId);
-  await supabase.from("slide_activities").delete().eq("slide_id", slideId).eq("lesson_id", lessonId);
-  await supabase.from("responses").delete().eq("slide_id", slideId).eq("lesson_id", lessonId);
-
-  const { error } = await supabase.from("slides").delete().eq("id", slideId).eq("lesson_id", lessonId);
+  // The slide is recoverable. Its blocks, activities, learner attempts, and
+  // assessment evidence remain available when a creator restores it.
+  const { error } = await supabase.from("slides").update({
+    deleted_at: new Date().toISOString(),
+    deleted_by: user.id,
+    slide_number: -Math.abs(slide.slide_number || 1) - 100000,
+  }).eq("id", slideId).eq("lesson_id", lessonId);
   if (error) throw error;
 
   const { data: slides, error: slidesError } = await supabase
     .from("slides")
     .select("id")
     .eq("lesson_id", lessonId)
+    .is("deleted_at", null)
     .order("slide_number", { ascending: true });
   if (slidesError) throw slidesError;
   await reorderSlides(lessonId, (slides ?? []).map((slide) => slide.id));
   await syncLessonSlideActivityNumbers(supabase, lessonId);
   revalidateLessonBuilder(lessonId);
+}
+
+export async function restoreBuilderSlide(lessonId: string, slideId: string) {
+  await requireLessonAccess(lessonId);
+  const supabase = createAdminClient();
+  const [{ data: trashedSlide, error: trashedError }, { count: activeCount, error: countError }] = await Promise.all([
+    supabase.from("slides").select("id").eq("id", slideId).eq("lesson_id", lessonId).not("deleted_at", "is", null).maybeSingle(),
+    supabase.from("slides").select("id", { count: "exact", head: true }).eq("lesson_id", lessonId).is("deleted_at", null),
+  ]);
+  if (trashedError) throw trashedError;
+  if (countError) throw countError;
+  if (!trashedSlide) return null;
+
+  const { error } = await supabase.from("slides").update({
+    deleted_at: null,
+    deleted_by: null,
+    slide_number: (activeCount ?? 0) + 1,
+  }).eq("id", slideId).eq("lesson_id", lessonId);
+  if (error) throw error;
+  await syncLessonSlideActivityNumbers(supabase, lessonId);
+  revalidateLessonBuilder(lessonId);
+  return slideId;
 }
 
 export async function moveBuilderSlide(lessonId: string, slideId: string, direction: "up" | "down") {
@@ -1226,6 +1253,7 @@ export async function moveBuilderSlide(lessonId: string, slideId: string, direct
     .from("slides")
     .select("id")
     .eq("lesson_id", lessonId)
+    .is("deleted_at", null)
     .order("slide_number", { ascending: true });
   if (error) throw error;
 
@@ -1250,6 +1278,7 @@ export async function moveBuilderSlideToPosition(lessonId: string, slideId: stri
     .from("slides")
     .select("id")
     .eq("lesson_id", lessonId)
+    .is("deleted_at", null)
     .order("slide_number", { ascending: true });
   if (error) throw error;
 
@@ -1843,7 +1872,8 @@ async function reorderSlides(lessonId: string, orderedIds: string[]) {
   const { data: currentSlides, error: currentError } = await supabase
     .from("slides")
     .select("id, slide_number")
-    .eq("lesson_id", lessonId);
+    .eq("lesson_id", lessonId)
+    .is("deleted_at", null);
   if (currentError) throw currentError;
 
   const currentNumberById = new Map((currentSlides ?? []).map((slide) => [slide.id, slide.slide_number]));
@@ -1900,7 +1930,8 @@ async function syncLessonSlideActivityNumbers(supabase: AdminClient, lessonId: s
   const { data: slides, error } = await supabase
     .from("slides")
     .select("id, slide_number")
-    .eq("lesson_id", lessonId);
+    .eq("lesson_id", lessonId)
+    .is("deleted_at", null);
   if (error) throw error;
 
   const { data: activities, error: activitiesError } = await supabase

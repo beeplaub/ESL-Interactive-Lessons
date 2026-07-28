@@ -56,7 +56,7 @@ export default async function ContentLibraryPage({
   let blocksQuery = admin.from("lesson_blocks").select("id,block_type,position,lesson_id,lessons(title),slides(title)").order("created_at", { ascending: false }).limit(500);
   if (!isAdmin) blocksQuery = blocksQuery.in("lesson_id", ownedLessonIds ?? []);
 
-  let slidesQuery = admin.from("slides").select("id,title,slide_number,lesson_id,lessons(title)").order("created_at", { ascending: false }).limit(500);
+  let slidesQuery = admin.from("slides").select("id,title,slide_number,lesson_id,lessons(title)").is("deleted_at", null).order("created_at", { ascending: false }).limit(500);
   if (!isAdmin) slidesQuery = slidesQuery.in("lesson_id", ownedLessonIds ?? []);
 
   const [

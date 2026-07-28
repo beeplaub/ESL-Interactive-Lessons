@@ -11,7 +11,7 @@ export default async function LessonsPage() {
 
   const [{ data: lessons }, { data: slides }, { data: wishlist }, { data: progress }] = await Promise.all([
     admin.from("lessons").select("*").eq("status", "PUBLISHED").is("deleted_at", null).order("created_at", { ascending: false }),
-    admin.from("slides").select("lesson_id").order("slide_number", { ascending: true }),
+    admin.from("slides").select("lesson_id").is("deleted_at", null).order("slide_number", { ascending: true }),
     user
       ? admin.from("wishlist_items").select("lesson_id").eq("user_id", user.id).not("lesson_id", "is", null)
       : Promise.resolve({ data: [] }),

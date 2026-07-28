@@ -26,6 +26,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { LearnerSidebar } from "@/components/LearnerSidebar";
 import { NotificationsDropdown } from "@/components/NotificationsDropdown";
+import { LearnerNavigationPreloader } from "@/components/LearnerNavigationPreloader";
 
 export type ActiveItem = "home" | "quizzes" | "courses" | "live-classes" | "assignments" | "certificates" | "level-test" | "leaderboard" | "language-profile" | "profile";
 
@@ -105,6 +106,7 @@ export async function LearnerAppShell({
 
   return (
     <main className="min-h-screen bg-[var(--br-canvas)] font-sans text-[var(--br-text)]">
+      <LearnerNavigationPreloader />
       <MobileTopbar
         active={active}
         initials={initials}
@@ -598,7 +600,7 @@ function MobileTopbar({
 }
 
 function MobileDrawerLink({ href, label, icon: Icon, active }: { href: string; label: string; icon: React.ElementType; active?: boolean }) {
-  return <Link href={href} className={`flex h-11 items-center gap-3 rounded-[14px] px-3.5 text-sm font-semibold ${active ? "bg-[var(--br-brand)] text-white" : "text-[#C5C8DC]"}`}><Icon className="size-[18px]" /> {label}</Link>;
+  return <Link href={href} prefetch className={`flex h-11 items-center gap-3 rounded-[14px] px-3.5 text-sm font-semibold ${active ? "bg-[var(--br-brand)] text-white" : "text-[#C5C8DC]"}`}><Icon className="size-[18px]" /> {label}</Link>;
 }
 
 function MobileBottomNav({ active }: { active: ActiveItem }) {

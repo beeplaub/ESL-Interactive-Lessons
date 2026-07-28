@@ -72,12 +72,12 @@ export default async function LanguageProfilePage() {
         eyebrowIcon={Sparkles}
         title="Your English evidence map"
         description="BrenUp tracks what your answers prove over time: skills, learning targets, confidence, and Can-Do growth."
-        aside={<div className="grid grid-cols-3 gap-2 text-center sm:min-w-[340px]"><Stat label="Evidence" value={String(responses?.length ?? 0)} /><Stat label="Attempts" value={String(attempts?.length ?? 0)} /><Stat label="Current" value={totalPossible ? pct(overall) : "—"} /></div>}
+        aside={<div className="grid w-full min-w-0 grid-cols-3 gap-2 text-center sm:min-w-[340px]"><Stat label="Evidence" value={String(responses?.length ?? 0)} /><Stat label="Attempts" value={String(attempts?.length ?? 0)} /><Stat label="Current" value={totalPossible ? pct(overall) : "—"} /></div>}
       />
 
       {responses?.length ? (
-        <div className="grid gap-5 xl:grid-cols-[1fr_380px]">
-          <section className="rounded-[24px] border border-black/5 bg-white p-5 shadow-[0_12px_35px_rgba(18,22,43,.06)]">
+        <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
+          <section className="min-w-0 rounded-[24px] border border-black/5 bg-white p-4 shadow-[0_12px_35px_rgba(18,22,43,.06)] sm:p-5">
             <div className="mb-4 flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-black text-[#14172B]">Skill mastery</h2>
@@ -104,7 +104,7 @@ export default async function LanguageProfilePage() {
             </div>
           </section>
 
-          <aside className="space-y-5">
+          <aside className="min-w-0 space-y-5">
             <section className="rounded-[24px] border border-black/5 bg-white p-5 shadow-[0_12px_35px_rgba(18,22,43,.06)]">
               <div className="mb-4 flex items-center gap-2">
                 <Sparkles className="size-5 text-[#F59E0B]" />
@@ -155,8 +155,8 @@ export default async function LanguageProfilePage() {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-white/15 bg-white/10 px-3 py-3 backdrop-blur">
-      <div className="text-2xl font-black">{value}</div>
+    <div className="min-w-0 rounded-2xl border border-white/15 bg-white/10 px-2 py-3 backdrop-blur sm:px-3">
+      <div className="truncate text-xl font-black sm:text-2xl">{value}</div>
       <div className="text-[10px] font-bold uppercase tracking-wide text-white/60">{label}</div>
     </div>
   );

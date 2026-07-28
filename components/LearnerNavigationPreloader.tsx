@@ -1,0 +1,24 @@
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+
+const learnerRoutes = [
+  "/account", "/quizzes", "/courses", "/live-classes", "/assignments",
+  "/certificates", "/level-test", "/language-profile", "/leaderboard", "/profile",
+];
+
+/** Warm learner navigation in idle time so menu changes feel immediate. */
+export function LearnerNavigationPreloader() {
+  const router = useRouter();
+  useEffect(() => {
+    const warm = () => learnerRoutes.forEach((route) => router.prefetch(route));
+    const idle = window.requestIdleCallback?.(warm, { timeout: 1200 });
+    const timeout = idle === undefined ? window.setTimeout(warm, 220) : undefined;
+    return () => {
+      if (idle !== undefined) window.cancelIdleCallback?.(idle);
+      if (timeout !== undefined) window.clearTimeout(timeout);
+    };
+  }, [router]);
+  return null;
+}
