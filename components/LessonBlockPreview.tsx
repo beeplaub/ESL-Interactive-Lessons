@@ -540,7 +540,16 @@ function FlashcardDetails({ word, phonetic, audioSrc, meaning, examples, audioRe
 }
 
 function InlineText({ text }: { text: string }) {
-  return <>{text.split(/(\*\*[^*]+\*\*|__[^_]+__)/g).map((part, index) => part.startsWith("**") ? <strong key={index}>{part.slice(2, -2)}</strong> : part.startsWith("__") ? <span key={index} className="underline underline-offset-2">{part.slice(2, -2)}</span> : part)}</>;
+  return <>{text.split(/(\[\[color:#[0-9a-fA-F]{6}\|[^\]]+\]\]|\*\*[^*]+\*\*|__[^_]+__|~~[^~]+~~|_[^_]+_|\[[^\]]+\]\([^)]*\))/g).map((part, index) => {
+    const color = part.match(/^\[\[color:(#[0-9a-fA-F]{6})\|(.+)\]\]$/); const link = part.match(/^\[([^\]]+)\]\(([^)]*)\)$/);
+    if (color) return <span key={index} style={{ color: color[1] }}>{color[2]}</span>;
+    if (link) return <a key={index} href={link[2]} className="underline text-moss" target="_blank" rel="noreferrer">{link[1]}</a>;
+    if (part.startsWith("**")) return <strong key={index}>{part.slice(2, -2)}</strong>;
+    if (part.startsWith("__")) return <span key={index} className="underline underline-offset-2">{part.slice(2, -2)}</span>;
+    if (part.startsWith("~~")) return <span key={index} className="line-through">{part.slice(2, -2)}</span>;
+    if (part.startsWith("_")) return <em key={index}>{part.slice(1, -1)}</em>;
+    return part;
+  })}</>;
 }
 
 function FormattedText({ text, align = "text-left" }: { text: string; align?: string }) {

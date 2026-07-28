@@ -33,6 +33,7 @@ export default async function HomePage() {
   if (user) {
     const profile = await getFreshProfile(user.id);
     if (isStaff(profile?.role)) redirect("/admin");
+    redirect("/account");
   }
 
   const { data: featuredCourses } = await admin

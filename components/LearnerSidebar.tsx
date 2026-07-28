@@ -70,7 +70,7 @@ export function LearnerSidebar({
     >
       {/* Brand logo & collapse button */}
       <div className={`flex items-center pb-8 ${collapsed ? "flex-col gap-2" : "justify-between gap-2"}`}>
-        <Link href="/" className="flex min-w-0 items-center gap-3">
+        <Link href="/account" prefetch className="flex min-w-0 items-center gap-3">
           <div className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-xl bg-[var(--br-brand)] shadow-md shadow-black/20" style={schoolBrand?.accentColor ? { background: schoolBrand.accentColor } : undefined}>
             {schoolBrand?.logoUrl ? <img src={schoolBrand.logoUrl} alt="" className="size-full object-cover" /> : <Layers className="size-[22px] text-white" />}
           </div>

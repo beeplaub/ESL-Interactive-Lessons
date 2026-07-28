@@ -6,6 +6,8 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { DeleteConfirmProvider } from "@/components/DeleteConfirmModal";
 import { RouteScrollReset } from "@/components/RouteScrollReset";
+import { BuilderTextToolbar } from "@/components/BuilderTextToolbar";
+import { BuilderUndoControls } from "@/components/BuilderUndoControls";
 import { getPlatformStyle, platformStyleVariables } from "@/lib/design-system";
 import "./globals.css";
 
@@ -43,6 +45,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <Suspense fallback={null}>
             <RouteScrollReset />
           </Suspense>
+          <BuilderTextToolbar />
+          <BuilderUndoControls />
           <HeaderGate>
             <SiteHeader />
           </HeaderGate>

@@ -542,7 +542,7 @@ function MobileTopbar({
 }) {
   return (
     <div className="fixed inset-x-0 top-0 z-40 flex h-[60px] items-center justify-between gap-2 bg-[#1b1b3a] px-3 min-[1180px]:hidden">
-      <Link href="/" className="flex min-w-0 items-center gap-2">
+      <Link href="/account" prefetch className="flex min-w-0 items-center gap-2">
         <span className="grid size-8 shrink-0 place-items-center rounded-[9px] bg-[var(--br-brand)]"><Layers className="size-[18px] text-white" /></span>
         <span className="truncate text-[15px] font-bold text-white">BrenUp</span>
       </Link>

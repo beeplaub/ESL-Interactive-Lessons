@@ -13,8 +13,11 @@ export function LearnerNavigationPreloader() {
   const router = useRouter();
   useEffect(() => {
     const warm = () => learnerRoutes.forEach((route) => router.prefetch(route));
-    const idle = window.requestIdleCallback?.(warm, { timeout: 1200 });
-    const timeout = idle === undefined ? window.setTimeout(warm, 220) : undefined;
+    router.prefetch("/account");
+    router.prefetch("/courses");
+    router.prefetch("/quizzes");
+    const idle = window.requestIdleCallback?.(warm, { timeout: 600 });
+    const timeout = idle === undefined ? window.setTimeout(warm, 80) : undefined;
     return () => {
       if (idle !== undefined) window.cancelIdleCallback?.(idle);
       if (timeout !== undefined) window.clearTimeout(timeout);
