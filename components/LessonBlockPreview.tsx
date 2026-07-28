@@ -341,7 +341,7 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
     return (
       <div className="rounded-lg border border-blue-100 bg-blue-50 p-4">
         <h3 className="font-semibold text-ink">{asString(content.title) || "Grammar focus"}</h3>
-        <p className="mt-2 text-base leading-6 text-black/65">{asString(content.explanation) || "Add a grammar explanation."}</p>
+        <div className="mt-2"><FormattedText text={asString(content.explanation) || "Add a grammar explanation."} /></div>
         {asArray(content.examples).length ? (
           <ul className="mt-3 space-y-2 text-base text-black/70">
             {asArray(content.examples).map((example, index) => (
@@ -349,7 +349,7 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
             ))}
           </ul>
         ) : null}
-        {asString(content.notes) ? <p className="mt-3 text-xs text-black/50">{asString(content.notes)}</p> : null}
+        {asString(content.notes) ? <div className="mt-3 text-xs text-black/50"><FormattedText text={asString(content.notes)} /></div> : null}
       </div>
     );
   }
@@ -386,7 +386,7 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
           return (
             <div key={index} className="rounded-lg border border-black/10 bg-white p-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-moss">{asString(turn.speaker) || "Speaker"}</p>
-              <p className="mt-1 text-base leading-6 text-black/70">{asString(turn.line) || "Dialogue line"}</p>
+              <div className="mt-1 flex items-start gap-2"><div className="min-w-0 flex-1"><FormattedText text={asString(turn.line) || "Dialogue line"} /></div>{asString(turn.audio_url) ? <DialogueAudioButton src={mediaUrl(asString(turn.audio_url), "audio")} speaker={asString(turn.speaker) || "speaker"} /> : null}</div>
             </div>
           );
         }) : <p className="rounded-lg border border-dashed border-black/15 p-4 text-sm text-black/50">Add dialogue turns.</p>}
@@ -536,14 +536,25 @@ function FlashcardDetails({ word, phonetic, audioSrc, meaning, examples, audioRe
   );
 }
 
+function InlineText({ text }: { text: string }) {
+  return <>{text.split(/(\*\*[^*]+\*\*|__[^_]+__)/g).map((part, index) => part.startsWith("**") ? <strong key={index}>{part.slice(2, -2)}</strong> : part.startsWith("__") ? <span key={index} className="underline underline-offset-2">{part.slice(2, -2)}</span> : part)}</>;
+}
+
 function FormattedText({ text, align = "text-left" }: { text: string; align?: string }) {
-  const paragraphs = text.split(/\n{2,}/).map((part) => part.trim()).filter(Boolean);
-  if (!paragraphs.length) return <p className={`text-sm text-black/50 ${align}`}>Add text.</p>;
-  return (
-    <div className={`space-y-3 text-base leading-7 text-black/70 ${align}`}>
-      {paragraphs.map((paragraph, index) => <p key={index}>{paragraph}</p>)}
-    </div>
-  );
+  const lines = text.replace(/\r\n/g, "\n").split("\n");
+  if (!lines.some((line) => line.trim())) return <p className={`text-sm text-black/50 ${align}`}>Add text.</p>;
+  return <div className={`space-y-2 text-base leading-7 text-black/70 ${align}`}>{lines.map((line, index) => {
+    const trimmed = line.trim();
+    if (!trimmed) return <div key={index} className="h-2" aria-hidden />;
+    if (/^#{1,4}\s+/.test(trimmed)) return <p key={index} className="font-bold text-ink"><InlineText text={trimmed.replace(/^#{1,4}\s+/, "")} /></p>;
+    if (/^(?:[-*]|\d+[.)])\s+/.test(trimmed)) return <div key={index} className="flex gap-2"><span className="mt-3 size-1.5 shrink-0 rounded-full bg-moss" /><span><InlineText text={trimmed.replace(/^(?:[-*]|\d+[.)])\s+/, "")} /></span></div>;
+    return <p key={index}><InlineText text={line} /></p>;
+  })}</div>;
+}
+
+function DialogueAudioButton({ src, speaker }: { src: string; speaker: string }) {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  return <><audio ref={audioRef} src={src} preload="metadata" /><button type="button" onClick={() => { if (audioRef.current) { audioRef.current.currentTime = 0; void audioRef.current.play(); } }} title={`Play ${speaker}'s line`} className="grid size-8 shrink-0 place-items-center rounded-full bg-moss/10 text-moss transition hover:bg-moss/20" aria-label={`Play ${speaker}'s line`}><Volume2 size={15} /></button></>;
 }
 
 function CustomAudioPlayer({ src }: { src: string }) {
