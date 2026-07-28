@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { ArrowRight, CheckCircle2, Sparkles, Target, TrendingUp } from "lucide-react";
 import { LearnerAppShell } from "@/components/LearnerAppShell";
@@ -20,7 +21,9 @@ function bandClass(band: string) {
 
 export default async function LanguageProfilePage() {
   const { user, profile } = await requireUser();
-  if (profile?.role === "ADMIN") redirect("/admin");
+  const cookieStore = await cookies();
+  const isAdminLearnerView = profile?.role === "ADMIN" && cookieStore.get("view_mode")?.value === "learner";
+  if (profile?.role === "ADMIN" && !isAdminLearnerView) redirect("/admin");
 
   const admin = createAdminClient();
   const { data: attempts } = await admin

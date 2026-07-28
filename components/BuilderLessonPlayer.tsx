@@ -694,6 +694,7 @@ export function BuilderLessonPlayer({
                     lessonId={lesson.id}
                     courseItemId={courseItemId}
                     initialAttempt={latestAttemptByActivity.get(activity.id) ?? null}
+                    preserveDraft={!lesson.timer_minutes}
                     attempts={savedActivityAttempts.filter((attempt) => attempt.lesson_slide_activity_id === activity.id)}
                     onSavedAttempt={(attempt) => {
                       setSavedActivityAttempts((current) => [{

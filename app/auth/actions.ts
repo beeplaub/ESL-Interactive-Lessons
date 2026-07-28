@@ -18,7 +18,7 @@ export async function switchToLearnerView() {
     path: "/",
     sameSite: "lax"
   });
-  redirect("/dashboard");
+  redirect("/account");
 }
 
 export async function switchToAdminView() {

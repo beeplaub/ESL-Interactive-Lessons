@@ -291,7 +291,11 @@ export function QuizPlayer({
   timerMinutes?: number | null;
   courseItemId?: string | null;
 }) {
-  const [answers, setAnswers] = useState<Record<string, unknown>>({});
+  const draftKey = `brenup:quiz-draft:${quizId}`;
+  const [answers, setAnswers] = useState<Record<string, unknown>>(() => {
+    if (timerMinutes || typeof window === "undefined") return {};
+    try { return JSON.parse(window.sessionStorage.getItem(draftKey) ?? "{}") as Record<string, unknown>; } catch { return {}; }
+  });
   const [submitted, setSubmitted] = useState(false);
   const [allAttempts, setAllAttempts] = useState<PastAttempt[]>(pastAttempts);
   const [message, setMessage] = useState<string | null>(null);
@@ -350,6 +354,16 @@ export function QuizPlayer({
   const timeTakenSeconds = Math.max(0, Math.round((Date.now() - attemptStartRef.current) / 1000));
   const timerUrgent = remainingSeconds !== null && remainingSeconds <= 60;
 
+  useEffect(() => {
+    if (timerMinutes || submitted) return;
+    try { window.sessionStorage.setItem(draftKey, JSON.stringify(answers)); } catch { /* Storage is a convenience, never a blocker. */ }
+  }, [answers, draftKey, submitted, timerMinutes]);
+
+  useEffect(() => {
+    if (!submitted) return;
+    try { window.sessionStorage.removeItem(draftKey); } catch { /* no-op */ }
+  }, [draftKey, submitted]);
+
   function formatTime(totalSeconds: number) {
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
@@ -357,6 +371,7 @@ export function QuizPlayer({
   }
 
   function reset() {
+    try { window.sessionStorage.removeItem(draftKey); } catch { /* no-op */ }
     setAnswers({});
     setSubmitted(false);
     setShowPopup(false);

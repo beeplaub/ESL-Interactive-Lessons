@@ -1227,16 +1227,20 @@ function AiRoleplayPanel({
 /* ─── Main Activity Panel ────────────────────────────────────────── */
 
 export function LessonActivityPanel({
-  activity, onNext, previewOnly = false, initialAttempt = null, attempts = [], onSavedAttempt, courseItemId = null, lessonId = null,
+  activity, onNext, previewOnly = false, initialAttempt = null, attempts = [], onSavedAttempt, courseItemId = null, lessonId = null, preserveDraft = true,
 }: {
   activity: LessonSlideActivity; onNext: () => void;
-  previewOnly?: boolean; initialAttempt?: SavedAttempt | null; attempts?: SavedAttempt[]; onSavedAttempt?: (attempt: SavedAttempt) => void;
+  previewOnly?: boolean; initialAttempt?: SavedAttempt | null; attempts?: SavedAttempt[]; onSavedAttempt?: (attempt: SavedAttempt) => void; preserveDraft?: boolean;
   courseItemId?: string | null;
   lessonId?: string | null;
 }) {
   const questions = questionsFromData(activity.activity_data, activity.activity_type, activity.id);
   const initialAnswers = asRecord(initialAttempt?.answers);
-  const [answers, setAnswers] = useState<Record<string, unknown>>(initialAnswers);
+  const draftKey = `brenup:lesson-activity-draft:${activity.id}`;
+  const [answers, setAnswers] = useState<Record<string, unknown>>(() => {
+    if (!preserveDraft || previewOnly || initialAttempt || typeof window === "undefined") return initialAnswers;
+    try { return { ...initialAnswers, ...(JSON.parse(window.sessionStorage.getItem(draftKey) ?? "{}") as Record<string, unknown>) }; } catch { return initialAnswers; }
+  });
   const [submitted, setSubmitted] = useState(Boolean(initialAttempt));
   const [message, setMessage] = useState<string | null>(null);
   const [localAttempts, setLocalAttempts] = useState<SavedAttempt[]>(attempts);
@@ -1252,6 +1256,16 @@ export function LessonActivityPanel({
   // Carousel state
   const [qIndex, setQIndex] = useState(0);
   const [reviewMode, setReviewMode] = useState<"overview" | "detail">("overview");
+
+  useEffect(() => {
+    if (!preserveDraft || previewOnly || submitted) return;
+    try { window.sessionStorage.setItem(draftKey, JSON.stringify(answers)); } catch { /* Storage is a convenience, never a blocker. */ }
+  }, [answers, draftKey, preserveDraft, previewOnly, submitted]);
+
+  useEffect(() => {
+    if (!submitted) return;
+    try { window.sessionStorage.removeItem(draftKey); } catch { /* no-op */ }
+  }, [draftKey, submitted]);
 
   const hasWritingActivity = questions.some((q) => isWritingQuestionType(q.question_type));
   // True once submitted but at least one writing question hasn't reached a final graded

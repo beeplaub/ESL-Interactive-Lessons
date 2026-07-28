@@ -32,7 +32,9 @@ export default async function LearnerLiveSessionPage({ params }: { params: Promi
   }
 
   const klass = Array.isArray(session.classes) ? session.classes[0] : session.classes;
-  const player = session.status === "LIVE" && session.lesson_id
+  // A completed session remains reviewable by every enrolled participant. It uses
+  // the same lesson engine in self-paced review mode, not the private lobby.
+  const player = (session.status === "LIVE" || session.status === "COMPLETED") && session.lesson_id
     ? await getLiveLessonPlayerData(session.lesson_id, user.id)
     : null;
 
@@ -54,7 +56,7 @@ export default async function LearnerLiveSessionPage({ params }: { params: Promi
             initialNotes={player.progress?.notes ?? {}}
             narrationMap={player.narrationMap}
             backHref="/account"
-            liveSession={{ sessionId: id, role: session.teacher_id === user.id ? "TEACHER" : "STUDENT", initialSlideNumber: session.current_slide_number ?? 1, navigationLocked: Boolean(session.navigation_locked) }}
+            liveSession={session.status === "LIVE" ? { sessionId: id, role: session.teacher_id === user.id ? "TEACHER" : "STUDENT", initialSlideNumber: session.current_slide_number ?? 1, navigationLocked: Boolean(session.navigation_locked) } : null}
           /><div className="order-first xl:order-none"><LiveClassTools sessionId={id} teacher={session.teacher_id === user.id} /></div></div>
         </div>
       </main>

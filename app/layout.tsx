@@ -4,6 +4,7 @@ import { HeaderGate } from "@/components/HeaderGate";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { DeleteConfirmProvider } from "@/components/DeleteConfirmModal";
+import { RouteScrollReset } from "@/components/RouteScrollReset";
 import { getPlatformStyle, platformStyleVariables } from "@/lib/design-system";
 import "./globals.css";
 
@@ -38,6 +39,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body>
         <DeleteConfirmProvider>
+          <RouteScrollReset />
           <HeaderGate>
             <SiteHeader />
           </HeaderGate>
