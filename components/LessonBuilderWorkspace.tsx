@@ -518,7 +518,9 @@ export function LessonBuilderWorkspace({ lesson, slides, trashedSlides = [], blo
   const selectedTimelineItemRef = useRef<HTMLDivElement>(null);
   const optimisticSelectionsRef = useRef(new Map<string, Pick<Slide, "title" | "section_label" | "slide_number">>());
 
-  const selectedSlide = localSlides.find((s) => s.id === selectedSlideId) ?? localSlides[0] ?? null;
+  // Never flash back to slide one while an optimistic add/duplicate is being
+  // reconciled with the server-generated slide id.
+  const selectedSlide = localSlides.find((s) => s.id === selectedSlideId) ?? (selectedSlideId.startsWith("optimistic-slide-") ? null : localSlides[0] ?? null);
   const selectedIndex = selectedSlide ? localSlides.findIndex((s) => s.id === selectedSlide.id) : -1;
 
   const blocksBySlide = useMemo(() => {
@@ -1316,6 +1318,16 @@ function AlignmentGroup({ label, name, value, options }: {
   );
 }
 
+const dialogueColors = ["#3E3A72", "#FF7A59", "#2FAE7A", "#2563EB", "#A855F7"];
+function DialogueEditor({ data, lessonId }: { data: Record<string, unknown>; lessonId: string }) {
+  const rawPeople = Array.isArray(data.people) && data.people.length ? data.people as Record<string, unknown>[] : [{ id: "p1", name: "Speaker A", color: dialogueColors[0] }, { id: "p2", name: "Speaker B", color: dialogueColors[1] }];
+  const [people, setPeople] = useState(() => rawPeople.map((p, i) => ({ id: asString(p.id) || `p${i + 1}`, name: asString(p.name) || `Speaker ${i + 1}`, color: asString(p.color) || dialogueColors[i % dialogueColors.length] })));
+  const rawTurns = Array.isArray(data.turns) && data.turns.length ? data.turns as Record<string, unknown>[] : [{ speaker_id: people[0].id, line: "", audio_url: "" }];
+  const [turns, setTurns] = useState(() => rawTurns.map((t) => ({ speakerId: asString(t.speaker_id) || people.find((p) => p.name === asString(t.speaker))?.id || people[0].id, line: asString(t.line ?? t.text), audio: asString(t.audio_url) })));
+  const [audioIndex, setAudioIndex] = useState<number | null>(null);
+  return <div className="grid gap-4"><label className="text-sm">Dialogue title <input name="title" defaultValue={asString(data.title)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label><div className="rounded-xl border border-black/10 bg-slate-50 p-3"><div className="mb-2 flex justify-between"><b className="text-sm">People</b><button type="button" onClick={() => setPeople((x) => [...x, { id: `p${Date.now()}`, name: "", color: dialogueColors[x.length % dialogueColors.length] }])} className="text-xs font-bold text-moss">+ Add</button></div>{people.map((p, i) => <div key={p.id} className="mb-2 flex gap-2"><input type="hidden" name="dialogue_person_id" value={p.id}/><input name="dialogue_person_name" value={p.name} onChange={(e) => setPeople((x) => x.map((v,j)=>j===i?{...v,name:e.target.value}:v))} className="min-w-0 flex-1 rounded-md border border-black/15 px-2 py-1.5 text-sm"/><input type="hidden" name="dialogue_person_color" value={p.color}/>{dialogueColors.map((color)=><button key={color} type="button" onClick={()=>setPeople((x)=>x.map((v,j)=>j===i?{...v,color}:v))} className={`size-5 rounded-full ${p.color===color?"ring-2 ring-ink":""}`} style={{backgroundColor:color}}/>)}{people.length>1?<button type="button" onClick={()=>setPeople((x)=>x.filter((_,j)=>j!==i))} className="text-xs text-coral">×</button>:null}</div>)}</div><div className="rounded-xl border border-black/10 p-3"><div className="mb-2 flex justify-between"><b className="text-sm">Turns</b><button type="button" onClick={()=>setTurns((x)=>[...x,{speakerId:people[0]?.id||"",line:"",audio:""}])} className="text-xs font-bold text-moss">+ Add</button></div>{turns.map((t,i)=><div key={i} className="mb-3 rounded-lg border border-black/10 p-2"><div className="flex gap-2"><select name="dialogue_turn_speaker" value={t.speakerId} onChange={(e)=>setTurns((x)=>x.map((v,j)=>j===i?{...v,speakerId:e.target.value}:v))} className="rounded-md border border-black/15 px-2 text-sm">{people.map((p)=><option key={p.id} value={p.id}>{p.name||"Speaker"}</option>)}</select><button type="button" onClick={()=>setAudioIndex(i)} className="ml-auto rounded-md border border-black/15 px-2 text-xs">Audio</button>{turns.length>1?<button type="button" onClick={()=>setTurns((x)=>x.filter((_,j)=>j!==i))} className="text-xs text-coral">Remove</button>:null}</div><textarea name="dialogue_turn_line" value={t.line} onChange={(e)=>setTurns((x)=>x.map((v,j)=>j===i?{...v,line:e.target.value}:v))} rows={2} placeholder="Dialogue line" className="mt-2 w-full rounded-md border border-black/15 px-2 py-1.5 text-sm"/><input type="hidden" name="dialogue_turn_audio" value={t.audio}/></div>)}</div>{audioIndex!==null?<div className="fixed inset-0 z-[70] grid place-items-center bg-black/45 p-4"><div className="w-full max-w-md rounded-xl bg-white p-5"><div className="flex justify-between"><b>Turn audio</b><button type="button" onClick={()=>setAudioIndex(null)}><X size={17}/></button></div><input value={turns[audioIndex].audio} onChange={(e)=>setTurns((x)=>x.map((v,j)=>j===audioIndex?{...v,audio:e.target.value}:v))} placeholder="Paste audio link" className="mt-3 w-full rounded-md border border-black/15 px-3 py-2 text-sm"/><div className="mt-3"><BlockMediaUploader type="audio" lessonId={lessonId} currentSrc={turns[audioIndex].audio} onUploaded={(url)=>setTurns((x)=>x.map((v,j)=>j===audioIndex?{...v,audio:url}:v))}/></div></div></div>:null}</div>;
+}
+
 // ── BlockFields ────────────────────────────────────────────────────────────────
 function BlockFields({ blockType, content, lessonId }: { blockType: string; content: Json; lessonId: string }) {
   const data = asRecord(content);
@@ -1478,17 +1490,7 @@ function BlockFields({ blockType, content, lessonId }: { blockType: string; cont
       </div>
     );
   }
-  if (blockType === "DIALOGUE") {
-    const turnsText = Array.isArray(data.turns)
-      ? (data.turns as Record<string, string>[]).map((t) => `${t.speaker}: ${t.line ?? t.text}`).join("\n")
-      : Array.isArray(data.lines) ? (data.lines as Record<string, string>[]).map((l) => `${l.speaker}: ${l.text}`).join("\n") : "";
-    return (
-      <div className="grid gap-3">
-        <label className="text-sm">Dialogue title <span className="font-normal text-black/45">(optional)</span><input name="title" defaultValue={asString(data.title)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
-        <label className="text-sm">Dialogue lines <span className="font-normal text-black/45">(Speaker: Line \u2014 one per line)</span><textarea name="turns" rows={6} defaultValue={turnsText} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
-      </div>
-    );
-  }
+  if (blockType === "DIALOGUE") return <DialogueEditor data={data} lessonId={lessonId} />;
   if (blockType === "FLASHCARD") {
     return (
       <div className="grid gap-4">

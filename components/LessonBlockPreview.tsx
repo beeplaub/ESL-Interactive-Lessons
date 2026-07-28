@@ -378,15 +378,18 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
 
   if (block.block_type === "DIALOGUE") {
     const turns = asArray(content.turns);
+    const people = asArray(content.people).map((item) => asRecord(item as Json));
     return (
       <div className="space-y-2">
         {asString(content.title) ? <h3 className="font-semibold text-ink">{asString(content.title)}</h3> : null}
         {turns.length ? turns.map((item, index) => {
           const turn = asRecord(item as Json);
+          const person = people.find((candidate) => asString(candidate.id) === asString(turn.speaker_id)) ?? null;
+          const speaker = asString(person?.name) || asString(turn.speaker) || "Speaker";
           return (
             <div key={index} className="rounded-lg border border-black/10 bg-white p-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-moss">{asString(turn.speaker) || "Speaker"}</p>
-              <div className="mt-1 flex items-start gap-2"><div className="min-w-0 flex-1"><FormattedText text={asString(turn.line) || "Dialogue line"} /></div>{asString(turn.audio_url) ? <DialogueAudioButton src={mediaUrl(asString(turn.audio_url), "audio")} speaker={asString(turn.speaker) || "speaker"} /> : null}</div>
+              <p className="w-fit rounded-full px-2 py-0.5 text-xs font-semibold text-white" style={{ backgroundColor: asString(person?.color) || "var(--br-brand)" }}>{speaker}</p>
+              <div className="mt-2 flex items-start gap-2"><div className="min-w-0 flex-1"><FormattedText text={asString(turn.line) || "Dialogue line"} /></div>{asString(turn.audio_url) ? <DialogueAudioButton src={mediaUrl(asString(turn.audio_url), "audio")} speaker={speaker} /> : null}</div>
             </div>
           );
         }) : <p className="rounded-lg border border-dashed border-black/15 p-4 text-sm text-black/50">Add dialogue turns.</p>}

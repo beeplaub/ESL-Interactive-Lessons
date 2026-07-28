@@ -109,6 +109,13 @@ export default async function AccountPage() {
     greeting = "Good afternoon";
   }
 
+  const { data: learnerClasses } = await adminSupabase.from("class_members").select("class_id").eq("user_id", user.id).eq("role", "STUDENT");
+  const classIds = (learnerClasses ?? []).map((row) => row.class_id);
+  const [{ data: assignments }, { data: liveClasses }] = await Promise.all([
+    classIds.length ? adminSupabase.from("class_assignments").select("id,title,item_type,due_at,required_score").in("class_id", classIds).order("due_at", { ascending: true, nullsFirst: false }).limit(4) : Promise.resolve({ data: [] }),
+    classIds.length ? adminSupabase.from("live_sessions").select("id,title,status,scheduled_at,duration_minutes").in("class_id", classIds).in("status", ["SCHEDULED", "LIVE"]).order("scheduled_at", { ascending: true, nullsFirst: false }).limit(4) : Promise.resolve({ data: [] }),
+  ]);
+
   return (
     <LearnerAppShell
       active="home"
@@ -137,7 +144,12 @@ export default async function AccountPage() {
             <p className="mt-0.5 text-[13px] text-[#6E738D]">Let&apos;s continue your English journey.</p>
           </div>
 
-          <ProgressCard currentLevel={currentLevel} activeLevelIndex={activeLevelIndex} levelTestSummary={levelTestSummary} />
+          <ResumeLearningCard item={learningItems[0]} currentLevel={currentLevel} />
+
+          <div className="grid gap-5 md:grid-cols-2">
+            <DashboardCard className="p-5 md:p-6"><SectionHeader title="This Week: Assignments" href="/assignments" small />{assignments?.length ? <div className="space-y-2">{assignments.map((assignment) => <Link key={assignment.id} href="/assignments" className="flex items-center gap-3 rounded-xl p-3 transition hover:bg-[#F5F2FE]"><span className="size-2 rounded-full bg-[#FF7A59] ring-4 ring-[#FF7A59]/10"/><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold">{assignment.title || assignment.item_type}</p><p className="text-xs text-[#6E6E85]">{assignment.due_at ? `Due ${new Date(assignment.due_at).toLocaleDateString()}` : "No due date"}</p></div><ChevronRight className="size-4 text-[#B8B8C9]" /></Link>)}</div> : <EmptyMini text="No assignments this week." href="/assignments" label="View assignments" />}</DashboardCard>
+            <DashboardCard className="p-5 md:p-6"><SectionHeader title="This Week: Live Classes" href="/live-classes" small />{liveClasses?.length ? <div className="space-y-2">{liveClasses.map((session) => <Link key={session.id} href={`/live/${session.id}`} className="flex items-center gap-3 rounded-xl border border-[#E4E4EE] p-3 transition hover:border-[#FF7A59]"><span className="grid size-11 shrink-0 place-items-center rounded-lg bg-[#3E3A72] text-xs font-bold text-white">{session.scheduled_at ? new Date(session.scheduled_at).getDate() : "LIVE"}</span><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold">{session.title}</p><p className="text-xs text-[#6E6E85]">{session.status === "LIVE" ? "Live now" : session.scheduled_at ? new Date(session.scheduled_at).toLocaleString() : "Time to be confirmed"}</p></div><span className="rounded-lg bg-[#FF7A59] px-3 py-1.5 text-xs font-bold text-white">{session.status === "LIVE" ? "Join" : "View"}</span></Link>)}</div> : <EmptyMini text="No live classes scheduled." href="/live-classes" label="View classes" />}</DashboardCard>
+          </div>
 
           <DashboardCard className="p-5 md:px-6">
             <SectionHeader title="Continue Learning" href="/courses" />
@@ -225,6 +237,11 @@ function SectionHeader({ title, href, small }: { title: string; href: string; sm
       {href === "#" ? <span className="text-[13px] font-semibold text-[#6C3BFF]">View all</span> : <Link href={href} className="text-[13px] font-semibold text-[#6C3BFF] hover:underline">View all</Link>}
     </div>
   );
+}
+
+function ResumeLearningCard({ item, currentLevel }: { item?: { href: string; title: string; meta: string; progress: number }; currentLevel: string }) {
+  const href = item?.href || "/courses";
+  return <section className="relative overflow-hidden rounded-[20px] bg-[#1B1B3A] p-6 text-white shadow-[0_20px_25px_-5px_rgba(27,27,58,.22)] md:p-9"><div className="absolute -right-12 -top-14 size-64 rounded-full border-[28px] border-white/5"/><div className="relative z-10 max-w-2xl"><span className="inline-flex rounded-full bg-[#FF7A59] px-3 py-1 text-[11px] font-bold tracking-[.12em]">RESUME LEARNING</span><h2 className="mt-4 text-2xl font-bold tracking-tight md:text-[28px]">{item?.title || "Choose your next learning path"}</h2><p className="mt-2 flex items-center gap-2 text-sm text-[#B8B8C9]"><Play className="size-4 text-[#FFB199]" /> {item?.meta || `Start a ${currentLevel} course or quiz when you are ready.`}</p><div className="mt-6 flex flex-wrap gap-3"><Link href={href} className="inline-flex items-center gap-2 rounded-xl bg-[#FF7A59] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#FFB199]">{item ? "Resume" : "Browse courses"}<ChevronRight className="size-4" /></Link><Link href="/quizzes" className="rounded-xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-bold text-white transition hover:bg-white/15">Quick quiz</Link></div></div><div className="absolute bottom-0 left-0 h-1 bg-white/10"><div className="h-full bg-[#FF7A59]" style={{ width: `${item?.progress ?? 0}%` }} /></div></section>;
 }
 
 function ProgressCard({

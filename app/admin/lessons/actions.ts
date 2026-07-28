@@ -226,12 +226,20 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
     };
   }
   if (blockType === "DIALOGUE") {
+    const people = formData.getAll("dialogue_person_name").map((value, index) => ({
+      id: String(formData.getAll("dialogue_person_id")[index] || `person-${index + 1}`),
+      name: String(value || "").trim(),
+      color: String(formData.getAll("dialogue_person_color")[index] || "#3E3A72"),
+    })).filter((person) => person.name);
+    const turns = formData.getAll("dialogue_turn_line").map((value, index) => {
+      const speakerId = String(formData.getAll("dialogue_turn_speaker")[index] || "");
+      const person = people.find((candidate) => candidate.id === speakerId);
+      return { speaker_id: speakerId || null, speaker: person?.name || "Speaker", line: String(value || "").trim(), audio_url: nullableText(formData.getAll("dialogue_turn_audio")[index]) };
+    }).filter((turn) => turn.line);
     return {
       title: nullableText(formData.get("title")),
-      turns: splitLines(formData.get("turns")).map((line) => {
-        const [speaker, ...rest] = line.split(":");
-        return { speaker: speaker?.trim() || "Speaker", line: rest.join(":").trim() };
-      })
+      people,
+      turns,
     };
   }
   if (blockType === "FLASHCARD") {
