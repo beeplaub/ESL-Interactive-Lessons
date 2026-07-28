@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { getFreshProfile, resolvePostLoginPath } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -20,7 +21,9 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       <div className="w-full br-card rounded-[24px] p-6 sm:p-8">
         <h1 className="text-2xl font-extrabold text-ink">Welcome back</h1>
         <p className="mt-2 text-sm text-slate-500 font-semibold">Sign in or create a learner account to continue.</p>
-        <LoginForm />
+        <Suspense fallback={null}>
+          <LoginForm />
+        </Suspense>
       </div>
     </main>
   );

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { JetBrains_Mono, Plus_Jakarta_Sans, Source_Serif_4 } from "next/font/google";
 import { HeaderGate } from "@/components/HeaderGate";
 import { SiteHeader } from "@/components/SiteHeader";
@@ -39,7 +40,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body>
         <DeleteConfirmProvider>
-          <RouteScrollReset />
+          <Suspense fallback={null}>
+            <RouteScrollReset />
+          </Suspense>
           <HeaderGate>
             <SiteHeader />
           </HeaderGate>
