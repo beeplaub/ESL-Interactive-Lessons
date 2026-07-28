@@ -1254,6 +1254,49 @@ export async function restoreBuilderSlide(lessonId: string, slideId: string) {
   return slideId;
 }
 
+export async function permanentlyDeleteBuilderSlide(lessonId: string, slideId: string) {
+  await requireLessonAccess(lessonId);
+  const supabase = createAdminClient();
+  const { data: slide, error: slideError } = await supabase
+    .from("slides")
+    .select("id")
+    .eq("id", slideId)
+    .eq("lesson_id", lessonId)
+    .not("deleted_at", "is", null)
+    .maybeSingle();
+  if (slideError) throw slideError;
+  if (!slide) return { success: false, error: "This slide is no longer in the trash." };
+
+  // This is intentionally irreversible. Delete response evidence first because
+  // assessment responses protect their assessment item from accidental removal.
+  const { data: activities, error: activitiesError } = await supabase
+    .from("lesson_slide_activities")
+    .select("id")
+    .eq("lesson_id", lessonId)
+    .eq("slide_id", slideId);
+  if (activitiesError) throw activitiesError;
+  const activityIds = (activities ?? []).map((activity) => activity.id);
+  if (activityIds.length) {
+    const { data: assessmentItems, error: itemError } = await supabase
+      .from("assessment_items")
+      .select("id")
+      .in("lesson_activity_id", activityIds);
+    if (itemError) throw itemError;
+    const itemIds = (assessmentItems ?? []).map((item) => item.id);
+    if (itemIds.length) {
+      const { error: responseError } = await supabase.from("assessment_responses").delete().in("assessment_item_id", itemIds);
+      if (responseError) throw responseError;
+      const { error: itemDeleteError } = await supabase.from("assessment_items").delete().in("id", itemIds);
+      if (itemDeleteError) throw itemDeleteError;
+    }
+  }
+
+  const { error } = await supabase.from("slides").delete().eq("id", slideId).eq("lesson_id", lessonId);
+  if (error) throw error;
+  revalidateLessonBuilder(lessonId);
+  return { success: true };
+}
+
 export async function moveBuilderSlide(lessonId: string, slideId: string, direction: "up" | "down") {
   await requireLessonAccess(lessonId);
   const supabase = createAdminClient();
@@ -1396,6 +1439,24 @@ export async function moveLessonBlock(lessonId: string, slideId: string, blockId
   if (nextIndex < 0 || nextIndex >= orderedIds.length) return;
 
   [orderedIds[index], orderedIds[nextIndex]] = [orderedIds[nextIndex], orderedIds[index]];
+  await reorderBlocks(slideId, orderedIds);
+  revalidateLessonBuilder(lessonId);
+}
+
+export async function reorderLessonBlocks(lessonId: string, slideId: string, orderedIds: string[]) {
+  await requireLessonAccess(lessonId);
+  const supabase = createAdminClient();
+  const { data: blocks, error } = await supabase
+    .from("lesson_blocks")
+    .select("id")
+    .eq("lesson_id", lessonId)
+    .eq("slide_id", slideId)
+    .order("position", { ascending: true });
+  if (error) throw error;
+  const currentIds = (blocks ?? []).map((block) => block.id);
+  if (currentIds.length !== orderedIds.length || currentIds.some((id) => !orderedIds.includes(id))) {
+    throw new Error("The content blocks changed before the new order could be saved. Please try again.");
+  }
   await reorderBlocks(slideId, orderedIds);
   revalidateLessonBuilder(lessonId);
 }

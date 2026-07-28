@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { FormEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { AlignCenter, AlignLeft, AlignRight, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, AlignVerticalJustifyStart, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Copy, Eye, Library, Plus, Settings, Target, Trash2, X, ChevronRight, RotateCcw } from "lucide-react";
+import { AlignCenter, AlignLeft, AlignRight, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, AlignVerticalJustifyStart, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Copy, Eye, Library, Plus, Redo2, Settings, Target, Trash2, Undo2, X, ChevronRight, RotateCcw } from "lucide-react";
 import {
   addBuilderSlideAt,
   addLessonBlock,
@@ -16,6 +16,8 @@ import {
   moveBuilderSlideToPosition,
   moveLessonBlock,
   moveOrCopySlideActivityToSlide,
+  permanentlyDeleteBuilderSlide,
+  reorderLessonBlocks,
   reorderBuilderSlides,
   restoreBuilderSlide,
   updateBuilderSlide,
@@ -135,6 +137,25 @@ function SubmitButton({ label }: { label: string }) {
   );
 }
 
+function BuilderHeaderUndoRedo() {
+  const history = (command: "undo" | "redo") => {
+    const active = document.activeElement as HTMLElement | null;
+    active?.focus();
+    document.execCommand(command);
+    active?.dispatchEvent(new Event("input", { bubbles: true }));
+  };
+  return (
+    <div className="inline-flex overflow-hidden rounded-md border border-black/15 bg-white shadow-sm" aria-label="Text history controls">
+      <button type="button" title="Undo text change (Ctrl/Command Z)" onMouseDown={(event) => event.preventDefault()} onClick={() => history("undo")} className="grid size-9 place-items-center text-[#3E3A72] hover:bg-[#F5F2FE]">
+        <Undo2 size={16} />
+      </button>
+      <button type="button" title="Redo text change (Ctrl/Command Shift Z)" onMouseDown={(event) => event.preventDefault()} onClick={() => history("redo")} className="grid size-9 place-items-center border-l border-black/10 text-[#3E3A72] hover:bg-[#F5F2FE]">
+        <Redo2 size={16} />
+      </button>
+    </div>
+  );
+}
+
 function AddSlideModal({
   lessonId, afterSlideNumber, onClose, onBusy, onAdded, onOptimisticAdd,
 }: {
@@ -227,6 +248,8 @@ function SlideTrashModal({ lessonId, slides, onClose, onRestored, onBusy }: {
 }) {
   const [isPending, startTransition] = useTransition();
   const [restoringId, setRestoringId] = useState<string | null>(null);
+  const [removingId, setRemovingId] = useState<string | null>(null);
+  const [hiddenIds, setHiddenIds] = useState<string[]>([]);
 
   function restore(slideId: string) {
     setRestoringId(slideId);
@@ -238,6 +261,25 @@ function SlideTrashModal({ lessonId, slides, onClose, onRestored, onBusy }: {
     });
   }
 
+  function permanentlyRemove(slide: TrashedSlide) {
+    if (!window.confirm(`Permanently delete “${slide.title}”? This removes its blocks, activities, and related learner evidence. This cannot be undone.`)) return;
+    setRemovingId(slide.id);
+    onBusy("Permanently deleting slide...");
+    startTransition(async () => {
+      try {
+        const result = await permanentlyDeleteBuilderSlide(lessonId, slide.id);
+        if (result.success) setHiddenIds((current) => [...current, slide.id]);
+        else window.alert(result.error || "The slide could not be permanently deleted.");
+      } catch (error) {
+        window.alert(error instanceof Error ? error.message : "The slide could not be permanently deleted.");
+      } finally {
+        setRemovingId(null);
+      }
+    });
+  }
+
+  const visibleSlides = slides.filter((slide) => !hiddenIds.includes(slide.id));
+
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 px-4 py-6">
       <div className="max-h-[80vh] w-full max-w-lg overflow-auto rounded-xl bg-white p-5 shadow-2xl">
@@ -245,11 +287,14 @@ function SlideTrashModal({ lessonId, slides, onClose, onRestored, onBusy }: {
           <div><h2 className="text-lg font-semibold">Slide trash</h2><p className="mt-1 text-sm text-black/55">Restoring a slide brings back its blocks, activity, and saved learner evidence.</p></div>
           <button type="button" onClick={onClose} className="rounded-md border border-black/10 p-1.5 hover:bg-black/5"><X size={16} /></button>
         </div>
-        {slides.length ? <div className="mt-4 grid gap-2">
-          {slides.map((slide) => <div key={slide.id} className="flex min-w-0 items-center gap-3 rounded-lg border border-black/10 p-3">
+        {visibleSlides.length ? <div className="mt-4 grid gap-2">
+          {visibleSlides.map((slide) => <div key={slide.id} className="flex min-w-0 items-center gap-3 rounded-lg border border-black/10 p-3">
             <div className="min-w-0 flex-1"><p className="truncate text-sm font-semibold">{slide.title}</p><p className="mt-0.5 text-xs text-black/45">{slide.section_label || "Untitled section"}</p></div>
             <button type="button" disabled={isPending} onClick={() => restore(slide.id)} className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-moss/25 px-3 py-1.5 text-xs font-semibold text-moss hover:bg-moss/5 disabled:opacity-50">
               <RotateCcw size={14} /> {restoringId === slide.id ? "Restoring..." : "Restore"}
+            </button>
+            <button type="button" disabled={isPending} onClick={() => permanentlyRemove(slide)} className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-coral/30 px-3 py-1.5 text-xs font-semibold text-coral hover:bg-coral/10 disabled:opacity-50">
+              <Trash2 size={14} /> {removingId === slide.id ? "Deleting..." : "Delete forever"}
             </button>
           </div>)}
         </div> : <div className="mt-5 rounded-lg border border-dashed border-black/15 bg-slate-50 p-8 text-center text-sm text-black/50">No deleted slides in this lesson.</div>}
@@ -723,6 +768,7 @@ export function LessonBuilderWorkspace({ lesson, slides, trashedSlides = [], blo
           <p className="mt-1 text-sm text-black/55">Build slides, preview the learner view, and edit the selected slide.</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <BuilderHeaderUndoRedo />
           {isAdmin && (
             <button
               type="button"
@@ -894,8 +940,31 @@ function SelectedSlideEditor({
   const [isActivityBankOpen, setIsActivityBankOpen] = useState(false);
   const [isMappingOpen, setIsMappingOpen] = useState(false);
   const [isAiGenOpen, setIsAiGenOpen] = useState(false);
-  const openBlock = blocks.find((block) => block.id === openBlockId) ?? null;
-  const openBlockIndex = openBlock ? blocks.findIndex((block) => block.id === openBlock.id) : -1;
+  const [localBlocks, setLocalBlocks] = useState(blocks);
+  const [draggedBlockId, setDraggedBlockId] = useState<string | null>(null);
+  const [isBlockReordering, startBlockReorder] = useTransition();
+  useEffect(() => setLocalBlocks(blocks), [blocks]);
+  const openBlock = localBlocks.find((block) => block.id === openBlockId) ?? null;
+  const openBlockIndex = openBlock ? localBlocks.findIndex((block) => block.id === openBlock.id) : -1;
+
+  function reorderBlockCards(targetId: string) {
+    if (!draggedBlockId || draggedBlockId === targetId || isBlockReordering) return;
+    const from = localBlocks.findIndex((block) => block.id === draggedBlockId);
+    const to = localBlocks.findIndex((block) => block.id === targetId);
+    if (from < 0 || to < 0) return;
+    const next = [...localBlocks];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    const ordered = next.map((block, index) => ({ ...block, position: index + 1 }));
+    setLocalBlocks(ordered);
+    startBlockReorder(async () => {
+      try {
+        await reorderLessonBlocks(lessonId, slide.id, ordered.map((block) => block.id));
+      } catch {
+        setLocalBlocks(blocks);
+      }
+    });
+  }
 
   return (
     <div className="grid min-w-0 gap-5 xl:grid-cols-2">
@@ -961,10 +1030,10 @@ function SelectedSlideEditor({
             </form>
           </details>
           <div className="mt-4 space-y-3">
-            {blocks.map((block, blockIndex) => (
-              <div key={block.id} className="min-w-0 overflow-hidden rounded-md border border-black/10 bg-white p-3">
+            {localBlocks.map((block, blockIndex) => (
+              <div key={block.id} draggable onDragStart={() => setDraggedBlockId(block.id)} onDragEnd={() => setDraggedBlockId(null)} onDragOver={(event) => event.preventDefault()} onDrop={() => reorderBlockCards(block.id)} className={`min-w-0 overflow-hidden rounded-md border bg-white p-3 transition ${draggedBlockId === block.id ? "border-moss/40 opacity-50" : "border-black/10"}`}>
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <button type="button" onClick={() => setOpenBlockId(block.id)} className="min-w-0 flex-1 text-left">
+                  <button type="button" onClick={() => setOpenBlockId(block.id)} className="min-w-0 flex-1 cursor-grab text-left active:cursor-grabbing">
                     <p className="text-xs font-semibold text-moss">Block {block.position}</p>
                     <h5 className="font-semibold">{labelForBlockType(block.block_type)}</h5>
                     <span className="mt-1 block max-w-full break-all text-xs text-black/45 sm:truncate">{blockSummary(block)}</span>
@@ -987,7 +1056,7 @@ function SelectedSlideEditor({
           </div>
         </section>
         {openBlock ? (
-          <BlockEditModal lessonId={lessonId} slideId={slide.id} block={openBlock} blockIndex={openBlockIndex} blockCount={blocks.length} onClose={() => setOpenBlockId(null)} />
+          <BlockEditModal lessonId={lessonId} slideId={slide.id} block={openBlock} blockIndex={openBlockIndex} blockCount={localBlocks.length} onClose={() => setOpenBlockId(null)} />
         ) : null}
       </section>
 

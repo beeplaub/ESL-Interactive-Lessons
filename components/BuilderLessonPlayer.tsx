@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { TouchEvent } from "react";
-import { ArrowLeft, ArrowRight, BookOpen, CheckCircle2, ChevronLeft, Languages, Lock, NotebookPen, Pause, Play, PenLine, RotateCcw } from "lucide-react";
+import { ArrowLeft, ArrowRight, Award, BookOpen, CheckCircle2, ChevronLeft, Languages, Lock, NotebookPen, Pause, Play, PenLine, RotateCcw, Sparkles, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { LessonActivityPanel, lessonActivityTotalPoints } from "@/components/LessonActivityPanel";
@@ -23,6 +23,42 @@ type Activity = { id: string; slide_id: string | null; slide_number: number; act
 type Progress = { current_slide_number: number; completed: boolean } | null;
 type ActivityAttempt = { lesson_slide_activity_id: string | null; score: number; total: number; answers: Json | null; completed_at: string };
 type LiveSessionMode = { sessionId: string; role: "TEACHER" | "STUDENT"; initialSlideNumber: number; navigationLocked: boolean };
+
+function activityQuestionCount(activity: Activity) {
+  const data = activity.activity_data && typeof activity.activity_data === "object" && !Array.isArray(activity.activity_data)
+    ? activity.activity_data as Record<string, unknown>
+    : {};
+  for (const key of ["questions", "items", "statements", "pairs"]) {
+    if (Array.isArray(data[key]) && data[key].length) return data[key].length;
+  }
+  for (const key of ["a_items", "left", "column_a"]) {
+    if (Array.isArray(data[key]) && data[key].length) return data[key].length;
+  }
+  return lessonActivityTotalPoints({ id: activity.id, activity_type: activity.activity_type, activity_data: activity.activity_data }) > 0 ? 1 : 0;
+}
+
+function LessonCompletionModal({ lessonTitle, score, total, activitiesAttempted, totalQuestions, grade, onClose, onRetake }: {
+  lessonTitle: string; score: number; total: number; activitiesAttempted: number; totalQuestions: number; grade: string; onClose: () => void; onRetake: () => void;
+}) {
+  const encouragement = total === 0 ? "You reached the end. Keep showing up and the learning compounds." : score / total >= .85 ? "Excellent work. You showed strong control across this lesson." : score / total >= .6 ? "Solid progress. A quick review will make the key ideas stick." : "You finished the lesson. Review the practice once more and you will feel the difference.";
+  return <div className="fixed inset-0 z-[80] grid place-items-center bg-[#14172B]/55 px-4 py-6 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Lesson complete">
+    <div className="relative w-full max-w-md overflow-hidden rounded-[28px] border border-white/50 bg-white p-6 text-center shadow-[0_28px_80px_rgba(27,27,58,.3)] sm:p-8">
+      <div className="absolute -right-12 -top-16 size-44 rounded-full bg-[#6C3BFF]/10" /><div className="absolute -left-12 bottom-0 size-36 rounded-full bg-[#FFB545]/10" />
+      <button type="button" onClick={onClose} className="absolute right-4 top-4 grid size-8 place-items-center rounded-full text-[#8B90A7] hover:bg-[#F6F7FB]" aria-label="Close completion details"><X size={16}/></button>
+      <div className="relative mx-auto grid size-16 place-items-center rounded-[22px] bg-gradient-to-br from-[#6C3BFF] to-[#9B74FF] text-white shadow-[0_14px_28px_rgba(108,59,255,.32)]"><Award size={31}/><Sparkles className="absolute -right-3 -top-2 size-4 text-[#FFB545]"/></div>
+      <p className="relative mt-5 text-[11px] font-extrabold tracking-[.16em] text-[#6C3BFF]">LESSON COMPLETE</p>
+      <h2 className="relative mt-2 text-2xl font-extrabold tracking-tight text-[#14172B]">Nicely done!</h2>
+      <p className="relative mt-2 text-sm font-semibold text-[#6E738D]">{lessonTitle}</p>
+      <div className="relative mt-6 grid grid-cols-3 gap-2 rounded-[20px] bg-[#F6F7FB] p-3 text-left">
+        <div><p className="text-[10px] font-bold uppercase tracking-wide text-[#8B90A7]">Score</p><p className="mt-1 text-lg font-extrabold text-[#14172B]">{score}/{total || 0}</p></div>
+        <div className="border-x border-[#E4E4EE] px-3"><p className="text-[10px] font-bold uppercase tracking-wide text-[#8B90A7]">Activities</p><p className="mt-1 text-lg font-extrabold text-[#14172B]">{activitiesAttempted}</p></div>
+        <div className="pl-1"><p className="text-[10px] font-bold uppercase tracking-wide text-[#8B90A7]">Questions</p><p className="mt-1 text-lg font-extrabold text-[#14172B]">{totalQuestions}</p></div>
+      </div>
+      <p className="relative mt-4 rounded-xl bg-[#E7FBF4] px-4 py-3 text-sm font-semibold text-[#157A5A]">{grade} · {encouragement}</p>
+      <div className="relative mt-5 flex gap-3"><button type="button" onClick={onClose} className="flex-1 rounded-xl border border-[#E4E4EE] px-4 py-3 text-sm font-extrabold text-[#3E3A72] hover:bg-[#F6F7FB]">Review</button><button type="button" onClick={onRetake} className="flex-1 rounded-xl bg-[#FF7A59] px-4 py-3 text-sm font-extrabold text-white shadow-[0_8px_18px_rgba(255,93,115,.24)] hover:bg-[#ED4B66]">Retake</button></div>
+    </div>
+  </div>;
+}
 
 function NarrationPill({ src, lessonId, slideId, translationEnabled = false, narrationLanguage = "en" }: { src: string; lessonId: string; slideId: string; translationEnabled?: boolean; narrationLanguage?: "en" | "bn" }) {
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -215,6 +251,7 @@ export function BuilderLessonPlayer({
   const initialIndex = Math.max(0, Math.min(slides.length - 1, (liveSession?.initialSlideNumber ?? initialProgress?.current_slide_number ?? 1) - 1));
   const [index, setIndex] = useState(initialIndex);
   const [completed, setCompleted] = useState(Boolean(initialProgress?.completed));
+  const [showCompletion, setShowCompletion] = useState(false);
   const [remainingSeconds, setRemainingSeconds] = useState(() => lesson.timer_minutes ? lesson.timer_minutes * 60 : null);
   const [message, setMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -348,6 +385,8 @@ export function BuilderLessonPlayer({
   const earnedLessonMarks = activities.reduce((sum, activity) => sum + (latestAttemptByActivity.get(activity.id)?.score ?? 0), 0);
   const lessonPercent = totalLessonMarks ? Math.round((earnedLessonMarks / totalLessonMarks) * 100) : 0;
   const lessonGrade = lessonPercent >= 90 ? "Excellent" : lessonPercent >= 75 ? "Strong" : lessonPercent >= 60 ? "Good" : lessonPercent >= 40 ? "Developing" : "Keep practising";
+  const totalLessonQuestions = useMemo(() => activities.reduce((sum, activity) => sum + activityQuestionCount(activity), 0), [activities]);
+  const attemptedActivities = latestAttemptByActivity.size;
 
   // Creator-controlled gate: only meaningful when Practice is set first on this slide,
   // and only while the learner hasn't yet submitted every activity on it.
@@ -458,9 +497,25 @@ export function BuilderLessonPlayer({
 
   const finish = useCallback(() => {
     setCompleted(true);
+    setShowCompletion(true);
     setMessage("Lesson completed.");
     startTransition(() => saveProgress(index, true));
   }, [index, saveProgress]);
+
+  function reviewLesson() {
+    setIndex(0);
+    setMessage("Reviewing from slide 1.");
+    scheduleProgressSave(0, true);
+  }
+
+  function retakeLesson() {
+    setCompleted(false);
+    setShowCompletion(false);
+    setIndex(0);
+    setRemainingSeconds(lesson.timer_minutes ? lesson.timer_minutes * 60 : null);
+    setMessage("New attempt started. Your notes and past attempts are still available.");
+    startTransition(() => saveProgress(0, false));
+  }
 
   useEffect(() => {
     if (!lesson.timer_minutes || completed) return;
@@ -508,6 +563,7 @@ export function BuilderLessonPlayer({
 
   return (
     <main className="mx-auto max-w-7xl overflow-x-hidden px-3 sm:px-4 min-[1180px]:px-0">
+      {showCompletion ? <LessonCompletionModal lessonTitle={lesson.title} score={earnedLessonMarks} total={totalLessonMarks} activitiesAttempted={attemptedActivities} totalQuestions={totalLessonQuestions} grade={lessonGrade} onClose={() => setShowCompletion(false)} onRetake={retakeLesson} /> : null}
       {/* ── Header ── */}
       <div className="mb-3 rounded-[22px] border border-[#ECECF5] bg-white px-3 py-2 shadow-[0_12px_32px_rgba(0,0,0,.06)]">
         <div className="flex flex-wrap items-center gap-3">
@@ -795,14 +851,13 @@ export function BuilderLessonPlayer({
           ) : null}
         </div>
         {index === slides.length - 1 ? (
-          <button
+          completed ? <div className="flex shrink-0 items-center gap-1.5"><button type="button" onClick={reviewLesson} className="rounded-full border border-[#ECECF5] bg-white px-2.5 py-1.5 text-xs font-extrabold text-[#3E3A72] hover:bg-[#F6F7FB] sm:px-4 sm:py-2 sm:text-sm">Review</button><button type="button" onClick={retakeLesson} className="inline-flex items-center gap-1 rounded-full bg-[#FF7A59] px-2.5 py-1.5 text-xs font-extrabold text-white shadow-[0_8px_20px_rgba(255,107,157,.24)] hover:bg-[#ED4B66] sm:px-4 sm:py-2 sm:text-sm"><RotateCcw size={13}/> Retake</button></div> : <button
             type="button"
             onClick={finish}
-            disabled={isPending || completed}
+            disabled={isPending}
             className="shrink-0 whitespace-nowrap rounded-full bg-gradient-to-br from-[#FF6B9D] to-[#FF8E53] px-2.5 py-1.5 text-xs font-extrabold text-white shadow-[0_8px_20px_rgba(255,107,157,.24)] disabled:opacity-45 sm:px-4 sm:py-2 sm:text-sm"
           >
-            {completed ? "Completed" : "Complete"}
-            <span className="hidden sm:inline"> lesson</span>
+            Complete<span className="hidden sm:inline"> lesson</span>
           </button>
         ) : (
           <button
