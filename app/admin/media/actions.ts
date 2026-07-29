@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireStaff, isPlatformAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { deleteMediaObject } from "@/lib/storage/mediaStorage";
 
 const MEDIA_TYPES = ["IMAGE", "AUDIO", "VIDEO"] as const;
 type MediaType = (typeof MEDIA_TYPES)[number];
@@ -133,10 +134,15 @@ export async function permanentlyDeleteMediaAsset(assetId: string) {
       .from("media_assets")
       .select("id", { count: "exact", head: true })
       .eq("owner_id", asset.owner_id)
+      .eq("storage_provider", asset.storage_provider ?? "supabase")
       .eq("storage_path", asset.storage_path)
       .neq("id", assetId);
     if (!count) {
-      await admin.storage.from(asset.storage_bucket).remove([asset.storage_path]);
+      await deleteMediaObject(admin, {
+        provider: asset.storage_provider,
+        bucket: asset.storage_bucket,
+        path: asset.storage_path,
+      });
     }
   }
 

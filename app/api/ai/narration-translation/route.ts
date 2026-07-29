@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { uploadMediaObject } from "@/lib/storage/mediaStorage";
 
 function targetFor(language: string | null) {
   return language === "bn" ? "en" : "bn";
@@ -23,10 +24,11 @@ async function narrationFor(lessonId: string, slideId: string) {
 async function signedCachedUrl(admin: ReturnType<typeof createAdminClient>, narrationId: string, targetLanguageCode: string) {
   const { data: cached } = await admin
     .from("narration_translation_cache")
-    .select("storage_path")
+    .select("storage_path,storage_provider,public_url")
     .eq("narration_audio_file_id", narrationId)
     .eq("target_language_code", targetLanguageCode)
     .maybeSingle();
+  if (cached?.storage_provider === "r2" && cached.public_url) return cached.public_url;
   if (!cached?.storage_path) return null;
   const { data } = await admin.storage.from("lesson-audio").createSignedUrl(cached.storage_path, 60 * 60);
   return data?.signedUrl ?? null;
@@ -68,8 +70,17 @@ export async function POST(request: Request) {
   if (alreadyCached) return NextResponse.json({ url: alreadyCached, cached: true });
 
   const path = `${lessonId}/translations/${narration.id}-${targetLanguageCode}.wav`;
-  const { error: uploadError } = await admin.storage.from("lesson-audio").upload(path, new Uint8Array(await audio.arrayBuffer()), { contentType: "audio/wav", upsert: false });
-  if (uploadError && !uploadError.message.toLowerCase().includes("already exists")) {
+  let stored;
+  try {
+    stored = await uploadMediaObject({
+      supabase: admin,
+      supabaseBucket: "lesson-audio",
+      path,
+      body: new Uint8Array(await audio.arrayBuffer()),
+      contentType: "audio/wav",
+      upsert: false,
+    });
+  } catch (uploadError) {
     console.error("Narration translation upload failed", uploadError);
     return NextResponse.json({ error: "Could not save translated narration." }, { status: 500 });
   }
@@ -77,7 +88,9 @@ export async function POST(request: Request) {
   const { error: cacheError } = await admin.from("narration_translation_cache").insert({
     narration_audio_file_id: narration.id,
     target_language_code: targetLanguageCode,
-    storage_path: path,
+    storage_provider: stored.provider,
+    storage_path: stored.path,
+    public_url: stored.url,
   });
   if (cacheError && cacheError.code !== "23505") {
     console.error("Narration translation cache insert failed", cacheError);

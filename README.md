@@ -25,6 +25,30 @@ SUPABASE_SERVICE_ROLE_KEY=
 
 The service role key is used only on the server for admin upload, parsing, and storage writes.
 
+## Cloudflare R2 media storage
+
+BrenUp can store creator-uploaded lesson/quiz media in Cloudflare R2 while keeping Supabase for Auth, Postgres, Realtime, and existing legacy files.
+
+Run this migration in the Supabase SQL editor before enabling R2 in production:
+
+```text
+supabase/migrations/20260729_r2_media_storage.sql
+```
+
+Then add these environment variables locally and in Vercel:
+
+```bash
+MEDIA_STORAGE_PROVIDER=r2
+R2_ACCOUNT_ID=
+R2_ACCESS_KEY_ID=
+R2_SECRET_ACCESS_KEY=
+R2_BUCKET=
+R2_ENDPOINT=https://YOUR_ACCOUNT_ID.r2.cloudflarestorage.com
+R2_PUBLIC_BASE_URL=https://media.brenup.com
+```
+
+`R2_PUBLIC_BASE_URL` should be a custom domain attached to the R2 bucket in Cloudflare. Existing Supabase-hosted media keeps working; only new uploads move to R2 when `MEDIA_STORAGE_PROVIDER=r2`.
+
 ## Create an admin
 
 Register normally at `/login`, then promote that user in Supabase SQL:

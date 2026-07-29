@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { requireStaff, requireLessonAccess } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isR2PublicUrl, pathFromR2PublicUrl } from "@/lib/storage/mediaStorage";
 import { assertCreatorWithinLimit } from "@/lib/entitlements";
 import { parsePdfPages } from "@/lib/pdfParser";
 import { parseLessonSlideActivities } from "@/lib/lessonTextParser";
@@ -386,7 +387,20 @@ function extractMediaFromBlock(blockType: string, content: Record<string, unknow
 }
 
 function isUploadedMediaUrl(url: string) {
-  return /supabase\.co\/storage\/v1\/object\/public\/(lessons|lesson-audio)\//i.test(url);
+  return /supabase\.co\/storage\/v1\/object\/public\/(lessons|lesson-audio)\//i.test(url) || isR2PublicUrl(url);
+}
+
+function uploadedMediaStorage(url: string) {
+  const r2Path = pathFromR2PublicUrl(url);
+  if (r2Path) return { storage_provider: "r2", storage_bucket: process.env.R2_BUCKET ?? null, storage_path: r2Path, public_url: url };
+  const match = url.match(/supabase\.co\/storage\/v1\/object\/public\/(lessons|lesson-audio)\/(.+)$/i);
+  if (!match) return {};
+  return {
+    storage_provider: "supabase",
+    storage_bucket: match[1],
+    storage_path: decodeURIComponent(match[2].split("?")[0] ?? ""),
+    public_url: url
+  };
 }
 
 function mediaFileNameFromUrl(url: string) {
@@ -422,6 +436,7 @@ async function upsertMediaAsset(supabase: AdminClient, entry: MediaEntry & { own
     type: entry.type,
     source: isUploadedMediaUrl(entry.url) ? "UPLOAD" : "LINK",
     url: entry.url,
+    ...uploadedMediaStorage(entry.url),
     alt_text: entry.alt ?? null,
     caption: entry.caption ?? null,
     file_name: mediaFileNameFromUrl(entry.url),

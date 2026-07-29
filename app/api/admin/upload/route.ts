@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireStaff } from "@/lib/auth";
+import { uploadMediaObject } from "@/lib/storage/mediaStorage";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -18,29 +19,31 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "No file provided" }, { status: 400 });
   }
 
-  const ext = file.name.split(".").pop()?.toLowerCase() ?? (type === "audio" ? "mp3" : "jpg");
+  const mediaType = type === "audio" ? "AUDIO" : type === "video" ? "VIDEO" : "IMAGE";
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? (mediaType === "AUDIO" ? "mp3" : mediaType === "VIDEO" ? "mp4" : "jpg");
   const timestamp = Date.now();
-  const bucket = type === "audio" ? "lesson-audio" : "lessons";
+  const bucket = mediaType === "AUDIO" ? "lesson-audio" : "lessons";
   // Uploads made from the standalone Media Library (no lesson yet) land in a
   // shared "library" folder instead of a lesson id folder.
   const folderScope = lessonId ?? "library";
-  const folder = type === "audio" ? `${folderScope}/audio` : `${folderScope}/images`;
-  const path = `${folder}/${timestamp}.${ext}`;
+  const folder = mediaType === "AUDIO" ? `${folderScope}/audio` : mediaType === "VIDEO" ? `${folderScope}/video` : `${folderScope}/images`;
+  const path = `${folder}/${timestamp}-${crypto.randomUUID()}.${ext}`;
   const buffer = new Uint8Array(await file.arrayBuffer());
 
-  const { error } = await admin.storage
-    .from(bucket)
-    .upload(path, buffer, { upsert: true, contentType: file.type });
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
-  // Both buckets are public — use getPublicUrl() for both, never
-  // createSignedUrl(). A signed URL bakes in an expiry (this one used 7
-  // days) and that exact URL string gets saved permanently into
-  // lesson_blocks.content, so it silently died a week after upload with no
-  // error anywhere.
-  const { data } = admin.storage.from(bucket).getPublicUrl(path);
-  const url = data.publicUrl;
+  let stored;
+  try {
+    stored = await uploadMediaObject({
+      supabase: admin,
+      supabaseBucket: bucket,
+      path,
+      body: buffer,
+      contentType: file.type || "application/octet-stream",
+      upsert: true,
+    });
+  } catch (error) {
+    console.error("Media upload failed", error);
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Upload failed." }, { status: 500 });
+  }
 
   // Mirror this upload into the creator's Media Library. Attribute it to the
   // lesson's own creator (not necessarily whoever clicked upload) so a
@@ -56,11 +59,13 @@ export async function POST(req: Request) {
   try {
     await admin.from("media_assets").insert({
       owner_id: ownerId,
-      type: type === "audio" ? "AUDIO" : "IMAGE",
+      type: mediaType,
       source: "UPLOAD",
-      url,
-      storage_bucket: bucket,
-      storage_path: path,
+      url: stored.url,
+      public_url: stored.url,
+      storage_provider: stored.provider,
+      storage_bucket: stored.bucket,
+      storage_path: stored.path,
       file_name: file.name,
       mime_type: file.type || null,
       file_size: file.size,
@@ -72,5 +77,5 @@ export async function POST(req: Request) {
     console.error("media_assets insert failed", mediaError);
   }
 
-  return NextResponse.json({ url });
+  return NextResponse.json({ url: stored.url });
 }
