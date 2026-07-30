@@ -182,7 +182,7 @@ export default async function AccountPage() {
 
           <div className="grid gap-4 min-[1100px]:grid-cols-3">
             <DashboardCard className="p-5">
-              <SectionHeader title="Recent Quiz Attempts" href="/quizzes" small />
+              <SectionHeader title="Recent Quiz Attempts" href="/quiz-attempts" small />
               <div>
                 {(quizAttempts ?? []).slice(0, 3).map((attempt, index) => {
                   const percent = attempt.total ? Math.round((attempt.score / attempt.total) * 100) : 0;

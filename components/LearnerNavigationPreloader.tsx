@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 const learnerRoutes = [
-  "/account", "/quizzes", "/courses", "/live-classes", "/assignments",
+  "/account", "/quizzes", "/quiz-attempts", "/courses", "/live-classes", "/assignments",
   "/certificates", "/level-test", "/language-profile", "/leaderboard", "/profile",
 ];
 
