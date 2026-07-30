@@ -27,8 +27,9 @@ import { createClient } from "@/lib/supabase/server";
 import { LearnerSidebar } from "@/components/LearnerSidebar";
 import { NotificationsDropdown } from "@/components/NotificationsDropdown";
 import { LearnerNavigationPreloader } from "@/components/LearnerNavigationPreloader";
+import { getLearnerAchievements, type LearnerAchievements } from "@/lib/achievements";
 
-export type ActiveItem = "home" | "quizzes" | "courses" | "live-classes" | "assignments" | "tasks" | "calendar" | "certificates" | "level-test" | "leaderboard" | "language-profile" | "profile";
+export type ActiveItem = "home" | "quizzes" | "courses" | "live-classes" | "assignments" | "tasks" | "calendar" | "achievements" | "certificates" | "level-test" | "leaderboard" | "language-profile" | "profile";
 
 type BreadcrumbItem = { label: string; href?: string };
 export type NotificationItem = { key: string; title: string; detail: string; href: string; tone: "purple" | "orange" | "green" | "blue"; notificationId?: string; isRead?: boolean };
@@ -41,6 +42,7 @@ const defaultBreadcrumbs: Record<ActiveItem, BreadcrumbItem[]> = {
   assignments: [{ label: "Home", href: "/account" }, { label: "Assignments" }],
   tasks: [{ label: "Home", href: "/account" }, { label: "Tasks" }],
   calendar: [{ label: "Home", href: "/account" }, { label: "Calendar" }],
+  achievements: [{ label: "Home", href: "/account" }, { label: "Achievements" }],
   certificates: [{ label: "Home", href: "/account" }, { label: "Certificates" }],
   "level-test": [{ label: "Home", href: "/account" }, { label: "Level Test" }],
   leaderboard: [{ label: "Home", href: "/account" }, { label: "Leaderboard" }],
@@ -197,6 +199,7 @@ type RightSidebarData = {
   currentBadge: ReturnType<typeof getQuizBadge>;
   nextBadge: ReturnType<typeof getNextQuizBadge>;
   totalPoints: number;
+  achievements: LearnerAchievements;
 };
 
 async function buildRightSidebarData(
@@ -216,14 +219,16 @@ async function buildRightSidebarData(
       currentBadge,
       nextBadge: getNextQuizBadge(0),
       totalPoints: 0,
+      achievements: await getLearnerAchievements(admin, "00000000-0000-0000-0000-000000000000"),
     };
   }
 
-  const [{ data: quizAttempts }, { data: points }, { data: enrollments }, { data: courseProgress }] = await Promise.all([
+  const [{ data: quizAttempts }, { data: points }, { data: enrollments }, { data: courseProgress }, achievements] = await Promise.all([
     admin.from("quiz_attempts").select("completed_at").eq("user_id", userId).not("quiz_id", "is", null).order("completed_at", { ascending: false }).limit(120),
     admin.from("quiz_leaderboard_points").select("points").eq("user_id", userId),
     admin.from("course_enrollments").select("course_id,status").eq("user_id", userId),
     admin.from("course_progress").select("course_id,progress_percent").eq("user_id", userId),
+    getLearnerAchievements(admin, userId),
   ]);
 
   const activityDates = (quizAttempts ?? []).filter((attempt) => attempt.completed_at).map((attempt) => toDateKey(new Date(attempt.completed_at)));
@@ -250,6 +255,7 @@ async function buildRightSidebarData(
     currentBadge,
     nextBadge: getNextQuizBadge(totalPoints),
     totalPoints,
+    achievements,
   };
 }
 
@@ -469,13 +475,10 @@ function RightSidebarCards({ data }: { data: RightSidebarData }) {
       <RightRailCard>
         <div className="mb-3 flex items-center justify-between">
           <div className="text-[15px] font-bold">Your Achievements</div>
-          <Link href="/leaderboard" className="text-xs font-bold text-[#6C3BFF]">View all</Link>
+          <Link href="/achievements" className="text-xs font-bold text-[#6C3BFF]">View all</Link>
         </div>
         <div className="grid grid-cols-4 gap-2">
-          <AchievementIcon emoji="⭐" label="Quiz Master" tone="purple" />
-          <AchievementIcon emoji="🔥" label="Streak Beast" tone="orange" />
-          <AchievementIcon emoji="💎" label="Perfectionist" tone="green" />
-          <AchievementIcon emoji="👑" label="Legend" tone="red" />
+          {data.achievements.highlights.map((achievement) => <AchievementIcon key={achievement.id} emoji={achievement.icon} label={achievement.title} tone={achievement.tone} unlocked={achievement.unlocked} />)}
         </div>
       </RightRailCard>
 
@@ -510,7 +513,7 @@ function ProgressLegend({ dot, label, value }: { dot: string; label: string; val
   );
 }
 
-function AchievementIcon({ emoji, label, tone }: { emoji: string; label: string; tone: "purple" | "orange" | "green" | "red" }) {
+function AchievementIcon({ emoji, label, tone, unlocked = true }: { emoji: string; label: string; tone: "purple" | "orange" | "green" | "red"; unlocked?: boolean }) {
   const tones = {
     purple: "from-[#6C3BFF] to-[#8A58FF]",
     orange: "from-[#FFB545] to-[#FF6B00]",
@@ -519,7 +522,7 @@ function AchievementIcon({ emoji, label, tone }: { emoji: string; label: string;
   };
   return (
     <div className="flex flex-col items-center gap-1.5">
-      <div className={`grid size-[52px] place-items-center rounded-[14px] bg-gradient-to-br ${tones[tone]} text-[22px]`}>{emoji}</div>
+      <div className={`grid size-[52px] place-items-center rounded-[14px] bg-gradient-to-br ${tones[tone]} text-[22px] ${unlocked ? "" : "grayscale opacity-40"}`}>{emoji}</div>
       <div className="text-center text-[9px] font-semibold leading-tight text-[#6E738D]">{label}</div>
     </div>
   );

@@ -35,7 +35,7 @@ export default async function CalendarPage() {
         {[...groups.entries()].map(([date, rows]) => (
           <div key={date} className="mb-6 last:mb-0">
             <h2 className="mb-3 text-sm font-extrabold text-[var(--br-text)]">{date}</h2>
-            <div className="grid gap-3">
+            <div className="grid gap-3 md:grid-cols-2">
               {rows.map((entry) => (
                 <Link key={entry.id} href={entry.href} className="flex items-center gap-3 rounded-[16px] border border-[var(--br-border)] p-3 hover:bg-[var(--br-surface-muted)]">
                   <span className={`grid size-10 place-items-center rounded-xl ${entry.kind === "TASK" ? "bg-[#E7FBF4] text-[#00A978]" : "bg-[#F0EDFF] text-[var(--br-brand)]"}`}><ClipboardList size={18} /></span>

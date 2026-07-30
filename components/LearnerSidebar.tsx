@@ -58,6 +58,7 @@ export function LearnerSidebar({
     { href: "/assignments", label: "Assignments", icon: ClipboardList, key: "assignments" },
     { href: "/tasks", label: "Tasks", icon: ClipboardList, key: "tasks" },
     { href: "/calendar", label: "Calendar", icon: CalendarDays, key: "calendar" },
+    { href: "/achievements", label: "Achievements", icon: Award, key: "achievements" },
     { href: "/certificates", label: "Certificates", icon: Award, key: "certificates" },
     { href: "/language-profile", label: "Language Profile", icon: BarChart2, key: "language-profile" },
     { href: "/leaderboard", label: "Leaderboard", icon: Award, key: "leaderboard" },
