@@ -27,7 +27,7 @@ export default async function CourseQuizPage({
   const [{ data: quiz }, { data: course }, { data: courseItem }, { data: enrollment }] = await Promise.all([
     admin.from("quizzes").select("*").eq("id", quizId).eq("status", "PUBLISHED").is("deleted_at", null).maybeSingle(),
     admin.from("courses").select("title,status").eq("id", courseId).is("deleted_at", null).maybeSingle(),
-    admin.from("course_items").select("id, section_id, position, is_free_preview").eq("course_id", courseId).eq("quiz_id", quizId).maybeSingle(),
+    admin.from("course_items").select("*").eq("course_id", courseId).eq("quiz_id", quizId).maybeSingle(),
     admin.from("course_enrollments").select("status").eq("course_id", courseId).eq("user_id", user.id).maybeSingle(),
   ]);
 
@@ -64,7 +64,7 @@ export default async function CourseQuizPage({
   // Enforce the same sequential lock guard lessons/standalone quizzes use.
   const [{ data: sections }, { data: items }, { data: itemProgress }] = await Promise.all([
     admin.from("course_sections").select("id").eq("course_id", courseId).order("position", { ascending: true }),
-    admin.from("course_items").select("id, section_id, position, is_free_preview").eq("course_id", courseId),
+    admin.from("course_items").select("*").eq("course_id", courseId),
     admin.from("course_item_progress").select("course_item_id,completed").eq("course_id", courseId).eq("user_id", user.id),
   ]);
 
@@ -85,6 +85,7 @@ export default async function CourseQuizPage({
     isEnrolled && (
       globalIndex === 0 ||
       isComplete ||
+      Boolean(courseItem.bypass_sequential_unlock) ||
       (globalIndex > 0 && completedIds.has(orderedCourseItems[globalIndex - 1].id))
     )
   );

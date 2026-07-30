@@ -55,7 +55,7 @@ export default async function AccountPage() {
     adminSupabase.from("wishlist_items").select("*, quizzes(title, topic, level)").eq("user_id", user.id).not("quiz_id", "is", null).order("created_at", { ascending: false }),
     adminSupabase.from("lesson_progress").select("*, lessons(title, topic, level)").eq("user_id", user.id).order("updated_at", { ascending: false }),
     adminSupabase.from("wishlist_items").select("*, lessons(title, topic, level)").eq("user_id", user.id).not("lesson_id", "is", null).order("created_at", { ascending: false }),
-    adminSupabase.from("course_enrollments").select("*, courses(title, level, topic)").eq("user_id", user.id).order("enrolled_at", { ascending: false }),
+    adminSupabase.from("course_enrollments").select("*, courses(title, level, topic, status, deleted_at)").eq("user_id", user.id).order("enrolled_at", { ascending: false }),
     adminSupabase.from("course_progress").select("*").eq("user_id", user.id),
     adminSupabase.from("course_certificates").select("*, courses(title, level)").eq("user_id", user.id).order("issued_at", { ascending: false }),
     getLatestLevelTestSummary(adminSupabase, user.id)
@@ -67,7 +67,10 @@ export default async function AccountPage() {
   const activeLevelIndex = Math.max(0, levelSteps.indexOf(currentLevel));
   const completedLessons = (lessonProgress ?? []).filter((item) => item.completed);
   const activeLessons = (lessonProgress ?? []).filter((item) => !item.completed);
-  const activeCourseEnrollments = (courseEnrollments ?? []).filter((item) => item.status === "ACTIVE" || item.status === "COMPLETED");
+  const activeCourseEnrollments = (courseEnrollments ?? []).filter((item) => {
+    const course = Array.isArray(item.courses) ? item.courses[0] : item.courses;
+    return (item.status === "ACTIVE" || item.status === "COMPLETED") && course?.status === "PUBLISHED" && !course.deleted_at;
+  });
   const enrolledCourseIds = activeCourseEnrollments.map((item) => item.course_id);
   const trackedLessonIds = (lessonProgress ?? []).map((item) => item.lesson_id).filter(Boolean);
   const { data: matchingCourseItems } = trackedLessonIds.length && enrolledCourseIds.length

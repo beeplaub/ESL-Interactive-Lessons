@@ -31,7 +31,7 @@ export default async function LessonPage({
   if (courseItem) {
     const { data: cItem } = await admin
       .from("course_items")
-      .select("course_id, lesson_id, is_free_preview")
+      .select("*")
       .eq("id", courseItem)
       .maybeSingle();
     if (cItem?.lesson_id === lessonId) {
@@ -99,7 +99,7 @@ export default async function LessonPage({
   if (courseId) {
     const [{ data: sections }, { data: items }, { data: itemProgress }] = await Promise.all([
       admin.from("course_sections").select("id").eq("course_id", courseId).order("position", { ascending: true }),
-      admin.from("course_items").select("id, lesson_id, section_id, position, is_free_preview").eq("course_id", courseId),
+      admin.from("course_items").select("*").eq("course_id", courseId),
       admin.from("course_item_progress").select("course_item_id,completed").eq("course_id", courseId).eq("user_id", user.id),
     ]);
 
@@ -131,6 +131,7 @@ export default async function LessonPage({
         isEnrolledInCourse && (
           globalIndex === 0 ||
           isComplete ||
+          Boolean(matchingItem.bypass_sequential_unlock) ||
           (globalIndex > 0 && completedIds.has(courseItems[globalIndex - 1].id))
         )
       );

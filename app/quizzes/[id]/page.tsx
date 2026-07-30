@@ -34,7 +34,7 @@ export default async function QuizPage({
     if (courseItem) {
       const { data: cItem } = await admin
         .from("course_items")
-        .select("course_id")
+        .select("*")
         .eq("id", courseItem)
         .maybeSingle();
       if (cItem) {
@@ -52,7 +52,7 @@ export default async function QuizPage({
         const courseIds = enrollments.map(e => e.course_id);
         const { data: cItem } = await admin
           .from("course_items")
-          .select("id, course_id")
+          .select("*")
           .eq("quiz_id", id)
           .in("course_id", courseIds)
           .limit(1)
@@ -87,7 +87,7 @@ export default async function QuizPage({
     if (courseId) {
       const [{ data: sections }, { data: items }, { data: itemProgress }] = await Promise.all([
         admin.from("course_sections").select("id").eq("course_id", courseId).order("position", { ascending: true }),
-        admin.from("course_items").select("id, quiz_id, section_id, position, is_free_preview").eq("course_id", courseId),
+        admin.from("course_items").select("*").eq("course_id", courseId),
         admin.from("course_item_progress").select("course_item_id,completed").eq("course_id", courseId).eq("user_id", user.id),
       ]);
 
@@ -115,7 +115,7 @@ export default async function QuizPage({
       if (matchingItem) {
         const globalIndex = courseItems.findIndex((ci) => ci.id === matchingItem.id);
         const isComplete = completedIds.has(matchingItem.id);
-        const unlocked = globalIndex === 0 || isComplete || (globalIndex > 0 && completedIds.has(courseItems[globalIndex - 1].id)) || Boolean(matchingItem.is_free_preview);
+        const unlocked = globalIndex === 0 || isComplete || Boolean(matchingItem.bypass_sequential_unlock) || (globalIndex > 0 && completedIds.has(courseItems[globalIndex - 1].id)) || Boolean(matchingItem.is_free_preview);
 
         if (!unlocked) {
           redirect(`/courses/${courseId}`);

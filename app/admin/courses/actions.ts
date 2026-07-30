@@ -455,6 +455,7 @@ export async function updateCourseItem(courseId: string, itemId: string, formDat
     resource_url: String(formData.get("resourceUrl") || "").trim() || null,
     is_required: formData.get("isRequired") === "on",
     is_free_preview: formData.get("isFreePreview") === "on",
+    bypass_sequential_unlock: formData.get("bypassSequentialUnlock") === "on",
     assessment_weight: Math.max(0.01, Number(formData.get("assessmentWeight") || 1)),
     mastery_threshold_override: String(formData.get("masteryThresholdOverride") || "").trim()
       ? Number(formData.get("masteryThresholdOverride"))

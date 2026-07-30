@@ -31,6 +31,7 @@ type ItemShape = {
   resource_url: string | null;
   is_required: boolean;
   is_free_preview: boolean;
+  bypass_sequential_unlock?: boolean | null;
   assessment_weight?: number;
   mastery_threshold_override?: number | null;
   evidence_selection_override?: string | null;
@@ -154,7 +155,7 @@ export function EditItemModal({ action, deleteAction, item, label, status, count
               <span title="Draft" className="shrink-0"><CircleDashed size={13} className="text-amber-500" aria-label="Draft" /></span>
             ) : null}
           </p>
-          <p className="mt-0.5 text-xs text-black/45">{item.item_type.replaceAll("_", " ")}{item.is_free_preview ? " \u00b7 Free preview" : ""}{item.is_required ? " \u00b7 Required" : " \u00b7 Optional"}</p>
+          <p className="mt-0.5 text-xs text-black/45">{item.item_type.replaceAll("_", " ")}{item.is_free_preview ? " \u00b7 Free preview" : ""}{item.bypass_sequential_unlock ? " \u00b7 Open access" : ""}{item.is_required ? " \u00b7 Required" : " \u00b7 Optional"}</p>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
@@ -314,6 +315,7 @@ export function EditItemModal({ action, deleteAction, item, label, status, count
               <div className="flex flex-wrap gap-4">
                 <label className="inline-flex items-center gap-2 text-xs text-black/60"><input type="checkbox" name="isRequired" defaultChecked={item.is_required} /> Required</label>
                 <label className="inline-flex items-center gap-2 text-xs text-black/60"><input type="checkbox" name="isFreePreview" defaultChecked={item.is_free_preview} /> Free preview</label>
+                <label className="inline-flex items-center gap-2 text-xs text-black/60"><input type="checkbox" name="bypassSequentialUnlock" defaultChecked={Boolean(item.bypass_sequential_unlock)} /> Open without previous completion</label>
               </div>
 
               {(itemType === "LESSON" || itemType === "QUIZ") ? (

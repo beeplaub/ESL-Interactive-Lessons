@@ -58,6 +58,7 @@ type CourseItem = {
   resource_url: string | null;
   is_required: boolean;
   is_free_preview: boolean;
+  bypass_sequential_unlock?: boolean | null;
   assessment_weight: number;
   mastery_threshold_override: number | null;
   evidence_selection_override: string | null;

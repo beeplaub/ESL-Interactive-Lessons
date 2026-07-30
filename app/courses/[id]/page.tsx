@@ -35,6 +35,7 @@ type CourseItemView = {
   is_free_preview: boolean;
   lessons?: { title?: string | null; level?: string | null } | null;
   quizzes?: { title?: string | null; level?: string | null } | null;
+  bypass_sequential_unlock?: boolean | null;
 };
 
 const demoImage = "https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=1200&q=80";
@@ -218,6 +219,7 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
                   const unlocked = (isEnrolled && (
                     globalIndex === 0 ||
                     isComplete ||
+                    Boolean(item.bypass_sequential_unlock) ||
                     (globalIndex > 0 && completedIds.has(courseItems[globalIndex - 1].id))
                   )) || Boolean(item.is_free_preview);
 
@@ -426,7 +428,7 @@ function CourseItemLink({ courseId, item, itemIndex, isComplete, unlocked }: { c
       </span>
       <div className="min-w-0 flex-1">
         <p className="break-words font-semibold leading-snug">{label}</p>
-        <p className="mt-1 break-words text-xs text-[#8D94AA]">{item.item_type.replaceAll("_", " ")}{item.is_free_preview ? " · Free preview" : ""}</p>
+        <p className="mt-1 break-words text-xs text-[#8D94AA]">{item.item_type.replaceAll("_", " ")}{item.is_free_preview ? " · Free preview" : ""}{item.bypass_sequential_unlock ? " · Open access" : ""}</p>
       </div>
       </div>
       {unlocked && href ? (
