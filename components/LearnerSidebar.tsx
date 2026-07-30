@@ -101,45 +101,6 @@ export function LearnerSidebar({
         ))}
       </nav>
 
-      {/* Level test promo or current progress card */}
-      {collapsed ? null : currentLevel ? (
-        <div className="mt-4 rounded-[20px] br-panel-dark p-[18px] text-white relative overflow-hidden group">
-          <div className="relative z-10">
-            <div className="mb-1 text-[10px] font-bold uppercase tracking-wider opacity-75">Current Level</div>
-            <div className="text-[36px] font-black leading-none">{currentLevel}</div>
-            <div className="mb-2 text-xs font-semibold opacity-80">{levelNames[currentLevel] ?? "English level"}</div>
-            <div className="mb-1.5 h-1.5 overflow-hidden rounded-full bg-white/20">
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-white to-white/70"
-                style={{ width: `${Math.min(100, Math.max(0, levelProgressPercent ?? 0))}%` }}
-              />
-            </div>
-            <div className="mb-3 text-[9px] font-semibold opacity-70">
-              {levelProgressPercent === null ? "Take level roadmap check" : `${levelProgressPercent}% on your last test`}
-            </div>
-            <Link href="/level-test" className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-white/20 bg-white/15 p-2 text-xs font-bold text-white hover:bg-white/25 transition">
-              View Level Roadmap <ChevronRight className="size-3" />
-            </Link>
-          </div>
-          <div className="absolute -right-4 -bottom-4 opacity-10 transform group-hover:scale-110 transition-transform">
-            <Zap className="size-20 text-white" />
-          </div>
-        </div>
-      ) : (
-        <div className="mt-4 rounded-[20px] br-panel-dark p-4 text-white relative overflow-hidden group shadow-md shadow-black/20">
-          <div className="relative z-10">
-            <h4 className="text-white font-bold text-xs mb-1">Take the Level Test</h4>
-            <p className="text-white/80 text-[10px] mb-3 leading-tight">Find your CEFR level and get a tailored path.</p>
-            <Link href="/level-test" className="w-full py-2 bg-white text-[var(--br-brand)] hover:bg-white/95 text-[11px] font-bold rounded-xl flex items-center justify-center shadow-sm">
-              Take Level Test
-            </Link>
-          </div>
-          <div className="absolute -right-4 -bottom-4 opacity-20 transform group-hover:scale-110 transition-transform">
-            <Zap className="size-16 text-white" />
-          </div>
-        </div>
-      )}
-
       {/* Premium upgrade card */}
       {collapsed ? null : <PremiumCard />}
     </aside>
