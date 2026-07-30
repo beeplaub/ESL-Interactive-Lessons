@@ -13,7 +13,7 @@ import {
   ClipboardList,
   Users,
   Zap,
-  Award
+  Award, CalendarDays
   , Radio
 } from "lucide-react";
 import type { ActiveItem } from "@/components/LearnerAppShell";
@@ -56,6 +56,8 @@ export function LearnerSidebar({
     { href: "/courses", label: "Courses", icon: GraduationCap, key: "courses" },
     { href: "/live-classes", label: "Live Classes", icon: Radio, key: "live-classes" },
     { href: "/assignments", label: "Assignments", icon: ClipboardList, key: "assignments" },
+    { href: "/tasks", label: "Tasks", icon: ClipboardList, key: "tasks" },
+    { href: "/calendar", label: "Calendar", icon: CalendarDays, key: "calendar" },
     { href: "/certificates", label: "Certificates", icon: Award, key: "certificates" },
     { href: "/language-profile", label: "Language Profile", icon: BarChart2, key: "language-profile" },
     { href: "/leaderboard", label: "Leaderboard", icon: Award, key: "leaderboard" },

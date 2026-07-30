@@ -2,7 +2,7 @@
 
 import type { TouchEvent } from "react";
 import { AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Mic, MicOff, RotateCcw, Sparkles, TrendingUp, Loader2, XCircle, Volume2, Play, Pause, FileText, Headphones } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { motion, Reorder } from "framer-motion";
 import { recordQuizAttempt } from "@/app/quizzes/actions";
 import { GuestScorePopup, type PendingAttempt } from "@/components/GuestScorePopup";
@@ -1291,11 +1291,25 @@ function Fill({ question, value, disabled, onChange }: { question: QuizQuestion;
 }
 
 function Matching({ question, value, disabled, onChange }: { question: QuizQuestion; value: Record<string, string>; disabled: boolean; onChange: (value: Record<string, string>) => void }) {
-  const opts = asRecord(question.options) as { a_items?: unknown[]; b_items?: unknown[] };
+  const opts = asRecord(question.options) as { a_items?: unknown[]; b_items?: unknown[]; shuffle_options?: boolean };
   const aItems = Array.isArray(opts.a_items) ? opts.a_items.map(String) : [];
   const bItems = Array.isArray(opts.b_items) ? opts.b_items.map(String) : [];
   const rows = aItems.map((leftLabel, i) => ({ key: String(i + 1), leftLabel }));
   const letters = bItems.map((_, i) => String.fromCharCode(65 + i));
+  const displayOptions = useMemo<Array<{ label: string; letter: string }>>(() => {
+    const values = bItems.map((label, index) => ({ label, letter: String.fromCharCode(65 + index) }));
+    if (opts.shuffle_options === false || values.length < 2) return values;
+    // A new mounted attempt gets a different visual order. Answer values keep
+    // their original letters, so saved work and grading remain stable.
+    const shuffled = [...values];
+    for (let index = shuffled.length - 1; index > 0; index--) {
+      const target = Math.floor(Math.random() * (index + 1));
+      [shuffled[index], shuffled[target]] = [shuffled[target], shuffled[index]];
+    }
+    return shuffled;
+  // A question's answer state deliberately does not reshuffle its options.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [question.id]);
   const [active, setActive] = useState<string | null>(null);
   const matched = value ?? {};
 
@@ -1395,8 +1409,7 @@ function Matching({ question, value, disabled, onChange }: { question: QuizQuest
       </div>
       <div className="grid gap-2">
         <p className="text-xs font-semibold uppercase tracking-wide text-[#A0A5BA]">{active ? `Now tap ${bItems.length ? "the match" : ""} for ${active}` : "Options"}</p>
-        {bItems.map((label, i) => {
-          const letter = letters[i];
+        {displayOptions.map(({ label, letter }) => {
           const linkedRows = rows.filter((r) => matched[r.key] === letter).map((r) => r.key);
           return (
             <motion.button

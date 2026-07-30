@@ -28,7 +28,7 @@ import { LearnerSidebar } from "@/components/LearnerSidebar";
 import { NotificationsDropdown } from "@/components/NotificationsDropdown";
 import { LearnerNavigationPreloader } from "@/components/LearnerNavigationPreloader";
 
-export type ActiveItem = "home" | "quizzes" | "courses" | "live-classes" | "assignments" | "certificates" | "level-test" | "leaderboard" | "language-profile" | "profile";
+export type ActiveItem = "home" | "quizzes" | "courses" | "live-classes" | "assignments" | "tasks" | "calendar" | "certificates" | "level-test" | "leaderboard" | "language-profile" | "profile";
 
 type BreadcrumbItem = { label: string; href?: string };
 export type NotificationItem = { key: string; title: string; detail: string; href: string; tone: "purple" | "orange" | "green" | "blue"; notificationId?: string; isRead?: boolean };
@@ -39,6 +39,8 @@ const defaultBreadcrumbs: Record<ActiveItem, BreadcrumbItem[]> = {
   courses: [{ label: "Home", href: "/account" }, { label: "Courses" }],
   "live-classes": [{ label: "Home", href: "/account" }, { label: "Live Classes" }],
   assignments: [{ label: "Home", href: "/account" }, { label: "Assignments" }],
+  tasks: [{ label: "Home", href: "/account" }, { label: "Tasks" }],
+  calendar: [{ label: "Home", href: "/account" }, { label: "Calendar" }],
   certificates: [{ label: "Home", href: "/account" }, { label: "Certificates" }],
   "level-test": [{ label: "Home", href: "/account" }, { label: "Level Test" }],
   leaderboard: [{ label: "Home", href: "/account" }, { label: "Leaderboard" }],
@@ -608,6 +610,7 @@ function MobileBottomNav({ active }: { active: ActiveItem }) {
     { href: "/account", label: "Home", icon: Home, key: "home" },
     { href: "/quizzes", label: "Quizzes", icon: HelpCircle, key: "quizzes" },
     { href: "/courses", label: "Courses", icon: BookOpen, key: "courses" },
+    { href: "/tasks", label: "Tasks", icon: ClipboardList, key: "tasks" },
     { href: "/leaderboard", label: "Ranks", icon: Trophy, key: "leaderboard" },
     { href: "/profile", label: "Profile", icon: User, key: "profile" }
   ];

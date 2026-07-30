@@ -804,6 +804,12 @@ export type Database = {
         };
         Relationships: [];
       };
+      practice_tasks: {
+        Row: { id: string; learner_id: string; created_by: string | null; class_id: string | null; title: string; description: string | null; task_type: "PRACTICE" | "SELF_STUDY" | "REMINDER" | "HOMEWORK"; priority: "LOW" | "NORMAL" | "HIGH"; status: "TODO" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED"; due_at: string | null; estimated_minutes: number | null; completed_at: string | null; created_at: string; updated_at: string };
+        Insert: { id?: string; learner_id: string; created_by?: string | null; class_id?: string | null; title: string; description?: string | null; task_type?: "PRACTICE" | "SELF_STUDY" | "REMINDER" | "HOMEWORK"; priority?: "LOW" | "NORMAL" | "HIGH"; status?: "TODO" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED"; due_at?: string | null; estimated_minutes?: number | null; completed_at?: string | null; created_at?: string; updated_at?: string };
+        Update: { id?: string; learner_id?: string; created_by?: string | null; class_id?: string | null; title?: string; description?: string | null; task_type?: "PRACTICE" | "SELF_STUDY" | "REMINDER" | "HOMEWORK"; priority?: "LOW" | "NORMAL" | "HIGH"; status?: "TODO" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED"; due_at?: string | null; estimated_minutes?: number | null; completed_at?: string | null; created_at?: string; updated_at?: string };
+        Relationships: [];
+      };
       course_certificates: {
         Row: { id: string; user_id: string; course_id: string; certificate_code: string; issued_at: string };
         Insert: { id?: string; user_id: string; course_id: string; certificate_code: string; issued_at?: string };

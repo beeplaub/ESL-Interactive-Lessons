@@ -3,6 +3,7 @@ import { CalendarDays, CheckCircle2, ChevronRight, ClipboardList, Clock3, Gradua
 import { requireUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { LearnerAppShell } from "@/components/LearnerAppShell";
+import { TaskPlanner, type PracticeTask } from "@/components/TaskPlanner";
 
 type Assignment = {
   id: string;
@@ -32,9 +33,12 @@ export default async function AssignmentsPage() {
   const { data: memberships } = await admin.from("class_members").select("class_id").eq("user_id", user.id).eq("role", "STUDENT");
   const classIds = (memberships ?? []).map((membership) => membership.class_id);
 
-  const { data: rawAssignments } = classIds.length
+  const [{ data: rawAssignments }, { data: practiceTasks }] = await Promise.all([
+    classIds.length
     ? await admin.from("class_assignments").select("*, classes(name)").in("class_id", classIds).order("due_at", { ascending: true, nullsFirst: false }).order("created_at", { ascending: false })
-    : { data: [] as Assignment[] };
+    : { data: [] as Assignment[] },
+    admin.from("practice_tasks").select("*, classes(name)").eq("learner_id", user.id).neq("status", "CANCELLED").order("due_at", { ascending: true, nullsFirst: false }).order("created_at", { ascending: false }),
+  ]);
   const assignments = (rawAssignments ?? []) as Assignment[];
 
   const courseIds = [...new Set(assignments.map((assignment) => assignment.course_id).filter((id): id is string => Boolean(id)))];
@@ -146,6 +150,11 @@ export default async function AssignmentsPage() {
           })}
           {!assignments.length ? <div className="grid min-h-52 place-items-center rounded-[18px] border border-dashed border-[#D9DCE8] bg-[#FAFBFD] p-6 text-center"><div><Clock3 className="mx-auto size-7 text-[#9AA1B8]" /><h3 className="mt-3 font-extrabold text-[#35405F]">Nothing assigned yet</h3><p className="mt-1 max-w-sm text-sm leading-6 text-[#6E738D]">When your teacher adds work to one of your classes, it will appear here.</p></div></div> : null}
         </div>
+      </section>
+
+      <section className="rounded-[20px] border border-[#ECECF5] bg-white p-4 shadow-[0_10px_28px_rgba(0,0,0,.05)] sm:p-5">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-extrabold text-[#14172B]">Practice tasks</h2><p className="mt-0.5 text-sm text-[#6E738D]">Teacher practice and your self-planned tasks live beside course assignments.</p></div><Link href="/tasks" className="text-sm font-extrabold text-[#6C3BFF]">Open tasks</Link></div>
+        <TaskPlanner tasks={(practiceTasks ?? []) as PracticeTask[]} />
       </section>
     </LearnerAppShell>
   );

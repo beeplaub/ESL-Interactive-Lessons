@@ -67,7 +67,8 @@ type MatchData = {
   prompt: string;
   aItems: string[];
   bItems: string[];
-  pairs: string;
+  pairs: Record<string, string>;
+  shuffle: boolean;
 };
 
 type ErrorCorrectionItem = {
@@ -386,15 +387,22 @@ function normalizeMatching(data: Json | null): MatchData {
   const record = asRecord(data);
   const question = asRecord(Array.isArray(record.questions) ? record.questions[0] : null);
   const options = asRecord(question.options);
-  const correct = Array.isArray(question.correct_answer) ? question.correct_answer : [];
+  const rawCorrect = Array.isArray(question.correct_answer) ? question.correct_answer : Array.isArray(record.correct_pairs) ? record.correct_pairs : [];
+  const aItems = Array.isArray(options.a_items) ? options.a_items.map(String) : Array.isArray(record.a_items) ? record.a_items.map(String) : [];
+  const bItems = Array.isArray(options.b_items) ? options.b_items.map(String) : Array.isArray(record.b_items) ? record.b_items.map(String) : [];
+  const pairs: Record<string, string> = {};
+  for (const pair of rawCorrect) {
+    const row = asRecord(pair);
+    const key = String(row.a ?? "").trim();
+    const value = String(row.b ?? "").trim().toUpperCase();
+    if (key && value) pairs[key] = value;
+  }
   return {
     prompt: String(record.prompt ?? question.question_text ?? "Match the items."),
-    aItems: Array.isArray(options.a_items) ? options.a_items.map(String) : [],
-    bItems: Array.isArray(options.b_items) ? options.b_items.map(String) : [],
-    pairs: correct.map((pair) => {
-      const row = asRecord(pair);
-      return `${row.a ?? ""}-${row.b ?? ""}`;
-    }).filter(Boolean).join(", ")
+    aItems,
+    bItems,
+    pairs,
+    shuffle: options.shuffle_options === true || record.shuffle_options === true,
   };
 }
 
@@ -1249,34 +1257,30 @@ function TrueFalseEditor({ activity, onSave }: { activity: Activity; onSave: (da
 function MatchingEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
   const initial = useMemo(() => normalizeMatching(activity.activity_data), [activity.activity_data]);
   const [prompt, setPrompt] = useState(initial.prompt);
-  const [aItems, setAItems] = useState(initial.aItems.join("\n"));
-  const [bItems, setBItems] = useState(initial.bItems.join("\n"));
-  const [pairs, setPairs] = useState(initial.pairs);
-  const needsReview = !aItems.trim() || !bItems.trim() || !pairs.trim();
+  const [aItems, setAItems] = useState(initial.aItems.length ? initial.aItems : [""]);
+  const [bItems, setBItems] = useState(initial.bItems.length ? initial.bItems : [""]);
+  const [pairs, setPairs] = useState<Record<string, string>>(initial.pairs);
+  const [shuffle, setShuffle] = useState(initial.shuffle);
+  const letters = bItems.map((_, index) => String.fromCharCode(65 + index));
+  const needsReview = aItems.some((item) => !item.trim()) || bItems.some((item) => !item.trim()) || aItems.some((_, index) => !pairs[String(index + 1)]);
+
+  function updateA(index: number, value: string) {
+    setAItems((current) => current.map((item, itemIndex) => itemIndex === index ? value : item));
+  }
+  function updateB(index: number, value: string) {
+    setBItems((current) => current.map((item, itemIndex) => itemIndex === index ? value : item));
+  }
 
   return (
-    <div className="rounded-md border border-amber-200 bg-amber-50 p-4">
-      <p className="text-sm font-semibold text-amber-900">Matching review helper</p>
-      <p className="mt-1 text-sm text-amber-800">Add Column A, Column B, then write pairs like 1-A, 2-B, 3-C.</p>
-      <div className="mt-4 grid gap-4 md:grid-cols-2">
-        <label className="text-sm">Instruction<input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
-        <label className="text-sm">Correct pairs<input value={pairs} onChange={(event) => setPairs(event.target.value)} placeholder="1-A, 2-B, 3-C" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
-        <label className="text-sm">Column A items, one per line<textarea rows={6} value={aItems} onChange={(event) => setAItems(event.target.value)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
-        <label className="text-sm">Column B items, one per line<textarea rows={6} value={bItems} onChange={(event) => setBItems(event.target.value)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+    <div className="grid gap-4">
+      <label className="text-sm font-medium">Instruction<input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+      <label className="flex items-center gap-2 text-sm font-medium"><input type="checkbox" checked={shuffle} onChange={(event) => setShuffle(event.target.checked)} /> Shuffle Column B for every new learner attempt</label>
+      <p className="-mt-2 text-xs text-black/50">Letters remain the answer key; only the display order changes, so matching is never obvious.</p>
+      <div className="grid gap-4 md:grid-cols-2">
+        <section className="rounded-lg border border-black/10 p-3"><p className="mb-3 text-sm font-semibold">Column A</p><div className="grid gap-2">{aItems.map((item, index) => <div key={index} className="grid grid-cols-[28px_minmax(0,1fr)_112px_auto] items-center gap-2"><span className="text-sm font-semibold text-black/55">{index + 1}.</span><input value={item} onChange={(event) => updateA(index, event.target.value)} placeholder="Item" className="min-w-0 rounded-md border border-black/15 px-2 py-2 text-sm"/><select value={pairs[String(index + 1)] ?? ""} onChange={(event) => setPairs((current) => ({ ...current, [String(index + 1)]: event.target.value }))} className="rounded-md border border-black/15 px-2 py-2 text-sm"><option value="">Answer</option>{letters.map((letter) => <option key={letter} value={letter}>{letter}</option>)}</select><button type="button" onClick={() => { setAItems((current) => current.filter((_, itemIndex) => itemIndex !== index)); setPairs((current) => { const next: Record<string,string> = {}; Object.entries(current).forEach(([key, value]) => { const number = Number(key); if (number < index + 1) next[key] = value; if (number > index + 1) next[String(number - 1)] = value; }); return next; }); }} className="text-xs text-coral">Remove</button></div>)}</div><button type="button" onClick={() => setAItems((current) => [...current, ""])} className="mt-3 rounded-md border border-black/15 px-3 py-2 text-sm">Add Column A item</button></section>
+        <section className="rounded-lg border border-black/10 p-3"><p className="mb-3 text-sm font-semibold">Column B</p><div className="grid gap-2">{bItems.map((item, index) => <div key={index} className="grid grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-2"><span className="text-sm font-semibold text-black/55">{String.fromCharCode(65 + index)}.</span><input value={item} onChange={(event) => updateB(index, event.target.value)} placeholder="Match" className="min-w-0 rounded-md border border-black/15 px-2 py-2 text-sm"/><button type="button" onClick={() => setBItems((current) => current.filter((_, itemIndex) => itemIndex !== index))} className="text-xs text-coral">Remove</button></div>)}</div><button type="button" onClick={() => setBItems((current) => [...current, ""])} className="mt-3 rounded-md border border-black/15 px-3 py-2 text-sm">Add Column B item</button></section>
       </div>
-      <div className="mt-4">
-        <SaveButton onClick={() => onSave({
-          prompt,
-          questions: [{
-            id: "1",
-            question_number: 1,
-            question_type: "MATCHING",
-            question_text: prompt,
-            options: { a_items: aItems.split("\n").map((item) => item.trim()).filter(Boolean), b_items: bItems.split("\n").map((item) => item.trim()).filter(Boolean) },
-            correct_answer: pairs.split(",").map((pair) => pair.trim().match(/^(\d+)\s*-\s*([A-Z])$/i)).filter(Boolean).map((match) => ({ a: Number(match![1]), b: match![2].toUpperCase() }))
-          }]
-        } as Json, needsReview)} />
-      </div>
+      <SaveButton onClick={() => onSave({ prompt, shuffle_options: shuffle, questions: [{ id: "1", question_number: 1, question_type: "MATCHING", question_text: prompt, options: { a_items: aItems.map((item) => item.trim()), b_items: bItems.map((item) => item.trim()), shuffle_options: shuffle }, correct_answer: aItems.map((_, index) => ({ a: index + 1, b: pairs[String(index + 1)] ?? "" })) }] } as Json, needsReview)} />
     </div>
   );
 }

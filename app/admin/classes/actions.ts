@@ -134,3 +134,29 @@ export async function removeTeacherClassAssignment(classId: string, assignmentId
   refreshClassPages(classId);
   revalidatePath("/assignments");
 }
+
+export async function createTeacherPracticeTask(classId: string, formData: FormData) {
+  const { user } = await requireClassAccess(classId);
+  const learnerId = String(formData.get("learnerId") || "").trim();
+  const title = String(formData.get("title") || "").trim();
+  if (!learnerId || !title) throw new Error("Choose a learner and enter a task title.");
+  const admin = createAdminClient();
+  const { data: membership } = await admin.from("class_members").select("id").eq("class_id", classId).eq("user_id", learnerId).eq("role", "STUDENT").maybeSingle();
+  if (!membership) throw new Error("That learner is not in this class.");
+  const minutes = Number(formData.get("estimatedMinutes") || 0);
+  const { error } = await admin.from("practice_tasks").insert({
+    class_id: classId,
+    learner_id: learnerId,
+    created_by: user.id,
+    title,
+    description: String(formData.get("description") || "").trim() || null,
+    task_type: "PRACTICE",
+    priority: String(formData.get("priority") || "NORMAL") as "LOW" | "NORMAL" | "HIGH",
+    due_at: String(formData.get("dueAt") || "").trim() || null,
+    estimated_minutes: Number.isFinite(minutes) && minutes > 0 ? Math.round(minutes) : null,
+  });
+  if (error) throw new Error(error.message);
+  refreshClassPages(classId);
+  revalidatePath("/assignments");
+  revalidatePath("/tasks");
+}
