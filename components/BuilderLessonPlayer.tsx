@@ -237,7 +237,7 @@ function NarrationPill({ src, lessonId, slideId, translationEnabled = false, nar
 }
 
 export function BuilderLessonPlayer({
-  lesson, slides, blocks, activities, initialProgress, activityAttempts = [], initialNotes = {}, narrationMap = {}, narrationConfigMap = {}, courseItemId = null, backHref = "/courses", liveSession = null,
+  lesson, slides, blocks, activities, initialProgress, activityAttempts = [], initialNotes = {}, narrationMap = {}, narrationConfigMap = {}, courseItemId = null, backHref = "/courses", liveSession = null, startInReviewMode = false,
 }: {
   lesson: Lesson; slides: Slide[]; blocks: Block[]; activities: Activity[];
   initialProgress: Progress; activityAttempts?: ActivityAttempt[];
@@ -247,8 +247,10 @@ export function BuilderLessonPlayer({
   courseItemId?: string | null;
   backHref?: string;
   liveSession?: LiveSessionMode | null;
+  startInReviewMode?: boolean;
 }) {
-  const initialIndex = Math.max(0, Math.min(slides.length - 1, (liveSession?.initialSlideNumber ?? initialProgress?.current_slide_number ?? 1) - 1));
+  const initialSlideNumber = startInReviewMode ? 1 : liveSession?.initialSlideNumber ?? initialProgress?.current_slide_number ?? 1;
+  const initialIndex = Math.max(0, Math.min(slides.length - 1, initialSlideNumber - 1));
   const [index, setIndex] = useState(initialIndex);
   const [completed, setCompleted] = useState(Boolean(initialProgress?.completed));
   const [showCompletion, setShowCompletion] = useState(false);

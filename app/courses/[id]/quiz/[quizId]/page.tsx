@@ -53,6 +53,12 @@ export default async function CourseQuizPage({
         completed: false,
       });
     }
+    await admin.from("course_progress").upsert({
+      user_id: user.id,
+      course_id: courseId,
+      current_item_id: courseItem.id,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "user_id,course_id" });
   }
 
   // Enforce the same sequential lock guard lessons/standalone quizzes use.

@@ -67,40 +67,67 @@ export default async function AccountPage() {
   const activeLevelIndex = Math.max(0, levelSteps.indexOf(currentLevel));
   const completedLessons = (lessonProgress ?? []).filter((item) => item.completed);
   const activeLessons = (lessonProgress ?? []).filter((item) => !item.completed);
-  const enrolledCourseIds = (courseEnrollments ?? []).map((item) => item.course_id);
-  const activeLessonIds = activeLessons.map((item) => item.lesson_id).filter(Boolean);
-  const { data: matchingCourseItems } = activeLessonIds.length && enrolledCourseIds.length
+  const activeCourseEnrollments = (courseEnrollments ?? []).filter((item) => item.status === "ACTIVE" || item.status === "COMPLETED");
+  const enrolledCourseIds = activeCourseEnrollments.map((item) => item.course_id);
+  const trackedLessonIds = (lessonProgress ?? []).map((item) => item.lesson_id).filter(Boolean);
+  const { data: matchingCourseItems } = trackedLessonIds.length && enrolledCourseIds.length
     ? await adminSupabase
         .from("course_items")
-        .select("id, lesson_id")
-        .in("lesson_id", activeLessonIds)
+        .select("id, course_id, lesson_id, quiz_id, item_type")
+        .in("lesson_id", trackedLessonIds)
         .in("course_id", enrolledCourseIds)
-    : { data: [] as { id: string; lesson_id: string | null }[] };
-  const courseItemByLessonId = new Map((matchingCourseItems ?? []).map((item) => [item.lesson_id, item.id]));
+    : { data: [] as { id: string; course_id: string; lesson_id: string | null; quiz_id: string | null; item_type: string }[] };
+  const currentCourseItemIds = (courseProgress ?? []).map((item) => item.current_item_id).filter(Boolean);
+  const { data: currentCourseItems } = currentCourseItemIds.length
+    ? await adminSupabase
+        .from("course_items")
+        .select("id, course_id, lesson_id, quiz_id, item_type, title, lessons(title,level), quizzes(title,level)")
+        .in("id", currentCourseItemIds)
+    : { data: [] as Array<{ id: string; course_id: string; lesson_id: string | null; quiz_id: string | null; item_type: string; title: string | null; lessons?: { title?: string | null; level?: string | null } | null; quizzes?: { title?: string | null; level?: string | null } | null }> };
+  const courseItemByLessonId = new Map((matchingCourseItems ?? []).map((item) => [item.lesson_id, item]));
+  const currentCourseItemById = new Map((currentCourseItems ?? []).map((item) => [item.id, item]));
   const courseProgressByCourse = new Map((courseProgress ?? []).map((item) => [item.course_id, item]));
   const savedCount = (wishlistItems ?? []).length + (savedLessons ?? []).length;
   const learningItems = [
-    ...(courseEnrollments ?? []).map((item, index) => ({
+    ...activeLessons.map((item, index) => {
+      const courseItem = courseItemByLessonId.get(item.lesson_id);
+      const href = courseItem?.id
+        ? `/lessons/${item.lesson_id}?courseItem=${courseItem.id}`
+        : `/lessons/${item.lesson_id}`;
+      return {
+        id: `lesson-${item.id}`,
+        href,
+        title: item.lessons?.title ?? "Lesson",
+        meta: `Continue at slide ${item.current_slide_number}`,
+        level: item.lessons?.level ?? "Lesson",
+        progress: 25,
+        tone: index + 2
+      };
+    }),
+    ...activeCourseEnrollments.map((item, index) => {
+      const progressRow = courseProgressByCourse.get(item.course_id);
+      const currentItem = progressRow?.current_item_id ? currentCourseItemById.get(progressRow.current_item_id) : null;
+      const href = currentItem ? courseItemHref(currentItem, item.course_id) : `/courses/${item.course_id}`;
+      const continueTitle = relationTitle(currentItem?.lessons) ?? relationTitle(currentItem?.quizzes) ?? currentItem?.title;
+      return {
       id: `course-${item.id}`,
-      href: `/courses/${item.course_id}`,
+      href,
       title: item.courses?.title ?? "Course",
-      meta: `${courseProgressByCourse.get(item.course_id)?.current_module_order ?? 1} module started`,
+      meta: continueTitle ? `Continue: ${continueTitle}` : "Open course path",
       level: item.courses?.level ?? "Course",
-      progress: courseProgressByCourse.get(item.course_id)?.progress_percent ?? 0,
+      progress: progressRow?.progress_percent ?? 0,
       tone: index
-    })),
-    ...activeLessons.map((item, index) => ({
-      id: `lesson-${item.id}`,
-      href: courseItemByLessonId.has(item.lesson_id)
-        ? `/lessons/${item.lesson_id}?courseItem=${courseItemByLessonId.get(item.lesson_id)}`
-        : `/lessons/${item.lesson_id}`,
-      title: item.lessons?.title ?? "Lesson",
-      meta: `Continue at slide ${item.current_slide_number}`,
-      level: item.lessons?.level ?? "Lesson",
-      progress: 25,
-      tone: index + 2
-    }))
+    };
+    })
   ].slice(0, 4);
+  const latestCompletedLesson = completedLessons[0] ?? null;
+  const latestCompletedCourseItem = latestCompletedLesson ? courseItemByLessonId.get(latestCompletedLesson.lesson_id) : null;
+  const reviewHref = latestCompletedLesson?.lesson_id
+    ? `/lessons/${latestCompletedLesson.lesson_id}?${new URLSearchParams({
+        ...(latestCompletedCourseItem?.id ? { courseItem: latestCompletedCourseItem.id } : {}),
+        review: "1"
+      }).toString()}`
+    : undefined;
   const currentHour = new Date().getHours();
   let greeting = "Good morning";
   if (currentHour >= 18) {
@@ -144,7 +171,7 @@ export default async function AccountPage() {
             <p className="mt-0.5 text-[13px] text-[#6E738D]">Let&apos;s continue your English journey.</p>
           </div>
 
-          <ResumeLearningCard item={learningItems[0]} currentLevel={currentLevel} reviewHref={completedLessons[0]?.lesson_id ? `/lessons/${completedLessons[0].lesson_id}` : undefined} />
+          <ResumeLearningCard item={learningItems[0]} currentLevel={currentLevel} reviewHref={reviewHref} />
 
           <div className="grid gap-5 md:grid-cols-2">
             <DashboardCard className="p-5 md:p-6"><SectionHeader title="This Week: Assignments" href="/assignments" small />{assignments?.length ? <div className="space-y-2">{assignments.map((assignment) => <Link key={assignment.id} href="/assignments" className="flex items-center gap-3 rounded-xl p-3 transition hover:bg-[#F5F2FE]"><span className="size-2 rounded-full bg-[#FF7A59] ring-4 ring-[#FF7A59]/10"/><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold">{assignment.title || assignment.item_type}</p><p className="text-xs text-[#6E6E85]">{assignment.due_at ? `Due ${new Date(assignment.due_at).toLocaleDateString()}` : "No due date"}</p></div><ChevronRight className="size-4 text-[#B8B8C9]" /></Link>)}</div> : <EmptyMini text="No assignments this week." href="/assignments" label="View assignments" />}</DashboardCard>
@@ -186,8 +213,8 @@ export default async function AccountPage() {
             </DashboardCard>
           </div>
           <div className="grid gap-4 md:grid-cols-3"><DashboardCard className="p-5"><SectionHeader title="Language Profile" href="/language-profile" small /><p className="text-sm text-[#6E6E85]">Current level <b className="text-[#1B1B3A]">{currentLevel}</b></p><div className="mt-4 h-3 overflow-hidden rounded-full bg-[#F1F1F6]"><div className="h-full rounded-full bg-[#FF7A59]" style={{width:`${Math.max(12, activeLevelIndex * 16 + 20)}%`}}/></div><Link href="/language-profile" className="mt-4 block rounded-lg bg-[#F5F2FE] py-2 text-center text-xs font-bold text-[#3E3A72]">Full skill map</Link></DashboardCard><DashboardCard className="p-5"><SectionHeader title="Last Quiz" href="/quizzes" small />{quizAttempts?.[0] ? <><p className="text-3xl font-bold text-[#2FAE7A]">{quizAttempts[0].total ? Math.round(quizAttempts[0].score/quizAttempts[0].total*100) : 0}%</p><p className="mt-2 text-sm font-bold">{quizAttempts[0].quizzes?.title || "Quiz"}</p><p className="text-xs text-[#6E6E85]">{new Date(quizAttempts[0].completed_at).toLocaleDateString()}</p></> : <EmptyMini text="Your recent quiz will appear here." href="/quizzes" label="Take a quiz" />}</DashboardCard><DashboardCard className="p-5"><SectionHeader title="My Rank" href="/leaderboard" small /><p className="text-3xl font-bold text-[#F2B705]">Keep climbing</p><p className="mt-2 text-sm text-[#6E6E85]">Earn points through quizzes and completed learning.</p><Link href="/leaderboard" className="mt-4 inline-flex text-xs font-bold text-[#3E3A72]">View leaderboard <ChevronRight className="size-3"/></Link></DashboardCard></div>
+          <section><SectionHeader title="Enrolled Courses" href="/courses" /><div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{activeCourseEnrollments.map((enrollment, index) => <CourseHomeCard key={enrollment.id} href={`/courses/${enrollment.course_id}`} title={enrollment.courses?.title || "Course"} level={enrollment.courses?.level || currentLevel} progress={courseProgressByCourse.get(enrollment.course_id)?.progress_percent ?? 0} tone={index}/>) }{!activeCourseEnrollments.length ? <EmptyMini text="Your enrolled courses will appear here." href="/courses" label="Browse courses" /> : null}<Link href="/courses" className="grid min-h-48 place-items-center rounded-[20px] border-2 border-dashed border-[#E4E4EE] p-6 text-center text-sm font-bold text-[#6E6E85] transition hover:border-[#FF7A59] hover:text-[#FF7A59]">Explore new courses</Link></div></section>
           <section><SectionHeader title="My Certificates" href="/certificates" /><div className="flex gap-4 overflow-x-auto pb-1">{certificates?.length ? certificates.map((certificate) => <Link key={certificate.id} href={`/certificates/${certificate.certificate_code}`} className="w-64 shrink-0 rounded-[20px] border border-[#E4E4EE] bg-white p-5 shadow-sm"><Award className="size-8 text-[#F2B705]"/><p className="mt-4 font-bold">{certificate.courses?.title || "Course certificate"}</p><p className="mt-1 text-xs text-[#6E6E85]">Earned {new Date(certificate.issued_at).toLocaleDateString()}</p></Link>) : <EmptyMini text="Complete an enrolled course to earn a certificate." href="/courses" label="Browse courses" />}</div></section>
-          <section><SectionHeader title="Enrolled Courses" href="/courses" /><div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{(courseEnrollments ?? []).map((enrollment, index) => <CourseHomeCard key={enrollment.id} href={`/courses/${enrollment.course_id}`} title={enrollment.courses?.title || "Course"} level={enrollment.courses?.level || currentLevel} progress={courseProgressByCourse.get(enrollment.course_id)?.progress_percent ?? 0} tone={index}/>) }<Link href="/courses" className="grid min-h-48 place-items-center rounded-[20px] border-2 border-dashed border-[#E4E4EE] p-6 text-center text-sm font-bold text-[#6E6E85] transition hover:border-[#FF7A59] hover:text-[#FF7A59]">Explore new courses</Link></div></section>
         </section>
 
       </div>
@@ -216,6 +243,18 @@ function ResumeLearningCard({ item, currentLevel, reviewHref }: { item?: { href:
 function ScheduleGrid({ assignments, liveClasses }: { assignments: Array<{ due_at: string | null }>; liveClasses: Array<{ scheduled_at: string | null }> }) { const marked = new Set([...assignments.map(x=>x.due_at), ...liveClasses.map(x=>x.scheduled_at)].filter(Boolean).map(x=>new Date(x!).getDate())); const now=new Date(); return <><div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-[#B8B8C9]">{"MTWTFSS".split("").map((d,i)=><span key={i}>{d}</span>)}</div><div className="mt-2 grid grid-cols-7 gap-1">{Array.from({length:35},(_,i)=>{const day=i-2; const active=day===now.getDate(); return <div key={i} className={`relative grid aspect-square place-items-center rounded-lg text-xs ${active?"bg-[#FF7A59] font-bold text-white":day>0&&day<=31?"text-[#1B1B3A]":"text-[#B8B8C9]"}`}>{day>0&&day<=31?day:""}{marked.has(day)&&!active?<span className="absolute bottom-1 size-1 rounded-full bg-[#3E3A72]"/>:null}</div>})}</div></> }
 function AgendaList({ assignments, liveClasses }: { assignments: Array<{id:string;title:string|null;due_at:string|null;item_type:string}>; liveClasses: Array<{id:string;title:string;status:string;scheduled_at:string|null}> }) { const items=[...liveClasses.map(x=>({id:x.id,title:x.title,time:x.scheduled_at,href:`/live/${x.id}`,tag:x.status==="LIVE"?"LIVE NOW":"CLASS"})),...assignments.map(x=>({id:x.id,title:x.title||x.item_type,time:x.due_at,href:"/assignments",tag:"ASSIGNMENT"}))].slice(0,4); return <div className="space-y-2">{items.length?items.map(item=><Link key={item.id} href={item.href} className="flex items-center gap-3 rounded-xl border border-[#E4E4EE] p-3 transition hover:border-[#FF7A59]"><span className="w-12 border-r border-[#E4E4EE] pr-3 text-center text-xs font-bold text-[#3E3A72]">{item.time?new Date(item.time).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"}):"—"}</span><span className="min-w-0 flex-1 truncate text-sm font-bold">{item.title}</span><span className="rounded bg-[#F5F2FE] px-2 py-1 text-[9px] font-bold text-[#3E3A72]">{item.tag}</span></Link>):<EmptyMini text="Nothing scheduled for today." href="/live-classes" label="View planner" />}</div> }
 function CourseHomeCard({href,title,level,progress,tone}:{href:string;title:string;level:string;progress:number;tone:number}) { const colors=["from-[#3E3A72] to-[#1B1B3A]","from-[#FF7A59] to-[#A7391E]","from-[#2FAE7A] to-[#16745A]"]; return <Link href={href} className="overflow-hidden rounded-[20px] border border-[#E4E4EE] bg-white shadow-sm transition hover:-translate-y-0.5"><div className={`h-24 bg-gradient-to-br ${colors[tone%colors.length]} p-4`}><span className="rounded bg-white/20 px-2 py-1 text-[10px] font-bold text-white">{level}</span></div><div className="p-4"><p className="truncate font-bold">{title}</p><div className="mt-4 h-1.5 overflow-hidden rounded-full bg-[#F1F1F6]"><div className="h-full bg-[#FF7A59]" style={{width:`${progress}%`}}/></div><p className="mt-2 text-xs text-[#6E6E85]">{Math.round(progress)}% complete</p></div></Link> }
+
+function courseItemHref(item: { id: string; item_type: string; lesson_id: string | null; quiz_id: string | null }, courseId: string) {
+  if (item.item_type === "LESSON" && item.lesson_id) return `/lessons/${item.lesson_id}?courseItem=${item.id}`;
+  if (item.item_type === "QUIZ" && item.quiz_id) return `/courses/${courseId}/quiz/${item.quiz_id}`;
+  if (item.item_type === "LEVEL_TEST") return "/level-test";
+  return `/courses/${courseId}`;
+}
+
+function relationTitle(value: { title?: string | null } | { title?: string | null }[] | null | undefined) {
+  const row = Array.isArray(value) ? value[0] : value;
+  return row?.title ?? null;
+}
 
 function ProgressCard({
   currentLevel,

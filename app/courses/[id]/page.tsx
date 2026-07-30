@@ -193,15 +193,15 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
           const completedInSection = sectionItems.filter((item) => completedIds.has(item.id)).length;
           const sectionPercent = sectionItems.length ? Math.round((completedInSection / sectionItems.length) * 100) : 0;
           return (
-            <details key={section.id} className="group rounded-[18px] border border-[#ECECF5] bg-white p-4 shadow-[0_4px_14px_rgba(0,0,0,.035)]" open={index < 2 || sectionPercent > 0}>
+            <details key={section.id} className="group min-w-0 rounded-[18px] border border-[#ECECF5] bg-white p-4 shadow-[0_4px_14px_rgba(0,0,0,.035)]" open={index < 2 || sectionPercent > 0}>
               <summary className="cursor-pointer list-none marker:hidden [&::-webkit-details-marker]:hidden">
-                <div className="flex items-center gap-3">
+                <div className="flex min-w-0 items-start gap-3">
                   <span className={`grid size-9 shrink-0 place-items-center rounded-full text-sm font-extrabold ${sectionPercent === 100 ? "bg-[#00C98D] text-white" : sectionPercent > 0 ? "bg-[#6C3BFF] text-white" : "bg-[#F2F3F8] text-[#6E738D]"}`}>
                     {sectionPercent === 100 ? <CheckCircle2 className="size-5" /> : index + 1}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <h3 className="truncate font-extrabold">{section.title}</h3>
-                    {section.description ? <p className="mt-0.5 line-clamp-1 text-sm text-[#6E738D]">{section.description}</p> : null}
+                    <h3 className="break-words font-extrabold leading-snug">{section.title}</h3>
+                    {section.description ? <p className="mt-1 break-words text-sm leading-5 text-[#6E738D] sm:line-clamp-2">{section.description}</p> : null}
                   </div>
                   <span className="hidden text-sm font-bold text-[#53607D] sm:block">{sectionItems.length} items</span>
                   <div className="hidden w-[120px] items-center gap-2 sm:flex">
@@ -211,7 +211,7 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
                   <ChevronDown className="size-5 text-[#6E738D] transition group-open:rotate-180" />
                 </div>
               </summary>
-              <div className="mt-4 grid gap-2 border-l-2 border-[#ECECF5] pl-4 sm:ml-4">
+              <div className="mt-4 grid min-w-0 gap-2 border-l-2 border-[#ECECF5] pl-3 sm:ml-4 sm:pl-4">
                 {sectionItems.length ? sectionItems.map((item, itemIndex) => {
                   const globalIndex = courseItems.findIndex((ci) => ci.id === item.id);
                   const isComplete = completedIds.has(item.id);
@@ -419,16 +419,18 @@ function CourseItemLink({ courseId, item, itemIndex, isComplete, unlocked }: { c
   const href = getItemHref(item, courseId);
   const isManuallyCompleted = (item.item_type === "RESOURCE" || item.item_type === "EXTERNAL_LINK") && !isComplete;
   return (
-    <div className="flex items-center gap-3 rounded-[14px] px-2 py-2 text-sm transition hover:bg-[#F6F7FB]">
+    <div className="flex min-w-0 flex-col gap-3 rounded-[14px] px-2 py-2 text-sm transition hover:bg-[#F6F7FB] sm:flex-row sm:items-center">
+      <div className="flex min-w-0 flex-1 items-start gap-3">
       <span className={`grid size-6 shrink-0 place-items-center rounded-full text-[11px] font-bold ${isComplete ? "bg-[#00C98D] text-white" : "bg-[#F1F3FA] text-[#8D94AA]"}`}>
         {isComplete ? <CheckCircle2 className="size-4" /> : itemIndex + 1}
       </span>
       <div className="min-w-0 flex-1">
-        <p className="truncate font-semibold">{label}</p>
-        <p className="mt-0.5 text-xs text-[#8D94AA]">{item.item_type.replaceAll("_", " ")}{item.is_free_preview ? " · Free preview" : ""}</p>
+        <p className="break-words font-semibold leading-snug">{label}</p>
+        <p className="mt-1 break-words text-xs text-[#8D94AA]">{item.item_type.replaceAll("_", " ")}{item.is_free_preview ? " · Free preview" : ""}</p>
+      </div>
       </div>
       {unlocked && href ? (
-        <div className="flex shrink-0 items-center gap-1.5">
+        <div className="flex shrink-0 flex-wrap items-center gap-1.5 pl-9 sm:pl-0">
           <Link href={href} target={item.item_type === "RESOURCE" || item.item_type === "EXTERNAL_LINK" ? "_blank" : undefined} className="inline-flex items-center gap-1 rounded-full bg-[#F6F7FB] px-2.5 py-1 text-xs font-bold text-[#6C3BFF]">
             <PlayCircle className="size-3.5" /> Open
           </Link>
@@ -441,7 +443,7 @@ function CourseItemLink({ courseId, item, itemIndex, isComplete, unlocked }: { c
           ) : null}
         </div>
       ) : (
-        <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#F6F7FB] px-2.5 py-1 text-xs font-bold text-[#8D94AA]">
+        <span className="ml-9 inline-flex w-fit shrink-0 items-center gap-1 rounded-full bg-[#F6F7FB] px-2.5 py-1 text-xs font-bold text-[#8D94AA] sm:ml-0">
           <LockKeyhole className="size-3.5" /> Locked
         </span>
       )}
@@ -486,7 +488,7 @@ function Legend({ dot, label, value }: { dot: string; label: string; value: Reac
       <span className="mt-1.5 size-2.5 shrink-0 rounded-full" style={{ backgroundColor: dot }} />
       <div className="min-w-0 flex-1">
         <p className="font-bold text-[#35405F]">{label}</p>
-        <div className="text-xs text-[#6E738D] min-w-0 truncate">{value}</div>
+        <div className="min-w-0 break-words text-xs leading-5 text-[#6E738D]">{value}</div>
       </div>
     </div>
   );

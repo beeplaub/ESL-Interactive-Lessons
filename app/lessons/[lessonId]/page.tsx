@@ -9,10 +9,10 @@ export default async function LessonPage({
   searchParams,
 }: {
   params: Promise<{ lessonId: string }>;
-  searchParams: Promise<{ courseItem?: string }>;
+  searchParams: Promise<{ courseItem?: string; review?: string }>;
 }) {
   const { lessonId } = await params;
-  const { courseItem = null } = await searchParams;
+  const { courseItem = null, review = null } = await searchParams;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -88,6 +88,12 @@ export default async function LessonPage({
         completed: false,
       });
     }
+    await admin.from("course_progress").upsert({
+      user_id: user.id,
+      course_id: courseId,
+      current_item_id: resolvedCourseItemId,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "user_id,course_id" });
   }
 
   if (courseId) {
@@ -208,6 +214,7 @@ export default async function LessonPage({
         narrationConfigMap={narrationConfigMap}
         courseItemId={courseItem}
         backHref={courseId ? `/courses/${courseId}` : "/courses"}
+        startInReviewMode={review === "1"}
       />
     </LearnerAppShell>
   );
