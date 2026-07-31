@@ -399,7 +399,7 @@ export default async function LeaderboardPage() {
                 <h4 className="font-bold text-sm text-[#1c1a25]">Next Rank</h4>
                 {nextBadge ? (
                   <p className="text-xs text-[#6E738D] mt-1">
-                    {Math.max(0, nextBadge.minPoints - currentUserPoints).toLocaleString()} points to <span className="text-yellow-600 font-bold">{nextBadge.name}</span>
+                    {Math.max(0, (nextBadge?.minPoints ?? 0) - currentUserPoints).toLocaleString()} points to <span className="text-yellow-600 font-bold">{nextBadge?.name ?? "your next badge"}</span>
                   </p>
                 ) : (
                   <p className="text-xs text-[#6E738D] mt-1">Maximum rank achieved!</p>
