@@ -111,6 +111,22 @@ export async function deleteMediaObject(admin: AdminClient, object: { provider?:
   await admin.storage.from(object.bucket).remove([object.path]);
 }
 
+export async function resolveMediaUrl(admin: AdminClient, object: {
+  provider?: string | null;
+  bucket?: string | null;
+  path?: string | null;
+  publicUrl?: string | null;
+  expiresIn?: number;
+}) {
+  if (object.provider === "r2" && object.publicUrl) return object.publicUrl;
+  if (!object.bucket || !object.path) return null;
+
+  const { data } = await admin.storage
+    .from(object.bucket)
+    .createSignedUrl(object.path, object.expiresIn ?? 60 * 60);
+  return data?.signedUrl ?? null;
+}
+
 export function isR2PublicUrl(url: string) {
   const base = process.env.R2_PUBLIC_BASE_URL?.replace(/\/+$/, "");
   return Boolean(base && url.startsWith(`${base}/`));

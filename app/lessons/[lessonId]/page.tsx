@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { BuilderLessonPlayer } from "@/components/BuilderLessonPlayer";
 import { LearnerAppShell } from "@/components/LearnerAppShell";
+import { resolveMediaUrl } from "@/lib/storage/mediaStorage";
 
 export default async function LessonPage({
   params,
@@ -156,7 +157,7 @@ export default async function LessonPage({
     admin.from("lesson_slide_activities").select("id,slide_id,slide_number,activity_type,activity_data").eq("lesson_id", lessonId).order("slide_number", { ascending: true }),
     admin.from("lesson_progress").select("current_slide_number,completed,notes").eq("lesson_id", lessonId).eq("user_id", user.id).maybeSingle(),
     admin.from("quiz_attempts").select("lesson_slide_activity_id,score,total,answers,completed_at").eq("user_id", user.id).not("lesson_slide_activity_id", "is", null).order("completed_at", { ascending: false }),
-    admin.from("lesson_audio_files").select("id,slide_id,storage_path,label,linked_slide_number,translation_enabled,narration_language").eq("lesson_id", lessonId).eq("label", "narration"),
+    admin.from("lesson_audio_files").select("id,slide_id,storage_path,storage_provider,storage_bucket,public_url,label,linked_slide_number,translation_enabled,narration_language").eq("lesson_id", lessonId).eq("label", "narration"),
   ]);
 
   if (!lesson) notFound();
@@ -164,11 +165,14 @@ export default async function LessonPage({
   // Generate signed URLs for narrations
   const narrations = await Promise.all(
     (audioFiles ?? []).map(async (af) => {
-      const { data } = await admin.storage
-        .from("lesson-audio")
-        .createSignedUrl(af.storage_path, 60 * 60);
+      const url = await resolveMediaUrl(admin, {
+        provider: af.storage_provider,
+        bucket: af.storage_bucket ?? "lesson-audio",
+        path: af.storage_path,
+        publicUrl: af.public_url,
+      });
       const narrationLanguage: "en" | "bn" = af.narration_language === "bn" ? "bn" : "en";
-      return { slideId: af.slide_id, signedUrl: data?.signedUrl ?? null, translationEnabled: Boolean(af.translation_enabled), narrationLanguage };
+      return { slideId: af.slide_id, signedUrl: url, translationEnabled: Boolean(af.translation_enabled), narrationLanguage };
     })
   );
 

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { uploadMediaObject } from "@/lib/storage/mediaStorage";
+import { resolveMediaUrl, uploadMediaObject } from "@/lib/storage/mediaStorage";
 
 function targetFor(language: string | null) {
   return language === "bn" ? "en" : "bn";
@@ -30,8 +30,12 @@ async function signedCachedUrl(admin: ReturnType<typeof createAdminClient>, narr
     .maybeSingle();
   if (cached?.storage_provider === "r2" && cached.public_url) return cached.public_url;
   if (!cached?.storage_path) return null;
-  const { data } = await admin.storage.from("lesson-audio").createSignedUrl(cached.storage_path, 60 * 60);
-  return data?.signedUrl ?? null;
+  return resolveMediaUrl(admin, {
+    provider: cached.storage_provider,
+    bucket: cached.storage_provider === "r2" ? process.env.R2_BUCKET : "lesson-audio",
+    path: cached.storage_path,
+    publicUrl: cached.public_url,
+  });
 }
 
 export async function GET(request: Request) {

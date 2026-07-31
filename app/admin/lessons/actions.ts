@@ -972,6 +972,9 @@ export async function duplicateLesson(lessonId: string) {
         lesson_id: newLessonId,
         label: af.label,
         storage_path: af.storage_path,
+        storage_provider: af.storage_provider ?? "supabase",
+        storage_bucket: af.storage_bucket ?? "lesson-audio",
+        public_url: af.public_url ?? null,
         linked_slide_number: af.linked_slide_number,
       }))
     );

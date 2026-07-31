@@ -114,6 +114,9 @@ export type Database = {
           slide_id?: string | null;
           label: string;
           storage_path: string;
+          storage_provider?: "supabase" | "r2";
+          storage_bucket?: string | null;
+          public_url?: string | null;
           linked_slide_number: number | null;
           translation_enabled?: boolean;
           narration_language?: "en" | "bn";
@@ -126,6 +129,9 @@ export type Database = {
           slide_id?: string | null;
           label: string;
           storage_path: string;
+          storage_provider?: "supabase" | "r2";
+          storage_bucket?: string | null;
+          public_url?: string | null;
           linked_slide_number?: number | null;
           translation_enabled?: boolean;
           narration_language?: "en" | "bn";
@@ -138,6 +144,9 @@ export type Database = {
           slide_id?: string | null;
           label?: string;
           storage_path?: string;
+          storage_provider?: "supabase" | "r2";
+          storage_bucket?: string | null;
+          public_url?: string | null;
           linked_slide_number?: number | null;
           translation_enabled?: boolean;
           narration_language?: "en" | "bn";
