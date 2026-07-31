@@ -293,8 +293,8 @@ export default async function LeaderboardPage() {
             </div>
           </div>
 
-          {/* RIGHT SIDEBAR STATS */}
-          <aside className="lg:col-span-4 space-y-6">
+          {/* The shared LearnerAppShell right rail owns these cards site-wide. */}
+          {false && <div aria-hidden="true">
             {/* STREAK CARD */}
             <div className="bg-white p-6 rounded-3xl shadow-sm border border-[#ECECF5]/60 relative overflow-hidden group">
               <div className="flex justify-between items-start mb-6">
@@ -409,7 +409,7 @@ export default async function LeaderboardPage() {
                 {currentUserBadge.icon}
               </div>
             </div>
-          </aside>
+          </div>}
         </div>
 
         {/* BADGE LADDER GRID */}

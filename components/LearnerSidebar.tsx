@@ -11,10 +11,9 @@ import {
   Home,
   Layers,
   ClipboardList,
-  Users,
   Zap,
   Award, CalendarDays
-  , Radio
+  , Radio, Target
 } from "lucide-react";
 import type { ActiveItem } from "@/components/LearnerAppShell";
 
@@ -50,19 +49,25 @@ export function LearnerSidebar({
     document.cookie = `${COLLAPSE_COOKIE}=${next ? "1" : "0"}; path=/; max-age=31536000; samesite=lax`;
   }
 
-  const navItems = [
-    { href: "/account", label: "Home", icon: Home, key: "home" },
-    { href: "/quizzes", label: "Quizzes", icon: HelpCircle, key: "quizzes" },
-    { href: "/courses", label: "Courses", icon: GraduationCap, key: "courses" },
-    { href: "/live-classes", label: "Live Classes", icon: Radio, key: "live-classes" },
-    { href: "/assignments", label: "Assignments", icon: ClipboardList, key: "assignments" },
-    { href: "/tasks", label: "Tasks", icon: ClipboardList, key: "tasks" },
-    { href: "/calendar", label: "Calendar", icon: CalendarDays, key: "calendar" },
-    { href: "/achievements", label: "Achievements", icon: Award, key: "achievements" },
-    { href: "/certificates", label: "Certificates", icon: Award, key: "certificates" },
-    { href: "/language-profile", label: "Language Profile", icon: BarChart2, key: "language-profile" },
-    { href: "/leaderboard", label: "Leaderboard", icon: Award, key: "leaderboard" },
-    { href: "#", label: "Community", icon: Users, key: "community", disabled: true, badge: "NEW" }
+  const navGroups = [
+    { label: "Learn", items: [
+      { href: "/account", label: "Home", icon: Home, key: "home" },
+      { href: "/quizzes", label: "Quizzes", icon: HelpCircle, key: "quizzes" },
+      { href: "/courses", label: "Courses", icon: GraduationCap, key: "courses" },
+    ]},
+    { label: "Practice", items: [
+      { href: "/live-classes", label: "Live Classes", icon: Radio, key: "live-classes" },
+      { href: "/assignments", label: "Assignments", icon: ClipboardList, key: "assignments" },
+      { href: "/tasks", label: "Tasks", icon: ClipboardList, key: "tasks" },
+      { href: "/calendar", label: "Calendar", icon: CalendarDays, key: "calendar" },
+    ]},
+    { label: "Progress", items: [
+      { href: "/achievements", label: "Achievements", icon: Award, key: "achievements" },
+      { href: "/certificates", label: "Certificates", icon: Award, key: "certificates" },
+      { href: "/leaderboard", label: "Leaderboard", icon: Award, key: "leaderboard" },
+      { href: "/level-test", label: "Level Test", icon: Target, key: "level-test" },
+      { href: "/language-profile", label: "Language Profile", icon: BarChart2, key: "language-profile" },
+    ]},
   ];
 
   return (
@@ -72,7 +77,7 @@ export function LearnerSidebar({
       }`}
     >
       {/* Brand logo & collapse button */}
-      <div className={`flex items-center pb-8 ${collapsed ? "flex-col gap-2" : "justify-between gap-2"}`}>
+      <div className={`relative flex items-center justify-center pb-8 ${collapsed ? "" : "gap-2"}`}>
         <Link href="/account" prefetch className="flex min-w-0 items-center gap-3">
           <div className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-xl bg-[var(--br-brand)] shadow-md shadow-black/20" style={schoolBrand?.accentColor ? { background: schoolBrand.accentColor } : undefined}>
             {schoolBrand?.logoUrl ? <img src={schoolBrand.logoUrl} alt="" className="size-full object-cover" /> : <Layers className="size-[22px] text-white" />}
@@ -88,16 +93,21 @@ export function LearnerSidebar({
           type="button"
           onClick={toggle}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className="grid size-8 shrink-0 place-items-center rounded-lg text-[#cac3d9]/70 transition hover:bg-white/10 hover:text-white"
+          className="absolute right-0 top-0 grid size-8 shrink-0 place-items-center rounded-lg text-[#cac3d9]/70 transition hover:bg-white/10 hover:text-white"
         >
           {collapsed ? <ChevronRight className="size-4" /> : <ChevronLeft className="size-4" />}
         </button>
       </div>
 
       {/* Main Nav Items */}
-      <nav className="flex flex-1 flex-col gap-1">
-        {navItems.map(({ key, ...item }) => (
-          <NavItem key={item.label} {...item} active={active === key} collapsed={collapsed} accentColor={schoolBrand?.accentColor ?? undefined} />
+      <nav className="flex flex-1 flex-col gap-3">
+        {navGroups.map((group) => (
+          <div key={group.label} className="space-y-1">
+            {collapsed ? null : <p className="px-3.5 pt-1 text-[9px] font-black uppercase tracking-[0.18em] text-[#e6e0ef]/35">{group.label}</p>}
+            {group.items.map(({ key, ...item }) => (
+              <NavItem key={item.label} {...item} active={active === key} collapsed={collapsed} accentColor={schoolBrand?.accentColor ?? undefined} />
+            ))}
+          </div>
         ))}
       </nav>
 
