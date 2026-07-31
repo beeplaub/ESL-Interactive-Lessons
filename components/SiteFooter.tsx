@@ -56,11 +56,6 @@ export function SiteFooter() {
             <a href="#" className="text-sm text-[#A9A6D6] hover:text-white transition-colors">Privacy Policy</a>
             <a href="#" className="text-sm text-[#A9A6D6] hover:text-white transition-colors">Terms of Service</a>
           </div>
-          <div className="flex flex-col gap-3">
-            <h4 className="text-xs font-semibold text-white uppercase tracking-wider">Support</h4>
-            <a href="#" className="text-sm text-[#A9A6D6] hover:text-white transition-colors">Help Center</a>
-            <a href="mailto:hello@brenup.com" className="text-sm text-[#A9A6D6] hover:text-white transition-colors">Contact Support</a>
-          </div>
         </div>
       </div>
       <div className="mx-auto max-w-[1200px] px-6 border-t border-white/10 pt-8 flex items-center justify-center text-center text-xs">
