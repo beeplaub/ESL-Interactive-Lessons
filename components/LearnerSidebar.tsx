@@ -72,7 +72,8 @@ export function LearnerSidebar({
 
   return (
     <aside
-      className={`sticky top-6 hidden max-h-[calc(100vh-48px)] flex-col overflow-y-auto rounded-[24px] border border-white/5 bg-[var(--br-dark-card)]/95 backdrop-blur-xl p-5 shadow-[0_18px_50px_rgba(0,0,0,0.35)] [scrollbar-width:none] transition-[width] duration-200 min-[1180px]:flex [&::-webkit-scrollbar]:hidden ${
+      style={{ backgroundColor: "var(--br-dark-card)" }}
+      className={`sticky top-6 hidden max-h-[calc(100vh-48px)] flex-col overflow-y-auto rounded-[24px] border border-white/5 backdrop-blur-xl p-5 shadow-[0_18px_50px_rgba(0,0,0,0.35)] [scrollbar-width:none] transition-[width] duration-200 min-[1180px]:flex [&::-webkit-scrollbar]:hidden ${
         collapsed ? "w-[84px] min-w-[84px] px-3" : "w-[240px] min-w-[240px]"
       }`}
     >
