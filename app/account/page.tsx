@@ -131,7 +131,7 @@ export default async function AccountPage() {
         review: "1"
       }).toString()}`
     : undefined;
-  const currentHour = new Date().getHours();
+  const currentHour = Number(new Intl.DateTimeFormat("en-US", { hour: "numeric", hour12: false, timeZone: "Asia/Dhaka" }).format(new Date()));
   let greeting = "Good morning";
   if (currentHour >= 18) {
     greeting = "Good evening";

@@ -3,7 +3,7 @@ import { Layers } from "lucide-react";
 
 export function SiteFooter() {
   return (
-    <footer className="bg-[#1B1B3A] py-16 mt-16 text-[#A9A6D6]">
+    <footer className="bg-[var(--br-dark-card)] py-16 mt-16 text-[#A9A6D6]">
       <div className="mx-auto max-w-[1200px] px-6 flex flex-col md:flex-row justify-between gap-12 mb-12">
         <div className="flex flex-col gap-4">
           <Link href="/" className="flex items-center gap-2 text-white font-extrabold text-xl">

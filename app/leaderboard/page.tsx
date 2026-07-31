@@ -44,14 +44,18 @@ function calcStreak(dates: string[]) {
   return streak;
 }
 
-export default async function LeaderboardPage() {
+export default async function LeaderboardPage({ searchParams }: { searchParams?: Promise<{ range?: string }> }) {
   const admin = createAdminClient();
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  const range = (await searchParams)?.range === "monthly" ? "monthly" : "all";
+  const monthStart = new Date();
+  monthStart.setDate(1);
+  monthStart.setHours(0, 0, 0, 0);
 
   // Fetch all leaderboard points and profile data
   const [{ data: points }, { data: profiles }] = await Promise.all([
-    admin.from("quiz_leaderboard_points").select("user_id, points, quiz_id, created_at").order("created_at", { ascending: false }).limit(5000),
+    admin.from("quiz_leaderboard_points").select("user_id, points, quiz_id, created_at").gte("created_at", range === "monthly" ? monthStart.toISOString() : "1970-01-01T00:00:00.000Z").order("created_at", { ascending: false }).limit(5000),
     admin.from("profiles").select("id, full_name, first_name, last_name")
   ]);
 
@@ -170,9 +174,9 @@ export default async function LeaderboardPage() {
         </section>
 
         {/* 2-COLUMN MAIN CONTENT & SIDEBAR */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        <div className="grid grid-cols-1 gap-6 items-start">
           {/* LEFT SIDE: PODIUM & TABLE */}
-          <div className="lg:col-span-8 space-y-6">
+          <div className="space-y-6">
             {/* PODIUM SECTION */}
             {podiumItems.length > 0 && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
@@ -225,8 +229,8 @@ export default async function LeaderboardPage() {
               <div className="px-6 py-5 border-b border-[#ECECF5]/40 flex justify-between items-center">
                 <h3 className="text-xl font-black text-[#1c1a25]">Full Ranking</h3>
                 <div className="flex bg-[#F6F7FB] p-1 rounded-xl">
-                  <button className="px-5 py-1.5 rounded-lg bg-white shadow-sm text-xs font-bold text-[#5308e7]">All Time</button>
-                  <button className="px-5 py-1.5 rounded-lg text-xs font-bold text-[#6E738D] hover:text-[#1c1a25] transition-colors">Monthly</button>
+                  <Link href="/leaderboard" className={`px-5 py-1.5 rounded-lg text-xs font-bold ${range === "all" ? "bg-white shadow-sm text-[#5308e7]" : "text-[#6E738D] hover:text-[#1c1a25]"}`}>All Time</Link>
+                  <Link href="/leaderboard?range=monthly" className={`px-5 py-1.5 rounded-lg text-xs font-bold ${range === "monthly" ? "bg-white shadow-sm text-[#5308e7]" : "text-[#6E738D] hover:text-[#1c1a25]"}`}>Monthly</Link>
                 </div>
               </div>
               <div className="overflow-x-auto">

@@ -5,7 +5,7 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ink: "#111827",
+        ink: "var(--br-dark-card)",
         moss: "#2563eb",
         coral: "#f97316",
         skywash: "#eff6ff",
