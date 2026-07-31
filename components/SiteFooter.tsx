@@ -27,6 +27,24 @@ export function SiteFooter() {
         </div>
         <div className="flex gap-16 flex-wrap">
           <div className="flex flex-col gap-3">
+            <h4 className="text-xs font-semibold text-white uppercase tracking-wider">Learn</h4>
+            <Link href="/courses" className="text-sm text-[#A9A6D6] hover:text-white transition-colors">Courses</Link>
+            <Link href="/level-test" className="text-sm text-[#A9A6D6] hover:text-white transition-colors">Level Test</Link>
+            <Link href="/language-profile" className="text-sm text-[#A9A6D6] hover:text-white transition-colors">Language Profile</Link>
+          </div>
+          <div className="flex flex-col gap-3">
+            <h4 className="text-xs font-semibold text-white uppercase tracking-wider">Practice</h4>
+            <Link href="/quizzes" className="text-sm text-[#A9A6D6] hover:text-white transition-colors">Quizzes</Link>
+            <Link href="/assignments" className="text-sm text-[#A9A6D6] hover:text-white transition-colors">Assignments</Link>
+            <Link href="/tasks" className="text-sm text-[#A9A6D6] hover:text-white transition-colors">Tasks</Link>
+          </div>
+          <div className="flex flex-col gap-3">
+            <h4 className="text-xs font-semibold text-white uppercase tracking-wider">Progress</h4>
+            <Link href="/achievements" className="text-sm text-[#A9A6D6] hover:text-white transition-colors">Achievements</Link>
+            <Link href="/certificates" className="text-sm text-[#A9A6D6] hover:text-white transition-colors">Certificates</Link>
+            <Link href="/leaderboard" className="text-sm text-[#A9A6D6] hover:text-white transition-colors">Leaderboard</Link>
+          </div>
+          <div className="flex flex-col gap-3">
             <h4 className="text-xs font-semibold text-white uppercase tracking-wider">Platform</h4>
             <Link href="/courses" className="text-sm text-[#A9A6D6] hover:text-white transition-colors">Courses</Link>
             <Link href="/quizzes" className="text-sm text-[#A9A6D6] hover:text-white transition-colors">Quizzes</Link>

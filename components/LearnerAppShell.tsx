@@ -123,7 +123,19 @@ export async function LearnerAppShell({
       <div className="mx-auto flex min-h-screen max-w-[1536px] items-start gap-5 p-3 pb-24 min-[1180px]:p-6 min-[1180px]:pb-6">
         <LearnerSidebar active={active} currentLevel={currentLevel} initialCollapsed={sidebarCollapsed} levelProgressPercent={levelProgressPercent} schoolBrand={schoolBrand} />
         <section className={`min-w-0 flex-1 pt-[60px] min-[1180px]:pt-0 ${contentClassName}`}>
-          {/* Desktop navigation is sidebar-led. Mobile keeps its own top bar. */}
+          {showChrome ? (
+            <DesktopLearnerChrome
+              breadcrumbs={breadcrumbs ?? defaultBreadcrumbs[active]}
+              leading={desktopChromeLeading}
+              notifications={notifications}
+              userName={name}
+              initials={initials}
+              avatarUrl={profile?.avatar_url ?? null}
+              isLoggedIn={Boolean(user)}
+              currentLevel={currentLevel}
+              isStaffUser={isStaffUser}
+            />
+          ) : null}
           {children}
           {showRightSidebar && rightSidebarData ? <MobileRightSidebarCards data={rightSidebarData} /> : null}
         </section>
