@@ -65,23 +65,6 @@ export async function createCourse(formData: FormData) {
 export async function setCourseStatus(courseId: string, status: "DRAFT" | "PUBLISHED" | "ARCHIVED") {
   await requireCourseAccess(courseId);
   const admin = createAdminClient();
-  if (status === "PUBLISHED") {
-    const { data: items, error: itemsError } = await admin
-      .from("course_items")
-      .select("id,item_type,lesson_id,quiz_id,lessons(status,deleted_at),quizzes(status,deleted_at)")
-      .eq("course_id", courseId);
-    if (itemsError) throw new Error(itemsError.message);
-    const unavailable = (items ?? []).find((item) => {
-      const lesson = Array.isArray(item.lessons) ? item.lessons[0] : item.lessons;
-      const quiz = Array.isArray(item.quizzes) ? item.quizzes[0] : item.quizzes;
-      if (item.item_type === "LESSON") return !lesson || lesson.status !== "PUBLISHED" || lesson.deleted_at;
-      if (item.item_type === "QUIZ") return !quiz || quiz.status !== "PUBLISHED" || quiz.deleted_at;
-      return false;
-    });
-    if (unavailable) {
-      throw new Error("Publish each lesson and quiz in this course before publishing the course.");
-    }
-  }
   const { error } = await admin
     .from("courses")
     .update({ status, updated_at: new Date().toISOString() })

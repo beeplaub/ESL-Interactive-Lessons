@@ -33,18 +33,25 @@ type CourseItemView = {
   description: string | null;
   resource_url: string | null;
   is_free_preview: boolean;
-  lessons?: { title?: string | null; level?: string | null } | null;
-  quizzes?: { title?: string | null; level?: string | null } | null;
+  lessons?: { title?: string | null; level?: string | null; status?: string | null; deleted_at?: string | null } | null;
+  quizzes?: { title?: string | null; level?: string | null; status?: string | null; deleted_at?: string | null } | null;
   bypass_sequential_unlock?: boolean | null;
 };
 
 const demoImage = "https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=1200&q=80";
 
 function getItemHref(item: CourseItemView, courseId: string): string | null {
+  if (!isCourseItemPublished(item)) return null;
   if (item.item_type === "LESSON" && item.lesson_id) return `/lessons/${item.lesson_id}?courseItem=${item.id}`;
   if (item.item_type === "QUIZ" && item.quiz_id) return `/courses/${courseId}/quiz/${item.quiz_id}`;
   if (item.item_type === "LEVEL_TEST") return "/level-test";
   return item.resource_url;
+}
+
+function isCourseItemPublished(item: CourseItemView) {
+  if (item.item_type === "LESSON") return Boolean(item.lesson_id && item.lessons && item.lessons.status === "PUBLISHED" && !item.lessons.deleted_at);
+  if (item.item_type === "QUIZ") return Boolean(item.quiz_id && item.quizzes && item.quizzes.status === "PUBLISHED" && !item.quizzes.deleted_at);
+  return true;
 }
 
 export default async function CourseLandingPage({ params }: { params: Promise<{ id: string }> }) {
@@ -77,7 +84,7 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
     courseQuery.maybeSingle(),
     admin.from("course_outcomes").select("*").eq("course_id", id).order("position", { ascending: true }),
     admin.from("course_sections").select("*").eq("course_id", id).order("position", { ascending: true }),
-    admin.from("course_items").select("*, lessons(title,level), quizzes(title,level)").eq("course_id", id).order("position", { ascending: true }),
+    admin.from("course_items").select("*, lessons(title,level,status,deleted_at), quizzes(title,level,status,deleted_at)").eq("course_id", id).order("position", { ascending: true }),
     admin.from("course_faqs").select("*").eq("course_id", id).order("position", { ascending: true }),
     user ? admin.from("course_enrollments").select("*").eq("course_id", id).eq("user_id", user.id).maybeSingle() : Promise.resolve({ data: null }),
     user ? admin.from("course_progress").select("*").eq("course_id", id).eq("user_id", user.id).maybeSingle() : Promise.resolve({ data: null }),
@@ -419,6 +426,7 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
 function CourseItemLink({ courseId, item, itemIndex, isComplete, unlocked }: { courseId: string; item: CourseItemView; itemIndex: number; isComplete: boolean; unlocked: boolean }) {
   const label = item.lessons?.title ?? item.quizzes?.title ?? item.title ?? item.item_type.replaceAll("_", " ");
   const href = getItemHref(item, courseId);
+  const published = isCourseItemPublished(item);
   const isManuallyCompleted = (item.item_type === "RESOURCE" || item.item_type === "EXTERNAL_LINK") && !isComplete;
   return (
     <div className="flex min-w-0 flex-col gap-3 rounded-[14px] px-2 py-2 text-sm transition hover:bg-[#F6F7FB] sm:flex-row sm:items-center">
@@ -428,10 +436,17 @@ function CourseItemLink({ courseId, item, itemIndex, isComplete, unlocked }: { c
       </span>
       <div className="min-w-0 flex-1">
         <p className="break-words font-semibold leading-snug">{label}</p>
-        <p className="mt-1 break-words text-xs text-[#8D94AA]">{item.item_type.replaceAll("_", " ")}{item.is_free_preview ? " · Free preview" : ""}{item.bypass_sequential_unlock ? " · Open access" : ""}</p>
+        <p className="mt-1 break-words text-xs text-[#8D94AA]">
+          {item.item_type.replaceAll("_", " ")}{item.is_free_preview ? " · Free preview" : ""}{item.bypass_sequential_unlock ? " · Open access" : ""}
+          {!published ? " · Not published yet" : ""}
+        </p>
       </div>
       </div>
-      {unlocked && href ? (
+      {!published ? (
+        <span className="ml-9 inline-flex w-fit shrink-0 items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700 sm:ml-0">
+          <Clock3 className="size-3.5" /> Coming soon
+        </span>
+      ) : unlocked && href ? (
         <div className="flex shrink-0 flex-wrap items-center gap-1.5 pl-9 sm:pl-0">
           <Link href={href} target={item.item_type === "RESOURCE" || item.item_type === "EXTERNAL_LINK" ? "_blank" : undefined} className="inline-flex items-center gap-1 rounded-full bg-[#F6F7FB] px-2.5 py-1 text-xs font-bold text-[#6C3BFF]">
             <PlayCircle className="size-3.5" /> Open
