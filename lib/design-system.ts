@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export type PlatformStyleSettings = {
   brandPrimary: string; action: string; canvas: string; surface: string; surfaceMuted: string;
+  tertiary: string;
   text: string; textMuted: string; border: string; success: string; danger: string;
   achievement: string; orgAccent: string;
   learnerDensity: "COMFORTABLE" | "COMPACT";
@@ -11,6 +12,7 @@ export type PlatformStyleSettings = {
 
 export const DEFAULT_PLATFORM_STYLE: PlatformStyleSettings = {
   brandPrimary: "#3e3a72", action: "#ff7a59", canvas: "#fcf8ff", surface: "#ffffff",
+  tertiary: "#282848",
   surfaceMuted: "#f5f2fe", text: "#1b1b23", textMuted: "#6e6e85", border: "#e4e4ee",
   success: "#2fae7a", danger: "#a7391e", achievement: "#f2b705", orgAccent: "#ff7a59",
   learnerDensity: "COMFORTABLE", adminDensity: "COMPACT", radius: "BALANCED",
@@ -24,7 +26,7 @@ export function normalizePlatformStyle(input: unknown): PlatformStyleSettings {
   const value = input && typeof input === "object" ? input as Record<string, unknown> : {};
   const color = (key: keyof PlatformStyleSettings) => typeof value[key] === "string" && hex.test(value[key] as string) ? value[key] as string : DEFAULT_PLATFORM_STYLE[key] as string;
   return {
-    brandPrimary: color("brandPrimary"), action: color("action"), canvas: color("canvas"), surface: color("surface"), surfaceMuted: color("surfaceMuted"),
+    brandPrimary: color("brandPrimary"), action: color("action"), canvas: color("canvas"), surface: color("surface"), tertiary: color("tertiary"), surfaceMuted: color("surfaceMuted"),
     text: color("text"), textMuted: color("textMuted"), border: color("border"), success: color("success"), danger: color("danger"), achievement: color("achievement"), orgAccent: color("orgAccent"),
     learnerDensity: density.has(value.learnerDensity as string) ? value.learnerDensity as PlatformStyleSettings["learnerDensity"] : DEFAULT_PLATFORM_STYLE.learnerDensity,
     adminDensity: density.has(value.adminDensity as string) ? value.adminDensity as PlatformStyleSettings["adminDensity"] : DEFAULT_PLATFORM_STYLE.adminDensity,
@@ -49,7 +51,7 @@ export function platformStyleVariables(settings: PlatformStyleSettings) {
   return {
     "--br-canvas": settings.canvas, "--br-surface": settings.surface, "--br-surface-muted": settings.surfaceMuted,
     "--br-text": settings.text, "--br-text-muted": settings.textMuted, "--br-border": settings.border,
-    "--br-brand": settings.brandPrimary, "--br-action": settings.action, "--br-success": settings.success,
+    "--br-brand": settings.brandPrimary, "--br-dark-card": settings.tertiary, "--br-action": settings.action, "--br-success": settings.success,
     "--br-danger": settings.danger, "--br-achievement": settings.achievement, "--org-accent-color": settings.orgAccent,
     "--br-radius": radiusValue,
   } as Record<string, string>;

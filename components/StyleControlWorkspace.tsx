@@ -5,9 +5,9 @@ import { useState, useTransition } from "react";
 import { DEFAULT_PLATFORM_STYLE, type PlatformStyleSettings } from "@/lib/design-system";
 import { restorePlatformStyle, savePlatformStyle } from "@/app/admin/style/actions";
 
-const colorFields: Array<[keyof Pick<PlatformStyleSettings, "brandPrimary" | "action" | "canvas" | "surface" | "surfaceMuted" | "text" | "textMuted" | "border" | "success" | "danger" | "achievement" | "orgAccent">, string, string]> = [
+const colorFields: Array<[keyof Pick<PlatformStyleSettings, "brandPrimary" | "action" | "canvas" | "surface" | "tertiary" | "surfaceMuted" | "text" | "textMuted" | "border" | "success" | "danger" | "achievement" | "orgAccent">, string, string]> = [
   ["brandPrimary", "Dusk primary", "Navigation and staff actions"], ["action", "Daybreak action", "Learner calls to action"],
-  ["canvas", "Canvas", "Main page background"], ["surface", "Surface", "Cards and overlays"], ["surfaceMuted", "Muted surface", "Quiet sections and inputs"],
+  ["canvas", "Canvas", "Main page background"], ["surface", "Surface", "Cards and overlays"], ["tertiary", "Tertiary / dark cards", "Sidebar, footer, dark panels, and focused surfaces"], ["surfaceMuted", "Muted surface", "Quiet sections and inputs"],
   ["text", "Primary text", "Headings and reading"], ["textMuted", "Muted text", "Support copy"], ["border", "Border", "Structural outlines"],
   ["success", "Success", "Completion and fluency"], ["danger", "Urgency", "Errors and destructive actions"], ["achievement", "Achievement", "Badges and streaks"],
   ["orgAccent", "Organization accent", "Default school branding accent"],
