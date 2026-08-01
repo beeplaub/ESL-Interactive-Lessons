@@ -1,8 +1,8 @@
 "use client";
 
-import { Check, Eye, History, Loader2, Palette, RotateCcw, ShieldCheck, Sparkles } from "lucide-react";
-import { useMemo, useState, useTransition } from "react";
-import { DEFAULT_PLATFORM_STYLE, platformStyleVariables, type PlatformStyleSettings, type StyleDensity } from "@/lib/design-system";
+import { Check, Download, Eye, History, Loader2, Map, Palette, RotateCcw, ShieldCheck, Sparkles, Upload } from "lucide-react";
+import { useMemo, useRef, useState, useTransition } from "react";
+import { DEFAULT_PLATFORM_STYLE, normalizePlatformStyle, platformStyleVariables, type PlatformStyleSettings, type StyleDensity } from "@/lib/design-system";
 import { restorePlatformStyle, savePlatformStyle } from "@/app/admin/style/actions";
 
 type ColorKey =
@@ -33,6 +33,12 @@ const groups: Array<{ title: string; description: string; fields: ColorField[] }
   ]},
 ];
 
+const usageByGroup: Record<string, string[]> = {
+  "Foundations": ["All learner and creator pages", "Cards, inputs, dialogs, tables, and empty states", "Mobile page backgrounds and reading surfaces"],
+  "Brand and navigation": ["Learner and admin navigation", "Footer, dark cards, hero panels, and primary actions", "School accent defaults without changing platform ownership"],
+  "Feedback and achievements": ["Activity correctness feedback", "Badges, streaks, leaderboard, charts, notices, and progress"],
+};
+
 function luminance(hex: string) {
   const channels = hex.match(/[a-f\d]{2}/gi)?.map((channel) => parseInt(channel, 16) / 255) ?? [0, 0, 0];
   const values = channels.map((value) => value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4);
@@ -45,13 +51,16 @@ export function StyleControlWorkspace({ initial, revision, revisions }: { initia
   const [saved, setSaved] = useState(false);
   const [openGroup, setOpenGroup] = useState(groups[0].title);
   const [pending, startTransition] = useTransition();
+  const importInput = useRef<HTMLInputElement>(null);
   const variables = useMemo(() => platformStyleVariables(settings), [settings]);
   const set = <K extends keyof PlatformStyleSettings>(key: K, value: PlatformStyleSettings[K]) => { setSettings((current) => ({ ...current, [key]: value })); setSaved(false); };
   const contrastChecks = [
     ["Main text on canvas", contrast(settings.text, settings.canvas)],
     ["Main text on card", contrast(settings.text, settings.surface)],
     ["Text on dark navigation", contrast(settings.textOnDark, settings.tertiary)],
+    ["Text on raised dark surface", contrast(settings.textOnDark, settings.tertiaryContainer)],
     ["Text on learner action", contrast(settings.textOnDark, settings.action)],
+    ["Text on brand primary", contrast(settings.textOnDark, settings.brandPrimary)],
   ] as const;
 
   function save() {
@@ -63,6 +72,20 @@ export function StyleControlWorkspace({ initial, revision, revisions }: { initia
     });
   }
   function restore(revisionId: string) { startTransition(async () => { await restorePlatformStyle(revisionId); window.location.reload(); }); }
+  function exportTheme() {
+    const blob = new Blob([JSON.stringify(settings, null, 2)], { type: "application/json" });
+    const href = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = href;
+    link.download = "brenup-theme.json";
+    link.click();
+    URL.revokeObjectURL(href);
+  }
+  async function importTheme(file: File | undefined) {
+    if (!file) return;
+    try { setSettings(normalizePlatformStyle(JSON.parse(await file.text()))); setSaved(false); }
+    finally { if (importInput.current) importInput.current.value = ""; }
+  }
 
   return <main className="min-w-0 space-y-5" style={variables}>
     <section className="br-panel-dark rounded-[var(--br-radius)] p-5 text-[var(--br-text-on-dark)] shadow-xl sm:p-7">
@@ -70,8 +93,8 @@ export function StyleControlWorkspace({ initial, revision, revisions }: { initia
     </section>
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_350px]">
       <section className="br-admin-card rounded-[var(--br-radius)] p-4 sm:p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-2"><Palette size={18} className="text-[var(--br-brand)]" /><div><h2 className="font-bold text-[var(--br-text)]">Theme controls</h2><p className="text-xs text-[var(--br-text-muted)]">Draft changes appear in the preview before you publish.</p></div></div><button type="button" onClick={() => { setSettings(DEFAULT_PLATFORM_STYLE); setSaved(false); }} className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--br-brand)]"><RotateCcw size={14} /> Dusk default</button></div>
-        <div className="mt-5 space-y-3">{groups.map((group) => <section key={group.title} className="overflow-hidden rounded-xl border border-[var(--br-border)]"><button type="button" onClick={() => setOpenGroup(openGroup === group.title ? "" : group.title)} className="flex w-full items-center justify-between gap-4 bg-[var(--br-surface)] px-4 py-3 text-left"><span><span className="block text-sm font-bold text-[var(--br-text)]">{group.title}</span><span className="mt-0.5 block text-xs text-[var(--br-text-muted)]">{group.description}</span></span><span className="text-lg font-semibold text-[var(--br-brand)]">{openGroup === group.title ? "−" : "+"}</span></button>{openGroup === group.title ? <div className="grid gap-3 border-t border-[var(--br-border)] bg-[var(--br-surface-muted)] p-3 sm:grid-cols-2">{group.fields.map((field) => <ColorControl key={field.key} field={field} value={settings[field.key]} onChange={(value) => set(field.key, value)} />)}</div> : null}</section>)}</div>
+        <div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-2"><Palette size={18} className="text-[var(--br-brand)]" /><div><h2 className="font-bold text-[var(--br-text)]">Theme controls</h2><p className="text-xs text-[var(--br-text-muted)]">Draft changes appear in the preview before you publish.</p></div></div><div className="flex items-center gap-3"><button type="button" onClick={exportTheme} className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--br-brand)]"><Download size={14} /> Export</button><button type="button" onClick={() => importInput.current?.click()} className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--br-brand)]"><Upload size={14} /> Import</button><input ref={importInput} type="file" accept="application/json" className="hidden" onChange={(event) => importTheme(event.target.files?.[0])} /><button type="button" onClick={() => { setSettings(DEFAULT_PLATFORM_STYLE); setSaved(false); }} className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--br-brand)]"><RotateCcw size={14} /> Dusk default</button></div></div>
+        <div className="mt-5 space-y-3">{groups.map((group) => <section key={group.title} className="overflow-hidden rounded-xl border border-[var(--br-border)]"><button type="button" onClick={() => setOpenGroup(openGroup === group.title ? "" : group.title)} className="flex w-full items-center justify-between gap-4 bg-[var(--br-surface)] px-4 py-3 text-left"><span><span className="block text-sm font-bold text-[var(--br-text)]">{group.title}</span><span className="mt-0.5 block text-xs text-[var(--br-text-muted)]">{group.description}</span></span><span className="text-lg font-semibold text-[var(--br-brand)]">{openGroup === group.title ? "−" : "+"}</span></button>{openGroup === group.title ? <div className="border-t border-[var(--br-border)] bg-[var(--br-surface-muted)] p-3"><div className="grid gap-3 sm:grid-cols-2">{group.fields.map((field) => <ColorControl key={field.key} field={field} value={settings[field.key]} defaultValue={DEFAULT_PLATFORM_STYLE[field.key]} onChange={(value) => set(field.key, value)} onReset={() => set(field.key, DEFAULT_PLATFORM_STYLE[field.key])} />)}</div><div className="mt-3 rounded-lg border border-[var(--br-border)] bg-[var(--br-surface)] p-3"><div className="flex items-center gap-2"><Map size={15} className="text-[var(--br-brand)]" /><p className="text-xs font-bold text-[var(--br-text)]">What this group changes</p></div><ul className="mt-2 space-y-1 text-xs leading-5 text-[var(--br-text-muted)]">{usageByGroup[group.title].map((item) => <li key={item}>• {item}</li>)}</ul></div></div> : null}</section>)}</div>
         <div className="mt-5 grid gap-3 border-t border-[var(--br-border)] pt-5 sm:grid-cols-3"><Select label="Learner density" value={settings.learnerDensity} options={["COMFORTABLE", "COMPACT"]} onChange={(value) => set("learnerDensity", value as StyleDensity)} /><Select label="Creator density" value={settings.adminDensity} options={["COMPACT", "COMFORTABLE"]} onChange={(value) => set("adminDensity", value as StyleDensity)} /><Select label="Corner language" value={settings.radius} options={["BALANCED", "SHARP", "SOFT"]} onChange={(value) => set("radius", value as PlatformStyleSettings["radius"])} /><Select label="Elevation" value={settings.elevation} options={["SUBTLE", "STANDARD", "EXPRESSIVE"]} onChange={(value) => set("elevation", value as PlatformStyleSettings["elevation"])} /></div>
         <div className="mt-6 flex flex-wrap gap-3"><button type="button" onClick={save} disabled={pending} className="br-button-admin inline-flex items-center gap-2 px-4 py-2.5 text-sm font-bold disabled:opacity-60">{pending ? <Loader2 size={16} className="animate-spin" /> : saved ? <Check size={16} /> : <ShieldCheck size={16} />}{saved ? "Published" : "Publish theme"}</button><p className="self-center text-xs text-[var(--br-text-muted)]">Publishing creates a restorable revision.</p></div>
       </section>
@@ -80,7 +103,7 @@ export function StyleControlWorkspace({ initial, revision, revisions }: { initia
   </main>;
 }
 
-function ColorControl({ field, value, onChange }: { field: ColorField; value: string; onChange: (value: string) => void }) { return <label className="rounded-lg border border-[var(--br-border)] bg-[var(--br-surface)] p-3"><span className="block text-sm font-semibold text-[var(--br-text)]">{field.label}</span><span className="mt-0.5 block min-h-8 text-xs text-[var(--br-text-muted)]">{field.hint}</span><span className="mt-2 flex items-center gap-2"><input aria-label={`${field.label} colour`} type="color" value={value} onChange={(event) => onChange(event.target.value)} className="size-9 cursor-pointer rounded border-0 bg-transparent p-0" /><input value={value} pattern="#[0-9A-Fa-f]{6}" onChange={(event) => onChange(event.target.value)} className="min-w-0 flex-1 rounded-md border border-[var(--br-border)] px-2 py-1.5 font-mono text-xs uppercase" /></span></label>; }
+function ColorControl({ field, value, defaultValue, onChange, onReset }: { field: ColorField; value: string; defaultValue: string; onChange: (value: string) => void; onReset: () => void }) { return <label className="rounded-lg border border-[var(--br-border)] bg-[var(--br-surface)] p-3"><span className="flex items-start justify-between gap-2"><span><span className="block text-sm font-semibold text-[var(--br-text)]">{field.label}</span><span className="mt-0.5 block min-h-8 text-xs text-[var(--br-text-muted)]">{field.hint}</span></span>{value !== defaultValue ? <button type="button" onClick={(event) => { event.preventDefault(); onReset(); }} className="text-[10px] font-bold text-[var(--br-brand)]">Reset</button> : null}</span><span className="mt-2 flex items-center gap-2"><input aria-label={`${field.label} colour`} type="color" value={value} onChange={(event) => onChange(event.target.value)} className="size-9 cursor-pointer rounded border-0 bg-transparent p-0" /><input value={value} pattern="#[0-9A-Fa-f]{6}" onChange={(event) => onChange(event.target.value)} className="min-w-0 flex-1 rounded-md border border-[var(--br-border)] px-2 py-1.5 font-mono text-xs uppercase" /></span></label>; }
 function Select({ label, value, options, onChange }: { label: string; value: string; options: string[]; onChange: (value: string) => void }) { return <label className="text-sm font-semibold text-[var(--br-text)]">{label}<select value={value} onChange={(event) => onChange(event.target.value)} className="mt-1.5 w-full rounded-md border border-[var(--br-border)] bg-[var(--br-surface)] px-3 py-2 text-sm">{options.map((option) => <option key={option}>{option}</option>)}</select></label>; }
 function ContrastRow({ label, value }: { label: string; value: number }) { const pass = value >= 4.5; return <div className="mt-3 flex items-center justify-between rounded-lg bg-[var(--br-surface-muted)] px-3 py-2 text-sm"><span className="font-semibold text-[var(--br-text)]">{label}</span><span className={pass ? "font-mono font-bold text-[var(--br-success)]" : "font-mono font-bold text-[var(--br-danger)]"}>{value.toFixed(2)}:1 {pass ? "Pass" : "Review"}</span></div>; }
 function Preview({ settings }: { settings: PlatformStyleSettings }) { const vars = platformStyleVariables(settings); return <section className="br-admin-card rounded-[var(--br-radius)] p-4" style={vars}><div className="flex items-center gap-2"><Eye size={17} className="text-[var(--br-brand)]" /><h2 className="font-bold text-[var(--br-text)]">Live preview</h2></div><div className="mt-4 overflow-hidden rounded-xl border border-[var(--br-border)]"><div className="flex items-center gap-2 bg-[var(--br-dark-card)] px-3 py-2 text-[var(--br-text-on-dark)]"><Sparkles size={15} /><span className="text-xs font-bold">BrenUp learner shell</span></div><div className="space-y-3 bg-[var(--br-canvas)] p-3"><div className="rounded-lg bg-[var(--br-surface)] p-3 shadow-[var(--br-shadow)]"><p className="text-xs font-bold text-[var(--br-text-muted)]">Vocabulary practice</p><p className="mt-1 font-bold text-[var(--br-text)]">Speak with confidence</p><div className="mt-3 flex items-center gap-2"><button className="rounded-lg bg-[var(--br-action)] px-3 py-2 text-xs font-bold text-[var(--br-text-on-dark)]">Continue</button><span className="rounded-full bg-[var(--br-success)] px-2 py-1 text-[10px] font-bold text-[var(--br-text-on-dark)]">Complete</span></div></div><div className="flex gap-2"><span className="h-2 flex-1 rounded-full bg-[var(--br-chart-primary)]" /><span className="h-2 flex-1 rounded-full bg-[var(--br-chart-secondary)]" /><span className="h-2 flex-1 rounded-full bg-[var(--br-achievement)]" /></div></div></div></section>; }
