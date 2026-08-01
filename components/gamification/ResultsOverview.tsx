@@ -9,9 +9,9 @@ import type { ScoredQuestion } from "@/lib/quizScoring";
 type OverviewQuestion = ScoredQuestion & { id: string; question_number: number };
 
 const TILE_STYLES: Record<OverviewStatus, string> = {
-  correct: "border-[var(--br-success)] bg-[var(--br-success)]/10 text-[#00A977] hover:bg-[var(--br-success)]/20",
+  correct: "border-[var(--br-success)] bg-[var(--br-success)]/10 text-[var(--br-chart-secondary)] hover:bg-[var(--br-success)]/20",
   incorrect: "border-[var(--br-danger)] bg-[var(--br-danger)]/10 text-[var(--br-danger)] hover:bg-[var(--br-danger)]/20",
-  pending: "border-dashed border-[#A0A5BA] bg-[var(--br-canvas-elevated)] text-[var(--br-text-muted)] hover:bg-white"
+  pending: "border-dashed border-[var(--br-text-muted)] bg-[var(--br-canvas-elevated)] text-[var(--br-text-muted)] hover:bg-white"
 };
 
 function TileIcon({ status }: { status: OverviewStatus }) {
@@ -107,7 +107,7 @@ export function ResultsOverview({
       </div>
 
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-        <p className="text-xs text-[#A0A5BA]">Green = correct, red = needs review{pendingCount > 0 ? ", dashed = mark it yourself" : ""}.</p>
+        <p className="text-xs text-[var(--br-text-muted)]">Green = correct, red = needs review{pendingCount > 0 ? ", dashed = mark it yourself" : ""}.</p>
         <button
           type="button"
           onClick={onRetake}

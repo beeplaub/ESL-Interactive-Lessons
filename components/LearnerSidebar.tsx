@@ -173,7 +173,7 @@ function PremiumCard() {
         <span className="text-xs font-bold">Go Premium</span>
       </div>
       <p className="mb-3 text-[10px] leading-relaxed text-[#B8996A]">Unlock all courses, detailed feedback, and more!</p>
-      <button type="button" className="w-full cursor-default rounded-xl bg-gradient-to-br from-[#FFB545] to-[#FF8C00] py-2 text-[11px] font-bold text-[#1A0D00] shadow-sm">
+      <button type="button" className="w-full cursor-default rounded-xl bg-gradient-to-br from-[var(--br-achievement)] to-[#FF8C00] py-2 text-[11px] font-bold text-[#1A0D00] shadow-sm">
         Upgrade Now
       </button>
     </div>

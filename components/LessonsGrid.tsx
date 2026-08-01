@@ -42,11 +42,11 @@ const LEVEL_THEME: Record<string, {
   headerBg: string;
 }> = {
   A1: { border: "#f59e0b", badge: "#fef3c7", badgeText: "#92400e", headerBg: "#fffbeb" },
-  "A1-A2": { border: "#f97316", badge: "#ffedd5", badgeText: "#7c2d12", headerBg: "#fff7ed" },
-  A2: { border: "#f97316", badge: "#ffedd5", badgeText: "#7c2d12", headerBg: "#fff7ed" },
+  "A1-A2": { border: "var(--br-action)", badge: "#ffedd5", badgeText: "#7c2d12", headerBg: "#fff7ed" },
+  A2: { border: "var(--br-action)", badge: "#ffedd5", badgeText: "#7c2d12", headerBg: "#fff7ed" },
   B1: { border: "#0ea5e9", badge: "#e0f2fe", badgeText: "#0c4a6e", headerBg: "#f0f9ff" },
-  "B1-B2": { border: "#2563eb", badge: "#dbeafe", badgeText: "#1e3a8a", headerBg: "#eff6ff" },
-  B2: { border: "#2563eb", badge: "#dbeafe", badgeText: "#1e3a8a", headerBg: "#eff6ff" },
+  "B1-B2": { border: "var(--br-info)", badge: "#dbeafe", badgeText: "#1e3a8a", headerBg: "#eff6ff" },
+  B2: { border: "var(--br-info)", badge: "#dbeafe", badgeText: "#1e3a8a", headerBg: "#eff6ff" },
   C1: { border: "#7c3aed", badge: "#ede9fe", badgeText: "#4c1d95", headerBg: "#f5f3ff" },
   "C1-C2": { border: "#7c3aed", badge: "#ede9fe", badgeText: "#4c1d95", headerBg: "#f5f3ff" },
   C2: { border: "#0f172a", badge: "#e2e8f0", badgeText: "#0f172a", headerBg: "#f8fafc" },

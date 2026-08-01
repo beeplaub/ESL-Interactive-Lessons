@@ -28,33 +28,33 @@ export function SiteFooter() {
         <div className="flex gap-16 flex-wrap">
           <div className="flex flex-col gap-3">
             <h4 className="text-xs font-semibold text-white uppercase tracking-wider">Learn</h4>
-            <Link href="/courses" className="text-sm text-[#A9A6D6] hover:text-white transition-colors">Courses</Link>
-            <Link href="/level-test" className="text-sm text-[#A9A6D6] hover:text-white transition-colors">Level Test</Link>
-            <Link href="/language-profile" className="text-sm text-[#A9A6D6] hover:text-white transition-colors">Language Profile</Link>
+            <Link href="/courses" className="text-sm text-[color-mix(in_srgb,var(--br-text-on-dark)_65%,transparent)] hover:text-white transition-colors">Courses</Link>
+            <Link href="/level-test" className="text-sm text-[color-mix(in_srgb,var(--br-text-on-dark)_65%,transparent)] hover:text-white transition-colors">Level Test</Link>
+            <Link href="/language-profile" className="text-sm text-[color-mix(in_srgb,var(--br-text-on-dark)_65%,transparent)] hover:text-white transition-colors">Language Profile</Link>
           </div>
           <div className="flex flex-col gap-3">
             <h4 className="text-xs font-semibold text-white uppercase tracking-wider">Practice</h4>
-            <Link href="/quizzes" className="text-sm text-[#A9A6D6] hover:text-white transition-colors">Quizzes</Link>
-            <Link href="/assignments" className="text-sm text-[#A9A6D6] hover:text-white transition-colors">Assignments</Link>
-            <Link href="/tasks" className="text-sm text-[#A9A6D6] hover:text-white transition-colors">Tasks</Link>
+            <Link href="/quizzes" className="text-sm text-[color-mix(in_srgb,var(--br-text-on-dark)_65%,transparent)] hover:text-white transition-colors">Quizzes</Link>
+            <Link href="/assignments" className="text-sm text-[color-mix(in_srgb,var(--br-text-on-dark)_65%,transparent)] hover:text-white transition-colors">Assignments</Link>
+            <Link href="/tasks" className="text-sm text-[color-mix(in_srgb,var(--br-text-on-dark)_65%,transparent)] hover:text-white transition-colors">Tasks</Link>
           </div>
           <div className="flex flex-col gap-3">
             <h4 className="text-xs font-semibold text-white uppercase tracking-wider">Progress</h4>
-            <Link href="/achievements" className="text-sm text-[#A9A6D6] hover:text-white transition-colors">Achievements</Link>
-            <Link href="/certificates" className="text-sm text-[#A9A6D6] hover:text-white transition-colors">Certificates</Link>
-            <Link href="/leaderboard" className="text-sm text-[#A9A6D6] hover:text-white transition-colors">Leaderboard</Link>
+            <Link href="/achievements" className="text-sm text-[color-mix(in_srgb,var(--br-text-on-dark)_65%,transparent)] hover:text-white transition-colors">Achievements</Link>
+            <Link href="/certificates" className="text-sm text-[color-mix(in_srgb,var(--br-text-on-dark)_65%,transparent)] hover:text-white transition-colors">Certificates</Link>
+            <Link href="/leaderboard" className="text-sm text-[color-mix(in_srgb,var(--br-text-on-dark)_65%,transparent)] hover:text-white transition-colors">Leaderboard</Link>
           </div>
           <div className="flex flex-col gap-3">
             <h4 className="text-xs font-semibold text-white uppercase tracking-wider">Platform</h4>
-            <Link href="/courses" className="text-sm text-[#A9A6D6] hover:text-white transition-colors">Courses</Link>
-            <Link href="/quizzes" className="text-sm text-[#A9A6D6] hover:text-white transition-colors">Quizzes</Link>
-            <Link href="/leaderboard" className="text-sm text-[#A9A6D6] hover:text-white transition-colors">Leaderboard</Link>
+            <Link href="/courses" className="text-sm text-[color-mix(in_srgb,var(--br-text-on-dark)_65%,transparent)] hover:text-white transition-colors">Courses</Link>
+            <Link href="/quizzes" className="text-sm text-[color-mix(in_srgb,var(--br-text-on-dark)_65%,transparent)] hover:text-white transition-colors">Quizzes</Link>
+            <Link href="/leaderboard" className="text-sm text-[color-mix(in_srgb,var(--br-text-on-dark)_65%,transparent)] hover:text-white transition-colors">Leaderboard</Link>
           </div>
           <div className="flex flex-col gap-3">
             <h4 className="text-xs font-semibold text-white uppercase tracking-wider">About</h4>
-            <Link href="/" className="text-sm text-[#A9A6D6] hover:text-white transition-colors">Our Story</Link>
-            <a href="#" className="text-sm text-[#A9A6D6] hover:text-white transition-colors">Privacy Policy</a>
-            <a href="#" className="text-sm text-[#A9A6D6] hover:text-white transition-colors">Terms of Service</a>
+            <Link href="/" className="text-sm text-[color-mix(in_srgb,var(--br-text-on-dark)_65%,transparent)] hover:text-white transition-colors">Our Story</Link>
+            <a href="#" className="text-sm text-[color-mix(in_srgb,var(--br-text-on-dark)_65%,transparent)] hover:text-white transition-colors">Privacy Policy</a>
+            <a href="#" className="text-sm text-[color-mix(in_srgb,var(--br-text-on-dark)_65%,transparent)] hover:text-white transition-colors">Terms of Service</a>
           </div>
         </div>
       </div>

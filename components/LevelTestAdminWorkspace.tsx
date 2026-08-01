@@ -138,7 +138,7 @@ export function LevelTestAdminWorkspace({
 
   return (
     <main className="min-w-0 text-[var(--br-dark-card)]">
-      <section className="relative overflow-hidden rounded-[22px] bg-gradient-to-br from-[#1A1060] via-[#0C1945] to-[#0E1F5A] p-5 text-white shadow-[0_16px_48px_rgba(20,23,80,.22)] sm:p-7">
+      <section className="relative overflow-hidden rounded-[22px] bg-gradient-to-br from-[var(--br-brand-strong)] via-[var(--br-dark-card)] to-[var(--br-dark-card)] p-5 text-white shadow-[0_16px_48px_rgba(20,23,80,.22)] sm:p-7">
         <div className="absolute -right-16 -top-20 size-56 rounded-full bg-[var(--br-chart-primary)]/25" />
         <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
@@ -363,7 +363,7 @@ function QuestionModal({ current, test, sections, passages, questions, busy, clo
                   <button onClick={() => {
                     const selected = state.correctAnswers.includes(option.key);
                     setState({ ...state, correctAnswers: multiple ? (selected ? state.correctAnswers.filter((answer) => answer !== option.key) : [...state.correctAnswers, option.key]) : [option.key] });
-                  }} className={`rounded-[10px] text-sm font-black ${state.correctAnswers.includes(option.key) ? "bg-[var(--br-success)] text-white" : "bg-[#EEEAFB] text-[var(--br-chart-primary)]"}`} title="Mark as correct">{option.key}</button>
+                  }} className={`rounded-[10px] text-sm font-black ${state.correctAnswers.includes(option.key) ? "bg-[var(--br-success)] text-white" : "bg-[var(--br-surface-muted)] text-[var(--br-chart-primary)]"}`} title="Mark as correct">{option.key}</button>
                   <input value={option.text} onChange={(event) => setState({ ...state, options: state.options.map((item, itemIndex) => itemIndex === index ? { ...item, text: event.target.value } : item) })} className={inputClass} placeholder={`Option ${option.key}`} />
                   <button disabled={state.options.length <= 2} onClick={() => {
                     const options = state.options.filter((_, itemIndex) => itemIndex !== index).map((item, itemIndex) => ({ ...item, key: String.fromCharCode(65 + itemIndex) }));
@@ -438,7 +438,7 @@ function Hint({ children }: { children: React.ReactNode }) { return <span classN
 function Toggle({ checked, setChecked, label }: { checked: boolean; setChecked: (value: boolean) => void; label: string }) { return <label className="flex cursor-pointer items-center gap-3 rounded-[14px] border border-[var(--br-surface-strong)] p-3 text-sm font-bold"><input type="checkbox" checked={checked} onChange={(event) => setChecked(event.target.checked)} className="size-4 accent-[var(--br-chart-primary)]" />{label}</label>; }
 function Empty({ text }: { text: string }) { return <div className="rounded-[16px] border border-dashed border-[#DADBE7] p-8 text-center text-sm font-semibold text-[var(--br-text-muted)]">{text}</div>; }
 function Metric({ icon: Icon, value, label, tone }: { icon: React.ElementType; value: string | number; label: string; tone: "purple" | "blue" | "orange" | "green" }) {
-  const tones = { purple: "from-[var(--br-chart-primary)] to-[var(--br-brand)]", blue: "from-[#2697FF] to-[#38BDF8]", orange: "from-[#FFB545] to-[#FF8C00]", green: "from-[var(--br-success)] to-[#00B37D]" };
+  const tones = { purple: "from-[var(--br-chart-primary)] to-[var(--br-brand)]", blue: "from-[#2697FF] to-[#38BDF8]", orange: "from-[var(--br-achievement)] to-[#FF8C00]", green: "from-[var(--br-success)] to-[#00B37D]" };
   return <div className="rounded-[18px] border border-[var(--br-surface-strong)] bg-white p-4 shadow-[0_8px_24px_rgba(0,0,0,.05)]"><div className="flex items-center gap-3"><span className={`grid size-10 place-items-center rounded-[13px] bg-gradient-to-br ${tones[tone]} text-white`}><Icon className="size-5" /></span><div><div className="text-2xl font-extrabold">{value}</div><div className="text-xs font-bold text-[var(--br-text-muted)]">{label}</div></div></div></div>;
 }
 function readableType(type: string) { return ({ MCQ: "Multiple choice", TRUE_FALSE: "True / False", MULTIPLE_SELECT: "Multiple select", FILL: "Written answer" } as Record<string, string>)[type] ?? type; }
@@ -446,4 +446,4 @@ function readableType(type: string) { return ({ MCQ: "Multiple choice", TRUE_FAL
 const inputClass = "min-w-0 w-full rounded-[12px] border border-[#DCDDEA] bg-white px-3 py-2.5 text-sm font-semibold text-[var(--br-dark-card)] outline-none focus:border-[var(--br-chart-primary)] focus:ring-2 focus:ring-[var(--br-chart-primary)]/10";
 const primaryButton = "inline-flex w-fit items-center justify-center gap-2 rounded-[12px] bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] px-4 py-2.5 text-sm font-extrabold text-white shadow-[0_6px_16px_rgba(108,59,255,.22)] disabled:opacity-50";
 const iconButton = "grid size-9 shrink-0 place-items-center rounded-[10px] border border-[#E3E4ED] bg-white text-[var(--br-text-muted)] hover:text-[var(--br-chart-primary)] disabled:opacity-30";
-const addButton = "mt-2 inline-flex items-center gap-1.5 rounded-[10px] bg-[#EEEAFB] px-3 py-2 text-xs font-extrabold text-[var(--br-chart-primary)]";
+const addButton = "mt-2 inline-flex items-center gap-1.5 rounded-[10px] bg-[var(--br-surface-muted)] px-3 py-2 text-xs font-extrabold text-[var(--br-chart-primary)]";

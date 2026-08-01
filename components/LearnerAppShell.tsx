@@ -366,7 +366,7 @@ function DesktopLearnerChrome({
           </Link>
           {breadcrumbs.map((item, index) => (
             <span key={`${item.label}-${index}`} className="flex min-w-0 items-center gap-2">
-              {index === 0 ? null : <ChevronRight className="size-4 shrink-0 text-[#A0A5BA]" />}
+              {index === 0 ? null : <ChevronRight className="size-4 shrink-0 text-[var(--br-text-muted)]" />}
               {item.href ? (
                 <Link href={item.href} className="truncate hover:text-[var(--br-chart-primary)]">{item.label}</Link>
               ) : (
@@ -438,7 +438,7 @@ function RightSidebarCards({ data }: { data: RightSidebarData }) {
         <div className="mb-1 flex items-center justify-between">
           <div>
             <div className="text-[15px] font-bold">Your Streak</div>
-            <div className="text-[32px] font-extrabold leading-none text-[#FFB545]">{data.streak} days</div>
+            <div className="text-[32px] font-extrabold leading-none text-[var(--br-achievement)]">{data.streak} days</div>
             <div className="mt-1 text-xs text-[var(--br-text-muted)]">{data.streak ? "Keep it up!" : "Start today!"}</div>
           </div>
           <div className="text-[52px] leading-none">🔥</div>
@@ -446,8 +446,8 @@ function RightSidebarCards({ data }: { data: RightSidebarData }) {
         <div className="mt-3 flex justify-between gap-1">
           {data.weekActivity.map((day, index) => (
             <div key={`${day.label}-${index}`} className="flex flex-col items-center gap-1">
-              <div className={`text-[9px] font-semibold ${day.isToday ? "text-[#FFB545]" : "text-[var(--br-text-muted)]"}`}>{day.label}</div>
-              <div className={`grid size-7 place-items-center rounded-full text-[13px] ${day.active ? "bg-[#FFB545] text-white" : "border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)]"}`}>
+              <div className={`text-[9px] font-semibold ${day.isToday ? "text-[var(--br-achievement)]" : "text-[var(--br-text-muted)]"}`}>{day.label}</div>
+              <div className={`grid size-7 place-items-center rounded-full text-[13px] ${day.active ? "bg-[var(--br-achievement)] text-white" : "border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)]"}`}>
                 {day.active ? "✓" : ""}
               </div>
             </div>
@@ -465,7 +465,7 @@ function RightSidebarCards({ data }: { data: RightSidebarData }) {
             <div className="grid size-14 place-items-center rounded-full bg-white text-lg font-black">{data.progressPercent}%</div>
           </div>
         </div>
-        <div className="grid gap-2 text-xs font-semibold text-[#53607D]">
+        <div className="grid gap-2 text-xs font-semibold text-[var(--br-text-muted)]">
           <ProgressLegend dot="#31C48D" label="Completed" value={`${data.completedCourses} courses`} />
           <ProgressLegend dot="#3478F6" label="In progress" value={`${data.inProgressCourses} courses`} />
           <ProgressLegend dot="#C8CDDA" label="Not started" value={`${data.notStartedCourses} courses`} />
@@ -506,7 +506,7 @@ function ProgressLegend({ dot, label, value }: { dot: string; label: string; val
     <div className="flex items-start gap-2">
       <span className="mt-1.5 size-2.5 rounded-full" style={{ backgroundColor: dot }} />
       <div>
-        <p className="font-bold text-[#35405F]">{label}</p>
+        <p className="font-bold text-[var(--br-text)]">{label}</p>
         <p className="text-xs text-[var(--br-text-muted)]">{value}</p>
       </div>
     </div>
@@ -516,7 +516,7 @@ function ProgressLegend({ dot, label, value }: { dot: string; label: string; val
 function AchievementIcon({ emoji, label, tone, unlocked = true }: { emoji: string; label: string; tone: "purple" | "orange" | "green" | "red"; unlocked?: boolean }) {
   const tones = {
     purple: "from-[var(--br-chart-primary)] to-[var(--br-brand)]",
-    orange: "from-[#FFB545] to-[#FF6B00]",
+    orange: "from-[var(--br-achievement)] to-[#FF6B00]",
     green: "from-[var(--br-success)] to-[#00957A]",
     red: "from-[var(--br-danger)] to-[#C0002A]",
   };
@@ -577,7 +577,7 @@ function MobileTopbar({
         </Link>
         <details className="group relative">
           <summary className="grid size-9 cursor-pointer list-none place-items-center rounded-[10px] text-white marker:hidden [&::-webkit-details-marker]:hidden" aria-label="Menu"><Menu className="size-[22px]" /></summary>
-          <div className="fixed inset-x-3 top-[68px] z-50 rounded-[24px] border border-white/10 bg-[#1b1b3a] p-3 shadow-2xl shadow-black/30">
+          <div className="fixed inset-x-3 top-[68px] z-50 rounded-[24px] border border-white/10 bg-[var(--br-text)] p-3 shadow-2xl shadow-black/30">
             <div className="grid gap-1">
               <MobileDrawerLink href="/account" label="Home" icon={Home} active={active === "home"} />
               <MobileDrawerLink href="/quizzes" label="Quizzes" icon={HelpCircle} active={active === "quizzes"} />

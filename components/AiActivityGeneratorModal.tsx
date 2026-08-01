@@ -219,11 +219,11 @@ export default function AiActivityGeneratorModal({
             </div>
           ) : (
             <div className="grid gap-4">
-              <div className="rounded-lg border border-[var(--br-success)]/20 bg-[var(--br-success)]/5 p-3.5 text-sm text-[#00A977] flex items-start gap-2">
+              <div className="rounded-lg border border-[var(--br-success)]/20 bg-[var(--br-success)]/5 p-3.5 text-sm text-[var(--br-chart-secondary)] flex items-start gap-2">
                 <CheckCircle size={16} className="mt-0.5 shrink-0" />
                 <div>
                   <p className="font-bold">Questions generated successfully!</p>
-                  <p className="mt-0.5 text-xs text-[#00A977]/80">Please review the generated preview below before adding them.</p>
+                  <p className="mt-0.5 text-xs text-[var(--br-chart-secondary)]/80">Please review the generated preview below before adding them.</p>
                 </div>
               </div>
 
@@ -272,7 +272,7 @@ export default function AiActivityGeneratorModal({
                     {generatedData?.items?.map((item: any, idx: number) => (
                       <div key={idx} className="flex justify-between items-center rounded border border-black/5 bg-white p-2.5 text-sm">
                         <span>{idx + 1}. {item.statement}</span>
-                        <span className={`rounded px-2 py-0.5 text-xs font-bold ${item.answer ? "bg-[var(--br-success)]/15 text-[#00A977]" : "bg-red-50 text-red-600"}`}>
+                        <span className={`rounded px-2 py-0.5 text-xs font-bold ${item.answer ? "bg-[var(--br-success)]/15 text-[var(--br-chart-secondary)]" : "bg-red-50 text-red-600"}`}>
                           {item.answer ? "True" : "False"}
                         </span>
                       </div>

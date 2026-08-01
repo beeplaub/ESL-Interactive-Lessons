@@ -63,7 +63,7 @@ export function LevelTestScoreCard({
   if (!wrapped) return panel;
 
   return (
-    <div className="rounded-[24px] bg-gradient-to-br from-[#1A1060] via-[#0C1945] to-[#0E1F5A] p-5 text-white shadow-[0_16px_48px_rgba(20,23,80,.25)] sm:p-7">
+    <div className="rounded-[24px] bg-gradient-to-br from-[var(--br-brand-strong)] via-[var(--br-dark-card)] to-[var(--br-dark-card)] p-5 text-white shadow-[0_16px_48px_rgba(20,23,80,.25)] sm:p-7">
       <div className="mb-5 flex items-center justify-between gap-3">
         <div>
           <div className="text-[15px] font-bold opacity-90 md:text-lg">Your last level check</div>
@@ -82,7 +82,7 @@ function SubScore({ label, value, green }: { label: string; value: number; green
     <div className="flex items-center gap-2">
       <span className="w-[100px] truncate text-xs text-white/60">{label}</span>
       <span className="h-1.5 flex-1 rounded-full bg-white/10">
-        <span className={`block h-full rounded-full ${green ? "bg-[var(--br-success)]" : "bg-[#4E8DFF]"}`} style={{ width: `${value}%` }} />
+        <span className={`block h-full rounded-full ${green ? "bg-[var(--br-success)]" : "bg-[var(--br-info)]"}`} style={{ width: `${value}%` }} />
       </span>
       <span className="w-8 text-right text-xs text-white/70">{value}%</span>
     </div>

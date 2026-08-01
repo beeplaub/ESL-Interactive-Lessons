@@ -224,10 +224,10 @@ function CourseCard({
   const tones = [
     "from-[#FF6B9D] to-[#FF8E53]",
     "from-[#3A7BD5] to-[#00D2FF]",
-    "from-[#1A1060] to-[#2D3A8C]",
+    "from-[var(--br-brand-strong)] to-[#2D3A8C]",
     "from-[#4A148C] to-[#7B1FA2]",
     "from-[var(--br-success)] to-[#00957A]",
-    "from-[#FFB545] to-[#FF8C00]"
+    "from-[var(--br-achievement)] to-[#FF8C00]"
   ];
   const level = course.level ?? "Course";
   const imageUrl = resolveCourseImage(course.thumbnail_path || course.cover_image_path);

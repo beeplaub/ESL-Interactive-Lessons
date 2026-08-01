@@ -63,7 +63,7 @@ export default async function ProfilePage() {
 
             <div className="br-learner-card p-5">
               <div className="flex items-center gap-3">
-                <span className="grid size-11 place-items-center rounded-[14px] bg-[#EEEAFB] text-[var(--br-chart-primary)]"><BadgeCheck className="size-5" /></span>
+                <span className="grid size-11 place-items-center rounded-[14px] bg-[var(--br-surface-muted)] text-[var(--br-chart-primary)]"><BadgeCheck className="size-5" /></span>
                 <div>
                   <h2 className="text-lg font-extrabold">Level test result</h2>
                   <p className="text-xs font-semibold text-[var(--br-text-muted)]">Your current CEFR reference</p>
@@ -87,7 +87,7 @@ export default async function ProfilePage() {
           <div className="grid gap-5">
             <section className="br-learner-card p-5 sm:p-6">
               <div className="mb-5 flex items-center gap-3">
-                <span className="grid size-11 place-items-center rounded-[14px] bg-[#E7FBF4] text-[var(--br-chart-secondary)]"><UserRound className="size-5" /></span>
+                <span className="grid size-11 place-items-center rounded-[14px] bg-[color-mix(in_srgb,var(--br-success)_12%,var(--br-surface))] text-[var(--br-chart-secondary)]"><UserRound className="size-5" /></span>
                 <div>
                   <h2 className="text-xl font-extrabold">Personal details</h2>
                   <p className="text-xs font-semibold text-[var(--br-text-muted)]">Update the name shown on your learning profile.</p>
@@ -109,7 +109,7 @@ export default async function ProfilePage() {
               ) : (
                 <div className="flex items-start gap-3 rounded-[18px] bg-[var(--br-canvas-elevated)] p-4">
                   <Mail className="mt-0.5 size-5 shrink-0 text-[var(--br-chart-primary)]" />
-                  <p className="text-sm font-semibold leading-6 text-[#53607D]">You signed in with Google. Password management is handled by your Google account.</p>
+                  <p className="text-sm font-semibold leading-6 text-[var(--br-text-muted)]">You signed in with Google. Password management is handled by your Google account.</p>
                 </div>
               )}
             </section>

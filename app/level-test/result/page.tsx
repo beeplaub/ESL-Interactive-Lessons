@@ -59,7 +59,7 @@ export default async function LevelTestResultPage({ searchParams }: { searchPara
 
         <section className="mt-5 grid gap-5 lg:grid-cols-[.8fr_1.2fr]">
           <div className="br-learner-card p-5 sm:p-6">
-            <div className="flex items-center gap-3"><span className="grid size-11 place-items-center rounded-[14px] bg-[#EEEAFB] text-[var(--br-chart-primary)]"><Target className="size-5" /></span><h2 className="text-lg font-extrabold">Score breakdown</h2></div>
+            <div className="flex items-center gap-3"><span className="grid size-11 place-items-center rounded-[14px] bg-[var(--br-surface-muted)] text-[var(--br-chart-primary)]"><Target className="size-5" /></span><h2 className="text-lg font-extrabold">Score breakdown</h2></div>
             <div className="mt-5 grid gap-4">
               {sectionEntries.length ? sectionEntries.map((section) => {
                 const sectionPercentage = section.total ? Math.round((section.correct / section.total) * 100) : 0;
@@ -68,7 +68,7 @@ export default async function LevelTestResultPage({ searchParams }: { searchPara
             </div>
           </div>
           <div className="br-learner-card p-5 sm:p-6">
-            <div className="flex items-center gap-3"><span className="grid size-11 place-items-center rounded-[14px] bg-[#E7FBF4] text-[var(--br-chart-secondary)]"><Award className="size-5" /></span><div><h2 className="text-lg font-extrabold">Your next step</h2><p className="text-xs font-semibold text-[var(--br-text-muted)]">Guidance selected for your result band.</p></div></div>
+            <div className="flex items-center gap-3"><span className="grid size-11 place-items-center rounded-[14px] bg-[color-mix(in_srgb,var(--br-success)_12%,var(--br-surface))] text-[var(--br-chart-secondary)]"><Award className="size-5" /></span><div><h2 className="text-lg font-extrabold">Your next step</h2><p className="text-xs font-semibold text-[var(--br-text-muted)]">Guidance selected for your result band.</p></div></div>
             <p className="mt-5 text-sm font-semibold leading-7 text-[#4E536B]">{guidanceText}</p>
             <div className="mt-5 flex flex-wrap gap-2">
               <Link href="/quizzes" className="br-button-primary inline-flex items-center gap-2 px-5 py-3 text-sm font-extrabold">Practice with quizzes <ArrowRight className="size-4" /></Link>
@@ -84,7 +84,7 @@ export default async function LevelTestResultPage({ searchParams }: { searchPara
 }
 
 function ResultMetric({ icon: Icon, value, label, tone }: { icon: React.ElementType; value: string; label: string; tone: "green" | "purple" | "orange" }) {
-  const tones = { green: "bg-[#E7FBF4] text-[var(--br-chart-secondary)]", purple: "bg-[#EEEAFB] text-[var(--br-brand)]", orange: "bg-[#FFF5E7] text-[#E47A00]" };
+  const tones = { green: "bg-[color-mix(in_srgb,var(--br-success)_12%,var(--br-surface))] text-[var(--br-chart-secondary)]", purple: "bg-[var(--br-surface-muted)] text-[var(--br-brand)]", orange: "bg-[#FFF5E7] text-[#E47A00]" };
   return <div className="br-learner-card p-4"><div className="flex items-center gap-3"><span className={`grid size-10 place-items-center rounded-[13px] ${tones[tone]}`}><Icon className="size-5" /></span><div><div className="text-xl font-extrabold">{value}</div><div className="text-xs font-bold text-[var(--br-text-muted)]">{label}</div></div></div></div>;
 }
 function asRecord(value: unknown): Record<string, unknown> { return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {}; }

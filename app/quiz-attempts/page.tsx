@@ -162,8 +162,8 @@ export default async function QuizAttemptsPage() {
       ) : (
         <section className="grid min-h-[60vh] place-items-center rounded-[24px] border border-dashed border-[#D9DCE8] bg-white p-8 text-center shadow-sm">
           <div>
-            <Award className="mx-auto size-10 text-[#B8B8C9]" />
-            <h1 className="mt-4 text-2xl font-extrabold text-[#1B1B3A]">No quiz attempts yet.</h1>
+            <Award className="mx-auto size-10 text-[var(--br-text-muted)]" />
+            <h1 className="mt-4 text-2xl font-extrabold text-[var(--br-dark-card)]">No quiz attempts yet.</h1>
             <p className="mt-2 max-w-md text-sm leading-6 text-[var(--br-text-muted)]">Take a quiz and BrenUp will build your attempt history, score trend, and review links here.</p>
           </div>
         </section>

@@ -148,7 +148,7 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
           </div>
           <h1 className="mt-4 break-words text-[26px] font-extrabold leading-tight tracking-[-0.01em] text-[var(--br-dark-card)] sm:text-[30px] md:text-[38px]">{course.title}</h1>
           {course.subtitle ? <p className="mt-3 max-w-2xl break-words text-sm leading-6 text-[#4F5671] md:text-base">{course.subtitle}</p> : null}
-          <div className="mt-5 flex flex-wrap gap-4 text-xs font-bold text-[#53607D]">
+          <div className="mt-5 flex flex-wrap gap-4 text-xs font-bold text-[var(--br-text-muted)]">
             <Meta icon={BookOpen} label={`${totalItems} items`} />
             <Meta icon={Layers} label={`${sectionCount} modules`} />
             <Meta icon={Clock3} label={`${Math.max(1, Math.round(totalMinutes / 60))}h total`} />
@@ -211,9 +211,9 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
                     <h3 className="break-words font-extrabold leading-snug">{section.title}</h3>
                     {section.description ? <p className="mt-1 break-words text-sm leading-5 text-[var(--br-text-muted)] sm:line-clamp-2">{section.description}</p> : null}
                   </div>
-                  <span className="hidden text-sm font-bold text-[#53607D] sm:block">{sectionItems.length} items</span>
+                  <span className="hidden text-sm font-bold text-[var(--br-text-muted)] sm:block">{sectionItems.length} items</span>
                   <div className="hidden w-[120px] items-center gap-2 sm:flex">
-                    <span className="text-xs font-bold text-[#53607D]">{sectionPercent}%</span>
+                    <span className="text-xs font-bold text-[var(--br-text-muted)]">{sectionPercent}%</span>
                     <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--br-surface-strong)]"><span className="block h-full rounded-full bg-gradient-to-r from-[var(--br-chart-primary)] to-[var(--br-success)]" style={{ width: `${sectionPercent}%` }} /></span>
                   </div>
                   <ChevronDown className="size-5 text-[var(--br-text-muted)] transition group-open:rotate-180" />
@@ -251,7 +251,7 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
   );
 
   // Dynamic stats & styling for course progress panel
-  let bannerClass = "bg-[#F9FAFC] border-[var(--br-surface-strong)] text-[#53607D]";
+  let bannerClass = "bg-[#F9FAFC] border-[var(--br-surface-strong)] text-[var(--br-text-muted)]";
   let bannerText = "🔥 Ready to begin? Enroll now to start your learning path.";
   let inProgressNode: React.ReactNode = "Not enrolled";
 
@@ -324,7 +324,7 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
     <Panel title="What You’ll Learn">
       <div className="grid gap-3">
         {(outcomes ?? []).slice(0, 6).map((item) => (
-          <div key={item.id} className="flex gap-2 text-sm leading-5 text-[#53607D]">
+          <div key={item.id} className="flex gap-2 text-sm leading-5 text-[var(--br-text-muted)]">
             <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-[var(--br-success)]" /> {item.outcome}
           </div>
         ))}
@@ -342,7 +342,7 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
         <div>
           <p className="font-extrabold">BrenUp Learning Team</p>
           <p className="mt-1 text-sm leading-5 text-[var(--br-text-muted)]">Interactive English practice, progress tracking, and guided study paths.</p>
-          <p className="mt-2 text-sm font-bold text-[#FFB545]">★ 4.9 learner rating</p>
+          <p className="mt-2 text-sm font-bold text-[var(--br-achievement)]">★ 4.9 learner rating</p>
         </div>
       </div>
     </Panel>
@@ -351,7 +351,7 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
 
 
   const overviewContent = course.description ? (
-    <p className="whitespace-pre-line text-sm leading-6 text-[#53607D]">{course.description}</p>
+    <p className="whitespace-pre-line text-sm leading-6 text-[var(--br-text-muted)]">{course.description}</p>
   ) : null;
 
   const questionsContent = (faqs ?? []).length ? (
@@ -431,12 +431,12 @@ function CourseItemLink({ courseId, item, itemIndex, isComplete, unlocked }: { c
   return (
     <div className="flex min-w-0 flex-col gap-3 rounded-[14px] px-2 py-2 text-sm transition hover:bg-[var(--br-canvas-elevated)] sm:flex-row sm:items-center">
       <div className="flex min-w-0 flex-1 items-start gap-3">
-      <span className={`grid size-6 shrink-0 place-items-center rounded-full text-[11px] font-bold ${isComplete ? "bg-[var(--br-success)] text-white" : "bg-[#F1F3FA] text-[#8D94AA]"}`}>
+      <span className={`grid size-6 shrink-0 place-items-center rounded-full text-[11px] font-bold ${isComplete ? "bg-[var(--br-success)] text-white" : "bg-[#F1F3FA] text-[var(--br-text-muted)]"}`}>
         {isComplete ? <CheckCircle2 className="size-4" /> : itemIndex + 1}
       </span>
       <div className="min-w-0 flex-1">
         <p className="break-words font-semibold leading-snug">{label}</p>
-        <p className="mt-1 break-words text-xs text-[#8D94AA]">
+        <p className="mt-1 break-words text-xs text-[var(--br-text-muted)]">
           {item.item_type.replaceAll("_", " ")}{item.is_free_preview ? " · Free preview" : ""}{item.bypass_sequential_unlock ? " · Open access" : ""}
           {!published ? " · Not published yet" : ""}
         </p>
@@ -460,7 +460,7 @@ function CourseItemLink({ courseId, item, itemIndex, isComplete, unlocked }: { c
           ) : null}
         </div>
       ) : (
-        <span className="ml-9 inline-flex w-fit shrink-0 items-center gap-1 rounded-full bg-[var(--br-canvas-elevated)] px-2.5 py-1 text-xs font-bold text-[#8D94AA] sm:ml-0">
+        <span className="ml-9 inline-flex w-fit shrink-0 items-center gap-1 rounded-full bg-[var(--br-canvas-elevated)] px-2.5 py-1 text-xs font-bold text-[var(--br-text-muted)] sm:ml-0">
           <LockKeyhole className="size-3.5" /> Locked
         </span>
       )}
@@ -496,7 +496,7 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
 }
 
 function Meta({ icon: Icon, label, star }: { icon: React.ElementType; label: string; star?: boolean }) {
-  return <span className="inline-flex items-center gap-1.5"><Icon className={`size-4 ${star ? "fill-[#FFB545] text-[#FFB545]" : "text-[var(--br-text-muted)]"}`} /> {label}</span>;
+  return <span className="inline-flex items-center gap-1.5"><Icon className={`size-4 ${star ? "fill-[var(--br-achievement)] text-[var(--br-achievement)]" : "text-[var(--br-text-muted)]"}`} /> {label}</span>;
 }
 
 function Legend({ dot, label, value }: { dot: string; label: string; value: React.ReactNode }) {
@@ -504,7 +504,7 @@ function Legend({ dot, label, value }: { dot: string; label: string; value: Reac
     <div className="flex items-start gap-2 min-w-0">
       <span className="mt-1.5 size-2.5 shrink-0 rounded-full" style={{ backgroundColor: dot }} />
       <div className="min-w-0 flex-1">
-        <p className="font-bold text-[#35405F]">{label}</p>
+        <p className="font-bold text-[var(--br-text)]">{label}</p>
         <div className="min-w-0 break-words text-xs leading-5 text-[var(--br-text-muted)]">{value}</div>
       </div>
     </div>

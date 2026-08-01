@@ -42,7 +42,7 @@ export default async function StaffAccountPage() {
         <div className="grid gap-5">
           <section className="br-card rounded-20 p-5 sm:p-6">
             <div className="mb-5 flex items-center gap-3">
-              <span className="grid size-11 place-items-center rounded-[14px] bg-[#E7FBF4] text-[var(--br-chart-secondary)]">
+              <span className="grid size-11 place-items-center rounded-[14px] bg-[color-mix(in_srgb,var(--br-success)_12%,var(--br-surface))] text-[var(--br-chart-secondary)]">
                 <UserRound className="size-5" />
               </span>
               <div>

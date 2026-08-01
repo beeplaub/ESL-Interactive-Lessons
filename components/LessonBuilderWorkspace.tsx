@@ -1355,12 +1355,12 @@ const VERTICAL_ALIGN_OPTIONS = [
 ];
 
 const TABLE_FILL_PRESETS = [
-  { value: "#2563eb", label: "Moss blue" },
+  { value: "var(--br-info)", label: "Moss blue" },
   { value: "#111827", label: "Ink" },
   { value: "#06152f", label: "Midnight" },
   { value: "#7c3aed", label: "Violet glow" },
   { value: "#12b981", label: "Mint" },
-  { value: "#f97316", label: "Coral" },
+  { value: "var(--br-action)", label: "Coral" },
   { value: "#f59e0b", label: "Gold" },
 ];
 
@@ -1425,7 +1425,7 @@ function BlockFields({ blockType, content, lessonId }: { blockType: string; cont
       ? rows.map((row) => headers.map((_, index) => asString(Array.isArray(row) ? row[index] : "")))
       : [headers.map(() => ""), headers.map(() => "")];
   });
-  const [tableHeaderFill, setTableHeaderFill] = useState(() => asString(data.header_fill) || "#2563eb");
+  const [tableHeaderFill, setTableHeaderFill] = useState(() => asString(data.header_fill) || "var(--br-info)");
 
   if (blockType === "HEADING") {
     return (

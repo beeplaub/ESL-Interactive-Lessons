@@ -294,7 +294,7 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
       caption: nullableText(formData.get("caption")),
       headers,
       rows,
-      header_fill: hexColorValue(formData.get("header_fill"), "#2563eb")
+      header_fill: hexColorValue(formData.get("header_fill"), "var(--br-info)")
     };
   }
   return {};
@@ -345,7 +345,7 @@ function defaultBlockContent(blockType: string): Json {
     caption: null,
     headers: ["Column 1", "Column 2"],
     rows: [["", ""], ["", ""]],
-    header_fill: "#2563eb"
+    header_fill: "var(--br-info)"
   };
   return {};
 }

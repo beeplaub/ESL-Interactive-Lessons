@@ -49,7 +49,7 @@ export function BuyCourseButton({
     return (
       <button
         disabled
-        className="inline-flex items-center justify-center gap-2 rounded-[12px] bg-[#EBEBEF] cursor-not-allowed px-6 py-3 text-sm font-extrabold text-[#8D94AA]"
+        className="inline-flex items-center justify-center gap-2 rounded-[12px] bg-[#EBEBEF] cursor-not-allowed px-6 py-3 text-sm font-extrabold text-[var(--br-text-muted)]"
       >
         <Clock3 className="size-4" /> Under Review
       </button>
@@ -147,7 +147,7 @@ export function BuyCourseButton({
                   <CheckCircle className="size-7" />
                 </div>
                 <h3 className="text-lg font-bold text-slate-900">Payment Submitted!</h3>
-                <p className="mt-2 text-sm text-[#53607D] max-w-xs mx-auto leading-relaxed">
+                <p className="mt-2 text-sm text-[var(--br-text-muted)] max-w-xs mx-auto leading-relaxed">
                   We&apos;re reviewing your payment. You&apos;ll be enrolled automatically once confirmed.
                 </p>
                 <button

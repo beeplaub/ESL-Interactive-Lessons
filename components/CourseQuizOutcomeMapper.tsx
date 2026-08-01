@@ -45,7 +45,7 @@ export function CourseQuizOutcomeMapper({
                   key={question.id}
                   action={saveQuizQuestionCourseOutcomeMapping.bind(null, courseId, item.id, assessment.id)}
                   successMessage={`Question ${question.question_number} mapping saved.`}
-                  className="grid gap-2 rounded-lg bg-[#F8F8FC] p-2 sm:grid-cols-[minmax(180px,1fr)_minmax(180px,1fr)_90px_auto]"
+                  className="grid gap-2 rounded-lg bg-[var(--br-surface)] p-2 sm:grid-cols-[minmax(180px,1fr)_minmax(180px,1fr)_90px_auto]"
                 >
                   <p className="self-center text-sm font-semibold">Q{question.question_number}. {question.question_text}</p>
                   <select name="courseOutcomeId" defaultValue={mapping?.course_outcome_id ?? ""} className="min-w-0 rounded-lg border border-black/15 bg-white px-3 py-2 text-sm">

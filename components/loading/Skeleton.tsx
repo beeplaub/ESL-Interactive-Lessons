@@ -20,7 +20,7 @@ export function Bone({ className = "" }: { className?: string }) {
 
 export function HeroSkeleton({ className = "" }: { className?: string }) {
   return (
-    <div className={`overflow-hidden rounded-[24px] bg-gradient-to-br from-[#1A1060] via-[#0C1945] to-[#0E1F5A] p-5 sm:p-7 ${className}`}>
+    <div className={`overflow-hidden rounded-[24px] bg-gradient-to-br from-[var(--br-brand-strong)] via-[var(--br-dark-card)] to-[var(--br-dark-card)] p-5 sm:p-7 ${className}`}>
       <div className="animate-pulse space-y-3">
         <div className="h-5 w-32 rounded-full bg-white/10" />
         <div className="h-7 w-2/3 max-w-md rounded-lg bg-white/10" />
@@ -36,9 +36,9 @@ export function CardGridSkeleton({ count = 3, className = "" }: { count?: number
     <div className={`grid gap-4 sm:grid-cols-2 lg:grid-cols-3 ${className}`}>
       {Array.from({ length: count }).map((_, i) => (
         <div key={i} className="animate-pulse rounded-[18px] border border-[var(--br-surface-strong)] bg-white p-5">
-          <div className="h-28 rounded-[14px] bg-[#F0F1F7]" />
-          <div className="mt-4 h-4 w-3/4 rounded bg-[#F0F1F7]" />
-          <div className="mt-2 h-3 w-1/2 rounded bg-[#F0F1F7]" />
+          <div className="h-28 rounded-[14px] bg-[var(--br-surface-muted)]" />
+          <div className="mt-4 h-4 w-3/4 rounded bg-[var(--br-surface-muted)]" />
+          <div className="mt-2 h-3 w-1/2 rounded bg-[var(--br-surface-muted)]" />
         </div>
       ))}
     </div>
@@ -50,10 +50,10 @@ export function CardListSkeleton({ count = 4, className = "" }: { count?: number
     <div className={`grid gap-3 ${className}`}>
       {Array.from({ length: count }).map((_, i) => (
         <div key={i} className="flex animate-pulse items-center gap-4 rounded-[16px] border border-[var(--br-surface-strong)] bg-white p-4">
-          <div className="size-11 shrink-0 rounded-xl bg-[#F0F1F7]" />
+          <div className="size-11 shrink-0 rounded-xl bg-[var(--br-surface-muted)]" />
           <div className="min-w-0 flex-1 space-y-2">
-            <div className="h-3.5 w-1/3 rounded bg-[#F0F1F7]" />
-            <div className="h-3 w-1/2 rounded bg-[#F0F1F7]" />
+            <div className="h-3.5 w-1/3 rounded bg-[var(--br-surface-muted)]" />
+            <div className="h-3 w-1/2 rounded bg-[var(--br-surface-muted)]" />
           </div>
         </div>
       ))}
@@ -64,10 +64,10 @@ export function CardListSkeleton({ count = 4, className = "" }: { count?: number
 export function PanelSkeleton({ className = "" }: { className?: string }) {
   return (
     <div className={`animate-pulse rounded-[20px] border border-[var(--br-surface-strong)] bg-white p-5 ${className}`}>
-      <div className="h-4 w-1/3 rounded bg-[#F0F1F7]" />
-      <div className="mt-4 h-3 w-full rounded bg-[#F0F1F7]" />
-      <div className="mt-2 h-3 w-5/6 rounded bg-[#F0F1F7]" />
-      <div className="mt-2 h-3 w-2/3 rounded bg-[#F0F1F7]" />
+      <div className="h-4 w-1/3 rounded bg-[var(--br-surface-muted)]" />
+      <div className="mt-4 h-3 w-full rounded bg-[var(--br-surface-muted)]" />
+      <div className="mt-2 h-3 w-5/6 rounded bg-[var(--br-surface-muted)]" />
+      <div className="mt-2 h-3 w-2/3 rounded bg-[var(--br-surface-muted)]" />
     </div>
   );
 }

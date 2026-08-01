@@ -34,7 +34,7 @@ export function AvatarUploader({ initialUrl, initials }: { initialUrl: string | 
         {isPending ? "Uploading..." : "Upload photo"}
         <input type="file" accept="image/*" className="sr-only" onChange={(event) => event.target.files?.[0] && upload(event.target.files[0])} />
       </label>
-      {message ? <p className="mt-3 rounded-[12px] bg-[#FFF0F2] px-3 py-2 text-sm font-semibold text-[#D9324A]">{message}</p> : null}
+      {message ? <p className="mt-3 rounded-[12px] bg-[#FFF0F2] px-3 py-2 text-sm font-semibold text-[var(--br-danger)]">{message}</p> : null}
     </div>
   );
 }

@@ -4,7 +4,7 @@ export default function Loading() {
   return (
     <LearnerShellSkeleton showRightSidebar>
       <div className="flex flex-col gap-4">
-        <div className="rounded-[24px] bg-gradient-to-br from-[#1A1060] via-[#0C1945] to-[#0E1F5A] p-5 sm:p-7">
+        <div className="rounded-[24px] bg-gradient-to-br from-[var(--br-brand-strong)] via-[var(--br-dark-card)] to-[var(--br-dark-card)] p-5 sm:p-7">
           <div className="animate-pulse space-y-3">
             <Bone className="h-5 w-28 bg-white/10" />
             <Bone className="h-7 w-1/2 bg-white/10" />

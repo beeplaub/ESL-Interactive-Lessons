@@ -88,9 +88,9 @@ export function AdminSidebar({
   // ── Mobile top bar (original stacked layout) ──
   if (mobileTop) {
     return (
-      <div className="rounded-lg border border-black/10 bg-white p-3 shadow-sm">
-        <div className="border-b border-black/10 pb-3">
-          <p className="text-xs uppercase tracking-wide text-black/50">Admin</p>
+      <div className="rounded-lg border border-[var(--br-border)] bg-[var(--br-surface)] p-3 shadow-[var(--br-shadow)]">
+        <div className="border-b border-[var(--br-border)] pb-3">
+          <p className="text-xs uppercase tracking-wide text-[var(--br-text-muted)]">Admin</p>
           <p className="mt-1 truncate font-semibold">{name ?? "BrenUp"}</p>
         </div>
         <nav className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -102,7 +102,7 @@ export function AdminSidebar({
                 key={href}
                 href={href}
                 className={`inline-flex min-w-0 items-center gap-2 rounded-md px-3 py-2 text-sm
-                  ${isActive ? "bg-violetglow/10 font-semibold text-violetglow" : "hover:bg-black/5"}`}
+                  ${isActive ? "bg-[var(--br-surface-muted)] font-semibold text-[var(--br-brand)]" : "hover:bg-[var(--br-surface-muted)]"}`}
               >
                 <Icon size={16} /> {label}
               </Link>
@@ -110,19 +110,19 @@ export function AdminSidebar({
           })}
         </nav>
         <form action={switchToLearnerView} className="mt-3">
-          <button className="inline-flex w-full items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900 hover:bg-amber-100">
+          <button className="inline-flex w-full items-center gap-2 rounded-md border border-[var(--br-warning)]/30 bg-[var(--br-surface-muted)] px-3 py-2 text-sm font-medium text-[var(--br-text)] hover:bg-[var(--br-surface-strong)]">
             Switch to Learner View
           </button>
         </form>
         <Link
           href="/admin/account"
           className={`mt-2 inline-flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm
-            ${pathname.startsWith("/admin/account") ? "bg-violetglow/10 font-semibold text-violetglow" : "text-black/60 hover:bg-black/5"}`}
+            ${pathname.startsWith("/admin/account") ? "bg-[var(--br-surface-muted)] font-semibold text-[var(--br-brand)]" : "text-[var(--br-text-muted)] hover:bg-[var(--br-surface-muted)]"}`}
         >
           <Settings size={16} /> Account settings
         </Link>
         <form action={signOut} className="mt-2">
-          <button className="inline-flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-black/60 hover:bg-black/5">
+          <button className="inline-flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-[var(--br-text-muted)] hover:bg-[var(--br-surface-muted)]">
             <LogOut size={16} /> Sign out
           </button>
         </form>
@@ -144,25 +144,25 @@ export function AdminSidebar({
         type="button"
         onClick={toggle}
         aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-        className={`absolute -right-3 top-5 z-10 flex size-6 items-center justify-center rounded-full border border-black/10 bg-white shadow-sm hover:bg-black/5 ${transitionClass}`}
+        className={`absolute -right-3 top-5 z-10 flex size-6 items-center justify-center rounded-full border border-[var(--br-border)] bg-[var(--br-surface)] shadow-sm hover:bg-[var(--br-surface-muted)] ${transitionClass}`}
       >
         <ChevronLeft
           size={14}
-          className={`text-black/50 transition-transform duration-300 ${collapsed ? "rotate-180" : ""}`}
+          className={`text-[var(--br-text-muted)] transition-transform duration-300 ${collapsed ? "rotate-180" : ""}`}
         />
       </button>
 
       {/* Header */}
-      <div className={`border-b border-black/10 p-3 ${collapsed ? "px-2" : ""}`}>
+      <div className={`border-b border-[var(--br-border)] p-3 ${collapsed ? "px-2" : ""}`}>
         {collapsed ? (
           <div className="flex justify-center py-1">
-            <span className="flex size-7 items-center justify-center rounded-full bg-violetglow text-xs font-bold text-white">
+            <span className="flex size-7 items-center justify-center rounded-full bg-[var(--br-brand)] text-xs font-bold text-[var(--br-text-on-dark)]">
               {(name ?? "B")[0].toUpperCase()}
             </span>
           </div>
         ) : (
           <>
-            <p className="text-xs uppercase tracking-wide text-black/50">Admin</p>
+            <p className="text-xs uppercase tracking-wide text-[var(--br-text-muted)]">Admin</p>
             <p className="mt-1 truncate font-semibold">{name ?? "BrenUp"}</p>
           </>
         )}
@@ -179,7 +179,7 @@ export function AdminSidebar({
               href={href}
               title={collapsed ? label : undefined}
               className={`flex min-w-0 items-center gap-2 rounded-md px-2 py-2 text-sm
-                ${isActive ? "bg-violetglow/10 font-semibold text-violetglow" : "text-black/70 hover:bg-black/5"}
+                ${isActive ? "bg-[var(--br-surface-muted)] font-semibold text-[var(--br-brand)]" : "text-[var(--br-text-muted)] hover:bg-[var(--br-surface-muted)]"}
                 ${collapsed ? "justify-center" : ""}
               `}
             >
@@ -195,14 +195,14 @@ export function AdminSidebar({
         <form action={switchToLearnerView} className="mt-4 px-1">
           <button
             title="Switch to Learner View"
-            className="flex w-full items-center justify-center rounded-md border border-amber-200 bg-amber-50 p-2 text-amber-900 hover:bg-amber-100"
+            className="flex w-full items-center justify-center rounded-md border border-[var(--br-warning)]/30 bg-[var(--br-surface-muted)] p-2 text-[var(--br-text)] hover:bg-[var(--br-surface-strong)]"
           >
             <UsersRound size={16} />
           </button>
         </form>
       ) : (
         <form action={switchToLearnerView} className="mt-4 px-2">
-          <button className="inline-flex w-full items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900 hover:bg-amber-100">
+          <button className="inline-flex w-full items-center gap-2 rounded-md border border-[var(--br-warning)]/30 bg-[var(--br-surface-muted)] px-3 py-2 text-sm font-medium text-[var(--br-text)] hover:bg-[var(--br-surface-strong)]">
             Switch to Learner View
           </button>
         </form>
@@ -214,7 +214,7 @@ export function AdminSidebar({
           href="/admin/account"
           title={collapsed ? "Account settings" : undefined}
           className={`mb-1 flex w-full items-center gap-2 rounded-md px-2 py-2 text-sm
-            ${pathname.startsWith("/admin/account") ? "bg-violetglow/10 font-semibold text-violetglow" : "text-black/70 hover:bg-black/5"}
+            ${pathname.startsWith("/admin/account") ? "bg-[var(--br-surface-muted)] font-semibold text-[var(--br-brand)]" : "text-[var(--br-text-muted)] hover:bg-[var(--br-surface-muted)]"}
             ${collapsed ? "justify-center" : ""}
           `}
         >
@@ -225,12 +225,12 @@ export function AdminSidebar({
           {collapsed ? (
             <button
               title="Sign out"
-              className="flex w-full items-center justify-center rounded-md p-2 text-black/50 hover:bg-black/5"
+              className="flex w-full items-center justify-center rounded-md p-2 text-[var(--br-text-muted)] hover:bg-[var(--br-surface-muted)]"
             >
               <LogOut size={16} />
             </button>
           ) : (
-            <button className="inline-flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-black/60 hover:bg-black/5">
+            <button className="inline-flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-[var(--br-text-muted)] hover:bg-[var(--br-surface-muted)]">
               <LogOut size={16} /> Sign out
             </button>
           )}

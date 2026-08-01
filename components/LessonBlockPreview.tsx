@@ -54,7 +54,7 @@ function contrastRatio(l1: number, l2: number) {
 }
 
 function readableTextColor(hex: unknown) {
-  const value = /^#[0-9a-fA-F]{6}$/.test(asString(hex)) ? asString(hex) : "#2563eb";
+  const value = /^#[0-9a-fA-F]{6}$/.test(asString(hex)) ? asString(hex) : "var(--br-info)";
   const backgroundLuminance = relativeLuminance(value);
   const whiteContrast = contrastRatio(backgroundLuminance, 1);
   const inkContrast = contrastRatio(backgroundLuminance, relativeLuminance("#111827"));
@@ -411,7 +411,7 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
 function TableBlock({ content }: { content: Record<string, unknown> }) {
   const headers = asArray(content.headers).map((header) => asString(header));
   const rows = asArray(content.rows).map((row) => asArray(row).map((cell) => asString(cell)));
-  const fill = /^#[0-9a-fA-F]{6}$/.test(asString(content.header_fill)) ? asString(content.header_fill) : "#2563eb";
+  const fill = /^#[0-9a-fA-F]{6}$/.test(asString(content.header_fill)) ? asString(content.header_fill) : "var(--br-info)";
   const textColor = readableTextColor(fill);
   const caption = asString(content.caption);
 

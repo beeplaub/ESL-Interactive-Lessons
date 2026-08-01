@@ -149,7 +149,7 @@ export default async function LeaderboardPage({ searchParams }: { searchParams?:
               <Users className="size-6 text-[#5308e7]" />
             </div>
             <div>
-              <h4 className="text-3xl font-black text-[#1c1a25]">{leaders.length}</h4>
+              <h4 className="text-3xl font-black text-[var(--br-text)]">{leaders.length}</h4>
               <p className="text-sm font-semibold text-[var(--br-text-muted)]">Ranked players</p>
             </div>
           </div>
@@ -158,7 +158,7 @@ export default async function LeaderboardPage({ searchParams }: { searchParams?:
               <Zap className="size-6 text-[#873600]" />
             </div>
             <div>
-              <h4 className="text-3xl font-black text-[#1c1a25]">{totalPoints.toLocaleString()}</h4>
+              <h4 className="text-3xl font-black text-[var(--br-text)]">{totalPoints.toLocaleString()}</h4>
               <p className="text-sm font-semibold text-[var(--br-text-muted)]">Points tracked</p>
             </div>
           </div>
@@ -167,7 +167,7 @@ export default async function LeaderboardPage({ searchParams }: { searchParams?:
               <Award className="size-6 text-emerald-500" />
             </div>
             <div>
-              <h4 className="text-3xl font-black text-[#1c1a25]">{topBadge.name}</h4>
+              <h4 className="text-3xl font-black text-[var(--br-text)]">{topBadge.name}</h4>
               <p className="text-sm font-semibold text-[var(--br-text-muted)]">Top badge energy</p>
             </div>
           </div>
@@ -203,7 +203,7 @@ export default async function LeaderboardPage({ searchParams }: { searchParams?:
 
                       <div className="relative mb-4 mt-2">
                         {isFirst && <div className="absolute -inset-4 bg-yellow-400/10 rounded-full blur-xl animate-pulse" />}
-                        <div className={`relative z-10 ${isFirst ? "w-24 h-24" : "w-16 h-16"} rounded-full bg-gradient-to-br from-[var(--br-chart-primary)] to-[#4E8DFF] border-4 ${isFirst ? "border-yellow-400" : "border-slate-100"} flex items-center justify-center text-white text-xl font-black shadow-md`}>
+                        <div className={`relative z-10 ${isFirst ? "w-24 h-24" : "w-16 h-16"} rounded-full bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-info)] border-4 ${isFirst ? "border-yellow-400" : "border-slate-100"} flex items-center justify-center text-white text-xl font-black shadow-md`}>
                           {leader.initials}
                         </div>
                         <div className={`absolute -bottom-1 -right-1 ${rankColors.iconBg} w-8 h-8 rounded-xl border-4 border-white flex items-center justify-center text-[10px] font-black text-white shadow-md z-20`}>
@@ -211,11 +211,11 @@ export default async function LeaderboardPage({ searchParams }: { searchParams?:
                         </div>
                       </div>
 
-                      <h4 className="font-bold text-lg text-[#1c1a25] mb-1">{leader.name}</h4>
+                      <h4 className="font-bold text-lg text-[var(--br-text)] mb-1">{leader.name}</h4>
                       <p className="text-xs font-semibold text-[var(--br-text-muted)] mb-4">{leader.quizzes.size} quiz{leader.quizzes.size === 1 ? "" : "zes"} · {leader.attempts} attempt{leader.attempts === 1 ? "" : "s"}</p>
 
                       <div className={`${isFirst ? "bg-yellow-400/10" : "bg-[var(--br-canvas-elevated)]"} w-full rounded-2xl py-3 px-4`}>
-                        <p className="text-2xl font-black text-[#1c1a25]">{leader.points.toLocaleString()}</p>
+                        <p className="text-2xl font-black text-[var(--br-text)]">{leader.points.toLocaleString()}</p>
                         <p className={`text-[10px] uppercase font-bold tracking-widest mt-0.5 ${isFirst ? "text-amber-800" : "text-[var(--br-text-muted)]"}`}>Points · {badge.name}</p>
                       </div>
                     </div>
@@ -227,10 +227,10 @@ export default async function LeaderboardPage({ searchParams }: { searchParams?:
             {/* RANKING TABLE */}
             <div className="bg-white rounded-[32px] shadow-sm border border-[var(--br-surface-strong)]/60 overflow-hidden">
               <div className="px-6 py-5 border-b border-[var(--br-surface-strong)]/40 flex justify-between items-center">
-                <h3 className="text-xl font-black text-[#1c1a25]">Full Ranking</h3>
+                <h3 className="text-xl font-black text-[var(--br-text)]">Full Ranking</h3>
                 <div className="flex bg-[var(--br-canvas-elevated)] p-1 rounded-xl">
-                  <Link href="/leaderboard" className={`px-5 py-1.5 rounded-lg text-xs font-bold ${range === "all" ? "bg-white shadow-sm text-[#5308e7]" : "text-[var(--br-text-muted)] hover:text-[#1c1a25]"}`}>All Time</Link>
-                  <Link href="/leaderboard?range=monthly" className={`px-5 py-1.5 rounded-lg text-xs font-bold ${range === "monthly" ? "bg-white shadow-sm text-[#5308e7]" : "text-[var(--br-text-muted)] hover:text-[#1c1a25]"}`}>Monthly</Link>
+                  <Link href="/leaderboard" className={`px-5 py-1.5 rounded-lg text-xs font-bold ${range === "all" ? "bg-white shadow-sm text-[#5308e7]" : "text-[var(--br-text-muted)] hover:text-[var(--br-text)]"}`}>All Time</Link>
+                  <Link href="/leaderboard?range=monthly" className={`px-5 py-1.5 rounded-lg text-xs font-bold ${range === "monthly" ? "bg-white shadow-sm text-[#5308e7]" : "text-[var(--br-text-muted)] hover:text-[var(--br-text)]"}`}>Monthly</Link>
                 </div>
               </div>
               <div className="overflow-x-auto">
@@ -257,11 +257,11 @@ export default async function LeaderboardPage({ searchParams }: { searchParams?:
                           </td>
                           <td className="px-6 py-5">
                             <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[var(--br-chart-primary)] to-[#4E8DFF] text-white font-black flex items-center justify-center text-sm border-2 border-white shadow-sm shrink-0">
+                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-info)] text-white font-black flex items-center justify-center text-sm border-2 border-white shadow-sm shrink-0">
                                 {leader.initials}
                               </div>
                               <div className="min-w-0">
-                                <p className="font-bold text-[#1c1a25] truncate">{leader.name}</p>
+                                <p className="font-bold text-[var(--br-text)] truncate">{leader.name}</p>
                                 <p className="text-[10px] text-[var(--br-text-muted)] uppercase tracking-tighter mt-0.5">{leader.attempts} attempt{leader.attempts === 1 ? "" : "s"}</p>
                               </div>
                             </div>
@@ -273,7 +273,7 @@ export default async function LeaderboardPage({ searchParams }: { searchParams?:
                             </div>
                           </td>
                           <td className="px-6 py-5">
-                            <span className="font-black text-[#1c1a25] text-lg">{leader.points.toLocaleString()}</span>
+                            <span className="font-black text-[var(--br-text)] text-lg">{leader.points.toLocaleString()}</span>
                           </td>
                           <td className="px-6 py-5 text-center text-[var(--br-text-muted)] font-bold">
                             {leader.quizzes.size}
@@ -285,7 +285,7 @@ export default async function LeaderboardPage({ searchParams }: { searchParams?:
                       <tr>
                         <td colSpan={5} className="p-10 text-center">
                           <Trophy className="mx-auto text-[#5308e7]/30 mb-4" size={40} />
-                          <h2 className="text-lg font-black text-[#1c1a25]">No quiz scores yet</h2>
+                          <h2 className="text-lg font-black text-[var(--br-text)]">No quiz scores yet</h2>
                           <p className="text-sm text-[var(--br-text-muted)] mt-1">Complete a quiz to claim the first rank.</p>
                           <Link href="/quizzes" className="mt-4 inline-flex rounded-xl bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] px-5 py-2 text-sm font-bold text-white shadow-md">Play a quiz</Link>
                         </td>
@@ -303,7 +303,7 @@ export default async function LeaderboardPage({ searchParams }: { searchParams?:
             <div className="bg-white p-6 rounded-3xl shadow-sm border border-[var(--br-surface-strong)]/60 relative overflow-hidden group">
               <div className="flex justify-between items-start mb-6">
                 <div>
-                  <h4 className="font-bold text-base text-[#1c1a25]">Your Streak</h4>
+                  <h4 className="font-bold text-base text-[var(--br-text)]">Your Streak</h4>
                   <p className="text-4xl font-black text-orange-500 mt-1">{userStreak} days</p>
                   <p className="text-xs text-[var(--br-text-muted)] mt-1">{userStreak > 0 ? "Keep the fire burning!" : "Start today!"}</p>
                 </div>
@@ -327,7 +327,7 @@ export default async function LeaderboardPage({ searchParams }: { searchParams?:
             <div className="bg-white p-6 rounded-3xl shadow-sm border border-[var(--br-surface-strong)]/60">
               <div className="flex items-center justify-between mb-6">
                 <div>
-                  <h4 className="font-bold text-base text-[#1c1a25]">Your Progress</h4>
+                  <h4 className="font-bold text-base text-[var(--br-text)]">Your Progress</h4>
                   <p className="text-xs text-[var(--br-text-muted)] mt-0.5">Across enrolled courses</p>
                 </div>
                 <div className="relative w-16 h-16 shrink-0">
@@ -335,30 +335,30 @@ export default async function LeaderboardPage({ searchParams }: { searchParams?:
                     <circle className="text-[var(--br-canvas-elevated)]" cx="32" cy="32" fill="transparent" r="28" stroke="currentColor" strokeWidth="5"></circle>
                     <circle className="text-emerald-500" cx="32" cy="32" fill="transparent" r="28" stroke="currentColor" stroke-dasharray="176" stroke-dashoffset={176 - (176 * progressPercent) / 100} strokeLinecap="round" strokeWidth="5"></circle>
                   </svg>
-                  <div className="absolute inset-0 flex items-center justify-center text-xs font-black text-[#1c1a25]">{progressPercent}%</div>
+                  <div className="absolute inset-0 flex items-center justify-center text-xs font-black text-[var(--br-text)]">{progressPercent}%</div>
                 </div>
               </div>
               <ul className="space-y-3.5">
                 <li className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-                    <span className="text-sm font-bold text-[#35405F]">Completed</span>
+                    <span className="text-sm font-bold text-[var(--br-text)]">Completed</span>
                   </div>
-                  <span className="text-xs font-black text-[#1c1a25]">{completedCourses} course{completedCourses === 1 ? "" : "s"}</span>
+                  <span className="text-xs font-black text-[var(--br-text)]">{completedCourses} course{completedCourses === 1 ? "" : "s"}</span>
                 </li>
                 <li className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
-                    <span className="text-sm font-bold text-[#35405F]">In progress</span>
+                    <span className="text-sm font-bold text-[var(--br-text)]">In progress</span>
                   </div>
-                  <span className="text-xs font-black text-[#1c1a25]">{inProgressCourses} course{inProgressCourses === 1 ? "" : "s"}</span>
+                  <span className="text-xs font-black text-[var(--br-text)]">{inProgressCourses} course{inProgressCourses === 1 ? "" : "s"}</span>
                 </li>
                 <li className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-2.5 h-2.5 rounded-full bg-slate-300" />
-                    <span className="text-sm font-bold text-[#35405F]">Not started</span>
+                    <span className="text-sm font-bold text-[var(--br-text)]">Not started</span>
                   </div>
-                  <span className="text-xs font-black text-[#1c1a25]">{notStartedCourses} course{notStartedCourses === 1 ? "" : "s"}</span>
+                  <span className="text-xs font-black text-[var(--br-text)]">{notStartedCourses} course{notStartedCourses === 1 ? "" : "s"}</span>
                 </li>
               </ul>
             </div>
@@ -366,7 +366,7 @@ export default async function LeaderboardPage({ searchParams }: { searchParams?:
             {/* ACHIEVEMENTS */}
             <div className="bg-white p-6 rounded-3xl shadow-sm border border-[var(--br-surface-strong)]/60">
               <div className="flex justify-between items-center mb-6">
-                <h4 className="font-bold text-base text-[#1c1a25]">Achievements</h4>
+                <h4 className="font-bold text-base text-[var(--br-text)]">Achievements</h4>
                 <Link className="text-[#5308e7] text-xs font-bold hover:underline transition-all" href="/leaderboard">View all</Link>
               </div>
               <div className="grid grid-cols-4 gap-3">
@@ -377,7 +377,7 @@ export default async function LeaderboardPage({ searchParams }: { searchParams?:
                   <span className="text-[8px] font-extrabold text-center uppercase tracking-tighter text-[var(--br-text-muted)]">Quiz Master</span>
                 </div>
                 <div className="flex flex-col items-center">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#FFB545] to-[#FF6B00] text-white flex items-center justify-center shadow-md mb-2 transition-transform hover:scale-110 cursor-help" title="Streak Beast: maintain daily quiz attempts">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[var(--br-achievement)] to-[#FF6B00] text-white flex items-center justify-center shadow-md mb-2 transition-transform hover:scale-110 cursor-help" title="Streak Beast: maintain daily quiz attempts">
                     <Flame className="size-5 fill-white" />
                   </div>
                   <span className="text-[8px] font-extrabold text-center uppercase tracking-tighter text-[var(--br-text-muted)]">Streak Beast</span>
@@ -400,7 +400,7 @@ export default async function LeaderboardPage({ searchParams }: { searchParams?:
             {/* QUIZ BADGE NEXT STEP */}
             <div className="bg-[#fdf8ff] p-5 rounded-3xl border border-[var(--br-surface-strong)]/60 flex items-center justify-between gap-4">
               <div>
-                <h4 className="font-bold text-sm text-[#1c1a25]">Next Rank</h4>
+                <h4 className="font-bold text-sm text-[var(--br-text)]">Next Rank</h4>
                 {nextBadge ? (
                   <p className="text-xs text-[var(--br-text-muted)] mt-1">
                     {Math.max(0, (nextBadge?.minPoints ?? 0) - currentUserPoints).toLocaleString()} points to <span className="text-yellow-600 font-bold">{nextBadge?.name ?? "your next badge"}</span>
@@ -420,7 +420,7 @@ export default async function LeaderboardPage({ searchParams }: { searchParams?:
         <section className="bg-white rounded-[32px] p-6 md:p-8 shadow-sm border border-[var(--br-surface-strong)]/60">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
             <div>
-              <h3 className="text-xl font-black text-[#1c1a25] mb-1">Badge ladder</h3>
+              <h3 className="text-xl font-black text-[var(--br-text)] mb-1">Badge ladder</h3>
               <p className="text-[var(--br-text-muted)] text-sm">Points unlock quiz ranks automatically. Reach for the Legend status.</p>
             </div>
             <div className="bg-[var(--br-chart-primary)]/10 px-5 py-1.5 rounded-full text-xs font-bold text-[#5308e7] border border-[var(--br-chart-primary)]/20">10 rank levels</div>
@@ -446,7 +446,7 @@ export default async function LeaderboardPage({ searchParams }: { searchParams?:
                     {badge.icon}
                   </div>
                   <div>
-                    <h5 className="font-extrabold text-[#1c1a25] text-sm">{badge.name}</h5>
+                    <h5 className="font-extrabold text-[var(--br-text)] text-sm">{badge.name}</h5>
                     <p className="text-[11px] font-bold text-[var(--br-text-muted)] mt-0.5">{badge.minPoints.toLocaleString()}+ pts</p>
                   </div>
                 </div>

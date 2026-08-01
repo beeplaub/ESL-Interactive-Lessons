@@ -2,7 +2,7 @@
 
 import confetti from "canvas-confetti";
 
-const BRAND_COLORS = ["var(--br-chart-primary)", "var(--br-brand)", "#3CCEFF", "#FFB545", "var(--br-success)"];
+const BRAND_COLORS = ["var(--br-chart-primary)", "var(--br-brand)", "#3CCEFF", "var(--br-achievement)", "var(--br-success)"];
 
 /**
  * Minimum score (as a fraction of total points, e.g. 0.8 = 80%) required to trigger the

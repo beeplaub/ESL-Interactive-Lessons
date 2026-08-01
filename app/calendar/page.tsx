@@ -26,7 +26,7 @@ export default async function CalendarPage() {
   for (const entry of entries) { const key = new Date(entry.dueAt).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" }); groups.set(key, [...(groups.get(key) ?? []), entry]); }
   return (
     <LearnerAppShell active="calendar">
-      <section className="rounded-[22px] bg-gradient-to-br from-[#1A1060] via-[#0C1945] to-[#0E1F5A] p-5 text-white shadow-[0_16px_48px_rgba(20,23,80,.2)]">
+      <section className="rounded-[22px] bg-gradient-to-br from-[var(--br-brand-strong)] via-[var(--br-dark-card)] to-[var(--br-dark-card)] p-5 text-white shadow-[0_16px_48px_rgba(20,23,80,.2)]">
         <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[.16em] text-white/60"><CalendarDays size={16} />Learning calendar</p>
         <h1 className="mt-2 text-2xl font-extrabold">What&apos;s coming up</h1>
         <p className="mt-2 text-sm text-white/70">Every course assignment and practice task with a due date, in one calm timeline.</p>
@@ -38,7 +38,7 @@ export default async function CalendarPage() {
             <div className="grid gap-3 md:grid-cols-2">
               {rows.map((entry) => (
                 <Link key={entry.id} href={entry.href} className="flex items-center gap-3 rounded-[16px] border border-[var(--br-border)] p-3 hover:bg-[var(--br-surface-muted)]">
-                  <span className={`grid size-10 place-items-center rounded-xl ${entry.kind === "TASK" ? "bg-[#E7FBF4] text-[var(--br-chart-secondary)]" : "bg-[#F0EDFF] text-[var(--br-brand)]"}`}><ClipboardList size={18} /></span>
+                  <span className={`grid size-10 place-items-center rounded-xl ${entry.kind === "TASK" ? "bg-[color-mix(in_srgb,var(--br-success)_12%,var(--br-surface))] text-[var(--br-chart-secondary)]" : "bg-[#F0EDFF] text-[var(--br-brand)]"}`}><ClipboardList size={18} /></span>
                   <span className="min-w-0 flex-1"><span className="block font-extrabold">{entry.title}</span><span className="mt-1 block text-xs font-semibold text-[var(--br-text-muted)]">{entry.kind === "TASK" ? "Practice task" : "Course assignment"}{entry.className ? ` · ${entry.className}` : ""} · {new Date(entry.dueAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span></span>
                   <ChevronRight size={17} className="text-[var(--br-text-muted)]" />
                 </Link>

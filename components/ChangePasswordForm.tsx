@@ -81,7 +81,7 @@ export function ChangePasswordForm() {
   return (
     <div className="mt-5 grid gap-4">
       {/* Current password */}
-      <label className="block text-sm font-extrabold text-[#35405F]">
+      <label className="block text-sm font-extrabold text-[var(--br-text)]">
         Current password
         <div className="relative mt-1">
           <input
@@ -89,7 +89,7 @@ export function ChangePasswordForm() {
             value={current}
             onChange={(e) => setCurrent(e.target.value)}
             autoComplete="current-password"
-            className="w-full rounded-[14px] border border-[var(--br-surface-strong)] bg-[#F8F8FC] px-4 py-3 pr-11 font-semibold outline-none transition focus:border-[var(--br-chart-primary)] focus:bg-white"
+            className="w-full rounded-[14px] border border-[var(--br-surface-strong)] bg-[var(--br-surface)] px-4 py-3 pr-11 font-semibold outline-none transition focus:border-[var(--br-chart-primary)] focus:bg-white"
           />
           <button type="button" onClick={() => setShowCur((v) => !v)}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--br-text-muted)] hover:text-[var(--br-dark-card)]"
@@ -100,7 +100,7 @@ export function ChangePasswordForm() {
       </label>
 
       {/* New password */}
-      <label className="block text-sm font-extrabold text-[#35405F]">
+      <label className="block text-sm font-extrabold text-[var(--br-text)]">
         New password
         <div className="relative mt-1">
           <input
@@ -109,7 +109,7 @@ export function ChangePasswordForm() {
             onChange={(e) => setNext(e.target.value)}
             autoComplete="new-password"
             placeholder="At least 8 characters"
-            className="w-full rounded-[14px] border border-[var(--br-surface-strong)] bg-[#F8F8FC] px-4 py-3 pr-11 font-semibold outline-none transition focus:border-[var(--br-chart-primary)] focus:bg-white"
+            className="w-full rounded-[14px] border border-[var(--br-surface-strong)] bg-[var(--br-surface)] px-4 py-3 pr-11 font-semibold outline-none transition focus:border-[var(--br-chart-primary)] focus:bg-white"
           />
           <button type="button" onClick={() => setShowNew((v) => !v)}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--br-text-muted)] hover:text-[var(--br-dark-card)]"
@@ -121,14 +121,14 @@ export function ChangePasswordForm() {
       </label>
 
       {/* Confirm new password */}
-      <label className="block text-sm font-extrabold text-[#35405F]">
+      <label className="block text-sm font-extrabold text-[var(--br-text)]">
         Confirm new password
         <input
           type={showNew ? "text" : "password"}
           value={confirm}
           onChange={(e) => setConfirm(e.target.value)}
           autoComplete="new-password"
-          className="mt-1 w-full rounded-[14px] border border-[var(--br-surface-strong)] bg-[#F8F8FC] px-4 py-3 font-semibold outline-none transition focus:border-[var(--br-chart-primary)] focus:bg-white"
+          className="mt-1 w-full rounded-[14px] border border-[var(--br-surface-strong)] bg-[var(--br-surface)] px-4 py-3 font-semibold outline-none transition focus:border-[var(--br-chart-primary)] focus:bg-white"
         />
       </label>
 
@@ -143,7 +143,7 @@ export function ChangePasswordForm() {
 
       {message ? (
         <p className={`rounded-[14px] p-3 text-sm font-extrabold ${
-          status === "success" ? "bg-[#E7FBF4] text-[var(--br-chart-secondary)]" : "bg-[#FFF0F2] text-[#D9324A]"
+          status === "success" ? "bg-[color-mix(in_srgb,var(--br-success)_12%,var(--br-surface))] text-[var(--br-chart-secondary)]" : "bg-[#FFF0F2] text-[var(--br-danger)]"
         }`}>
           {message}
         </p>

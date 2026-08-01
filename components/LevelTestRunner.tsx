@@ -110,10 +110,10 @@ export function LevelTestRunner({
               <p className="mt-0.5 text-[11px] font-bold text-[var(--br-text-muted)]">Question {activeIndex + 1} of {questions.length} · {answeredCount} answered</p>
             </div>
             {secondsLeft !== null ? (
-              <div className={`inline-flex shrink-0 items-center gap-2 rounded-[12px] px-3 py-2 text-sm font-black ${urgent ? "bg-red-50 text-red-600" : "bg-[#EEEAFB] text-[var(--br-chart-primary)]"}`}>
+              <div className={`inline-flex shrink-0 items-center gap-2 rounded-[12px] px-3 py-2 text-sm font-black ${urgent ? "bg-red-50 text-red-600" : "bg-[var(--br-surface-muted)] text-[var(--br-chart-primary)]"}`}>
                 <Clock3 className="size-4" /> {String(minutes).padStart(2, "0")}:{String(seconds).padStart(2, "0")}
               </div>
-            ) : <span className="rounded-full bg-[#E7FBF4] px-3 py-1.5 text-xs font-bold text-[#008E66]">Untimed</span>}
+            ) : <span className="rounded-full bg-[color-mix(in_srgb,var(--br-success)_12%,var(--br-surface))] px-3 py-1.5 text-xs font-bold text-[#008E66]">Untimed</span>}
           </div>
           <div className="mt-3 flex gap-1 overflow-hidden">
             {questions.map((question, index) => {
@@ -135,7 +135,7 @@ export function LevelTestRunner({
 
           <section className="rounded-[20px] border border-[var(--br-surface-strong)] bg-white p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)] sm:p-7">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-full bg-[#EEEAFB] px-3 py-1 text-[11px] font-extrabold text-[var(--br-chart-primary)]">{current.sectionRecord.title}</span>
+              <span className="rounded-full bg-[var(--br-surface-muted)] px-3 py-1 text-[11px] font-extrabold text-[var(--br-chart-primary)]">{current.sectionRecord.title}</span>
               <span className="rounded-full bg-[#F1F8FF] px-3 py-1 text-[11px] font-extrabold text-[#2697FF]">{current.cefrBand}</span>
               <span className="rounded-full bg-[#FFF5E7] px-3 py-1 text-[11px] font-extrabold text-[#E47A00]">{readableType(current.questionType)}</span>
             </div>
@@ -166,7 +166,7 @@ export function LevelTestRunner({
                           }
                           setMessage(null);
                         }}
-                        className={`flex w-full items-center gap-3 rounded-[14px] border-2 p-3 text-left transition-all sm:p-4 ${selected ? "border-[var(--br-chart-primary)] bg-[#EEEAFB]" : "border-[var(--br-surface-strong)] bg-white hover:border-[#CFC6F8]"}`}
+                        className={`flex w-full items-center gap-3 rounded-[14px] border-2 p-3 text-left transition-all sm:p-4 ${selected ? "border-[var(--br-chart-primary)] bg-[var(--br-surface-muted)]" : "border-[var(--br-surface-strong)] bg-white hover:border-[#CFC6F8]"}`}
                       >
                         <span className={`grid size-9 shrink-0 place-items-center rounded-[11px] text-sm font-black ${selected ? "bg-[var(--br-chart-primary)] text-white" : "bg-[#F2F3F7] text-[var(--br-text-muted)]"}`}>{selected ? <Check className="size-4" /> : option.key}</span>
                         <span className="text-sm font-bold sm:text-base">{option.text}</span>
@@ -189,7 +189,7 @@ export function LevelTestRunner({
                 </button>
               )}
             </div>
-            {message ? <p className={`mt-4 rounded-[12px] px-3 py-2 text-sm font-bold ${hasSubmitted.current ? "bg-[#EEEAFB] text-[var(--br-chart-primary)]" : "bg-red-50 text-red-600"}`}>{message}</p> : null}
+            {message ? <p className={`mt-4 rounded-[12px] px-3 py-2 text-sm font-bold ${hasSubmitted.current ? "bg-[var(--br-surface-muted)] text-[var(--br-chart-primary)]" : "bg-red-50 text-red-600"}`}>{message}</p> : null}
           </section>
         </div>
 

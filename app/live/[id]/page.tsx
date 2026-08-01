@@ -44,7 +44,7 @@ export default async function LearnerLiveSessionPage({ params }: { params: Promi
         <div className="mx-auto max-w-[1440px]">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[var(--br-surface-strong)] bg-white px-3 py-2 shadow-sm">
             <div className="min-w-0"><p className="truncate text-xs font-bold uppercase tracking-wide text-[var(--br-chart-primary)]">{klass?.name || "Live class"}</p><p className="truncate text-sm font-extrabold">{session.title}</p></div>
-            <span className="inline-flex items-center gap-1 rounded-full bg-[#E7FBF4] px-2.5 py-1 text-[11px] font-extrabold text-[var(--br-chart-secondary)]"><Radio size={12} /> LIVE</span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-[color-mix(in_srgb,var(--br-success)_12%,var(--br-surface))] px-2.5 py-1 text-[11px] font-extrabold text-[var(--br-chart-secondary)]"><Radio size={12} /> LIVE</span>
           </div>
           <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_280px]"><BuilderLessonPlayer
             lesson={player.lesson}

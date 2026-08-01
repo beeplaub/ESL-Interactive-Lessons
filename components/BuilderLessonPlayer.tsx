@@ -43,9 +43,9 @@ function LessonCompletionModal({ lessonTitle, score, total, activitiesAttempted,
   const encouragement = total === 0 ? "You reached the end. Keep showing up and the learning compounds." : score / total >= .85 ? "Excellent work. You showed strong control across this lesson." : score / total >= .6 ? "Solid progress. A quick review will make the key ideas stick." : "You finished the lesson. Review the practice once more and you will feel the difference.";
   return <div className="fixed inset-0 z-[80] grid place-items-center bg-[var(--br-dark-card)]/55 px-4 py-6 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Lesson complete">
     <div className="relative w-full max-w-md overflow-hidden rounded-[28px] border border-white/50 bg-white p-6 text-center shadow-[0_28px_80px_rgba(27,27,58,.3)] sm:p-8">
-      <div className="absolute -right-12 -top-16 size-44 rounded-full bg-[var(--br-chart-primary)]/10" /><div className="absolute -left-12 bottom-0 size-36 rounded-full bg-[#FFB545]/10" />
+      <div className="absolute -right-12 -top-16 size-44 rounded-full bg-[var(--br-chart-primary)]/10" /><div className="absolute -left-12 bottom-0 size-36 rounded-full bg-[var(--br-achievement)]/10" />
       <button type="button" onClick={onClose} className="absolute right-4 top-4 grid size-8 place-items-center rounded-full text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]" aria-label="Close completion details"><X size={16}/></button>
-      <div className="relative mx-auto grid size-16 place-items-center rounded-[22px] bg-gradient-to-br from-[var(--br-chart-primary)] to-[#9B74FF] text-white shadow-[0_14px_28px_rgba(108,59,255,.32)]"><Award size={31}/><Sparkles className="absolute -right-3 -top-2 size-4 text-[#FFB545]"/></div>
+      <div className="relative mx-auto grid size-16 place-items-center rounded-[22px] bg-gradient-to-br from-[var(--br-chart-primary)] to-[#9B74FF] text-white shadow-[0_14px_28px_rgba(108,59,255,.32)]"><Award size={31}/><Sparkles className="absolute -right-3 -top-2 size-4 text-[var(--br-achievement)]"/></div>
       <p className="relative mt-5 text-[11px] font-extrabold tracking-[.16em] text-[var(--br-chart-primary)]">LESSON COMPLETE</p>
       <h2 className="relative mt-2 text-2xl font-extrabold tracking-tight text-[var(--br-dark-card)]">Nicely done!</h2>
       <p className="relative mt-2 text-sm font-semibold text-[var(--br-text-muted)]">{lessonTitle}</p>
@@ -54,7 +54,7 @@ function LessonCompletionModal({ lessonTitle, score, total, activitiesAttempted,
         <div className="border-x border-[var(--br-border)] px-3"><p className="text-[10px] font-bold uppercase tracking-wide text-[var(--br-text-muted)]">Activities</p><p className="mt-1 text-lg font-extrabold text-[var(--br-dark-card)]">{activitiesAttempted}</p></div>
         <div className="pl-1"><p className="text-[10px] font-bold uppercase tracking-wide text-[var(--br-text-muted)]">Questions</p><p className="mt-1 text-lg font-extrabold text-[var(--br-dark-card)]">{totalQuestions}</p></div>
       </div>
-      <p className="relative mt-4 rounded-xl bg-[#E7FBF4] px-4 py-3 text-sm font-semibold text-[#157A5A]">{grade} · {encouragement}</p>
+      <p className="relative mt-4 rounded-xl bg-[color-mix(in_srgb,var(--br-success)_12%,var(--br-surface))] px-4 py-3 text-sm font-semibold text-[#157A5A]">{grade} · {encouragement}</p>
       <div className="relative mt-5 flex gap-3"><button type="button" onClick={onClose} className="flex-1 rounded-xl border border-[var(--br-border)] px-4 py-3 text-sm font-extrabold text-[var(--br-brand)] hover:bg-[var(--br-canvas-elevated)]">Review</button><button type="button" onClick={onRetake} className="flex-1 rounded-xl bg-[var(--br-action)] px-4 py-3 text-sm font-extrabold text-white shadow-[0_8px_18px_rgba(255,93,115,.24)] hover:bg-[#ED4B66]">Retake</button></div>
     </div>
   </div>;
@@ -575,8 +575,8 @@ export function BuilderLessonPlayer({
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="min-w-0 truncate text-base font-extrabold tracking-tight sm:text-lg">{lesson.title}</h1>
-              {liveSession ? <span className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold ${isLiveTeacher ? "bg-[var(--br-chart-primary)]/10 text-[var(--br-chart-primary)]" : "bg-[#E7FBF4] text-[var(--br-chart-secondary)]"}`}>{isLiveTeacher ? "TEACHER VIEW" : "LIVE"}</span> : null}
-              <span className="rounded-full bg-[#EEEAFB] px-2 py-0.5 text-[11px] font-extrabold text-[var(--br-chart-primary)]">{lesson.level}</span>
+              {liveSession ? <span className={`rounded-full px-2 py-0.5 text-[10px] font-extrabold ${isLiveTeacher ? "bg-[var(--br-chart-primary)]/10 text-[var(--br-chart-primary)]" : "bg-[color-mix(in_srgb,var(--br-success)_12%,var(--br-surface))] text-[var(--br-chart-secondary)]"}`}>{isLiveTeacher ? "TEACHER VIEW" : "LIVE"}</span> : null}
+              <span className="rounded-full bg-[var(--br-surface-muted)] px-2 py-0.5 text-[11px] font-extrabold text-[var(--br-chart-primary)]">{lesson.level}</span>
               {lesson.topic ? <span className="truncate text-xs font-semibold text-[var(--br-text-muted)]">{lesson.topic}</span> : null}
             </div>
             <div className="mt-1.5 flex items-center gap-2">
@@ -597,16 +597,16 @@ export function BuilderLessonPlayer({
             </span>
           )}
           {lesson.timer_minutes ? (
-            <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-extrabold ${timerUrgent ? "bg-[#FFF0F2] text-[#D9324A]" : "bg-[#E7FBF4] text-[var(--br-chart-secondary)]"}`}>
+            <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-extrabold ${timerUrgent ? "bg-[#FFF0F2] text-[var(--br-danger)]" : "bg-[color-mix(in_srgb,var(--br-success)_12%,var(--br-surface))] text-[var(--br-chart-secondary)]"}`}>
               {completed ? `${lesson.timer_minutes} min timer` : formatTime(remainingSeconds ?? lesson.timer_minutes * 60)}
             </span>
           ) : null}
-          {liveTimerSeconds !== null ? <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-extrabold ${liveTimerSeconds <= 60 ? "bg-[#FFF0F2] text-[#D9324A]" : "bg-[#EEEAFB] text-[var(--br-chart-primary)]"}`}>Class {formatTime(liveTimerSeconds)}</span> : null}
+          {liveTimerSeconds !== null ? <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-extrabold ${liveTimerSeconds <= 60 ? "bg-[#FFF0F2] text-[var(--br-danger)]" : "bg-[var(--br-surface-muted)] text-[var(--br-chart-primary)]"}`}>Class {formatTime(liveTimerSeconds)}</span> : null}
         </div>
         {totalLessonMarks ? (
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs font-semibold text-[var(--br-text-muted)]">
             <span className="rounded-full bg-[var(--br-canvas-elevated)] px-2.5 py-1">Lesson score {earnedLessonMarks}/{totalLessonMarks}</span>
-            <span className="rounded-full bg-[#E7FBF4] px-2.5 py-1 font-extrabold text-[var(--br-chart-secondary)]">{lessonGrade}</span>
+            <span className="rounded-full bg-[color-mix(in_srgb,var(--br-success)_12%,var(--br-surface))] px-2.5 py-1 font-extrabold text-[var(--br-chart-secondary)]">{lessonGrade}</span>
           </div>
         ) : null}
       </div>
@@ -665,7 +665,7 @@ export function BuilderLessonPlayer({
         <div className="relative">
           <section className="rounded-[22px] border border-[var(--br-surface-strong)] bg-white p-2 shadow-[0_12px_32px_rgba(0,0,0,.06)] sm:p-3">
             {/* Slide header */}
-            <div className="mb-4 rounded-[18px] bg-gradient-to-br from-[#1A1060] via-[#0C1945] to-[#0E1F5A] px-4 py-3 text-white">
+            <div className="mb-4 rounded-[18px] bg-gradient-to-br from-[var(--br-brand-strong)] via-[var(--br-dark-card)] to-[var(--br-dark-card)] px-4 py-3 text-white">
               {/* Line 1 — slide counter (left) + narration pill (right) */}
               <div className="flex items-center justify-between gap-2">
                 <p className="text-xs uppercase tracking-wide text-white/55">
@@ -700,7 +700,7 @@ export function BuilderLessonPlayer({
                       ? "cursor-not-allowed bg-[#F1F2F7] text-[#B4B8CB]"
                       : activeTab === "learn"
                       ? "bg-[var(--br-chart-primary)] text-white shadow-[0_6px_16px_rgba(108,59,255,.28)]"
-                      : "bg-[#EEEAFB] text-[var(--br-chart-primary)] hover:bg-[#E3DCFB]"
+                      : "bg-[var(--br-surface-muted)] text-[var(--br-chart-primary)] hover:bg-[#E3DCFB]"
                   }`}
                 >
                   {learnLocked ? <Lock size={14} /> : <BookOpen size={14} />}
@@ -718,7 +718,7 @@ export function BuilderLessonPlayer({
                       ? "cursor-not-allowed bg-[#F1F2F7] text-[#B4B8CB]"
                       : activeTab === "practice"
                       ? "bg-[var(--br-chart-secondary)] text-white shadow-[0_6px_16px_rgba(0,169,120,.28)]"
-                      : "bg-[#E7FBF4] text-[var(--br-chart-secondary)] hover:bg-[#D3F6E9]"
+                      : "bg-[color-mix(in_srgb,var(--br-success)_12%,var(--br-surface))] text-[var(--br-chart-secondary)] hover:bg-[#D3F6E9]"
                   }`}
                 >
                   <PenLine size={14} />
@@ -802,7 +802,7 @@ export function BuilderLessonPlayer({
               onChange={handleNotesChange}
               placeholder="Type your notes here… they save automatically."
               rows={4}
-              className="w-full resize-none rounded-[16px] border border-[var(--br-surface-strong)] bg-[#F8F8FC] px-3 py-2.5 text-base font-semibold leading-relaxed text-[#35405F] placeholder:text-[#A0A5BA] focus:border-[var(--br-chart-primary)]/40 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[var(--br-chart-primary)]/15"
+              className="w-full resize-none rounded-[16px] border border-[var(--br-surface-strong)] bg-[var(--br-surface)] px-3 py-2.5 text-base font-semibold leading-relaxed text-[var(--br-text)] placeholder:text-[var(--br-text-muted)] focus:border-[var(--br-chart-primary)]/40 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[var(--br-chart-primary)]/15"
             />
             <p className="mt-1.5 text-[11px] font-semibold text-[var(--br-text-muted)]">
               Notes are saved per slide and will be here when you return.
@@ -817,12 +817,12 @@ export function BuilderLessonPlayer({
           type="button"
           onClick={() => move(-1)}
           disabled={index === 0 || (isLiveStudent && liveNavigationLocked)}
-          className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[var(--br-surface-strong)] px-2.5 py-1.5 text-xs font-bold text-[#53607D] hover:bg-[var(--br-canvas-elevated)] disabled:opacity-35 sm:gap-2 sm:px-4 sm:py-2 sm:text-sm"
+          className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[var(--br-surface-strong)] px-2.5 py-1.5 text-xs font-bold text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)] disabled:opacity-35 sm:gap-2 sm:px-4 sm:py-2 sm:text-sm"
         >
           <ChevronLeft size={14} className="shrink-0" /> Previous
         </button>
         <div className="relative flex min-w-0 shrink items-center gap-1 rounded-full bg-[var(--br-canvas-elevated)] px-1.5 py-1 text-xs font-bold text-[var(--br-text-muted)] sm:gap-2 sm:px-2 sm:text-sm">
-          {message ? <span className="hidden text-xs text-[#D9324A] sm:inline">{message}</span> : null}
+          {message ? <span className="hidden text-xs text-[var(--br-danger)] sm:inline">{message}</span> : null}
           <button
             type="button"
             onClick={() => setJumpOpen((open) => !open)}
@@ -842,7 +842,7 @@ export function BuilderLessonPlayer({
                   type="button"
                   onClick={() => jumpTo(slideIndex)}
                   className={`block w-full rounded-lg px-3 py-2 text-left text-sm transition ${
-                    slideIndex === index ? "bg-[var(--br-chart-primary)]/10 font-extrabold text-[var(--br-chart-primary)]" : "font-semibold text-[#53607D] hover:bg-[var(--br-canvas-elevated)]"
+                    slideIndex === index ? "bg-[var(--br-chart-primary)]/10 font-extrabold text-[var(--br-chart-primary)]" : "font-semibold text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"
                   }`}
                 >
                   <span className="mr-2 text-xs font-semibold text-black/35">{slideIndex + 1}</span>

@@ -83,7 +83,7 @@ export function RecentQuizAttemptsClient({
     <div className="space-y-6">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
-          <h1 className="text-2xl font-extrabold tracking-tight text-[#1B1B3A] sm:text-[32px]">Recent Quiz Attempts</h1>
+          <h1 className="text-2xl font-extrabold tracking-tight text-[var(--br-dark-card)] sm:text-[32px]">Recent Quiz Attempts</h1>
           <p className="mt-1 text-sm leading-6 text-[var(--br-text-muted)]">Track your progress and review mastery trends.</p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -97,7 +97,7 @@ export function RecentQuizAttemptsClient({
           <button
             type="button"
             onClick={() => window.print()}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--br-brand)] px-4 py-2.5 text-sm font-bold text-white shadow-[0_10px_18px_rgba(62,58,114,.18)] transition hover:bg-[#1B1B3A]"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--br-brand)] px-4 py-2.5 text-sm font-bold text-white shadow-[0_10px_18px_rgba(62,58,114,.18)] transition hover:bg-[var(--br-dark-card)]"
           >
             <Download className="size-4" /> Export PDF
           </button>
@@ -106,7 +106,7 @@ export function RecentQuizAttemptsClient({
 
       <section className="overflow-hidden rounded-[20px] border border-[var(--br-border)] bg-white shadow-[0_12px_32px_rgba(27,27,58,.06)]">
         <div className="flex flex-col gap-3 border-b border-[#F1F1F6] p-5 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="flex items-center gap-3 text-lg font-extrabold text-[#1B1B3A] sm:text-xl">
+          <h2 className="flex items-center gap-3 text-lg font-extrabold text-[var(--br-dark-card)] sm:text-xl">
             <BarChart3 className="size-5 text-[var(--br-action)]" /> Mastery Trend
           </h2>
           <div className="flex gap-4 text-xs font-bold text-[var(--br-text-muted)]">
@@ -136,8 +136,8 @@ export function RecentQuizAttemptsClient({
         {!filteredGroups.length ? (
           <div className="grid min-h-64 place-items-center rounded-[20px] border border-dashed border-[#D9DCE8] bg-white p-8 text-center shadow-sm">
             <div>
-              <Trophy className="mx-auto size-9 text-[#B8B8C9]" />
-              <h2 className="mt-3 text-lg font-extrabold text-[#1B1B3A]">No matching attempts yet.</h2>
+              <Trophy className="mx-auto size-9 text-[var(--br-text-muted)]" />
+              <h2 className="mt-3 text-lg font-extrabold text-[var(--br-dark-card)]">No matching attempts yet.</h2>
               <p className="mt-1 text-sm text-[var(--br-text-muted)]">Clear filters or play another quiz to grow your history.</p>
               <Link href="/quizzes" className="mt-4 inline-flex rounded-xl bg-[var(--br-action)] px-4 py-2.5 text-sm font-extrabold text-white">Play a quiz</Link>
             </div>
@@ -146,29 +146,29 @@ export function RecentQuizAttemptsClient({
       </section>
 
       {filtersOpen ? (
-        <div className="fixed inset-0 z-[90] bg-[#1B1B3A]/40 backdrop-blur-sm" onClick={() => setFiltersOpen(false)}>
+        <div className="fixed inset-0 z-[90] bg-[var(--br-dark-card)]/40 backdrop-blur-sm" onClick={() => setFiltersOpen(false)}>
           <aside
             className="ml-auto flex h-full w-full max-w-sm flex-col border-l border-[var(--br-border)] bg-white shadow-2xl"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-[#F1F1F6] p-5">
-              <h3 className="text-xl font-extrabold text-[#1B1B3A]">Filters</h3>
-              <button type="button" onClick={() => setFiltersOpen(false)} className="grid size-9 place-items-center rounded-full text-[#8D94AA] hover:bg-[var(--br-surface-muted)]" aria-label="Close filters">
+              <h3 className="text-xl font-extrabold text-[var(--br-dark-card)]">Filters</h3>
+              <button type="button" onClick={() => setFiltersOpen(false)} className="grid size-9 place-items-center rounded-full text-[var(--br-text-muted)] hover:bg-[var(--br-surface-muted)]" aria-label="Close filters">
                 <X className="size-5" />
               </button>
             </div>
             <div className="flex-1 space-y-6 overflow-y-auto p-5">
               <label className="block">
-                <span className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#B8B8C9]">Search Quizzes</span>
+                <span className="text-xs font-extrabold uppercase tracking-[0.16em] text-[var(--br-text-muted)]">Search Quizzes</span>
                 <span className="relative mt-2 block">
-                  <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[#B8B8C9]" />
-                  <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Quiz title or keyword..." className="w-full rounded-xl border-0 bg-[#FAFAFC] py-3 pl-10 pr-4 text-sm font-semibold text-[#1B1B3A] ring-1 ring-[var(--br-surface-strong)] focus:ring-2 focus:ring-[var(--br-action)]" />
+                  <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[var(--br-text-muted)]" />
+                  <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Quiz title or keyword..." className="w-full rounded-xl border-0 bg-[#FAFAFC] py-3 pl-10 pr-4 text-sm font-semibold text-[var(--br-dark-card)] ring-1 ring-[var(--br-surface-strong)] focus:ring-2 focus:ring-[var(--br-action)]" />
                 </span>
               </label>
               <FilterSelect label="Topic Areas" value={topic} onChange={setTopic} options={["ALL", ...summary.topics]} />
               <FilterSelect label="Level" value={level} onChange={setLevel} options={["ALL", ...summary.levels]} />
               <label className="block">
-                <span className="flex items-center justify-between text-xs font-extrabold uppercase tracking-[0.16em] text-[#B8B8C9]">
+                <span className="flex items-center justify-between text-xs font-extrabold uppercase tracking-[0.16em] text-[var(--br-text-muted)]">
                   Score Range <b className="text-[var(--br-action)]">{scoreFloor}% - 100%</b>
                 </span>
                 <input type="range" min={0} max={100} step={5} value={scoreFloor} onChange={(event) => setScoreFloor(Number(event.target.value))} className="mt-4 w-full accent-[var(--br-action)]" />
@@ -192,7 +192,7 @@ function AttemptGroupCard({ group, open, onToggle }: { group: QuizAttemptGroup; 
         <div className="flex min-w-0 items-center gap-4 sm:gap-5">
           <ScoreRing percent={group.latestPercent} />
           <div className="min-w-0">
-            <h3 className="break-words text-lg font-extrabold leading-snug text-[#1B1B3A] transition group-hover:text-[var(--br-action)] sm:text-xl">{group.title}</h3>
+            <h3 className="break-words text-lg font-extrabold leading-snug text-[var(--br-dark-card)] transition group-hover:text-[var(--br-action)] sm:text-xl">{group.title}</h3>
             <p className="mt-1 text-sm leading-5 text-[var(--br-text-muted)]">
               {[group.topic, group.level, `${group.questionCount || group.attempts[0]?.total || 0} items`].filter(Boolean).join(" • ")}
             </p>
@@ -212,11 +212,11 @@ function AttemptGroupCard({ group, open, onToggle }: { group: QuizAttemptGroup; 
             <div key={attempt.id} className="flex flex-col gap-3 rounded-lg p-3 transition hover:bg-[#FAFAFC] sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                 <span className="font-mono text-sm font-semibold text-[var(--br-text-muted)]">Attempt {attempt.attemptNumber}</span>
-                <span className="text-sm font-semibold text-[#1B1B3A]">{formatDate(attempt.completedAt)}</span>
+                <span className="text-sm font-semibold text-[var(--br-dark-card)]">{formatDate(attempt.completedAt)}</span>
                 <span className={`rounded px-2 py-0.5 font-mono text-xs font-semibold ${attempt.percent >= 85 ? "bg-[#2FAE7A]/10 text-[#2FAE7A]" : attempt.percent >= 60 ? "bg-[var(--br-action)]/10 text-[var(--br-action)]" : "bg-[#FEE2E2] text-[#BA1A1A]"}`}>
                   {attempt.percent}%
                 </span>
-                {attempt.timeTakenSeconds ? <span className="text-xs font-semibold text-[#8D94AA]">{formatDuration(attempt.timeTakenSeconds)}</span> : null}
+                {attempt.timeTakenSeconds ? <span className="text-xs font-semibold text-[var(--br-text-muted)]">{formatDuration(attempt.timeTakenSeconds)}</span> : null}
               </div>
               <Link href={`/quizzes/${group.quizId}`} className="text-sm font-extrabold text-[var(--br-action)] hover:underline">Review Answers</Link>
             </div>
@@ -245,7 +245,7 @@ function TrendChart({ points }: { points: QuizAttemptsSummary["trend"] }) {
           return <circle key={`${point.label}-${index}`} cx={x} cy={y} fill="var(--br-action)" r="6" stroke="white" strokeWidth="3" />;
         })}
       </svg>
-      <div className="absolute bottom-2 left-4 right-4 flex justify-between text-[10px] font-extrabold uppercase tracking-[0.16em] text-[#B8B8C9] sm:left-8 sm:right-8">
+      <div className="absolute bottom-2 left-4 right-4 flex justify-between text-[10px] font-extrabold uppercase tracking-[0.16em] text-[var(--br-text-muted)] sm:left-8 sm:right-8">
         {chartPoints.map((point, index) => <span key={`${point.label}-${index}`} className="max-w-[72px] truncate">{point.label}</span>)}
       </div>
     </div>
@@ -266,7 +266,7 @@ function ScoreRing({ percent }: { percent: number }) {
     <div className="relative grid size-16 shrink-0 place-items-center rounded-full bg-[#FAFAFC] p-1">
       <div className="absolute inset-0 rounded-full" style={{ background: `conic-gradient(var(--br-action) ${percent}%, var(--br-border) 0)` }} />
       <div className="absolute inset-1 rounded-full bg-white" />
-      <span className="relative font-mono text-sm font-semibold text-[#1B1B3A]">{percent}%</span>
+      <span className="relative font-mono text-sm font-semibold text-[var(--br-dark-card)]">{percent}%</span>
     </div>
   );
 }
@@ -274,12 +274,12 @@ function ScoreRing({ percent }: { percent: number }) {
 function StatCard({ label, value, detail, accent, icon = false }: { label: string; value: string; detail: string; accent?: string; icon?: boolean }) {
   return (
     <div className="rounded-[20px] border border-[var(--br-border)] bg-white p-5 shadow-[0_10px_26px_rgba(27,27,58,.05)] sm:p-6">
-      <p className="mb-1 text-xs font-extrabold uppercase tracking-[0.16em] text-[#B8B8C9]">{label}</p>
+      <p className="mb-1 text-xs font-extrabold uppercase tracking-[0.16em] text-[var(--br-text-muted)]">{label}</p>
       <div className="flex items-end gap-2">
-        <span className="text-[28px] font-extrabold leading-tight text-[#1B1B3A]">{value}</span>
-        {icon ? <Trophy className="mb-1 size-5 text-[#F2B705]" /> : accent ? <span className="mb-1.5 text-xs font-bold text-[#2FAE7A]">{accent}</span> : null}
+        <span className="text-[28px] font-extrabold leading-tight text-[var(--br-dark-card)]">{value}</span>
+        {icon ? <Trophy className="mb-1 size-5 text-[var(--br-achievement)]" /> : accent ? <span className="mb-1.5 text-xs font-bold text-[#2FAE7A]">{accent}</span> : null}
       </div>
-      <p className="mt-1 text-xs font-semibold text-[#8D94AA]">{detail}</p>
+      <p className="mt-1 text-xs font-semibold text-[var(--br-text-muted)]">{detail}</p>
     </div>
   );
 }
@@ -287,8 +287,8 @@ function StatCard({ label, value, detail, accent, icon = false }: { label: strin
 function MiniMetric({ label, value }: { label: string; value: string }) {
   return (
     <div className="text-left sm:text-center">
-      <p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-[#B8B8C9]">{label}</p>
-      <p className="mt-1 font-mono text-sm font-semibold text-[#1B1B3A]">{value}</p>
+      <p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-[var(--br-text-muted)]">{label}</p>
+      <p className="mt-1 font-mono text-sm font-semibold text-[var(--br-dark-card)]">{value}</p>
     </div>
   );
 }
@@ -296,8 +296,8 @@ function MiniMetric({ label, value }: { label: string; value: string }) {
 function FilterSelect({ label, value, onChange, options }: { label: string; value: string; onChange: (value: string) => void; options: string[] }) {
   return (
     <label className="block">
-      <span className="text-xs font-extrabold uppercase tracking-[0.16em] text-[#B8B8C9]">{label}</span>
-      <select value={value} onChange={(event) => onChange(event.target.value)} className="mt-2 w-full rounded-xl border-0 bg-[#FAFAFC] px-4 py-3 text-sm font-semibold text-[#1B1B3A] ring-1 ring-[var(--br-surface-strong)] focus:ring-2 focus:ring-[var(--br-action)]">
+      <span className="text-xs font-extrabold uppercase tracking-[0.16em] text-[var(--br-text-muted)]">{label}</span>
+      <select value={value} onChange={(event) => onChange(event.target.value)} className="mt-2 w-full rounded-xl border-0 bg-[#FAFAFC] px-4 py-3 text-sm font-semibold text-[var(--br-dark-card)] ring-1 ring-[var(--br-surface-strong)] focus:ring-2 focus:ring-[var(--br-action)]">
         {options.map((option) => <option key={option} value={option}>{option === "ALL" ? "All" : option}</option>)}
       </select>
     </label>

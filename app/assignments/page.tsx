@@ -66,7 +66,7 @@ export default async function AssignmentsPage() {
 
   return (
     <LearnerAppShell active="assignments">
-      <section className="rounded-[24px] bg-gradient-to-br from-[#1A1060] via-[#0C1945] to-[#0E1F5A] p-5 text-white shadow-[0_16px_48px_rgba(20,23,80,.2)] sm:p-6">
+      <section className="rounded-[24px] bg-gradient-to-br from-[var(--br-brand-strong)] via-[var(--br-dark-card)] to-[var(--br-dark-card)] p-5 text-white shadow-[0_16px_48px_rgba(20,23,80,.2)] sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-white/60"><ClipboardList className="size-4" /> Learning plan</div>
@@ -140,15 +140,15 @@ export default async function AssignmentsPage() {
                 </div>
                 <div className="flex items-center justify-between gap-3 sm:justify-end">
                   <div className="text-left sm:text-right">
-                    <p className={`text-sm font-extrabold ${completed ? "text-[#00A875]" : "text-[#35405F]"}`}>{progressLabel}</p>
-                    {score !== null && assignment.item_type !== "COURSE" ? <p className="mt-0.5 text-xs font-semibold text-[#8D94AA]">Latest score: {score}%</p> : null}
+                    <p className={`text-sm font-extrabold ${completed ? "text-[#00A875]" : "text-[var(--br-text)]"}`}>{progressLabel}</p>
+                    {score !== null && assignment.item_type !== "COURSE" ? <p className="mt-0.5 text-xs font-semibold text-[var(--br-text-muted)]">Latest score: {score}%</p> : null}
                   </div>
                   {unavailable ? <span className="inline-flex items-center gap-1 rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold text-slate-500"><LockKeyhole className="size-3.5" /> Unavailable</span> : <Link href={href} className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--br-chart-primary)] px-3.5 py-2.5 text-xs font-extrabold text-white shadow-sm transition hover:bg-[#5930DF]">{completed ? "Review" : "Open"}<ChevronRight className="size-3.5" /></Link>}
                 </div>
               </article>
             );
           })}
-          {!assignments.length ? <div className="grid min-h-52 place-items-center rounded-[18px] border border-dashed border-[#D9DCE8] bg-[#FAFBFD] p-6 text-center"><div><Clock3 className="mx-auto size-7 text-[#9AA1B8]" /><h3 className="mt-3 font-extrabold text-[#35405F]">Nothing assigned yet</h3><p className="mt-1 max-w-sm text-sm leading-6 text-[var(--br-text-muted)]">When your teacher adds work to one of your classes, it will appear here.</p></div></div> : null}
+          {!assignments.length ? <div className="grid min-h-52 place-items-center rounded-[18px] border border-dashed border-[#D9DCE8] bg-[#FAFBFD] p-6 text-center"><div><Clock3 className="mx-auto size-7 text-[#9AA1B8]" /><h3 className="mt-3 font-extrabold text-[var(--br-text)]">Nothing assigned yet</h3><p className="mt-1 max-w-sm text-sm leading-6 text-[var(--br-text-muted)]">When your teacher adds work to one of your classes, it will appear here.</p></div></div> : null}
         </div>
       </section>
 

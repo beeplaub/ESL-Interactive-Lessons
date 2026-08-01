@@ -49,7 +49,7 @@ export function CourseCurriculumTabs({
               className={`relative -mb-px px-3.5 py-2.5 text-sm font-extrabold transition ${
                 active === tab.key
                   ? "border-b-2 border-[var(--br-chart-primary)] text-[var(--br-chart-primary)]"
-                  : "border-b-2 border-transparent text-[#8D94AA] hover:text-[#35405F]"
+                  : "border-b-2 border-transparent text-[var(--br-text-muted)] hover:text-[var(--br-text)]"
               }`}
             >
               {tab.label}

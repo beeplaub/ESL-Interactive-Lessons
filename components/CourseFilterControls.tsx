@@ -40,7 +40,7 @@ export function CourseFilterControls({
           name="sort"
           defaultValue={sort}
           onChange={() => formRef.current?.submit()}
-          className="h-9 cursor-pointer appearance-none rounded-lg border border-[var(--br-surface-strong)] bg-white pl-3 pr-7 text-sm font-semibold text-[#35405F] shadow-[0_2px_8px_rgba(0,0,0,.04)] outline-none"
+          className="h-9 cursor-pointer appearance-none rounded-lg border border-[var(--br-surface-strong)] bg-white pl-3 pr-7 text-sm font-semibold text-[var(--br-text)] shadow-[0_2px_8px_rgba(0,0,0,.04)] outline-none"
           aria-label="Sort courses"
         >
           <option value="popular">Most Popular</option>
@@ -55,7 +55,7 @@ export function CourseFilterControls({
         <button
           type="button"
           onClick={() => setOpen((value) => !value)}
-          className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[var(--br-surface-strong)] bg-white px-3 text-sm font-semibold text-[#35405F] shadow-[0_2px_8px_rgba(0,0,0,.04)]"
+          className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[var(--br-surface-strong)] bg-white px-3 text-sm font-semibold text-[var(--br-text)] shadow-[0_2px_8px_rgba(0,0,0,.04)]"
           aria-expanded={open}
         >
           <FilterIcon className="size-4" /> Filter{selectedTopics.length ? ` (${selectedTopics.length})` : ""}
@@ -64,15 +64,15 @@ export function CourseFilterControls({
         <div
           className={`absolute right-0 top-[calc(100%+8px)] z-20 w-64 rounded-[16px] border border-[var(--br-surface-strong)] bg-white p-4 shadow-[0_16px_40px_rgba(0,0,0,.12)] ${open ? "block" : "hidden"}`}
         >
-          <p className="mb-2 text-xs font-bold uppercase tracking-wide text-[#A0A5BA]">Topic</p>
+          <p className="mb-2 text-xs font-bold uppercase tracking-wide text-[var(--br-text-muted)]">Topic</p>
           <div className="grid max-h-48 gap-2 overflow-y-auto">
             {topics.length === 0 ? (
               <p className="text-xs text-[var(--br-text-muted)]">No topics yet.</p>
             ) : (
               topics.map((item) => (
-                <label key={item.topic} className="flex items-center gap-2 text-sm text-[#35405F]">
+                <label key={item.topic} className="flex items-center gap-2 text-sm text-[var(--br-text)]">
                   <input type="checkbox" name="topic" value={item.topic} defaultChecked={selectedTopics.includes(item.topic)} />
-                  {item.topic} <span className="text-xs text-[#A0A5BA]">({item.count})</span>
+                  {item.topic} <span className="text-xs text-[var(--br-text-muted)]">({item.count})</span>
                 </label>
               ))
             )}
