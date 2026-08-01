@@ -17,8 +17,8 @@ This checklist is the source of truth for the production design migration. It is
 - [x] Rebuild `/admin/style` into grouped, admin-readable controls with draft previews.
 - [x] Add theme export/import, per-token reset, and an admin-readable impact map.
 - [x] Add named, restorable theme snapshots.
-- [ ] Add complete contrast checks, named snapshots, comparison, import/export, and per-token reset.
-- [ ] Add a token-usage explorer so administrators can see what each control affects.
+- [ ] Add revision comparison and a richer component preview gallery.
+- [x] Add a token-usage explorer so administrators can see what each control affects.
 
 ## Shared Components
 
@@ -33,7 +33,7 @@ This checklist is the source of truth for the production design migration. It is
 
 - [x] Migrate dashboard, courses, course detail, quizzes, quiz player, lesson player, and level test to semantic surface, feedback, and elevation roles.
 - [x] Migrate leaderboard, profile, achievements, tasks, assignments, calendar, language profile, and live classes to semantic feedback and progress roles.
-- [ ] Verify desktop, tablet, mobile, loading, error, and empty states.
+- [ ] Complete desktop, tablet, mobile, loading, error, and empty-state QA across every learner route.
 
 ## Creator Experience
 
