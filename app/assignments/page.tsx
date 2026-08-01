@@ -123,14 +123,14 @@ export default async function AssignmentsPage() {
             const unavailable = resource && (resource.status !== "PUBLISHED" || resource.deleted_at !== null);
             return (
               <article key={assignment.id} className="flex flex-col gap-4 rounded-[18px] border border-[var(--br-surface-strong)] bg-[#FCFCFE] p-4 transition hover:border-[#D9D4F9] hover:shadow-[var(--br-shadow)] sm:flex-row sm:items-center">
-                <div className={`grid size-11 shrink-0 place-items-center rounded-[14px] ${completed ? "bg-[#E7FBF3] text-[#00A875]" : "bg-[#F0EDFF] text-[var(--br-chart-primary)]"}`}>
+                <div className={`grid size-11 shrink-0 place-items-center rounded-[14px] ${completed ? "bg-[#E7FBF3] text-[#00A875]" : "bg-[var(--br-brand-soft)] text-[var(--br-chart-primary)]"}`}>
                   {completed ? <CheckCircle2 className="size-5" /> : assignment.item_type === "COURSE" ? <GraduationCap className="size-5" /> : assignment.item_type === "QUIZ" ? <Target className="size-5" /> : <ClipboardList className="size-5" />}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="break-words font-extrabold text-[var(--br-dark-card)]">{title}</h3>
                     {level ? <span className="rounded-md bg-[#EAF8F3] px-2 py-0.5 text-[10px] font-extrabold text-[#168E69]">{level}</span> : null}
-                    <span className="rounded-md bg-[#F0EDFF] px-2 py-0.5 text-[10px] font-extrabold text-[var(--br-chart-primary)]">{assignment.item_type.replace("_", " ")}</span>
+                    <span className="rounded-md bg-[var(--br-brand-soft)] px-2 py-0.5 text-[10px] font-extrabold text-[var(--br-chart-primary)]">{assignment.item_type.replace("_", " ")}</span>
                   </div>
                   <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold text-[var(--br-text-muted)]">
                     <span>{assignment.classes?.name ?? "Your class"}</span>
@@ -148,7 +148,7 @@ export default async function AssignmentsPage() {
               </article>
             );
           })}
-          {!assignments.length ? <div className="grid min-h-52 place-items-center rounded-[18px] border border-dashed border-[#D9DCE8] bg-[#FAFBFD] p-6 text-center"><div><Clock3 className="mx-auto size-7 text-[#9AA1B8]" /><h3 className="mt-3 font-extrabold text-[var(--br-text)]">Nothing assigned yet</h3><p className="mt-1 max-w-sm text-sm leading-6 text-[var(--br-text-muted)]">When your teacher adds work to one of your classes, it will appear here.</p></div></div> : null}
+          {!assignments.length ? <div className="grid min-h-52 place-items-center rounded-[18px] border border-dashed border-[var(--br-border)] bg-[#FAFBFD] p-6 text-center"><div><Clock3 className="mx-auto size-7 text-[#9AA1B8]" /><h3 className="mt-3 font-extrabold text-[var(--br-text)]">Nothing assigned yet</h3><p className="mt-1 max-w-sm text-sm leading-6 text-[var(--br-text-muted)]">When your teacher adds work to one of your classes, it will appear here.</p></div></div> : null}
         </div>
       </section>
 

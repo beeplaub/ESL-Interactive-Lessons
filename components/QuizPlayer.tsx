@@ -630,7 +630,7 @@ export function QuizPlayer({
                     ? manyQuestions ? "w-4 bg-[var(--br-chart-primary)] sm:w-5" : "w-5 bg-[var(--br-chart-primary)] sm:w-7"
                     : done
                     ? "bg-[var(--br-success)]"
-                    : "bg-[#D9DCE8] hover:bg-[var(--br-text-muted)]"
+                    : "bg-[var(--br-border)] hover:bg-[var(--br-text-muted)]"
                 }`}
               />
             );
@@ -1281,7 +1281,7 @@ function Fill({ question, value, disabled, onChange }: { question: QuizQuestion;
               value={current[i] ?? ""}
               onChange={(e) => setAnswer(i, e.target.value)}
               size={Math.max(4, (String(correct[i] ?? "")).length + 2)}
-              className="mx-1 inline-block rounded border border-[#D9DCE8] bg-surface px-2 py-0.5 text-sm outline-none focus:border-[var(--br-chart-primary)]"
+              className="mx-1 inline-block rounded border border-[var(--br-border)] bg-surface px-2 py-0.5 text-sm outline-none focus:border-[var(--br-chart-primary)]"
             />
           ) : null}
         </span>
@@ -1997,7 +1997,7 @@ function Pronunciation({
   const targets: PronunciationTarget[] = Array.isArray(opts.targets)
     ? opts.targets.map((t) => {
         const row = asRecord(t as Json);
-        return { id: String(row.id ?? ""), text: String(row.text ?? ""), color: String(row.color ?? "#fbbf24") };
+        return { id: String(row.id ?? ""), text: String(row.text ?? ""), color: String(row.color ?? "var(--br-achievement)") };
       })
     : [];
   const maxAttempts = Math.max(1, Number(opts.max_attempts ?? 3));

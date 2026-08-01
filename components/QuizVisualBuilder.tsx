@@ -89,7 +89,7 @@ const typeLabels: Record<string, string> = {
   PEER_REVIEW_EDITING: "Peer Review / Editing"
 };
 
-const PRONUNCIATION_COLORS = ["#fbbf24", "#34d399", "#60a5fa", "#f472b6", "#a78bfa", "#fb923c"];
+const PRONUNCIATION_COLORS = ["var(--br-achievement)", "#34d399", "#60a5fa", "#f472b6", "#a78bfa", "#fb923c"];
 
 const parseSample = `QUIZ: Full Skills Practice
 TOPIC: Mixed Skills
@@ -173,7 +173,7 @@ function defaultQuestion(type: BuilderQuestion["questionType"]): BuilderQuestion
   if (type === "REORDERING") return { id, questionType: type, questionText: "Put the items in the correct order.", description: "", options: { level: "sentence", items: [{ id: "1", text: "First item" }, { id: "2", text: "Second item" }] }, correctAnswer: ["1", "2"], assessment };
   if (type === "DRAG_DROP") return { id, questionType: type, questionText: "Place each item in the correct group.", description: "", options: { targets: ["Group A", "Group B"], items: [{ id: "1", text: "Item 1" }, { id: "2", text: "Item 2" }] }, correctAnswer: { "1": "Group A", "2": "Group B" }, assessment };
   if (type === "CATEGORIZATION") return { id, questionType: type, questionText: "Sort each item into the correct category.", description: "", options: { targets: ["Category A", "Category B"], items: [{ id: "1", text: "Item 1" }, { id: "2", text: "Item 2" }] }, correctAnswer: { "1": "Category A", "2": "Category B" }, assessment };
-  if (type === "PRONUNCIATION") return { id, questionType: type, questionText: "Practise the pronunciation.", description: "", options: { level: "word", passage: "", targets: [{ id: "1", text: "comfortable", color: "#fbbf24" }], max_attempts: 3 }, correctAnswer: ["1"], assessment };
+  if (type === "PRONUNCIATION") return { id, questionType: type, questionText: "Practise the pronunciation.", description: "", options: { level: "word", passage: "", targets: [{ id: "1", text: "comfortable", color: "var(--br-achievement)" }], max_attempts: 3 }, correctAnswer: ["1"], assessment };
   if (type === "SUMMARIZATION") return { id, questionType: type, questionText: "Summarize the passage in your own words.", description: "", options: { passage: "Enter the source passage here.", max_words: 30, sample_answer: "A concise summary." }, correctAnswer: true, assessment };
   if (type === "INFERENCE_DETECTION") return { id, questionType: type, questionText: "What can we infer from the passage?", description: "", options: { passage: "Enter the source passage here.", A: "Option A", B: "Option B", C: "Option C", D: "Option D" }, correctAnswer: "A", assessment };
   if (type === "HEADINGS_MATCHING") return { id, questionType: type, questionText: "Match the paragraphs to the correct headings.", description: "", options: { paragraphs: [{ id: "A", text: "Paragraph A text" }, { id: "B", text: "Paragraph B text" }], headings: [{ id: "1", text: "Heading 1" }, { id: "2", text: "Heading 2" }, { id: "3", text: "Distractor heading" }] }, correctAnswer: { A: "1", B: "2" }, assessment };
@@ -770,7 +770,7 @@ function QuestionEditorModal({
 
           <QuestionFields question={question} onChange={onChange} />
 
-          <section className="rounded-xl border border-[var(--br-chart-primary)]/20 bg-[#F8F6FF] p-3">
+          <section className="rounded-xl border border-[var(--br-chart-primary)]/20 bg-[var(--br-surface-muted)] p-3">
             <p className="text-xs font-extrabold uppercase tracking-wide text-[var(--br-chart-primary)]">Measurement</p>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
               <label className="text-sm font-medium">Skill / subskill<select value={question.assessment.primarySkillId ?? ""} onChange={(event) => onChange({ assessment: { ...question.assessment, primarySkillId: event.target.value || null } })} className="mt-1 w-full rounded-lg border border-[var(--br-border)] bg-surface px-3 py-2 font-normal"><option value="">Not classified</option>{skillOptions(skills)}</select></label>

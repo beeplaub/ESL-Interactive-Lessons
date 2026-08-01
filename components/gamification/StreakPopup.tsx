@@ -28,7 +28,7 @@ export function StreakPopup({ streak, onDismiss }: { streak: number; onDismiss: 
           <motion.div
             animate={{ x: [0, 6, -5, 3, 0], y: [0, -5, 3, -3, 0] }}
             transition={{ duration: 11, repeat: Infinity, ease: "easeInOut" }}
-            className="relative flex max-w-[168px] items-center gap-1.5 whitespace-nowrap rounded-full bg-gradient-to-br from-[var(--br-achievement)] to-[#FF8C00] py-1.5 pl-3 pr-7 text-on-dark shadow-[var(--br-shadow)]"
+            className="relative flex max-w-[168px] items-center gap-1.5 whitespace-nowrap rounded-full bg-gradient-to-br from-[var(--br-achievement)] to-[var(--br-action-strong)] py-1.5 pl-3 pr-7 text-on-dark shadow-[var(--br-shadow)]"
           >
             <span className="text-xs font-extrabold leading-none">🔥 {streak} in a row!</span>
             <button

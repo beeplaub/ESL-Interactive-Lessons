@@ -1794,7 +1794,7 @@ function defaultActivityData(activityType: string, prompt: string): Json {
     return { prompt, targets: ["Target"], items: [{ id: "1", text: "Item", target: "Target" }] };
   }
   if (activityType === "PRONUNCIATION") {
-    return { prompt, level: "word", max_attempts: 3, passage: "", targets: [{ id: "1", text: "pronunciation", color: "#fbbf24" }] };
+    return { prompt, level: "word", max_attempts: 3, passage: "", targets: [{ id: "1", text: "pronunciation", color: "var(--br-achievement)" }] };
   }
   if (activityType === "SUMMARIZATION") {
     return { prompt, passage: "Enter the passage text here.", max_words: 30, sample_answer: "A concise summary." };

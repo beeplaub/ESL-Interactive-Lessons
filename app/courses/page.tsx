@@ -123,7 +123,7 @@ export default async function CoursesPage({
                 className={`shrink-0 rounded-full px-3.5 py-1.5 text-sm font-semibold transition ${
                   !activeLevel
                     ? "bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] text-on-dark"
-                    : "border border-[var(--br-surface-strong)] bg-surface text-[#4B5163] hover:border-[var(--br-chart-primary)]/40"
+                    : "border border-[var(--br-surface-strong)] bg-surface text-[var(--br-text-muted)] hover:border-[var(--br-chart-primary)]/40"
                 }`}
               >
                 All Levels
@@ -136,7 +136,7 @@ export default async function CoursesPage({
                   className={`shrink-0 rounded-full px-3.5 py-1.5 text-sm font-semibold transition ${
                     activeLevel === band
                       ? "bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] text-on-dark"
-                      : "border border-[var(--br-surface-strong)] bg-surface text-[#4B5163] hover:border-[var(--br-chart-primary)]/40"
+                      : "border border-[var(--br-surface-strong)] bg-surface text-[var(--br-text-muted)] hover:border-[var(--br-chart-primary)]/40"
                   }`}
                 >
                   {band}
@@ -227,7 +227,7 @@ function CourseCard({
     "from-[var(--br-brand-strong)] to-[#2D3A8C]",
     "from-[#4A148C] to-[#7B1FA2]",
     "from-[var(--br-success)] to-[#00957A]",
-    "from-[var(--br-achievement)] to-[#FF8C00]"
+    "from-[var(--br-achievement)] to-[var(--br-action-strong)]"
   ];
   const level = course.level ?? "Course";
   const imageUrl = resolveCourseImage(course.thumbnail_path || course.cover_image_path);

@@ -58,7 +58,7 @@ export function ProfileForm({
         </div>
       )}
       {state?.error && (
-        <div className="rounded-[14px] bg-[#FFF0F2] px-4 py-2 text-sm font-extrabold text-[var(--br-danger)]">
+        <div className="rounded-[14px] bg-[var(--br-danger-soft)] px-4 py-2 text-sm font-extrabold text-[var(--br-danger)]">
           {state.error}
         </div>
       )}

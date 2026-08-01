@@ -330,7 +330,7 @@ function normalizePronunciation(data: Json | null): { prompt: string; level: "wo
     return {
       id: String(row.id ?? index + 1),
       text: String(row.text ?? ""),
-      color: String(row.color ?? "#fbbf24")
+      color: String(row.color ?? "var(--br-achievement)")
     };
   });
   return {
@@ -338,7 +338,7 @@ function normalizePronunciation(data: Json | null): { prompt: string; level: "wo
     level: record.level === "sentence" || record.level === "paragraph" ? record.level : "word",
     maxAttempts: Math.max(1, Number(record.max_attempts ?? 3)),
     passage: String(record.passage ?? ""),
-    targets: targets.length ? targets : [{ id: "1", text: "", color: "#fbbf24" }]
+    targets: targets.length ? targets : [{ id: "1", text: "", color: "var(--br-achievement)" }]
   };
 }
 
@@ -1878,7 +1878,7 @@ function DragDropEditor({ activity, onSave }: { activity: Activity; onSave: (dat
   );
 }
 
-const PRONUNCIATION_COLORS = ["#fbbf24", "#34d399", "#60a5fa", "#f472b6", "#a78bfa", "#fb923c"];
+const PRONUNCIATION_COLORS = ["var(--br-achievement)", "#34d399", "#60a5fa", "#f472b6", "#a78bfa", "#fb923c"];
 
 function PronunciationEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
   const initial = useMemo(() => normalizePronunciation(activity.activity_data), [activity.activity_data]);

@@ -366,7 +366,7 @@ function defaultOptions(type: string) {
   if (type === "REORDERING") return { level: "sentence", items: [{ id: "1", text: "First item" }, { id: "2", text: "Second item" }] };
   if (type === "SHORT_ANSWER") return { sample_answer: "A good sample answer.", min_words: 10, required_words: [], show_required_words: true };
   if (type === "DRAG_DROP" || type === "CATEGORIZATION") return { targets: ["Group A", "Group B"], items: [{ id: "1", text: "Item 1" }, { id: "2", text: "Item 2" }] };
-  if (type === "PRONUNCIATION") return { level: "word", passage: "", targets: [{ id: "1", text: "comfortable", color: "#fbbf24" }], max_attempts: 3 };
+  if (type === "PRONUNCIATION") return { level: "word", passage: "", targets: [{ id: "1", text: "comfortable", color: "var(--br-achievement)" }], max_attempts: 3 };
   if (type === "SUMMARIZATION") return { passage: "Read the passage and summarize it.", max_words: 30, sample_answer: "A concise summary of the passage." };
   if (type === "INFERENCE_DETECTION") return { passage: "Enter the source passage here.", A: "Option A", B: "Option B", C: "Option C", D: "Option D" };
   return null;

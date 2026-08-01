@@ -13,7 +13,7 @@ type Props = {
 
 const tones = {
   purple: "bg-[var(--br-chart-primary)]",
-  orange: "bg-[#FF8C00]",
+  orange: "bg-[var(--br-action-strong)]",
   green: "bg-[var(--br-success)]",
   blue: "bg-[var(--br-info)]",
 };

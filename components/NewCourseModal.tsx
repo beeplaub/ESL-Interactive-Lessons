@@ -72,7 +72,7 @@ export function NewCourseModal({ organizations = [] }: { organizations?: Array<{
                   name="title"
                   required
                   placeholder="e.g. Intermediate Business English"
-                  className="mt-1.5 w-full rounded-xl border border-[var(--br-surface-strong)] px-3.5 py-2.5 text-sm font-semibold placeholder-[#B0B5C8] focus:border-violetglow focus:outline-none focus:ring-4 focus:ring-violetglow/10 transition"
+                  className="mt-1.5 w-full rounded-xl border border-[var(--br-surface-strong)] px-3.5 py-2.5 text-sm font-semibold placeholder-[var(--br-text-muted)] focus:border-violetglow focus:outline-none focus:ring-4 focus:ring-violetglow/10 transition"
                 />
               </div>
 
@@ -85,7 +85,7 @@ export function NewCourseModal({ organizations = [] }: { organizations?: Array<{
                 <input
                   name="subtitle"
                   placeholder="e.g. Master essential vocabulary and communication strategies"
-                  className="mt-1.5 w-full rounded-xl border border-[var(--br-surface-strong)] px-3.5 py-2.5 text-sm font-semibold placeholder-[#B0B5C8] focus:border-violetglow focus:outline-none focus:ring-4 focus:ring-violetglow/10 transition"
+                  className="mt-1.5 w-full rounded-xl border border-[var(--br-surface-strong)] px-3.5 py-2.5 text-sm font-semibold placeholder-[var(--br-text-muted)] focus:border-violetglow focus:outline-none focus:ring-4 focus:ring-violetglow/10 transition"
                 />
               </div>
 
@@ -96,7 +96,7 @@ export function NewCourseModal({ organizations = [] }: { organizations?: Array<{
                 <input
                   name="topic"
                   placeholder="e.g. Business Communication"
-                  className="mt-1.5 w-full rounded-xl border border-[var(--br-surface-strong)] px-3.5 py-2.5 text-sm font-semibold placeholder-[#B0B5C8] focus:border-violetglow focus:outline-none focus:ring-4 focus:ring-violetglow/10 transition"
+                  className="mt-1.5 w-full rounded-xl border border-[var(--br-surface-strong)] px-3.5 py-2.5 text-sm font-semibold placeholder-[var(--br-text-muted)] focus:border-violetglow focus:outline-none focus:ring-4 focus:ring-violetglow/10 transition"
                 />
               </div>
 
@@ -107,7 +107,7 @@ export function NewCourseModal({ organizations = [] }: { organizations?: Array<{
                 <select
                   name="level"
                   defaultValue="All Levels"
-                  className="mt-1.5 w-full rounded-xl border border-[var(--br-surface-strong)] bg-surface px-3.5 py-2.5 text-sm font-semibold placeholder-[#B0B5C8] focus:border-violetglow focus:outline-none focus:ring-4 focus:ring-violetglow/10 transition"
+                  className="mt-1.5 w-full rounded-xl border border-[var(--br-surface-strong)] bg-surface px-3.5 py-2.5 text-sm font-semibold placeholder-[var(--br-text-muted)] focus:border-violetglow focus:outline-none focus:ring-4 focus:ring-violetglow/10 transition"
                 >
                   {CONTENT_LEVELS.map((level) => (
                     <option key={level}>{level}</option>
@@ -123,7 +123,7 @@ export function NewCourseModal({ organizations = [] }: { organizations?: Array<{
                   name="description"
                   placeholder="Write a brief overview of the learning outcomes and target audience..."
                   rows={3}
-                  className="mt-1.5 w-full rounded-xl border border-[var(--br-surface-strong)] px-3.5 py-2.5 text-sm font-semibold placeholder-[#B0B5C8] focus:border-violetglow focus:outline-none focus:ring-4 focus:ring-violetglow/10 transition resize-none"
+                  className="mt-1.5 w-full rounded-xl border border-[var(--br-surface-strong)] px-3.5 py-2.5 text-sm font-semibold placeholder-[var(--br-text-muted)] focus:border-violetglow focus:outline-none focus:ring-4 focus:ring-violetglow/10 transition resize-none"
                 />
               </div>
 

@@ -462,7 +462,7 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
       return {
         id: String(row.id ?? index + 1),
         text: String(row.text ?? ""),
-        color: String(row.color ?? "#fbbf24"),
+        color: String(row.color ?? "var(--br-achievement)"),
       };
     });
     const level = data.level === "sentence" || data.level === "paragraph" ? data.level : "word";

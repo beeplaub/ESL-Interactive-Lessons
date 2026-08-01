@@ -597,11 +597,11 @@ export function BuilderLessonPlayer({
             </span>
           )}
           {lesson.timer_minutes ? (
-            <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-extrabold ${timerUrgent ? "bg-[#FFF0F2] text-[var(--br-danger)]" : "bg-[color-mix(in_srgb,var(--br-success)_12%,var(--br-surface))] text-[var(--br-chart-secondary)]"}`}>
+            <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-extrabold ${timerUrgent ? "bg-[var(--br-danger-soft)] text-[var(--br-danger)]" : "bg-[color-mix(in_srgb,var(--br-success)_12%,var(--br-surface))] text-[var(--br-chart-secondary)]"}`}>
               {completed ? `${lesson.timer_minutes} min timer` : formatTime(remainingSeconds ?? lesson.timer_minutes * 60)}
             </span>
           ) : null}
-          {liveTimerSeconds !== null ? <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-extrabold ${liveTimerSeconds <= 60 ? "bg-[#FFF0F2] text-[var(--br-danger)]" : "bg-[var(--br-surface-muted)] text-[var(--br-chart-primary)]"}`}>Class {formatTime(liveTimerSeconds)}</span> : null}
+          {liveTimerSeconds !== null ? <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-extrabold ${liveTimerSeconds <= 60 ? "bg-[var(--br-danger-soft)] text-[var(--br-danger)]" : "bg-[var(--br-surface-muted)] text-[var(--br-chart-primary)]"}`}>Class {formatTime(liveTimerSeconds)}</span> : null}
         </div>
         {totalLessonMarks ? (
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs font-semibold text-[var(--br-text-muted)]">
@@ -739,7 +739,7 @@ export function BuilderLessonPlayer({
             ) : slideActivities.length ? (
               <div className="space-y-4">
                 {slideActivities.map((activity) => (
-                  liveSession && !isLiveTeacher && (activityState(activity.id).state === "CLOSED" || liveActivitySeconds(activity.id) === 0) ? <div key={activity.id} className="rounded-lg border border-dashed border-[var(--br-chart-primary)]/25 bg-[#F8F6FF] p-5 text-center text-sm font-semibold text-[var(--br-text-muted)]">{liveActivitySeconds(activity.id) === 0 ? "Time is up. Your teacher may extend or reveal this activity." : "Your teacher will open this activity when the class is ready."}</div> :
+                  liveSession && !isLiveTeacher && (activityState(activity.id).state === "CLOSED" || liveActivitySeconds(activity.id) === 0) ? <div key={activity.id} className="rounded-lg border border-dashed border-[var(--br-chart-primary)]/25 bg-[var(--br-surface-muted)] p-5 text-center text-sm font-semibold text-[var(--br-text-muted)]">{liveActivitySeconds(activity.id) === 0 ? "Time is up. Your teacher may extend or reveal this activity." : "Your teacher will open this activity when the class is ready."}</div> :
                   <div key={activity.id}>
                     {liveSession && liveActivitySeconds(activity.id) !== null ? <p className="mb-2 text-xs font-extrabold text-[var(--br-chart-primary)]">Activity time: {formatTime(liveActivitySeconds(activity.id) ?? 0)}</p> : null}
                     <LessonActivityPanel

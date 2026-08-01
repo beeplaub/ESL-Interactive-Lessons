@@ -319,7 +319,7 @@ export function EditItemModal({ action, deleteAction, item, label, status, count
               </div>
 
               {(itemType === "LESSON" || itemType === "QUIZ") ? (
-                <section className="rounded-xl border border-[var(--br-chart-primary)]/20 bg-[#F8F6FF] p-3">
+                <section className="rounded-xl border border-[var(--br-chart-primary)]/20 bg-[var(--br-surface-muted)] p-3">
                   <p className="text-xs font-extrabold uppercase tracking-wide text-[var(--br-chart-primary)]">Course assessment contribution</p>
                   <div className="mt-3 grid gap-3 sm:grid-cols-3">
                     <label className="text-sm font-medium">Item weight<input name="assessmentWeight" type="number" min="0.01" step="0.01" defaultValue={item.assessment_weight ?? 1} className="mt-1 w-full rounded-lg border border-[var(--br-border)] bg-surface px-3 py-2 font-normal" /></label>

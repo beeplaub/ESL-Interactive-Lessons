@@ -1387,7 +1387,7 @@ function AlignmentGroup({ label, name, value, options }: {
   );
 }
 
-const dialogueColors = ["var(--br-brand)", "var(--br-action)", "#2FAE7A", "#2563EB", "#A855F7"];
+const dialogueColors = ["var(--br-brand)", "var(--br-action)", "var(--br-success)", "#2563EB", "#A855F7"];
 function DialogueEditor({ data, lessonId }: { data: Record<string, unknown>; lessonId: string }) {
   const rawPeople = Array.isArray(data.people) && data.people.length ? data.people as Record<string, unknown>[] : [{ id: "p1", name: "Speaker A", color: dialogueColors[0] }, { id: "p2", name: "Speaker B", color: dialogueColors[1] }];
   const [people, setPeople] = useState(() => rawPeople.map((p, i) => ({ id: asString(p.id) || `p${i + 1}`, name: asString(p.name) || `Speaker ${i + 1}`, color: asString(p.color) || dialogueColors[i % dialogueColors.length] })));

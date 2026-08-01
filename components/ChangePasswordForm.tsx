@@ -143,7 +143,7 @@ export function ChangePasswordForm() {
 
       {message ? (
         <p className={`rounded-[14px] p-3 text-sm font-extrabold ${
-          status === "success" ? "bg-[color-mix(in_srgb,var(--br-success)_12%,var(--br-surface))] text-[var(--br-chart-secondary)]" : "bg-[#FFF0F2] text-[var(--br-danger)]"
+          status === "success" ? "bg-[color-mix(in_srgb,var(--br-success)_12%,var(--br-surface))] text-[var(--br-chart-secondary)]" : "bg-[var(--br-danger-soft)] text-[var(--br-danger)]"
         }`}>
           {message}
         </p>

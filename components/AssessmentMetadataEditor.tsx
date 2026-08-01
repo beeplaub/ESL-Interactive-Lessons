@@ -39,7 +39,7 @@ export function LessonAssessmentMetadataEditor({
   if (!descriptors.length) return null;
 
   return (
-    <section className="mt-3 rounded-xl border border-[var(--br-chart-primary)]/20 bg-[#F8F6FF] p-3">
+    <section className="mt-3 rounded-xl border border-[var(--br-chart-primary)]/20 bg-[var(--br-surface-muted)] p-3">
       <div className="flex items-center gap-2">
         <span className="grid size-8 place-items-center rounded-lg bg-[var(--br-chart-primary)]/10 text-[var(--br-chart-primary)]"><Target size={16} /></span>
         <div>

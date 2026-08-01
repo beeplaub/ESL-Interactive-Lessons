@@ -38,7 +38,7 @@ export default async function CalendarPage() {
             <div className="grid gap-3 md:grid-cols-2">
               {rows.map((entry) => (
                 <Link key={entry.id} href={entry.href} className="flex items-center gap-3 rounded-[16px] border border-[var(--br-border)] p-3 hover:bg-[var(--br-surface-muted)]">
-                  <span className={`grid size-10 place-items-center rounded-xl ${entry.kind === "TASK" ? "bg-[color-mix(in_srgb,var(--br-success)_12%,var(--br-surface))] text-[var(--br-chart-secondary)]" : "bg-[#F0EDFF] text-[var(--br-brand)]"}`}><ClipboardList size={18} /></span>
+                  <span className={`grid size-10 place-items-center rounded-xl ${entry.kind === "TASK" ? "bg-[color-mix(in_srgb,var(--br-success)_12%,var(--br-surface))] text-[var(--br-chart-secondary)]" : "bg-[var(--br-brand-soft)] text-[var(--br-brand)]"}`}><ClipboardList size={18} /></span>
                   <span className="min-w-0 flex-1"><span className="block font-extrabold">{entry.title}</span><span className="mt-1 block text-xs font-semibold text-[var(--br-text-muted)]">{entry.kind === "TASK" ? "Practice task" : "Course assignment"}{entry.className ? ` · ${entry.className}` : ""} · {new Date(entry.dueAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span></span>
                   <ChevronRight size={17} className="text-[var(--br-text-muted)]" />
                 </Link>

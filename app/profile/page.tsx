@@ -98,7 +98,7 @@ export default async function ProfilePage() {
 
             <section className="br-learner-card p-5 sm:p-6">
               <div className="mb-4 flex items-center gap-3">
-                <span className={`grid size-11 place-items-center rounded-[14px] ${isEmailUser ? "bg-[#FFF5E7] text-[#E47A00]" : "bg-[var(--br-canvas-elevated)] text-[var(--br-text-muted)]"}`}><KeyRound className="size-5" /></span>
+                <span className={`grid size-11 place-items-center rounded-[14px] ${isEmailUser ? "bg-[var(--br-warning-soft)] text-[var(--br-warning)]" : "bg-[var(--br-canvas-elevated)] text-[var(--br-text-muted)]"}`}><KeyRound className="size-5" /></span>
                 <div>
                   <h2 className="text-xl font-extrabold">Password</h2>
                   <p className="text-xs font-semibold text-[var(--br-text-muted)]">{isEmailUser ? "Change your BrenUp password." : "Managed by your sign-in provider."}</p>

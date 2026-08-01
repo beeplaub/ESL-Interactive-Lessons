@@ -84,7 +84,7 @@ export default async function LevelTestResultPage({ searchParams }: { searchPara
 }
 
 function ResultMetric({ icon: Icon, value, label, tone }: { icon: React.ElementType; value: string; label: string; tone: "green" | "purple" | "orange" }) {
-  const tones = { green: "bg-[color-mix(in_srgb,var(--br-success)_12%,var(--br-surface))] text-[var(--br-chart-secondary)]", purple: "bg-[var(--br-surface-muted)] text-[var(--br-brand)]", orange: "bg-[#FFF5E7] text-[#E47A00]" };
+  const tones = { green: "bg-[color-mix(in_srgb,var(--br-success)_12%,var(--br-surface))] text-[var(--br-chart-secondary)]", purple: "bg-[var(--br-surface-muted)] text-[var(--br-brand)]", orange: "bg-[var(--br-warning-soft)] text-[var(--br-warning)]" };
   return <div className="br-learner-card p-4"><div className="flex items-center gap-3"><span className={`grid size-10 place-items-center rounded-[13px] ${tones[tone]}`}><Icon className="size-5" /></span><div><div className="text-xl font-extrabold">{value}</div><div className="text-xs font-bold text-[var(--br-text-muted)]">{label}</div></div></div></div>;
 }
 function asRecord(value: unknown): Record<string, unknown> { return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {}; }

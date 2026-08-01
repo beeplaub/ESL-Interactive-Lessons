@@ -31,7 +31,7 @@ This checklist is the source of truth for the production design migration. It is
 
 ## Learner Experience
 
-- [ ] Migrate dashboard, courses, course detail, quizzes, quiz player, lesson player, and level test.
+- [x] Migrate dashboard, courses, course detail, quizzes, quiz player, lesson player, and level test to semantic surface, feedback, and elevation roles.
 - [ ] Migrate leaderboard, profile, achievements, tasks, assignments, calendar, language profile, and live classes.
 - [ ] Verify desktop, tablet, mobile, loading, error, and empty states.
 

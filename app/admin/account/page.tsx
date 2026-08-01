@@ -55,7 +55,7 @@ export default async function StaffAccountPage() {
 
           <section className="br-card rounded-20 p-5 sm:p-6">
             <div className="mb-4 flex items-center gap-3">
-              <span className={`grid size-11 place-items-center rounded-[14px] ${isEmailUser ? "bg-[#FFF5E7] text-[#E47A00]" : "bg-surface-strong text-slate-500"}`}>
+              <span className={`grid size-11 place-items-center rounded-[14px] ${isEmailUser ? "bg-[var(--br-warning-soft)] text-[var(--br-warning)]" : "bg-surface-strong text-slate-500"}`}>
                 <KeyRound className="size-5" />
               </span>
               <div>

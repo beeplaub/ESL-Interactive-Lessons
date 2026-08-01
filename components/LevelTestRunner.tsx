@@ -137,7 +137,7 @@ export function LevelTestRunner({
             <div className="flex flex-wrap items-center gap-2">
               <span className="rounded-full bg-[var(--br-surface-muted)] px-3 py-1 text-[11px] font-extrabold text-[var(--br-chart-primary)]">{current.sectionRecord.title}</span>
               <span className="rounded-full bg-[#F1F8FF] px-3 py-1 text-[11px] font-extrabold text-[#2697FF]">{current.cefrBand}</span>
-              <span className="rounded-full bg-[#FFF5E7] px-3 py-1 text-[11px] font-extrabold text-[#E47A00]">{readableType(current.questionType)}</span>
+              <span className="rounded-full bg-[var(--br-warning-soft)] px-3 py-1 text-[11px] font-extrabold text-[var(--br-warning)]">{readableType(current.questionType)}</span>
             </div>
             <h2 className="mt-5 text-xl font-extrabold leading-snug sm:text-2xl">
               {showQuestionNumbers ? `${activeIndex + 1}. ` : ""}{current.questionText}

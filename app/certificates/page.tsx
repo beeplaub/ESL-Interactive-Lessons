@@ -40,7 +40,7 @@ export default async function CertificatesPage() {
               </Link>
             );
           })}
-          {!certificates?.length ? <div className="col-span-full grid min-h-52 place-items-center rounded-[18px] border border-dashed border-[#D9DCE8] bg-[#FAFBFD] p-6 text-center"><div><Award className="mx-auto size-7 text-[#9AA1B8]" /><h3 className="mt-3 font-extrabold text-[var(--br-text)]">Your first certificate is waiting</h3><p className="mt-1 max-w-sm text-sm leading-6 text-[var(--br-text-muted)]">Complete all required items in a course and BrenUp will issue it automatically.</p><Link href="/courses" className="mt-4 inline-flex rounded-xl bg-[var(--br-chart-primary)] px-4 py-2.5 text-xs font-extrabold text-on-dark">Browse courses</Link></div></div> : null}
+          {!certificates?.length ? <div className="col-span-full grid min-h-52 place-items-center rounded-[18px] border border-dashed border-[var(--br-border)] bg-[#FAFBFD] p-6 text-center"><div><Award className="mx-auto size-7 text-[#9AA1B8]" /><h3 className="mt-3 font-extrabold text-[var(--br-text)]">Your first certificate is waiting</h3><p className="mt-1 max-w-sm text-sm leading-6 text-[var(--br-text-muted)]">Complete all required items in a course and BrenUp will issue it automatically.</p><Link href="/courses" className="mt-4 inline-flex rounded-xl bg-[var(--br-chart-primary)] px-4 py-2.5 text-xs font-extrabold text-on-dark">Browse courses</Link></div></div> : null}
         </div>
       </section>
     </LearnerAppShell>
