@@ -77,7 +77,7 @@ export default async function LanguageProfilePage() {
 
       {responses?.length ? (
         <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
-          <section className="min-w-0 rounded-[24px] border border-[var(--br-border)] bg-surface p-4 shadow-[0_12px_35px_rgba(18,22,43,.06)] sm:p-5">
+          <section className="min-w-0 rounded-[24px] border border-[var(--br-border)] bg-surface p-4 shadow-[var(--br-shadow)] sm:p-5">
             <div className="mb-4 flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-black text-[var(--br-dark-card)]">Skill mastery</h2>
@@ -105,7 +105,7 @@ export default async function LanguageProfilePage() {
           </section>
 
           <aside className="min-w-0 space-y-5">
-            <section className="rounded-[24px] border border-[var(--br-border)] bg-surface p-5 shadow-[0_12px_35px_rgba(18,22,43,.06)]">
+            <section className="rounded-[24px] border border-[var(--br-border)] bg-surface p-5 shadow-[var(--br-shadow)]">
               <div className="mb-4 flex items-center gap-2">
                 <Sparkles className="size-5 text-[#F59E0B]" />
                 <h2 className="text-lg font-black text-[var(--br-dark-card)]">Learned targets</h2>
@@ -123,7 +123,7 @@ export default async function LanguageProfilePage() {
               </div>
             </section>
 
-            <section className="rounded-[24px] border border-[var(--br-border)] bg-surface p-5 shadow-[0_12px_35px_rgba(18,22,43,.06)]">
+            <section className="rounded-[24px] border border-[var(--br-border)] bg-surface p-5 shadow-[var(--br-shadow)]">
               <div className="mb-3 flex items-center gap-2">
                 <Target className="size-5 text-[var(--br-chart-primary)]" />
                 <h2 className="text-lg font-black text-[var(--br-dark-card)]">Next best move</h2>
@@ -138,7 +138,7 @@ export default async function LanguageProfilePage() {
           </aside>
         </div>
       ) : (
-        <section className="rounded-[24px] border border-dashed border-[#DDE1F0] bg-surface p-8 text-center shadow-[0_12px_35px_rgba(18,22,43,.06)]">
+        <section className="rounded-[24px] border border-dashed border-[#DDE1F0] bg-surface p-8 text-center shadow-[var(--br-shadow)]">
           <CheckCircle2 className="mx-auto size-10 text-[var(--br-chart-primary)]" />
           <h2 className="mt-3 text-xl font-black text-[var(--br-dark-card)]">Your profile is ready to grow</h2>
           <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-[var(--br-text-muted)]">

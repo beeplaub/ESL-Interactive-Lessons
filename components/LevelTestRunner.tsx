@@ -100,7 +100,7 @@ export function LevelTestRunner({
   return (
     <main className="min-h-screen bg-[var(--br-canvas-elevated)] px-3 py-3 text-[var(--br-dark-card)] sm:px-5 sm:py-5">
       <div className="mx-auto max-w-5xl">
-        <header className="sticky top-0 z-30 rounded-[18px] border border-[var(--br-surface-strong)] bg-white/95 p-3 shadow-[0_10px_30px_rgba(0,0,0,.08)] backdrop-blur sm:p-4">
+        <header className="sticky top-0 z-30 rounded-[18px] border border-[var(--br-surface-strong)] bg-white/95 p-3 shadow-[var(--br-shadow)] backdrop-blur sm:p-4">
           <div className="flex items-center gap-3">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
@@ -126,14 +126,14 @@ export function LevelTestRunner({
 
         <div className={`mt-4 grid gap-4 ${passage ? "lg:grid-cols-[minmax(0,.9fr)_minmax(0,1.1fr)]" : ""}`}>
           {passage ? (
-            <aside className="rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-5 shadow-[0_12px_32px_rgba(0,0,0,.05)] lg:sticky lg:top-28 lg:max-h-[calc(100vh-130px)] lg:overflow-y-auto">
+            <aside className="rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-5 shadow-[var(--br-shadow)] lg:sticky lg:top-28 lg:max-h-[calc(100vh-130px)] lg:overflow-y-auto">
               <div className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-[.12em] text-[var(--br-chart-primary)]"><BookOpen className="size-4" /> Reading passage</div>
               <h2 className="mt-3 text-xl font-extrabold">{passage.title}</h2>
               <p className="mt-4 whitespace-pre-line text-sm font-medium leading-7 text-[#4E536B]">{passage.body}</p>
             </aside>
           ) : null}
 
-          <section className="rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)] sm:p-7">
+          <section className="rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-5 shadow-[var(--br-shadow)] sm:p-7">
             <div className="flex flex-wrap items-center gap-2">
               <span className="rounded-full bg-[var(--br-surface-muted)] px-3 py-1 text-[11px] font-extrabold text-[var(--br-chart-primary)]">{current.sectionRecord.title}</span>
               <span className="rounded-full bg-[#F1F8FF] px-3 py-1 text-[11px] font-extrabold text-[#2697FF]">{current.cefrBand}</span>
@@ -180,7 +180,7 @@ export function LevelTestRunner({
             <div className="mt-7 flex items-center justify-between gap-3 border-t border-[var(--br-surface-strong)] pt-5">
               <div className="text-xs font-bold text-[var(--br-text-muted)]">{percentage}% answered</div>
               {activeIndex < questions.length - 1 ? (
-                <button onClick={() => setActiveIndex((index) => index + 1)} className="inline-flex items-center gap-2 rounded-[13px] bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] px-5 py-3 text-sm font-extrabold text-on-dark shadow-[0_8px_20px_rgba(108,59,255,.24)]">
+                <button onClick={() => setActiveIndex((index) => index + 1)} className="inline-flex items-center gap-2 rounded-[13px] bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] px-5 py-3 text-sm font-extrabold text-on-dark shadow-[var(--br-shadow)]">
                   Next question <ChevronRight className="size-4" />
                 </button>
               ) : (

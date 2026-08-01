@@ -33,7 +33,7 @@ export function NewCourseModal({ organizations = [] }: { organizations?: Array<{
           />
 
           {/* Modal content wrapper */}
-          <div className="relative w-full max-w-xl scale-100 transform overflow-hidden rounded-[24px] border border-[var(--br-surface-strong)] bg-surface p-6 shadow-[0_24px_64px_rgba(10,13,44,0.18)] transition-all animate-[modal-zoom_0.2s_ease-out]">
+          <div className="relative w-full max-w-xl scale-100 transform overflow-hidden rounded-[24px] border border-[var(--br-surface-strong)] bg-surface p-6 shadow-[var(--br-shadow)] transition-all animate-[modal-zoom_0.2s_ease-out]">
             {/* Header */}
             <div className="flex items-center justify-between border-b border-[var(--br-surface-strong)] pb-4">
               <div>
@@ -140,7 +140,7 @@ export function NewCourseModal({ organizations = [] }: { organizations?: Array<{
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="inline-flex items-center gap-2 rounded-xl bg-violetglow px-5 py-2.5 text-sm font-extrabold text-on-dark shadow-[0_4px_14px_rgba(124,58,237,0.25)] hover:bg-[#6c2ee5] disabled:opacity-50 transition"
+                  className="inline-flex items-center gap-2 rounded-xl bg-violetglow px-5 py-2.5 text-sm font-extrabold text-on-dark shadow-[var(--br-shadow)] hover:bg-[#6c2ee5] disabled:opacity-50 transition"
                 >
                   {isSubmitting ? "Creating..." : "Create and open builder"}
                 </button>

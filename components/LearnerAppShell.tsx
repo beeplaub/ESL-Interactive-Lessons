@@ -361,7 +361,7 @@ function DesktopLearnerChrome({
     <header className="mb-4 hidden items-center justify-between gap-4 min-[1180px]:flex">
       {leading ?? (
         <nav className="flex min-w-0 items-center gap-2 text-sm font-semibold text-[var(--br-text-muted)]" aria-label="Breadcrumb">
-          <Link href="/account" className="grid size-9 shrink-0 place-items-center rounded-xl border border-[var(--br-surface-strong)] bg-surface text-[var(--br-text-muted)] shadow-[0_2px_8px_rgba(0,0,0,.04)]">
+          <Link href="/account" className="grid size-9 shrink-0 place-items-center rounded-xl border border-[var(--br-surface-strong)] bg-surface text-[var(--br-text-muted)] shadow-[var(--br-shadow)]">
             <Home className="size-4" />
           </Link>
           {breadcrumbs.map((item, index) => (
@@ -381,17 +381,17 @@ function DesktopLearnerChrome({
           <form action={switchToAdminView}>
             <button
               type="submit"
-              className="hidden items-center gap-1.5 rounded-[14px] border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-900 shadow-[0_2px_8px_rgba(0,0,0,.04)] transition hover:bg-amber-100 min-[1120px]:inline-flex"
+              className="hidden items-center gap-1.5 rounded-[14px] border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-900 shadow-[var(--br-shadow)] transition hover:bg-amber-100 min-[1120px]:inline-flex"
             >
               Switch to Admin
             </button>
           </form>
         ) : null}
-        <Link href="/level-test" className="hidden items-center gap-1.5 rounded-[14px] border border-[var(--br-surface-strong)] bg-surface px-3 py-2 text-xs font-bold text-[var(--br-text-muted)] shadow-[0_2px_8px_rgba(0,0,0,.04)] transition hover:text-[var(--br-chart-primary)] min-[1120px]:inline-flex">
+        <Link href="/level-test" className="hidden items-center gap-1.5 rounded-[14px] border border-[var(--br-surface-strong)] bg-surface px-3 py-2 text-xs font-bold text-[var(--br-text-muted)] shadow-[var(--br-shadow)] transition hover:text-[var(--br-chart-primary)] min-[1120px]:inline-flex">
           <Target className="size-4 text-[var(--br-chart-primary)]" /> {currentLevel ? `${currentLevel} level` : "Find your level"}
         </Link>
         <NotificationsDropdown initialNotifications={notifications} mode="desktop" />
-        <Link href={isLoggedIn ? "/profile" : "/login"} className="flex items-center gap-2 rounded-full border border-[var(--br-surface-strong)] bg-surface p-1.5 pr-3 shadow-[0_2px_8px_rgba(0,0,0,.04)]">
+        <Link href={isLoggedIn ? "/profile" : "/login"} className="flex items-center gap-2 rounded-full border border-[var(--br-surface-strong)] bg-surface p-1.5 pr-3 shadow-[var(--br-shadow)]">
           <AvatarBubble initials={initials} avatarUrl={avatarUrl} />
           <span className="hidden max-w-[130px] truncate text-xs font-bold text-[var(--br-dark-card)] min-[1120px]:block">{isLoggedIn ? userName : "My Account"}</span>
         </Link>
@@ -498,7 +498,7 @@ function RightSidebarCards({ data }: { data: RightSidebarData }) {
 }
 
 function RightRailCard({ children }: { children: React.ReactNode }) {
-  return <div className="rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)]">{children}</div>;
+  return <div className="rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-5 shadow-[var(--br-shadow)]">{children}</div>;
 }
 
 function ProgressLegend({ dot, label, value }: { dot: string; label: string; value: string }) {

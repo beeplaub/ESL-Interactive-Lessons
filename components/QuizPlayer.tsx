@@ -217,7 +217,7 @@ function ScoreHistory({ attempts, total }: { attempts: PastAttempt[]; total: num
   const latestPercent = total ? Math.round((latest.score / total) * 100) : 0;
 
   return (
-    <div className="mb-6 rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)]">
+    <div className="mb-6 rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-5 shadow-[var(--br-shadow)]">
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <TrendingUp size={16} className="text-[var(--br-chart-primary)]" />
@@ -498,7 +498,7 @@ export function QuizPlayer({
         <ScoreHistory attempts={allAttempts} total={questions.length} />
       )}
 
-      <div className="rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-4 shadow-[0_12px_32px_rgba(0,0,0,.06)] sm:p-5">
+      <div className="rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-4 shadow-[var(--br-shadow)] sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[var(--br-chart-primary)]">Question {currentIndex + 1} of {questions.length}</p>
@@ -569,7 +569,7 @@ export function QuizPlayer({
         <button
           type="button"
           onClick={() => setReviewMode("overview")}
-          className="inline-flex items-center gap-2 rounded-[14px] border border-[var(--br-surface-strong)] bg-surface px-4 py-2 text-sm font-bold text-[var(--br-text-muted)] shadow-[0_8px_20px_rgba(0,0,0,.04)] hover:bg-[var(--br-canvas-elevated)]"
+          className="inline-flex items-center gap-2 rounded-[14px] border border-[var(--br-surface-strong)] bg-surface px-4 py-2 text-sm font-bold text-[var(--br-text-muted)] shadow-[var(--br-shadow)] hover:bg-[var(--br-canvas-elevated)]"
         >
           <ChevronLeft size={16} /> Back to overview ({score}/{totalPoints})
         </button>
@@ -606,7 +606,7 @@ export function QuizPlayer({
         ) : null}
       </div>
 
-      <div className="flex flex-nowrap items-center justify-between gap-2 rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-2.5 shadow-[0_12px_32px_rgba(0,0,0,.06)] sm:gap-3 sm:p-3">
+      <div className="flex flex-nowrap items-center justify-between gap-2 rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-2.5 shadow-[var(--br-shadow)] sm:gap-3 sm:p-3">
         <button
           type="button"
           onClick={() => goToQuestion(currentIndex - 1)}
@@ -651,7 +651,7 @@ export function QuizPlayer({
       {!submitted || reviewMode === "detail" ? (
         (() => {
           return (
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-4 shadow-[0_12px_32px_rgba(0,0,0,.06)]">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-4 shadow-[var(--br-shadow)]">
               <p className="text-sm font-semibold text-[var(--br-text-muted)]">
                 {submitted ? isGuest ? "Create a free account to save your score and track progress." : "Review each question, or head back to the overview." : currentAnswered ? "Answered. Move on when ready." : "Answer this question, then continue."}
               </p>
@@ -670,7 +670,7 @@ export function QuizPlayer({
                     type="button"
                     disabled={!answered || submitted}
                     onClick={submit}
-                    className="inline-flex items-center gap-2 rounded-[14px] bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] px-4 py-2 text-sm font-extrabold text-on-dark shadow-[0_8px_20px_rgba(108,59,255,.25)] disabled:opacity-45"
+                    className="inline-flex items-center gap-2 rounded-[14px] bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] px-4 py-2 text-sm font-extrabold text-on-dark shadow-[var(--br-shadow)] disabled:opacity-45"
                   >
                     <CheckCircle2 size={16} /> {isPending ? "Saving..." : "Submit"}
                   </button>
@@ -757,7 +757,7 @@ export function QuestionCard({
           : { scale: 1, x: 0 }
       }
       transition={{ duration: 0.4, ease: "easeOut" }}
-      className={`relative rounded-[20px] border bg-surface p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)] sm:p-6 ${borderClass}`}
+      className={`relative rounded-[20px] border bg-surface p-5 shadow-[var(--br-shadow)] sm:p-6 ${borderClass}`}
     >
       {isResolved ? (
         <motion.div
@@ -1015,7 +1015,7 @@ function SkimChallenge({
             setReadingTimeLeft(timeLimit);
             setPhase("READING");
           }}
-          className="inline-flex items-center gap-2 rounded-xl bg-[var(--br-chart-primary)] px-6 py-3 text-sm font-bold text-on-dark shadow-md shadow-[var(--br-chart-primary)]/25 hover:bg-[#592ecc] transition active:scale-95"
+          className="inline-flex items-center gap-2 rounded-xl bg-[var(--br-chart-primary)] px-6 py-3 text-sm font-bold text-on-dark shadow-md shadow-[var(--br-shadow)]/25 hover:bg-[#592ecc] transition active:scale-95"
         >
           🚀 I'm Ready — Start Skimming
         </button>

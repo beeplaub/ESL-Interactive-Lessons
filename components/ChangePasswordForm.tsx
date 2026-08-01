@@ -136,7 +136,7 @@ export function ChangePasswordForm() {
         type="button"
         disabled={isPending || !current || !next || !confirm}
         onClick={submit}
-        className="w-fit rounded-[14px] bg-gradient-to-br from-[var(--br-dark-card)] to-[#303751] px-5 py-3 text-sm font-extrabold text-on-dark shadow-[0_8px_20px_rgba(20,23,43,.18)] disabled:opacity-60"
+        className="w-fit rounded-[14px] bg-gradient-to-br from-[var(--br-dark-card)] to-[#303751] px-5 py-3 text-sm font-extrabold text-on-dark shadow-[var(--br-shadow)] disabled:opacity-60"
       >
         {isPending ? "Updating..." : "Change password"}
       </button>

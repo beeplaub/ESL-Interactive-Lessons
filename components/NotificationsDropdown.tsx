@@ -132,10 +132,10 @@ export function NotificationsDropdown({ initialNotifications, mode }: Props) {
   };
 
   const panelClass = mode === "desktop"
-    ? "absolute right-0 top-14 z-40 w-[360px] overflow-hidden rounded-[22px] border border-[var(--br-surface-strong)] bg-surface shadow-[0_24px_60px_rgba(20,23,43,.18)]"
+    ? "absolute right-0 top-14 z-40 w-[360px] overflow-hidden rounded-[22px] border border-[var(--br-surface-strong)] bg-surface shadow-[var(--br-shadow)]"
     : "fixed inset-x-3 top-[68px] z-50 max-h-[70vh] overflow-y-auto rounded-[22px] border border-[var(--br-surface-strong)] bg-surface shadow-2xl shadow-black/20";
   const summaryClass = mode === "desktop"
-    ? "relative grid size-11 cursor-pointer list-none place-items-center rounded-[14px] border border-[var(--br-surface-strong)] bg-surface shadow-[0_2px_8px_rgba(0,0,0,.04)] marker:hidden [&::-webkit-details-marker]:hidden"
+    ? "relative grid size-11 cursor-pointer list-none place-items-center rounded-[14px] border border-[var(--br-surface-strong)] bg-surface shadow-[var(--br-shadow)] marker:hidden [&::-webkit-details-marker]:hidden"
     : "relative grid size-9 cursor-pointer list-none place-items-center rounded-[10px] text-on-dark marker:hidden [&::-webkit-details-marker]:hidden";
 
   return (

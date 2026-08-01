@@ -63,7 +63,7 @@ export function LevelTestScoreCard({
   if (!wrapped) return panel;
 
   return (
-    <div className="rounded-[24px] bg-gradient-to-br from-[var(--br-brand-strong)] via-[var(--br-dark-card)] to-[var(--br-dark-card)] p-5 text-on-dark shadow-[0_16px_48px_rgba(20,23,80,.25)] sm:p-7">
+    <div className="rounded-[24px] bg-gradient-to-br from-[var(--br-brand-strong)] via-[var(--br-dark-card)] to-[var(--br-dark-card)] p-5 text-on-dark shadow-[var(--br-shadow)] sm:p-7">
       <div className="mb-5 flex items-center justify-between gap-3">
         <div>
           <div className="text-[15px] font-bold opacity-90 md:text-lg">Your last level check</div>

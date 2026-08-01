@@ -22,6 +22,7 @@ This checklist is the source of truth for the production design migration. It is
 ## Shared Components
 
 - [x] Centralize root tokens, typography roles, density, radius, and elevation variables.
+- [x] Route custom component shadows through the shared elevation token.
 - [x] Convert learner sidebar and footer to semantic navigation tokens.
 - [x] Convert global button, card, and focus primitives to semantic tokens.
 - [x] Convert admin navigation to semantic tokens.

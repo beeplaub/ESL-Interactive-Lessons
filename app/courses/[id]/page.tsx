@@ -135,7 +135,7 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
           {/* eslint-disable-next-line @next/next/no-img-element -- Course creators can use arbitrary public image links. */}
           <img src={imageUrl} alt={course.title} className="h-[230px] w-full object-cover sm:h-[280px] min-[1130px]:h-full" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/5 to-transparent" />
-          <button type="button" className="absolute left-1/2 top-1/2 grid size-16 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-surface text-[var(--br-dark-card)] shadow-[0_12px_24px_rgba(0,0,0,.25)]">
+          <button type="button" className="absolute left-1/2 top-1/2 grid size-16 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-surface text-[var(--br-dark-card)] shadow-[var(--br-shadow)]">
             <Play className="ml-1 size-7 fill-[var(--br-dark-card)]" />
           </button>
           <span className="absolute bottom-4 left-4 rounded-lg bg-black/45 px-3 py-1.5 text-xs font-bold text-on-dark backdrop-blur">Preview</span>
@@ -185,7 +185,7 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
             ) : (
               <SignInToEnrollButton />
             )}
-            <Link href="#curriculum" className="inline-flex items-center justify-center gap-2 rounded-[12px] border border-[var(--br-border)] bg-surface px-6 py-3 text-sm font-extrabold text-[var(--br-text-muted)] shadow-[0_2px_8px_rgba(0,0,0,.04)]">
+            <Link href="#curriculum" className="inline-flex items-center justify-center gap-2 rounded-[12px] border border-[var(--br-border)] bg-surface px-6 py-3 text-sm font-extrabold text-[var(--br-text-muted)] shadow-[var(--br-shadow)]">
               View curriculum
             </Link>
           </div>
@@ -201,7 +201,7 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
           const completedInSection = sectionItems.filter((item) => completedIds.has(item.id)).length;
           const sectionPercent = sectionItems.length ? Math.round((completedInSection / sectionItems.length) * 100) : 0;
           return (
-            <details key={section.id} className="group min-w-0 rounded-[18px] border border-[var(--br-surface-strong)] bg-surface p-4 shadow-[0_4px_14px_rgba(0,0,0,.035)]" open={index < 2 || sectionPercent > 0}>
+            <details key={section.id} className="group min-w-0 rounded-[18px] border border-[var(--br-surface-strong)] bg-surface p-4 shadow-[var(--br-shadow)]" open={index < 2 || sectionPercent > 0}>
               <summary className="cursor-pointer list-none marker:hidden [&::-webkit-details-marker]:hidden">
                 <div className="flex min-w-0 items-start gap-3">
                   <span className={`grid size-9 shrink-0 place-items-center rounded-full text-sm font-extrabold ${sectionPercent === 100 ? "bg-[var(--br-success)] text-on-dark" : sectionPercent > 0 ? "bg-[var(--br-chart-primary)] text-on-dark" : "bg-[#F2F3F8] text-[var(--br-text-muted)]"}`}>
@@ -470,7 +470,7 @@ function CourseItemLink({ courseId, item, itemIndex, isComplete, unlocked }: { c
 
 function FaqAccordionItem({ question, answer, defaultOpen }: { question: string; answer: string; defaultOpen?: boolean }) {
   return (
-    <details className="group rounded-[16px] border border-[var(--br-surface-strong)] bg-surface px-4 py-3 shadow-[0_2px_10px_rgba(0,0,0,.03)] open:shadow-[0_4px_14px_rgba(0,0,0,.05)]" open={defaultOpen}>
+    <details className="group rounded-[16px] border border-[var(--br-surface-strong)] bg-surface px-4 py-3 shadow-[var(--br-shadow)] open:shadow-[var(--br-shadow)]" open={defaultOpen}>
       <summary className="flex cursor-pointer list-none items-start justify-between gap-3 marker:hidden [&::-webkit-details-marker]:hidden">
         <p className="min-w-0 break-words text-sm font-extrabold leading-5 text-[var(--br-dark-card)]">{question}</p>
         <ChevronDown className="mt-0.5 size-4 shrink-0 text-[var(--br-text-muted)] transition group-open:rotate-180" />

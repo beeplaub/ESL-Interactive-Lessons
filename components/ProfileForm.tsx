@@ -65,7 +65,7 @@ export function ProfileForm({
 
       <button
         disabled={isPending}
-        className="w-fit rounded-[14px] bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] px-5 py-3 text-sm font-extrabold text-on-dark shadow-[0_8px_20px_rgba(108,59,255,.28)] disabled:opacity-50"
+        className="w-fit rounded-[14px] bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] px-5 py-3 text-sm font-extrabold text-on-dark shadow-[var(--br-shadow)] disabled:opacity-50"
       >
         {isPending ? "Saving…" : "Save profile"}
       </button>

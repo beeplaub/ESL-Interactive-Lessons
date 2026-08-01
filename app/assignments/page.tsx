@@ -66,7 +66,7 @@ export default async function AssignmentsPage() {
 
   return (
     <LearnerAppShell active="assignments">
-      <section className="rounded-[24px] bg-gradient-to-br from-[var(--br-brand-strong)] via-[var(--br-dark-card)] to-[var(--br-dark-card)] p-5 text-on-dark shadow-[0_16px_48px_rgba(20,23,80,.2)] sm:p-6">
+      <section className="rounded-[24px] bg-gradient-to-br from-[var(--br-brand-strong)] via-[var(--br-dark-card)] to-[var(--br-dark-card)] p-5 text-on-dark shadow-[var(--br-shadow)] sm:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-white/60"><ClipboardList className="size-4" /> Learning plan</div>
@@ -80,7 +80,7 @@ export default async function AssignmentsPage() {
         </div>
       </section>
 
-      <section className="rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-4 shadow-[0_10px_28px_rgba(0,0,0,.05)] sm:p-5">
+      <section className="rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-4 shadow-[var(--br-shadow)] sm:p-5">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-extrabold text-[var(--br-dark-card)]">Class work</h2>
@@ -122,7 +122,7 @@ export default async function AssignmentsPage() {
             }
             const unavailable = resource && (resource.status !== "PUBLISHED" || resource.deleted_at !== null);
             return (
-              <article key={assignment.id} className="flex flex-col gap-4 rounded-[18px] border border-[var(--br-surface-strong)] bg-[#FCFCFE] p-4 transition hover:border-[#D9D4F9] hover:shadow-[0_8px_22px_rgba(29,20,83,.06)] sm:flex-row sm:items-center">
+              <article key={assignment.id} className="flex flex-col gap-4 rounded-[18px] border border-[var(--br-surface-strong)] bg-[#FCFCFE] p-4 transition hover:border-[#D9D4F9] hover:shadow-[var(--br-shadow)] sm:flex-row sm:items-center">
                 <div className={`grid size-11 shrink-0 place-items-center rounded-[14px] ${completed ? "bg-[#E7FBF3] text-[#00A875]" : "bg-[#F0EDFF] text-[var(--br-chart-primary)]"}`}>
                   {completed ? <CheckCircle2 className="size-5" /> : assignment.item_type === "COURSE" ? <GraduationCap className="size-5" /> : assignment.item_type === "QUIZ" ? <Target className="size-5" /> : <ClipboardList className="size-5" />}
                 </div>
@@ -152,7 +152,7 @@ export default async function AssignmentsPage() {
         </div>
       </section>
 
-      <section className="rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-4 shadow-[0_10px_28px_rgba(0,0,0,.05)] sm:p-5">
+      <section className="rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-4 shadow-[var(--br-shadow)] sm:p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-extrabold text-[var(--br-dark-card)]">Practice tasks</h2><p className="mt-0.5 text-sm text-[var(--br-text-muted)]">Teacher practice and your self-planned tasks live beside course assignments.</p></div><Link href="/tasks" className="text-sm font-extrabold text-[var(--br-chart-primary)]">Open tasks</Link></div>
         <TaskPlanner tasks={(practiceTasks ?? []) as PracticeTask[]} />
       </section>

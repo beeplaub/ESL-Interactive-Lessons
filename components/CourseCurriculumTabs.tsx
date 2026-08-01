@@ -29,7 +29,7 @@ export function CourseCurriculumTabs({
   const [active, setActive] = useState<TabKey>("curriculum");
 
   return (
-    <div id="curriculum" className="scroll-mt-20 rounded-[24px] border border-[var(--br-surface-strong)] bg-surface p-4 shadow-[0_12px_32px_rgba(0,0,0,.06)] md:p-5">
+    <div id="curriculum" className="scroll-mt-20 rounded-[24px] border border-[var(--br-surface-strong)] bg-surface p-4 shadow-[var(--br-shadow)] md:p-5">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-extrabold">{TAB_TITLES[active]}</h2>

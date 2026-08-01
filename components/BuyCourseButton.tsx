@@ -62,7 +62,7 @@ export function BuyCourseButton({
     <>
       <button
         onClick={openModal}
-        className="inline-flex items-center justify-center gap-2 rounded-[12px] bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] px-6 py-3 text-sm font-extrabold text-on-dark shadow-[0_8px_20px_rgba(108,59,255,.35)] hover:-translate-y-0.5 transition-transform"
+        className="inline-flex items-center justify-center gap-2 rounded-[12px] bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] px-6 py-3 text-sm font-extrabold text-on-dark shadow-[var(--br-shadow)] hover:-translate-y-0.5 transition-transform"
       >
         Buy Course ·{" "}
         {hasDiscount && (
@@ -75,7 +75,7 @@ export function BuyCourseButton({
       <dialog
         ref={dialogRef}
         onClose={() => setOpen(false)}
-        className="fixed inset-0 z-50 m-auto w-full max-w-lg rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-0 shadow-[0_24px_64px_rgba(0,0,0,.18)] backdrop:bg-black/50 backdrop:backdrop-blur-sm open:animate-[fadeScaleIn_0.2s_ease-out]"
+        className="fixed inset-0 z-50 m-auto w-full max-w-lg rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-0 shadow-[var(--br-shadow)] backdrop:bg-black/50 backdrop:backdrop-blur-sm open:animate-[fadeScaleIn_0.2s_ease-out]"
       >
         {open && (
           <div className="max-h-[85vh] overflow-y-auto p-6">
@@ -240,7 +240,7 @@ export function BuyCourseButton({
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="mt-2 w-full rounded-xl bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] px-6 py-3 text-sm font-extrabold text-on-dark shadow-[0_8px_20px_rgba(108,59,255,.35)] transition-transform hover:-translate-y-0.5 disabled:cursor-wait disabled:opacity-65"
+                    className="mt-2 w-full rounded-xl bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] px-6 py-3 text-sm font-extrabold text-on-dark shadow-[var(--br-shadow)] transition-transform hover:-translate-y-0.5 disabled:cursor-wait disabled:opacity-65"
                   >
                     {isSubmitting ? "Submitting…" : "Submit Verification"}
                   </button>
@@ -267,7 +267,7 @@ export function SignInToEnrollButton() {
   return (
     <Link
       href="/login"
-      className="inline-flex items-center justify-center gap-2 rounded-[12px] bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] px-6 py-3 text-sm font-extrabold text-on-dark shadow-[0_8px_20px_rgba(108,59,255,.35)]"
+      className="inline-flex items-center justify-center gap-2 rounded-[12px] bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] px-6 py-3 text-sm font-extrabold text-on-dark shadow-[var(--br-shadow)]"
     >
       Sign in to enroll <ArrowRight className="size-4" />
     </Link>

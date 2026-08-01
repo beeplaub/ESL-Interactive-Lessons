@@ -110,7 +110,7 @@ export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLogged
 
   return (
     <>
-      <div className="mb-5 rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-4 shadow-[0_12px_32px_rgba(0,0,0,.06)] sm:p-5">
+      <div className="mb-5 rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-4 shadow-[var(--br-shadow)] sm:p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-2 text-lg font-extrabold text-[var(--br-dark-card)]"><Gamepad2 className="size-5 text-[var(--br-chart-primary)]" /> Quiz Library</div>
@@ -217,7 +217,7 @@ export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLogged
             return (
               <article
                 key={quiz.id}
-                className="group flex flex-col overflow-hidden rounded-[20px] border border-[var(--br-surface-strong)] bg-surface shadow-[0_12px_32px_rgba(0,0,0,.06)] transition hover:scale-[1.012] hover:shadow-[0_16px_40px_rgba(0,0,0,.1)]"
+                className="group flex flex-col overflow-hidden rounded-[20px] border border-[var(--br-surface-strong)] bg-surface shadow-[var(--br-shadow)] transition hover:scale-[1.012] hover:shadow-[var(--br-shadow)]"
               >
                 <div className={`relative flex min-h-[132px] items-start justify-between gap-3 bg-gradient-to-br ${theme.gradient} p-5 text-on-dark`}>
                   <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,.28),transparent_28%),radial-gradient(circle_at_90%_90%,rgba(255,255,255,.16),transparent_28%)]" />
@@ -298,7 +298,7 @@ export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLogged
           })}
         </div>
       ) : (
-        <div className="rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-10 text-center shadow-[0_12px_32px_rgba(0,0,0,.06)]">
+        <div className="rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-10 text-center shadow-[var(--br-shadow)]">
           <ClipboardList className="mx-auto text-[var(--br-chart-primary)]/40" size={32} />
           <h2 className="mt-4 text-lg font-extrabold">No quizzes match your filters</h2>
           <p className="mt-2 text-sm text-[var(--br-text-muted)]">Try clearing some filters to see more quizzes.</p>

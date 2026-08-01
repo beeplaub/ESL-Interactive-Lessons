@@ -39,7 +39,7 @@ export default async function ProfilePage() {
         />
 
         {missingName ? (
-          <div className="flex items-start gap-3 rounded-[20px] border border-[#BCEBDA] bg-[#F1FFF8] p-4 shadow-[0_8px_22px_rgba(0,0,0,.04)]">
+          <div className="flex items-start gap-3 rounded-[20px] border border-[#BCEBDA] bg-[#F1FFF8] p-4 shadow-[var(--br-shadow)]">
             <UserRound className="mt-0.5 size-5 shrink-0 text-[var(--br-chart-secondary)]" />
             <div>
               <p className="text-sm font-extrabold text-[#137A5D]">Add your name</p>

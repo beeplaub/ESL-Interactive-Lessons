@@ -52,7 +52,7 @@ export function ResultsOverview({
   const percent = Math.round((score / Math.max(1, total)) * 100);
 
   return (
-    <div className="overflow-hidden rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)] sm:p-6">
+    <div className="overflow-hidden rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-5 shadow-[var(--br-shadow)] sm:p-6">
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}

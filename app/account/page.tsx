@@ -227,7 +227,7 @@ export default async function AccountPage() {
 }
 
 function DashboardCard({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <div className={`rounded-[20px] border border-[var(--br-surface-strong)] bg-surface shadow-[0_12px_32px_rgba(0,0,0,.06)] ${className}`}>{children}</div>;
+  return <div className={`rounded-[20px] border border-[var(--br-surface-strong)] bg-surface shadow-[var(--br-shadow)] ${className}`}>{children}</div>;
 }
 
 function SectionHeader({ title, href, small }: { title: string; href: string; small?: boolean }) {
@@ -241,7 +241,7 @@ function SectionHeader({ title, href, small }: { title: string; href: string; sm
 
 function ResumeLearningCard({ item, currentLevel, reviewHref }: { item?: { href: string; title: string; meta: string; progress: number }; currentLevel: string; reviewHref?: string }) {
   const href = item?.href || "/courses";
-  return <section className="relative overflow-hidden rounded-[20px] bg-[var(--br-dark-card)] p-6 text-on-dark shadow-[0_20px_25px_-5px_rgba(27,27,58,.22)] md:p-9"><div className="absolute -right-12 -top-14 size-64 rounded-full border-[28px] border-white/5"/><div className="relative z-10 max-w-2xl"><span className="inline-flex rounded-full bg-[var(--br-action)] px-3 py-1 text-[11px] font-bold tracking-[.12em]">RESUME LEARNING</span><h2 className="mt-4 text-2xl font-bold tracking-tight md:text-[28px]">{item?.title || "Choose your next learning path"}</h2><p className="mt-2 flex items-center gap-2 text-sm text-[var(--br-text-muted)]"><Play className="size-4 text-[#FFB199]" /> {item?.meta || `Start a ${currentLevel} course or quiz when you are ready.`}</p><div className="mt-6 flex flex-wrap gap-3"><Link href={href} className="inline-flex items-center gap-2 rounded-xl bg-[var(--br-action)] px-5 py-3 text-sm font-bold text-on-dark transition hover:bg-[#FFB199]">{item ? "Resume" : "Browse courses"}<ChevronRight className="size-4" /></Link><Link href={reviewHref || "/quizzes"} className="rounded-xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-bold text-on-dark transition hover:bg-white/15">{reviewHref ? "Review previous" : "Quick quiz"}</Link></div></div><div className="absolute bottom-0 left-0 h-1 bg-white/10"><div className="h-full bg-[var(--br-action)]" style={{ width: `${item?.progress ?? 0}%` }} /></div></section>;
+  return <section className="relative overflow-hidden rounded-[20px] bg-[var(--br-dark-card)] p-6 text-on-dark shadow-[var(--br-shadow)] md:p-9"><div className="absolute -right-12 -top-14 size-64 rounded-full border-[28px] border-white/5"/><div className="relative z-10 max-w-2xl"><span className="inline-flex rounded-full bg-[var(--br-action)] px-3 py-1 text-[11px] font-bold tracking-[.12em]">RESUME LEARNING</span><h2 className="mt-4 text-2xl font-bold tracking-tight md:text-[28px]">{item?.title || "Choose your next learning path"}</h2><p className="mt-2 flex items-center gap-2 text-sm text-[var(--br-text-muted)]"><Play className="size-4 text-[#FFB199]" /> {item?.meta || `Start a ${currentLevel} course or quiz when you are ready.`}</p><div className="mt-6 flex flex-wrap gap-3"><Link href={href} className="inline-flex items-center gap-2 rounded-xl bg-[var(--br-action)] px-5 py-3 text-sm font-bold text-on-dark transition hover:bg-[#FFB199]">{item ? "Resume" : "Browse courses"}<ChevronRight className="size-4" /></Link><Link href={reviewHref || "/quizzes"} className="rounded-xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-bold text-on-dark transition hover:bg-white/15">{reviewHref ? "Review previous" : "Quick quiz"}</Link></div></div><div className="absolute bottom-0 left-0 h-1 bg-white/10"><div className="h-full bg-[var(--br-action)]" style={{ width: `${item?.progress ?? 0}%` }} /></div></section>;
 }
 
 function ScheduleGrid({ assignments, liveClasses, tasks }: { assignments: Array<{ due_at: string | null }>; liveClasses: Array<{ scheduled_at: string | null }>; tasks: Array<{ due_at: string | null }> }) { const marked = new Set([...assignments.map(x=>x.due_at), ...liveClasses.map(x=>x.scheduled_at), ...tasks.map(x=>x.due_at)].filter(Boolean).map(x=>new Date(x!).getDate())); const now=new Date(); return <><div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-[var(--br-text-muted)]">{"MTWTFSS".split("").map((d,i)=><span key={i}>{d}</span>)}</div><div className="mt-2 grid grid-cols-7 gap-1">{Array.from({length:35},(_,i)=>{const day=i-2; const active=day===now.getDate(); return <div key={i} className={`relative grid aspect-square place-items-center rounded-lg text-xs ${active?"bg-[var(--br-action)] font-bold text-on-dark":day>0&&day<=31?"text-[var(--br-dark-card)]":"text-[var(--br-text-muted)]"}`}>{day>0&&day<=31?day:""}{marked.has(day)&&!active?<span className="absolute bottom-1 size-1 rounded-full bg-[var(--br-brand)]"/>:null}</div>})}</div></> }
@@ -271,14 +271,14 @@ function ProgressCard({
 }) {
   const progress = Math.max(12, Math.round(((activeLevelIndex + 1) / 6) * 86));
   return (
-    <div className="flex flex-col gap-4 rounded-[24px] bg-gradient-to-br from-[var(--br-brand-strong)] via-[var(--br-dark-card)] to-[var(--br-dark-card)] p-5 text-on-dark shadow-[0_16px_48px_rgba(20,23,80,.25)] md:p-7 min-[1100px]:flex-row min-[1100px]:gap-8">
+    <div className="flex flex-col gap-4 rounded-[24px] bg-gradient-to-br from-[var(--br-brand-strong)] via-[var(--br-dark-card)] to-[var(--br-dark-card)] p-5 text-on-dark shadow-[var(--br-shadow)] md:p-7 min-[1100px]:flex-row min-[1100px]:gap-8">
       <div className="flex-1">
         <div className="mb-4 text-[15px] font-bold opacity-90 md:mb-6 md:text-lg">Your Learning Progress</div>
         <div className="mb-5 flex items-center overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {["A1", "A2", "B1", "B2", "C1", "C2"].map((level, index, array) => (
             <div key={level} className="flex min-w-[82px] flex-1 items-center">
               <div className="relative z-10 flex flex-col items-center gap-1.5">
-                <div className={`grid rounded-full border font-bold ${index === activeLevelIndex ? "size-14 border-[3px] border-white bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] text-[15px] text-on-dark shadow-[0_0_0_4px_rgba(108,59,255,.35),0_0_24px_rgba(108,59,255,.5)]" : index < activeLevelIndex ? "size-12 border-[var(--br-chart-primary)]/80 bg-[var(--br-chart-primary)]/50 text-[13px] text-white/85" : "size-12 border-white/20 bg-white/10 text-[13px] text-white/50"} place-items-center`}>
+                <div className={`grid rounded-full border font-bold ${index === activeLevelIndex ? "size-14 border-[3px] border-white bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] text-[15px] text-on-dark shadow-[var(--br-shadow)]" : index < activeLevelIndex ? "size-12 border-[var(--br-chart-primary)]/80 bg-[var(--br-chart-primary)]/50 text-[13px] text-white/85" : "size-12 border-white/20 bg-white/10 text-[13px] text-white/50"} place-items-center`}>
                   {level}
                 </div>
                 <div className={`max-w-[72px] text-center text-[10px] font-medium ${index === activeLevelIndex ? "text-[#A8D8FF] font-semibold" : "text-white/50"}`}>{levelNames[level]}</div>
@@ -314,7 +314,7 @@ function LearningCard({ href, title, meta, level, progress, tone }: { href: stri
   const tones = ["from-[#FF6B9D] to-[#FF8E53]", "from-[#3A7BD5] to-[#00D2FF]", "from-[var(--br-brand-strong)] to-[#2D3A8C]", "from-[#4A148C] to-[#7B1FA2]"];
   const fills = ["bg-[var(--br-chart-primary)]", "bg-[var(--br-info)]", "bg-[var(--br-success)]", "bg-[var(--br-chart-primary)]"];
   return (
-    <Link href={href} className="overflow-hidden rounded-2xl border border-[var(--br-surface-strong)] bg-surface shadow-[0_4px_16px_rgba(0,0,0,.05)] transition hover:scale-[1.03] hover:shadow-[0_12px_30px_rgba(0,0,0,.12)]">
+    <Link href={href} className="overflow-hidden rounded-2xl border border-[var(--br-surface-strong)] bg-surface shadow-[var(--br-shadow)] transition hover:scale-[1.03] hover:shadow-[var(--br-shadow)]">
       <div className={`relative flex h-[100px] items-center justify-center bg-gradient-to-br ${tones[tone % tones.length]}`}>
         <span className="absolute left-2 top-2 rounded-md bg-[var(--br-chart-primary)] px-2 py-1 text-[10px] font-bold text-on-dark">{level}</span>
         <BookOpen className="size-9 text-white/60" />
