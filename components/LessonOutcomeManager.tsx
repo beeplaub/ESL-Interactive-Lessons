@@ -59,7 +59,7 @@ export function LessonOutcomeManager({
 
       <div className="grid gap-3">
         {outcomes.map((outcome, index) => (
-          <div key={outcome.id} className="rounded-xl border border-[var(--br-border)] bg-[#FAFAFD] p-3">
+          <div key={outcome.id} className="rounded-xl border border-[var(--br-border)] bg-[var(--br-surface)] p-3">
             <ObeActionForm
               action={updateLessonOutcome.bind(null, lessonId, outcome.id)}
               className="grid gap-2 sm:grid-cols-[90px_1fr_120px_auto]"

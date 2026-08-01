@@ -193,7 +193,7 @@ export function LoginForm() {
         type="button"
         disabled={isPending}
         onClick={submit}
-        className="w-full rounded-xl bg-violetglow px-4 py-2.5 text-sm font-bold text-on-dark shadow-[var(--br-shadow)] hover:bg-[#6c2ee5] disabled:opacity-60 transition"
+        className="w-full rounded-xl bg-violetglow px-4 py-2.5 text-sm font-bold text-on-dark shadow-[var(--br-shadow)] hover:bg-[var(--br-brand-strong)] disabled:opacity-60 transition"
       >
         {isPending ? "Working..." : mode === "signin" ? "Sign in" : "Create account"}
       </button>

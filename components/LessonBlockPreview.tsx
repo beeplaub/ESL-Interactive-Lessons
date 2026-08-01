@@ -57,8 +57,8 @@ function readableTextColor(hex: unknown) {
   const value = /^#[0-9a-fA-F]{6}$/.test(asString(hex)) ? asString(hex) : "var(--br-info)";
   const backgroundLuminance = relativeLuminance(value);
   const whiteContrast = contrastRatio(backgroundLuminance, 1);
-  const inkContrast = contrastRatio(backgroundLuminance, relativeLuminance("#111827"));
-  return whiteContrast >= inkContrast ? "#ffffff" : "#111827";
+  const inkContrast = contrastRatio(backgroundLuminance, relativeLuminance("var(--br-text)"));
+  return whiteContrast >= inkContrast ? "var(--br-text-on-dark)" : "var(--br-text)";
 }
 
 function isImageUrl(value: string) {

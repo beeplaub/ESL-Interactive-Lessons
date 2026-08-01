@@ -145,7 +145,7 @@ export default async function LeaderboardPage({ searchParams }: { searchParams?:
         {/* STATS QUICK VIEW */}
         <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-surface p-6 rounded-3xl shadow-sm border border-[var(--br-surface-strong)]/60 flex items-center gap-6 group hover:shadow-md transition-all">
-            <div className="w-14 h-14 rounded-2xl bg-[#f2ebfb] flex items-center justify-center group-hover:scale-110 transition-transform">
+            <div className="w-14 h-14 rounded-2xl bg-[var(--br-surface-muted)] flex items-center justify-center group-hover:scale-110 transition-transform">
               <Users className="size-6 text-[var(--br-chart-primary)]" />
             </div>
             <div>
@@ -154,7 +154,7 @@ export default async function LeaderboardPage({ searchParams }: { searchParams?:
             </div>
           </div>
           <div className="bg-surface p-6 rounded-3xl shadow-sm border border-[var(--br-surface-strong)]/60 flex items-center gap-6 group hover:shadow-md transition-all">
-            <div className="w-14 h-14 rounded-2xl bg-[#ffdbcc] flex items-center justify-center group-hover:scale-110 transition-transform">
+            <div className="w-14 h-14 rounded-2xl bg-[var(--br-warning-soft)] flex items-center justify-center group-hover:scale-110 transition-transform">
               <Zap className="size-6 text-[var(--br-warning)]" />
             </div>
             <div>
@@ -398,7 +398,7 @@ export default async function LeaderboardPage({ searchParams }: { searchParams?:
             </div>
 
             {/* QUIZ BADGE NEXT STEP */}
-            <div className="bg-[#fdf8ff] p-5 rounded-3xl border border-[var(--br-surface-strong)]/60 flex items-center justify-between gap-4">
+            <div className="bg-[var(--br-surface)] p-5 rounded-3xl border border-[var(--br-surface-strong)]/60 flex items-center justify-between gap-4">
               <div>
                 <h4 className="font-bold text-sm text-[var(--br-text)]">Next Rank</h4>
                 {nextBadge ? (

@@ -49,7 +49,7 @@ export default async function AdminPlansPage() {
 
   return (
     <main className="min-w-0 space-y-6">
-      <section className="rounded-20 bg-gradient-to-br from-[#24105e] via-[#4020a9] to-[#7437f2] p-5 text-on-dark shadow-lg sm:p-7">
+      <section className="rounded-20 bg-gradient-to-br from-[var(--br-brand-strong)] via-[var(--br-chart-primary)] to-[var(--br-chart-primary)] p-5 text-on-dark shadow-lg sm:p-7">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/65">Commercial controls</p>

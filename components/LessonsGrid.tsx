@@ -41,24 +41,24 @@ const LEVEL_THEME: Record<string, {
   badgeText: string;
   headerBg: string;
 }> = {
-  A1: { border: "#f59e0b", badge: "#fef3c7", badgeText: "#92400e", headerBg: "#fffbeb" },
-  "A1-A2": { border: "var(--br-action)", badge: "#ffedd5", badgeText: "#7c2d12", headerBg: "#fff7ed" },
-  A2: { border: "var(--br-action)", badge: "#ffedd5", badgeText: "#7c2d12", headerBg: "#fff7ed" },
-  B1: { border: "#0ea5e9", badge: "#e0f2fe", badgeText: "#0c4a6e", headerBg: "#f0f9ff" },
-  "B1-B2": { border: "var(--br-info)", badge: "#dbeafe", badgeText: "#1e3a8a", headerBg: "#eff6ff" },
-  B2: { border: "var(--br-info)", badge: "#dbeafe", badgeText: "#1e3a8a", headerBg: "#eff6ff" },
-  C1: { border: "#7c3aed", badge: "#ede9fe", badgeText: "#4c1d95", headerBg: "#f5f3ff" },
-  "C1-C2": { border: "#7c3aed", badge: "#ede9fe", badgeText: "#4c1d95", headerBg: "#f5f3ff" },
-  C2: { border: "#0f172a", badge: "#e2e8f0", badgeText: "#0f172a", headerBg: "#f8fafc" },
-  "All Levels": { border: "#64748b", badge: "#f1f5f9", badgeText: "#334155", headerBg: "#f8fafc" },
+  A1: { border: "var(--br-achievement)", badge: "var(--br-warning-soft)", badgeText: "var(--br-action-strong)", headerBg: "var(--br-warning-soft)" },
+  "A1-A2": { border: "var(--br-action)", badge: "var(--br-warning-soft)", badgeText: "var(--br-action-strong)", headerBg: "var(--br-warning-soft)" },
+  A2: { border: "var(--br-action)", badge: "var(--br-warning-soft)", badgeText: "var(--br-action-strong)", headerBg: "var(--br-warning-soft)" },
+  B1: { border: "var(--br-info)", badge: "var(--br-info-soft)", badgeText: "var(--br-brand-strong)", headerBg: "var(--br-info-soft)" },
+  "B1-B2": { border: "var(--br-info)", badge: "var(--br-info-soft)", badgeText: "var(--br-brand-strong)", headerBg: "var(--br-info-soft)" },
+  B2: { border: "var(--br-info)", badge: "var(--br-info-soft)", badgeText: "var(--br-brand-strong)", headerBg: "var(--br-info-soft)" },
+  C1: { border: "var(--br-brand-strong)", badge: "var(--br-surface-muted)", badgeText: "var(--br-brand-strong)", headerBg: "var(--br-surface-muted)" },
+  "C1-C2": { border: "var(--br-brand-strong)", badge: "var(--br-surface-muted)", badgeText: "var(--br-brand-strong)", headerBg: "var(--br-surface-muted)" },
+  C2: { border: "var(--br-text)", badge: "var(--br-border)", badgeText: "var(--br-text)", headerBg: "var(--br-surface)" },
+  "All Levels": { border: "var(--br-text-muted)", badge: "var(--br-surface-muted)", badgeText: "var(--br-text-muted)", headerBg: "var(--br-surface)" },
 };
 
 function getLevelTheme(level: string | null) {
   return LEVEL_THEME[level ?? ""] ?? {
-    border: "#e2e8f0",
-    badge: "#f1f5f9",
-    badgeText: "#475569",
-    headerBg: "#f8fafc"
+    border: "var(--br-border)",
+    badge: "var(--br-surface-muted)",
+    badgeText: "var(--br-text-muted)",
+    headerBg: "var(--br-surface)"
   };
 }
 
@@ -170,7 +170,7 @@ export function LessonsGrid({ lessons, slideCounts, progress, wishlistLessonIds,
                   onClick={() => setSelectedLevel(selectedLevel === lvl ? "" : lvl)}
                   style={
                     selectedLevel === lvl
-                      ? { backgroundColor: t.border, color: "#fff", borderColor: t.border }
+                      ? { backgroundColor: t.border, color: "var(--br-text-on-dark)", borderColor: t.border }
                       : { backgroundColor: t.badge, color: t.badgeText, borderColor: "transparent" }
                   }
                   className="rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors"

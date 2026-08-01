@@ -49,7 +49,7 @@ export function BuyCourseButton({
     return (
       <button
         disabled
-        className="inline-flex items-center justify-center gap-2 rounded-[12px] bg-[#EBEBEF] cursor-not-allowed px-6 py-3 text-sm font-extrabold text-[var(--br-text-muted)]"
+        className="inline-flex items-center justify-center gap-2 rounded-[12px] bg-[var(--br-border)] cursor-not-allowed px-6 py-3 text-sm font-extrabold text-[var(--br-text-muted)]"
       >
         <Clock3 className="size-4" /> Under Review
       </button>

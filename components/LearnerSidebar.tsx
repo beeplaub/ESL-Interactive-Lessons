@@ -86,7 +86,7 @@ export function LearnerSidebar({
           {collapsed ? null : (
             <div className="min-w-0">
               <div className="truncate text-base font-extrabold leading-tight text-[var(--br-text-on-dark)] tracking-tight">{schoolBrand?.name || "BrenUp"}</div>
-              <div className="truncate text-[10px] font-bold text-[#e6e0ef]/50 uppercase tracking-wider">{schoolBrand ? "Powered by BrenUp" : "Level Up English"}</div>
+              <div className="truncate text-[10px] font-bold text-[var(--br-text-on-dark)]/50 uppercase tracking-wider">{schoolBrand ? "Powered by BrenUp" : "Level Up English"}</div>
             </div>
           )}
         </Link>
@@ -167,13 +167,13 @@ function NavItem({
 
 function PremiumCard() {
   return (
-    <div className="mt-3 rounded-[20px] border border-[#6B4A00]/40 bg-gradient-to-br from-[#2A1A00] to-[#3D2800] p-4 text-on-dark">
+    <div className="mt-3 rounded-[20px] border border-[var(--br-text-on-dark)]/40 bg-gradient-to-br from-[var(--br-dark-card)] to-[var(--br-dark-card)] p-4 text-on-dark">
       <div className="mb-1 flex items-center gap-1.5">
         <span>👑</span>
         <span className="text-xs font-bold">Go Premium</span>
       </div>
-      <p className="mb-3 text-[10px] leading-relaxed text-[#B8996A]">Unlock all courses, detailed feedback, and more!</p>
-      <button type="button" className="w-full cursor-default rounded-xl bg-gradient-to-br from-[var(--br-achievement)] to-[var(--br-action-strong)] py-2 text-[11px] font-bold text-[#1A0D00] shadow-sm">
+      <p className="mb-3 text-[10px] leading-relaxed text-[var(--br-text-on-dark)]">Unlock all courses, detailed feedback, and more!</p>
+      <button type="button" className="w-full cursor-default rounded-xl bg-gradient-to-br from-[var(--br-achievement)] to-[var(--br-action-strong)] py-2 text-[11px] font-bold text-[var(--br-text-on-dark)] shadow-sm">
         Upgrade Now
       </button>
     </div>

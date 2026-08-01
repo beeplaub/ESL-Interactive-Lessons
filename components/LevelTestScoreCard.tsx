@@ -33,7 +33,7 @@ export function LevelTestScoreCard({
       <div className="mt-1 flex items-baseline text-[40px] font-extrabold leading-none">
         {summary.weightedPercent}%
         {delta !== null && delta !== 0 ? (
-          <span className={`ml-2 text-[13px] font-semibold ${delta > 0 ? "text-[var(--br-success)]" : "text-[#FF8C69]"}`}>
+          <span className={`ml-2 text-[13px] font-semibold ${delta > 0 ? "text-[var(--br-success)]" : "text-[var(--br-action)]"}`}>
             {delta > 0 ? "↑" : "↓"} {Math.abs(delta)}%
           </span>
         ) : null}

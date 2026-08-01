@@ -305,7 +305,7 @@ export default function AiActivityGeneratorModal({
                 type="button"
                 onClick={handleGenerate}
                 disabled={loading}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--br-chart-primary)] px-4 py-2 text-sm font-semibold text-on-dark shadow-sm hover:bg-[#592ecc] disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--br-chart-primary)] px-4 py-2 text-sm font-semibold text-on-dark shadow-sm hover:bg-[var(--br-brand-strong)] disabled:opacity-50"
               >
                 Generate <ChevronRight size={14} />
               </button>
@@ -324,7 +324,7 @@ export default function AiActivityGeneratorModal({
                 type="button"
                 onClick={handleInsert}
                 disabled={isPending}
-                className="rounded-lg bg-[var(--br-chart-primary)] px-5 py-2 text-sm font-semibold text-on-dark shadow-sm hover:bg-[#592ecc] disabled:opacity-50"
+                className="rounded-lg bg-[var(--br-chart-primary)] px-5 py-2 text-sm font-semibold text-on-dark shadow-sm hover:bg-[var(--br-brand-strong)] disabled:opacity-50"
               >
                 {isPending ? "Adding..." : shouldAppend ? "Append to existing" : "Add as new activity"}
               </button>

@@ -40,20 +40,20 @@ const LEVEL_THEME: Record<string, {
   badgeText: string;
   gradient: string;
 }> = {
-  A1: { border: "var(--br-achievement)", badge: "#fff7ed", badgeText: "#9a3412", gradient: "from-[var(--br-achievement)] to-[var(--br-action-strong)]" },
-  A2: { border: "#FF8E53", badge: "#fff1e8", badgeText: "#9a3412", gradient: "from-[#FF8E53] to-[#FF6B9D]" },
-  B1: { border: "var(--br-info)", badge: "#eff6ff", badgeText: "#1e3a8a", gradient: "from-[var(--br-info)] to-[#3CCEFF]" },
-  B2: { border: "var(--br-chart-primary)", badge: "#f3efff", badgeText: "var(--br-chart-primary)", gradient: "from-[var(--br-chart-primary)] to-[var(--br-brand)]" },
-  C1: { border: "var(--br-brand)", badge: "#f5f3ff", badgeText: "#4c1d95", gradient: "from-[#4A148C] to-[var(--br-brand)]" },
-  C2: { border: "var(--br-dark-card)", badge: "#f1f5f9", badgeText: "var(--br-dark-card)", gradient: "from-[var(--br-dark-card)] to-[var(--br-chart-primary)]" },
+  A1: { border: "var(--br-achievement)", badge: "var(--br-warning-soft)", badgeText: "var(--br-action-strong)", gradient: "from-[var(--br-achievement)] to-[var(--br-action-strong)]" },
+  A2: { border: "var(--br-action)", badge: "var(--br-warning-soft)", badgeText: "var(--br-action-strong)", gradient: "from-[var(--br-action)] to-[var(--br-action)]" },
+  B1: { border: "var(--br-info)", badge: "var(--br-info-soft)", badgeText: "var(--br-brand-strong)", gradient: "from-[var(--br-info)] to-[var(--br-info)]" },
+  B2: { border: "var(--br-chart-primary)", badge: "var(--br-surface-muted)", badgeText: "var(--br-chart-primary)", gradient: "from-[var(--br-chart-primary)] to-[var(--br-brand)]" },
+  C1: { border: "var(--br-brand)", badge: "var(--br-surface-muted)", badgeText: "var(--br-brand-strong)", gradient: "from-[var(--br-brand-strong)] to-[var(--br-brand)]" },
+  C2: { border: "var(--br-dark-card)", badge: "var(--br-surface-muted)", badgeText: "var(--br-dark-card)", gradient: "from-[var(--br-dark-card)] to-[var(--br-chart-primary)]" },
 };
 
 function getLevelTheme(level: string | null) {
   return LEVEL_THEME[level ?? ""] ?? {
-    border: "#e2e8f0",
-    badge: "#f1f5f9",
-    badgeText: "#475569",
-    gradient: "from-[#8890B8] to-[var(--br-text-muted)]"
+    border: "var(--br-border)",
+    badge: "var(--br-surface-muted)",
+    badgeText: "var(--br-text-muted)",
+    gradient: "from-[var(--br-text-muted)] to-[var(--br-text-muted)]"
   };
 }
 
@@ -191,7 +191,7 @@ export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLogged
                   onClick={() => setSelectedLevel(selectedLevel === lvl ? "" : lvl)}
                   style={
                     selectedLevel === lvl
-                      ? { backgroundColor: t.border, color: "#fff", borderColor: t.border }
+                      ? { backgroundColor: t.border, color: "var(--br-text-on-dark)", borderColor: t.border }
                       : { backgroundColor: t.badge, color: t.badgeText, borderColor: "transparent" }
                   }
                   className="rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors"
@@ -258,15 +258,15 @@ export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLogged
                       className="mt-3 flex items-center justify-between rounded-[14px] px-3 py-2 text-sm font-bold"
                       style={{
                         backgroundColor: percent !== null && percent >= 80
-                          ? "#f0fdf4"
+                          ? "var(--br-success-soft)"
                           : percent !== null && percent >= 50
-                          ? "#eff6ff"
-                          : "#fff7ed",
+                          ? "var(--br-info-soft)"
+                          : "var(--br-warning-soft)",
                         color: percent !== null && percent >= 80
-                          ? "#166534"
+                          ? "var(--br-success)"
                           : percent !== null && percent >= 50
-                          ? "#1e3a8a"
-                          : "#9a3412"
+                          ? "var(--br-brand-strong)"
+                          : "var(--br-action-strong)"
                       }}
                     >
                       <span className="inline-flex items-center gap-2"><CheckCircle2 size={15} /> Best: {attempt.score}/{attempt.total} ({percent}%)</span>

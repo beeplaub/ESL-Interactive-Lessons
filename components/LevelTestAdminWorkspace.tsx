@@ -173,7 +173,7 @@ export function LevelTestAdminWorkspace({
       </section>
 
       {notice ? (
-        <div className={`mt-4 flex items-center gap-2 rounded-[14px] border px-4 py-3 text-sm font-bold ${notice.tone === "success" ? "border-[var(--br-success)]/20 bg-[var(--br-success)]/10 text-[#008E66]" : "border-red-200 bg-red-50 text-red-700"}`}>
+        <div className={`mt-4 flex items-center gap-2 rounded-[14px] border px-4 py-3 text-sm font-bold ${notice.tone === "success" ? "border-[var(--br-success)]/20 bg-[var(--br-success)]/10 text-[var(--br-success)]" : "border-red-200 bg-red-50 text-red-700"}`}>
           {notice.tone === "success" ? <Check className="size-4" /> : <AlertTriangle className="size-4" />} {notice.text}
         </div>
       ) : null}
@@ -271,7 +271,7 @@ function QuestionsPanel({ questions, sections, onAdd, onEdit, onDelete, onImport
   const filtered = questions.filter((question) => (sectionFilter === "ALL" || question.section_id === sectionFilter) && (levelFilter === "ALL" || question.cefr_band === levelFilter));
   return (
     <CollectionPanel title="Question bank" description="Every question is editable. Choice questions can have 2–8 options; written answers can accept multiple alternatives." button="Add question" onAdd={onAdd}
-      secondary={<button disabled={busy || questions.length > 0} onClick={onImport} className="rounded-[12px] border border-[#DDD9F4] px-3 py-2 text-xs font-bold text-[var(--br-chart-primary)] disabled:opacity-40">Import starter bank</button>}>
+      secondary={<button disabled={busy || questions.length > 0} onClick={onImport} className="rounded-[12px] border border-[var(--br-border)] px-3 py-2 text-xs font-bold text-[var(--br-chart-primary)] disabled:opacity-40">Import starter bank</button>}>
       <div className="mb-4 grid gap-2 sm:grid-cols-2">
         <select value={sectionFilter} onChange={(event) => setSectionFilter(event.target.value)} className={inputClass}><option value="ALL">All sections</option>{sections.map((section) => <option key={section.id} value={section.id}>{section.title}</option>)}</select>
         <select value={levelFilter} onChange={(event) => setLevelFilter(event.target.value)} className={inputClass}><option value="ALL">All CEFR bands</option>{["A1", "A2", "B1", "B2", "C1", "C2"].map((level) => <option key={level}>{level}</option>)}</select>
@@ -293,7 +293,7 @@ function GradingPanel({ testId, bands, busy, run }: { testId: string; bands: Ban
     <Panel title="CEFR grading logic" description="Results use weighted percentage, so the boundaries remain fair even when question weights or test length change.">
       <div className="grid gap-3">
         {state.map((band, index) => (
-          <div key={band.cefr_level} className="rounded-[16px] border border-[var(--br-surface-strong)] bg-[#F9F9FC] p-4">
+          <div key={band.cefr_level} className="rounded-[16px] border border-[var(--br-surface-strong)] bg-[var(--br-surface)] p-4">
             <div className="grid gap-3 md:grid-cols-[70px_1fr_120px_120px]">
               <div className="grid size-12 place-items-center rounded-[14px] bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] font-black text-on-dark">{band.cefr_level}</div>
               <Field label="Result name"><input value={band.label} onChange={(event) => changeBand(index, "label", event.target.value)} className={inputClass} /></Field>
@@ -428,22 +428,22 @@ function CollectionPanel({ title, description, button, onAdd, secondary, childre
   return <Panel title={title} description={description}><div className="-mt-2 mb-5 flex flex-wrap justify-end gap-2">{secondary}<button onClick={onAdd} className={primaryButton}><Plus className="size-4" /> {button}</button></div>{children}</Panel>;
 }
 function ItemCard({ title, meta, onEdit, onDelete }: { title: string; meta: string; onEdit: () => void; onDelete: () => void }) {
-  return <div className="flex min-w-0 flex-col gap-3 rounded-[16px] border border-[var(--br-surface-strong)] bg-[#F9F9FC] p-4 sm:flex-row sm:items-center"><div className="min-w-0 flex-1"><h3 className="break-words text-sm font-extrabold">{title}</h3><p className="mt-1 text-xs font-semibold text-[var(--br-text-muted)]">{meta}</p></div><div className="flex shrink-0 gap-2"><button onClick={onEdit} className={iconButton} title="Edit"><Pencil className="size-4" /></button><button onClick={onDelete} className={`${iconButton} text-red-500`} title="Delete"><Trash2 className="size-4" /></button></div></div>;
+  return <div className="flex min-w-0 flex-col gap-3 rounded-[16px] border border-[var(--br-surface-strong)] bg-[var(--br-surface)] p-4 sm:flex-row sm:items-center"><div className="min-w-0 flex-1"><h3 className="break-words text-sm font-extrabold">{title}</h3><p className="mt-1 text-xs font-semibold text-[var(--br-text-muted)]">{meta}</p></div><div className="flex shrink-0 gap-2"><button onClick={onEdit} className={iconButton} title="Edit"><Pencil className="size-4" /></button><button onClick={onDelete} className={`${iconButton} text-red-500`} title="Delete"><Trash2 className="size-4" /></button></div></div>;
 }
 function Modal({ title, subtitle, close, children }: { title: string; subtitle: string; close: () => void; children: React.ReactNode }) {
-  return <div className="fixed inset-0 z-[80] grid place-items-center bg-[#080D25]/65 p-3 backdrop-blur-sm" onMouseDown={(event) => { if (event.currentTarget === event.target) close(); }}><div className="max-h-[94vh] w-full max-w-3xl overflow-y-auto rounded-[22px] bg-surface shadow-2xl"><div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-[var(--br-surface-strong)] bg-surface p-4 sm:p-5"><div><h2 className="text-xl font-extrabold">{title}</h2><p className="mt-1 text-xs font-semibold text-[var(--br-text-muted)]">{subtitle}</p></div><button onClick={close} className={iconButton}><X className="size-4" /></button></div><div className="p-4 sm:p-6">{children}</div></div></div>;
+  return <div className="fixed inset-0 z-[80] grid place-items-center bg-[var(--br-dark-card)]/65 p-3 backdrop-blur-sm" onMouseDown={(event) => { if (event.currentTarget === event.target) close(); }}><div className="max-h-[94vh] w-full max-w-3xl overflow-y-auto rounded-[22px] bg-surface shadow-2xl"><div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-[var(--br-surface-strong)] bg-surface p-4 sm:p-5"><div><h2 className="text-xl font-extrabold">{title}</h2><p className="mt-1 text-xs font-semibold text-[var(--br-text-muted)]">{subtitle}</p></div><button onClick={close} className={iconButton}><X className="size-4" /></button></div><div className="p-4 sm:p-6">{children}</div></div></div>;
 }
-function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="grid min-w-0 gap-1.5 text-xs font-extrabold text-[#3A3F58]">{label}{children}</label>; }
+function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="grid min-w-0 gap-1.5 text-xs font-extrabold text-[var(--br-text-muted)]">{label}{children}</label>; }
 function Hint({ children }: { children: React.ReactNode }) { return <span className="mt-1 block text-[11px] font-semibold text-[var(--br-text-muted)]">{children}</span>; }
 function Toggle({ checked, setChecked, label }: { checked: boolean; setChecked: (value: boolean) => void; label: string }) { return <label className="flex cursor-pointer items-center gap-3 rounded-[14px] border border-[var(--br-surface-strong)] p-3 text-sm font-bold"><input type="checkbox" checked={checked} onChange={(event) => setChecked(event.target.checked)} className="size-4 accent-[var(--br-chart-primary)]" />{label}</label>; }
-function Empty({ text }: { text: string }) { return <div className="rounded-[16px] border border-dashed border-[#DADBE7] p-8 text-center text-sm font-semibold text-[var(--br-text-muted)]">{text}</div>; }
+function Empty({ text }: { text: string }) { return <div className="rounded-[16px] border border-dashed border-[var(--br-border)] p-8 text-center text-sm font-semibold text-[var(--br-text-muted)]">{text}</div>; }
 function Metric({ icon: Icon, value, label, tone }: { icon: React.ElementType; value: string | number; label: string; tone: "purple" | "blue" | "orange" | "green" }) {
-  const tones = { purple: "from-[var(--br-chart-primary)] to-[var(--br-brand)]", blue: "from-[#2697FF] to-[#38BDF8]", orange: "from-[var(--br-achievement)] to-[var(--br-action-strong)]", green: "from-[var(--br-success)] to-[#00B37D]" };
+  const tones = { purple: "from-[var(--br-chart-primary)] to-[var(--br-brand)]", blue: "from-[var(--br-info)] to-[var(--br-info)]", orange: "from-[var(--br-achievement)] to-[var(--br-action-strong)]", green: "from-[var(--br-success)] to-[var(--br-success)]" };
   return <div className="rounded-[18px] border border-[var(--br-surface-strong)] bg-surface p-4 shadow-[var(--br-shadow)]"><div className="flex items-center gap-3"><span className={`grid size-10 place-items-center rounded-[13px] bg-gradient-to-br ${tones[tone]} text-on-dark`}><Icon className="size-5" /></span><div><div className="text-2xl font-extrabold">{value}</div><div className="text-xs font-bold text-[var(--br-text-muted)]">{label}</div></div></div></div>;
 }
 function readableType(type: string) { return ({ MCQ: "Multiple choice", TRUE_FALSE: "True / False", MULTIPLE_SELECT: "Multiple select", FILL: "Written answer" } as Record<string, string>)[type] ?? type; }
 
-const inputClass = "min-w-0 w-full rounded-[12px] border border-[#DCDDEA] bg-surface px-3 py-2.5 text-sm font-semibold text-[var(--br-dark-card)] outline-none focus:border-[var(--br-chart-primary)] focus:ring-2 focus:ring-[var(--br-chart-primary)]/10";
+const inputClass = "min-w-0 w-full rounded-[12px] border border-[var(--br-border)] bg-surface px-3 py-2.5 text-sm font-semibold text-[var(--br-dark-card)] outline-none focus:border-[var(--br-chart-primary)] focus:ring-2 focus:ring-[var(--br-chart-primary)]/10";
 const primaryButton = "inline-flex w-fit items-center justify-center gap-2 rounded-[12px] bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] px-4 py-2.5 text-sm font-extrabold text-on-dark shadow-[var(--br-shadow)] disabled:opacity-50";
-const iconButton = "grid size-9 shrink-0 place-items-center rounded-[10px] border border-[#E3E4ED] bg-surface text-[var(--br-text-muted)] hover:text-[var(--br-chart-primary)] disabled:opacity-30";
+const iconButton = "grid size-9 shrink-0 place-items-center rounded-[10px] border border-[var(--br-border)] bg-surface text-[var(--br-text-muted)] hover:text-[var(--br-chart-primary)] disabled:opacity-30";
 const addButton = "mt-2 inline-flex items-center gap-1.5 rounded-[10px] bg-[var(--br-surface-muted)] px-3 py-2 text-xs font-extrabold text-[var(--br-chart-primary)]";

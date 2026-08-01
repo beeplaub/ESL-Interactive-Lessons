@@ -222,10 +222,10 @@ function CourseCard({
   tone: number;
 }) {
   const tones = [
-    "from-[#FF6B9D] to-[#FF8E53]",
-    "from-[#3A7BD5] to-[#00D2FF]",
-    "from-[var(--br-brand-strong)] to-[#2D3A8C]",
-    "from-[#4A148C] to-[#7B1FA2]",
+    "from-[var(--br-action)] to-[var(--br-action)]",
+    "from-[var(--br-info)] to-[var(--br-info)]",
+    "from-[var(--br-brand-strong)] to-[var(--br-brand-strong)]",
+    "from-[var(--br-brand-strong)] to-[var(--br-brand-strong)]",
     "from-[var(--br-success)] to-[var(--br-chart-secondary)]",
     "from-[var(--br-achievement)] to-[var(--br-action-strong)]"
   ];

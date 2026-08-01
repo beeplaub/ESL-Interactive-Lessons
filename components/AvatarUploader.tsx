@@ -30,7 +30,7 @@ export function AvatarUploader({ initialUrl, initials }: { initialUrl: string | 
           <img src={url} alt="Profile avatar" className="h-28 w-28 object-cover" />
         ) : initials}
       </div>
-      <label className="mt-4 inline-flex cursor-pointer rounded-[14px] border border-[#DDD9F4] bg-surface px-4 py-2.5 text-sm font-extrabold text-[var(--br-chart-primary)] shadow-[var(--br-shadow)] hover:bg-[var(--br-canvas-elevated)]">
+      <label className="mt-4 inline-flex cursor-pointer rounded-[14px] border border-[var(--br-border)] bg-surface px-4 py-2.5 text-sm font-extrabold text-[var(--br-chart-primary)] shadow-[var(--br-shadow)] hover:bg-[var(--br-canvas-elevated)]">
         {isPending ? "Uploading..." : "Upload photo"}
         <input type="file" accept="image/*" className="sr-only" onChange={(event) => event.target.files?.[0] && upload(event.target.files[0])} />
       </label>

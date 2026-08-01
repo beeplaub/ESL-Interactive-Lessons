@@ -280,7 +280,7 @@ export function WritingEvaluationInterface({
                   <span className="text-xs font-black text-[var(--br-chart-primary)] uppercase tracking-wider flex items-center gap-1.5">
                     <Sparkles size={14} /> AI Evaluation Report
                   </span>
-                  <span className="rounded-2xl bg-gradient-to-r from-[var(--br-chart-primary)] to-[#8C63FF] px-4 py-1.5 text-sm font-black text-on-dark shadow-sm">
+                  <span className="rounded-2xl bg-gradient-to-r from-[var(--br-chart-primary)] to-[var(--br-chart-primary)] px-4 py-1.5 text-sm font-black text-on-dark shadow-sm">
                     Score: {aiResult.score}%
                   </span>
                 </div>

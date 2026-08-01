@@ -242,7 +242,7 @@ function ScoreHistory({ attempts, total }: { attempts: PastAttempt[]; total: num
                 opacity: isLatest ? 1 : 0.35,
                 background: isLatest
                   ? undefined
-                  : "#94a3b8"
+                  : "var(--br-text-muted)"
               }} />
             </div>
           );
@@ -511,7 +511,7 @@ export function QuizPlayer({
               </div>
             ) : null}
             {submitted && hasPendingWritingGrading ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F6A609]/10 px-3 py-1.5 text-sm font-extrabold text-[#B5790A]">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--br-achievement)]/10 px-3 py-1.5 text-sm font-extrabold text-[var(--br-text-muted)]">
                 <Loader2 size={14} className="animate-spin" /> Pending grading
               </span>
             ) : submitted ? (
@@ -534,7 +534,7 @@ export function QuizPlayer({
       </div>
 
       {submitted && hasPendingWritingGrading && reviewMode === "overview" ? (
-        <div className="rounded-[16px] border border-[#F6A609]/30 bg-[#F6A609]/5 p-4 text-sm font-semibold text-[#8A5A00]">
+        <div className="rounded-[16px] border border-[var(--br-achievement)]/30 bg-[var(--br-achievement)]/5 p-4 text-sm font-semibold text-[var(--br-text-muted)]">
           Your written answers are saved. Choose how you'd like each one evaluated below — your final score
           will be ready once every question has been graded.
         </div>
@@ -1015,7 +1015,7 @@ function SkimChallenge({
             setReadingTimeLeft(timeLimit);
             setPhase("READING");
           }}
-          className="inline-flex items-center gap-2 rounded-xl bg-[var(--br-chart-primary)] px-6 py-3 text-sm font-bold text-on-dark shadow-md shadow-[var(--br-shadow)]/25 hover:bg-[#592ecc] transition active:scale-95"
+          className="inline-flex items-center gap-2 rounded-xl bg-[var(--br-chart-primary)] px-6 py-3 text-sm font-bold text-on-dark shadow-md shadow-[var(--br-shadow)]/25 hover:bg-[var(--br-brand-strong)] transition active:scale-95"
         >
           🚀 I'm Ready — Start Skimming
         </button>
@@ -1035,7 +1035,7 @@ function SkimChallenge({
           <button
             type="button"
             onClick={() => setPhase("ANSWERING")}
-            className="rounded-lg bg-[var(--br-chart-primary)] px-4 py-1.5 text-xs font-bold text-on-dark shadow-sm hover:bg-[#592ecc] transition"
+            className="rounded-lg bg-[var(--br-chart-primary)] px-4 py-1.5 text-xs font-bold text-on-dark shadow-sm hover:bg-[var(--br-brand-strong)] transition"
           >
             Finished Reading — Go to Questions
           </button>
@@ -2170,7 +2170,7 @@ function Pronunciation({
             <span
               key={i}
               className="rounded px-1 font-semibold"
-              style={{ backgroundColor: recognized ? "#d1fae5" : `${target.color}33`, color: recognized ? "#047857" : undefined }}
+              style={{ backgroundColor: recognized ? "var(--br-success-soft)" : `${target.color}33`, color: recognized ? "var(--br-success)" : undefined }}
             >
               {segment}
             </span>

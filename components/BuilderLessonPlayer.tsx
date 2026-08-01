@@ -45,7 +45,7 @@ function LessonCompletionModal({ lessonTitle, score, total, activitiesAttempted,
     <div className="relative w-full max-w-md overflow-hidden rounded-[28px] border border-white/50 bg-surface p-6 text-center shadow-[var(--br-shadow)] sm:p-8">
       <div className="absolute -right-12 -top-16 size-44 rounded-full bg-[var(--br-chart-primary)]/10" /><div className="absolute -left-12 bottom-0 size-36 rounded-full bg-[var(--br-achievement)]/10" />
       <button type="button" onClick={onClose} className="absolute right-4 top-4 grid size-8 place-items-center rounded-full text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]" aria-label="Close completion details"><X size={16}/></button>
-      <div className="relative mx-auto grid size-16 place-items-center rounded-[22px] bg-gradient-to-br from-[var(--br-chart-primary)] to-[#9B74FF] text-on-dark shadow-[var(--br-shadow)]"><Award size={31}/><Sparkles className="absolute -right-3 -top-2 size-4 text-[var(--br-achievement)]"/></div>
+      <div className="relative mx-auto grid size-16 place-items-center rounded-[22px] bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand-strong)] text-on-dark shadow-[var(--br-shadow)]"><Award size={31}/><Sparkles className="absolute -right-3 -top-2 size-4 text-[var(--br-achievement)]"/></div>
       <p className="relative mt-5 text-[11px] font-extrabold tracking-[.16em] text-[var(--br-chart-primary)]">LESSON COMPLETE</p>
       <h2 className="relative mt-2 text-2xl font-extrabold tracking-tight text-[var(--br-dark-card)]">Nicely done!</h2>
       <p className="relative mt-2 text-sm font-semibold text-[var(--br-text-muted)]">{lessonTitle}</p>
@@ -54,8 +54,8 @@ function LessonCompletionModal({ lessonTitle, score, total, activitiesAttempted,
         <div className="border-x border-[var(--br-border)] px-3"><p className="text-[10px] font-bold uppercase tracking-wide text-[var(--br-text-muted)]">Activities</p><p className="mt-1 text-lg font-extrabold text-[var(--br-dark-card)]">{activitiesAttempted}</p></div>
         <div className="pl-1"><p className="text-[10px] font-bold uppercase tracking-wide text-[var(--br-text-muted)]">Questions</p><p className="mt-1 text-lg font-extrabold text-[var(--br-dark-card)]">{totalQuestions}</p></div>
       </div>
-      <p className="relative mt-4 rounded-xl bg-[color-mix(in_srgb,var(--br-success)_12%,var(--br-surface))] px-4 py-3 text-sm font-semibold text-[#157A5A]">{grade} · {encouragement}</p>
-      <div className="relative mt-5 flex gap-3"><button type="button" onClick={onClose} className="flex-1 rounded-xl border border-[var(--br-border)] px-4 py-3 text-sm font-extrabold text-[var(--br-brand)] hover:bg-[var(--br-canvas-elevated)]">Review</button><button type="button" onClick={onRetake} className="flex-1 rounded-xl bg-[var(--br-action)] px-4 py-3 text-sm font-extrabold text-on-dark shadow-[var(--br-shadow)] hover:bg-[#ED4B66]">Retake</button></div>
+      <p className="relative mt-4 rounded-xl bg-[color-mix(in_srgb,var(--br-success)_12%,var(--br-surface))] px-4 py-3 text-sm font-semibold text-[var(--br-success)]">{grade} · {encouragement}</p>
+      <div className="relative mt-5 flex gap-3"><button type="button" onClick={onClose} className="flex-1 rounded-xl border border-[var(--br-border)] px-4 py-3 text-sm font-extrabold text-[var(--br-brand)] hover:bg-[var(--br-canvas-elevated)]">Review</button><button type="button" onClick={onRetake} className="flex-1 rounded-xl bg-[var(--br-action)] px-4 py-3 text-sm font-extrabold text-on-dark shadow-[var(--br-shadow)] hover:bg-[var(--br-action)]">Retake</button></div>
     </div>
   </div>;
 }
@@ -697,10 +697,10 @@ export function BuilderLessonPlayer({
                   onClick={() => selectTab("learn")}
                   className={`flex flex-1 items-center justify-center gap-1.5 rounded-[14px] px-3 py-2.5 text-sm font-extrabold transition ${
                     !learnAvailable || learnLocked
-                      ? "cursor-not-allowed bg-[#F1F2F7] text-[#B4B8CB]"
+                      ? "cursor-not-allowed bg-[var(--br-surface-muted)] text-[var(--br-text-muted)]"
                       : activeTab === "learn"
                       ? "bg-[var(--br-chart-primary)] text-on-dark shadow-[var(--br-shadow)]"
-                      : "bg-[var(--br-surface-muted)] text-[var(--br-chart-primary)] hover:bg-[#E3DCFB]"
+                      : "bg-[var(--br-surface-muted)] text-[var(--br-chart-primary)] hover:bg-[var(--br-border)]"
                   }`}
                 >
                   {learnLocked ? <Lock size={14} /> : <BookOpen size={14} />}
@@ -715,10 +715,10 @@ export function BuilderLessonPlayer({
                   onClick={() => selectTab("practice")}
                   className={`flex flex-1 items-center justify-center gap-1.5 rounded-[14px] px-3 py-2.5 text-sm font-extrabold transition ${
                     !practiceAvailable
-                      ? "cursor-not-allowed bg-[#F1F2F7] text-[#B4B8CB]"
+                      ? "cursor-not-allowed bg-[var(--br-surface-muted)] text-[var(--br-text-muted)]"
                       : activeTab === "practice"
                       ? "bg-[var(--br-chart-secondary)] text-on-dark shadow-[var(--br-shadow)]"
-                      : "bg-[color-mix(in_srgb,var(--br-success)_12%,var(--br-surface))] text-[var(--br-chart-secondary)] hover:bg-[#D3F6E9]"
+                      : "bg-[color-mix(in_srgb,var(--br-success)_12%,var(--br-surface))] text-[var(--br-chart-secondary)] hover:bg-[var(--br-border)]"
                   }`}
                 >
                   <PenLine size={14} />
@@ -853,11 +853,11 @@ export function BuilderLessonPlayer({
           ) : null}
         </div>
         {index === slides.length - 1 ? (
-          completed ? <div className="flex shrink-0 items-center gap-1.5"><button type="button" onClick={reviewLesson} className="rounded-full border border-[var(--br-surface-strong)] bg-surface px-2.5 py-1.5 text-xs font-extrabold text-[var(--br-brand)] hover:bg-[var(--br-canvas-elevated)] sm:px-4 sm:py-2 sm:text-sm">Review</button><button type="button" onClick={retakeLesson} className="inline-flex items-center gap-1 rounded-full bg-[var(--br-action)] px-2.5 py-1.5 text-xs font-extrabold text-on-dark shadow-[var(--br-shadow)] hover:bg-[#ED4B66] sm:px-4 sm:py-2 sm:text-sm"><RotateCcw size={13}/> Retake</button></div> : <button
+          completed ? <div className="flex shrink-0 items-center gap-1.5"><button type="button" onClick={reviewLesson} className="rounded-full border border-[var(--br-surface-strong)] bg-surface px-2.5 py-1.5 text-xs font-extrabold text-[var(--br-brand)] hover:bg-[var(--br-canvas-elevated)] sm:px-4 sm:py-2 sm:text-sm">Review</button><button type="button" onClick={retakeLesson} className="inline-flex items-center gap-1 rounded-full bg-[var(--br-action)] px-2.5 py-1.5 text-xs font-extrabold text-on-dark shadow-[var(--br-shadow)] hover:bg-[var(--br-action)] sm:px-4 sm:py-2 sm:text-sm"><RotateCcw size={13}/> Retake</button></div> : <button
             type="button"
             onClick={finish}
             disabled={isPending}
-            className="shrink-0 whitespace-nowrap rounded-full bg-gradient-to-br from-[#FF6B9D] to-[#FF8E53] px-2.5 py-1.5 text-xs font-extrabold text-on-dark shadow-[var(--br-shadow)] disabled:opacity-45 sm:px-4 sm:py-2 sm:text-sm"
+            className="shrink-0 whitespace-nowrap rounded-full bg-gradient-to-br from-[var(--br-action)] to-[var(--br-action)] px-2.5 py-1.5 text-xs font-extrabold text-on-dark shadow-[var(--br-shadow)] disabled:opacity-45 sm:px-4 sm:py-2 sm:text-sm"
           >
             Complete<span className="hidden sm:inline"> lesson</span>
           </button>

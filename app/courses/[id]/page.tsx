@@ -131,7 +131,7 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
   const headerCard = (
     <div className="br-learner-card p-4 md:p-5">
       <div className="grid grid-cols-1 gap-6 min-[1130px]:grid-cols-[340px_minmax(0,1fr)]">
-        <div className="group relative min-w-0 overflow-hidden rounded-[18px] bg-[#11152E]">
+        <div className="group relative min-w-0 overflow-hidden rounded-[18px] bg-[var(--br-dark-card)]">
           {/* eslint-disable-next-line @next/next/no-img-element -- Course creators can use arbitrary public image links. */}
           <img src={imageUrl} alt={course.title} className="h-[230px] w-full object-cover sm:h-[280px] min-[1130px]:h-full" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/5 to-transparent" />
@@ -147,7 +147,7 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
             {course.topic ? <span className="min-w-0 break-words text-sm font-semibold text-[var(--br-text-muted)]">{course.topic}</span> : null}
           </div>
           <h1 className="mt-4 break-words text-[26px] font-extrabold leading-tight tracking-[-0.01em] text-[var(--br-dark-card)] sm:text-[30px] md:text-[38px]">{course.title}</h1>
-          {course.subtitle ? <p className="mt-3 max-w-2xl break-words text-sm leading-6 text-[#4F5671] md:text-base">{course.subtitle}</p> : null}
+          {course.subtitle ? <p className="mt-3 max-w-2xl break-words text-sm leading-6 text-[var(--br-text-muted)] md:text-base">{course.subtitle}</p> : null}
           <div className="mt-5 flex flex-wrap gap-4 text-xs font-bold text-[var(--br-text-muted)]">
             <Meta icon={BookOpen} label={`${totalItems} items`} />
             <Meta icon={Layers} label={`${sectionCount} modules`} />
@@ -204,7 +204,7 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
             <details key={section.id} className="group min-w-0 rounded-[18px] border border-[var(--br-surface-strong)] bg-surface p-4 shadow-[var(--br-shadow)]" open={index < 2 || sectionPercent > 0}>
               <summary className="cursor-pointer list-none marker:hidden [&::-webkit-details-marker]:hidden">
                 <div className="flex min-w-0 items-start gap-3">
-                  <span className={`grid size-9 shrink-0 place-items-center rounded-full text-sm font-extrabold ${sectionPercent === 100 ? "bg-[var(--br-success)] text-on-dark" : sectionPercent > 0 ? "bg-[var(--br-chart-primary)] text-on-dark" : "bg-[#F2F3F8] text-[var(--br-text-muted)]"}`}>
+                  <span className={`grid size-9 shrink-0 place-items-center rounded-full text-sm font-extrabold ${sectionPercent === 100 ? "bg-[var(--br-success)] text-on-dark" : sectionPercent > 0 ? "bg-[var(--br-chart-primary)] text-on-dark" : "bg-[var(--br-surface-muted)] text-[var(--br-text-muted)]"}`}>
                     {sectionPercent === 100 ? <CheckCircle2 className="size-5" /> : index + 1}
                   </span>
                   <div className="min-w-0 flex-1">
@@ -251,13 +251,13 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
   );
 
   // Dynamic stats & styling for course progress panel
-  let bannerClass = "bg-[#F9FAFC] border-[var(--br-surface-strong)] text-[var(--br-text-muted)]";
+  let bannerClass = "bg-[var(--br-surface)] border-[var(--br-surface-strong)] text-[var(--br-text-muted)]";
   let bannerText = "🔥 Ready to begin? Enroll now to start your learning path.";
   let inProgressNode: React.ReactNode = "Not enrolled";
 
   if (isEnrolled) {
     if (progressPercent === 100) {
-      bannerClass = "bg-[var(--br-success-soft)] border-[var(--br-success-soft)] text-[#245C4B]";
+      bannerClass = "bg-[var(--br-success-soft)] border-[var(--br-success-soft)] text-[var(--br-success)]";
       bannerText = "🏆 Congratulations! You have fully completed this course!";
       inProgressNode = <span className="text-emerald-600 font-bold">Completed!</span>;
     } else {
@@ -276,10 +276,10 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
       }
 
       if (progressPercent > 0) {
-        bannerClass = "bg-[#F3F0FF] border-[#D3C5FF] text-[#4F26CC]";
+        bannerClass = "bg-[var(--br-surface-muted)] border-[var(--br-border)] text-[var(--br-chart-primary)]";
         bannerText = "⚡ Great progress! Keep going to finish your course path.";
       } else {
-        bannerClass = "bg-[var(--br-success-soft)] border-[var(--br-success-soft)] text-[#245C4B]";
+        bannerClass = "bg-[var(--br-success-soft)] border-[var(--br-success-soft)] text-[var(--br-success)]";
         bannerText = "🔥 Keep it up! Your course path is ready whenever you are.";
       }
     }
@@ -292,12 +292,12 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
       <div className="flex items-center gap-5">
         <div className="relative grid size-[142px] place-items-center">
           <svg className="size-[142px] -rotate-90" viewBox="0 0 100 100" aria-hidden>
-            <circle cx="50" cy="50" r="42" fill="none" stroke="#E7E9F2" strokeWidth="8" />
+            <circle cx="50" cy="50" r="42" fill="none" stroke="var(--br-border)" strokeWidth="8" />
             <circle cx="50" cy="50" r="42" fill="none" stroke="url(#courseProgress)" strokeWidth="8" strokeLinecap="round" strokeDasharray={circumference} strokeDashoffset={dashOffset} />
             <defs>
               <linearGradient id="courseProgress" x1="0" y1="0" x2="1" y2="1">
-                <stop stopColor="#2F80ED" />
-                <stop offset="0.5" stopColor="#FFCC45" />
+                <stop stopColor="var(--br-info)" />
+                <stop offset="0.5" stopColor="var(--br-achievement)" />
                 <stop offset="1" stopColor="var(--br-success)" />
               </linearGradient>
             </defs>
@@ -309,8 +309,8 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
         </div>
         <div className="grid flex-1 gap-3 text-sm min-w-0">
           <Legend dot="var(--br-success)" label="Completed" value={`${completedItems} items`} />
-          <Legend dot={isEnrolled && progressPercent < 100 ? "#2F80ED" : progressPercent === 100 ? "var(--br-success)" : "#D5D9E6"} label="In Progress" value={inProgressNode} />
-          <Legend dot="#D5D9E6" label="Remaining" value={`${Math.max(0, totalItems - completedItems)} items`} />
+          <Legend dot={isEnrolled && progressPercent < 100 ? "var(--br-info)" : progressPercent === 100 ? "var(--br-success)" : "var(--br-border)"} label="In Progress" value={inProgressNode} />
+          <Legend dot="var(--br-border)" label="Remaining" value={`${Math.max(0, totalItems - completedItems)} items`} />
         </div>
       </div>
       <div className={`mt-5 rounded-[14px] border p-4 text-sm font-semibold leading-6 ${bannerClass}`}>
@@ -431,7 +431,7 @@ function CourseItemLink({ courseId, item, itemIndex, isComplete, unlocked }: { c
   return (
     <div className="flex min-w-0 flex-col gap-3 rounded-[14px] px-2 py-2 text-sm transition hover:bg-[var(--br-canvas-elevated)] sm:flex-row sm:items-center">
       <div className="flex min-w-0 flex-1 items-start gap-3">
-      <span className={`grid size-6 shrink-0 place-items-center rounded-full text-[11px] font-bold ${isComplete ? "bg-[var(--br-success)] text-on-dark" : "bg-[#F1F3FA] text-[var(--br-text-muted)]"}`}>
+      <span className={`grid size-6 shrink-0 place-items-center rounded-full text-[11px] font-bold ${isComplete ? "bg-[var(--br-success)] text-on-dark" : "bg-[var(--br-surface-muted)] text-[var(--br-text-muted)]"}`}>
         {isComplete ? <CheckCircle2 className="size-4" /> : itemIndex + 1}
       </span>
       <div className="min-w-0 flex-1">

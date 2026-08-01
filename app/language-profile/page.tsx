@@ -96,7 +96,7 @@ export default async function LanguageProfilePage() {
                     <span className={`rounded-full px-3 py-1 text-xs font-black ${bandClass(row.band)}`}>{row.band}</span>
                   </div>
                   <div className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--br-surface-strong)]">
-                    <div className="h-full rounded-full bg-gradient-to-r from-[var(--br-chart-primary)] to-[#28D5C3]" style={{ width: `${Math.min(100, Math.round(row.confidence))}%` }} />
+                    <div className="h-full rounded-full bg-gradient-to-r from-[var(--br-chart-primary)] to-[var(--br-info)]" style={{ width: `${Math.min(100, Math.round(row.confidence))}%` }} />
                   </div>
                   <p className="mt-2 text-xs font-semibold text-[var(--br-text-muted)]">Confidence {pct(row.confidence)}{row.latestScore !== null ? ` · latest ${row.latestScore}%` : ""}</p>
                 </div>

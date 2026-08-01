@@ -281,7 +281,7 @@ function ProgressCard({
                 <div className={`grid rounded-full border font-bold ${index === activeLevelIndex ? "size-14 border-[3px] border-white bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] text-[15px] text-on-dark shadow-[var(--br-shadow)]" : index < activeLevelIndex ? "size-12 border-[var(--br-chart-primary)]/80 bg-[var(--br-chart-primary)]/50 text-[13px] text-white/85" : "size-12 border-white/20 bg-white/10 text-[13px] text-white/50"} place-items-center`}>
                   {level}
                 </div>
-                <div className={`max-w-[72px] text-center text-[10px] font-medium ${index === activeLevelIndex ? "text-[#A8D8FF] font-semibold" : "text-white/50"}`}>{levelNames[level]}</div>
+                <div className={`max-w-[72px] text-center text-[10px] font-medium ${index === activeLevelIndex ? "text-[var(--br-info)] font-semibold" : "text-white/50"}`}>{levelNames[level]}</div>
               </div>
               {index < array.length - 1 ? <div className={`mb-5 h-0.5 flex-1 ${index < activeLevelIndex ? "bg-[var(--br-chart-primary)]/70" : index === activeLevelIndex ? "bg-gradient-to-r from-[var(--br-chart-primary)]/70 to-white/10" : "bg-white/10"}`} /> : null}
             </div>
@@ -291,7 +291,7 @@ function ProgressCard({
           <span className="text-white/60">{currentLevel ? "You're doing great! Keep going." : "Take the level test to begin."}</span>
           <span className="text-white/70">{progress}% to next level</span>
         </div>
-        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-gradient-to-r from-[var(--br-chart-primary)] via-[var(--br-brand)] to-[#B06AFF]" style={{ width: `${progress}%` }} /></div>
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-gradient-to-r from-[var(--br-chart-primary)] via-[var(--br-brand)] to-[var(--br-brand-strong)]" style={{ width: `${progress}%` }} /></div>
       </div>
       {levelTestSummary ? (
         <LevelTestScoreCard
@@ -311,7 +311,7 @@ function ProgressCard({
 }
 
 function LearningCard({ href, title, meta, level, progress, tone }: { href: string; title: string; meta: string; level: string; progress: number; tone: number }) {
-  const tones = ["from-[#FF6B9D] to-[#FF8E53]", "from-[#3A7BD5] to-[#00D2FF]", "from-[var(--br-brand-strong)] to-[#2D3A8C]", "from-[#4A148C] to-[#7B1FA2]"];
+  const tones = ["from-[var(--br-action)] to-[var(--br-action)]", "from-[var(--br-info)] to-[var(--br-info)]", "from-[var(--br-brand-strong)] to-[var(--br-brand-strong)]", "from-[var(--br-brand-strong)] to-[var(--br-brand-strong)]"];
   const fills = ["bg-[var(--br-chart-primary)]", "bg-[var(--br-info)]", "bg-[var(--br-success)]", "bg-[var(--br-chart-primary)]"];
   return (
     <Link href={href} className="overflow-hidden rounded-2xl border border-[var(--br-surface-strong)] bg-surface shadow-[var(--br-shadow)] transition hover:scale-[1.03] hover:shadow-[var(--br-shadow)]">
@@ -332,12 +332,12 @@ function LearningCard({ href, title, meta, level, progress, tone }: { href: stri
 
 function PracticeTile({ href, icon: Icon, label, sub, tone, disabled }: { href: string; icon: React.ElementType; label: string; sub: string; tone: "pink" | "blue" | "orange" | "green" | "purple" | "gray"; disabled?: boolean }) {
   const tones = {
-    pink: "from-[#FF6B9D] to-[#FF8E53]",
-    blue: "from-[var(--br-info)] to-[#3CCEFF]",
+    pink: "from-[var(--br-action)] to-[var(--br-action)]",
+    blue: "from-[var(--br-info)] to-[var(--br-info)]",
     orange: "from-[var(--br-achievement)] to-[var(--br-action-strong)]",
-    green: "from-[var(--br-success)] to-[#00B37D]",
+    green: "from-[var(--br-success)] to-[var(--br-success)]",
     purple: "from-[var(--br-chart-primary)] to-[var(--br-brand)]",
-    gray: "from-[#8890B8] to-[var(--br-text-muted)]"
+    gray: "from-[var(--br-text-muted)] to-[var(--br-text-muted)]"
   };
   const content = (
     <>
@@ -380,7 +380,7 @@ function MiniChart() {
 }
 
 function WishlistRow({ title, type, tone }: { title: string; type: string; tone: number }) {
-  const tones = ["from-[var(--br-brand-strong)] to-[var(--br-chart-primary)]", "from-[#0C4A6E] to-[#0284C7]", "from-[#14532D] to-[#16A34A]"];
+  const tones = ["from-[var(--br-brand-strong)] to-[var(--br-chart-primary)]", "from-[var(--br-text-muted)] to-[var(--br-info)]", "from-[var(--br-text-muted)] to-[var(--br-success)]"];
   const icons = ["📖", "📚", "💬"];
   return (
     <div className="flex items-center gap-2.5 border-b border-[var(--br-surface-strong)] py-2.5 last:border-0">

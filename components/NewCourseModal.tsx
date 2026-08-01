@@ -29,7 +29,7 @@ export function NewCourseModal({ organizations = [] }: { organizations?: Array<{
             onClick={() => {
               if (!isSubmitting) setIsOpen(false);
             }}
-            className="absolute inset-0 bg-[#0c102b]/50 backdrop-blur-sm transition-opacity"
+            className="absolute inset-0 bg-[var(--br-dark-card)]/50 backdrop-blur-sm transition-opacity"
           />
 
           {/* Modal content wrapper */}
@@ -140,7 +140,7 @@ export function NewCourseModal({ organizations = [] }: { organizations?: Array<{
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="inline-flex items-center gap-2 rounded-xl bg-violetglow px-5 py-2.5 text-sm font-extrabold text-on-dark shadow-[var(--br-shadow)] hover:bg-[#6c2ee5] disabled:opacity-50 transition"
+                  className="inline-flex items-center gap-2 rounded-xl bg-violetglow px-5 py-2.5 text-sm font-extrabold text-on-dark shadow-[var(--br-shadow)] hover:bg-[var(--br-brand-strong)] disabled:opacity-50 transition"
                 >
                   {isSubmitting ? "Creating..." : "Create and open builder"}
                 </button>

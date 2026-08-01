@@ -123,7 +123,7 @@ export default async function ProfilePage() {
 function ProfileMetric({ icon: Icon, value, label }: { icon: React.ElementType; value: string; label: string }) {
   return (
     <div className="rounded-[18px] border border-white/10 bg-white/10 p-4 backdrop-blur">
-      <Icon className="size-5 text-[#67D9FF]" />
+      <Icon className="size-5 text-[var(--br-info)]" />
       <div className="mt-3 truncate text-lg font-black">{value}</div>
       <div className="mt-1 text-[11px] font-bold text-white/55">{label}</div>
     </div>

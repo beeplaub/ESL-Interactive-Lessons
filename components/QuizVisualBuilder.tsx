@@ -89,7 +89,7 @@ const typeLabels: Record<string, string> = {
   PEER_REVIEW_EDITING: "Peer Review / Editing"
 };
 
-const PRONUNCIATION_COLORS = ["var(--br-achievement)", "#34d399", "#60a5fa", "#f472b6", "#a78bfa", "#fb923c"];
+const PRONUNCIATION_COLORS = ["var(--br-achievement)", "var(--br-success)", "var(--br-info)", "#f472b6", "#a78bfa", "var(--br-achievement)"];
 
 const parseSample = `QUIZ: Full Skills Practice
 TOPIC: Mixed Skills
@@ -2343,7 +2343,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
                     onClick={() => updatePronunciationTarget(index, { color })}
                     aria-label={`Use color ${color}`}
                     className="size-6 rounded-full border-2"
-                    style={{ backgroundColor: color, borderColor: target.color === color ? "#111827" : "transparent" }}
+                    style={{ backgroundColor: color, borderColor: target.color === color ? "var(--br-text)" : "transparent" }}
                   />
                 ))}
               </div>

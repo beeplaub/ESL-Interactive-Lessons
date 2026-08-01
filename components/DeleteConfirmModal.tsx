@@ -59,7 +59,7 @@ export function DeleteConfirmProvider({ children }: { children: ReactNode }) {
           {/* Backdrop blur & overlay */}
           <div
             onClick={handleClose}
-            className="absolute inset-0 bg-[#0c102b]/40 backdrop-blur-sm transition-opacity"
+            className="absolute inset-0 bg-[var(--br-dark-card)]/40 backdrop-blur-sm transition-opacity"
           />
 
           {/* Modal Card */}

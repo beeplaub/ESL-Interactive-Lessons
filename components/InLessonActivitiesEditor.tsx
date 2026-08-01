@@ -1878,7 +1878,7 @@ function DragDropEditor({ activity, onSave }: { activity: Activity; onSave: (dat
   );
 }
 
-const PRONUNCIATION_COLORS = ["var(--br-achievement)", "#34d399", "#60a5fa", "#f472b6", "#a78bfa", "#fb923c"];
+const PRONUNCIATION_COLORS = ["var(--br-achievement)", "var(--br-success)", "var(--br-info)", "#f472b6", "#a78bfa", "var(--br-achievement)"];
 
 function PronunciationEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
   const initial = useMemo(() => normalizePronunciation(activity.activity_data), [activity.activity_data]);
@@ -1958,7 +1958,7 @@ function PronunciationEditor({ activity, onSave }: { activity: Activity; onSave:
                     onClick={() => updateTarget(index, { color })}
                     aria-label={`Use color ${color}`}
                     className="size-6 rounded-full border-2"
-                    style={{ backgroundColor: color, borderColor: target.color === color ? "#111827" : "transparent" }}
+                    style={{ backgroundColor: color, borderColor: target.color === color ? "var(--br-text)" : "transparent" }}
                   />
                 ))}
               </div>

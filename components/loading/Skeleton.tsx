@@ -87,8 +87,8 @@ export function LearnerShellSkeleton({
 }) {
   return (
     <div className="mx-auto flex min-h-screen max-w-[1536px] items-start gap-5 p-3 pb-24 min-[1180px]:p-6 min-[1180px]:pb-6">
-      <div className="fixed inset-x-0 top-0 z-30 h-[60px] animate-pulse bg-gradient-to-br from-[#09112C] to-[#0C1636] min-[1180px]:hidden" />
-      <div className="sticky top-6 hidden h-[calc(100vh-48px)] w-[225px] min-w-[225px] animate-pulse rounded-[24px] bg-gradient-to-b from-[#09112C] to-[#0C1636] min-[1180px]:block" />
+      <div className="fixed inset-x-0 top-0 z-30 h-[60px] animate-pulse bg-gradient-to-br from-[var(--br-dark-card)] to-[var(--br-dark-card)] min-[1180px]:hidden" />
+      <div className="sticky top-6 hidden h-[calc(100vh-48px)] w-[225px] min-w-[225px] animate-pulse rounded-[24px] bg-gradient-to-b from-[var(--br-dark-card)] to-[var(--br-dark-card)] min-[1180px]:block" />
       <section className="min-w-0 flex-1 pt-[72px] min-[1180px]:pt-0">{children}</section>
       {showRightSidebar ? (
         <aside className="sticky top-6 hidden h-[520px] w-[285px] min-w-[285px] animate-pulse rounded-[20px] bg-[var(--br-canvas-elevated)] min-[1180px]:block" />

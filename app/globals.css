@@ -73,6 +73,33 @@ select {
   font: inherit;
 }
 
+:where(a, button, input, textarea, select, [tabindex]):focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--br-action) 72%, white);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --br-border: var(--br-border-strong);
+    --br-shadow: 0 0 0 1px var(--br-border-strong);
+  }
+
+  .br-card,
+  .br-learner-card,
+  .br-admin-card {
+    border-color: var(--br-border-strong);
+  }
+}
+
 .prose-lite p {
   margin: 0 0 0.8rem;
 }
