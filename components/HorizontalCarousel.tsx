@@ -49,7 +49,7 @@ export function HorizontalCarousel({
         type="button"
         disabled={!canScrollLeft}
         onClick={() => scroll("left")}
-        className="absolute left-0 top-1/2 z-10 grid size-9 -translate-y-1/2 place-items-center rounded-full border border-slate-200 bg-white shadow-sm disabled:opacity-25"
+        className="absolute left-0 top-1/2 z-10 grid size-9 -translate-y-1/2 place-items-center rounded-full border border-slate-200 bg-surface shadow-sm disabled:opacity-25"
         aria-label="Scroll left"
       >
         <ChevronLeft size={18} />
@@ -64,7 +64,7 @@ export function HorizontalCarousel({
         type="button"
         disabled={!canScrollRight}
         onClick={() => scroll("right")}
-        className="absolute right-0 top-1/2 z-10 grid size-9 -translate-y-1/2 place-items-center rounded-full border border-slate-200 bg-white shadow-sm disabled:opacity-25"
+        className="absolute right-0 top-1/2 z-10 grid size-9 -translate-y-1/2 place-items-center rounded-full border border-slate-200 bg-surface shadow-sm disabled:opacity-25"
         aria-label="Scroll right"
       >
         <ChevronRight size={18} />

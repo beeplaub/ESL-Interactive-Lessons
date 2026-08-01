@@ -14,7 +14,7 @@ function bandClass(band: string) {
   if (band === "Strong") return "bg-emerald-50 text-emerald-700";
   if (band === "Secure") return "bg-blue-50 text-blue-700";
   if (band === "Developing") return "bg-amber-50 text-amber-700";
-  return "bg-slate-100 text-slate-600";
+  return "bg-surface-strong text-slate-600";
 }
 
 export default async function AdminStudentProfilePage({ params }: { params: Promise<{ userId: string }> }) {
@@ -84,11 +84,11 @@ export default async function AdminStudentProfilePage({ params }: { params: Prom
 
   return (
     <main className="min-w-0 overflow-hidden">
-      <Link href="/admin/courses" className="inline-flex items-center gap-1 text-sm text-black/55 hover:text-black"><ArrowLeft size={15} /> Back to courses</Link>
+      <Link href="/admin/courses" className="inline-flex items-center gap-1 text-sm text-[var(--br-text-muted)] hover:text-[var(--br-text-muted)]"><ArrowLeft size={15} /> Back to courses</Link>
       <div className="mt-3">
         <p className="text-xs font-semibold uppercase tracking-wide text-moss">Student profile</p>
         <h1 className="mt-1 text-2xl font-semibold sm:text-3xl">{name}</h1>
-        <p className="mt-1 text-sm text-black/55">{email || "No email on file"}{studentProfile.cefr_level ? ` · ${studentProfile.cefr_level}` : ""}</p>
+        <p className="mt-1 text-sm text-[var(--br-text-muted)]">{email || "No email on file"}{studentProfile.cefr_level ? ` · ${studentProfile.cefr_level}` : ""}</p>
       </div>
 
       <section className="mt-5 grid gap-3 sm:grid-cols-4">
@@ -98,22 +98,22 @@ export default async function AdminStudentProfilePage({ params }: { params: Prom
         <Metric icon={GraduationCap} label="Enrollments" value={enrollments?.length ?? 0} />
       </section>
 
-      <section className="mt-3 rounded-xl border border-black/10 bg-white p-4 text-sm text-black/60 shadow-sm">
-        <span className="font-semibold text-black">{totalPoints.toLocaleString()} leaderboard points.</span>{" "}
+      <section className="mt-3 rounded-xl border border-[var(--br-border)] bg-surface p-4 text-sm text-[var(--br-text-muted)] shadow-sm">
+        <span className="font-semibold text-[var(--br-text-muted)]">{totalPoints.toLocaleString()} leaderboard points.</span>{" "}
         {nextBadge ? `${(nextBadge.minPoints - totalPoints).toLocaleString()} points to reach ${nextBadge.name}.` : "Highest badge tier reached."}
       </section>
 
       <section className="mt-6 grid gap-5 xl:grid-cols-[1fr_360px]">
-        <div className="rounded-xl border border-black/10 bg-white p-5 shadow-sm">
+        <div className="rounded-xl border border-[var(--br-border)] bg-surface p-5 shadow-sm">
           <h2 className="text-lg font-semibold">Skill mastery</h2>
-          <p className="text-xs text-black/55">Confidence weighs recent evidence more heavily. Based on evidence across the whole app, not just this course.</p>
+          <p className="text-xs text-[var(--br-text-muted)]">Confidence weighs recent evidence more heavily. Based on evidence across the whole app, not just this course.</p>
           <div className="mt-4 grid gap-3">
             {skillRows.length ? skillRows.map((row) => (
-              <div key={row.skill.id} className="rounded-xl border border-black/10 p-3">
+              <div key={row.skill.id} className="rounded-xl border border-[var(--br-border)] p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <h3 className="font-semibold">{row.skill.name}</h3>
-                    <p className="text-xs text-black/55">{row.evidenceCount} evidence record{row.evidenceCount === 1 ? "" : "s"}</p>
+                    <p className="text-xs text-[var(--br-text-muted)]">{row.evidenceCount} evidence record{row.evidenceCount === 1 ? "" : "s"}</p>
                   </div>
                   <span className={`rounded-full px-3 py-1 text-xs font-bold ${bandClass(row.band)}`}>{row.band}</span>
                 </div>
@@ -121,12 +121,12 @@ export default async function AdminStudentProfilePage({ params }: { params: Prom
                   <div className="h-full rounded-full bg-moss" style={{ width: `${Math.min(100, Math.round(row.confidence))}%` }} />
                 </div>
               </div>
-            )) : <p className="rounded-xl bg-black/[0.03] p-4 text-sm text-black/55">No skill-labeled evidence yet.</p>}
+            )) : <p className="rounded-xl bg-black/[0.03] p-4 text-sm text-[var(--br-text-muted)]">No skill-labeled evidence yet.</p>}
           </div>
         </div>
 
         <aside className="space-y-5">
-          <div className="rounded-xl border border-black/10 bg-white p-5 shadow-sm">
+          <div className="rounded-xl border border-[var(--br-border)] bg-surface p-5 shadow-sm">
             <div className="mb-3 flex items-center gap-2">
               <Sparkles size={18} className="text-moss" />
               <h2 className="text-lg font-semibold">Learned targets</h2>
@@ -136,24 +136,24 @@ export default async function AdminStudentProfilePage({ params }: { params: Prom
                 <div key={row.target.id} className="flex items-center justify-between gap-3 rounded-lg bg-black/[0.03] px-3 py-2">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold">{row.target.label}</p>
-                    <p className="text-[11px] uppercase tracking-wide text-black/45">{row.target.target_type.replaceAll("_", " ")}</p>
+                    <p className="text-[11px] uppercase tracking-wide text-[var(--br-text-muted)]">{row.target.target_type.replaceAll("_", " ")}</p>
                   </div>
                   <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${bandClass(row.band)}`}>{row.band}</span>
                 </div>
-              )) : <p className="rounded-lg bg-black/[0.03] px-3 py-4 text-sm text-black/55">No learned targets yet.</p>}
+              )) : <p className="rounded-lg bg-black/[0.03] px-3 py-4 text-sm text-[var(--br-text-muted)]">No learned targets yet.</p>}
             </div>
           </div>
 
-          <div className="rounded-xl border border-black/10 bg-white p-5 shadow-sm">
+          <div className="rounded-xl border border-[var(--br-border)] bg-surface p-5 shadow-sm">
             <h2 className="text-lg font-semibold">Enrollments</h2>
             <div className="mt-3 space-y-2">
               {(enrollments ?? []).map((enrollment) => (
                 <div key={enrollment.id} className="flex items-center justify-between gap-2 rounded-lg bg-black/[0.03] px-3 py-2 text-sm">
                   <span className="min-w-0 truncate font-semibold">{(enrollment.courses as { title?: string } | null)?.title ?? "Course"}</span>
-                  <span className="shrink-0 text-xs font-semibold text-black/55">{enrollment.status}</span>
+                  <span className="shrink-0 text-xs font-semibold text-[var(--br-text-muted)]">{enrollment.status}</span>
                 </div>
               ))}
-              {(enrollments?.length ?? 0) === 0 ? <p className="text-sm text-black/55">Not enrolled in any course yet.</p> : null}
+              {(enrollments?.length ?? 0) === 0 ? <p className="text-sm text-[var(--br-text-muted)]">Not enrolled in any course yet.</p> : null}
             </div>
           </div>
         </aside>
@@ -164,10 +164,10 @@ export default async function AdminStudentProfilePage({ params }: { params: Prom
 
 function Metric({ icon: Icon, label, value }: { icon: React.ComponentType<{ size?: number; className?: string }>; label: string; value: number | string }) {
   return (
-    <div className="rounded-xl border border-black/10 bg-white p-4 shadow-sm">
+    <div className="rounded-xl border border-[var(--br-border)] bg-surface p-4 shadow-sm">
       <Icon size={18} className="text-moss" />
       <p className="mt-2 text-xl font-semibold">{value}</p>
-      <p className="text-xs text-black/55">{label}</p>
+      <p className="text-xs text-[var(--br-text-muted)]">{label}</p>
     </div>
   );
 }

@@ -84,15 +84,15 @@ export default async function CourseOutcomeReportPage({ params }: { params: Prom
 
   return (
     <main className="space-y-5">
-      <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
-        <Link href={`/admin/courses/${course.id}/builder`} className="inline-flex items-center gap-2 text-sm text-black/55 hover:text-black">
+      <section className="rounded-2xl border border-[var(--br-border)] bg-surface p-5 shadow-sm">
+        <Link href={`/admin/courses/${course.id}/builder`} className="inline-flex items-center gap-2 text-sm text-[var(--br-text-muted)] hover:text-[var(--br-text-muted)]">
           <ArrowLeft size={16} /> Back to course builder
         </Link>
         <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-moss">Course outcomes report</p>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink">{course.title}</h1>
-            <p className="mt-1 max-w-2xl text-sm leading-6 text-black/55">
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-[var(--br-text-muted)]">
               Attainment shows learner performance on attempted evidence. Coverage shows how much mapped evidence has actually been attempted.
             </p>
           </div>
@@ -104,10 +104,10 @@ export default async function CourseOutcomeReportPage({ params }: { params: Prom
         </div>
       </section>
 
-      <section className="overflow-hidden rounded-2xl border border-black/10 bg-white shadow-sm">
+      <section className="overflow-hidden rounded-2xl border border-[var(--br-border)] bg-surface shadow-sm">
         <div className="overflow-x-auto">
           <table className="min-w-[860px] w-full text-left text-sm">
-            <thead className="bg-slate-50 text-xs uppercase tracking-wide text-black/45">
+            <thead className="bg-surface-muted text-xs uppercase tracking-wide text-[var(--br-text-muted)]">
               <tr>
                 <th className="px-4 py-3">Outcome</th>
                 <th className="px-4 py-3">Mapped weight</th>
@@ -122,7 +122,7 @@ export default async function CourseOutcomeReportPage({ params }: { params: Prom
                 <tr key={row.outcome.id}>
                   <td className="px-4 py-4">
                     <p className="font-semibold text-ink">{row.outcome.code ?? "CO"} · {row.outcome.outcome}</p>
-                    <p className="mt-1 text-xs text-black/45">Mastery {row.masteryThreshold}% · required coverage {row.minimumCoverage}%</p>
+                    <p className="mt-1 text-xs text-[var(--br-text-muted)]">Mastery {row.masteryThreshold}% · required coverage {row.minimumCoverage}%</p>
                   </td>
                   <td className="px-4 py-4 font-semibold">{row.mappedWeight}</td>
                   <td className="px-4 py-4">{row.evidenceCount}</td>
@@ -147,7 +147,7 @@ export default async function CourseOutcomeReportPage({ params }: { params: Prom
               ))}
               {rows.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-sm text-black/50">
+                  <td colSpan={6} className="px-4 py-10 text-center text-sm text-[var(--br-text-muted)]">
                     No course outcomes yet. Add outcomes in the course builder first.
                   </td>
                 </tr>
@@ -162,9 +162,9 @@ export default async function CourseOutcomeReportPage({ params }: { params: Prom
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl bg-slate-50 px-4 py-3">
+    <div className="rounded-xl bg-surface-muted px-4 py-3">
       <p className="text-lg font-bold text-ink">{value}</p>
-      <p className="text-[10px] font-semibold uppercase tracking-wide text-black/45">{label}</p>
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--br-text-muted)]">{label}</p>
     </div>
   );
 }
@@ -172,8 +172,8 @@ function Metric({ label, value }: { label: string; value: string }) {
 function Progress({ value, label, color }: { value: number; label: string; color: string }) {
   return (
     <div className="min-w-[130px]">
-      <div className="mb-1 text-xs font-semibold text-black/55">{label}</div>
-      <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+      <div className="mb-1 text-xs font-semibold text-[var(--br-text-muted)]">{label}</div>
+      <div className="h-2 overflow-hidden rounded-full bg-surface-strong">
         <div className={`h-full rounded-full ${color}`} style={{ width: `${Math.min(100, Math.max(0, value))}%` }} />
       </div>
     </div>

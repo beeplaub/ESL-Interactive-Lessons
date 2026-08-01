@@ -28,12 +28,12 @@ export default async function ObeAdminPage() {
 
   return (
     <main className="space-y-5">
-      <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
+      <section className="rounded-2xl border border-[var(--br-border)] bg-surface p-5 shadow-sm">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-moss">Outcome-Based Education</p>
             <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink">Skills and learning targets</h1>
-            <p className="mt-1 max-w-2xl text-sm leading-6 text-black/55">
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-[var(--br-text-muted)]">
               These labels power learner language profiles, question measurement, and course-outcome reports.
             </p>
           </div>
@@ -44,7 +44,7 @@ export default async function ObeAdminPage() {
       </section>
 
       <div className="grid gap-5 lg:grid-cols-[1fr_420px]">
-        <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
+        <section className="rounded-2xl border border-[var(--br-border)] bg-surface p-5 shadow-sm">
           <div className="mb-4 flex items-center gap-2">
             <Target size={18} className="text-moss" />
             <h2 className="text-lg font-semibold text-ink">Skill taxonomy</h2>
@@ -53,18 +53,18 @@ export default async function ObeAdminPage() {
             {topSkills.map((skill) => {
               const children = (skills ?? []).filter((child) => child.parent_id === skill.id);
               return (
-                <div key={skill.id} className="rounded-xl border border-black/10 bg-slate-50 p-4">
+                <div key={skill.id} className="rounded-xl border border-[var(--br-border)] bg-surface-muted p-4">
                   <div className="flex items-center justify-between gap-2">
                     <h3 className="font-semibold text-ink">{skill.name}</h3>
-                    <span className="rounded-full bg-white px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-black/45">{skill.status}</span>
+                    <span className="rounded-full bg-surface px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--br-text-muted)]">{skill.status}</span>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {children.length ? children.map((child) => (
-                      <span key={child.id} className="rounded-full border border-black/10 bg-white px-2.5 py-1 text-xs font-medium text-black/60">
+                      <span key={child.id} className="rounded-full border border-[var(--br-border)] bg-surface px-2.5 py-1 text-xs font-medium text-[var(--br-text-muted)]">
                         {child.name}
                       </span>
                     )) : (
-                      <span className="text-xs text-black/45">General skill only</span>
+                      <span className="text-xs text-[var(--br-text-muted)]">General skill only</span>
                     )}
                   </div>
                 </div>
@@ -74,61 +74,61 @@ export default async function ObeAdminPage() {
         </section>
 
         <aside className="space-y-5">
-          <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
+          <section className="rounded-2xl border border-[var(--br-border)] bg-surface p-5 shadow-sm">
             <div className="mb-4 flex items-center gap-2">
               <Plus size={18} className="text-moss" />
               <h2 className="text-lg font-semibold text-ink">Add skill or subskill</h2>
             </div>
             <ObeActionForm action={createLearningSkill} successMessage="Skill saved." className="grid gap-3">
-              <label className="text-sm font-medium text-black/65">
+              <label className="text-sm font-medium text-[var(--br-text-muted)]">
                 Parent skill
-                <select name="parentId" defaultValue="" className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2">
+                <select name="parentId" defaultValue="" className="mt-1 w-full rounded-lg border border-[var(--br-border)] px-3 py-2">
                   <option value="">Top-level skill</option>
                   {topSkills.map((skill) => <option key={skill.id} value={skill.id}>{skill.name}</option>)}
                 </select>
               </label>
-              <label className="text-sm font-medium text-black/65">
+              <label className="text-sm font-medium text-[var(--br-text-muted)]">
                 Name
-                <input name="name" required placeholder="e.g. Listening for gist" className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2" />
+                <input name="name" required placeholder="e.g. Listening for gist" className="mt-1 w-full rounded-lg border border-[var(--br-border)] px-3 py-2" />
               </label>
-              <label className="text-sm font-medium text-black/65">
-                Description <span className="font-normal text-black/40">(optional)</span>
-                <textarea name="description" rows={2} placeholder="What this skill measures" className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2" />
+              <label className="text-sm font-medium text-[var(--br-text-muted)]">
+                Description <span className="font-normal text-[var(--br-text-muted)]">(optional)</span>
+                <textarea name="description" rows={2} placeholder="What this skill measures" className="mt-1 w-full rounded-lg border border-[var(--br-border)] px-3 py-2" />
               </label>
-              <button className="rounded-lg bg-dark px-4 py-2 text-sm font-semibold text-white">Save skill</button>
+              <button className="rounded-lg bg-dark px-4 py-2 text-sm font-semibold text-on-dark">Save skill</button>
             </ObeActionForm>
           </section>
 
-          <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
+          <section className="rounded-2xl border border-[var(--br-border)] bg-surface p-5 shadow-sm">
             <div className="mb-4 flex items-center gap-2">
               <Plus size={18} className="text-moss" />
               <h2 className="text-lg font-semibold text-ink">Add learning target</h2>
             </div>
             <ObeActionForm action={createLearningTarget} successMessage="Learning target saved." className="grid gap-3">
-              <label className="text-sm font-medium text-black/65">
+              <label className="text-sm font-medium text-[var(--br-text-muted)]">
                 Target type
-                <select name="targetType" defaultValue="VOCABULARY" className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2">
+                <select name="targetType" defaultValue="VOCABULARY" className="mt-1 w-full rounded-lg border border-[var(--br-border)] px-3 py-2">
                   {targetTypes.map((type) => <option key={type} value={type}>{type.replaceAll("_", " ")}</option>)}
                 </select>
               </label>
-              <label className="text-sm font-medium text-black/65">
+              <label className="text-sm font-medium text-[var(--br-text-muted)]">
                 Label
-                <input name="label" placeholder="e.g. present perfect continuous" className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2" />
+                <input name="label" placeholder="e.g. present perfect continuous" className="mt-1 w-full rounded-lg border border-[var(--br-border)] px-3 py-2" />
               </label>
-              <button className="rounded-lg bg-moss px-4 py-2 text-sm font-semibold text-white">Save target</button>
+              <button className="rounded-lg bg-moss px-4 py-2 text-sm font-semibold text-on-dark">Save target</button>
             </ObeActionForm>
           </section>
 
-          <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
+          <section className="rounded-2xl border border-[var(--br-border)] bg-surface p-5 shadow-sm">
             <h2 className="text-lg font-semibold text-ink">Recent targets</h2>
             <div className="mt-3 max-h-[420px] space-y-2 overflow-y-auto pr-1">
               {(targets ?? []).slice(0, 80).map((target) => (
-                <div key={target.id} className="rounded-xl border border-black/10 px-3 py-2">
+                <div key={target.id} className="rounded-xl border border-[var(--br-border)] px-3 py-2">
                   <p className="truncate text-sm font-semibold text-ink">{target.label}</p>
-                  <p className="text-[11px] uppercase tracking-wide text-black/45">{target.target_type.replaceAll("_", " ")}</p>
+                  <p className="text-[11px] uppercase tracking-wide text-[var(--br-text-muted)]">{target.target_type.replaceAll("_", " ")}</p>
                 </div>
               ))}
-              {targets?.length === 0 ? <p className="rounded-xl bg-slate-50 p-4 text-sm text-black/50">No targets yet.</p> : null}
+              {targets?.length === 0 ? <p className="rounded-xl bg-surface-muted p-4 text-sm text-[var(--br-text-muted)]">No targets yet.</p> : null}
             </div>
           </section>
         </aside>

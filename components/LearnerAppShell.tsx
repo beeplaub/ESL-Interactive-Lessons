@@ -361,7 +361,7 @@ function DesktopLearnerChrome({
     <header className="mb-4 hidden items-center justify-between gap-4 min-[1180px]:flex">
       {leading ?? (
         <nav className="flex min-w-0 items-center gap-2 text-sm font-semibold text-[var(--br-text-muted)]" aria-label="Breadcrumb">
-          <Link href="/account" className="grid size-9 shrink-0 place-items-center rounded-xl border border-[var(--br-surface-strong)] bg-white text-[var(--br-text-muted)] shadow-[0_2px_8px_rgba(0,0,0,.04)]">
+          <Link href="/account" className="grid size-9 shrink-0 place-items-center rounded-xl border border-[var(--br-surface-strong)] bg-surface text-[var(--br-text-muted)] shadow-[0_2px_8px_rgba(0,0,0,.04)]">
             <Home className="size-4" />
           </Link>
           {breadcrumbs.map((item, index) => (
@@ -387,11 +387,11 @@ function DesktopLearnerChrome({
             </button>
           </form>
         ) : null}
-        <Link href="/level-test" className="hidden items-center gap-1.5 rounded-[14px] border border-[var(--br-surface-strong)] bg-white px-3 py-2 text-xs font-bold text-[var(--br-text-muted)] shadow-[0_2px_8px_rgba(0,0,0,.04)] transition hover:text-[var(--br-chart-primary)] min-[1120px]:inline-flex">
+        <Link href="/level-test" className="hidden items-center gap-1.5 rounded-[14px] border border-[var(--br-surface-strong)] bg-surface px-3 py-2 text-xs font-bold text-[var(--br-text-muted)] shadow-[0_2px_8px_rgba(0,0,0,.04)] transition hover:text-[var(--br-chart-primary)] min-[1120px]:inline-flex">
           <Target className="size-4 text-[var(--br-chart-primary)]" /> {currentLevel ? `${currentLevel} level` : "Find your level"}
         </Link>
         <NotificationsDropdown initialNotifications={notifications} mode="desktop" />
-        <Link href={isLoggedIn ? "/profile" : "/login"} className="flex items-center gap-2 rounded-full border border-[var(--br-surface-strong)] bg-white p-1.5 pr-3 shadow-[0_2px_8px_rgba(0,0,0,.04)]">
+        <Link href={isLoggedIn ? "/profile" : "/login"} className="flex items-center gap-2 rounded-full border border-[var(--br-surface-strong)] bg-surface p-1.5 pr-3 shadow-[0_2px_8px_rgba(0,0,0,.04)]">
           <AvatarBubble initials={initials} avatarUrl={avatarUrl} />
           <span className="hidden max-w-[130px] truncate text-xs font-bold text-[var(--br-dark-card)] min-[1120px]:block">{isLoggedIn ? userName : "My Account"}</span>
         </Link>
@@ -402,7 +402,7 @@ function DesktopLearnerChrome({
 
 function AvatarBubble({ initials, avatarUrl }: { initials: string; avatarUrl: string | null }) {
   return (
-    <span className="grid size-9 place-items-center overflow-hidden rounded-full bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] text-xs font-black text-white">
+    <span className="grid size-9 place-items-center overflow-hidden rounded-full bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] text-xs font-black text-on-dark">
       {/* eslint-disable-next-line @next/next/no-img-element -- Avatar URLs are user-uploaded Supabase/public links. */}
       {avatarUrl ? <img src={avatarUrl} alt="" className="h-full w-full object-cover" /> : initials}
     </span>
@@ -447,7 +447,7 @@ function RightSidebarCards({ data }: { data: RightSidebarData }) {
           {data.weekActivity.map((day, index) => (
             <div key={`${day.label}-${index}`} className="flex flex-col items-center gap-1">
               <div className={`text-[9px] font-semibold ${day.isToday ? "text-[var(--br-achievement)]" : "text-[var(--br-text-muted)]"}`}>{day.label}</div>
-              <div className={`grid size-7 place-items-center rounded-full text-[13px] ${day.active ? "bg-[var(--br-achievement)] text-white" : "border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)]"}`}>
+              <div className={`grid size-7 place-items-center rounded-full text-[13px] ${day.active ? "bg-[var(--br-achievement)] text-on-dark" : "border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)]"}`}>
                 {day.active ? "✓" : ""}
               </div>
             </div>
@@ -462,7 +462,7 @@ function RightSidebarCards({ data }: { data: RightSidebarData }) {
             <p className="mt-1 text-xs font-semibold text-[var(--br-text-muted)]">Across enrolled courses</p>
           </div>
           <div className="relative grid size-20 place-items-center rounded-full bg-[conic-gradient(#31C48D_var(--progress),var(--br-surface-strong)_0)]" style={{ "--progress": `${data.progressPercent}%` } as React.CSSProperties}>
-            <div className="grid size-14 place-items-center rounded-full bg-white text-lg font-black">{data.progressPercent}%</div>
+            <div className="grid size-14 place-items-center rounded-full bg-surface text-lg font-black">{data.progressPercent}%</div>
           </div>
         </div>
         <div className="grid gap-2 text-xs font-semibold text-[var(--br-text-muted)]">
@@ -490,7 +490,7 @@ function RightSidebarCards({ data }: { data: RightSidebarData }) {
               {data.nextBadge ? `${Math.max(0, data.nextBadge.minPoints - data.totalPoints).toLocaleString()} points to ${data.nextBadge.name}` : "You reached Legend."}
             </div>
           </div>
-          <div className={`grid size-12 place-items-center rounded-2xl bg-gradient-to-br ${data.currentBadge.gradient} text-xs font-black text-white`}>{data.currentBadge.icon}</div>
+          <div className={`grid size-12 place-items-center rounded-2xl bg-gradient-to-br ${data.currentBadge.gradient} text-xs font-black text-on-dark`}>{data.currentBadge.icon}</div>
         </div>
       </RightRailCard>
     </>
@@ -498,7 +498,7 @@ function RightSidebarCards({ data }: { data: RightSidebarData }) {
 }
 
 function RightRailCard({ children }: { children: React.ReactNode }) {
-  return <div className="rounded-[20px] border border-[var(--br-surface-strong)] bg-white p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)]">{children}</div>;
+  return <div className="rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)]">{children}</div>;
 }
 
 function ProgressLegend({ dot, label, value }: { dot: string; label: string; value: string }) {
@@ -548,8 +548,8 @@ function MobileTopbar({
   return (
     <div className="fixed inset-x-0 top-0 z-40 flex h-[60px] items-center justify-between gap-2 bg-[var(--br-dark-card)] px-3 min-[1180px]:hidden">
       <Link href="/account" prefetch className="flex min-w-0 items-center gap-2">
-        <span className="grid size-8 shrink-0 place-items-center rounded-[9px] bg-[var(--br-brand)]"><Layers className="size-[18px] text-white" /></span>
-        <span className="truncate text-[15px] font-bold text-white">BrenUp</span>
+        <span className="grid size-8 shrink-0 place-items-center rounded-[9px] bg-[var(--br-brand)]"><Layers className="size-[18px] text-on-dark" /></span>
+        <span className="truncate text-[15px] font-bold text-on-dark">BrenUp</span>
       </Link>
       <div className="flex shrink-0 items-center gap-1.5">
         {isStaffUser ? (
@@ -566,7 +566,7 @@ function MobileTopbar({
         <Link
           href="/level-test"
           aria-label={currentLevel ? `Your level: ${currentLevel}` : "Take level test"}
-          className="flex h-9 items-center gap-1 rounded-[10px] border border-white/15 bg-white/10 px-2 text-[11px] font-bold text-white"
+          className="flex h-9 items-center gap-1 rounded-[10px] border border-white/15 bg-white/10 px-2 text-[11px] font-bold text-on-dark"
         >
           <Target className="size-[15px] text-[#9C8DFF]" />
           {currentLevel ? <span>{currentLevel}</span> : null}
@@ -576,7 +576,7 @@ function MobileTopbar({
           <AvatarBubble initials={initials} avatarUrl={avatarUrl} />
         </Link>
         <details className="group relative">
-          <summary className="grid size-9 cursor-pointer list-none place-items-center rounded-[10px] text-white marker:hidden [&::-webkit-details-marker]:hidden" aria-label="Menu"><Menu className="size-[22px]" /></summary>
+          <summary className="grid size-9 cursor-pointer list-none place-items-center rounded-[10px] text-on-dark marker:hidden [&::-webkit-details-marker]:hidden" aria-label="Menu"><Menu className="size-[22px]" /></summary>
           <div className="fixed inset-x-3 top-[68px] z-50 rounded-[24px] border border-white/10 bg-[var(--br-text)] p-3 shadow-2xl shadow-black/30">
             <div className="grid gap-1">
               <MobileDrawerLink href="/account" label="Home" icon={Home} active={active === "home"} />
@@ -605,7 +605,7 @@ function MobileTopbar({
 }
 
 function MobileDrawerLink({ href, label, icon: Icon, active }: { href: string; label: string; icon: React.ElementType; active?: boolean }) {
-  return <Link href={href} prefetch className={`flex h-11 items-center gap-3 rounded-[14px] px-3.5 text-sm font-semibold ${active ? "bg-[var(--br-brand)] text-white" : "text-[#C5C8DC]"}`}><Icon className="size-[18px]" /> {label}</Link>;
+  return <Link href={href} prefetch className={`flex h-11 items-center gap-3 rounded-[14px] px-3.5 text-sm font-semibold ${active ? "bg-[var(--br-brand)] text-on-dark" : "text-[#C5C8DC]"}`}><Icon className="size-[18px]" /> {label}</Link>;
 }
 
 function MobileBottomNav({ active }: { active: ActiveItem }) {
@@ -618,7 +618,7 @@ function MobileBottomNav({ active }: { active: ActiveItem }) {
     { href: "/profile", label: "Profile", icon: User, key: "profile" }
   ];
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--br-surface-strong)] bg-white px-1 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 min-[1180px]:hidden">
+    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--br-surface-strong)] bg-surface px-1 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 min-[1180px]:hidden">
       <div className="flex items-center justify-around">
         {items.map((item) => (
           <Link key={item.label} href={item.href} className={`flex flex-col items-center gap-1 rounded-xl px-3 py-1.5 text-[9px] font-semibold ${active === item.key ? "text-[var(--br-chart-primary)]" : "text-[var(--br-text-muted)]"}`}>

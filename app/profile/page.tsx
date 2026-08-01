@@ -70,7 +70,7 @@ export default async function ProfilePage() {
                 </div>
               </div>
               {level ? (
-                <div className="mt-5 rounded-[18px] bg-gradient-to-br from-[var(--br-chart-primary)] to-[#4520D9] p-5 text-white">
+                <div className="mt-5 rounded-[18px] bg-gradient-to-br from-[var(--br-chart-primary)] to-[#4520D9] p-5 text-on-dark">
                   <div className="text-[46px] font-black leading-none">{level}</div>
                   <p className="mt-1 text-sm font-bold text-white/80">{levelGuidance[level].name}</p>
                   <p className="mt-3 text-xs leading-5 text-white/65">{levelGuidance[level].summary}</p>
@@ -78,7 +78,7 @@ export default async function ProfilePage() {
               ) : (
                 <p className="mt-4 rounded-[16px] bg-[var(--br-canvas-elevated)] p-4 text-sm font-semibold leading-6 text-[var(--br-text-muted)]">You have not taken the level test yet.</p>
               )}
-              <Link href="/level-test" className="mt-4 flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] px-4 py-3 text-xs font-bold text-white">
+              <Link href="/level-test" className="mt-4 flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] px-4 py-3 text-xs font-bold text-on-dark">
                 {level ? "Retake level test" : "Take level test"} <ChevronRight className="size-4" />
               </Link>
             </div>

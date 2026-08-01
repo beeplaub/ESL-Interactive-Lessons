@@ -93,7 +93,7 @@ export function LoginForm() {
         type="button"
         disabled={isPending}
         onClick={signInWithGoogle}
-        className="flex w-full items-center justify-center gap-3 rounded-md border border-black/15 bg-white px-4 py-2.5 text-sm font-medium text-ink hover:bg-black/[0.03] disabled:opacity-60"
+        className="flex w-full items-center justify-center gap-3 rounded-md border border-[var(--br-border)] bg-surface px-4 py-2.5 text-sm font-medium text-ink hover:bg-black/[0.03] disabled:opacity-60"
       >
         <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
           <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615Z"/>
@@ -104,19 +104,19 @@ export function LoginForm() {
         Continue with Google
       </button>
 
-      <div className="flex items-center gap-3 text-xs uppercase tracking-wide text-black/35">
+      <div className="flex items-center gap-3 text-xs uppercase tracking-wide text-[var(--br-text-muted)]">
         <span className="h-px flex-1 bg-black/10" />
         or
         <span className="h-px flex-1 bg-black/10" />
       </div>
 
       {/* Sign in / Register tabs */}
-      <div className="grid grid-cols-2 rounded-md border border-black/10 bg-black/[0.03] p-1 text-sm">
+      <div className="grid grid-cols-2 rounded-md border border-[var(--br-border)] bg-black/[0.03] p-1 text-sm">
         <button
           type="button"
           onClick={() => { setMode("signin"); setMessage(null); }}
           className={`rounded px-3 py-2 font-medium transition-colors ${
-            mode === "signin" ? "bg-white shadow-sm" : "text-black/60 hover:text-black"
+            mode === "signin" ? "bg-surface shadow-sm" : "text-[var(--br-text-muted)] hover:text-[var(--br-text-muted)]"
           }`}
         >
           Sign in
@@ -125,7 +125,7 @@ export function LoginForm() {
           type="button"
           onClick={() => { setMode("signup"); setMessage(null); }}
           className={`rounded px-3 py-2 font-medium transition-colors ${
-            mode === "signup" ? "bg-white shadow-sm" : "text-black/60 hover:text-black"
+            mode === "signup" ? "bg-surface shadow-sm" : "text-[var(--br-text-muted)] hover:text-[var(--br-text-muted)]"
           }`}
         >
           Register
@@ -193,7 +193,7 @@ export function LoginForm() {
         type="button"
         disabled={isPending}
         onClick={submit}
-        className="w-full rounded-xl bg-violetglow px-4 py-2.5 text-sm font-bold text-white shadow-[0_4px_14px_rgba(124,58,237,0.25)] hover:bg-[#6c2ee5] disabled:opacity-60 transition"
+        className="w-full rounded-xl bg-violetglow px-4 py-2.5 text-sm font-bold text-on-dark shadow-[0_4px_14px_rgba(124,58,237,0.25)] hover:bg-[#6c2ee5] disabled:opacity-60 transition"
       >
         {isPending ? "Working..." : mode === "signin" ? "Sign in" : "Create account"}
       </button>

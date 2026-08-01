@@ -11,7 +11,7 @@ export default function Loading() {
             <Bone className="h-4 w-1/3 bg-white/10" />
           </div>
         </div>
-        <div className="rounded-[22px] border border-[var(--br-surface-strong)] bg-white p-6">
+        <div className="rounded-[22px] border border-[var(--br-surface-strong)] bg-surface p-6">
           <Bone className="h-4 w-24" />
           <Bone className="mt-5 h-5 w-3/4" />
           <div className="mt-5 grid gap-2.5">

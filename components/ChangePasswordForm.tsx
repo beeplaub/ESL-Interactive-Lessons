@@ -89,7 +89,7 @@ export function ChangePasswordForm() {
             value={current}
             onChange={(e) => setCurrent(e.target.value)}
             autoComplete="current-password"
-            className="w-full rounded-[14px] border border-[var(--br-surface-strong)] bg-[var(--br-surface)] px-4 py-3 pr-11 font-semibold outline-none transition focus:border-[var(--br-chart-primary)] focus:bg-white"
+            className="w-full rounded-[14px] border border-[var(--br-surface-strong)] bg-[var(--br-surface)] px-4 py-3 pr-11 font-semibold outline-none transition focus:border-[var(--br-chart-primary)] focus:bg-surface"
           />
           <button type="button" onClick={() => setShowCur((v) => !v)}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--br-text-muted)] hover:text-[var(--br-dark-card)]"
@@ -109,7 +109,7 @@ export function ChangePasswordForm() {
             onChange={(e) => setNext(e.target.value)}
             autoComplete="new-password"
             placeholder="At least 8 characters"
-            className="w-full rounded-[14px] border border-[var(--br-surface-strong)] bg-[var(--br-surface)] px-4 py-3 pr-11 font-semibold outline-none transition focus:border-[var(--br-chart-primary)] focus:bg-white"
+            className="w-full rounded-[14px] border border-[var(--br-surface-strong)] bg-[var(--br-surface)] px-4 py-3 pr-11 font-semibold outline-none transition focus:border-[var(--br-chart-primary)] focus:bg-surface"
           />
           <button type="button" onClick={() => setShowNew((v) => !v)}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--br-text-muted)] hover:text-[var(--br-dark-card)]"
@@ -128,7 +128,7 @@ export function ChangePasswordForm() {
           value={confirm}
           onChange={(e) => setConfirm(e.target.value)}
           autoComplete="new-password"
-          className="mt-1 w-full rounded-[14px] border border-[var(--br-surface-strong)] bg-[var(--br-surface)] px-4 py-3 font-semibold outline-none transition focus:border-[var(--br-chart-primary)] focus:bg-white"
+          className="mt-1 w-full rounded-[14px] border border-[var(--br-surface-strong)] bg-[var(--br-surface)] px-4 py-3 font-semibold outline-none transition focus:border-[var(--br-chart-primary)] focus:bg-surface"
         />
       </label>
 
@@ -136,7 +136,7 @@ export function ChangePasswordForm() {
         type="button"
         disabled={isPending || !current || !next || !confirm}
         onClick={submit}
-        className="w-fit rounded-[14px] bg-gradient-to-br from-[var(--br-dark-card)] to-[#303751] px-5 py-3 text-sm font-extrabold text-white shadow-[0_8px_20px_rgba(20,23,43,.18)] disabled:opacity-60"
+        className="w-fit rounded-[14px] bg-gradient-to-br from-[var(--br-dark-card)] to-[#303751] px-5 py-3 text-sm font-extrabold text-on-dark shadow-[0_8px_20px_rgba(20,23,43,.18)] disabled:opacity-60"
       >
         {isPending ? "Updating..." : "Change password"}
       </button>

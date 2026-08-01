@@ -26,7 +26,7 @@ export default async function StaffAccountPage() {
     <main className="min-w-0 overflow-hidden">
       <div className="mb-6">
         <h1 className="text-2xl font-semibold sm:text-3xl">Account settings</h1>
-        <p className="mt-2 text-sm text-black/60">Manage your name, avatar, and password.</p>
+        <p className="mt-2 text-sm text-[var(--br-text-muted)]">Manage your name, avatar, and password.</p>
       </div>
 
       <section className="grid gap-5 xl:grid-cols-[300px_minmax(0,1fr)]">
@@ -55,7 +55,7 @@ export default async function StaffAccountPage() {
 
           <section className="br-card rounded-20 p-5 sm:p-6">
             <div className="mb-4 flex items-center gap-3">
-              <span className={`grid size-11 place-items-center rounded-[14px] ${isEmailUser ? "bg-[#FFF5E7] text-[#E47A00]" : "bg-slate-100 text-slate-500"}`}>
+              <span className={`grid size-11 place-items-center rounded-[14px] ${isEmailUser ? "bg-[#FFF5E7] text-[#E47A00]" : "bg-surface-strong text-slate-500"}`}>
                 <KeyRound className="size-5" />
               </span>
               <div>
@@ -66,7 +66,7 @@ export default async function StaffAccountPage() {
             {isEmailUser ? (
               <ChangePasswordForm />
             ) : (
-              <div className="flex items-start gap-3 rounded-[18px] bg-slate-50 p-4">
+              <div className="flex items-start gap-3 rounded-[18px] bg-surface-muted p-4">
                 <Mail className="mt-0.5 size-5 shrink-0 text-violetglow" />
                 <p className="text-sm font-semibold leading-6 text-slate-600">You signed in with Google. Password management is handled by your Google account.</p>
               </div>

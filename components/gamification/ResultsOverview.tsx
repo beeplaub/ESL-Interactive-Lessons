@@ -11,7 +11,7 @@ type OverviewQuestion = ScoredQuestion & { id: string; question_number: number }
 const TILE_STYLES: Record<OverviewStatus, string> = {
   correct: "border-[var(--br-success)] bg-[var(--br-success)]/10 text-[var(--br-chart-secondary)] hover:bg-[var(--br-success)]/20",
   incorrect: "border-[var(--br-danger)] bg-[var(--br-danger)]/10 text-[var(--br-danger)] hover:bg-[var(--br-danger)]/20",
-  pending: "border-dashed border-[var(--br-text-muted)] bg-[var(--br-canvas-elevated)] text-[var(--br-text-muted)] hover:bg-white"
+  pending: "border-dashed border-[var(--br-text-muted)] bg-[var(--br-canvas-elevated)] text-[var(--br-text-muted)] hover:bg-surface"
 };
 
 function TileIcon({ status }: { status: OverviewStatus }) {
@@ -52,12 +52,12 @@ export function ResultsOverview({
   const percent = Math.round((score / Math.max(1, total)) * 100);
 
   return (
-    <div className="overflow-hidden rounded-[20px] border border-[var(--br-surface-strong)] bg-white p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)] sm:p-6">
+    <div className="overflow-hidden rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)] sm:p-6">
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35 }}
-        className="rounded-[18px] bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] p-5 text-white"
+        className="rounded-[18px] bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] p-5 text-on-dark"
       >
         <div className="flex flex-wrap items-end justify-between gap-2">
           <div>
@@ -111,7 +111,7 @@ export function ResultsOverview({
         <button
           type="button"
           onClick={onRetake}
-          className="inline-flex items-center gap-2 rounded-[14px] border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] px-4 py-2 text-sm font-bold text-[var(--br-text-muted)] hover:bg-white"
+          className="inline-flex items-center gap-2 rounded-[14px] border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] px-4 py-2 text-sm font-bold text-[var(--br-text-muted)] hover:bg-surface"
         >
           <RotateCcw size={16} /> {retakeLabel}
         </button>

@@ -70,7 +70,7 @@ export function MediaLibraryUploader() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex shrink-0 items-center gap-2 rounded-full bg-violetglow px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-violetglow/90"
+        className="inline-flex shrink-0 items-center gap-2 rounded-full bg-violetglow px-4 py-2.5 text-sm font-semibold text-on-dark shadow-sm hover:bg-violetglow/90"
       >
         <Plus size={16} /> Add New
       </button>
@@ -78,48 +78,48 @@ export function MediaLibraryUploader() {
   }
 
   return (
-    <div className="w-full max-w-md rounded-2xl border border-black/10 bg-white p-4 shadow-lg sm:w-[26rem]">
+    <div className="w-full max-w-md rounded-2xl border border-[var(--br-border)] bg-surface p-4 shadow-lg sm:w-[26rem]">
       <div className="flex items-center justify-between">
-        <div className="inline-flex rounded-full bg-slate-100 p-1 text-sm font-semibold">
+        <div className="inline-flex rounded-full bg-surface-strong p-1 text-sm font-semibold">
           <button
             type="button"
             onClick={() => setTab("upload")}
-            className={`rounded-full px-3 py-1.5 ${tab === "upload" ? "bg-white shadow-sm text-violetglow" : "text-black/50"}`}
+            className={`rounded-full px-3 py-1.5 ${tab === "upload" ? "bg-surface shadow-sm text-violetglow" : "text-[var(--br-text-muted)]"}`}
           >
             Upload
           </button>
           <button
             type="button"
             onClick={() => setTab("link")}
-            className={`rounded-full px-3 py-1.5 ${tab === "link" ? "bg-white shadow-sm text-violetglow" : "text-black/50"}`}
+            className={`rounded-full px-3 py-1.5 ${tab === "link" ? "bg-surface shadow-sm text-violetglow" : "text-[var(--br-text-muted)]"}`}
           >
             Add link
           </button>
         </div>
-        <button type="button" onClick={() => setOpen(false)} className="rounded-full p-1.5 text-black/40 hover:bg-black/5">
+        <button type="button" onClick={() => setOpen(false)} className="rounded-full p-1.5 text-[var(--br-text-muted)] hover:bg-black/5">
           <X size={16} />
         </button>
       </div>
 
       {tab === "upload" ? (
         <div className="mt-4 space-y-3">
-          <div className="inline-flex rounded-full border border-black/10 p-1 text-xs font-semibold">
+          <div className="inline-flex rounded-full border border-[var(--br-border)] p-1 text-xs font-semibold">
             <button
               type="button"
               onClick={() => setKind("image")}
-              className={`rounded-full px-3 py-1 ${kind === "image" ? "bg-violetglow text-white" : "text-black/50"}`}
+              className={`rounded-full px-3 py-1 ${kind === "image" ? "bg-violetglow text-on-dark" : "text-[var(--br-text-muted)]"}`}
             >
               Image
             </button>
             <button
               type="button"
               onClick={() => setKind("audio")}
-              className={`rounded-full px-3 py-1 ${kind === "audio" ? "bg-violetglow text-white" : "text-black/50"}`}
+              className={`rounded-full px-3 py-1 ${kind === "audio" ? "bg-violetglow text-on-dark" : "text-[var(--br-text-muted)]"}`}
             >
               Audio
             </button>
           </div>
-          <p className="text-xs text-black/45">
+          <p className="text-xs text-[var(--br-text-muted)]">
             Video isn&apos;t uploaded here — paste a public video link instead using &ldquo;Add link&rdquo;.
           </p>
           <div
@@ -127,28 +127,28 @@ export function MediaLibraryUploader() {
             onDragOver={(e) => e.preventDefault()}
             onClick={() => !uploading && inputRef.current?.click()}
             className={`relative flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-8 text-center transition
-              ${uploading ? "border-violetglow/40 bg-violetglow/5 cursor-wait" : "border-black/15 hover:border-violetglow/40 hover:bg-violetglow/5"}`}
+              ${uploading ? "border-violetglow/40 bg-violetglow/5 cursor-wait" : "border-[var(--br-border)] hover:border-violetglow/40 hover:bg-violetglow/5"}`}
           >
             <input ref={inputRef} type="file" accept={accept} onChange={handleChange} className="sr-only" />
             {uploading ? (
               <>
                 <Loader2 size={22} className="animate-spin text-violetglow" />
-                <p className="text-xs text-black/55">Uploading…</p>
+                <p className="text-xs text-[var(--br-text-muted)]">Uploading…</p>
               </>
             ) : (
               <>
-                {kind === "image" ? <UploadCloud size={22} className="text-black/30" /> : <Music size={22} className="text-black/30" />}
-                <p className="text-xs text-black/50">
+                {kind === "image" ? <UploadCloud size={22} className="text-[var(--br-text-muted)]" /> : <Music size={22} className="text-[var(--br-text-muted)]" />}
+                <p className="text-xs text-[var(--br-text-muted)]">
                   <span className="font-medium text-violetglow">Click to upload</span> or drag & drop
                 </p>
-                <p className="text-[11px] text-black/30">{kind === "image" ? "JPG, PNG, WebP, GIF" : "MP3, WAV, OGG, M4A"}</p>
+                <p className="text-[11px] text-[var(--br-text-muted)]">{kind === "image" ? "JPG, PNG, WebP, GIF" : "MP3, WAV, OGG, M4A"}</p>
               </>
             )}
           </div>
         </div>
       ) : (
         <form action={handleAddLink} className="mt-4 space-y-2">
-          <select name="type" required defaultValue="VIDEO" className="w-full rounded-md border border-black/15 px-3 py-2 text-sm">
+          <select name="type" required defaultValue="VIDEO" className="w-full rounded-md border border-[var(--br-border)] px-3 py-2 text-sm">
             <option value="VIDEO">Video link (YouTube, etc.)</option>
             <option value="IMAGE">Image link</option>
             <option value="AUDIO">Audio link</option>
@@ -157,16 +157,16 @@ export function MediaLibraryUploader() {
             name="url"
             required
             placeholder="https://…"
-            className="w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+            className="w-full rounded-md border border-[var(--br-border)] px-3 py-2 text-sm"
           />
           <input
             name="title"
             placeholder="Label (optional)"
-            className="w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+            className="w-full rounded-md border border-[var(--br-border)] px-3 py-2 text-sm"
           />
           <button
             disabled={linkPending}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-violetglow px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-violetglow px-3 py-2 text-sm font-semibold text-on-dark disabled:opacity-60"
           >
             {linkPending ? <Loader2 size={15} className="animate-spin" /> : <Link2 size={15} />}
             Add to library

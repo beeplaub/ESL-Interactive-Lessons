@@ -123,41 +123,41 @@ export default async function ContentLibraryPage({
 
   return (
     <main className="min-w-0 space-y-5">
-      <section className="rounded-xl border border-black/10 bg-white p-4 shadow-sm sm:p-5">
+      <section className="rounded-xl border border-[var(--br-border)] bg-surface p-4 shadow-sm sm:p-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-moss">Phase 8</p>
             <h1 className="mt-1 flex items-center gap-2 text-2xl font-semibold tracking-tight sm:text-3xl"><Library size={25} /> Content Library</h1>
-            <p className="mt-2 max-w-3xl text-sm text-black/55">Save questions, activities, blocks, slides, lessons, and course templates. Inserting always creates an independent copy and preserves its origin.</p>
+            <p className="mt-2 max-w-3xl text-sm text-[var(--br-text-muted)]">Save questions, activities, blocks, slides, lessons, and course templates. Inserting always creates an independent copy and preserves its origin.</p>
           </div>
           <span className="rounded-full bg-moss/10 px-3 py-1.5 text-sm font-semibold text-moss">{filtered.length} items</span>
         </div>
       </section>
 
-      <details className="rounded-xl border border-black/10 bg-white p-4 shadow-sm">
+      <details className="rounded-xl border border-[var(--br-border)] bg-surface p-4 shadow-sm">
         <summary className="flex cursor-pointer list-none items-center gap-2 font-semibold"><Plus size={17} /> Save existing content</summary>
         <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {itemTypes.map((type) => (
-            <form key={type} action={saveExistingContentToLibrary} className="grid min-w-0 gap-3 rounded-lg border border-black/10 bg-slate-50 p-3">
+            <form key={type} action={saveExistingContentToLibrary} className="grid min-w-0 gap-3 rounded-lg border border-[var(--br-border)] bg-surface-muted p-3">
               <input type="hidden" name="itemType" value={type} />
               <p className="text-sm font-semibold">{typeLabel(type)}</p>
-              <select name="sourceId" required className="min-w-0 rounded-md border border-black/15 bg-white px-3 py-2 text-sm">
+              <select name="sourceId" required className="min-w-0 rounded-md border border-[var(--br-border)] bg-surface px-3 py-2 text-sm">
                 <option value="">Choose existing content</option>
                 {sources[type].map((source) => <option key={source.id} value={source.id}>{source.label}</option>)}
               </select>
-              <input name="title" placeholder="Library title (optional)" className="min-w-0 rounded-md border border-black/15 px-3 py-2 text-sm" />
+              <input name="title" placeholder="Library title (optional)" className="min-w-0 rounded-md border border-[var(--br-border)] px-3 py-2 text-sm" />
               <div className="grid grid-cols-3 gap-2">
-                <input name="level" placeholder="Level" className="min-w-0 rounded-md border border-black/15 px-2 py-2 text-sm" />
-                <input name="skill" placeholder="Skill" className="min-w-0 rounded-md border border-black/15 px-2 py-2 text-sm" />
-                <input name="topic" placeholder="Topic" className="min-w-0 rounded-md border border-black/15 px-2 py-2 text-sm" />
+                <input name="level" placeholder="Level" className="min-w-0 rounded-md border border-[var(--br-border)] px-2 py-2 text-sm" />
+                <input name="skill" placeholder="Skill" className="min-w-0 rounded-md border border-[var(--br-border)] px-2 py-2 text-sm" />
+                <input name="topic" placeholder="Topic" className="min-w-0 rounded-md border border-[var(--br-border)] px-2 py-2 text-sm" />
               </div>
-              <button className="rounded-md bg-dark px-3 py-2 text-sm font-semibold text-white">Save to library</button>
+              <button className="rounded-md bg-dark px-3 py-2 text-sm font-semibold text-on-dark">Save to library</button>
             </form>
           ))}
         </div>
       </details>
 
-      <form className="rounded-xl border border-black/10 bg-white p-4 shadow-sm">
+      <form className="rounded-xl border border-[var(--br-border)] bg-surface p-4 shadow-sm">
         <div className="mb-3 flex items-center gap-2 text-sm font-semibold"><Filter size={16} /> Filters</div>
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
           <FilterSelect name="type" current={value("type")} label="All types" values={[...itemTypes]} format={typeLabel} />
@@ -167,18 +167,18 @@ export default async function ContentLibraryPage({
           <FilterSelect name="activity" current={value("activity")} label="All activities" values={activityTypes} />
           <FilterSelect name="course" current={value("course")} label="All sources/courses" values={sourceTitles} />
           {isAdmin ? (
-            <select name="creator" defaultValue={value("creator")} className="min-w-0 rounded-md border border-black/15 px-3 py-2 text-sm">
+            <select name="creator" defaultValue={value("creator")} className="min-w-0 rounded-md border border-[var(--br-border)] px-3 py-2 text-sm">
               <option value="">All creators</option>
               {creators.map((id) => <option key={id} value={id}>{creatorNames.get(id) ?? "Creator"}</option>)}
             </select>
           ) : null}
         </div>
-        <button className="mt-3 rounded-md border border-black/15 px-4 py-2 text-sm font-semibold">Apply filters</button>
+        <button className="mt-3 rounded-md border border-[var(--br-border)] px-4 py-2 text-sm font-semibold">Apply filters</button>
       </form>
 
       <section className="grid min-w-0 gap-4 lg:grid-cols-2">
         {filtered.map((item) => (
-          <article key={item.id} className="min-w-0 rounded-xl border border-black/10 bg-white p-4 shadow-sm">
+          <article key={item.id} className="min-w-0 rounded-xl border border-[var(--br-border)] bg-surface p-4 shadow-sm">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="flex flex-wrap gap-1.5">
@@ -188,7 +188,7 @@ export default async function ContentLibraryPage({
                   {item.activity_type ? <Badge>{item.activity_type.replaceAll("_", " ")}</Badge> : null}
                 </div>
                 <h2 className="mt-3 break-words text-lg font-semibold">{item.title}</h2>
-                <p className="mt-1 text-xs text-black/45">
+                <p className="mt-1 text-xs text-[var(--br-text-muted)]">
                   From {item.source_title || item.source_type}
                   {isAdmin ? ` · saved by ${item.created_by ? creatorNames.get(item.created_by) ?? "Creator" : "Unknown"}` : ""}
                   {" "}· reused {reuseCounts.get(item.id) ?? 0} times
@@ -205,18 +205,18 @@ export default async function ContentLibraryPage({
                 </DeleteButton>
               </form>
             </div>
-            <form action={insertLibraryCopy.bind(null, item.id)} className="mt-4 flex min-w-0 gap-2 border-t border-black/10 pt-4">
+            <form action={insertLibraryCopy.bind(null, item.id)} className="mt-4 flex min-w-0 gap-2 border-t border-[var(--br-border)] pt-4">
               {item.item_type === "QUESTION" ? <TargetSelect name="targetId" label="Choose destination quiz" rows={(quizzes ?? []).map((row) => ({ id: row.id, label: row.title }))} /> : null}
               {item.item_type === "ACTIVITY" || item.item_type === "LESSON_BLOCK" ? <TargetSelect name="targetId" label="Choose destination slide" rows={slideTargets} /> : null}
               {item.item_type === "SLIDE" ? <TargetSelect name="targetId" label="Choose destination lesson" rows={(lessons ?? []).map((row) => ({ id: row.id, label: row.title }))} /> : null}
               {item.item_type === "LESSON" || item.item_type === "COURSE_TEMPLATE" ? <input type="hidden" name="targetId" value="" /> : null}
-              <button className="shrink-0 rounded-md bg-moss px-3 py-2 text-sm font-semibold text-white">
+              <button className="shrink-0 rounded-md bg-moss px-3 py-2 text-sm font-semibold text-on-dark">
                 {item.item_type === "LESSON" || item.item_type === "COURSE_TEMPLATE" ? "Create copy" : "Insert copy"}
               </button>
             </form>
           </article>
         ))}
-        {!filtered.length ? <div className="rounded-xl border border-dashed border-black/15 p-10 text-center text-sm text-black/50 lg:col-span-2">No library items match these filters.</div> : null}
+        {!filtered.length ? <div className="rounded-xl border border-dashed border-[var(--br-border)] p-10 text-center text-sm text-[var(--br-text-muted)] lg:col-span-2">No library items match these filters.</div> : null}
       </section>
     </main>
   );
@@ -236,12 +236,12 @@ function typeLabel(value: string) {
 }
 
 function Badge({ children }: { children: React.ReactNode }) {
-  return <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-black/60">{children}</span>;
+  return <span className="rounded-full bg-surface-strong px-2 py-1 text-[11px] font-semibold text-[var(--br-text-muted)]">{children}</span>;
 }
 
 function FilterSelect({ name, current, label, values, format }: { name: string; current: string; label: string; values: string[]; format?: (value: string) => string }) {
   return (
-    <select name={name} defaultValue={current} className="min-w-0 rounded-md border border-black/15 px-3 py-2 text-sm">
+    <select name={name} defaultValue={current} className="min-w-0 rounded-md border border-[var(--br-border)] px-3 py-2 text-sm">
       <option value="">{label}</option>
       {values.map((value) => <option key={value} value={value}>{format ? format(value) : value}</option>)}
     </select>
@@ -250,7 +250,7 @@ function FilterSelect({ name, current, label, values, format }: { name: string; 
 
 function TargetSelect({ name, label, rows }: { name: string; label: string; rows: Array<{ id: string; label: string }> }) {
   return (
-    <select name={name} required className="min-w-0 flex-1 rounded-md border border-black/15 px-3 py-2 text-sm">
+    <select name={name} required className="min-w-0 flex-1 rounded-md border border-[var(--br-border)] px-3 py-2 text-sm">
       <option value="">{label}</option>
       {rows.map((row) => <option key={row.id} value={row.id}>{row.label}</option>)}
     </select>

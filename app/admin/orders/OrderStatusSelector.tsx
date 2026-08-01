@@ -36,7 +36,7 @@ export function OrderStatusSelector({
             router.refresh();
           });
         }}
-        className="rounded-md border border-black/15 bg-white px-2 py-1 text-xs font-semibold shadow-sm focus:outline-none disabled:opacity-50"
+        className="rounded-md border border-[var(--br-border)] bg-surface px-2 py-1 text-xs font-semibold shadow-sm focus:outline-none disabled:opacity-50"
       >
         <option value="PENDING">Set Pending</option>
         <option value="CONFIRMED">Set Confirmed</option>

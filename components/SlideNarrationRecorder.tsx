@@ -169,8 +169,8 @@ export function SlideNarrationRecorder({
       : state === "recording"
       ? "border-red-300 bg-red-50 text-red-500"
       : state === "loading"
-      ? "border-black/10 text-black/30"
-      : "border-black/15 text-black/60 hover:bg-black/5";
+      ? "border-[var(--br-border)] text-[var(--br-text-muted)]"
+      : "border-[var(--br-border)] text-[var(--br-text-muted)] hover:bg-black/5";
 
   return (
     <div className="relative">
@@ -194,7 +194,7 @@ export function SlideNarrationRecorder({
           </span>
         ) : state === "loading" ? (
           <span className="flex size-[15px] items-center justify-center">
-            <span className="size-3 animate-spin rounded-full border-2 border-black/20 border-t-black/60" />
+            <span className="size-3 animate-spin rounded-full border-2 border-[var(--br-border)] border-t-black/60" />
           </span>
         ) : (
           <Mic size={15} />
@@ -203,8 +203,8 @@ export function SlideNarrationRecorder({
 
       {/* Popover panel */}
       {open && state !== "loading" && (
-        <div className="absolute right-0 top-10 z-50 w-64 rounded-xl border border-black/10 bg-white p-3 shadow-xl">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-black/45">
+        <div className="absolute right-0 top-10 z-50 w-64 rounded-xl border border-[var(--br-border)] bg-surface p-3 shadow-xl">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--br-text-muted)]">
             Slide Narration
           </p>
 
@@ -213,7 +213,7 @@ export function SlideNarrationRecorder({
             <button
               type="button"
               onClick={startRecording}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-moss px-3 py-2 text-sm font-semibold text-white hover:opacity-90"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-moss px-3 py-2 text-sm font-semibold text-on-dark hover:opacity-90"
             >
               <Mic size={15} /> Start recording
             </button>
@@ -230,7 +230,7 @@ export function SlideNarrationRecorder({
               <button
                 type="button"
                 onClick={stopRecording}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-black/15 px-3 py-2 text-sm font-medium hover:bg-black/5"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm font-medium hover:bg-black/5"
               >
                 <MicOff size={15} /> Stop
               </button>
@@ -240,11 +240,11 @@ export function SlideNarrationRecorder({
           {/* recorded — preview before upload */}
           {state === "recorded" && recordedUrl && (
             <div className="space-y-2">
-              <p className="text-xs text-black/50">Preview before saving:</p>
+              <p className="text-xs text-[var(--br-text-muted)]">Preview before saving:</p>
               <button
                 type="button"
                 onClick={() => togglePlay(recordedUrl)}
-                className="inline-flex w-full items-center gap-2 rounded-lg border border-black/15 px-3 py-2 text-sm font-medium hover:bg-black/5"
+                className="inline-flex w-full items-center gap-2 rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm font-medium hover:bg-black/5"
               >
                 {playing ? <Pause size={15} /> : <Play size={15} />}
                 {playing ? "Pause" : "Play preview"}
@@ -252,14 +252,14 @@ export function SlideNarrationRecorder({
               <button
                 type="button"
                 onClick={upload}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-moss px-3 py-2 text-sm font-semibold text-white hover:opacity-90"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-moss px-3 py-2 text-sm font-semibold text-on-dark hover:opacity-90"
               >
                 <Upload size={15} /> Save narration
               </button>
               <button
                 type="button"
                 onClick={reRecord}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-black/15 px-3 py-2 text-sm font-medium hover:bg-black/5"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm font-medium hover:bg-black/5"
               >
                 <RotateCcw size={15} /> Re-record
               </button>
@@ -268,7 +268,7 @@ export function SlideNarrationRecorder({
 
           {/* uploading */}
           {state === "uploading" && (
-            <div className="flex items-center justify-center gap-2 py-3 text-sm text-black/55">
+            <div className="flex items-center justify-center gap-2 py-3 text-sm text-[var(--br-text-muted)]">
               <span className="size-4 animate-spin rounded-full border-2 border-moss border-t-transparent" />
               Saving…
             </div>
@@ -280,7 +280,7 @@ export function SlideNarrationRecorder({
               <button
                 type="button"
                 onClick={() => togglePlay(existingUrl)}
-                className="inline-flex w-full items-center gap-2 rounded-lg border border-black/15 px-3 py-2 text-sm font-medium hover:bg-black/5"
+                className="inline-flex w-full items-center gap-2 rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm font-medium hover:bg-black/5"
               >
                 {playing ? <Pause size={15} /> : <Play size={15} />}
                 {playing ? "Pause" : "Play narration"}
@@ -288,7 +288,7 @@ export function SlideNarrationRecorder({
               <button
                 type="button"
                 onClick={reRecord}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-black/15 px-3 py-2 text-sm font-medium hover:bg-black/5"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm font-medium hover:bg-black/5"
               >
                 <RotateCcw size={15} /> Re-record
               </button>
@@ -307,17 +307,17 @@ export function SlideNarrationRecorder({
                     className={`relative h-5 w-9 rounded-full transition ${translationEnabled ? "bg-violetglow" : "bg-black/15"}`}
                     title="Allow learners to hear this narration translated after the original finishes"
                   >
-                    <span className={`absolute top-0.5 size-4 rounded-full bg-white shadow transition ${translationEnabled ? "left-[18px]" : "left-0.5"}`} />
+                    <span className={`absolute top-0.5 size-4 rounded-full bg-surface shadow transition ${translationEnabled ? "left-[18px]" : "left-0.5"}`} />
                   </button>
                 </div>
                 {translationEnabled ? (
-                  <label className="mt-2 block text-xs text-black/55">
+                  <label className="mt-2 block text-xs text-[var(--br-text-muted)]">
                     Original narration language
                     <select
                       value={narrationLanguage}
                       disabled={savingTranslation}
                       onChange={(event) => void saveTranslationSettings(translationEnabled, event.target.value === "bn" ? "bn" : "en")}
-                      className="mt-1 w-full rounded-md border border-black/10 bg-white px-2 py-1.5 text-xs text-ink"
+                      className="mt-1 w-full rounded-md border border-[var(--br-border)] bg-surface px-2 py-1.5 text-xs text-ink"
                     >
                       <option value="en">English → Bangla</option>
                       <option value="bn">Bangla → English</option>
@@ -344,7 +344,7 @@ export function SlideNarrationRecorder({
               <button
                 type="button"
                 onClick={() => setState("idle")}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-black/15 px-3 py-2 text-sm font-medium hover:bg-black/5"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm font-medium hover:bg-black/5"
               >
                 Try again
               </button>

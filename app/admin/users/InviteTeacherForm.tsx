@@ -24,10 +24,10 @@ export function InviteTeacherForm() {
         });
       }}
     >
-      <input name="firstName" placeholder="First name" required className="rounded-md border border-black/15 px-3 py-2" />
-      <input name="lastName" placeholder="Last name" className="rounded-md border border-black/15 px-3 py-2" />
-      <input name="email" type="email" placeholder="Teacher email" required className="rounded-md border border-black/15 px-3 py-2 md:col-span-2" />
-      <button disabled={isPending} className="inline-flex items-center justify-center gap-2 rounded-md bg-moss px-4 py-2 text-sm font-medium text-white disabled:opacity-60"><Send size={15} /> {isPending ? "Sending..." : "Send invitation"}</button>
+      <input name="firstName" placeholder="First name" required className="rounded-md border border-[var(--br-border)] px-3 py-2" />
+      <input name="lastName" placeholder="Last name" className="rounded-md border border-[var(--br-border)] px-3 py-2" />
+      <input name="email" type="email" placeholder="Teacher email" required className="rounded-md border border-[var(--br-border)] px-3 py-2 md:col-span-2" />
+      <button disabled={isPending} className="inline-flex items-center justify-center gap-2 rounded-md bg-moss px-4 py-2 text-sm font-medium text-on-dark disabled:opacity-60"><Send size={15} /> {isPending ? "Sending..." : "Send invitation"}</button>
       {message ? <p className={`md:col-span-5 text-xs font-semibold ${isError ? "text-red-600" : "text-emerald-700"}`}>{message}</p> : null}
     </form>
   );

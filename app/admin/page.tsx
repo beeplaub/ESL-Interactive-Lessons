@@ -106,7 +106,7 @@ export default async function AdminPage() {
       <main className="min-w-0 overflow-hidden">
         <div className="mb-6">
           <h1 className="text-2xl font-semibold sm:text-3xl">My teaching overview</h1>
-          <p className="mt-2 text-sm text-black/60">Your own courses, lessons, and quizzes.</p>
+          <p className="mt-2 text-sm text-[var(--br-text-muted)]">Your own courses, lessons, and quizzes.</p>
         </div>
 
         <section className="grid min-w-0 gap-3 sm:grid-cols-2 md:grid-cols-3">
@@ -122,7 +122,7 @@ export default async function AdminPage() {
               <h2 className="mt-1 text-lg font-extrabold text-ink">{entitlements.planName}</h2>
               <p className="mt-1 text-xs text-slate-600">Status: {entitlements.status.toLowerCase().replace(/_/g, " ")}</p>
             </div>
-            <Link href="/admin/account" className="rounded-lg border border-violetglow/25 bg-white px-3 py-2 text-xs font-bold text-violetglow hover:bg-violetglow/5">Plan details</Link>
+            <Link href="/admin/account" className="rounded-lg border border-violetglow/25 bg-surface px-3 py-2 text-xs font-bold text-violetglow hover:bg-violetglow/5">Plan details</Link>
           </div>
           <div className="mt-4 grid gap-2 sm:grid-cols-3">
             <UsageRule label="Courses" used={courseRows.length} rule={entitlements.values.COURSES} />
@@ -198,7 +198,7 @@ export default async function AdminPage() {
     <main className="min-w-0 overflow-hidden">
       <div className="mb-6">
         <h1 className="text-2xl font-semibold sm:text-3xl">Admin overview</h1>
-        <p className="mt-2 text-sm text-black/60">A central hub for managing BrenUp.</p>
+        <p className="mt-2 text-sm text-[var(--br-text-muted)]">A central hub for managing BrenUp.</p>
       </div>
       <section className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-3">
         <AdminCard href="/admin/courses" icon={GraduationCap} label="Courses" value={courses?.length ?? 0} detail={`${countStatus(courses, "PUBLISHED")} published · ${countStatus(courses, "DRAFT")} draft`} />
@@ -229,7 +229,7 @@ function AdminCard({ href, icon: Icon, label, value, detail }: { href: string; i
 
 function QuickAction({ href, icon: Icon, label }: { href: string; icon: typeof ClipboardList; label: string }) {
   return (
-    <Link href={href} className="group flex min-w-0 items-center gap-3 rounded-xl border border-black/10 bg-white/70 px-3 py-3 transition hover:-translate-y-0.5 hover:border-violetglow/30 hover:bg-violetglow/5">
+    <Link href={href} className="group flex min-w-0 items-center gap-3 rounded-xl border border-[var(--br-border)] bg-white/70 px-3 py-3 transition hover:-translate-y-0.5 hover:border-violetglow/30 hover:bg-violetglow/5">
       <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-violetglow/10 text-violetglow"><Icon size={16} /></span>
       <span className="min-w-0 flex-1 truncate text-sm font-bold text-ink">{label}</span>
       <Plus size={15} className="shrink-0 text-slate-400 transition group-hover:text-violetglow" />
@@ -238,7 +238,7 @@ function QuickAction({ href, icon: Icon, label }: { href: string; icon: typeof C
 }
 
 function WorkspaceSignal({ href, icon: Icon, label, value, detail, tone }: { href: string; icon: typeof ClipboardList; label: string; value: number; detail: string; tone: "amber" | "violet" | "blue" | "neutral" }) {
-  const toneClass = tone === "amber" ? "bg-amber-50 text-amber-700" : tone === "blue" ? "bg-sky-50 text-sky-700" : tone === "violet" ? "bg-violetglow/10 text-violetglow" : "bg-slate-100 text-slate-600";
+  const toneClass = tone === "amber" ? "bg-amber-50 text-amber-700" : tone === "blue" ? "bg-sky-50 text-sky-700" : tone === "violet" ? "bg-violetglow/10 text-violetglow" : "bg-surface-strong text-slate-600";
   return (
     <Link href={href} className="br-card min-w-0 rounded-20 p-4 transition hover:-translate-y-0.5 hover:shadow-md">
       <div className="flex items-start justify-between gap-2">
@@ -253,5 +253,5 @@ function WorkspaceSignal({ href, icon: Icon, label, value, detail, tone }: { hre
 
 function UsageRule({ label, used, rule }: { label: string; used: number | null; rule: ResolvedEntitlement }) {
   const detail = !rule.enabled ? "Not included" : used === null ? "Included" : rule.limit === null ? `${used} used · Unlimited` : `${used} of ${rule.limit} used`;
-  return <div className="rounded-xl border border-black/5 bg-white/80 px-3 py-2.5"><p className="text-xs font-bold text-ink">{label}</p><p className={`mt-1 text-xs font-medium ${rule.enabled ? "text-slate-600" : "text-slate-400"}`}>{detail}</p></div>;
+  return <div className="rounded-xl border border-[var(--br-border)] bg-white/80 px-3 py-2.5"><p className="text-xs font-bold text-ink">{label}</p><p className={`mt-1 text-xs font-medium ${rule.enabled ? "text-slate-600" : "text-slate-400"}`}>{detail}</p></div>;
 }

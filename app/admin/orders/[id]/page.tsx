@@ -36,7 +36,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
 
   return (
     <main className="mx-auto max-w-4xl px-4 py-8">
-      <Link href="/admin/orders" className="inline-flex items-center gap-2 text-sm text-black/60 hover:text-black mb-5">
+      <Link href="/admin/orders" className="inline-flex items-center gap-2 text-sm text-[var(--br-text-muted)] hover:text-[var(--br-text-muted)] mb-5">
         <ArrowLeft size={16} /> Back to orders
       </Link>
 
@@ -44,10 +44,10 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
         {/* MAIN PANEL */}
         <div className="space-y-6">
           {/* HEADER */}
-          <div className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
-            <span className="text-xs font-bold uppercase tracking-wider text-black/40">Order Review</span>
-            <h1 className="mt-1 text-2xl font-bold text-black">Order #{order.id.slice(0, 8)}</h1>
-            <p className="mt-2 text-sm text-black/55">Submitted on {new Date(order.created_at).toLocaleString()}</p>
+          <div className="rounded-2xl border border-[var(--br-border)] bg-surface p-6 shadow-sm">
+            <span className="text-xs font-bold uppercase tracking-wider text-[var(--br-text-muted)]">Order Review</span>
+            <h1 className="mt-1 text-2xl font-bold text-[var(--br-text-muted)]">Order #{order.id.slice(0, 8)}</h1>
+            <p className="mt-2 text-sm text-[var(--br-text-muted)]">Submitted on {new Date(order.created_at).toLocaleString()}</p>
             
             <div className="mt-4 flex items-center gap-2">
               {order.status === "PENDING" && (
@@ -69,31 +69,31 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
           </div>
 
           {/* TRANSACTION & PAYMENT PROOF */}
-          <div className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm space-y-4">
-            <h2 className="text-lg font-bold flex items-center gap-2 text-black"><CreditCard size={18} /> Transaction Details</h2>
+          <div className="rounded-2xl border border-[var(--br-border)] bg-surface p-6 shadow-sm space-y-4">
+            <h2 className="text-lg font-bold flex items-center gap-2 text-[var(--br-text-muted)]"><CreditCard size={18} /> Transaction Details</h2>
             
             <div className="grid gap-4 sm:grid-cols-2 text-sm">
-              <div className="rounded-xl bg-slate-50 p-4">
-                <span className="text-xs text-black/40 font-bold uppercase block">Payment Method</span>
+              <div className="rounded-xl bg-surface-muted p-4">
+                <span className="text-xs text-[var(--br-text-muted)] font-bold uppercase block">Payment Method</span>
                 <span className="text-base font-extrabold mt-1 block text-slate-800">{order.payment_method}</span>
               </div>
-              <div className="rounded-xl bg-slate-50 p-4">
-                <span className="text-xs text-black/40 font-bold uppercase block">Amount Paid</span>
+              <div className="rounded-xl bg-surface-muted p-4">
+                <span className="text-xs text-[var(--br-text-muted)] font-bold uppercase block">Amount Paid</span>
                 <span className="text-base font-extrabold mt-1 block text-emerald-600">৳{order.amount_bdt}</span>
               </div>
-              <div className="rounded-xl bg-slate-50 p-4">
-                <span className="text-xs text-black/40 font-bold uppercase block">Sender Account/Number</span>
+              <div className="rounded-xl bg-surface-muted p-4">
+                <span className="text-xs text-[var(--br-text-muted)] font-bold uppercase block">Sender Account/Number</span>
                 <span className="text-base font-mono font-extrabold mt-1 block text-slate-800">{order.sender_number ?? "-"}</span>
               </div>
-              <div className="rounded-xl bg-slate-50 p-4">
-                <span className="text-xs text-black/40 font-bold uppercase block">Transaction ID</span>
+              <div className="rounded-xl bg-surface-muted p-4">
+                <span className="text-xs text-[var(--br-text-muted)] font-bold uppercase block">Transaction ID</span>
                 <span className="text-base font-mono font-extrabold mt-1 block text-slate-800">{order.transaction_id ?? "-"}</span>
               </div>
             </div>
 
             {order.note && (
-              <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
-                <span className="text-xs text-black/40 font-bold uppercase block">User Note</span>
+              <div className="rounded-xl border border-slate-100 bg-surface-muted/50 p-4">
+                <span className="text-xs text-[var(--br-text-muted)] font-bold uppercase block">User Note</span>
                 <p className="mt-1.5 text-sm text-slate-700 font-medium leading-relaxed">"{order.note}"</p>
               </div>
             )}
@@ -101,8 +101,8 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
             {/* RECEIPT ATTACHMENT */}
             {receiptUrl ? (
               <div className="space-y-2">
-                <span className="text-xs text-black/40 font-bold uppercase block">Uploaded Receipt Screenshot</span>
-                <div className="overflow-hidden rounded-xl border border-black/10 bg-slate-50 p-2">
+                <span className="text-xs text-[var(--br-text-muted)] font-bold uppercase block">Uploaded Receipt Screenshot</span>
+                <div className="overflow-hidden rounded-xl border border-[var(--br-border)] bg-surface-muted p-2">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={receiptUrl}
@@ -117,16 +117,16 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
           </div>
 
           {/* ADMIN VERIFICATION & MANUAL STATUS UPDATE ACTIONS */}
-          <div className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm space-y-5">
-            <h2 className="text-lg font-bold flex items-center gap-2 text-black"><Shield size={18} /> Manage Order Status</h2>
-            <p className="text-sm text-black/55">
-              Current status: <strong className="text-black">{order.status}</strong>. You can manually change the order status below at any time.
+          <div className="rounded-2xl border border-[var(--br-border)] bg-surface p-6 shadow-sm space-y-5">
+            <h2 className="text-lg font-bold flex items-center gap-2 text-[var(--br-text-muted)]"><Shield size={18} /> Manage Order Status</h2>
+            <p className="text-sm text-[var(--br-text-muted)]">
+              Current status: <strong className="text-[var(--br-text-muted)]">{order.status}</strong>. You can manually change the order status below at any time.
             </p>
 
             <div className="space-y-4">
               {order.status !== "CONFIRMED" && (
                 <form action={confirmCourseOrder.bind(null, order.id)}>
-                  <button className="rounded-xl bg-emerald-600 hover:bg-emerald-700 px-5 py-2.5 text-sm font-extrabold text-white transition">
+                  <button className="rounded-xl bg-emerald-600 hover:bg-emerald-700 px-5 py-2.5 text-sm font-extrabold text-on-dark transition">
                     Mark as Confirmed & Enroll User
                   </button>
                 </form>
@@ -140,7 +140,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
                     await updateOrderStatusDirectly(order.id, "PENDING");
                   }}
                 >
-                  <button className="rounded-xl bg-amber-600 hover:bg-amber-700 px-5 py-2.5 text-sm font-extrabold text-white transition">
+                  <button className="rounded-xl bg-amber-600 hover:bg-amber-700 px-5 py-2.5 text-sm font-extrabold text-on-dark transition">
                     Reset to Pending
                   </button>
                 </form>
@@ -153,7 +153,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
                     const note = String(fd.get("adminNote") || "").trim();
                     await rejectCourseOrder(order.id, note);
                   }}
-                  className="w-full border-t border-dashed border-black/10 pt-4 space-y-3"
+                  className="w-full border-t border-dashed border-[var(--br-border)] pt-4 space-y-3"
                 >
                   <label className="text-sm font-bold block text-slate-700">
                     Rejection Reason
@@ -161,10 +161,10 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
                       name="adminNote"
                       type="text"
                       placeholder="e.g. Transaction ID mismatch / Amount insufficient (optional)"
-                      className="mt-1.5 w-full rounded-lg border border-black/15 px-3 py-2 text-sm text-slate-800 font-normal"
+                      className="mt-1.5 w-full rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm text-slate-800 font-normal"
                     />
                   </label>
-                  <button className="rounded-xl bg-red-600 hover:bg-red-700 px-5 py-2.5 text-sm font-extrabold text-white transition">
+                  <button className="rounded-xl bg-red-600 hover:bg-red-700 px-5 py-2.5 text-sm font-extrabold text-on-dark transition">
                     Mark as Rejected
                   </button>
                 </form>
@@ -174,15 +174,15 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
 
           {/* REJECTED OR CONFIRMED METADATA */}
           {order.status !== "PENDING" && (
-            <div className="rounded-2xl border border-black/10 bg-white p-6 shadow-sm text-sm space-y-3">
-              <span className="text-xs text-black/40 font-bold uppercase block">Verification Log</span>
+            <div className="rounded-2xl border border-[var(--br-border)] bg-surface p-6 shadow-sm text-sm space-y-3">
+              <span className="text-xs text-[var(--br-text-muted)] font-bold uppercase block">Verification Log</span>
               {order.status === "REJECTED" && order.admin_note && (
                 <div className="rounded-xl bg-red-50/50 border border-red-100 p-4">
                   <span className="text-xs font-bold text-red-800 uppercase">Reason for Rejection</span>
                   <p className="mt-1.5 font-medium text-red-950">"{order.admin_note}"</p>
                 </div>
               )}
-              <div className="text-black/55 text-xs font-semibold">
+              <div className="text-[var(--br-text-muted)] text-xs font-semibold">
                 Processed at {new Date(order.confirmed_at || order.updated_at).toLocaleString()}
               </div>
             </div>
@@ -192,8 +192,8 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
         {/* SIDEBAR PANEL */}
         <aside className="space-y-4">
           {/* USER INFO */}
-          <div className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm space-y-3">
-            <h3 className="text-xs font-extrabold text-black/45 uppercase tracking-wider flex items-center gap-1.5"><User size={14} /> Learner</h3>
+          <div className="rounded-2xl border border-[var(--br-border)] bg-surface p-5 shadow-sm space-y-3">
+            <h3 className="text-xs font-extrabold text-[var(--br-text-muted)] uppercase tracking-wider flex items-center gap-1.5"><User size={14} /> Learner</h3>
             <div className="flex items-center gap-3">
               {profile?.avatar_url ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -204,20 +204,20 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
                 </div>
               )}
               <div className="min-w-0">
-                <p className="font-extrabold truncate text-black leading-tight">{profile?.full_name ?? "Unknown"}</p>
-                <p className="text-xs text-black/40 font-semibold mt-1">ID: {order.user_id.slice(0, 8)}...</p>
+                <p className="font-extrabold truncate text-[var(--br-text-muted)] leading-tight">{profile?.full_name ?? "Unknown"}</p>
+                <p className="text-xs text-[var(--br-text-muted)] font-semibold mt-1">ID: {order.user_id.slice(0, 8)}...</p>
               </div>
             </div>
           </div>
 
           {/* COURSE INFO */}
-          <div className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm space-y-3">
-            <h3 className="text-xs font-extrabold text-black/45 uppercase tracking-wider flex items-center gap-1.5"><BookOpen size={14} /> Course</h3>
+          <div className="rounded-2xl border border-[var(--br-border)] bg-surface p-5 shadow-sm space-y-3">
+            <h3 className="text-xs font-extrabold text-[var(--br-text-muted)] uppercase tracking-wider flex items-center gap-1.5"><BookOpen size={14} /> Course</h3>
             <div>
-              <p className="font-extrabold text-black leading-snug">{course?.title ?? "Course Deleted"}</p>
+              <p className="font-extrabold text-[var(--br-text-muted)] leading-snug">{course?.title ?? "Course Deleted"}</p>
               <div className="mt-2 flex flex-wrap gap-1.5 text-[10px] font-bold">
-                {course?.level && <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-600">{course.level}</span>}
-                {course?.topic && <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-600">{course.topic}</span>}
+                {course?.level && <span className="bg-surface-strong px-2 py-0.5 rounded text-slate-600">{course.level}</span>}
+                {course?.topic && <span className="bg-surface-strong px-2 py-0.5 rounded text-slate-600">{course.topic}</span>}
               </div>
             </div>
           </div>

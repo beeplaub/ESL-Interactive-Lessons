@@ -83,13 +83,13 @@ export default async function AdminMediaLibraryPage({
 
   return (
     <main className="min-w-0 space-y-5">
-      <section className="rounded-2xl border border-black/10 bg-white p-4 shadow-sm sm:p-5">
+      <section className="rounded-2xl border border-[var(--br-border)] bg-surface p-4 shadow-sm sm:p-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight sm:text-3xl">
               <Images size={25} className="text-violetglow" /> Media Library
             </h1>
-            <p className="mt-2 max-w-2xl text-sm text-black/55">
+            <p className="mt-2 max-w-2xl text-sm text-[var(--br-text-muted)]">
               Every image, audio clip, and video link you&apos;ve used across your lessons — in one place, ready to reuse.
               {!isAdmin ? " Only media you've uploaded or linked is shown here." : " As an admin, you're seeing every creator's media."}
             </p>
@@ -97,7 +97,7 @@ export default async function AdminMediaLibraryPage({
           <div className="flex items-center gap-2">
             <Link
               href="/admin/media/trash"
-              className="inline-flex items-center gap-2 rounded-full border border-black/15 px-3 py-2 text-sm font-semibold text-black/60 hover:bg-black/5"
+              className="inline-flex items-center gap-2 rounded-full border border-[var(--br-border)] px-3 py-2 text-sm font-semibold text-[var(--br-text-muted)] hover:bg-black/5"
             >
               <Trash2 size={15} /> Trash
             </Link>
@@ -118,7 +118,7 @@ export default async function AdminMediaLibraryPage({
             key={key || "all"}
             href={withParam("type", key)}
             className={`rounded-full px-3.5 py-1.5 text-sm font-semibold transition
-              ${typeFilter === key ? "bg-violetglow text-white" : "bg-white text-black/60 border border-black/10 hover:bg-black/5"}`}
+              ${typeFilter === key ? "bg-violetglow text-on-dark" : "bg-surface text-[var(--br-text-muted)] border border-[var(--br-border)] hover:bg-black/5"}`}
           >
             {label}
           </Link>
@@ -126,47 +126,47 @@ export default async function AdminMediaLibraryPage({
       </section>
 
       {/* Filters */}
-      <form className="flex flex-wrap items-center gap-2 rounded-2xl border border-black/10 bg-white p-3 shadow-sm">
+      <form className="flex flex-wrap items-center gap-2 rounded-2xl border border-[var(--br-border)] bg-surface p-3 shadow-sm">
         <input type="hidden" name="type" value={typeFilter} />
         <input
           name="q"
           defaultValue={value("q")}
           placeholder="Search by name, caption, tag, or lesson…"
-          className="min-w-[220px] flex-1 rounded-md border border-black/15 px-3 py-2 text-sm"
+          className="min-w-[220px] flex-1 rounded-md border border-[var(--br-border)] px-3 py-2 text-sm"
         />
-        <select name="source" defaultValue={sourceFilter} className="rounded-md border border-black/15 px-3 py-2 text-sm">
+        <select name="source" defaultValue={sourceFilter} className="rounded-md border border-[var(--br-border)] px-3 py-2 text-sm">
           <option value="">All sources</option>
           <option value="UPLOAD">Uploaded files</option>
           <option value="LINK">External links</option>
         </select>
         {isAdmin ? (
-          <select name="creator" defaultValue={creatorFilter} className="rounded-md border border-black/15 px-3 py-2 text-sm">
+          <select name="creator" defaultValue={creatorFilter} className="rounded-md border border-[var(--br-border)] px-3 py-2 text-sm">
             <option value="">All creators</option>
             {Array.from(creatorNames.entries()).map(([id, name]) => (
               <option key={id} value={id}>{name}</option>
             ))}
           </select>
         ) : null}
-        <select name="sort" defaultValue={sort} className="rounded-md border border-black/15 px-3 py-2 text-sm">
+        <select name="sort" defaultValue={sort} className="rounded-md border border-[var(--br-border)] px-3 py-2 text-sm">
           <option value="newest">Newest first</option>
           <option value="oldest">Oldest first</option>
           <option value="most_used">Most reused</option>
           <option value="name">Name (A–Z)</option>
         </select>
-        <button className="rounded-md border border-black/15 px-4 py-2 text-sm font-semibold hover:bg-black/5">Apply</button>
+        <button className="rounded-md border border-[var(--br-border)] px-4 py-2 text-sm font-semibold hover:bg-black/5">Apply</button>
       </form>
 
       <section className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {sorted.map((asset) => (
           <div key={asset.id} className="min-w-0">
             {isAdmin ? (
-              <p className="mb-1 truncate text-[11px] font-medium text-black/40">{creatorNames.get(asset.owner_id) ?? "Creator"}</p>
+              <p className="mb-1 truncate text-[11px] font-medium text-[var(--br-text-muted)]">{creatorNames.get(asset.owner_id) ?? "Creator"}</p>
             ) : null}
             <MediaAssetCard asset={asset} canManage />
           </div>
         ))}
         {!sorted.length ? (
-          <div className="col-span-full rounded-2xl border border-dashed border-black/15 p-10 text-center text-sm text-black/50">
+          <div className="col-span-full rounded-2xl border border-dashed border-[var(--br-border)] p-10 text-center text-sm text-[var(--br-text-muted)]">
             No media matches these filters yet. Upload a file or add a link to get started.
           </div>
         ) : null}

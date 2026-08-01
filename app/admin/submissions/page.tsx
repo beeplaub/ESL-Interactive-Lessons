@@ -91,13 +91,13 @@ export default function TeacherSubmissionsPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-black/10 pb-5">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[var(--br-border)] pb-5">
         <div>
           <div className="flex items-center gap-2">
             <GraduationCap className="size-7 text-moss" />
             <h1 className="text-2xl font-black text-ink">Teacher Writing Submissions Queue</h1>
           </div>
-          <p className="mt-1 text-sm text-black/55">
+          <p className="mt-1 text-sm text-[var(--br-text-muted)]">
             Review student writing assignments, award scores, and provide detailed teacher feedback.
           </p>
         </div>
@@ -106,14 +106,14 @@ export default function TeacherSubmissionsPage() {
           <div className="rounded-xl border border-moss/20 bg-moss/5 px-4 py-2 text-xs font-bold text-moss">
             {pendingCount} Pending Review{pendingCount === 1 ? "" : "s"}
           </div>
-          <div className="flex rounded-xl border border-black/10 bg-white p-1">
+          <div className="flex rounded-xl border border-[var(--br-border)] bg-surface p-1">
             {(["PENDING", "GRADED", "ALL"] as const).map((f) => (
               <button
                 key={f}
                 type="button"
                 onClick={() => setFilter(f)}
                 className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${
-                  filter === f ? "bg-dark text-white" : "text-black/60 hover:text-ink"
+                  filter === f ? "bg-dark text-on-dark" : "text-[var(--br-text-muted)] hover:text-ink"
                 }`}
               >
                 {f === "PENDING" ? "Pending" : f === "GRADED" ? "Graded" : "All Submissions"}
@@ -124,14 +124,14 @@ export default function TeacherSubmissionsPage() {
       </div>
 
       {loading ? (
-        <div className="rounded-2xl border border-black/10 bg-white p-12 text-center text-sm font-medium text-black/50">
+        <div className="rounded-2xl border border-[var(--br-border)] bg-surface p-12 text-center text-sm font-medium text-[var(--br-text-muted)]">
           Loading student submissions...
         </div>
       ) : filteredSubmissions.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-black/15 bg-slate-50 p-12 text-center space-y-2">
+        <div className="rounded-2xl border border-dashed border-[var(--br-border)] bg-surface-muted p-12 text-center space-y-2">
           <CheckCircle2 className="mx-auto size-10 text-moss/40" />
           <p className="text-base font-bold text-ink">No submissions found</p>
-          <p className="text-xs text-black/50">
+          <p className="text-xs text-[var(--br-text-muted)]">
             {filter === "PENDING" ? "All student writing assignments have been graded!" : "No student submissions matched your filter."}
           </p>
         </div>
@@ -156,11 +156,11 @@ export default function TeacherSubmissionsPage() {
                   className={`cursor-pointer rounded-2xl border-2 p-4 transition-all ${
                     isSelected
                       ? "border-moss bg-moss/5 shadow-md"
-                      : "border-black/10 bg-white hover:border-black/20 hover:shadow-xs"
+                      : "border-[var(--br-border)] bg-surface hover:border-[var(--br-border)] hover:shadow-xs"
                   }`}
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-bold text-black/60 uppercase tracking-wider">
+                    <span className="rounded-full bg-surface-strong px-2.5 py-0.5 text-[11px] font-bold text-[var(--br-text-muted)] uppercase tracking-wider">
                       {sub.activity_type.replaceAll("_", " ")}
                     </span>
                     <span
@@ -177,8 +177,8 @@ export default function TeacherSubmissionsPage() {
                     {sub.prompt || "Writing Assignment Submission"}
                   </p>
 
-                  <div className="mt-3 flex items-center justify-between border-t border-black/5 pt-2.5 text-xs text-black/50">
-                    <span className="font-semibold text-black/70 flex items-center gap-1.5">
+                  <div className="mt-3 flex items-center justify-between border-t border-[var(--br-border)] pt-2.5 text-xs text-[var(--br-text-muted)]">
+                    <span className="font-semibold text-[var(--br-text-muted)] flex items-center gap-1.5">
                       <User size={13} className="text-moss" /> {learnerName}
                     </span>
                     <span>{formattedDate}</span>
@@ -191,14 +191,14 @@ export default function TeacherSubmissionsPage() {
           {/* Submission Review & Grading Detail Panel */}
           <div className="lg:col-span-7">
             {selectedSubmission ? (
-              <div className="rounded-2xl border border-black/15 bg-white p-6 shadow-lg space-y-5 sticky top-6">
-                <div className="flex items-center justify-between border-b border-black/10 pb-4">
+              <div className="rounded-2xl border border-[var(--br-border)] bg-surface p-6 shadow-lg space-y-5 sticky top-6">
+                <div className="flex items-center justify-between border-b border-[var(--br-border)] pb-4">
                   <div>
                     <span className="text-xs font-bold text-moss uppercase tracking-wider">
                       {selectedSubmission.activity_type.replaceAll("_", " ")}
                     </span>
                     <h2 className="text-lg font-bold text-ink">{selectedSubmission.profiles?.full_name || "Learner Submission"}</h2>
-                    <p className="text-xs text-black/50">{selectedSubmission.profiles?.email}</p>
+                    <p className="text-xs text-[var(--br-text-muted)]">{selectedSubmission.profiles?.email}</p>
                   </div>
                   <span
                     className={`rounded-full px-3 py-1 text-xs font-bold ${
@@ -211,15 +211,15 @@ export default function TeacherSubmissionsPage() {
 
                 {/* Prompt Context */}
                 {selectedSubmission.prompt && (
-                  <div className="rounded-xl border border-black/10 bg-slate-50 p-3.5 space-y-1">
-                    <p className="text-xs font-bold text-black/50 uppercase tracking-wider">Assignment Prompt:</p>
+                  <div className="rounded-xl border border-[var(--br-border)] bg-surface-muted p-3.5 space-y-1">
+                    <p className="text-xs font-bold text-[var(--br-text-muted)] uppercase tracking-wider">Assignment Prompt:</p>
                     <p className="text-sm font-semibold text-ink">&quot;{selectedSubmission.prompt}&quot;</p>
                   </div>
                 )}
 
                 {/* Student Submission Text */}
-                <div className="rounded-xl border border-black/10 bg-white p-4 space-y-2">
-                  <p className="text-xs font-bold text-black/50 uppercase tracking-wider flex items-center gap-1.5">
+                <div className="rounded-xl border border-[var(--br-border)] bg-surface p-4 space-y-2">
+                  <p className="text-xs font-bold text-[var(--br-text-muted)] uppercase tracking-wider flex items-center gap-1.5">
                     <FileText size={14} className="text-moss" /> Student Response Draft:
                   </p>
                   <div className="rounded-lg bg-black/5 p-3.5 text-sm leading-relaxed font-medium text-ink whitespace-pre-wrap">
@@ -234,7 +234,7 @@ export default function TeacherSubmissionsPage() {
                   </p>
 
                   <div className="grid gap-4 sm:grid-cols-2">
-                    <label className="text-xs font-semibold text-black/70">
+                    <label className="text-xs font-semibold text-[var(--br-text-muted)]">
                       Score Percentage (0 - 100%):
                       <input
                         type="number"
@@ -242,24 +242,24 @@ export default function TeacherSubmissionsPage() {
                         max={100}
                         value={scoreInput}
                         onChange={(e) => setScoreInput(e.target.value)}
-                        className="mt-1 w-full rounded-lg border border-black/15 bg-white px-3 py-2 text-sm font-bold text-ink"
+                        className="mt-1 w-full rounded-lg border border-[var(--br-border)] bg-surface px-3 py-2 text-sm font-bold text-ink"
                       />
                     </label>
 
-                    <div className="text-xs text-black/50 flex flex-col justify-end">
+                    <div className="text-xs text-[var(--br-text-muted)] flex flex-col justify-end">
                       <span>Suggested Rubric Scale:</span>
                       <span className="font-semibold text-ink">90-100%: Excellent | 75-89%: Good | 60-74%: Pass</span>
                     </div>
                   </div>
 
-                  <label className="text-xs font-semibold text-black/70 block">
+                  <label className="text-xs font-semibold text-[var(--br-text-muted)] block">
                     Teacher Feedback & Comments to Learner:
                     <textarea
                       rows={4}
                       value={feedbackInput}
                       onChange={(e) => setFeedbackInput(e.target.value)}
                       placeholder="Write constructive notes, grammar corrections, or encouraging feedback for the learner..."
-                      className="mt-1 w-full rounded-lg border border-black/15 bg-white p-3 text-xs text-ink focus:border-moss focus:outline-hidden"
+                      className="mt-1 w-full rounded-lg border border-[var(--br-border)] bg-surface p-3 text-xs text-ink focus:border-moss focus:outline-hidden"
                     />
                   </label>
 
@@ -273,14 +273,14 @@ export default function TeacherSubmissionsPage() {
                     type="button"
                     disabled={isPending}
                     onClick={handleGrade}
-                    className="inline-flex items-center gap-2 rounded-xl bg-moss px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-moss/90 disabled:opacity-50"
+                    className="inline-flex items-center gap-2 rounded-xl bg-moss px-5 py-2.5 text-sm font-bold text-on-dark shadow-sm hover:bg-moss/90 disabled:opacity-50"
                   >
                     <Send size={16} /> {isPending ? "Submitting Grade..." : "Save & Send Grade to Learner"}
                   </button>
                 </div>
               </div>
             ) : (
-              <div className="rounded-2xl border border-dashed border-black/15 bg-slate-50 p-12 text-center text-sm font-medium text-black/50">
+              <div className="rounded-2xl border border-dashed border-[var(--br-border)] bg-surface-muted p-12 text-center text-sm font-medium text-[var(--br-text-muted)]">
                 Select a student submission from the queue on the left to review and grade.
               </div>
             )}

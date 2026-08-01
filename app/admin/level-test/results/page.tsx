@@ -15,10 +15,10 @@ export default async function AdminLevelTestResultsPage() {
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
       <h1 className="text-3xl font-semibold">Level test results</h1>
-      <p className="mt-2 text-sm text-black/60">Recent learner results and CEFR levels.</p>
-      <div className="mt-6 overflow-x-auto rounded-lg border border-black/10 bg-white shadow-sm">
+      <p className="mt-2 text-sm text-[var(--br-text-muted)]">Recent learner results and CEFR levels.</p>
+      <div className="mt-6 overflow-x-auto rounded-lg border border-[var(--br-border)] bg-surface shadow-sm">
         <table className="min-w-[820px] w-full text-left text-sm">
-          <thead className="bg-slate-50 text-xs uppercase text-black/50">
+          <thead className="bg-surface-muted text-xs uppercase text-[var(--br-text-muted)]">
             <tr>
               <th className="p-3">Learner</th>
               <th className="p-3">Email</th>
@@ -39,7 +39,7 @@ export default async function AdminLevelTestResultsPage() {
               const total = Number(result.total_questions ?? 25);
               const name = profile?.full_name || [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || "Learner";
               return (
-                <tr key={result.id} className="border-t border-black/10">
+                <tr key={result.id} className="border-t border-[var(--br-border)]">
                   <td className="p-3">{name}</td>
                   <td className="p-3">{user?.email ?? "Unknown"}</td>
                   <td className="p-3 font-semibold">{result.cefr_level}</td>
@@ -50,7 +50,7 @@ export default async function AdminLevelTestResultsPage() {
                 </tr>
               );
             })}
-            {!results?.length ? <tr><td colSpan={7} className="p-6 text-center text-black/55">No level test results yet.</td></tr> : null}
+            {!results?.length ? <tr><td colSpan={7} className="p-6 text-center text-[var(--br-text-muted)]">No level test results yet.</td></tr> : null}
           </tbody>
         </table>
       </div>

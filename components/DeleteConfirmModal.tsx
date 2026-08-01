@@ -63,7 +63,7 @@ export function DeleteConfirmProvider({ children }: { children: ReactNode }) {
           />
 
           {/* Modal Card */}
-          <div className="relative w-full max-w-md scale-100 transform overflow-hidden rounded-[24px] border border-[var(--br-surface-strong)] bg-white p-6 shadow-[0_24px_64px_rgba(10,13,44,0.18)] transition-all animate-in fade-in zoom-in-95 duration-200">
+          <div className="relative w-full max-w-md scale-100 transform overflow-hidden rounded-[24px] border border-[var(--br-surface-strong)] bg-surface p-6 shadow-[0_24px_64px_rgba(10,13,44,0.18)] transition-all animate-in fade-in zoom-in-95 duration-200">
             {/* Close Button */}
             <button
               disabled={isPending}
@@ -116,7 +116,7 @@ export function DeleteConfirmProvider({ children }: { children: ReactNode }) {
                 type="button"
                 disabled={isPending}
                 onClick={handleConfirm}
-                className={`inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-extrabold text-white transition ${
+                className={`inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-extrabold text-on-dark transition ${
                   options.isSoftDelete
                     ? "bg-amber-600 hover:bg-amber-700 shadow-[0_4px_14px_rgba(217,119,6,0.25)]"
                     : "bg-red-600 hover:bg-red-700 shadow-[0_4px_14px_rgba(220,38,38,0.25)]"

@@ -212,7 +212,7 @@ export function WritingEvaluationInterface({
               <h4 className="text-sm font-bold text-ink flex items-center gap-1.5">
                 <Award className="size-4 text-[var(--br-chart-primary)]" /> Select 1 Evaluation Method
               </h4>
-              <p className="text-xs text-black/50">Choose one — once picked, this is your grading method for this attempt.</p>
+              <p className="text-xs text-[var(--br-text-muted)]">Choose one — once picked, this is your grading method for this attempt.</p>
             </div>
           </div>
 
@@ -228,7 +228,7 @@ export function WritingEvaluationInterface({
                   {isPending ? <div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--br-chart-primary)] border-t-transparent" /> : <Sparkles size={20} />}
                 </div>
                 <h5 className="text-sm font-bold text-ink">AI Evaluation</h5>
-                <p className="mt-1 text-xs text-black/50">Real, instant feedback and a score on grammar, tone & task response.</p>
+                <p className="mt-1 text-xs text-[var(--br-text-muted)]">Real, instant feedback and a score on grammar, tone & task response.</p>
               </button>
             )}
 
@@ -242,7 +242,7 @@ export function WritingEvaluationInterface({
                   <UserCheck size={20} />
                 </div>
                 <h5 className="text-sm font-bold text-ink">Self Check</h5>
-                <p className="mt-1 text-xs text-black/50">Compare your draft with the model response yourself.</p>
+                <p className="mt-1 text-xs text-[var(--br-text-muted)]">Compare your draft with the model response yourself.</p>
               </button>
             )}
 
@@ -257,7 +257,7 @@ export function WritingEvaluationInterface({
                   <Send size={20} />
                 </div>
                 <h5 className="text-sm font-bold text-ink">Teacher Review</h5>
-                <p className="mt-1 text-xs text-black/50">Submit to your instructor's queue for manual grading.</p>
+                <p className="mt-1 text-xs text-[var(--br-text-muted)]">Submit to your instructor's queue for manual grading.</p>
               </button>
             )}
           </div>
@@ -280,31 +280,31 @@ export function WritingEvaluationInterface({
                   <span className="text-xs font-black text-[var(--br-chart-primary)] uppercase tracking-wider flex items-center gap-1.5">
                     <Sparkles size={14} /> AI Evaluation Report
                   </span>
-                  <span className="rounded-2xl bg-gradient-to-r from-[var(--br-chart-primary)] to-[#8C63FF] px-4 py-1.5 text-sm font-black text-white shadow-sm">
+                  <span className="rounded-2xl bg-gradient-to-r from-[var(--br-chart-primary)] to-[#8C63FF] px-4 py-1.5 text-sm font-black text-on-dark shadow-sm">
                     Score: {aiResult.score}%
                   </span>
                 </div>
 
-                <div className="rounded-2xl bg-white p-4 border border-[var(--br-chart-primary)]/10 shadow-xs space-y-1">
+                <div className="rounded-2xl bg-surface p-4 border border-[var(--br-chart-primary)]/10 shadow-xs space-y-1">
                   <p className="text-xs font-black text-[var(--br-chart-primary)] uppercase tracking-wider">Summary Feedback</p>
                   <p className="text-xs font-medium text-ink leading-relaxed">{aiResult.feedbackSummary}</p>
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="rounded-2xl bg-white p-4 border border-black/5 shadow-xs space-y-1.5">
-                    <p className="text-xs font-bold text-black/70">Grammar & Structure</p>
-                    <p className="text-xs text-black/50 leading-relaxed font-medium">{aiResult.grammarFeedback}</p>
+                  <div className="rounded-2xl bg-surface p-4 border border-[var(--br-border)] shadow-xs space-y-1.5">
+                    <p className="text-xs font-bold text-[var(--br-text-muted)]">Grammar & Structure</p>
+                    <p className="text-xs text-[var(--br-text-muted)] leading-relaxed font-medium">{aiResult.grammarFeedback}</p>
                   </div>
-                  <div className="rounded-2xl bg-white p-4 border border-black/5 shadow-xs space-y-1.5">
-                    <p className="text-xs font-bold text-black/70">Vocabulary & Tone</p>
-                    <p className="text-xs text-black/50 leading-relaxed font-medium">{aiResult.vocabularyFeedback}</p>
+                  <div className="rounded-2xl bg-surface p-4 border border-[var(--br-border)] shadow-xs space-y-1.5">
+                    <p className="text-xs font-bold text-[var(--br-text-muted)]">Vocabulary & Tone</p>
+                    <p className="text-xs text-[var(--br-text-muted)] leading-relaxed font-medium">{aiResult.vocabularyFeedback}</p>
                   </div>
                 </div>
 
                 {aiResult.suggestions.length > 0 && (
-                  <div className="rounded-2xl bg-white p-4 border border-black/5 shadow-xs space-y-2">
-                    <p className="text-xs font-bold text-black/70">Key Areas to Improve</p>
-                    <ul className="grid gap-1.5 pl-1.5 text-xs text-black/50 font-medium">
+                  <div className="rounded-2xl bg-surface p-4 border border-[var(--br-border)] shadow-xs space-y-2">
+                    <p className="text-xs font-bold text-[var(--br-text-muted)]">Key Areas to Improve</p>
+                    <ul className="grid gap-1.5 pl-1.5 text-xs text-[var(--br-text-muted)] font-medium">
                       {aiResult.suggestions.map((sug, i) => (
                         <li key={i} className="flex items-start gap-2">
                           <span className="text-[var(--br-chart-primary)] mt-0.5">•</span>
@@ -316,7 +316,7 @@ export function WritingEvaluationInterface({
                 )}
 
                 <div className="pt-2 border-t border-[var(--br-chart-primary)]/10">
-                  <span className="text-[11px] text-black/40 font-medium">Evaluation method: AI Evaluation (locked for this attempt)</span>
+                  <span className="text-[11px] text-[var(--br-text-muted)] font-medium">Evaluation method: AI Evaluation (locked for this attempt)</span>
                 </div>
               </div>
             ) : null}
@@ -335,7 +335,7 @@ export function WritingEvaluationInterface({
               <p className="text-xs font-black text-amber-800 uppercase tracking-wider flex items-center gap-1.5">
                 <FileText size={14} /> Instructor Model Answer
               </p>
-              <div className="rounded-2xl bg-white p-4 border border-amber-200/60 shadow-xs text-xs font-medium text-ink leading-relaxed whitespace-pre-wrap">
+              <div className="rounded-2xl bg-surface p-4 border border-amber-200/60 shadow-xs text-xs font-medium text-ink leading-relaxed whitespace-pre-wrap">
                 {modelAnswer || "Model answer template provided by instructor."}
               </div>
             </div>
@@ -343,38 +343,38 @@ export function WritingEvaluationInterface({
             {modelDescription && (
               <div className="space-y-1.5 rounded-2xl bg-white/50 p-4 border border-amber-200/40">
                 <p className="text-xs font-bold text-amber-900">Key Features of Model Response:</p>
-                <p className="text-xs text-black/60 leading-relaxed font-medium">{modelDescription}</p>
+                <p className="text-xs text-[var(--br-text-muted)] leading-relaxed font-medium">{modelDescription}</p>
               </div>
             )}
 
             <div className="border-t border-amber-200/30 pt-4 space-y-3">
-              <p className="text-xs font-bold text-black/70">Self Assessment:</p>
+              <p className="text-xs font-bold text-[var(--br-text-muted)]">Self Assessment:</p>
               {selfGradedChoice === null ? (
                 <div className="flex gap-3">
                   <button
                     type="button"
                     onClick={() => handleSelectSelfGraded(true)}
-                    className="flex-1 rounded-2xl py-3 px-4 text-xs font-bold border-2 transition duration-300 active:scale-95 bg-white border-black/10 text-black/70 hover:border-[var(--br-chart-primary)] hover:text-[var(--br-chart-primary)]"
+                    className="flex-1 rounded-2xl py-3 px-4 text-xs font-bold border-2 transition duration-300 active:scale-95 bg-surface border-[var(--br-border)] text-[var(--br-text-muted)] hover:border-[var(--br-chart-primary)] hover:text-[var(--br-chart-primary)]"
                   >
                     ✓ My draft matches key points
                   </button>
                   <button
                     type="button"
                     onClick={() => handleSelectSelfGraded(false)}
-                    className="flex-1 rounded-2xl py-3 px-4 text-xs font-bold border-2 transition duration-300 active:scale-95 bg-white border-black/10 text-black/70 hover:border-rose-500 hover:text-rose-500"
+                    className="flex-1 rounded-2xl py-3 px-4 text-xs font-bold border-2 transition duration-300 active:scale-95 bg-surface border-[var(--br-border)] text-[var(--br-text-muted)] hover:border-rose-500 hover:text-rose-500"
                   >
                     ✗ Needs revision
                   </button>
                 </div>
               ) : (
-                <div className={`rounded-2xl py-3 px-4 text-xs font-bold border-2 ${selfGradedChoice ? "bg-[var(--br-chart-primary)] text-white border-[var(--br-chart-primary)]" : "bg-rose-500 text-white border-rose-500"}`}>
+                <div className={`rounded-2xl py-3 px-4 text-xs font-bold border-2 ${selfGradedChoice ? "bg-[var(--br-chart-primary)] text-on-dark border-[var(--br-chart-primary)]" : "bg-rose-500 text-on-dark border-rose-500"}`}>
                   {selfGradedChoice ? "✓ You marked this as matching the key points." : "✗ You marked this as needing revision."}
                 </div>
               )}
             </div>
 
             <div className="pt-2 border-t border-amber-200/30">
-              <span className="text-[11px] text-black/40 font-medium">Evaluation method: Self Check (locked for this attempt — this is not eligible for the celebration score, since it's your own self-assessment)</span>
+              <span className="text-[11px] text-[var(--br-text-muted)] font-medium">Evaluation method: Self Check (locked for this attempt — this is not eligible for the celebration score, since it's your own self-assessment)</span>
             </div>
           </motion.div>
         )}
@@ -395,32 +395,32 @@ export function WritingEvaluationInterface({
                 <p className="text-sm font-bold text-ink">Submitting to teacher queue...</p>
               </div>
             ) : teacherState === "GRADED" ? (
-              <div className="rounded-2xl bg-white p-5 border border-purple-100 space-y-3 shadow-xs">
+              <div className="rounded-2xl bg-surface p-5 border border-purple-100 space-y-3 shadow-xs">
                 <div className="flex items-center justify-between border-b border-purple-100 pb-3">
                   <span className="text-xs font-black text-purple-700 uppercase tracking-wider flex items-center gap-1.5">
                     <CheckCircle2 size={14} /> Teacher Feedback
                   </span>
-                  <span className="rounded-2xl bg-gradient-to-r from-purple-600 to-purple-500 px-4 py-1.5 text-sm font-black text-white shadow-sm">
+                  <span className="rounded-2xl bg-gradient-to-r from-purple-600 to-purple-500 px-4 py-1.5 text-sm font-black text-on-dark shadow-sm">
                     Score: {teacherScore ?? "-"}%
                   </span>
                 </div>
                 {teacherFeedback ? <p className="text-xs font-medium text-ink leading-relaxed">{teacherFeedback}</p> : null}
               </div>
             ) : (
-              <div className="rounded-2xl bg-white p-5 border border-purple-100 text-center space-y-3 shadow-xs">
+              <div className="rounded-2xl bg-surface p-5 border border-purple-100 text-center space-y-3 shadow-xs">
                 <div className="inline-flex rounded-full bg-emerald-100 p-2.5 text-emerald-600">
                   <CheckCircle2 size={24} />
                 </div>
                 <div className="space-y-1">
                   <p className="text-sm font-bold text-ink">Submission Successful!</p>
-                  <p className="text-xs text-black/50 max-w-xs mx-auto">
+                  <p className="text-xs text-[var(--br-text-muted)] max-w-xs mx-auto">
                     Your draft is queued for manual grading by your instructor.
                   </p>
                 </div>
                 <span className="inline-block rounded-xl bg-amber-50 border border-amber-100 px-3 py-1.5 text-[11px] font-bold text-amber-700">
                   Status: Pending Teacher Review
                 </span>
-                <div className="pt-2 border-t border-black/5 flex items-center justify-center">
+                <div className="pt-2 border-t border-[var(--br-border)] flex items-center justify-center">
                   <button
                     type="button"
                     onClick={handleCheckTeacherStatus}

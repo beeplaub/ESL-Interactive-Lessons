@@ -61,7 +61,7 @@ export function SiteNav({ isLoggedIn }: { isLoggedIn: boolean }) {
             </Link>
             {isLoggedIn ? (
               <form action={signOut}>
-                <button className="w-full rounded-2xl px-3 py-3 text-left font-semibold text-slate-500 hover:bg-slate-100">
+                <button className="w-full rounded-2xl px-3 py-3 text-left font-semibold text-slate-500 hover:bg-surface-strong">
                   Logout
                 </button>
               </form>

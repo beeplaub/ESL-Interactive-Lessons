@@ -81,7 +81,7 @@ export function LearnerSidebar({
       <div className={`relative flex items-center justify-center pb-8 ${collapsed ? "" : "gap-2"}`}>
         <Link href="/account" prefetch className="flex min-w-0 items-center gap-3">
           <div className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-xl bg-[var(--br-brand)] shadow-md shadow-black/20" style={schoolBrand?.accentColor ? { background: schoolBrand.accentColor } : undefined}>
-            {schoolBrand?.logoUrl ? <img src={schoolBrand.logoUrl} alt="" className="size-full object-cover" /> : <Layers className="size-[22px] text-white" />}
+            {schoolBrand?.logoUrl ? <img src={schoolBrand.logoUrl} alt="" className="size-full object-cover" /> : <Layers className="size-[22px] text-on-dark" />}
           </div>
           {collapsed ? null : (
             <div className="min-w-0">
@@ -152,7 +152,7 @@ function NavItem({
       </span>
       {collapsed ? null : <span className="truncate">{label}</span>}
       {!collapsed && badge ? (
-        <span className="ml-auto rounded-full bg-[var(--br-action)] px-2 py-0.5 text-[9px] font-bold tracking-wide text-white">
+        <span className="ml-auto rounded-full bg-[var(--br-action)] px-2 py-0.5 text-[9px] font-bold tracking-wide text-on-dark">
           {badge}
         </span>
       ) : null}
@@ -167,7 +167,7 @@ function NavItem({
 
 function PremiumCard() {
   return (
-    <div className="mt-3 rounded-[20px] border border-[#6B4A00]/40 bg-gradient-to-br from-[#2A1A00] to-[#3D2800] p-4 text-white">
+    <div className="mt-3 rounded-[20px] border border-[#6B4A00]/40 bg-gradient-to-br from-[#2A1A00] to-[#3D2800] p-4 text-on-dark">
       <div className="mb-1 flex items-center gap-1.5">
         <span>👑</span>
         <span className="text-xs font-bold">Go Premium</span>

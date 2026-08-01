@@ -28,42 +28,42 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
     <main>
       <div className="mb-6">
         <h1 className="text-3xl font-semibold">Users</h1>
-        <p className="mt-2 text-sm text-black/60">Manage learner and admin accounts.</p>
+        <p className="mt-2 text-sm text-[var(--br-text-muted)]">Manage learner and admin accounts.</p>
       </div>
 
-      <section className="mb-6 rounded-lg border border-black/10 bg-white p-5 shadow-sm">
+      <section className="mb-6 rounded-lg border border-[var(--br-border)] bg-surface p-5 shadow-sm">
         <h2 className="font-semibold">Add User Manually</h2>
         <form action={createUserManually} className="mt-4 grid gap-3 md:grid-cols-6">
-          <input name="firstName" placeholder="First Name" required className="rounded-md border border-black/15 px-3 py-2" />
-          <input name="lastName" placeholder="Last Name" className="rounded-md border border-black/15 px-3 py-2" />
-          <input name="email" type="email" placeholder="Email" required className="rounded-md border border-black/15 px-3 py-2" />
-          <input name="password" type="password" placeholder="Password" required className="rounded-md border border-black/15 px-3 py-2" />
-          <select name="role" className="rounded-md border border-black/15 px-3 py-2">
+          <input name="firstName" placeholder="First Name" required className="rounded-md border border-[var(--br-border)] px-3 py-2" />
+          <input name="lastName" placeholder="Last Name" className="rounded-md border border-[var(--br-border)] px-3 py-2" />
+          <input name="email" type="email" placeholder="Email" required className="rounded-md border border-[var(--br-border)] px-3 py-2" />
+          <input name="password" type="password" placeholder="Password" required className="rounded-md border border-[var(--br-border)] px-3 py-2" />
+          <select name="role" className="rounded-md border border-[var(--br-border)] px-3 py-2">
             <RoleOptions />
           </select>
-          <button className="rounded-md bg-dark px-4 py-2 text-sm font-medium text-white">Add user</button>
+          <button className="rounded-md bg-dark px-4 py-2 text-sm font-medium text-on-dark">Add user</button>
         </form>
       </section>
 
       <section className="mb-6 rounded-lg border border-moss/20 bg-moss/5 p-5 shadow-sm">
         <h2 className="font-semibold">Invite a teacher</h2>
-        <p className="mt-1 text-sm text-black/60">BrenUp sends a secure invitation link. When they accept, their account opens directly into the teacher workspace.</p>
+        <p className="mt-1 text-sm text-[var(--br-text-muted)]">BrenUp sends a secure invitation link. When they accept, their account opens directly into the teacher workspace.</p>
         <div className="mt-4"><InviteTeacherForm /></div>
       </section>
 
-      <form className="mb-4 flex max-w-md items-center gap-2 rounded-md border border-black/10 bg-white px-3 py-2 shadow-sm">
-        <Search size={16} className="text-black/40" />
+      <form className="mb-4 flex max-w-md items-center gap-2 rounded-md border border-[var(--br-border)] bg-surface px-3 py-2 shadow-sm">
+        <Search size={16} className="text-[var(--br-text-muted)]" />
         <input name="q" defaultValue={q} placeholder="Search name or email" className="w-full outline-none" />
       </form>
 
-      <div className="overflow-x-auto rounded-lg border border-black/10 bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-lg border border-[var(--br-border)] bg-surface shadow-sm">
         <table className="min-w-[800px] w-full text-left text-sm">
-          <thead className="bg-slate-50 text-xs uppercase text-black/50">
+          <thead className="bg-surface-muted text-xs uppercase text-[var(--br-text-muted)]">
             <tr><th className="p-3">Name</th><th className="p-3">Email</th><th className="p-3">Level</th><th className="p-3">Role</th><th className="p-3">Joined</th><th className="p-3">Attempts</th><th className="p-3">Actions</th></tr>
           </thead>
           <tbody>
             {filtered.map((profile) => (
-              <tr key={profile.id} className="border-t border-black/10">
+              <tr key={profile.id} className="border-t border-[var(--br-border)]">
                 <td className="p-3">{profile.full_name ?? "-"}</td>
                 <td className="p-3">{emailMap.get(profile.id) ?? "-"}</td>
                 <td className="p-3">{profile.cefr_level ?? "-"}</td>
@@ -73,10 +73,10 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
                 <td className="p-3">
                   <div className="flex gap-2">
                     <form action={async (formData) => { "use server"; await updateUserRole(profile.id, String(formData.get("role")) as "ADMIN" | "LEARNER" | "TEACHER" | "SCHOOL_ADMIN"); }}>
-                      <select name="role" defaultValue={profile.role} className="rounded-md border border-black/15 px-3 py-2 text-xs" aria-label={`Change role for ${profile.full_name ?? "user"}`}>
+                      <select name="role" defaultValue={profile.role} className="rounded-md border border-[var(--br-border)] px-3 py-2 text-xs" aria-label={`Change role for ${profile.full_name ?? "user"}`}>
                         <RoleOptions />
                       </select>
-                      <button className="ml-2 rounded-md border border-black/15 px-3 py-2 text-xs">Save</button>
+                      <button className="ml-2 rounded-md border border-[var(--br-border)] px-3 py-2 text-xs">Save</button>
                     </form>
                     <form action={async () => { "use server"; await deleteUser(profile.id); }}>
                       <DeleteButton

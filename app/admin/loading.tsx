@@ -17,7 +17,7 @@ export default function Loading() {
           <Bone key={i} className="h-20 rounded-2xl" />
         ))}
       </div>
-      <div className="rounded-2xl border border-gray-200 bg-white p-4">
+      <div className="rounded-2xl border border-gray-200 bg-surface p-4">
         <div className="grid gap-2">
           {Array.from({ length: 6 }).map((_, i) => (
             <Bone key={i} className="h-11 w-full rounded-lg" />

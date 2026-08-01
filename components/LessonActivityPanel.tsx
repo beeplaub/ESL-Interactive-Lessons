@@ -666,17 +666,17 @@ function LiveSpeakTranslatePanel({ activity, lessonId, previewOnly, onNext }: { 
     <section className="rounded-xl border border-violetglow/15 bg-gradient-to-br from-violetglow/[0.08] via-white to-sky-50 p-4 shadow-sm">
       <p className="text-xs font-extrabold uppercase tracking-wide text-violetglow">Live speaking</p>
       <h2 className="mt-1 text-lg font-bold text-ink">{prompt}</h2>
-      <p className="mt-2 text-sm text-black/60">Speak naturally in Bangla. BrenUp will play the English translation as it arrives.</p>
+      <p className="mt-2 text-sm text-[var(--br-text-muted)]">Speak naturally in Bangla. BrenUp will play the English translation as it arrives.</p>
       <div className="mt-5 flex flex-col items-center gap-3">
-        <button type="button" onClick={state === "recording" ? finish : start} disabled={state === "starting"} className={`grid size-16 place-items-center rounded-full text-white shadow-lg transition hover:scale-105 disabled:opacity-60 ${state === "recording" ? "bg-coral" : "bg-violetglow"}`} aria-label={state === "recording" ? "Stop speaking" : "Start speaking"}>
+        <button type="button" onClick={state === "recording" ? finish : start} disabled={state === "starting"} className={`grid size-16 place-items-center rounded-full text-on-dark shadow-lg transition hover:scale-105 disabled:opacity-60 ${state === "recording" ? "bg-coral" : "bg-violetglow"}`} aria-label={state === "recording" ? "Stop speaking" : "Start speaking"}>
           {state === "starting" ? <Loader2 className="animate-spin" /> : state === "recording" ? <Pause /> : <Mic />}
         </button>
         <p className="text-sm font-bold text-ink">{state === "recording" ? `${secondsLeft}s left in this try` : state === "finished" ? "Translation complete" : "Tap to speak"}</p>
-        {allowance !== null ? <p className="text-xs font-semibold text-black/50">{allowance}s available for this live activity</p> : null}
+        {allowance !== null ? <p className="text-xs font-semibold text-[var(--br-text-muted)]">{allowance}s available for this live activity</p> : null}
       </div>
-      {showTranscript && translation ? <div className="mt-4 rounded-lg border border-black/8 bg-white/80 p-3 text-sm text-black/70"><span className="mr-2 text-xs font-bold uppercase text-violetglow">English</span>{translation}</div> : null}
-      {message ? <p className={`mt-3 text-center text-xs ${state === "error" ? "text-coral" : "text-black/55"}`}>{message}</p> : null}
-      {state === "finished" ? <button type="button" onClick={onNext} className="mt-4 w-full rounded-lg bg-dark px-4 py-2.5 text-sm font-bold text-white">Continue</button> : null}
+      {showTranscript && translation ? <div className="mt-4 rounded-lg border border-[var(--br-border)] bg-white/80 p-3 text-sm text-[var(--br-text-muted)]"><span className="mr-2 text-xs font-bold uppercase text-violetglow">English</span>{translation}</div> : null}
+      {message ? <p className={`mt-3 text-center text-xs ${state === "error" ? "text-coral" : "text-[var(--br-text-muted)]"}`}>{message}</p> : null}
+      {state === "finished" ? <button type="button" onClick={onNext} className="mt-4 w-full rounded-lg bg-dark px-4 py-2.5 text-sm font-bold text-on-dark">Continue</button> : null}
     </section>
   );
 }
@@ -863,11 +863,11 @@ function AiRoleplayPanel({
     const feedback = card.feedback ?? {};
 
     return (
-      <section className="rounded-lg border border-black/10 bg-white p-5 shadow-sm">
-        <div className="flex items-center justify-between border-b border-black/10 pb-3 mb-4">
+      <section className="rounded-lg border border-[var(--br-border)] bg-surface p-5 shadow-sm">
+        <div className="flex items-center justify-between border-b border-[var(--br-border)] pb-3 mb-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-moss">Past Attempt Results</p>
-            <span className="text-xs text-black/40">{new Date(viewingPastAttempt.completed_at || "").toLocaleString()}</span>
+            <span className="text-xs text-[var(--br-text-muted)]">{new Date(viewingPastAttempt.completed_at || "").toLocaleString()}</span>
           </div>
           <button
             type="button"
@@ -881,7 +881,7 @@ function AiRoleplayPanel({
         {/* Scorecard */}
         <div className="mb-6">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-black/80 flex items-center gap-1.5">
+            <h3 className="text-sm font-semibold text-[var(--br-text-muted)] flex items-center gap-1.5">
               <Award size={16} className="text-amber-500" /> Scorecard
             </h3>
             <span className="rounded-full bg-moss/10 px-3 py-1 text-xs font-bold text-moss">
@@ -896,7 +896,7 @@ function AiRoleplayPanel({
               { label: "Grammar Accuracy", value: scores.grammar_accuracy },
             ].map((s) => (
               <div key={s.label} className="flex items-center gap-3">
-                <span className="text-xs text-black/60 w-36">{s.label}</span>
+                <span className="text-xs text-[var(--br-text-muted)] w-36">{s.label}</span>
                 <div className="flex-1 h-2 rounded-full bg-black/5 overflow-hidden">
                   <div className="h-full rounded-full bg-moss transition-all" style={{ width: `${s.value ?? 0}%` }} />
                 </div>
@@ -932,30 +932,30 @@ function AiRoleplayPanel({
         </div>
 
         {/* Conversation history */}
-        <div className="border-t border-black/10 pt-4">
-          <h3 className="text-sm font-semibold text-black/80 mb-3 flex items-center gap-1.5">
+        <div className="border-t border-[var(--br-border)] pt-4">
+          <h3 className="text-sm font-semibold text-[var(--br-text-muted)] mb-3 flex items-center gap-1.5">
             <MessageCircle size={16} className="text-moss" /> Conversation Transcript
           </h3>
 
           {loadingPastMessages ? (
-            <div className="py-4 text-center text-xs text-black/40 flex items-center justify-center gap-1.5">
+            <div className="py-4 text-center text-xs text-[var(--br-text-muted)] flex items-center justify-center gap-1.5">
               <Loader2 size={14} className="animate-spin" /> Loading transcript…
             </div>
           ) : (
-            <div className="max-h-[300px] overflow-y-auto space-y-3 rounded-lg border border-black/5 bg-slate-50/50 p-3">
+            <div className="max-h-[300px] overflow-y-auto space-y-3 rounded-lg border border-[var(--br-border)] bg-surface-muted/50 p-3">
               {pastMessages.map((msg, i) => (
                 <div key={i} className={`flex ${msg.sender === "LEARNER" ? "justify-end" : "justify-start"}`}>
                   <div className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm ${
                     msg.sender === "LEARNER"
-                      ? "bg-moss text-white rounded-br-md"
-                      : "bg-black/[0.04] text-black/80 rounded-bl-md"
+                      ? "bg-moss text-on-dark rounded-br-md"
+                      : "bg-black/[0.04] text-[var(--br-text-muted)] rounded-bl-md"
                   }`}>
                     {msg.sender === "AI" && <p className="text-[10px] font-semibold text-moss/80 mb-0.5">{character}</p>}
                     <p>{msg.text}</p>
                     {msg.corrections?.has_errors && Array.isArray(msg.corrections.errors) && msg.corrections.errors.length > 0 && (
                       <div className="mt-2 border-t border-white/20 pt-2 space-y-1.5">
                         {msg.corrections.errors.map((err: any, ei: number) => (
-                          <div key={ei} className="rounded-md bg-white border border-amber-200 px-2.5 py-1.5 text-xs text-amber-900">
+                          <div key={ei} className="rounded-md bg-surface border border-amber-200 px-2.5 py-1.5 text-xs text-amber-900">
                             <span className="line-through text-red-500">{err.original}</span>
                             {" → "}
                             <strong className="text-emerald-700">{err.corrected}</strong>
@@ -977,7 +977,7 @@ function AiRoleplayPanel({
   // ── Idle state ──
   if (phase === "idle") {
     return (
-      <section className="rounded-lg border border-black/10 bg-white p-5 shadow-sm">
+      <section className="rounded-lg border border-[var(--br-border)] bg-surface p-5 shadow-sm">
         <p className="text-xs font-semibold uppercase tracking-wide text-moss">Activity</p>
         <h2 className="mt-1 text-lg font-semibold flex items-center gap-2">
           <MessageCircle size={20} className="text-moss" /> AI Conversation Roleplay
@@ -985,30 +985,30 @@ function AiRoleplayPanel({
         <div className="mt-3 rounded-md bg-gradient-to-br from-emerald-50 to-teal-50 p-4 border border-emerald-100">
           <p className="text-sm font-medium text-emerald-800">Scenario</p>
           <p className="mt-1 text-sm text-emerald-700">{scenario}</p>
-          <p className="mt-3 text-sm text-black/50">You&apos;ll practice with <strong className="text-black/70">{character}</strong></p>
+          <p className="mt-3 text-sm text-[var(--br-text-muted)]">You&apos;ll practice with <strong className="text-[var(--br-text-muted)]">{character}</strong></p>
         </div>
         {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
         <button
           type="button"
           onClick={startSession}
           disabled={isPending}
-          className="mt-4 inline-flex items-center gap-2 rounded-md bg-moss px-5 py-2.5 text-sm font-semibold text-white hover:bg-moss/90 disabled:opacity-50 transition-colors"
+          className="mt-4 inline-flex items-center gap-2 rounded-md bg-moss px-5 py-2.5 text-sm font-semibold text-on-dark hover:bg-moss/90 disabled:opacity-50 transition-colors"
         >
           {isPending ? <><Loader2 size={15} className="animate-spin" /> Starting…</> : <><MessageCircle size={15} /> Start Conversation</>}
         </button>
 
         {attempts && attempts.length > 0 && (
-          <div className="mt-5 rounded-lg bg-slate-50 p-3.5 border border-black/5">
-            <p className="text-xs font-semibold uppercase tracking-wide text-black/45">Completed Attempts</p>
+          <div className="mt-5 rounded-lg bg-surface-muted p-3.5 border border-[var(--br-border)]">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--br-text-muted)]">Completed Attempts</p>
             <div className="mt-2.5 grid gap-2">
               {attempts.slice(0, 5).map((attempt, index) => (
                 <button
                   key={index}
                   type="button"
                   onClick={() => handleViewAttempt(attempt)}
-                  className="flex items-center justify-between text-left rounded-md border border-black/5 bg-white p-2.5 hover:bg-black/[0.02] text-xs transition"
+                  className="flex items-center justify-between text-left rounded-md border border-[var(--br-border)] bg-surface p-2.5 hover:bg-black/[0.02] text-xs transition"
                 >
-                  <span className="text-black/60 font-medium">
+                  <span className="text-[var(--br-text-muted)] font-medium">
                     {attempt.completed_at ? new Date(attempt.completed_at).toLocaleString() : `Attempt ${index + 1}`}
                   </span>
                   <span className="font-bold text-moss bg-moss/5 px-2 py-0.5 rounded-full">
@@ -1028,7 +1028,7 @@ function AiRoleplayPanel({
     const scores = scorecard.scores ?? {};
     const feedback = scorecard.feedback ?? {};
     return (
-      <section className="rounded-lg border border-black/10 bg-white p-5 shadow-sm">
+      <section className="rounded-lg border border-[var(--br-border)] bg-surface p-5 shadow-sm">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-moss">Results</p>
@@ -1049,7 +1049,7 @@ function AiRoleplayPanel({
             { label: "Grammar Accuracy", value: scores.grammar_accuracy },
           ].map((s) => (
             <div key={s.label} className="flex items-center gap-3">
-              <span className="text-xs text-black/60 w-36">{s.label}</span>
+              <span className="text-xs text-[var(--br-text-muted)] w-36">{s.label}</span>
               <div className="flex-1 h-2 rounded-full bg-black/5 overflow-hidden">
                 <div className="h-full rounded-full bg-moss transition-all" style={{ width: `${s.value ?? 0}%` }} />
               </div>
@@ -1082,36 +1082,36 @@ function AiRoleplayPanel({
             </div>
           )}
           {Array.isArray(feedback.improvement_tips) && feedback.improvement_tips.length > 0 && (
-            <div className="rounded-md bg-slate-50 border border-black/5 px-3 py-2">
-              <p className="text-xs font-semibold text-black/60 mb-1">💡 Tips</p>
-              <ul className="text-xs text-black/55 list-disc list-inside space-y-0.5">
+            <div className="rounded-md bg-surface-muted border border-[var(--br-border)] px-3 py-2">
+              <p className="text-xs font-semibold text-[var(--br-text-muted)] mb-1">💡 Tips</p>
+              <ul className="text-xs text-[var(--br-text-muted)] list-disc list-inside space-y-0.5">
                 {feedback.improvement_tips.map((t: string, i: number) => <li key={i}>{t}</li>)}
               </ul>
             </div>
           )}
         </div>
 
-        <div className="mt-4 flex gap-2 border-t border-black/10 pt-3">
-          <button type="button" onClick={resetConversation} className="inline-flex items-center gap-1.5 rounded-md border border-black/15 px-4 py-2 text-sm font-semibold hover:bg-black/5">
+        <div className="mt-4 flex gap-2 border-t border-[var(--br-border)] pt-3">
+          <button type="button" onClick={resetConversation} className="inline-flex items-center gap-1.5 rounded-md border border-[var(--br-border)] px-4 py-2 text-sm font-semibold hover:bg-black/5">
             <RefreshCw size={14} /> Try Again
           </button>
-          <button type="button" onClick={onNext} className="inline-flex items-center gap-2 rounded-md bg-dark px-4 py-2 text-sm font-semibold text-white">
+          <button type="button" onClick={onNext} className="inline-flex items-center gap-2 rounded-md bg-dark px-4 py-2 text-sm font-semibold text-on-dark">
             Next <ChevronRight size={15} />
           </button>
         </div>
 
         {attempts && attempts.length > 0 && (
-          <div className="mt-5 rounded-lg bg-slate-50 p-3.5 border border-black/5">
-            <p className="text-xs font-semibold uppercase tracking-wide text-black/45">Completed Attempts</p>
+          <div className="mt-5 rounded-lg bg-surface-muted p-3.5 border border-[var(--br-border)]">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--br-text-muted)]">Completed Attempts</p>
             <div className="mt-2.5 grid gap-2">
               {attempts.slice(0, 5).map((attempt, index) => (
                 <button
                   key={index}
                   type="button"
                   onClick={() => handleViewAttempt(attempt)}
-                  className="flex items-center justify-between text-left rounded-md border border-black/5 bg-white p-2.5 hover:bg-black/[0.02] text-xs transition"
+                  className="flex items-center justify-between text-left rounded-md border border-[var(--br-border)] bg-surface p-2.5 hover:bg-black/[0.02] text-xs transition"
                 >
-                  <span className="text-black/60 font-medium">
+                  <span className="text-[var(--br-text-muted)] font-medium">
                     {attempt.completed_at ? new Date(attempt.completed_at).toLocaleString() : `Attempt ${index + 1}`}
                   </span>
                   <span className="font-bold text-moss bg-moss/5 px-2 py-0.5 rounded-full">
@@ -1130,11 +1130,11 @@ function AiRoleplayPanel({
   const learnerTurnCount = messages.filter((m) => m.sender === "LEARNER").length;
 
   return (
-    <section className="rounded-lg border border-black/10 bg-white shadow-sm overflow-hidden">
+    <section className="rounded-lg border border-[var(--br-border)] bg-surface shadow-sm overflow-hidden">
       {/* Header */}
-      <div className="p-4 border-b border-black/10 bg-gradient-to-r from-emerald-50 to-teal-50">
+      <div className="p-4 border-b border-[var(--br-border)] bg-gradient-to-r from-emerald-50 to-teal-50">
         <p className="text-xs font-semibold uppercase tracking-wide text-moss">Live Conversation</p>
-        <p className="text-sm text-black/50 mt-0.5">Speaking with <strong className="text-black/70">{character}</strong> · {scenario}</p>
+        <p className="text-sm text-[var(--br-text-muted)] mt-0.5">Speaking with <strong className="text-[var(--br-text-muted)]">{character}</strong> · {scenario}</p>
       </div>
 
       {/* Messages */}
@@ -1143,8 +1143,8 @@ function AiRoleplayPanel({
           <div key={i} className={`flex ${msg.sender === "LEARNER" ? "justify-end" : "justify-start"}`}>
             <div className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 text-sm ${
               msg.sender === "LEARNER"
-                ? "bg-moss text-white rounded-br-md"
-                : "bg-black/[0.04] text-black/80 rounded-bl-md"
+                ? "bg-moss text-on-dark rounded-br-md"
+                : "bg-black/[0.04] text-[var(--br-text-muted)] rounded-bl-md"
             }`}>
               {msg.sender === "AI" && <p className="text-[10px] font-semibold text-moss/80 mb-0.5">{character}</p>}
               <p>{msg.text}</p>
@@ -1166,7 +1166,7 @@ function AiRoleplayPanel({
         ))}
         {isPending && phase === "chatting" && (
           <div className="flex justify-start">
-            <div className="rounded-2xl rounded-bl-md bg-black/[0.04] px-4 py-3 text-sm text-black/50 flex items-center gap-2">
+            <div className="rounded-2xl rounded-bl-md bg-black/[0.04] px-4 py-3 text-sm text-[var(--br-text-muted)] flex items-center gap-2">
               <Loader2 size={14} className="animate-spin" /> {character} is typing…
             </div>
           </div>
@@ -1176,7 +1176,7 @@ function AiRoleplayPanel({
 
       {/* Input area */}
       {phase === "chatting" && (
-        <div className="p-3 border-t border-black/10 bg-white">
+        <div className="p-3 border-t border-[var(--br-border)] bg-surface">
           {error && <p className="text-xs text-red-600 mb-2 px-1">{error}</p>}
           <form
             onSubmit={(e) => { e.preventDefault(); sendMessage(); }}
@@ -1188,19 +1188,19 @@ function AiRoleplayPanel({
               onChange={(e) => setInput(e.target.value)}
               placeholder="Type your reply…"
               disabled={isPending}
-              className="flex-1 rounded-lg border border-black/15 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-moss/30 disabled:opacity-50"
+              className="flex-1 rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-moss/30 disabled:opacity-50"
               autoFocus
             />
             <button
               type="submit"
               disabled={!input.trim() || isPending}
-              className="rounded-lg bg-moss px-3 py-2 text-white disabled:opacity-40 hover:bg-moss/90 transition-colors"
+              className="rounded-lg bg-moss px-3 py-2 text-on-dark disabled:opacity-40 hover:bg-moss/90 transition-colors"
             >
               <Send size={16} />
             </button>
           </form>
           <div className="flex items-center justify-between mt-2 px-1">
-            <p className="text-[11px] text-black/40">{learnerTurnCount} turn{learnerTurnCount !== 1 ? "s" : ""} so far</p>
+            <p className="text-[11px] text-[var(--br-text-muted)]">{learnerTurnCount} turn{learnerTurnCount !== 1 ? "s" : ""} so far</p>
             {learnerTurnCount >= 2 && (
               <button
                 type="button"
@@ -1216,7 +1216,7 @@ function AiRoleplayPanel({
       )}
 
       {phase === "finishing" && (
-        <div className="p-4 border-t border-black/10 flex items-center justify-center gap-2 text-sm text-black/50">
+        <div className="p-4 border-t border-[var(--br-border)] flex items-center justify-center gap-2 text-sm text-[var(--br-text-muted)]">
           <Loader2 size={16} className="animate-spin" /> Generating your scorecard…
         </div>
       )}
@@ -1327,10 +1327,10 @@ export function LessonActivityPanel({
   if (questions.length === 0) {
     const data = asRecord(activity.activity_data);
     return (
-      <section className="rounded-lg border border-black/10 bg-white p-4 shadow-sm">
+      <section className="rounded-lg border border-[var(--br-border)] bg-surface p-4 shadow-sm">
         <p className="text-xs font-semibold uppercase tracking-wide text-moss">Activity</p>
         <h2 className="mt-1 text-lg font-semibold">{activity.activity_type.replaceAll("_", " ")}</h2>
-        <p className="mt-3 rounded-md bg-slate-50 p-3 text-sm text-black/65">
+        <p className="mt-3 rounded-md bg-surface-muted p-3 text-sm text-[var(--br-text-muted)]">
           {String(data.prompt ?? "This activity is ready for a specialised renderer.")}
         </p>
       </section>
@@ -1390,7 +1390,7 @@ export function LessonActivityPanel({
   }
 
   return (
-    <section className="rounded-lg border border-black/10 bg-white p-4 shadow-sm">
+    <section className="rounded-lg border border-[var(--br-border)] bg-surface p-4 shadow-sm">
       {/* Header */}
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
@@ -1427,7 +1427,7 @@ export function LessonActivityPanel({
         <button
           type="button"
           onClick={() => setReviewMode("overview")}
-          className="mb-3 inline-flex items-center gap-1.5 rounded-md border border-black/10 px-3 py-1.5 text-xs font-semibold text-black/60 hover:bg-black/5"
+          className="mb-3 inline-flex items-center gap-1.5 rounded-md border border-[var(--br-border)] px-3 py-1.5 text-xs font-semibold text-[var(--br-text-muted)] hover:bg-black/5"
         >
           <ChevronLeft size={14} /> Back to overview ({score}/{total})
         </button>
@@ -1442,7 +1442,7 @@ export function LessonActivityPanel({
               type="button"
               onClick={() => setQIndex((i) => Math.max(0, i - 1))}
               disabled={qIndex === 0}
-              className="flex size-7 items-center justify-center rounded-full border border-black/10 hover:bg-black/5 disabled:opacity-30"
+              className="flex size-7 items-center justify-center rounded-full border border-[var(--br-border)] hover:bg-black/5 disabled:opacity-30"
             >
               <ChevronLeft size={15} />
             </button>
@@ -1469,7 +1469,7 @@ export function LessonActivityPanel({
               type="button"
               onClick={() => setQIndex((i) => Math.min(questions.length - 1, i + 1))}
               disabled={qIndex === questions.length - 1}
-              className="flex size-7 items-center justify-center rounded-full border border-black/10 hover:bg-black/5 disabled:opacity-30"
+              className="flex size-7 items-center justify-center rounded-full border border-[var(--br-border)] hover:bg-black/5 disabled:opacity-30"
             >
               <ChevronRight size={15} />
             </button>
@@ -1492,7 +1492,7 @@ export function LessonActivityPanel({
             <button
               type="button"
               onClick={() => setQIndex((i) => i + 1)}
-              className="mt-2 inline-flex w-full items-center justify-center gap-1 rounded-md bg-black/[0.04] py-1.5 text-xs font-medium text-black/50 hover:bg-black/[0.07]"
+              className="mt-2 inline-flex w-full items-center justify-center gap-1 rounded-md bg-black/[0.04] py-1.5 text-xs font-medium text-[var(--br-text-muted)] hover:bg-black/[0.07]"
             >
               Next question <ChevronRight size={13} />
             </button>
@@ -1501,8 +1501,8 @@ export function LessonActivityPanel({
       )}
 
       {/* Footer */}
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-black/10 pt-3">
-        <p className="text-sm text-black/55">
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--br-border)] pt-3">
+        <p className="text-sm text-[var(--br-text-muted)]">
           {submitted
             ? hasPendingWritingGrading
               ? "Saved. Choose how each written answer should be evaluated below — your result isn't final until grading is complete."
@@ -1514,10 +1514,10 @@ export function LessonActivityPanel({
         <div className="flex gap-2">
           {submitted ? (
             <>
-              <button type="button" onClick={retake} className="inline-flex items-center gap-1.5 rounded-md border border-black/15 px-4 py-2 text-sm font-semibold hover:bg-black/5">
+              <button type="button" onClick={retake} className="inline-flex items-center gap-1.5 rounded-md border border-[var(--br-border)] px-4 py-2 text-sm font-semibold hover:bg-black/5">
                 <RotateCcw size={14} /> Retake
               </button>
-              <button type="button" onClick={onNext} className="inline-flex items-center gap-2 rounded-md bg-dark px-4 py-2 text-sm font-semibold text-white">
+              <button type="button" onClick={onNext} className="inline-flex items-center gap-2 rounded-md bg-dark px-4 py-2 text-sm font-semibold text-on-dark">
                 Next <ChevronRight size={15} />
               </button>
             </>
@@ -1526,7 +1526,7 @@ export function LessonActivityPanel({
               type="button"
               onClick={submit}
               disabled={!allAnswered || isPending}
-              className="rounded-md bg-moss px-4 py-2 text-sm font-semibold text-white disabled:opacity-40"
+              className="rounded-md bg-moss px-4 py-2 text-sm font-semibold text-on-dark disabled:opacity-40"
             >
               {isPending ? "Saving…" : isWritingQuestionType(activity.activity_type) ? "Submit for grading" : "Check answers"}
             </button>
@@ -1534,11 +1534,11 @@ export function LessonActivityPanel({
         </div>
       </div>
       {localAttempts.length ? (
-        <div className="mt-4 rounded-md bg-slate-50 p-3">
-          <p className="text-xs font-semibold uppercase tracking-wide text-black/45">Attempts</p>
+        <div className="mt-4 rounded-md bg-surface-muted p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--br-text-muted)]">Attempts</p>
           <div className="mt-2 space-y-1.5">
             {localAttempts.slice(0, 5).map((attempt, attemptIndex) => (
-              <div key={`${attempt.completed_at ?? "attempt"}-${attemptIndex}`} className="flex items-center justify-between gap-3 text-xs text-black/60">
+              <div key={`${attempt.completed_at ?? "attempt"}-${attemptIndex}`} className="flex items-center justify-between gap-3 text-xs text-[var(--br-text-muted)]">
                 <span>{attempt.completed_at ? new Date(attempt.completed_at).toLocaleString() : "Saved attempt"}</span>
                 <strong className="text-ink">{attempt.score}/{attempt.total}</strong>
               </div>

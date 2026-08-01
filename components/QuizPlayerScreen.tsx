@@ -56,12 +56,12 @@ export function QuizPlayerScreen({
           eyebrowIcon={Sparkles}
           title={quiz.title}
           description={isGuest ? "Playing as a guest. Sign in after your attempt to keep scores, progress, and points." : "Answer at your own pace, then review feedback and keep building your English evidence."}
-          aside={<span className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-[var(--br-brand)]">{quiz.level ?? "Quiz"}</span>}
+          aside={<span className="rounded-full bg-surface px-3 py-1.5 text-xs font-black text-[var(--br-brand)]">{quiz.level ?? "Quiz"}</span>}
         >
           <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/80"><HelpCircle className="size-4" /> {questionCount} questions</span>
           {quiz.topic ? <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/80"><Gamepad2 className="size-4" /> {quiz.topic}</span> : null}
           {quiz.timer_minutes ? <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/80"><Clock3 className="size-4" /> {quiz.timer_minutes} min timer</span> : <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/80"><Clock3 className="size-4" /> Untimed</span>}
-          {isGuest ? <Link href="/login" className="inline-flex items-center gap-1.5 text-xs font-bold text-white underline decoration-white/40 underline-offset-4">Sign in to save progress</Link> : null}
+          {isGuest ? <Link href="/login" className="inline-flex items-center gap-1.5 text-xs font-bold text-on-dark underline decoration-white/40 underline-offset-4">Sign in to save progress</Link> : null}
         </LearnerPageHero>
         <QuizPlayer
           quizId={quiz.id}

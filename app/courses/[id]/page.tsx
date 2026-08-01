@@ -135,15 +135,15 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
           {/* eslint-disable-next-line @next/next/no-img-element -- Course creators can use arbitrary public image links. */}
           <img src={imageUrl} alt={course.title} className="h-[230px] w-full object-cover sm:h-[280px] min-[1130px]:h-full" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/5 to-transparent" />
-          <button type="button" className="absolute left-1/2 top-1/2 grid size-16 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-white text-[var(--br-dark-card)] shadow-[0_12px_24px_rgba(0,0,0,.25)]">
+          <button type="button" className="absolute left-1/2 top-1/2 grid size-16 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-surface text-[var(--br-dark-card)] shadow-[0_12px_24px_rgba(0,0,0,.25)]">
             <Play className="ml-1 size-7 fill-[var(--br-dark-card)]" />
           </button>
-          <span className="absolute bottom-4 left-4 rounded-lg bg-black/45 px-3 py-1.5 text-xs font-bold text-white backdrop-blur">Preview</span>
+          <span className="absolute bottom-4 left-4 rounded-lg bg-black/45 px-3 py-1.5 text-xs font-bold text-on-dark backdrop-blur">Preview</span>
         </div>
 
         <div className="flex min-w-0 flex-col justify-center py-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-md bg-[var(--br-success)] px-2.5 py-1 text-xs font-extrabold text-white">{course.level ?? "All Levels"}</span>
+            <span className="rounded-md bg-[var(--br-success)] px-2.5 py-1 text-xs font-extrabold text-on-dark">{course.level ?? "All Levels"}</span>
             {course.topic ? <span className="min-w-0 break-words text-sm font-semibold text-[var(--br-text-muted)]">{course.topic}</span> : null}
           </div>
           <h1 className="mt-4 break-words text-[26px] font-extrabold leading-tight tracking-[-0.01em] text-[var(--br-dark-card)] sm:text-[30px] md:text-[38px]">{course.title}</h1>
@@ -185,7 +185,7 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
             ) : (
               <SignInToEnrollButton />
             )}
-            <Link href="#curriculum" className="inline-flex items-center justify-center gap-2 rounded-[12px] border border-[var(--br-border)] bg-white px-6 py-3 text-sm font-extrabold text-[var(--br-text-muted)] shadow-[0_2px_8px_rgba(0,0,0,.04)]">
+            <Link href="#curriculum" className="inline-flex items-center justify-center gap-2 rounded-[12px] border border-[var(--br-border)] bg-surface px-6 py-3 text-sm font-extrabold text-[var(--br-text-muted)] shadow-[0_2px_8px_rgba(0,0,0,.04)]">
               View curriculum
             </Link>
           </div>
@@ -201,10 +201,10 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
           const completedInSection = sectionItems.filter((item) => completedIds.has(item.id)).length;
           const sectionPercent = sectionItems.length ? Math.round((completedInSection / sectionItems.length) * 100) : 0;
           return (
-            <details key={section.id} className="group min-w-0 rounded-[18px] border border-[var(--br-surface-strong)] bg-white p-4 shadow-[0_4px_14px_rgba(0,0,0,.035)]" open={index < 2 || sectionPercent > 0}>
+            <details key={section.id} className="group min-w-0 rounded-[18px] border border-[var(--br-surface-strong)] bg-surface p-4 shadow-[0_4px_14px_rgba(0,0,0,.035)]" open={index < 2 || sectionPercent > 0}>
               <summary className="cursor-pointer list-none marker:hidden [&::-webkit-details-marker]:hidden">
                 <div className="flex min-w-0 items-start gap-3">
-                  <span className={`grid size-9 shrink-0 place-items-center rounded-full text-sm font-extrabold ${sectionPercent === 100 ? "bg-[var(--br-success)] text-white" : sectionPercent > 0 ? "bg-[var(--br-chart-primary)] text-white" : "bg-[#F2F3F8] text-[var(--br-text-muted)]"}`}>
+                  <span className={`grid size-9 shrink-0 place-items-center rounded-full text-sm font-extrabold ${sectionPercent === 100 ? "bg-[var(--br-success)] text-on-dark" : sectionPercent > 0 ? "bg-[var(--br-chart-primary)] text-on-dark" : "bg-[#F2F3F8] text-[var(--br-text-muted)]"}`}>
                     {sectionPercent === 100 ? <CheckCircle2 className="size-5" /> : index + 1}
                   </span>
                   <div className="min-w-0 flex-1">
@@ -336,7 +336,7 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
   const supportPanel = (
     <Panel title="Course Support">
       <div className="flex items-center gap-4">
-        <div className="grid size-16 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] text-white">
+        <div className="grid size-16 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] text-on-dark">
           <GraduationCap className="size-8" />
         </div>
         <div>
@@ -431,7 +431,7 @@ function CourseItemLink({ courseId, item, itemIndex, isComplete, unlocked }: { c
   return (
     <div className="flex min-w-0 flex-col gap-3 rounded-[14px] px-2 py-2 text-sm transition hover:bg-[var(--br-canvas-elevated)] sm:flex-row sm:items-center">
       <div className="flex min-w-0 flex-1 items-start gap-3">
-      <span className={`grid size-6 shrink-0 place-items-center rounded-full text-[11px] font-bold ${isComplete ? "bg-[var(--br-success)] text-white" : "bg-[#F1F3FA] text-[var(--br-text-muted)]"}`}>
+      <span className={`grid size-6 shrink-0 place-items-center rounded-full text-[11px] font-bold ${isComplete ? "bg-[var(--br-success)] text-on-dark" : "bg-[#F1F3FA] text-[var(--br-text-muted)]"}`}>
         {isComplete ? <CheckCircle2 className="size-4" /> : itemIndex + 1}
       </span>
       <div className="min-w-0 flex-1">
@@ -470,7 +470,7 @@ function CourseItemLink({ courseId, item, itemIndex, isComplete, unlocked }: { c
 
 function FaqAccordionItem({ question, answer, defaultOpen }: { question: string; answer: string; defaultOpen?: boolean }) {
   return (
-    <details className="group rounded-[16px] border border-[var(--br-surface-strong)] bg-white px-4 py-3 shadow-[0_2px_10px_rgba(0,0,0,.03)] open:shadow-[0_4px_14px_rgba(0,0,0,.05)]" open={defaultOpen}>
+    <details className="group rounded-[16px] border border-[var(--br-surface-strong)] bg-surface px-4 py-3 shadow-[0_2px_10px_rgba(0,0,0,.03)] open:shadow-[0_4px_14px_rgba(0,0,0,.05)]" open={defaultOpen}>
       <summary className="flex cursor-pointer list-none items-start justify-between gap-3 marker:hidden [&::-webkit-details-marker]:hidden">
         <p className="min-w-0 break-words text-sm font-extrabold leading-5 text-[var(--br-dark-card)]">{question}</p>
         <ChevronDown className="mt-0.5 size-4 shrink-0 text-[var(--br-text-muted)] transition group-open:rotate-180" />

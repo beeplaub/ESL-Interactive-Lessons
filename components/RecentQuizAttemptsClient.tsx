@@ -90,21 +90,21 @@ export function RecentQuizAttemptsClient({
           <button
             type="button"
             onClick={() => setFiltersOpen(true)}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--br-border)] bg-white px-4 py-2.5 text-sm font-bold text-[#47464F] shadow-sm transition hover:bg-[#FAFAFC]"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--br-border)] bg-surface px-4 py-2.5 text-sm font-bold text-[#47464F] shadow-sm transition hover:bg-[#FAFAFC]"
           >
             <Filter className="size-4" /> Filter
           </button>
           <button
             type="button"
             onClick={() => window.print()}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--br-brand)] px-4 py-2.5 text-sm font-bold text-white shadow-[0_10px_18px_rgba(62,58,114,.18)] transition hover:bg-[var(--br-dark-card)]"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--br-brand)] px-4 py-2.5 text-sm font-bold text-on-dark shadow-[0_10px_18px_rgba(62,58,114,.18)] transition hover:bg-[var(--br-dark-card)]"
           >
             <Download className="size-4" /> Export PDF
           </button>
         </div>
       </header>
 
-      <section className="overflow-hidden rounded-[20px] border border-[var(--br-border)] bg-white shadow-[0_12px_32px_rgba(27,27,58,.06)]">
+      <section className="overflow-hidden rounded-[20px] border border-[var(--br-border)] bg-surface shadow-[0_12px_32px_rgba(27,27,58,.06)]">
         <div className="flex flex-col gap-3 border-b border-[#F1F1F6] p-5 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="flex items-center gap-3 text-lg font-extrabold text-[var(--br-dark-card)] sm:text-xl">
             <BarChart3 className="size-5 text-[var(--br-action)]" /> Mastery Trend
@@ -134,12 +134,12 @@ export function RecentQuizAttemptsClient({
           />
         ))}
         {!filteredGroups.length ? (
-          <div className="grid min-h-64 place-items-center rounded-[20px] border border-dashed border-[#D9DCE8] bg-white p-8 text-center shadow-sm">
+          <div className="grid min-h-64 place-items-center rounded-[20px] border border-dashed border-[#D9DCE8] bg-surface p-8 text-center shadow-sm">
             <div>
               <Trophy className="mx-auto size-9 text-[var(--br-text-muted)]" />
               <h2 className="mt-3 text-lg font-extrabold text-[var(--br-dark-card)]">No matching attempts yet.</h2>
               <p className="mt-1 text-sm text-[var(--br-text-muted)]">Clear filters or play another quiz to grow your history.</p>
-              <Link href="/quizzes" className="mt-4 inline-flex rounded-xl bg-[var(--br-action)] px-4 py-2.5 text-sm font-extrabold text-white">Play a quiz</Link>
+              <Link href="/quizzes" className="mt-4 inline-flex rounded-xl bg-[var(--br-action)] px-4 py-2.5 text-sm font-extrabold text-on-dark">Play a quiz</Link>
             </div>
           </div>
         ) : null}
@@ -148,7 +148,7 @@ export function RecentQuizAttemptsClient({
       {filtersOpen ? (
         <div className="fixed inset-0 z-[90] bg-[var(--br-dark-card)]/40 backdrop-blur-sm" onClick={() => setFiltersOpen(false)}>
           <aside
-            className="ml-auto flex h-full w-full max-w-sm flex-col border-l border-[var(--br-border)] bg-white shadow-2xl"
+            className="ml-auto flex h-full w-full max-w-sm flex-col border-l border-[var(--br-border)] bg-surface shadow-2xl"
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-[#F1F1F6] p-5">
@@ -176,7 +176,7 @@ export function RecentQuizAttemptsClient({
             </div>
             <div className="grid grid-cols-2 gap-3 border-t border-[#F1F1F6] p-5">
               <button type="button" onClick={clearFilters} className="rounded-xl border border-[var(--br-border)] px-4 py-3 text-sm font-bold text-[#47464F] hover:bg-[#FAFAFC]">Clear All</button>
-              <button type="button" onClick={() => setFiltersOpen(false)} className="rounded-xl bg-[var(--br-action)] px-4 py-3 text-sm font-bold text-white shadow-[0_10px_20px_rgba(255,122,89,.2)] hover:bg-[#E4572E]">Apply Filters</button>
+              <button type="button" onClick={() => setFiltersOpen(false)} className="rounded-xl bg-[var(--br-action)] px-4 py-3 text-sm font-bold text-on-dark shadow-[0_10px_20px_rgba(255,122,89,.2)] hover:bg-[#E4572E]">Apply Filters</button>
             </div>
           </aside>
         </div>
@@ -187,7 +187,7 @@ export function RecentQuizAttemptsClient({
 
 function AttemptGroupCard({ group, open, onToggle }: { group: QuizAttemptGroup; open: boolean; onToggle: () => void }) {
   return (
-    <article className="group rounded-xl border border-[var(--br-border)] bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-[var(--br-action)] hover:shadow-[0_16px_32px_rgba(27,27,58,.08)] sm:p-5">
+    <article className="group rounded-xl border border-[var(--br-border)] bg-surface p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-[var(--br-action)] hover:shadow-[0_16px_32px_rgba(27,27,58,.08)] sm:p-5">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex min-w-0 items-center gap-4 sm:gap-5">
           <ScoreRing percent={group.latestPercent} />
@@ -265,7 +265,7 @@ function ScoreRing({ percent }: { percent: number }) {
   return (
     <div className="relative grid size-16 shrink-0 place-items-center rounded-full bg-[#FAFAFC] p-1">
       <div className="absolute inset-0 rounded-full" style={{ background: `conic-gradient(var(--br-action) ${percent}%, var(--br-border) 0)` }} />
-      <div className="absolute inset-1 rounded-full bg-white" />
+      <div className="absolute inset-1 rounded-full bg-surface" />
       <span className="relative font-mono text-sm font-semibold text-[var(--br-dark-card)]">{percent}%</span>
     </div>
   );
@@ -273,7 +273,7 @@ function ScoreRing({ percent }: { percent: number }) {
 
 function StatCard({ label, value, detail, accent, icon = false }: { label: string; value: string; detail: string; accent?: string; icon?: boolean }) {
   return (
-    <div className="rounded-[20px] border border-[var(--br-border)] bg-white p-5 shadow-[0_10px_26px_rgba(27,27,58,.05)] sm:p-6">
+    <div className="rounded-[20px] border border-[var(--br-border)] bg-surface p-5 shadow-[0_10px_26px_rgba(27,27,58,.05)] sm:p-6">
       <p className="mb-1 text-xs font-extrabold uppercase tracking-[0.16em] text-[var(--br-text-muted)]">{label}</p>
       <div className="flex items-end gap-2">
         <span className="text-[28px] font-extrabold leading-tight text-[var(--br-dark-card)]">{value}</span>

@@ -97,20 +97,20 @@ export function AddItemModal({ action, sectionId, lessons, quizzes }: Props) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-2 rounded-md border border-black/15 bg-white px-3 py-1.5 text-xs font-semibold hover:bg-black/5"
+        className="inline-flex items-center gap-2 rounded-md border border-[var(--br-border)] bg-surface px-3 py-1.5 text-xs font-semibold hover:bg-black/5"
       >
         <Plus size={14} /> Pick item
       </button>
 
       {open ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 px-3 py-6">
-          <div className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-            <div className="flex items-start justify-between gap-4 border-b border-black/10 px-5 py-4">
+          <div className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-surface shadow-2xl">
+            <div className="flex items-start justify-between gap-4 border-b border-[var(--br-border)] px-5 py-4">
               <div>
                 <h2 className="text-xl font-semibold">Pick an item for this section</h2>
-                <p className="mt-1 text-sm text-black/55">Search and pick an existing lesson or quiz, or add a resource/external link/level test.</p>
+                <p className="mt-1 text-sm text-[var(--br-text-muted)]">Search and pick an existing lesson or quiz, or add a resource/external link/level test.</p>
               </div>
-              <button type="button" onClick={close} className="rounded-md border border-black/10 p-2 hover:bg-black/5" aria-label="Close">
+              <button type="button" onClick={close} className="rounded-md border border-[var(--br-border)] p-2 hover:bg-black/5" aria-label="Close">
                 <X size={16} />
               </button>
             </div>
@@ -134,7 +134,7 @@ export function AddItemModal({ action, sectionId, lessons, quizzes }: Props) {
                     setTopic("");
                     setError(null);
                   }}
-                  className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 font-normal"
+                  className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 font-normal"
                 >
                   {itemTypes.map((type) => (
                     <option key={type} value={type}>{type.replaceAll("_", " ")}</option>
@@ -143,23 +143,23 @@ export function AddItemModal({ action, sectionId, lessons, quizzes }: Props) {
               </label>
 
               {itemType === "LESSON" || itemType === "QUIZ" ? (
-                <div className="rounded-lg border border-black/10 p-3">
+                <div className="rounded-lg border border-[var(--br-border)] p-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="grid flex-1 gap-2 sm:grid-cols-[1fr_140px_160px]">
                       <label className="relative">
-                        <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-black/35" size={15} />
+                        <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--br-text-muted)]" size={15} />
                         <input
                           value={keyword}
                           onChange={(event) => setKeyword(event.target.value)}
                           placeholder={`Search ${itemType === "QUIZ" ? "quizzes" : "lessons"}...`}
-                          className="w-full rounded-md border border-black/15 py-2 pl-9 pr-3 text-sm"
+                          className="w-full rounded-md border border-[var(--br-border)] py-2 pl-9 pr-3 text-sm"
                         />
                       </label>
-                      <select value={level} onChange={(event) => setLevel(event.target.value)} className="rounded-md border border-black/15 px-3 py-2 text-sm">
+                      <select value={level} onChange={(event) => setLevel(event.target.value)} className="rounded-md border border-[var(--br-border)] px-3 py-2 text-sm">
                         <option value="">All levels</option>
                         {levels.map((l) => <option key={l} value={l}>{l}</option>)}
                       </select>
-                      <select value={topic} onChange={(event) => setTopic(event.target.value)} className="rounded-md border border-black/15 px-3 py-2 text-sm">
+                      <select value={topic} onChange={(event) => setTopic(event.target.value)} className="rounded-md border border-[var(--br-border)] px-3 py-2 text-sm">
                         <option value="">All topics</option>
                         {topics.map((t) => <option key={t} value={t}>{t}</option>)}
                       </select>
@@ -169,7 +169,7 @@ export function AddItemModal({ action, sectionId, lessons, quizzes }: Props) {
                     <button
                       type="button"
                       onClick={clearFilters}
-                      className="mt-2 inline-flex items-center gap-1 rounded-md border border-black/15 px-2 py-1.5 text-xs text-black/55 hover:bg-black/5"
+                      className="mt-2 inline-flex items-center gap-1 rounded-md border border-[var(--br-border)] px-2 py-1.5 text-xs text-[var(--br-text-muted)] hover:bg-black/5"
                     >
                       <X size={12} /> Clear filters
                     </button>
@@ -181,7 +181,7 @@ export function AddItemModal({ action, sectionId, lessons, quizzes }: Props) {
                     </p>
                   ) : null}
 
-                  <div className="mt-3 max-h-60 overflow-y-auto rounded-md border border-black/10">
+                  <div className="mt-3 max-h-60 overflow-y-auto rounded-md border border-[var(--br-border)]">
                     {filtered.map((o) => {
                       const selected = itemType === "QUIZ" ? quizId === o.id : lessonId === o.id;
                       return (
@@ -193,46 +193,46 @@ export function AddItemModal({ action, sectionId, lessons, quizzes }: Props) {
                             else setLessonId(o.id);
                             setError(null);
                           }}
-                          className={`flex w-full items-center justify-between gap-2 border-t border-black/5 px-3 py-2 text-left text-sm first:border-t-0 hover:bg-slate-50 ${selected ? "border-l-4 border-l-moss bg-moss/15 font-semibold" : ""}`}
+                          className={`flex w-full items-center justify-between gap-2 border-t border-[var(--br-border)] px-3 py-2 text-left text-sm first:border-t-0 hover:bg-surface-muted ${selected ? "border-l-4 border-l-moss bg-moss/15 font-semibold" : ""}`}
                         >
                           <span className="flex min-w-0 flex-1 items-center gap-1.5 truncate">
                             {selected ? <Check size={14} className="shrink-0 text-moss" /> : null}
                             <span className="truncate">{o.title}</span>
                           </span>
-                          <span className="shrink-0 text-xs text-black/40">{o.level ?? ""}{o.topic ? ` \u00b7 ${o.topic}` : ""}</span>
+                          <span className="shrink-0 text-xs text-[var(--br-text-muted)]">{o.level ?? ""}{o.topic ? ` \u00b7 ${o.topic}` : ""}</span>
                         </button>
                       );
                     })}
-                    {filtered.length === 0 ? <p className="px-3 py-4 text-center text-sm text-black/40">No matches.</p> : null}
+                    {filtered.length === 0 ? <p className="px-3 py-4 text-center text-sm text-[var(--br-text-muted)]">No matches.</p> : null}
                   </div>
                 </div>
               ) : itemType === "LEVEL_TEST" ? (
-                <p className="rounded-lg border border-black/10 bg-slate-50 p-3 text-sm text-black/55">
+                <p className="rounded-lg border border-[var(--br-border)] bg-surface-muted p-3 text-sm text-[var(--br-text-muted)]">
                   This adds a link to the BrenUp level test as a course item. No selection needed.
                 </p>
               ) : (
                 <>
                   <label className="text-sm font-medium">
                     Resource/link title
-                    <input name="title" placeholder="Resource/link title" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 font-normal" />
+                    <input name="title" placeholder="Resource/link title" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 font-normal" />
                   </label>
                   <label className="text-sm font-medium">
                     Resource/link URL
-                    <input name="resourceUrl" placeholder="https://..." className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 font-normal" />
+                    <input name="resourceUrl" placeholder="https://..." className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 font-normal" />
                   </label>
                 </>
               )}
 
               <div className="flex gap-4">
-                <label className="inline-flex items-center gap-2 text-xs text-black/60"><input type="checkbox" name="isRequired" defaultChecked /> Required</label>
-                <label className="inline-flex items-center gap-2 text-xs text-black/60"><input type="checkbox" name="isFreePreview" /> Free preview</label>
+                <label className="inline-flex items-center gap-2 text-xs text-[var(--br-text-muted)]"><input type="checkbox" name="isRequired" defaultChecked /> Required</label>
+                <label className="inline-flex items-center gap-2 text-xs text-[var(--br-text-muted)]"><input type="checkbox" name="isFreePreview" /> Free preview</label>
               </div>
 
               {error ? <p className="rounded-md bg-coral/10 px-3 py-2 text-sm text-coral">{error}</p> : null}
 
-              <div className="flex items-center justify-end gap-2 border-t border-black/10 pt-4">
-                <button type="button" onClick={close} className="rounded-md border border-black/15 px-4 py-2 text-sm">Cancel</button>
-                <button type="submit" disabled={isPending} className="rounded-md bg-moss px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+              <div className="flex items-center justify-end gap-2 border-t border-[var(--br-border)] pt-4">
+                <button type="button" onClick={close} className="rounded-md border border-[var(--br-border)] px-4 py-2 text-sm">Cancel</button>
+                <button type="submit" disabled={isPending} className="rounded-md bg-moss px-4 py-2 text-sm font-semibold text-on-dark disabled:opacity-50">
                   {isPending ? "Adding\u2026" : "Add to section"}
                 </button>
               </div>

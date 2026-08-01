@@ -160,7 +160,7 @@ export default async function QuizAttemptsPage() {
       {groups.length ? (
         <RecentQuizAttemptsClient groups={groups} summary={summary} />
       ) : (
-        <section className="grid min-h-[60vh] place-items-center rounded-[24px] border border-dashed border-[#D9DCE8] bg-white p-8 text-center shadow-sm">
+        <section className="grid min-h-[60vh] place-items-center rounded-[24px] border border-dashed border-[#D9DCE8] bg-surface p-8 text-center shadow-sm">
           <div>
             <Award className="mx-auto size-10 text-[var(--br-text-muted)]" />
             <h1 className="mt-4 text-2xl font-extrabold text-[var(--br-dark-card)]">No quiz attempts yet.</h1>

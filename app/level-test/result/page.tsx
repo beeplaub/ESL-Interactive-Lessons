@@ -77,7 +77,7 @@ export default async function LevelTestResultPage({ searchParams }: { searchPara
           </div>
         </section>
 
-        <div className="mt-5 text-center"><Link href="/level-test/test" className="inline-flex items-center gap-2 rounded-[13px] bg-white px-5 py-3 text-sm font-extrabold text-[var(--br-text-muted)] shadow-sm"><RotateCcw className="size-4" /> Take a fresh test</Link></div>
+        <div className="mt-5 text-center"><Link href="/level-test/test" className="inline-flex items-center gap-2 rounded-[13px] bg-surface px-5 py-3 text-sm font-extrabold text-[var(--br-text-muted)] shadow-sm"><RotateCcw className="size-4" /> Take a fresh test</Link></div>
       </section>
     </LearnerAppShell>
   );

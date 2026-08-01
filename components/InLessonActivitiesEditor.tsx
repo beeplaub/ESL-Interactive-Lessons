@@ -484,7 +484,7 @@ function AiRoleplayEditor({ activity, onSave }: { activity: Activity; onSave: (d
         <textarea
           value={prompt}
           onChange={(event) => setPrompt(event.target.value)}
-          className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 min-h-[80px]"
+          className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 min-h-[80px]"
           placeholder="Describe the situation for the roleplay conversation..."
         />
       </label>
@@ -495,7 +495,7 @@ function AiRoleplayEditor({ activity, onSave }: { activity: Activity; onSave: (d
             type="text"
             value={character}
             onChange={(event) => setCharacter(event.target.value)}
-            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+            className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2"
             placeholder="e.g. Barista"
           />
         </label>
@@ -505,7 +505,7 @@ function AiRoleplayEditor({ activity, onSave }: { activity: Activity; onSave: (d
             type="text"
             value={firstTurn}
             onChange={(event) => setFirstTurn(event.target.value)}
-            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+            className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2"
             placeholder="e.g. Welcome! What can I make for you today?"
           />
         </label>
@@ -533,11 +533,11 @@ export function InLessonActivitiesEditor({
   if (!activities.length) return null;
 
   return (
-    <section className={embedded ? "space-y-3" : "mb-6 rounded-lg border border-black/10 bg-white p-5 shadow-sm"}>
+    <section className={embedded ? "space-y-3" : "mb-6 rounded-lg border border-[var(--br-border)] bg-surface p-5 shadow-sm"}>
       {!embedded ? (
         <>
           <h2 className="text-xl font-semibold">In-Lesson Activities</h2>
-          <p className="mt-1 text-sm text-black/55">These activities appear beside the slide image for learners.</p>
+          <p className="mt-1 text-sm text-[var(--br-text-muted)]">These activities appear beside the slide image for learners.</p>
         </>
       ) : null}
       <div className={embedded ? "space-y-3" : "mt-4 space-y-3"}>
@@ -618,30 +618,30 @@ function ActivityPanel({
   }
 
   return (
-    <div className="rounded-md border border-black/10 p-4">
+    <div className="rounded-md border border-[var(--br-border)] p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <span className="text-sm font-semibold">Slide {displaySlideNumber}</span>
-          <span className="max-w-xs truncate text-sm text-black/55">{title}</span>
+          <span className="max-w-xs truncate text-sm text-[var(--br-text-muted)]">{title}</span>
           <span className="rounded-full bg-skywash px-3 py-1 text-xs font-semibold text-ink">{activity.activity_type}</span>
           {activity.needs_review ? (
             <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">Needs review</span>
           ) : null}
         </div>
-        <button type="button" onClick={() => setIsOpen(true)} className="rounded-md border border-black/15 px-3 py-2 text-xs font-semibold hover:bg-black/5">
+        <button type="button" onClick={() => setIsOpen(true)} className="rounded-md border border-[var(--br-border)] px-3 py-2 text-xs font-semibold hover:bg-black/5">
           Edit activity
         </button>
       </div>
       {isOpen ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 px-3 py-6">
-          <div className="max-h-[92vh] w-full max-w-4xl overflow-auto rounded-xl bg-white p-4 shadow-2xl sm:p-5">
+          <div className="max-h-[92vh] w-full max-w-4xl overflow-auto rounded-xl bg-surface p-4 shadow-2xl sm:p-5">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-moss">Activity editor</p>
                 <h3 className="mt-1 text-lg font-semibold">{labelFor(activity.activity_type)}</h3>
-                <p className="mt-1 text-sm text-black/55">Slide {displaySlideNumber} · {title}</p>
+                <p className="mt-1 text-sm text-[var(--br-text-muted)]">Slide {displaySlideNumber} · {title}</p>
               </div>
-              <button type="button" onClick={() => setIsOpen(false)} className="rounded-md border border-black/10 p-2 hover:bg-black/5" aria-label="Close activity editor">
+              <button type="button" onClick={() => setIsOpen(false)} className="rounded-md border border-[var(--br-border)] p-2 hover:bg-black/5" aria-label="Close activity editor">
                 Close
               </button>
             </div>
@@ -683,24 +683,24 @@ function ActivityPanel({
               {activity.activity_type === "AI_ROLEPLAY" ? <AiRoleplayEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "LIVE_SPEAK_TRANSLATE" ? <LiveSpeakTranslateEditor activity={activity} onSave={save} /> : null}
               {!["MCQ", "GAP_FILL", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "SUMMARIZATION", "INFERENCE_DETECTION", "HEADINGS_MATCHING", "SKIM_CHALLENGE", "PARAPHRASE_ID", "DICTATION", "LISTEN_AND_SELECT", "SHADOWING", "NOTE_TAKING_CHALLENGE", "SOUND_DISCRIMINATION", "LISTEN_AND_GAP_FILL", "SENTENCE_COMPLETION", "ESSAY_WRITING", "EMAIL_LETTER_WRITING", "TRANSLATION", "PARAPHRASE_PRACTICE", "SENTENCE_COMBINING", "CREATIVE_WRITING", "PEER_REVIEW_EDITING", "AI_ROLEPLAY"].includes(activity.activity_type) ? (
-                <p className="rounded-md bg-slate-50 p-3 text-sm text-black/60">
+                <p className="rounded-md bg-surface-muted p-3 text-sm text-[var(--br-text-muted)]">
                   This activity type has starter data and preview support. A detailed visual editor for it will be added in the next activity-builder pass.
                 </p>
               ) : null}
-              <div className="flex flex-wrap items-center gap-3 border-t border-black/10 pt-3">
+              <div className="flex flex-wrap items-center gap-3 border-t border-[var(--br-border)] pt-3">
                 <StatusText status={status} error={error} />
                 <button
                   type="button"
                   disabled={isPending}
                   onClick={remove}
-                  className="rounded-md border border-black/15 px-4 py-2 text-sm text-black/60 hover:bg-black/5 disabled:opacity-50"
+                  className="rounded-md border border-[var(--br-border)] px-4 py-2 text-sm text-[var(--br-text-muted)] hover:bg-black/5 disabled:opacity-50"
                 >
                   Remove activity
                 </button>
               </div>
               <div className="rounded-md bg-black/[0.03] p-3">
                 <h4 className="text-sm font-semibold">Original pasted text</h4>
-                <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap text-xs text-black/65">{activity.raw_text}</pre>
+                <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap text-xs text-[var(--br-text-muted)]">{activity.raw_text}</pre>
               </div>
             </div>
           </div>
@@ -711,7 +711,7 @@ function ActivityPanel({
 }
 
 function StatusText({ status, error }: { status: string; error: string | null }) {
-  if (status === "saving") return <p className="text-sm text-black/55">Saving...</p>;
+  if (status === "saving") return <p className="text-sm text-[var(--br-text-muted)]">Saving...</p>;
   if (status === "saved") return <p className="text-sm font-medium text-moss">Saved</p>;
   if (status === "error") return <p className="text-sm font-medium text-coral">{error}</p>;
   return null;
@@ -719,7 +719,7 @@ function StatusText({ status, error }: { status: string; error: string | null })
 
 function SaveButton({ onClick }: { onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className="rounded-md bg-dark px-4 py-2 text-sm font-medium text-white">
+    <button type="button" onClick={onClick} className="rounded-md bg-dark px-4 py-2 text-sm font-medium text-on-dark">
       Save activity
     </button>
   );
@@ -733,26 +733,26 @@ function McqEditor({ activity, onSave }: { activity: Activity; onSave: (data: Js
 
   return (
     <div className="grid gap-4">
-      <label className="text-sm font-medium">Instruction<input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+      <label className="text-sm font-medium">Instruction<input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
       {questions.map((question, index) => (
-        <div key={String(question.id)} className="rounded-md border border-black/10 p-4">
+        <div key={String(question.id)} className="rounded-md border border-[var(--br-border)] p-4">
           <div className="mb-3 flex items-center justify-between gap-3">
             <p className="font-medium">Question {index + 1}</p>
             <button type="button" onClick={() => setQuestions((current) => current.filter((_, itemIndex) => itemIndex !== index))} className="text-sm text-coral">Remove question</button>
           </div>
           <div className="grid gap-3">
-            <label className="text-sm">Question<input value={question.text} onChange={(event) => setQuestions((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, text: event.target.value } : item))} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+            <label className="text-sm">Question<input value={question.text} onChange={(event) => setQuestions((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, text: event.target.value } : item))} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
             <div className="grid gap-3 md:grid-cols-2">
               {(["A", "B", "C", "D"] as const).map((letter) => (
-                <label key={letter} className="text-sm">Option {letter}<input value={question.options[letter]} onChange={(event) => setQuestions((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, options: { ...item.options, [letter]: event.target.value } } : item))} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+                <label key={letter} className="text-sm">Option {letter}<input value={question.options[letter]} onChange={(event) => setQuestions((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, options: { ...item.options, [letter]: event.target.value } } : item))} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
               ))}
             </div>
-            <label className="text-sm">Correct answer<select value={question.answer} onChange={(event) => setQuestions((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, answer: event.target.value } : item))} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">{["A", "B", "C", "D"].map((letter) => <option key={letter}>{letter}</option>)}</select></label>
+            <label className="text-sm">Correct answer<select value={question.answer} onChange={(event) => setQuestions((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, answer: event.target.value } : item))} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2">{["A", "B", "C", "D"].map((letter) => <option key={letter}>{letter}</option>)}</select></label>
           </div>
         </div>
       ))}
       <div className="flex flex-wrap gap-3">
-        <button type="button" onClick={() => setQuestions((current) => [...current, { id: Date.now(), text: "", options: { A: "", B: "", C: "", D: "" }, answer: "A" }])} className="rounded-md border border-black/15 px-4 py-2 text-sm">Add question</button>
+        <button type="button" onClick={() => setQuestions((current) => [...current, { id: Date.now(), text: "", options: { A: "", B: "", C: "", D: "" }, answer: "A" }])} className="rounded-md border border-[var(--br-border)] px-4 py-2 text-sm">Add question</button>
         <SaveButton onClick={() => onSave({ prompt, questions: questions.map((question, index) => ({ id: index + 1, text: question.text, options: question.options, answer: question.answer })) } as Json, needsReview)} />
       </div>
     </div>
@@ -768,7 +768,7 @@ function InferenceDetectionEditor({ activity, onSave }: { activity: Activity; on
 
   return (
     <div className="grid gap-4">
-      <label className="text-sm font-medium">Instruction<input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+      <label className="text-sm font-medium">Instruction<input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
       <label className="text-sm font-medium">
         Passage
         <textarea
@@ -776,29 +776,29 @@ function InferenceDetectionEditor({ activity, onSave }: { activity: Activity; on
           value={passage}
           onChange={(event) => setPassage(event.target.value)}
           placeholder="Enter the source passage text..."
-          className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+          className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 text-sm"
         />
       </label>
-      <p className="text-xs text-black/45">This passage is shown above every inference question in this activity.</p>
+      <p className="text-xs text-[var(--br-text-muted)]">This passage is shown above every inference question in this activity.</p>
       {questions.map((question, index) => (
-        <div key={String(question.id)} className="rounded-md border border-black/10 p-4">
+        <div key={String(question.id)} className="rounded-md border border-[var(--br-border)] p-4">
           <div className="mb-3 flex items-center justify-between gap-3">
             <p className="font-medium">Question {index + 1}</p>
             <button type="button" onClick={() => setQuestions((current) => current.filter((_, itemIndex) => itemIndex !== index))} className="text-sm text-coral">Remove question</button>
           </div>
           <div className="grid gap-3">
-            <label className="text-sm">Question (e.g. "What can we infer about...?")<input value={question.text} onChange={(event) => setQuestions((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, text: event.target.value } : item))} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+            <label className="text-sm">Question (e.g. "What can we infer about...?")<input value={question.text} onChange={(event) => setQuestions((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, text: event.target.value } : item))} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
             <div className="grid gap-3 md:grid-cols-2">
               {(["A", "B", "C", "D"] as const).map((letter) => (
-                <label key={letter} className="text-sm">Option {letter}<input value={question.options[letter]} onChange={(event) => setQuestions((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, options: { ...item.options, [letter]: event.target.value } } : item))} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+                <label key={letter} className="text-sm">Option {letter}<input value={question.options[letter]} onChange={(event) => setQuestions((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, options: { ...item.options, [letter]: event.target.value } } : item))} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
               ))}
             </div>
-            <label className="text-sm">Correct answer<select value={question.answer} onChange={(event) => setQuestions((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, answer: event.target.value } : item))} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">{["A", "B", "C", "D"].map((letter) => <option key={letter}>{letter}</option>)}</select></label>
+            <label className="text-sm">Correct answer<select value={question.answer} onChange={(event) => setQuestions((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, answer: event.target.value } : item))} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2">{["A", "B", "C", "D"].map((letter) => <option key={letter}>{letter}</option>)}</select></label>
           </div>
         </div>
       ))}
       <div className="flex flex-wrap gap-3">
-        <button type="button" onClick={() => setQuestions((current) => [...current, { id: Date.now(), text: "", options: { A: "", B: "", C: "", D: "" }, answer: "A" }])} className="rounded-md border border-black/15 px-4 py-2 text-sm">Add question</button>
+        <button type="button" onClick={() => setQuestions((current) => [...current, { id: Date.now(), text: "", options: { A: "", B: "", C: "", D: "" }, answer: "A" }])} className="rounded-md border border-[var(--br-border)] px-4 py-2 text-sm">Add question</button>
         <SaveButton onClick={() => onSave({ prompt, passage, questions: questions.map((question, index) => ({ id: index + 1, text: question.text, options: question.options, answer: question.answer })) } as Json, needsReview)} />
       </div>
     </div>
@@ -830,15 +830,15 @@ function HeadingsMatchingEditor({ activity, onSave }: { activity: Activity; onSa
     <div className="grid gap-4">
       <label className="text-sm font-medium">
         Instruction / Prompt
-        <input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+        <input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" />
       </label>
 
       <div className="grid gap-4 md:grid-cols-2">
         {/* Paragraphs Panel */}
-        <div className="space-y-3 rounded-md border border-black/10 p-4">
+        <div className="space-y-3 rounded-md border border-[var(--br-border)] p-4">
           <p className="font-bold text-sm text-slate-700">Paragraphs</p>
           {paragraphs.map((p, index) => (
-            <div key={p.id} className="space-y-1 rounded border border-black/5 p-2 bg-slate-50/50">
+            <div key={p.id} className="space-y-1 rounded border border-[var(--br-border)] p-2 bg-surface-muted/50">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs font-bold text-indigo-600">Paragraph {p.id}</span>
                 <button
@@ -859,7 +859,7 @@ function HeadingsMatchingEditor({ activity, onSave }: { activity: Activity; onSa
                 value={p.text}
                 onChange={(e) => updateParagraph(index, e.target.value)}
                 placeholder="Enter paragraph text..."
-                className="w-full rounded border border-black/15 p-2 text-xs"
+                className="w-full rounded border border-[var(--br-border)] p-2 text-xs"
               />
               <div className="flex items-center gap-2 mt-1">
                 <label className="text-xs text-[var(--br-text-muted)]">Correct Heading:</label>
@@ -879,17 +879,17 @@ function HeadingsMatchingEditor({ activity, onSave }: { activity: Activity; onSa
           <button
             type="button"
             onClick={() => setParagraphs((current) => [...current, { id: String.fromCharCode(65 + current.length), text: "" }])}
-            className="w-full rounded border border-dashed border-black/15 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+            className="w-full rounded border border-dashed border-[var(--br-border)] py-1.5 text-xs font-semibold text-slate-600 hover:bg-surface-muted"
           >
             + Add Paragraph
           </button>
         </div>
 
         {/* Headings Panel */}
-        <div className="space-y-3 rounded-md border border-black/10 p-4">
+        <div className="space-y-3 rounded-md border border-[var(--br-border)] p-4">
           <p className="font-bold text-sm text-slate-700">Headings (inc. distractors)</p>
           {headings.map((h, index) => (
-            <div key={h.id} className="space-y-1 rounded border border-black/5 p-2 bg-slate-50/50">
+            <div key={h.id} className="space-y-1 rounded border border-[var(--br-border)] p-2 bg-surface-muted/50">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs font-bold text-amber-600">Heading {h.id}</span>
                 <button
@@ -912,14 +912,14 @@ function HeadingsMatchingEditor({ activity, onSave }: { activity: Activity; onSa
                 value={h.text}
                 onChange={(e) => updateHeading(index, e.target.value)}
                 placeholder="Enter heading text..."
-                className="w-full rounded border border-black/15 p-2 text-xs"
+                className="w-full rounded border border-[var(--br-border)] p-2 text-xs"
               />
             </div>
           ))}
           <button
             type="button"
             onClick={() => setHeadings((current) => [...current, { id: String(current.length + 1), text: "" }])}
-            className="w-full rounded border border-dashed border-black/15 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+            className="w-full rounded border border-dashed border-[var(--br-border)] py-1.5 text-xs font-semibold text-slate-600 hover:bg-surface-muted"
           >
             + Add Heading Option
           </button>
@@ -959,7 +959,7 @@ function SkimChallengeEditor({ activity, onSave }: { activity: Activity; onSave:
     <div className="grid gap-4">
       <label className="text-sm font-medium">
         Instruction / Prompt
-        <input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+        <input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" />
       </label>
 
       <label className="text-sm font-medium">
@@ -969,7 +969,7 @@ function SkimChallengeEditor({ activity, onSave }: { activity: Activity; onSave:
           value={passage}
           onChange={(event) => setPassage(event.target.value)}
           placeholder="Enter the source passage text..."
-          className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+          className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 text-sm"
         />
       </label>
 
@@ -981,7 +981,7 @@ function SkimChallengeEditor({ activity, onSave }: { activity: Activity; onSave:
             min={5}
             value={timeLimitSeconds}
             onChange={(event) => setTimeLimitSeconds(Math.max(5, Number(event.target.value) || 45))}
-            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+            className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 text-sm"
           />
         </label>
 
@@ -992,7 +992,7 @@ function SkimChallengeEditor({ activity, onSave }: { activity: Activity; onSave:
             min={0}
             value={questionTimeLimitSeconds}
             onChange={(event) => setQuestionTimeLimitSeconds(Math.max(0, Number(event.target.value) || 0))}
-            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+            className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 text-sm"
           />
         </label>
       </div>
@@ -1010,7 +1010,7 @@ function SkimChallengeEditor({ activity, onSave }: { activity: Activity; onSave:
       <div className="space-y-4">
         <p className="font-bold text-sm text-slate-700">Comprehension Questions</p>
         {questions.map((question, index) => (
-          <div key={String(question.id)} className="rounded-md border border-black/10 p-4 space-y-3 bg-white">
+          <div key={String(question.id)} className="rounded-md border border-[var(--br-border)] p-4 space-y-3 bg-surface">
             <div className="flex items-center justify-between gap-3">
               <p className="font-medium text-xs">Question {index + 1}</p>
               <button
@@ -1026,7 +1026,7 @@ function SkimChallengeEditor({ activity, onSave }: { activity: Activity; onSave:
               <input
                 value={question.text}
                 onChange={(e) => updateQuestion(index, { text: e.target.value })}
-                className="mt-1 w-full rounded border border-black/15 px-2 py-1.5 text-xs"
+                className="mt-1 w-full rounded border border-[var(--br-border)] px-2 py-1.5 text-xs"
               />
             </label>
             <div className="grid gap-2 md:grid-cols-2">
@@ -1036,7 +1036,7 @@ function SkimChallengeEditor({ activity, onSave }: { activity: Activity; onSave:
                   <input
                     value={question.options[letter]}
                     onChange={(e) => updateQuestion(index, { options: { ...question.options, [letter]: e.target.value } })}
-                    className="mt-1 w-full rounded border border-black/15 px-2 py-1.5 text-xs"
+                    className="mt-1 w-full rounded border border-[var(--br-border)] px-2 py-1.5 text-xs"
                   />
                 </label>
               ))}
@@ -1046,7 +1046,7 @@ function SkimChallengeEditor({ activity, onSave }: { activity: Activity; onSave:
               <select
                 value={question.answer}
                 onChange={(e) => updateQuestion(index, { answer: e.target.value })}
-                className="mt-1 w-full rounded border border-black/15 px-2 py-1.5 text-xs"
+                className="mt-1 w-full rounded border border-[var(--br-border)] px-2 py-1.5 text-xs"
               >
                 {["A", "B", "C", "D"].map((letter) => (
                   <option key={letter} value={letter}>{letter}</option>
@@ -1058,7 +1058,7 @@ function SkimChallengeEditor({ activity, onSave }: { activity: Activity; onSave:
         <button
           type="button"
           onClick={() => setQuestions((current) => [...current, { id: Date.now(), text: "", options: { A: "", B: "", C: "", D: "" }, answer: "A" }])}
-          className="w-full rounded border border-dashed border-black/15 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+          className="w-full rounded border border-dashed border-[var(--br-border)] py-2 text-xs font-semibold text-slate-600 hover:bg-surface-muted"
         >
           + Add Question
         </button>
@@ -1102,7 +1102,7 @@ function ParaphraseIdEditor({ activity, onSave }: { activity: Activity; onSave: 
     <div className="grid gap-4">
       <label className="text-sm font-medium">
         Instruction / Prompt
-        <input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+        <input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" />
       </label>
 
       <label className="text-sm font-medium">
@@ -1112,11 +1112,11 @@ function ParaphraseIdEditor({ activity, onSave }: { activity: Activity; onSave: 
           value={passage}
           onChange={(event) => setPassage(event.target.value)}
           placeholder="Enter the source sentence or paragraph to paraphrase..."
-          className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+          className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 text-sm"
         />
       </label>
 
-      <div className="grid gap-3 rounded-md border border-black/10 p-4">
+      <div className="grid gap-3 rounded-md border border-[var(--br-border)] p-4">
         <p className="font-bold text-sm text-slate-700">Paraphrase Options</p>
         {(["A", "B", "C", "D"] as const).map((letter) => (
           <label key={letter} className="text-xs">
@@ -1124,7 +1124,7 @@ function ParaphraseIdEditor({ activity, onSave }: { activity: Activity; onSave: 
             <input
               value={choices[letter]}
               onChange={(e) => setChoices((prev) => ({ ...prev, [letter]: e.target.value }))}
-              className="mt-1 w-full rounded border border-black/15 px-2 py-1.5 text-xs"
+              className="mt-1 w-full rounded border border-[var(--br-border)] px-2 py-1.5 text-xs"
             />
           </label>
         ))}
@@ -1134,7 +1134,7 @@ function ParaphraseIdEditor({ activity, onSave }: { activity: Activity; onSave: 
           <select
             value={correctAnswer}
             onChange={(e) => setCorrectAnswer(e.target.value)}
-            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+            className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 text-sm"
           >
             {["A", "B", "C", "D"].map((letter) => (
               <option key={letter} value={letter}>{letter}</option>
@@ -1175,9 +1175,9 @@ function GapFillEditor({ activity, onSave }: { activity: Activity; onSave: (data
 
   return (
     <div className="grid gap-4">
-      <label className="text-sm font-medium">Instruction<input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+      <label className="text-sm font-medium">Instruction<input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
       {items.map((item, index) => (
-        <div key={index} className="rounded-md border border-black/10 p-4">
+        <div key={index} className="rounded-md border border-[var(--br-border)] p-4">
           <div className="mb-3 flex items-center justify-between gap-3">
             <p className="font-medium">{item.level === "paragraph" ? "Paragraph" : "Sentence"} {index + 1}</p>
             <button type="button" onClick={() => setItems((current) => current.filter((_, itemIndex) => itemIndex !== index))} className="text-sm text-coral">Remove</button>
@@ -1187,7 +1187,7 @@ function GapFillEditor({ activity, onSave }: { activity: Activity; onSave: (data
             <select
               value={item.level}
               onChange={(event) => setItems((current) => current.map((row, itemIndex) => itemIndex === index ? { ...row, level: event.target.value === "paragraph" ? "paragraph" : "sentence" } : row))}
-              className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+              className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2"
             >
               <option value="sentence">Sentence (one short line)</option>
               <option value="paragraph">Paragraph (longer passage)</option>
@@ -1200,30 +1200,30 @@ function GapFillEditor({ activity, onSave }: { activity: Activity; onSave: (data
                 rows={5}
                 value={item.sentence}
                 onChange={(event) => updateSentence(index, event.target.value)}
-                className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+                className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2"
                 placeholder="She said she ___ tired, but she ___ stay up to finish her homework."
               />
             ) : (
               <input
                 value={item.sentence}
                 onChange={(event) => updateSentence(index, event.target.value)}
-                className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+                className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2"
                 placeholder="She said she ___ tired."
               />
             )}
-            <span className="mt-1 block text-xs text-black/45">
+            <span className="mt-1 block text-xs text-[var(--br-text-muted)]">
               Type <code className="rounded bg-black/5 px-1 py-0.5 font-mono">___</code> (three underscores) anywhere you want a blank. Each one becomes its own answer field below.
             </span>
           </label>
           <div className="mt-3 grid gap-3 md:grid-cols-2">
             {item.answers.map((answer, answerIndex) => (
-              <label key={answerIndex} className="text-sm">Answer {answerIndex + 1}<input value={answer} onChange={(event) => setItems((current) => current.map((row, itemIndex) => itemIndex === index ? { ...row, answers: row.answers.map((value, valueIndex) => valueIndex === answerIndex ? event.target.value : value) } : row))} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+              <label key={answerIndex} className="text-sm">Answer {answerIndex + 1}<input value={answer} onChange={(event) => setItems((current) => current.map((row, itemIndex) => itemIndex === index ? { ...row, answers: row.answers.map((value, valueIndex) => valueIndex === answerIndex ? event.target.value : value) } : row))} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
             ))}
           </div>
         </div>
       ))}
       <div className="flex flex-wrap gap-3">
-        <button type="button" onClick={() => setItems((current) => [...current, { level: "sentence", sentence: "", answers: [""] }])} className="rounded-md border border-black/15 px-4 py-2 text-sm">Add sentence</button>
+        <button type="button" onClick={() => setItems((current) => [...current, { level: "sentence", sentence: "", answers: [""] }])} className="rounded-md border border-[var(--br-border)] px-4 py-2 text-sm">Add sentence</button>
         <SaveButton onClick={() => onSave({ prompt, items: items.map((item) => ({ level: item.level, sentence: item.sentence, answer: item.answers.length === 1 ? item.answers[0] : item.answers })) } as Json, needsReview)} />
       </div>
     </div>
@@ -1238,16 +1238,16 @@ function TrueFalseEditor({ activity, onSave }: { activity: Activity; onSave: (da
 
   return (
     <div className="grid gap-4">
-      <label className="text-sm font-medium">Instruction<input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+      <label className="text-sm font-medium">Instruction<input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
       {items.map((item, index) => (
-        <div key={index} className="grid gap-3 rounded-md border border-black/10 p-4 md:grid-cols-[1fr_160px_auto] md:items-end">
-          <label className="text-sm">Statement<input value={item.statement} onChange={(event) => setItems((current) => current.map((row, itemIndex) => itemIndex === index ? { ...row, statement: event.target.value } : row))} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
-          <label className="text-sm">Answer<select value={String(item.answer)} onChange={(event) => setItems((current) => current.map((row, itemIndex) => itemIndex === index ? { ...row, answer: event.target.value === "true" } : row))} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"><option value="true">True</option><option value="false">False</option></select></label>
+        <div key={index} className="grid gap-3 rounded-md border border-[var(--br-border)] p-4 md:grid-cols-[1fr_160px_auto] md:items-end">
+          <label className="text-sm">Statement<input value={item.statement} onChange={(event) => setItems((current) => current.map((row, itemIndex) => itemIndex === index ? { ...row, statement: event.target.value } : row))} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+          <label className="text-sm">Answer<select value={String(item.answer)} onChange={(event) => setItems((current) => current.map((row, itemIndex) => itemIndex === index ? { ...row, answer: event.target.value === "true" } : row))} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2"><option value="true">True</option><option value="false">False</option></select></label>
           <button type="button" onClick={() => setItems((current) => current.filter((_, itemIndex) => itemIndex !== index))} className="text-sm text-coral md:pb-2">Remove</button>
         </div>
       ))}
       <div className="flex flex-wrap gap-3">
-        <button type="button" onClick={() => setItems((current) => [...current, { statement: "", answer: true }])} className="rounded-md border border-black/15 px-4 py-2 text-sm">Add statement</button>
+        <button type="button" onClick={() => setItems((current) => [...current, { statement: "", answer: true }])} className="rounded-md border border-[var(--br-border)] px-4 py-2 text-sm">Add statement</button>
         <SaveButton onClick={() => onSave({ prompt, items } as Json, needsReview)} />
       </div>
     </div>
@@ -1273,12 +1273,12 @@ function MatchingEditor({ activity, onSave }: { activity: Activity; onSave: (dat
 
   return (
     <div className="grid gap-4">
-      <label className="text-sm font-medium">Instruction<input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+      <label className="text-sm font-medium">Instruction<input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
       <label className="flex items-center gap-2 text-sm font-medium"><input type="checkbox" checked={shuffle} onChange={(event) => setShuffle(event.target.checked)} /> Shuffle Column B for every new learner attempt</label>
-      <p className="-mt-2 text-xs text-black/50">Letters remain the answer key; only the display order changes, so matching is never obvious.</p>
+      <p className="-mt-2 text-xs text-[var(--br-text-muted)]">Letters remain the answer key; only the display order changes, so matching is never obvious.</p>
       <div className="grid gap-4 md:grid-cols-2">
-        <section className="rounded-lg border border-black/10 p-3"><p className="mb-3 text-sm font-semibold">Column A</p><div className="grid gap-2">{aItems.map((item, index) => <div key={index} className="grid grid-cols-[28px_minmax(0,1fr)_112px_auto] items-center gap-2"><span className="text-sm font-semibold text-black/55">{index + 1}.</span><input value={item} onChange={(event) => updateA(index, event.target.value)} placeholder="Item" className="min-w-0 rounded-md border border-black/15 px-2 py-2 text-sm"/><select value={pairs[String(index + 1)] ?? ""} onChange={(event) => setPairs((current) => ({ ...current, [String(index + 1)]: event.target.value }))} className="rounded-md border border-black/15 px-2 py-2 text-sm"><option value="">Answer</option>{letters.map((letter) => <option key={letter} value={letter}>{letter}</option>)}</select><button type="button" onClick={() => { setAItems((current) => current.filter((_, itemIndex) => itemIndex !== index)); setPairs((current) => { const next: Record<string,string> = {}; Object.entries(current).forEach(([key, value]) => { const number = Number(key); if (number < index + 1) next[key] = value; if (number > index + 1) next[String(number - 1)] = value; }); return next; }); }} className="text-xs text-coral">Remove</button></div>)}</div><button type="button" onClick={() => setAItems((current) => [...current, ""])} className="mt-3 rounded-md border border-black/15 px-3 py-2 text-sm">Add Column A item</button></section>
-        <section className="rounded-lg border border-black/10 p-3"><p className="mb-3 text-sm font-semibold">Column B</p><div className="grid gap-2">{bItems.map((item, index) => <div key={index} className="grid grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-2"><span className="text-sm font-semibold text-black/55">{String.fromCharCode(65 + index)}.</span><input value={item} onChange={(event) => updateB(index, event.target.value)} placeholder="Match" className="min-w-0 rounded-md border border-black/15 px-2 py-2 text-sm"/><button type="button" onClick={() => setBItems((current) => current.filter((_, itemIndex) => itemIndex !== index))} className="text-xs text-coral">Remove</button></div>)}</div><button type="button" onClick={() => setBItems((current) => [...current, ""])} className="mt-3 rounded-md border border-black/15 px-3 py-2 text-sm">Add Column B item</button></section>
+        <section className="rounded-lg border border-[var(--br-border)] p-3"><p className="mb-3 text-sm font-semibold">Column A</p><div className="grid gap-2">{aItems.map((item, index) => <div key={index} className="grid grid-cols-[28px_minmax(0,1fr)_112px_auto] items-center gap-2"><span className="text-sm font-semibold text-[var(--br-text-muted)]">{index + 1}.</span><input value={item} onChange={(event) => updateA(index, event.target.value)} placeholder="Item" className="min-w-0 rounded-md border border-[var(--br-border)] px-2 py-2 text-sm"/><select value={pairs[String(index + 1)] ?? ""} onChange={(event) => setPairs((current) => ({ ...current, [String(index + 1)]: event.target.value }))} className="rounded-md border border-[var(--br-border)] px-2 py-2 text-sm"><option value="">Answer</option>{letters.map((letter) => <option key={letter} value={letter}>{letter}</option>)}</select><button type="button" onClick={() => { setAItems((current) => current.filter((_, itemIndex) => itemIndex !== index)); setPairs((current) => { const next: Record<string,string> = {}; Object.entries(current).forEach(([key, value]) => { const number = Number(key); if (number < index + 1) next[key] = value; if (number > index + 1) next[String(number - 1)] = value; }); return next; }); }} className="text-xs text-coral">Remove</button></div>)}</div><button type="button" onClick={() => setAItems((current) => [...current, ""])} className="mt-3 rounded-md border border-[var(--br-border)] px-3 py-2 text-sm">Add Column A item</button></section>
+        <section className="rounded-lg border border-[var(--br-border)] p-3"><p className="mb-3 text-sm font-semibold">Column B</p><div className="grid gap-2">{bItems.map((item, index) => <div key={index} className="grid grid-cols-[28px_minmax(0,1fr)_auto] items-center gap-2"><span className="text-sm font-semibold text-[var(--br-text-muted)]">{String.fromCharCode(65 + index)}.</span><input value={item} onChange={(event) => updateB(index, event.target.value)} placeholder="Match" className="min-w-0 rounded-md border border-[var(--br-border)] px-2 py-2 text-sm"/><button type="button" onClick={() => setBItems((current) => current.filter((_, itemIndex) => itemIndex !== index))} className="text-xs text-coral">Remove</button></div>)}</div><button type="button" onClick={() => setBItems((current) => [...current, ""])} className="mt-3 rounded-md border border-[var(--br-border)] px-3 py-2 text-sm">Add Column B item</button></section>
       </div>
       <SaveButton onClick={() => onSave({ prompt, shuffle_options: shuffle, questions: [{ id: "1", question_number: 1, question_type: "MATCHING", question_text: prompt, options: { a_items: aItems.map((item) => item.trim()), b_items: bItems.map((item) => item.trim()), shuffle_options: shuffle }, correct_answer: aItems.map((_, index) => ({ a: index + 1, b: pairs[String(index + 1)] ?? "" })) }] } as Json, needsReview)} />
     </div>
@@ -1305,10 +1305,10 @@ function ErrorCorrectionEditor({ activity, onSave }: { activity: Activity; onSav
     <div className="grid gap-4">
       <label className="text-sm font-medium">
         Instruction
-        <input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+        <input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" />
       </label>
       {items.map((item, index) => (
-        <div key={index} className="rounded-md border border-black/10 p-4">
+        <div key={index} className="rounded-md border border-[var(--br-border)] p-4">
           <div className="mb-3 flex items-center justify-between gap-3">
             <p className="font-medium">Sentence {index + 1}</p>
             <button type="button" onClick={() => setItems((current) => current.filter((_, itemIndex) => itemIndex !== index))} className="text-sm text-coral">Remove</button>
@@ -1318,7 +1318,7 @@ function ErrorCorrectionEditor({ activity, onSave }: { activity: Activity; onSav
             <select
               value={item.mode}
               onChange={(event) => updateItem(index, { mode: event.target.value === "spot_and_fix" ? "spot_and_fix" : "rewrite" })}
-              className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+              className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2"
             >
               <option value="rewrite">Rewrite whole sentence</option>
               <option value="spot_and_fix">Click error, then type fix</option>
@@ -1329,7 +1329,7 @@ function ErrorCorrectionEditor({ activity, onSave }: { activity: Activity; onSav
             <input
               value={item.text}
               onChange={(event) => updateItem(index, { text: event.target.value })}
-              className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+              className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2"
               placeholder="She don't like coffee."
             />
           </label>
@@ -1340,7 +1340,7 @@ function ErrorCorrectionEditor({ activity, onSave }: { activity: Activity; onSav
                 <input
                   value={item.errorSpan}
                   onChange={(event) => updateItem(index, { errorSpan: event.target.value })}
-                  className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+                  className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2"
                   placeholder="don't"
                 />
               </label>
@@ -1350,7 +1350,7 @@ function ErrorCorrectionEditor({ activity, onSave }: { activity: Activity; onSav
               <input
                 value={item.correction}
                 onChange={(event) => updateItem(index, { correction: event.target.value })}
-                className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+                className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2"
                 placeholder={item.mode === "spot_and_fix" ? "doesn't" : "She doesn't like coffee."}
               />
             </label>
@@ -1360,7 +1360,7 @@ function ErrorCorrectionEditor({ activity, onSave }: { activity: Activity; onSav
             <input
               value={item.note}
               onChange={(event) => updateItem(index, { note: event.target.value })}
-              className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+              className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2"
               placeholder="subject-verb agreement"
             />
           </label>
@@ -1375,7 +1375,7 @@ function ErrorCorrectionEditor({ activity, onSave }: { activity: Activity; onSav
         <button
           type="button"
           onClick={() => setItems((current) => [...current, { mode: "rewrite", text: "", errorSpan: "", correction: "", note: "" }])}
-          className="rounded-md border border-black/15 px-4 py-2 text-sm"
+          className="rounded-md border border-[var(--br-border)] px-4 py-2 text-sm"
         >
           Add sentence
         </button>
@@ -1411,12 +1411,12 @@ function ReorderingEditor({ activity, onSave }: { activity: Activity; onSave: (d
     <div className="grid gap-4">
       <label className="text-sm font-medium">
         Overall instruction
-        <input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+        <input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" />
       </label>
       {blocks.map((block, index) => {
         const lines = blockLines(block);
         return (
-          <div key={index} className="rounded-md border border-black/10 p-4">
+          <div key={index} className="rounded-md border border-[var(--br-border)] p-4">
             <div className="mb-3 flex items-center justify-between gap-3">
               <p className="font-medium">Question {index + 1}</p>
               {blocks.length > 1 ? (
@@ -1425,7 +1425,7 @@ function ReorderingEditor({ activity, onSave }: { activity: Activity; onSave: (d
             </div>
             <label className="text-sm">
               Level
-              <select value={block.level} onChange={(event) => updateBlock(index, { level: event.target.value === "word" ? "word" : "sentence" })} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">
+              <select value={block.level} onChange={(event) => updateBlock(index, { level: event.target.value === "word" ? "word" : "sentence" })} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2">
                 <option value="sentence">Sentence / step order (reorder whole lines)</option>
                 <option value="word">Word order (reorder words into one sentence)</option>
               </select>
@@ -1436,7 +1436,7 @@ function ReorderingEditor({ activity, onSave }: { activity: Activity; onSave: (d
                 value={block.questionText}
                 onChange={(event) => updateBlock(index, { questionText: event.target.value })}
                 placeholder="Leave blank to use the overall instruction"
-                className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+                className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2"
               />
             </label>
             <label className="mt-3 block text-sm">
@@ -1445,10 +1445,10 @@ function ReorderingEditor({ activity, onSave }: { activity: Activity; onSave: (d
                 rows={6}
                 value={block.itemsText}
                 onChange={(event) => updateBlock(index, { itemsText: event.target.value })}
-                className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 font-mono text-sm"
+                className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 font-mono text-sm"
                 placeholder={block.level === "word" ? "She\nalways\ndrinks\ncoffee\nin the morning" : "First, boil the water.\nThen, add the pasta.\nFinally, drain it."}
               />
-              <span className="mt-1 block text-xs text-black/45">
+              <span className="mt-1 block text-xs text-[var(--br-text-muted)]">
                 Type them in the right order — learners will see them scrambled and have to put them back in this order. The answer key is generated automatically from this order.
               </span>
             </label>
@@ -1464,7 +1464,7 @@ function ReorderingEditor({ activity, onSave }: { activity: Activity; onSave: (d
         <button
           type="button"
           onClick={() => setBlocks((current) => [...current, { level: "sentence", questionText: "", itemsText: "" }])}
-          className="rounded-md border border-black/15 px-4 py-2 text-sm"
+          className="rounded-md border border-[var(--br-border)] px-4 py-2 text-sm"
         >
           Add question
         </button>
@@ -1505,10 +1505,10 @@ function MultipleSelectEditor({ activity, onSave }: { activity: Activity; onSave
     <div className="grid gap-4">
       <label className="text-sm font-medium">
         Instruction
-        <input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+        <input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" />
       </label>
       {questions.map((question, index) => (
-        <div key={String(question.id)} className="rounded-md border border-black/10 p-4">
+        <div key={String(question.id)} className="rounded-md border border-[var(--br-border)] p-4">
           <div className="mb-3 flex items-center justify-between gap-3">
             <p className="font-medium">Question {index + 1}</p>
             <button type="button" onClick={() => setQuestions((current) => current.filter((_, itemIndex) => itemIndex !== index))} className="text-sm text-coral">Remove question</button>
@@ -1519,13 +1519,13 @@ function MultipleSelectEditor({ activity, onSave }: { activity: Activity; onSave
               <input
                 value={question.text}
                 onChange={(event) => setQuestions((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, text: event.target.value } : item))}
-                className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+                className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2"
               />
             </label>
             <p className="text-sm font-medium">Options — check the box for each correct answer</p>
             <div className="grid gap-2 md:grid-cols-2">
               {(["A", "B", "C", "D"] as const).map((letter) => (
-                <div key={letter} className="flex items-center gap-2 rounded-md border border-black/15 px-3 py-2">
+                <div key={letter} className="flex items-center gap-2 rounded-md border border-[var(--br-border)] px-3 py-2">
                   <input
                     type="checkbox"
                     checked={question.answers.includes(letter)}
@@ -1551,7 +1551,7 @@ function MultipleSelectEditor({ activity, onSave }: { activity: Activity; onSave
         <button
           type="button"
           onClick={() => setQuestions((current) => [...current, { id: Date.now(), text: "", options: { A: "", B: "", C: "", D: "" }, answers: ["A"] }])}
-          className="rounded-md border border-black/15 px-4 py-2 text-sm"
+          className="rounded-md border border-[var(--br-border)] px-4 py-2 text-sm"
         >
           Add question
         </button>
@@ -1588,7 +1588,7 @@ function ShortAnswerEditor({ activity, onSave }: { activity: Activity; onSave: (
     <div className="grid gap-4">
       <label className="text-sm font-medium">
         Instruction
-        <input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+        <input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" />
       </label>
 
       <div className="rounded-2xl border border-[var(--br-chart-primary)]/20 bg-[var(--br-chart-primary)]/5 p-4 space-y-2">
@@ -1599,7 +1599,7 @@ function ShortAnswerEditor({ activity, onSave }: { activity: Activity; onSave: (
               type="checkbox"
               checked={allowAiFeedback}
               onChange={(e) => setAllowAiFeedback(e.target.checked)}
-              className="rounded border-black/15 text-[var(--br-chart-primary)] focus:ring-[var(--br-chart-primary)]"
+              className="rounded border-[var(--br-border)] text-[var(--br-chart-primary)] focus:ring-[var(--br-chart-primary)]"
             />
             AI Instant Feedback
           </label>
@@ -1608,7 +1608,7 @@ function ShortAnswerEditor({ activity, onSave }: { activity: Activity; onSave: (
               type="checkbox"
               checked={allowSelfGraded}
               onChange={(e) => setAllowSelfGraded(e.target.checked)}
-              className="rounded border-black/15 text-[var(--br-chart-primary)] focus:ring-[var(--br-chart-primary)]"
+              className="rounded border-[var(--br-border)] text-[var(--br-chart-primary)] focus:ring-[var(--br-chart-primary)]"
             />
             Model Answer / Self Check
           </label>
@@ -1617,16 +1617,16 @@ function ShortAnswerEditor({ activity, onSave }: { activity: Activity; onSave: (
               type="checkbox"
               checked={allowTeacherReview}
               onChange={(e) => setAllowTeacherReview(e.target.checked)}
-              className="rounded border-black/15 text-[var(--br-chart-primary)] focus:ring-[var(--br-chart-primary)]"
+              className="rounded border-[var(--br-border)] text-[var(--br-chart-primary)] focus:ring-[var(--br-chart-primary)]"
             />
             Teacher Review Queue
           </label>
         </div>
-        <p className="text-xs text-black/45">Uses API quota when a learner picks AI Instant Feedback.</p>
+        <p className="text-xs text-[var(--br-text-muted)]">Uses API quota when a learner picks AI Instant Feedback.</p>
       </div>
 
       {questions.map((question, index) => (
-        <div key={String(question.id)} className="rounded-md border border-black/10 p-4">
+        <div key={String(question.id)} className="rounded-md border border-[var(--br-border)] p-4">
           <div className="mb-3 flex items-center justify-between gap-3">
             <p className="font-medium">Question {index + 1}</p>
             <button type="button" onClick={() => setQuestions((current) => current.filter((_, itemIndex) => itemIndex !== index))} className="text-sm text-coral">Remove question</button>
@@ -1634,7 +1634,7 @@ function ShortAnswerEditor({ activity, onSave }: { activity: Activity; onSave: (
           <div className="grid gap-3">
             <label className="text-sm">
               Question
-              <input value={question.text} onChange={(event) => updateQuestion(index, { text: event.target.value })} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+              <input value={question.text} onChange={(event) => updateQuestion(index, { text: event.target.value })} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" />
             </label>
             <label className="text-sm">
               Model / sample answer (shown to learners after they submit, for self-checking)
@@ -1642,10 +1642,10 @@ function ShortAnswerEditor({ activity, onSave }: { activity: Activity; onSave: (
                 rows={3}
                 value={question.sampleAnswer}
                 onChange={(event) => updateQuestion(index, { sampleAnswer: event.target.value })}
-                className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+                className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 text-sm"
               />
             </label>
-            <p className="text-xs text-black/45">
+            <p className="text-xs text-[var(--br-text-muted)]">
               This activity is self-checked, not auto-graded — learners write a free response, then compare it to your sample answer and mark themselves.
             </p>
             <label className="text-sm">
@@ -1656,7 +1656,7 @@ function ShortAnswerEditor({ activity, onSave }: { activity: Activity; onSave: (
                 value={question.minWords ?? ""}
                 onChange={(event) => updateQuestion(index, { minWords: event.target.value === "" ? null : Math.max(0, Number(event.target.value)) })}
                 placeholder="Leave blank for no minimum"
-                className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+                className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2"
               />
             </label>
             <label className="text-sm">
@@ -1665,7 +1665,7 @@ function ShortAnswerEditor({ activity, onSave }: { activity: Activity; onSave: (
                 value={question.requiredWordsText}
                 onChange={(event) => updateQuestion(index, { requiredWordsText: event.target.value })}
                 placeholder="e.g. because, however, therefore"
-                className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+                className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2"
               />
             </label>
             <label className="flex items-center gap-2 text-sm">
@@ -1676,7 +1676,7 @@ function ShortAnswerEditor({ activity, onSave }: { activity: Activity; onSave: (
               />
               Show required words to learners while they write
             </label>
-            <p className="-mt-1 text-xs text-black/45">When off, required words still count toward correctness but aren&rsquo;t revealed as a hint.</p>
+            <p className="-mt-1 text-xs text-[var(--br-text-muted)]">When off, required words still count toward correctness but aren&rsquo;t revealed as a hint.</p>
           </div>
         </div>
       ))}
@@ -1684,7 +1684,7 @@ function ShortAnswerEditor({ activity, onSave }: { activity: Activity; onSave: (
         <button
           type="button"
           onClick={() => setQuestions((current) => [...current, { id: Date.now(), text: "", sampleAnswer: "", minWords: null, requiredWordsText: "", showRequiredWords: true }])}
-          className="rounded-md border border-black/15 px-4 py-2 text-sm"
+          className="rounded-md border border-[var(--br-border)] px-4 py-2 text-sm"
         >
           Add question
         </button>
@@ -1720,7 +1720,7 @@ function SummarizationEditor({ activity, onSave }: { activity: Activity; onSave:
     <div className="grid gap-4">
       <label className="text-sm font-medium">
         Instruction / Prompt
-        <input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+        <input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" />
       </label>
 
       <label className="text-sm font-medium">
@@ -1730,7 +1730,7 @@ function SummarizationEditor({ activity, onSave }: { activity: Activity; onSave:
           value={passage}
           onChange={(event) => setPassage(event.target.value)}
           placeholder="Enter the source passage text..."
-          className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+          className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 text-sm"
         />
       </label>
 
@@ -1742,7 +1742,7 @@ function SummarizationEditor({ activity, onSave }: { activity: Activity; onSave:
           value={maxWords || ""}
           onChange={(event) => setMaxWords(event.target.value === "" ? 0 : Math.max(1, Number(event.target.value)))}
           placeholder="e.g. 30"
-          className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+          className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2"
         />
       </label>
 
@@ -1752,10 +1752,10 @@ function SummarizationEditor({ activity, onSave }: { activity: Activity; onSave:
           rows={3}
           value={sampleAnswer}
           onChange={(event) => setSampleAnswer(event.target.value)}
-          className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+          className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 text-sm"
         />
       </label>
-      <p className="text-xs text-black/45">
+      <p className="text-xs text-[var(--br-text-muted)]">
         This activity is self-checked — learners write a summary, then compare it to your sample and self-evaluate.
       </p>
 
@@ -1796,10 +1796,10 @@ function DragDropEditor({ activity, onSave }: { activity: Activity; onSave: (dat
     <div className="grid gap-4">
       <label className="text-sm font-medium">
         Instruction
-        <input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+        <input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" />
       </label>
 
-      <div className="rounded-md border border-black/10 p-4">
+      <div className="rounded-md border border-[var(--br-border)] p-4">
         <p className="mb-3 font-medium">Target boxes (where items get dropped)</p>
         <div className="grid gap-2">
           {targets.map((target, index) => (
@@ -1808,7 +1808,7 @@ function DragDropEditor({ activity, onSave }: { activity: Activity; onSave: (dat
                 value={target}
                 onChange={(event) => renameTarget(index, event.target.value)}
                 placeholder={`Target ${index + 1}`}
-                className="flex-1 rounded-md border border-black/15 px-3 py-2 text-sm"
+                className="flex-1 rounded-md border border-[var(--br-border)] px-3 py-2 text-sm"
               />
               {targets.length > 1 ? (
                 <button type="button" onClick={() => removeTarget(index)} className="text-sm text-coral">Remove</button>
@@ -1819,13 +1819,13 @@ function DragDropEditor({ activity, onSave }: { activity: Activity; onSave: (dat
         <button
           type="button"
           onClick={() => setTargets((current) => [...current, ""])}
-          className="mt-3 rounded-md border border-black/15 px-3 py-1.5 text-sm"
+          className="mt-3 rounded-md border border-[var(--br-border)] px-3 py-1.5 text-sm"
         >
           Add target box
         </button>
       </div>
 
-      <div className="rounded-md border border-black/10 p-4">
+      <div className="rounded-md border border-[var(--br-border)] p-4">
         <p className="mb-3 font-medium">Items (learners drag each one into its correct target)</p>
         <div className="grid gap-2">
           {items.map((item, index) => (
@@ -1834,12 +1834,12 @@ function DragDropEditor({ activity, onSave }: { activity: Activity; onSave: (dat
                 value={item.text}
                 onChange={(event) => updateItem(index, { text: event.target.value })}
                 placeholder="Item text"
-                className="flex-1 rounded-md border border-black/15 px-3 py-2 text-sm"
+                className="flex-1 rounded-md border border-[var(--br-border)] px-3 py-2 text-sm"
               />
               <select
                 value={item.target}
                 onChange={(event) => updateItem(index, { target: event.target.value })}
-                className="rounded-md border border-black/15 px-3 py-2 text-sm"
+                className="rounded-md border border-[var(--br-border)] px-3 py-2 text-sm"
               >
                 <option value="">Choose target...</option>
                 {targets.map((target, i) => (
@@ -1855,7 +1855,7 @@ function DragDropEditor({ activity, onSave }: { activity: Activity; onSave: (dat
         <button
           type="button"
           onClick={() => setItems((current) => [...current, { id: String(Date.now()), text: "", target: targets[0] ?? "" }])}
-          className="mt-3 rounded-md border border-black/15 px-3 py-1.5 text-sm"
+          className="mt-3 rounded-md border border-[var(--br-border)] px-3 py-1.5 text-sm"
         >
           Add item
         </button>
@@ -1898,14 +1898,14 @@ function PronunciationEditor({ activity, onSave }: { activity: Activity; onSave:
     <div className="grid gap-4">
       <label className="text-sm font-medium">
         Instruction
-        <input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+        <input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" />
       </label>
       <label className="text-sm font-medium">
         Level
         <select
           value={level}
           onChange={(event) => setLevel(event.target.value === "sentence" || event.target.value === "paragraph" ? event.target.value : "word")}
-          className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+          className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2"
         >
           <option value="word">Word list (each word recorded and scored separately)</option>
           <option value="sentence">Sentence (one recording, certain words highlighted and checked)</option>
@@ -1919,7 +1919,7 @@ function PronunciationEditor({ activity, onSave }: { activity: Activity; onSave:
           min={1}
           value={maxAttempts}
           onChange={(event) => setMaxAttempts(Math.max(1, Number(event.target.value) || 1))}
-          className="mt-1 w-32 rounded-md border border-black/15 px-3 py-2"
+          className="mt-1 w-32 rounded-md border border-[var(--br-border)] px-3 py-2"
         />
       </label>
       {level !== "word" ? (
@@ -1929,15 +1929,15 @@ function PronunciationEditor({ activity, onSave }: { activity: Activity; onSave:
             rows={level === "paragraph" ? 5 : 2}
             value={passage}
             onChange={(event) => setPassage(event.target.value)}
-            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+            className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2"
             placeholder="Her pronunciation improved a lot after she practiced every day."
           />
-          <span className="mt-1 block text-xs text-black/45">
+          <span className="mt-1 block text-xs text-[var(--br-text-muted)]">
             The target words below must appear exactly as spelled here — they&apos;ll be highlighted automatically.
           </span>
         </label>
       ) : null}
-      <div className="rounded-md border border-black/10 p-4">
+      <div className="rounded-md border border-[var(--br-border)] p-4">
         <p className="mb-3 font-medium">
           {level === "word" ? "Words to pronounce" : "Words to check (highlighted in the text above)"}
         </p>
@@ -1948,7 +1948,7 @@ function PronunciationEditor({ activity, onSave }: { activity: Activity; onSave:
                 value={target.text}
                 onChange={(event) => updateTarget(index, { text: event.target.value })}
                 placeholder={level === "word" ? "pronunciation" : "word or phrase from the text above"}
-                className="flex-1 rounded-md border border-black/15 px-3 py-2 text-sm"
+                className="flex-1 rounded-md border border-[var(--br-border)] px-3 py-2 text-sm"
               />
               <div className="flex items-center gap-1">
                 {PRONUNCIATION_COLORS.map((color) => (
@@ -1971,7 +1971,7 @@ function PronunciationEditor({ activity, onSave }: { activity: Activity; onSave:
         <button
           type="button"
           onClick={() => setTargets((current) => [...current, { id: String(Date.now()), text: "", color: PRONUNCIATION_COLORS[current.length % PRONUNCIATION_COLORS.length] }])}
-          className="mt-3 rounded-md border border-black/15 px-3 py-1.5 text-sm"
+          className="mt-3 rounded-md border border-[var(--br-border)] px-3 py-1.5 text-sm"
         >
           Add word
         </button>
@@ -1981,7 +1981,7 @@ function PronunciationEditor({ activity, onSave }: { activity: Activity; onSave:
           One or more target words don&apos;t appear in the text above exactly as spelled — they won&apos;t be highlighted or checked until the spelling matches.
         </p>
       ) : null}
-      <p className="rounded-md border border-black/10 bg-slate-50 p-3 text-xs text-black/55">
+      <p className="rounded-md border border-[var(--br-border)] bg-surface-muted p-3 text-xs text-[var(--br-text-muted)]">
         This activity uses your browser&apos;s built-in speech recognition (free, no setup needed), which currently works reliably in Chrome and Edge only. It checks whether the recognizer transcribed the target word — a useful practice signal, but not a precise measure of pronunciation accuracy.
       </p>
       <div className="flex flex-wrap gap-3">
@@ -2011,7 +2011,7 @@ function DictationEditor({ activity, onSave }: { activity: Activity; onSave: (da
     <div className="grid gap-4">
       <label className="text-sm font-medium">
         Instruction Prompt
-        <input value={prompt} onChange={(e) => setPrompt(e.target.value)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+        <input value={prompt} onChange={(e) => setPrompt(e.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" />
       </label>
 
       <MediaRecorderInput
@@ -2027,13 +2027,13 @@ function DictationEditor({ activity, onSave }: { activity: Activity; onSave: (da
           value={correctAnswer}
           onChange={(e) => setCorrectAnswer(e.target.value)}
           placeholder="e.g. She sells seashells by the seashore."
-          className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm font-medium"
+          className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 text-sm font-medium"
         />
       </label>
 
       <label className="text-sm font-medium">
         Optional Hint for Learners
-        <input value={hint} onChange={(e) => setHint(e.target.value)} placeholder="e.g. Pay attention to tongue twister S sound." className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+        <input value={hint} onChange={(e) => setHint(e.target.value)} placeholder="e.g. Pay attention to tongue twister S sound." className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" />
       </label>
 
       <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
@@ -2094,7 +2094,7 @@ function ListenSelectEditor({ activity, onSave }: { activity: Activity; onSave: 
     <div className="grid gap-4">
       <label className="text-sm font-medium">
         Instruction Prompt
-        <input value={prompt} onChange={(e) => setPrompt(e.target.value)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+        <input value={prompt} onChange={(e) => setPrompt(e.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" />
       </label>
 
       <MediaRecorderInput
@@ -2103,10 +2103,10 @@ function ListenSelectEditor({ activity, onSave }: { activity: Activity; onSave: 
         onChange={setAudioUrl}
       />
 
-      <div className="rounded-md border border-black/10 p-4 space-y-3">
+      <div className="rounded-md border border-[var(--br-border)] p-4 space-y-3">
         <p className="font-semibold text-sm">Options / Choice Cards</p>
         {choices.map((choice, i) => (
-          <div key={choice.id} className="rounded-lg border border-black/10 p-3 space-y-2 bg-slate-50/50">
+          <div key={choice.id} className="rounded-lg border border-[var(--br-border)] p-3 space-y-2 bg-surface-muted/50">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-moss">Choice {i + 1}</span>
               {choices.length > 1 && (
@@ -2127,7 +2127,7 @@ function ListenSelectEditor({ activity, onSave }: { activity: Activity; onSave: 
                 setChoices(next);
               }}
               placeholder="Choice text or phrase"
-              className="w-full rounded-md border border-black/15 px-3 py-1.5 text-sm"
+              className="w-full rounded-md border border-[var(--br-border)] px-3 py-1.5 text-sm"
             />
             <MediaRecorderInput
               type="image"
@@ -2144,7 +2144,7 @@ function ListenSelectEditor({ activity, onSave }: { activity: Activity; onSave: 
         <button
           type="button"
           onClick={() => setChoices((curr) => [...curr, { id: String(curr.length), text: "", image_url: "" }])}
-          className="rounded-md border border-dashed border-black/20 px-3 py-1.5 text-xs font-semibold text-black/70 hover:bg-black/5"
+          className="rounded-md border border-dashed border-[var(--br-border)] px-3 py-1.5 text-xs font-semibold text-[var(--br-text-muted)] hover:bg-black/5"
         >
           + Add Choice Card
         </button>
@@ -2155,7 +2155,7 @@ function ListenSelectEditor({ activity, onSave }: { activity: Activity; onSave: 
         <select
           value={correctAnswer}
           onChange={(e) => setCorrectAnswer(e.target.value)}
-          className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+          className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 text-sm"
         >
           {choices.map((choice, i) => (
             <option key={choice.id} value={choice.id}>
@@ -2196,7 +2196,7 @@ function ShadowingEditor({ activity, onSave }: { activity: Activity; onSave: (da
     <div className="grid gap-4">
       <label className="text-sm font-medium">
         Instruction Prompt
-        <input value={prompt} onChange={(e) => setPrompt(e.target.value)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+        <input value={prompt} onChange={(e) => setPrompt(e.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" />
       </label>
 
       <MediaRecorderInput
@@ -2212,7 +2212,7 @@ function ShadowingEditor({ activity, onSave }: { activity: Activity; onSave: (da
           value={targetText}
           onChange={(e) => setTargetText(e.target.value)}
           placeholder="e.g. Could I have a glass of water, please?"
-          className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm font-medium"
+          className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 text-sm font-medium"
         />
       </label>
 
@@ -2265,7 +2265,7 @@ function NoteTakingChallengeEditor({ activity, onSave }: { activity: Activity; o
     <div className="grid gap-4">
       <label className="text-sm font-medium">
         Instruction Prompt
-        <input value={prompt} onChange={(e) => setPrompt(e.target.value)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+        <input value={prompt} onChange={(e) => setPrompt(e.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" />
       </label>
 
       <MediaRecorderInput
@@ -2282,17 +2282,17 @@ function NoteTakingChallengeEditor({ activity, onSave }: { activity: Activity; o
           value={maxPlays}
           onChange={(e) => setMaxPlays(Math.max(0, Number(e.target.value) || 0))}
           placeholder="e.g. 2"
-          className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+          className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 text-sm"
         />
-        <span className="mt-1 block text-xs text-black/50">
+        <span className="mt-1 block text-xs text-[var(--br-text-muted)]">
           Set how many times learners are allowed to press play on the audio/video during this challenge (0 = unlimited).
         </span>
       </label>
 
-      <div className="rounded-md border border-black/10 p-4 space-y-3">
+      <div className="rounded-md border border-[var(--br-border)] p-4 space-y-3">
         <p className="font-semibold text-sm">Comprehension Questions</p>
         {questions.map((q, i) => (
-          <div key={q.id} className="rounded-lg border border-black/10 p-3 space-y-3 bg-slate-50/50">
+          <div key={q.id} className="rounded-lg border border-[var(--br-border)] p-3 space-y-3 bg-surface-muted/50">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-moss">Question {i + 1}</span>
               {questions.length > 1 && (
@@ -2313,15 +2313,15 @@ function NoteTakingChallengeEditor({ activity, onSave }: { activity: Activity; o
                 setQuestions(next);
               }}
               placeholder="Question text"
-              className="w-full rounded-md border border-black/15 px-3 py-1.5 text-sm font-medium bg-white"
+              className="w-full rounded-md border border-[var(--br-border)] px-3 py-1.5 text-sm font-medium bg-surface"
             />
 
             {/* Discrete Options Fields */}
-            <div className="space-y-2 bg-white p-3 rounded-lg border border-black/10">
-              <label className="text-xs font-semibold text-black/70 block">Question Options:</label>
+            <div className="space-y-2 bg-surface p-3 rounded-lg border border-[var(--br-border)]">
+              <label className="text-xs font-semibold text-[var(--br-text-muted)] block">Question Options:</label>
               {q.options.map((opt, optIdx) => (
                 <div key={optIdx} className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-black/40 w-4">{String.fromCharCode(65 + optIdx)}.</span>
+                  <span className="text-xs font-bold text-[var(--br-text-muted)] w-4">{String.fromCharCode(65 + optIdx)}.</span>
                   <input
                     type="text"
                     value={opt}
@@ -2333,7 +2333,7 @@ function NoteTakingChallengeEditor({ activity, onSave }: { activity: Activity; o
                       setQuestions(next);
                     }}
                     placeholder={`Option ${String.fromCharCode(65 + optIdx)}`}
-                    className="flex-1 rounded-md border border-black/15 px-2.5 py-1 text-xs"
+                    className="flex-1 rounded-md border border-[var(--br-border)] px-2.5 py-1 text-xs"
                   />
                   {q.options.length > 1 && (
                     <button
@@ -2359,13 +2359,13 @@ function NoteTakingChallengeEditor({ activity, onSave }: { activity: Activity; o
                   next[i] = { ...q, options: nextOpts };
                   setQuestions(next);
                 }}
-                className="rounded border border-dashed border-black/20 px-2.5 py-1 text-[11px] font-semibold text-black/60 hover:bg-black/5 mt-1"
+                className="rounded border border-dashed border-[var(--br-border)] px-2.5 py-1 text-[11px] font-semibold text-[var(--br-text-muted)] hover:bg-black/5 mt-1"
               >
                 + Add Option
               </button>
             </div>
 
-            <label className="text-xs font-semibold text-black/70 block">Correct Answer:</label>
+            <label className="text-xs font-semibold text-[var(--br-text-muted)] block">Correct Answer:</label>
             <input
               value={q.answer}
               onChange={(e) => {
@@ -2374,7 +2374,7 @@ function NoteTakingChallengeEditor({ activity, onSave }: { activity: Activity; o
                 setQuestions(next);
               }}
               placeholder="Correct answer text (must match one of the options above)"
-              className="w-full rounded-md border border-black/15 px-3 py-1.5 text-xs bg-white"
+              className="w-full rounded-md border border-[var(--br-border)] px-3 py-1.5 text-xs bg-surface"
             />
           </div>
         ))}
@@ -2386,7 +2386,7 @@ function NoteTakingChallengeEditor({ activity, onSave }: { activity: Activity; o
               { id: String(curr.length + 1), text: "", options: ["Option A", "Option B"], answer: "" },
             ])
           }
-          className="rounded-md border border-dashed border-black/20 px-3 py-1.5 text-xs font-semibold text-black/70 hover:bg-black/5"
+          className="rounded-md border border-dashed border-[var(--br-border)] px-3 py-1.5 text-xs font-semibold text-[var(--br-text-muted)] hover:bg-black/5"
         >
           + Add Question
         </button>
@@ -2447,7 +2447,7 @@ function SoundDiscriminationEditor({ activity, onSave }: { activity: Activity; o
     <div className="grid gap-4">
       <label className="text-sm font-medium">
         Instruction Prompt
-        <input value={prompt} onChange={(e) => setPrompt(e.target.value)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+        <input value={prompt} onChange={(e) => setPrompt(e.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" />
       </label>
 
       <MediaRecorderInput
@@ -2456,10 +2456,10 @@ function SoundDiscriminationEditor({ activity, onSave }: { activity: Activity; o
         onChange={setAudioUrl}
       />
 
-      <div className="rounded-md border border-black/10 p-4 space-y-3">
+      <div className="rounded-md border border-[var(--br-border)] p-4 space-y-3">
         <p className="font-semibold text-sm">Minimal Pair Cards (e.g. ship vs sheep)</p>
         {pairs.map((pair, i) => (
-          <div key={pair.id} className="rounded-lg border border-black/10 p-3 space-y-2 bg-slate-50/50">
+          <div key={pair.id} className="rounded-lg border border-[var(--br-border)] p-3 space-y-2 bg-surface-muted/50">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-moss">Pair Word {i + 1}</span>
               {pairs.length > 1 && (
@@ -2481,7 +2481,7 @@ function SoundDiscriminationEditor({ activity, onSave }: { activity: Activity; o
                   setPairs(next);
                 }}
                 placeholder="Word (e.g. ship)"
-                className="rounded-md border border-black/15 px-3 py-1.5 text-sm"
+                className="rounded-md border border-[var(--br-border)] px-3 py-1.5 text-sm"
               />
               <input
                 value={pair.phonetic}
@@ -2491,7 +2491,7 @@ function SoundDiscriminationEditor({ activity, onSave }: { activity: Activity; o
                   setPairs(next);
                 }}
                 placeholder="Phonetic (e.g. /ʃɪp/)"
-                className="rounded-md border border-black/15 px-3 py-1.5 text-sm font-mono"
+                className="rounded-md border border-[var(--br-border)] px-3 py-1.5 text-sm font-mono"
               />
             </div>
             <MediaRecorderInput
@@ -2510,7 +2510,7 @@ function SoundDiscriminationEditor({ activity, onSave }: { activity: Activity; o
           onClick={() =>
             setPairs((curr) => [...curr, { id: String(curr.length), word: "", phonetic: "", audio_url: "" }])
           }
-          className="rounded-md border border-dashed border-black/20 px-3 py-1.5 text-xs font-semibold text-black/70 hover:bg-black/5"
+          className="rounded-md border border-dashed border-[var(--br-border)] px-3 py-1.5 text-xs font-semibold text-[var(--br-text-muted)] hover:bg-black/5"
         >
           + Add Minimal Pair Word
         </button>
@@ -2521,7 +2521,7 @@ function SoundDiscriminationEditor({ activity, onSave }: { activity: Activity; o
         <select
           value={correctAnswer}
           onChange={(e) => setCorrectAnswer(e.target.value)}
-          className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+          className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 text-sm"
         >
           {pairs.map((pair, i) => (
             <option key={pair.id} value={pair.id}>
@@ -2566,7 +2566,7 @@ function ListenGapFillEditor({ activity, onSave }: { activity: Activity; onSave:
     <div className="grid gap-4">
       <label className="text-sm font-medium">
         Instruction Prompt
-        <input value={prompt} onChange={(e) => setPrompt(e.target.value)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+        <input value={prompt} onChange={(e) => setPrompt(e.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" />
       </label>
 
       <MediaRecorderInput
@@ -2582,14 +2582,14 @@ function ListenGapFillEditor({ activity, onSave }: { activity: Activity; onSave:
           value={transcript}
           onChange={(e) => setTranscript(e.target.value)}
           placeholder="e.g. Yesterday I went to the ___ to buy some ___."
-          className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm font-mono"
+          className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 text-sm font-mono"
         />
-        <span className="mt-1 block text-xs text-black/50">
+        <span className="mt-1 block text-xs text-[var(--br-text-muted)]">
           Tip: Place triple underscores (___) wherever you want learners to fill in a missing word.
         </span>
       </label>
 
-      <div className="rounded-md border border-black/10 p-4 space-y-3 bg-slate-50/50">
+      <div className="rounded-md border border-[var(--br-border)] p-4 space-y-3 bg-surface-muted/50">
         <p className="font-semibold text-sm">Target Answers for Blanks (in order of appearance)</p>
         {answers.map((ans, idx) => (
           <div key={idx} className="flex items-center gap-2">
@@ -2603,7 +2603,7 @@ function ListenGapFillEditor({ activity, onSave }: { activity: Activity; onSave:
                 setAnswers(next);
               }}
               placeholder={`Correct word for blank ${idx + 1}`}
-              className="flex-1 rounded-md border border-black/15 px-3 py-1.5 text-sm bg-white"
+              className="flex-1 rounded-md border border-[var(--br-border)] px-3 py-1.5 text-sm bg-surface"
             />
             {answers.length > 1 && (
               <button
@@ -2619,7 +2619,7 @@ function ListenGapFillEditor({ activity, onSave }: { activity: Activity; onSave:
         <button
           type="button"
           onClick={() => setAnswers((curr) => [...curr, ""])}
-          className="rounded border border-dashed border-black/20 px-2.5 py-1 text-xs font-semibold text-black/60 hover:bg-black/5"
+          className="rounded border border-dashed border-[var(--br-border)] px-2.5 py-1 text-xs font-semibold text-[var(--br-text-muted)] hover:bg-black/5"
         >
           + Add Answer Blank
         </button>
@@ -2673,32 +2673,32 @@ function SentenceCompletionEditor({
     <div className="grid gap-4">
       <label className="text-sm font-medium">
         Activity Prompt
-        <input value={prompt} onChange={(e) => setPrompt(e.target.value)} className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm" />
+        <input value={prompt} onChange={(e) => setPrompt(e.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] p-2 text-sm" />
       </label>
 
       <label className="text-sm font-medium">
         Context / Instructions (Optional Description)
-        <textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Additional context or grammatical rules to guide the learner..." className="mt-1 w-full rounded-md border border-black/15 p-2 text-xs" />
+        <textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Additional context or grammatical rules to guide the learner..." className="mt-1 w-full rounded-md border border-[var(--br-border)] p-2 text-xs" />
       </label>
 
       <label className="text-sm font-medium">
         Sentence Stem
-        <input value={stem} onChange={(e) => setStem(e.target.value)} placeholder="e.g. Although it was raining," className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm" />
+        <input value={stem} onChange={(e) => setStem(e.target.value)} placeholder="e.g. Although it was raining," className="mt-1 w-full rounded-md border border-[var(--br-border)] p-2 text-sm" />
       </label>
 
       <label className="text-sm font-medium">
         Suggested Connectors (comma-separated)
-        <input value={connectors} onChange={(e) => setConnectors(e.target.value)} placeholder="e.g. nevertheless, furthermore" className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm" />
+        <input value={connectors} onChange={(e) => setConnectors(e.target.value)} placeholder="e.g. nevertheless, furthermore" className="mt-1 w-full rounded-md border border-[var(--br-border)] p-2 text-sm" />
       </label>
 
       <label className="text-sm font-medium">
         Model Answer Response
-        <textarea rows={3} value={modelAnswer} onChange={(e) => setModelAnswer(e.target.value)} placeholder="High-quality sample answer..." className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm font-mono" />
+        <textarea rows={3} value={modelAnswer} onChange={(e) => setModelAnswer(e.target.value)} placeholder="High-quality sample answer..." className="mt-1 w-full rounded-md border border-[var(--br-border)] p-2 text-sm font-mono" />
       </label>
 
       <label className="text-sm font-medium">
         Model Description / Explanation
-        <textarea rows={2} value={modelDescription} onChange={(e) => setModelDescription(e.target.value)} placeholder="Explanation of model answer..." className="mt-1 w-full rounded-md border border-black/15 p-2 text-xs" />
+        <textarea rows={2} value={modelDescription} onChange={(e) => setModelDescription(e.target.value)} placeholder="Explanation of model answer..." className="mt-1 w-full rounded-md border border-[var(--br-border)] p-2 text-xs" />
       </label>
 
       <div className="rounded-2xl border border-[var(--br-chart-primary)]/20 bg-[var(--br-chart-primary)]/5 p-4 space-y-2">
@@ -2709,7 +2709,7 @@ function SentenceCompletionEditor({
               type="checkbox"
               checked={allowAiFeedback}
               onChange={(e) => setAllowAiFeedback(e.target.checked)}
-              className="rounded border-black/15 text-[var(--br-chart-primary)] focus:ring-[var(--br-chart-primary)]"
+              className="rounded border-[var(--br-border)] text-[var(--br-chart-primary)] focus:ring-[var(--br-chart-primary)]"
             />
             AI Instant Feedback
           </label>
@@ -2718,7 +2718,7 @@ function SentenceCompletionEditor({
               type="checkbox"
               checked={allowSelfGraded}
               onChange={(e) => setAllowSelfGraded(e.target.checked)}
-              className="rounded border-black/15 text-[var(--br-chart-primary)] focus:ring-[var(--br-chart-primary)]"
+              className="rounded border-[var(--br-border)] text-[var(--br-chart-primary)] focus:ring-[var(--br-chart-primary)]"
             />
             Model Answer / Self Check
           </label>
@@ -2727,7 +2727,7 @@ function SentenceCompletionEditor({
               type="checkbox"
               checked={allowTeacherReview}
               onChange={(e) => setAllowTeacherReview(e.target.checked)}
-              className="rounded border-black/15 text-[var(--br-chart-primary)] focus:ring-[var(--br-chart-primary)]"
+              className="rounded border-[var(--br-border)] text-[var(--br-chart-primary)] focus:ring-[var(--br-chart-primary)]"
             />
             Teacher Review Queue
           </label>
@@ -2776,34 +2776,34 @@ function EssayWritingEditor({
     <div className="grid gap-4">
       <label className="text-sm font-medium">
         Activity Instruction (Heading)
-        <input value={instruction} onChange={(e) => setInstruction(e.target.value)} placeholder="e.g. Write an essay responding to the prompt below." className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm" />
+        <input value={instruction} onChange={(e) => setInstruction(e.target.value)} placeholder="e.g. Write an essay responding to the prompt below." className="mt-1 w-full rounded-md border border-[var(--br-border)] p-2 text-sm" />
       </label>
 
       <label className="text-sm font-medium">
         Essay Prompt & Situation
-        <textarea rows={3} value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Full essay prompt description..." className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm" />
+        <textarea rows={3} value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Full essay prompt description..." className="mt-1 w-full rounded-md border border-[var(--br-border)] p-2 text-sm" />
       </label>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="text-sm font-medium">
           Min Words
-          <input type="number" value={minWords} onChange={(e) => setMinWords(Number(e.target.value))} className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm" />
+          <input type="number" value={minWords} onChange={(e) => setMinWords(Number(e.target.value))} className="mt-1 w-full rounded-md border border-[var(--br-border)] p-2 text-sm" />
         </label>
 
         <label className="text-sm font-medium">
           Max Words
-          <input type="number" value={maxWords} onChange={(e) => setMaxWords(Number(e.target.value))} className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm" />
+          <input type="number" value={maxWords} onChange={(e) => setMaxWords(Number(e.target.value))} className="mt-1 w-full rounded-md border border-[var(--br-border)] p-2 text-sm" />
         </label>
       </div>
 
       <label className="text-sm font-medium">
         Sample Model Essay
-        <textarea rows={6} value={sampleEssay} onChange={(e) => setSampleEssay(e.target.value)} placeholder="Model essay text..." className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm font-mono" />
+        <textarea rows={6} value={sampleEssay} onChange={(e) => setSampleEssay(e.target.value)} placeholder="Model essay text..." className="mt-1 w-full rounded-md border border-[var(--br-border)] p-2 text-sm font-mono" />
       </label>
 
       <label className="text-sm font-medium">
         Rubric Evaluation Guidelines
-        <textarea rows={3} value={rubricGuidelines} onChange={(e) => setRubricGuidelines(e.target.value)} placeholder="Key evaluation points for AI/Teacher review..." className="mt-1 w-full rounded-md border border-black/15 p-2 text-xs" />
+        <textarea rows={3} value={rubricGuidelines} onChange={(e) => setRubricGuidelines(e.target.value)} placeholder="Key evaluation points for AI/Teacher review..." className="mt-1 w-full rounded-md border border-[var(--br-border)] p-2 text-xs" />
       </label>
 
       <SaveButton
@@ -2845,22 +2845,22 @@ function EmailLetterWritingEditor({
     <div className="grid gap-4">
       <label className="text-sm font-medium">
         Activity Instruction (Heading)
-        <input value={instruction} onChange={(e) => setInstruction(e.target.value)} placeholder="e.g. Write a formal email based on the situation below." className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm" />
+        <input value={instruction} onChange={(e) => setInstruction(e.target.value)} placeholder="e.g. Write a formal email based on the situation below." className="mt-1 w-full rounded-md border border-[var(--br-border)] p-2 text-sm" />
       </label>
 
       <label className="text-sm font-medium">
         Email Task & Situation Prompt
-        <textarea rows={3} value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Full email prompt description..." className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm" />
+        <textarea rows={3} value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Full email prompt description..." className="mt-1 w-full rounded-md border border-[var(--br-border)] p-2 text-sm" />
       </label>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="text-sm font-medium">
           Recipient Role
-          <input value={recipient} onChange={(e) => setRecipient(e.target.value)} className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm" />
+          <input value={recipient} onChange={(e) => setRecipient(e.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] p-2 text-sm" />
         </label>
         <label className="text-sm font-medium">
           Required Tone
-          <select value={tone} onChange={(e) => setTone(e.target.value)} className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm">
+          <select value={tone} onChange={(e) => setTone(e.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] p-2 text-sm">
             <option value="FORMAL">Formal</option>
             <option value="SEMI_FORMAL">Semi-Formal</option>
             <option value="INFORMAL">Informal</option>
@@ -2870,7 +2870,7 @@ function EmailLetterWritingEditor({
 
       <label className="text-sm font-medium">
         Model Email Answer
-        <textarea rows={5} value={modelEmail} onChange={(e) => setModelEmail(e.target.value)} className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm font-mono" />
+        <textarea rows={5} value={modelEmail} onChange={(e) => setModelEmail(e.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] p-2 text-sm font-mono" />
       </label>
 
       <SaveButton
@@ -2913,21 +2913,21 @@ function TranslationEditor({
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="text-sm font-medium">
           Source Language
-          <input value={sourceLang} onChange={(e) => setSourceLang(e.target.value)} className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm" />
+          <input value={sourceLang} onChange={(e) => setSourceLang(e.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] p-2 text-sm" />
         </label>
         <label className="text-sm font-medium">
           Target Language
-          <input value={targetLang} onChange={(e) => setTargetLang(e.target.value)} className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm" />
+          <input value={targetLang} onChange={(e) => setTargetLang(e.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] p-2 text-sm" />
         </label>
       </div>
 
       <label className="text-sm font-medium">
         Source Text to Translate
-        <textarea rows={2} value={sourceText} onChange={(e) => setSourceText(e.target.value)} className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm" />
+        <textarea rows={2} value={sourceText} onChange={(e) => setSourceText(e.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] p-2 text-sm" />
       </label>
 
-      <div className="rounded-md border border-black/10 p-3 space-y-2 bg-slate-50/50">
-        <p className="font-semibold text-xs text-black/70">Acceptable Target Translations</p>
+      <div className="rounded-md border border-[var(--br-border)] p-3 space-y-2 bg-surface-muted/50">
+        <p className="font-semibold text-xs text-[var(--br-text-muted)]">Acceptable Target Translations</p>
         {acceptable.map((ans, idx) => (
           <div key={idx} className="flex items-center gap-2">
             <input
@@ -2939,7 +2939,7 @@ function TranslationEditor({
                 setAcceptable(next);
               }}
               placeholder={`Translation ${idx + 1}`}
-              className="flex-1 rounded border border-black/15 px-2 py-1 text-xs bg-white"
+              className="flex-1 rounded border border-[var(--br-border)] px-2 py-1 text-xs bg-surface"
             />
             {acceptable.length > 1 && (
               <button type="button" onClick={() => setAcceptable((curr) => curr.filter((_, i) => i !== idx))} className="text-xs text-coral hover:underline">
@@ -2948,7 +2948,7 @@ function TranslationEditor({
             )}
           </div>
         ))}
-        <button type="button" onClick={() => setAcceptable((curr) => [...curr, ""])} className="rounded border border-dashed border-black/20 px-2.5 py-1 text-xs font-semibold text-black/60 hover:bg-black/5">
+        <button type="button" onClick={() => setAcceptable((curr) => [...curr, ""])} className="rounded border border-dashed border-[var(--br-border)] px-2.5 py-1 text-xs font-semibold text-[var(--br-text-muted)] hover:bg-black/5">
           + Add Alternative Translation
         </button>
       </div>
@@ -2991,17 +2991,17 @@ function ParaphrasePracticeEditor({
     <div className="grid gap-4">
       <label className="text-sm font-medium">
         Original Text
-        <textarea rows={3} value={originalText} onChange={(e) => setOriginalText(e.target.value)} className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm" />
+        <textarea rows={3} value={originalText} onChange={(e) => setOriginalText(e.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] p-2 text-sm" />
       </label>
 
       <label className="text-sm font-medium">
         Forbidden Phrases (comma-separated)
-        <input value={forbidden} onChange={(e) => setForbidden(e.target.value)} placeholder="Phrases learners cannot copy directly..." className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm" />
+        <input value={forbidden} onChange={(e) => setForbidden(e.target.value)} placeholder="Phrases learners cannot copy directly..." className="mt-1 w-full rounded-md border border-[var(--br-border)] p-2 text-sm" />
       </label>
 
       <label className="text-sm font-medium">
         Model Paraphrase
-        <textarea rows={3} value={modelParaphrase} onChange={(e) => setModelParaphrase(e.target.value)} className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm font-mono" />
+        <textarea rows={3} value={modelParaphrase} onChange={(e) => setModelParaphrase(e.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] p-2 text-sm font-mono" />
       </label>
 
       <SaveButton
@@ -3038,11 +3038,11 @@ function SentenceCombiningEditor({
 
   return (
     <div className="grid gap-4">
-      <div className="rounded-md border border-black/10 p-3 space-y-2 bg-slate-50/50">
-        <p className="font-semibold text-xs text-black/70">Simple Sentences to Combine</p>
+      <div className="rounded-md border border-[var(--br-border)] p-3 space-y-2 bg-surface-muted/50">
+        <p className="font-semibold text-xs text-[var(--br-text-muted)]">Simple Sentences to Combine</p>
         {inputSentences.map((s, idx) => (
           <div key={idx} className="flex items-center gap-2">
-            <span className="text-xs font-bold text-black/50">({idx + 1}):</span>
+            <span className="text-xs font-bold text-[var(--br-text-muted)]">({idx + 1}):</span>
             <input
               type="text"
               value={s}
@@ -3051,7 +3051,7 @@ function SentenceCombiningEditor({
                 next[idx] = e.target.value;
                 setInputSentences(next);
               }}
-              className="flex-1 rounded border border-black/15 px-2 py-1 text-xs bg-white"
+              className="flex-1 rounded border border-[var(--br-border)] px-2 py-1 text-xs bg-surface"
             />
             {inputSentences.length > 2 && (
               <button type="button" onClick={() => setInputSentences((curr) => curr.filter((_, i) => i !== idx))} className="text-xs text-coral hover:underline">
@@ -3060,14 +3060,14 @@ function SentenceCombiningEditor({
             )}
           </div>
         ))}
-        <button type="button" onClick={() => setInputSentences((curr) => [...curr, ""])} className="rounded border border-dashed border-black/20 px-2.5 py-1 text-xs font-semibold text-black/60 hover:bg-black/5">
+        <button type="button" onClick={() => setInputSentences((curr) => [...curr, ""])} className="rounded border border-dashed border-[var(--br-border)] px-2.5 py-1 text-xs font-semibold text-[var(--br-text-muted)] hover:bg-black/5">
           + Add Sentence
         </button>
       </div>
 
       <label className="text-sm font-medium">
         Model Combined Sentence
-        <textarea rows={3} value={modelCombined} onChange={(e) => setModelCombined(e.target.value)} className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm font-mono" />
+        <textarea rows={3} value={modelCombined} onChange={(e) => setModelCombined(e.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] p-2 text-sm font-mono" />
       </label>
 
       <SaveButton
@@ -3109,17 +3109,17 @@ function CreativeWritingEditor({
 
       <label className="text-sm font-medium">
         Story Starter Line
-        <input value={storyStarter} onChange={(e) => setStoryStarter(e.target.value)} placeholder="e.g. As the sun set over the quiet town..." className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm" />
+        <input value={storyStarter} onChange={(e) => setStoryStarter(e.target.value)} placeholder="e.g. As the sun set over the quiet town..." className="mt-1 w-full rounded-md border border-[var(--br-border)] p-2 text-sm" />
       </label>
 
       <label className="text-sm font-medium">
         Required Vocabulary Words (comma-separated)
-        <input value={vocab} onChange={(e) => setVocab(e.target.value)} placeholder="e.g. whisper, shadow, discovery" className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm" />
+        <input value={vocab} onChange={(e) => setVocab(e.target.value)} placeholder="e.g. whisper, shadow, discovery" className="mt-1 w-full rounded-md border border-[var(--br-border)] p-2 text-sm" />
       </label>
 
       <label className="text-sm font-medium">
         Model Story Response
-        <textarea rows={5} value={modelStory} onChange={(e) => setModelStory(e.target.value)} className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm font-mono" />
+        <textarea rows={5} value={modelStory} onChange={(e) => setModelStory(e.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] p-2 text-sm font-mono" />
       </label>
 
       <SaveButton
@@ -3161,22 +3161,22 @@ function PeerReviewEditingEditor({
     <div className="grid gap-4">
       <label className="text-sm font-medium">
         Sample Peer Draft to Edit
-        <textarea rows={4} value={sampleDraft} onChange={(e) => setSampleDraft(e.target.value)} className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm font-mono" />
+        <textarea rows={4} value={sampleDraft} onChange={(e) => setSampleDraft(e.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] p-2 text-sm font-mono" />
       </label>
 
       <label className="text-sm font-medium">
         Focus Areas for Correction (comma-separated)
-        <input value={focusAreas} onChange={(e) => setFocusAreas(e.target.value)} placeholder="e.g. Past tense verbs, Article usage" className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm" />
+        <input value={focusAreas} onChange={(e) => setFocusAreas(e.target.value)} placeholder="e.g. Past tense verbs, Article usage" className="mt-1 w-full rounded-md border border-[var(--br-border)] p-2 text-sm" />
       </label>
 
       <label className="text-sm font-medium">
         Model Corrected Draft
-        <textarea rows={4} value={modelEdited} onChange={(e) => setModelEdited(e.target.value)} className="mt-1 w-full rounded-md border border-black/15 p-2 text-sm font-mono" />
+        <textarea rows={4} value={modelEdited} onChange={(e) => setModelEdited(e.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] p-2 text-sm font-mono" />
       </label>
 
       <label className="text-sm font-medium">
         Model Peer Feedback Comments
-        <textarea rows={3} value={modelComments} onChange={(e) => setModelComments(e.target.value)} className="mt-1 w-full rounded-md border border-black/15 p-2 text-xs" />
+        <textarea rows={3} value={modelComments} onChange={(e) => setModelComments(e.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] p-2 text-xs" />
       </label>
 
       <SaveButton
@@ -3207,18 +3207,18 @@ function LiveSpeakTranslateEditor({ activity, onSave }: { activity: Activity; on
   return (
     <div className="grid gap-4">
       <label className="text-sm font-medium">Instruction
-        <textarea value={prompt} onChange={(event) => setPrompt(event.target.value)} rows={2} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+        <textarea value={prompt} onChange={(event) => setPrompt(event.target.value)} rows={2} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" />
       </label>
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="text-sm font-medium">Seconds per try
-          <input type="number" min={5} max={600} value={perAttempt} onChange={(event) => setPerAttempt(Math.max(5, Number(event.target.value) || 5))} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+          <input type="number" min={5} max={600} value={perAttempt} onChange={(event) => setPerAttempt(Math.max(5, Number(event.target.value) || 5))} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" />
         </label>
         <label className="text-sm font-medium">Total seconds per learner
-          <input type="number" min={perAttempt} max={3600} value={total} onChange={(event) => setTotal(Math.max(perAttempt, Number(event.target.value) || perAttempt))} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+          <input type="number" min={perAttempt} max={3600} value={total} onChange={(event) => setTotal(Math.max(perAttempt, Number(event.target.value) || perAttempt))} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" />
         </label>
       </div>
-      <label className="flex items-center gap-2 text-sm text-black/70"><input type="checkbox" checked={showTranscript} onChange={(event) => setShowTranscript(event.target.checked)} /> Show the English translation text when available</label>
-      <p className="rounded-md border border-violetglow/15 bg-violetglow/[0.04] p-3 text-xs text-black/60">Learners speak in Bangla and hear English audio immediately. Their allowance is checked before every try and updates as they use it.</p>
+      <label className="flex items-center gap-2 text-sm text-[var(--br-text-muted)]"><input type="checkbox" checked={showTranscript} onChange={(event) => setShowTranscript(event.target.checked)} /> Show the English translation text when available</label>
+      <p className="rounded-md border border-violetglow/15 bg-violetglow/[0.04] p-3 text-xs text-[var(--br-text-muted)]">Learners speak in Bangla and hear English audio immediately. Their allowance is checked before every try and updates as they use it.</p>
       <SaveButton onClick={() => onSave({ prompt, max_seconds_per_attempt: perAttempt, total_seconds_per_learner: total, show_transcript: showTranscript } as Json, !prompt.trim())} />
     </div>
   );

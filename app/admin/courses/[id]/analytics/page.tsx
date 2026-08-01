@@ -35,13 +35,13 @@ export default async function CourseAnalyticsPage({ params }: { params: Promise<
 
   return (
     <main className="min-w-0 overflow-hidden">
-      <Link href="/admin/analytics" className="inline-flex items-center gap-1 text-sm text-black/55 hover:text-black"><ArrowLeft size={15} /> Analytics</Link>
+      <Link href="/admin/analytics" className="inline-flex items-center gap-1 text-sm text-[var(--br-text-muted)] hover:text-[var(--br-text-muted)]"><ArrowLeft size={15} /> Analytics</Link>
       <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-moss">Course report</p>
           <h1 className="mt-1 text-2xl font-semibold sm:text-3xl">{course.title}</h1>
         </div>
-        <Link href={`/admin/courses/${course.id}/builder`} className="rounded-md border border-black/15 px-3 py-2 text-sm font-semibold">Open builder</Link>
+        <Link href={`/admin/courses/${course.id}/builder`} className="rounded-md border border-[var(--br-border)] px-3 py-2 text-sm font-semibold">Open builder</Link>
       </div>
 
       <section className="mt-5 grid gap-3 sm:grid-cols-3">
@@ -50,27 +50,27 @@ export default async function CourseAnalyticsPage({ params }: { params: Promise<
         <Metric label="Average progress" value={`${averageProgress}%`} />
       </section>
 
-      <section className="mt-5 rounded-xl border border-black/10 bg-white p-4 shadow-sm">
+      <section className="mt-5 rounded-xl border border-[var(--br-border)] bg-surface p-4 shadow-sm">
         <form action={async (formData: FormData) => { "use server"; await enrollStudentByEmail(id, formData); }} className="flex flex-wrap items-end gap-3">
           <label className="flex-1 min-w-[220px]">
-            <span className="block text-xs font-semibold uppercase tracking-wide text-black/45">Enroll a student</span>
+            <span className="block text-xs font-semibold uppercase tracking-wide text-[var(--br-text-muted)]">Enroll a student</span>
             <input
               type="email"
               name="email"
               required
               placeholder="student@email.com"
-              className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+              className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 text-sm"
             />
           </label>
-          <button type="submit" className="inline-flex items-center gap-1.5 rounded-md bg-moss px-4 py-2 text-sm font-semibold text-white">
+          <button type="submit" className="inline-flex items-center gap-1.5 rounded-md bg-moss px-4 py-2 text-sm font-semibold text-on-dark">
             <UserPlus size={15} /> Enroll
           </button>
         </form>
-        <p className="mt-1 text-xs text-black/45">They need an existing BrenUp account with this exact email — enrollment doesn't create a new account.</p>
+        <p className="mt-1 text-xs text-[var(--br-text-muted)]">They need an existing BrenUp account with this exact email — enrollment doesn't create a new account.</p>
       </section>
 
-      <section className="mt-6 overflow-hidden rounded-xl border border-black/10 bg-white shadow-sm">
-        <div className="hidden grid-cols-[1.1fr_1.2fr_0.9fr_0.7fr_0.8fr] gap-3 border-b border-black/10 bg-slate-50 p-3 text-xs font-semibold uppercase tracking-wide text-black/45 md:grid">
+      <section className="mt-6 overflow-hidden rounded-xl border border-[var(--br-border)] bg-surface shadow-sm">
+        <div className="hidden grid-cols-[1.1fr_1.2fr_0.9fr_0.7fr_0.8fr] gap-3 border-b border-[var(--br-border)] bg-surface-muted p-3 text-xs font-semibold uppercase tracking-wide text-[var(--br-text-muted)] md:grid">
           <span>Learner</span><span>Email</span><span>Status</span><span>Items</span><span>Progress</span>
         </div>
         <div className="divide-y divide-black/10">
@@ -83,7 +83,7 @@ export default async function CourseAnalyticsPage({ params }: { params: Promise<
             return (
               <div key={enrollment.id} className="grid gap-2 p-4 md:grid-cols-[1.1fr_1.2fr_0.9fr_0.7fr_0.8fr] md:items-center">
                 <Link href={`/admin/students/${enrollment.user_id}`} className="font-semibold text-moss hover:underline">{name}</Link>
-                <span className="min-w-0 truncate text-sm text-black/55">{emailByUser.get(enrollment.user_id) || "No email"}</span>
+                <span className="min-w-0 truncate text-sm text-[var(--br-text-muted)]">{emailByUser.get(enrollment.user_id) || "No email"}</span>
                 <form
                   action={async (formData: FormData) => {
                     "use server";
@@ -91,19 +91,19 @@ export default async function CourseAnalyticsPage({ params }: { params: Promise<
                   }}
                   className="flex items-center gap-1.5"
                 >
-                  <select name="status" defaultValue={enrollment.status} className="rounded-md border border-black/15 px-2 py-1.5 text-xs" aria-label={`Change enrollment status for ${name}`}>
+                  <select name="status" defaultValue={enrollment.status} className="rounded-md border border-[var(--br-border)] px-2 py-1.5 text-xs" aria-label={`Change enrollment status for ${name}`}>
                     <option value="ACTIVE">Active</option>
                     <option value="COMPLETED">Completed</option>
                     <option value="CANCELLED">Cancelled</option>
                   </select>
-                  <button type="submit" className="rounded-md border border-black/15 px-2 py-1.5 text-xs font-semibold hover:bg-black/5">Save</button>
+                  <button type="submit" className="rounded-md border border-[var(--br-border)] px-2 py-1.5 text-xs font-semibold hover:bg-black/5">Save</button>
                 </form>
                 <span className="text-sm">{progress?.completed_items ?? 0}/{progress?.total_items ?? 0}</span>
                 <span className="font-semibold text-moss">{progress?.progress_percent ?? 0}%</span>
               </div>
             );
           })}
-          {(enrollments?.length ?? 0) === 0 ? <p className="p-6 text-center text-sm text-black/55">No learners enrolled yet.</p> : null}
+          {(enrollments?.length ?? 0) === 0 ? <p className="p-6 text-center text-sm text-[var(--br-text-muted)]">No learners enrolled yet.</p> : null}
         </div>
       </section>
     </main>
@@ -112,10 +112,10 @@ export default async function CourseAnalyticsPage({ params }: { params: Promise<
 
 function Metric({ label, value }: { label: string; value: number | string }) {
   return (
-    <div className="rounded-xl border border-black/10 bg-white p-5 shadow-sm">
+    <div className="rounded-xl border border-[var(--br-border)] bg-surface p-5 shadow-sm">
       <BarChart3 size={19} className="text-moss" />
       <p className="mt-3 text-2xl font-semibold">{value}</p>
-      <p className="mt-1 text-sm text-black/55">{label}</p>
+      <p className="mt-1 text-sm text-[var(--br-text-muted)]">{label}</p>
     </div>
   );
 }

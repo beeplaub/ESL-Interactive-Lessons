@@ -38,10 +38,10 @@ export default async function AdminCoursesPage() {
       <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold sm:text-3xl">Courses</h1>
-          <p className="mt-2 text-sm text-black/60">Build the LMS layer: course landing pages, curriculum, and enrollments.</p>
+          <p className="mt-2 text-sm text-[var(--br-text-muted)]">Build the LMS layer: course landing pages, curriculum, and enrollments.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Link href="/admin/courses/trash" className="inline-flex items-center gap-2 rounded-xl border border-black/15 px-4 py-2 text-sm font-bold hover:bg-black/5">
+          <Link href="/admin/courses/trash" className="inline-flex items-center gap-2 rounded-xl border border-[var(--br-border)] px-4 py-2 text-sm font-bold hover:bg-black/5">
             <Trash2 size={16} /> Trash{trashedCount ? ` (${trashedCount})` : ""}
           </Link>
           <NewCourseModal organizations={profile?.role === "SCHOOL_ADMIN" ? (await admin.from("organizations").select("id,name").in("id", schoolOrganizationIds).order("name")).data ?? [] : []} />
@@ -49,7 +49,7 @@ export default async function AdminCoursesPage() {
       </div>
 
       <section className="overflow-hidden br-card rounded-20">
-        <div className="hidden grid-cols-[1.4fr_0.7fr_0.7fr_0.7fr_1.2fr] gap-3 border-b border-black/10 bg-slate-50/50 p-4 text-xs font-semibold uppercase tracking-wide text-black/50 md:grid">
+        <div className="hidden grid-cols-[1.4fr_0.7fr_0.7fr_0.7fr_1.2fr] gap-3 border-b border-[var(--br-border)] bg-surface-muted/50 p-4 text-xs font-semibold uppercase tracking-wide text-[var(--br-text-muted)] md:grid">
           <span>Course</span><span>Status</span><span>Items</span><span>Enrollments</span><span>Actions</span>
         </div>
         <div className="divide-y divide-black/10">
@@ -57,20 +57,20 @@ export default async function AdminCoursesPage() {
             <div key={course.id} className="grid gap-3 p-4 md:grid-cols-[1.4fr_0.7fr_0.7fr_0.7fr_1.2fr] md:items-center">
               <div className="min-w-0">
                 <p className="font-semibold">{course.title}</p>
-                <p className="mt-1 truncate text-xs text-black/50">{course.level} · {course.topic ?? "No topic"}</p>
+                <p className="mt-1 truncate text-xs text-[var(--br-text-muted)]">{course.level} · {course.topic ?? "No topic"}</p>
               </div>
-              <span className={`w-fit rounded-full px-2.5 py-1 text-xs font-semibold ${course.status === "PUBLISHED" ? "bg-violetglow/10 text-violetglow" : course.status === "ARCHIVED" ? "bg-black/10 text-black/50" : "bg-amber-50 text-amber-800"}`}>
+              <span className={`w-fit rounded-full px-2.5 py-1 text-xs font-semibold ${course.status === "PUBLISHED" ? "bg-violetglow/10 text-violetglow" : course.status === "ARCHIVED" ? "bg-black/10 text-[var(--br-text-muted)]" : "bg-amber-50 text-amber-800"}`}>
                 {course.status}
               </span>
-              <span className="text-sm text-black/60">{itemCounts.get(course.id) ?? 0}</span>
-              <span className="text-sm text-black/60">{enrollmentCounts.get(course.id) ?? 0}</span>
+              <span className="text-sm text-[var(--br-text-muted)]">{itemCounts.get(course.id) ?? 0}</span>
+              <span className="text-sm text-[var(--br-text-muted)]">{enrollmentCounts.get(course.id) ?? 0}</span>
               <div className="flex flex-wrap gap-2">
-                <Link href={`/admin/courses/${course.id}/builder`} className="inline-flex items-center gap-1 rounded-md border border-black/15 px-2.5 py-1.5 text-xs font-semibold hover:bg-black/5"><Pencil size={13} /> Edit</Link>
-                <Link href={`/admin/courses/${course.id}/analytics`} className="inline-flex items-center gap-1 rounded-md border border-black/15 px-2.5 py-1.5 text-xs font-semibold hover:bg-black/5"><BarChart3 size={13} /> Analytics</Link>
+                <Link href={`/admin/courses/${course.id}/builder`} className="inline-flex items-center gap-1 rounded-md border border-[var(--br-border)] px-2.5 py-1.5 text-xs font-semibold hover:bg-black/5"><Pencil size={13} /> Edit</Link>
+                <Link href={`/admin/courses/${course.id}/analytics`} className="inline-flex items-center gap-1 rounded-md border border-[var(--br-border)] px-2.5 py-1.5 text-xs font-semibold hover:bg-black/5"><BarChart3 size={13} /> Analytics</Link>
                 {course.status === "PUBLISHED" ? (
-                  <form action={setCourseStatus.bind(null, course.id, "DRAFT")}><button className="inline-flex items-center gap-1 rounded-md border border-black/15 px-2.5 py-1.5 text-xs font-semibold hover:bg-black/5"><Archive size={13} /> Unpublish</button></form>
+                  <form action={setCourseStatus.bind(null, course.id, "DRAFT")}><button className="inline-flex items-center gap-1 rounded-md border border-[var(--br-border)] px-2.5 py-1.5 text-xs font-semibold hover:bg-black/5"><Archive size={13} /> Unpublish</button></form>
                 ) : (
-                  <form action={setCourseStatus.bind(null, course.id, "PUBLISHED")}><button className="inline-flex items-center gap-1 rounded-md bg-violetglow px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-violetglow/90"><Eye size={13} /> Publish</button></form>
+                  <form action={setCourseStatus.bind(null, course.id, "PUBLISHED")}><button className="inline-flex items-center gap-1 rounded-md bg-violetglow px-2.5 py-1.5 text-xs font-semibold text-on-dark hover:bg-violetglow/90"><Eye size={13} /> Publish</button></form>
                 )}
                 <form action={deleteCourse.bind(null, course.id)}>
                   <DeleteButton
@@ -86,8 +86,8 @@ export default async function AdminCoursesPage() {
             </div>
           ))}
           {(courses?.length ?? 0) === 0 ? (
-            <div className="p-8 text-center text-sm text-black/55">
-              <GraduationCap className="mx-auto mb-3 text-black/25" size={32} />
+            <div className="p-8 text-center text-sm text-[var(--br-text-muted)]">
+              <GraduationCap className="mx-auto mb-3 text-[var(--br-text-muted)]" size={32} />
               No courses yet. Create the first course shell above.
             </div>
           ) : null}

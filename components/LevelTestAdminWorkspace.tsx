@@ -138,7 +138,7 @@ export function LevelTestAdminWorkspace({
 
   return (
     <main className="min-w-0 text-[var(--br-dark-card)]">
-      <section className="relative overflow-hidden rounded-[22px] bg-gradient-to-br from-[var(--br-brand-strong)] via-[var(--br-dark-card)] to-[var(--br-dark-card)] p-5 text-white shadow-[0_16px_48px_rgba(20,23,80,.22)] sm:p-7">
+      <section className="relative overflow-hidden rounded-[22px] bg-gradient-to-br from-[var(--br-brand-strong)] via-[var(--br-dark-card)] to-[var(--br-dark-card)] p-5 text-on-dark shadow-[0_16px_48px_rgba(20,23,80,.22)] sm:p-7">
         <div className="absolute -right-16 -top-20 size-56 rounded-full bg-[var(--br-chart-primary)]/25" />
         <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
@@ -157,7 +157,7 @@ export function LevelTestAdminWorkspace({
             <button
               disabled={isPending}
               onClick={() => run(() => setLevelTestPublished(test.id, test.status !== "PUBLISHED"), test.status === "PUBLISHED" ? "Test moved to draft." : "Level test published.")}
-              className={`rounded-[12px] px-4 py-2.5 text-sm font-extrabold disabled:opacity-50 ${test.status === "PUBLISHED" ? "bg-white text-[var(--br-dark-card)]" : "bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] text-white"}`}
+              className={`rounded-[12px] px-4 py-2.5 text-sm font-extrabold disabled:opacity-50 ${test.status === "PUBLISHED" ? "bg-surface text-[var(--br-dark-card)]" : "bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] text-on-dark"}`}
             >
               {test.status === "PUBLISHED" ? "Unpublish" : "Publish test"}
             </button>
@@ -178,10 +178,10 @@ export function LevelTestAdminWorkspace({
         </div>
       ) : null}
 
-      <div className="mt-5 overflow-x-auto rounded-[16px] border border-[var(--br-surface-strong)] bg-white p-1.5 shadow-[0_8px_24px_rgba(0,0,0,.05)]">
+      <div className="mt-5 overflow-x-auto rounded-[16px] border border-[var(--br-surface-strong)] bg-surface p-1.5 shadow-[0_8px_24px_rgba(0,0,0,.05)]">
         <nav className="flex min-w-max gap-1">
           {tabs.map(({ id, label, icon: Icon }) => (
-            <button key={id} onClick={() => setTab(id)} className={`inline-flex items-center gap-2 rounded-[11px] px-4 py-2.5 text-sm font-bold ${tab === id ? "bg-[var(--br-chart-primary)] text-white shadow-sm" : "text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"}`}>
+            <button key={id} onClick={() => setTab(id)} className={`inline-flex items-center gap-2 rounded-[11px] px-4 py-2.5 text-sm font-bold ${tab === id ? "bg-[var(--br-chart-primary)] text-on-dark shadow-sm" : "text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"}`}>
               <Icon className="size-4" /> {label}
             </button>
           ))}
@@ -232,7 +232,7 @@ export function LevelTestAdminWorkspace({
       {questionEditor ? <QuestionModal current={questionEditor} test={test} sections={sections} passages={passages} questions={questions} busy={isPending} close={() => setQuestionEditor(null)} run={run} /> : null}
       {sectionEditor ? <SectionModal current={sectionEditor} test={test} sections={sections} busy={isPending} close={() => setSectionEditor(null)} run={run} /> : null}
       {passageEditor ? <PassageModal current={passageEditor} test={test} sections={sections} passages={passages} busy={isPending} close={() => setPassageEditor(null)} run={run} /> : null}
-      {isPending ? <div className="fixed bottom-4 right-4 z-[70] inline-flex items-center gap-2 rounded-full bg-[var(--br-dark-card)] px-4 py-2 text-xs font-bold text-white shadow-xl"><Loader2 className="size-4 animate-spin" /> Saving</div> : null}
+      {isPending ? <div className="fixed bottom-4 right-4 z-[70] inline-flex items-center gap-2 rounded-full bg-[var(--br-dark-card)] px-4 py-2 text-xs font-bold text-on-dark shadow-xl"><Loader2 className="size-4 animate-spin" /> Saving</div> : null}
     </main>
   );
 }
@@ -295,7 +295,7 @@ function GradingPanel({ testId, bands, busy, run }: { testId: string; bands: Ban
         {state.map((band, index) => (
           <div key={band.cefr_level} className="rounded-[16px] border border-[var(--br-surface-strong)] bg-[#F9F9FC] p-4">
             <div className="grid gap-3 md:grid-cols-[70px_1fr_120px_120px]">
-              <div className="grid size-12 place-items-center rounded-[14px] bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] font-black text-white">{band.cefr_level}</div>
+              <div className="grid size-12 place-items-center rounded-[14px] bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] font-black text-on-dark">{band.cefr_level}</div>
               <Field label="Result name"><input value={band.label} onChange={(event) => changeBand(index, "label", event.target.value)} className={inputClass} /></Field>
               <Field label="From %"><input type="number" min={0} max={100} step=".01" value={band.min_percentage} onChange={(event) => changeBand(index, "min_percentage", Number(event.target.value))} className={inputClass} /></Field>
               <Field label="To %"><input type="number" min={0} max={100} step=".01" value={band.max_percentage} onChange={(event) => changeBand(index, "max_percentage", Number(event.target.value))} className={inputClass} /></Field>
@@ -363,7 +363,7 @@ function QuestionModal({ current, test, sections, passages, questions, busy, clo
                   <button onClick={() => {
                     const selected = state.correctAnswers.includes(option.key);
                     setState({ ...state, correctAnswers: multiple ? (selected ? state.correctAnswers.filter((answer) => answer !== option.key) : [...state.correctAnswers, option.key]) : [option.key] });
-                  }} className={`rounded-[10px] text-sm font-black ${state.correctAnswers.includes(option.key) ? "bg-[var(--br-success)] text-white" : "bg-[var(--br-surface-muted)] text-[var(--br-chart-primary)]"}`} title="Mark as correct">{option.key}</button>
+                  }} className={`rounded-[10px] text-sm font-black ${state.correctAnswers.includes(option.key) ? "bg-[var(--br-success)] text-on-dark" : "bg-[var(--br-surface-muted)] text-[var(--br-chart-primary)]"}`} title="Mark as correct">{option.key}</button>
                   <input value={option.text} onChange={(event) => setState({ ...state, options: state.options.map((item, itemIndex) => itemIndex === index ? { ...item, text: event.target.value } : item) })} className={inputClass} placeholder={`Option ${option.key}`} />
                   <button disabled={state.options.length <= 2} onClick={() => {
                     const options = state.options.filter((_, itemIndex) => itemIndex !== index).map((item, itemIndex) => ({ ...item, key: String.fromCharCode(65 + itemIndex) }));
@@ -422,7 +422,7 @@ function PassageModal({ current, test, sections, passages, busy, close, run }: {
 }
 
 function Panel({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
-  return <div className="rounded-[20px] border border-[var(--br-surface-strong)] bg-white p-4 shadow-[0_12px_32px_rgba(0,0,0,.05)] sm:p-6"><h2 className="text-xl font-extrabold">{title}</h2><p className="mt-1 text-sm font-semibold text-[var(--br-text-muted)]">{description}</p><div className="mt-6">{children}</div></div>;
+  return <div className="rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-4 shadow-[0_12px_32px_rgba(0,0,0,.05)] sm:p-6"><h2 className="text-xl font-extrabold">{title}</h2><p className="mt-1 text-sm font-semibold text-[var(--br-text-muted)]">{description}</p><div className="mt-6">{children}</div></div>;
 }
 function CollectionPanel({ title, description, button, onAdd, secondary, children }: { title: string; description: string; button: string; onAdd: () => void; secondary?: React.ReactNode; children: React.ReactNode }) {
   return <Panel title={title} description={description}><div className="-mt-2 mb-5 flex flex-wrap justify-end gap-2">{secondary}<button onClick={onAdd} className={primaryButton}><Plus className="size-4" /> {button}</button></div>{children}</Panel>;
@@ -431,7 +431,7 @@ function ItemCard({ title, meta, onEdit, onDelete }: { title: string; meta: stri
   return <div className="flex min-w-0 flex-col gap-3 rounded-[16px] border border-[var(--br-surface-strong)] bg-[#F9F9FC] p-4 sm:flex-row sm:items-center"><div className="min-w-0 flex-1"><h3 className="break-words text-sm font-extrabold">{title}</h3><p className="mt-1 text-xs font-semibold text-[var(--br-text-muted)]">{meta}</p></div><div className="flex shrink-0 gap-2"><button onClick={onEdit} className={iconButton} title="Edit"><Pencil className="size-4" /></button><button onClick={onDelete} className={`${iconButton} text-red-500`} title="Delete"><Trash2 className="size-4" /></button></div></div>;
 }
 function Modal({ title, subtitle, close, children }: { title: string; subtitle: string; close: () => void; children: React.ReactNode }) {
-  return <div className="fixed inset-0 z-[80] grid place-items-center bg-[#080D25]/65 p-3 backdrop-blur-sm" onMouseDown={(event) => { if (event.currentTarget === event.target) close(); }}><div className="max-h-[94vh] w-full max-w-3xl overflow-y-auto rounded-[22px] bg-white shadow-2xl"><div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-[var(--br-surface-strong)] bg-white p-4 sm:p-5"><div><h2 className="text-xl font-extrabold">{title}</h2><p className="mt-1 text-xs font-semibold text-[var(--br-text-muted)]">{subtitle}</p></div><button onClick={close} className={iconButton}><X className="size-4" /></button></div><div className="p-4 sm:p-6">{children}</div></div></div>;
+  return <div className="fixed inset-0 z-[80] grid place-items-center bg-[#080D25]/65 p-3 backdrop-blur-sm" onMouseDown={(event) => { if (event.currentTarget === event.target) close(); }}><div className="max-h-[94vh] w-full max-w-3xl overflow-y-auto rounded-[22px] bg-surface shadow-2xl"><div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-[var(--br-surface-strong)] bg-surface p-4 sm:p-5"><div><h2 className="text-xl font-extrabold">{title}</h2><p className="mt-1 text-xs font-semibold text-[var(--br-text-muted)]">{subtitle}</p></div><button onClick={close} className={iconButton}><X className="size-4" /></button></div><div className="p-4 sm:p-6">{children}</div></div></div>;
 }
 function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="grid min-w-0 gap-1.5 text-xs font-extrabold text-[#3A3F58]">{label}{children}</label>; }
 function Hint({ children }: { children: React.ReactNode }) { return <span className="mt-1 block text-[11px] font-semibold text-[var(--br-text-muted)]">{children}</span>; }
@@ -439,11 +439,11 @@ function Toggle({ checked, setChecked, label }: { checked: boolean; setChecked: 
 function Empty({ text }: { text: string }) { return <div className="rounded-[16px] border border-dashed border-[#DADBE7] p-8 text-center text-sm font-semibold text-[var(--br-text-muted)]">{text}</div>; }
 function Metric({ icon: Icon, value, label, tone }: { icon: React.ElementType; value: string | number; label: string; tone: "purple" | "blue" | "orange" | "green" }) {
   const tones = { purple: "from-[var(--br-chart-primary)] to-[var(--br-brand)]", blue: "from-[#2697FF] to-[#38BDF8]", orange: "from-[var(--br-achievement)] to-[#FF8C00]", green: "from-[var(--br-success)] to-[#00B37D]" };
-  return <div className="rounded-[18px] border border-[var(--br-surface-strong)] bg-white p-4 shadow-[0_8px_24px_rgba(0,0,0,.05)]"><div className="flex items-center gap-3"><span className={`grid size-10 place-items-center rounded-[13px] bg-gradient-to-br ${tones[tone]} text-white`}><Icon className="size-5" /></span><div><div className="text-2xl font-extrabold">{value}</div><div className="text-xs font-bold text-[var(--br-text-muted)]">{label}</div></div></div></div>;
+  return <div className="rounded-[18px] border border-[var(--br-surface-strong)] bg-surface p-4 shadow-[0_8px_24px_rgba(0,0,0,.05)]"><div className="flex items-center gap-3"><span className={`grid size-10 place-items-center rounded-[13px] bg-gradient-to-br ${tones[tone]} text-on-dark`}><Icon className="size-5" /></span><div><div className="text-2xl font-extrabold">{value}</div><div className="text-xs font-bold text-[var(--br-text-muted)]">{label}</div></div></div></div>;
 }
 function readableType(type: string) { return ({ MCQ: "Multiple choice", TRUE_FALSE: "True / False", MULTIPLE_SELECT: "Multiple select", FILL: "Written answer" } as Record<string, string>)[type] ?? type; }
 
-const inputClass = "min-w-0 w-full rounded-[12px] border border-[#DCDDEA] bg-white px-3 py-2.5 text-sm font-semibold text-[var(--br-dark-card)] outline-none focus:border-[var(--br-chart-primary)] focus:ring-2 focus:ring-[var(--br-chart-primary)]/10";
-const primaryButton = "inline-flex w-fit items-center justify-center gap-2 rounded-[12px] bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] px-4 py-2.5 text-sm font-extrabold text-white shadow-[0_6px_16px_rgba(108,59,255,.22)] disabled:opacity-50";
-const iconButton = "grid size-9 shrink-0 place-items-center rounded-[10px] border border-[#E3E4ED] bg-white text-[var(--br-text-muted)] hover:text-[var(--br-chart-primary)] disabled:opacity-30";
+const inputClass = "min-w-0 w-full rounded-[12px] border border-[#DCDDEA] bg-surface px-3 py-2.5 text-sm font-semibold text-[var(--br-dark-card)] outline-none focus:border-[var(--br-chart-primary)] focus:ring-2 focus:ring-[var(--br-chart-primary)]/10";
+const primaryButton = "inline-flex w-fit items-center justify-center gap-2 rounded-[12px] bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] px-4 py-2.5 text-sm font-extrabold text-on-dark shadow-[0_6px_16px_rgba(108,59,255,.22)] disabled:opacity-50";
+const iconButton = "grid size-9 shrink-0 place-items-center rounded-[10px] border border-[#E3E4ED] bg-surface text-[var(--br-text-muted)] hover:text-[var(--br-chart-primary)] disabled:opacity-30";
 const addButton = "mt-2 inline-flex items-center gap-1.5 rounded-[10px] bg-[var(--br-surface-muted)] px-3 py-2 text-xs font-extrabold text-[var(--br-chart-primary)]";

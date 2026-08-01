@@ -28,14 +28,14 @@ export function StreakPopup({ streak, onDismiss }: { streak: number; onDismiss: 
           <motion.div
             animate={{ x: [0, 6, -5, 3, 0], y: [0, -5, 3, -3, 0] }}
             transition={{ duration: 11, repeat: Infinity, ease: "easeInOut" }}
-            className="relative flex max-w-[168px] items-center gap-1.5 whitespace-nowrap rounded-full bg-gradient-to-br from-[var(--br-achievement)] to-[#FF8C00] py-1.5 pl-3 pr-7 text-white shadow-[0_10px_24px_rgba(255,140,0,.3)]"
+            className="relative flex max-w-[168px] items-center gap-1.5 whitespace-nowrap rounded-full bg-gradient-to-br from-[var(--br-achievement)] to-[#FF8C00] py-1.5 pl-3 pr-7 text-on-dark shadow-[0_10px_24px_rgba(255,140,0,.3)]"
           >
             <span className="text-xs font-extrabold leading-none">🔥 {streak} in a row!</span>
             <button
               type="button"
               onClick={onDismiss}
               aria-label="Dismiss streak celebration"
-              className="absolute right-1 top-1/2 grid size-5 -translate-y-1/2 place-items-center rounded-full bg-black/15 text-white hover:bg-black/25"
+              className="absolute right-1 top-1/2 grid size-5 -translate-y-1/2 place-items-center rounded-full bg-black/15 text-on-dark hover:bg-black/25"
             >
               <X size={12} />
             </button>

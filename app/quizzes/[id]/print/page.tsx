@@ -30,20 +30,20 @@ export default async function QuizPrintPage({ params }: { params: Promise<{ id: 
   if (!quiz) notFound();
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 print:bg-white print:text-black">
+    <div className="min-h-screen bg-surface-muted text-slate-900 print:bg-surface print:text-[var(--br-text-muted)]">
       {/* FLOATING ACTION BAR */}
-      <div className="border-b border-slate-200 bg-white px-6 py-4 shadow-sm print:hidden">
+      <div className="border-b border-slate-200 bg-surface px-6 py-4 shadow-sm print:hidden">
         <div className="mx-auto flex max-w-4xl items-center justify-between">
           <Link
             href={`/admin/quizzes/${id}/edit`}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 shadow-sm"
+            className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-surface px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-surface-muted shadow-sm"
           >
             <ArrowLeft size={16} /> Back to Editor
           </Link>
           <div className="flex items-center gap-3">
             <span className="text-xs font-semibold text-slate-500">Press Print to Save as PDF</span>
             <button
-              className="inline-flex items-center gap-2 rounded-lg bg-[var(--br-chart-primary)] hover:bg-[#5308e7] px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-[var(--br-chart-primary)]/25"
+              className="inline-flex items-center gap-2 rounded-lg bg-[var(--br-chart-primary)] hover:bg-[#5308e7] px-5 py-2.5 text-sm font-bold text-on-dark shadow-md shadow-[var(--br-chart-primary)]/25"
               data-trigger-print="true"
             >
               <Printer size={16} /> Print / Save PDF
@@ -53,18 +53,18 @@ export default async function QuizPrintPage({ params }: { params: Promise<{ id: 
       </div>
 
       {/* PRINTABLE PAGE WRAPPER */}
-      <main className="mx-auto max-w-4xl bg-white p-10 shadow-sm print:shadow-none sm:my-8 sm:rounded-2xl print:my-0 print:rounded-none">
+      <main className="mx-auto max-w-4xl bg-surface p-10 shadow-sm print:shadow-none sm:my-8 sm:rounded-2xl print:my-0 print:rounded-none">
         
         {/* EXCLUSIVELY CUSTOM BRAND HEADER (NO ADMIN LINKS OR MENUS) */}
-        <div className="text-center mb-8 border-b-2 border-black pb-4">
-          <h1 className="text-4xl font-black tracking-tight text-black font-sans">BrenUp</h1>
+        <div className="text-center mb-8 border-b-2 border-[var(--br-border)] pb-4">
+          <h1 className="text-4xl font-black tracking-tight text-[var(--br-text-muted)] font-sans">BrenUp</h1>
           <p className="text-xs font-bold uppercase tracking-widest text-slate-500 mt-1">Level Up Your English</p>
         </div>
 
         {/* METADATA & STUDENT INFO BLOCKS */}
-        <div className="mb-8 bg-slate-50 p-6 rounded-2xl border border-slate-100 flex flex-col md:flex-row gap-6 justify-between print:bg-none print:border-none print:p-0 print:mb-6">
+        <div className="mb-8 bg-surface-muted p-6 rounded-2xl border border-slate-100 flex flex-col md:flex-row gap-6 justify-between print:bg-none print:border-none print:p-0 print:mb-6">
           <div className="space-y-2">
-            <h2 className="text-xl font-bold text-black">{quiz.title}</h2>
+            <h2 className="text-xl font-bold text-[var(--br-text-muted)]">{quiz.title}</h2>
             <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs font-bold text-slate-500">
               {quiz.topic && <span>Topic: {quiz.topic}</span>}
               {quiz.level && <span>Level: {quiz.level}</span>}
@@ -73,14 +73,14 @@ export default async function QuizPrintPage({ params }: { params: Promise<{ id: 
           </div>
 
           {/* Printable Fields */}
-          <div className="flex flex-col gap-3 min-w-[240px] print:min-w-[200px] border-l border-slate-200 pl-6 print:border-black/10">
+          <div className="flex flex-col gap-3 min-w-[240px] print:min-w-[200px] border-l border-slate-200 pl-6 print:border-[var(--br-border)]">
             <div className="flex items-end gap-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-400 print:text-black">Name:</span>
-              <div className="flex-1 border-b border-dashed border-black/30 h-5" />
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400 print:text-[var(--br-text-muted)]">Name:</span>
+              <div className="flex-1 border-b border-dashed border-[var(--br-border)] h-5" />
             </div>
             <div className="flex items-end gap-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-400 print:text-black">Date:</span>
-              <div className="flex-1 border-b border-dashed border-black/30 h-5" />
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400 print:text-[var(--br-text-muted)]">Date:</span>
+              <div className="flex-1 border-b border-dashed border-[var(--br-border)] h-5" />
             </div>
           </div>
         </div>
@@ -90,12 +90,12 @@ export default async function QuizPrintPage({ params }: { params: Promise<{ id: 
           {(questions ?? []).map((question, index) => (
             <div key={question.id} className="pt-6 first:pt-0 break-inside-avoid">
               <div className="flex items-start gap-4">
-                <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-slate-100 text-sm font-extrabold text-slate-800 print:bg-none print:border print:border-black print:text-black">
+                <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-surface-strong text-sm font-extrabold text-slate-800 print:bg-none print:border print:border-[var(--br-border)] print:text-[var(--br-text-muted)]">
                   {index + 1}
                 </span>
                 <div className="flex-1">
                   {/* Print Question Text */}
-                  <p className="text-base font-semibold leading-relaxed text-black">
+                  <p className="text-base font-semibold leading-relaxed text-[var(--br-text-muted)]">
                     {question.question_text}
                   </p>
                   {question.description && (
@@ -129,13 +129,13 @@ export default async function QuizPrintPage({ params }: { params: Promise<{ id: 
               <span>---------------------------------------- Fold & Cut Here ✂</span>
             </div>
             
-            <h2 className="text-xl font-bold text-black mb-4">Teacher's Answer Key</h2>
+            <h2 className="text-xl font-bold text-[var(--br-text-muted)] mb-4">Teacher's Answer Key</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 text-sm">
               {questions.map((q, idx) => (
-                <div key={q.id} className="flex items-start gap-2 border-b border-slate-100 pb-1.5 print:border-black/5">
-                  <span className="font-extrabold text-[var(--br-chart-primary)] print:text-black">Q{idx + 1}.</span>
+                <div key={q.id} className="flex items-start gap-2 border-b border-slate-100 pb-1.5 print:border-[var(--br-border)]">
+                  <span className="font-extrabold text-[var(--br-chart-primary)] print:text-[var(--br-text-muted)]">Q{idx + 1}.</span>
                   <div className="flex-1 min-w-0">
-                    <span className="font-medium text-slate-700 print:text-black break-words">
+                    <span className="font-medium text-slate-700 print:text-[var(--br-text-muted)] break-words">
                       {getAnswerText(q)}
                     </span>
                   </div>
@@ -146,8 +146,8 @@ export default async function QuizPrintPage({ params }: { params: Promise<{ id: 
         )}
 
         {/* LEARNER-FACING BRAND FOOTER */}
-        <div className="mt-16 pt-6 border-t border-slate-100 text-center text-xs font-bold text-slate-400 print:text-slate-500 print:border-black/10">
-          Practice English online at <span className="text-[var(--br-chart-primary)] print:text-black underline">www.brenup.com</span>
+        <div className="mt-16 pt-6 border-t border-slate-100 text-center text-xs font-bold text-slate-400 print:text-slate-500 print:border-[var(--br-border)]">
+          Practice English online at <span className="text-[var(--br-chart-primary)] print:text-[var(--br-text-muted)] underline">www.brenup.com</span>
         </div>
       </main>
 
@@ -172,7 +172,7 @@ function renderPrintQuestion(question: QuizQuestion) {
         <div className="grid gap-2 sm:grid-cols-2">
           {Object.entries(options).map(([key, val]) => (
             <div key={key} className="flex items-start gap-2 text-sm text-slate-800">
-              <span className="grid size-5 shrink-0 place-items-center rounded-full border border-slate-300 text-[10px] font-black text-slate-600 print:border-black print:text-black">
+              <span className="grid size-5 shrink-0 place-items-center rounded-full border border-slate-300 text-[10px] font-black text-slate-600 print:border-[var(--br-border)] print:text-[var(--br-text-muted)]">
                 {key}
               </span>
               <span>{val}</span>
@@ -186,11 +186,11 @@ function renderPrintQuestion(question: QuizQuestion) {
       return (
         <div className="flex gap-6 text-sm text-slate-800">
           <label className="flex items-center gap-2">
-            <span className="inline-block size-4 rounded border border-slate-300 print:border-black" />
+            <span className="inline-block size-4 rounded border border-slate-300 print:border-[var(--br-border)]" />
             <span>True</span>
           </label>
           <label className="flex items-center gap-2">
-            <span className="inline-block size-4 rounded border border-slate-300 print:border-black" />
+            <span className="inline-block size-4 rounded border border-slate-300 print:border-[var(--br-border)]" />
             <span>False</span>
           </label>
         </div>
@@ -202,13 +202,13 @@ function renderPrintQuestion(question: QuizQuestion) {
       return (
         <div className="space-y-3">
           {sentenceText && (
-            <p className="text-sm font-semibold italic text-slate-700 print:text-black leading-relaxed">
+            <p className="text-sm font-semibold italic text-slate-700 print:text-[var(--br-text-muted)] leading-relaxed">
               "{sentenceText}"
             </p>
           )}
           <div className="flex flex-col gap-2">
             <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Answer:</span>
-            <div className="border-b border-slate-300 print:border-black max-w-sm h-6" />
+            <div className="border-b border-slate-300 print:border-[var(--br-border)] max-w-sm h-6" />
           </div>
         </div>
       );
@@ -238,7 +238,7 @@ function renderPrintQuestion(question: QuizQuestion) {
               const letter = String.fromCharCode(65 + idx);
               return (
                 <div key={idx} className="flex items-start gap-2 text-sm text-slate-800">
-                  <span className="grid size-5 shrink-0 place-items-center rounded border border-slate-200 text-[10px] font-black text-slate-400 mr-1 print:border-black print:text-black">
+                  <span className="grid size-5 shrink-0 place-items-center rounded border border-slate-200 text-[10px] font-black text-slate-400 mr-1 print:border-[var(--br-border)] print:text-[var(--br-text-muted)]">
                     {letter}
                   </span>
                   <span>{item}</span>
@@ -250,7 +250,7 @@ function renderPrintQuestion(question: QuizQuestion) {
             <span>Matches:</span>
             {left.map((_, idx) => (
               <span key={idx} className="inline-flex items-center gap-1">
-                {idx + 1} - <span className="border-b border-black w-6 h-4 inline-block text-center" />
+                {idx + 1} - <span className="border-b border-[var(--br-border)] w-6 h-4 inline-block text-center" />
               </span>
             ))}
           </div>
@@ -264,7 +264,7 @@ function renderPrintQuestion(question: QuizQuestion) {
         <div className="grid gap-2 sm:grid-cols-2">
           {Object.entries(options).map(([key, val]) => (
             <div key={key} className="flex items-start gap-2.5 text-sm text-slate-800">
-              <span className="inline-block size-4 mt-0.5 rounded border border-slate-300 print:border-black shrink-0" />
+              <span className="inline-block size-4 mt-0.5 rounded border border-slate-300 print:border-[var(--br-border)] shrink-0" />
               <span>{val}</span>
             </div>
           ))}
@@ -275,10 +275,10 @@ function renderPrintQuestion(question: QuizQuestion) {
     case "SHORT_ANSWER": {
       return (
         <div className="mt-2 space-y-2">
-          <div className="border-b border-dashed border-slate-300 print:border-black/30 h-6" />
-          <div className="border-b border-dashed border-slate-300 print:border-black/30 h-6" />
-          <div className="border-b border-dashed border-slate-300 print:border-black/30 h-6" />
-          <div className="border-b border-dashed border-slate-300 print:border-black/30 h-6" />
+          <div className="border-b border-dashed border-slate-300 print:border-[var(--br-border)] h-6" />
+          <div className="border-b border-dashed border-slate-300 print:border-[var(--br-border)] h-6" />
+          <div className="border-b border-dashed border-slate-300 print:border-[var(--br-border)] h-6" />
+          <div className="border-b border-dashed border-slate-300 print:border-[var(--br-border)] h-6" />
         </div>
       );
     }
@@ -288,13 +288,13 @@ function renderPrintQuestion(question: QuizQuestion) {
       return (
         <div className="space-y-3">
           {sentenceText && (
-            <p className="text-sm font-semibold italic text-slate-700 print:text-black leading-relaxed">
+            <p className="text-sm font-semibold italic text-slate-700 print:text-[var(--br-text-muted)] leading-relaxed">
               "{sentenceText}"
             </p>
           )}
           <div className="flex flex-col gap-2">
             <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Correction:</span>
-            <div className="border-b border-slate-300 print:border-black max-w-md h-6" />
+            <div className="border-b border-slate-300 print:border-[var(--br-border)] max-w-md h-6" />
           </div>
         </div>
       );
@@ -307,7 +307,7 @@ function renderPrintQuestion(question: QuizQuestion) {
         <div className="space-y-4">
           <div className="flex flex-wrap gap-2">
             {items.map((item) => (
-              <span key={item.id} className="bg-slate-100 border border-slate-200 text-xs px-2.5 py-1 rounded-lg text-slate-800 font-semibold print:bg-none print:border-black">
+              <span key={item.id} className="bg-surface-strong border border-slate-200 text-xs px-2.5 py-1 rounded-lg text-slate-800 font-semibold print:bg-none print:border-[var(--br-border)]">
                 {item.text}
               </span>
             ))}
@@ -319,7 +319,7 @@ function renderPrintQuestion(question: QuizQuestion) {
             {items.map((_, idx) => (
               <div key={idx} className="flex items-end gap-2">
                 <span className="text-xs text-slate-400 font-bold">{idx + 1}.</span>
-                <div className="flex-grow border-b border-dashed border-slate-300 print:border-black/30 h-5" />
+                <div className="flex-grow border-b border-dashed border-slate-300 print:border-[var(--br-border)] h-5" />
               </div>
             ))}
           </div>
@@ -335,10 +335,10 @@ function renderPrintQuestion(question: QuizQuestion) {
       return (
         <div className="space-y-4">
           {items.length > 0 && (
-            <div className="flex flex-wrap gap-2 p-3 bg-slate-50 border border-slate-100 rounded-xl print:bg-none print:border-slate-200">
+            <div className="flex flex-wrap gap-2 p-3 bg-surface-muted border border-slate-100 rounded-xl print:bg-none print:border-slate-200">
               <span className="text-[10px] uppercase font-bold text-slate-400 mr-2 flex items-center">Word Bank:</span>
               {items.map((item, idx) => (
-                <span key={idx} className="bg-white border border-slate-200 text-xs px-2.5 py-1 rounded-lg text-slate-800 font-semibold print:border-black shadow-sm print:shadow-none">
+                <span key={idx} className="bg-surface border border-slate-200 text-xs px-2.5 py-1 rounded-lg text-slate-800 font-semibold print:border-[var(--br-border)] shadow-sm print:shadow-none">
                   {item.text}
                 </span>
               ))}
@@ -346,8 +346,8 @@ function renderPrintQuestion(question: QuizQuestion) {
           )}
           <div className="grid grid-cols-2 gap-4">
             {targets.map((tgt) => (
-              <div key={tgt} className="border border-dashed border-slate-300 rounded-xl p-4 min-h-[120px] flex flex-col print:border-black">
-                <p className="text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-2 print:text-black">{tgt}</p>
+              <div key={tgt} className="border border-dashed border-slate-300 rounded-xl p-4 min-h-[120px] flex flex-col print:border-[var(--br-border)]">
+                <p className="text-xs font-extrabold text-slate-500 uppercase tracking-wider mb-2 print:text-[var(--br-text-muted)]">{tgt}</p>
                 <div className="flex-1 flex flex-col gap-2" />
               </div>
             ))}
@@ -361,14 +361,14 @@ function renderPrintQuestion(question: QuizQuestion) {
       const text = options?.text as string | undefined;
 
       return (
-        <div className="bg-slate-50 border border-[var(--br-surface-strong)] p-4 rounded-xl print:bg-none print:border-slate-200">
+        <div className="bg-surface-muted border border-[var(--br-surface-strong)] p-4 rounded-xl print:bg-none print:border-slate-200">
           <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Target Vocabulary / Sentence:</p>
           {text ? (
-            <p className="text-sm font-semibold italic text-slate-800 print:text-black">"{text}"</p>
+            <p className="text-sm font-semibold italic text-slate-800 print:text-[var(--br-text-muted)]">"{text}"</p>
           ) : (
             <div className="flex flex-wrap gap-2">
               {words.map((w, idx) => (
-                <span key={idx} className="bg-white border border-slate-200 text-xs px-2.5 py-1 rounded-lg text-slate-800 font-semibold print:border-black shadow-sm">
+                <span key={idx} className="bg-surface border border-slate-200 text-xs px-2.5 py-1 rounded-lg text-slate-800 font-semibold print:border-[var(--br-border)] shadow-sm">
                   {w}
                 </span>
               ))}
@@ -384,15 +384,15 @@ function renderPrintQuestion(question: QuizQuestion) {
       return (
         <div className="grid gap-3">
           {passage ? (
-            <div className="bg-slate-50 border border-[var(--br-surface-strong)] p-4 rounded-xl print:bg-none print:border-slate-200">
+            <div className="bg-surface-muted border border-[var(--br-surface-strong)] p-4 rounded-xl print:bg-none print:border-slate-200">
               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Passage:</p>
-              <p className="text-sm text-slate-800 print:text-black whitespace-pre-wrap">{passage}</p>
+              <p className="text-sm text-slate-800 print:text-[var(--br-text-muted)] whitespace-pre-wrap">{passage}</p>
             </div>
           ) : null}
           <div className="grid gap-2 sm:grid-cols-2">
             {Object.entries(options).filter(([key]) => key !== "passage").map(([key, val]) => (
               <div key={key} className="flex items-start gap-2 text-sm text-slate-800">
-                <span className="grid size-5 shrink-0 place-items-center rounded-full border border-slate-300 text-[10px] font-black text-slate-600 print:border-black print:text-black">
+                <span className="grid size-5 shrink-0 place-items-center rounded-full border border-slate-300 text-[10px] font-black text-slate-600 print:border-[var(--br-border)] print:text-[var(--br-text-muted)]">
                   {key}
                 </span>
                 <span>{val}</span>
@@ -408,11 +408,11 @@ function renderPrintQuestion(question: QuizQuestion) {
       const maxWords = Number(options?.max_words ?? 0);
 
       return (
-        <div className="bg-slate-50 border border-[var(--br-surface-strong)] p-4 rounded-xl print:bg-none print:border-slate-200 space-y-3">
+        <div className="bg-surface-muted border border-[var(--br-surface-strong)] p-4 rounded-xl print:bg-none print:border-slate-200 space-y-3">
           {passage ? (
             <div>
               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Passage:</p>
-              <p className="text-sm text-slate-800 print:text-black whitespace-pre-wrap">{passage}</p>
+              <p className="text-sm text-slate-800 print:text-[var(--br-text-muted)] whitespace-pre-wrap">{passage}</p>
             </div>
           ) : null}
           {maxWords > 0 ? (
@@ -430,11 +430,11 @@ function renderPrintQuestion(question: QuizQuestion) {
 
       return (
         <div className="space-y-4">
-          <div className="bg-slate-50 border border-[var(--br-surface-strong)] p-4 rounded-xl print:bg-none print:border-slate-200">
+          <div className="bg-surface-muted border border-[var(--br-surface-strong)] p-4 rounded-xl print:bg-none print:border-slate-200">
             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Headings:</p>
             <div className="grid gap-2">
               {headings.map((h) => (
-                <div key={h.id} className="text-sm text-slate-800 print:text-black">
+                <div key={h.id} className="text-sm text-slate-800 print:text-[var(--br-text-muted)]">
                   <span className="font-bold text-indigo-600 mr-2">{h.id}.</span>
                   {h.text}
                 </div>
@@ -447,9 +447,9 @@ function renderPrintQuestion(question: QuizQuestion) {
               <div key={p.id} className="flex gap-4 items-start border-b border-slate-100 pb-3 print:border-slate-200">
                 <div className="flex items-center gap-1.5 font-bold text-sm shrink-0">
                   <span>Paragraph {p.id}:</span>
-                  <span className="inline-block border border-slate-300 rounded w-10 h-6 print:border-black" />
+                  <span className="inline-block border border-slate-300 rounded w-10 h-6 print:border-[var(--br-border)]" />
                 </div>
-                <p className="text-sm text-slate-800 print:text-black leading-relaxed flex-1">{p.text}</p>
+                <p className="text-sm text-slate-800 print:text-[var(--br-text-muted)] leading-relaxed flex-1">{p.text}</p>
               </div>
             ))}
           </div>
@@ -466,9 +466,9 @@ function renderPrintQuestion(question: QuizQuestion) {
       return (
         <div className="space-y-4">
           {passage ? (
-            <div className="bg-slate-50 border border-[var(--br-surface-strong)] p-4 rounded-xl print:bg-none print:border-slate-200">
+            <div className="bg-surface-muted border border-[var(--br-surface-strong)] p-4 rounded-xl print:bg-none print:border-slate-200">
               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Skimming Passage ({timeLimit}s time limit):</p>
-              <p className="text-sm text-slate-800 print:text-black whitespace-pre-wrap">{passage}</p>
+              <p className="text-sm text-slate-800 print:text-[var(--br-text-muted)] whitespace-pre-wrap">{passage}</p>
             </div>
           ) : null}
           <div className="space-y-4 pt-2">
@@ -476,13 +476,13 @@ function renderPrintQuestion(question: QuizQuestion) {
               const qOpts = q.options || {};
               return (
                 <div key={q.id} className="space-y-2">
-                  <p className="text-sm font-semibold text-slate-900 print:text-black">
+                  <p className="text-sm font-semibold text-slate-900 print:text-[var(--br-text-muted)]">
                     {idx + 1}. {q.question_text}
                   </p>
                   <div className="grid gap-2 sm:grid-cols-2">
                     {Object.entries(qOpts).map(([key, val]) => (
-                      <div key={key} className="flex items-start gap-2.5 text-sm text-slate-800 print:text-black">
-                        <span className="inline-block size-4 mt-0.5 rounded border border-slate-300 print:border-black shrink-0" />
+                      <div key={key} className="flex items-start gap-2.5 text-sm text-slate-800 print:text-[var(--br-text-muted)]">
+                        <span className="inline-block size-4 mt-0.5 rounded border border-slate-300 print:border-[var(--br-border)] shrink-0" />
                         <span>{key}. {val}</span>
                       </div>
                     ))}
@@ -503,15 +503,15 @@ function renderPrintQuestion(question: QuizQuestion) {
       return (
         <div className="space-y-4">
           {passage ? (
-            <div className="bg-slate-50 border border-[var(--br-surface-strong)] p-4 rounded-xl print:bg-none print:border-slate-200">
+            <div className="bg-surface-muted border border-[var(--br-surface-strong)] p-4 rounded-xl print:bg-none print:border-slate-200">
               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Original Text:</p>
-              <p className="text-sm text-slate-800 print:text-black whitespace-pre-wrap italic">"{passage}"</p>
+              <p className="text-sm text-slate-800 print:text-[var(--br-text-muted)] whitespace-pre-wrap italic">"{passage}"</p>
             </div>
           ) : null}
           <div className="grid gap-2 sm:grid-cols-2">
             {Object.entries(choices).map(([key, val]) => (
-              <div key={key} className="flex items-start gap-2.5 text-sm text-slate-800 print:text-black">
-                <span className="inline-block size-4 mt-0.5 rounded border border-slate-300 print:border-black shrink-0" />
+              <div key={key} className="flex items-start gap-2.5 text-sm text-slate-800 print:text-[var(--br-text-muted)]">
+                <span className="inline-block size-4 mt-0.5 rounded border border-slate-300 print:border-[var(--br-border)] shrink-0" />
                 <span>{key}. {val}</span>
               </div>
             ))}

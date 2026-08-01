@@ -42,10 +42,10 @@ function LessonCompletionModal({ lessonTitle, score, total, activitiesAttempted,
 }) {
   const encouragement = total === 0 ? "You reached the end. Keep showing up and the learning compounds." : score / total >= .85 ? "Excellent work. You showed strong control across this lesson." : score / total >= .6 ? "Solid progress. A quick review will make the key ideas stick." : "You finished the lesson. Review the practice once more and you will feel the difference.";
   return <div className="fixed inset-0 z-[80] grid place-items-center bg-[var(--br-dark-card)]/55 px-4 py-6 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Lesson complete">
-    <div className="relative w-full max-w-md overflow-hidden rounded-[28px] border border-white/50 bg-white p-6 text-center shadow-[0_28px_80px_rgba(27,27,58,.3)] sm:p-8">
+    <div className="relative w-full max-w-md overflow-hidden rounded-[28px] border border-white/50 bg-surface p-6 text-center shadow-[0_28px_80px_rgba(27,27,58,.3)] sm:p-8">
       <div className="absolute -right-12 -top-16 size-44 rounded-full bg-[var(--br-chart-primary)]/10" /><div className="absolute -left-12 bottom-0 size-36 rounded-full bg-[var(--br-achievement)]/10" />
       <button type="button" onClick={onClose} className="absolute right-4 top-4 grid size-8 place-items-center rounded-full text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]" aria-label="Close completion details"><X size={16}/></button>
-      <div className="relative mx-auto grid size-16 place-items-center rounded-[22px] bg-gradient-to-br from-[var(--br-chart-primary)] to-[#9B74FF] text-white shadow-[0_14px_28px_rgba(108,59,255,.32)]"><Award size={31}/><Sparkles className="absolute -right-3 -top-2 size-4 text-[var(--br-achievement)]"/></div>
+      <div className="relative mx-auto grid size-16 place-items-center rounded-[22px] bg-gradient-to-br from-[var(--br-chart-primary)] to-[#9B74FF] text-on-dark shadow-[0_14px_28px_rgba(108,59,255,.32)]"><Award size={31}/><Sparkles className="absolute -right-3 -top-2 size-4 text-[var(--br-achievement)]"/></div>
       <p className="relative mt-5 text-[11px] font-extrabold tracking-[.16em] text-[var(--br-chart-primary)]">LESSON COMPLETE</p>
       <h2 className="relative mt-2 text-2xl font-extrabold tracking-tight text-[var(--br-dark-card)]">Nicely done!</h2>
       <p className="relative mt-2 text-sm font-semibold text-[var(--br-text-muted)]">{lessonTitle}</p>
@@ -55,7 +55,7 @@ function LessonCompletionModal({ lessonTitle, score, total, activitiesAttempted,
         <div className="pl-1"><p className="text-[10px] font-bold uppercase tracking-wide text-[var(--br-text-muted)]">Questions</p><p className="mt-1 text-lg font-extrabold text-[var(--br-dark-card)]">{totalQuestions}</p></div>
       </div>
       <p className="relative mt-4 rounded-xl bg-[color-mix(in_srgb,var(--br-success)_12%,var(--br-surface))] px-4 py-3 text-sm font-semibold text-[#157A5A]">{grade} · {encouragement}</p>
-      <div className="relative mt-5 flex gap-3"><button type="button" onClick={onClose} className="flex-1 rounded-xl border border-[var(--br-border)] px-4 py-3 text-sm font-extrabold text-[var(--br-brand)] hover:bg-[var(--br-canvas-elevated)]">Review</button><button type="button" onClick={onRetake} className="flex-1 rounded-xl bg-[var(--br-action)] px-4 py-3 text-sm font-extrabold text-white shadow-[0_8px_18px_rgba(255,93,115,.24)] hover:bg-[#ED4B66]">Retake</button></div>
+      <div className="relative mt-5 flex gap-3"><button type="button" onClick={onClose} className="flex-1 rounded-xl border border-[var(--br-border)] px-4 py-3 text-sm font-extrabold text-[var(--br-brand)] hover:bg-[var(--br-canvas-elevated)]">Review</button><button type="button" onClick={onRetake} className="flex-1 rounded-xl bg-[var(--br-action)] px-4 py-3 text-sm font-extrabold text-on-dark shadow-[0_8px_18px_rgba(255,93,115,.24)] hover:bg-[#ED4B66]">Retake</button></div>
     </div>
   </div>;
 }
@@ -138,7 +138,7 @@ function NarrationPill({ src, lessonId, slideId, translationEnabled = false, nar
         <button
           type="button"
           onClick={() => { void audioRef.current?.play(); setAutoplayBlocked(false); }}
-          className="flex items-center gap-1.5 text-[10px] font-semibold text-amber-300 hover:text-white"
+          className="flex items-center gap-1.5 text-[10px] font-semibold text-amber-300 hover:text-on-dark"
         >
           <Play size={10} /> Tap to play narration
         </button>
@@ -152,7 +152,7 @@ function NarrationPill({ src, lessonId, slideId, translationEnabled = false, nar
             type="button"
             onClick={toggle}
             aria-label={playing ? "Pause" : "Play"}
-            className="flex size-6 shrink-0 items-center justify-center rounded-full bg-white/20 text-white transition hover:bg-white/35"
+            className="flex size-6 shrink-0 items-center justify-center rounded-full bg-white/20 text-on-dark transition hover:bg-white/35"
           >
             {playing ? <Pause size={10} /> : <Play size={10} />}
           </button>
@@ -163,7 +163,7 @@ function NarrationPill({ src, lessonId, slideId, translationEnabled = false, nar
               onClick={() => void playNarrationTranslation({ lessonId, slideId, src, onState: (state, message) => { setTranslationState(state); setTranslationError(message ?? null); } })}
               aria-label={narrationLanguage === "bn" ? "Listen in English" : "Listen in Bangla"}
               title={narrationLanguage === "bn" ? "Listen in English" : "Listen in Bangla"}
-              className="flex size-6 shrink-0 items-center justify-center rounded-full bg-white/15 text-white transition hover:bg-violetglow disabled:opacity-60"
+              className="flex size-6 shrink-0 items-center justify-center rounded-full bg-white/15 text-on-dark transition hover:bg-violetglow disabled:opacity-60"
             >
               {translationState === "loading" ? <span className="size-3 animate-spin rounded-full border-2 border-white/30 border-t-white" /> : <Languages size={11} />}
             </button>
@@ -197,7 +197,7 @@ function NarrationPill({ src, lessonId, slideId, translationEnabled = false, nar
             type="button"
             onClick={() => skip(-5)}
             aria-label="Back 5 seconds"
-            className="flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[10px] font-semibold text-white/70 hover:bg-white/10 hover:text-white"
+            className="flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[10px] font-semibold text-white/70 hover:bg-white/10 hover:text-on-dark"
           >
             <RotateCcw size={9} />5
           </button>
@@ -211,8 +211,8 @@ function NarrationPill({ src, lessonId, slideId, translationEnabled = false, nar
                 onClick={() => setPlaybackSpeed(s)}
                 className={`rounded px-1 py-0.5 text-[9px] font-bold transition
                   ${speed === s
-                    ? "bg-moss text-white"
-                    : "text-white/50 hover:bg-white/10 hover:text-white"
+                    ? "bg-moss text-on-dark"
+                    : "text-white/50 hover:bg-white/10 hover:text-on-dark"
                   }`}
               >
                 {s}x
@@ -225,7 +225,7 @@ function NarrationPill({ src, lessonId, slideId, translationEnabled = false, nar
             type="button"
             onClick={() => skip(5)}
             aria-label="Forward 5 seconds"
-            className="flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[10px] font-semibold text-white/70 hover:bg-white/10 hover:text-white"
+            className="flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[10px] font-semibold text-white/70 hover:bg-white/10 hover:text-on-dark"
           >
             5<RotateCcw size={9} className="scale-x-[-1]" />
           </button>
@@ -556,7 +556,7 @@ export function BuilderLessonPlayer({
     return (
     <main className="mx-auto max-w-5xl px-4 py-10">
         <Link href={backHref} className="text-sm font-bold text-[var(--br-text-muted)] hover:text-[var(--br-chart-primary)]">Back to courses</Link>
-        <div className="mt-6 rounded-[22px] border border-[var(--br-surface-strong)] bg-white p-8 text-center text-sm font-semibold text-[var(--br-text-muted)] shadow-[0_12px_32px_rgba(0,0,0,.06)]">
+        <div className="mt-6 rounded-[22px] border border-[var(--br-surface-strong)] bg-surface p-8 text-center text-sm font-semibold text-[var(--br-text-muted)] shadow-[0_12px_32px_rgba(0,0,0,.06)]">
           This lesson has no slides yet.
         </div>
       </main>
@@ -567,7 +567,7 @@ export function BuilderLessonPlayer({
     <main className="mx-auto max-w-7xl overflow-x-hidden px-3 sm:px-4 min-[1180px]:px-0">
       {showCompletion ? <LessonCompletionModal lessonTitle={lesson.title} score={earnedLessonMarks} total={totalLessonMarks} activitiesAttempted={attemptedActivities} totalQuestions={totalLessonQuestions} grade={lessonGrade} onClose={() => setShowCompletion(false)} onRetake={retakeLesson} /> : null}
       {/* ── Header ── */}
-      <div className="mb-3 rounded-[22px] border border-[var(--br-surface-strong)] bg-white px-3 py-2 shadow-[0_12px_32px_rgba(0,0,0,.06)]">
+      <div className="mb-3 rounded-[22px] border border-[var(--br-surface-strong)] bg-surface px-3 py-2 shadow-[0_12px_32px_rgba(0,0,0,.06)]">
         <div className="flex flex-wrap items-center gap-3">
           <Link href={backHref} className="inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-[var(--br-surface-strong)] text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)] hover:text-[var(--br-chart-primary)]" aria-label="Back to courses">
             <ArrowLeft size={15} />
@@ -629,7 +629,7 @@ export function BuilderLessonPlayer({
       >
         {dragX < -8 && slides[index + 1] ? (
           <div
-            className="pointer-events-none absolute inset-0 rounded-[22px] border border-[var(--br-surface-strong)] bg-white p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)]"
+            className="pointer-events-none absolute inset-0 rounded-[22px] border border-[var(--br-surface-strong)] bg-surface p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)]"
             style={{
               transform: `translateX(calc(100% + ${dragX}px))`,
               transition: isDragging ? "none" : "transform 180ms ease"
@@ -641,7 +641,7 @@ export function BuilderLessonPlayer({
         ) : null}
         {dragX > 8 && slides[index - 1] ? (
           <div
-            className="pointer-events-none absolute inset-0 rounded-[22px] border border-[var(--br-surface-strong)] bg-white p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)]"
+            className="pointer-events-none absolute inset-0 rounded-[22px] border border-[var(--br-surface-strong)] bg-surface p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)]"
             style={{
               transform: `translateX(calc(-100% + ${dragX}px))`,
               transition: isDragging ? "none" : "transform 180ms ease"
@@ -663,9 +663,9 @@ export function BuilderLessonPlayer({
       <div className="flex min-w-0 flex-col gap-4">
 
         <div className="relative">
-          <section className="rounded-[22px] border border-[var(--br-surface-strong)] bg-white p-2 shadow-[0_12px_32px_rgba(0,0,0,.06)] sm:p-3">
+          <section className="rounded-[22px] border border-[var(--br-surface-strong)] bg-surface p-2 shadow-[0_12px_32px_rgba(0,0,0,.06)] sm:p-3">
             {/* Slide header */}
-            <div className="mb-4 rounded-[18px] bg-gradient-to-br from-[var(--br-brand-strong)] via-[var(--br-dark-card)] to-[var(--br-dark-card)] px-4 py-3 text-white">
+            <div className="mb-4 rounded-[18px] bg-gradient-to-br from-[var(--br-brand-strong)] via-[var(--br-dark-card)] to-[var(--br-dark-card)] px-4 py-3 text-on-dark">
               {/* Line 1 — slide counter (left) + narration pill (right) */}
               <div className="flex items-center justify-between gap-2">
                 <p className="text-xs uppercase tracking-wide text-white/55">
@@ -699,7 +699,7 @@ export function BuilderLessonPlayer({
                     !learnAvailable || learnLocked
                       ? "cursor-not-allowed bg-[#F1F2F7] text-[#B4B8CB]"
                       : activeTab === "learn"
-                      ? "bg-[var(--br-chart-primary)] text-white shadow-[0_6px_16px_rgba(108,59,255,.28)]"
+                      ? "bg-[var(--br-chart-primary)] text-on-dark shadow-[0_6px_16px_rgba(108,59,255,.28)]"
                       : "bg-[var(--br-surface-muted)] text-[var(--br-chart-primary)] hover:bg-[#E3DCFB]"
                   }`}
                 >
@@ -717,7 +717,7 @@ export function BuilderLessonPlayer({
                     !practiceAvailable
                       ? "cursor-not-allowed bg-[#F1F2F7] text-[#B4B8CB]"
                       : activeTab === "practice"
-                      ? "bg-[var(--br-chart-secondary)] text-white shadow-[0_6px_16px_rgba(0,169,120,.28)]"
+                      ? "bg-[var(--br-chart-secondary)] text-on-dark shadow-[0_6px_16px_rgba(0,169,120,.28)]"
                       : "bg-[color-mix(in_srgb,var(--br-success)_12%,var(--br-surface))] text-[var(--br-chart-secondary)] hover:bg-[#D3F6E9]"
                   }`}
                 >
@@ -774,7 +774,7 @@ export function BuilderLessonPlayer({
                 ))}
               </div>
             ) : (
-              <div className="rounded-[22px] border border-[var(--br-surface-strong)] bg-white p-5 text-sm font-semibold text-[var(--br-text-muted)] shadow-[0_12px_32px_rgba(0,0,0,.06)]">
+              <div className="rounded-[22px] border border-[var(--br-surface-strong)] bg-surface p-5 text-sm font-semibold text-[var(--br-text-muted)] shadow-[0_12px_32px_rgba(0,0,0,.06)]">
                 No activity on this slide. Use Next when you are ready.
               </div>
             )}
@@ -782,7 +782,7 @@ export function BuilderLessonPlayer({
         </div>
 
         {/* Notes panel — always visible, full width, not tied to either tab */}
-        <div className="rounded-[22px] border border-[var(--br-surface-strong)] bg-white shadow-[0_12px_32px_rgba(0,0,0,.06)]">
+        <div className="rounded-[22px] border border-[var(--br-surface-strong)] bg-surface shadow-[0_12px_32px_rgba(0,0,0,.06)]">
           <div className="flex items-center justify-between border-b border-[var(--br-surface-strong)] px-4 py-3">
             <div className="flex items-center gap-2">
               <NotebookPen size={15} className="text-[var(--br-chart-primary)]" />
@@ -802,7 +802,7 @@ export function BuilderLessonPlayer({
               onChange={handleNotesChange}
               placeholder="Type your notes here… they save automatically."
               rows={4}
-              className="w-full resize-none rounded-[16px] border border-[var(--br-surface-strong)] bg-[var(--br-surface)] px-3 py-2.5 text-base font-semibold leading-relaxed text-[var(--br-text)] placeholder:text-[var(--br-text-muted)] focus:border-[var(--br-chart-primary)]/40 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[var(--br-chart-primary)]/15"
+              className="w-full resize-none rounded-[16px] border border-[var(--br-surface-strong)] bg-[var(--br-surface)] px-3 py-2.5 text-base font-semibold leading-relaxed text-[var(--br-text)] placeholder:text-[var(--br-text-muted)] focus:border-[var(--br-chart-primary)]/40 focus:bg-surface focus:outline-none focus:ring-2 focus:ring-[var(--br-chart-primary)]/15"
             />
             <p className="mt-1.5 text-[11px] font-semibold text-[var(--br-text-muted)]">
               Notes are saved per slide and will be here when you return.
@@ -829,13 +829,13 @@ export function BuilderLessonPlayer({
                   disabled={isLiveStudent && liveNavigationLocked}
             aria-expanded={jumpOpen}
             aria-label="Jump to slide"
-            className="shrink-0 whitespace-nowrap rounded-full border border-[var(--br-surface-strong)] bg-white px-2 py-1 text-xs font-extrabold text-[var(--br-dark-card)] outline-none transition hover:bg-[var(--br-canvas-elevated)] focus:border-[var(--br-chart-primary)]/50 focus:ring-2 focus:ring-[var(--br-chart-primary)]/15 sm:px-3 sm:py-1.5 sm:text-sm"
+            className="shrink-0 whitespace-nowrap rounded-full border border-[var(--br-surface-strong)] bg-surface px-2 py-1 text-xs font-extrabold text-[var(--br-dark-card)] outline-none transition hover:bg-[var(--br-canvas-elevated)] focus:border-[var(--br-chart-primary)]/50 focus:ring-2 focus:ring-[var(--br-chart-primary)]/15 sm:px-3 sm:py-1.5 sm:text-sm"
           >
             Slide {index + 1}
           </button>
           <span className="shrink-0 whitespace-nowrap text-[10px] text-[var(--br-text-muted)] sm:text-xs">of {slides.length}</span>
           {jumpOpen ? (
-            <div className="absolute bottom-full left-1/2 z-30 mb-2 max-h-72 w-72 max-w-[calc(100vw-2rem)] -translate-x-1/2 overflow-auto rounded-[18px] border border-[var(--br-surface-strong)] bg-white p-1.5 text-left shadow-2xl">
+            <div className="absolute bottom-full left-1/2 z-30 mb-2 max-h-72 w-72 max-w-[calc(100vw-2rem)] -translate-x-1/2 overflow-auto rounded-[18px] border border-[var(--br-surface-strong)] bg-surface p-1.5 text-left shadow-2xl">
               {slides.map((item, slideIndex) => (
                 <button
                   key={item.id}
@@ -845,7 +845,7 @@ export function BuilderLessonPlayer({
                     slideIndex === index ? "bg-[var(--br-chart-primary)]/10 font-extrabold text-[var(--br-chart-primary)]" : "font-semibold text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"
                   }`}
                 >
-                  <span className="mr-2 text-xs font-semibold text-black/35">{slideIndex + 1}</span>
+                  <span className="mr-2 text-xs font-semibold text-[var(--br-text-muted)]">{slideIndex + 1}</span>
                   {item.title}
                 </button>
               ))}
@@ -853,11 +853,11 @@ export function BuilderLessonPlayer({
           ) : null}
         </div>
         {index === slides.length - 1 ? (
-          completed ? <div className="flex shrink-0 items-center gap-1.5"><button type="button" onClick={reviewLesson} className="rounded-full border border-[var(--br-surface-strong)] bg-white px-2.5 py-1.5 text-xs font-extrabold text-[var(--br-brand)] hover:bg-[var(--br-canvas-elevated)] sm:px-4 sm:py-2 sm:text-sm">Review</button><button type="button" onClick={retakeLesson} className="inline-flex items-center gap-1 rounded-full bg-[var(--br-action)] px-2.5 py-1.5 text-xs font-extrabold text-white shadow-[0_8px_20px_rgba(255,107,157,.24)] hover:bg-[#ED4B66] sm:px-4 sm:py-2 sm:text-sm"><RotateCcw size={13}/> Retake</button></div> : <button
+          completed ? <div className="flex shrink-0 items-center gap-1.5"><button type="button" onClick={reviewLesson} className="rounded-full border border-[var(--br-surface-strong)] bg-surface px-2.5 py-1.5 text-xs font-extrabold text-[var(--br-brand)] hover:bg-[var(--br-canvas-elevated)] sm:px-4 sm:py-2 sm:text-sm">Review</button><button type="button" onClick={retakeLesson} className="inline-flex items-center gap-1 rounded-full bg-[var(--br-action)] px-2.5 py-1.5 text-xs font-extrabold text-on-dark shadow-[0_8px_20px_rgba(255,107,157,.24)] hover:bg-[#ED4B66] sm:px-4 sm:py-2 sm:text-sm"><RotateCcw size={13}/> Retake</button></div> : <button
             type="button"
             onClick={finish}
             disabled={isPending}
-            className="shrink-0 whitespace-nowrap rounded-full bg-gradient-to-br from-[#FF6B9D] to-[#FF8E53] px-2.5 py-1.5 text-xs font-extrabold text-white shadow-[0_8px_20px_rgba(255,107,157,.24)] disabled:opacity-45 sm:px-4 sm:py-2 sm:text-sm"
+            className="shrink-0 whitespace-nowrap rounded-full bg-gradient-to-br from-[#FF6B9D] to-[#FF8E53] px-2.5 py-1.5 text-xs font-extrabold text-on-dark shadow-[0_8px_20px_rgba(255,107,157,.24)] disabled:opacity-45 sm:px-4 sm:py-2 sm:text-sm"
           >
             Complete<span className="hidden sm:inline"> lesson</span>
           </button>
@@ -866,7 +866,7 @@ export function BuilderLessonPlayer({
             type="button"
             onClick={() => move(1)}
                   disabled={isLiveStudent && liveNavigationLocked}
-            className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] px-2.5 py-1.5 text-xs font-extrabold text-white shadow-[0_8px_20px_rgba(108,59,255,.28)] disabled:opacity-45 sm:gap-2 sm:px-4 sm:py-2 sm:text-sm"
+            className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] px-2.5 py-1.5 text-xs font-extrabold text-on-dark shadow-[0_8px_20px_rgba(108,59,255,.28)] disabled:opacity-45 sm:gap-2 sm:px-4 sm:py-2 sm:text-sm"
           >
             Next <ArrowRight size={14} className="shrink-0" />
           </button>

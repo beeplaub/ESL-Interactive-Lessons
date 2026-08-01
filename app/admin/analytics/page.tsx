@@ -50,7 +50,7 @@ export default async function AdminAnalyticsPage() {
       <div className="mb-6">
         <p className="text-xs font-semibold uppercase tracking-wide text-moss">Performance</p>
         <h1 className="mt-1 text-2xl font-semibold sm:text-3xl">Analytics</h1>
-        <p className="mt-2 text-sm text-black/60">A practical view of learner activity across courses, lessons, and quizzes.</p>
+        <p className="mt-2 text-sm text-[var(--br-text-muted)]">A practical view of learner activity across courses, lessons, and quizzes.</p>
       </div>
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -64,25 +64,25 @@ export default async function AdminAnalyticsPage() {
         <Metric icon={ClipboardList} label="Quiz attempts" value={quizAttempts?.length ?? 0} />
       </section>
 
-      <section className="mt-6 overflow-hidden rounded-xl border border-black/10 bg-white shadow-sm">
-        <div className="border-b border-black/10 p-4">
+      <section className="mt-6 overflow-hidden rounded-xl border border-[var(--br-border)] bg-surface shadow-sm">
+        <div className="border-b border-[var(--br-border)] p-4">
           <h2 className="font-semibold">Course performance</h2>
-          <p className="mt-1 text-sm text-black/55">Open a course report to see individual learner progress.</p>
+          <p className="mt-1 text-sm text-[var(--br-text-muted)]">Open a course report to see individual learner progress.</p>
         </div>
-        <div className="hidden grid-cols-[1.4fr_0.6fr_0.7fr_0.7fr_0.6fr] gap-3 bg-slate-50 p-3 text-xs font-semibold uppercase tracking-wide text-black/45 md:grid">
+        <div className="hidden grid-cols-[1.4fr_0.6fr_0.7fr_0.7fr_0.6fr] gap-3 bg-surface-muted p-3 text-xs font-semibold uppercase tracking-wide text-[var(--br-text-muted)] md:grid">
           <span>Course</span><span>Status</span><span>Enrollments</span><span>Completed</span><span>Progress</span>
         </div>
         <div className="divide-y divide-black/10">
           {courseRows.map((course) => (
-            <Link key={course.id} href={`/admin/courses/${course.id}/analytics`} className="grid gap-2 p-4 hover:bg-slate-50 md:grid-cols-[1.4fr_0.6fr_0.7fr_0.7fr_0.6fr] md:items-center">
+            <Link key={course.id} href={`/admin/courses/${course.id}/analytics`} className="grid gap-2 p-4 hover:bg-surface-muted md:grid-cols-[1.4fr_0.6fr_0.7fr_0.7fr_0.6fr] md:items-center">
               <span className="font-semibold">{course.title}</span>
-              <span className="text-xs text-black/55">{course.status}</span>
+              <span className="text-xs text-[var(--br-text-muted)]">{course.status}</span>
               <span className="text-sm">{course.enrollments}</span>
               <span className="text-sm">{course.completed}</span>
               <span className="font-semibold text-moss">{course.averageProgress}%</span>
             </Link>
           ))}
-          {courseRows.length === 0 ? <p className="p-6 text-center text-sm text-black/55">No courses to analyse yet.</p> : null}
+          {courseRows.length === 0 ? <p className="p-6 text-center text-sm text-[var(--br-text-muted)]">No courses to analyse yet.</p> : null}
         </div>
       </section>
     </main>
@@ -91,10 +91,10 @@ export default async function AdminAnalyticsPage() {
 
 function Metric({ icon: Icon, label, value }: { icon: typeof BarChart3; label: string; value: number | string }) {
   return (
-    <div className="rounded-xl border border-black/10 bg-white p-5 shadow-sm">
+    <div className="rounded-xl border border-[var(--br-border)] bg-surface p-5 shadow-sm">
       <Icon size={20} className="text-moss" />
       <p className="mt-3 text-2xl font-semibold">{value}</p>
-      <p className="mt-1 text-sm text-black/55">{label}</p>
+      <p className="mt-1 text-sm text-[var(--br-text-muted)]">{label}</p>
     </div>
   );
 }

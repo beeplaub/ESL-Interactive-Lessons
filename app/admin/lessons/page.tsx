@@ -51,32 +51,32 @@ export default async function AdminLessonsPage({
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">Lessons</h1>
-          <p className="mt-2 text-black/60">
+          <p className="mt-2 text-[var(--br-text-muted)]">
             Create, build, review, and publish future LMS lessons.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Link
             href="/admin/lessons/trash"
-            className="inline-flex items-center gap-2 rounded-md border border-black/15 px-4 py-2 text-sm font-semibold hover:bg-black/5"
+            className="inline-flex items-center gap-2 rounded-md border border-[var(--br-border)] px-4 py-2 text-sm font-semibold hover:bg-black/5"
           >
             <Trash2 size={16} /> Trash{trashedCount ? ` (${trashedCount})` : ""}
           </Link>
           <Link
             href="/admin/lessons/new"
-            className="inline-flex items-center gap-2 rounded-md bg-dark px-4 py-2 text-sm font-medium text-white"
+            className="inline-flex items-center gap-2 rounded-md bg-dark px-4 py-2 text-sm font-medium text-on-dark"
           >
             <Plus size={16} /> New lesson
           </Link>
         </div>
       </div>
 
-      <form className="mb-5 rounded-lg border border-black/10 bg-white p-4 shadow-sm">
+      <form className="mb-5 rounded-lg border border-[var(--br-border)] bg-surface p-4 shadow-sm">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2 text-sm font-semibold">
             <Filter size={16} /> Filters
           </div>
-          <span className="text-xs font-medium text-black/45">
+          <span className="text-xs font-medium text-[var(--br-text-muted)]">
             {lessons.length} of {(allLessons ?? []).length} lesson{(allLessons ?? []).length === 1 ? "" : "s"}
           </span>
         </div>
@@ -85,20 +85,20 @@ export default async function AdminLessonsPage({
             name="q"
             defaultValue={value("q")}
             placeholder="Search by title"
-            className="min-w-0 rounded-md border border-black/15 px-3 py-2 text-sm"
+            className="min-w-0 rounded-md border border-[var(--br-border)] px-3 py-2 text-sm"
           />
           <FilterSelect name="status" current={value("status")} label="All statuses" values={statuses} />
           <FilterSelect name="level" current={value("level")} label="All levels" values={levels} />
           <FilterSelect name="topic" current={value("topic")} label="All topics" values={topics} />
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
-          <button className="rounded-md bg-dark px-4 py-2 text-sm font-semibold text-white">
+          <button className="rounded-md bg-dark px-4 py-2 text-sm font-semibold text-on-dark">
             Apply filters
           </button>
           {hasActiveFilters ? (
             <Link
               href="/admin/lessons"
-              className="inline-flex items-center rounded-md border border-black/15 px-4 py-2 text-sm font-semibold hover:bg-black/5"
+              className="inline-flex items-center rounded-md border border-[var(--br-border)] px-4 py-2 text-sm font-semibold hover:bg-black/5"
             >
               Clear filters
             </Link>
@@ -111,15 +111,15 @@ export default async function AdminLessonsPage({
         {lessons.map((lesson) => (
           <article
             key={lesson.id}
-            className="rounded-lg border border-black/10 bg-white p-4 shadow-sm"
+            className="rounded-lg border border-[var(--br-border)] bg-surface p-4 shadow-sm"
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <h2 className="truncate font-semibold">{lesson.title}</h2>
-                <p className="mt-1 text-sm text-black/55">
+                <p className="mt-1 text-sm text-[var(--br-text-muted)]">
                   {lesson.level} · {lesson.topic}
                 </p>
-                <p className="mt-1 text-xs text-black/40">
+                <p className="mt-1 text-xs text-[var(--br-text-muted)]">
                   {new Date(lesson.created_at).toLocaleDateString()}
                 </p>
               </div>
@@ -129,7 +129,7 @@ export default async function AdminLessonsPage({
             </div>
             <div className="mt-4 flex flex-wrap gap-2">
               <Link
-                className="inline-flex flex-1 items-center justify-center gap-2 rounded-md border border-black/15 px-3 py-2 text-sm font-medium hover:bg-black/5"
+                className="inline-flex flex-1 items-center justify-center gap-2 rounded-md border border-[var(--br-border)] px-3 py-2 text-sm font-medium hover:bg-black/5"
                 href={`/admin/lessons/${lesson.id}/builder`}
               >
                 <Hammer size={16} /> Builder
@@ -141,13 +141,13 @@ export default async function AdminLessonsPage({
                   lesson.status === "PUBLISHED" ? "DRAFT" : "PUBLISHED"
                 )}
               >
-                <button className="h-full rounded-md border border-black/15 px-3 py-2 text-xs hover:bg-black/5">
+                <button className="h-full rounded-md border border-[var(--br-border)] px-3 py-2 text-xs hover:bg-black/5">
                   {lesson.status === "PUBLISHED" ? "Unpublish" : "Publish"}
                 </button>
               </form>
               <form action={duplicateLesson.bind(null, lesson.id)}>
                 <button
-                  className="h-full rounded-md border border-black/15 p-2 text-black/60 hover:bg-black/5"
+                  className="h-full rounded-md border border-[var(--br-border)] p-2 text-[var(--br-text-muted)] hover:bg-black/5"
                   aria-label="Duplicate"
                   title="Duplicate lesson"
                 >
@@ -168,16 +168,16 @@ export default async function AdminLessonsPage({
           </article>
         ))}
         {!lessons.length ? (
-          <div className="rounded-lg border border-black/10 bg-white p-8 text-center text-black/60 shadow-sm">
+          <div className="rounded-lg border border-[var(--br-border)] bg-surface p-8 text-center text-[var(--br-text-muted)] shadow-sm">
             {hasActiveFilters ? "No lessons match these filters." : "No lessons yet."}
           </div>
         ) : null}
       </div>
 
       {/* ── Desktop table ── */}
-      <div className="hidden overflow-hidden rounded-lg border border-black/10 bg-white shadow-sm md:block">
+      <div className="hidden overflow-hidden rounded-lg border border-[var(--br-border)] bg-surface shadow-sm md:block">
         <table className="w-full border-collapse text-left text-sm">
-          <thead className="bg-black/[0.03] text-black/60">
+          <thead className="bg-black/[0.03] text-[var(--br-text-muted)]">
             <tr>
               <th className="px-4 py-3 font-medium">Title</th>
               <th className="px-4 py-3 font-medium">Topic</th>
@@ -189,7 +189,7 @@ export default async function AdminLessonsPage({
           </thead>
           <tbody>
             {lessons.map((lesson) => (
-              <tr key={lesson.id} className="border-t border-black/10">
+              <tr key={lesson.id} className="border-t border-[var(--br-border)]">
                 <td className="px-4 py-3 font-medium">{lesson.title}</td>
                 <td className="px-4 py-3">{lesson.topic}</td>
                 <td className="px-4 py-3">{lesson.level}</td>
@@ -204,7 +204,7 @@ export default async function AdminLessonsPage({
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-2">
                     <Link
-                      className="rounded-md border border-black/15 p-2 hover:bg-black/5"
+                      className="rounded-md border border-[var(--br-border)] p-2 hover:bg-black/5"
                       href={`/admin/lessons/${lesson.id}/builder`}
                       aria-label="Builder"
                     >
@@ -217,13 +217,13 @@ export default async function AdminLessonsPage({
                         lesson.status === "PUBLISHED" ? "DRAFT" : "PUBLISHED"
                       )}
                     >
-                      <button className="rounded-md border border-black/15 px-3 py-2 text-xs hover:bg-black/5">
+                      <button className="rounded-md border border-[var(--br-border)] px-3 py-2 text-xs hover:bg-black/5">
                         {lesson.status === "PUBLISHED" ? "Unpublish" : "Publish"}
                       </button>
                     </form>
                     <form action={duplicateLesson.bind(null, lesson.id)}>
                       <button
-                        className="rounded-md border border-black/15 p-2 text-black/60 hover:bg-black/5"
+                        className="rounded-md border border-[var(--br-border)] p-2 text-[var(--br-text-muted)] hover:bg-black/5"
                         aria-label="Duplicate"
                         title="Duplicate lesson"
                       >
@@ -247,7 +247,7 @@ export default async function AdminLessonsPage({
             {!lessons.length ? (
               <tr>
                 <td
-                  className="px-4 py-8 text-center text-black/60"
+                  className="px-4 py-8 text-center text-[var(--br-text-muted)]"
                   colSpan={6}
                 >
                   {hasActiveFilters ? "No lessons match these filters." : "No lessons yet."}
@@ -267,7 +267,7 @@ function unique(values: Array<string | null>) {
 
 function FilterSelect({ name, current, label, values }: { name: string; current: string; label: string; values: string[] }) {
   return (
-    <select name={name} defaultValue={current} className="min-w-0 rounded-md border border-black/15 px-3 py-2 text-sm">
+    <select name={name} defaultValue={current} className="min-w-0 rounded-md border border-[var(--br-border)] px-3 py-2 text-sm">
       <option value="">{label}</option>
       {values.map((value) => <option key={value} value={value}>{value}</option>)}
     </select>

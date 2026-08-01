@@ -67,12 +67,12 @@ export default async function AdminOrdersPage({
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-semibold">Course Orders</h1>
-          <p className="mt-1 text-sm text-black/60">Manage manual payment verifications and enroll learners.</p>
+          <p className="mt-1 text-sm text-[var(--br-text-muted)]">Manage manual payment verifications and enroll learners.</p>
         </div>
       </div>
 
       {/* FILTER TABS */}
-      <div className="mb-6 flex gap-2 border-b border-black/10 pb-px">
+      <div className="mb-6 flex gap-2 border-b border-[var(--br-border)] pb-px">
         {tabs.map((tab) => {
           const isActive = filterStatus === tab.value;
           return (
@@ -82,12 +82,12 @@ export default async function AdminOrdersPage({
               className={`pb-3 px-4 text-sm font-semibold border-b-2 transition ${
                 isActive
                   ? "border-[var(--br-chart-primary)] text-[var(--br-chart-primary)]"
-                  : "border-transparent text-black/50 hover:text-black hover:border-black/20"
+                  : "border-transparent text-[var(--br-text-muted)] hover:text-[var(--br-text-muted)] hover:border-[var(--br-border)]"
               }`}
             >
               {tab.label}
               {"count" in tab && tab.count && tab.count > 0 ? (
-                <span className="ml-1.5 rounded-full bg-[var(--br-chart-primary)] px-2 py-0.5 text-[10px] font-bold text-white">
+                <span className="ml-1.5 rounded-full bg-[var(--br-chart-primary)] px-2 py-0.5 text-[10px] font-bold text-on-dark">
                   {tab.count}
                 </span>
               ) : null}
@@ -97,9 +97,9 @@ export default async function AdminOrdersPage({
       </div>
 
       {/* ORDERS LIST */}
-      <div className="overflow-x-auto rounded-lg border border-black/10 bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-lg border border-[var(--br-border)] bg-surface shadow-sm">
         <table className="min-w-[760px] w-full text-left text-sm">
-          <thead className="bg-slate-50 text-xs uppercase text-black/50">
+          <thead className="bg-surface-muted text-xs uppercase text-[var(--br-text-muted)]">
             <tr>
               <th className="p-3">Learner</th>
               <th className="p-3">Course</th>
@@ -115,18 +115,18 @@ export default async function AdminOrdersPage({
           <tbody>
             {(orders ?? []).map((order) => {
               return (
-                <tr key={order.id} className="border-t border-black/10">
+                <tr key={order.id} className="border-t border-[var(--br-border)]">
                   <td className="p-3 font-semibold">{order.profile?.full_name ?? "Unknown"}</td>
                   <td className="p-3 font-medium">{order.course?.title ?? "Course Deleted"}</td>
                   <td className="p-3 font-bold">৳{order.amount_bdt}</td>
                   <td className="p-3">
-                    <span className="rounded bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-700">
+                    <span className="rounded bg-surface-strong px-2 py-0.5 text-xs font-bold text-slate-700">
                       {order.payment_method}
                     </span>
                   </td>
                   <td className="p-3 font-mono">{order.sender_number ?? "-"}</td>
                   <td className="p-3 font-mono">{order.transaction_id ?? "-"}</td>
-                  <td className="p-3 text-black/60">
+                  <td className="p-3 text-[var(--br-text-muted)]">
                     {new Date(order.created_at).toLocaleDateString()}
                   </td>
                   <td className="p-3">
@@ -150,7 +150,7 @@ export default async function AdminOrdersPage({
                     <div className="flex items-center gap-2">
                       <Link
                         href={`/admin/orders/${order.id}`}
-                        className="inline-flex items-center gap-1 rounded-md border border-black/15 px-2.5 py-1.5 hover:bg-black/5 font-semibold text-xs"
+                        className="inline-flex items-center gap-1 rounded-md border border-[var(--br-border)] px-2.5 py-1.5 hover:bg-black/5 font-semibold text-xs"
                       >
                         <Eye size={12} /> Review
                       </Link>
@@ -162,7 +162,7 @@ export default async function AdminOrdersPage({
             })}
             {!orders?.length ? (
               <tr>
-                <td colSpan={9} className="p-6 text-center text-black/55">
+                <td colSpan={9} className="p-6 text-center text-[var(--br-text-muted)]">
                   No orders found.
                 </td>
               </tr>

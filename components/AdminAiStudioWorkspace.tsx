@@ -154,7 +154,7 @@ export function AdminAiStudioWorkspace({
   return (
     <main className="space-y-6 pb-12">
       {/* 1. Header Hero Card */}
-      <section className="relative overflow-hidden rounded-2xl border border-black/10 bg-white p-6 shadow-sm">
+      <section className="relative overflow-hidden rounded-2xl border border-[var(--br-border)] bg-surface p-6 shadow-sm">
         <div className="absolute inset-0 bg-gradient-to-r from-purple-500/5 to-moss-500/5 pointer-events-none" />
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between relative z-10">
           <div>
@@ -162,7 +162,7 @@ export function AdminAiStudioWorkspace({
               <Sparkles size={12} /> Gemini Studio Dashboard (Free Tier Only)
             </div>
             <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">BrenUp AI Playground</h1>
-            <p className="mt-1 max-w-2xl text-sm text-black/60">
+            <p className="mt-1 max-w-2xl text-sm text-[var(--br-text-muted)]">
               Manage system prompt templates, audit token counters, configure rate quotas, and live-test Gemini outputs.
             </p>
           </div>
@@ -170,7 +170,7 @@ export function AdminAiStudioWorkspace({
             <button
               onClick={handleSeed}
               disabled={isPending}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-black/15 bg-white px-4 py-2.5 text-sm font-semibold text-black hover:bg-slate-50 disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-[var(--br-border)] bg-surface px-4 py-2.5 text-sm font-semibold text-[var(--br-text-muted)] hover:bg-surface-muted disabled:opacity-50"
             >
               <Database size={16} /> Seed Templates
             </button>
@@ -178,24 +178,24 @@ export function AdminAiStudioWorkspace({
         </div>
 
         {/* Aggregate usage metrics */}
-        <div className="mt-6 grid grid-cols-2 gap-4 border-t border-black/5 pt-5 md:grid-cols-4">
-          <div className="rounded-xl bg-slate-50 p-4 border border-black/5">
-            <p className="text-xs font-medium uppercase tracking-wider text-black/45">API Limit</p>
+        <div className="mt-6 grid grid-cols-2 gap-4 border-t border-[var(--br-border)] pt-5 md:grid-cols-4">
+          <div className="rounded-xl bg-surface-muted p-4 border border-[var(--br-border)]">
+            <p className="text-xs font-medium uppercase tracking-wider text-[var(--br-text-muted)]">API Limit</p>
             <p className="mt-1 text-xl font-bold text-ink">Free Tier</p>
             <p className="text-[10px] text-amber-600 font-medium">Shared Studio Quota (15 RPM)</p>
           </div>
-          <div className="rounded-xl bg-slate-50 p-4 border border-black/5">
-            <p className="text-xs font-medium uppercase tracking-wider text-black/45">Requests Today</p>
+          <div className="rounded-xl bg-surface-muted p-4 border border-[var(--br-border)]">
+            <p className="text-xs font-medium uppercase tracking-wider text-[var(--br-text-muted)]">Requests Today</p>
             <p className="mt-1 text-xl font-bold text-ink">{totalRequestsToday}</p>
-            <p className="text-[10px] text-black/40">Aggregated usage logs</p>
+            <p className="text-[10px] text-[var(--br-text-muted)]">Aggregated usage logs</p>
           </div>
-          <div className="rounded-xl bg-slate-50 p-4 border border-black/5">
-            <p className="text-xs font-medium uppercase tracking-wider text-black/45">Est. Tokens Today</p>
+          <div className="rounded-xl bg-surface-muted p-4 border border-[var(--br-border)]">
+            <p className="text-xs font-medium uppercase tracking-wider text-[var(--br-text-muted)]">Est. Tokens Today</p>
             <p className="mt-1 text-xl font-bold text-ink">{totalTokensToday.toLocaleString()}</p>
-            <p className="text-[10px] text-black/40 font-mono">Input + output volume</p>
+            <p className="text-[10px] text-[var(--br-text-muted)] font-mono">Input + output volume</p>
           </div>
-          <div className="rounded-xl bg-slate-50 p-4 border border-black/5">
-            <p className="text-xs font-medium uppercase tracking-wider text-black/45">Gemini Defaults</p>
+          <div className="rounded-xl bg-surface-muted p-4 border border-[var(--br-border)]">
+            <p className="text-xs font-medium uppercase tracking-wider text-[var(--br-text-muted)]">Gemini Defaults</p>
             <p className="mt-1 text-xl font-bold text-ink">gemini-3.5-flash</p>
             <p className="text-[10px] text-moss font-semibold">Fast structured engine</p>
           </div>
@@ -214,42 +214,42 @@ export function AdminAiStudioWorkspace({
         {/* Left Sidebar: list of flags and templates */}
         <aside className="space-y-5">
           {/* A. Feature Flags Toggles */}
-          <section className="rounded-2xl border border-black/10 bg-white p-4 shadow-sm">
-            <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-black/50">Feature Flags</h2>
+          <section className="rounded-2xl border border-[var(--br-border)] bg-surface p-4 shadow-sm">
+            <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-[var(--br-text-muted)]">Feature Flags</h2>
             <div className="space-y-3">
               {flags.map((flag) => (
                 <div key={flag.id} className="flex items-center justify-between text-sm">
                   <div className="min-w-0 pr-2">
                     <p className="truncate font-semibold text-ink">{flag.feature_key.replaceAll("_", " ")}</p>
-                    <p className="text-[10px] text-black/40">Roles: {flag.allowed_roles.join(", ")}</p>
+                    <p className="text-[10px] text-[var(--br-text-muted)]">Roles: {flag.allowed_roles.join(", ")}</p>
                   </div>
                   <button
                     onClick={() => handleToggleFlag(flag.feature_key, flag.enabled)}
                     className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${flag.enabled ? "bg-moss" : "bg-slate-200"}`}
                   >
-                    <span className={`pointer-events-none inline-block size-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${flag.enabled ? "translate-x-4" : "translate-x-0"}`} />
+                    <span className={`pointer-events-none inline-block size-4 transform rounded-full bg-surface shadow ring-0 transition duration-200 ease-in-out ${flag.enabled ? "translate-x-4" : "translate-x-0"}`} />
                   </button>
                 </div>
               ))}
-              {flags.length === 0 && <p className="text-xs text-black/40">No feature flags found. Try Seeding.</p>}
+              {flags.length === 0 && <p className="text-xs text-[var(--br-text-muted)]">No feature flags found. Try Seeding.</p>}
             </div>
           </section>
 
           {/* B. Prompt Templates Selector List */}
-          <section className="rounded-2xl border border-black/10 bg-white p-4 shadow-sm">
-            <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-black/50">Prompt Keys</h2>
+          <section className="rounded-2xl border border-[var(--br-border)] bg-surface p-4 shadow-sm">
+            <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-[var(--br-text-muted)]">Prompt Keys</h2>
             <div className="space-y-1">
               {templates.map((t) => (
                 <button
                   key={t.id}
                   onClick={() => handleTemplateChange(t.template_key)}
                   className={`w-full text-left rounded-lg px-3 py-2 text-sm font-semibold transition truncate block
-                    ${selectedTemplateKey === t.template_key ? "bg-purple-50 text-purple-700 border border-purple-200/50" : "text-black/70 hover:bg-slate-50"}`}
+                    ${selectedTemplateKey === t.template_key ? "bg-purple-50 text-purple-700 border border-purple-200/50" : "text-[var(--br-text-muted)] hover:bg-surface-muted"}`}
                 >
                   {t.template_key}
                 </button>
               ))}
-              {templates.length === 0 && <p className="text-xs text-black/40">No templates found. Try Seeding.</p>}
+              {templates.length === 0 && <p className="text-xs text-[var(--br-text-muted)]">No templates found. Try Seeding.</p>}
             </div>
           </section>
         </aside>
@@ -257,69 +257,69 @@ export function AdminAiStudioWorkspace({
         {/* Right workspace: Edit Panel + Test Terminal */}
         <section className="space-y-6">
           {selectedTemplate ? (
-            <div className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm space-y-4">
-              <div className="flex items-center justify-between border-b border-black/5 pb-4">
+            <div className="rounded-2xl border border-[var(--br-border)] bg-surface p-5 shadow-sm space-y-4">
+              <div className="flex items-center justify-between border-b border-[var(--br-border)] pb-4">
                 <div>
                   <h2 className="text-lg font-bold text-ink">Edit: {selectedTemplateKey}</h2>
-                  <p className="text-xs text-black/40">Modify the active system rules and variables for this AI feature.</p>
+                  <p className="text-xs text-[var(--br-text-muted)]">Modify the active system rules and variables for this AI feature.</p>
                 </div>
                 <button
                   onClick={handleSaveTemplate}
                   disabled={isPending}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-dark px-4 py-2 text-sm font-bold text-white hover:bg-black/90 disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-dark px-4 py-2 text-sm font-bold text-on-dark hover:bg-black/90 disabled:opacity-50"
                 >
                   <Save size={16} /> Save Changes
                 </button>
               </div>
 
               <div className="grid gap-4">
-                <label className="text-sm font-semibold text-black/70 block">
+                <label className="text-sm font-semibold text-[var(--br-text-muted)] block">
                   System Role Description (AI persona setup)
                   <textarea
                     rows={2}
                     value={editRole}
                     onChange={(e) => setEditRole(e.target.value)}
                     placeholder="e.g. You are an expert CEFR English Examiner."
-                    className="mt-1.5 w-full rounded-xl border border-black/15 px-3.5 py-2.5 text-sm font-medium focus:ring-2 focus:ring-purple-500/25 focus:border-purple-500 outline-none"
+                    className="mt-1.5 w-full rounded-xl border border-[var(--br-border)] px-3.5 py-2.5 text-sm font-medium focus:ring-2 focus:ring-purple-500/25 focus:border-purple-500 outline-none"
                   />
                 </label>
 
-                <label className="text-sm font-semibold text-black/70 block">
+                <label className="text-sm font-semibold text-[var(--br-text-muted)] block">
                   Prompt Text (supports variable substitutions like {"{topic}"})
                   <textarea
                     rows={8}
                     value={editPrompt}
                     onChange={(e) => setEditPrompt(e.target.value)}
                     placeholder="Provide your prompts here..."
-                    className="mt-1.5 w-full font-mono rounded-xl border border-black/15 px-3.5 py-2.5 text-xs focus:ring-2 focus:ring-purple-500/25 focus:border-purple-500 outline-none"
+                    className="mt-1.5 w-full font-mono rounded-xl border border-[var(--br-border)] px-3.5 py-2.5 text-xs focus:ring-2 focus:ring-purple-500/25 focus:border-purple-500 outline-none"
                   />
                 </label>
               </div>
 
               {/* 3. Live Test Terminal Section */}
-              <div className="border-t border-black/5 pt-5 space-y-4">
+              <div className="border-t border-[var(--br-border)] pt-5 space-y-4">
                 <div className="flex items-center gap-1.5">
                   <Terminal size={18} className="text-moss" />
                   <h3 className="font-bold text-ink">Live Generation Test</h3>
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2">
-                  <label className="text-xs font-semibold text-black/60 block">
+                  <label className="text-xs font-semibold text-[var(--br-text-muted)] block">
                     1. Input Variables JSON
                     <textarea
                       rows={5}
                       value={testVars}
                       onChange={(e) => setTestVars(e.target.value)}
-                      className="mt-1 w-full font-mono rounded-xl border border-black/15 bg-slate-50 px-3 py-2 text-xs focus:outline-none"
+                      className="mt-1 w-full font-mono rounded-xl border border-[var(--br-border)] bg-surface-muted px-3 py-2 text-xs focus:outline-none"
                     />
                   </label>
 
                   <div className="flex flex-col">
-                    <span className="text-xs font-semibold text-black/60 mb-1 flex items-center justify-between">
+                    <span className="text-xs font-semibold text-[var(--br-text-muted)] mb-1 flex items-center justify-between">
                       2. Real-Time Gemini Response
                       {testing && <span className="text-moss font-semibold animate-pulse">Querying...</span>}
                     </span>
-                    <pre className="flex-1 font-mono text-[10px] rounded-xl border border-black/15 bg-black text-emerald-400 p-3 overflow-auto max-h-[160px]">
+                    <pre className="flex-1 font-mono text-[10px] rounded-xl border border-[var(--br-border)] bg-black text-emerald-400 p-3 overflow-auto max-h-[160px]">
                       {testError ? `Error: ${testError}` : testResult || "// Click Run Test to query Google AI Studio"}
                     </pre>
                   </div>
@@ -328,22 +328,22 @@ export function AdminAiStudioWorkspace({
                 <button
                   onClick={handleRunTest}
                   disabled={testing}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-moss px-4 py-2 text-sm font-bold text-white hover:bg-moss/90 disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-moss px-4 py-2 text-sm font-bold text-on-dark hover:bg-moss/90 disabled:opacity-50"
                 >
                   <Play size={14} /> Run Test with Gemini
                 </button>
               </div>
             </div>
           ) : (
-            <div className="rounded-2xl border border-dashed border-black/25 bg-slate-50 p-12 text-center">
-              <Sparkles size={32} className="mx-auto text-black/30 mb-3" />
+            <div className="rounded-2xl border border-dashed border-[var(--br-border)] bg-surface-muted p-12 text-center">
+              <Sparkles size={32} className="mx-auto text-[var(--br-text-muted)] mb-3" />
               <h2 className="text-lg font-bold text-ink">No Prompts Seeded</h2>
-              <p className="text-sm text-black/50 mt-1 max-w-sm mx-auto">
+              <p className="text-sm text-[var(--br-text-muted)] mt-1 max-w-sm mx-auto">
                 Seed the database with the default system instruction parameters to start building.
               </p>
               <button
                 onClick={handleSeed}
-                className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-dark px-4 py-2 text-sm font-bold text-white hover:bg-black/90"
+                className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-dark px-4 py-2 text-sm font-bold text-on-dark hover:bg-black/90"
               >
                 Seed Tables
               </button>
@@ -353,15 +353,15 @@ export function AdminAiStudioWorkspace({
       </div>
 
       {/* 3. Generation Audits Logs list */}
-      <section className="rounded-2xl border border-black/10 bg-white p-5 shadow-sm">
-        <div className="mb-4 flex items-center justify-between border-b border-black/5 pb-3">
+      <section className="rounded-2xl border border-[var(--br-border)] bg-surface p-5 shadow-sm">
+        <div className="mb-4 flex items-center justify-between border-b border-[var(--br-border)] pb-3">
           <div className="flex items-center gap-1.5">
             <Flame size={18} className="text-purple-600" />
             <h2 className="text-lg font-bold text-ink">Recent Generation Logs</h2>
           </div>
           <button
             onClick={() => window.location.reload()}
-            className="inline-flex size-8 items-center justify-center rounded-lg hover:bg-slate-50"
+            className="inline-flex size-8 items-center justify-center rounded-lg hover:bg-surface-muted"
           >
             <RefreshCcw size={14} />
           </button>
@@ -370,7 +370,7 @@ export function AdminAiStudioWorkspace({
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
-              <tr className="border-b border-black/10 text-xs font-semibold text-black/45">
+              <tr className="border-b border-[var(--br-border)] text-xs font-semibold text-[var(--br-text-muted)]">
                 <th className="pb-2">Feature Key</th>
                 <th className="pb-2">Model</th>
                 <th className="pb-2">Status</th>
@@ -380,7 +380,7 @@ export function AdminAiStudioWorkspace({
             </thead>
             <tbody className="divide-y divide-black/5">
               {logs.map((log) => (
-                <tr key={log.id} className="align-top text-xs text-black/75 hover:bg-slate-50/50">
+                <tr key={log.id} className="align-top text-xs text-[var(--br-text-muted)] hover:bg-surface-muted/50">
                   <td className="py-2.5 font-bold text-ink">{log.feature_key}</td>
                   <td className="py-2.5 font-mono">{log.model_used}</td>
                   <td className="py-2.5">
@@ -397,14 +397,14 @@ export function AdminAiStudioWorkspace({
                   <td className="py-2.5 max-w-[320px] truncate font-mono text-[10px]">
                     {log.error_message || log.response_preview || "No content output preview."}
                   </td>
-                  <td className="py-2.5 text-right font-medium text-black/45">
+                  <td className="py-2.5 text-right font-medium text-[var(--br-text-muted)]">
                     {new Date(log.created_at).toLocaleTimeString()}
                   </td>
                 </tr>
               ))}
               {logs.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="py-8 text-center text-black/40">
+                  <td colSpan={5} className="py-8 text-center text-[var(--br-text-muted)]">
                     No generation logs found in ai_generations.
                   </td>
                 </tr>

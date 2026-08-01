@@ -160,7 +160,7 @@ export function CourseItemsList({
           >
             {/* Drag Handle */}
             <div
-              className="grid size-8 shrink-0 cursor-grab active:cursor-grabbing place-items-center rounded-lg border border-black/10 bg-white text-black/40 hover:bg-slate-50 hover:text-black/60 transition"
+              className="grid size-8 shrink-0 cursor-grab active:cursor-grabbing place-items-center rounded-lg border border-[var(--br-border)] bg-surface text-[var(--br-text-muted)] hover:bg-surface-muted hover:text-[var(--br-text-muted)] transition"
               title="Drag to reorder"
             >
               <GripVertical size={14} />
@@ -187,7 +187,7 @@ export function CourseItemsList({
                 onClick={() => handleManualMove(item.id, "up", itemIndex)}
                 disabled={itemIndex === 0 || isPending}
                 title="Move item up"
-                className="grid size-8 place-items-center rounded-lg border border-black/15 bg-white disabled:opacity-35 transition"
+                className="grid size-8 place-items-center rounded-lg border border-[var(--br-border)] bg-surface disabled:opacity-35 transition"
               >
                 <ArrowUp size={13} />
               </button>
@@ -196,7 +196,7 @@ export function CourseItemsList({
                 onClick={() => handleManualMove(item.id, "down", itemIndex)}
                 disabled={itemIndex === items.length - 1 || isPending}
                 title="Move item down"
-                className="grid size-8 place-items-center rounded-lg border border-black/15 bg-white disabled:opacity-35 transition"
+                className="grid size-8 place-items-center rounded-lg border border-[var(--br-border)] bg-surface disabled:opacity-35 transition"
               >
                 <ArrowDown size={13} />
               </button>
@@ -206,9 +206,9 @@ export function CourseItemsList({
       })}
 
       {items.length === 0 && (
-        <div className="rounded-xl border border-dashed border-black/15 bg-slate-50 px-4 py-10 text-center">
+        <div className="rounded-xl border border-dashed border-[var(--br-border)] bg-surface-muted px-4 py-10 text-center">
           <p className="text-sm font-semibold text-ink">This section is ready for content</p>
-          <p className="mt-1 text-xs text-black/45">Add a lesson, quiz, level test, resource, or external link.</p>
+          <p className="mt-1 text-xs text-[var(--br-text-muted)]">Add a lesson, quiz, level test, resource, or external link.</p>
         </div>
       )}
     </div>

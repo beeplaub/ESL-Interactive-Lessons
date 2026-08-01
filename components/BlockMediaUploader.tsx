@@ -187,7 +187,7 @@ export function BlockMediaUploader({ type, lessonId, currentSrc, onUploaded }: P
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-medium text-black/45">
+        <p className="text-xs font-medium text-[var(--br-text-muted)]">
           {type === "audio" ? (mode === "upload" ? "Or upload a file" : "Or record audio") : "Or upload a file"}
         </p>
         {type === "audio" && !preview && (
@@ -206,7 +206,7 @@ export function BlockMediaUploader({ type, lessonId, currentSrc, onUploaded }: P
       </div>
 
       {type === "audio" && mode === "record" && !preview ? (
-        <div className="rounded-lg border-2 border-dashed border-black/15 px-4 py-4 text-center">
+        <div className="rounded-lg border-2 border-dashed border-[var(--br-border)] px-4 py-4 text-center">
           {recordedUrl ? (
             <div className="w-full space-y-2">
               <audio controls src={recordedUrl} className="w-full" />
@@ -214,7 +214,7 @@ export function BlockMediaUploader({ type, lessonId, currentSrc, onUploaded }: P
                 <button
                   type="button"
                   onClick={discardRecording}
-                  className="inline-flex items-center gap-1.5 rounded-md border border-black/15 px-3 py-1.5 text-xs font-medium hover:bg-black/5"
+                  className="inline-flex items-center gap-1.5 rounded-md border border-[var(--br-border)] px-3 py-1.5 text-xs font-medium hover:bg-black/5"
                 >
                   <RotateCcw size={13} /> Re-record
                 </button>
@@ -222,7 +222,7 @@ export function BlockMediaUploader({ type, lessonId, currentSrc, onUploaded }: P
                   type="button"
                   onClick={() => void confirmRecording()}
                   disabled={uploading}
-                  className="inline-flex items-center gap-1.5 rounded-md bg-moss px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 rounded-md bg-moss px-3 py-1.5 text-xs font-semibold text-on-dark disabled:opacity-50"
                 >
                   {uploading ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
                   {uploading ? "Uploading…" : "Use this recording"}
@@ -234,23 +234,23 @@ export function BlockMediaUploader({ type, lessonId, currentSrc, onUploaded }: P
               <div className="mx-auto flex size-10 items-center justify-center rounded-full bg-coral/10">
                 <span className="size-2.5 animate-pulse rounded-full bg-coral" />
               </div>
-              <p className="text-sm font-semibold tabular-nums text-black/70">{formatSeconds(recordSeconds)}</p>
+              <p className="text-sm font-semibold tabular-nums text-[var(--br-text-muted)]">{formatSeconds(recordSeconds)}</p>
               <button
                 type="button"
                 onClick={stopRecording}
-                className="mx-auto inline-flex items-center gap-1.5 rounded-md bg-coral px-3 py-1.5 text-xs font-semibold text-white"
+                className="mx-auto inline-flex items-center gap-1.5 rounded-md bg-coral px-3 py-1.5 text-xs font-semibold text-on-dark"
               >
                 <Square size={12} /> Stop recording
               </button>
             </div>
           ) : (
             <div className="space-y-2">
-              <Mic size={20} className="mx-auto text-black/30" />
-              <p className="text-xs text-black/50">Record straight from your microphone</p>
+              <Mic size={20} className="mx-auto text-[var(--br-text-muted)]" />
+              <p className="text-xs text-[var(--br-text-muted)]">Record straight from your microphone</p>
               <button
                 type="button"
                 onClick={() => void startRecording()}
-                className="mx-auto inline-flex items-center gap-1.5 rounded-md bg-moss px-3 py-1.5 text-xs font-semibold text-white hover:bg-moss/90"
+                className="mx-auto inline-flex items-center gap-1.5 rounded-md bg-moss px-3 py-1.5 text-xs font-semibold text-on-dark hover:bg-moss/90"
               >
                 <Mic size={13} /> Start recording
               </button>
@@ -263,14 +263,14 @@ export function BlockMediaUploader({ type, lessonId, currentSrc, onUploaded }: P
           onDragOver={(e) => e.preventDefault()}
           onClick={() => !uploading && inputRef.current?.click()}
           className={`relative flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed px-4 py-4 text-center transition
-            ${uploading ? "border-moss/40 bg-moss/5 cursor-wait" : "border-black/15 hover:border-moss/40 hover:bg-moss/5"}`}
+            ${uploading ? "border-moss/40 bg-moss/5 cursor-wait" : "border-[var(--br-border)] hover:border-moss/40 hover:bg-moss/5"}`}
         >
           <input ref={inputRef} type="file" accept={accept} onChange={handleChange} className="sr-only" />
 
           {uploading ? (
             <>
               <Loader2 size={20} className="animate-spin text-moss" />
-              <p className="text-xs text-black/55">Uploading…</p>
+              <p className="text-xs text-[var(--br-text-muted)]">Uploading…</p>
             </>
           ) : preview && type === "image" ? (
             <div className="relative w-full" onClick={(e) => e.stopPropagation()}>
@@ -279,7 +279,7 @@ export function BlockMediaUploader({ type, lessonId, currentSrc, onUploaded }: P
               <button
                 type="button"
                 onClick={clear}
-                className="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full bg-coral text-white"
+                className="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full bg-coral text-on-dark"
               >
                 <X size={10} />
               </button>
@@ -294,13 +294,13 @@ export function BlockMediaUploader({ type, lessonId, currentSrc, onUploaded }: P
           ) : (
             <>
               {type === "image"
-                ? <ImageIcon size={20} className="text-black/30" />
-                : <Music size={20} className="text-black/30" />
+                ? <ImageIcon size={20} className="text-[var(--br-text-muted)]" />
+                : <Music size={20} className="text-[var(--br-text-muted)]" />
               }
-              <p className="text-xs text-black/50">
+              <p className="text-xs text-[var(--br-text-muted)]">
                 <span className="font-medium text-moss">Click to upload</span> or drag & drop
               </p>
-              <p className="text-[11px] text-black/30">
+              <p className="text-[11px] text-[var(--br-text-muted)]">
                 {type === "image" ? "JPG, PNG, WebP, GIF" : "MP3, WAV, OGG, M4A"}
               </p>
             </>

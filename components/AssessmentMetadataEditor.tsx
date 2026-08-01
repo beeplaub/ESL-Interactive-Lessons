@@ -44,7 +44,7 @@ export function LessonAssessmentMetadataEditor({
         <span className="grid size-8 place-items-center rounded-lg bg-[var(--br-chart-primary)]/10 text-[var(--br-chart-primary)]"><Target size={16} /></span>
         <div>
           <h4 className="text-sm font-extrabold">Outcome and scoring map</h4>
-          <p className="text-xs text-black/50">Connect every question to measurable learning evidence.</p>
+          <p className="text-xs text-[var(--br-text-muted)]">Connect every question to measurable learning evidence.</p>
         </div>
       </div>
       <div className="mt-3 grid gap-3">
@@ -63,7 +63,7 @@ export function LessonAssessmentMetadataEditor({
               key={descriptor.key}
               action={saveAssessmentItemMetadata}
               successMessage={`Question ${index + 1} mapping saved.`}
-              className="grid gap-3 rounded-xl border border-black/10 bg-white p-3"
+              className="grid gap-3 rounded-xl border border-[var(--br-border)] bg-surface p-3"
             >
               <input type="hidden" name="sourceType" value="LESSON_ACTIVITY_QUESTION" />
               <input type="hidden" name="sourceId" value={activity.id} />
@@ -71,24 +71,24 @@ export function LessonAssessmentMetadataEditor({
               <input type="hidden" name="promptSnapshot" value={descriptor.prompt} />
               <p className="text-sm font-bold">Q{index + 1}. {descriptor.prompt || activity.activity_type.replaceAll("_", " ")}</p>
               <div className="grid gap-2 sm:grid-cols-2">
-                <label className="text-xs font-bold text-black/55">Lesson outcome<select name="lessonOutcomeId" defaultValue={saved?.lesson_outcome_id ?? ""} className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2 text-sm font-normal text-black"><option value="">Not mapped</option>{lessonOutcomes.filter((outcome) => outcome.status === "ACTIVE").map((outcome) => <option key={outcome.id} value={outcome.id}>{outcome.code} · {outcome.outcome}</option>)}</select></label>
-                <label className="text-xs font-bold text-black/55">Skill / subskill<select name="primarySkillId" defaultValue={primarySkill ?? ""} className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2 text-sm font-normal text-black"><option value="">Not classified</option>{skillOptions(skills)}</select></label>
-                <label className="text-xs font-bold text-black/55">Maximum points<input name="maxPoints" type="number" min="0.01" step="0.01" defaultValue={saved?.max_points ?? descriptor.suggestedPoints} className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2 text-sm font-normal text-black" /></label>
-                <label className="text-xs font-bold text-black/55">Analytical weight<input name="analyticalWeight" type="number" min="0.01" step="0.01" defaultValue={saved?.analytical_weight ?? 1} className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2 text-sm font-normal text-black" /></label>
+                <label className="text-xs font-bold text-[var(--br-text-muted)]">Lesson outcome<select name="lessonOutcomeId" defaultValue={saved?.lesson_outcome_id ?? ""} className="mt-1 w-full rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm font-normal text-[var(--br-text-muted)]"><option value="">Not mapped</option>{lessonOutcomes.filter((outcome) => outcome.status === "ACTIVE").map((outcome) => <option key={outcome.id} value={outcome.id}>{outcome.code} · {outcome.outcome}</option>)}</select></label>
+                <label className="text-xs font-bold text-[var(--br-text-muted)]">Skill / subskill<select name="primarySkillId" defaultValue={primarySkill ?? ""} className="mt-1 w-full rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm font-normal text-[var(--br-text-muted)]"><option value="">Not classified</option>{skillOptions(skills)}</select></label>
+                <label className="text-xs font-bold text-[var(--br-text-muted)]">Maximum points<input name="maxPoints" type="number" min="0.01" step="0.01" defaultValue={saved?.max_points ?? descriptor.suggestedPoints} className="mt-1 w-full rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm font-normal text-[var(--br-text-muted)]" /></label>
+                <label className="text-xs font-bold text-[var(--br-text-muted)]">Analytical weight<input name="analyticalWeight" type="number" min="0.01" step="0.01" defaultValue={saved?.analytical_weight ?? 1} className="mt-1 w-full rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm font-normal text-[var(--br-text-muted)]" /></label>
               </div>
               <fieldset>
-                <legend className="text-xs font-bold text-black/55">Specific learning targets</legend>
+                <legend className="text-xs font-bold text-[var(--br-text-muted)]">Specific learning targets</legend>
                 <div className="mt-2 flex max-h-32 flex-wrap gap-2 overflow-auto">
                   {targets.map((target) => (
-                    <label key={target.id} className="inline-flex items-center gap-1.5 rounded-full border border-black/10 bg-[var(--br-canvas-elevated)] px-2.5 py-1.5 text-xs">
+                    <label key={target.id} className="inline-flex items-center gap-1.5 rounded-full border border-[var(--br-border)] bg-[var(--br-canvas-elevated)] px-2.5 py-1.5 text-xs">
                       <input type="checkbox" name="targetIds" value={target.id} defaultChecked={selectedTargets.has(target.id)} />
                       {target.label}
                     </label>
                   ))}
-                  {!targets.length ? <span className="text-xs text-black/45">No learning targets yet.</span> : null}
+                  {!targets.length ? <span className="text-xs text-[var(--br-text-muted)]">No learning targets yet.</span> : null}
                 </div>
               </fieldset>
-              <button className="w-fit rounded-lg bg-[var(--br-chart-primary)] px-3 py-2 text-xs font-bold text-white">Save question mapping</button>
+              <button className="w-fit rounded-lg bg-[var(--br-chart-primary)] px-3 py-2 text-xs font-bold text-on-dark">Save question mapping</button>
             </ObeActionForm>
           );
         })}
@@ -122,10 +122,10 @@ function NewLearningTarget() {
         });
       }}
     >
-      <select name="targetType" className="rounded-lg border border-black/15 px-2 py-2 text-sm"><option value="VOCABULARY">Vocabulary</option><option value="IDIOM">Idiom</option><option value="GRAMMAR">Grammar</option><option value="FUNCTIONAL_LANGUAGE">Functional language</option><option value="PRONUNCIATION">Pronunciation</option><option value="OTHER">Other</option></select>
-      <input name="label" required placeholder="e.g. present perfect continuous" className="min-w-0 rounded-lg border border-black/15 px-3 py-2 text-sm" />
-      <button disabled={pending} className="rounded-lg bg-dark px-3 py-2 text-xs font-bold text-white">{pending ? "Adding..." : "Add"}</button>
-      {message ? <p className="text-xs text-black/55 sm:col-span-3">{message}</p> : null}
+      <select name="targetType" className="rounded-lg border border-[var(--br-border)] px-2 py-2 text-sm"><option value="VOCABULARY">Vocabulary</option><option value="IDIOM">Idiom</option><option value="GRAMMAR">Grammar</option><option value="FUNCTIONAL_LANGUAGE">Functional language</option><option value="PRONUNCIATION">Pronunciation</option><option value="OTHER">Other</option></select>
+      <input name="label" required placeholder="e.g. present perfect continuous" className="min-w-0 rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm" />
+      <button disabled={pending} className="rounded-lg bg-dark px-3 py-2 text-xs font-bold text-on-dark">{pending ? "Adding..." : "Add"}</button>
+      {message ? <p className="text-xs text-[var(--br-text-muted)] sm:col-span-3">{message}</p> : null}
     </form>
   );
 }

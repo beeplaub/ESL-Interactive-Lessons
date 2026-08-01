@@ -12,14 +12,14 @@ export default async function ResetPasswordPage({
   if (params.error) {
     return (
       <main className="mx-auto flex min-h-[calc(100vh-57px)] max-w-md items-center px-4">
-        <div className="w-full rounded-lg border border-black/10 bg-white p-6 shadow-sm">
+        <div className="w-full rounded-lg border border-[var(--br-border)] bg-surface p-6 shadow-sm">
           <h1 className="text-2xl font-semibold">Link expired</h1>
-          <p className="mt-3 text-sm text-black/65">
+          <p className="mt-3 text-sm text-[var(--br-text-muted)]">
             {params.error_description ?? "This password reset link has expired or already been used."}
           </p>
           <a
             href="/forgot-password"
-            className="mt-4 inline-block rounded-md bg-dark px-4 py-2 text-sm font-semibold text-white"
+            className="mt-4 inline-block rounded-md bg-dark px-4 py-2 text-sm font-semibold text-on-dark"
           >
             Request a new link
           </a>
@@ -36,14 +36,14 @@ export default async function ResetPasswordPage({
   if (error) {
     return (
       <main className="mx-auto flex min-h-[calc(100vh-57px)] max-w-md items-center px-4">
-        <div className="w-full rounded-lg border border-black/10 bg-white p-6 shadow-sm">
+        <div className="w-full rounded-lg border border-[var(--br-border)] bg-surface p-6 shadow-sm">
           <h1 className="text-2xl font-semibold">Link expired</h1>
-          <p className="mt-3 text-sm text-black/65">
+          <p className="mt-3 text-sm text-[var(--br-text-muted)]">
             This link has expired or already been used. Please request a new one.
           </p>
           <a
             href="/forgot-password"
-            className="mt-4 inline-block rounded-md bg-dark px-4 py-2 text-sm font-semibold text-white"
+            className="mt-4 inline-block rounded-md bg-dark px-4 py-2 text-sm font-semibold text-on-dark"
           >
             Request a new link
           </a>
@@ -54,9 +54,9 @@ export default async function ResetPasswordPage({
 
   return (
     <main className="mx-auto flex min-h-[calc(100vh-57px)] max-w-md items-center px-4">
-      <div className="w-full rounded-lg border border-black/10 bg-white p-6 shadow-sm">
+      <div className="w-full rounded-lg border border-[var(--br-border)] bg-surface p-6 shadow-sm">
         <h1 className="text-2xl font-semibold">Set new password</h1>
-        <p className="mt-2 text-sm text-black/60">
+        <p className="mt-2 text-sm text-[var(--br-text-muted)]">
           Choose a strong password — at least 8 characters.
         </p>
         <ResetPasswordForm />

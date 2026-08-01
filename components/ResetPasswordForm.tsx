@@ -26,7 +26,7 @@ function StrengthBar({ password }: { password: string }) {
           <div key={i} className={`h-1 flex-1 rounded-full transition-colors ${i <= score ? color : "bg-black/10"}`} />
         ))}
       </div>
-      <p className="mt-1 text-xs text-black/45">{label}</p>
+      <p className="mt-1 text-xs text-[var(--br-text-muted)]">{label}</p>
     </div>
   );
 }
@@ -57,7 +57,7 @@ export function ResetPasswordForm() {
     return (
       <div className="mt-6 rounded-md bg-moss/10 p-4 text-sm">
         <p className="font-semibold text-moss">Password updated!</p>
-        <p className="mt-1 text-black/65">Redirecting you to your account…</p>
+        <p className="mt-1 text-[var(--br-text-muted)]">Redirecting you to your account…</p>
       </div>
     );
   }
@@ -73,12 +73,12 @@ export function ResetPasswordForm() {
             onChange={(e) => setPassword(e.target.value)}
             autoComplete="new-password"
             placeholder="At least 8 characters"
-            className="w-full rounded-md border border-black/15 px-3 py-2 pr-10 font-normal"
+            className="w-full rounded-md border border-[var(--br-border)] px-3 py-2 pr-10 font-normal"
           />
           <button
             type="button"
             onClick={() => setShow((v) => !v)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-black/40 hover:text-black"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--br-text-muted)] hover:text-[var(--br-text-muted)]"
             aria-label={show ? "Hide password" : "Show password"}
           >
             {show ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -95,7 +95,7 @@ export function ResetPasswordForm() {
           onChange={(e) => setConfirm(e.target.value)}
           autoComplete="new-password"
           placeholder="Repeat your new password"
-          className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 font-normal"
+          className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 font-normal"
         />
       </label>
 
@@ -103,7 +103,7 @@ export function ResetPasswordForm() {
         type="button"
         disabled={isPending || !password || !confirm}
         onClick={submit}
-        className="w-full rounded-md bg-dark px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+        className="w-full rounded-md bg-dark px-4 py-2.5 text-sm font-semibold text-on-dark disabled:opacity-60"
       >
         {isPending ? "Updating..." : "Set new password"}
       </button>

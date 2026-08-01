@@ -110,7 +110,7 @@ export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLogged
 
   return (
     <>
-      <div className="mb-5 rounded-[20px] border border-[var(--br-surface-strong)] bg-white p-4 shadow-[0_12px_32px_rgba(0,0,0,.06)] sm:p-5">
+      <div className="mb-5 rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-4 shadow-[0_12px_32px_rgba(0,0,0,.06)] sm:p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-2 text-lg font-extrabold text-[var(--br-dark-card)]"><Gamepad2 className="size-5 text-[var(--br-chart-primary)]" /> Quiz Library</div>
@@ -124,7 +124,7 @@ export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLogged
             <button
               type="button"
               onClick={clearFilters}
-              className="inline-flex items-center gap-1 rounded-[12px] border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] px-3 py-2 text-xs font-bold text-[var(--br-text-muted)] hover:bg-white"
+              className="inline-flex items-center gap-1 rounded-[12px] border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] px-3 py-2 text-xs font-bold text-[var(--br-text-muted)] hover:bg-surface"
             >
               <X size={13} /> Clear filters
             </button>
@@ -139,7 +139,7 @@ export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLogged
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
               placeholder="Search title or topic…"
-              className="h-12 w-full rounded-[16px] border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] py-2 pl-10 pr-3 text-sm font-semibold outline-none transition placeholder:text-[var(--br-text-muted)] focus:border-[var(--br-chart-primary)] focus:bg-white"
+              className="h-12 w-full rounded-[16px] border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] py-2 pl-10 pr-3 text-sm font-semibold outline-none transition placeholder:text-[var(--br-text-muted)] focus:border-[var(--br-chart-primary)] focus:bg-surface"
             />
           </div>
 
@@ -147,7 +147,7 @@ export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLogged
             <select
               value={selectedTopic}
               onChange={(e) => setSelectedTopic(e.target.value)}
-              className="h-12 rounded-[16px] border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] px-3 text-sm font-bold text-[var(--br-dark-card)] outline-none focus:border-[var(--br-chart-primary)] focus:bg-white"
+              className="h-12 rounded-[16px] border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] px-3 text-sm font-bold text-[var(--br-dark-card)] outline-none focus:border-[var(--br-chart-primary)] focus:bg-surface"
             >
               <option value="">All topics</option>
               {topics.map((t) => (
@@ -159,7 +159,7 @@ export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLogged
           <select
             value={timerFilter}
             onChange={(e) => setTimerFilter(e.target.value as "all" | "timer" | "no-timer")}
-            className="h-12 rounded-[16px] border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] px-3 text-sm font-bold text-[var(--br-dark-card)] outline-none focus:border-[var(--br-chart-primary)] focus:bg-white"
+            className="h-12 rounded-[16px] border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] px-3 text-sm font-bold text-[var(--br-dark-card)] outline-none focus:border-[var(--br-chart-primary)] focus:bg-surface"
           >
             <option value="all">Timer: all</option>
             <option value="timer">With timer</option>
@@ -169,7 +169,7 @@ export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLogged
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as SortOption)}
-            className="h-12 rounded-[16px] border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] px-3 text-sm font-bold text-[var(--br-dark-card)] outline-none focus:border-[var(--br-chart-primary)] focus:bg-white"
+            className="h-12 rounded-[16px] border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] px-3 text-sm font-bold text-[var(--br-dark-card)] outline-none focus:border-[var(--br-chart-primary)] focus:bg-surface"
           >
             <option value="newest">Sort: Newest</option>
             <option value="az">Sort: A–Z</option>
@@ -217,9 +217,9 @@ export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLogged
             return (
               <article
                 key={quiz.id}
-                className="group flex flex-col overflow-hidden rounded-[20px] border border-[var(--br-surface-strong)] bg-white shadow-[0_12px_32px_rgba(0,0,0,.06)] transition hover:scale-[1.012] hover:shadow-[0_16px_40px_rgba(0,0,0,.1)]"
+                className="group flex flex-col overflow-hidden rounded-[20px] border border-[var(--br-surface-strong)] bg-surface shadow-[0_12px_32px_rgba(0,0,0,.06)] transition hover:scale-[1.012] hover:shadow-[0_16px_40px_rgba(0,0,0,.1)]"
               >
-                <div className={`relative flex min-h-[132px] items-start justify-between gap-3 bg-gradient-to-br ${theme.gradient} p-5 text-white`}>
+                <div className={`relative flex min-h-[132px] items-start justify-between gap-3 bg-gradient-to-br ${theme.gradient} p-5 text-on-dark`}>
                   <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,.28),transparent_28%),radial-gradient(circle_at_90%_90%,rgba(255,255,255,.16),transparent_28%)]" />
                   <div className="relative z-10 min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
@@ -229,7 +229,7 @@ export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLogged
                       >
                         {quiz.level ?? "Quiz"}
                       </span>
-                      {hasTimer ? <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 text-xs font-bold text-white"><Clock3 className="size-3" /> Timed</span> : null}
+                      {hasTimer ? <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 text-xs font-bold text-on-dark"><Clock3 className="size-3" /> Timed</span> : null}
                     </div>
                     <h2 className="mt-3 line-clamp-2 text-xl font-extrabold leading-tight">{quiz.title}</h2>
                     <p className="mt-1 text-sm font-semibold text-white/70">{quiz.topic || "English practice"}</p>
@@ -241,7 +241,7 @@ export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLogged
                       initiallySaved={wishlistSet.has(quiz.id)}
                       loginNext="/quizzes"
                     />
-                    <span className="grid size-10 place-items-center rounded-[14px] bg-white/15 text-white">
+                    <span className="grid size-10 place-items-center rounded-[14px] bg-white/15 text-on-dark">
                       <ClipboardList size={20} />
                     </span>
                   </div>
@@ -288,7 +288,7 @@ export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLogged
 
                   <Link
                     href={href}
-                    className="mt-4 inline-flex items-center justify-center gap-2 rounded-[14px] bg-[var(--br-dark-card)] px-4 py-3 text-sm font-extrabold text-white transition group-hover:bg-[var(--br-chart-primary)]"
+                    className="mt-4 inline-flex items-center justify-center gap-2 rounded-[14px] bg-[var(--br-dark-card)] px-4 py-3 text-sm font-extrabold text-on-dark transition group-hover:bg-[var(--br-chart-primary)]"
                   >
                     {attempt ? "Retake quiz" : "Start quiz"} <ArrowRight size={15} />
                   </Link>
@@ -298,14 +298,14 @@ export function QuizzesGrid({ quizzes, questionCounts, wishlistQuizIds, isLogged
           })}
         </div>
       ) : (
-        <div className="rounded-[20px] border border-[var(--br-surface-strong)] bg-white p-10 text-center shadow-[0_12px_32px_rgba(0,0,0,.06)]">
+        <div className="rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-10 text-center shadow-[0_12px_32px_rgba(0,0,0,.06)]">
           <ClipboardList className="mx-auto text-[var(--br-chart-primary)]/40" size={32} />
           <h2 className="mt-4 text-lg font-extrabold">No quizzes match your filters</h2>
           <p className="mt-2 text-sm text-[var(--br-text-muted)]">Try clearing some filters to see more quizzes.</p>
           <button
             type="button"
             onClick={clearFilters}
-            className="mt-4 inline-flex items-center gap-2 rounded-[14px] border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] px-4 py-2 text-sm font-bold text-[var(--br-text-muted)] hover:bg-white"
+            className="mt-4 inline-flex items-center gap-2 rounded-[14px] border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] px-4 py-2 text-sm font-bold text-[var(--br-text-muted)] hover:bg-surface"
           >
             <X size={15} /> Clear filters
           </button>

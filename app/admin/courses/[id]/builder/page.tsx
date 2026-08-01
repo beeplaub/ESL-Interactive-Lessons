@@ -147,34 +147,34 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
 
     return (
       <div key={section.id} className="min-w-0">
-        <form action={updateCourseSection.bind(null, course.id, section.id)} className="rounded-xl border border-black/10 bg-slate-50 p-3 sm:p-4">
+        <form action={updateCourseSection.bind(null, course.id, section.id)} className="rounded-xl border border-[var(--br-border)] bg-surface-muted p-3 sm:p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
             <div className="grid min-w-0 flex-1 gap-2">
-              <label className="text-xs font-semibold uppercase tracking-wide text-black/45">
+              <label className="text-xs font-semibold uppercase tracking-wide text-[var(--br-text-muted)]">
                 Section title
                 <input
                   name="title"
                   defaultValue={section.title}
-                  className="mt-1 w-full rounded-lg border border-black/15 bg-white px-3 py-2 text-sm font-semibold normal-case tracking-normal"
+                  className="mt-1 w-full rounded-lg border border-[var(--br-border)] bg-surface px-3 py-2 text-sm font-semibold normal-case tracking-normal"
                 />
               </label>
-              <label className="text-xs font-semibold uppercase tracking-wide text-black/45">
+              <label className="text-xs font-semibold uppercase tracking-wide text-[var(--br-text-muted)]">
                 Description
                 <input
                   name="description"
                   defaultValue={section.description ?? ""}
                   placeholder="What learners will do in this section"
-                  className="mt-1 w-full rounded-lg border border-black/15 bg-white px-3 py-2 text-sm font-normal normal-case tracking-normal"
+                  className="mt-1 w-full rounded-lg border border-[var(--br-border)] bg-surface px-3 py-2 text-sm font-normal normal-case tracking-normal"
                 />
               </label>
             </div>
             <div className="flex shrink-0 items-center gap-1.5">
-              <button className="rounded-lg bg-dark px-3 py-2 text-xs font-semibold text-white">Save section</button>
+              <button className="rounded-lg bg-dark px-3 py-2 text-xs font-semibold text-on-dark">Save section</button>
               <button
                 formAction={moveCourseSection.bind(null, course.id, section.id, "up")}
                 disabled={sectionIndex === 0}
                 title="Move section up"
-                className="grid size-9 place-items-center rounded-lg border border-black/15 bg-white disabled:opacity-35"
+                className="grid size-9 place-items-center rounded-lg border border-[var(--br-border)] bg-surface disabled:opacity-35"
               >
                 <ArrowUp size={14} />
               </button>
@@ -182,7 +182,7 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
                 formAction={moveCourseSection.bind(null, course.id, section.id, "down")}
                 disabled={sectionIndex === (sections?.length ?? 1) - 1}
                 title="Move section down"
-                className="grid size-9 place-items-center rounded-lg border border-black/15 bg-white disabled:opacity-35"
+                className="grid size-9 place-items-center rounded-lg border border-[var(--br-border)] bg-surface disabled:opacity-35"
               >
                 <ArrowDown size={14} />
               </button>
@@ -190,7 +190,7 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
                 title="Delete section?"
                 message={`Are you sure you want to delete the section "${section.title}"? All items inside will be disconnected.`}
                 isSoftDelete={false}
-                className="grid size-9 place-items-center rounded-lg border border-coral/30 bg-white text-coral"
+                className="grid size-9 place-items-center rounded-lg border border-coral/30 bg-surface text-coral"
                 action={deleteCourseSection.bind(null, course.id, section.id)}
               >
                 <Trash2 size={14} />
@@ -202,7 +202,7 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
         <div className="mt-4 flex items-center justify-between gap-3">
           <div>
             <h3 className="text-sm font-semibold text-ink">Section content</h3>
-            <p className="text-xs text-black/45">{sectionItems.length} {sectionItems.length === 1 ? "item" : "items"} in learning order</p>
+            <p className="text-xs text-[var(--br-text-muted)]">{sectionItems.length} {sectionItems.length === 1 ? "item" : "items"} in learning order</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <CreateItemModal
@@ -237,10 +237,10 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
 
   return (
     <main className="min-w-0 space-y-4 overflow-hidden">
-      <section className="rounded-2xl border border-black/10 bg-white p-4 shadow-sm sm:p-5">
+      <section className="rounded-2xl border border-[var(--br-border)] bg-surface p-4 shadow-sm sm:p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="min-w-0">
-            <Link href="/admin/courses" className="inline-flex items-center gap-1 text-sm text-black/50 hover:text-black">
+            <Link href="/admin/courses" className="inline-flex items-center gap-1 text-sm text-[var(--br-text-muted)] hover:text-[var(--br-text-muted)]">
               <ArrowLeft size={15} /> Courses
             </Link>
             <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -249,29 +249,29 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
                 {course.status}
               </span>
             </div>
-            <p className="mt-1 text-sm text-black/50">Shape the landing page when needed. Keep the curriculum in focus.</p>
+            <p className="mt-1 text-sm text-[var(--br-text-muted)]">Shape the landing page when needed. Keep the curriculum in focus.</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Link href="/admin/content-library?type=COURSE_TEMPLATE" className="inline-flex items-center gap-2 rounded-lg border border-black/15 px-3 py-2 text-sm font-semibold">
+            <Link href="/admin/content-library?type=COURSE_TEMPLATE" className="inline-flex items-center gap-2 rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm font-semibold">
               <Library size={15} /> Library
             </Link>
-            <Link href={`/admin/courses/${course.id}/outcomes`} className="inline-flex items-center gap-2 rounded-lg border border-black/15 px-3 py-2 text-sm font-semibold">
+            <Link href={`/admin/courses/${course.id}/outcomes`} className="inline-flex items-center gap-2 rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm font-semibold">
               <BarChart3 size={15} /> Outcomes
             </Link>
             {course.status === "PUBLISHED" ? (
               <form action={setCourseStatus.bind(null, course.id, "DRAFT")}>
-                <button className="rounded-lg border border-black/15 px-3 py-2 text-sm font-semibold">Unpublish</button>
+                <button className="rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm font-semibold">Unpublish</button>
               </form>
             ) : (
               <form action={setCourseStatus.bind(null, course.id, "PUBLISHED")}>
-                <button className="rounded-lg bg-moss px-3 py-2 text-sm font-semibold text-white">Publish</button>
+                <button className="rounded-lg bg-moss px-3 py-2 text-sm font-semibold text-on-dark">Publish</button>
               </form>
             )}
             <Link
               href={`/courses/${course.id}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-lg border border-black/15 px-3 py-2 text-sm font-semibold"
+              className="inline-flex items-center gap-2 rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm font-semibold"
             >
               <Eye size={15} /> Preview
             </Link>
@@ -291,60 +291,60 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="text-sm font-medium sm:col-span-2">
                 Title
-                <input name="title" defaultValue={course.title} required className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2 text-sm" />
+                <input name="title" defaultValue={course.title} required className="mt-1 w-full rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm" />
               </label>
               <label className="text-sm font-medium sm:col-span-2">
                 Subtitle
-                <input name="subtitle" defaultValue={course.subtitle ?? ""} className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2 text-sm" />
+                <input name="subtitle" defaultValue={course.subtitle ?? ""} className="mt-1 w-full rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm" />
               </label>
               <label className="text-sm font-medium">
                 Topic
-                <input name="topic" defaultValue={course.topic ?? ""} className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2 text-sm" />
+                <input name="topic" defaultValue={course.topic ?? ""} className="mt-1 w-full rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm" />
               </label>
               <label className="text-sm font-medium">
                 Category
-                <input name="category" defaultValue={course.category ?? ""} className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2 text-sm" />
+                <input name="category" defaultValue={course.category ?? ""} className="mt-1 w-full rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm" />
               </label>
               <label className="text-sm font-medium">
                 Level
-                <select name="level" defaultValue={course.level} className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2 text-sm">
+                <select name="level" defaultValue={course.level} className="mt-1 w-full rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm">
                   {levels.map((level) => <option key={level}>{level}</option>)}
                 </select>
               </label>
               <label className="text-sm font-medium">
                 Organization
-                <select name="organizationId" defaultValue={course.organization_id ?? ""} className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2 text-sm">
+                <select name="organizationId" defaultValue={course.organization_id ?? ""} className="mt-1 w-full rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm">
                   <option value="">Platform course</option>
                   {(organizations ?? []).map((org) => <option key={org.id} value={org.id}>{org.name}</option>)}
                 </select>
               </label>
               <label className="text-sm font-medium">
                 Estimated completion (minutes)
-                <input name="estimatedCompletionMinutes" type="number" min="0" defaultValue={course.estimated_completion_minutes ?? ""} className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2 text-sm" />
+                <input name="estimatedCompletionMinutes" type="number" min="0" defaultValue={course.estimated_completion_minutes ?? ""} className="mt-1 w-full rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm" />
               </label>
               <label className="text-sm font-medium">
                 Content duration (minutes)
-                <input name="durationMinutes" type="number" min="0" defaultValue={course.duration_minutes ?? ""} className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2 text-sm" />
+                <input name="durationMinutes" type="number" min="0" defaultValue={course.duration_minutes ?? ""} className="mt-1 w-full rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm" />
               </label>
               <label className="text-sm font-medium sm:col-span-2">
                 Description
-                <textarea name="description" defaultValue={course.description ?? ""} rows={5} className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2 text-sm" />
+                <textarea name="description" defaultValue={course.description ?? ""} rows={5} className="mt-1 w-full rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm" />
               </label>
             </div>
-            <div className="rounded-xl border border-black/10 bg-slate-50 p-4">
+            <div className="rounded-xl border border-[var(--br-border)] bg-surface-muted p-4">
               <div className="mb-3 flex items-center gap-2 text-sm font-semibold"><ImageIcon size={16} /> Course images</div>
               <div className="grid gap-3">
                 <label className="text-sm font-medium">
                   Feature image URL or storage path
-                  <input name="coverImagePath" defaultValue={course.cover_image_path ?? ""} placeholder="https://... or course-covers/image.png" className="mt-1 w-full rounded-lg border border-black/15 bg-white px-3 py-2 text-sm" />
+                  <input name="coverImagePath" defaultValue={course.cover_image_path ?? ""} placeholder="https://... or course-covers/image.png" className="mt-1 w-full rounded-lg border border-[var(--br-border)] bg-surface px-3 py-2 text-sm" />
                 </label>
                 <label className="text-sm font-medium">
                   Small card image URL or storage path
-                  <input name="thumbnailPath" defaultValue={course.thumbnail_path ?? ""} placeholder="Optional card image" className="mt-1 w-full rounded-lg border border-black/15 bg-white px-3 py-2 text-sm" />
+                  <input name="thumbnailPath" defaultValue={course.thumbnail_path ?? ""} placeholder="Optional card image" className="mt-1 w-full rounded-lg border border-[var(--br-border)] bg-surface px-3 py-2 text-sm" />
                 </label>
               </div>
             </div>
-            <button className="w-fit rounded-lg bg-dark px-4 py-2 text-sm font-semibold text-white">Save landing page</button>
+            <button className="w-fit rounded-lg bg-dark px-4 py-2 text-sm font-semibold text-on-dark">Save landing page</button>
           </form>
         </BuilderDialog>
 
@@ -359,15 +359,15 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="text-sm font-medium">
                 Price (BDT)
-                <input name="priceBdt" type="number" min="0" defaultValue={course.price_bdt ?? ""} placeholder="e.g. 500 (leave empty for Free)" className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2 text-sm" />
+                <input name="priceBdt" type="number" min="0" defaultValue={course.price_bdt ?? ""} placeholder="e.g. 500 (leave empty for Free)" className="mt-1 w-full rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm" />
               </label>
               <label className="text-sm font-medium">
                 Original Price (BDT) - Optional
-                <input name="originalPriceBdt" type="number" min="0" defaultValue={course.original_price_bdt ?? ""} placeholder="e.g. 1000" className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2 text-sm" />
+                <input name="originalPriceBdt" type="number" min="0" defaultValue={course.original_price_bdt ?? ""} placeholder="e.g. 1000" className="mt-1 w-full rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm" />
               </label>
               <label className="text-sm font-medium sm:col-span-2">
                 Payment Instructions (displayed to buyers)
-                <textarea name="paymentInstructions" defaultValue={course.payment_instructions ?? ""} rows={6} placeholder="Send Money to:&#10;bKash Personal: 017xxxxxxxx&#10;Nagad Personal: 019xxxxxxxx&#10;Bank Details: Account #xxxxxx" className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2 text-sm font-mono" />
+                <textarea name="paymentInstructions" defaultValue={course.payment_instructions ?? ""} rows={6} placeholder="Send Money to:&#10;bKash Personal: 017xxxxxxxx&#10;Nagad Personal: 019xxxxxxxx&#10;Bank Details: Account #xxxxxx" className="mt-1 w-full rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm font-mono" />
               </label>
             </div>
             {/* Hidden fields to preserve other metadata values when saving from this modal */}
@@ -383,7 +383,7 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
             <input type="hidden" name="coverImagePath" value={course.cover_image_path ?? ""} />
             <input type="hidden" name="thumbnailPath" value={course.thumbnail_path ?? ""} />
             
-            <button className="w-fit rounded-lg bg-dark px-4 py-2 text-sm font-semibold text-white">Save pricing</button>
+            <button className="w-fit rounded-lg bg-dark px-4 py-2 text-sm font-semibold text-on-dark">Save pricing</button>
           </form>
         </BuilderDialog>
 
@@ -396,21 +396,21 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
         >
           <div className="space-y-3">
             {(outcomes ?? []).map((outcome, index) => (
-              <form key={outcome.id} action={updateCourseOutcome.bind(null, course.id, outcome.id)} className="grid gap-3 rounded-xl border border-black/10 p-3">
+              <form key={outcome.id} action={updateCourseOutcome.bind(null, course.id, outcome.id)} className="grid gap-3 rounded-xl border border-[var(--br-border)] p-3">
                 <div className="flex items-center gap-2">
                   <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-moss/10 text-xs font-bold text-moss">{index + 1}</span>
-                  <input name="code" defaultValue={outcome.code ?? `CO${index + 1}`} aria-label="Outcome code" className="w-20 rounded-lg border border-black/15 px-2 py-2 text-sm font-bold" />
-                  <input name="outcome" defaultValue={outcome.outcome} aria-label="Outcome statement" className="min-w-0 flex-1 rounded-lg border border-black/15 px-3 py-2 text-sm" />
+                  <input name="code" defaultValue={outcome.code ?? `CO${index + 1}`} aria-label="Outcome code" className="w-20 rounded-lg border border-[var(--br-border)] px-2 py-2 text-sm font-bold" />
+                  <input name="outcome" defaultValue={outcome.outcome} aria-label="Outcome statement" className="min-w-0 flex-1 rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm" />
                 </div>
-                <textarea name="outcomeDescription" defaultValue={outcome.description ?? ""} rows={2} placeholder="Optional explanation or observable performance" className="w-full rounded-lg border border-black/15 px-3 py-2 text-sm" />
+                <textarea name="outcomeDescription" defaultValue={outcome.description ?? ""} rows={2} placeholder="Optional explanation or observable performance" className="w-full rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm" />
                 <div className="grid gap-2 sm:grid-cols-4">
-                  <label className="text-xs font-semibold text-black/50">Weight<input name="weight" type="number" min="0.01" step="0.01" defaultValue={outcome.weight ?? 1} className="mt-1 w-full rounded-lg border border-black/15 px-2 py-2 text-sm text-black" /></label>
-                  <label className="text-xs font-semibold text-black/50">Mastery %<input name="masteryThresholdOverride" type="number" min="0" max="100" defaultValue={outcome.mastery_threshold_override ?? ""} placeholder="Course default" className="mt-1 w-full rounded-lg border border-black/15 px-2 py-2 text-sm text-black" /></label>
-                  <label className="text-xs font-semibold text-black/50">Evidence<select name="evidenceSelectionOverride" defaultValue={outcome.evidence_selection_override ?? ""} className="mt-1 w-full rounded-lg border border-black/15 px-2 py-2 text-sm text-black"><option value="">Course default</option><option value="LATEST">Latest</option><option value="BEST">Best</option><option value="FIRST">First</option></select></label>
-                  <label className="text-xs font-semibold text-black/50">Status<select name="outcomeStatus" defaultValue={outcome.status ?? "ACTIVE"} className="mt-1 w-full rounded-lg border border-black/15 px-2 py-2 text-sm text-black"><option value="ACTIVE">Active</option><option value="ARCHIVED">Archived</option></select></label>
+                  <label className="text-xs font-semibold text-[var(--br-text-muted)]">Weight<input name="weight" type="number" min="0.01" step="0.01" defaultValue={outcome.weight ?? 1} className="mt-1 w-full rounded-lg border border-[var(--br-border)] px-2 py-2 text-sm text-[var(--br-text-muted)]" /></label>
+                  <label className="text-xs font-semibold text-[var(--br-text-muted)]">Mastery %<input name="masteryThresholdOverride" type="number" min="0" max="100" defaultValue={outcome.mastery_threshold_override ?? ""} placeholder="Course default" className="mt-1 w-full rounded-lg border border-[var(--br-border)] px-2 py-2 text-sm text-[var(--br-text-muted)]" /></label>
+                  <label className="text-xs font-semibold text-[var(--br-text-muted)]">Evidence<select name="evidenceSelectionOverride" defaultValue={outcome.evidence_selection_override ?? ""} className="mt-1 w-full rounded-lg border border-[var(--br-border)] px-2 py-2 text-sm text-[var(--br-text-muted)]"><option value="">Course default</option><option value="LATEST">Latest</option><option value="BEST">Best</option><option value="FIRST">First</option></select></label>
+                  <label className="text-xs font-semibold text-[var(--br-text-muted)]">Status<select name="outcomeStatus" defaultValue={outcome.status ?? "ACTIVE"} className="mt-1 w-full rounded-lg border border-[var(--br-border)] px-2 py-2 text-sm text-[var(--br-text-muted)]"><option value="ACTIVE">Active</option><option value="ARCHIVED">Archived</option></select></label>
                 </div>
                 <div className="flex justify-end gap-2">
-                  <button className="rounded-lg border border-black/15 px-3 py-2 text-xs font-semibold">Save outcome</button>
+                  <button className="rounded-lg border border-[var(--br-border)] px-3 py-2 text-xs font-semibold">Save outcome</button>
                   <DeleteButton
                     title="Delete outcome?"
                     message={`Are you sure you want to delete the outcome "${outcome.code || "CO"}"? It will also remove all mappings.`}
@@ -424,11 +424,11 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
               </form>
             ))}
           </div>
-          <form action={addCourseOutcome.bind(null, course.id)} className="mt-3 grid gap-2 rounded-xl bg-slate-50 p-3 sm:grid-cols-[80px_1fr_90px_auto]">
-            <input name="code" placeholder={`CO${(outcomes?.length ?? 0) + 1}`} aria-label="Outcome code" className="rounded-lg border border-black/15 px-3 py-2 text-sm font-bold" />
-            <input name="outcome" placeholder="Learners will be able to..." className="min-w-0 rounded-lg border border-black/15 px-3 py-2 text-sm" />
-            <input name="weight" type="number" min="0.01" step="0.01" defaultValue="1" aria-label="Outcome weight" className="rounded-lg border border-black/15 px-3 py-2 text-sm" />
-            <button className="inline-flex items-center gap-1.5 rounded-lg bg-moss px-3 py-2 text-sm font-semibold text-white">
+          <form action={addCourseOutcome.bind(null, course.id)} className="mt-3 grid gap-2 rounded-xl bg-surface-muted p-3 sm:grid-cols-[80px_1fr_90px_auto]">
+            <input name="code" placeholder={`CO${(outcomes?.length ?? 0) + 1}`} aria-label="Outcome code" className="rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm font-bold" />
+            <input name="outcome" placeholder="Learners will be able to..." className="min-w-0 rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm" />
+            <input name="weight" type="number" min="0.01" step="0.01" defaultValue="1" aria-label="Outcome weight" className="rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm" />
+            <button className="inline-flex items-center gap-1.5 rounded-lg bg-moss px-3 py-2 text-sm font-semibold text-on-dark">
               <Plus size={15} /> Add
             </button>
           </form>
@@ -443,12 +443,12 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
         >
           <form action={updateCourseAssessmentPolicy.bind(null, course.id)} className="grid gap-4">
             <div className="grid gap-3 sm:grid-cols-3">
-              <label className="text-sm font-medium">Mastery threshold %<input name="masteryThreshold" type="number" min="0" max="100" defaultValue={course.mastery_threshold ?? 70} className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2" /></label>
-              <label className="text-sm font-medium">Minimum evidence coverage %<input name="minimumEvidenceCoverage" type="number" min="0" max="100" defaultValue={course.minimum_evidence_coverage ?? 70} className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2" /></label>
-              <label className="text-sm font-medium">Attempt evidence<select name="evidenceSelection" defaultValue={course.evidence_selection ?? "LATEST"} className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2"><option value="LATEST">Latest attempt</option><option value="BEST">Best attempt</option><option value="FIRST">First attempt</option></select></label>
+              <label className="text-sm font-medium">Mastery threshold %<input name="masteryThreshold" type="number" min="0" max="100" defaultValue={course.mastery_threshold ?? 70} className="mt-1 w-full rounded-lg border border-[var(--br-border)] px-3 py-2" /></label>
+              <label className="text-sm font-medium">Minimum evidence coverage %<input name="minimumEvidenceCoverage" type="number" min="0" max="100" defaultValue={course.minimum_evidence_coverage ?? 70} className="mt-1 w-full rounded-lg border border-[var(--br-border)] px-3 py-2" /></label>
+              <label className="text-sm font-medium">Attempt evidence<select name="evidenceSelection" defaultValue={course.evidence_selection ?? "LATEST"} className="mt-1 w-full rounded-lg border border-[var(--br-border)] px-3 py-2"><option value="LATEST">Latest attempt</option><option value="BEST">Best attempt</option><option value="FIRST">First attempt</option></select></label>
             </div>
-            <p className="rounded-xl bg-[var(--br-canvas-elevated)] p-3 text-sm text-black/60">Attainment measures performance on attempted evidence. Coverage shows how much mapped evidence has been attempted. Both thresholds must be met.</p>
-            <button className="w-fit rounded-lg bg-dark px-4 py-2 text-sm font-semibold text-white">Save policy</button>
+            <p className="rounded-xl bg-[var(--br-canvas-elevated)] p-3 text-sm text-[var(--br-text-muted)]">Attainment measures performance on attempted evidence. Coverage shows how much mapped evidence has been attempted. Both thresholds must be met.</p>
+            <button className="w-fit rounded-lg bg-dark px-4 py-2 text-sm font-semibold text-on-dark">Save policy</button>
           </form>
         </BuilderDialog>
 
@@ -461,17 +461,17 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
         >
           <div className="space-y-3">
             {(faqs ?? []).map((faq, index) => (
-              <form key={faq.id} action={updateCourseFaq.bind(null, course.id, faq.id)} className="grid gap-2 rounded-xl border border-black/10 p-3">
-                <label className="text-xs font-semibold text-black/50">
+              <form key={faq.id} action={updateCourseFaq.bind(null, course.id, faq.id)} className="grid gap-2 rounded-xl border border-[var(--br-border)] p-3">
+                <label className="text-xs font-semibold text-[var(--br-text-muted)]">
                   Question {index + 1}
-                  <input name="question" defaultValue={faq.question} className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2 text-sm font-normal text-black" />
+                  <input name="question" defaultValue={faq.question} className="mt-1 w-full rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm font-normal text-[var(--br-text-muted)]" />
                 </label>
-                <label className="text-xs font-semibold text-black/50">
+                <label className="text-xs font-semibold text-[var(--br-text-muted)]">
                   Answer
-                  <textarea name="answer" defaultValue={faq.answer} rows={3} className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2 text-sm font-normal text-black" />
+                  <textarea name="answer" defaultValue={faq.answer} rows={3} className="mt-1 w-full rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm font-normal text-[var(--br-text-muted)]" />
                 </label>
                 <div className="flex gap-2">
-                  <button className="rounded-lg border border-black/15 px-3 py-2 text-xs font-semibold">Save FAQ</button>
+                  <button className="rounded-lg border border-[var(--br-border)] px-3 py-2 text-xs font-semibold">Save FAQ</button>
                   <DeleteButton
                     title="Delete FAQ?"
                     message={`Are you sure you want to delete this FAQ?`}
@@ -485,10 +485,10 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
               </form>
             ))}
           </div>
-          <form action={addCourseFaq.bind(null, course.id)} className="mt-3 grid gap-2 rounded-xl bg-slate-50 p-3">
-            <input name="question" placeholder="New FAQ question" className="rounded-lg border border-black/15 px-3 py-2 text-sm" />
-            <textarea name="answer" placeholder="Answer" rows={3} className="rounded-lg border border-black/15 px-3 py-2 text-sm" />
-            <button className="w-fit rounded-lg bg-moss px-3 py-2 text-sm font-semibold text-white">Add FAQ</button>
+          <form action={addCourseFaq.bind(null, course.id)} className="mt-3 grid gap-2 rounded-xl bg-surface-muted p-3">
+            <input name="question" placeholder="New FAQ question" className="rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm" />
+            <textarea name="answer" placeholder="Answer" rows={3} className="rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm" />
+            <button className="w-fit rounded-lg bg-moss px-3 py-2 text-sm font-semibold text-on-dark">Add FAQ</button>
           </form>
         </BuilderDialog>
 

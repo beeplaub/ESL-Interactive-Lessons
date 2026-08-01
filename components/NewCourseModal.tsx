@@ -17,7 +17,7 @@ export function NewCourseModal({ organizations = [] }: { organizations?: Array<{
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="inline-flex items-center gap-2 rounded-xl bg-violetglow px-4 py-2.5 text-sm font-bold text-white hover:bg-violetglow/90 transition shadow-sm"
+        className="inline-flex items-center gap-2 rounded-xl bg-violetglow px-4 py-2.5 text-sm font-bold text-on-dark hover:bg-violetglow/90 transition shadow-sm"
       >
         <Plus size={16} /> New course
       </button>
@@ -33,7 +33,7 @@ export function NewCourseModal({ organizations = [] }: { organizations?: Array<{
           />
 
           {/* Modal content wrapper */}
-          <div className="relative w-full max-w-xl scale-100 transform overflow-hidden rounded-[24px] border border-[var(--br-surface-strong)] bg-white p-6 shadow-[0_24px_64px_rgba(10,13,44,0.18)] transition-all animate-[modal-zoom_0.2s_ease-out]">
+          <div className="relative w-full max-w-xl scale-100 transform overflow-hidden rounded-[24px] border border-[var(--br-surface-strong)] bg-surface p-6 shadow-[0_24px_64px_rgba(10,13,44,0.18)] transition-all animate-[modal-zoom_0.2s_ease-out]">
             {/* Header */}
             <div className="flex items-center justify-between border-b border-[var(--br-surface-strong)] pb-4">
               <div>
@@ -76,7 +76,7 @@ export function NewCourseModal({ organizations = [] }: { organizations?: Array<{
                 />
               </div>
 
-              {organizations.length ? <div className="sm:col-span-2"><label className="text-xs font-bold uppercase tracking-wider text-[var(--br-text-muted)]">School <span className="text-red-500">*</span></label><select name="organizationId" required className="mt-1.5 w-full rounded-xl border border-[var(--br-surface-strong)] bg-white px-3.5 py-2.5 text-sm font-semibold focus:border-violetglow focus:outline-none focus:ring-4 focus:ring-violetglow/10"><option value="">Choose school...</option>{organizations.map((organization) => <option key={organization.id} value={organization.id}>{organization.name}</option>)}</select></div> : null}
+              {organizations.length ? <div className="sm:col-span-2"><label className="text-xs font-bold uppercase tracking-wider text-[var(--br-text-muted)]">School <span className="text-red-500">*</span></label><select name="organizationId" required className="mt-1.5 w-full rounded-xl border border-[var(--br-surface-strong)] bg-surface px-3.5 py-2.5 text-sm font-semibold focus:border-violetglow focus:outline-none focus:ring-4 focus:ring-violetglow/10"><option value="">Choose school...</option>{organizations.map((organization) => <option key={organization.id} value={organization.id}>{organization.name}</option>)}</select></div> : null}
 
               <div className="sm:col-span-2">
                 <label className="text-xs font-bold uppercase tracking-wider text-[var(--br-text-muted)]">
@@ -107,7 +107,7 @@ export function NewCourseModal({ organizations = [] }: { organizations?: Array<{
                 <select
                   name="level"
                   defaultValue="All Levels"
-                  className="mt-1.5 w-full rounded-xl border border-[var(--br-surface-strong)] bg-white px-3.5 py-2.5 text-sm font-semibold placeholder-[#B0B5C8] focus:border-violetglow focus:outline-none focus:ring-4 focus:ring-violetglow/10 transition"
+                  className="mt-1.5 w-full rounded-xl border border-[var(--br-surface-strong)] bg-surface px-3.5 py-2.5 text-sm font-semibold placeholder-[#B0B5C8] focus:border-violetglow focus:outline-none focus:ring-4 focus:ring-violetglow/10 transition"
                 >
                   {CONTENT_LEVELS.map((level) => (
                     <option key={level}>{level}</option>
@@ -140,7 +140,7 @@ export function NewCourseModal({ organizations = [] }: { organizations?: Array<{
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="inline-flex items-center gap-2 rounded-xl bg-violetglow px-5 py-2.5 text-sm font-extrabold text-white shadow-[0_4px_14px_rgba(124,58,237,0.25)] hover:bg-[#6c2ee5] disabled:opacity-50 transition"
+                  className="inline-flex items-center gap-2 rounded-xl bg-violetglow px-5 py-2.5 text-sm font-extrabold text-on-dark shadow-[0_4px_14px_rgba(124,58,237,0.25)] hover:bg-[#6c2ee5] disabled:opacity-50 transition"
                 >
                   {isSubmitting ? "Creating..." : "Create and open builder"}
                 </button>

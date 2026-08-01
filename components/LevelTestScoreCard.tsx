@@ -48,11 +48,11 @@ export function LevelTestScoreCard({
         )}
       </div>
       <div className="mt-4 flex flex-col gap-2">
-        <Link href={primaryHref} className="flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] px-4 py-3 text-xs font-semibold text-white">
+        <Link href={primaryHref} className="flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] px-4 py-3 text-xs font-semibold text-on-dark">
           {primaryLabel} <ChevronRight className="size-[13px]" />
         </Link>
         {secondaryHref && secondaryLabel ? (
-          <Link href={secondaryHref} className="flex items-center justify-center gap-1.5 rounded-xl border border-white/30 bg-white/15 px-4 py-3 text-xs font-semibold text-white">
+          <Link href={secondaryHref} className="flex items-center justify-center gap-1.5 rounded-xl border border-white/30 bg-white/15 px-4 py-3 text-xs font-semibold text-on-dark">
             {secondaryLabel}
           </Link>
         ) : null}
@@ -63,7 +63,7 @@ export function LevelTestScoreCard({
   if (!wrapped) return panel;
 
   return (
-    <div className="rounded-[24px] bg-gradient-to-br from-[var(--br-brand-strong)] via-[var(--br-dark-card)] to-[var(--br-dark-card)] p-5 text-white shadow-[0_16px_48px_rgba(20,23,80,.25)] sm:p-7">
+    <div className="rounded-[24px] bg-gradient-to-br from-[var(--br-brand-strong)] via-[var(--br-dark-card)] to-[var(--br-dark-card)] p-5 text-on-dark shadow-[0_16px_48px_rgba(20,23,80,.25)] sm:p-7">
       <div className="mb-5 flex items-center justify-between gap-3">
         <div>
           <div className="text-[15px] font-bold opacity-90 md:text-lg">Your last level check</div>

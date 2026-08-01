@@ -44,16 +44,16 @@ export default async function EditQuizPage({ params }: { params: Promise<{ id: s
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8">
-      <nav className="flex items-center gap-1.5 text-sm text-black/60 mb-5">
-        <Link href="/admin/courses" className="hover:text-black">Courses</Link>
+      <nav className="flex items-center gap-1.5 text-sm text-[var(--br-text-muted)] mb-5">
+        <Link href="/admin/courses" className="hover:text-[var(--br-text-muted)]">Courses</Link>
         {courseId ? (
           <>
-            <ChevronRight size={14} className="text-black/35" />
-            <Link href={`/admin/courses/${courseId}/builder`} className="hover:text-black">{courseTitle}</Link>
+            <ChevronRight size={14} className="text-[var(--br-text-muted)]" />
+            <Link href={`/admin/courses/${courseId}/builder`} className="hover:text-[var(--br-text-muted)]">{courseTitle}</Link>
           </>
         ) : null}
-        <ChevronRight size={14} className="text-black/35" />
-        <span className="font-medium text-black">{quiz.title}</span>
+        <ChevronRight size={14} className="text-[var(--br-text-muted)]" />
+        <span className="font-medium text-[var(--br-text-muted)]">{quiz.title}</span>
       </nav>
       <div className="mt-5">
         <QuizVisualBuilder

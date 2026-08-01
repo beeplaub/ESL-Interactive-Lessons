@@ -16,7 +16,7 @@ function bandClass(band: string) {
   if (band === "Strong") return "bg-emerald-50 text-emerald-700";
   if (band === "Secure") return "bg-blue-50 text-blue-700";
   if (band === "Developing") return "bg-amber-50 text-amber-700";
-  return "bg-slate-100 text-slate-600";
+  return "bg-surface-strong text-slate-600";
 }
 
 export default async function LanguageProfilePage() {
@@ -77,7 +77,7 @@ export default async function LanguageProfilePage() {
 
       {responses?.length ? (
         <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
-          <section className="min-w-0 rounded-[24px] border border-black/5 bg-white p-4 shadow-[0_12px_35px_rgba(18,22,43,.06)] sm:p-5">
+          <section className="min-w-0 rounded-[24px] border border-[var(--br-border)] bg-surface p-4 shadow-[0_12px_35px_rgba(18,22,43,.06)] sm:p-5">
             <div className="mb-4 flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-black text-[var(--br-dark-card)]">Skill mastery</h2>
@@ -105,7 +105,7 @@ export default async function LanguageProfilePage() {
           </section>
 
           <aside className="min-w-0 space-y-5">
-            <section className="rounded-[24px] border border-black/5 bg-white p-5 shadow-[0_12px_35px_rgba(18,22,43,.06)]">
+            <section className="rounded-[24px] border border-[var(--br-border)] bg-surface p-5 shadow-[0_12px_35px_rgba(18,22,43,.06)]">
               <div className="mb-4 flex items-center gap-2">
                 <Sparkles className="size-5 text-[#F59E0B]" />
                 <h2 className="text-lg font-black text-[var(--br-dark-card)]">Learned targets</h2>
@@ -123,7 +123,7 @@ export default async function LanguageProfilePage() {
               </div>
             </section>
 
-            <section className="rounded-[24px] border border-black/5 bg-white p-5 shadow-[0_12px_35px_rgba(18,22,43,.06)]">
+            <section className="rounded-[24px] border border-[var(--br-border)] bg-surface p-5 shadow-[0_12px_35px_rgba(18,22,43,.06)]">
               <div className="mb-3 flex items-center gap-2">
                 <Target className="size-5 text-[var(--br-chart-primary)]" />
                 <h2 className="text-lg font-black text-[var(--br-dark-card)]">Next best move</h2>
@@ -131,20 +131,20 @@ export default async function LanguageProfilePage() {
               <p className="text-sm leading-6 text-[var(--br-text-muted)]">
                 Take a few scored quizzes or course activities with skill labels. BrenUp will start showing stronger Can-Do evidence as your record grows.
               </p>
-              <Link href="/quizzes" className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-[var(--br-chart-primary)] to-[var(--br-brand)] px-4 py-2.5 text-sm font-black text-white">
+              <Link href="/quizzes" className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-[var(--br-chart-primary)] to-[var(--br-brand)] px-4 py-2.5 text-sm font-black text-on-dark">
                 Practise now <ArrowRight className="size-4" />
               </Link>
             </section>
           </aside>
         </div>
       ) : (
-        <section className="rounded-[24px] border border-dashed border-[#DDE1F0] bg-white p-8 text-center shadow-[0_12px_35px_rgba(18,22,43,.06)]">
+        <section className="rounded-[24px] border border-dashed border-[#DDE1F0] bg-surface p-8 text-center shadow-[0_12px_35px_rgba(18,22,43,.06)]">
           <CheckCircle2 className="mx-auto size-10 text-[var(--br-chart-primary)]" />
           <h2 className="mt-3 text-xl font-black text-[var(--br-dark-card)]">Your profile is ready to grow</h2>
           <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-[var(--br-text-muted)]">
             Once you complete scored quizzes or course activities, this page will show your strengths, learned items, confidence, and Can-Do evidence.
           </p>
-          <Link href="/quizzes" className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-[var(--br-chart-primary)] to-[var(--br-brand)] px-5 py-3 text-sm font-black text-white">
+          <Link href="/quizzes" className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-[var(--br-chart-primary)] to-[var(--br-brand)] px-5 py-3 text-sm font-black text-on-dark">
             Start with a quiz <ArrowRight className="size-4" />
           </Link>
         </section>

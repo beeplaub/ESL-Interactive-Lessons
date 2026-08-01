@@ -24,11 +24,11 @@ export function CourseQuizOutcomeMapper({
 }) {
   return (
     <div className="grid gap-4">
-      <div className="rounded-xl bg-[var(--br-canvas-elevated)] p-3 text-sm text-black/60">
+      <div className="rounded-xl bg-[var(--br-canvas-elevated)] p-3 text-sm text-[var(--br-text-muted)]">
         Standalone quizzes always contribute to the learner language profile. Map their questions here when they should also contribute to this course&apos;s formal outcomes.
       </div>
       {quizItems.map((item) => (
-        <section key={item.id} className="rounded-xl border border-black/10 p-3">
+        <section key={item.id} className="rounded-xl border border-[var(--br-border)] p-3">
           <div className="flex items-center gap-2">
             <Link2 size={15} className="text-[var(--br-chart-primary)]" />
             <h3 className="font-extrabold">{item.label}</h3>
@@ -48,19 +48,19 @@ export function CourseQuizOutcomeMapper({
                   className="grid gap-2 rounded-lg bg-[var(--br-surface)] p-2 sm:grid-cols-[minmax(180px,1fr)_minmax(180px,1fr)_90px_auto]"
                 >
                   <p className="self-center text-sm font-semibold">Q{question.question_number}. {question.question_text}</p>
-                  <select name="courseOutcomeId" defaultValue={mapping?.course_outcome_id ?? ""} className="min-w-0 rounded-lg border border-black/15 bg-white px-3 py-2 text-sm">
+                  <select name="courseOutcomeId" defaultValue={mapping?.course_outcome_id ?? ""} className="min-w-0 rounded-lg border border-[var(--br-border)] bg-surface px-3 py-2 text-sm">
                     <option value="">Not mapped</option>
                     {courseOutcomes.map((outcome) => <option key={outcome.id} value={outcome.id}>{outcome.code} · {outcome.outcome}</option>)}
                   </select>
-                  <input name="contributionWeight" type="number" min="0.01" step="0.01" defaultValue={mapping?.contribution_weight ?? 1} aria-label="Contribution weight" className="rounded-lg border border-black/15 bg-white px-2 py-2 text-sm" />
-                  <button className="rounded-lg border border-black/15 bg-white px-3 py-2 text-xs font-bold">Map</button>
+                  <input name="contributionWeight" type="number" min="0.01" step="0.01" defaultValue={mapping?.contribution_weight ?? 1} aria-label="Contribution weight" className="rounded-lg border border-[var(--br-border)] bg-surface px-2 py-2 text-sm" />
+                  <button className="rounded-lg border border-[var(--br-border)] bg-surface px-3 py-2 text-xs font-bold">Map</button>
                 </ObeActionForm>
               );
             })}
           </div>
         </section>
       ))}
-      {!quizItems.length ? <p className="rounded-xl border border-dashed border-black/15 p-6 text-center text-sm text-black/50">Add a quiz to this course to map its questions.</p> : null}
+      {!quizItems.length ? <p className="rounded-xl border border-dashed border-[var(--br-border)] p-6 text-center text-sm text-[var(--br-text-muted)]">Add a quiz to this course to map its questions.</p> : null}
     </div>
   );
 }

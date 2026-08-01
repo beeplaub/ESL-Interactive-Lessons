@@ -34,7 +34,7 @@ export function ProfileForm({
           <input
             name="firstName"
             defaultValue={firstName}
-            className="mt-2 w-full rounded-[14px] border border-[var(--br-surface-strong)] bg-[var(--br-surface)] px-4 py-3 font-semibold text-[var(--br-dark-card)] outline-none transition focus:border-[var(--br-chart-primary)] focus:bg-white"
+            className="mt-2 w-full rounded-[14px] border border-[var(--br-surface-strong)] bg-[var(--br-surface)] px-4 py-3 font-semibold text-[var(--br-dark-card)] outline-none transition focus:border-[var(--br-chart-primary)] focus:bg-surface"
           />
         </label>
         <label className="text-sm font-extrabold text-[var(--br-text)]">
@@ -42,7 +42,7 @@ export function ProfileForm({
           <input
             name="lastName"
             defaultValue={lastName}
-            className="mt-2 w-full rounded-[14px] border border-[var(--br-surface-strong)] bg-[var(--br-surface)] px-4 py-3 font-semibold text-[var(--br-dark-card)] outline-none transition focus:border-[var(--br-chart-primary)] focus:bg-white"
+            className="mt-2 w-full rounded-[14px] border border-[var(--br-surface-strong)] bg-[var(--br-surface)] px-4 py-3 font-semibold text-[var(--br-dark-card)] outline-none transition focus:border-[var(--br-chart-primary)] focus:bg-surface"
           />
         </label>
       </div>
@@ -65,7 +65,7 @@ export function ProfileForm({
 
       <button
         disabled={isPending}
-        className="w-fit rounded-[14px] bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] px-5 py-3 text-sm font-extrabold text-white shadow-[0_8px_20px_rgba(108,59,255,.28)] disabled:opacity-50"
+        className="w-fit rounded-[14px] bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] px-5 py-3 text-sm font-extrabold text-on-dark shadow-[0_8px_20px_rgba(108,59,255,.28)] disabled:opacity-50"
       >
         {isPending ? "Saving…" : "Save profile"}
       </button>

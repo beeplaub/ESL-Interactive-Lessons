@@ -114,10 +114,10 @@ export default function AiActivityGeneratorModal({
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 px-3 py-6 backdrop-blur-sm">
-      <div className="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-xl bg-white p-5 shadow-2xl transition-all duration-300">
+      <div className="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-xl bg-surface p-5 shadow-2xl transition-all duration-300">
         
         {/* Header */}
-        <div className="flex items-start justify-between gap-4 border-b border-black/10 pb-3">
+        <div className="flex items-start justify-between gap-4 border-b border-[var(--br-border)] pb-3">
           <div className="flex items-center gap-2">
             <div className="rounded-lg bg-[var(--br-chart-primary)]/10 p-2 text-[var(--br-chart-primary)]">
               <Sparkles size={20} className="animate-pulse" />
@@ -130,7 +130,7 @@ export default function AiActivityGeneratorModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md border border-black/10 p-1.5 text-black/50 hover:bg-black/5 hover:text-black"
+            className="rounded-md border border-[var(--br-border)] p-1.5 text-[var(--br-text-muted)] hover:bg-black/5 hover:text-[var(--br-text-muted)]"
             aria-label="Close generator"
           >
             <X size={16} />
@@ -151,7 +151,7 @@ export default function AiActivityGeneratorModal({
             <div className="flex min-h-[250px] flex-col items-center justify-center p-6 text-center">
               <div className="size-10 animate-spin rounded-full border-4 border-[var(--br-chart-primary)] border-t-transparent" />
               <p className="mt-4 font-semibold text-ink">Analyzing slide content...</p>
-              <p className="mt-1 text-sm text-black/55">Gemini is designing highly relevant ESL questions.</p>
+              <p className="mt-1 text-sm text-[var(--br-text-muted)]">Gemini is designing highly relevant ESL questions.</p>
             </div>
           ) : step === "setup" ? (
             <div className="grid gap-4">
@@ -161,7 +161,7 @@ export default function AiActivityGeneratorModal({
                   <select
                     value={activityType}
                     onChange={(e) => handleTypeChange(e.target.value as any)}
-                    className="mt-1.5 w-full rounded-md border border-black/15 px-3 py-2 text-sm bg-white focus:border-[var(--br-chart-primary)] focus:ring-1 focus:ring-[var(--br-chart-primary)]"
+                    className="mt-1.5 w-full rounded-md border border-[var(--br-border)] px-3 py-2 text-sm bg-surface focus:border-[var(--br-chart-primary)] focus:ring-1 focus:ring-[var(--br-chart-primary)]"
                   >
                     <option value="MCQ">Multiple Choice (MCQ)</option>
                     <option value="MULTIPLE_SELECT">Multiple Select</option>
@@ -179,10 +179,10 @@ export default function AiActivityGeneratorModal({
                     value={guidelines}
                     onChange={(e) => setGuidelines(e.target.value)}
                     placeholder="e.g. Focus on future continuous tense, or ask about the objects in the image block."
-                    className="mt-1.5 w-full rounded-md border border-black/15 px-3 py-2 text-sm placeholder-black/35 focus:border-[var(--br-chart-primary)] focus:ring-1 focus:ring-[var(--br-chart-primary)]"
+                    className="mt-1.5 w-full rounded-md border border-[var(--br-border)] px-3 py-2 text-sm placeholder-black/35 focus:border-[var(--br-chart-primary)] focus:ring-1 focus:ring-[var(--br-chart-primary)]"
                   />
                 </label>
-                <p className="mt-1 text-xs text-black/45">
+                <p className="mt-1 text-xs text-[var(--br-text-muted)]">
                   The AI reads all text, reading passages, dialogues, images, and audio blocks on this slide to write content.
                 </p>
               </div>
@@ -205,7 +205,7 @@ export default function AiActivityGeneratorModal({
                     <select
                       value={appendActivityId}
                       onChange={(e) => setAppendActivityId(e.target.value)}
-                      className="mt-2 w-full rounded-md border border-black/15 bg-white px-3 py-1.5 text-xs focus:border-[var(--br-chart-primary)]"
+                      className="mt-2 w-full rounded-md border border-[var(--br-border)] bg-surface px-3 py-1.5 text-xs focus:border-[var(--br-chart-primary)]"
                     >
                       {matchingActivities.map((act, index) => (
                         <option key={act.id} value={act.id}>
@@ -227,18 +227,18 @@ export default function AiActivityGeneratorModal({
                 </div>
               </div>
 
-              <div className="rounded-lg border border-black/10 bg-slate-50 p-4">
-                <p className="text-xs font-bold uppercase tracking-wider text-black/40 mb-2">Prompt / Title</p>
+              <div className="rounded-lg border border-[var(--br-border)] bg-surface-muted p-4">
+                <p className="text-xs font-bold uppercase tracking-wider text-[var(--br-text-muted)] mb-2">Prompt / Title</p>
                 <p className="text-sm font-semibold text-ink mb-4">{generatedData?.prompt || "Check your understanding."}</p>
 
-                <p className="text-xs font-bold uppercase tracking-wider text-black/40 mb-2">Generated items</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-[var(--br-text-muted)] mb-2">Generated items</p>
                 
                 {activityType === "MCQ" && (
                   <div className="space-y-3">
                     {generatedData?.questions?.map((q: any, idx: number) => (
-                      <div key={idx} className="rounded border border-black/5 bg-white p-3 text-sm">
+                      <div key={idx} className="rounded border border-[var(--br-border)] bg-surface p-3 text-sm">
                         <p className="font-semibold">{idx + 1}. {q.text}</p>
-                        <ul className="mt-2 grid grid-cols-2 gap-2 text-xs text-black/65">
+                        <ul className="mt-2 grid grid-cols-2 gap-2 text-xs text-[var(--br-text-muted)]">
                           {Object.entries(q.options || {}).map(([key, val]) => (
                             <li key={key} className={q.answer === key ? "font-bold text-[var(--br-success)]" : ""}>
                               {key}: {String(val)}
@@ -253,9 +253,9 @@ export default function AiActivityGeneratorModal({
                 {activityType === "MULTIPLE_SELECT" && (
                   <div className="space-y-3">
                     {generatedData?.questions?.map((q: any, idx: number) => (
-                      <div key={idx} className="rounded border border-black/5 bg-white p-3 text-sm">
+                      <div key={idx} className="rounded border border-[var(--br-border)] bg-surface p-3 text-sm">
                         <p className="font-semibold">{idx + 1}. {q.text}</p>
-                        <ul className="mt-2 grid grid-cols-2 gap-2 text-xs text-black/65">
+                        <ul className="mt-2 grid grid-cols-2 gap-2 text-xs text-[var(--br-text-muted)]">
                           {Object.entries(q.options || {}).map(([key, val]) => (
                             <li key={key} className={q.answers?.includes(key) ? "font-bold text-[var(--br-success)]" : ""}>
                               {key}: {String(val)}
@@ -270,7 +270,7 @@ export default function AiActivityGeneratorModal({
                 {activityType === "TRUE_FALSE" && (
                   <div className="space-y-2">
                     {generatedData?.items?.map((item: any, idx: number) => (
-                      <div key={idx} className="flex justify-between items-center rounded border border-black/5 bg-white p-2.5 text-sm">
+                      <div key={idx} className="flex justify-between items-center rounded border border-[var(--br-border)] bg-surface p-2.5 text-sm">
                         <span>{idx + 1}. {item.statement}</span>
                         <span className={`rounded px-2 py-0.5 text-xs font-bold ${item.answer ? "bg-[var(--br-success)]/15 text-[var(--br-chart-secondary)]" : "bg-red-50 text-red-600"}`}>
                           {item.answer ? "True" : "False"}
@@ -283,9 +283,9 @@ export default function AiActivityGeneratorModal({
                 {activityType === "MATCHING" && (
                   <div className="space-y-2">
                     {generatedData?.questions?.[0]?.correct_answer?.map((pair: any, idx: number) => (
-                      <div key={idx} className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 rounded border border-black/5 bg-white p-2 text-sm">
+                      <div key={idx} className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 rounded border border-[var(--br-border)] bg-surface p-2 text-sm">
                         <span className="font-medium text-ink">{pair.a}</span>
-                        <span className="text-xs text-black/35">↔</span>
+                        <span className="text-xs text-[var(--br-text-muted)]">↔</span>
                         <span className="font-medium text-[var(--br-chart-primary)]">{pair.b}</span>
                       </div>
                     ))}
@@ -297,15 +297,15 @@ export default function AiActivityGeneratorModal({
         </div>
 
         {/* Footer */}
-        <div className="mt-4 flex items-center justify-between border-t border-black/10 pt-3">
+        <div className="mt-4 flex items-center justify-between border-t border-[var(--br-border)] pt-3">
           {step === "setup" ? (
             <>
-              <p className="text-xs text-black/45">Powered by Gemini Flash</p>
+              <p className="text-xs text-[var(--br-text-muted)]">Powered by Gemini Flash</p>
               <button
                 type="button"
                 onClick={handleGenerate}
                 disabled={loading}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--br-chart-primary)] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#592ecc] disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--br-chart-primary)] px-4 py-2 text-sm font-semibold text-on-dark shadow-sm hover:bg-[#592ecc] disabled:opacity-50"
               >
                 Generate <ChevronRight size={14} />
               </button>
@@ -316,7 +316,7 @@ export default function AiActivityGeneratorModal({
                 type="button"
                 onClick={() => setStep("setup")}
                 disabled={isPending}
-                className="rounded-lg border border-black/15 px-4 py-2 text-sm font-semibold text-black/75 hover:bg-black/5 disabled:opacity-50"
+                className="rounded-lg border border-[var(--br-border)] px-4 py-2 text-sm font-semibold text-[var(--br-text-muted)] hover:bg-black/5 disabled:opacity-50"
               >
                 ← Back
               </button>
@@ -324,7 +324,7 @@ export default function AiActivityGeneratorModal({
                 type="button"
                 onClick={handleInsert}
                 disabled={isPending}
-                className="rounded-lg bg-[var(--br-chart-primary)] px-5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#592ecc] disabled:opacity-50"
+                className="rounded-lg bg-[var(--br-chart-primary)] px-5 py-2 text-sm font-semibold text-on-dark shadow-sm hover:bg-[#592ecc] disabled:opacity-50"
               >
                 {isPending ? "Adding..." : shouldAppend ? "Append to existing" : "Add as new activity"}
               </button>

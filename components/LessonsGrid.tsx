@@ -123,16 +123,16 @@ export function LessonsGrid({ lessons, slideCounts, progress, wishlistLessonIds,
 
   return (
     <>
-      <div className="mb-5 rounded-lg border border-black/10 bg-white px-4 py-3 shadow-sm">
+      <div className="mb-5 rounded-lg border border-[var(--br-border)] bg-surface px-4 py-3 shadow-sm">
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative flex min-w-[180px] flex-1 items-center">
-            <Search size={14} className="pointer-events-none absolute left-3 text-black/40" />
+            <Search size={14} className="pointer-events-none absolute left-3 text-[var(--br-text-muted)]" />
             <input
               type="search"
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
               placeholder="Search title or topic..."
-              className="w-full rounded-md border border-black/15 py-1.5 pl-8 pr-3 text-sm outline-none focus:border-moss"
+              className="w-full rounded-md border border-[var(--br-border)] py-1.5 pl-8 pr-3 text-sm outline-none focus:border-moss"
             />
           </div>
 
@@ -140,7 +140,7 @@ export function LessonsGrid({ lessons, slideCounts, progress, wishlistLessonIds,
             <select
               value={selectedTopic}
               onChange={(e) => setSelectedTopic(e.target.value)}
-              className="rounded-md border border-black/15 py-1.5 pl-3 pr-8 text-sm outline-none focus:border-moss"
+              className="rounded-md border border-[var(--br-border)] py-1.5 pl-3 pr-8 text-sm outline-none focus:border-moss"
             >
               <option value="">All topics</option>
               {topics.map((t) => (
@@ -152,7 +152,7 @@ export function LessonsGrid({ lessons, slideCounts, progress, wishlistLessonIds,
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as SortOption)}
-            className="rounded-md border border-black/15 py-1.5 pl-3 pr-8 text-sm outline-none focus:border-moss"
+            className="rounded-md border border-[var(--br-border)] py-1.5 pl-3 pr-8 text-sm outline-none focus:border-moss"
           >
             <option value="newest">Sort: Newest</option>
             <option value="az">Sort: A-Z</option>
@@ -185,14 +185,14 @@ export function LessonsGrid({ lessons, slideCounts, progress, wishlistLessonIds,
             <button
               type="button"
               onClick={clearFilters}
-              className="inline-flex items-center gap-1 rounded-md border border-black/15 px-2.5 py-1.5 text-xs text-black/60 hover:bg-black/5"
+              className="inline-flex items-center gap-1 rounded-md border border-[var(--br-border)] px-2.5 py-1.5 text-xs text-[var(--br-text-muted)] hover:bg-black/5"
             >
               <X size={12} /> Clear
             </button>
           )}
         </div>
 
-        <p className="mt-2 text-xs text-black/45">
+        <p className="mt-2 text-xs text-[var(--br-text-muted)]">
           {filtered.length === lessons.length
             ? `${lessons.length} lesson${lessons.length !== 1 ? "s" : ""}`
             : `${filtered.length} of ${lessons.length} lessons`}
@@ -217,7 +217,7 @@ export function LessonsGrid({ lessons, slideCounts, progress, wishlistLessonIds,
             return (
               <article
                 key={lesson.id}
-                className="flex flex-col overflow-hidden rounded-lg border border-black/10 bg-white shadow-sm"
+                className="flex flex-col overflow-hidden rounded-lg border border-[var(--br-border)] bg-surface shadow-sm"
                 style={{ borderLeftColor: theme.border, borderLeftWidth: "4px" }}
               >
                 <div className="px-5 pt-5 pb-3" style={{ backgroundColor: theme.headerBg }}>
@@ -230,7 +230,7 @@ export function LessonsGrid({ lessons, slideCounts, progress, wishlistLessonIds,
                         {lesson.level}
                       </span>
                       <h2 className="mt-2 text-lg font-semibold leading-snug">{lesson.title}</h2>
-                      <p className="mt-0.5 text-sm text-black/55">{lesson.topic}</p>
+                      <p className="mt-0.5 text-sm text-[var(--br-text-muted)]">{lesson.topic}</p>
                     </div>
                     <div className="flex shrink-0 items-center gap-2 pt-1">
                       {!saved && (
@@ -248,8 +248,8 @@ export function LessonsGrid({ lessons, slideCounts, progress, wishlistLessonIds,
 
                 <div className="flex flex-1 flex-col px-5 pb-5 pt-3">
                   {lessonOutcomes(lesson.description).length ? (
-                    <div className="text-sm leading-6 text-black/60">
-                      <p className="font-medium text-black/70">After this lesson, you&apos;ll be able to:</p>
+                    <div className="text-sm leading-6 text-[var(--br-text-muted)]">
+                      <p className="font-medium text-[var(--br-text-muted)]">After this lesson, you&apos;ll be able to:</p>
                       <ul className="mt-1 space-y-1">
                         {lessonOutcomes(lesson.description).slice(0, 3).map((outcome, index) => (
                           <li key={index} className="flex gap-2">
@@ -260,13 +260,13 @@ export function LessonsGrid({ lessons, slideCounts, progress, wishlistLessonIds,
                       </ul>
                     </div>
                   ) : (
-                    <p className="text-sm leading-6 text-black/60">A focused English lesson with guided slide practice.</p>
+                    <p className="text-sm leading-6 text-[var(--br-text-muted)]">A focused English lesson with guided slide practice.</p>
                   )}
 
                   <div className="mt-auto pt-4">
                     {isLoggedIn ? (
                       <>
-                        <div className="mb-2 flex items-center gap-2 text-xs font-medium text-black/50">
+                        <div className="mb-2 flex items-center gap-2 text-xs font-medium text-[var(--br-text-muted)]">
                           {saved?.completed
                             ? <CheckCircle2 size={13} style={{ color: theme.border }} />
                             : <Clock3 size={13} />}
@@ -286,7 +286,7 @@ export function LessonsGrid({ lessons, slideCounts, progress, wishlistLessonIds,
                         </div>
                       </>
                     ) : (
-                      <div className="flex items-center gap-2 rounded-md bg-slate-50 p-3 text-sm text-slate-500">
+                      <div className="flex items-center gap-2 rounded-md bg-surface-muted p-3 text-sm text-slate-500">
                         <LockKeyhole size={15} /> Sign in to save progress.
                       </div>
                     )}
@@ -294,7 +294,7 @@ export function LessonsGrid({ lessons, slideCounts, progress, wishlistLessonIds,
 
                   <Link
                     href={href}
-                    className="mt-4 inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+                    className="mt-4 inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-semibold text-on-dark transition-opacity hover:opacity-90"
                     style={{ backgroundColor: theme.border }}
                   >
                     {action} <ArrowRight size={15} />
@@ -305,14 +305,14 @@ export function LessonsGrid({ lessons, slideCounts, progress, wishlistLessonIds,
           })}
         </div>
       ) : (
-        <div className="rounded-lg border border-black/10 bg-white p-8 text-center shadow-sm">
-          <BookOpen className="mx-auto text-black/30" size={28} />
+        <div className="rounded-lg border border-[var(--br-border)] bg-surface p-8 text-center shadow-sm">
+          <BookOpen className="mx-auto text-[var(--br-text-muted)]" size={28} />
           <h2 className="mt-4 text-lg font-semibold">No lessons match your filters</h2>
-          <p className="mt-2 text-sm text-black/60">Try clearing some filters to see more lessons.</p>
+          <p className="mt-2 text-sm text-[var(--br-text-muted)]">Try clearing some filters to see more lessons.</p>
           <button
             type="button"
             onClick={clearFilters}
-            className="mt-4 inline-flex items-center gap-2 rounded-md border border-black/15 px-4 py-2 text-sm font-medium hover:bg-black/5"
+            className="mt-4 inline-flex items-center gap-2 rounded-md border border-[var(--br-border)] px-4 py-2 text-sm font-medium hover:bg-black/5"
           >
             <X size={15} /> Clear filters
           </button>

@@ -106,10 +106,10 @@ export default async function CoursesPage({
               title="Build fluency through focused course paths."
               description="Courses combine lessons, quizzes, level practice, and progress tracking into a cleaner learning journey."
             >
-                  <Link href={featured ? `/courses/${featured.id}` : "/level-test"} className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] px-4 py-2.5 text-sm font-bold text-white shadow-[0_8px_20px_rgba(108,59,255,.35)]">
+                  <Link href={featured ? `/courses/${featured.id}` : "/level-test"} className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] px-4 py-2.5 text-sm font-bold text-on-dark shadow-[0_8px_20px_rgba(108,59,255,.35)]">
                     {featured ? "Explore newest course" : "Take level test"} <ArrowRight className="size-4" />
                   </Link>
-                  <Link href="/quizzes" className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-bold text-white">
+                  <Link href="/quizzes" className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 text-sm font-bold text-on-dark">
                     Try a quiz first
                   </Link>
             </LearnerPageHero>
@@ -122,8 +122,8 @@ export default async function CoursesPage({
                 href={levelHref("")}
                 className={`shrink-0 rounded-full px-3.5 py-1.5 text-sm font-semibold transition ${
                   !activeLevel
-                    ? "bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] text-white"
-                    : "border border-[var(--br-surface-strong)] bg-white text-[#4B5163] hover:border-[var(--br-chart-primary)]/40"
+                    ? "bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] text-on-dark"
+                    : "border border-[var(--br-surface-strong)] bg-surface text-[#4B5163] hover:border-[var(--br-chart-primary)]/40"
                 }`}
               >
                 All Levels
@@ -135,8 +135,8 @@ export default async function CoursesPage({
                   title={LEVEL_DESCRIPTORS[band]}
                   className={`shrink-0 rounded-full px-3.5 py-1.5 text-sm font-semibold transition ${
                     activeLevel === band
-                      ? "bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] text-white"
-                      : "border border-[var(--br-surface-strong)] bg-white text-[#4B5163] hover:border-[var(--br-chart-primary)]/40"
+                      ? "bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] text-on-dark"
+                      : "border border-[var(--br-surface-strong)] bg-surface text-[#4B5163] hover:border-[var(--br-chart-primary)]/40"
                   }`}
                 >
                   {band}
@@ -166,7 +166,7 @@ export default async function CoursesPage({
           ) : null}
 
           {allCourses.length === 0 ? (
-            <section className="rounded-[20px] border border-[var(--br-surface-strong)] bg-white p-10 text-center shadow-[0_12px_32px_rgba(0,0,0,.06)]">
+            <section className="rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-10 text-center shadow-[0_12px_32px_rgba(0,0,0,.06)]">
               <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-[var(--br-chart-primary)]/10 text-[var(--br-chart-primary)]">
                 <BookOpen className="size-7" />
               </div>
@@ -174,7 +174,7 @@ export default async function CoursesPage({
               <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-[var(--br-text-muted)]">BrenUp courses will appear here as soon as they are published.</p>
             </section>
           ) : sortedCourses.length === 0 ? (
-            <section className="rounded-[20px] border border-[var(--br-surface-strong)] bg-white p-10 text-center shadow-[0_12px_32px_rgba(0,0,0,.06)]">
+            <section className="rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-10 text-center shadow-[0_12px_32px_rgba(0,0,0,.06)]">
               <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-[var(--br-chart-primary)]/10 text-[var(--br-chart-primary)]">
                 <BookOpen className="size-7" />
               </div>
@@ -232,13 +232,13 @@ function CourseCard({
   const level = course.level ?? "Course";
   const imageUrl = resolveCourseImage(course.thumbnail_path || course.cover_image_path);
   return (
-    <Link href={`/courses/${course.id}`} className="group overflow-hidden rounded-[20px] border border-[var(--br-surface-strong)] bg-white shadow-[0_12px_32px_rgba(0,0,0,.06)] transition hover:scale-[1.012] hover:shadow-[0_16px_40px_rgba(0,0,0,.1)]">
+    <Link href={`/courses/${course.id}`} className="group overflow-hidden rounded-[20px] border border-[var(--br-surface-strong)] bg-surface shadow-[0_12px_32px_rgba(0,0,0,.06)] transition hover:scale-[1.012] hover:shadow-[0_16px_40px_rgba(0,0,0,.1)]">
       <div className={`relative flex h-36 items-center justify-center bg-gradient-to-br ${tones[tone % tones.length]}`}>
         {/* eslint-disable-next-line @next/next/no-img-element -- Course creators can use arbitrary public image links. */}
         {imageUrl ? <img src={imageUrl} alt="" className="absolute inset-0 h-full w-full object-cover" /> : null}
         {imageUrl ? <div className="absolute inset-0 bg-black/25" /> : null}
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,.28),transparent_32%),radial-gradient(circle_at_85%_80%,rgba(255,255,255,.16),transparent_28%)]" />
-        <span className="absolute left-3 top-3 rounded-md bg-[var(--br-chart-primary)] px-2 py-1 text-[10px] font-bold text-white">{level}</span>
+        <span className="absolute left-3 top-3 rounded-md bg-[var(--br-chart-primary)] px-2 py-1 text-[10px] font-bold text-on-dark">{level}</span>
         {status ? <span className="absolute right-3 top-3 rounded-md bg-white/90 px-2 py-1 text-[10px] font-bold text-[var(--br-chart-primary)]">{status === "COMPLETED" ? "Completed" : "Enrolled"}</span> : null}
         <GraduationCap className="relative z-10 size-12 text-white/70" />
         <span className="absolute bottom-3 right-3 grid size-8 place-items-center rounded-full bg-white/90 shadow-[0_2px_8px_rgba(0,0,0,.15)]">
@@ -271,7 +271,7 @@ function CourseCard({
                 {course.original_price_bdt ? (
                   <span className="text-xs text-[var(--br-text-muted)] line-through">৳{course.original_price_bdt}</span>
                 ) : null}
-                <span className="text-sm font-extrabold text-slate-900 bg-slate-100 rounded-lg px-2 py-0.5">৳{course.price_bdt}</span>
+                <span className="text-sm font-extrabold text-slate-900 bg-surface-strong rounded-lg px-2 py-0.5">৳{course.price_bdt}</span>
               </div>
             ) : (
               <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 bg-emerald-50 rounded-lg px-2 py-0.5">Free</span>

@@ -326,7 +326,7 @@ export function LessonPlayer({ lesson, slides, audioFiles, lessonSlideActivities
 
   return (
     <main className="mx-auto flex min-h-[calc(100vh-57px)] max-w-7xl flex-col px-3 py-4 sm:px-4 sm:py-6">
-      <div className="rounded-lg border border-black/10 bg-white px-4 py-3 shadow-sm">
+      <div className="rounded-lg border border-[var(--br-border)] bg-surface px-4 py-3 shadow-sm">
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
           <h1 className="min-w-0 truncate text-base font-semibold sm:text-lg">{lesson.title}</h1>
           <span className="rounded-full bg-skywash px-3 py-1 text-xs font-semibold text-ink">{lesson.level}</span>
@@ -341,7 +341,7 @@ export function LessonPlayer({ lesson, slides, audioFiles, lessonSlideActivities
 
       {currentActivity ? (
         <section className="my-4 grid flex-1 gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(360px,2fr)] sm:my-5">
-          <div className="overflow-hidden rounded-lg border border-black/10 bg-white shadow-sm">
+          <div className="overflow-hidden rounded-lg border border-[var(--br-border)] bg-surface shadow-sm">
             <SlideStage
               slide={slide}
               audio={audioFiles.find((file) => file.linked_slide_number === slide.slide_number)}
@@ -366,7 +366,7 @@ export function LessonPlayer({ lesson, slides, audioFiles, lessonSlideActivities
         </section>
       ) : (
         <>
-          <section className="my-4 flex-1 overflow-hidden rounded-lg border border-black/10 bg-white shadow-sm sm:my-5">
+          <section className="my-4 flex-1 overflow-hidden rounded-lg border border-[var(--br-border)] bg-surface shadow-sm sm:my-5">
             <SlideStage
               slide={slide}
               audio={audioFiles.find((file) => file.linked_slide_number === slide.slide_number)}
@@ -388,12 +388,12 @@ export function LessonPlayer({ lesson, slides, audioFiles, lessonSlideActivities
         </>
       )}
 
-      <div className="flex items-center justify-between gap-3 rounded-lg border border-black/10 bg-white p-3 shadow-sm">
+      <div className="flex items-center justify-between gap-3 rounded-lg border border-[var(--br-border)] bg-surface p-3 shadow-sm">
         <button
           type="button"
           disabled={index === 0 || !hasStarted}
           onClick={() => move(-1)}
-          className="inline-flex items-center gap-2 rounded-md border border-black/15 px-4 py-2 text-sm disabled:opacity-40"
+          className="inline-flex items-center gap-2 rounded-md border border-[var(--br-border)] px-4 py-2 text-sm disabled:opacity-40"
         >
           <ArrowLeft size={16} /> Previous
         </button>
@@ -402,7 +402,7 @@ export function LessonPlayer({ lesson, slides, audioFiles, lessonSlideActivities
             type="button"
             onClick={startLesson}
             disabled={actionStatus === "saving"}
-            className="inline-flex items-center gap-2 rounded-md bg-moss px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-md bg-moss px-4 py-2 text-sm font-semibold text-on-dark disabled:opacity-50"
           >
             <CheckCircle2 size={16} /> {actionStatus === "saving" ? "Starting..." : "Start lesson"}
           </button>
@@ -412,17 +412,17 @@ export function LessonPlayer({ lesson, slides, audioFiles, lessonSlideActivities
               <span className="inline-flex items-center gap-2 rounded-md bg-moss/10 px-4 py-2 text-sm font-semibold text-moss">
                 <CheckCircle2 size={16} /> Completed
               </span>
-              <button type="button" onClick={retakeLesson} disabled={actionStatus === "saving"} className="inline-flex items-center gap-2 rounded-md border border-black/15 px-4 py-2 text-sm font-medium disabled:opacity-50">
+              <button type="button" onClick={retakeLesson} disabled={actionStatus === "saving"} className="inline-flex items-center gap-2 rounded-md border border-[var(--br-border)] px-4 py-2 text-sm font-medium disabled:opacity-50">
                 <RotateCcw size={16} /> {actionStatus === "saving" ? "Resetting..." : "Retake"}
               </button>
             </div>
           ) : (
-            <button type="button" onClick={completeLesson} disabled={actionStatus === "saving"} className="inline-flex items-center gap-2 rounded-md bg-coral px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+            <button type="button" onClick={completeLesson} disabled={actionStatus === "saving"} className="inline-flex items-center gap-2 rounded-md bg-coral px-4 py-2 text-sm font-semibold text-on-dark disabled:opacity-50">
               <CheckCircle2 size={16} /> {actionStatus === "saving" ? "Completing..." : "Complete"}
             </button>
           )
         ) : (
-          <button type="button" onClick={() => move(1)} className="inline-flex items-center gap-2 rounded-md bg-dark px-4 py-2 text-sm font-medium text-white">
+          <button type="button" onClick={() => move(1)} className="inline-flex items-center gap-2 rounded-md bg-dark px-4 py-2 text-sm font-medium text-on-dark">
             Next <ArrowRight size={16} />
           </button>
         )}
@@ -437,7 +437,7 @@ function SlideStage({ audio, pdfUrl, slide }: { slide: Slide; audio?: AudioFile;
     <div>
       <div className="mx-auto max-w-6xl px-3 py-4 sm:px-5 md:px-8 md:py-7">
         {audio?.signed_url ? (
-          <div className="mx-auto mb-4 max-w-4xl rounded-lg border border-black/10 bg-dark p-3 text-white shadow-sm">
+          <div className="mx-auto mb-4 max-w-4xl rounded-lg border border-[var(--br-border)] bg-dark p-3 text-on-dark shadow-sm">
             <div className="mb-2 flex items-center gap-2 text-sm font-medium">
               <Headphones size={18} /> Audio for this slide
             </div>
@@ -470,25 +470,25 @@ function NotesBar({
   onSave: () => void;
 }) {
   return (
-    <section className="mb-4 rounded-lg border border-black/10 bg-white shadow-sm">
+    <section className="mb-4 rounded-lg border border-[var(--br-border)] bg-surface shadow-sm">
       <button type="button" onClick={onToggle} className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left">
         <span className="text-sm font-semibold">Study notes · Slide {slideNumber}</span>
-        <span className="flex items-center gap-3 text-xs text-black/50">
+        <span className="flex items-center gap-3 text-xs text-[var(--br-text-muted)]">
           {notes.trim() ? "Saved note available" : "Add your note"}
           <ChevronDown size={16} className={`transition-transform ${isOpen ? "rotate-180" : ""}`} />
         </span>
       </button>
       {isOpen ? (
-        <div className="border-t border-black/10 p-4">
+        <div className="border-t border-[var(--br-border)] p-4">
           <textarea
             value={notes}
             onChange={(event) => onChange(event.target.value)}
             rows={5}
-            className="w-full resize-y rounded-md border border-black/15 px-3 py-3 text-sm leading-6 outline-none focus:border-moss"
+            className="w-full resize-y rounded-md border border-[var(--br-border)] px-3 py-3 text-sm leading-6 outline-none focus:border-moss"
             placeholder="Write useful vocabulary, grammar reminders, or questions from this lesson."
           />
           <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-            <p className="text-xs text-black/50">
+            <p className="text-xs text-[var(--br-text-muted)]">
               {status === "saving" ? "Saving..." : null}
               {status === "saved" ? "Notes saved." : null}
               {status === "failed" ? "Could not save notes. Please try again." : null}
@@ -498,7 +498,7 @@ function NotesBar({
               type="button"
               onClick={onSave}
               disabled={status === "saving"}
-              className="inline-flex items-center gap-2 rounded-md bg-moss px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+              className="inline-flex items-center gap-2 rounded-md bg-moss px-4 py-2 text-sm font-medium text-on-dark disabled:opacity-50"
             >
               <Save size={16} /> Save
             </button>
@@ -572,28 +572,28 @@ function PdfSlideVisual({ slide, pdfUrl }: { slide: Slide; pdfUrl: string | null
   }, [pdfUrl, slide.slide_number]);
 
   return (
-    <div className="mx-auto max-w-5xl rounded-xl border border-slate-200 bg-slate-100 p-2 shadow-sm sm:p-4">
+    <div className="mx-auto max-w-5xl rounded-xl border border-slate-200 bg-surface-strong p-2 shadow-sm sm:p-4">
       <div className="mb-2 flex items-center justify-between px-1 text-xs font-medium text-slate-600 sm:px-2">
         <span>Slide {slide.slide_number}</span>
         {imageUrl && renderState === "ready" ? (
           <button
             type="button"
             onClick={() => setIsLargeViewOpen(true)}
-            className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 hover:bg-slate-50"
+            className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-surface px-2 py-1 text-xs text-slate-700 hover:bg-surface-muted"
           >
             <Maximize2 size={13} /> Bigger view
           </button>
         ) : null}
       </div>
       {pdfUrl ? (
-        <div className="rounded-lg bg-white p-2 shadow-inner sm:p-5">
-          <div ref={stageRef} className="mx-auto grid min-h-[220px] w-full max-w-4xl place-items-center overflow-hidden rounded-md border border-slate-300 bg-white">
+        <div className="rounded-lg bg-surface p-2 shadow-inner sm:p-5">
+          <div ref={stageRef} className="mx-auto grid min-h-[220px] w-full max-w-4xl place-items-center overflow-hidden rounded-md border border-slate-300 bg-surface">
             {renderState === "rendering" || renderState === "idle" ? (
               <div className="grid aspect-[16/9] w-full place-items-center text-sm text-slate-500">Loading slide...</div>
             ) : null}
             {imageUrl && renderState === "ready" ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={imageUrl} alt={`Slide ${slide.slide_number}`} className="block h-auto max-w-full bg-white" />
+              <img src={imageUrl} alt={`Slide ${slide.slide_number}`} className="block h-auto max-w-full bg-surface" />
             ) : null}
             {renderState === "failed" ? (
               <div className="grid aspect-[16/9] w-full place-items-center p-6 text-center text-sm text-slate-600">
@@ -606,7 +606,7 @@ function PdfSlideVisual({ slide, pdfUrl }: { slide: Slide; pdfUrl: string | null
           </div>
         </div>
       ) : (
-        <div className="grid aspect-[16/9] place-items-center rounded-md bg-white p-6 text-center text-sm text-slate-600">
+        <div className="grid aspect-[16/9] place-items-center rounded-md bg-surface p-6 text-center text-sm text-slate-600">
           PDF preview is unavailable. The lesson content is still saved.
         </div>
       )}
@@ -615,13 +615,13 @@ function PdfSlideVisual({ slide, pdfUrl }: { slide: Slide; pdfUrl: string | null
           <button
             type="button"
             onClick={() => setIsLargeViewOpen(false)}
-            className="absolute right-4 top-4 z-10 inline-flex items-center gap-2 rounded-md bg-white px-3 py-2 text-sm font-medium text-ink"
+            className="absolute right-4 top-4 z-10 inline-flex items-center gap-2 rounded-md bg-surface px-3 py-2 text-sm font-medium text-ink"
           >
             <X size={16} /> Close
           </button>
           <div className="grid h-full w-full place-items-center overflow-auto">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={imageUrl} alt={`Slide ${slide.slide_number} large view`} className="max-h-none w-auto max-w-[1400px] rounded-md bg-white shadow-2xl md:max-h-[calc(100vh-48px)] md:max-w-full" />
+            <img src={imageUrl} alt={`Slide ${slide.slide_number} large view`} className="max-h-none w-auto max-w-[1400px] rounded-md bg-surface shadow-2xl md:max-h-[calc(100vh-48px)] md:max-w-full" />
           </div>
         </div>
       ) : null}

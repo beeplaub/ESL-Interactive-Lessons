@@ -48,9 +48,9 @@ export function MediaAssetCard({ asset, canManage }: { asset: MediaAssetRow; can
   }
 
   return (
-    <article className="group relative flex min-w-0 flex-col overflow-hidden rounded-2xl border border-black/10 bg-white shadow-sm transition hover:shadow-md">
+    <article className="group relative flex min-w-0 flex-col overflow-hidden rounded-2xl border border-[var(--br-border)] bg-surface shadow-sm transition hover:shadow-md">
       {/* Preview */}
-      <div className="relative flex aspect-[4/3] w-full items-center justify-center overflow-hidden bg-slate-50">
+      <div className="relative flex aspect-[4/3] w-full items-center justify-center overflow-hidden bg-surface-muted">
         {asset.type === "IMAGE" ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={asset.url} alt={asset.alt_text ?? name} className="h-full w-full object-cover" loading="lazy" />
@@ -59,25 +59,25 @@ export function MediaAssetCard({ asset, canManage }: { asset: MediaAssetRow; can
             // eslint-disable-next-line @next/next/no-img-element
             <img src={ytThumb} alt={name} className="h-full w-full object-cover" loading="lazy" />
           ) : (
-            <Video size={30} className="text-black/25" />
+            <Video size={30} className="text-[var(--br-text-muted)]" />
           )
         ) : (
-          <Music size={30} className="text-black/25" />
+          <Music size={30} className="text-[var(--br-text-muted)]" />
         )}
 
-        <span className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+        <span className="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-on-dark">
           {asset.type}
         </span>
         <span
           className={`absolute right-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide
-            ${asset.source === "UPLOAD" ? "bg-moss/90 text-white" : "bg-amber-500/90 text-white"}`}
+            ${asset.source === "UPLOAD" ? "bg-moss/90 text-on-dark" : "bg-amber-500/90 text-on-dark"}`}
         >
           {asset.source === "UPLOAD" ? "Uploaded" : "Link"}
         </span>
       </div>
 
       {asset.type === "AUDIO" && !/youtube\.com|youtu\.be/i.test(asset.url) ? (
-        <audio controls src={asset.url} className="w-full border-b border-black/5" />
+        <audio controls src={asset.url} className="w-full border-b border-[var(--br-border)]" />
       ) : null}
 
       {/* Meta + actions */}
@@ -94,31 +94,31 @@ export function MediaAssetCard({ asset, canManage }: { asset: MediaAssetRow; can
               name="title"
               defaultValue={asset.title ?? ""}
               placeholder="Title"
-              className="w-full rounded-md border border-black/15 px-2 py-1.5 text-xs"
+              className="w-full rounded-md border border-[var(--br-border)] px-2 py-1.5 text-xs"
             />
             {asset.type === "IMAGE" ? (
               <input
                 name="altText"
                 defaultValue={asset.alt_text ?? ""}
                 placeholder="Alt text"
-                className="w-full rounded-md border border-black/15 px-2 py-1.5 text-xs"
+                className="w-full rounded-md border border-[var(--br-border)] px-2 py-1.5 text-xs"
               />
             ) : null}
             <input
               name="caption"
               defaultValue={asset.caption ?? ""}
               placeholder="Caption / label"
-              className="w-full rounded-md border border-black/15 px-2 py-1.5 text-xs"
+              className="w-full rounded-md border border-[var(--br-border)] px-2 py-1.5 text-xs"
             />
             <input
               name="tags"
               defaultValue={(asset.tags ?? []).join(", ")}
               placeholder="Tags, comma separated"
-              className="w-full rounded-md border border-black/15 px-2 py-1.5 text-xs"
+              className="w-full rounded-md border border-[var(--br-border)] px-2 py-1.5 text-xs"
             />
             <div className="flex gap-2">
-              <button className="rounded-md bg-violetglow px-2.5 py-1.5 text-xs font-semibold text-white">Save</button>
-              <button type="button" onClick={() => setEditing(false)} className="rounded-md border border-black/15 px-2.5 py-1.5 text-xs font-semibold">
+              <button className="rounded-md bg-violetglow px-2.5 py-1.5 text-xs font-semibold text-on-dark">Save</button>
+              <button type="button" onClick={() => setEditing(false)} className="rounded-md border border-[var(--br-border)] px-2.5 py-1.5 text-xs font-semibold">
                 Cancel
               </button>
             </div>
@@ -126,25 +126,25 @@ export function MediaAssetCard({ asset, canManage }: { asset: MediaAssetRow; can
         ) : (
           <>
             <p className="truncate text-sm font-semibold" title={name}>{name}</p>
-            <p className="truncate text-[11px] text-black/45">
+            <p className="truncate text-[11px] text-[var(--br-text-muted)]">
               {asset.lesson_title ? `Used in ${asset.lesson_title}` : "Not yet used in a lesson"} · {asset.use_count}× reused
             </p>
             {asset.tags && asset.tags.length ? (
               <div className="flex flex-wrap gap-1">
                 {asset.tags.slice(0, 4).map((tag) => (
-                  <span key={tag} className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-black/55">{tag}</span>
+                  <span key={tag} className="rounded-full bg-surface-strong px-2 py-0.5 text-[10px] font-medium text-[var(--br-text-muted)]">{tag}</span>
                 ))}
               </div>
             ) : null}
           </>
         )}
 
-        <div className="mt-auto flex items-center gap-1 border-t border-black/5 pt-2">
+        <div className="mt-auto flex items-center gap-1 border-t border-[var(--br-border)] pt-2">
           <button
             type="button"
             onClick={copyUrl}
             title="Copy URL"
-            className="inline-flex flex-1 items-center justify-center gap-1 rounded-md border border-black/10 px-2 py-1.5 text-xs font-semibold text-black/60 hover:bg-black/5"
+            className="inline-flex flex-1 items-center justify-center gap-1 rounded-md border border-[var(--br-border)] px-2 py-1.5 text-xs font-semibold text-[var(--br-text-muted)] hover:bg-black/5"
           >
             {copied ? <Check size={13} className="text-moss" /> : <Copy size={13} />}
             {copied ? "Copied" : "Copy URL"}
@@ -154,7 +154,7 @@ export function MediaAssetCard({ asset, canManage }: { asset: MediaAssetRow; can
             target="_blank"
             rel="noreferrer"
             title="Open"
-            className="inline-flex items-center justify-center rounded-md border border-black/10 p-1.5 text-black/50 hover:bg-black/5"
+            className="inline-flex items-center justify-center rounded-md border border-[var(--br-border)] p-1.5 text-[var(--br-text-muted)] hover:bg-black/5"
           >
             <ExternalLink size={14} />
           </a>
@@ -164,7 +164,7 @@ export function MediaAssetCard({ asset, canManage }: { asset: MediaAssetRow; can
                 type="button"
                 onClick={() => setEditing((value) => !value)}
                 title="Edit details"
-                className="inline-flex items-center justify-center rounded-md border border-black/10 p-1.5 text-black/50 hover:bg-black/5"
+                className="inline-flex items-center justify-center rounded-md border border-[var(--br-border)] p-1.5 text-[var(--br-text-muted)] hover:bg-black/5"
               >
                 <Pencil size={14} />
               </button>

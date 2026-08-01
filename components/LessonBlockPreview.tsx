@@ -109,7 +109,7 @@ export function LessonBlockPreview({
 }) {
   if (!blocks.length) {
     return (
-      <div className="rounded-lg border border-dashed border-black/15 bg-white p-6 text-center text-sm text-black/50">
+      <div className="rounded-lg border border-dashed border-[var(--br-border)] bg-surface p-6 text-center text-sm text-[var(--br-text-muted)]">
         {emptyText}
       </div>
     );
@@ -144,12 +144,12 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
   if (block.block_type === "BULLETS") {
     const items = asArray(content.items).map(String).filter(Boolean);
     return (
-      <div className="rounded-lg border border-black/10 bg-white p-3 sm:p-4">
+      <div className="rounded-lg border border-[var(--br-border)] bg-surface p-3 sm:p-4">
         <div className="mb-3 flex items-center gap-2 font-semibold text-ink">
           <ListChecks size={18} className="text-moss" /> {asString(content.title) || "Key points"}
         </div>
         {items.length ? (
-          <ul className="space-y-2 text-base leading-6 text-black/70">
+          <ul className="space-y-2 text-base leading-6 text-[var(--br-text-muted)]">
             {items.map((item, index) => (
               <li key={index} className="flex gap-2">
                 <span className="mt-2 size-1.5 shrink-0 rounded-full bg-moss" />
@@ -158,7 +158,7 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-black/50">Add bullet points.</p>
+          <p className="text-sm text-[var(--br-text-muted)]">Add bullet points.</p>
         )}
       </div>
     );
@@ -172,7 +172,7 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
           &ldquo;{asString(content.body) || "Add a quote."}&rdquo;
         </blockquote>
         {asString(content.attribution) ? (
-          <figcaption className="mt-2 text-sm text-black/55">— {asString(content.attribution)}</figcaption>
+          <figcaption className="mt-2 text-sm text-[var(--br-text-muted)]">— {asString(content.attribution)}</figcaption>
         ) : null}
       </figure>
     );
@@ -197,12 +197,12 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
     const path = asString(content.path);
     const src = mediaUrl(path, "image");
     return (
-      <figure className="overflow-hidden rounded-lg border border-black/10 bg-slate-50">
+      <figure className="overflow-hidden rounded-lg border border-[var(--br-border)] bg-surface-muted">
         {path && isImageUrl(path) ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={src} alt={asString(content.alt) || ""} className="max-h-[520px] w-full object-contain" />
         ) : (
-          <div className="grid aspect-video place-items-center text-sm text-black/45">
+          <div className="grid aspect-video place-items-center text-sm text-[var(--br-text-muted)]">
             <div className="text-center">
               <ImageIcon className="mx-auto mb-2" size={24} />
               {path || "Add an image URL or storage path."}
@@ -210,7 +210,7 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
           </div>
         )}
         {asString(content.caption) ? (
-          <figcaption className="border-t border-black/10 px-4 py-2 text-sm text-black/55">{asString(content.caption)}</figcaption>
+          <figcaption className="border-t border-[var(--br-border)] px-4 py-2 text-sm text-[var(--br-text-muted)]">{asString(content.caption)}</figcaption>
         ) : null}
       </figure>
     );
@@ -226,18 +226,18 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
     const alt = asString(content.alt);
 
     const imageCol = (
-      <figure className="overflow-hidden rounded-xl border border-black/10 bg-slate-50">
+      <figure className="overflow-hidden rounded-xl border border-[var(--br-border)] bg-surface-muted">
         {src && isImageUrl(src) ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={src} alt={alt || heading || ""} className="h-full max-h-[340px] w-full object-cover" />
         ) : (
-          <div className="flex min-h-[180px] flex-col items-center justify-center gap-2 p-6 text-center text-sm text-black/40">
+          <div className="flex min-h-[180px] flex-col items-center justify-center gap-2 p-6 text-center text-sm text-[var(--br-text-muted)]">
             <ImageIcon size={28} />
             <span>Add an image URL</span>
           </div>
         )}
         {caption ? (
-          <figcaption className="border-t border-black/10 px-3 py-2 text-xs text-black/50">{caption}</figcaption>
+          <figcaption className="border-t border-[var(--br-border)] px-3 py-2 text-xs text-[var(--br-text-muted)]">{caption}</figcaption>
         ) : null}
       </figure>
     );
@@ -248,7 +248,7 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
     const textCol = (
       <div className={`flex flex-col gap-3 ${verticalAlign} ${textAlign}`}>
         {heading ? <h3 className="text-xl font-semibold leading-snug text-ink">{heading}</h3> : null}
-        {body ? <FormattedText text={body} align={textAlign} /> : <p className="text-sm text-black/40">Add supporting text.</p>}
+        {body ? <FormattedText text={body} align={textAlign} /> : <p className="text-sm text-[var(--br-text-muted)]">Add supporting text.</p>}
       </div>
     );
 
@@ -264,7 +264,7 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
     const src = mediaUrl(path, "audio");
     const youtubeId = getYouTubeId(path);
     return (
-      <div className="rounded-lg border border-black/10 bg-dark p-3 text-white sm:p-4">
+      <div className="rounded-lg border border-[var(--br-border)] bg-dark p-3 text-on-dark sm:p-4">
         <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
           <Headphones size={18} /> {asString(content.label) || "Audio"}
         </div>
@@ -283,7 +283,7 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
     const url = asString(content.url);
     const youtubeId = getYouTubeId(url);
     return (
-      <div className="overflow-hidden rounded-lg border border-black/10 bg-slate-50">
+      <div className="overflow-hidden rounded-lg border border-[var(--br-border)] bg-surface-muted">
         {youtubeId ? (
           <CustomYouTubeVideoPlayer
             videoId={youtubeId}
@@ -296,7 +296,7 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
             <div>
               <PlayCircle size={28} className="mx-auto text-moss" />
               <p className="mt-2 font-semibold">{asString(content.title) || "Video"}</p>
-              <p className="mt-1 break-all text-sm text-black/55">{url || "Add a YouTube or video URL."}</p>
+              <p className="mt-1 break-all text-sm text-[var(--br-text-muted)]">{url || "Add a YouTube or video URL."}</p>
             </div>
           </div>
         )}
@@ -305,14 +305,14 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
   }
 
   if (block.block_type === "DIVIDER") {
-    return <hr className="border-black/10" />;
+    return <hr className="border-[var(--br-border)]" />;
   }
 
   if (block.block_type === "VOCABULARY") {
     const entries = asArray(content.entries);
     return (
-      <div className="rounded-lg border border-black/10">
-        <div className="border-b border-black/10 bg-slate-50 px-4 py-3">
+      <div className="rounded-lg border border-[var(--br-border)]">
+        <div className="border-b border-[var(--br-border)] bg-surface-muted px-4 py-3">
           <h3 className="font-semibold">Vocabulary</h3>
         </div>
         <div className="divide-y divide-black/10">
@@ -322,16 +322,16 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
               <div key={index} className="grid gap-1 px-4 py-3 sm:grid-cols-[150px_1fr]">
                 <div>
                   <p className="font-semibold text-ink">{asString(entry.word) || "Word"}</p>
-                  {asString(entry.pronunciation) ? <p className="text-xs text-black/45">{asString(entry.pronunciation)}</p> : null}
+                  {asString(entry.pronunciation) ? <p className="text-xs text-[var(--br-text-muted)]">{asString(entry.pronunciation)}</p> : null}
                 </div>
-                <div className="text-base leading-6 text-black/65">
+                <div className="text-base leading-6 text-[var(--br-text-muted)]">
                   <p>{asString(entry.meaning) || "Meaning"}</p>
-                  {asString(entry.example) ? <p className="mt-1 italic text-black/55">{asString(entry.example)}</p> : null}
-                  {asString(entry.notes) ? <p className="mt-1 text-xs text-black/45">{asString(entry.notes)}</p> : null}
+                  {asString(entry.example) ? <p className="mt-1 italic text-[var(--br-text-muted)]">{asString(entry.example)}</p> : null}
+                  {asString(entry.notes) ? <p className="mt-1 text-xs text-[var(--br-text-muted)]">{asString(entry.notes)}</p> : null}
                 </div>
               </div>
             );
-          }) : <p className="p-4 text-sm text-black/50">Add vocabulary entries.</p>}
+          }) : <p className="p-4 text-sm text-[var(--br-text-muted)]">Add vocabulary entries.</p>}
         </div>
       </div>
     );
@@ -343,29 +343,29 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
         <h3 className="font-semibold text-ink">{asString(content.title) || "Grammar focus"}</h3>
         <div className="mt-2"><FormattedText text={asString(content.explanation) || "Add a grammar explanation."} /></div>
         {asArray(content.examples).length ? (
-          <ul className="mt-3 space-y-2 text-base text-black/70">
+          <ul className="mt-3 space-y-2 text-base text-[var(--br-text-muted)]">
             {asArray(content.examples).map((example, index) => (
-              <li key={index} className="rounded-md bg-white px-3 py-2">{String(example)}</li>
+              <li key={index} className="rounded-md bg-surface px-3 py-2">{String(example)}</li>
             ))}
           </ul>
         ) : null}
-        {asString(content.notes) ? <div className="mt-3 text-xs text-black/50"><FormattedText text={asString(content.notes)} /></div> : null}
+        {asString(content.notes) ? <div className="mt-3 text-xs text-[var(--br-text-muted)]"><FormattedText text={asString(content.notes)} /></div> : null}
       </div>
     );
   }
 
   if (block.block_type === "READING") {
     return (
-      <article className="rounded-lg border border-black/10 p-4">
+      <article className="rounded-lg border border-[var(--br-border)] p-4">
         <div className="mb-3 flex items-center gap-2">
           <BookOpen size={18} className="text-moss" />
           <h3 className="font-semibold">{asString(content.title) || "Reading passage"}</h3>
         </div>
         <FormattedText text={asString(content.passage) || "Add a reading passage."} />
         {asArray(content.questions).length ? (
-          <div className="mt-4 rounded-md bg-slate-50 p-3">
+          <div className="mt-4 rounded-md bg-surface-muted p-3">
             <p className="text-base font-semibold">Questions</p>
-            <ol className="mt-2 list-decimal space-y-1 pl-5 text-base text-black/65">
+            <ol className="mt-2 list-decimal space-y-1 pl-5 text-base text-[var(--br-text-muted)]">
               {asArray(content.questions).map((question, index) => (
                 <li key={index}>{String(question)}</li>
               ))}
@@ -387,12 +387,12 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
           const person = people.find((candidate) => asString(candidate.id) === asString(turn.speaker_id)) ?? null;
           const speaker = asString(person?.name) || asString(turn.speaker) || "Speaker";
           return (
-            <div key={index} className="rounded-lg border border-black/10 bg-white p-3">
-              <p className="w-fit rounded-full px-2 py-0.5 text-xs font-semibold text-white" style={{ backgroundColor: asString(person?.color) || "var(--br-brand)" }}>{speaker}</p>
+            <div key={index} className="rounded-lg border border-[var(--br-border)] bg-surface p-3">
+              <p className="w-fit rounded-full px-2 py-0.5 text-xs font-semibold text-on-dark" style={{ backgroundColor: asString(person?.color) || "var(--br-brand)" }}>{speaker}</p>
               <div className="mt-2 flex items-start gap-2"><div className="min-w-0 flex-1"><FormattedText text={asString(turn.line) || "Dialogue line"} /></div>{asString(turn.audio_url) ? <DialogueAudioButton src={mediaUrl(asString(turn.audio_url), "audio")} speaker={speaker} /> : null}</div>
             </div>
           );
-        }) : <p className="rounded-lg border border-dashed border-black/15 p-4 text-sm text-black/50">Add dialogue turns.</p>}
+        }) : <p className="rounded-lg border border-dashed border-[var(--br-border)] p-4 text-sm text-[var(--br-text-muted)]">Add dialogue turns.</p>}
       </div>
     );
   }
@@ -416,12 +416,12 @@ function TableBlock({ content }: { content: Record<string, unknown> }) {
   const caption = asString(content.caption);
 
   if (!headers.length) {
-    return <p className="text-sm text-black/40">Add table columns to get started.</p>;
+    return <p className="text-sm text-[var(--br-text-muted)]">Add table columns to get started.</p>;
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-black/10 shadow-sm">
-      {caption ? <p className="border-b border-black/10 bg-slate-50 px-4 py-2 text-base font-medium text-black/70">{caption}</p> : null}
+    <div className="overflow-hidden rounded-lg border border-[var(--br-border)] shadow-sm">
+      {caption ? <p className="border-b border-[var(--br-border)] bg-surface-muted px-4 py-2 text-base font-medium text-[var(--br-text-muted)]">{caption}</p> : null}
       <div className="overflow-x-auto">
         <table className="w-full min-w-[420px] border-collapse text-base">
           <thead>
@@ -436,9 +436,9 @@ function TableBlock({ content }: { content: Record<string, unknown> }) {
           <tbody>
             {rows.length ? (
               rows.map((row, rowIndex) => (
-                <tr key={rowIndex} className={rowIndex % 2 === 1 ? "bg-slate-50" : "bg-white"}>
+                <tr key={rowIndex} className={rowIndex % 2 === 1 ? "bg-surface-muted" : "bg-surface"}>
                   {headers.map((_, colIndex) => (
-                    <td key={colIndex} className="border-t border-black/10 px-4 py-2.5 align-top text-black/75">
+                    <td key={colIndex} className="border-t border-[var(--br-border)] px-4 py-2.5 align-top text-[var(--br-text-muted)]">
                       {row[colIndex] || ""}
                     </td>
                   ))}
@@ -446,7 +446,7 @@ function TableBlock({ content }: { content: Record<string, unknown> }) {
               ))
             ) : (
               <tr>
-                <td className="border-t border-black/10 px-4 py-3 text-black/40" colSpan={headers.length}>No rows yet.</td>
+                <td className="border-t border-[var(--br-border)] px-4 py-3 text-[var(--br-text-muted)]" colSpan={headers.length}>No rows yet.</td>
               </tr>
             )}
           </tbody>
@@ -487,30 +487,30 @@ function SingleFlashcard({ content, cardType, frontSide }: { content: Record<str
   return (
     <div className="w-full select-none" style={{ perspective: "1200px" }}>
       <div className="relative w-full transition-all duration-500" style={{ transformStyle: "preserve-3d", transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)", minHeight: "300px" }}>
-        <div className={showDetailFront ? "absolute inset-0 flex cursor-pointer flex-col items-center justify-center gap-3 overflow-y-auto rounded-2xl border border-black/10 bg-white p-6 text-center shadow-sm" : "absolute inset-0 cursor-pointer overflow-hidden rounded-2xl border border-black/10 bg-white"} style={{ backfaceVisibility: "hidden", minHeight: "300px" }} onClick={() => setFlipped(true)} role="button" aria-label="Flip card">
+        <div className={showDetailFront ? "absolute inset-0 flex cursor-pointer flex-col items-center justify-center gap-3 overflow-y-auto rounded-2xl border border-[var(--br-border)] bg-surface p-6 text-center shadow-sm" : "absolute inset-0 cursor-pointer overflow-hidden rounded-2xl border border-[var(--br-border)] bg-surface"} style={{ backfaceVisibility: "hidden", minHeight: "300px" }} onClick={() => setFlipped(true)} role="button" aria-label="Flip card">
           {showImageFront && imageSrc && isImageUrl(imageSrc) ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={imageSrc} alt={word || "Flashcard image"} className="h-full w-full bg-slate-50 object-contain" style={{ minHeight: "300px" }} />
+            <img src={imageSrc} alt={word || "Flashcard image"} className="h-full w-full bg-surface-muted object-contain" style={{ minHeight: "300px" }} />
           ) : showWordFront ? (
-            <div className="grid min-h-[300px] place-items-center bg-slate-50 p-6 text-center"><div><p className="text-4xl font-bold tracking-tight text-ink">{word || "Word"}</p>{phonetic ? <p className="mt-3 font-mono text-sm text-black/45">{phonetic}</p> : null}</div></div>
+            <div className="grid min-h-[300px] place-items-center bg-surface-muted p-6 text-center"><div><p className="text-4xl font-bold tracking-tight text-ink">{word || "Word"}</p>{phonetic ? <p className="mt-3 font-mono text-sm text-[var(--br-text-muted)]">{phonetic}</p> : null}</div></div>
           ) : showDetailFront ? (
             <FlashcardDetails word={word} phonetic={phonetic} audioSrc={audioSrc} meaning={meaning} examples={examples} audioRef={audioRef} />
           ) : (
-            <div className="grid min-h-[300px] place-items-center rounded-2xl bg-slate-100 text-black/25"><div className="flex flex-col items-center gap-2 text-center"><ImageIcon size={40} /><p className="text-sm">Add an image to display here</p></div></div>
+            <div className="grid min-h-[300px] place-items-center rounded-2xl bg-surface-strong text-[var(--br-text-muted)]"><div className="flex flex-col items-center gap-2 text-center"><ImageIcon size={40} /><p className="text-sm">Add an image to display here</p></div></div>
           )}
           {showImageFront && imageSrc && isImageUrl(imageSrc) && <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 rounded-b-2xl bg-gradient-to-t from-black/50 to-transparent" />}
-          <button type="button" onClick={(e) => { e.stopPropagation(); setFlipped(true); }} className="absolute bottom-3 right-3 flex items-center gap-1.5 rounded-full bg-black/40 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-sm transition hover:bg-black/60" aria-label="Flip card"><FlipHorizontal2 size={12} /> Flip</button>
+          <button type="button" onClick={(e) => { e.stopPropagation(); setFlipped(true); }} className="absolute bottom-3 right-3 flex items-center gap-1.5 rounded-full bg-black/40 px-3 py-1.5 text-xs font-semibold text-on-dark backdrop-blur-sm transition hover:bg-black/60" aria-label="Flip card"><FlipHorizontal2 size={12} /> Flip</button>
         </div>
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 overflow-y-auto rounded-2xl border border-black/10 bg-white p-6 text-center shadow-sm" style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)", minHeight: "300px" }}>
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 overflow-y-auto rounded-2xl border border-[var(--br-border)] bg-surface p-6 text-center shadow-sm" style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)", minHeight: "300px" }}>
           {showImageFront || showWordFront ? (
             <FlashcardDetails word={word} phonetic={phonetic} audioSrc={audioSrc} meaning={meaning} examples={examples} audioRef={audioRef} />
           ) : imageSrc && isImageUrl(imageSrc) ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={imageSrc} alt={word || "Flashcard image"} className="max-h-[280px] w-full object-contain" />
           ) : (
-            <p className="text-sm text-black/50">Add an image or card details.</p>
+            <p className="text-sm text-[var(--br-text-muted)]">Add an image or card details.</p>
           )}
-          <button type="button" onClick={() => setFlipped(false)} className="absolute bottom-3 right-3 flex items-center gap-1.5 rounded-full border border-black/10 bg-white px-3 py-1.5 text-xs font-medium text-black/50 shadow-sm transition hover:bg-black/5 hover:text-black" aria-label="Flip back"><FlipHorizontal2 size={12} /> Flip back</button>
+          <button type="button" onClick={() => setFlipped(false)} className="absolute bottom-3 right-3 flex items-center gap-1.5 rounded-full border border-[var(--br-border)] bg-surface px-3 py-1.5 text-xs font-medium text-[var(--br-text-muted)] shadow-sm transition hover:bg-black/5 hover:text-[var(--br-text-muted)]" aria-label="Flip back"><FlipHorizontal2 size={12} /> Flip back</button>
         </div>
       </div>
     </div>
@@ -524,16 +524,16 @@ function FlashcardDetails({ word, phonetic, audioSrc, meaning, examples, audioRe
       <p className="text-3xl font-bold leading-tight tracking-tight text-ink">{word || "Word"}</p>
       {(phonetic || audioSrc) && (
         <div className="flex items-center justify-center gap-2">
-          {phonetic && <span className="font-mono text-sm text-black/45">{phonetic}</span>}
+          {phonetic && <span className="font-mono text-sm text-[var(--br-text-muted)]">{phonetic}</span>}
           {audioSrc && (
             <button type="button" onClick={(e) => { e.stopPropagation(); if (audioRef.current) { audioRef.current.currentTime = 0; void audioRef.current.play(); } }} title="Play pronunciation" className="flex items-center justify-center rounded-full bg-moss/10 p-1.5 text-moss transition hover:bg-moss/20 active:scale-95"><Volume2 size={15} /></button>
           )}
         </div>
       )}
-      <div className="w-12 border-t border-black/10" />
-      <p className="max-w-xs text-base leading-relaxed text-black/70">{meaning || "Meaning"}</p>
+      <div className="w-12 border-t border-[var(--br-border)]" />
+      <p className="max-w-xs text-base leading-relaxed text-[var(--br-text-muted)]">{meaning || "Meaning"}</p>
       {examples.length > 0 && (
-        <div className="max-w-xs space-y-1">{examples.map((ex, i) => <p key={i} className="text-sm italic leading-relaxed text-black/45">&ldquo;{ex}&rdquo;</p>)}</div>
+        <div className="max-w-xs space-y-1">{examples.map((ex, i) => <p key={i} className="text-sm italic leading-relaxed text-[var(--br-text-muted)]">&ldquo;{ex}&rdquo;</p>)}</div>
       )}
     </>
   );
@@ -554,8 +554,8 @@ function InlineText({ text }: { text: string }) {
 
 function FormattedText({ text, align = "text-left" }: { text: string; align?: string }) {
   const lines = text.replace(/\r\n/g, "\n").split("\n");
-  if (!lines.some((line) => line.trim())) return <p className={`text-sm text-black/50 ${align}`}>Add text.</p>;
-  return <div className={`space-y-2 text-base leading-7 text-black/70 ${align}`}>{lines.map((line, index) => {
+  if (!lines.some((line) => line.trim())) return <p className={`text-sm text-[var(--br-text-muted)] ${align}`}>Add text.</p>;
+  return <div className={`space-y-2 text-base leading-7 text-[var(--br-text-muted)] ${align}`}>{lines.map((line, index) => {
     const trimmed = line.trim();
     if (!trimmed) return <div key={index} className="h-2" aria-hidden />;
     if (/^#{1,4}\s+/.test(trimmed)) return <p key={index} className="font-bold text-ink"><InlineText text={trimmed.replace(/^#{1,4}\s+/, "")} /></p>;
@@ -582,14 +582,14 @@ function CustomAudioPlayer({ src }: { src: string }) {
       <audio ref={audioRef} src={src} preload="metadata" onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} onEnded={() => setPlaying(false)} />
       <div className="flex flex-wrap items-center gap-2">
         <button type="button" onClick={() => seek(-10)} className="rounded-md bg-white/10 px-3 py-2 text-xs font-semibold hover:bg-white/20">-10s</button>
-        <button type="button" onClick={toggle} className="inline-flex items-center gap-2 rounded-md bg-white px-4 py-2 text-sm font-semibold text-ink">{playing ? <Pause size={16} /> : <Play size={16} />} {playing ? "Pause" : "Play"}</button>
+        <button type="button" onClick={toggle} className="inline-flex items-center gap-2 rounded-md bg-surface px-4 py-2 text-sm font-semibold text-ink">{playing ? <Pause size={16} /> : <Play size={16} />} {playing ? "Pause" : "Play"}</button>
         <button type="button" onClick={() => seek(10)} className="rounded-md bg-white/10 px-3 py-2 text-xs font-semibold hover:bg-white/20">+10s</button>
         <label className="ml-auto flex items-center gap-2 text-xs text-white/70"><Volume2 size={15} /><input type="range" min="0" max="1" step="0.05" value={volume} onChange={(event) => { const next = Number(event.target.value); setVolume(next); if (audioRef.current) audioRef.current.volume = next; }} /></label>
         <button type="button" onClick={() => setOpenSettings((current) => !current)} className="rounded-md bg-white/10 p-2 hover:bg-white/20" aria-label="Audio settings"><Settings size={16} /></button>
       </div>
       {openSettings ? (
         <div className="mt-3 rounded-md bg-white/10 p-3 text-sm">
-          <label className="flex items-center justify-between gap-3">Speed<select value={speed} onChange={(event) => { const next = Number(event.target.value); setSpeed(next); if (audioRef.current) audioRef.current.playbackRate = next; }} className="rounded-md border border-white/20 bg-dark px-2 py-1 text-white">{[0.75, 1, 1.25, 1.5, 2].map((value) => <option key={value} value={value}>{value}x</option>)}</select></label>
+          <label className="flex items-center justify-between gap-3">Speed<select value={speed} onChange={(event) => { const next = Number(event.target.value); setSpeed(next); if (audioRef.current) audioRef.current.playbackRate = next; }} className="rounded-md border border-white/20 bg-dark px-2 py-1 text-on-dark">{[0.75, 1, 1.25, 1.5, 2].map((value) => <option key={value} value={value}>{value}x</option>)}</select></label>
           <p className="mt-2 text-xs text-white/55">Audio quality depends on the source link.</p>
         </div>
       ) : null}
@@ -613,11 +613,11 @@ function YouTubeAudioPlayer({ videoId }: { videoId: string }) {
       <iframe ref={iframeRef} src={src} title="Audio source" className="pointer-events-none absolute size-px opacity-0" allow="autoplay; encrypted-media" />
       <div className="flex flex-wrap items-center gap-2">
         <button type="button" onClick={() => seek(0)} className="rounded-md bg-white/10 px-3 py-2 text-xs font-semibold hover:bg-white/20">Start</button>
-        <button type="button" onClick={toggle} className="inline-flex items-center gap-2 rounded-md bg-white px-4 py-2 text-sm font-semibold text-ink">{playing ? <Pause size={16} /> : <Play size={16} />} {playing ? "Pause" : "Play"}</button>
+        <button type="button" onClick={toggle} className="inline-flex items-center gap-2 rounded-md bg-surface px-4 py-2 text-sm font-semibold text-ink">{playing ? <Pause size={16} /> : <Play size={16} />} {playing ? "Pause" : "Play"}</button>
         <label className="ml-auto flex items-center gap-2 text-xs text-white/70"><Volume2 size={15} /><input type="range" min="0" max="100" step="5" value={volume} onChange={(event) => setVolume(Number(event.target.value))} /></label>
         <button type="button" onClick={() => setOpenSettings((current) => !current)} className="rounded-md bg-white/10 p-2 hover:bg-white/20" aria-label="Audio settings"><Settings size={16} /></button>
       </div>
-      {openSettings ? (<div className="mt-3 rounded-md bg-white/10 p-3 text-sm"><label className="flex items-center justify-between gap-3">Speed<select value={speed} onChange={(event) => setSpeed(Number(event.target.value))} className="rounded-md border border-white/20 bg-dark px-2 py-1 text-white">{[0.75, 1, 1.25, 1.5, 2].map((value) => <option key={value} value={value}>{value}x</option>)}</select></label></div>) : null}
+      {openSettings ? (<div className="mt-3 rounded-md bg-white/10 p-3 text-sm"><label className="flex items-center justify-between gap-3">Speed<select value={speed} onChange={(event) => setSpeed(Number(event.target.value))} className="rounded-md border border-white/20 bg-dark px-2 py-1 text-on-dark">{[0.75, 1, 1.25, 1.5, 2].map((value) => <option key={value} value={value}>{value}x</option>)}</select></label></div>) : null}
     </div>
   );
 }
@@ -743,7 +743,7 @@ function CustomYouTubeVideoPlayer({
   function fullscreen() { void wrapperRef.current?.requestFullscreen?.(); }
 
   return (
-    <div ref={wrapperRef} className="overflow-hidden rounded-lg bg-dark text-white">
+    <div ref={wrapperRef} className="overflow-hidden rounded-lg bg-dark text-on-dark">
       <div className="relative aspect-video bg-black overflow-hidden">
         <iframe
           ref={iframeRef}
@@ -762,7 +762,7 @@ function CustomYouTubeVideoPlayer({
             className="absolute inset-0 z-20 grid place-items-center bg-black/60 bg-cover bg-center transition-all hover:bg-black/50"
             style={{ backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url(https://img.youtube.com/vi/${videoId}/hqdefault.jpg)` }}
           >
-            <span className="grid size-16 place-items-center rounded-full bg-white text-ink shadow-xl transition-transform hover:scale-105">
+            <span className="grid size-16 place-items-center rounded-full bg-surface text-ink shadow-xl transition-transform hover:scale-105">
               <Play size={26} className="ml-1" />
             </span>
             <span className="sr-only">Play video</span>
@@ -770,7 +770,7 @@ function CustomYouTubeVideoPlayer({
         ) : null}
       </div>
       <div className="flex items-center gap-1 overflow-x-auto p-2">
-        <button type="button" onClick={toggle} className="inline-flex shrink-0 items-center gap-1 rounded-md bg-white px-2.5 py-1.5 text-xs font-semibold text-ink z-30">{playing ? <Pause size={14} /> : <Play size={14} />} {playing ? "Pause" : "Play"}</button>
+        <button type="button" onClick={toggle} className="inline-flex shrink-0 items-center gap-1 rounded-md bg-surface px-2.5 py-1.5 text-xs font-semibold text-ink z-30">{playing ? <Pause size={14} /> : <Play size={14} />} {playing ? "Pause" : "Play"}</button>
         <button type="button" onClick={restart} className="shrink-0 rounded-md bg-white/10 px-2.5 py-1.5 text-xs font-semibold hover:bg-white/20">Restart</button>
         <button type="button" onClick={() => seekRelative(-10)} className="shrink-0 rounded-md bg-white/10 p-1.5 hover:bg-white/20" aria-label="Rewind 10 seconds"><RotateCcw size={15} /></button>
         <button type="button" onClick={() => seekRelative(10)} className="shrink-0 rounded-md bg-white/10 p-1.5 hover:bg-white/20" aria-label="Forward 10 seconds"><RotateCw size={15} /></button>
@@ -781,7 +781,7 @@ function CustomYouTubeVideoPlayer({
         <button type="button" onClick={fullscreen} className="shrink-0 rounded-md bg-white/10 p-1.5 hover:bg-white/20" aria-label="Fullscreen"><Maximize size={15} /></button>
         <button type="button" onClick={() => setOpenSettings((current) => !current)} className="shrink-0 rounded-md bg-white/10 p-1.5 hover:bg-white/20" aria-label="Video settings"><Settings size={15} /></button>
       </div>
-      {openSettings ? (<div className="border-t border-white/10 p-3 text-sm"><label className="flex items-center justify-between gap-3">Speed<select value={speed} onChange={(event) => setSpeed(Number(event.target.value))} className="rounded-md border border-white/20 bg-dark px-2 py-1 text-white">{[0.75, 1, 1.25, 1.5, 2].map((value) => <option key={value} value={value}>{value}x</option>)}</select></label></div>) : null}
+      {openSettings ? (<div className="border-t border-white/10 p-3 text-sm"><label className="flex items-center justify-between gap-3">Speed<select value={speed} onChange={(event) => setSpeed(Number(event.target.value))} className="rounded-md border border-white/20 bg-dark px-2 py-1 text-on-dark">{[0.75, 1, 1.25, 1.5, 2].map((value) => <option key={value} value={value}>{value}x</option>)}</select></label></div>) : null}
     </div>
   );
 }

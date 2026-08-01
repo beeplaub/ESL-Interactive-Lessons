@@ -8,7 +8,7 @@ export default function Loading() {
           <Bone className="h-4 w-40" />
           <Bone className="h-4 w-16" />
         </div>
-        <div className="rounded-[24px] border border-[var(--br-surface-strong)] bg-white p-6">
+        <div className="rounded-[24px] border border-[var(--br-surface-strong)] bg-surface p-6">
           <Bone className="h-7 w-2/3" />
           <Bone className="mt-4 h-4 w-full" />
           <Bone className="mt-2 h-4 w-5/6" />

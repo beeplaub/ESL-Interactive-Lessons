@@ -24,7 +24,7 @@ export function WishlistButton({
 
   if (!isLoggedIn) {
     return (
-      <Link href={`/login?next=${encodeURIComponent(loginNext)}`} title="Add to wishlist" className="rounded-full border border-black/10 bg-white p-2 text-black/55 shadow-sm hover:text-coral">
+      <Link href={`/login?next=${encodeURIComponent(loginNext)}`} title="Add to wishlist" className="rounded-full border border-[var(--br-border)] bg-surface p-2 text-[var(--br-text-muted)] shadow-sm hover:text-coral">
         <Heart size={17} />
       </Link>
     );
@@ -46,7 +46,7 @@ export function WishlistButton({
           }
         });
       }}
-      className={`rounded-full border border-black/10 bg-white p-2 shadow-sm ${saved ? "text-coral" : "text-black/55 hover:text-coral"} disabled:opacity-50`}
+      className={`rounded-full border border-[var(--br-border)] bg-surface p-2 shadow-sm ${saved ? "text-coral" : "text-[var(--br-text-muted)] hover:text-coral"} disabled:opacity-50`}
     >
       <Heart size={17} fill={saved ? "currentColor" : "none"} />
     </button>

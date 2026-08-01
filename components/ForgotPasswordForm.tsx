@@ -29,10 +29,10 @@ export function ForgotPasswordForm() {
     return (
       <div className="mt-6 rounded-md bg-moss/10 p-4 text-sm">
         <p className="font-semibold text-moss">Check your inbox</p>
-        <p className="mt-1 text-black/65">
+        <p className="mt-1 text-[var(--br-text-muted)]">
           We sent a reset link to <strong>{email}</strong>. It expires in 1 hour.
         </p>
-        <p className="mt-3 text-xs text-black/45">
+        <p className="mt-3 text-xs text-[var(--br-text-muted)]">
           No email? Check your spam folder or try again.
         </p>
         <button
@@ -57,14 +57,14 @@ export function ForgotPasswordForm() {
           onKeyDown={(e) => e.key === "Enter" && submit()}
           autoComplete="email"
           placeholder="you@example.com"
-          className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 font-normal"
+          className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 font-normal"
         />
       </label>
       <button
         type="button"
         disabled={isPending || !email.trim()}
         onClick={submit}
-        className="w-full rounded-md bg-dark px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+        className="w-full rounded-md bg-dark px-4 py-2.5 text-sm font-semibold text-on-dark disabled:opacity-60"
       >
         {isPending ? "Sending..." : "Send reset link"}
       </button>

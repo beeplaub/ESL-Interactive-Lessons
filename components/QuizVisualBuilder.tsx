@@ -484,54 +484,54 @@ export function QuizVisualBuilder({
 
   return (
     <div className="grid gap-5">
-      <section className="rounded-2xl border border-black/10 bg-white p-4 shadow-sm">
+      <section className="rounded-2xl border border-[var(--br-border)] bg-surface p-4 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">{quiz.id ? "Edit quiz" : "Create quiz"}</h1>
-            <p className="mt-1 text-sm text-black/55">Build questions visually, preview them, then save or publish.</p>
+            <p className="mt-1 text-sm text-[var(--br-text-muted)]">Build questions visually, preview them, then save or publish.</p>
             <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-moss">{questions.length} question{questions.length !== 1 ? "s" : ""} · {totalPoints} total point{totalPoints !== 1 ? "s" : ""}</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Link href="/admin/content-library?type=QUESTION" className="inline-flex items-center gap-2 rounded-md border border-black/15 px-3 py-2 text-sm font-medium hover:bg-black/5">
+            <Link href="/admin/content-library?type=QUESTION" className="inline-flex items-center gap-2 rounded-md border border-[var(--br-border)] px-3 py-2 text-sm font-medium hover:bg-black/5">
               <Library size={15} /> Content library
             </Link>
-            <button type="button" onClick={() => setParseOpen(true)} className="inline-flex items-center gap-2 rounded-md border border-black/15 px-3 py-2 text-sm font-medium hover:bg-black/5">
+            <button type="button" onClick={() => setParseOpen(true)} className="inline-flex items-center gap-2 rounded-md border border-[var(--br-border)] px-3 py-2 text-sm font-medium hover:bg-black/5">
               <FileText size={15} /> Parse text
             </button>
-            <button type="button" onClick={() => setBankOpen(true)} className="inline-flex items-center gap-2 rounded-md border border-black/15 px-3 py-2 text-sm font-medium hover:bg-black/5">
+            <button type="button" onClick={() => setBankOpen(true)} className="inline-flex items-center gap-2 rounded-md border border-[var(--br-border)] px-3 py-2 text-sm font-medium hover:bg-black/5">
               <Library size={15} /> Question bank
             </button>
-            <button type="button" onClick={() => setTimerOpen(true)} className="inline-flex items-center gap-2 rounded-md border border-black/15 px-3 py-2 text-sm font-medium hover:bg-black/5">
+            <button type="button" onClick={() => setTimerOpen(true)} className="inline-flex items-center gap-2 rounded-md border border-[var(--br-border)] px-3 py-2 text-sm font-medium hover:bg-black/5">
               <Clock3 size={15} /> {quiz.timerMinutes ? `${quiz.timerMinutes} min` : "Timer"}
             </button>
             {quiz.id && (
-              <a href={`/quizzes/${quiz.id}/print`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-md border border-black/15 px-4 py-2 text-sm font-semibold hover:bg-black/5">
+              <a href={`/quizzes/${quiz.id}/print`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-md border border-[var(--br-border)] px-4 py-2 text-sm font-semibold hover:bg-black/5">
                 <Printer size={15} /> Print / PDF
               </a>
             )}
-            <button type="button" disabled={isPending} onClick={() => save("DRAFT")} className="rounded-md border border-black/15 px-4 py-2 text-sm font-semibold hover:bg-black/5 disabled:opacity-45">Save draft</button>
-            <button type="button" disabled={isPending} onClick={() => save("PUBLISHED")} className="rounded-md bg-moss px-4 py-2 text-sm font-semibold text-white disabled:opacity-45">Publish</button>
+            <button type="button" disabled={isPending} onClick={() => save("DRAFT")} className="rounded-md border border-[var(--br-border)] px-4 py-2 text-sm font-semibold hover:bg-black/5 disabled:opacity-45">Save draft</button>
+            <button type="button" disabled={isPending} onClick={() => save("PUBLISHED")} className="rounded-md bg-moss px-4 py-2 text-sm font-semibold text-on-dark disabled:opacity-45">Publish</button>
           </div>
         </div>
         <div className="mt-4 grid gap-3 md:grid-cols-[1fr_180px_140px_150px]">
-          <input value={quiz.title} onChange={(event) => setQuiz({ ...quiz, title: event.target.value })} className="rounded-md border border-black/15 px-3 py-2" placeholder="Quiz title" />
-          <input value={quiz.topic} onChange={(event) => setQuiz({ ...quiz, topic: event.target.value })} className="rounded-md border border-black/15 px-3 py-2" placeholder="Topic" />
-          <select value={quiz.level} onChange={(event) => setQuiz({ ...quiz, level: event.target.value })} className="rounded-md border border-black/15 px-3 py-2">
+          <input value={quiz.title} onChange={(event) => setQuiz({ ...quiz, title: event.target.value })} className="rounded-md border border-[var(--br-border)] px-3 py-2" placeholder="Quiz title" />
+          <input value={quiz.topic} onChange={(event) => setQuiz({ ...quiz, topic: event.target.value })} className="rounded-md border border-[var(--br-border)] px-3 py-2" placeholder="Topic" />
+          <select value={quiz.level} onChange={(event) => setQuiz({ ...quiz, level: event.target.value })} className="rounded-md border border-[var(--br-border)] px-3 py-2">
             {["A1", "A2", "B1", "B2", "C1", "C2"].map((level) => <option key={level}>{level}</option>)}
           </select>
-          <select value={quiz.status} onChange={(event) => setQuiz({ ...quiz, status: event.target.value as "DRAFT" | "PUBLISHED" })} className="rounded-md border border-black/15 px-3 py-2">
+          <select value={quiz.status} onChange={(event) => setQuiz({ ...quiz, status: event.target.value as "DRAFT" | "PUBLISHED" })} className="rounded-md border border-[var(--br-border)] px-3 py-2">
             <option value="DRAFT">Draft</option>
             <option value="PUBLISHED">Published</option>
           </select>
         </div>
-        {message ? <p className="mt-3 rounded-md bg-slate-50 p-3 text-sm text-black/60">{message}</p> : null}
+        {message ? <p className="mt-3 rounded-md bg-surface-muted p-3 text-sm text-[var(--br-text-muted)]">{message}</p> : null}
       </section>
 
       <section className="grid min-w-0 gap-5 lg:grid-cols-[280px_minmax(0,0.8fr)_minmax(340px,1fr)] xl:grid-cols-[300px_minmax(0,0.85fr)_minmax(380px,1fr)]">
-        <aside className="min-w-0 overflow-hidden rounded-2xl border border-black/10 bg-white p-3 shadow-sm">
+        <aside className="min-w-0 overflow-hidden rounded-2xl border border-[var(--br-border)] bg-surface p-3 shadow-sm">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold">Questions</h2>
-            <select onChange={(event) => { addQuestion(event.target.value as BuilderQuestion["questionType"]); event.currentTarget.value = ""; }} defaultValue="" className="rounded-md border border-black/15 px-2 py-1 text-xs">
+            <select onChange={(event) => { addQuestion(event.target.value as BuilderQuestion["questionType"]); event.currentTarget.value = ""; }} defaultValue="" className="rounded-md border border-[var(--br-border)] px-2 py-1 text-xs">
               <option value="" disabled>Add...</option>
               {questionTypes.map((type) => <option key={type} value={type}>{typeLabels[type]}</option>)}
             </select>
@@ -542,7 +542,7 @@ export function QuizVisualBuilder({
                 key={question.id}
                 type="button"
                 onClick={() => setSelectedId(question.id)}
-                className={`min-w-0 rounded-lg border px-3 py-2 text-left text-sm ${question.id === selected?.id ? "border-moss bg-moss/10" : "border-black/10 hover:bg-black/[0.03]"}`}
+                className={`min-w-0 rounded-lg border px-3 py-2 text-left text-sm ${question.id === selected?.id ? "border-moss bg-moss/10" : "border-[var(--br-border)] hover:bg-black/[0.03]"}`}
               >
                 <span className="text-xs font-semibold text-moss">Q{index + 1} · {typeLabels[question.questionType]}</span>
                 <span className="mt-1 block min-w-0 overflow-hidden text-ellipsis whitespace-nowrap font-medium" title={question.questionText}>{question.questionText}</span>
@@ -551,7 +551,7 @@ export function QuizVisualBuilder({
           </div>
         </aside>
 
-        <section className="min-w-0 rounded-2xl border border-black/10 bg-white p-4 shadow-sm">
+        <section className="min-w-0 rounded-2xl border border-[var(--br-border)] bg-surface p-4 shadow-sm">
           {selected ? (
             <div className="grid gap-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
@@ -561,21 +561,21 @@ export function QuizVisualBuilder({
                 </div>
                 <span className="rounded-full bg-moss/10 px-3 py-1 text-xs font-semibold text-moss">{quiz.status}</span>
               </div>
-              <div className="rounded-xl border border-black/10 bg-slate-50 p-4">
-                <p className="text-sm font-semibold text-black/75">{selected.questionText || "Untitled question"}</p>
-                {selected.description ? <p className="mt-2 max-h-20 overflow-hidden text-sm text-black/55">{selected.description}</p> : null}
+              <div className="rounded-xl border border-[var(--br-border)] bg-surface-muted p-4">
+                <p className="text-sm font-semibold text-[var(--br-text-muted)]">{selected.questionText || "Untitled question"}</p>
+                {selected.description ? <p className="mt-2 max-h-20 overflow-hidden text-sm text-[var(--br-text-muted)]">{selected.description}</p> : null}
               </div>
               <div className="grid gap-2 sm:grid-cols-2">
-                <button type="button" onClick={() => setEditorOpen(true)} className="inline-flex items-center justify-center gap-2 rounded-md bg-dark px-3 py-2 text-sm font-semibold text-white">
+                <button type="button" onClick={() => setEditorOpen(true)} className="inline-flex items-center justify-center gap-2 rounded-md bg-dark px-3 py-2 text-sm font-semibold text-on-dark">
                   <Edit3 size={15} /> Edit question
                 </button>
-                <button type="button" onClick={() => duplicateQuestion(selected.id)} className="inline-flex items-center justify-center gap-2 rounded-md border border-black/15 px-3 py-2 text-sm font-semibold hover:bg-black/5">
+                <button type="button" onClick={() => duplicateQuestion(selected.id)} className="inline-flex items-center justify-center gap-2 rounded-md border border-[var(--br-border)] px-3 py-2 text-sm font-semibold hover:bg-black/5">
                   <Copy size={15} /> Duplicate
                 </button>
-                <button type="button" disabled={selectedIndex <= 0} onClick={() => moveQuestion(selected.id, -1)} className="inline-flex items-center justify-center gap-2 rounded-md border border-black/15 px-3 py-2 text-sm font-semibold hover:bg-black/5 disabled:opacity-40">
+                <button type="button" disabled={selectedIndex <= 0} onClick={() => moveQuestion(selected.id, -1)} className="inline-flex items-center justify-center gap-2 rounded-md border border-[var(--br-border)] px-3 py-2 text-sm font-semibold hover:bg-black/5 disabled:opacity-40">
                   <ArrowUp size={15} /> Move up
                 </button>
-                <button type="button" disabled={selectedIndex >= questions.length - 1} onClick={() => moveQuestion(selected.id, 1)} className="inline-flex items-center justify-center gap-2 rounded-md border border-black/15 px-3 py-2 text-sm font-semibold hover:bg-black/5 disabled:opacity-40">
+                <button type="button" disabled={selectedIndex >= questions.length - 1} onClick={() => moveQuestion(selected.id, 1)} className="inline-flex items-center justify-center gap-2 rounded-md border border-[var(--br-border)] px-3 py-2 text-sm font-semibold hover:bg-black/5 disabled:opacity-40">
                   <ArrowDown size={15} /> Move down
                 </button>
               </div>
@@ -586,16 +586,16 @@ export function QuizVisualBuilder({
           ) : null}
         </section>
 
-        <aside className="min-w-0 rounded-2xl border border-black/10 bg-slate-50 p-4 shadow-sm">
+        <aside className="min-w-0 rounded-2xl border border-[var(--br-border)] bg-surface-muted p-4 shadow-sm">
           <div className="mb-3 flex items-center gap-2">
             <Eye size={16} className="text-moss" />
             <h2 className="text-sm font-semibold">Preview</h2>
-            <span className="ml-auto rounded-full bg-white px-2 py-1 text-xs font-semibold text-black/50">{totalPoints} pts</span>
+            <span className="ml-auto rounded-full bg-surface px-2 py-1 text-xs font-semibold text-[var(--br-text-muted)]">{totalPoints} pts</span>
           </div>
           {previewActivity ? (
             <LessonActivityPanel key={`${selected?.id}-${JSON.stringify(selected?.options)}-${JSON.stringify(selected?.correctAnswer)}`} activity={previewActivity} previewOnly onNext={() => {}} />
           ) : previewQuestion ? (
-            <p className="rounded-md bg-white p-3 text-sm text-black/55">{previewQuestion.question_text}</p>
+            <p className="rounded-md bg-surface p-3 text-sm text-[var(--br-text-muted)]">{previewQuestion.question_text}</p>
           ) : null}
         </aside>
       </section>
@@ -616,18 +616,18 @@ export function QuizVisualBuilder({
 
       {parseOpen ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 px-3 py-6">
-          <div className="max-h-[92vh] w-full max-w-3xl overflow-auto rounded-2xl bg-white p-5 shadow-2xl">
+          <div className="max-h-[92vh] w-full max-w-3xl overflow-auto rounded-2xl bg-surface p-5 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-xl font-semibold">Parse quiz text</h2>
-                <p className="mt-1 text-sm text-black/55">Optional import. Text parsing supports MCQ, T/F, FILL, and MATCH. The visual builder supports every quiz activity type: Multiple Choice, True/False, Fill, Matching, Multiple Select, Short Answer, Error Correction, Reordering, Drag & Drop, and Pronunciation.</p>
+                <p className="mt-1 text-sm text-[var(--br-text-muted)]">Optional import. Text parsing supports MCQ, T/F, FILL, and MATCH. The visual builder supports every quiz activity type: Multiple Choice, True/False, Fill, Matching, Multiple Select, Short Answer, Error Correction, Reordering, Drag & Drop, and Pronunciation.</p>
               </div>
-              <button type="button" onClick={() => setParseOpen(false)} className="rounded-md border border-black/10 p-2 hover:bg-black/5"><X size={16} /></button>
+              <button type="button" onClick={() => setParseOpen(false)} className="rounded-md border border-[var(--br-border)] p-2 hover:bg-black/5"><X size={16} /></button>
             </div>
-            <textarea value={parseText} onChange={(event) => setParseText(event.target.value)} rows={18} className="mt-4 w-full rounded-md border border-black/15 px-3 py-3 font-mono text-sm leading-6" />
+            <textarea value={parseText} onChange={(event) => setParseText(event.target.value)} rows={18} className="mt-4 w-full rounded-md border border-[var(--br-border)] px-3 py-3 font-mono text-sm leading-6" />
             <div className="mt-4 flex justify-end gap-2">
-              <button type="button" onClick={() => setParseOpen(false)} className="rounded-md border border-black/15 px-4 py-2 text-sm">Cancel</button>
-              <button type="button" onClick={importParsed} className="rounded-md bg-dark px-4 py-2 text-sm font-semibold text-white">Import into builder</button>
+              <button type="button" onClick={() => setParseOpen(false)} className="rounded-md border border-[var(--br-border)] px-4 py-2 text-sm">Cancel</button>
+              <button type="button" onClick={importParsed} className="rounded-md bg-dark px-4 py-2 text-sm font-semibold text-on-dark">Import into builder</button>
             </div>
           </div>
         </div>
@@ -635,13 +635,13 @@ export function QuizVisualBuilder({
 
       {timerOpen ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 px-3 py-6">
-          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl">
+          <div className="w-full max-w-md rounded-2xl bg-surface p-5 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-xl font-semibold">Quiz timer</h2>
-                <p className="mt-1 text-sm text-black/55">Set a countdown for each learner attempt. Leave empty for untimed practice.</p>
+                <p className="mt-1 text-sm text-[var(--br-text-muted)]">Set a countdown for each learner attempt. Leave empty for untimed practice.</p>
               </div>
-              <button type="button" onClick={() => setTimerOpen(false)} className="rounded-md border border-black/10 p-2 hover:bg-black/5"><X size={16} /></button>
+              <button type="button" onClick={() => setTimerOpen(false)} className="rounded-md border border-[var(--br-border)] p-2 hover:bg-black/5"><X size={16} /></button>
             </div>
             <label className="mt-5 block text-sm font-medium">
               Time limit in minutes
@@ -651,12 +651,12 @@ export function QuizVisualBuilder({
                 value={quiz.timerMinutes ?? ""}
                 onChange={(event) => setQuiz((current) => ({ ...current, timerMinutes: event.target.value ? Math.max(1, Number(event.target.value)) : null }))}
                 placeholder="No timer"
-                className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+                className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2"
               />
             </label>
             <div className="mt-5 flex justify-end gap-2">
-              <button type="button" onClick={() => setQuiz((current) => ({ ...current, timerMinutes: null }))} className="rounded-md border border-black/15 px-4 py-2 text-sm">Clear</button>
-              <button type="button" onClick={() => setTimerOpen(false)} className="rounded-md bg-dark px-4 py-2 text-sm font-semibold text-white">Done</button>
+              <button type="button" onClick={() => setQuiz((current) => ({ ...current, timerMinutes: null }))} className="rounded-md border border-[var(--br-border)] px-4 py-2 text-sm">Clear</button>
+              <button type="button" onClick={() => setTimerOpen(false)} className="rounded-md bg-dark px-4 py-2 text-sm font-semibold text-on-dark">Done</button>
             </div>
           </div>
         </div>
@@ -664,28 +664,28 @@ export function QuizVisualBuilder({
 
       {bankOpen ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 px-3 py-6">
-          <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-            <div className="flex items-start justify-between gap-4 border-b border-black/10 p-5">
+          <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-surface shadow-2xl">
+            <div className="flex items-start justify-between gap-4 border-b border-[var(--br-border)] p-5">
               <div>
                 <h2 className="text-xl font-semibold">Question bank</h2>
-                <p className="mt-1 text-sm text-black/55">Copy any question from any quiz into this quiz.</p>
+                <p className="mt-1 text-sm text-[var(--br-text-muted)]">Copy any question from any quiz into this quiz.</p>
               </div>
-              <button type="button" onClick={() => setBankOpen(false)} className="rounded-md border border-black/10 p-2 hover:bg-black/5"><X size={16} /></button>
+              <button type="button" onClick={() => setBankOpen(false)} className="rounded-md border border-[var(--br-border)] p-2 hover:bg-black/5"><X size={16} /></button>
             </div>
-            <div className="grid gap-3 border-b border-black/10 p-4 md:grid-cols-[1fr_140px_180px_220px]">
+            <div className="grid gap-3 border-b border-[var(--br-border)] p-4 md:grid-cols-[1fr_140px_180px_220px]">
               <label className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-black/35" size={15} />
-                <input value={bankSearch} onChange={(event) => setBankSearch(event.target.value)} placeholder="Search questions, topics, titles..." className="w-full rounded-md border border-black/15 py-2 pl-9 pr-3 text-sm" />
+                <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--br-text-muted)]" size={15} />
+                <input value={bankSearch} onChange={(event) => setBankSearch(event.target.value)} placeholder="Search questions, topics, titles..." className="w-full rounded-md border border-[var(--br-border)] py-2 pl-9 pr-3 text-sm" />
               </label>
-              <select value={bankLevel} onChange={(event) => setBankLevel(event.target.value)} className="rounded-md border border-black/15 px-3 py-2 text-sm">
+              <select value={bankLevel} onChange={(event) => setBankLevel(event.target.value)} className="rounded-md border border-[var(--br-border)] px-3 py-2 text-sm">
                 <option value="">All levels</option>
                 {["A1", "A2", "B1", "B2", "C1", "C2"].map((level) => <option key={level} value={level}>{level}</option>)}
               </select>
-              <select value={bankTopic} onChange={(event) => setBankTopic(event.target.value)} className="rounded-md border border-black/15 px-3 py-2 text-sm">
+              <select value={bankTopic} onChange={(event) => setBankTopic(event.target.value)} className="rounded-md border border-[var(--br-border)] px-3 py-2 text-sm">
                 <option value="">All topics</option>
                 {bankTopics.map((topic) => <option key={topic} value={topic}>{topic}</option>)}
               </select>
-              <select value={bankTitle} onChange={(event) => setBankTitle(event.target.value)} className="rounded-md border border-black/15 px-3 py-2 text-sm">
+              <select value={bankTitle} onChange={(event) => setBankTitle(event.target.value)} className="rounded-md border border-[var(--br-border)] px-3 py-2 text-sm">
                 <option value="">All quizzes</option>
                 {bankTitles.map((title) => <option key={title} value={title}>{title}</option>)}
               </select>
@@ -693,21 +693,21 @@ export function QuizVisualBuilder({
             <div className="overflow-auto p-4">
               <div className="grid gap-3">
                 {filteredBank.map((item) => (
-                  <div key={item.id} className="grid gap-3 rounded-lg border border-black/10 p-3 md:grid-cols-[1fr_auto]">
+                  <div key={item.id} className="grid gap-3 rounded-lg border border-[var(--br-border)] p-3 md:grid-cols-[1fr_auto]">
                     <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-black/45">
+                      <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-[var(--br-text-muted)]">
                         <span className="rounded-full bg-moss/10 px-2 py-1 text-moss">{typeLabels[item.question_type] ?? item.question_type}</span>
                         {item.quiz_level ? <span>{item.quiz_level}</span> : null}
                         {item.quiz_topic ? <span>{item.quiz_topic}</span> : null}
                         <span className="min-w-0 truncate">{item.quiz_title}</span>
                       </div>
                       <p className="mt-2 break-words text-sm font-medium text-ink">{item.question_text}</p>
-                      {item.description ? <p className="mt-1 line-clamp-2 text-xs text-black/50">{item.description}</p> : null}
+                      {item.description ? <p className="mt-1 line-clamp-2 text-xs text-[var(--br-text-muted)]">{item.description}</p> : null}
                     </div>
-                    <button type="button" onClick={() => addQuestionFromBank(item)} className="self-center rounded-md bg-dark px-3 py-2 text-sm font-semibold text-white">Use here</button>
+                    <button type="button" onClick={() => addQuestionFromBank(item)} className="self-center rounded-md bg-dark px-3 py-2 text-sm font-semibold text-on-dark">Use here</button>
                   </div>
                 ))}
-                {!filteredBank.length ? <p className="rounded-md bg-slate-50 p-6 text-center text-sm text-black/55">No questions match these filters.</p> : null}
+                {!filteredBank.length ? <p className="rounded-md bg-surface-muted p-6 text-center text-sm text-[var(--br-text-muted)]">No questions match these filters.</p> : null}
               </div>
             </div>
           </div>
@@ -736,13 +736,13 @@ function QuestionEditorModal({
 }) {
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 px-3 py-5">
-      <div className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-        <div className="flex items-start justify-between gap-4 border-b border-black/10 px-5 py-4">
+      <div className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl bg-surface shadow-2xl">
+        <div className="flex items-start justify-between gap-4 border-b border-[var(--br-border)] px-5 py-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-moss">Question {questionNumber}</p>
             <h2 className="mt-1 text-xl font-semibold">{typeLabels[question.questionType]}</h2>
           </div>
-          <button type="button" onClick={onClose} className="rounded-md border border-black/10 p-2 hover:bg-black/5" aria-label="Close question editor">
+          <button type="button" onClick={onClose} className="rounded-md border border-[var(--br-border)] p-2 hover:bg-black/5" aria-label="Close question editor">
             <X size={16} />
           </button>
         </div>
@@ -753,19 +753,19 @@ function QuestionEditorModal({
             <select value={question.questionType} onChange={(event) => {
               const next = defaultQuestion(event.target.value as BuilderQuestion["questionType"]);
               onChange({ ...next, id: question.id });
-            }} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 font-normal">
+            }} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 font-normal">
               {questionTypes.map((type) => <option key={type} value={type}>{typeLabels[type]}</option>)}
             </select>
           </label>
 
           <label className="text-sm font-medium">
             Question / instruction
-            <textarea value={question.questionText} onChange={(event) => onChange({ questionText: event.target.value })} rows={2} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 font-normal" />
+            <textarea value={question.questionText} onChange={(event) => onChange({ questionText: event.target.value })} rows={2} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 font-normal" />
           </label>
 
           <label className="text-sm font-medium">
-            Description <span className="font-normal text-black/40">(optional)</span>
-            <textarea value={question.description} onChange={(event) => onChange({ description: event.target.value })} rows={2} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 font-normal" placeholder="Short context shown before the answer fields." />
+            Description <span className="font-normal text-[var(--br-text-muted)]">(optional)</span>
+            <textarea value={question.description} onChange={(event) => onChange({ description: event.target.value })} rows={2} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 font-normal" placeholder="Short context shown before the answer fields." />
           </label>
 
           <QuestionFields question={question} onChange={onChange} />
@@ -773,15 +773,15 @@ function QuestionEditorModal({
           <section className="rounded-xl border border-[var(--br-chart-primary)]/20 bg-[#F8F6FF] p-3">
             <p className="text-xs font-extrabold uppercase tracking-wide text-[var(--br-chart-primary)]">Measurement</p>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <label className="text-sm font-medium">Skill / subskill<select value={question.assessment.primarySkillId ?? ""} onChange={(event) => onChange({ assessment: { ...question.assessment, primarySkillId: event.target.value || null } })} className="mt-1 w-full rounded-lg border border-black/15 bg-white px-3 py-2 font-normal"><option value="">Not classified</option>{skillOptions(skills)}</select></label>
-              <label className="text-sm font-medium">Maximum points<input type="number" min="0.01" step="0.01" value={question.assessment.maxPoints} onChange={(event) => onChange({ assessment: { ...question.assessment, maxPoints: Math.max(0.01, Number(event.target.value) || 1) } })} className="mt-1 w-full rounded-lg border border-black/15 bg-white px-3 py-2 font-normal" /></label>
-              <label className="text-sm font-medium">Analytical weight<input type="number" min="0.01" step="0.01" value={question.assessment.analyticalWeight} onChange={(event) => onChange({ assessment: { ...question.assessment, analyticalWeight: Math.max(0.01, Number(event.target.value) || 1) } })} className="mt-1 w-full rounded-lg border border-black/15 bg-white px-3 py-2 font-normal" /></label>
+              <label className="text-sm font-medium">Skill / subskill<select value={question.assessment.primarySkillId ?? ""} onChange={(event) => onChange({ assessment: { ...question.assessment, primarySkillId: event.target.value || null } })} className="mt-1 w-full rounded-lg border border-[var(--br-border)] bg-surface px-3 py-2 font-normal"><option value="">Not classified</option>{skillOptions(skills)}</select></label>
+              <label className="text-sm font-medium">Maximum points<input type="number" min="0.01" step="0.01" value={question.assessment.maxPoints} onChange={(event) => onChange({ assessment: { ...question.assessment, maxPoints: Math.max(0.01, Number(event.target.value) || 1) } })} className="mt-1 w-full rounded-lg border border-[var(--br-border)] bg-surface px-3 py-2 font-normal" /></label>
+              <label className="text-sm font-medium">Analytical weight<input type="number" min="0.01" step="0.01" value={question.assessment.analyticalWeight} onChange={(event) => onChange({ assessment: { ...question.assessment, analyticalWeight: Math.max(0.01, Number(event.target.value) || 1) } })} className="mt-1 w-full rounded-lg border border-[var(--br-border)] bg-surface px-3 py-2 font-normal" /></label>
             </div>
             <fieldset className="mt-3">
               <legend className="text-sm font-medium">Specific learning targets</legend>
               <div className="mt-2 flex max-h-28 flex-wrap gap-2 overflow-auto">
                 {learningTargets.map((target) => (
-                  <label key={target.id} className="inline-flex items-center gap-1.5 rounded-full border border-black/10 bg-white px-2.5 py-1.5 text-xs">
+                  <label key={target.id} className="inline-flex items-center gap-1.5 rounded-full border border-[var(--br-border)] bg-surface px-2.5 py-1.5 text-xs">
                     <input type="checkbox" checked={question.assessment.targetIds.includes(target.id)} onChange={(event) => onChange({ assessment: { ...question.assessment, targetIds: event.target.checked ? [...question.assessment.targetIds, target.id] : question.assessment.targetIds.filter((id) => id !== target.id) } })} />
                     {target.label}
                   </label>
@@ -791,11 +791,11 @@ function QuestionEditorModal({
           </section>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-black/10 px-5 py-4">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--br-border)] px-5 py-4">
           <button type="button" onClick={onDelete} className="inline-flex items-center gap-2 rounded-md border border-coral/30 px-3 py-2 text-sm font-semibold text-coral hover:bg-coral/10">
             <Trash2 size={15} /> Delete question
           </button>
-          <button type="button" onClick={onClose} className="rounded-md bg-dark px-4 py-2 text-sm font-semibold text-white">Done</button>
+          <button type="button" onClick={onClose} className="rounded-md bg-dark px-4 py-2 text-sm font-semibold text-on-dark">Done</button>
         </div>
       </div>
     </div>
@@ -1022,18 +1022,18 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             value={String(options.passage ?? "")}
             onChange={(event) => onChange({ options: { ...options, passage: event.target.value } as Json })}
             placeholder="Enter the source passage text..."
-            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+            className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 text-sm"
           />
         </label>
         {["A", "B", "C", "D"].map((key) => (
           <label key={key} className="text-sm">
             Option {key}
-            <input value={String(options[key] ?? "")} onChange={(event) => onChange({ options: { ...options, [key]: event.target.value } as Json })} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+            <input value={String(options[key] ?? "")} onChange={(event) => onChange({ options: { ...options, [key]: event.target.value } as Json })} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" />
           </label>
         ))}
         <label className="text-sm">
           Correct answer
-          <select value={String(question.correctAnswer ?? "A")} onChange={(event) => onChange({ correctAnswer: event.target.value })} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">
+          <select value={String(question.correctAnswer ?? "A")} onChange={(event) => onChange({ correctAnswer: event.target.value })} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2">
             {["A", "B", "C", "D"].map((key) => <option key={key} value={key}>Option {key}</option>)}
           </select>
         </label>
@@ -1048,24 +1048,24 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
         {["A", "B", "C", "D"].map((key) => (
           <label key={key} className="text-sm">
             Option {key}
-            <input value={String(options[key] ?? "")} onChange={(event) => onChange({ options: { ...options, [key]: event.target.value } as Json })} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+            <input value={String(options[key] ?? "")} onChange={(event) => onChange({ options: { ...options, [key]: event.target.value } as Json })} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" />
           </label>
         ))}
         {question.questionType === "MCQ" ? (
           <label className="text-sm">
             Correct answer
-            <select value={String(question.correctAnswer ?? "A")} onChange={(event) => onChange({ correctAnswer: event.target.value })} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">
+            <select value={String(question.correctAnswer ?? "A")} onChange={(event) => onChange({ correctAnswer: event.target.value })} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2">
               {["A", "B", "C", "D"].map((key) => <option key={key} value={key}>Option {key}</option>)}
             </select>
           </label>
         ) : (
-          <div className="grid gap-2 rounded-md bg-slate-50 p-3">
+          <div className="grid gap-2 rounded-md bg-surface-muted p-3">
             <p className="text-sm font-medium">Correct answers</p>
             <div className="flex flex-wrap gap-2">
               {["A", "B", "C", "D"].map((key) => {
                 const checked = correct.includes(key);
                 return (
-                  <label key={key} className="inline-flex items-center gap-2 rounded-md border border-black/10 bg-white px-3 py-2 text-sm">
+                  <label key={key} className="inline-flex items-center gap-2 rounded-md border border-[var(--br-border)] bg-surface px-3 py-2 text-sm">
                     <input
                       type="checkbox"
                       checked={checked}
@@ -1089,7 +1089,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
     return (
       <label className="text-sm">
         Correct answer
-        <select value={question.correctAnswer === true ? "TRUE" : "FALSE"} onChange={(event) => onChange({ correctAnswer: event.target.value === "TRUE" })} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">
+        <select value={question.correctAnswer === true ? "TRUE" : "FALSE"} onChange={(event) => onChange({ correctAnswer: event.target.value === "TRUE" })} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2">
           <option value="TRUE">True</option>
           <option value="FALSE">False</option>
         </select>
@@ -1108,11 +1108,11 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             const current = Array.isArray(question.correctAnswer) ? question.correctAnswer.map(String) : [];
             while (current.length < blankCount) current.push("");
             onChange({ options: { ...options, text: event.target.value, blank_count: blankCount } as Json, correctAnswer: current.slice(0, blankCount) as Json });
-          }} rows={3} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" placeholder="I have ___ English for two years." />
+          }} rows={3} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" placeholder="I have ___ English for two years." />
         </label>
         <label className="text-sm">
           Answers, one per blank
-          <textarea value={answerLines} onChange={(event) => onChange({ correctAnswer: splitLines(event.target.value) as Json })} rows={3} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" placeholder={"studied\nbeen studying"} />
+          <textarea value={answerLines} onChange={(event) => onChange({ correctAnswer: splitLines(event.target.value) as Json })} rows={3} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" placeholder={"studied\nbeen studying"} />
         </label>
       </div>
     );
@@ -1130,10 +1130,10 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
     return (
       <div className="grid gap-3">
         <label className="flex items-center gap-2 text-sm font-medium"><input type="checkbox" checked={options.shuffle_options !== false} onChange={(event) => onChange({ options: { ...options, shuffle_options: event.target.checked } as Json })} /> Shuffle Column B for each new attempt</label>
-        <p className="-mt-2 text-xs text-black/45">Choose each row&rsquo;s answer from a dropdown. Learners see Column B in a fresh order every new attempt.</p>
+        <p className="-mt-2 text-xs text-[var(--br-text-muted)]">Choose each row&rsquo;s answer from a dropdown. Learners see Column B in a fresh order every new attempt.</p>
         <div className="grid gap-3 lg:grid-cols-2">
-          <section className="rounded-lg border border-black/10 p-3"><p className="mb-2 text-sm font-semibold">Column A</p><div className="grid gap-2">{aItems.map((item, index) => <div key={index} className="grid grid-cols-[25px_minmax(0,1fr)_100px_auto] items-center gap-2"><span className="text-sm font-semibold text-black/55">{index + 1}.</span><input value={item} onChange={(event) => setAItem(index, event.target.value)} className="min-w-0 rounded-md border border-black/15 px-2 py-2 text-sm"/><select value={answers.get(String(index + 1)) ?? ""} onChange={(event) => setAnswer(index, event.target.value)} className="rounded-md border border-black/15 px-2 py-2 text-sm"><option value="">Answer</option>{letters.map((letter) => <option key={letter} value={letter}>{letter}</option>)}</select><button type="button" onClick={() => onChange({ options: { ...options, a_items: aItems.filter((_, itemIndex) => itemIndex !== index) } as Json, correctAnswer: aItems.filter((_, itemIndex) => itemIndex !== index).map((_, itemIndex) => ({ a: itemIndex + 1, b: answers.get(String(itemIndex >= index ? itemIndex + 2 : itemIndex + 1)) ?? "" })) as Json })} className="text-xs text-coral">Remove</button></div>)}</div><button type="button" onClick={() => onChange({ options: { ...options, a_items: [...aItems, ""] } as Json, correctAnswer: [...pairs, { a: aItems.length + 1, b: "" }] as Json })} className="mt-3 rounded-md border border-black/15 px-3 py-2 text-sm">Add item</button></section>
-          <section className="rounded-lg border border-black/10 p-3"><p className="mb-2 text-sm font-semibold">Column B</p><div className="grid gap-2">{bItems.map((item, index) => <div key={index} className="grid grid-cols-[25px_minmax(0,1fr)_auto] items-center gap-2"><span className="text-sm font-semibold text-black/55">{letters[index]}.</span><input value={item} onChange={(event) => setBItem(index, event.target.value)} className="min-w-0 rounded-md border border-black/15 px-2 py-2 text-sm"/><button type="button" onClick={() => onChange({ options: { ...options, b_items: bItems.filter((_, itemIndex) => itemIndex !== index) } as Json })} className="text-xs text-coral">Remove</button></div>)}</div><button type="button" onClick={() => onChange({ options: { ...options, b_items: [...bItems, ""] } as Json })} className="mt-3 rounded-md border border-black/15 px-3 py-2 text-sm">Add item</button></section>
+          <section className="rounded-lg border border-[var(--br-border)] p-3"><p className="mb-2 text-sm font-semibold">Column A</p><div className="grid gap-2">{aItems.map((item, index) => <div key={index} className="grid grid-cols-[25px_minmax(0,1fr)_100px_auto] items-center gap-2"><span className="text-sm font-semibold text-[var(--br-text-muted)]">{index + 1}.</span><input value={item} onChange={(event) => setAItem(index, event.target.value)} className="min-w-0 rounded-md border border-[var(--br-border)] px-2 py-2 text-sm"/><select value={answers.get(String(index + 1)) ?? ""} onChange={(event) => setAnswer(index, event.target.value)} className="rounded-md border border-[var(--br-border)] px-2 py-2 text-sm"><option value="">Answer</option>{letters.map((letter) => <option key={letter} value={letter}>{letter}</option>)}</select><button type="button" onClick={() => onChange({ options: { ...options, a_items: aItems.filter((_, itemIndex) => itemIndex !== index) } as Json, correctAnswer: aItems.filter((_, itemIndex) => itemIndex !== index).map((_, itemIndex) => ({ a: itemIndex + 1, b: answers.get(String(itemIndex >= index ? itemIndex + 2 : itemIndex + 1)) ?? "" })) as Json })} className="text-xs text-coral">Remove</button></div>)}</div><button type="button" onClick={() => onChange({ options: { ...options, a_items: [...aItems, ""] } as Json, correctAnswer: [...pairs, { a: aItems.length + 1, b: "" }] as Json })} className="mt-3 rounded-md border border-[var(--br-border)] px-3 py-2 text-sm">Add item</button></section>
+          <section className="rounded-lg border border-[var(--br-border)] p-3"><p className="mb-2 text-sm font-semibold">Column B</p><div className="grid gap-2">{bItems.map((item, index) => <div key={index} className="grid grid-cols-[25px_minmax(0,1fr)_auto] items-center gap-2"><span className="text-sm font-semibold text-[var(--br-text-muted)]">{letters[index]}.</span><input value={item} onChange={(event) => setBItem(index, event.target.value)} className="min-w-0 rounded-md border border-[var(--br-border)] px-2 py-2 text-sm"/><button type="button" onClick={() => onChange({ options: { ...options, b_items: bItems.filter((_, itemIndex) => itemIndex !== index) } as Json })} className="text-xs text-coral">Remove</button></div>)}</div><button type="button" onClick={() => onChange({ options: { ...options, b_items: [...bItems, ""] } as Json })} className="mt-3 rounded-md border border-[var(--br-border)] px-3 py-2 text-sm">Add item</button></section>
         </div>
       </div>
     );
@@ -1142,14 +1142,14 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
   if (question.questionType === "SHORT_ANSWER") {
     return (
       <div className="grid gap-3">
-        <label className="text-sm">Sample answer<textarea value={String(options.sample_answer ?? "")} onChange={(event) => onChange({ options: { ...options, sample_answer: event.target.value } as Json })} rows={3} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
-        <label className="text-sm">Minimum words<input type="number" value={Number(options.min_words ?? 0)} onChange={(event) => onChange({ options: { ...options, min_words: Number(event.target.value) } as Json })} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
-        <label className="text-sm">Required words, comma separated<input value={Array.isArray(options.required_words) ? options.required_words.join(", ") : ""} onChange={(event) => onChange({ options: { ...options, required_words: event.target.value.split(",").map((v) => v.trim()).filter(Boolean) } as Json })} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" /></label>
+        <label className="text-sm">Sample answer<textarea value={String(options.sample_answer ?? "")} onChange={(event) => onChange({ options: { ...options, sample_answer: event.target.value } as Json })} rows={3} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+        <label className="text-sm">Minimum words<input type="number" value={Number(options.min_words ?? 0)} onChange={(event) => onChange({ options: { ...options, min_words: Number(event.target.value) } as Json })} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+        <label className="text-sm">Required words, comma separated<input value={Array.isArray(options.required_words) ? options.required_words.join(", ") : ""} onChange={(event) => onChange({ options: { ...options, required_words: event.target.value.split(",").map((v) => v.trim()).filter(Boolean) } as Json })} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={options.show_required_words !== false} onChange={(event) => onChange({ options: { ...options, show_required_words: event.target.checked } as Json })} />
           Show required words to learners while they write
         </label>
-        <p className="-mt-1 text-xs text-black/45">When off, required words still count toward correctness but aren&rsquo;t revealed as a hint.</p>
+        <p className="-mt-1 text-xs text-[var(--br-text-muted)]">When off, required words still count toward correctness but aren&rsquo;t revealed as a hint.</p>
         <WritingGradingSettings options={options} onChange={(opts) => onChange({ options: opts })} />
       </div>
     );
@@ -1161,28 +1161,28 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
       <div className="grid gap-3">
         <label className="text-sm">
           Mode
-          <select value={String(options.mode ?? "rewrite")} onChange={(event) => onChange({ options: { ...options, mode: event.target.value } as Json })} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">
+          <select value={String(options.mode ?? "rewrite")} onChange={(event) => onChange({ options: { ...options, mode: event.target.value } as Json })} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2">
             <option value="rewrite">Rewrite whole sentence</option>
             <option value="spot_and_fix">Click error, then type fix</option>
           </select>
         </label>
         <label className="text-sm">
           Sentence with the mistake
-          <input value={String(options.text ?? "")} onChange={(event) => onChange({ options: { ...options, text: event.target.value } as Json })} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" placeholder="She don't like coffee." />
+          <input value={String(options.text ?? "")} onChange={(event) => onChange({ options: { ...options, text: event.target.value } as Json })} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" placeholder="She don't like coffee." />
         </label>
         {options.mode === "spot_and_fix" ? (
           <label className="text-sm">
             Exact wrong word/phrase
-            <input value={String(correct.error_span ?? "")} onChange={(event) => onChange({ correctAnswer: { ...correct, error_span: event.target.value } as Json })} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" placeholder="don't" />
+            <input value={String(correct.error_span ?? "")} onChange={(event) => onChange({ correctAnswer: { ...correct, error_span: event.target.value } as Json })} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" placeholder="don't" />
           </label>
         ) : null}
         <label className="text-sm">
           {options.mode === "spot_and_fix" ? "Correction for that word/phrase" : "Full corrected sentence"}
-          <input value={String(correct.correction ?? "")} onChange={(event) => onChange({ correctAnswer: { ...correct, correction: event.target.value } as Json })} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" placeholder={options.mode === "spot_and_fix" ? "doesn't" : "She doesn't like coffee."} />
+          <input value={String(correct.correction ?? "")} onChange={(event) => onChange({ correctAnswer: { ...correct, correction: event.target.value } as Json })} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" placeholder={options.mode === "spot_and_fix" ? "doesn't" : "She doesn't like coffee."} />
         </label>
         <label className="text-sm">
           Note for learners (optional)
-          <input value={String(options.note ?? "")} onChange={(event) => onChange({ options: { ...options, note: event.target.value } as Json })} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" placeholder="subject-verb agreement" />
+          <input value={String(options.note ?? "")} onChange={(event) => onChange({ options: { ...options, note: event.target.value } as Json })} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" placeholder="subject-verb agreement" />
         </label>
         {options.mode === "spot_and_fix" && options.text && correct.error_span && !String(options.text).includes(String(correct.error_span)) ? (
           <p className="text-xs text-amber-700">The exact wrong word/phrase does not appear in the sentence above, so learners will not be able to click it.</p>
@@ -1198,7 +1198,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
       <div className="grid gap-3">
         <label className="text-sm">
           Level
-          <select value={String(options.level ?? "sentence")} onChange={(event) => onChange({ options: { ...options, level: event.target.value } as Json })} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">
+          <select value={String(options.level ?? "sentence")} onChange={(event) => onChange({ options: { ...options, level: event.target.value } as Json })} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2">
             <option value="sentence">Sentence / step order (reorder whole lines)</option>
             <option value="word">Word order (reorder words into one sentence)</option>
           </select>
@@ -1208,8 +1208,8 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
           <textarea value={itemsText} onChange={(event) => {
           const nextItems = splitEditableLines(event.target.value).map((text, index) => ({ id: String(index + 1), text }));
           onChange({ options: { ...options, items: nextItems } as Json, correctAnswer: nextItems.map((item) => item.id) });
-        }} rows={6} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 font-mono text-sm" placeholder={options.level === "word" ? "She\nalways\ndrinks\ncoffee\nin the morning" : "First, boil the water.\nThen, add the pasta.\nFinally, drain it."} />
-          <span className="mt-1 block text-xs text-black/45">Type them in the right order. Learners will see them scrambled.</span>
+        }} rows={6} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 font-mono text-sm" placeholder={options.level === "word" ? "She\nalways\ndrinks\ncoffee\nin the morning" : "First, boil the water.\nThen, add the pasta.\nFinally, drain it."} />
+          <span className="mt-1 block text-xs text-[var(--br-text-muted)]">Type them in the right order. Learners will see them scrambled.</span>
         </label>
       </div>
     );
@@ -1237,29 +1237,29 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
     }
     return (
       <div className="grid gap-3">
-        <div className="rounded-md border border-black/10 p-4">
+        <div className="rounded-md border border-[var(--br-border)] p-4">
           <p className="mb-3 font-medium">Target boxes (where items get dropped)</p>
           <div className="grid gap-2">
             {targets.map((target, index) => (
               <div key={index} className="flex items-center gap-2">
-                <input value={target} onChange={(event) => renameTarget(index, event.target.value)} placeholder={`Target ${index + 1}`} className="flex-1 rounded-md border border-black/15 px-3 py-2 text-sm" />
+                <input value={target} onChange={(event) => renameTarget(index, event.target.value)} placeholder={`Target ${index + 1}`} className="flex-1 rounded-md border border-[var(--br-border)] px-3 py-2 text-sm" />
                 {targets.length > 1 ? (
                   <button type="button" onClick={() => onChange({ options: { ...options, targets: targets.filter((_, targetIndex) => targetIndex !== index) } as Json })} className="text-sm text-coral">Remove</button>
                 ) : null}
               </div>
             ))}
           </div>
-          <button type="button" onClick={() => onChange({ options: { ...options, targets: [...targets, ""] } as Json })} className="mt-3 rounded-md border border-black/15 px-3 py-1.5 text-sm">Add target box</button>
+          <button type="button" onClick={() => onChange({ options: { ...options, targets: [...targets, ""] } as Json })} className="mt-3 rounded-md border border-[var(--br-border)] px-3 py-1.5 text-sm">Add target box</button>
         </div>
-        <div className="rounded-md border border-black/10 p-4">
+        <div className="rounded-md border border-[var(--br-border)] p-4">
           <p className="mb-3 font-medium">Items (learners drag each one into its correct target)</p>
           <div className="grid gap-2">
             {items.map((item, index) => {
               const id = String(item.id ?? index + 1);
               return (
                 <div key={id} className="flex flex-wrap items-center gap-2">
-                  <input value={String(item.text ?? "")} onChange={(event) => updateItem(index, event.target.value)} placeholder="Item text" className="min-w-48 flex-1 rounded-md border border-black/15 px-3 py-2 text-sm" />
-                  <select value={String(correct[id] ?? "")} onChange={(event) => updateTargetForItem(id, event.target.value)} className="rounded-md border border-black/15 px-3 py-2 text-sm">
+                  <input value={String(item.text ?? "")} onChange={(event) => updateItem(index, event.target.value)} placeholder="Item text" className="min-w-48 flex-1 rounded-md border border-[var(--br-border)] px-3 py-2 text-sm" />
+                  <select value={String(correct[id] ?? "")} onChange={(event) => updateTargetForItem(id, event.target.value)} className="rounded-md border border-[var(--br-border)] px-3 py-2 text-sm">
                     <option value="">Choose target...</option>
                     {targets.map((target, targetIndex) => <option key={targetIndex} value={target}>{target || `Target ${targetIndex + 1}`}</option>)}
                   </select>
@@ -1271,7 +1271,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
           <button type="button" onClick={() => {
             const nextId = String(items.length + 1);
             onChange({ options: { ...options, items: [...items, { id: nextId, text: "" }] } as Json, correctAnswer: { ...correct, [nextId]: targets[0] ?? "" } as Json });
-          }} className="mt-3 rounded-md border border-black/15 px-3 py-1.5 text-sm">Add item</button>
+          }} className="mt-3 rounded-md border border-[var(--br-border)] px-3 py-1.5 text-sm">Add item</button>
         </div>
       </div>
     );
@@ -1287,7 +1287,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             value={String(options.passage ?? "")}
             onChange={(event) => onChange({ options: { ...options, passage: event.target.value } as Json })}
             placeholder="Enter the source passage text..."
-            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+            className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 text-sm"
           />
         </label>
         <label className="text-sm font-medium">
@@ -1298,7 +1298,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             value={Number(options.max_words ?? 30) || ""}
             onChange={(event) => onChange({ options: { ...options, max_words: event.target.value === "" ? 0 : Math.max(1, Number(event.target.value)) } as Json })}
             placeholder="e.g. 30"
-            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+            className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2"
           />
         </label>
         <label className="text-sm font-medium">
@@ -1307,10 +1307,10 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             rows={3}
             value={String(options.sample_answer ?? "")}
             onChange={(event) => onChange({ options: { ...options, sample_answer: event.target.value } as Json })}
-            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+            className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 text-sm"
           />
         </label>
-        <p className="rounded-md border border-black/10 bg-slate-50 p-3 text-xs text-black/55">
+        <p className="rounded-md border border-[var(--br-border)] bg-surface-muted p-3 text-xs text-[var(--br-text-muted)]">
           Self-checked activity — learners write a summary, compare it to your model answer, then mark themselves.
         </p>
       </div>
@@ -1333,12 +1333,12 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
       <div className="grid gap-3">
         <p className="text-sm font-medium">Paragraphs</p>
         {paragraphs.map((p, idx) => (
-          <div key={idx} className="rounded-md border border-black/10 p-3 space-y-2">
+          <div key={idx} className="rounded-md border border-[var(--br-border)] p-3 space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-indigo-600">Paragraph {String(p.id ?? String.fromCharCode(65 + idx))}</span>
               {paragraphs.length > 1 ? <button type="button" onClick={() => { const next = paragraphs.filter((_, i) => i !== idx); updateParagraphs(next); const nextCorrect = { ...correct }; delete nextCorrect[String(p.id)]; onChange({ correctAnswer: nextCorrect as Json }); }} className="text-xs text-coral">Remove</button> : null}
             </div>
-            <textarea rows={3} value={String(p.text ?? "")} onChange={(e) => { const next = [...paragraphs]; next[idx] = { ...p, text: e.target.value }; updateParagraphs(next); }} placeholder="Paragraph text..." className="w-full rounded border border-black/15 p-2 text-xs" />
+            <textarea rows={3} value={String(p.text ?? "")} onChange={(e) => { const next = [...paragraphs]; next[idx] = { ...p, text: e.target.value }; updateParagraphs(next); }} placeholder="Paragraph text..." className="w-full rounded border border-[var(--br-border)] p-2 text-xs" />
             <div className="flex items-center gap-2">
               <label className="text-xs text-[var(--br-text-muted)]">Correct Heading:</label>
               <select value={String(correct[String(p.id)] ?? "")} onChange={(e) => onChange({ correctAnswer: { ...correct, [String(p.id)]: e.target.value } as Json })} className="rounded border px-2 py-0.5 text-xs">
@@ -1348,17 +1348,17 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             </div>
           </div>
         ))}
-        <button type="button" onClick={() => updateParagraphs([...paragraphs, { id: String.fromCharCode(65 + paragraphs.length), text: "" }])} className="rounded border border-dashed border-black/15 py-1.5 text-xs">+ Add Paragraph</button>
+        <button type="button" onClick={() => updateParagraphs([...paragraphs, { id: String.fromCharCode(65 + paragraphs.length), text: "" }])} className="rounded border border-dashed border-[var(--br-border)] py-1.5 text-xs">+ Add Paragraph</button>
 
         <p className="text-sm font-medium mt-2">Headings (include distractors)</p>
         {headings.map((h, idx) => (
           <div key={idx} className="flex items-center gap-2">
             <span className="text-xs font-bold text-amber-600 shrink-0">Heading {String(h.id ?? idx + 1)}</span>
-            <input value={String(h.text ?? "")} onChange={(e) => { const next = [...headings]; next[idx] = { ...h, text: e.target.value }; updateHeadings(next); }} className="flex-1 rounded border border-black/15 px-2 py-1 text-xs" />
+            <input value={String(h.text ?? "")} onChange={(e) => { const next = [...headings]; next[idx] = { ...h, text: e.target.value }; updateHeadings(next); }} className="flex-1 rounded border border-[var(--br-border)] px-2 py-1 text-xs" />
             {headings.length > 1 ? <button type="button" onClick={() => updateHeadings(headings.filter((_, i) => i !== idx))} className="text-xs text-coral">×</button> : null}
           </div>
         ))}
-        <button type="button" onClick={() => updateHeadings([...headings, { id: String(headings.length + 1), text: "" }])} className="rounded border border-dashed border-black/15 py-1.5 text-xs">+ Add Heading</button>
+        <button type="button" onClick={() => updateHeadings([...headings, { id: String(headings.length + 1), text: "" }])} className="rounded border border-dashed border-[var(--br-border)] py-1.5 text-xs">+ Add Heading</button>
       </div>
     );
   }
@@ -1375,16 +1375,16 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
       <div className="grid gap-3">
         <label className="text-sm font-medium">
           Passage to Skim
-          <textarea rows={6} value={String(options.passage ?? "")} onChange={(e) => onChange({ options: { ...options, passage: e.target.value } as Json })} placeholder="Enter the source passage..." className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm" />
+          <textarea rows={6} value={String(options.passage ?? "")} onChange={(e) => onChange({ options: { ...options, passage: e.target.value } as Json })} placeholder="Enter the source passage..." className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 text-sm" />
         </label>
         <div className="grid gap-3 grid-cols-2">
           <label className="text-sm font-medium">
             Reading time limit (seconds)
-            <input type="number" min={5} value={Number(options.time_limit_seconds ?? 45)} onChange={(e) => onChange({ options: { ...options, time_limit_seconds: Math.max(5, Number(e.target.value) || 45) } as Json })} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm" />
+            <input type="number" min={5} value={Number(options.time_limit_seconds ?? 45)} onChange={(e) => onChange({ options: { ...options, time_limit_seconds: Math.max(5, Number(e.target.value) || 45) } as Json })} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 text-sm" />
           </label>
           <label className="text-sm font-medium">
             Questions time limit (seconds, 0 for untimed)
-            <input type="number" min={0} value={Number(options.question_time_limit_seconds ?? 0)} onChange={(e) => onChange({ options: { ...options, question_time_limit_seconds: Math.max(0, Number(e.target.value) || 0) } as Json })} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm" />
+            <input type="number" min={0} value={Number(options.question_time_limit_seconds ?? 0)} onChange={(e) => onChange({ options: { ...options, question_time_limit_seconds: Math.max(0, Number(e.target.value) || 0) } as Json })} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 text-sm" />
           </label>
         </div>
         <label className="flex items-center gap-2 text-sm font-medium text-slate-700 cursor-pointer">
@@ -1401,15 +1401,15 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
           const qId = String(q.id ?? idx + 1);
           const qOpts = asRecord(q.options as Json);
           return (
-            <div key={idx} className="rounded-md border border-black/10 p-3 space-y-2">
+            <div key={idx} className="rounded-md border border-[var(--br-border)] p-3 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold">Q{idx + 1}</span>
                 {subQuestions.length > 1 ? <button type="button" onClick={() => { const next = subQuestions.filter((_, i) => i !== idx); updateSubQuestions(next); const nextCorrect = { ...correct }; delete nextCorrect[qId]; onChange({ correctAnswer: nextCorrect as Json }); }} className="text-xs text-coral">Remove</button> : null}
               </div>
-              <input value={String(q.question_text ?? "")} onChange={(e) => { const next = [...subQuestions]; next[idx] = { ...q, question_text: e.target.value }; updateSubQuestions(next); }} placeholder="Question text" className="w-full rounded border border-black/15 px-2 py-1 text-xs" />
+              <input value={String(q.question_text ?? "")} onChange={(e) => { const next = [...subQuestions]; next[idx] = { ...q, question_text: e.target.value }; updateSubQuestions(next); }} placeholder="Question text" className="w-full rounded border border-[var(--br-border)] px-2 py-1 text-xs" />
               <div className="grid gap-1 grid-cols-2">
                 {["A", "B", "C", "D"].map((k) => (
-                  <input key={k} value={String(qOpts[k] ?? "")} onChange={(e) => { const next = [...subQuestions]; next[idx] = { ...q, options: { ...qOpts, [k]: e.target.value } }; updateSubQuestions(next); }} placeholder={`Option ${k}`} className="rounded border border-black/15 px-2 py-1 text-xs" />
+                  <input key={k} value={String(qOpts[k] ?? "")} onChange={(e) => { const next = [...subQuestions]; next[idx] = { ...q, options: { ...qOpts, [k]: e.target.value } }; updateSubQuestions(next); }} placeholder={`Option ${k}`} className="rounded border border-[var(--br-border)] px-2 py-1 text-xs" />
                 ))}
               </div>
               <select value={String(correct[qId] ?? "A")} onChange={(e) => onChange({ correctAnswer: { ...correct, [qId]: e.target.value } as Json })} className="rounded border px-2 py-0.5 text-xs">
@@ -1418,7 +1418,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             </div>
           );
         })}
-        <button type="button" onClick={() => { const nextId = String(subQuestions.length + 1); updateSubQuestions([...subQuestions, { id: nextId, question_text: "", options: { A: "", B: "", C: "", D: "" } }]); onChange({ correctAnswer: { ...correct, [nextId]: "A" } as Json }); }} className="rounded border border-dashed border-black/15 py-1.5 text-xs">+ Add Question</button>
+        <button type="button" onClick={() => { const nextId = String(subQuestions.length + 1); updateSubQuestions([...subQuestions, { id: nextId, question_text: "", options: { A: "", B: "", C: "", D: "" } }]); onChange({ correctAnswer: { ...correct, [nextId]: "A" } as Json }); }} className="rounded border border-dashed border-[var(--br-border)] py-1.5 text-xs">+ Add Question</button>
       </div>
     );
   }
@@ -1429,17 +1429,17 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
       <div className="grid gap-3">
         <label className="text-sm font-medium">
           Passage to Paraphrase
-          <textarea rows={4} value={String(options.passage ?? "")} onChange={(e) => onChange({ options: { ...options, passage: e.target.value } as Json })} placeholder="Enter the source text..." className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm" />
+          <textarea rows={4} value={String(options.passage ?? "")} onChange={(e) => onChange({ options: { ...options, passage: e.target.value } as Json })} placeholder="Enter the source text..." className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 text-sm" />
         </label>
         {["A", "B", "C", "D"].map((key) => (
           <label key={key} className="text-sm">
             Option {key}
-            <input value={String(choices[key] ?? "")} onChange={(e) => onChange({ options: { ...options, choices: { ...choices, [key]: e.target.value } } as Json })} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+            <input value={String(choices[key] ?? "")} onChange={(e) => onChange({ options: { ...options, choices: { ...choices, [key]: e.target.value } } as Json })} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" />
           </label>
         ))}
         <label className="text-sm">
           Correct answer
-          <select value={String(question.correctAnswer ?? "A")} onChange={(e) => onChange({ correctAnswer: e.target.value })} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">
+          <select value={String(question.correctAnswer ?? "A")} onChange={(e) => onChange({ correctAnswer: e.target.value })} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2">
             {["A", "B", "C", "D"].map((key) => <option key={key} value={key}>Option {key}</option>)}
           </select>
         </label>
@@ -1462,7 +1462,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             value={String(question.correctAnswer ?? "")}
             onChange={(e) => onChange({ correctAnswer: e.target.value })}
             placeholder="e.g. The quick brown fox jumps over the lazy dog."
-            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+            className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 text-sm"
           />
         </label>
         <label className="text-sm font-medium">
@@ -1471,7 +1471,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             value={String(options.hint ?? "")}
             onChange={(e) => onChange({ options: { ...options, hint: e.target.value } as Json })}
             placeholder="e.g. Pay attention to past tense verbs."
-            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+            className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 text-sm"
           />
         </label>
         <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
@@ -1500,7 +1500,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
         {choices.map((choice, i) => {
           const id = String(choice.id ?? i);
           return (
-            <div key={id} className="rounded-md border border-black/10 p-3 space-y-2">
+            <div key={id} className="rounded-md border border-[var(--br-border)] p-3 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-indigo-600">Option {i + 1}</span>
                 {choices.length > 1 ? (
@@ -1524,7 +1524,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
                   onChange({ options: { ...options, choices: next } as Json });
                 }}
                 placeholder="Option label/phrase"
-                className="w-full rounded border border-black/15 px-2 py-1 text-xs"
+                className="w-full rounded border border-[var(--br-border)] px-2 py-1 text-xs"
               />
               <MediaRecorderInput
                 type="image"
@@ -1545,7 +1545,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             const nextId = String(choices.length);
             onChange({ options: { ...options, choices: [...choices, { id: nextId, text: "" }] } as Json });
           }}
-          className="rounded border border-dashed border-black/15 py-1.5 text-xs"
+          className="rounded border border-dashed border-[var(--br-border)] py-1.5 text-xs"
         >
           + Add Choice
         </button>
@@ -1554,7 +1554,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
           <select
             value={String(question.correctAnswer ?? "0")}
             onChange={(e) => onChange({ correctAnswer: e.target.value })}
-            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+            className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 text-sm"
           >
             {choices.map((choice, i) => (
               <option key={i} value={String(choice.id ?? i)}>
@@ -1587,10 +1587,10 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
               })
             }
             placeholder="e.g. Excuse me, could you tell me how to get to the station?"
-            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+            className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 text-sm"
           />
         </label>
-        <p className="text-xs text-black/50">
+        <p className="text-xs text-[var(--br-text-muted)]">
           Learners will listen to your audio and repeat after you. Speech recognition evaluates their spoken response match score.
         </p>
       </div>
@@ -1617,9 +1617,9 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             value={Number(options.max_plays ?? 0)}
             onChange={(e) => onChange({ options: { ...options, max_plays: Math.max(0, Number(e.target.value) || 0) } as Json })}
             placeholder="e.g. 2"
-            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+            className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 text-sm"
           />
-          <span className="mt-1 block text-xs text-black/50">
+          <span className="mt-1 block text-xs text-[var(--br-text-muted)]">
             Set how many times learners are allowed to press play on the audio/video during this challenge (0 = unlimited).
           </span>
         </label>
@@ -1629,7 +1629,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
           const qId = String(q.id ?? idx + 1);
           const qOpts = Array.isArray(q.options) ? q.options.map(String) : ["Option A", "Option B"];
           return (
-            <div key={idx} className="rounded-md border border-black/10 p-3 space-y-3 bg-slate-50/50">
+            <div key={idx} className="rounded-md border border-[var(--br-border)] p-3 space-y-3 bg-surface-muted/50">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-moss">Question {idx + 1}</span>
                 {subQuestions.length > 1 ? (
@@ -1653,15 +1653,15 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
                   onChange({ options: { ...options, questions: next } as Json });
                 }}
                 placeholder="Question text"
-                className="w-full rounded border border-black/15 px-2.5 py-1.5 text-xs bg-white font-medium"
+                className="w-full rounded border border-[var(--br-border)] px-2.5 py-1.5 text-xs bg-surface font-medium"
               />
 
               {/* Discrete Options Fields */}
-              <div className="space-y-2 bg-white p-3 rounded-lg border border-black/10">
-                <label className="text-xs font-semibold text-black/70 block">Question Options:</label>
+              <div className="space-y-2 bg-surface p-3 rounded-lg border border-[var(--br-border)]">
+                <label className="text-xs font-semibold text-[var(--br-text-muted)] block">Question Options:</label>
                 {qOpts.map((opt, optIdx) => (
                   <div key={optIdx} className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-black/40 w-4">{String.fromCharCode(65 + optIdx)}.</span>
+                    <span className="text-xs font-bold text-[var(--br-text-muted)] w-4">{String.fromCharCode(65 + optIdx)}.</span>
                     <input
                       type="text"
                       value={opt}
@@ -1673,7 +1673,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
                         onChange({ options: { ...options, questions: next } as Json });
                       }}
                       placeholder={`Option ${String.fromCharCode(65 + optIdx)}`}
-                      className="flex-1 rounded border border-black/15 px-2 py-1 text-xs"
+                      className="flex-1 rounded border border-[var(--br-border)] px-2 py-1 text-xs"
                     />
                     {qOpts.length > 1 && (
                       <button
@@ -1699,18 +1699,18 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
                     next[idx] = { ...q, options: nextOpts };
                     onChange({ options: { ...options, questions: next } as Json });
                   }}
-                  className="rounded border border-dashed border-black/20 px-2.5 py-1 text-[11px] font-semibold text-black/60 hover:bg-black/5 mt-1"
+                  className="rounded border border-dashed border-[var(--br-border)] px-2.5 py-1 text-[11px] font-semibold text-[var(--br-text-muted)] hover:bg-black/5 mt-1"
                 >
                   + Add Option
                 </button>
               </div>
 
-              <label className="text-xs font-semibold text-black/70 block">Correct Answer:</label>
+              <label className="text-xs font-semibold text-[var(--br-text-muted)] block">Correct Answer:</label>
               <input
                 value={String(correct[qId] ?? "")}
                 onChange={(e) => onChange({ correctAnswer: { ...correct, [qId]: e.target.value } as Json })}
                 placeholder="Exact correct answer string (must match one of the options above)"
-                className="w-full rounded border border-black/15 px-2.5 py-1.5 text-xs bg-white"
+                className="w-full rounded border border-[var(--br-border)] px-2.5 py-1.5 text-xs bg-surface"
               />
             </div>
           );
@@ -1726,7 +1726,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
               } as Json,
             });
           }}
-          className="rounded border border-dashed border-black/15 py-1.5 text-xs font-semibold text-black/70 hover:bg-black/5"
+          className="rounded border border-dashed border-[var(--br-border)] py-1.5 text-xs font-semibold text-[var(--br-text-muted)] hover:bg-black/5"
         >
           + Add Comprehension Question
         </button>
@@ -1748,7 +1748,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
         {pairs.map((pair, idx) => {
           const pId = String(pair.id ?? pair.word ?? idx);
           return (
-            <div key={idx} className="rounded-md border border-black/10 p-3 space-y-2">
+            <div key={idx} className="rounded-md border border-[var(--br-border)] p-3 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-indigo-600 font-mono">Pair Option {idx + 1}</span>
                 {pairs.length > 1 ? (
@@ -1773,7 +1773,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
                     onChange({ options: { ...options, pairs: next } as Json });
                   }}
                   placeholder="Word (e.g. ship)"
-                  className="rounded border border-black/15 px-2 py-1 text-xs"
+                  className="rounded border border-[var(--br-border)] px-2 py-1 text-xs"
                 />
                 <input
                   value={String(pair.phonetic ?? "")}
@@ -1783,7 +1783,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
                     onChange({ options: { ...options, pairs: next } as Json });
                   }}
                   placeholder="Phonetic IPA (e.g. /ʃɪp/)"
-                  className="rounded border border-black/15 px-2 py-1 text-xs font-mono"
+                  className="rounded border border-[var(--br-border)] px-2 py-1 text-xs font-mono"
                 />
               </div>
               <MediaRecorderInput
@@ -1804,7 +1804,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             const nextId = String(pairs.length);
             onChange({ options: { ...options, pairs: [...pairs, { id: nextId, word: "", phonetic: "" }] } as Json });
           }}
-          className="rounded border border-dashed border-black/15 py-1.5 text-xs"
+          className="rounded border border-dashed border-[var(--br-border)] py-1.5 text-xs"
         >
           + Add Minimal Pair Word
         </button>
@@ -1813,7 +1813,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
           <select
             value={String(question.correctAnswer ?? "0")}
             onChange={(e) => onChange({ correctAnswer: e.target.value })}
-            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm"
+            className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 text-sm"
           >
             {pairs.map((pair, idx) => (
               <option key={idx} value={String(pair.id ?? pair.word ?? idx)}>
@@ -1843,12 +1843,12 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             value={String(options.transcript ?? options.sentence ?? "")}
             onChange={(e) => onChange({ options: { ...options, transcript: e.target.value, sentence: e.target.value } as Json })}
             placeholder="e.g. I have been working at this ___ for two years."
-            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2 text-sm font-mono"
+            className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 text-sm font-mono"
           />
         </label>
 
-        <div className="rounded-md border border-black/10 p-3 space-y-2 bg-slate-50/50">
-          <p className="font-semibold text-xs text-black/70">Correct Answers for Blanks (in order of appearance)</p>
+        <div className="rounded-md border border-[var(--br-border)] p-3 space-y-2 bg-surface-muted/50">
+          <p className="font-semibold text-xs text-[var(--br-text-muted)]">Correct Answers for Blanks (in order of appearance)</p>
           {rawAnswers.map((ans, idx) => (
             <div key={idx} className="flex items-center gap-2">
               <span className="text-xs font-bold text-moss w-16">Blank ({idx + 1}):</span>
@@ -1861,7 +1861,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
                   onChange({ correctAnswer: next });
                 }}
                 placeholder={`Answer for blank ${idx + 1}`}
-                className="flex-1 rounded border border-black/15 px-2 py-1 text-xs bg-white"
+                className="flex-1 rounded border border-[var(--br-border)] px-2 py-1 text-xs bg-surface"
               />
               {rawAnswers.length > 1 && (
                 <button
@@ -1880,7 +1880,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
           <button
             type="button"
             onClick={() => onChange({ correctAnswer: [...rawAnswers, ""] })}
-            className="rounded border border-dashed border-black/20 px-2.5 py-1 text-[11px] font-semibold text-black/60 hover:bg-black/5"
+            className="rounded border border-dashed border-[var(--br-border)] px-2.5 py-1 text-[11px] font-semibold text-[var(--br-text-muted)] hover:bg-black/5"
           >
             + Add Answer Blank
           </button>
@@ -1899,7 +1899,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             value={String(options.sentence_stem ?? question.questionText ?? "")}
             onChange={(e) => onChange({ options: { ...options, sentence_stem: e.target.value } as Json })}
             placeholder="e.g. Although the project was difficult,"
-            className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-sm"
+            className="mt-1 w-full rounded border border-[var(--br-border)] px-3 py-2 text-sm"
           />
         </label>
         <label className="text-sm font-medium">
@@ -1908,7 +1908,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             value={connectors.join(", ")}
             onChange={(e) => onChange({ options: { ...options, suggested_connectors: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) } as Json })}
             placeholder="e.g. nevertheless, on the other hand"
-            className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-sm"
+            className="mt-1 w-full rounded border border-[var(--br-border)] px-3 py-2 text-sm"
           />
         </label>
         <label className="text-sm font-medium">
@@ -1918,7 +1918,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             value={String(options.model_answer ?? question.correctAnswer ?? "")}
             onChange={(e) => onChange({ correctAnswer: e.target.value, options: { ...options, model_answer: e.target.value } as Json })}
             placeholder="Sample model completion"
-            className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-sm font-mono"
+            className="mt-1 w-full rounded border border-[var(--br-border)] px-3 py-2 text-sm font-mono"
           />
         </label>
         <label className="text-sm font-medium">
@@ -1928,7 +1928,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             value={String(options.model_description ?? options.explanation ?? "")}
             onChange={(e) => onChange({ options: { ...options, model_description: e.target.value, explanation: e.target.value } as Json })}
             placeholder="Notes explaining why this model answer is effective"
-            className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-xs"
+            className="mt-1 w-full rounded border border-[var(--br-border)] px-3 py-2 text-xs"
           />
         </label>
         <WritingGradingSettings options={options} onChange={(opts) => onChange({ options: opts })} />
@@ -1946,7 +1946,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
               type="number"
               value={Number(options.min_words ?? 100)}
               onChange={(e) => onChange({ options: { ...options, min_words: Number(e.target.value) } as Json })}
-              className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-sm"
+              className="mt-1 w-full rounded border border-[var(--br-border)] px-3 py-2 text-sm"
             />
           </label>
           <label className="text-sm font-medium">
@@ -1955,7 +1955,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
               type="number"
               value={Number(options.max_words ?? 250)}
               onChange={(e) => onChange({ options: { ...options, max_words: Number(e.target.value) } as Json })}
-              className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-sm"
+              className="mt-1 w-full rounded border border-[var(--br-border)] px-3 py-2 text-sm"
             />
           </label>
         </div>
@@ -1966,7 +1966,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             value={String(options.sample_essay ?? options.model_answer ?? question.correctAnswer ?? "")}
             onChange={(e) => onChange({ correctAnswer: e.target.value, options: { ...options, sample_essay: e.target.value, model_answer: e.target.value } as Json })}
             placeholder="Provide a high-scoring sample essay..."
-            className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-sm font-mono"
+            className="mt-1 w-full rounded border border-[var(--br-border)] px-3 py-2 text-sm font-mono"
           />
         </label>
         <label className="text-sm font-medium">
@@ -1976,7 +1976,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             value={String(options.rubric_guidelines ?? options.explanation ?? "")}
             onChange={(e) => onChange({ options: { ...options, rubric_guidelines: e.target.value, explanation: e.target.value } as Json })}
             placeholder="Guidelines for AI & Teacher evaluation (e.g. check for 4 paragraphs, formal tone, relative clauses)"
-            className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-xs"
+            className="mt-1 w-full rounded border border-[var(--br-border)] px-3 py-2 text-xs"
           />
         </label>
         <WritingGradingSettings options={options} onChange={(opts) => onChange({ options: opts })} />
@@ -1994,7 +1994,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
               value={String(options.recipient_role ?? "Hiring Manager")}
               onChange={(e) => onChange({ options: { ...options, recipient_role: e.target.value } as Json })}
               placeholder="e.g. Hiring Manager"
-              className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-sm"
+              className="mt-1 w-full rounded border border-[var(--br-border)] px-3 py-2 text-sm"
             />
           </label>
           <label className="text-sm font-medium">
@@ -2002,7 +2002,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             <select
               value={String(options.required_tone ?? "FORMAL")}
               onChange={(e) => onChange({ options: { ...options, required_tone: e.target.value } as Json })}
-              className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-sm"
+              className="mt-1 w-full rounded border border-[var(--br-border)] px-3 py-2 text-sm"
             >
               <option value="FORMAL">Formal</option>
               <option value="SEMI_FORMAL">Semi-Formal</option>
@@ -2017,7 +2017,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             value={String(options.model_email ?? question.correctAnswer ?? "")}
             onChange={(e) => onChange({ correctAnswer: e.target.value, options: { ...options, model_email: e.target.value } as Json })}
             placeholder="Model email format..."
-            className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-sm font-mono"
+            className="mt-1 w-full rounded border border-[var(--br-border)] px-3 py-2 text-sm font-mono"
           />
         </label>
         <WritingGradingSettings options={options} onChange={(opts) => onChange({ options: opts })} />
@@ -2036,7 +2036,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             <input
               value={String(options.source_language ?? "Spanish")}
               onChange={(e) => onChange({ options: { ...options, source_language: e.target.value } as Json })}
-              className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-sm"
+              className="mt-1 w-full rounded border border-[var(--br-border)] px-3 py-2 text-sm"
             />
           </label>
           <label className="text-sm font-medium">
@@ -2044,7 +2044,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             <input
               value={String(options.target_language ?? "English")}
               onChange={(e) => onChange({ options: { ...options, target_language: e.target.value } as Json })}
-              className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-sm"
+              className="mt-1 w-full rounded border border-[var(--br-border)] px-3 py-2 text-sm"
             />
           </label>
         </div>
@@ -2054,11 +2054,11 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             rows={3}
             value={String(options.source_text ?? question.questionText ?? "")}
             onChange={(e) => onChange({ options: { ...options, source_text: e.target.value } as Json })}
-            className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-sm"
+            className="mt-1 w-full rounded border border-[var(--br-border)] px-3 py-2 text-sm"
           />
         </label>
-        <div className="rounded-md border border-black/10 p-3 space-y-2 bg-slate-50/50">
-          <p className="font-semibold text-xs text-black/70">Acceptable Target Translations</p>
+        <div className="rounded-md border border-[var(--br-border)] p-3 space-y-2 bg-surface-muted/50">
+          <p className="font-semibold text-xs text-[var(--br-text-muted)]">Acceptable Target Translations</p>
           {acceptable.map((ans, idx) => (
             <div key={idx} className="flex items-center gap-2">
               <input
@@ -2070,7 +2070,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
                   onChange({ options: { ...options, acceptable_translations: next } as Json, correctAnswer: next[0] });
                 }}
                 placeholder={`Acceptable translation ${idx + 1}`}
-                className="flex-1 rounded border border-black/15 px-2 py-1 text-xs bg-white"
+                className="flex-1 rounded border border-[var(--br-border)] px-2 py-1 text-xs bg-surface"
               />
               {acceptable.length > 1 && (
                 <button
@@ -2089,7 +2089,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
           <button
             type="button"
             onClick={() => onChange({ options: { ...options, acceptable_translations: [...acceptable, ""] } as Json })}
-            className="rounded border border-dashed border-black/20 px-2.5 py-1 text-[11px] font-semibold text-black/60 hover:bg-black/5"
+            className="rounded border border-dashed border-[var(--br-border)] px-2.5 py-1 text-[11px] font-semibold text-[var(--br-text-muted)] hover:bg-black/5"
           >
             + Add Alternative Translation
           </button>
@@ -2110,7 +2110,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             rows={3}
             value={String(options.original_text ?? question.questionText ?? "")}
             onChange={(e) => onChange({ options: { ...options, original_text: e.target.value } as Json })}
-            className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-sm"
+            className="mt-1 w-full rounded border border-[var(--br-border)] px-3 py-2 text-sm"
           />
         </label>
         <label className="text-sm font-medium">
@@ -2119,7 +2119,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             value={forbidden.join(", ")}
             onChange={(e) => onChange({ options: { ...options, forbidden_phrases: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) } as Json })}
             placeholder="e.g. due to, unforeseen circumstances"
-            className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-sm"
+            className="mt-1 w-full rounded border border-[var(--br-border)] px-3 py-2 text-sm"
           />
         </label>
         <label className="text-sm font-medium">
@@ -2128,7 +2128,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             rows={3}
             value={String(options.model_paraphrase ?? question.correctAnswer ?? "")}
             onChange={(e) => onChange({ correctAnswer: e.target.value, options: { ...options, model_paraphrase: e.target.value } as Json })}
-            className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-sm font-mono"
+            className="mt-1 w-full rounded border border-[var(--br-border)] px-3 py-2 text-sm font-mono"
           />
         </label>
         <WritingGradingSettings options={options} onChange={(opts) => onChange({ options: opts })} />
@@ -2141,11 +2141,11 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
 
     return (
       <div className="grid gap-3">
-        <div className="rounded-md border border-black/10 p-3 space-y-2 bg-slate-50/50">
-          <p className="font-semibold text-xs text-black/70">Simple Input Sentences to Combine</p>
+        <div className="rounded-md border border-[var(--br-border)] p-3 space-y-2 bg-surface-muted/50">
+          <p className="font-semibold text-xs text-[var(--br-text-muted)]">Simple Input Sentences to Combine</p>
           {inputSentences.map((s, idx) => (
             <div key={idx} className="flex items-center gap-2">
-              <span className="text-xs font-bold text-black/50 w-6">({idx + 1}):</span>
+              <span className="text-xs font-bold text-[var(--br-text-muted)] w-6">({idx + 1}):</span>
               <input
                 type="text"
                 value={s}
@@ -2155,7 +2155,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
                   onChange({ options: { ...options, input_sentences: next } as Json });
                 }}
                 placeholder={`Sentence ${idx + 1}`}
-                className="flex-1 rounded border border-black/15 px-2 py-1 text-xs bg-white"
+                className="flex-1 rounded border border-[var(--br-border)] px-2 py-1 text-xs bg-surface"
               />
               {inputSentences.length > 2 && (
                 <button
@@ -2174,7 +2174,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
           <button
             type="button"
             onClick={() => onChange({ options: { ...options, input_sentences: [...inputSentences, ""] } as Json })}
-            className="rounded border border-dashed border-black/20 px-2.5 py-1 text-[11px] font-semibold text-black/60 hover:bg-black/5"
+            className="rounded border border-dashed border-[var(--br-border)] px-2.5 py-1 text-[11px] font-semibold text-[var(--br-text-muted)] hover:bg-black/5"
           >
             + Add Sentence
           </button>
@@ -2186,7 +2186,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             rows={3}
             value={String(options.model_combined_sentence ?? question.correctAnswer ?? "")}
             onChange={(e) => onChange({ correctAnswer: e.target.value, options: { ...options, model_combined_sentence: e.target.value } as Json })}
-            className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-sm font-mono"
+            className="mt-1 w-full rounded border border-[var(--br-border)] px-3 py-2 text-sm font-mono"
           />
         </label>
         <WritingGradingSettings options={options} onChange={(opts) => onChange({ options: opts })} />
@@ -2211,7 +2211,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             value={String(options.story_starter ?? "")}
             onChange={(e) => onChange({ options: { ...options, story_starter: e.target.value } as Json })}
             placeholder="e.g. As the sun set over the quiet town..."
-            className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-sm"
+            className="mt-1 w-full rounded border border-[var(--br-border)] px-3 py-2 text-sm"
           />
         </label>
         <label className="text-sm font-medium">
@@ -2220,7 +2220,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             value={vocab.join(", ")}
             onChange={(e) => onChange({ options: { ...options, required_vocabulary: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) } as Json })}
             placeholder="e.g. whisper, shadow, discovery"
-            className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-sm"
+            className="mt-1 w-full rounded border border-[var(--br-border)] px-3 py-2 text-sm"
           />
         </label>
         <label className="text-sm font-medium">
@@ -2229,7 +2229,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             rows={5}
             value={String(options.model_story ?? question.correctAnswer ?? "")}
             onChange={(e) => onChange({ correctAnswer: e.target.value, options: { ...options, model_story: e.target.value } as Json })}
-            className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-sm font-mono"
+            className="mt-1 w-full rounded border border-[var(--br-border)] px-3 py-2 text-sm font-mono"
           />
         </label>
         <WritingGradingSettings options={options} onChange={(opts) => onChange({ options: opts })} />
@@ -2249,7 +2249,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             value={String(options.sample_draft ?? question.questionText ?? "")}
             onChange={(e) => onChange({ options: { ...options, sample_draft: e.target.value } as Json })}
             placeholder="Draft containing grammar or structural errors..."
-            className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-sm font-mono"
+            className="mt-1 w-full rounded border border-[var(--br-border)] px-3 py-2 text-sm font-mono"
           />
         </label>
         <label className="text-sm font-medium">
@@ -2258,7 +2258,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             value={focusAreas.join(", ")}
             onChange={(e) => onChange({ options: { ...options, error_focus_areas: e.target.value.split(",").map((s) => s.trim()).filter(Boolean) } as Json })}
             placeholder="e.g. Tense consistency, Punctuation"
-            className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-sm"
+            className="mt-1 w-full rounded border border-[var(--br-border)] px-3 py-2 text-sm"
           />
         </label>
         <label className="text-sm font-medium">
@@ -2267,7 +2267,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             rows={4}
             value={String(options.model_edited_draft ?? question.correctAnswer ?? "")}
             onChange={(e) => onChange({ correctAnswer: e.target.value, options: { ...options, model_edited_draft: e.target.value } as Json })}
-            className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-sm font-mono"
+            className="mt-1 w-full rounded border border-[var(--br-border)] px-3 py-2 text-sm font-mono"
           />
         </label>
         <label className="text-sm font-medium">
@@ -2277,7 +2277,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             value={String(options.model_feedback_comments ?? options.explanation ?? "")}
             onChange={(e) => onChange({ options: { ...options, model_feedback_comments: e.target.value, explanation: e.target.value } as Json })}
             placeholder="Constructive feedback points to highlight"
-            className="mt-1 w-full rounded border border-black/15 px-3 py-2 text-xs"
+            className="mt-1 w-full rounded border border-[var(--br-border)] px-3 py-2 text-xs"
           />
         </label>
         <WritingGradingSettings options={options} onChange={(opts) => onChange({ options: opts })} />
@@ -2295,7 +2295,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
     <div className="grid gap-3">
       <label className="text-sm font-medium">
         Level
-        <select value={String(pronunciationLevel)} onChange={(event) => onChange({ options: { ...options, level: event.target.value } as Json })} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">
+        <select value={String(pronunciationLevel)} onChange={(event) => onChange({ options: { ...options, level: event.target.value } as Json })} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2">
           <option value="word">Word list (each word recorded and scored separately)</option>
           <option value="sentence">Sentence (one recording, certain words highlighted and checked)</option>
           <option value="paragraph">Paragraph (one recording, certain words highlighted and checked)</option>
@@ -2308,7 +2308,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
           min={1}
           value={Number(options.max_attempts ?? 3)}
           onChange={(event) => onChange({ options: { ...options, max_attempts: Math.max(1, Number(event.target.value) || 1) } as Json })}
-          className="mt-1 w-32 rounded-md border border-black/15 px-3 py-2"
+          className="mt-1 w-32 rounded-md border border-[var(--br-border)] px-3 py-2"
         />
       </label>
       {pronunciationLevel !== "word" ? (
@@ -2318,13 +2318,13 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             value={String(options.passage ?? "")}
             onChange={(event) => onChange({ options: { ...options, passage: event.target.value } as Json })}
             rows={pronunciationLevel === "paragraph" ? 5 : 2}
-            className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+            className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2"
             placeholder="Her pronunciation improved a lot after she practiced every day."
           />
-          <span className="mt-1 block text-xs text-black/45">The target words below must appear exactly as spelled here.</span>
+          <span className="mt-1 block text-xs text-[var(--br-text-muted)]">The target words below must appear exactly as spelled here.</span>
         </label>
       ) : null}
-      <div className="rounded-md border border-black/10 p-4">
+      <div className="rounded-md border border-[var(--br-border)] p-4">
         <p className="mb-3 font-medium">{pronunciationLevel === "word" ? "Words to pronounce" : "Words to check"}</p>
         <div className="grid gap-2">
           {targets.map((target, index) => (
@@ -2333,7 +2333,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
                 value={String(target.text ?? "")}
                 onChange={(event) => updatePronunciationTarget(index, { text: event.target.value })}
                 placeholder={pronunciationLevel === "word" ? "pronunciation" : "word or phrase from the text above"}
-                className="min-w-48 flex-1 rounded-md border border-black/15 px-3 py-2 text-sm"
+                className="min-w-48 flex-1 rounded-md border border-[var(--br-border)] px-3 py-2 text-sm"
               />
               <div className="flex items-center gap-1">
                 {PRONUNCIATION_COLORS.map((color) => (
@@ -2368,12 +2368,12 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             const nextTargets = [...targets, { id: String(targets.length + 1), text: "", color: PRONUNCIATION_COLORS[targets.length % PRONUNCIATION_COLORS.length] }];
             onChange({ options: { ...options, targets: nextTargets } as Json, correctAnswer: nextTargets.map((target) => String(target.id ?? "")) as Json });
           }}
-          className="mt-3 rounded-md border border-black/15 px-3 py-1.5 text-sm"
+          className="mt-3 rounded-md border border-[var(--br-border)] px-3 py-1.5 text-sm"
         >
           Add word
         </button>
       </div>
-      <p className="rounded-md border border-black/10 bg-slate-50 p-3 text-xs text-black/55">
+      <p className="rounded-md border border-[var(--br-border)] bg-surface-muted p-3 text-xs text-[var(--br-text-muted)]">
         This uses the learner browser&apos;s speech recognition. It works best in Chrome and Edge.
       </p>
     </div>
@@ -2402,7 +2402,7 @@ function WritingGradingSettings({
             type="checkbox"
             checked={allowAi}
             onChange={(e) => onChange({ ...options, allow_ai_feedback: e.target.checked })}
-            className="rounded border-black/15 text-[var(--br-chart-primary)] focus:ring-[var(--br-chart-primary)]"
+            className="rounded border-[var(--br-border)] text-[var(--br-chart-primary)] focus:ring-[var(--br-chart-primary)]"
           />
           AI Instant Feedback
         </label>
@@ -2411,7 +2411,7 @@ function WritingGradingSettings({
             type="checkbox"
             checked={allowSelf}
             onChange={(e) => onChange({ ...options, allow_self_graded: e.target.checked })}
-            className="rounded border-black/15 text-[var(--br-chart-primary)] focus:ring-[var(--br-chart-primary)]"
+            className="rounded border-[var(--br-border)] text-[var(--br-chart-primary)] focus:ring-[var(--br-chart-primary)]"
           />
           Model Answer & Self Check
         </label>
@@ -2420,7 +2420,7 @@ function WritingGradingSettings({
             type="checkbox"
             checked={allowTeacher}
             onChange={(e) => onChange({ ...options, allow_teacher_review: e.target.checked })}
-            className="rounded border-black/15 text-[var(--br-chart-primary)] focus:ring-[var(--br-chart-primary)]"
+            className="rounded border-[var(--br-border)] text-[var(--br-chart-primary)] focus:ring-[var(--br-chart-primary)]"
           />
           Teacher Review Queue
         </label>

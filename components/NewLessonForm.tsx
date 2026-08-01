@@ -67,19 +67,19 @@ export function NewLessonForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 rounded-lg border border-black/10 bg-white p-6 shadow-sm">
+    <form onSubmit={handleSubmit} className="space-y-6 rounded-lg border border-[var(--br-border)] bg-surface p-6 shadow-sm">
       <div className="grid gap-4 md:grid-cols-2">
         <label className="text-sm">
           Title
-          <input name="title" required className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+          <input name="title" required className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" />
         </label>
         <label className="text-sm">
           Topic
-          <input name="topic" required placeholder="Rumor" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+          <input name="topic" required placeholder="Rumor" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" />
         </label>
         <label className="text-sm">
           Level
-          <select name="level" defaultValue="B1" className="mt-1 w-full rounded-md border border-black/15 px-3 py-2">
+          <select name="level" defaultValue="B1" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2">
             {["A1", "A2", "B1", "B2", "C1", "C2"].map((level) => (
               <option key={level}>{level}</option>
             ))}
@@ -88,7 +88,7 @@ export function NewLessonForm() {
       </div>
       <label className="block text-sm">
         Description
-        <textarea name="description" rows={3} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
+        <textarea name="description" rows={3} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" />
       </label>
       <label className="block text-sm">
         Lesson PDF
@@ -96,7 +96,7 @@ export function NewLessonForm() {
           type="file"
           accept="application/pdf"
           onChange={(e) => setPdf(e.target.files?.[0] ?? null)}
-          className="mt-1 w-full rounded-md border border-black/15 px-3 py-2"
+          className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2"
         />
       </label>
 
@@ -106,7 +106,7 @@ export function NewLessonForm() {
           <button
             type="button"
             onClick={() => setRows((r) => [...r, { id: Date.now(), label: "", file: null }])}
-            className="inline-flex items-center gap-2 rounded-md border border-black/15 px-3 py-2 text-sm hover:bg-black/5"
+            className="inline-flex items-center gap-2 rounded-md border border-[var(--br-border)] px-3 py-2 text-sm hover:bg-black/5"
           >
             <Plus size={16} /> Add audio
           </button>
@@ -117,19 +117,19 @@ export function NewLessonForm() {
               placeholder="Listening - The Birthday Surprise"
               value={row.label}
               onChange={(e) => setRows((r) => r.map((x) => x.id === row.id ? { ...x, label: e.target.value } : x))}
-              className="rounded-md border border-black/15 px-3 py-2 text-sm"
+              className="rounded-md border border-[var(--br-border)] px-3 py-2 text-sm"
             />
             <input
               type="file"
               accept="audio/*"
               onChange={(e) => setRows((r) => r.map((x) => x.id === row.id ? { ...x, file: e.target.files?.[0] ?? null } : x))}
-              className="rounded-md border border-black/15 px-3 py-2 text-sm"
+              className="rounded-md border border-[var(--br-border)] px-3 py-2 text-sm"
             />
             <button
               type="button"
               aria-label="Remove audio"
               onClick={() => setRows((r) => r.filter((x) => x.id !== row.id))}
-              className="rounded-md border border-black/15 px-3 py-2 hover:bg-black/5"
+              className="rounded-md border border-[var(--br-border)] px-3 py-2 hover:bg-black/5"
             >
               <Trash2 size={16} />
             </button>
@@ -142,7 +142,7 @@ export function NewLessonForm() {
       <button
         type="submit"
         disabled={uploading}
-        className="inline-flex items-center gap-2 rounded-md bg-dark px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+        className="inline-flex items-center gap-2 rounded-md bg-dark px-4 py-2 text-sm font-medium text-on-dark disabled:opacity-60"
       >
         <Upload size={16} /> {uploading ? "Uploading..." : "Upload and parse"}
       </button>

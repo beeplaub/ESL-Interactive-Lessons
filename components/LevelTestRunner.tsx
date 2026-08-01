@@ -89,7 +89,7 @@ export function LevelTestRunner({
   }
 
   if (!current) {
-    return <main className="grid min-h-[70vh] place-items-center bg-[var(--br-canvas-elevated)] p-6"><div className="rounded-[20px] bg-white p-8 text-center shadow-sm"><h1 className="text-xl font-extrabold">This test has no questions yet.</h1><p className="mt-2 text-sm text-[var(--br-text-muted)]">Please return after the test administrator publishes its question bank.</p></div></main>;
+    return <main className="grid min-h-[70vh] place-items-center bg-[var(--br-canvas-elevated)] p-6"><div className="rounded-[20px] bg-surface p-8 text-center shadow-sm"><h1 className="text-xl font-extrabold">This test has no questions yet.</h1><p className="mt-2 text-sm text-[var(--br-text-muted)]">Please return after the test administrator publishes its question bank.</p></div></main>;
   }
 
   const passage = current.passageId ? current.sectionRecord.passages.find((item) => item.id === current.passageId) : null;
@@ -126,14 +126,14 @@ export function LevelTestRunner({
 
         <div className={`mt-4 grid gap-4 ${passage ? "lg:grid-cols-[minmax(0,.9fr)_minmax(0,1.1fr)]" : ""}`}>
           {passage ? (
-            <aside className="rounded-[20px] border border-[var(--br-surface-strong)] bg-white p-5 shadow-[0_12px_32px_rgba(0,0,0,.05)] lg:sticky lg:top-28 lg:max-h-[calc(100vh-130px)] lg:overflow-y-auto">
+            <aside className="rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-5 shadow-[0_12px_32px_rgba(0,0,0,.05)] lg:sticky lg:top-28 lg:max-h-[calc(100vh-130px)] lg:overflow-y-auto">
               <div className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-[.12em] text-[var(--br-chart-primary)]"><BookOpen className="size-4" /> Reading passage</div>
               <h2 className="mt-3 text-xl font-extrabold">{passage.title}</h2>
               <p className="mt-4 whitespace-pre-line text-sm font-medium leading-7 text-[#4E536B]">{passage.body}</p>
             </aside>
           ) : null}
 
-          <section className="rounded-[20px] border border-[var(--br-surface-strong)] bg-white p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)] sm:p-7">
+          <section className="rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)] sm:p-7">
             <div className="flex flex-wrap items-center gap-2">
               <span className="rounded-full bg-[var(--br-surface-muted)] px-3 py-1 text-[11px] font-extrabold text-[var(--br-chart-primary)]">{current.sectionRecord.title}</span>
               <span className="rounded-full bg-[#F1F8FF] px-3 py-1 text-[11px] font-extrabold text-[#2697FF]">{current.cefrBand}</span>
@@ -166,9 +166,9 @@ export function LevelTestRunner({
                           }
                           setMessage(null);
                         }}
-                        className={`flex w-full items-center gap-3 rounded-[14px] border-2 p-3 text-left transition-all sm:p-4 ${selected ? "border-[var(--br-chart-primary)] bg-[var(--br-surface-muted)]" : "border-[var(--br-surface-strong)] bg-white hover:border-[#CFC6F8]"}`}
+                        className={`flex w-full items-center gap-3 rounded-[14px] border-2 p-3 text-left transition-all sm:p-4 ${selected ? "border-[var(--br-chart-primary)] bg-[var(--br-surface-muted)]" : "border-[var(--br-surface-strong)] bg-surface hover:border-[#CFC6F8]"}`}
                       >
-                        <span className={`grid size-9 shrink-0 place-items-center rounded-[11px] text-sm font-black ${selected ? "bg-[var(--br-chart-primary)] text-white" : "bg-[#F2F3F7] text-[var(--br-text-muted)]"}`}>{selected ? <Check className="size-4" /> : option.key}</span>
+                        <span className={`grid size-9 shrink-0 place-items-center rounded-[11px] text-sm font-black ${selected ? "bg-[var(--br-chart-primary)] text-on-dark" : "bg-[#F2F3F7] text-[var(--br-text-muted)]"}`}>{selected ? <Check className="size-4" /> : option.key}</span>
                         <span className="text-sm font-bold sm:text-base">{option.text}</span>
                       </button>
                     );
@@ -180,11 +180,11 @@ export function LevelTestRunner({
             <div className="mt-7 flex items-center justify-between gap-3 border-t border-[var(--br-surface-strong)] pt-5">
               <div className="text-xs font-bold text-[var(--br-text-muted)]">{percentage}% answered</div>
               {activeIndex < questions.length - 1 ? (
-                <button onClick={() => setActiveIndex((index) => index + 1)} className="inline-flex items-center gap-2 rounded-[13px] bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] px-5 py-3 text-sm font-extrabold text-white shadow-[0_8px_20px_rgba(108,59,255,.24)]">
+                <button onClick={() => setActiveIndex((index) => index + 1)} className="inline-flex items-center gap-2 rounded-[13px] bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] px-5 py-3 text-sm font-extrabold text-on-dark shadow-[0_8px_20px_rgba(108,59,255,.24)]">
                   Next question <ChevronRight className="size-4" />
                 </button>
               ) : (
-                <button disabled={hasSubmitted.current} onClick={() => void submit()} className="inline-flex items-center gap-2 rounded-[13px] bg-gradient-to-br from-[var(--br-success)] to-[var(--br-chart-secondary)] px-5 py-3 text-sm font-extrabold text-white disabled:opacity-50">
+                <button disabled={hasSubmitted.current} onClick={() => void submit()} className="inline-flex items-center gap-2 rounded-[13px] bg-gradient-to-br from-[var(--br-success)] to-[var(--br-chart-secondary)] px-5 py-3 text-sm font-extrabold text-on-dark disabled:opacity-50">
                   {hasSubmitted.current ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />} Submit test
                 </button>
               )}

@@ -12,7 +12,7 @@ export async function SiteHeader() {
     <header className="sticky top-0 z-30 border-b border-[var(--br-border)] bg-[color:color-mix(in_srgb,var(--br-surface)_88%,transparent)] backdrop-blur-xl min-[1180px]:hidden">
       <nav className="mx-auto flex max-w-[1540px] items-center justify-between px-4 py-3 sm:px-6">
         <Link href="/" className="group flex items-center gap-3 font-semibold tracking-tight">
-          <span className="relative grid size-10 place-items-center overflow-hidden rounded-xl bg-[var(--br-brand)] text-sm font-black text-white shadow-lg shadow-black/10">
+          <span className="relative grid size-10 place-items-center overflow-hidden rounded-xl bg-[var(--br-brand)] text-sm font-black text-on-dark shadow-lg shadow-black/10">
             <span className="absolute -left-2 top-1 h-7 w-7 rounded-full bg-white/20" />
             B
           </span>

@@ -217,7 +217,7 @@ function ScoreHistory({ attempts, total }: { attempts: PastAttempt[]; total: num
   const latestPercent = total ? Math.round((latest.score / total) * 100) : 0;
 
   return (
-    <div className="mb-6 rounded-[20px] border border-[var(--br-surface-strong)] bg-white p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)]">
+    <div className="mb-6 rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)]">
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <TrendingUp size={16} className="text-[var(--br-chart-primary)]" />
@@ -498,7 +498,7 @@ export function QuizPlayer({
         <ScoreHistory attempts={allAttempts} total={questions.length} />
       )}
 
-      <div className="rounded-[20px] border border-[var(--br-surface-strong)] bg-white p-4 shadow-[0_12px_32px_rgba(0,0,0,.06)] sm:p-5">
+      <div className="rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-4 shadow-[0_12px_32px_rgba(0,0,0,.06)] sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[var(--br-chart-primary)]">Question {currentIndex + 1} of {questions.length}</p>
@@ -556,7 +556,7 @@ export function QuizPlayer({
               <button
                 type="button"
                 onClick={() => setShowPopup(true)}
-                className="mt-4 inline-flex items-center gap-2 rounded-[14px] bg-[var(--br-dark-card)] px-4 py-2.5 text-sm font-extrabold text-white"
+                className="mt-4 inline-flex items-center gap-2 rounded-[14px] bg-[var(--br-dark-card)] px-4 py-2.5 text-sm font-extrabold text-on-dark"
               >
                 Save this score →
               </button>
@@ -569,7 +569,7 @@ export function QuizPlayer({
         <button
           type="button"
           onClick={() => setReviewMode("overview")}
-          className="inline-flex items-center gap-2 rounded-[14px] border border-[var(--br-surface-strong)] bg-white px-4 py-2 text-sm font-bold text-[var(--br-text-muted)] shadow-[0_8px_20px_rgba(0,0,0,.04)] hover:bg-[var(--br-canvas-elevated)]"
+          className="inline-flex items-center gap-2 rounded-[14px] border border-[var(--br-surface-strong)] bg-surface px-4 py-2 text-sm font-bold text-[var(--br-text-muted)] shadow-[0_8px_20px_rgba(0,0,0,.04)] hover:bg-[var(--br-canvas-elevated)]"
         >
           <ChevronLeft size={16} /> Back to overview ({score}/{totalPoints})
         </button>
@@ -606,12 +606,12 @@ export function QuizPlayer({
         ) : null}
       </div>
 
-      <div className="flex flex-nowrap items-center justify-between gap-2 rounded-[20px] border border-[var(--br-surface-strong)] bg-white p-2.5 shadow-[0_12px_32px_rgba(0,0,0,.06)] sm:gap-3 sm:p-3">
+      <div className="flex flex-nowrap items-center justify-between gap-2 rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-2.5 shadow-[0_12px_32px_rgba(0,0,0,.06)] sm:gap-3 sm:p-3">
         <button
           type="button"
           onClick={() => goToQuestion(currentIndex - 1)}
           disabled={currentIndex === 0}
-          className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] px-2.5 py-2 text-xs font-bold text-[var(--br-text-muted)] hover:bg-white disabled:opacity-35 sm:gap-2 sm:px-4 sm:text-sm"
+          className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] px-2.5 py-2 text-xs font-bold text-[var(--br-text-muted)] hover:bg-surface disabled:opacity-35 sm:gap-2 sm:px-4 sm:text-sm"
         >
           <ChevronLeft size={16} /> Previous
         </button>
@@ -640,7 +640,7 @@ export function QuizPlayer({
           type="button"
           onClick={() => goToQuestion(currentIndex + 1)}
           disabled={currentIndex === questions.length - 1}
-          className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[var(--br-dark-card)] px-2.5 py-2 text-xs font-extrabold text-white hover:bg-[var(--br-chart-primary)] disabled:opacity-35 sm:gap-2 sm:px-4 sm:text-sm"
+          className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[var(--br-dark-card)] px-2.5 py-2 text-xs font-extrabold text-on-dark hover:bg-[var(--br-chart-primary)] disabled:opacity-35 sm:gap-2 sm:px-4 sm:text-sm"
         >
           Next <ChevronRight size={16} />
         </button>
@@ -651,7 +651,7 @@ export function QuizPlayer({
       {!submitted || reviewMode === "detail" ? (
         (() => {
           return (
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-[20px] border border-[var(--br-surface-strong)] bg-white p-4 shadow-[0_12px_32px_rgba(0,0,0,.06)]">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-4 shadow-[0_12px_32px_rgba(0,0,0,.06)]">
               <p className="text-sm font-semibold text-[var(--br-text-muted)]">
                 {submitted ? isGuest ? "Create a free account to save your score and track progress." : "Review each question, or head back to the overview." : currentAnswered ? "Answered. Move on when ready." : "Answer this question, then continue."}
               </p>
@@ -670,7 +670,7 @@ export function QuizPlayer({
                     type="button"
                     disabled={!answered || submitted}
                     onClick={submit}
-                    className="inline-flex items-center gap-2 rounded-[14px] bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] px-4 py-2 text-sm font-extrabold text-white shadow-[0_8px_20px_rgba(108,59,255,.25)] disabled:opacity-45"
+                    className="inline-flex items-center gap-2 rounded-[14px] bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] px-4 py-2 text-sm font-extrabold text-on-dark shadow-[0_8px_20px_rgba(108,59,255,.25)] disabled:opacity-45"
                   >
                     <CheckCircle2 size={16} /> {isPending ? "Saving..." : "Submit"}
                   </button>
@@ -757,7 +757,7 @@ export function QuestionCard({
           : { scale: 1, x: 0 }
       }
       transition={{ duration: 0.4, ease: "easeOut" }}
-      className={`relative rounded-[20px] border bg-white p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)] sm:p-6 ${borderClass}`}
+      className={`relative rounded-[20px] border bg-surface p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)] sm:p-6 ${borderClass}`}
     >
       {isResolved ? (
         <motion.div
@@ -769,11 +769,11 @@ export function QuestionCard({
           }`}
         >
           {correct || allCorrect ? (
-            <CheckCircle2 size={18} className="text-white" />
+            <CheckCircle2 size={18} className="text-on-dark" />
           ) : partial ? (
-            <Sparkles size={16} className="text-white" />
+            <Sparkles size={16} className="text-on-dark" />
           ) : (
-            <XCircle size={18} className="text-white" />
+            <XCircle size={18} className="text-on-dark" />
           )}
         </motion.div>
       ) : null}
@@ -831,7 +831,7 @@ function Mcq({ question, value, disabled, onChange }: { question: QuizQuestion; 
   return (
     <div className="grid gap-2">
       {Object.entries(options).map(([key, text]) => (
-        <label key={key} className="flex cursor-pointer items-center gap-3 rounded-[14px] border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] px-3 py-3 text-sm font-semibold text-[var(--br-dark-card)] transition hover:bg-white">
+        <label key={key} className="flex cursor-pointer items-center gap-3 rounded-[14px] border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] px-3 py-3 text-sm font-semibold text-[var(--br-dark-card)] transition hover:bg-surface">
           <input type="radio" disabled={disabled} checked={value === key} onChange={() => onChange(key)} />
           <strong className="text-[var(--br-chart-primary)]">{key}.</strong> {String(text)}
         </label>
@@ -876,7 +876,7 @@ function HeadingsMatching({
           return (
             <div
               key={pId}
-              className={`rounded-[14px] border p-4 transition-colors space-y-3 bg-white ${
+              className={`rounded-[14px] border p-4 transition-colors space-y-3 bg-surface ${
                 isRowCorrect
                   ? "border-[var(--br-success)] bg-[var(--br-success)]/5"
                   : isRowWrong
@@ -901,7 +901,7 @@ function HeadingsMatching({
                     if (!e.target.value) delete next[pId];
                     onChange(next);
                   }}
-                  className={`rounded-lg border px-3 py-1.5 text-sm font-semibold outline-none transition bg-white ${
+                  className={`rounded-lg border px-3 py-1.5 text-sm font-semibold outline-none transition bg-surface ${
                     isRowCorrect
                       ? "border-[var(--br-success)] text-[var(--br-chart-secondary)]"
                       : isRowWrong
@@ -996,7 +996,7 @@ function SkimChallenge({
   // PHASE 1: Not Started yet (Learner chooses when they are ready)
   if (phase === "NOT_STARTED") {
     return (
-      <div className="rounded-[16px] border border-[var(--br-surface-strong)] bg-white p-6 shadow-sm text-center space-y-4">
+      <div className="rounded-[16px] border border-[var(--br-surface-strong)] bg-surface p-6 shadow-sm text-center space-y-4">
         <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-[var(--br-chart-primary)]/10 text-[var(--br-chart-primary)]">
           ⏱️
         </div>
@@ -1015,7 +1015,7 @@ function SkimChallenge({
             setReadingTimeLeft(timeLimit);
             setPhase("READING");
           }}
-          className="inline-flex items-center gap-2 rounded-xl bg-[var(--br-chart-primary)] px-6 py-3 text-sm font-bold text-white shadow-md shadow-[var(--br-chart-primary)]/25 hover:bg-[#592ecc] transition active:scale-95"
+          className="inline-flex items-center gap-2 rounded-xl bg-[var(--br-chart-primary)] px-6 py-3 text-sm font-bold text-on-dark shadow-md shadow-[var(--br-chart-primary)]/25 hover:bg-[#592ecc] transition active:scale-95"
         >
           🚀 I'm Ready — Start Skimming
         </button>
@@ -1035,7 +1035,7 @@ function SkimChallenge({
           <button
             type="button"
             onClick={() => setPhase("ANSWERING")}
-            className="rounded-lg bg-[var(--br-chart-primary)] px-4 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-[#592ecc] transition"
+            className="rounded-lg bg-[var(--br-chart-primary)] px-4 py-1.5 text-xs font-bold text-on-dark shadow-sm hover:bg-[#592ecc] transition"
           >
             Finished Reading — Go to Questions
           </button>
@@ -1069,7 +1069,7 @@ function SkimChallenge({
           <div className="mt-3 leading-7 text-[var(--br-dark-card)] whitespace-pre-wrap font-semibold border-t border-[var(--br-surface-strong)] pt-3">{passage}</div>
         </details>
       ) : passage && !allowPassageToggle && !disabled ? (
-        <div className="rounded-[12px] border border-slate-200 bg-slate-50 p-2.5 text-xs font-semibold text-slate-500 text-center">
+        <div className="rounded-[12px] border border-slate-200 bg-surface-muted p-2.5 text-xs font-semibold text-slate-500 text-center">
           🔒 Passage re-view is disabled for this challenge.
         </div>
       ) : null}
@@ -1083,7 +1083,7 @@ function SkimChallenge({
           const correctAns = asRecord(question.correct_answer)[qId];
 
           return (
-            <div key={qId} className="space-y-2 rounded-[14px] border border-[var(--br-surface-strong)] p-4 bg-white">
+            <div key={qId} className="space-y-2 rounded-[14px] border border-[var(--br-surface-strong)] p-4 bg-surface">
               <p className="text-sm font-bold text-[var(--br-dark-card)]">{qText}</p>
               <div className="grid gap-2 sm:grid-cols-2">
                 {Object.entries(choices).map(([key, text]) => {
@@ -1101,7 +1101,7 @@ function SkimChallenge({
                           ? "border-[var(--br-danger)] bg-[var(--br-danger)]/10 text-[var(--br-danger)]"
                           : isSelected
                           ? "border-[var(--br-chart-primary)] bg-[var(--br-chart-primary)]/5 text-[var(--br-chart-primary)]"
-                          : "border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] text-[var(--br-dark-card)] hover:bg-white"
+                          : "border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] text-[var(--br-dark-card)] hover:bg-surface"
                       }`}
                     >
                       <input
@@ -1162,7 +1162,7 @@ function ParaphraseId({
                   ? "border-[var(--br-danger)] bg-[var(--br-danger)]/10 text-[var(--br-danger)]"
                   : isSelected
                   ? "border-[var(--br-chart-primary)] bg-[var(--br-chart-primary)]/5 text-[var(--br-chart-primary)]"
-                  : "border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] text-[var(--br-dark-card)] hover:bg-white"
+                  : "border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] text-[var(--br-dark-card)] hover:bg-surface"
               }`}
             >
               <input
@@ -1194,7 +1194,7 @@ function InferenceDetection({ question, value, disabled, onChange }: { question:
       ) : null}
       <div className="grid gap-2">
         {choices.map(([key, text]) => (
-          <label key={key} className="flex cursor-pointer items-center gap-3 rounded-[14px] border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] px-3 py-3 text-sm font-semibold text-[var(--br-dark-card)] transition hover:bg-white">
+          <label key={key} className="flex cursor-pointer items-center gap-3 rounded-[14px] border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] px-3 py-3 text-sm font-semibold text-[var(--br-dark-card)] transition hover:bg-surface">
             <input type="radio" disabled={disabled} checked={value === key} onChange={() => onChange(key)} />
             <strong className="text-[var(--br-chart-primary)]">{key}.</strong> {String(text)}
           </label>
@@ -1214,7 +1214,7 @@ function MultipleSelect({ question, value, disabled, onChange }: { question: Qui
     <div className="grid gap-2">
       <p className="text-xs font-semibold text-[var(--br-text-muted)]">Select all that apply.</p>
       {Object.entries(options).map(([key, text]) => (
-        <label key={key} className="flex cursor-pointer items-center gap-3 rounded-[14px] border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] px-3 py-3 text-sm font-semibold text-[var(--br-dark-card)] transition hover:bg-white">
+        <label key={key} className="flex cursor-pointer items-center gap-3 rounded-[14px] border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] px-3 py-3 text-sm font-semibold text-[var(--br-dark-card)] transition hover:bg-surface">
           <input type="checkbox" disabled={disabled} checked={selected.includes(key)} onChange={() => toggle(key)} />
           <strong className="text-[var(--br-chart-primary)]">{key}.</strong> {String(text)}
         </label>
@@ -1227,7 +1227,7 @@ function TrueFalse({ value, disabled, onChange }: { value?: boolean; disabled: b
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       {([true, false] as const).map((opt) => (
-        <label key={String(opt)} className="flex cursor-pointer items-center justify-center gap-2 rounded-[14px] border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] px-4 py-3 text-sm font-extrabold transition hover:bg-white">
+        <label key={String(opt)} className="flex cursor-pointer items-center justify-center gap-2 rounded-[14px] border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] px-4 py-3 text-sm font-extrabold transition hover:bg-surface">
           <input type="radio" disabled={disabled} checked={value === opt} onChange={() => onChange(opt)} />
           {opt ? "True" : "False"}
         </label>
@@ -1262,7 +1262,7 @@ function Fill({ question, value, disabled, onChange }: { question: QuizQuestion;
             value={current[i] ?? ""}
             onChange={(e) => setAnswer(i, e.target.value)}
             placeholder={`Answer ${correct.length > 1 ? i + 1 : ""}`}
-            className="rounded-[14px] border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] px-3 py-3 text-sm font-semibold outline-none focus:border-[var(--br-chart-primary)] focus:bg-white"
+            className="rounded-[14px] border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] px-3 py-3 text-sm font-semibold outline-none focus:border-[var(--br-chart-primary)] focus:bg-surface"
           />
         ))}
       </div>
@@ -1281,7 +1281,7 @@ function Fill({ question, value, disabled, onChange }: { question: QuizQuestion;
               value={current[i] ?? ""}
               onChange={(e) => setAnswer(i, e.target.value)}
               size={Math.max(4, (String(correct[i] ?? "")).length + 2)}
-              className="mx-1 inline-block rounded border border-[#D9DCE8] bg-white px-2 py-0.5 text-sm outline-none focus:border-[var(--br-chart-primary)]"
+              className="mx-1 inline-block rounded border border-[#D9DCE8] bg-surface px-2 py-0.5 text-sm outline-none focus:border-[var(--br-chart-primary)]"
             />
           ) : null}
         </span>
@@ -1367,8 +1367,8 @@ function Matching({ question, value, disabled, onChange }: { question: QuizQuest
                   : active === key
                   ? "border-[var(--br-chart-primary)] bg-[var(--br-chart-primary)]/5"
                   : pickedLetter
-                  ? "border-[var(--br-chart-primary)]/30 bg-white"
-                  : "border-[var(--br-surface-strong)] bg-white"
+                  ? "border-[var(--br-chart-primary)]/30 bg-surface"
+                  : "border-[var(--br-surface-strong)] bg-surface"
               }`}
             >
               <span>{key}. {leftLabel}</span>
@@ -1379,7 +1379,7 @@ function Matching({ question, value, disabled, onChange }: { question: QuizQuest
                     initial={{ scale: 0.5, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     transition={{ type: "spring", stiffness: 500, damping: 24 }}
-                    className={`grid size-6 place-items-center rounded-full text-xs font-extrabold text-white ${
+                    className={`grid size-6 place-items-center rounded-full text-xs font-extrabold text-on-dark ${
                       rowCorrect ? "bg-[var(--br-success)]" : rowWrong ? "bg-[var(--br-danger)]" : "bg-[var(--br-chart-primary)]"
                     }`}
                   >
@@ -1419,7 +1419,7 @@ function Matching({ question, value, disabled, onChange }: { question: QuizQuest
               onClick={() => { if (active) pick(active, letter); }}
               whileTap={{ scale: disabled || !active ? 1 : 0.97 }}
               className={`flex items-center justify-between gap-2 rounded-[14px] border-2 px-3 py-2.5 text-left text-sm shadow-sm transition-colors ${
-                linkedRows.length > 0 ? "border-[var(--br-chart-primary)]/30 bg-[var(--br-chart-primary)]/5" : "border-[var(--br-surface-strong)] bg-white"
+                linkedRows.length > 0 ? "border-[var(--br-chart-primary)]/30 bg-[var(--br-chart-primary)]/5" : "border-[var(--br-surface-strong)] bg-surface"
               } ${active && !disabled ? "cursor-pointer hover:border-[var(--br-chart-primary)]" : ""} disabled:opacity-60`}
             >
               <span><strong>{letter}.</strong> {label}</span>
@@ -1498,7 +1498,7 @@ function ErrorCorrection({
                 disabled={disabled}
                 onClick={() => toggleWord(i)}
                 className={`rounded px-1 transition-colors ${
-                  selected ? "bg-[var(--br-danger)]/20 font-semibold text-[var(--br-dark-card)]" : "hover:bg-white"
+                  selected ? "bg-[var(--br-danger)]/20 font-semibold text-[var(--br-dark-card)]" : "hover:bg-surface"
                 }`}
               >
                 {word}
@@ -1517,7 +1517,7 @@ function ErrorCorrection({
           value={value.correction ?? ""}
           onChange={(e) => onChange({ ...value, correction: e.target.value })}
           placeholder="Type the correction"
-          className="rounded-[14px] border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] px-3 py-3 text-sm font-semibold outline-none focus:border-[var(--br-chart-primary)] focus:bg-white"
+          className="rounded-[14px] border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] px-3 py-3 text-sm font-semibold outline-none focus:border-[var(--br-chart-primary)] focus:bg-surface"
         />
       </div>
     );
@@ -1532,7 +1532,7 @@ function ErrorCorrection({
         value={value.correction ?? ""}
         onChange={(e) => onChange({ ...value, correction: e.target.value })}
         placeholder="Type the corrected sentence"
-        className="rounded-[14px] border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] px-3 py-3 text-sm font-semibold outline-none focus:border-[var(--br-chart-primary)] focus:bg-white"
+        className="rounded-[14px] border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] px-3 py-3 text-sm font-semibold outline-none focus:border-[var(--br-chart-primary)] focus:bg-surface"
       />
     </div>
   );
@@ -1600,7 +1600,7 @@ function Reordering({
             dragElastic={0.15}
             whileDrag={{ scale: 1.08, boxShadow: "0 8px 20px rgba(108,59,255,.25)", zIndex: 10 }}
             transition={{ type: "spring", stiffness: 500, damping: 32 }}
-            className="flex touch-none select-none items-center gap-1 rounded-[14px] border border-[var(--br-surface-strong)] bg-white px-2 py-1 text-sm shadow-sm"
+            className="flex touch-none select-none items-center gap-1 rounded-[14px] border border-[var(--br-surface-strong)] bg-surface px-2 py-1 text-sm shadow-sm"
           >
             <button type="button" disabled={disabled || i === 0} onClick={() => move(i, i - 1)} className="text-[var(--br-text-muted)] hover:text-[var(--br-dark-card)] disabled:opacity-25" aria-label="Move left">
               ←
@@ -1625,15 +1625,15 @@ function Reordering({
           dragElastic={0.15}
           whileDrag={{ scale: 1.02, boxShadow: "0 8px 20px rgba(108,59,255,.2)", zIndex: 10 }}
           transition={{ type: "spring", stiffness: 500, damping: 32 }}
-          className="flex touch-none items-center gap-3 rounded-[14px] border border-[var(--br-surface-strong)] bg-white px-3 py-2 text-sm shadow-sm"
+          className="flex touch-none items-center gap-3 rounded-[14px] border border-[var(--br-surface-strong)] bg-surface px-3 py-2 text-sm shadow-sm"
         >
           <span className={`select-none text-[var(--br-text-muted)] ${disabled ? "" : "cursor-grab active:cursor-grabbing"}`}>⠿</span>
           <span className="flex-1 select-none">{byId.get(id) ?? ""}</span>
           <div className="flex gap-1">
-            <button type="button" disabled={disabled || i === 0} onClick={() => move(i, i - 1)} className="rounded border border-[var(--br-surface-strong)] px-2 py-1 text-xs text-[var(--br-text-muted)] hover:bg-white disabled:opacity-25" aria-label="Move up">
+            <button type="button" disabled={disabled || i === 0} onClick={() => move(i, i - 1)} className="rounded border border-[var(--br-surface-strong)] px-2 py-1 text-xs text-[var(--br-text-muted)] hover:bg-surface disabled:opacity-25" aria-label="Move up">
               ↑
             </button>
-            <button type="button" disabled={disabled || i === order.length - 1} onClick={() => move(i, i + 1)} className="rounded border border-[var(--br-surface-strong)] px-2 py-1 text-xs text-[var(--br-text-muted)] hover:bg-white disabled:opacity-25" aria-label="Move down">
+            <button type="button" disabled={disabled || i === order.length - 1} onClick={() => move(i, i + 1)} className="rounded border border-[var(--br-surface-strong)] px-2 py-1 text-xs text-[var(--br-text-muted)] hover:bg-surface disabled:opacity-25" aria-label="Move down">
               ↓
             </button>
           </div>
@@ -1728,7 +1728,7 @@ function ShortAnswer({
         value={text}
         onChange={(e) => onChange({ ...value, text: e.target.value })}
         placeholder="Write your answer..."
-        className="w-full rounded-[14px] border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] px-3 py-3 text-sm font-semibold outline-none focus:border-[var(--br-chart-primary)] focus:bg-white"
+        className="w-full rounded-[14px] border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] px-3 py-3 text-sm font-semibold outline-none focus:border-[var(--br-chart-primary)] focus:bg-surface"
       />
       {minWords > 0 || (requiredWords.length > 0 && showRequiredWords) ? (
         <div className="flex flex-wrap items-center gap-3 text-xs">
@@ -1821,7 +1821,7 @@ function Summarization({
             type="button"
             onClick={() => onChange({ text, selfMarked: true })}
             className={`rounded-[14px] border px-4 py-2 text-sm font-extrabold transition-colors ${
-              selfMarked === true ? "border-[var(--br-success)] bg-[var(--br-success)]/10 text-[var(--br-chart-secondary)]" : "border-[var(--br-surface-strong)] text-[var(--br-text-muted)] hover:bg-slate-50"
+              selfMarked === true ? "border-[var(--br-success)] bg-[var(--br-success)]/10 text-[var(--br-chart-secondary)]" : "border-[var(--br-surface-strong)] text-[var(--br-text-muted)] hover:bg-surface-muted"
             }`}
           >
             Got it
@@ -1830,7 +1830,7 @@ function Summarization({
             type="button"
             onClick={() => onChange({ text, selfMarked: false })}
             className={`rounded-[14px] border px-4 py-2 text-sm font-extrabold transition-colors ${
-              selfMarked === false ? "border-[var(--br-danger)] bg-[var(--br-danger)]/10 text-[var(--br-danger)]" : "border-[var(--br-surface-strong)] text-[var(--br-text-muted)] hover:bg-slate-50"
+              selfMarked === false ? "border-[var(--br-danger)] bg-[var(--br-danger)]/10 text-[var(--br-danger)]" : "border-[var(--br-surface-strong)] text-[var(--br-text-muted)] hover:bg-surface-muted"
             }`}
           >
             Needs work
@@ -1855,7 +1855,7 @@ function Summarization({
           value={text}
           onChange={(e) => onChange({ text: e.target.value, selfMarked: undefined })}
           placeholder="Write your summary here..."
-          className="w-full rounded-[14px] border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] px-3 py-3 text-sm font-semibold outline-none focus:border-[var(--br-chart-primary)] focus:bg-white"
+          className="w-full rounded-[14px] border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] px-3 py-3 text-sm font-semibold outline-none focus:border-[var(--br-chart-primary)] focus:bg-surface"
         />
         {maxWords > 0 ? (
           <div className="flex justify-between items-center text-xs">
@@ -1922,7 +1922,7 @@ function DragDrop({
                 onClick={() => setPicked(picked === id ? null : id)}
                 transition={{ type: "spring", stiffness: 500, damping: 30 }}
                 className={`rounded-[14px] border px-3 py-1.5 text-sm shadow-sm transition-colors ${
-                  picked === id ? "border-[var(--br-success)] bg-[var(--br-success)]/10 text-[var(--br-chart-secondary)]" : "border-[var(--br-surface-strong)] bg-white hover:bg-white"
+                  picked === id ? "border-[var(--br-success)] bg-[var(--br-success)]/10 text-[var(--br-chart-secondary)]" : "border-[var(--br-surface-strong)] bg-surface hover:bg-surface"
                 }`}
               >
                 {String(item.text ?? "")}
@@ -2136,7 +2136,7 @@ function Pronunciation({
                     ? "border-[var(--br-success)]/30 bg-[var(--br-success)]/10 text-[var(--br-chart-secondary)]"
                     : isActive
                     ? "border-red-300 bg-red-50 text-red-500"
-                    : "border-[var(--br-surface-strong)] hover:bg-white"
+                    : "border-[var(--br-surface-strong)] hover:bg-surface"
                 }`}
               >
                 {recognized ? <CheckCircle2 size={15} /> : isActive ? <MicOff size={15} /> : <Mic size={15} />}
@@ -2188,7 +2188,7 @@ function Pronunciation({
               ? "border-[var(--br-success)]/30 bg-[var(--br-success)]/10 text-[var(--br-chart-secondary)]"
               : isActive
               ? "border-red-300 bg-red-50 text-red-500"
-              : "border-[var(--br-surface-strong)] hover:bg-white"
+              : "border-[var(--br-surface-strong)] hover:bg-surface"
           }`}
         >
           {allRecognized ? <CheckCircle2 size={15} /> : isActive ? <MicOff size={15} /> : <Mic size={15} />}
@@ -2237,13 +2237,13 @@ function DictationPlayer({
           <button
             type="button"
             onClick={togglePlay}
-            className="inline-flex items-center gap-2 rounded-lg bg-moss px-4 py-2 text-sm font-semibold text-white shadow-xs hover:bg-moss/90"
+            className="inline-flex items-center gap-2 rounded-lg bg-moss px-4 py-2 text-sm font-semibold text-on-dark shadow-xs hover:bg-moss/90"
           >
             <Volume2 size={16} /> Play Audio ({playsCount > 0 ? `${playsCount}x` : "Tap to listen"})
           </button>
 
-          <div className="flex items-center gap-1 rounded-lg border border-black/10 bg-white px-2 py-1 text-xs">
-            <span className="text-black/50 font-medium mr-1">Speed:</span>
+          <div className="flex items-center gap-1 rounded-lg border border-[var(--br-border)] bg-surface px-2 py-1 text-xs">
+            <span className="text-[var(--br-text-muted)] font-medium mr-1">Speed:</span>
             {[0.75, 1.0, 1.25].map((s) => (
               <button
                 key={s}
@@ -2253,7 +2253,7 @@ function DictationPlayer({
                   if (audioRef.current) audioRef.current.playbackRate = s;
                 }}
                 className={`px-2 py-0.5 rounded font-bold transition ${
-                  speed === s ? "bg-moss text-white" : "text-black/70 hover:bg-black/5"
+                  speed === s ? "bg-moss text-on-dark" : "text-[var(--br-text-muted)] hover:bg-black/5"
                 }`}
               >
                 {s}x
@@ -2262,24 +2262,24 @@ function DictationPlayer({
           </div>
         </div>
       ) : (
-        <p className="text-xs text-black/50 italic">No audio clip provided.</p>
+        <p className="text-xs text-[var(--br-text-muted)] italic">No audio clip provided.</p>
       )}
 
       {hint && (
-        <p className="text-xs text-black/60 bg-black/5 px-3 py-2 rounded-lg border border-black/5">
+        <p className="text-xs text-[var(--br-text-muted)] bg-black/5 px-3 py-2 rounded-lg border border-[var(--br-border)]">
           <span className="font-bold">Hint:</span> {hint}
         </p>
       )}
 
       <div>
-        <label className="block text-xs font-semibold text-black/70 mb-1">Type what you hear:</label>
+        <label className="block text-xs font-semibold text-[var(--br-text-muted)] mb-1">Type what you hear:</label>
         <textarea
           rows={3}
           disabled={disabled}
           value={value ?? ""}
           onChange={(e) => onChange(e.target.value)}
           placeholder="Listen carefully and type the exact sentence..."
-          className="w-full rounded-xl border border-black/15 bg-white p-3 text-sm font-medium text-ink focus:border-moss focus:outline-hidden disabled:bg-black/5"
+          className="w-full rounded-xl border border-[var(--br-border)] bg-surface p-3 text-sm font-medium text-ink focus:border-moss focus:outline-hidden disabled:bg-black/5"
         />
       </div>
     </div>
@@ -2310,7 +2310,7 @@ function ListenSelectPlayer({
           <button
             type="button"
             onClick={() => audioRef.current?.play()}
-            className="inline-flex items-center gap-2 rounded-lg bg-moss px-4 py-2 text-sm font-semibold text-white shadow-xs hover:bg-moss/90"
+            className="inline-flex items-center gap-2 rounded-lg bg-moss px-4 py-2 text-sm font-semibold text-on-dark shadow-xs hover:bg-moss/90"
           >
             <Volume2 size={16} /> Listen Prompt Audio
           </button>
@@ -2333,7 +2333,7 @@ function ListenSelectPlayer({
               className={`flex flex-col items-center justify-center gap-2 rounded-xl border-2 p-3.5 text-center transition ${
                 isSelected
                   ? "border-moss bg-moss/10 shadow-xs"
-                  : "border-black/10 bg-white hover:border-moss/40 hover:bg-moss/5"
+                  : "border-[var(--br-border)] bg-surface hover:border-moss/40 hover:bg-moss/5"
               }`}
             >
               {imageUrl && (
@@ -2420,27 +2420,27 @@ function ShadowingPlayer({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-black/10 bg-black/5 p-4 space-y-2">
-        <p className="text-xs font-bold text-black/50 uppercase tracking-wider">Target Phrase to Shadow:</p>
+      <div className="rounded-xl border border-[var(--br-border)] bg-black/5 p-4 space-y-2">
+        <p className="text-xs font-bold text-[var(--br-text-muted)] uppercase tracking-wider">Target Phrase to Shadow:</p>
         <p className="text-base font-bold text-ink">{targetText}</p>
         {audioUrl && (
           <button
             type="button"
             onClick={playNativeAudio}
-            className="inline-flex items-center gap-2 rounded-lg bg-moss px-3 py-1.5 text-xs font-semibold text-white hover:bg-moss/90"
+            className="inline-flex items-center gap-2 rounded-lg bg-moss px-3 py-1.5 text-xs font-semibold text-on-dark hover:bg-moss/90"
           >
             <Volume2 size={14} /> Listen to Native Pronunciation
           </button>
         )}
       </div>
 
-      <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-black/15 p-5 text-center">
+      <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-[var(--br-border)] p-5 text-center">
         {!recording ? (
           <button
             type="button"
             disabled={disabled}
             onClick={startSpeechRecognition}
-            className="inline-flex items-center gap-2 rounded-xl bg-coral px-5 py-2.5 text-sm font-semibold text-white shadow-xs hover:bg-coral/90 disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-xl bg-coral px-5 py-2.5 text-sm font-semibold text-on-dark shadow-xs hover:bg-coral/90 disabled:opacity-50"
           >
             <Mic size={18} /> Repeat After Me (Record)
           </button>
@@ -2449,7 +2449,7 @@ function ShadowingPlayer({
             <button
               type="button"
               onClick={stopSpeechRecognition}
-              className="inline-flex items-center gap-2 rounded-xl bg-coral px-5 py-2.5 text-sm font-semibold text-white animate-pulse"
+              className="inline-flex items-center gap-2 rounded-xl bg-coral px-5 py-2.5 text-sm font-semibold text-on-dark animate-pulse"
             >
               <MicOff size={18} /> Recording... Tap to Finish
             </button>
@@ -2458,8 +2458,8 @@ function ShadowingPlayer({
         )}
 
         {transcript && (
-          <div className="w-full space-y-1 rounded-lg bg-white p-3 border border-black/10 text-left">
-            <p className="text-xs font-semibold text-black/50">Your Spoken Speech:</p>
+          <div className="w-full space-y-1 rounded-lg bg-surface p-3 border border-[var(--br-border)] text-left">
+            <p className="text-xs font-semibold text-[var(--br-text-muted)]">Your Spoken Speech:</p>
             <p className="text-sm font-medium text-ink">&quot;{transcript}&quot;</p>
             {value?.accuracy !== undefined && (
               <p className={`text-xs font-bold ${value.accuracy >= 70 ? "text-moss" : "text-coral"}`}>
@@ -2506,9 +2506,9 @@ function NoteTakingChallengePlayer({
   return (
     <div className="space-y-5">
       {mediaUrl && (
-        <div className="rounded-xl border border-black/10 bg-black/5 p-3 space-y-2">
+        <div className="rounded-xl border border-[var(--br-border)] bg-black/5 p-3 space-y-2">
           {maxPlays > 0 && (
-            <div className="flex items-center justify-between text-xs font-semibold text-black/60 px-1">
+            <div className="flex items-center justify-between text-xs font-semibold text-[var(--br-text-muted)] px-1">
               <span>Media Play Limit:</span>
               <span className={isPlayLimitReached ? "text-coral font-bold" : "text-moss font-bold"}>
                 {playsCount} / {maxPlays} plays used {isPlayLimitReached ? "(Limit Reached)" : ""}
@@ -2549,19 +2549,19 @@ function NoteTakingChallengePlayer({
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Jot down notes while listening..."
-            className="w-full rounded-lg border border-amber-200 bg-white p-2.5 text-xs text-ink focus:border-amber-400 focus:outline-hidden"
+            className="w-full rounded-lg border border-amber-200 bg-surface p-2.5 text-xs text-ink focus:border-amber-400 focus:outline-hidden"
           />
         </div>
 
         <div className="lg:col-span-7 space-y-3">
-          <p className="text-xs font-bold text-black/60 uppercase tracking-wide">Comprehension Questions:</p>
+          <p className="text-xs font-bold text-[var(--br-text-muted)] uppercase tracking-wide">Comprehension Questions:</p>
           {subQuestions.map((subQ, i) => {
             const id = String(subQ.id ?? i);
             const text = String(subQ.text ?? subQ.question ?? "");
             const choices = Array.isArray(subQ.options) ? subQ.options.map(String) : [];
 
             return (
-              <div key={id} className="rounded-xl border border-black/10 bg-white p-3 space-y-2">
+              <div key={id} className="rounded-xl border border-[var(--br-border)] bg-surface p-3 space-y-2">
                 <p className="text-xs font-bold text-ink">
                   {i + 1}. {text}
                 </p>
@@ -2573,7 +2573,7 @@ function NoteTakingChallengePlayer({
                         className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
                           value[id] === choice
                             ? "border-moss bg-moss/10 font-bold text-moss"
-                            : "border-black/10 hover:bg-black/5"
+                            : "border-[var(--br-border)] hover:bg-black/5"
                         }`}
                       >
                         <input
@@ -2594,7 +2594,7 @@ function NoteTakingChallengePlayer({
                     value={value[id] ?? ""}
                     onChange={(e) => onChange({ ...value, [id]: e.target.value })}
                     placeholder="Answer..."
-                    className="w-full rounded-lg border border-black/15 p-2 text-xs text-ink"
+                    className="w-full rounded-lg border border-[var(--br-border)] p-2 text-xs text-ink"
                   />
                 )}
               </div>
@@ -2628,7 +2628,7 @@ function SoundDiscriminationPlayer({
           <button
             type="button"
             onClick={() => new Audio(audioUrl).play()}
-            className="inline-flex items-center gap-2 rounded-lg bg-moss px-4 py-2 text-sm font-semibold text-white shadow-xs hover:bg-moss/90"
+            className="inline-flex items-center gap-2 rounded-lg bg-moss px-4 py-2 text-sm font-semibold text-on-dark shadow-xs hover:bg-moss/90"
           >
             <Volume2 size={16} /> Listen to Minimal Pair Sound
           </button>
@@ -2650,12 +2650,12 @@ function SoundDiscriminationPlayer({
               className={`flex cursor-pointer items-center justify-between gap-3 rounded-xl border-2 p-4 transition ${
                 isSelected
                   ? "border-moss bg-moss/10 shadow-xs"
-                  : "border-black/10 bg-white hover:border-moss/40 hover:bg-moss/5"
+                  : "border-[var(--br-border)] bg-surface hover:border-moss/40 hover:bg-moss/5"
               }`}
             >
               <div>
                 <p className="text-base font-bold text-ink">{word}</p>
-                {phonetic && <p className="text-xs text-black/50 italic">{phonetic}</p>}
+                {phonetic && <p className="text-xs text-[var(--br-text-muted)] italic">{phonetic}</p>}
               </div>
 
               {pairAudio && (
@@ -2665,7 +2665,7 @@ function SoundDiscriminationPlayer({
                     e.stopPropagation();
                     new Audio(pairAudio).play();
                   }}
-                  className="rounded-full bg-black/5 p-2 text-moss hover:bg-moss hover:text-white transition"
+                  className="rounded-full bg-black/5 p-2 text-moss hover:bg-moss hover:text-on-dark transition"
                 >
                   <Volume2 size={16} />
                 </button>
@@ -2718,20 +2718,20 @@ function ListenGapFillPlayer({
   return (
     <div className="space-y-4">
       {audioUrl && (
-        <div className="rounded-xl border border-black/10 bg-black/5 p-4 space-y-3">
+        <div className="rounded-xl border border-[var(--br-border)] bg-black/5 p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-xs font-bold text-black/60">
+            <div className="flex items-center gap-2 text-xs font-bold text-[var(--br-text-muted)]">
               <Headphones size={16} className="text-moss" /> Listen & Complete the Transcript
             </div>
             <div className="flex items-center gap-1 text-xs">
-              <span className="text-black/50 font-medium mr-1">Speed:</span>
+              <span className="text-[var(--br-text-muted)] font-medium mr-1">Speed:</span>
               {[0.75, 1.0, 1.25].map((speed) => (
                 <button
                   key={speed}
                   type="button"
                   onClick={() => handlePlaybackRate(speed)}
                   className={`rounded-md px-2 py-0.5 font-bold transition ${
-                    playbackSpeed === speed ? "bg-moss text-white" : "bg-black/10 text-black/70 hover:bg-black/20"
+                    playbackSpeed === speed ? "bg-moss text-on-dark" : "bg-black/10 text-[var(--br-text-muted)] hover:bg-black/20"
                   }`}
                 >
                   {speed}x
@@ -2752,8 +2752,8 @@ function ListenGapFillPlayer({
         </div>
       )}
 
-      <div className="rounded-xl border border-black/10 bg-white p-5 space-y-3 leading-relaxed text-base font-medium text-ink">
-        <p className="text-xs font-bold text-black/40 uppercase tracking-wider mb-2">Transcript:</p>
+      <div className="rounded-xl border border-[var(--br-border)] bg-surface p-5 space-y-3 leading-relaxed text-base font-medium text-ink">
+        <p className="text-xs font-bold text-[var(--br-text-muted)] uppercase tracking-wider mb-2">Transcript:</p>
         <div className="flex flex-wrap items-center gap-2">
           {parts.map((part, idx) => {
             const isBlank = /^(___|\[[^\]]+\])$/.test(part);
@@ -2825,7 +2825,7 @@ function SentenceCompletionPlayer({
         <p className="text-base font-bold text-ink leading-relaxed">{stem}</p>
         {connectors.length > 0 && (
           <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-[var(--br-chart-primary)]/10">
-            <span className="text-[11px] font-bold text-black/50 uppercase tracking-wide">Suggested Connectors:</span>
+            <span className="text-[11px] font-bold text-[var(--br-text-muted)] uppercase tracking-wide">Suggested Connectors:</span>
             <div className="flex flex-wrap gap-1.5">
               {connectors.map((c) => (
                 <span key={c} className="rounded-xl bg-[var(--br-chart-primary)]/10 border border-[var(--br-chart-primary)]/20 px-2.5 py-1 text-xs font-bold text-[var(--br-chart-primary)]">
@@ -2843,7 +2843,7 @@ function SentenceCompletionPlayer({
         value={text}
         onChange={(e) => onChange({ ...value, text: e.target.value })}
         placeholder="Type here to finish or expand the sentence..."
-        className="w-full rounded-2xl border border-black/10 p-4 text-sm font-medium text-ink bg-white shadow-xs focus:border-[var(--br-chart-primary)] focus:ring-1 focus:ring-[var(--br-chart-primary)] focus:outline-hidden disabled:bg-black/5 transition"
+        className="w-full rounded-2xl border border-[var(--br-border)] p-4 text-sm font-medium text-ink bg-surface shadow-xs focus:border-[var(--br-chart-primary)] focus:ring-1 focus:ring-[var(--br-chart-primary)] focus:outline-hidden disabled:bg-black/5 transition"
       />
 
       {submitted && (
@@ -2906,8 +2906,8 @@ function EssayWritingPlayer({
         </div>
       )}
 
-      <div className="flex items-center justify-between rounded-2xl border border-black/10 bg-black/5 px-4 py-3 text-xs font-bold shadow-xs">
-        <span className="text-black/50">Target Length: {minWords}–{maxWords} words</span>
+      <div className="flex items-center justify-between rounded-2xl border border-[var(--br-border)] bg-black/5 px-4 py-3 text-xs font-bold shadow-xs">
+        <span className="text-[var(--br-text-muted)]">Target Length: {minWords}–{maxWords} words</span>
         <span className={wordCount >= minWords && wordCount <= maxWords ? "text-[var(--br-chart-primary)]" : "text-amber-700"}>
           Current Count: {wordCount} words
         </span>
@@ -2919,7 +2919,7 @@ function EssayWritingPlayer({
         value={text}
         onChange={(e) => onChange({ ...value, text: e.target.value })}
         placeholder="Begin writing your response essay here..."
-        className="w-full rounded-2xl border border-black/10 p-4 text-sm font-medium text-ink bg-white shadow-xs focus:border-[var(--br-chart-primary)] focus:ring-1 focus:ring-[var(--br-chart-primary)] focus:outline-hidden disabled:bg-black/5 leading-relaxed transition"
+        className="w-full rounded-2xl border border-[var(--br-border)] p-4 text-sm font-medium text-ink bg-surface shadow-xs focus:border-[var(--br-chart-primary)] focus:ring-1 focus:ring-[var(--br-chart-primary)] focus:outline-hidden disabled:bg-black/5 leading-relaxed transition"
       />
 
       {submitted && (
@@ -2982,13 +2982,13 @@ function EmailLetterWritingPlayer({
         </div>
       )}
 
-      <div className="rounded-2xl border border-black/10 bg-white p-4 space-y-2 text-xs shadow-xs">
-        <div className="flex items-center gap-2 border-b border-black/5 pb-2">
-          <span className="font-bold text-black/40 w-16 uppercase">To:</span>
+      <div className="rounded-2xl border border-[var(--br-border)] bg-surface p-4 space-y-2 text-xs shadow-xs">
+        <div className="flex items-center gap-2 border-b border-[var(--br-border)] pb-2">
+          <span className="font-bold text-[var(--br-text-muted)] w-16 uppercase">To:</span>
           <span className="font-black text-[var(--br-chart-primary)]">{recipient}</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="font-bold text-black/40 w-16 uppercase">Tone:</span>
+          <span className="font-bold text-[var(--br-text-muted)] w-16 uppercase">Tone:</span>
           <span className="rounded-xl bg-[var(--br-chart-primary)]/10 px-3 py-1 font-black text-[var(--br-chart-primary)] uppercase tracking-wider">{tone}</span>
         </div>
       </div>
@@ -2999,7 +2999,7 @@ function EmailLetterWritingPlayer({
         value={text}
         onChange={(e) => onChange({ ...value, text: e.target.value })}
         placeholder="Compose your email/letter here..."
-        className="w-full rounded-2xl border border-black/10 p-4 text-sm font-medium text-ink bg-white shadow-xs focus:border-[var(--br-chart-primary)] focus:ring-1 focus:ring-[var(--br-chart-primary)] focus:outline-hidden disabled:bg-black/5 transition"
+        className="w-full rounded-2xl border border-[var(--br-border)] p-4 text-sm font-medium text-ink bg-surface shadow-xs focus:border-[var(--br-chart-primary)] focus:ring-1 focus:ring-[var(--br-chart-primary)] focus:outline-hidden disabled:bg-black/5 transition"
       />
 
       {submitted && (
@@ -3056,7 +3056,7 @@ function TranslationPlayer({
       <div className="rounded-3xl border border-[var(--br-chart-primary)]/15 bg-[var(--br-chart-primary)]/5 p-5 space-y-3">
         <div className="flex items-center justify-between text-xs font-black text-[var(--br-chart-primary)] uppercase tracking-wider">
           <span>Translate to {targetLang}</span>
-          <span className="text-[10px] text-black/40">From: {sourceLang}</span>
+          <span className="text-[10px] text-[var(--br-text-muted)]">From: {sourceLang}</span>
         </div>
         <p className="text-lg font-bold text-ink leading-relaxed">&quot;{sourceText}&quot;</p>
       </div>
@@ -3067,7 +3067,7 @@ function TranslationPlayer({
         value={text}
         onChange={(e) => onChange({ ...value, text: e.target.value })}
         placeholder={`Write your translation in ${targetLang} here...`}
-        className="w-full rounded-2xl border border-black/10 p-4 text-sm font-medium text-ink bg-white shadow-xs focus:border-[var(--br-chart-primary)] focus:ring-1 focus:ring-[var(--br-chart-primary)] focus:outline-hidden disabled:bg-black/5 transition"
+        className="w-full rounded-2xl border border-[var(--br-border)] p-4 text-sm font-medium text-ink bg-surface shadow-xs focus:border-[var(--br-chart-primary)] focus:ring-1 focus:ring-[var(--br-chart-primary)] focus:outline-hidden disabled:bg-black/5 transition"
       />
 
       {submitted && (
@@ -3120,11 +3120,11 @@ function ParaphrasePracticePlayer({
 
   return (
     <div className="space-y-5">
-      <div className="rounded-3xl border border-black/10 bg-black/5 p-5 space-y-3">
-        <p className="text-xs font-black text-black/50 uppercase tracking-wider">Original Text to Paraphrase</p>
+      <div className="rounded-3xl border border-[var(--br-border)] bg-black/5 p-5 space-y-3">
+        <p className="text-xs font-black text-[var(--br-text-muted)] uppercase tracking-wider">Original Text to Paraphrase</p>
         <p className="text-sm font-semibold text-ink leading-relaxed">&quot;{originalText}&quot;</p>
         {forbidden.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-black/10 text-xs">
+          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-[var(--br-border)] text-xs">
             <span className="font-bold text-rose-600 uppercase tracking-wider text-[10px]">Avoid these words:</span>
             <div className="flex flex-wrap gap-1">
               {forbidden.map((f) => (
@@ -3143,7 +3143,7 @@ function ParaphrasePracticePlayer({
         value={text}
         onChange={(e) => onChange({ ...value, text: e.target.value })}
         placeholder="Paraphrase the original sentence..."
-        className="w-full rounded-2xl border border-black/10 p-4 text-sm font-medium text-ink bg-white shadow-xs focus:border-[var(--br-chart-primary)] focus:ring-1 focus:ring-[var(--br-chart-primary)] focus:outline-hidden disabled:bg-black/5 transition"
+        className="w-full rounded-2xl border border-[var(--br-border)] p-4 text-sm font-medium text-ink bg-surface shadow-xs focus:border-[var(--br-chart-primary)] focus:ring-1 focus:ring-[var(--br-chart-primary)] focus:outline-hidden disabled:bg-black/5 transition"
       />
 
       {submitted && (
@@ -3210,7 +3210,7 @@ function SentenceCombiningPlayer({
         value={text}
         onChange={(e) => onChange({ ...value, text: e.target.value })}
         placeholder="Combine into one elegant complex sentence..."
-        className="w-full rounded-2xl border border-black/10 p-4 text-sm font-medium text-ink bg-white shadow-xs focus:border-[var(--br-chart-primary)] focus:ring-1 focus:ring-[var(--br-chart-primary)] focus:outline-hidden disabled:bg-black/5 transition"
+        className="w-full rounded-2xl border border-[var(--br-border)] p-4 text-sm font-medium text-ink bg-surface shadow-xs focus:border-[var(--br-chart-primary)] focus:ring-1 focus:ring-[var(--br-chart-primary)] focus:outline-hidden disabled:bg-black/5 transition"
       />
 
       {submitted && (
@@ -3265,7 +3265,7 @@ function CreativeWritingPlayer({
   return (
     <div className="space-y-5">
       {imageUrl && (
-        <div className="rounded-3xl border border-black/10 bg-black/5 p-3 text-center overflow-hidden">
+        <div className="rounded-3xl border border-[var(--br-border)] bg-black/5 p-3 text-center overflow-hidden">
           <img src={imageUrl} alt="Creative prompt" className="max-h-64 mx-auto rounded-2xl object-contain shadow-xs transition hover:scale-[1.01]" />
         </div>
       )}
@@ -3279,7 +3279,7 @@ function CreativeWritingPlayer({
 
       {requiredVocab.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 text-xs">
-          <span className="font-bold text-black/50 uppercase tracking-wide text-[10px]">Required Vocabulary:</span>
+          <span className="font-bold text-[var(--br-text-muted)] uppercase tracking-wide text-[10px]">Required Vocabulary:</span>
           <div className="flex flex-wrap gap-1">
             {requiredVocab.map((word) => {
               const included = text.toLowerCase().includes(word.toLowerCase());
@@ -3287,7 +3287,7 @@ function CreativeWritingPlayer({
                 <span
                   key={word}
                   className={`rounded-lg px-2.5 py-1 font-bold transition-all duration-300 ${
-                    included ? "bg-[var(--br-chart-primary)] text-white shadow-xs" : "bg-black/5 text-black/50"
+                    included ? "bg-[var(--br-chart-primary)] text-on-dark shadow-xs" : "bg-black/5 text-[var(--br-text-muted)]"
                   }`}
                 >
                   {word} {included ? "✓" : ""}
@@ -3304,7 +3304,7 @@ function CreativeWritingPlayer({
         value={text}
         onChange={(e) => onChange({ ...value, text: e.target.value })}
         placeholder="Continue the story writing response here..."
-        className="w-full rounded-2xl border border-black/10 p-4 text-sm font-medium text-ink bg-white shadow-xs focus:border-[var(--br-chart-primary)] focus:ring-1 focus:ring-[var(--br-chart-primary)] focus:outline-hidden disabled:bg-black/5 leading-relaxed transition"
+        className="w-full rounded-2xl border border-[var(--br-border)] p-4 text-sm font-medium text-ink bg-surface shadow-xs focus:border-[var(--br-chart-primary)] focus:ring-1 focus:ring-[var(--br-chart-primary)] focus:outline-hidden disabled:bg-black/5 leading-relaxed transition"
       />
 
       {submitted && (
@@ -3357,14 +3357,14 @@ function PeerReviewEditingPlayer({
 
   return (
     <div className="space-y-5">
-      <div className="rounded-3xl border border-black/10 bg-black/5 p-5 space-y-3">
-        <p className="text-xs font-black text-black/50 uppercase tracking-wider">Sample Peer Draft to Edit</p>
-        <div className="rounded-2xl bg-white p-4 border border-black/5 text-sm font-medium text-ink leading-relaxed shadow-xs">
+      <div className="rounded-3xl border border-[var(--br-border)] bg-black/5 p-5 space-y-3">
+        <p className="text-xs font-black text-[var(--br-text-muted)] uppercase tracking-wider">Sample Peer Draft to Edit</p>
+        <div className="rounded-2xl bg-surface p-4 border border-[var(--br-border)] text-sm font-medium text-ink leading-relaxed shadow-xs">
           {sampleDraft}
         </div>
         {focusAreas.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-black/10 text-xs">
-            <span className="font-bold text-black/50 uppercase tracking-wide text-[10px]">Focus Areas:</span>
+          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-[var(--br-border)] text-xs">
+            <span className="font-bold text-[var(--br-text-muted)] uppercase tracking-wide text-[10px]">Focus Areas:</span>
             <div className="flex flex-wrap gap-1">
               {focusAreas.map((f) => (
                 <span key={f} className="rounded-lg bg-[var(--br-chart-primary)]/10 border border-[var(--br-chart-primary)]/20 px-2.5 py-0.5 font-bold text-[var(--br-chart-primary)]">
@@ -3382,7 +3382,7 @@ function PeerReviewEditingPlayer({
         value={text}
         onChange={(e) => onChange({ ...value, text: e.target.value })}
         placeholder="Input your corrected version and constructive comments here..."
-        className="w-full rounded-2xl border border-black/10 p-4 text-sm font-medium text-ink bg-white shadow-xs focus:border-[var(--br-chart-primary)] focus:ring-1 focus:ring-[var(--br-chart-primary)] focus:outline-hidden disabled:bg-black/5 leading-relaxed transition"
+        className="w-full rounded-2xl border border-[var(--br-border)] p-4 text-sm font-medium text-ink bg-surface shadow-xs focus:border-[var(--br-chart-primary)] focus:ring-1 focus:ring-[var(--br-chart-primary)] focus:outline-hidden disabled:bg-black/5 leading-relaxed transition"
       />
 
       {submitted && (

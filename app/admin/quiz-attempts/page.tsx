@@ -38,28 +38,28 @@ export default async function AdminQuizAttemptsPage({ searchParams }: { searchPa
     <main className="mx-auto max-w-6xl px-4 py-8">
       <div className="mb-6">
         <h1 className="text-3xl font-semibold">Quiz attempts</h1>
-        <p className="mt-2 text-sm text-black/60">All learner quiz attempts.</p>
+        <p className="mt-2 text-sm text-[var(--br-text-muted)]">All learner quiz attempts.</p>
       </div>
 
-      <form className="mb-4 grid gap-3 rounded-lg border border-black/10 bg-white p-4 shadow-sm md:grid-cols-[1fr_260px_auto]">
+      <form className="mb-4 grid gap-3 rounded-lg border border-[var(--br-border)] bg-surface p-4 shadow-sm md:grid-cols-[1fr_260px_auto]">
         <input
           name="search"
           defaultValue={params.search ?? ""}
           placeholder="Search learner name or email"
-          className="rounded-md border border-black/15 px-3 py-2 text-sm"
+          className="rounded-md border border-[var(--br-border)] px-3 py-2 text-sm"
         />
-        <select name="quiz" defaultValue={selectedQuiz} className="rounded-md border border-black/15 px-3 py-2 text-sm">
+        <select name="quiz" defaultValue={selectedQuiz} className="rounded-md border border-[var(--br-border)] px-3 py-2 text-sm">
           <option value="">All quizzes</option>
           {(quizzes ?? []).map((quiz) => (
             <option key={quiz.id} value={quiz.id}>{quiz.title}</option>
           ))}
         </select>
-        <button className="rounded-md bg-dark px-4 py-2 text-sm font-medium text-white">Filter</button>
+        <button className="rounded-md bg-dark px-4 py-2 text-sm font-medium text-on-dark">Filter</button>
       </form>
 
-      <div className="overflow-x-auto rounded-lg border border-black/10 bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-lg border border-[var(--br-border)] bg-surface shadow-sm">
         <table className="min-w-[820px] w-full text-left text-sm">
-          <thead className="bg-slate-50 text-xs uppercase text-black/50">
+          <thead className="bg-surface-muted text-xs uppercase text-[var(--br-text-muted)]">
             <tr>
               <th className="p-3">Learner</th>
               <th className="p-3">Email</th>
@@ -78,7 +78,7 @@ export default async function AdminQuizAttemptsPage({ searchParams }: { searchPa
               const title = quiz?.title ?? "Quiz";
               const percent = attempt.total ? Math.round((attempt.score / attempt.total) * 100) : 0;
               return (
-                <tr key={attempt.id} className="border-t border-black/10">
+                <tr key={attempt.id} className="border-t border-[var(--br-border)]">
                   <td className="p-3">{learnerName(profile)}</td>
                   <td className="p-3">{user?.email ?? "Unknown"}</td>
                   <td className="p-3">{title}</td>
@@ -90,7 +90,7 @@ export default async function AdminQuizAttemptsPage({ searchParams }: { searchPa
               );
             })}
             {!filteredAttempts.length ? (
-              <tr><td colSpan={7} className="p-6 text-center text-black/55">No quiz attempts found.</td></tr>
+              <tr><td colSpan={7} className="p-6 text-center text-[var(--br-text-muted)]">No quiz attempts found.</td></tr>
             ) : null}
           </tbody>
         </table>
