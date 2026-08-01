@@ -151,7 +151,7 @@ export default async function ContentLibraryPage({
                 <input name="skill" placeholder="Skill" className="min-w-0 rounded-md border border-black/15 px-2 py-2 text-sm" />
                 <input name="topic" placeholder="Topic" className="min-w-0 rounded-md border border-black/15 px-2 py-2 text-sm" />
               </div>
-              <button className="rounded-md bg-ink px-3 py-2 text-sm font-semibold text-white">Save to library</button>
+              <button className="rounded-md bg-dark px-3 py-2 text-sm font-semibold text-white">Save to library</button>
             </form>
           ))}
         </div>

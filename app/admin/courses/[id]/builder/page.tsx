@@ -169,7 +169,7 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
               </label>
             </div>
             <div className="flex shrink-0 items-center gap-1.5">
-              <button className="rounded-lg bg-ink px-3 py-2 text-xs font-semibold text-white">Save section</button>
+              <button className="rounded-lg bg-dark px-3 py-2 text-xs font-semibold text-white">Save section</button>
               <button
                 formAction={moveCourseSection.bind(null, course.id, section.id, "up")}
                 disabled={sectionIndex === 0}
@@ -344,7 +344,7 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
                 </label>
               </div>
             </div>
-            <button className="w-fit rounded-lg bg-ink px-4 py-2 text-sm font-semibold text-white">Save landing page</button>
+            <button className="w-fit rounded-lg bg-dark px-4 py-2 text-sm font-semibold text-white">Save landing page</button>
           </form>
         </BuilderDialog>
 
@@ -383,7 +383,7 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
             <input type="hidden" name="coverImagePath" value={course.cover_image_path ?? ""} />
             <input type="hidden" name="thumbnailPath" value={course.thumbnail_path ?? ""} />
             
-            <button className="w-fit rounded-lg bg-ink px-4 py-2 text-sm font-semibold text-white">Save pricing</button>
+            <button className="w-fit rounded-lg bg-dark px-4 py-2 text-sm font-semibold text-white">Save pricing</button>
           </form>
         </BuilderDialog>
 
@@ -448,7 +448,7 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
               <label className="text-sm font-medium">Attempt evidence<select name="evidenceSelection" defaultValue={course.evidence_selection ?? "LATEST"} className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2"><option value="LATEST">Latest attempt</option><option value="BEST">Best attempt</option><option value="FIRST">First attempt</option></select></label>
             </div>
             <p className="rounded-xl bg-[#F6F7FB] p-3 text-sm text-black/60">Attainment measures performance on attempted evidence. Coverage shows how much mapped evidence has been attempted. Both thresholds must be met.</p>
-            <button className="w-fit rounded-lg bg-ink px-4 py-2 text-sm font-semibold text-white">Save policy</button>
+            <button className="w-fit rounded-lg bg-dark px-4 py-2 text-sm font-semibold text-white">Save policy</button>
           </form>
         </BuilderDialog>
 

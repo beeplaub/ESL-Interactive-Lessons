@@ -19,7 +19,7 @@ export default async function ResetPasswordPage({
           </p>
           <a
             href="/forgot-password"
-            className="mt-4 inline-block rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white"
+            className="mt-4 inline-block rounded-md bg-dark px-4 py-2 text-sm font-semibold text-white"
           >
             Request a new link
           </a>
@@ -43,7 +43,7 @@ export default async function ResetPasswordPage({
           </p>
           <a
             href="/forgot-password"
-            className="mt-4 inline-block rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white"
+            className="mt-4 inline-block rounded-md bg-dark px-4 py-2 text-sm font-semibold text-white"
           >
             Request a new link
           </a>

@@ -41,7 +41,7 @@ export default async function AdminQuizzesPage() {
           <Link href="/admin/quizzes/trash" className="inline-flex items-center gap-2 rounded-md border border-black/15 px-4 py-2 text-sm font-semibold hover:bg-black/5">
             <Trash2 size={16} /> Trash{trashedCount ? ` (${trashedCount})` : ""}
           </Link>
-          <Link href="/admin/quizzes/new" className="inline-flex items-center gap-2 rounded-md bg-ink px-4 py-2 text-sm font-medium text-white">
+          <Link href="/admin/quizzes/new" className="inline-flex items-center gap-2 rounded-md bg-dark px-4 py-2 text-sm font-medium text-white">
             <Plus size={16} /> New quiz
           </Link>
         </div>

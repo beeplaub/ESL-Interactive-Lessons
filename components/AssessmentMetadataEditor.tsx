@@ -124,7 +124,7 @@ function NewLearningTarget() {
     >
       <select name="targetType" className="rounded-lg border border-black/15 px-2 py-2 text-sm"><option value="VOCABULARY">Vocabulary</option><option value="IDIOM">Idiom</option><option value="GRAMMAR">Grammar</option><option value="FUNCTIONAL_LANGUAGE">Functional language</option><option value="PRONUNCIATION">Pronunciation</option><option value="OTHER">Other</option></select>
       <input name="label" required placeholder="e.g. present perfect continuous" className="min-w-0 rounded-lg border border-black/15 px-3 py-2 text-sm" />
-      <button disabled={pending} className="rounded-lg bg-ink px-3 py-2 text-xs font-bold text-white">{pending ? "Adding..." : "Add"}</button>
+      <button disabled={pending} className="rounded-lg bg-dark px-3 py-2 text-xs font-bold text-white">{pending ? "Adding..." : "Add"}</button>
       {message ? <p className="text-xs text-black/55 sm:col-span-3">{message}</p> : null}
     </form>
   );

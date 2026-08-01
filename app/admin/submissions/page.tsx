@@ -113,7 +113,7 @@ export default function TeacherSubmissionsPage() {
                 type="button"
                 onClick={() => setFilter(f)}
                 className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${
-                  filter === f ? "bg-ink text-white" : "text-black/60 hover:text-ink"
+                  filter === f ? "bg-dark text-white" : "text-black/60 hover:text-ink"
                 }`}
               >
                 {f === "PENDING" ? "Pending" : f === "GRADED" ? "Graded" : "All Submissions"}

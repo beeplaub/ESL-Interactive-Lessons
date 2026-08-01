@@ -342,7 +342,7 @@ export function EditItemModal({ action, deleteAction, item, label, status, count
                 </button>
                 <div className="flex gap-2">
                   <button type="button" onClick={close} className="rounded-md border border-black/15 px-4 py-2 text-sm">Cancel</button>
-                  <button type="submit" disabled={isPending} className="rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+                  <button type="submit" disabled={isPending} className="rounded-md bg-dark px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
                     {isPending ? "Saving\u2026" : "Save item"}
                   </button>
                 </div>

@@ -39,7 +39,7 @@ export default async function TeacherClassesPage() {
             <input name="name" required placeholder="Class name" className="rounded-md border border-black/15 px-3 py-2 text-sm" />
             <input name="level" placeholder="Level, e.g. B1" className="rounded-md border border-black/15 px-3 py-2 text-sm" />
             <textarea name="description" rows={4} placeholder="Short description (optional)" className="rounded-md border border-black/15 px-3 py-2 text-sm" />
-            <button className="inline-flex w-fit items-center gap-2 rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white"><Plus size={15} /> Create class</button>
+            <button className="inline-flex w-fit items-center gap-2 rounded-md bg-dark px-4 py-2 text-sm font-semibold text-white"><Plus size={15} /> Create class</button>
           </div>
         </form>
 

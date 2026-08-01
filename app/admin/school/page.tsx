@@ -116,7 +116,7 @@ export default async function SchoolWorkspacePage({
               key={item.id}
               href={`/admin/school?org=${item.id}`}
               className={`rounded-md px-3 py-2 text-xs font-semibold ${
-                item.id === organization.id ? "bg-ink text-white" : "border border-black/15 hover:bg-black/5"
+                item.id === organization.id ? "bg-dark text-white" : "border border-black/15 hover:bg-black/5"
               }`}
             >
               {item.brand_name || item.name}

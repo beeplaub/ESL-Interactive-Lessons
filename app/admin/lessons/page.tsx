@@ -64,7 +64,7 @@ export default async function AdminLessonsPage({
           </Link>
           <Link
             href="/admin/lessons/new"
-            className="inline-flex items-center gap-2 rounded-md bg-ink px-4 py-2 text-sm font-medium text-white"
+            className="inline-flex items-center gap-2 rounded-md bg-dark px-4 py-2 text-sm font-medium text-white"
           >
             <Plus size={16} /> New lesson
           </Link>
@@ -92,7 +92,7 @@ export default async function AdminLessonsPage({
           <FilterSelect name="topic" current={value("topic")} label="All topics" values={topics} />
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
-          <button className="rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white">
+          <button className="rounded-md bg-dark px-4 py-2 text-sm font-semibold text-white">
             Apply filters
           </button>
           {hasActiveFilters ? (

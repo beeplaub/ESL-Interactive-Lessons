@@ -676,7 +676,7 @@ function LiveSpeakTranslatePanel({ activity, lessonId, previewOnly, onNext }: { 
       </div>
       {showTranscript && translation ? <div className="mt-4 rounded-lg border border-black/8 bg-white/80 p-3 text-sm text-black/70"><span className="mr-2 text-xs font-bold uppercase text-violetglow">English</span>{translation}</div> : null}
       {message ? <p className={`mt-3 text-center text-xs ${state === "error" ? "text-coral" : "text-black/55"}`}>{message}</p> : null}
-      {state === "finished" ? <button type="button" onClick={onNext} className="mt-4 w-full rounded-lg bg-ink px-4 py-2.5 text-sm font-bold text-white">Continue</button> : null}
+      {state === "finished" ? <button type="button" onClick={onNext} className="mt-4 w-full rounded-lg bg-dark px-4 py-2.5 text-sm font-bold text-white">Continue</button> : null}
     </section>
   );
 }
@@ -1095,7 +1095,7 @@ function AiRoleplayPanel({
           <button type="button" onClick={resetConversation} className="inline-flex items-center gap-1.5 rounded-md border border-black/15 px-4 py-2 text-sm font-semibold hover:bg-black/5">
             <RefreshCw size={14} /> Try Again
           </button>
-          <button type="button" onClick={onNext} className="inline-flex items-center gap-2 rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white">
+          <button type="button" onClick={onNext} className="inline-flex items-center gap-2 rounded-md bg-dark px-4 py-2 text-sm font-semibold text-white">
             Next <ChevronRight size={15} />
           </button>
         </div>
@@ -1517,7 +1517,7 @@ export function LessonActivityPanel({
               <button type="button" onClick={retake} className="inline-flex items-center gap-1.5 rounded-md border border-black/15 px-4 py-2 text-sm font-semibold hover:bg-black/5">
                 <RotateCcw size={14} /> Retake
               </button>
-              <button type="button" onClick={onNext} className="inline-flex items-center gap-2 rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white">
+              <button type="button" onClick={onNext} className="inline-flex items-center gap-2 rounded-md bg-dark px-4 py-2 text-sm font-semibold text-white">
                 Next <ChevronRight size={15} />
               </button>
             </>

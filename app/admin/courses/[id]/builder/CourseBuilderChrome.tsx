@@ -224,7 +224,7 @@ function AddSectionDialog({ action }: { action: (formData: FormData) => void | P
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-ink px-3 py-2 text-sm font-semibold text-white"
+        className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-dark px-3 py-2 text-sm font-semibold text-white"
       >
         <Plus size={14} /> Add section
       </button>
@@ -257,7 +257,7 @@ function AddSectionDialog({ action }: { action: (formData: FormData) => void | P
               {error ? <p className="rounded-lg bg-coral/10 px-3 py-2 text-sm text-coral">{error}</p> : null}
               <div className="mt-2 flex justify-end gap-2 border-t border-black/10 pt-4">
                 <button type="button" onClick={() => setOpen(false)} className="rounded-lg border border-black/15 px-4 py-2 text-sm">Cancel</button>
-                <button disabled={isPending} className="rounded-lg bg-ink px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+                <button disabled={isPending} className="rounded-lg bg-dark px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
                   {isPending ? "Adding..." : "Add section"}
                 </button>
               </div>

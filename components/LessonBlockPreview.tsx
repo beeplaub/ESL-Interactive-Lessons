@@ -264,7 +264,7 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
     const src = mediaUrl(path, "audio");
     const youtubeId = getYouTubeId(path);
     return (
-      <div className="rounded-lg border border-black/10 bg-ink p-3 text-white sm:p-4">
+      <div className="rounded-lg border border-black/10 bg-dark p-3 text-white sm:p-4">
         <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
           <Headphones size={18} /> {asString(content.label) || "Audio"}
         </div>
@@ -589,7 +589,7 @@ function CustomAudioPlayer({ src }: { src: string }) {
       </div>
       {openSettings ? (
         <div className="mt-3 rounded-md bg-white/10 p-3 text-sm">
-          <label className="flex items-center justify-between gap-3">Speed<select value={speed} onChange={(event) => { const next = Number(event.target.value); setSpeed(next); if (audioRef.current) audioRef.current.playbackRate = next; }} className="rounded-md border border-white/20 bg-ink px-2 py-1 text-white">{[0.75, 1, 1.25, 1.5, 2].map((value) => <option key={value} value={value}>{value}x</option>)}</select></label>
+          <label className="flex items-center justify-between gap-3">Speed<select value={speed} onChange={(event) => { const next = Number(event.target.value); setSpeed(next); if (audioRef.current) audioRef.current.playbackRate = next; }} className="rounded-md border border-white/20 bg-dark px-2 py-1 text-white">{[0.75, 1, 1.25, 1.5, 2].map((value) => <option key={value} value={value}>{value}x</option>)}</select></label>
           <p className="mt-2 text-xs text-white/55">Audio quality depends on the source link.</p>
         </div>
       ) : null}
@@ -617,7 +617,7 @@ function YouTubeAudioPlayer({ videoId }: { videoId: string }) {
         <label className="ml-auto flex items-center gap-2 text-xs text-white/70"><Volume2 size={15} /><input type="range" min="0" max="100" step="5" value={volume} onChange={(event) => setVolume(Number(event.target.value))} /></label>
         <button type="button" onClick={() => setOpenSettings((current) => !current)} className="rounded-md bg-white/10 p-2 hover:bg-white/20" aria-label="Audio settings"><Settings size={16} /></button>
       </div>
-      {openSettings ? (<div className="mt-3 rounded-md bg-white/10 p-3 text-sm"><label className="flex items-center justify-between gap-3">Speed<select value={speed} onChange={(event) => setSpeed(Number(event.target.value))} className="rounded-md border border-white/20 bg-ink px-2 py-1 text-white">{[0.75, 1, 1.25, 1.5, 2].map((value) => <option key={value} value={value}>{value}x</option>)}</select></label></div>) : null}
+      {openSettings ? (<div className="mt-3 rounded-md bg-white/10 p-3 text-sm"><label className="flex items-center justify-between gap-3">Speed<select value={speed} onChange={(event) => setSpeed(Number(event.target.value))} className="rounded-md border border-white/20 bg-dark px-2 py-1 text-white">{[0.75, 1, 1.25, 1.5, 2].map((value) => <option key={value} value={value}>{value}x</option>)}</select></label></div>) : null}
     </div>
   );
 }
@@ -743,7 +743,7 @@ function CustomYouTubeVideoPlayer({
   function fullscreen() { void wrapperRef.current?.requestFullscreen?.(); }
 
   return (
-    <div ref={wrapperRef} className="overflow-hidden rounded-lg bg-ink text-white">
+    <div ref={wrapperRef} className="overflow-hidden rounded-lg bg-dark text-white">
       <div className="relative aspect-video bg-black overflow-hidden">
         <iframe
           ref={iframeRef}
@@ -776,12 +776,12 @@ function CustomYouTubeVideoPlayer({
         <button type="button" onClick={() => seekRelative(10)} className="shrink-0 rounded-md bg-white/10 p-1.5 hover:bg-white/20" aria-label="Forward 10 seconds"><RotateCw size={15} /></button>
         <div className="relative ml-auto shrink-0 z-30">
           <button type="button" onClick={() => setOpenVolume((current) => !current)} className="rounded-md bg-white/10 p-1.5 hover:bg-white/20" aria-label="Volume"><Volume2 size={15} /></button>
-          {openVolume ? (<div className="absolute bottom-9 right-0 rounded-md bg-ink/95 p-3 shadow-xl"><input aria-label="Volume" type="range" min="0" max="100" step="5" value={volume} onChange={(event) => setVolume(Number(event.target.value))} className="h-24 w-6 [writing-mode:vertical-rl]" /></div>) : null}
+          {openVolume ? (<div className="absolute bottom-9 right-0 rounded-md bg-dark/95 p-3 shadow-xl"><input aria-label="Volume" type="range" min="0" max="100" step="5" value={volume} onChange={(event) => setVolume(Number(event.target.value))} className="h-24 w-6 [writing-mode:vertical-rl]" /></div>) : null}
         </div>
         <button type="button" onClick={fullscreen} className="shrink-0 rounded-md bg-white/10 p-1.5 hover:bg-white/20" aria-label="Fullscreen"><Maximize size={15} /></button>
         <button type="button" onClick={() => setOpenSettings((current) => !current)} className="shrink-0 rounded-md bg-white/10 p-1.5 hover:bg-white/20" aria-label="Video settings"><Settings size={15} /></button>
       </div>
-      {openSettings ? (<div className="border-t border-white/10 p-3 text-sm"><label className="flex items-center justify-between gap-3">Speed<select value={speed} onChange={(event) => setSpeed(Number(event.target.value))} className="rounded-md border border-white/20 bg-ink px-2 py-1 text-white">{[0.75, 1, 1.25, 1.5, 2].map((value) => <option key={value} value={value}>{value}x</option>)}</select></label></div>) : null}
+      {openSettings ? (<div className="border-t border-white/10 p-3 text-sm"><label className="flex items-center justify-between gap-3">Speed<select value={speed} onChange={(event) => setSpeed(Number(event.target.value))} className="rounded-md border border-white/20 bg-dark px-2 py-1 text-white">{[0.75, 1, 1.25, 1.5, 2].map((value) => <option key={value} value={value}>{value}x</option>)}</select></label></div>) : null}
     </div>
   );
 }

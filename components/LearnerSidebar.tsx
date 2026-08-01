@@ -72,8 +72,8 @@ export function LearnerSidebar({
 
   return (
     <aside
-      style={{ backgroundColor: "var(--br-dark-card)" }}
-      className={`sticky top-6 hidden max-h-[calc(100vh-48px)] flex-col overflow-y-auto rounded-[24px] border border-white/5 backdrop-blur-xl p-5 shadow-[0_18px_50px_rgba(0,0,0,0.35)] [scrollbar-width:none] transition-[width] duration-200 min-[1180px]:flex [&::-webkit-scrollbar]:hidden ${
+      style={{ backgroundColor: "var(--br-dark-card)", color: "var(--br-text-on-dark)" }}
+      className={`sticky top-6 hidden max-h-[calc(100vh-48px)] flex-col overflow-y-auto rounded-[24px] border border-white/5 backdrop-blur-xl p-5 shadow-[var(--br-shadow)] [scrollbar-width:none] transition-[width] duration-200 min-[1180px]:flex [&::-webkit-scrollbar]:hidden ${
         collapsed ? "w-[84px] min-w-[84px] px-3" : "w-[240px] min-w-[240px]"
       }`}
     >
@@ -85,7 +85,7 @@ export function LearnerSidebar({
           </div>
           {collapsed ? null : (
             <div className="min-w-0">
-              <div className="truncate text-base font-extrabold leading-tight text-white tracking-tight">{schoolBrand?.name || "BrenUp"}</div>
+              <div className="truncate text-base font-extrabold leading-tight text-[var(--br-text-on-dark)] tracking-tight">{schoolBrand?.name || "BrenUp"}</div>
               <div className="truncate text-[10px] font-bold text-[#e6e0ef]/50 uppercase tracking-wider">{schoolBrand ? "Powered by BrenUp" : "Level Up English"}</div>
             </div>
           )}
@@ -94,7 +94,7 @@ export function LearnerSidebar({
           type="button"
           onClick={toggle}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className="absolute right-0 top-0 grid size-8 shrink-0 place-items-center rounded-lg text-[#cac3d9]/70 transition hover:bg-white/10 hover:text-white"
+          className="absolute right-0 top-0 grid size-8 shrink-0 place-items-center rounded-lg text-[color-mix(in_srgb,var(--br-text-on-dark)_70%,transparent)] transition hover:bg-white/10 hover:text-[var(--br-text-on-dark)]"
         >
           {collapsed ? <ChevronRight className="size-4" /> : <ChevronLeft className="size-4" />}
         </button>
@@ -104,7 +104,7 @@ export function LearnerSidebar({
       <nav className="flex flex-1 flex-col gap-3">
         {navGroups.map((group) => (
           <div key={group.label} className="space-y-1">
-            {collapsed ? null : <p className="px-3.5 pt-1 text-[9px] font-black uppercase tracking-[0.18em] text-[#e6e0ef]/35">{group.label}</p>}
+            {collapsed ? null : <p className="px-3.5 pt-1 text-[9px] font-black uppercase tracking-[0.18em] text-[color-mix(in_srgb,var(--br-text-on-dark)_35%,transparent)]">{group.label}</p>}
             {group.items.map(({ key, ...item }) => (
               <NavItem key={item.label} {...item} active={active === key} collapsed={collapsed} accentColor={schoolBrand?.accentColor ?? undefined} />
             ))}
@@ -141,8 +141,8 @@ function NavItem({
     collapsed ? "justify-center px-0 mx-1" : "gap-3 px-3.5 mx-2 my-0.5"
   } ${
     active
-      ? "border-l-2 border-[var(--br-action)] text-white shadow-md shadow-black/20"
-      : "text-[#cac3d9]/70 hover:bg-white/10 hover:text-white"
+      ? "border-l-2 border-[var(--br-action)] text-[var(--br-text-on-dark)] shadow-md shadow-black/20"
+      : "text-[color-mix(in_srgb,var(--br-text-on-dark)_70%,transparent)] hover:bg-white/10 hover:text-[var(--br-text-on-dark)]"
   } ${disabled ? "cursor-default opacity-60" : ""}`;
 
   const content = (

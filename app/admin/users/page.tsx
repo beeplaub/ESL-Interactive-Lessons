@@ -41,7 +41,7 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
           <select name="role" className="rounded-md border border-black/15 px-3 py-2">
             <RoleOptions />
           </select>
-          <button className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white">Add user</button>
+          <button className="rounded-md bg-dark px-4 py-2 text-sm font-medium text-white">Add user</button>
         </form>
       </section>
 

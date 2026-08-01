@@ -70,7 +70,7 @@ function ScoreHeader({ score, total, onClose }: { score: number; total: number; 
     percent >= 60 ? "bg-blue-500" :
     percent >= 40 ? "bg-yellow-400" : "bg-coral";
   return (
-    <div className="bg-ink px-6 py-5 text-white">
+    <div className="bg-dark px-6 py-5 text-white">
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1">
           <p className="text-xs font-semibold uppercase tracking-wide text-white/50">Your score</p>
@@ -266,7 +266,7 @@ export function GuestScorePopup({
                 </div>
               </label>
               <button type="button" disabled={isPending} onClick={submitSignIn}
-                className="w-full rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">
+                className="w-full rounded-md bg-dark px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">
                 {isPending ? "Signing in…" : "Sign in & save score"}
               </button>
             </div>

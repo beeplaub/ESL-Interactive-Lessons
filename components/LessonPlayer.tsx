@@ -422,7 +422,7 @@ export function LessonPlayer({ lesson, slides, audioFiles, lessonSlideActivities
             </button>
           )
         ) : (
-          <button type="button" onClick={() => move(1)} className="inline-flex items-center gap-2 rounded-md bg-ink px-4 py-2 text-sm font-medium text-white">
+          <button type="button" onClick={() => move(1)} className="inline-flex items-center gap-2 rounded-md bg-dark px-4 py-2 text-sm font-medium text-white">
             Next <ArrowRight size={16} />
           </button>
         )}
@@ -437,7 +437,7 @@ function SlideStage({ audio, pdfUrl, slide }: { slide: Slide; audio?: AudioFile;
     <div>
       <div className="mx-auto max-w-6xl px-3 py-4 sm:px-5 md:px-8 md:py-7">
         {audio?.signed_url ? (
-          <div className="mx-auto mb-4 max-w-4xl rounded-lg border border-black/10 bg-ink p-3 text-white shadow-sm">
+          <div className="mx-auto mb-4 max-w-4xl rounded-lg border border-black/10 bg-dark p-3 text-white shadow-sm">
             <div className="mb-2 flex items-center gap-2 text-sm font-medium">
               <Headphones size={18} /> Audio for this slide
             </div>

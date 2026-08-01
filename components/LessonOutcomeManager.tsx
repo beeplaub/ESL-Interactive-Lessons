@@ -67,7 +67,7 @@ export function LessonOutcomeManager({
               <input name="code" defaultValue={outcome.code} aria-label="Outcome code" className="rounded-lg border border-black/15 bg-white px-3 py-2 text-sm font-bold" />
               <input name="outcome" defaultValue={outcome.outcome} aria-label="Outcome statement" className="min-w-0 rounded-lg border border-black/15 bg-white px-3 py-2 text-sm" />
               <select name="status" defaultValue={outcome.status} aria-label="Outcome status" className="rounded-lg border border-black/15 bg-white px-3 py-2 text-sm"><option value="ACTIVE">Active</option><option value="ARCHIVED">Archived</option></select>
-              <button className="rounded-lg bg-ink px-3 py-2 text-sm font-bold text-white">Save</button>
+              <button className="rounded-lg bg-dark px-3 py-2 text-sm font-bold text-white">Save</button>
             </ObeActionForm>
             <div className="mt-2 flex flex-wrap justify-end gap-2">
               <ObeActionForm action={async () => moveLessonOutcome(lessonId, outcome.id, "up")}>
@@ -113,7 +113,7 @@ export function LessonOutcomeManager({
           ))}
         </select>
         <input name="position" type="number" min="1" placeholder="Position" aria-label="Position" className="rounded-lg border border-black/15 px-3 py-2 text-sm" />
-        <button className="rounded-lg bg-ink px-3 py-2 text-sm font-bold text-white">Add placement</button>
+        <button className="rounded-lg bg-dark px-3 py-2 text-sm font-bold text-white">Add placement</button>
       </ObeActionForm>
 
       <div className="grid gap-3">

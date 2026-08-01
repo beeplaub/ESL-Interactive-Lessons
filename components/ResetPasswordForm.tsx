@@ -103,7 +103,7 @@ export function ResetPasswordForm() {
         type="button"
         disabled={isPending || !password || !confirm}
         onClick={submit}
-        className="w-full rounded-md bg-ink px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+        className="w-full rounded-md bg-dark px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
       >
         {isPending ? "Updating..." : "Set new password"}
       </button>

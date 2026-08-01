@@ -84,7 +84,7 @@ export function AdminQuizBuilder() {
         <textarea value={text} onChange={(event) => setText(event.target.value)} rows={16} className="mt-2 w-full rounded-md border border-black/15 px-3 py-3 font-mono text-sm leading-6" />
       </label>
       <div className="flex flex-wrap gap-3">
-        <button type="button" onClick={parse} className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white">Parse</button>
+        <button type="button" onClick={parse} className="rounded-md bg-dark px-4 py-2 text-sm font-medium text-white">Parse</button>
         {parsed ? (
           <>
             <button type="button" disabled={isPending} onClick={() => submit("DRAFT")} className="rounded-md border border-black/15 px-4 py-2 text-sm font-medium disabled:opacity-50">Save as Draft</button>

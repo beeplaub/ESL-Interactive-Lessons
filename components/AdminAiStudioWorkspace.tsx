@@ -266,7 +266,7 @@ export function AdminAiStudioWorkspace({
                 <button
                   onClick={handleSaveTemplate}
                   disabled={isPending}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-ink px-4 py-2 text-sm font-bold text-white hover:bg-black/90 disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-dark px-4 py-2 text-sm font-bold text-white hover:bg-black/90 disabled:opacity-50"
                 >
                   <Save size={16} /> Save Changes
                 </button>
@@ -343,7 +343,7 @@ export function AdminAiStudioWorkspace({
               </p>
               <button
                 onClick={handleSeed}
-                className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-ink px-4 py-2 text-sm font-bold text-white hover:bg-black/90"
+                className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-dark px-4 py-2 text-sm font-bold text-white hover:bg-black/90"
               >
                 Seed Tables
               </button>

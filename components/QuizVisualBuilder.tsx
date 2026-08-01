@@ -566,7 +566,7 @@ export function QuizVisualBuilder({
                 {selected.description ? <p className="mt-2 max-h-20 overflow-hidden text-sm text-black/55">{selected.description}</p> : null}
               </div>
               <div className="grid gap-2 sm:grid-cols-2">
-                <button type="button" onClick={() => setEditorOpen(true)} className="inline-flex items-center justify-center gap-2 rounded-md bg-ink px-3 py-2 text-sm font-semibold text-white">
+                <button type="button" onClick={() => setEditorOpen(true)} className="inline-flex items-center justify-center gap-2 rounded-md bg-dark px-3 py-2 text-sm font-semibold text-white">
                   <Edit3 size={15} /> Edit question
                 </button>
                 <button type="button" onClick={() => duplicateQuestion(selected.id)} className="inline-flex items-center justify-center gap-2 rounded-md border border-black/15 px-3 py-2 text-sm font-semibold hover:bg-black/5">
@@ -627,7 +627,7 @@ export function QuizVisualBuilder({
             <textarea value={parseText} onChange={(event) => setParseText(event.target.value)} rows={18} className="mt-4 w-full rounded-md border border-black/15 px-3 py-3 font-mono text-sm leading-6" />
             <div className="mt-4 flex justify-end gap-2">
               <button type="button" onClick={() => setParseOpen(false)} className="rounded-md border border-black/15 px-4 py-2 text-sm">Cancel</button>
-              <button type="button" onClick={importParsed} className="rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white">Import into builder</button>
+              <button type="button" onClick={importParsed} className="rounded-md bg-dark px-4 py-2 text-sm font-semibold text-white">Import into builder</button>
             </div>
           </div>
         </div>
@@ -656,7 +656,7 @@ export function QuizVisualBuilder({
             </label>
             <div className="mt-5 flex justify-end gap-2">
               <button type="button" onClick={() => setQuiz((current) => ({ ...current, timerMinutes: null }))} className="rounded-md border border-black/15 px-4 py-2 text-sm">Clear</button>
-              <button type="button" onClick={() => setTimerOpen(false)} className="rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white">Done</button>
+              <button type="button" onClick={() => setTimerOpen(false)} className="rounded-md bg-dark px-4 py-2 text-sm font-semibold text-white">Done</button>
             </div>
           </div>
         </div>
@@ -704,7 +704,7 @@ export function QuizVisualBuilder({
                       <p className="mt-2 break-words text-sm font-medium text-ink">{item.question_text}</p>
                       {item.description ? <p className="mt-1 line-clamp-2 text-xs text-black/50">{item.description}</p> : null}
                     </div>
-                    <button type="button" onClick={() => addQuestionFromBank(item)} className="self-center rounded-md bg-ink px-3 py-2 text-sm font-semibold text-white">Use here</button>
+                    <button type="button" onClick={() => addQuestionFromBank(item)} className="self-center rounded-md bg-dark px-3 py-2 text-sm font-semibold text-white">Use here</button>
                   </div>
                 ))}
                 {!filteredBank.length ? <p className="rounded-md bg-slate-50 p-6 text-center text-sm text-black/55">No questions match these filters.</p> : null}
@@ -795,7 +795,7 @@ function QuestionEditorModal({
           <button type="button" onClick={onDelete} className="inline-flex items-center gap-2 rounded-md border border-coral/30 px-3 py-2 text-sm font-semibold text-coral hover:bg-coral/10">
             <Trash2 size={15} /> Delete question
           </button>
-          <button type="button" onClick={onClose} className="rounded-md bg-ink px-4 py-2 text-sm font-semibold text-white">Done</button>
+          <button type="button" onClick={onClose} className="rounded-md bg-dark px-4 py-2 text-sm font-semibold text-white">Done</button>
         </div>
       </div>
     </div>

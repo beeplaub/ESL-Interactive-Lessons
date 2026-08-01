@@ -114,7 +114,7 @@ export default async function NewLessonPage() {
 
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-black/10 pt-5">
             <p className="text-sm text-black/55">This creates a draft lesson and opens the builder with the first slide ready.</p>
-            <button className="rounded-md bg-ink px-5 py-2.5 text-sm font-semibold text-white hover:bg-black">
+            <button className="rounded-md bg-dark px-5 py-2.5 text-sm font-semibold text-white hover:bg-black">
               Create and open builder
             </button>
           </div>

@@ -54,7 +54,7 @@ export default async function AdminQuizAttemptsPage({ searchParams }: { searchPa
             <option key={quiz.id} value={quiz.id}>{quiz.title}</option>
           ))}
         </select>
-        <button className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white">Filter</button>
+        <button className="rounded-md bg-dark px-4 py-2 text-sm font-medium text-white">Filter</button>
       </form>
 
       <div className="overflow-x-auto rounded-lg border border-black/10 bg-white shadow-sm">

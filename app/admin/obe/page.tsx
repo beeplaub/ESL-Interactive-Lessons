@@ -95,7 +95,7 @@ export default async function ObeAdminPage() {
                 Description <span className="font-normal text-black/40">(optional)</span>
                 <textarea name="description" rows={2} placeholder="What this skill measures" className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2" />
               </label>
-              <button className="rounded-lg bg-ink px-4 py-2 text-sm font-semibold text-white">Save skill</button>
+              <button className="rounded-lg bg-dark px-4 py-2 text-sm font-semibold text-white">Save skill</button>
             </ObeActionForm>
           </section>
 

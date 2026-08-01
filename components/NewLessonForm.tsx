@@ -142,7 +142,7 @@ export function NewLessonForm() {
       <button
         type="submit"
         disabled={uploading}
-        className="inline-flex items-center gap-2 rounded-md bg-ink px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+        className="inline-flex items-center gap-2 rounded-md bg-dark px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
       >
         <Upload size={16} /> {uploading ? "Uploading..." : "Upload and parse"}
       </button>

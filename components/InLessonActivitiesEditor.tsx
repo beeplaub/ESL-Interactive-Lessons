@@ -719,7 +719,7 @@ function StatusText({ status, error }: { status: string; error: string | null })
 
 function SaveButton({ onClick }: { onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className="rounded-md bg-ink px-4 py-2 text-sm font-medium text-white">
+    <button type="button" onClick={onClick} className="rounded-md bg-dark px-4 py-2 text-sm font-medium text-white">
       Save activity
     </button>
   );
