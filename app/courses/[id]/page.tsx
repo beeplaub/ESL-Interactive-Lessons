@@ -257,7 +257,7 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
 
   if (isEnrolled) {
     if (progressPercent === 100) {
-      bannerClass = "bg-[#F1FFF8] border-[#BCEBDA] text-[#245C4B]";
+      bannerClass = "bg-[var(--br-success-soft)] border-[var(--br-success-soft)] text-[#245C4B]";
       bannerText = "🏆 Congratulations! You have fully completed this course!";
       inProgressNode = <span className="text-emerald-600 font-bold">Completed!</span>;
     } else {
@@ -279,7 +279,7 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
         bannerClass = "bg-[#F3F0FF] border-[#D3C5FF] text-[#4F26CC]";
         bannerText = "⚡ Great progress! Keep going to finish your course path.";
       } else {
-        bannerClass = "bg-[#F1FFF8] border-[#BCEBDA] text-[#245C4B]";
+        bannerClass = "bg-[var(--br-success-soft)] border-[var(--br-success-soft)] text-[#245C4B]";
         bannerText = "🔥 Keep it up! Your course path is ready whenever you are.";
       }
     }

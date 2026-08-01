@@ -90,7 +90,7 @@ export function RecentQuizAttemptsClient({
           <button
             type="button"
             onClick={() => setFiltersOpen(true)}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--br-border)] bg-surface px-4 py-2.5 text-sm font-bold text-[#47464F] shadow-sm transition hover:bg-[var(--br-surface)]"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--br-border)] bg-surface px-4 py-2.5 text-sm font-bold text-[var(--br-text)] shadow-sm transition hover:bg-[var(--br-surface)]"
           >
             <Filter className="size-4" /> Filter
           </button>
@@ -175,8 +175,8 @@ export function RecentQuizAttemptsClient({
               </label>
             </div>
             <div className="grid grid-cols-2 gap-3 border-t border-[var(--br-surface-strong)] p-5">
-              <button type="button" onClick={clearFilters} className="rounded-xl border border-[var(--br-border)] px-4 py-3 text-sm font-bold text-[#47464F] hover:bg-[var(--br-surface)]">Clear All</button>
-              <button type="button" onClick={() => setFiltersOpen(false)} className="rounded-xl bg-[var(--br-action)] px-4 py-3 text-sm font-bold text-on-dark shadow-[var(--br-shadow)] hover:bg-[#E4572E]">Apply Filters</button>
+              <button type="button" onClick={clearFilters} className="rounded-xl border border-[var(--br-border)] px-4 py-3 text-sm font-bold text-[var(--br-text)] hover:bg-[var(--br-surface)]">Clear All</button>
+              <button type="button" onClick={() => setFiltersOpen(false)} className="rounded-xl bg-[var(--br-action)] px-4 py-3 text-sm font-bold text-on-dark shadow-[var(--br-shadow)] hover:bg-[var(--br-action-strong)]">Apply Filters</button>
             </div>
           </aside>
         </div>
@@ -213,7 +213,7 @@ function AttemptGroupCard({ group, open, onToggle }: { group: QuizAttemptGroup; 
               <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                 <span className="font-mono text-sm font-semibold text-[var(--br-text-muted)]">Attempt {attempt.attemptNumber}</span>
                 <span className="text-sm font-semibold text-[var(--br-dark-card)]">{formatDate(attempt.completedAt)}</span>
-                <span className={`rounded px-2 py-0.5 font-mono text-xs font-semibold ${attempt.percent >= 85 ? "bg-[var(--br-success)]/10 text-[var(--br-success)]" : attempt.percent >= 60 ? "bg-[var(--br-action)]/10 text-[var(--br-action)]" : "bg-[#FEE2E2] text-[#BA1A1A]"}`}>
+                <span className={`rounded px-2 py-0.5 font-mono text-xs font-semibold ${attempt.percent >= 85 ? "bg-[var(--br-success)]/10 text-[var(--br-success)]" : attempt.percent >= 60 ? "bg-[var(--br-action)]/10 text-[var(--br-action)]" : "bg-[var(--br-danger-soft)] text-[var(--br-danger)]"}`}>
                   {attempt.percent}%
                 </span>
                 {attempt.timeTakenSeconds ? <span className="text-xs font-semibold text-[var(--br-text-muted)]">{formatDuration(attempt.timeTakenSeconds)}</span> : null}

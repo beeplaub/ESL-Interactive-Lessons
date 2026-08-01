@@ -95,7 +95,7 @@ export default async function LanguageProfilePage() {
                     </div>
                     <span className={`rounded-full px-3 py-1 text-xs font-black ${bandClass(row.band)}`}>{row.band}</span>
                   </div>
-                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#EEF0F7]">
+                  <div className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--br-surface-strong)]">
                     <div className="h-full rounded-full bg-gradient-to-r from-[var(--br-chart-primary)] to-[#28D5C3]" style={{ width: `${Math.min(100, Math.round(row.confidence))}%` }} />
                   </div>
                   <p className="mt-2 text-xs font-semibold text-[var(--br-text-muted)]">Confidence {pct(row.confidence)}{row.latestScore !== null ? ` · latest ${row.latestScore}%` : ""}</p>
@@ -107,7 +107,7 @@ export default async function LanguageProfilePage() {
           <aside className="min-w-0 space-y-5">
             <section className="rounded-[24px] border border-[var(--br-border)] bg-surface p-5 shadow-[var(--br-shadow)]">
               <div className="mb-4 flex items-center gap-2">
-                <Sparkles className="size-5 text-[#F59E0B]" />
+                <Sparkles className="size-5 text-[var(--br-achievement)]" />
                 <h2 className="text-lg font-black text-[var(--br-dark-card)]">Learned targets</h2>
               </div>
               <div className="space-y-2">
@@ -138,7 +138,7 @@ export default async function LanguageProfilePage() {
           </aside>
         </div>
       ) : (
-        <section className="rounded-[24px] border border-dashed border-[#DDE1F0] bg-surface p-8 text-center shadow-[var(--br-shadow)]">
+        <section className="rounded-[24px] border border-dashed border-[var(--br-border)] bg-surface p-8 text-center shadow-[var(--br-shadow)]">
           <CheckCircle2 className="mx-auto size-10 text-[var(--br-chart-primary)]" />
           <h2 className="mt-3 text-xl font-black text-[var(--br-dark-card)]">Your profile is ready to grow</h2>
           <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-[var(--br-text-muted)]">

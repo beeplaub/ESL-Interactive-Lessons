@@ -28,18 +28,18 @@ export default async function CertificateDetailPage({ params }: { params: Promis
   return (
     <LearnerAppShell active="certificates" showRightSidebar={false}>
       <div className="flex items-center justify-between gap-3 print:hidden"><Link href="/certificates" className="inline-flex items-center gap-1.5 text-sm font-bold text-[var(--br-text-muted)] hover:text-[var(--br-chart-primary)]"><ArrowLeft className="size-4" /> All certificates</Link><CertificatePrintButton /></div>
-      <section className="certificate-sheet overflow-hidden rounded-[28px] border border-[#E8D7A2] bg-[#FFFEF8] p-5 shadow-[var(--br-shadow)] sm:p-10">
-        <div className="border border-[#E5C66A] p-5 text-center sm:p-10">
-          <div className="mx-auto grid size-14 place-items-center rounded-full bg-gradient-to-br from-[#FFCC54] to-[#D88A08] text-on-dark shadow-[var(--br-shadow)]"><Award className="size-7" /></div>
-          <p className="mt-6 text-xs font-black uppercase tracking-[0.25em] text-[#9A761F]">BrenUp certificate of completion</p>
-          <h1 className="mt-4 font-serif text-3xl font-bold text-[#382D0D] sm:text-5xl">Congratulations, {learnerName}</h1>
+      <section className="certificate-sheet overflow-hidden rounded-[28px] border border-[var(--br-warning-soft)] bg-[#FFFEF8] p-5 shadow-[var(--br-shadow)] sm:p-10">
+        <div className="border border-[var(--br-achievement)] p-5 text-center sm:p-10">
+          <div className="mx-auto grid size-14 place-items-center rounded-full bg-gradient-to-br from-[#FFCC54] to-[var(--br-warning)] text-on-dark shadow-[var(--br-shadow)]"><Award className="size-7" /></div>
+          <p className="mt-6 text-xs font-black uppercase tracking-[0.25em] text-[var(--br-warning)]">BrenUp certificate of completion</p>
+          <h1 className="mt-4 font-serif text-3xl font-bold text-[var(--br-text)] sm:text-5xl">Congratulations, {learnerName}</h1>
           <p className="mx-auto mt-5 max-w-xl text-sm leading-7 text-[#665833] sm:text-base">This recognizes your successful completion of the BrenUp course</p>
           <h2 className="mt-3 text-xl font-extrabold text-[#201A09] sm:text-3xl">{course?.title ?? "Course"}</h2>
           <div className="mx-auto mt-8 grid max-w-lg gap-3 text-left sm:grid-cols-2">
-            <div className="rounded-xl border border-[#E7D9A8] bg-white/70 p-3"><p className="text-[10px] font-black uppercase tracking-wide text-[#927733]">Level</p><p className="mt-1 flex items-center gap-1.5 text-sm font-bold text-[#3D3214]"><GraduationCap className="size-4" /> {course?.level ?? "BrenUp"}</p></div>
-            <div className="rounded-xl border border-[#E7D9A8] bg-white/70 p-3"><p className="text-[10px] font-black uppercase tracking-wide text-[#927733]">Issued</p><p className="mt-1 flex items-center gap-1.5 text-sm font-bold text-[#3D3214]"><CalendarDays className="size-4" /> {new Date(certificate.issued_at).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" })}</p></div>
+            <div className="rounded-xl border border-[var(--br-warning-soft)] bg-white/70 p-3"><p className="text-[10px] font-black uppercase tracking-wide text-[var(--br-warning)]">Level</p><p className="mt-1 flex items-center gap-1.5 text-sm font-bold text-[var(--br-text)]"><GraduationCap className="size-4" /> {course?.level ?? "BrenUp"}</p></div>
+            <div className="rounded-xl border border-[var(--br-warning-soft)] bg-white/70 p-3"><p className="text-[10px] font-black uppercase tracking-wide text-[var(--br-warning)]">Issued</p><p className="mt-1 flex items-center gap-1.5 text-sm font-bold text-[var(--br-text)]"><CalendarDays className="size-4" /> {new Date(certificate.issued_at).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" })}</p></div>
           </div>
-          <div className="mt-10 flex flex-wrap items-center justify-center gap-3 text-xs font-bold text-[#7C6527]"><span className="inline-flex items-center gap-1"><BadgeCheck className="size-4" /> Achievement verified by BrenUp</span><span className="inline-flex items-center gap-1"><ShieldCheck className="size-4" /> {certificate.certificate_code}</span></div>
+          <div className="mt-10 flex flex-wrap items-center justify-center gap-3 text-xs font-bold text-[var(--br-warning)]"><span className="inline-flex items-center gap-1"><BadgeCheck className="size-4" /> Achievement verified by BrenUp</span><span className="inline-flex items-center gap-1"><ShieldCheck className="size-4" /> {certificate.certificate_code}</span></div>
         </div>
       </section>
     </LearnerAppShell>

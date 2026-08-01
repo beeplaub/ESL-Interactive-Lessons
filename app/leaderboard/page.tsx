@@ -155,7 +155,7 @@ export default async function LeaderboardPage({ searchParams }: { searchParams?:
           </div>
           <div className="bg-surface p-6 rounded-3xl shadow-sm border border-[var(--br-surface-strong)]/60 flex items-center gap-6 group hover:shadow-md transition-all">
             <div className="w-14 h-14 rounded-2xl bg-[#ffdbcc] flex items-center justify-center group-hover:scale-110 transition-transform">
-              <Zap className="size-6 text-[#873600]" />
+              <Zap className="size-6 text-[var(--br-warning)]" />
             </div>
             <div>
               <h4 className="text-3xl font-black text-[var(--br-text)]">{totalPoints.toLocaleString()}</h4>
@@ -377,7 +377,7 @@ export default async function LeaderboardPage({ searchParams }: { searchParams?:
                   <span className="text-[8px] font-extrabold text-center uppercase tracking-tighter text-[var(--br-text-muted)]">Quiz Master</span>
                 </div>
                 <div className="flex flex-col items-center">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[var(--br-achievement)] to-[#FF6B00] text-on-dark flex items-center justify-center shadow-md mb-2 transition-transform hover:scale-110 cursor-help" title="Streak Beast: maintain daily quiz attempts">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[var(--br-achievement)] to-[var(--br-action)] text-on-dark flex items-center justify-center shadow-md mb-2 transition-transform hover:scale-110 cursor-help" title="Streak Beast: maintain daily quiz attempts">
                     <Flame className="size-5 fill-white" />
                   </div>
                   <span className="text-[8px] font-extrabold text-center uppercase tracking-tighter text-[var(--br-text-muted)]">Streak Beast</span>

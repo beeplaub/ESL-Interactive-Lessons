@@ -226,7 +226,7 @@ function CourseCard({
     "from-[#3A7BD5] to-[#00D2FF]",
     "from-[var(--br-brand-strong)] to-[#2D3A8C]",
     "from-[#4A148C] to-[#7B1FA2]",
-    "from-[var(--br-success)] to-[#00957A]",
+    "from-[var(--br-success)] to-[var(--br-chart-secondary)]",
     "from-[var(--br-achievement)] to-[var(--br-action-strong)]"
   ];
   const level = course.level ?? "Course";

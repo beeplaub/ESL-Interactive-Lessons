@@ -122,14 +122,14 @@ export default async function AssignmentsPage() {
             }
             const unavailable = resource && (resource.status !== "PUBLISHED" || resource.deleted_at !== null);
             return (
-              <article key={assignment.id} className="flex flex-col gap-4 rounded-[18px] border border-[var(--br-surface-strong)] bg-[#FCFCFE] p-4 transition hover:border-[#D9D4F9] hover:shadow-[var(--br-shadow)] sm:flex-row sm:items-center">
-                <div className={`grid size-11 shrink-0 place-items-center rounded-[14px] ${completed ? "bg-[#E7FBF3] text-[#00A875]" : "bg-[var(--br-brand-soft)] text-[var(--br-chart-primary)]"}`}>
+              <article key={assignment.id} className="flex flex-col gap-4 rounded-[18px] border border-[var(--br-surface-strong)] bg-[var(--br-surface)] p-4 transition hover:border-[var(--br-brand-soft)] hover:shadow-[var(--br-shadow)] sm:flex-row sm:items-center">
+                <div className={`grid size-11 shrink-0 place-items-center rounded-[14px] ${completed ? "bg-[var(--br-success-soft)] text-[var(--br-chart-secondary)]" : "bg-[var(--br-brand-soft)] text-[var(--br-chart-primary)]"}`}>
                   {completed ? <CheckCircle2 className="size-5" /> : assignment.item_type === "COURSE" ? <GraduationCap className="size-5" /> : assignment.item_type === "QUIZ" ? <Target className="size-5" /> : <ClipboardList className="size-5" />}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="break-words font-extrabold text-[var(--br-dark-card)]">{title}</h3>
-                    {level ? <span className="rounded-md bg-[#EAF8F3] px-2 py-0.5 text-[10px] font-extrabold text-[#168E69]">{level}</span> : null}
+                    {level ? <span className="rounded-md bg-[var(--br-success-soft)] px-2 py-0.5 text-[10px] font-extrabold text-[var(--br-success)]">{level}</span> : null}
                     <span className="rounded-md bg-[var(--br-brand-soft)] px-2 py-0.5 text-[10px] font-extrabold text-[var(--br-chart-primary)]">{assignment.item_type.replace("_", " ")}</span>
                   </div>
                   <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold text-[var(--br-text-muted)]">
@@ -140,15 +140,15 @@ export default async function AssignmentsPage() {
                 </div>
                 <div className="flex items-center justify-between gap-3 sm:justify-end">
                   <div className="text-left sm:text-right">
-                    <p className={`text-sm font-extrabold ${completed ? "text-[#00A875]" : "text-[var(--br-text)]"}`}>{progressLabel}</p>
+                    <p className={`text-sm font-extrabold ${completed ? "text-[var(--br-chart-secondary)]" : "text-[var(--br-text)]"}`}>{progressLabel}</p>
                     {score !== null && assignment.item_type !== "COURSE" ? <p className="mt-0.5 text-xs font-semibold text-[var(--br-text-muted)]">Latest score: {score}%</p> : null}
                   </div>
-                  {unavailable ? <span className="inline-flex items-center gap-1 rounded-xl bg-surface-strong px-3 py-2 text-xs font-bold text-slate-500"><LockKeyhole className="size-3.5" /> Unavailable</span> : <Link href={href} className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--br-chart-primary)] px-3.5 py-2.5 text-xs font-extrabold text-on-dark shadow-sm transition hover:bg-[#5930DF]">{completed ? "Review" : "Open"}<ChevronRight className="size-3.5" /></Link>}
+                  {unavailable ? <span className="inline-flex items-center gap-1 rounded-xl bg-surface-strong px-3 py-2 text-xs font-bold text-slate-500"><LockKeyhole className="size-3.5" /> Unavailable</span> : <Link href={href} className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--br-chart-primary)] px-3.5 py-2.5 text-xs font-extrabold text-on-dark shadow-sm transition hover:bg-[var(--br-chart-primary)]">{completed ? "Review" : "Open"}<ChevronRight className="size-3.5" /></Link>}
                 </div>
               </article>
             );
           })}
-          {!assignments.length ? <div className="grid min-h-52 place-items-center rounded-[18px] border border-dashed border-[var(--br-border)] bg-[#FAFBFD] p-6 text-center"><div><Clock3 className="mx-auto size-7 text-[#9AA1B8]" /><h3 className="mt-3 font-extrabold text-[var(--br-text)]">Nothing assigned yet</h3><p className="mt-1 max-w-sm text-sm leading-6 text-[var(--br-text-muted)]">When your teacher adds work to one of your classes, it will appear here.</p></div></div> : null}
+          {!assignments.length ? <div className="grid min-h-52 place-items-center rounded-[18px] border border-dashed border-[var(--br-border)] bg-[var(--br-surface)] p-6 text-center"><div><Clock3 className="mx-auto size-7 text-[var(--br-text-muted)]" /><h3 className="mt-3 font-extrabold text-[var(--br-text)]">Nothing assigned yet</h3><p className="mt-1 max-w-sm text-sm leading-6 text-[var(--br-text-muted)]">When your teacher adds work to one of your classes, it will appear here.</p></div></div> : null}
         </div>
       </section>
 

@@ -43,7 +43,7 @@ const LEVEL_THEME: Record<string, {
   A1: { border: "var(--br-achievement)", badge: "#fff7ed", badgeText: "#9a3412", gradient: "from-[var(--br-achievement)] to-[var(--br-action-strong)]" },
   A2: { border: "#FF8E53", badge: "#fff1e8", badgeText: "#9a3412", gradient: "from-[#FF8E53] to-[#FF6B9D]" },
   B1: { border: "var(--br-info)", badge: "#eff6ff", badgeText: "#1e3a8a", gradient: "from-[var(--br-info)] to-[#3CCEFF]" },
-  B2: { border: "var(--br-chart-primary)", badge: "#f3efff", badgeText: "#4520D9", gradient: "from-[var(--br-chart-primary)] to-[var(--br-brand)]" },
+  B2: { border: "var(--br-chart-primary)", badge: "#f3efff", badgeText: "var(--br-chart-primary)", gradient: "from-[var(--br-chart-primary)] to-[var(--br-brand)]" },
   C1: { border: "var(--br-brand)", badge: "#f5f3ff", badgeText: "#4c1d95", gradient: "from-[#4A148C] to-[var(--br-brand)]" },
   C2: { border: "var(--br-dark-card)", badge: "#f1f5f9", badgeText: "var(--br-dark-card)", gradient: "from-[var(--br-dark-card)] to-[var(--br-chart-primary)]" },
 };

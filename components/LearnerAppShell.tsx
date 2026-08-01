@@ -461,14 +461,14 @@ function RightSidebarCards({ data }: { data: RightSidebarData }) {
             <div className="text-[15px] font-bold">Your Progress</div>
             <p className="mt-1 text-xs font-semibold text-[var(--br-text-muted)]">Across enrolled courses</p>
           </div>
-          <div className="relative grid size-20 place-items-center rounded-full bg-[conic-gradient(#31C48D_var(--progress),var(--br-surface-strong)_0)]" style={{ "--progress": `${data.progressPercent}%` } as React.CSSProperties}>
+          <div className="relative grid size-20 place-items-center rounded-full bg-[conic-gradient(var(--br-success)_var(--progress),var(--br-surface-strong)_0)]" style={{ "--progress": `${data.progressPercent}%` } as React.CSSProperties}>
             <div className="grid size-14 place-items-center rounded-full bg-surface text-lg font-black">{data.progressPercent}%</div>
           </div>
         </div>
         <div className="grid gap-2 text-xs font-semibold text-[var(--br-text-muted)]">
-          <ProgressLegend dot="#31C48D" label="Completed" value={`${data.completedCourses} courses`} />
-          <ProgressLegend dot="#3478F6" label="In progress" value={`${data.inProgressCourses} courses`} />
-          <ProgressLegend dot="#C8CDDA" label="Not started" value={`${data.notStartedCourses} courses`} />
+          <ProgressLegend dot="var(--br-success)" label="Completed" value={`${data.completedCourses} courses`} />
+          <ProgressLegend dot="var(--br-info)" label="In progress" value={`${data.inProgressCourses} courses`} />
+          <ProgressLegend dot="var(--br-border)" label="Not started" value={`${data.notStartedCourses} courses`} />
         </div>
       </RightRailCard>
 
@@ -516,9 +516,9 @@ function ProgressLegend({ dot, label, value }: { dot: string; label: string; val
 function AchievementIcon({ emoji, label, tone, unlocked = true }: { emoji: string; label: string; tone: "purple" | "orange" | "green" | "red"; unlocked?: boolean }) {
   const tones = {
     purple: "from-[var(--br-chart-primary)] to-[var(--br-brand)]",
-    orange: "from-[var(--br-achievement)] to-[#FF6B00]",
-    green: "from-[var(--br-success)] to-[#00957A]",
-    red: "from-[var(--br-danger)] to-[#C0002A]",
+    orange: "from-[var(--br-achievement)] to-[var(--br-action)]",
+    green: "from-[var(--br-success)] to-[var(--br-chart-secondary)]",
+    red: "from-[var(--br-danger)] to-[var(--br-danger)]",
   };
   return (
     <div className="flex flex-col items-center gap-1.5">
@@ -568,7 +568,7 @@ function MobileTopbar({
           aria-label={currentLevel ? `Your level: ${currentLevel}` : "Take level test"}
           className="flex h-9 items-center gap-1 rounded-[10px] border border-white/15 bg-white/10 px-2 text-[11px] font-bold text-on-dark"
         >
-          <Target className="size-[15px] text-[#9C8DFF]" />
+          <Target className="size-[15px] text-[var(--br-brand)]" />
           {currentLevel ? <span>{currentLevel}</span> : null}
         </Link>
         <NotificationsDropdown initialNotifications={notifications} mode="mobile" />
@@ -591,7 +591,7 @@ function MobileTopbar({
               <MobileDrawerLink href={isLoggedIn ? "/profile" : "/login"} label={isLoggedIn ? "Profile" : "My Account"} icon={User} active={active === "profile"} />
               {isLoggedIn ? (
                 <form action={signOut} className="mt-1 border-t border-white/10 pt-2">
-                  <button className="flex h-11 w-full items-center gap-3 rounded-[14px] px-3.5 text-left text-sm font-semibold text-[#C5C8DC]" type="submit">
+                  <button className="flex h-11 w-full items-center gap-3 rounded-[14px] px-3.5 text-left text-sm font-semibold text-[color-mix(in_srgb,var(--br-text-on-dark)_75%,transparent)]" type="submit">
                     <LogOut className="size-[18px]" /> Logout
                   </button>
                 </form>
@@ -605,7 +605,7 @@ function MobileTopbar({
 }
 
 function MobileDrawerLink({ href, label, icon: Icon, active }: { href: string; label: string; icon: React.ElementType; active?: boolean }) {
-  return <Link href={href} prefetch className={`flex h-11 items-center gap-3 rounded-[14px] px-3.5 text-sm font-semibold ${active ? "bg-[var(--br-brand)] text-on-dark" : "text-[#C5C8DC]"}`}><Icon className="size-[18px]" /> {label}</Link>;
+  return <Link href={href} prefetch className={`flex h-11 items-center gap-3 rounded-[14px] px-3.5 text-sm font-semibold ${active ? "bg-[var(--br-brand)] text-on-dark" : "text-[color-mix(in_srgb,var(--br-text-on-dark)_75%,transparent)]"}`}><Icon className="size-[18px]" /> {label}</Link>;
 }
 
 function MobileBottomNav({ active }: { active: ActiveItem }) {

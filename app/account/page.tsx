@@ -380,7 +380,7 @@ function MiniChart() {
 }
 
 function WishlistRow({ title, type, tone }: { title: string; type: string; tone: number }) {
-  const tones = ["from-[var(--br-brand-strong)] to-[#4520D9]", "from-[#0C4A6E] to-[#0284C7]", "from-[#14532D] to-[#16A34A]"];
+  const tones = ["from-[var(--br-brand-strong)] to-[var(--br-chart-primary)]", "from-[#0C4A6E] to-[#0284C7]", "from-[#14532D] to-[#16A34A]"];
   const icons = ["📖", "📚", "💬"];
   return (
     <div className="flex items-center gap-2.5 border-b border-[var(--br-surface-strong)] py-2.5 last:border-0">

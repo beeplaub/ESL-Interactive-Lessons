@@ -39,11 +39,11 @@ export default async function ProfilePage() {
         />
 
         {missingName ? (
-          <div className="flex items-start gap-3 rounded-[20px] border border-[#BCEBDA] bg-[#F1FFF8] p-4 shadow-[var(--br-shadow)]">
+          <div className="flex items-start gap-3 rounded-[20px] border border-[var(--br-success-soft)] bg-[var(--br-success-soft)] p-4 shadow-[var(--br-shadow)]">
             <UserRound className="mt-0.5 size-5 shrink-0 text-[var(--br-chart-secondary)]" />
             <div>
-              <p className="text-sm font-extrabold text-[#137A5D]">Add your name</p>
-              <p className="mt-0.5 text-sm leading-6 text-[#3E6B5E]">This helps BrenUp greet you properly across your dashboard, courses, and quiz results.</p>
+              <p className="text-sm font-extrabold text-[var(--br-success)]">Add your name</p>
+              <p className="mt-0.5 text-sm leading-6 text-[var(--br-text-muted)]">This helps BrenUp greet you properly across your dashboard, courses, and quiz results.</p>
             </div>
           </div>
         ) : null}
@@ -70,7 +70,7 @@ export default async function ProfilePage() {
                 </div>
               </div>
               {level ? (
-                <div className="mt-5 rounded-[18px] bg-gradient-to-br from-[var(--br-chart-primary)] to-[#4520D9] p-5 text-on-dark">
+                <div className="mt-5 rounded-[18px] bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-chart-primary)] p-5 text-on-dark">
                   <div className="text-[46px] font-black leading-none">{level}</div>
                   <p className="mt-1 text-sm font-bold text-white/80">{levelGuidance[level].name}</p>
                   <p className="mt-3 text-xs leading-5 text-white/65">{levelGuidance[level].summary}</p>
