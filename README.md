@@ -29,10 +29,11 @@ The service role key is used only on the server for admin upload, parsing, and s
 
 BrenUp can store creator-uploaded lesson/quiz media in Cloudflare R2 while keeping Supabase for Auth, Postgres, Realtime, and existing legacy files.
 
-Run this migration in the Supabase SQL editor before enabling R2 in production:
+Run both migrations in the Supabase SQL editor before enabling R2 in production:
 
 ```text
 supabase/migrations/20260729_r2_media_storage.sql
+supabase/migrations/20260731_lesson_audio_r2_metadata.sql
 ```
 
 Then add these environment variables locally and in Vercel:
@@ -47,7 +48,33 @@ R2_ENDPOINT=https://YOUR_ACCOUNT_ID.r2.cloudflarestorage.com
 R2_PUBLIC_BASE_URL=https://media.brenup.com
 ```
 
-`R2_PUBLIC_BASE_URL` should be a custom domain attached to the R2 bucket in Cloudflare. Existing Supabase-hosted media keeps working; only new uploads move to R2 when `MEDIA_STORAGE_PROVIDER=r2`.
+`R2_PUBLIC_BASE_URL` should be a custom domain attached to the R2 bucket in Cloudflare. Configure these values in **both Production and Preview** on Vercel. The access key and secret must remain server-only.
+
+### Reconcile legacy media
+
+The migration changes metadata only; it does not copy files. Use the audited reconciler to copy BrenUp-owned legacy lesson images, audio, video, narrations, and cached narration translations into R2, rewrite their database URLs to `media.brenup.com`, index them in the Media Library, and hide exact duplicate library cards.
+
+```bash
+# Read-only inventory
+node scripts/reconcile-r2-media.mjs
+
+# Safe resumable copy batches (the originals remain in Supabase)
+node scripts/reconcile-r2-media.mjs --apply --limit=50 --offset=0 --skip-index
+
+# Historical Media Library indexing
+node scripts/reconcile-r2-media.mjs --apply --index-only --limit=50 --offset=0
+
+# Exact owner-and-URL deduplication after indexing
+node scripts/reconcile-r2-media.mjs --apply --dedupe --dedupe-only --skip-index --skip-narrations
+```
+
+The script never deletes Supabase originals. Keep those rollback copies until you have independently reviewed R2 storage usage and media playback. This script intentionally leaves third-party links, including public media from other Supabase projects, as external links rather than copying content BrenUp does not own.
+
+To probe R2 credentials, the public media domain, and deletion without touching lesson media:
+
+```bash
+node scripts/verify-r2-media.mjs
+```
 
 ## Create an admin
 

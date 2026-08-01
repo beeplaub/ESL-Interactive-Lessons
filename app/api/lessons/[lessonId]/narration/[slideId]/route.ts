@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/lib/auth";
 import { deleteMediaObject, resolveMediaUrl, uploadMediaObject } from "@/lib/storage/mediaStorage";
+import { registerMediaAsset } from "@/lib/storage/mediaLibrary";
 
 type Params = { params: Promise<{ lessonId: string; slideId: string }> };
 
@@ -75,7 +76,7 @@ export async function POST(req: Request, { params }: Params) {
   // Upsert the lesson_audio_files row
   const { data: existing } = await admin
     .from("lesson_audio_files")
-    .select("id")
+    .select("id,storage_path,storage_provider,storage_bucket,public_url")
     .eq("lesson_id", lessonId)
     .eq("slide_id", slideId)
     .eq("label", "narration")
@@ -94,8 +95,13 @@ export async function POST(req: Request, { params }: Params) {
         path: translation.storage_path,
       })));
       await admin.from("narration_translation_cache").delete().eq("narration_audio_file_id", existing.id);
+      await admin
+        .from("media_assets")
+        .delete()
+        .eq("lesson_id", lessonId)
+        .contains("tags", ["narration-translation", `narration:${existing.id}`]);
     }
-    await admin
+    const { error: updateError } = await admin
       .from("lesson_audio_files")
       .update({
         storage_path: stored.path,
@@ -106,8 +112,12 @@ export async function POST(req: Request, { params }: Params) {
         narration_language: formData.get("narrationLanguage") === "bn" ? "bn" : "en",
       })
       .eq("id", existing.id);
+    if (updateError) {
+      await deleteMediaObject(admin, stored).catch((cleanupError) => console.error("Narration cleanup failed", cleanupError));
+      return NextResponse.json({ error: "Could not save narration details." }, { status: 500 });
+    }
   } else {
-    await admin.from("lesson_audio_files").insert({
+    const { error: insertError } = await admin.from("lesson_audio_files").insert({
       lesson_id: lessonId,
       slide_id: slideId,
       storage_path: stored.path,
@@ -119,6 +129,48 @@ export async function POST(req: Request, { params }: Params) {
       translation_enabled: formData.get("translationEnabled") === "true",
       narration_language: formData.get("narrationLanguage") === "bn" ? "bn" : "en",
     });
+    if (insertError) {
+      await deleteMediaObject(admin, stored).catch((cleanupError) => console.error("Narration cleanup failed", cleanupError));
+      return NextResponse.json({ error: "Could not save narration details." }, { status: 500 });
+    }
+  }
+
+  const { data: lesson } = await admin.from("lessons").select("created_by,title").eq("id", lessonId).maybeSingle();
+  if (lesson?.created_by) {
+    try {
+      await registerMediaAsset(admin, {
+        ownerId: lesson.created_by,
+        type: "AUDIO",
+        source: "UPLOAD",
+        url: stored.url,
+        lessonId,
+        lessonTitle: lesson.title ?? null,
+        title: `Slide ${slide?.slide_number ?? ""} narration`.trim(),
+        caption: "Slide narration",
+        fileName: `slide-${slide?.slide_number ?? slideId}-narration.${ext}`,
+        mimeType: file.type || "audio/webm",
+        fileSize: file.size,
+        tags: ["narration", `slide:${slideId}`],
+      });
+    } catch (libraryError) {
+      // Narration itself is already saved; log the repairable indexing gap for
+      // the reconciliation command instead of breaking lesson authoring.
+      console.error("Narration Media Library registration failed", libraryError);
+    }
+  }
+
+  // A filename extension can change when the browser records in a different
+  // codec. Remove the superseded object only after the replacement is durable.
+  if (existing?.storage_path && (
+    existing.storage_path !== stored.path ||
+    existing.storage_provider !== stored.provider ||
+    existing.storage_bucket !== stored.bucket
+  )) {
+    await deleteMediaObject(admin, {
+      provider: existing.storage_provider,
+      bucket: existing.storage_bucket ?? "lesson-audio",
+      path: existing.storage_path,
+    }).catch((cleanupError) => console.error("Previous narration cleanup failed", cleanupError));
   }
 
   return NextResponse.json({ url: stored.url });
@@ -161,12 +213,34 @@ export async function DELETE(_req: Request, { params }: Params) {
     .maybeSingle();
 
   if (data?.storage_path) {
+    const { data: cachedTranslations } = await admin
+      .from("narration_translation_cache")
+      .select("storage_path,storage_provider")
+      .eq("narration_audio_file_id", data.id);
+    await Promise.all((cachedTranslations ?? []).map((translation) => deleteMediaObject(admin, {
+      provider: translation.storage_provider,
+      bucket: translation.storage_provider === "r2" ? process.env.R2_BUCKET : "lesson-audio",
+      path: translation.storage_path,
+    }).catch((cleanupError) => console.error("Narration translation cleanup failed", cleanupError))));
+    await admin.from("narration_translation_cache").delete().eq("narration_audio_file_id", data.id);
     await deleteMediaObject(admin, {
       provider: data.storage_provider,
       bucket: data.storage_bucket ?? "lesson-audio",
       path: data.storage_path,
     });
     await admin.from("lesson_audio_files").delete().eq("id", data.id);
+    // Remove only the library index entries attached specifically to this
+    // narration. The storage object is already gone above.
+    await admin
+      .from("media_assets")
+      .delete()
+      .eq("lesson_id", lessonId)
+      .contains("tags", ["narration", `slide:${slideId}`]);
+    await admin
+      .from("media_assets")
+      .delete()
+      .eq("lesson_id", lessonId)
+      .contains("tags", ["narration-translation", `narration:${data.id}`]);
   }
 
   return NextResponse.json({ ok: true });

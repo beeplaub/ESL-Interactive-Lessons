@@ -2,14 +2,14 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Link2, Loader2, Music, Plus, UploadCloud, X } from "lucide-react";
+import { FileVideo, Link2, Loader2, Music, Plus, UploadCloud, X } from "lucide-react";
 import { addMediaLink } from "@/app/admin/media/actions";
 
 export function MediaLibraryUploader() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<"upload" | "link">("upload");
-  const [kind, setKind] = useState<"image" | "audio">("image");
+  const [kind, setKind] = useState<"image" | "audio" | "video">("image");
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [linkPending, setLinkPending] = useState(false);
@@ -17,7 +17,9 @@ export function MediaLibraryUploader() {
 
   const accept = kind === "image"
     ? "image/jpeg,image/png,image/webp,image/gif"
-    : "audio/mpeg,audio/mp3,audio/wav,audio/ogg,audio/mp4,audio/webm";
+    : kind === "audio"
+    ? "audio/mpeg,audio/mp3,audio/wav,audio/ogg,audio/mp4,audio/webm"
+    : "video/mp4,video/webm,video/ogg,video/quicktime";
 
   async function handleFile(file: File) {
     setError(null);
@@ -118,10 +120,14 @@ export function MediaLibraryUploader() {
             >
               Audio
             </button>
+            <button
+              type="button"
+              onClick={() => setKind("video")}
+              className={`rounded-full px-3 py-1 ${kind === "video" ? "bg-violetglow text-on-dark" : "text-[var(--br-text-muted)]"}`}
+            >
+              Video
+            </button>
           </div>
-          <p className="text-xs text-[var(--br-text-muted)]">
-            Video isn&apos;t uploaded here — paste a public video link instead using &ldquo;Add link&rdquo;.
-          </p>
           <div
             onDrop={handleDrop}
             onDragOver={(e) => e.preventDefault()}
@@ -137,11 +143,11 @@ export function MediaLibraryUploader() {
               </>
             ) : (
               <>
-                {kind === "image" ? <UploadCloud size={22} className="text-[var(--br-text-muted)]" /> : <Music size={22} className="text-[var(--br-text-muted)]" />}
+                {kind === "image" ? <UploadCloud size={22} className="text-[var(--br-text-muted)]" /> : kind === "audio" ? <Music size={22} className="text-[var(--br-text-muted)]" /> : <FileVideo size={22} className="text-[var(--br-text-muted)]" />}
                 <p className="text-xs text-[var(--br-text-muted)]">
                   <span className="font-medium text-violetglow">Click to upload</span> or drag & drop
                 </p>
-                <p className="text-[11px] text-[var(--br-text-muted)]">{kind === "image" ? "JPG, PNG, WebP, GIF" : "MP3, WAV, OGG, M4A"}</p>
+                <p className="text-[11px] text-[var(--br-text-muted)]">{kind === "image" ? "JPG, PNG, WebP, GIF" : kind === "audio" ? "MP3, WAV, OGG, M4A" : "MP4, WebM, OGG, MOV"}</p>
               </>
             )}
           </div>

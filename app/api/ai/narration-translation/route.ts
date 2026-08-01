@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { resolveMediaUrl, uploadMediaObject } from "@/lib/storage/mediaStorage";
+import { registerMediaAsset } from "@/lib/storage/mediaLibrary";
 
 function targetFor(language: string | null) {
   return language === "bn" ? "en" : "bn";
@@ -9,7 +10,7 @@ function targetFor(language: string | null) {
 
 async function narrationFor(lessonId: string, slideId: string) {
   const admin = createAdminClient();
-  const { data: lesson } = await admin.from("lessons").select("id,status").eq("id", lessonId).maybeSingle();
+  const { data: lesson } = await admin.from("lessons").select("id,status,created_by,title").eq("id", lessonId).maybeSingle();
   if (!lesson || lesson.status !== "PUBLISHED") return { admin, narration: null };
   const { data: narration } = await admin
     .from("lesson_audio_files")
@@ -18,7 +19,7 @@ async function narrationFor(lessonId: string, slideId: string) {
     .eq("slide_id", slideId)
     .eq("label", "narration")
     .maybeSingle();
-  return { admin, narration };
+  return { admin, narration, lesson };
 }
 
 async function signedCachedUrl(admin: ReturnType<typeof createAdminClient>, narrationId: string, targetLanguageCode: string) {
@@ -65,7 +66,7 @@ export async function POST(request: Request) {
   if (!lessonId || !slideId || !(audio instanceof File) || !audio.size) return NextResponse.json({ error: "Translated audio is required." }, { status: 400 });
   if (audio.size > 25 * 1024 * 1024) return NextResponse.json({ error: "Translated audio is too large." }, { status: 413 });
 
-  const { admin, narration } = await narrationFor(lessonId, slideId);
+  const { admin, narration, lesson } = await narrationFor(lessonId, slideId);
   if (!narration?.translation_enabled) return NextResponse.json({ error: "Translation is not available for this narration." }, { status: 404 });
   const targetLanguageCode = targetFor(narration.narration_language);
   if (requestedTarget !== targetLanguageCode) return NextResponse.json({ error: "Invalid translation target." }, { status: 400 });
@@ -99,6 +100,25 @@ export async function POST(request: Request) {
   if (cacheError && cacheError.code !== "23505") {
     console.error("Narration translation cache insert failed", cacheError);
     return NextResponse.json({ error: "Could not save translated narration." }, { status: 500 });
+  }
+  if (!cacheError && lesson?.created_by) {
+    try {
+      await registerMediaAsset(admin, {
+        ownerId: lesson.created_by,
+        type: "AUDIO",
+        source: "UPLOAD",
+        url: stored.url,
+        lessonId,
+        lessonTitle: lesson.title ?? null,
+        title: `Bengali translation · slide narration`,
+        caption: "AI narration translation",
+        fileName: `${narration.id}-${targetLanguageCode}.wav`,
+        mimeType: "audio/wav",
+        tags: ["narration-translation", `narration:${narration.id}`],
+      });
+    } catch (libraryError) {
+      console.error("Narration translation Media Library registration failed", libraryError);
+    }
   }
   const urlValue = await signedCachedUrl(admin, narration.id, targetLanguageCode);
   return NextResponse.json({ url: urlValue, cached: false });

@@ -1408,6 +1408,7 @@ function BlockFields({ blockType, content, lessonId }: { blockType: string; cont
   const [audioPath, setAudioPath] = useState(
     blockType === "FLASHCARD" ? asString(data.audio_path) : asString(data.path ?? data.src ?? data.url)
   );
+  const [videoPath, setVideoPath] = useState(asString(data.url ?? data.src));
   const initialFlashcards = Array.isArray(data.cards) && data.cards.length
     ? (data.cards as Record<string, unknown>[]) : [data];
   const [flashcards, setFlashcards] = useState(() => initialFlashcards.map((card) => ({
@@ -1524,7 +1525,8 @@ function BlockFields({ blockType, content, lessonId }: { blockType: string; cont
   if (blockType === "VIDEO") {
     return (
       <div className="grid gap-3">
-        <label className="text-sm">Video URL<input name="url" defaultValue={asString(data.url ?? data.src)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+        <label className="text-sm">Video URL<input name="url" value={videoPath} onChange={(event) => setVideoPath(event.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+        <BlockMediaUploader type="video" lessonId={lessonId} currentSrc={videoPath} onUploaded={setVideoPath} />
         <label className="text-sm">Title <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><input name="title" defaultValue={asString(data.title)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="text-sm">Start time <span className="font-normal text-[var(--br-text-muted)]">(optional, e.g. 1:30 or 90)</span><input name="startTime" defaultValue={asString(data.startTime)} placeholder="0:00" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireStaff, isPlatformAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { deleteMediaObject } from "@/lib/storage/mediaStorage";
+import { registerMediaAsset } from "@/lib/storage/mediaLibrary";
 
 const MEDIA_TYPES = ["IMAGE", "AUDIO", "VIDEO"] as const;
 type MediaType = (typeof MEDIA_TYPES)[number];
@@ -48,32 +49,13 @@ export async function addMediaLink(formData: FormData) {
   if (!url || !/^https?:\/\//i.test(url)) throw new Error("Enter a valid public URL (starting with http:// or https://).");
   if (!type) throw new Error("Choose a media type.");
 
-  const { data: existing } = await admin
-    .from("media_assets")
-    .select("id, use_count")
-    .eq("owner_id", user.id)
-    .eq("url", url)
-    .is("deleted_at", null)
-    .maybeSingle();
-
-  if (existing) {
-    await admin.from("media_assets").update({
-      use_count: (existing.use_count ?? 1) + 1,
-      last_used_at: new Date().toISOString(),
-      ...(title ? { title } : {})
-    }).eq("id", existing.id);
-  } else {
-    const { error } = await admin.from("media_assets").insert({
-      owner_id: user.id,
-      type,
-      source: "LINK",
-      url,
-      title,
-      use_count: 1,
-      last_used_at: new Date().toISOString()
-    });
-    if (error) throw new Error(error.message);
-  }
+  await registerMediaAsset(admin, {
+    ownerId: user.id,
+    type,
+    source: "LINK",
+    url,
+    title,
+  });
 
   mediaPaths();
 }
@@ -133,11 +115,13 @@ export async function permanentlyDeleteMediaAsset(assetId: string) {
     const { count } = await admin
       .from("media_assets")
       .select("id", { count: "exact", head: true })
-      .eq("owner_id", asset.owner_id)
       .eq("storage_provider", asset.storage_provider ?? "supabase")
       .eq("storage_path", asset.storage_path)
       .neq("id", assetId);
-    if (!count) {
+    // A lesson-linked asset can still be referenced by its saved content even
+    // after its library entry is in trash. Keep that original object intact.
+    // Detached library-only uploads are safely removed from the provider.
+    if (!count && !asset.lesson_id) {
       await deleteMediaObject(admin, {
         provider: asset.storage_provider,
         bucket: asset.storage_bucket,

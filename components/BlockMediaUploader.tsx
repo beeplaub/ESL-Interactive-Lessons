@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ImageIcon, Music, Loader2, X, Mic, Square, RotateCcw, Check } from "lucide-react";
+import { ImageIcon, Music, Loader2, X, Mic, Square, RotateCcw, Check, Video } from "lucide-react";
 
 type Props = {
-  type: "image" | "audio";
+  type: "image" | "audio" | "video";
   lessonId: string;
   currentSrc: string;
   onUploaded: (url: string) => void;
@@ -56,7 +56,9 @@ export function BlockMediaUploader({ type, lessonId, currentSrc, onUploaded }: P
 
   const accept = type === "image"
     ? "image/jpeg,image/png,image/webp,image/gif"
-    : "audio/mpeg,audio/mp3,audio/wav,audio/ogg,audio/mp4,audio/webm";
+    : type === "audio"
+    ? "audio/mpeg,audio/mp3,audio/wav,audio/ogg,audio/mp4,audio/webm"
+    : "video/mp4,video/webm,video/ogg,video/quicktime";
 
   async function handleFile(file: File) {
     setError(null);
@@ -291,17 +293,24 @@ export function BlockMediaUploader({ type, lessonId, currentSrc, onUploaded }: P
                 Remove
               </button>
             </div>
+          ) : preview && type === "video" ? (
+            <div className="w-full space-y-1" onClick={(e) => e.stopPropagation()}>
+              <video controls src={preview} className="max-h-48 w-full rounded-md" />
+              <button type="button" onClick={clear} className="text-xs text-coral hover:underline">
+                Remove
+              </button>
+            </div>
           ) : (
             <>
               {type === "image"
                 ? <ImageIcon size={20} className="text-[var(--br-text-muted)]" />
-                : <Music size={20} className="text-[var(--br-text-muted)]" />
+                : type === "audio" ? <Music size={20} className="text-[var(--br-text-muted)]" /> : <Video size={20} className="text-[var(--br-text-muted)]" />
               }
               <p className="text-xs text-[var(--br-text-muted)]">
                 <span className="font-medium text-moss">Click to upload</span> or drag & drop
               </p>
               <p className="text-[11px] text-[var(--br-text-muted)]">
-                {type === "image" ? "JPG, PNG, WebP, GIF" : "MP3, WAV, OGG, M4A"}
+                {type === "image" ? "JPG, PNG, WebP, GIF" : type === "audio" ? "MP3, WAV, OGG, M4A" : "MP4, WebM, OGG, MOV"}
               </p>
             </>
           )}

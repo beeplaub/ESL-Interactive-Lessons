@@ -11,6 +11,8 @@ export type MediaAssetRow = {
   type: "IMAGE" | "AUDIO" | "VIDEO";
   source: "UPLOAD" | "LINK";
   url: string;
+  public_url?: string | null;
+  storage_provider?: "supabase" | "r2" | "external" | null;
   title: string | null;
   alt_text: string | null;
   caption: string | null;
@@ -35,11 +37,12 @@ export function MediaAssetCard({ asset, canManage }: { asset: MediaAssetRow; can
   const [editing, setEditing] = useState(false);
   const [copied, setCopied] = useState(false);
   const name = displayName(asset);
-  const ytThumb = asset.type === "VIDEO" ? youtubeThumbnail(asset.url) : null;
+  const assetUrl = asset.public_url || asset.url;
+  const ytThumb = asset.type === "VIDEO" ? youtubeThumbnail(assetUrl) : null;
 
   async function copyUrl() {
     try {
-      await navigator.clipboard.writeText(asset.url);
+      await navigator.clipboard.writeText(assetUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
@@ -53,11 +56,13 @@ export function MediaAssetCard({ asset, canManage }: { asset: MediaAssetRow; can
       <div className="relative flex aspect-[4/3] w-full items-center justify-center overflow-hidden bg-surface-muted">
         {asset.type === "IMAGE" ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={asset.url} alt={asset.alt_text ?? name} className="h-full w-full object-cover" loading="lazy" />
+          <img src={assetUrl} alt={asset.alt_text ?? name} className="h-full w-full object-cover" loading="lazy" />
         ) : asset.type === "VIDEO" ? (
           ytThumb ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={ytThumb} alt={name} className="h-full w-full object-cover" loading="lazy" />
+          ) : asset.source === "UPLOAD" ? (
+            <video controls preload="metadata" src={assetUrl} className="h-full w-full object-contain" />
           ) : (
             <Video size={30} className="text-[var(--br-text-muted)]" />
           )
@@ -76,8 +81,8 @@ export function MediaAssetCard({ asset, canManage }: { asset: MediaAssetRow; can
         </span>
       </div>
 
-      {asset.type === "AUDIO" && !/youtube\.com|youtu\.be/i.test(asset.url) ? (
-        <audio controls src={asset.url} className="w-full border-b border-[var(--br-border)]" />
+      {asset.type === "AUDIO" && !/youtube\.com|youtu\.be/i.test(assetUrl) ? (
+        <audio controls src={assetUrl} className="w-full border-b border-[var(--br-border)]" />
       ) : null}
 
       {/* Meta + actions */}
@@ -150,7 +155,7 @@ export function MediaAssetCard({ asset, canManage }: { asset: MediaAssetRow; can
             {copied ? "Copied" : "Copy URL"}
           </button>
           <a
-            href={asset.url}
+            href={assetUrl}
             target="_blank"
             rel="noreferrer"
             title="Open"

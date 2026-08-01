@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireStaff } from "@/lib/auth";
-import { uploadMediaObject } from "@/lib/storage/mediaStorage";
+import { deleteMediaObject, uploadMediaObject } from "@/lib/storage/mediaStorage";
+import { registerMediaAsset } from "@/lib/storage/mediaLibrary";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -57,24 +58,26 @@ export async function POST(req: Request) {
   }
 
   try {
-    await admin.from("media_assets").insert({
-      owner_id: ownerId,
+    await registerMediaAsset(admin, {
+      ownerId,
       type: mediaType,
       source: "UPLOAD",
       url: stored.url,
-      public_url: stored.url,
-      storage_provider: stored.provider,
-      storage_bucket: stored.bucket,
-      storage_path: stored.path,
-      file_name: file.name,
-      mime_type: file.type || null,
-      file_size: file.size,
-      lesson_id: lessonId,
-      use_count: 1,
-      last_used_at: new Date().toISOString()
+      lessonId,
+      fileName: file.name,
+      mimeType: file.type || null,
+      fileSize: file.size,
     });
   } catch (mediaError) {
-    console.error("media_assets insert failed", mediaError);
+    // Do not report success for an upload that cannot be found or reused.
+    // Clean up the just-created object so it does not become an invisible orphan.
+    console.error("media_assets registration failed", mediaError);
+    try {
+      await deleteMediaObject(admin, stored);
+    } catch (cleanupError) {
+      console.error("Media upload cleanup failed", cleanupError);
+    }
+    return NextResponse.json({ error: "The file uploaded, but BrenUp could not save it to your Media Library. Please try again." }, { status: 500 });
   }
 
   return NextResponse.json({ url: stored.url });

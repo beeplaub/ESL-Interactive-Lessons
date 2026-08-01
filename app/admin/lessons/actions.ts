@@ -382,6 +382,12 @@ function extractMediaFromBlock(blockType: string, content: Record<string, unknow
       const audio = str(card.audio_path);
       if (audio) out.push({ type: "AUDIO", url: audio, caption: str(card.word) || null });
     }
+  } else if (blockType === "DIALOGUE") {
+    const turns = Array.isArray(content.turns) ? (content.turns as Array<Record<string, unknown>>) : [];
+    for (const turn of turns) {
+      const audio = str(turn.audio_url ?? turn.audio);
+      if (audio) out.push({ type: "AUDIO", url: audio, caption: str(turn.speaker) || "Dialogue line" });
+    }
   }
   return out;
 }
