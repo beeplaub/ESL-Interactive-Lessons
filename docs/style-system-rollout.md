@@ -8,6 +8,7 @@ This checklist is the source of truth for the production design migration. It is
 - [x] Define a semantic, versioned platform theme contract.
 - [x] Add a legacy-token bridge so existing screens inherit the platform theme safely.
 - [x] Separate primary text tokens from dark-surface tokens.
+- [x] Migrate the dominant legacy palette roles across learner and creator screens.
 - [ ] Convert remaining direct colour utilities and raw hex values to semantic roles.
 
 ## Control Centre

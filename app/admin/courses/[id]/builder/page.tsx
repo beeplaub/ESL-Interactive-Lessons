@@ -447,7 +447,7 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
               <label className="text-sm font-medium">Minimum evidence coverage %<input name="minimumEvidenceCoverage" type="number" min="0" max="100" defaultValue={course.minimum_evidence_coverage ?? 70} className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2" /></label>
               <label className="text-sm font-medium">Attempt evidence<select name="evidenceSelection" defaultValue={course.evidence_selection ?? "LATEST"} className="mt-1 w-full rounded-lg border border-black/15 px-3 py-2"><option value="LATEST">Latest attempt</option><option value="BEST">Best attempt</option><option value="FIRST">First attempt</option></select></label>
             </div>
-            <p className="rounded-xl bg-[#F6F7FB] p-3 text-sm text-black/60">Attainment measures performance on attempted evidence. Coverage shows how much mapped evidence has been attempted. Both thresholds must be met.</p>
+            <p className="rounded-xl bg-[var(--br-canvas-elevated)] p-3 text-sm text-black/60">Attainment measures performance on attempted evidence. Coverage shows how much mapped evidence has been attempted. Both thresholds must be met.</p>
             <button className="w-fit rounded-lg bg-dark px-4 py-2 text-sm font-semibold text-white">Save policy</button>
           </form>
         </BuilderDialog>

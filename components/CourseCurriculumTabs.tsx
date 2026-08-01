@@ -29,15 +29,15 @@ export function CourseCurriculumTabs({
   const [active, setActive] = useState<TabKey>("curriculum");
 
   return (
-    <div id="curriculum" className="scroll-mt-20 rounded-[24px] border border-[#ECECF5] bg-white p-4 shadow-[0_12px_32px_rgba(0,0,0,.06)] md:p-5">
+    <div id="curriculum" className="scroll-mt-20 rounded-[24px] border border-[var(--br-surface-strong)] bg-white p-4 shadow-[0_12px_32px_rgba(0,0,0,.06)] md:p-5">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-extrabold">{TAB_TITLES[active]}</h2>
-          {active === "curriculum" ? <p className="mt-1 text-sm text-[#6E738D]">{curriculumSubtitle}</p> : null}
+          {active === "curriculum" ? <p className="mt-1 text-sm text-[var(--br-text-muted)]">{curriculumSubtitle}</p> : null}
         </div>
       </div>
 
-      <div className="mb-5 flex gap-1 border-b border-[#ECECF5]">
+      <div className="mb-5 flex gap-1 border-b border-[var(--br-surface-strong)]">
         {tabs
           .filter((tab) => tab.available)
           .map((tab) => (
@@ -48,7 +48,7 @@ export function CourseCurriculumTabs({
               aria-current={active === tab.key}
               className={`relative -mb-px px-3.5 py-2.5 text-sm font-extrabold transition ${
                 active === tab.key
-                  ? "border-b-2 border-[#6C3BFF] text-[#6C3BFF]"
+                  ? "border-b-2 border-[var(--br-chart-primary)] text-[var(--br-chart-primary)]"
                   : "border-b-2 border-transparent text-[#8D94AA] hover:text-[#35405F]"
               }`}
             >

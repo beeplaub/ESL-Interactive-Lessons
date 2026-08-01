@@ -27,7 +27,7 @@ export default async function CertificateDetailPage({ params }: { params: Promis
 
   return (
     <LearnerAppShell active="certificates" showRightSidebar={false}>
-      <div className="flex items-center justify-between gap-3 print:hidden"><Link href="/certificates" className="inline-flex items-center gap-1.5 text-sm font-bold text-[#6E738D] hover:text-[#6C3BFF]"><ArrowLeft className="size-4" /> All certificates</Link><CertificatePrintButton /></div>
+      <div className="flex items-center justify-between gap-3 print:hidden"><Link href="/certificates" className="inline-flex items-center gap-1.5 text-sm font-bold text-[var(--br-text-muted)] hover:text-[var(--br-chart-primary)]"><ArrowLeft className="size-4" /> All certificates</Link><CertificatePrintButton /></div>
       <section className="certificate-sheet overflow-hidden rounded-[28px] border border-[#E8D7A2] bg-[#FFFEF8] p-5 shadow-[0_20px_50px_rgba(75,57,10,.12)] sm:p-10">
         <div className="border border-[#E5C66A] p-5 text-center sm:p-10">
           <div className="mx-auto grid size-14 place-items-center rounded-full bg-gradient-to-br from-[#FFCC54] to-[#D88A08] text-white shadow-[0_10px_24px_rgba(216,138,8,.28)]"><Award className="size-7" /></div>

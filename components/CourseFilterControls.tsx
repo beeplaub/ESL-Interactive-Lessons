@@ -40,7 +40,7 @@ export function CourseFilterControls({
           name="sort"
           defaultValue={sort}
           onChange={() => formRef.current?.submit()}
-          className="h-9 cursor-pointer appearance-none rounded-lg border border-[#ECECF5] bg-white pl-3 pr-7 text-sm font-semibold text-[#35405F] shadow-[0_2px_8px_rgba(0,0,0,.04)] outline-none"
+          className="h-9 cursor-pointer appearance-none rounded-lg border border-[var(--br-surface-strong)] bg-white pl-3 pr-7 text-sm font-semibold text-[#35405F] shadow-[0_2px_8px_rgba(0,0,0,.04)] outline-none"
           aria-label="Sort courses"
         >
           <option value="popular">Most Popular</option>
@@ -48,26 +48,26 @@ export function CourseFilterControls({
           <option value="az">A–Z</option>
           <option value="za">Z–A</option>
         </select>
-        <ChevronDown className="pointer-events-none absolute right-2 top-1/2 size-4 -translate-y-1/2 text-[#6E738D]" />
+        <ChevronDown className="pointer-events-none absolute right-2 top-1/2 size-4 -translate-y-1/2 text-[var(--br-text-muted)]" />
       </div>
 
       <div className="relative">
         <button
           type="button"
           onClick={() => setOpen((value) => !value)}
-          className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[#ECECF5] bg-white px-3 text-sm font-semibold text-[#35405F] shadow-[0_2px_8px_rgba(0,0,0,.04)]"
+          className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[var(--br-surface-strong)] bg-white px-3 text-sm font-semibold text-[#35405F] shadow-[0_2px_8px_rgba(0,0,0,.04)]"
           aria-expanded={open}
         >
           <FilterIcon className="size-4" /> Filter{selectedTopics.length ? ` (${selectedTopics.length})` : ""}
         </button>
 
         <div
-          className={`absolute right-0 top-[calc(100%+8px)] z-20 w-64 rounded-[16px] border border-[#ECECF5] bg-white p-4 shadow-[0_16px_40px_rgba(0,0,0,.12)] ${open ? "block" : "hidden"}`}
+          className={`absolute right-0 top-[calc(100%+8px)] z-20 w-64 rounded-[16px] border border-[var(--br-surface-strong)] bg-white p-4 shadow-[0_16px_40px_rgba(0,0,0,.12)] ${open ? "block" : "hidden"}`}
         >
           <p className="mb-2 text-xs font-bold uppercase tracking-wide text-[#A0A5BA]">Topic</p>
           <div className="grid max-h-48 gap-2 overflow-y-auto">
             {topics.length === 0 ? (
-              <p className="text-xs text-[#6E738D]">No topics yet.</p>
+              <p className="text-xs text-[var(--br-text-muted)]">No topics yet.</p>
             ) : (
               topics.map((item) => (
                 <label key={item.topic} className="flex items-center gap-2 text-sm text-[#35405F]">
@@ -78,8 +78,8 @@ export function CourseFilterControls({
             )}
           </div>
           <div className="mt-3 flex items-center justify-between">
-            <a href={resetHref} className="text-xs font-semibold text-[#6C3BFF] hover:underline">Reset</a>
-            <button type="submit" className="rounded-lg bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] px-3 py-1.5 text-xs font-bold text-white">
+            <a href={resetHref} className="text-xs font-semibold text-[var(--br-chart-primary)] hover:underline">Reset</a>
+            <button type="submit" className="rounded-lg bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] px-3 py-1.5 text-xs font-bold text-white">
               Apply
             </button>
           </div>

@@ -197,7 +197,7 @@ export function WritingEvaluationInterface({
   }
 
   return (
-    <div className="mt-6 space-y-5 border-t border-[#6C3BFF]/10 pt-6">
+    <div className="mt-6 space-y-5 border-t border-[var(--br-chart-primary)]/10 pt-6">
       {error && (
         <div className="rounded-2xl bg-rose-50 border border-rose-100 p-4 text-xs font-bold text-rose-600 flex items-center gap-2">
           <span>⚠️</span> {error}
@@ -210,7 +210,7 @@ export function WritingEvaluationInterface({
           <div className="flex items-center justify-between">
             <div>
               <h4 className="text-sm font-bold text-ink flex items-center gap-1.5">
-                <Award className="size-4 text-[#6C3BFF]" /> Select 1 Evaluation Method
+                <Award className="size-4 text-[var(--br-chart-primary)]" /> Select 1 Evaluation Method
               </h4>
               <p className="text-xs text-black/50">Choose one — once picked, this is your grading method for this attempt.</p>
             </div>
@@ -222,10 +222,10 @@ export function WritingEvaluationInterface({
                 type="button"
                 disabled={!submissionText.trim() || isPending}
                 onClick={handleRunAiFeedback}
-                className="group rounded-3xl border border-[#6C3BFF]/20 bg-[#6C3BFF]/5 p-5 text-left transition-all duration-300 hover:border-[#6C3BFF] hover:bg-[#6C3BFF]/10 hover:shadow-md hover:-translate-y-0.5 disabled:opacity-40"
+                className="group rounded-3xl border border-[var(--br-chart-primary)]/20 bg-[var(--br-chart-primary)]/5 p-5 text-left transition-all duration-300 hover:border-[var(--br-chart-primary)] hover:bg-[var(--br-chart-primary)]/10 hover:shadow-md hover:-translate-y-0.5 disabled:opacity-40"
               >
-                <div className="w-10 h-10 rounded-2xl bg-[#6C3BFF]/15 flex items-center justify-center text-[#6C3BFF] mb-3 group-hover:scale-110 transition">
-                  {isPending ? <div className="h-5 w-5 animate-spin rounded-full border-2 border-[#6C3BFF] border-t-transparent" /> : <Sparkles size={20} />}
+                <div className="w-10 h-10 rounded-2xl bg-[var(--br-chart-primary)]/15 flex items-center justify-center text-[var(--br-chart-primary)] mb-3 group-hover:scale-110 transition">
+                  {isPending ? <div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--br-chart-primary)] border-t-transparent" /> : <Sparkles size={20} />}
                 </div>
                 <h5 className="text-sm font-bold text-ink">AI Evaluation</h5>
                 <p className="mt-1 text-xs text-black/50">Real, instant feedback and a score on grammar, tone & task response.</p>
@@ -272,21 +272,21 @@ export function WritingEvaluationInterface({
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="rounded-3xl border border-[#6C3BFF]/20 bg-[#6C3BFF]/5 p-5 space-y-4 shadow-xs"
+            className="rounded-3xl border border-[var(--br-chart-primary)]/20 bg-[var(--br-chart-primary)]/5 p-5 space-y-4 shadow-xs"
           >
             {aiResult ? (
               <div className="space-y-5">
-                <div className="flex items-center justify-between border-b border-[#6C3BFF]/10 pb-4">
-                  <span className="text-xs font-black text-[#6C3BFF] uppercase tracking-wider flex items-center gap-1.5">
+                <div className="flex items-center justify-between border-b border-[var(--br-chart-primary)]/10 pb-4">
+                  <span className="text-xs font-black text-[var(--br-chart-primary)] uppercase tracking-wider flex items-center gap-1.5">
                     <Sparkles size={14} /> AI Evaluation Report
                   </span>
-                  <span className="rounded-2xl bg-gradient-to-r from-[#6C3BFF] to-[#8C63FF] px-4 py-1.5 text-sm font-black text-white shadow-sm">
+                  <span className="rounded-2xl bg-gradient-to-r from-[var(--br-chart-primary)] to-[#8C63FF] px-4 py-1.5 text-sm font-black text-white shadow-sm">
                     Score: {aiResult.score}%
                   </span>
                 </div>
 
-                <div className="rounded-2xl bg-white p-4 border border-[#6C3BFF]/10 shadow-xs space-y-1">
-                  <p className="text-xs font-black text-[#6C3BFF] uppercase tracking-wider">Summary Feedback</p>
+                <div className="rounded-2xl bg-white p-4 border border-[var(--br-chart-primary)]/10 shadow-xs space-y-1">
+                  <p className="text-xs font-black text-[var(--br-chart-primary)] uppercase tracking-wider">Summary Feedback</p>
                   <p className="text-xs font-medium text-ink leading-relaxed">{aiResult.feedbackSummary}</p>
                 </div>
 
@@ -307,7 +307,7 @@ export function WritingEvaluationInterface({
                     <ul className="grid gap-1.5 pl-1.5 text-xs text-black/50 font-medium">
                       {aiResult.suggestions.map((sug, i) => (
                         <li key={i} className="flex items-start gap-2">
-                          <span className="text-[#6C3BFF] mt-0.5">•</span>
+                          <span className="text-[var(--br-chart-primary)] mt-0.5">•</span>
                           <span>{sug}</span>
                         </li>
                       ))}
@@ -315,7 +315,7 @@ export function WritingEvaluationInterface({
                   </div>
                 )}
 
-                <div className="pt-2 border-t border-[#6C3BFF]/10">
+                <div className="pt-2 border-t border-[var(--br-chart-primary)]/10">
                   <span className="text-[11px] text-black/40 font-medium">Evaluation method: AI Evaluation (locked for this attempt)</span>
                 </div>
               </div>
@@ -354,7 +354,7 @@ export function WritingEvaluationInterface({
                   <button
                     type="button"
                     onClick={() => handleSelectSelfGraded(true)}
-                    className="flex-1 rounded-2xl py-3 px-4 text-xs font-bold border-2 transition duration-300 active:scale-95 bg-white border-black/10 text-black/70 hover:border-[#6C3BFF] hover:text-[#6C3BFF]"
+                    className="flex-1 rounded-2xl py-3 px-4 text-xs font-bold border-2 transition duration-300 active:scale-95 bg-white border-black/10 text-black/70 hover:border-[var(--br-chart-primary)] hover:text-[var(--br-chart-primary)]"
                   >
                     ✓ My draft matches key points
                   </button>
@@ -367,7 +367,7 @@ export function WritingEvaluationInterface({
                   </button>
                 </div>
               ) : (
-                <div className={`rounded-2xl py-3 px-4 text-xs font-bold border-2 ${selfGradedChoice ? "bg-[#6C3BFF] text-white border-[#6C3BFF]" : "bg-rose-500 text-white border-rose-500"}`}>
+                <div className={`rounded-2xl py-3 px-4 text-xs font-bold border-2 ${selfGradedChoice ? "bg-[var(--br-chart-primary)] text-white border-[var(--br-chart-primary)]" : "bg-rose-500 text-white border-rose-500"}`}>
                   {selfGradedChoice ? "✓ You marked this as matching the key points." : "✗ You marked this as needing revision."}
                 </div>
               )}

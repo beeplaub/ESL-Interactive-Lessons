@@ -81,13 +81,13 @@ export default async function AdminOrdersPage({
               href={`/admin/orders?status=${tab.value}`}
               className={`pb-3 px-4 text-sm font-semibold border-b-2 transition ${
                 isActive
-                  ? "border-[#6C3BFF] text-[#6C3BFF]"
+                  ? "border-[var(--br-chart-primary)] text-[var(--br-chart-primary)]"
                   : "border-transparent text-black/50 hover:text-black hover:border-black/20"
               }`}
             >
               {tab.label}
               {"count" in tab && tab.count && tab.count > 0 ? (
-                <span className="ml-1.5 rounded-full bg-[#6C3BFF] px-2 py-0.5 text-[10px] font-bold text-white">
+                <span className="ml-1.5 rounded-full bg-[var(--br-chart-primary)] px-2 py-0.5 text-[10px] font-bold text-white">
                   {tab.count}
                 </span>
               ) : null}

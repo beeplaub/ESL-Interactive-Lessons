@@ -33,7 +33,7 @@ export function LevelTestScoreCard({
       <div className="mt-1 flex items-baseline text-[40px] font-extrabold leading-none">
         {summary.weightedPercent}%
         {delta !== null && delta !== 0 ? (
-          <span className={`ml-2 text-[13px] font-semibold ${delta > 0 ? "text-[#00C98D]" : "text-[#FF8C69]"}`}>
+          <span className={`ml-2 text-[13px] font-semibold ${delta > 0 ? "text-[var(--br-success)]" : "text-[#FF8C69]"}`}>
             {delta > 0 ? "↑" : "↓"} {Math.abs(delta)}%
           </span>
         ) : null}
@@ -48,7 +48,7 @@ export function LevelTestScoreCard({
         )}
       </div>
       <div className="mt-4 flex flex-col gap-2">
-        <Link href={primaryHref} className="flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] px-4 py-3 text-xs font-semibold text-white">
+        <Link href={primaryHref} className="flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] px-4 py-3 text-xs font-semibold text-white">
           {primaryLabel} <ChevronRight className="size-[13px]" />
         </Link>
         {secondaryHref && secondaryLabel ? (
@@ -82,7 +82,7 @@ function SubScore({ label, value, green }: { label: string; value: number; green
     <div className="flex items-center gap-2">
       <span className="w-[100px] truncate text-xs text-white/60">{label}</span>
       <span className="h-1.5 flex-1 rounded-full bg-white/10">
-        <span className={`block h-full rounded-full ${green ? "bg-[#00C98D]" : "bg-[#4E8DFF]"}`} style={{ width: `${value}%` }} />
+        <span className={`block h-full rounded-full ${green ? "bg-[var(--br-success)]" : "bg-[#4E8DFF]"}`} style={{ width: `${value}%` }} />
       </span>
       <span className="w-8 text-right text-xs text-white/70">{value}%</span>
     </div>

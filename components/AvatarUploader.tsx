@@ -24,13 +24,13 @@ export function AvatarUploader({ initialUrl, initials }: { initialUrl: string | 
 
   return (
     <div className="flex flex-col items-center">
-      <div className="grid size-28 place-items-center overflow-hidden rounded-[32px] bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] text-3xl font-black text-white shadow-[0_14px_30px_rgba(108,59,255,.28)]">
+      <div className="grid size-28 place-items-center overflow-hidden rounded-[32px] bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] text-3xl font-black text-white shadow-[0_14px_30px_rgba(108,59,255,.28)]">
         {url ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={url} alt="Profile avatar" className="h-28 w-28 object-cover" />
         ) : initials}
       </div>
-      <label className="mt-4 inline-flex cursor-pointer rounded-[14px] border border-[#DDD9F4] bg-white px-4 py-2.5 text-sm font-extrabold text-[#6C3BFF] shadow-[0_2px_8px_rgba(0,0,0,.04)] hover:bg-[#F6F7FB]">
+      <label className="mt-4 inline-flex cursor-pointer rounded-[14px] border border-[#DDD9F4] bg-white px-4 py-2.5 text-sm font-extrabold text-[var(--br-chart-primary)] shadow-[0_2px_8px_rgba(0,0,0,.04)] hover:bg-[var(--br-canvas-elevated)]">
         {isPending ? "Uploading..." : "Upload photo"}
         <input type="file" accept="image/*" className="sr-only" onChange={(event) => event.target.files?.[0] && upload(event.target.files[0])} />
       </label>

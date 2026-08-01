@@ -80,25 +80,25 @@ export default async function LanguageProfilePage() {
           <section className="min-w-0 rounded-[24px] border border-black/5 bg-white p-4 shadow-[0_12px_35px_rgba(18,22,43,.06)] sm:p-5">
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-black text-[#14172B]">Skill mastery</h2>
-                <p className="text-xs font-medium text-[#6E738D]">Confidence uses your most recent evidence first.</p>
+                <h2 className="text-lg font-black text-[var(--br-dark-card)]">Skill mastery</h2>
+                <p className="text-xs font-medium text-[var(--br-text-muted)]">Confidence uses your most recent evidence first.</p>
               </div>
-              <TrendingUp className="size-5 text-[#6C3BFF]" />
+              <TrendingUp className="size-5 text-[var(--br-chart-primary)]" />
             </div>
             <div className="grid gap-3">
               {skillRows.length ? skillRows.map((row) => (
-                <div key={row.skill.id} className="rounded-2xl border border-[#ECECF5] p-4">
+                <div key={row.skill.id} className="rounded-2xl border border-[var(--br-surface-strong)] p-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
-                      <h3 className="font-bold text-[#14172B]">{row.skill.name}</h3>
-                      <p className="text-xs text-[#6E738D]">{row.evidenceCount} evidence record{row.evidenceCount === 1 ? "" : "s"}</p>
+                      <h3 className="font-bold text-[var(--br-dark-card)]">{row.skill.name}</h3>
+                      <p className="text-xs text-[var(--br-text-muted)]">{row.evidenceCount} evidence record{row.evidenceCount === 1 ? "" : "s"}</p>
                     </div>
                     <span className={`rounded-full px-3 py-1 text-xs font-black ${bandClass(row.band)}`}>{row.band}</span>
                   </div>
                   <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#EEF0F7]">
-                    <div className="h-full rounded-full bg-gradient-to-r from-[#6C3BFF] to-[#28D5C3]" style={{ width: `${Math.min(100, Math.round(row.confidence))}%` }} />
+                    <div className="h-full rounded-full bg-gradient-to-r from-[var(--br-chart-primary)] to-[#28D5C3]" style={{ width: `${Math.min(100, Math.round(row.confidence))}%` }} />
                   </div>
-                  <p className="mt-2 text-xs font-semibold text-[#6E738D]">Confidence {pct(row.confidence)}{row.latestScore !== null ? ` · latest ${row.latestScore}%` : ""}</p>
+                  <p className="mt-2 text-xs font-semibold text-[var(--br-text-muted)]">Confidence {pct(row.confidence)}{row.latestScore !== null ? ` · latest ${row.latestScore}%` : ""}</p>
                 </div>
               )) : <EmptyLine text="No skill-labeled evidence yet. New quizzes and lessons will start filling this in." />}
             </div>
@@ -108,14 +108,14 @@ export default async function LanguageProfilePage() {
             <section className="rounded-[24px] border border-black/5 bg-white p-5 shadow-[0_12px_35px_rgba(18,22,43,.06)]">
               <div className="mb-4 flex items-center gap-2">
                 <Sparkles className="size-5 text-[#F59E0B]" />
-                <h2 className="text-lg font-black text-[#14172B]">Learned targets</h2>
+                <h2 className="text-lg font-black text-[var(--br-dark-card)]">Learned targets</h2>
               </div>
               <div className="space-y-2">
                 {targetRows.length ? targetRows.slice(0, 12).map((row) => (
-                  <div key={row.target.id} className="flex items-center justify-between gap-3 rounded-2xl bg-[#F6F7FB] px-3 py-2">
+                  <div key={row.target.id} className="flex items-center justify-between gap-3 rounded-2xl bg-[var(--br-canvas-elevated)] px-3 py-2">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-bold text-[#14172B]">{row.target.label}</p>
-                      <p className="text-[11px] uppercase tracking-wide text-[#6E738D]">{row.target.target_type.replaceAll("_", " ")}</p>
+                      <p className="truncate text-sm font-bold text-[var(--br-dark-card)]">{row.target.label}</p>
+                      <p className="text-[11px] uppercase tracking-wide text-[var(--br-text-muted)]">{row.target.target_type.replaceAll("_", " ")}</p>
                     </div>
                     <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-black ${bandClass(row.band)}`}>{row.band}</span>
                   </div>
@@ -125,13 +125,13 @@ export default async function LanguageProfilePage() {
 
             <section className="rounded-[24px] border border-black/5 bg-white p-5 shadow-[0_12px_35px_rgba(18,22,43,.06)]">
               <div className="mb-3 flex items-center gap-2">
-                <Target className="size-5 text-[#6C3BFF]" />
-                <h2 className="text-lg font-black text-[#14172B]">Next best move</h2>
+                <Target className="size-5 text-[var(--br-chart-primary)]" />
+                <h2 className="text-lg font-black text-[var(--br-dark-card)]">Next best move</h2>
               </div>
-              <p className="text-sm leading-6 text-[#6E738D]">
+              <p className="text-sm leading-6 text-[var(--br-text-muted)]">
                 Take a few scored quizzes or course activities with skill labels. BrenUp will start showing stronger Can-Do evidence as your record grows.
               </p>
-              <Link href="/quizzes" className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-[#6C3BFF] to-[#8A58FF] px-4 py-2.5 text-sm font-black text-white">
+              <Link href="/quizzes" className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-[var(--br-chart-primary)] to-[var(--br-brand)] px-4 py-2.5 text-sm font-black text-white">
                 Practise now <ArrowRight className="size-4" />
               </Link>
             </section>
@@ -139,12 +139,12 @@ export default async function LanguageProfilePage() {
         </div>
       ) : (
         <section className="rounded-[24px] border border-dashed border-[#DDE1F0] bg-white p-8 text-center shadow-[0_12px_35px_rgba(18,22,43,.06)]">
-          <CheckCircle2 className="mx-auto size-10 text-[#6C3BFF]" />
-          <h2 className="mt-3 text-xl font-black text-[#14172B]">Your profile is ready to grow</h2>
-          <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-[#6E738D]">
+          <CheckCircle2 className="mx-auto size-10 text-[var(--br-chart-primary)]" />
+          <h2 className="mt-3 text-xl font-black text-[var(--br-dark-card)]">Your profile is ready to grow</h2>
+          <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-[var(--br-text-muted)]">
             Once you complete scored quizzes or course activities, this page will show your strengths, learned items, confidence, and Can-Do evidence.
           </p>
-          <Link href="/quizzes" className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-[#6C3BFF] to-[#8A58FF] px-5 py-3 text-sm font-black text-white">
+          <Link href="/quizzes" className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-[var(--br-chart-primary)] to-[var(--br-brand)] px-5 py-3 text-sm font-black text-white">
             Start with a quiz <ArrowRight className="size-4" />
           </Link>
         </section>
@@ -163,5 +163,5 @@ function Stat({ label, value }: { label: string; value: string }) {
 }
 
 function EmptyLine({ text }: { text: string }) {
-  return <p className="rounded-2xl bg-[#F6F7FB] px-4 py-5 text-sm font-medium text-[#6E738D]">{text}</p>;
+  return <p className="rounded-2xl bg-[var(--br-canvas-elevated)] px-4 py-5 text-sm font-medium text-[var(--br-text-muted)]">{text}</p>;
 }

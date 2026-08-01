@@ -130,7 +130,7 @@ export default async function CourseOutcomeReportPage({ params }: { params: Prom
                     <Progress value={row.attainmentPercent} color="bg-moss" label={pct(row.attainmentPercent)} />
                   </td>
                   <td className="px-4 py-4">
-                    <Progress value={row.coveragePercent} color="bg-[#6C3BFF]" label={pct(row.coveragePercent)} />
+                    <Progress value={row.coveragePercent} color="bg-[var(--br-chart-primary)]" label={pct(row.coveragePercent)} />
                   </td>
                   <td className="px-4 py-4">
                     {row.attained ? (

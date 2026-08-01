@@ -319,8 +319,8 @@ export function EditItemModal({ action, deleteAction, item, label, status, count
               </div>
 
               {(itemType === "LESSON" || itemType === "QUIZ") ? (
-                <section className="rounded-xl border border-[#6C3BFF]/20 bg-[#F8F6FF] p-3">
-                  <p className="text-xs font-extrabold uppercase tracking-wide text-[#6C3BFF]">Course assessment contribution</p>
+                <section className="rounded-xl border border-[var(--br-chart-primary)]/20 bg-[#F8F6FF] p-3">
+                  <p className="text-xs font-extrabold uppercase tracking-wide text-[var(--br-chart-primary)]">Course assessment contribution</p>
                   <div className="mt-3 grid gap-3 sm:grid-cols-3">
                     <label className="text-sm font-medium">Item weight<input name="assessmentWeight" type="number" min="0.01" step="0.01" defaultValue={item.assessment_weight ?? 1} className="mt-1 w-full rounded-lg border border-black/15 bg-white px-3 py-2 font-normal" /></label>
                     <label className="text-sm font-medium">Mastery override %<input name="masteryThresholdOverride" type="number" min="0" max="100" defaultValue={item.mastery_threshold_override ?? ""} placeholder="Course default" className="mt-1 w-full rounded-lg border border-black/15 bg-white px-3 py-2 font-normal" /></label>

@@ -44,7 +44,7 @@ export function QuizPlayerScreen({
         {backHref ? (
           <Link
             href={backHref}
-            className="mb-3 inline-flex size-8 items-center justify-center rounded-full border border-[#ECECF5] text-[#6E738D] hover:bg-[#F6F7FB] hover:text-[#6C3BFF]"
+            className="mb-3 inline-flex size-8 items-center justify-center rounded-full border border-[var(--br-surface-strong)] text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)] hover:text-[var(--br-chart-primary)]"
             aria-label="Back to course"
           >
             <ArrowLeft size={15} />

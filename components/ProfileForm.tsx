@@ -34,7 +34,7 @@ export function ProfileForm({
           <input
             name="firstName"
             defaultValue={firstName}
-            className="mt-2 w-full rounded-[14px] border border-[#ECECF5] bg-[#F8F8FC] px-4 py-3 font-semibold text-[#14172B] outline-none transition focus:border-[#6C3BFF] focus:bg-white"
+            className="mt-2 w-full rounded-[14px] border border-[var(--br-surface-strong)] bg-[#F8F8FC] px-4 py-3 font-semibold text-[var(--br-dark-card)] outline-none transition focus:border-[var(--br-chart-primary)] focus:bg-white"
           />
         </label>
         <label className="text-sm font-extrabold text-[#35405F]">
@@ -42,18 +42,18 @@ export function ProfileForm({
           <input
             name="lastName"
             defaultValue={lastName}
-            className="mt-2 w-full rounded-[14px] border border-[#ECECF5] bg-[#F8F8FC] px-4 py-3 font-semibold text-[#14172B] outline-none transition focus:border-[#6C3BFF] focus:bg-white"
+            className="mt-2 w-full rounded-[14px] border border-[var(--br-surface-strong)] bg-[#F8F8FC] px-4 py-3 font-semibold text-[var(--br-dark-card)] outline-none transition focus:border-[var(--br-chart-primary)] focus:bg-white"
           />
         </label>
       </div>
 
-      <div className="rounded-[16px] border border-[#ECECF5] bg-[#F8F8FC] p-4">
-        <p className="break-words text-sm font-extrabold text-[#14172B]">{email}</p>
-        <p className="mt-1 text-xs font-semibold text-[#8B90A7]">Email cannot be changed</p>
+      <div className="rounded-[16px] border border-[var(--br-surface-strong)] bg-[#F8F8FC] p-4">
+        <p className="break-words text-sm font-extrabold text-[var(--br-dark-card)]">{email}</p>
+        <p className="mt-1 text-xs font-semibold text-[var(--br-text-muted)]">Email cannot be changed</p>
       </div>
 
       {state?.success && (
-        <div className="inline-flex items-center gap-2 rounded-[14px] bg-[#E7FBF4] px-4 py-2 text-sm font-extrabold text-[#00A978]">
+        <div className="inline-flex items-center gap-2 rounded-[14px] bg-[#E7FBF4] px-4 py-2 text-sm font-extrabold text-[var(--br-chart-secondary)]">
           <CheckCircle2 size={16} /> Profile saved successfully
         </div>
       )}
@@ -65,7 +65,7 @@ export function ProfileForm({
 
       <button
         disabled={isPending}
-        className="w-fit rounded-[14px] bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] px-5 py-3 text-sm font-extrabold text-white shadow-[0_8px_20px_rgba(108,59,255,.28)] disabled:opacity-50"
+        className="w-fit rounded-[14px] bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] px-5 py-3 text-sm font-extrabold text-white shadow-[0_8px_20px_rgba(108,59,255,.28)] disabled:opacity-50"
       >
         {isPending ? "Saving…" : "Save profile"}
       </button>

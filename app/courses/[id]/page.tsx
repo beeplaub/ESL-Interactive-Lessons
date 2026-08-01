@@ -135,18 +135,18 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
           {/* eslint-disable-next-line @next/next/no-img-element -- Course creators can use arbitrary public image links. */}
           <img src={imageUrl} alt={course.title} className="h-[230px] w-full object-cover sm:h-[280px] min-[1130px]:h-full" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/5 to-transparent" />
-          <button type="button" className="absolute left-1/2 top-1/2 grid size-16 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-white text-[#14172B] shadow-[0_12px_24px_rgba(0,0,0,.25)]">
-            <Play className="ml-1 size-7 fill-[#14172B]" />
+          <button type="button" className="absolute left-1/2 top-1/2 grid size-16 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-white text-[var(--br-dark-card)] shadow-[0_12px_24px_rgba(0,0,0,.25)]">
+            <Play className="ml-1 size-7 fill-[var(--br-dark-card)]" />
           </button>
           <span className="absolute bottom-4 left-4 rounded-lg bg-black/45 px-3 py-1.5 text-xs font-bold text-white backdrop-blur">Preview</span>
         </div>
 
         <div className="flex min-w-0 flex-col justify-center py-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="rounded-md bg-[#00C98D] px-2.5 py-1 text-xs font-extrabold text-white">{course.level ?? "All Levels"}</span>
-            {course.topic ? <span className="min-w-0 break-words text-sm font-semibold text-[#6E738D]">{course.topic}</span> : null}
+            <span className="rounded-md bg-[var(--br-success)] px-2.5 py-1 text-xs font-extrabold text-white">{course.level ?? "All Levels"}</span>
+            {course.topic ? <span className="min-w-0 break-words text-sm font-semibold text-[var(--br-text-muted)]">{course.topic}</span> : null}
           </div>
-          <h1 className="mt-4 break-words text-[26px] font-extrabold leading-tight tracking-[-0.01em] text-[#14172B] sm:text-[30px] md:text-[38px]">{course.title}</h1>
+          <h1 className="mt-4 break-words text-[26px] font-extrabold leading-tight tracking-[-0.01em] text-[var(--br-dark-card)] sm:text-[30px] md:text-[38px]">{course.title}</h1>
           {course.subtitle ? <p className="mt-3 max-w-2xl break-words text-sm leading-6 text-[#4F5671] md:text-base">{course.subtitle}</p> : null}
           <div className="mt-5 flex flex-wrap gap-4 text-xs font-bold text-[#53607D]">
             <Meta icon={BookOpen} label={`${totalItems} items`} />
@@ -201,25 +201,25 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
           const completedInSection = sectionItems.filter((item) => completedIds.has(item.id)).length;
           const sectionPercent = sectionItems.length ? Math.round((completedInSection / sectionItems.length) * 100) : 0;
           return (
-            <details key={section.id} className="group min-w-0 rounded-[18px] border border-[#ECECF5] bg-white p-4 shadow-[0_4px_14px_rgba(0,0,0,.035)]" open={index < 2 || sectionPercent > 0}>
+            <details key={section.id} className="group min-w-0 rounded-[18px] border border-[var(--br-surface-strong)] bg-white p-4 shadow-[0_4px_14px_rgba(0,0,0,.035)]" open={index < 2 || sectionPercent > 0}>
               <summary className="cursor-pointer list-none marker:hidden [&::-webkit-details-marker]:hidden">
                 <div className="flex min-w-0 items-start gap-3">
-                  <span className={`grid size-9 shrink-0 place-items-center rounded-full text-sm font-extrabold ${sectionPercent === 100 ? "bg-[#00C98D] text-white" : sectionPercent > 0 ? "bg-[#6C3BFF] text-white" : "bg-[#F2F3F8] text-[#6E738D]"}`}>
+                  <span className={`grid size-9 shrink-0 place-items-center rounded-full text-sm font-extrabold ${sectionPercent === 100 ? "bg-[var(--br-success)] text-white" : sectionPercent > 0 ? "bg-[var(--br-chart-primary)] text-white" : "bg-[#F2F3F8] text-[var(--br-text-muted)]"}`}>
                     {sectionPercent === 100 ? <CheckCircle2 className="size-5" /> : index + 1}
                   </span>
                   <div className="min-w-0 flex-1">
                     <h3 className="break-words font-extrabold leading-snug">{section.title}</h3>
-                    {section.description ? <p className="mt-1 break-words text-sm leading-5 text-[#6E738D] sm:line-clamp-2">{section.description}</p> : null}
+                    {section.description ? <p className="mt-1 break-words text-sm leading-5 text-[var(--br-text-muted)] sm:line-clamp-2">{section.description}</p> : null}
                   </div>
                   <span className="hidden text-sm font-bold text-[#53607D] sm:block">{sectionItems.length} items</span>
                   <div className="hidden w-[120px] items-center gap-2 sm:flex">
                     <span className="text-xs font-bold text-[#53607D]">{sectionPercent}%</span>
-                    <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#ECECF5]"><span className="block h-full rounded-full bg-gradient-to-r from-[#6C3BFF] to-[#00C98D]" style={{ width: `${sectionPercent}%` }} /></span>
+                    <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--br-surface-strong)]"><span className="block h-full rounded-full bg-gradient-to-r from-[var(--br-chart-primary)] to-[var(--br-success)]" style={{ width: `${sectionPercent}%` }} /></span>
                   </div>
-                  <ChevronDown className="size-5 text-[#6E738D] transition group-open:rotate-180" />
+                  <ChevronDown className="size-5 text-[var(--br-text-muted)] transition group-open:rotate-180" />
                 </div>
               </summary>
-              <div className="mt-4 grid min-w-0 gap-2 border-l-2 border-[#ECECF5] pl-3 sm:ml-4 sm:pl-4">
+              <div className="mt-4 grid min-w-0 gap-2 border-l-2 border-[var(--br-surface-strong)] pl-3 sm:ml-4 sm:pl-4">
                 {sectionItems.length ? sectionItems.map((item, itemIndex) => {
                   const globalIndex = courseItems.findIndex((ci) => ci.id === item.id);
                   const isComplete = completedIds.has(item.id);
@@ -240,18 +240,18 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
                       unlocked={unlocked}
                     />
                   );
-                }) : <p className="rounded-xl bg-[#F6F7FB] p-4 text-sm text-[#6E738D]">Items coming soon.</p>}
+                }) : <p className="rounded-xl bg-[var(--br-canvas-elevated)] p-4 text-sm text-[var(--br-text-muted)]">Items coming soon.</p>}
               </div>
             </details>
           );
         }) : (
-          <p className="rounded-xl bg-[#F6F7FB] p-5 text-sm text-[#6E738D]">Curriculum coming soon.</p>
+          <p className="rounded-xl bg-[var(--br-canvas-elevated)] p-5 text-sm text-[var(--br-text-muted)]">Curriculum coming soon.</p>
         )}
     </div>
   );
 
   // Dynamic stats & styling for course progress panel
-  let bannerClass = "bg-[#F9FAFC] border-[#ECECF5] text-[#53607D]";
+  let bannerClass = "bg-[#F9FAFC] border-[var(--br-surface-strong)] text-[#53607D]";
   let bannerText = "🔥 Ready to begin? Enroll now to start your learning path.";
   let inProgressNode: React.ReactNode = "Not enrolled";
 
@@ -264,7 +264,7 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
       if (continueItem) {
         if (continueHref) {
           inProgressNode = (
-            <Link href={continueHref} className="text-[#6C3BFF] hover:underline font-bold inline-flex items-center gap-1">
+            <Link href={continueHref} className="text-[var(--br-chart-primary)] hover:underline font-bold inline-flex items-center gap-1">
               {continueLabel}
             </Link>
           );
@@ -298,18 +298,18 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
               <linearGradient id="courseProgress" x1="0" y1="0" x2="1" y2="1">
                 <stop stopColor="#2F80ED" />
                 <stop offset="0.5" stopColor="#FFCC45" />
-                <stop offset="1" stopColor="#00C98D" />
+                <stop offset="1" stopColor="var(--br-success)" />
               </linearGradient>
             </defs>
           </svg>
           <div className="absolute text-center">
             <div className="text-3xl font-extrabold">{progressPercent}%</div>
-            <div className="text-xs font-semibold text-[#6E738D]">Completed</div>
+            <div className="text-xs font-semibold text-[var(--br-text-muted)]">Completed</div>
           </div>
         </div>
         <div className="grid flex-1 gap-3 text-sm min-w-0">
-          <Legend dot="#00C98D" label="Completed" value={`${completedItems} items`} />
-          <Legend dot={isEnrolled && progressPercent < 100 ? "#2F80ED" : progressPercent === 100 ? "#00C98D" : "#D5D9E6"} label="In Progress" value={inProgressNode} />
+          <Legend dot="var(--br-success)" label="Completed" value={`${completedItems} items`} />
+          <Legend dot={isEnrolled && progressPercent < 100 ? "#2F80ED" : progressPercent === 100 ? "var(--br-success)" : "#D5D9E6"} label="In Progress" value={inProgressNode} />
           <Legend dot="#D5D9E6" label="Remaining" value={`${Math.max(0, totalItems - completedItems)} items`} />
         </div>
       </div>
@@ -325,10 +325,10 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
       <div className="grid gap-3">
         {(outcomes ?? []).slice(0, 6).map((item) => (
           <div key={item.id} className="flex gap-2 text-sm leading-5 text-[#53607D]">
-            <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-[#00C98D]" /> {item.outcome}
+            <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-[var(--br-success)]" /> {item.outcome}
           </div>
         ))}
-        {(outcomes ?? []).length === 0 ? <p className="text-sm text-[#6E738D]">Course outcomes will be added soon.</p> : null}
+        {(outcomes ?? []).length === 0 ? <p className="text-sm text-[var(--br-text-muted)]">Course outcomes will be added soon.</p> : null}
       </div>
     </Panel>
   );
@@ -336,12 +336,12 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
   const supportPanel = (
     <Panel title="Course Support">
       <div className="flex items-center gap-4">
-        <div className="grid size-16 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] text-white">
+        <div className="grid size-16 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] text-white">
           <GraduationCap className="size-8" />
         </div>
         <div>
           <p className="font-extrabold">BrenUp Learning Team</p>
-          <p className="mt-1 text-sm leading-5 text-[#6E738D]">Interactive English practice, progress tracking, and guided study paths.</p>
+          <p className="mt-1 text-sm leading-5 text-[var(--br-text-muted)]">Interactive English practice, progress tracking, and guided study paths.</p>
           <p className="mt-2 text-sm font-bold text-[#FFB545]">★ 4.9 learner rating</p>
         </div>
       </div>
@@ -429,9 +429,9 @@ function CourseItemLink({ courseId, item, itemIndex, isComplete, unlocked }: { c
   const published = isCourseItemPublished(item);
   const isManuallyCompleted = (item.item_type === "RESOURCE" || item.item_type === "EXTERNAL_LINK") && !isComplete;
   return (
-    <div className="flex min-w-0 flex-col gap-3 rounded-[14px] px-2 py-2 text-sm transition hover:bg-[#F6F7FB] sm:flex-row sm:items-center">
+    <div className="flex min-w-0 flex-col gap-3 rounded-[14px] px-2 py-2 text-sm transition hover:bg-[var(--br-canvas-elevated)] sm:flex-row sm:items-center">
       <div className="flex min-w-0 flex-1 items-start gap-3">
-      <span className={`grid size-6 shrink-0 place-items-center rounded-full text-[11px] font-bold ${isComplete ? "bg-[#00C98D] text-white" : "bg-[#F1F3FA] text-[#8D94AA]"}`}>
+      <span className={`grid size-6 shrink-0 place-items-center rounded-full text-[11px] font-bold ${isComplete ? "bg-[var(--br-success)] text-white" : "bg-[#F1F3FA] text-[#8D94AA]"}`}>
         {isComplete ? <CheckCircle2 className="size-4" /> : itemIndex + 1}
       </span>
       <div className="min-w-0 flex-1">
@@ -448,19 +448,19 @@ function CourseItemLink({ courseId, item, itemIndex, isComplete, unlocked }: { c
         </span>
       ) : unlocked && href ? (
         <div className="flex shrink-0 flex-wrap items-center gap-1.5 pl-9 sm:pl-0">
-          <Link href={href} target={item.item_type === "RESOURCE" || item.item_type === "EXTERNAL_LINK" ? "_blank" : undefined} className="inline-flex items-center gap-1 rounded-full bg-[#F6F7FB] px-2.5 py-1 text-xs font-bold text-[#6C3BFF]">
+          <Link href={href} target={item.item_type === "RESOURCE" || item.item_type === "EXTERNAL_LINK" ? "_blank" : undefined} className="inline-flex items-center gap-1 rounded-full bg-[var(--br-canvas-elevated)] px-2.5 py-1 text-xs font-bold text-[var(--br-chart-primary)]">
             <PlayCircle className="size-3.5" /> Open
           </Link>
           {isManuallyCompleted ? (
             <form action={markCourseItemComplete.bind(null, courseId, item.id)}>
-              <button className="inline-flex items-center gap-1 rounded-full border border-[#ECECF5] px-2.5 py-1 text-xs font-bold text-[#6E738D] hover:bg-[#F6F7FB]">
+              <button className="inline-flex items-center gap-1 rounded-full border border-[var(--br-surface-strong)] px-2.5 py-1 text-xs font-bold text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]">
                 <CheckCircle2 className="size-3.5" /> Mark complete
               </button>
             </form>
           ) : null}
         </div>
       ) : (
-        <span className="ml-9 inline-flex w-fit shrink-0 items-center gap-1 rounded-full bg-[#F6F7FB] px-2.5 py-1 text-xs font-bold text-[#8D94AA] sm:ml-0">
+        <span className="ml-9 inline-flex w-fit shrink-0 items-center gap-1 rounded-full bg-[var(--br-canvas-elevated)] px-2.5 py-1 text-xs font-bold text-[#8D94AA] sm:ml-0">
           <LockKeyhole className="size-3.5" /> Locked
         </span>
       )}
@@ -470,12 +470,12 @@ function CourseItemLink({ courseId, item, itemIndex, isComplete, unlocked }: { c
 
 function FaqAccordionItem({ question, answer, defaultOpen }: { question: string; answer: string; defaultOpen?: boolean }) {
   return (
-    <details className="group rounded-[16px] border border-[#ECECF5] bg-white px-4 py-3 shadow-[0_2px_10px_rgba(0,0,0,.03)] open:shadow-[0_4px_14px_rgba(0,0,0,.05)]" open={defaultOpen}>
+    <details className="group rounded-[16px] border border-[var(--br-surface-strong)] bg-white px-4 py-3 shadow-[0_2px_10px_rgba(0,0,0,.03)] open:shadow-[0_4px_14px_rgba(0,0,0,.05)]" open={defaultOpen}>
       <summary className="flex cursor-pointer list-none items-start justify-between gap-3 marker:hidden [&::-webkit-details-marker]:hidden">
-        <p className="min-w-0 break-words text-sm font-extrabold leading-5 text-[#14172B]">{question}</p>
-        <ChevronDown className="mt-0.5 size-4 shrink-0 text-[#6E738D] transition group-open:rotate-180" />
+        <p className="min-w-0 break-words text-sm font-extrabold leading-5 text-[var(--br-dark-card)]">{question}</p>
+        <ChevronDown className="mt-0.5 size-4 shrink-0 text-[var(--br-text-muted)] transition group-open:rotate-180" />
       </summary>
-      <p className="mt-2.5 break-words text-sm leading-6 text-[#6E738D]">{answer}</p>
+      <p className="mt-2.5 break-words text-sm leading-6 text-[var(--br-text-muted)]">{answer}</p>
     </details>
   );
 }
@@ -496,7 +496,7 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
 }
 
 function Meta({ icon: Icon, label, star }: { icon: React.ElementType; label: string; star?: boolean }) {
-  return <span className="inline-flex items-center gap-1.5"><Icon className={`size-4 ${star ? "fill-[#FFB545] text-[#FFB545]" : "text-[#6E738D]"}`} /> {label}</span>;
+  return <span className="inline-flex items-center gap-1.5"><Icon className={`size-4 ${star ? "fill-[#FFB545] text-[#FFB545]" : "text-[var(--br-text-muted)]"}`} /> {label}</span>;
 }
 
 function Legend({ dot, label, value }: { dot: string; label: string; value: React.ReactNode }) {
@@ -505,7 +505,7 @@ function Legend({ dot, label, value }: { dot: string; label: string; value: Reac
       <span className="mt-1.5 size-2.5 shrink-0 rounded-full" style={{ backgroundColor: dot }} />
       <div className="min-w-0 flex-1">
         <p className="font-bold text-[#35405F]">{label}</p>
-        <div className="min-w-0 break-words text-xs leading-5 text-[#6E738D]">{value}</div>
+        <div className="min-w-0 break-words text-xs leading-5 text-[var(--br-text-muted)]">{value}</div>
       </div>
     </div>
   );

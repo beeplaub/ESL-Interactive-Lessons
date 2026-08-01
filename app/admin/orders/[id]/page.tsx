@@ -199,7 +199,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={profile.avatar_url} alt="" className="size-10 rounded-full object-cover" />
               ) : (
-                <div className="grid size-10 place-items-center rounded-full bg-[#6C3BFF]/10 text-[#6C3BFF] font-bold">
+                <div className="grid size-10 place-items-center rounded-full bg-[var(--br-chart-primary)]/10 text-[var(--br-chart-primary)] font-bold">
                   {profile?.full_name?.charAt(0) ?? "U"}
                 </div>
               )}

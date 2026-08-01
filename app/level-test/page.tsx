@@ -41,12 +41,12 @@ export default async function LevelTestPage() {
           />
         ) : null}
 
-        <div className="rounded-[24px] border border-[#ECECF5] bg-white p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)] sm:p-6">
+        <div className="rounded-[24px] border border-[var(--br-surface-strong)] bg-white p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)] sm:p-6">
           <div className="flex items-center gap-3">
-            <span className="grid size-11 shrink-0 place-items-center rounded-[14px] bg-[#EEEAFB] text-[#6C3BFF]"><Target className="size-5" /></span>
+            <span className="grid size-11 shrink-0 place-items-center rounded-[14px] bg-[#EEEAFB] text-[var(--br-chart-primary)]"><Target className="size-5" /></span>
             <div>
               <h2 className="text-lg font-extrabold">What happens next</h2>
-              <p className="text-xs font-semibold text-[#8B90A7]">A clear reference point for your learning.</p>
+              <p className="text-xs font-semibold text-[var(--br-text-muted)]">A clear reference point for your learning.</p>
             </div>
           </div>
           <div className="mt-5 grid gap-3 sm:grid-cols-3">
@@ -55,18 +55,18 @@ export default async function LevelTestPage() {
             <Benefit icon={BookOpen} title="Get practical guidance" text="See strengths, section scores, and suitable next practice." />
           </div>
           <div className="mt-4 flex items-start gap-3 rounded-[14px] bg-[#F8F8FC] p-4">
-            <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-[#00C98D]" />
+            <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-[var(--br-success)]" />
             <p className="text-sm font-semibold leading-6 text-[#4E536B]">{test.instructions || "Choose the best answer you can. Your result is a helpful guide, not a limit on what you can learn."}</p>
           </div>
         </div>
 
         <div className={`grid gap-3 ${sectionCols}`}>
           {test.sections.map((section, index) => (
-            <div key={section.id} className="rounded-[18px] border border-[#ECECF5] bg-white p-5 shadow-[0_10px_28px_rgba(0,0,0,.05)]">
-              <span className="grid size-9 place-items-center rounded-[12px] bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] text-sm font-black text-white">{index + 1}</span>
+            <div key={section.id} className="rounded-[18px] border border-[var(--br-surface-strong)] bg-white p-5 shadow-[0_10px_28px_rgba(0,0,0,.05)]">
+              <span className="grid size-9 place-items-center rounded-[12px] bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] text-sm font-black text-white">{index + 1}</span>
               <h2 className="mt-4 text-base font-extrabold">{section.title}</h2>
-              <p className="mt-1 text-xs font-semibold leading-5 text-[#6E738D]">{section.description}</p>
-              <p className="mt-3 text-xs font-extrabold text-[#6C3BFF]">{section.questions.length} questions in this attempt</p>
+              <p className="mt-1 text-xs font-semibold leading-5 text-[var(--br-text-muted)]">{section.description}</p>
+              <p className="mt-3 text-xs font-extrabold text-[var(--br-chart-primary)]">{section.questions.length} questions in this attempt</p>
             </div>
           ))}
         </div>
@@ -79,5 +79,5 @@ function InfoPill({ icon: Icon, text }: { icon: React.ElementType; text: string 
   return <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-2 text-xs font-bold text-white/85"><Icon className="size-4 text-[#67D9FF]" />{text}</span>;
 }
 function Benefit({ icon: Icon, title, text }: { icon: React.ElementType; title: string; text: string }) {
-  return <div className="flex gap-3 rounded-[14px] bg-[#F8F8FC] p-4"><span className="grid size-9 shrink-0 place-items-center rounded-[11px] bg-white text-[#6C3BFF] shadow-sm"><Icon className="size-4" /></span><div><h3 className="text-sm font-extrabold">{title}</h3><p className="mt-0.5 text-xs font-semibold leading-5 text-[#6E738D]">{text}</p></div></div>;
+  return <div className="flex gap-3 rounded-[14px] bg-[#F8F8FC] p-4"><span className="grid size-9 shrink-0 place-items-center rounded-[11px] bg-white text-[var(--br-chart-primary)] shadow-sm"><Icon className="size-4" /></span><div><h3 className="text-sm font-extrabold">{title}</h3><p className="mt-0.5 text-xs font-semibold leading-5 text-[var(--br-text-muted)]">{text}</p></div></div>;
 }

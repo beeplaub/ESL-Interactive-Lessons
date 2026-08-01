@@ -12,9 +12,9 @@ type Props = {
 };
 
 const tones = {
-  purple: "bg-[#6C3BFF]",
+  purple: "bg-[var(--br-chart-primary)]",
   orange: "bg-[#FF8C00]",
-  green: "bg-[#00C98D]",
+  green: "bg-[var(--br-success)]",
   blue: "bg-[#4E8DFF]",
 };
 
@@ -132,22 +132,22 @@ export function NotificationsDropdown({ initialNotifications, mode }: Props) {
   };
 
   const panelClass = mode === "desktop"
-    ? "absolute right-0 top-14 z-40 w-[360px] overflow-hidden rounded-[22px] border border-[#ECECF5] bg-white shadow-[0_24px_60px_rgba(20,23,43,.18)]"
-    : "fixed inset-x-3 top-[68px] z-50 max-h-[70vh] overflow-y-auto rounded-[22px] border border-[#ECECF5] bg-white shadow-2xl shadow-black/20";
+    ? "absolute right-0 top-14 z-40 w-[360px] overflow-hidden rounded-[22px] border border-[var(--br-surface-strong)] bg-white shadow-[0_24px_60px_rgba(20,23,43,.18)]"
+    : "fixed inset-x-3 top-[68px] z-50 max-h-[70vh] overflow-y-auto rounded-[22px] border border-[var(--br-surface-strong)] bg-white shadow-2xl shadow-black/20";
   const summaryClass = mode === "desktop"
-    ? "relative grid size-11 cursor-pointer list-none place-items-center rounded-[14px] border border-[#ECECF5] bg-white shadow-[0_2px_8px_rgba(0,0,0,.04)] marker:hidden [&::-webkit-details-marker]:hidden"
+    ? "relative grid size-11 cursor-pointer list-none place-items-center rounded-[14px] border border-[var(--br-surface-strong)] bg-white shadow-[0_2px_8px_rgba(0,0,0,.04)] marker:hidden [&::-webkit-details-marker]:hidden"
     : "relative grid size-9 cursor-pointer list-none place-items-center rounded-[10px] text-white marker:hidden [&::-webkit-details-marker]:hidden";
 
   return (
     <details ref={detailsRef} onToggle={(event) => setIsOpen(event.currentTarget.open)} className="group relative">
       <summary className={summaryClass} aria-label="Notifications">
-        <Bell className={mode === "desktop" ? "size-[18px] text-[#6E738D]" : "size-5"} />
-        {unreadCount > 0 ? <span className={mode === "desktop" ? "absolute -right-1 -top-1 grid size-5 place-items-center rounded-full border-2 border-[#F6F7FB] bg-[#FF5D73] text-[10px] font-black text-white" : "absolute right-0.5 top-0.5 grid size-3.5 place-items-center rounded-full border border-[#09112C] bg-[#FF5D73] text-[8px] font-bold"}>{unreadCount}</span> : null}
+        <Bell className={mode === "desktop" ? "size-[18px] text-[var(--br-text-muted)]" : "size-5"} />
+        {unreadCount > 0 ? <span className={mode === "desktop" ? "absolute -right-1 -top-1 grid size-5 place-items-center rounded-full border-2 border-[var(--br-canvas-elevated)] bg-[var(--br-danger)] text-[10px] font-black text-white" : "absolute right-0.5 top-0.5 grid size-3.5 place-items-center rounded-full border border-[#09112C] bg-[var(--br-danger)] text-[8px] font-bold"}>{unreadCount}</span> : null}
       </summary>
       <div className={panelClass}>
-        <div className="flex items-center justify-between gap-3 border-b border-[#ECECF5] px-4 py-3"><div><p className="text-sm font-black text-[#14172B]">Notifications</p><p className="text-xs font-semibold text-[#6E738D]">Latest learning and platform updates</p></div>{unreadCount ? <button type="button" disabled={isMarkingAll} onClick={markAllRead} className="inline-flex shrink-0 items-center gap-1 text-[11px] font-extrabold text-[#6C3BFF] hover:underline disabled:opacity-50"><CheckCheck className="size-3.5" /> Mark all read</button> : null}</div>
+        <div className="flex items-center justify-between gap-3 border-b border-[var(--br-surface-strong)] px-4 py-3"><div><p className="text-sm font-black text-[var(--br-dark-card)]">Notifications</p><p className="text-xs font-semibold text-[var(--br-text-muted)]">Latest learning and platform updates</p></div>{unreadCount ? <button type="button" disabled={isMarkingAll} onClick={markAllRead} className="inline-flex shrink-0 items-center gap-1 text-[11px] font-extrabold text-[var(--br-chart-primary)] hover:underline disabled:opacity-50"><CheckCheck className="size-3.5" /> Mark all read</button> : null}</div>
         <div className="max-h-[360px] overflow-y-auto p-2">
-          {visibleNotifications.length ? visibleNotifications.map((item, index) => <NotificationRow key={`${item.key}-${index}`} item={item} read={isRead(item)} onOpen={() => markRead(item)} onToggleRead={() => toggleRead(item)} onDelete={() => remove(item)} />) : <p className="rounded-2xl bg-[#F6F7FB] px-4 py-6 text-center text-sm font-semibold text-[#6E738D]">No notifications yet.</p>}
+          {visibleNotifications.length ? visibleNotifications.map((item, index) => <NotificationRow key={`${item.key}-${index}`} item={item} read={isRead(item)} onOpen={() => markRead(item)} onToggleRead={() => toggleRead(item)} onDelete={() => remove(item)} />) : <p className="rounded-2xl bg-[var(--br-canvas-elevated)] px-4 py-6 text-center text-sm font-semibold text-[var(--br-text-muted)]">No notifications yet.</p>}
         </div>
       </div>
     </details>
@@ -156,10 +156,10 @@ export function NotificationsDropdown({ initialNotifications, mode }: Props) {
 
 function NotificationRow({ item, read, onOpen, onToggleRead, onDelete }: { item: NotificationItem; read: boolean; onOpen: () => void; onToggleRead: () => void; onDelete: () => void }) {
   return (
-    <div className={`flex gap-2 rounded-2xl px-3 py-3 transition hover:bg-[#F6F7FB] ${read ? "opacity-65" : ""}`}>
+    <div className={`flex gap-2 rounded-2xl px-3 py-3 transition hover:bg-[var(--br-canvas-elevated)] ${read ? "opacity-65" : ""}`}>
       <span className={`mt-1.5 size-2.5 shrink-0 rounded-full ${tones[item.tone]}`} />
-      <Link href={item.href} onClick={onOpen} className="min-w-0 flex-1"><span className={`block truncate text-sm ${read ? "font-semibold text-[#6E738D]" : "font-extrabold text-[#14172B]"}`}>{item.title}</span><span className={`mt-0.5 block line-clamp-2 text-xs leading-5 ${read ? "font-normal text-[#A0A5BA]" : "font-semibold text-[#6E738D]"}`}>{item.detail}</span></Link>
-      <div className="flex shrink-0 flex-col gap-1"><button type="button" onClick={onToggleRead} title={read ? "Mark as unread" : "Mark as read"} className="grid size-7 place-items-center rounded-lg text-[#8D94AA] hover:bg-white hover:text-[#6C3BFF]">{read ? <Mail className="size-3.5" /> : <MailOpen className="size-3.5" />}</button><button type="button" onClick={onDelete} title="Delete notification" className="grid size-7 place-items-center rounded-lg text-[#8D94AA] hover:bg-white hover:text-[#FF5D73]"><Trash2 className="size-3.5" /></button></div>
+      <Link href={item.href} onClick={onOpen} className="min-w-0 flex-1"><span className={`block truncate text-sm ${read ? "font-semibold text-[var(--br-text-muted)]" : "font-extrabold text-[var(--br-dark-card)]"}`}>{item.title}</span><span className={`mt-0.5 block line-clamp-2 text-xs leading-5 ${read ? "font-normal text-[#A0A5BA]" : "font-semibold text-[var(--br-text-muted)]"}`}>{item.detail}</span></Link>
+      <div className="flex shrink-0 flex-col gap-1"><button type="button" onClick={onToggleRead} title={read ? "Mark as unread" : "Mark as read"} className="grid size-7 place-items-center rounded-lg text-[#8D94AA] hover:bg-white hover:text-[var(--br-chart-primary)]">{read ? <Mail className="size-3.5" /> : <MailOpen className="size-3.5" />}</button><button type="button" onClick={onDelete} title="Delete notification" className="grid size-7 place-items-center rounded-lg text-[#8D94AA] hover:bg-white hover:text-[var(--br-danger)]"><Trash2 className="size-3.5" /></button></div>
     </div>
   );
 }

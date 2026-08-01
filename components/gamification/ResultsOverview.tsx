@@ -9,9 +9,9 @@ import type { ScoredQuestion } from "@/lib/quizScoring";
 type OverviewQuestion = ScoredQuestion & { id: string; question_number: number };
 
 const TILE_STYLES: Record<OverviewStatus, string> = {
-  correct: "border-[#00C98D] bg-[#00C98D]/10 text-[#00A977] hover:bg-[#00C98D]/20",
-  incorrect: "border-[#FF5D73] bg-[#FF5D73]/10 text-[#FF5D73] hover:bg-[#FF5D73]/20",
-  pending: "border-dashed border-[#A0A5BA] bg-[#F6F7FB] text-[#6E738D] hover:bg-white"
+  correct: "border-[var(--br-success)] bg-[var(--br-success)]/10 text-[#00A977] hover:bg-[var(--br-success)]/20",
+  incorrect: "border-[var(--br-danger)] bg-[var(--br-danger)]/10 text-[var(--br-danger)] hover:bg-[var(--br-danger)]/20",
+  pending: "border-dashed border-[#A0A5BA] bg-[var(--br-canvas-elevated)] text-[var(--br-text-muted)] hover:bg-white"
 };
 
 function TileIcon({ status }: { status: OverviewStatus }) {
@@ -52,12 +52,12 @@ export function ResultsOverview({
   const percent = Math.round((score / Math.max(1, total)) * 100);
 
   return (
-    <div className="overflow-hidden rounded-[20px] border border-[#ECECF5] bg-white p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)] sm:p-6">
+    <div className="overflow-hidden rounded-[20px] border border-[var(--br-surface-strong)] bg-white p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)] sm:p-6">
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35 }}
-        className="rounded-[18px] bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] p-5 text-white"
+        className="rounded-[18px] bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] p-5 text-white"
       >
         <div className="flex flex-wrap items-end justify-between gap-2">
           <div>
@@ -82,7 +82,7 @@ export function ResultsOverview({
         {headerExtra}
       </motion.div>
 
-      <p className="mb-3 mt-5 text-sm font-semibold text-[#6E738D]">Tap a question to review it</p>
+      <p className="mb-3 mt-5 text-sm font-semibold text-[var(--br-text-muted)]">Tap a question to review it</p>
       <div className="grid grid-cols-5 gap-2 sm:grid-cols-8 md:grid-cols-10">
         {questions.map((question, index) => {
           const status = statuses[index];
@@ -111,7 +111,7 @@ export function ResultsOverview({
         <button
           type="button"
           onClick={onRetake}
-          className="inline-flex items-center gap-2 rounded-[14px] border border-[#ECECF5] bg-[#F6F7FB] px-4 py-2 text-sm font-bold text-[#6E738D] hover:bg-white"
+          className="inline-flex items-center gap-2 rounded-[14px] border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] px-4 py-2 text-sm font-bold text-[var(--br-text-muted)] hover:bg-white"
         >
           <RotateCcw size={16} /> {retakeLabel}
         </button>

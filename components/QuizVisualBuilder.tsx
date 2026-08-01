@@ -770,8 +770,8 @@ function QuestionEditorModal({
 
           <QuestionFields question={question} onChange={onChange} />
 
-          <section className="rounded-xl border border-[#6C3BFF]/20 bg-[#F8F6FF] p-3">
-            <p className="text-xs font-extrabold uppercase tracking-wide text-[#6C3BFF]">Measurement</p>
+          <section className="rounded-xl border border-[var(--br-chart-primary)]/20 bg-[#F8F6FF] p-3">
+            <p className="text-xs font-extrabold uppercase tracking-wide text-[var(--br-chart-primary)]">Measurement</p>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
               <label className="text-sm font-medium">Skill / subskill<select value={question.assessment.primarySkillId ?? ""} onChange={(event) => onChange({ assessment: { ...question.assessment, primarySkillId: event.target.value || null } })} className="mt-1 w-full rounded-lg border border-black/15 bg-white px-3 py-2 font-normal"><option value="">Not classified</option>{skillOptions(skills)}</select></label>
               <label className="text-sm font-medium">Maximum points<input type="number" min="0.01" step="0.01" value={question.assessment.maxPoints} onChange={(event) => onChange({ assessment: { ...question.assessment, maxPoints: Math.max(0.01, Number(event.target.value) || 1) } })} className="mt-1 w-full rounded-lg border border-black/15 bg-white px-3 py-2 font-normal" /></label>
@@ -1340,7 +1340,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             </div>
             <textarea rows={3} value={String(p.text ?? "")} onChange={(e) => { const next = [...paragraphs]; next[idx] = { ...p, text: e.target.value }; updateParagraphs(next); }} placeholder="Paragraph text..." className="w-full rounded border border-black/15 p-2 text-xs" />
             <div className="flex items-center gap-2">
-              <label className="text-xs text-[#6E738D]">Correct Heading:</label>
+              <label className="text-xs text-[var(--br-text-muted)]">Correct Heading:</label>
               <select value={String(correct[String(p.id)] ?? "")} onChange={(e) => onChange({ correctAnswer: { ...correct, [String(p.id)]: e.target.value } as Json })} className="rounded border px-2 py-0.5 text-xs">
                 <option value="">--</option>
                 {headings.map((h) => <option key={String(h.id)} value={String(h.id)}>Heading {String(h.id)}</option>)}
@@ -1392,7 +1392,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             type="checkbox"
             checked={options.allow_passage_toggle !== false}
             onChange={(e) => onChange({ options: { ...options, allow_passage_toggle: e.target.checked } as Json })}
-            className="size-4 rounded accent-[#6C3BFF]"
+            className="size-4 rounded accent-[var(--br-chart-primary)]"
           />
           Allow learners to re-view passage ("Show/Hide Passage") while answering
         </label>
@@ -1479,7 +1479,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             type="checkbox"
             checked={options.ignore_punctuation !== false}
             onChange={(e) => onChange({ options: { ...options, ignore_punctuation: e.target.checked } as Json })}
-            className="size-4 rounded accent-[#6C3BFF]"
+            className="size-4 rounded accent-[var(--br-chart-primary)]"
           />
           Ignore punctuation differences during grading (recommended)
         </label>
@@ -2392,8 +2392,8 @@ function WritingGradingSettings({
   const allowTeacher = options.allow_teacher_review !== false;
 
   return (
-    <div className="mt-3 rounded-2xl border border-[#6C3BFF]/15 bg-[#6C3BFF]/5 p-4 space-y-3">
-      <div className="flex items-center gap-1.5 text-xs font-black text-[#6C3BFF] uppercase tracking-wider">
+    <div className="mt-3 rounded-2xl border border-[var(--br-chart-primary)]/15 bg-[var(--br-chart-primary)]/5 p-4 space-y-3">
+      <div className="flex items-center gap-1.5 text-xs font-black text-[var(--br-chart-primary)] uppercase tracking-wider">
         <span>Evaluation Mode Permissions</span>
       </div>
       <div className="grid gap-3 sm:grid-cols-3">
@@ -2402,7 +2402,7 @@ function WritingGradingSettings({
             type="checkbox"
             checked={allowAi}
             onChange={(e) => onChange({ ...options, allow_ai_feedback: e.target.checked })}
-            className="rounded border-black/15 text-[#6C3BFF] focus:ring-[#6C3BFF]"
+            className="rounded border-black/15 text-[var(--br-chart-primary)] focus:ring-[var(--br-chart-primary)]"
           />
           AI Instant Feedback
         </label>
@@ -2411,7 +2411,7 @@ function WritingGradingSettings({
             type="checkbox"
             checked={allowSelf}
             onChange={(e) => onChange({ ...options, allow_self_graded: e.target.checked })}
-            className="rounded border-black/15 text-[#6C3BFF] focus:ring-[#6C3BFF]"
+            className="rounded border-black/15 text-[var(--br-chart-primary)] focus:ring-[var(--br-chart-primary)]"
           />
           Model Answer & Self Check
         </label>
@@ -2420,7 +2420,7 @@ function WritingGradingSettings({
             type="checkbox"
             checked={allowTeacher}
             onChange={(e) => onChange({ ...options, allow_teacher_review: e.target.checked })}
-            className="rounded border-black/15 text-[#6C3BFF] focus:ring-[#6C3BFF]"
+            className="rounded border-black/15 text-[var(--br-chart-primary)] focus:ring-[var(--br-chart-primary)]"
           />
           Teacher Review Queue
         </label>

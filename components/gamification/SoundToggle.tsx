@@ -19,7 +19,7 @@ export function SoundToggle({ className = "" }: { className?: string }) {
       }}
       aria-label={muted ? "Unmute sound effects" : "Mute sound effects"}
       aria-pressed={!muted}
-      className={`inline-flex items-center justify-center rounded-full bg-[#F6F7FB] p-2 text-[#6E738D] transition hover:bg-white ${className}`}
+      className={`inline-flex items-center justify-center rounded-full bg-[var(--br-canvas-elevated)] p-2 text-[var(--br-text-muted)] transition hover:bg-white ${className}`}
     >
       {muted ? <VolumeX size={16} /> : <Volume2 size={16} />}
     </button>

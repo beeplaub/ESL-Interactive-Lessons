@@ -17,7 +17,7 @@ export function OrganizationControls({ organization }: { organization: { id: str
           <input name="brandName" defaultValue={organization.brandName ?? ""} placeholder="Display name" className="rounded-md border border-black/15 bg-white px-2.5 py-1.5 text-xs" />
           <textarea name="description" rows={2} defaultValue={organization.description ?? ""} placeholder="Description" className="rounded-md border border-black/15 bg-white px-2.5 py-1.5 text-xs" />
           <input name="logoUrl" type="url" defaultValue={organization.logoUrl ?? ""} placeholder="Logo image URL" className="rounded-md border border-black/15 bg-white px-2.5 py-1.5 text-xs" />
-          <label className="flex items-center gap-2 text-xs font-semibold text-black/55">Accent <input name="accentColor" type="color" defaultValue={organization.accentColor ?? "#6C3BFF"} className="h-7 w-12 rounded border border-black/15 bg-white p-0.5" /></label>
+          <label className="flex items-center gap-2 text-xs font-semibold text-black/55">Accent <input name="accentColor" type="color" defaultValue={organization.accentColor ?? "var(--br-chart-primary)"} className="h-7 w-12 rounded border border-black/15 bg-white p-0.5" /></label>
           <button className="inline-flex w-fit items-center gap-1 rounded-md bg-dark px-2.5 py-1.5 text-xs font-semibold text-white"><Save size={13} /> Save</button>
         </form>
         <div className="mt-3 border-t border-black/10 pt-3">

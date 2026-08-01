@@ -80,11 +80,11 @@ export default async function AssignmentsPage() {
         </div>
       </section>
 
-      <section className="rounded-[20px] border border-[#ECECF5] bg-white p-4 shadow-[0_10px_28px_rgba(0,0,0,.05)] sm:p-5">
+      <section className="rounded-[20px] border border-[var(--br-surface-strong)] bg-white p-4 shadow-[0_10px_28px_rgba(0,0,0,.05)] sm:p-5">
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-lg font-extrabold text-[#14172B]">Class work</h2>
-            <p className="mt-0.5 text-sm text-[#6E738D]">Open an item to start or continue. Your real progress is shown here.</p>
+            <h2 className="text-lg font-extrabold text-[var(--br-dark-card)]">Class work</h2>
+            <p className="mt-0.5 text-sm text-[var(--br-text-muted)]">Open an item to start or continue. Your real progress is shown here.</p>
           </div>
         </div>
         <div className="grid gap-3">
@@ -122,17 +122,17 @@ export default async function AssignmentsPage() {
             }
             const unavailable = resource && (resource.status !== "PUBLISHED" || resource.deleted_at !== null);
             return (
-              <article key={assignment.id} className="flex flex-col gap-4 rounded-[18px] border border-[#ECECF5] bg-[#FCFCFE] p-4 transition hover:border-[#D9D4F9] hover:shadow-[0_8px_22px_rgba(29,20,83,.06)] sm:flex-row sm:items-center">
-                <div className={`grid size-11 shrink-0 place-items-center rounded-[14px] ${completed ? "bg-[#E7FBF3] text-[#00A875]" : "bg-[#F0EDFF] text-[#6C3BFF]"}`}>
+              <article key={assignment.id} className="flex flex-col gap-4 rounded-[18px] border border-[var(--br-surface-strong)] bg-[#FCFCFE] p-4 transition hover:border-[#D9D4F9] hover:shadow-[0_8px_22px_rgba(29,20,83,.06)] sm:flex-row sm:items-center">
+                <div className={`grid size-11 shrink-0 place-items-center rounded-[14px] ${completed ? "bg-[#E7FBF3] text-[#00A875]" : "bg-[#F0EDFF] text-[var(--br-chart-primary)]"}`}>
                   {completed ? <CheckCircle2 className="size-5" /> : assignment.item_type === "COURSE" ? <GraduationCap className="size-5" /> : assignment.item_type === "QUIZ" ? <Target className="size-5" /> : <ClipboardList className="size-5" />}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="break-words font-extrabold text-[#14172B]">{title}</h3>
+                    <h3 className="break-words font-extrabold text-[var(--br-dark-card)]">{title}</h3>
                     {level ? <span className="rounded-md bg-[#EAF8F3] px-2 py-0.5 text-[10px] font-extrabold text-[#168E69]">{level}</span> : null}
-                    <span className="rounded-md bg-[#F0EDFF] px-2 py-0.5 text-[10px] font-extrabold text-[#6C3BFF]">{assignment.item_type.replace("_", " ")}</span>
+                    <span className="rounded-md bg-[#F0EDFF] px-2 py-0.5 text-[10px] font-extrabold text-[var(--br-chart-primary)]">{assignment.item_type.replace("_", " ")}</span>
                   </div>
-                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold text-[#6E738D]">
+                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold text-[var(--br-text-muted)]">
                     <span>{assignment.classes?.name ?? "Your class"}</span>
                     <span className="inline-flex items-center gap-1"><CalendarDays className="size-3" /> {formatDue(assignment.due_at)}</span>
                     {assignment.required_score ? <span>Target {assignment.required_score}%</span> : null}
@@ -143,17 +143,17 @@ export default async function AssignmentsPage() {
                     <p className={`text-sm font-extrabold ${completed ? "text-[#00A875]" : "text-[#35405F]"}`}>{progressLabel}</p>
                     {score !== null && assignment.item_type !== "COURSE" ? <p className="mt-0.5 text-xs font-semibold text-[#8D94AA]">Latest score: {score}%</p> : null}
                   </div>
-                  {unavailable ? <span className="inline-flex items-center gap-1 rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold text-slate-500"><LockKeyhole className="size-3.5" /> Unavailable</span> : <Link href={href} className="inline-flex items-center gap-1.5 rounded-xl bg-[#6C3BFF] px-3.5 py-2.5 text-xs font-extrabold text-white shadow-sm transition hover:bg-[#5930DF]">{completed ? "Review" : "Open"}<ChevronRight className="size-3.5" /></Link>}
+                  {unavailable ? <span className="inline-flex items-center gap-1 rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold text-slate-500"><LockKeyhole className="size-3.5" /> Unavailable</span> : <Link href={href} className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--br-chart-primary)] px-3.5 py-2.5 text-xs font-extrabold text-white shadow-sm transition hover:bg-[#5930DF]">{completed ? "Review" : "Open"}<ChevronRight className="size-3.5" /></Link>}
                 </div>
               </article>
             );
           })}
-          {!assignments.length ? <div className="grid min-h-52 place-items-center rounded-[18px] border border-dashed border-[#D9DCE8] bg-[#FAFBFD] p-6 text-center"><div><Clock3 className="mx-auto size-7 text-[#9AA1B8]" /><h3 className="mt-3 font-extrabold text-[#35405F]">Nothing assigned yet</h3><p className="mt-1 max-w-sm text-sm leading-6 text-[#6E738D]">When your teacher adds work to one of your classes, it will appear here.</p></div></div> : null}
+          {!assignments.length ? <div className="grid min-h-52 place-items-center rounded-[18px] border border-dashed border-[#D9DCE8] bg-[#FAFBFD] p-6 text-center"><div><Clock3 className="mx-auto size-7 text-[#9AA1B8]" /><h3 className="mt-3 font-extrabold text-[#35405F]">Nothing assigned yet</h3><p className="mt-1 max-w-sm text-sm leading-6 text-[var(--br-text-muted)]">When your teacher adds work to one of your classes, it will appear here.</p></div></div> : null}
         </div>
       </section>
 
-      <section className="rounded-[20px] border border-[#ECECF5] bg-white p-4 shadow-[0_10px_28px_rgba(0,0,0,.05)] sm:p-5">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-extrabold text-[#14172B]">Practice tasks</h2><p className="mt-0.5 text-sm text-[#6E738D]">Teacher practice and your self-planned tasks live beside course assignments.</p></div><Link href="/tasks" className="text-sm font-extrabold text-[#6C3BFF]">Open tasks</Link></div>
+      <section className="rounded-[20px] border border-[var(--br-surface-strong)] bg-white p-4 shadow-[0_10px_28px_rgba(0,0,0,.05)] sm:p-5">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-lg font-extrabold text-[var(--br-dark-card)]">Practice tasks</h2><p className="mt-0.5 text-sm text-[var(--br-text-muted)]">Teacher practice and your self-planned tasks live beside course assignments.</p></div><Link href="/tasks" className="text-sm font-extrabold text-[var(--br-chart-primary)]">Open tasks</Link></div>
         <TaskPlanner tasks={(practiceTasks ?? []) as PracticeTask[]} />
       </section>
     </LearnerAppShell>

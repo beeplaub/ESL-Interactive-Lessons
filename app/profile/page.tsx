@@ -40,7 +40,7 @@ export default async function ProfilePage() {
 
         {missingName ? (
           <div className="flex items-start gap-3 rounded-[20px] border border-[#BCEBDA] bg-[#F1FFF8] p-4 shadow-[0_8px_22px_rgba(0,0,0,.04)]">
-            <UserRound className="mt-0.5 size-5 shrink-0 text-[#00A978]" />
+            <UserRound className="mt-0.5 size-5 shrink-0 text-[var(--br-chart-secondary)]" />
             <div>
               <p className="text-sm font-extrabold text-[#137A5D]">Add your name</p>
               <p className="mt-0.5 text-sm leading-6 text-[#3E6B5E]">This helps BrenUp greet you properly across your dashboard, courses, and quiz results.</p>
@@ -53,8 +53,8 @@ export default async function ProfilePage() {
             <div className="br-learner-card p-6 text-center">
               <AvatarUploader initialUrl={profile?.avatar_url ?? null} initials={initials} />
               <h2 className="mt-5 text-xl font-extrabold">{displayName}</h2>
-              <p className="mt-1 break-words text-sm font-semibold text-[#6E738D]">{user.email}</p>
-              <form action={signOut} className="mt-5 border-t border-[#ECECF5] pt-4">
+              <p className="mt-1 break-words text-sm font-semibold text-[var(--br-text-muted)]">{user.email}</p>
+              <form action={signOut} className="mt-5 border-t border-[var(--br-surface-strong)] pt-4">
                 <button type="submit" className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-bold text-red-600 hover:bg-red-100/70 transition">
                   <LogOut size={16} /> Sign out
                 </button>
@@ -63,22 +63,22 @@ export default async function ProfilePage() {
 
             <div className="br-learner-card p-5">
               <div className="flex items-center gap-3">
-                <span className="grid size-11 place-items-center rounded-[14px] bg-[#EEEAFB] text-[#6C3BFF]"><BadgeCheck className="size-5" /></span>
+                <span className="grid size-11 place-items-center rounded-[14px] bg-[#EEEAFB] text-[var(--br-chart-primary)]"><BadgeCheck className="size-5" /></span>
                 <div>
                   <h2 className="text-lg font-extrabold">Level test result</h2>
-                  <p className="text-xs font-semibold text-[#8B90A7]">Your current CEFR reference</p>
+                  <p className="text-xs font-semibold text-[var(--br-text-muted)]">Your current CEFR reference</p>
                 </div>
               </div>
               {level ? (
-                <div className="mt-5 rounded-[18px] bg-gradient-to-br from-[#6C3BFF] to-[#4520D9] p-5 text-white">
+                <div className="mt-5 rounded-[18px] bg-gradient-to-br from-[var(--br-chart-primary)] to-[#4520D9] p-5 text-white">
                   <div className="text-[46px] font-black leading-none">{level}</div>
                   <p className="mt-1 text-sm font-bold text-white/80">{levelGuidance[level].name}</p>
                   <p className="mt-3 text-xs leading-5 text-white/65">{levelGuidance[level].summary}</p>
                 </div>
               ) : (
-                <p className="mt-4 rounded-[16px] bg-[#F6F7FB] p-4 text-sm font-semibold leading-6 text-[#6E738D]">You have not taken the level test yet.</p>
+                <p className="mt-4 rounded-[16px] bg-[var(--br-canvas-elevated)] p-4 text-sm font-semibold leading-6 text-[var(--br-text-muted)]">You have not taken the level test yet.</p>
               )}
-              <Link href="/level-test" className="mt-4 flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] px-4 py-3 text-xs font-bold text-white">
+              <Link href="/level-test" className="mt-4 flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] px-4 py-3 text-xs font-bold text-white">
                 {level ? "Retake level test" : "Take level test"} <ChevronRight className="size-4" />
               </Link>
             </div>
@@ -87,10 +87,10 @@ export default async function ProfilePage() {
           <div className="grid gap-5">
             <section className="br-learner-card p-5 sm:p-6">
               <div className="mb-5 flex items-center gap-3">
-                <span className="grid size-11 place-items-center rounded-[14px] bg-[#E7FBF4] text-[#00A978]"><UserRound className="size-5" /></span>
+                <span className="grid size-11 place-items-center rounded-[14px] bg-[#E7FBF4] text-[var(--br-chart-secondary)]"><UserRound className="size-5" /></span>
                 <div>
                   <h2 className="text-xl font-extrabold">Personal details</h2>
-                  <p className="text-xs font-semibold text-[#8B90A7]">Update the name shown on your learning profile.</p>
+                  <p className="text-xs font-semibold text-[var(--br-text-muted)]">Update the name shown on your learning profile.</p>
                 </div>
               </div>
               <ProfileForm email={user.email ?? ""} firstName={profile?.first_name ?? ""} lastName={profile?.last_name ?? ""} />
@@ -98,17 +98,17 @@ export default async function ProfilePage() {
 
             <section className="br-learner-card p-5 sm:p-6">
               <div className="mb-4 flex items-center gap-3">
-                <span className={`grid size-11 place-items-center rounded-[14px] ${isEmailUser ? "bg-[#FFF5E7] text-[#E47A00]" : "bg-[#F6F7FB] text-[#6E738D]"}`}><KeyRound className="size-5" /></span>
+                <span className={`grid size-11 place-items-center rounded-[14px] ${isEmailUser ? "bg-[#FFF5E7] text-[#E47A00]" : "bg-[var(--br-canvas-elevated)] text-[var(--br-text-muted)]"}`}><KeyRound className="size-5" /></span>
                 <div>
                   <h2 className="text-xl font-extrabold">Password</h2>
-                  <p className="text-xs font-semibold text-[#8B90A7]">{isEmailUser ? "Change your BrenUp password." : "Managed by your sign-in provider."}</p>
+                  <p className="text-xs font-semibold text-[var(--br-text-muted)]">{isEmailUser ? "Change your BrenUp password." : "Managed by your sign-in provider."}</p>
                 </div>
               </div>
               {isEmailUser ? (
                 <ChangePasswordForm />
               ) : (
-                <div className="flex items-start gap-3 rounded-[18px] bg-[#F6F7FB] p-4">
-                  <Mail className="mt-0.5 size-5 shrink-0 text-[#6C3BFF]" />
+                <div className="flex items-start gap-3 rounded-[18px] bg-[var(--br-canvas-elevated)] p-4">
+                  <Mail className="mt-0.5 size-5 shrink-0 text-[var(--br-chart-primary)]" />
                   <p className="text-sm font-semibold leading-6 text-[#53607D]">You signed in with Google. Password management is handled by your Google account.</p>
                 </div>
               )}

@@ -24,13 +24,13 @@ export function CourseQuizOutcomeMapper({
 }) {
   return (
     <div className="grid gap-4">
-      <div className="rounded-xl bg-[#F6F7FB] p-3 text-sm text-black/60">
+      <div className="rounded-xl bg-[var(--br-canvas-elevated)] p-3 text-sm text-black/60">
         Standalone quizzes always contribute to the learner language profile. Map their questions here when they should also contribute to this course&apos;s formal outcomes.
       </div>
       {quizItems.map((item) => (
         <section key={item.id} className="rounded-xl border border-black/10 p-3">
           <div className="flex items-center gap-2">
-            <Link2 size={15} className="text-[#6C3BFF]" />
+            <Link2 size={15} className="text-[var(--br-chart-primary)]" />
             <h3 className="font-extrabold">{item.label}</h3>
           </div>
           <div className="mt-3 grid gap-2">

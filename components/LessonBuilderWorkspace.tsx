@@ -146,10 +146,10 @@ function BuilderHeaderUndoRedo() {
   };
   return (
     <div className="inline-flex overflow-hidden rounded-md border border-black/15 bg-white shadow-sm" aria-label="Text history controls">
-      <button type="button" title="Undo text change (Ctrl/Command Z)" onMouseDown={(event) => event.preventDefault()} onClick={() => history("undo")} className="grid size-9 place-items-center text-[#3E3A72] hover:bg-[#F5F2FE]">
+      <button type="button" title="Undo text change (Ctrl/Command Z)" onMouseDown={(event) => event.preventDefault()} onClick={() => history("undo")} className="grid size-9 place-items-center text-[var(--br-brand)] hover:bg-[var(--br-surface-muted)]">
         <Undo2 size={16} />
       </button>
-      <button type="button" title="Redo text change (Ctrl/Command Shift Z)" onMouseDown={(event) => event.preventDefault()} onClick={() => history("redo")} className="grid size-9 place-items-center border-l border-black/10 text-[#3E3A72] hover:bg-[#F5F2FE]">
+      <button type="button" title="Redo text change (Ctrl/Command Shift Z)" onMouseDown={(event) => event.preventDefault()} onClick={() => history("redo")} className="grid size-9 place-items-center border-l border-black/10 text-[var(--br-brand)] hover:bg-[var(--br-surface-muted)]">
         <Redo2 size={16} />
       </button>
     </div>
@@ -1073,7 +1073,7 @@ function SelectedSlideEditor({
                 onClick={() => setIsMappingOpen(true)}
                 className="inline-flex items-center gap-1.5 rounded-md border border-black/15 bg-white px-3 py-2 text-xs font-semibold hover:bg-black/5"
               >
-                <Target size={14} className="text-[#6C3BFF]" />
+                <Target size={14} className="text-[var(--br-chart-primary)]" />
                 Mapping
               </button>
             )}
@@ -1138,9 +1138,9 @@ function SelectedSlideEditor({
               <button
                 type="button"
                 onClick={() => setIsAiGenOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-md border border-[#6C3BFF]/20 bg-[#6C3BFF]/5 px-3.5 py-2 text-sm font-semibold text-[#6C3BFF] hover:bg-[#6C3BFF]/10 transition-colors"
+                className="inline-flex items-center gap-1.5 rounded-md border border-[var(--br-chart-primary)]/20 bg-[var(--br-chart-primary)]/5 px-3.5 py-2 text-sm font-semibold text-[var(--br-chart-primary)] hover:bg-[var(--br-chart-primary)]/10 transition-colors"
               >
-                <Sparkles className="size-4 shrink-0 text-[#6C3BFF]" /> Generate with AI
+                <Sparkles className="size-4 shrink-0 text-[var(--br-chart-primary)]" /> Generate with AI
               </button>
             </div>
           </form>
@@ -1153,7 +1153,7 @@ function SelectedSlideEditor({
             <div className="flex max-h-[90vh] w-full max-w-3xl flex-col rounded-xl bg-white p-4 shadow-2xl sm:p-5">
               <div className="flex items-start justify-between gap-4 border-b border-black/10 pb-3">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide text-[#6C3BFF] font-bold">Outcome &amp; Scoring Mapping</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-[var(--br-chart-primary)] font-bold">Outcome &amp; Scoring Mapping</p>
                   <h3 className="mt-1 text-lg font-semibold text-ink">Connect questions to measurable learning evidence</h3>
                 </div>
                 <button type="button" onClick={() => setIsMappingOpen(false)} className="rounded-md border border-black/10 p-2 hover:bg-black/5" aria-label="Close mapping"><X size={16} /></button>
@@ -1387,7 +1387,7 @@ function AlignmentGroup({ label, name, value, options }: {
   );
 }
 
-const dialogueColors = ["#3E3A72", "#FF7A59", "#2FAE7A", "#2563EB", "#A855F7"];
+const dialogueColors = ["var(--br-brand)", "var(--br-action)", "#2FAE7A", "#2563EB", "#A855F7"];
 function DialogueEditor({ data, lessonId }: { data: Record<string, unknown>; lessonId: string }) {
   const rawPeople = Array.isArray(data.people) && data.people.length ? data.people as Record<string, unknown>[] : [{ id: "p1", name: "Speaker A", color: dialogueColors[0] }, { id: "p2", name: "Speaker B", color: dialogueColors[1] }];
   const [people, setPeople] = useState(() => rawPeople.map((p, i) => ({ id: asString(p.id) || `p${i + 1}`, name: asString(p.name) || `Speaker ${i + 1}`, color: asString(p.color) || dialogueColors[i % dialogueColors.length] })));

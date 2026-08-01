@@ -11,15 +11,15 @@
   --br-surface-muted: #f5f2fe;
   --br-surface-strong: #ebe8f2;
   --br-text: #1b1b23;
-  --br-text-muted: #6e6e85;
+  --br-text-muted: var(--br-text-muted);
   --br-text-on-dark: #ffffff;
-  --br-border: #e4e4ee;
+  --br-border: var(--br-border);
   --br-border-strong: #cbc7d8;
   --br-brand: #3e3a72;
   --br-brand-strong: #28235a;
   --br-dark-card: #282848;
   --br-dark-card-raised: #3e3e5f;
-  --br-action: #ff7a59;
+  --br-action: var(--br-action);
   --br-action-strong: #d95335;
   --br-success: #2fae7a;
   --br-warning: #e89b10;

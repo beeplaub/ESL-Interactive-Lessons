@@ -43,7 +43,7 @@ export default async function QuizPrintPage({ params }: { params: Promise<{ id: 
           <div className="flex items-center gap-3">
             <span className="text-xs font-semibold text-slate-500">Press Print to Save as PDF</span>
             <button
-              className="inline-flex items-center gap-2 rounded-lg bg-[#6C3BFF] hover:bg-[#5308e7] px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-[#6C3BFF]/25"
+              className="inline-flex items-center gap-2 rounded-lg bg-[var(--br-chart-primary)] hover:bg-[#5308e7] px-5 py-2.5 text-sm font-bold text-white shadow-md shadow-[var(--br-chart-primary)]/25"
               data-trigger-print="true"
             >
               <Printer size={16} /> Print / Save PDF
@@ -133,7 +133,7 @@ export default async function QuizPrintPage({ params }: { params: Promise<{ id: 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3 text-sm">
               {questions.map((q, idx) => (
                 <div key={q.id} className="flex items-start gap-2 border-b border-slate-100 pb-1.5 print:border-black/5">
-                  <span className="font-extrabold text-[#6C3BFF] print:text-black">Q{idx + 1}.</span>
+                  <span className="font-extrabold text-[var(--br-chart-primary)] print:text-black">Q{idx + 1}.</span>
                   <div className="flex-1 min-w-0">
                     <span className="font-medium text-slate-700 print:text-black break-words">
                       {getAnswerText(q)}
@@ -147,7 +147,7 @@ export default async function QuizPrintPage({ params }: { params: Promise<{ id: 
 
         {/* LEARNER-FACING BRAND FOOTER */}
         <div className="mt-16 pt-6 border-t border-slate-100 text-center text-xs font-bold text-slate-400 print:text-slate-500 print:border-black/10">
-          Practice English online at <span className="text-[#6C3BFF] print:text-black underline">www.brenup.com</span>
+          Practice English online at <span className="text-[var(--br-chart-primary)] print:text-black underline">www.brenup.com</span>
         </div>
       </main>
 
@@ -361,7 +361,7 @@ function renderPrintQuestion(question: QuizQuestion) {
       const text = options?.text as string | undefined;
 
       return (
-        <div className="bg-slate-50 border border-[#ECECF5] p-4 rounded-xl print:bg-none print:border-slate-200">
+        <div className="bg-slate-50 border border-[var(--br-surface-strong)] p-4 rounded-xl print:bg-none print:border-slate-200">
           <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Target Vocabulary / Sentence:</p>
           {text ? (
             <p className="text-sm font-semibold italic text-slate-800 print:text-black">"{text}"</p>
@@ -384,7 +384,7 @@ function renderPrintQuestion(question: QuizQuestion) {
       return (
         <div className="grid gap-3">
           {passage ? (
-            <div className="bg-slate-50 border border-[#ECECF5] p-4 rounded-xl print:bg-none print:border-slate-200">
+            <div className="bg-slate-50 border border-[var(--br-surface-strong)] p-4 rounded-xl print:bg-none print:border-slate-200">
               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Passage:</p>
               <p className="text-sm text-slate-800 print:text-black whitespace-pre-wrap">{passage}</p>
             </div>
@@ -408,7 +408,7 @@ function renderPrintQuestion(question: QuizQuestion) {
       const maxWords = Number(options?.max_words ?? 0);
 
       return (
-        <div className="bg-slate-50 border border-[#ECECF5] p-4 rounded-xl print:bg-none print:border-slate-200 space-y-3">
+        <div className="bg-slate-50 border border-[var(--br-surface-strong)] p-4 rounded-xl print:bg-none print:border-slate-200 space-y-3">
           {passage ? (
             <div>
               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Passage:</p>
@@ -430,7 +430,7 @@ function renderPrintQuestion(question: QuizQuestion) {
 
       return (
         <div className="space-y-4">
-          <div className="bg-slate-50 border border-[#ECECF5] p-4 rounded-xl print:bg-none print:border-slate-200">
+          <div className="bg-slate-50 border border-[var(--br-surface-strong)] p-4 rounded-xl print:bg-none print:border-slate-200">
             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Headings:</p>
             <div className="grid gap-2">
               {headings.map((h) => (
@@ -466,7 +466,7 @@ function renderPrintQuestion(question: QuizQuestion) {
       return (
         <div className="space-y-4">
           {passage ? (
-            <div className="bg-slate-50 border border-[#ECECF5] p-4 rounded-xl print:bg-none print:border-slate-200">
+            <div className="bg-slate-50 border border-[var(--br-surface-strong)] p-4 rounded-xl print:bg-none print:border-slate-200">
               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Skimming Passage ({timeLimit}s time limit):</p>
               <p className="text-sm text-slate-800 print:text-black whitespace-pre-wrap">{passage}</p>
             </div>
@@ -503,7 +503,7 @@ function renderPrintQuestion(question: QuizQuestion) {
       return (
         <div className="space-y-4">
           {passage ? (
-            <div className="bg-slate-50 border border-[#ECECF5] p-4 rounded-xl print:bg-none print:border-slate-200">
+            <div className="bg-slate-50 border border-[var(--br-surface-strong)] p-4 rounded-xl print:bg-none print:border-slate-200">
               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Original Text:</p>
               <p className="text-sm text-slate-800 print:text-black whitespace-pre-wrap italic">"{passage}"</p>
             </div>

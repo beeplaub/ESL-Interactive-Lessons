@@ -137,9 +137,9 @@ export function LevelTestAdminWorkspace({
   }
 
   return (
-    <main className="min-w-0 text-[#14172B]">
+    <main className="min-w-0 text-[var(--br-dark-card)]">
       <section className="relative overflow-hidden rounded-[22px] bg-gradient-to-br from-[#1A1060] via-[#0C1945] to-[#0E1F5A] p-5 text-white shadow-[0_16px_48px_rgba(20,23,80,.22)] sm:p-7">
-        <div className="absolute -right-16 -top-20 size-56 rounded-full bg-[#6C3BFF]/25" />
+        <div className="absolute -right-16 -top-20 size-56 rounded-full bg-[var(--br-chart-primary)]/25" />
         <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-bold text-white/80">
@@ -157,7 +157,7 @@ export function LevelTestAdminWorkspace({
             <button
               disabled={isPending}
               onClick={() => run(() => setLevelTestPublished(test.id, test.status !== "PUBLISHED"), test.status === "PUBLISHED" ? "Test moved to draft." : "Level test published.")}
-              className={`rounded-[12px] px-4 py-2.5 text-sm font-extrabold disabled:opacity-50 ${test.status === "PUBLISHED" ? "bg-white text-[#14172B]" : "bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] text-white"}`}
+              className={`rounded-[12px] px-4 py-2.5 text-sm font-extrabold disabled:opacity-50 ${test.status === "PUBLISHED" ? "bg-white text-[var(--br-dark-card)]" : "bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] text-white"}`}
             >
               {test.status === "PUBLISHED" ? "Unpublish" : "Publish test"}
             </button>
@@ -173,19 +173,19 @@ export function LevelTestAdminWorkspace({
       </section>
 
       {notice ? (
-        <div className={`mt-4 flex items-center gap-2 rounded-[14px] border px-4 py-3 text-sm font-bold ${notice.tone === "success" ? "border-[#00C98D]/20 bg-[#00C98D]/10 text-[#008E66]" : "border-red-200 bg-red-50 text-red-700"}`}>
+        <div className={`mt-4 flex items-center gap-2 rounded-[14px] border px-4 py-3 text-sm font-bold ${notice.tone === "success" ? "border-[var(--br-success)]/20 bg-[var(--br-success)]/10 text-[#008E66]" : "border-red-200 bg-red-50 text-red-700"}`}>
           {notice.tone === "success" ? <Check className="size-4" /> : <AlertTriangle className="size-4" />} {notice.text}
         </div>
       ) : null}
 
-      <div className="mt-5 overflow-x-auto rounded-[16px] border border-[#ECECF5] bg-white p-1.5 shadow-[0_8px_24px_rgba(0,0,0,.05)]">
+      <div className="mt-5 overflow-x-auto rounded-[16px] border border-[var(--br-surface-strong)] bg-white p-1.5 shadow-[0_8px_24px_rgba(0,0,0,.05)]">
         <nav className="flex min-w-max gap-1">
           {tabs.map(({ id, label, icon: Icon }) => (
-            <button key={id} onClick={() => setTab(id)} className={`inline-flex items-center gap-2 rounded-[11px] px-4 py-2.5 text-sm font-bold ${tab === id ? "bg-[#6C3BFF] text-white shadow-sm" : "text-[#6E738D] hover:bg-[#F6F7FB]"}`}>
+            <button key={id} onClick={() => setTab(id)} className={`inline-flex items-center gap-2 rounded-[11px] px-4 py-2.5 text-sm font-bold ${tab === id ? "bg-[var(--br-chart-primary)] text-white shadow-sm" : "text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"}`}>
               <Icon className="size-4" /> {label}
             </button>
           ))}
-          <Link href="/admin/level-test/results" className="inline-flex items-center gap-2 rounded-[11px] px-4 py-2.5 text-sm font-bold text-[#6E738D] hover:bg-[#F6F7FB]">
+          <Link href="/admin/level-test/results" className="inline-flex items-center gap-2 rounded-[11px] px-4 py-2.5 text-sm font-bold text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]">
             <BarChart3 className="size-4" /> Results
           </Link>
         </nav>
@@ -232,7 +232,7 @@ export function LevelTestAdminWorkspace({
       {questionEditor ? <QuestionModal current={questionEditor} test={test} sections={sections} passages={passages} questions={questions} busy={isPending} close={() => setQuestionEditor(null)} run={run} /> : null}
       {sectionEditor ? <SectionModal current={sectionEditor} test={test} sections={sections} busy={isPending} close={() => setSectionEditor(null)} run={run} /> : null}
       {passageEditor ? <PassageModal current={passageEditor} test={test} sections={sections} passages={passages} busy={isPending} close={() => setPassageEditor(null)} run={run} /> : null}
-      {isPending ? <div className="fixed bottom-4 right-4 z-[70] inline-flex items-center gap-2 rounded-full bg-[#14172B] px-4 py-2 text-xs font-bold text-white shadow-xl"><Loader2 className="size-4 animate-spin" /> Saving</div> : null}
+      {isPending ? <div className="fixed bottom-4 right-4 z-[70] inline-flex items-center gap-2 rounded-full bg-[var(--br-dark-card)] px-4 py-2 text-xs font-bold text-white shadow-xl"><Loader2 className="size-4 animate-spin" /> Saving</div> : null}
     </main>
   );
 }
@@ -271,7 +271,7 @@ function QuestionsPanel({ questions, sections, onAdd, onEdit, onDelete, onImport
   const filtered = questions.filter((question) => (sectionFilter === "ALL" || question.section_id === sectionFilter) && (levelFilter === "ALL" || question.cefr_band === levelFilter));
   return (
     <CollectionPanel title="Question bank" description="Every question is editable. Choice questions can have 2–8 options; written answers can accept multiple alternatives." button="Add question" onAdd={onAdd}
-      secondary={<button disabled={busy || questions.length > 0} onClick={onImport} className="rounded-[12px] border border-[#DDD9F4] px-3 py-2 text-xs font-bold text-[#6C3BFF] disabled:opacity-40">Import starter bank</button>}>
+      secondary={<button disabled={busy || questions.length > 0} onClick={onImport} className="rounded-[12px] border border-[#DDD9F4] px-3 py-2 text-xs font-bold text-[var(--br-chart-primary)] disabled:opacity-40">Import starter bank</button>}>
       <div className="mb-4 grid gap-2 sm:grid-cols-2">
         <select value={sectionFilter} onChange={(event) => setSectionFilter(event.target.value)} className={inputClass}><option value="ALL">All sections</option>{sections.map((section) => <option key={section.id} value={section.id}>{section.title}</option>)}</select>
         <select value={levelFilter} onChange={(event) => setLevelFilter(event.target.value)} className={inputClass}><option value="ALL">All CEFR bands</option>{["A1", "A2", "B1", "B2", "C1", "C2"].map((level) => <option key={level}>{level}</option>)}</select>
@@ -293,9 +293,9 @@ function GradingPanel({ testId, bands, busy, run }: { testId: string; bands: Ban
     <Panel title="CEFR grading logic" description="Results use weighted percentage, so the boundaries remain fair even when question weights or test length change.">
       <div className="grid gap-3">
         {state.map((band, index) => (
-          <div key={band.cefr_level} className="rounded-[16px] border border-[#ECECF5] bg-[#F9F9FC] p-4">
+          <div key={band.cefr_level} className="rounded-[16px] border border-[var(--br-surface-strong)] bg-[#F9F9FC] p-4">
             <div className="grid gap-3 md:grid-cols-[70px_1fr_120px_120px]">
-              <div className="grid size-12 place-items-center rounded-[14px] bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] font-black text-white">{band.cefr_level}</div>
+              <div className="grid size-12 place-items-center rounded-[14px] bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] font-black text-white">{band.cefr_level}</div>
               <Field label="Result name"><input value={band.label} onChange={(event) => changeBand(index, "label", event.target.value)} className={inputClass} /></Field>
               <Field label="From %"><input type="number" min={0} max={100} step=".01" value={band.min_percentage} onChange={(event) => changeBand(index, "min_percentage", Number(event.target.value))} className={inputClass} /></Field>
               <Field label="To %"><input type="number" min={0} max={100} step=".01" value={band.max_percentage} onChange={(event) => changeBand(index, "max_percentage", Number(event.target.value))} className={inputClass} /></Field>
@@ -356,14 +356,14 @@ function QuestionModal({ current, test, sections, passages, questions, busy, clo
           </Field>
         ) : (
           <div>
-            <div className="mb-2 text-xs font-extrabold uppercase tracking-[.12em] text-[#6E738D]">Answer options</div>
+            <div className="mb-2 text-xs font-extrabold uppercase tracking-[.12em] text-[var(--br-text-muted)]">Answer options</div>
             <div className="grid gap-2">
               {state.options.map((option, index) => (
                 <div key={`${option.key}-${index}`} className="grid grid-cols-[42px_minmax(0,1fr)_38px] gap-2">
                   <button onClick={() => {
                     const selected = state.correctAnswers.includes(option.key);
                     setState({ ...state, correctAnswers: multiple ? (selected ? state.correctAnswers.filter((answer) => answer !== option.key) : [...state.correctAnswers, option.key]) : [option.key] });
-                  }} className={`rounded-[10px] text-sm font-black ${state.correctAnswers.includes(option.key) ? "bg-[#00C98D] text-white" : "bg-[#EEEAFB] text-[#6C3BFF]"}`} title="Mark as correct">{option.key}</button>
+                  }} className={`rounded-[10px] text-sm font-black ${state.correctAnswers.includes(option.key) ? "bg-[var(--br-success)] text-white" : "bg-[#EEEAFB] text-[var(--br-chart-primary)]"}`} title="Mark as correct">{option.key}</button>
                   <input value={option.text} onChange={(event) => setState({ ...state, options: state.options.map((item, itemIndex) => itemIndex === index ? { ...item, text: event.target.value } : item) })} className={inputClass} placeholder={`Option ${option.key}`} />
                   <button disabled={state.options.length <= 2} onClick={() => {
                     const options = state.options.filter((_, itemIndex) => itemIndex !== index).map((item, itemIndex) => ({ ...item, key: String.fromCharCode(65 + itemIndex) }));
@@ -422,28 +422,28 @@ function PassageModal({ current, test, sections, passages, busy, close, run }: {
 }
 
 function Panel({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
-  return <div className="rounded-[20px] border border-[#ECECF5] bg-white p-4 shadow-[0_12px_32px_rgba(0,0,0,.05)] sm:p-6"><h2 className="text-xl font-extrabold">{title}</h2><p className="mt-1 text-sm font-semibold text-[#6E738D]">{description}</p><div className="mt-6">{children}</div></div>;
+  return <div className="rounded-[20px] border border-[var(--br-surface-strong)] bg-white p-4 shadow-[0_12px_32px_rgba(0,0,0,.05)] sm:p-6"><h2 className="text-xl font-extrabold">{title}</h2><p className="mt-1 text-sm font-semibold text-[var(--br-text-muted)]">{description}</p><div className="mt-6">{children}</div></div>;
 }
 function CollectionPanel({ title, description, button, onAdd, secondary, children }: { title: string; description: string; button: string; onAdd: () => void; secondary?: React.ReactNode; children: React.ReactNode }) {
   return <Panel title={title} description={description}><div className="-mt-2 mb-5 flex flex-wrap justify-end gap-2">{secondary}<button onClick={onAdd} className={primaryButton}><Plus className="size-4" /> {button}</button></div>{children}</Panel>;
 }
 function ItemCard({ title, meta, onEdit, onDelete }: { title: string; meta: string; onEdit: () => void; onDelete: () => void }) {
-  return <div className="flex min-w-0 flex-col gap-3 rounded-[16px] border border-[#ECECF5] bg-[#F9F9FC] p-4 sm:flex-row sm:items-center"><div className="min-w-0 flex-1"><h3 className="break-words text-sm font-extrabold">{title}</h3><p className="mt-1 text-xs font-semibold text-[#6E738D]">{meta}</p></div><div className="flex shrink-0 gap-2"><button onClick={onEdit} className={iconButton} title="Edit"><Pencil className="size-4" /></button><button onClick={onDelete} className={`${iconButton} text-red-500`} title="Delete"><Trash2 className="size-4" /></button></div></div>;
+  return <div className="flex min-w-0 flex-col gap-3 rounded-[16px] border border-[var(--br-surface-strong)] bg-[#F9F9FC] p-4 sm:flex-row sm:items-center"><div className="min-w-0 flex-1"><h3 className="break-words text-sm font-extrabold">{title}</h3><p className="mt-1 text-xs font-semibold text-[var(--br-text-muted)]">{meta}</p></div><div className="flex shrink-0 gap-2"><button onClick={onEdit} className={iconButton} title="Edit"><Pencil className="size-4" /></button><button onClick={onDelete} className={`${iconButton} text-red-500`} title="Delete"><Trash2 className="size-4" /></button></div></div>;
 }
 function Modal({ title, subtitle, close, children }: { title: string; subtitle: string; close: () => void; children: React.ReactNode }) {
-  return <div className="fixed inset-0 z-[80] grid place-items-center bg-[#080D25]/65 p-3 backdrop-blur-sm" onMouseDown={(event) => { if (event.currentTarget === event.target) close(); }}><div className="max-h-[94vh] w-full max-w-3xl overflow-y-auto rounded-[22px] bg-white shadow-2xl"><div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-[#ECECF5] bg-white p-4 sm:p-5"><div><h2 className="text-xl font-extrabold">{title}</h2><p className="mt-1 text-xs font-semibold text-[#6E738D]">{subtitle}</p></div><button onClick={close} className={iconButton}><X className="size-4" /></button></div><div className="p-4 sm:p-6">{children}</div></div></div>;
+  return <div className="fixed inset-0 z-[80] grid place-items-center bg-[#080D25]/65 p-3 backdrop-blur-sm" onMouseDown={(event) => { if (event.currentTarget === event.target) close(); }}><div className="max-h-[94vh] w-full max-w-3xl overflow-y-auto rounded-[22px] bg-white shadow-2xl"><div className="sticky top-0 z-10 flex items-start justify-between gap-3 border-b border-[var(--br-surface-strong)] bg-white p-4 sm:p-5"><div><h2 className="text-xl font-extrabold">{title}</h2><p className="mt-1 text-xs font-semibold text-[var(--br-text-muted)]">{subtitle}</p></div><button onClick={close} className={iconButton}><X className="size-4" /></button></div><div className="p-4 sm:p-6">{children}</div></div></div>;
 }
 function Field({ label, children }: { label: string; children: React.ReactNode }) { return <label className="grid min-w-0 gap-1.5 text-xs font-extrabold text-[#3A3F58]">{label}{children}</label>; }
-function Hint({ children }: { children: React.ReactNode }) { return <span className="mt-1 block text-[11px] font-semibold text-[#8B90A7]">{children}</span>; }
-function Toggle({ checked, setChecked, label }: { checked: boolean; setChecked: (value: boolean) => void; label: string }) { return <label className="flex cursor-pointer items-center gap-3 rounded-[14px] border border-[#ECECF5] p-3 text-sm font-bold"><input type="checkbox" checked={checked} onChange={(event) => setChecked(event.target.checked)} className="size-4 accent-[#6C3BFF]" />{label}</label>; }
-function Empty({ text }: { text: string }) { return <div className="rounded-[16px] border border-dashed border-[#DADBE7] p-8 text-center text-sm font-semibold text-[#8B90A7]">{text}</div>; }
+function Hint({ children }: { children: React.ReactNode }) { return <span className="mt-1 block text-[11px] font-semibold text-[var(--br-text-muted)]">{children}</span>; }
+function Toggle({ checked, setChecked, label }: { checked: boolean; setChecked: (value: boolean) => void; label: string }) { return <label className="flex cursor-pointer items-center gap-3 rounded-[14px] border border-[var(--br-surface-strong)] p-3 text-sm font-bold"><input type="checkbox" checked={checked} onChange={(event) => setChecked(event.target.checked)} className="size-4 accent-[var(--br-chart-primary)]" />{label}</label>; }
+function Empty({ text }: { text: string }) { return <div className="rounded-[16px] border border-dashed border-[#DADBE7] p-8 text-center text-sm font-semibold text-[var(--br-text-muted)]">{text}</div>; }
 function Metric({ icon: Icon, value, label, tone }: { icon: React.ElementType; value: string | number; label: string; tone: "purple" | "blue" | "orange" | "green" }) {
-  const tones = { purple: "from-[#6C3BFF] to-[#8A58FF]", blue: "from-[#2697FF] to-[#38BDF8]", orange: "from-[#FFB545] to-[#FF8C00]", green: "from-[#00C98D] to-[#00B37D]" };
-  return <div className="rounded-[18px] border border-[#ECECF5] bg-white p-4 shadow-[0_8px_24px_rgba(0,0,0,.05)]"><div className="flex items-center gap-3"><span className={`grid size-10 place-items-center rounded-[13px] bg-gradient-to-br ${tones[tone]} text-white`}><Icon className="size-5" /></span><div><div className="text-2xl font-extrabold">{value}</div><div className="text-xs font-bold text-[#6E738D]">{label}</div></div></div></div>;
+  const tones = { purple: "from-[var(--br-chart-primary)] to-[var(--br-brand)]", blue: "from-[#2697FF] to-[#38BDF8]", orange: "from-[#FFB545] to-[#FF8C00]", green: "from-[var(--br-success)] to-[#00B37D]" };
+  return <div className="rounded-[18px] border border-[var(--br-surface-strong)] bg-white p-4 shadow-[0_8px_24px_rgba(0,0,0,.05)]"><div className="flex items-center gap-3"><span className={`grid size-10 place-items-center rounded-[13px] bg-gradient-to-br ${tones[tone]} text-white`}><Icon className="size-5" /></span><div><div className="text-2xl font-extrabold">{value}</div><div className="text-xs font-bold text-[var(--br-text-muted)]">{label}</div></div></div></div>;
 }
 function readableType(type: string) { return ({ MCQ: "Multiple choice", TRUE_FALSE: "True / False", MULTIPLE_SELECT: "Multiple select", FILL: "Written answer" } as Record<string, string>)[type] ?? type; }
 
-const inputClass = "min-w-0 w-full rounded-[12px] border border-[#DCDDEA] bg-white px-3 py-2.5 text-sm font-semibold text-[#14172B] outline-none focus:border-[#6C3BFF] focus:ring-2 focus:ring-[#6C3BFF]/10";
-const primaryButton = "inline-flex w-fit items-center justify-center gap-2 rounded-[12px] bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] px-4 py-2.5 text-sm font-extrabold text-white shadow-[0_6px_16px_rgba(108,59,255,.22)] disabled:opacity-50";
-const iconButton = "grid size-9 shrink-0 place-items-center rounded-[10px] border border-[#E3E4ED] bg-white text-[#6E738D] hover:text-[#6C3BFF] disabled:opacity-30";
-const addButton = "mt-2 inline-flex items-center gap-1.5 rounded-[10px] bg-[#EEEAFB] px-3 py-2 text-xs font-extrabold text-[#6C3BFF]";
+const inputClass = "min-w-0 w-full rounded-[12px] border border-[#DCDDEA] bg-white px-3 py-2.5 text-sm font-semibold text-[var(--br-dark-card)] outline-none focus:border-[var(--br-chart-primary)] focus:ring-2 focus:ring-[var(--br-chart-primary)]/10";
+const primaryButton = "inline-flex w-fit items-center justify-center gap-2 rounded-[12px] bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] px-4 py-2.5 text-sm font-extrabold text-white shadow-[0_6px_16px_rgba(108,59,255,.22)] disabled:opacity-50";
+const iconButton = "grid size-9 shrink-0 place-items-center rounded-[10px] border border-[#E3E4ED] bg-white text-[var(--br-text-muted)] hover:text-[var(--br-chart-primary)] disabled:opacity-30";
+const addButton = "mt-2 inline-flex items-center gap-1.5 rounded-[10px] bg-[#EEEAFB] px-3 py-2 text-xs font-extrabold text-[var(--br-chart-primary)]";

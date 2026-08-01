@@ -862,7 +862,7 @@ function HeadingsMatchingEditor({ activity, onSave }: { activity: Activity; onSa
                 className="w-full rounded border border-black/15 p-2 text-xs"
               />
               <div className="flex items-center gap-2 mt-1">
-                <label className="text-xs text-[#6E738D]">Correct Heading:</label>
+                <label className="text-xs text-[var(--br-text-muted)]">Correct Heading:</label>
                 <select
                   value={correctAnswer[p.id] ?? ""}
                   onChange={(e) => setCorrectAnswer((prev) => ({ ...prev, [p.id]: e.target.value }))}
@@ -1002,7 +1002,7 @@ function SkimChallengeEditor({ activity, onSave }: { activity: Activity; onSave:
           type="checkbox"
           checked={allowPassageToggle}
           onChange={(e) => setAllowPassageToggle(e.target.checked)}
-          className="size-4 rounded accent-[#6C3BFF]"
+          className="size-4 rounded accent-[var(--br-chart-primary)]"
         />
         Allow learners to re-view passage ("Show/Hide Passage") while answering questions
       </label>
@@ -1591,15 +1591,15 @@ function ShortAnswerEditor({ activity, onSave }: { activity: Activity; onSave: (
         <input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-black/15 px-3 py-2" />
       </label>
 
-      <div className="rounded-2xl border border-[#6C3BFF]/20 bg-[#6C3BFF]/5 p-4 space-y-2">
-        <p className="text-xs font-black text-[#6C3BFF] uppercase tracking-wider">Evaluation Options Allowed for Learner</p>
+      <div className="rounded-2xl border border-[var(--br-chart-primary)]/20 bg-[var(--br-chart-primary)]/5 p-4 space-y-2">
+        <p className="text-xs font-black text-[var(--br-chart-primary)] uppercase tracking-wider">Evaluation Options Allowed for Learner</p>
         <div className="grid gap-2 sm:grid-cols-3">
           <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer text-ink">
             <input
               type="checkbox"
               checked={allowAiFeedback}
               onChange={(e) => setAllowAiFeedback(e.target.checked)}
-              className="rounded border-black/15 text-[#6C3BFF] focus:ring-[#6C3BFF]"
+              className="rounded border-black/15 text-[var(--br-chart-primary)] focus:ring-[var(--br-chart-primary)]"
             />
             AI Instant Feedback
           </label>
@@ -1608,7 +1608,7 @@ function ShortAnswerEditor({ activity, onSave }: { activity: Activity; onSave: (
               type="checkbox"
               checked={allowSelfGraded}
               onChange={(e) => setAllowSelfGraded(e.target.checked)}
-              className="rounded border-black/15 text-[#6C3BFF] focus:ring-[#6C3BFF]"
+              className="rounded border-black/15 text-[var(--br-chart-primary)] focus:ring-[var(--br-chart-primary)]"
             />
             Model Answer / Self Check
           </label>
@@ -1617,7 +1617,7 @@ function ShortAnswerEditor({ activity, onSave }: { activity: Activity; onSave: (
               type="checkbox"
               checked={allowTeacherReview}
               onChange={(e) => setAllowTeacherReview(e.target.checked)}
-              className="rounded border-black/15 text-[#6C3BFF] focus:ring-[#6C3BFF]"
+              className="rounded border-black/15 text-[var(--br-chart-primary)] focus:ring-[var(--br-chart-primary)]"
             />
             Teacher Review Queue
           </label>
@@ -2701,15 +2701,15 @@ function SentenceCompletionEditor({
         <textarea rows={2} value={modelDescription} onChange={(e) => setModelDescription(e.target.value)} placeholder="Explanation of model answer..." className="mt-1 w-full rounded-md border border-black/15 p-2 text-xs" />
       </label>
 
-      <div className="rounded-2xl border border-[#6C3BFF]/20 bg-[#6C3BFF]/5 p-4 space-y-2">
-        <p className="text-xs font-black text-[#6C3BFF] uppercase tracking-wider">Evaluation Options Allowed for Learner</p>
+      <div className="rounded-2xl border border-[var(--br-chart-primary)]/20 bg-[var(--br-chart-primary)]/5 p-4 space-y-2">
+        <p className="text-xs font-black text-[var(--br-chart-primary)] uppercase tracking-wider">Evaluation Options Allowed for Learner</p>
         <div className="grid gap-2 sm:grid-cols-3">
           <label className="flex items-center gap-2 text-xs font-semibold cursor-pointer text-ink">
             <input
               type="checkbox"
               checked={allowAiFeedback}
               onChange={(e) => setAllowAiFeedback(e.target.checked)}
-              className="rounded border-black/15 text-[#6C3BFF] focus:ring-[#6C3BFF]"
+              className="rounded border-black/15 text-[var(--br-chart-primary)] focus:ring-[var(--br-chart-primary)]"
             />
             AI Instant Feedback
           </label>
@@ -2718,7 +2718,7 @@ function SentenceCompletionEditor({
               type="checkbox"
               checked={allowSelfGraded}
               onChange={(e) => setAllowSelfGraded(e.target.checked)}
-              className="rounded border-black/15 text-[#6C3BFF] focus:ring-[#6C3BFF]"
+              className="rounded border-black/15 text-[var(--br-chart-primary)] focus:ring-[var(--br-chart-primary)]"
             />
             Model Answer / Self Check
           </label>
@@ -2727,7 +2727,7 @@ function SentenceCompletionEditor({
               type="checkbox"
               checked={allowTeacherReview}
               onChange={(e) => setAllowTeacherReview(e.target.checked)}
-              className="rounded border-black/15 text-[#6C3BFF] focus:ring-[#6C3BFF]"
+              className="rounded border-black/15 text-[var(--br-chart-primary)] focus:ring-[var(--br-chart-primary)]"
             />
             Teacher Review Queue
           </label>

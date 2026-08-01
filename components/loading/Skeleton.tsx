@@ -15,7 +15,7 @@
  */
 
 export function Bone({ className = "" }: { className?: string }) {
-  return <div className={`animate-pulse rounded-lg bg-[#ECECF5] ${className}`} />;
+  return <div className={`animate-pulse rounded-lg bg-[var(--br-surface-strong)] ${className}`} />;
 }
 
 export function HeroSkeleton({ className = "" }: { className?: string }) {
@@ -35,7 +35,7 @@ export function CardGridSkeleton({ count = 3, className = "" }: { count?: number
   return (
     <div className={`grid gap-4 sm:grid-cols-2 lg:grid-cols-3 ${className}`}>
       {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="animate-pulse rounded-[18px] border border-[#ECECF5] bg-white p-5">
+        <div key={i} className="animate-pulse rounded-[18px] border border-[var(--br-surface-strong)] bg-white p-5">
           <div className="h-28 rounded-[14px] bg-[#F0F1F7]" />
           <div className="mt-4 h-4 w-3/4 rounded bg-[#F0F1F7]" />
           <div className="mt-2 h-3 w-1/2 rounded bg-[#F0F1F7]" />
@@ -49,7 +49,7 @@ export function CardListSkeleton({ count = 4, className = "" }: { count?: number
   return (
     <div className={`grid gap-3 ${className}`}>
       {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="flex animate-pulse items-center gap-4 rounded-[16px] border border-[#ECECF5] bg-white p-4">
+        <div key={i} className="flex animate-pulse items-center gap-4 rounded-[16px] border border-[var(--br-surface-strong)] bg-white p-4">
           <div className="size-11 shrink-0 rounded-xl bg-[#F0F1F7]" />
           <div className="min-w-0 flex-1 space-y-2">
             <div className="h-3.5 w-1/3 rounded bg-[#F0F1F7]" />
@@ -63,7 +63,7 @@ export function CardListSkeleton({ count = 4, className = "" }: { count?: number
 
 export function PanelSkeleton({ className = "" }: { className?: string }) {
   return (
-    <div className={`animate-pulse rounded-[20px] border border-[#ECECF5] bg-white p-5 ${className}`}>
+    <div className={`animate-pulse rounded-[20px] border border-[var(--br-surface-strong)] bg-white p-5 ${className}`}>
       <div className="h-4 w-1/3 rounded bg-[#F0F1F7]" />
       <div className="mt-4 h-3 w-full rounded bg-[#F0F1F7]" />
       <div className="mt-2 h-3 w-5/6 rounded bg-[#F0F1F7]" />
@@ -91,7 +91,7 @@ export function LearnerShellSkeleton({
       <div className="sticky top-6 hidden h-[calc(100vh-48px)] w-[225px] min-w-[225px] animate-pulse rounded-[24px] bg-gradient-to-b from-[#09112C] to-[#0C1636] min-[1180px]:block" />
       <section className="min-w-0 flex-1 pt-[72px] min-[1180px]:pt-0">{children}</section>
       {showRightSidebar ? (
-        <aside className="sticky top-6 hidden h-[520px] w-[285px] min-w-[285px] animate-pulse rounded-[20px] bg-[#F6F7FB] min-[1180px]:block" />
+        <aside className="sticky top-6 hidden h-[520px] w-[285px] min-w-[285px] animate-pulse rounded-[20px] bg-[var(--br-canvas-elevated)] min-[1180px]:block" />
       ) : null}
     </div>
   );
@@ -99,8 +99,8 @@ export function LearnerShellSkeleton({
 
 export function CenteredSpinner({ label }: { label?: string }) {
   return (
-    <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 text-[#6E738D]">
-      <div className="size-9 animate-spin rounded-full border-[3px] border-[#ECECF5] border-t-[#6C3BFF]" />
+    <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 text-[var(--br-text-muted)]">
+      <div className="size-9 animate-spin rounded-full border-[3px] border-[var(--br-surface-strong)] border-t-[var(--br-chart-primary)]" />
       {label ? <p className="text-sm font-semibold">{label}</p> : null}
     </div>
   );

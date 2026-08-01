@@ -138,7 +138,7 @@ export function LoginForm() {
           <label className="block text-sm font-medium">
             First name
             <input
-              className="mt-1.5 w-full rounded-xl border border-[#ECECF5] px-3.5 py-2.5 text-sm font-semibold placeholder-[#B0B5C8] focus:border-violetglow focus:outline-none focus:ring-4 focus:ring-violetglow/10 transition"
+              className="mt-1.5 w-full rounded-xl border border-[var(--br-surface-strong)] px-3.5 py-2.5 text-sm font-semibold placeholder-[#B0B5C8] focus:border-violetglow focus:outline-none focus:ring-4 focus:ring-violetglow/10 transition"
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
               placeholder="Maria"
@@ -148,7 +148,7 @@ export function LoginForm() {
           <label className="block text-sm font-medium">
             Last name
             <input
-              className="mt-1.5 w-full rounded-xl border border-[#ECECF5] px-3.5 py-2.5 text-sm font-semibold placeholder-[#B0B5C8] focus:border-violetglow focus:outline-none focus:ring-4 focus:ring-violetglow/10 transition"
+              className="mt-1.5 w-full rounded-xl border border-[var(--br-surface-strong)] px-3.5 py-2.5 text-sm font-semibold placeholder-[#B0B5C8] focus:border-violetglow focus:outline-none focus:ring-4 focus:ring-violetglow/10 transition"
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
               placeholder="Santos"
@@ -162,7 +162,7 @@ export function LoginForm() {
         Email
         <input
           type="email"
-          className="mt-1.5 w-full rounded-xl border border-[#ECECF5] px-3.5 py-2.5 text-sm font-semibold placeholder-[#B0B5C8] focus:border-violetglow focus:outline-none focus:ring-4 focus:ring-violetglow/10 transition"
+          className="mt-1.5 w-full rounded-xl border border-[var(--br-surface-strong)] px-3.5 py-2.5 text-sm font-semibold placeholder-[#B0B5C8] focus:border-violetglow focus:outline-none focus:ring-4 focus:ring-violetglow/10 transition"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           autoComplete="email"
@@ -173,7 +173,7 @@ export function LoginForm() {
         Password
         <input
           type="password"
-          className="mt-1.5 w-full rounded-xl border border-[#ECECF5] px-3.5 py-2.5 text-sm font-semibold placeholder-[#B0B5C8] focus:border-violetglow focus:outline-none focus:ring-4 focus:ring-violetglow/10 transition"
+          className="mt-1.5 w-full rounded-xl border border-[var(--br-surface-strong)] px-3.5 py-2.5 text-sm font-semibold placeholder-[#B0B5C8] focus:border-violetglow focus:outline-none focus:ring-4 focus:ring-violetglow/10 transition"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           autoComplete={mode === "signup" ? "new-password" : "current-password"}

@@ -63,12 +63,12 @@ export function DeleteConfirmProvider({ children }: { children: ReactNode }) {
           />
 
           {/* Modal Card */}
-          <div className="relative w-full max-w-md scale-100 transform overflow-hidden rounded-[24px] border border-[#ECECF5] bg-white p-6 shadow-[0_24px_64px_rgba(10,13,44,0.18)] transition-all animate-in fade-in zoom-in-95 duration-200">
+          <div className="relative w-full max-w-md scale-100 transform overflow-hidden rounded-[24px] border border-[var(--br-surface-strong)] bg-white p-6 shadow-[0_24px_64px_rgba(10,13,44,0.18)] transition-all animate-in fade-in zoom-in-95 duration-200">
             {/* Close Button */}
             <button
               disabled={isPending}
               onClick={handleClose}
-              className="absolute right-4 top-4 rounded-full p-1.5 text-[#8B90A7] hover:bg-[#F6F7FB] hover:text-[#14172B] disabled:opacity-50 transition"
+              className="absolute right-4 top-4 rounded-full p-1.5 text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)] hover:text-[var(--br-dark-card)] disabled:opacity-50 transition"
             >
               <X size={18} />
             </button>
@@ -83,11 +83,11 @@ export function DeleteConfirmProvider({ children }: { children: ReactNode }) {
                 )}
               </div>
 
-              <h3 className="text-lg font-extrabold text-[#14172B]">
+              <h3 className="text-lg font-extrabold text-[var(--br-dark-card)]">
                 {options.title}
               </h3>
               
-              <p className="mt-2 text-sm text-[#6E738D] leading-relaxed">
+              <p className="mt-2 text-sm text-[var(--br-text-muted)] leading-relaxed">
                 {options.message}
               </p>
 
@@ -103,12 +103,12 @@ export function DeleteConfirmProvider({ children }: { children: ReactNode }) {
             </div>
 
             {/* Actions Footer */}
-            <div className="mt-6 flex items-center justify-end gap-2 border-t border-[#ECECF5] pt-4">
+            <div className="mt-6 flex items-center justify-end gap-2 border-t border-[var(--br-surface-strong)] pt-4">
               <button
                 type="button"
                 disabled={isPending}
                 onClick={handleClose}
-                className="rounded-xl px-5 py-2.5 text-sm font-extrabold text-[#6E738D] hover:bg-[#F6F7FB] disabled:opacity-50 transition"
+                className="rounded-xl px-5 py-2.5 text-sm font-extrabold text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)] disabled:opacity-50 transition"
               >
                 Cancel
               </button>

@@ -360,17 +360,17 @@ function DesktopLearnerChrome({
   return (
     <header className="mb-4 hidden items-center justify-between gap-4 min-[1180px]:flex">
       {leading ?? (
-        <nav className="flex min-w-0 items-center gap-2 text-sm font-semibold text-[#6E738D]" aria-label="Breadcrumb">
-          <Link href="/account" className="grid size-9 shrink-0 place-items-center rounded-xl border border-[#ECECF5] bg-white text-[#6E738D] shadow-[0_2px_8px_rgba(0,0,0,.04)]">
+        <nav className="flex min-w-0 items-center gap-2 text-sm font-semibold text-[var(--br-text-muted)]" aria-label="Breadcrumb">
+          <Link href="/account" className="grid size-9 shrink-0 place-items-center rounded-xl border border-[var(--br-surface-strong)] bg-white text-[var(--br-text-muted)] shadow-[0_2px_8px_rgba(0,0,0,.04)]">
             <Home className="size-4" />
           </Link>
           {breadcrumbs.map((item, index) => (
             <span key={`${item.label}-${index}`} className="flex min-w-0 items-center gap-2">
               {index === 0 ? null : <ChevronRight className="size-4 shrink-0 text-[#A0A5BA]" />}
               {item.href ? (
-                <Link href={item.href} className="truncate hover:text-[#6C3BFF]">{item.label}</Link>
+                <Link href={item.href} className="truncate hover:text-[var(--br-chart-primary)]">{item.label}</Link>
               ) : (
-                <span className="max-w-[340px] truncate text-[#14172B]">{item.label}</span>
+                <span className="max-w-[340px] truncate text-[var(--br-dark-card)]">{item.label}</span>
               )}
             </span>
           ))}
@@ -387,13 +387,13 @@ function DesktopLearnerChrome({
             </button>
           </form>
         ) : null}
-        <Link href="/level-test" className="hidden items-center gap-1.5 rounded-[14px] border border-[#ECECF5] bg-white px-3 py-2 text-xs font-bold text-[#6E738D] shadow-[0_2px_8px_rgba(0,0,0,.04)] transition hover:text-[#6C3BFF] min-[1120px]:inline-flex">
-          <Target className="size-4 text-[#6C3BFF]" /> {currentLevel ? `${currentLevel} level` : "Find your level"}
+        <Link href="/level-test" className="hidden items-center gap-1.5 rounded-[14px] border border-[var(--br-surface-strong)] bg-white px-3 py-2 text-xs font-bold text-[var(--br-text-muted)] shadow-[0_2px_8px_rgba(0,0,0,.04)] transition hover:text-[var(--br-chart-primary)] min-[1120px]:inline-flex">
+          <Target className="size-4 text-[var(--br-chart-primary)]" /> {currentLevel ? `${currentLevel} level` : "Find your level"}
         </Link>
         <NotificationsDropdown initialNotifications={notifications} mode="desktop" />
-        <Link href={isLoggedIn ? "/profile" : "/login"} className="flex items-center gap-2 rounded-full border border-[#ECECF5] bg-white p-1.5 pr-3 shadow-[0_2px_8px_rgba(0,0,0,.04)]">
+        <Link href={isLoggedIn ? "/profile" : "/login"} className="flex items-center gap-2 rounded-full border border-[var(--br-surface-strong)] bg-white p-1.5 pr-3 shadow-[0_2px_8px_rgba(0,0,0,.04)]">
           <AvatarBubble initials={initials} avatarUrl={avatarUrl} />
-          <span className="hidden max-w-[130px] truncate text-xs font-bold text-[#14172B] min-[1120px]:block">{isLoggedIn ? userName : "My Account"}</span>
+          <span className="hidden max-w-[130px] truncate text-xs font-bold text-[var(--br-dark-card)] min-[1120px]:block">{isLoggedIn ? userName : "My Account"}</span>
         </Link>
       </div>
     </header>
@@ -402,7 +402,7 @@ function DesktopLearnerChrome({
 
 function AvatarBubble({ initials, avatarUrl }: { initials: string; avatarUrl: string | null }) {
   return (
-    <span className="grid size-9 place-items-center overflow-hidden rounded-full bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] text-xs font-black text-white">
+    <span className="grid size-9 place-items-center overflow-hidden rounded-full bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] text-xs font-black text-white">
       {/* eslint-disable-next-line @next/next/no-img-element -- Avatar URLs are user-uploaded Supabase/public links. */}
       {avatarUrl ? <img src={avatarUrl} alt="" className="h-full w-full object-cover" /> : initials}
     </span>
@@ -439,15 +439,15 @@ function RightSidebarCards({ data }: { data: RightSidebarData }) {
           <div>
             <div className="text-[15px] font-bold">Your Streak</div>
             <div className="text-[32px] font-extrabold leading-none text-[#FFB545]">{data.streak} days</div>
-            <div className="mt-1 text-xs text-[#6E738D]">{data.streak ? "Keep it up!" : "Start today!"}</div>
+            <div className="mt-1 text-xs text-[var(--br-text-muted)]">{data.streak ? "Keep it up!" : "Start today!"}</div>
           </div>
           <div className="text-[52px] leading-none">🔥</div>
         </div>
         <div className="mt-3 flex justify-between gap-1">
           {data.weekActivity.map((day, index) => (
             <div key={`${day.label}-${index}`} className="flex flex-col items-center gap-1">
-              <div className={`text-[9px] font-semibold ${day.isToday ? "text-[#FFB545]" : "text-[#6E738D]"}`}>{day.label}</div>
-              <div className={`grid size-7 place-items-center rounded-full text-[13px] ${day.active ? "bg-[#FFB545] text-white" : "border border-[#ECECF5] bg-[#F6F7FB]"}`}>
+              <div className={`text-[9px] font-semibold ${day.isToday ? "text-[#FFB545]" : "text-[var(--br-text-muted)]"}`}>{day.label}</div>
+              <div className={`grid size-7 place-items-center rounded-full text-[13px] ${day.active ? "bg-[#FFB545] text-white" : "border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)]"}`}>
                 {day.active ? "✓" : ""}
               </div>
             </div>
@@ -459,9 +459,9 @@ function RightSidebarCards({ data }: { data: RightSidebarData }) {
         <div className="mb-4 flex items-center justify-between gap-3">
           <div>
             <div className="text-[15px] font-bold">Your Progress</div>
-            <p className="mt-1 text-xs font-semibold text-[#6E738D]">Across enrolled courses</p>
+            <p className="mt-1 text-xs font-semibold text-[var(--br-text-muted)]">Across enrolled courses</p>
           </div>
-          <div className="relative grid size-20 place-items-center rounded-full bg-[conic-gradient(#31C48D_var(--progress),#ECECF5_0)]" style={{ "--progress": `${data.progressPercent}%` } as React.CSSProperties}>
+          <div className="relative grid size-20 place-items-center rounded-full bg-[conic-gradient(#31C48D_var(--progress),var(--br-surface-strong)_0)]" style={{ "--progress": `${data.progressPercent}%` } as React.CSSProperties}>
             <div className="grid size-14 place-items-center rounded-full bg-white text-lg font-black">{data.progressPercent}%</div>
           </div>
         </div>
@@ -475,7 +475,7 @@ function RightSidebarCards({ data }: { data: RightSidebarData }) {
       <RightRailCard>
         <div className="mb-3 flex items-center justify-between">
           <div className="text-[15px] font-bold">Your Achievements</div>
-          <Link href="/achievements" className="text-xs font-bold text-[#6C3BFF]">View all</Link>
+          <Link href="/achievements" className="text-xs font-bold text-[var(--br-chart-primary)]">View all</Link>
         </div>
         <div className="grid grid-cols-4 gap-2">
           {data.achievements.highlights.map((achievement) => <AchievementIcon key={achievement.id} emoji={achievement.icon} label={achievement.title} tone={achievement.tone} unlocked={achievement.unlocked} />)}
@@ -486,7 +486,7 @@ function RightSidebarCards({ data }: { data: RightSidebarData }) {
         <div className="flex items-center justify-between gap-3">
           <div>
             <div className="text-[15px] font-bold">Quiz Badge</div>
-            <div className="mt-1 text-xs text-[#6E738D]">
+            <div className="mt-1 text-xs text-[var(--br-text-muted)]">
               {data.nextBadge ? `${Math.max(0, data.nextBadge.minPoints - data.totalPoints).toLocaleString()} points to ${data.nextBadge.name}` : "You reached Legend."}
             </div>
           </div>
@@ -498,7 +498,7 @@ function RightSidebarCards({ data }: { data: RightSidebarData }) {
 }
 
 function RightRailCard({ children }: { children: React.ReactNode }) {
-  return <div className="rounded-[20px] border border-[#ECECF5] bg-white p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)]">{children}</div>;
+  return <div className="rounded-[20px] border border-[var(--br-surface-strong)] bg-white p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)]">{children}</div>;
 }
 
 function ProgressLegend({ dot, label, value }: { dot: string; label: string; value: string }) {
@@ -507,7 +507,7 @@ function ProgressLegend({ dot, label, value }: { dot: string; label: string; val
       <span className="mt-1.5 size-2.5 rounded-full" style={{ backgroundColor: dot }} />
       <div>
         <p className="font-bold text-[#35405F]">{label}</p>
-        <p className="text-xs text-[#6E738D]">{value}</p>
+        <p className="text-xs text-[var(--br-text-muted)]">{value}</p>
       </div>
     </div>
   );
@@ -515,15 +515,15 @@ function ProgressLegend({ dot, label, value }: { dot: string; label: string; val
 
 function AchievementIcon({ emoji, label, tone, unlocked = true }: { emoji: string; label: string; tone: "purple" | "orange" | "green" | "red"; unlocked?: boolean }) {
   const tones = {
-    purple: "from-[#6C3BFF] to-[#8A58FF]",
+    purple: "from-[var(--br-chart-primary)] to-[var(--br-brand)]",
     orange: "from-[#FFB545] to-[#FF6B00]",
-    green: "from-[#00C98D] to-[#00957A]",
-    red: "from-[#FF5D73] to-[#C0002A]",
+    green: "from-[var(--br-success)] to-[#00957A]",
+    red: "from-[var(--br-danger)] to-[#C0002A]",
   };
   return (
     <div className="flex flex-col items-center gap-1.5">
       <div className={`grid size-[52px] place-items-center rounded-[14px] bg-gradient-to-br ${tones[tone]} text-[22px] ${unlocked ? "" : "grayscale opacity-40"}`}>{emoji}</div>
-      <div className="text-center text-[9px] font-semibold leading-tight text-[#6E738D]">{label}</div>
+      <div className="text-center text-[9px] font-semibold leading-tight text-[var(--br-text-muted)]">{label}</div>
     </div>
   );
 }
@@ -618,11 +618,11 @@ function MobileBottomNav({ active }: { active: ActiveItem }) {
     { href: "/profile", label: "Profile", icon: User, key: "profile" }
   ];
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-[#ECECF5] bg-white px-1 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 min-[1180px]:hidden">
+    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--br-surface-strong)] bg-white px-1 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 min-[1180px]:hidden">
       <div className="flex items-center justify-around">
         {items.map((item) => (
-          <Link key={item.label} href={item.href} className={`flex flex-col items-center gap-1 rounded-xl px-3 py-1.5 text-[9px] font-semibold ${active === item.key ? "text-[#6C3BFF]" : "text-[#6E738D]"}`}>
-            <span className={`grid size-9 place-items-center rounded-[10px] ${active === item.key ? "bg-[#6C3BFF]/10" : ""}`}><item.icon className="size-5" /></span>
+          <Link key={item.label} href={item.href} className={`flex flex-col items-center gap-1 rounded-xl px-3 py-1.5 text-[9px] font-semibold ${active === item.key ? "text-[var(--br-chart-primary)]" : "text-[var(--br-text-muted)]"}`}>
+            <span className={`grid size-9 place-items-center rounded-[10px] ${active === item.key ? "bg-[var(--br-chart-primary)]/10" : ""}`}><item.icon className="size-5" /></span>
             {item.label}
           </Link>
         ))}

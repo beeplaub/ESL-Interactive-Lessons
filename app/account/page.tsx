@@ -154,7 +154,7 @@ export default async function AccountPage() {
       desktopChromeLeading={
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-[28px] font-bold leading-tight">{greeting}, {firstName}! 👋</h1>
-          <p className="mt-0.5 text-sm text-[#6E738D]">Let&apos;s continue your English journey.</p>
+          <p className="mt-0.5 text-sm text-[var(--br-text-muted)]">Let&apos;s continue your English journey.</p>
         </div>
       }
     >
@@ -172,17 +172,17 @@ export default async function AccountPage() {
 
           <div className="min-[1180px]:hidden">
             <h2 className="text-xl font-bold">{greeting}, {firstName}! 👋</h2>
-            <p className="mt-0.5 text-[13px] text-[#6E738D]">Let&apos;s continue your English journey.</p>
+            <p className="mt-0.5 text-[13px] text-[var(--br-text-muted)]">Let&apos;s continue your English journey.</p>
           </div>
 
           <ResumeLearningCard item={learningItems[0]} currentLevel={currentLevel} reviewHref={reviewHref} />
 
           <div className="grid gap-5 md:grid-cols-2">
-            <DashboardCard className="p-5 md:p-6"><SectionHeader title="This Week: Assignments" href="/assignments" small />{assignments?.length ? <div className="space-y-2">{assignments.map((assignment) => <Link key={assignment.id} href="/assignments" className="flex items-center gap-3 rounded-xl p-3 transition hover:bg-[#F5F2FE]"><span className="size-2 rounded-full bg-[#FF7A59] ring-4 ring-[#FF7A59]/10"/><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold">{assignment.title || assignment.item_type}</p><p className="text-xs text-[#6E6E85]">{assignment.due_at ? `Due ${new Date(assignment.due_at).toLocaleDateString()}` : "No due date"}</p></div><ChevronRight className="size-4 text-[#B8B8C9]" /></Link>)}</div> : <EmptyMini text="No assignments this week." href="/assignments" label="View assignments" />}</DashboardCard>
-            <DashboardCard className="p-5 md:p-6"><SectionHeader title="This Week: Live Classes" href="/live-classes" small />{liveClasses?.length ? <div className="space-y-2">{liveClasses.map((session) => <Link key={session.id} href={`/live/${session.id}`} className="flex items-center gap-3 rounded-xl border border-[#E4E4EE] p-3 transition hover:border-[#FF7A59]"><span className="grid size-11 shrink-0 place-items-center rounded-lg bg-[#3E3A72] text-xs font-bold text-white">{session.scheduled_at ? new Date(session.scheduled_at).getDate() : "LIVE"}</span><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold">{session.title}</p><p className="text-xs text-[#6E6E85]">{session.status === "LIVE" ? "Live now" : session.scheduled_at ? new Date(session.scheduled_at).toLocaleString() : "Time to be confirmed"}</p></div><span className="rounded-lg bg-[#FF7A59] px-3 py-1.5 text-xs font-bold text-white">{session.status === "LIVE" ? "Join" : "View"}</span></Link>)}</div> : <EmptyMini text="No live classes scheduled." href="/live-classes" label="View classes" />}</DashboardCard>
+            <DashboardCard className="p-5 md:p-6"><SectionHeader title="This Week: Assignments" href="/assignments" small />{assignments?.length ? <div className="space-y-2">{assignments.map((assignment) => <Link key={assignment.id} href="/assignments" className="flex items-center gap-3 rounded-xl p-3 transition hover:bg-[var(--br-surface-muted)]"><span className="size-2 rounded-full bg-[var(--br-action)] ring-4 ring-[var(--br-action)]/10"/><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold">{assignment.title || assignment.item_type}</p><p className="text-xs text-[#6E6E85]">{assignment.due_at ? `Due ${new Date(assignment.due_at).toLocaleDateString()}` : "No due date"}</p></div><ChevronRight className="size-4 text-[#B8B8C9]" /></Link>)}</div> : <EmptyMini text="No assignments this week." href="/assignments" label="View assignments" />}</DashboardCard>
+            <DashboardCard className="p-5 md:p-6"><SectionHeader title="This Week: Live Classes" href="/live-classes" small />{liveClasses?.length ? <div className="space-y-2">{liveClasses.map((session) => <Link key={session.id} href={`/live/${session.id}`} className="flex items-center gap-3 rounded-xl border border-[var(--br-border)] p-3 transition hover:border-[var(--br-action)]"><span className="grid size-11 shrink-0 place-items-center rounded-lg bg-[var(--br-brand)] text-xs font-bold text-white">{session.scheduled_at ? new Date(session.scheduled_at).getDate() : "LIVE"}</span><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold">{session.title}</p><p className="text-xs text-[#6E6E85]">{session.status === "LIVE" ? "Live now" : session.scheduled_at ? new Date(session.scheduled_at).toLocaleString() : "Time to be confirmed"}</p></div><span className="rounded-lg bg-[var(--br-action)] px-3 py-1.5 text-xs font-bold text-white">{session.status === "LIVE" ? "Join" : "View"}</span></Link>)}</div> : <EmptyMini text="No live classes scheduled." href="/live-classes" label="View classes" />}</DashboardCard>
           </div>
 
-          <DashboardCard className="overflow-hidden"><div className="grid lg:grid-cols-[.9fr_1.1fr]"><div className="border-b border-[#ECECF5] p-5 lg:border-b-0 lg:border-r md:p-6"><SectionHeader title="Your Schedule" href="/calendar" small /><ScheduleGrid assignments={assignments ?? []} liveClasses={liveClasses ?? []} tasks={practiceTasks ?? []} /></div><div className="p-5 md:p-6"><SectionHeader title="Today’s Agenda" href="/calendar" small /><AgendaList assignments={assignments ?? []} liveClasses={liveClasses ?? []} tasks={practiceTasks ?? []} /></div></div></DashboardCard>
+          <DashboardCard className="overflow-hidden"><div className="grid lg:grid-cols-[.9fr_1.1fr]"><div className="border-b border-[var(--br-surface-strong)] p-5 lg:border-b-0 lg:border-r md:p-6"><SectionHeader title="Your Schedule" href="/calendar" small /><ScheduleGrid assignments={assignments ?? []} liveClasses={liveClasses ?? []} tasks={practiceTasks ?? []} /></div><div className="p-5 md:p-6"><SectionHeader title="Today’s Agenda" href="/calendar" small /><AgendaList assignments={assignments ?? []} liveClasses={liveClasses ?? []} tasks={practiceTasks ?? []} /></div></div></DashboardCard>
 
           <div className="grid gap-4 min-[1100px]:grid-cols-3">
             <DashboardCard className="p-5">
@@ -199,9 +199,9 @@ export default async function AccountPage() {
             <DashboardCard className="p-5">
               <SectionHeader title="Your Progress Overview" href="/leaderboard" small />
               <div className="mb-4 grid grid-cols-4 gap-3">
-                <MiniStat dot="#FF5D73" label="Quizzes" value={(quizAttempts ?? []).length} />
+                <MiniStat dot="var(--br-danger)" label="Quizzes" value={(quizAttempts ?? []).length} />
                 <MiniStat dot="#4E8DFF" label="Lessons" value={completedLessons.length} />
-                <MiniStat dot="#00C98D" label="Courses" value={(courseEnrollments ?? []).length} />
+                <MiniStat dot="var(--br-success)" label="Courses" value={(courseEnrollments ?? []).length} />
                 <MiniStat dot="#FFB545" label="Certificates" value={(certificates ?? []).length} />
               </div>
               <MiniChart />
@@ -216,9 +216,9 @@ export default async function AccountPage() {
               </div>
             </DashboardCard>
           </div>
-          <div className="grid gap-4 md:grid-cols-3"><DashboardCard className="p-5"><SectionHeader title="Language Profile" href="/language-profile" small /><p className="text-sm text-[#6E6E85]">Current level <b className="text-[#1B1B3A]">{currentLevel}</b></p><div className="mt-4 h-3 overflow-hidden rounded-full bg-[#F1F1F6]"><div className="h-full rounded-full bg-[#FF7A59]" style={{width:`${Math.max(12, activeLevelIndex * 16 + 20)}%`}}/></div><Link href="/language-profile" className="mt-4 block rounded-lg bg-[#F5F2FE] py-2 text-center text-xs font-bold text-[#3E3A72]">Full skill map</Link></DashboardCard><DashboardCard className="p-5"><SectionHeader title="Last Quiz" href="/quizzes" small />{quizAttempts?.[0] ? <><p className="text-3xl font-bold text-[#2FAE7A]">{quizAttempts[0].total ? Math.round(quizAttempts[0].score/quizAttempts[0].total*100) : 0}%</p><p className="mt-2 text-sm font-bold">{quizAttempts[0].quizzes?.title || "Quiz"}</p><p className="text-xs text-[#6E6E85]">{new Date(quizAttempts[0].completed_at).toLocaleDateString()}</p></> : <EmptyMini text="Your recent quiz will appear here." href="/quizzes" label="Take a quiz" />}</DashboardCard><DashboardCard className="p-5"><SectionHeader title="My Rank" href="/leaderboard" small /><p className="text-3xl font-bold text-[#F2B705]">Keep climbing</p><p className="mt-2 text-sm text-[#6E6E85]">Earn points through quizzes and completed learning.</p><Link href="/leaderboard" className="mt-4 inline-flex text-xs font-bold text-[#3E3A72]">View leaderboard <ChevronRight className="size-3"/></Link></DashboardCard></div>
-          <section><SectionHeader title="Enrolled Courses" href="/courses" /><div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{activeCourseEnrollments.map((enrollment, index) => <CourseHomeCard key={enrollment.id} href={`/courses/${enrollment.course_id}`} title={enrollment.courses?.title || "Course"} level={enrollment.courses?.level || currentLevel} progress={courseProgressByCourse.get(enrollment.course_id)?.progress_percent ?? 0} tone={index}/>) }{!activeCourseEnrollments.length ? <EmptyMini text="Your enrolled courses will appear here." href="/courses" label="Browse courses" /> : null}<Link href="/courses" className="grid min-h-48 place-items-center rounded-[20px] border-2 border-dashed border-[#E4E4EE] p-6 text-center text-sm font-bold text-[#6E6E85] transition hover:border-[#FF7A59] hover:text-[#FF7A59]">Explore new courses</Link></div></section>
-          <section><SectionHeader title="My Certificates" href="/certificates" /><div className="flex gap-4 overflow-x-auto pb-1">{certificates?.length ? certificates.map((certificate) => <Link key={certificate.id} href={`/certificates/${certificate.certificate_code}`} className="w-64 shrink-0 rounded-[20px] border border-[#E4E4EE] bg-white p-5 shadow-sm"><Award className="size-8 text-[#F2B705]"/><p className="mt-4 font-bold">{certificate.courses?.title || "Course certificate"}</p><p className="mt-1 text-xs text-[#6E6E85]">Earned {new Date(certificate.issued_at).toLocaleDateString()}</p></Link>) : <EmptyMini text="Complete an enrolled course to earn a certificate." href="/courses" label="Browse courses" />}</div></section>
+          <div className="grid gap-4 md:grid-cols-3"><DashboardCard className="p-5"><SectionHeader title="Language Profile" href="/language-profile" small /><p className="text-sm text-[#6E6E85]">Current level <b className="text-[#1B1B3A]">{currentLevel}</b></p><div className="mt-4 h-3 overflow-hidden rounded-full bg-[#F1F1F6]"><div className="h-full rounded-full bg-[var(--br-action)]" style={{width:`${Math.max(12, activeLevelIndex * 16 + 20)}%`}}/></div><Link href="/language-profile" className="mt-4 block rounded-lg bg-[var(--br-surface-muted)] py-2 text-center text-xs font-bold text-[var(--br-brand)]">Full skill map</Link></DashboardCard><DashboardCard className="p-5"><SectionHeader title="Last Quiz" href="/quizzes" small />{quizAttempts?.[0] ? <><p className="text-3xl font-bold text-[#2FAE7A]">{quizAttempts[0].total ? Math.round(quizAttempts[0].score/quizAttempts[0].total*100) : 0}%</p><p className="mt-2 text-sm font-bold">{quizAttempts[0].quizzes?.title || "Quiz"}</p><p className="text-xs text-[#6E6E85]">{new Date(quizAttempts[0].completed_at).toLocaleDateString()}</p></> : <EmptyMini text="Your recent quiz will appear here." href="/quizzes" label="Take a quiz" />}</DashboardCard><DashboardCard className="p-5"><SectionHeader title="My Rank" href="/leaderboard" small /><p className="text-3xl font-bold text-[#F2B705]">Keep climbing</p><p className="mt-2 text-sm text-[#6E6E85]">Earn points through quizzes and completed learning.</p><Link href="/leaderboard" className="mt-4 inline-flex text-xs font-bold text-[var(--br-brand)]">View leaderboard <ChevronRight className="size-3"/></Link></DashboardCard></div>
+          <section><SectionHeader title="Enrolled Courses" href="/courses" /><div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{activeCourseEnrollments.map((enrollment, index) => <CourseHomeCard key={enrollment.id} href={`/courses/${enrollment.course_id}`} title={enrollment.courses?.title || "Course"} level={enrollment.courses?.level || currentLevel} progress={courseProgressByCourse.get(enrollment.course_id)?.progress_percent ?? 0} tone={index}/>) }{!activeCourseEnrollments.length ? <EmptyMini text="Your enrolled courses will appear here." href="/courses" label="Browse courses" /> : null}<Link href="/courses" className="grid min-h-48 place-items-center rounded-[20px] border-2 border-dashed border-[var(--br-border)] p-6 text-center text-sm font-bold text-[#6E6E85] transition hover:border-[var(--br-action)] hover:text-[var(--br-action)]">Explore new courses</Link></div></section>
+          <section><SectionHeader title="My Certificates" href="/certificates" /><div className="flex gap-4 overflow-x-auto pb-1">{certificates?.length ? certificates.map((certificate) => <Link key={certificate.id} href={`/certificates/${certificate.certificate_code}`} className="w-64 shrink-0 rounded-[20px] border border-[var(--br-border)] bg-white p-5 shadow-sm"><Award className="size-8 text-[#F2B705]"/><p className="mt-4 font-bold">{certificate.courses?.title || "Course certificate"}</p><p className="mt-1 text-xs text-[#6E6E85]">Earned {new Date(certificate.issued_at).toLocaleDateString()}</p></Link>) : <EmptyMini text="Complete an enrolled course to earn a certificate." href="/courses" label="Browse courses" />}</div></section>
         </section>
 
       </div>
@@ -227,26 +227,26 @@ export default async function AccountPage() {
 }
 
 function DashboardCard({ children, className = "" }: { children: React.ReactNode; className?: string }) {
-  return <div className={`rounded-[20px] border border-[#ECECF5] bg-white shadow-[0_12px_32px_rgba(0,0,0,.06)] ${className}`}>{children}</div>;
+  return <div className={`rounded-[20px] border border-[var(--br-surface-strong)] bg-white shadow-[0_12px_32px_rgba(0,0,0,.06)] ${className}`}>{children}</div>;
 }
 
 function SectionHeader({ title, href, small }: { title: string; href: string; small?: boolean }) {
   return (
     <div className="mb-4 flex items-center justify-between">
-      <span className={`${small ? "text-[15px]" : "text-lg"} font-bold text-[#14172B]`}>{title}</span>
-      {href === "#" ? <span className="text-[13px] font-semibold text-[#6C3BFF]">View all</span> : <Link href={href} className="text-[13px] font-semibold text-[#6C3BFF] hover:underline">View all</Link>}
+      <span className={`${small ? "text-[15px]" : "text-lg"} font-bold text-[var(--br-dark-card)]`}>{title}</span>
+      {href === "#" ? <span className="text-[13px] font-semibold text-[var(--br-chart-primary)]">View all</span> : <Link href={href} className="text-[13px] font-semibold text-[var(--br-chart-primary)] hover:underline">View all</Link>}
     </div>
   );
 }
 
 function ResumeLearningCard({ item, currentLevel, reviewHref }: { item?: { href: string; title: string; meta: string; progress: number }; currentLevel: string; reviewHref?: string }) {
   const href = item?.href || "/courses";
-  return <section className="relative overflow-hidden rounded-[20px] bg-[#1B1B3A] p-6 text-white shadow-[0_20px_25px_-5px_rgba(27,27,58,.22)] md:p-9"><div className="absolute -right-12 -top-14 size-64 rounded-full border-[28px] border-white/5"/><div className="relative z-10 max-w-2xl"><span className="inline-flex rounded-full bg-[#FF7A59] px-3 py-1 text-[11px] font-bold tracking-[.12em]">RESUME LEARNING</span><h2 className="mt-4 text-2xl font-bold tracking-tight md:text-[28px]">{item?.title || "Choose your next learning path"}</h2><p className="mt-2 flex items-center gap-2 text-sm text-[#B8B8C9]"><Play className="size-4 text-[#FFB199]" /> {item?.meta || `Start a ${currentLevel} course or quiz when you are ready.`}</p><div className="mt-6 flex flex-wrap gap-3"><Link href={href} className="inline-flex items-center gap-2 rounded-xl bg-[#FF7A59] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#FFB199]">{item ? "Resume" : "Browse courses"}<ChevronRight className="size-4" /></Link><Link href={reviewHref || "/quizzes"} className="rounded-xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-bold text-white transition hover:bg-white/15">{reviewHref ? "Review previous" : "Quick quiz"}</Link></div></div><div className="absolute bottom-0 left-0 h-1 bg-white/10"><div className="h-full bg-[#FF7A59]" style={{ width: `${item?.progress ?? 0}%` }} /></div></section>;
+  return <section className="relative overflow-hidden rounded-[20px] bg-[#1B1B3A] p-6 text-white shadow-[0_20px_25px_-5px_rgba(27,27,58,.22)] md:p-9"><div className="absolute -right-12 -top-14 size-64 rounded-full border-[28px] border-white/5"/><div className="relative z-10 max-w-2xl"><span className="inline-flex rounded-full bg-[var(--br-action)] px-3 py-1 text-[11px] font-bold tracking-[.12em]">RESUME LEARNING</span><h2 className="mt-4 text-2xl font-bold tracking-tight md:text-[28px]">{item?.title || "Choose your next learning path"}</h2><p className="mt-2 flex items-center gap-2 text-sm text-[#B8B8C9]"><Play className="size-4 text-[#FFB199]" /> {item?.meta || `Start a ${currentLevel} course or quiz when you are ready.`}</p><div className="mt-6 flex flex-wrap gap-3"><Link href={href} className="inline-flex items-center gap-2 rounded-xl bg-[var(--br-action)] px-5 py-3 text-sm font-bold text-white transition hover:bg-[#FFB199]">{item ? "Resume" : "Browse courses"}<ChevronRight className="size-4" /></Link><Link href={reviewHref || "/quizzes"} className="rounded-xl border border-white/20 bg-white/10 px-5 py-3 text-sm font-bold text-white transition hover:bg-white/15">{reviewHref ? "Review previous" : "Quick quiz"}</Link></div></div><div className="absolute bottom-0 left-0 h-1 bg-white/10"><div className="h-full bg-[var(--br-action)]" style={{ width: `${item?.progress ?? 0}%` }} /></div></section>;
 }
 
-function ScheduleGrid({ assignments, liveClasses, tasks }: { assignments: Array<{ due_at: string | null }>; liveClasses: Array<{ scheduled_at: string | null }>; tasks: Array<{ due_at: string | null }> }) { const marked = new Set([...assignments.map(x=>x.due_at), ...liveClasses.map(x=>x.scheduled_at), ...tasks.map(x=>x.due_at)].filter(Boolean).map(x=>new Date(x!).getDate())); const now=new Date(); return <><div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-[#B8B8C9]">{"MTWTFSS".split("").map((d,i)=><span key={i}>{d}</span>)}</div><div className="mt-2 grid grid-cols-7 gap-1">{Array.from({length:35},(_,i)=>{const day=i-2; const active=day===now.getDate(); return <div key={i} className={`relative grid aspect-square place-items-center rounded-lg text-xs ${active?"bg-[#FF7A59] font-bold text-white":day>0&&day<=31?"text-[#1B1B3A]":"text-[#B8B8C9]"}`}>{day>0&&day<=31?day:""}{marked.has(day)&&!active?<span className="absolute bottom-1 size-1 rounded-full bg-[#3E3A72]"/>:null}</div>})}</div></> }
-function AgendaList({ assignments, liveClasses, tasks }: { assignments: Array<{id:string;title:string|null;due_at:string|null;item_type:string}>; liveClasses: Array<{id:string;title:string;status:string;scheduled_at:string|null}>; tasks: Array<{id:string;title:string;status:string;due_at:string|null;priority:string}> }) { const items=[...liveClasses.map(x=>({id:x.id,title:x.title,time:x.scheduled_at,href:`/live/${x.id}`,tag:x.status==="LIVE"?"LIVE NOW":"CLASS"})),...assignments.map(x=>({id:x.id,title:x.title||x.item_type,time:x.due_at,href:"/assignments",tag:"ASSIGNMENT"})),...tasks.map(x=>({id:x.id,title:x.title,time:x.due_at,href:"/tasks",tag:"TASK"}))].filter((item) => !item.time || new Date(item.time).toDateString() === new Date().toDateString()).slice(0,4); return <div className="space-y-2">{items.length?items.map(item=><Link key={item.id} href={item.href} className="flex items-center gap-3 rounded-xl border border-[#E4E4EE] p-3 transition hover:border-[#FF7A59]"><span className="w-12 border-r border-[#E4E4EE] pr-3 text-center text-xs font-bold text-[#3E3A72]">{item.time?new Date(item.time).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"}):"—"}</span><span className="min-w-0 flex-1 truncate text-sm font-bold">{item.title}</span><span className="rounded bg-[#F5F2FE] px-2 py-1 text-[9px] font-bold text-[#3E3A72]">{item.tag}</span></Link>):<EmptyMini text="Nothing scheduled for today." href="/calendar" label="View planner" />}</div> }
-function CourseHomeCard({href,title,level,progress,tone}:{href:string;title:string;level:string;progress:number;tone:number}) { const colors=["from-[#3E3A72] to-[#1B1B3A]","from-[#FF7A59] to-[#A7391E]","from-[#2FAE7A] to-[#16745A]"]; return <Link href={href} className="overflow-hidden rounded-[20px] border border-[#E4E4EE] bg-white shadow-sm transition hover:-translate-y-0.5"><div className={`h-24 bg-gradient-to-br ${colors[tone%colors.length]} p-4`}><span className="rounded bg-white/20 px-2 py-1 text-[10px] font-bold text-white">{level}</span></div><div className="p-4"><p className="truncate font-bold">{title}</p><div className="mt-4 h-1.5 overflow-hidden rounded-full bg-[#F1F1F6]"><div className="h-full bg-[#FF7A59]" style={{width:`${progress}%`}}/></div><p className="mt-2 text-xs text-[#6E6E85]">{Math.round(progress)}% complete</p></div></Link> }
+function ScheduleGrid({ assignments, liveClasses, tasks }: { assignments: Array<{ due_at: string | null }>; liveClasses: Array<{ scheduled_at: string | null }>; tasks: Array<{ due_at: string | null }> }) { const marked = new Set([...assignments.map(x=>x.due_at), ...liveClasses.map(x=>x.scheduled_at), ...tasks.map(x=>x.due_at)].filter(Boolean).map(x=>new Date(x!).getDate())); const now=new Date(); return <><div className="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-[#B8B8C9]">{"MTWTFSS".split("").map((d,i)=><span key={i}>{d}</span>)}</div><div className="mt-2 grid grid-cols-7 gap-1">{Array.from({length:35},(_,i)=>{const day=i-2; const active=day===now.getDate(); return <div key={i} className={`relative grid aspect-square place-items-center rounded-lg text-xs ${active?"bg-[var(--br-action)] font-bold text-white":day>0&&day<=31?"text-[#1B1B3A]":"text-[#B8B8C9]"}`}>{day>0&&day<=31?day:""}{marked.has(day)&&!active?<span className="absolute bottom-1 size-1 rounded-full bg-[var(--br-brand)]"/>:null}</div>})}</div></> }
+function AgendaList({ assignments, liveClasses, tasks }: { assignments: Array<{id:string;title:string|null;due_at:string|null;item_type:string}>; liveClasses: Array<{id:string;title:string;status:string;scheduled_at:string|null}>; tasks: Array<{id:string;title:string;status:string;due_at:string|null;priority:string}> }) { const items=[...liveClasses.map(x=>({id:x.id,title:x.title,time:x.scheduled_at,href:`/live/${x.id}`,tag:x.status==="LIVE"?"LIVE NOW":"CLASS"})),...assignments.map(x=>({id:x.id,title:x.title||x.item_type,time:x.due_at,href:"/assignments",tag:"ASSIGNMENT"})),...tasks.map(x=>({id:x.id,title:x.title,time:x.due_at,href:"/tasks",tag:"TASK"}))].filter((item) => !item.time || new Date(item.time).toDateString() === new Date().toDateString()).slice(0,4); return <div className="space-y-2">{items.length?items.map(item=><Link key={item.id} href={item.href} className="flex items-center gap-3 rounded-xl border border-[var(--br-border)] p-3 transition hover:border-[var(--br-action)]"><span className="w-12 border-r border-[var(--br-border)] pr-3 text-center text-xs font-bold text-[var(--br-brand)]">{item.time?new Date(item.time).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"}):"—"}</span><span className="min-w-0 flex-1 truncate text-sm font-bold">{item.title}</span><span className="rounded bg-[var(--br-surface-muted)] px-2 py-1 text-[9px] font-bold text-[var(--br-brand)]">{item.tag}</span></Link>):<EmptyMini text="Nothing scheduled for today." href="/calendar" label="View planner" />}</div> }
+function CourseHomeCard({href,title,level,progress,tone}:{href:string;title:string;level:string;progress:number;tone:number}) { const colors=["from-[var(--br-brand)] to-[#1B1B3A]","from-[var(--br-action)] to-[#A7391E]","from-[#2FAE7A] to-[#16745A]"]; return <Link href={href} className="overflow-hidden rounded-[20px] border border-[var(--br-border)] bg-white shadow-sm transition hover:-translate-y-0.5"><div className={`h-24 bg-gradient-to-br ${colors[tone%colors.length]} p-4`}><span className="rounded bg-white/20 px-2 py-1 text-[10px] font-bold text-white">{level}</span></div><div className="p-4"><p className="truncate font-bold">{title}</p><div className="mt-4 h-1.5 overflow-hidden rounded-full bg-[#F1F1F6]"><div className="h-full bg-[var(--br-action)]" style={{width:`${progress}%`}}/></div><p className="mt-2 text-xs text-[#6E6E85]">{Math.round(progress)}% complete</p></div></Link> }
 
 function courseItemHref(item: { id: string; item_type: string; lesson_id: string | null; quiz_id: string | null }, courseId: string) {
   if (item.item_type === "LESSON" && item.lesson_id) return `/lessons/${item.lesson_id}?courseItem=${item.id}`;
@@ -278,12 +278,12 @@ function ProgressCard({
           {["A1", "A2", "B1", "B2", "C1", "C2"].map((level, index, array) => (
             <div key={level} className="flex min-w-[82px] flex-1 items-center">
               <div className="relative z-10 flex flex-col items-center gap-1.5">
-                <div className={`grid rounded-full border font-bold ${index === activeLevelIndex ? "size-14 border-[3px] border-white bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] text-[15px] text-white shadow-[0_0_0_4px_rgba(108,59,255,.35),0_0_24px_rgba(108,59,255,.5)]" : index < activeLevelIndex ? "size-12 border-[#6C3BFF]/80 bg-[#6C3BFF]/50 text-[13px] text-white/85" : "size-12 border-white/20 bg-white/10 text-[13px] text-white/50"} place-items-center`}>
+                <div className={`grid rounded-full border font-bold ${index === activeLevelIndex ? "size-14 border-[3px] border-white bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] text-[15px] text-white shadow-[0_0_0_4px_rgba(108,59,255,.35),0_0_24px_rgba(108,59,255,.5)]" : index < activeLevelIndex ? "size-12 border-[var(--br-chart-primary)]/80 bg-[var(--br-chart-primary)]/50 text-[13px] text-white/85" : "size-12 border-white/20 bg-white/10 text-[13px] text-white/50"} place-items-center`}>
                   {level}
                 </div>
                 <div className={`max-w-[72px] text-center text-[10px] font-medium ${index === activeLevelIndex ? "text-[#A8D8FF] font-semibold" : "text-white/50"}`}>{levelNames[level]}</div>
               </div>
-              {index < array.length - 1 ? <div className={`mb-5 h-0.5 flex-1 ${index < activeLevelIndex ? "bg-[#6C3BFF]/70" : index === activeLevelIndex ? "bg-gradient-to-r from-[#6C3BFF]/70 to-white/10" : "bg-white/10"}`} /> : null}
+              {index < array.length - 1 ? <div className={`mb-5 h-0.5 flex-1 ${index < activeLevelIndex ? "bg-[var(--br-chart-primary)]/70" : index === activeLevelIndex ? "bg-gradient-to-r from-[var(--br-chart-primary)]/70 to-white/10" : "bg-white/10"}`} /> : null}
             </div>
           ))}
         </div>
@@ -291,7 +291,7 @@ function ProgressCard({
           <span className="text-white/60">{currentLevel ? "You're doing great! Keep going." : "Take the level test to begin."}</span>
           <span className="text-white/70">{progress}% to next level</span>
         </div>
-        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-gradient-to-r from-[#6C3BFF] via-[#8A58FF] to-[#B06AFF]" style={{ width: `${progress}%` }} /></div>
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-gradient-to-r from-[var(--br-chart-primary)] via-[var(--br-brand)] to-[#B06AFF]" style={{ width: `${progress}%` }} /></div>
       </div>
       {levelTestSummary ? (
         <LevelTestScoreCard
@@ -303,7 +303,7 @@ function ProgressCard({
         <div className="min-[1100px]:w-[220px] rounded-[18px] bg-white/[.07] p-5">
           <div className="text-[11px] font-medium text-white/55">Level Test</div>
           <div className="mt-2 text-sm font-semibold leading-5 text-white/80">Take the level test to see your weighted score and section breakdown here.</div>
-          <Link href="/level-test" className="mt-4 flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] px-4 py-3 text-xs font-semibold text-white">Take Level Test <ChevronRight className="size-[13px]" /></Link>
+          <Link href="/level-test" className="mt-4 flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] px-4 py-3 text-xs font-semibold text-white">Take Level Test <ChevronRight className="size-[13px]" /></Link>
         </div>
       )}
     </div>
@@ -312,19 +312,19 @@ function ProgressCard({
 
 function LearningCard({ href, title, meta, level, progress, tone }: { href: string; title: string; meta: string; level: string; progress: number; tone: number }) {
   const tones = ["from-[#FF6B9D] to-[#FF8E53]", "from-[#3A7BD5] to-[#00D2FF]", "from-[#1A1060] to-[#2D3A8C]", "from-[#4A148C] to-[#7B1FA2]"];
-  const fills = ["bg-[#6C3BFF]", "bg-[#4E8DFF]", "bg-[#00C98D]", "bg-[#6C3BFF]"];
+  const fills = ["bg-[var(--br-chart-primary)]", "bg-[#4E8DFF]", "bg-[var(--br-success)]", "bg-[var(--br-chart-primary)]"];
   return (
-    <Link href={href} className="overflow-hidden rounded-2xl border border-[#ECECF5] bg-white shadow-[0_4px_16px_rgba(0,0,0,.05)] transition hover:scale-[1.03] hover:shadow-[0_12px_30px_rgba(0,0,0,.12)]">
+    <Link href={href} className="overflow-hidden rounded-2xl border border-[var(--br-surface-strong)] bg-white shadow-[0_4px_16px_rgba(0,0,0,.05)] transition hover:scale-[1.03] hover:shadow-[0_12px_30px_rgba(0,0,0,.12)]">
       <div className={`relative flex h-[100px] items-center justify-center bg-gradient-to-br ${tones[tone % tones.length]}`}>
-        <span className="absolute left-2 top-2 rounded-md bg-[#6C3BFF] px-2 py-1 text-[10px] font-bold text-white">{level}</span>
+        <span className="absolute left-2 top-2 rounded-md bg-[var(--br-chart-primary)] px-2 py-1 text-[10px] font-bold text-white">{level}</span>
         <BookOpen className="size-9 text-white/60" />
-        <span className="absolute bottom-2 right-2 grid size-7 place-items-center rounded-full bg-white/90 shadow"><Play className="ml-px size-3 fill-[#6C3BFF] text-[#6C3BFF]" /></span>
+        <span className="absolute bottom-2 right-2 grid size-7 place-items-center rounded-full bg-white/90 shadow"><Play className="ml-px size-3 fill-[var(--br-chart-primary)] text-[var(--br-chart-primary)]" /></span>
       </div>
       <div className="p-3">
         <div className="mb-1 line-clamp-2 text-[13px] font-bold leading-snug">{title}</div>
-        <div className="mb-2 text-[11px] text-[#6E738D]">{meta}</div>
-        <div className="h-1 rounded-full bg-[#F6F7FB]"><div className={`h-full rounded-full ${fills[tone % fills.length]}`} style={{ width: `${progress}%` }} /></div>
-        <div className="mt-1 text-[10px] text-[#6E738D]">{progress}%</div>
+        <div className="mb-2 text-[11px] text-[var(--br-text-muted)]">{meta}</div>
+        <div className="h-1 rounded-full bg-[var(--br-canvas-elevated)]"><div className={`h-full rounded-full ${fills[tone % fills.length]}`} style={{ width: `${progress}%` }} /></div>
+        <div className="mt-1 text-[10px] text-[var(--br-text-muted)]">{progress}%</div>
       </div>
     </Link>
   );
@@ -335,46 +335,46 @@ function PracticeTile({ href, icon: Icon, label, sub, tone, disabled }: { href: 
     pink: "from-[#FF6B9D] to-[#FF8E53]",
     blue: "from-[#4E8DFF] to-[#3CCEFF]",
     orange: "from-[#FFB545] to-[#FF8C00]",
-    green: "from-[#00C98D] to-[#00B37D]",
-    purple: "from-[#6C3BFF] to-[#8A58FF]",
-    gray: "from-[#8890B8] to-[#6E738D]"
+    green: "from-[var(--br-success)] to-[#00B37D]",
+    purple: "from-[var(--br-chart-primary)] to-[var(--br-brand)]",
+    gray: "from-[#8890B8] to-[var(--br-text-muted)]"
   };
   const content = (
     <>
       <div className={`grid size-9 place-items-center rounded-[14px] bg-gradient-to-br ${tones[tone]} min-[540px]:size-11`}><Icon className="size-5 text-white" /></div>
       <div className="text-center text-[11px] font-semibold min-[540px]:text-xs">{label}</div>
-      <div className="hidden text-center text-[10px] text-[#6E738D] min-[540px]:block">{sub}</div>
+      <div className="hidden text-center text-[10px] text-[var(--br-text-muted)] min-[540px]:block">{sub}</div>
     </>
   );
-  const className = "flex flex-col items-center gap-2 rounded-2xl border border-[#ECECF5] p-2.5 transition hover:-translate-y-0.5 hover:bg-[#F6F7FB] min-[540px]:p-3.5";
+  const className = "flex flex-col items-center gap-2 rounded-2xl border border-[var(--br-surface-strong)] p-2.5 transition hover:-translate-y-0.5 hover:bg-[var(--br-canvas-elevated)] min-[540px]:p-3.5";
   if (disabled) return <div className={`${className} cursor-default opacity-90`}>{content}</div>;
   return <Link href={href} className={className}>{content}</Link>;
 }
 
 function QuizAttemptRow({ title, meta, score, points, tone }: { title: string; meta: string; score: string; points: string; tone: number }) {
   const icons = [HelpCircle, Book, ClipboardList];
-  const colors = ["bg-[#6C3BFF]/10 text-[#6C3BFF]", "bg-[#FFB545]/10 text-[#FFB545]", "bg-[#00C98D]/10 text-[#00C98D]"];
+  const colors = ["bg-[var(--br-chart-primary)]/10 text-[var(--br-chart-primary)]", "bg-[#FFB545]/10 text-[#FFB545]", "bg-[var(--br-success)]/10 text-[var(--br-success)]"];
   const Icon = icons[tone % icons.length];
   return (
-    <div className="flex items-center gap-3 border-b border-[#ECECF5] py-2.5 last:border-0 last:pb-0">
+    <div className="flex items-center gap-3 border-b border-[var(--br-surface-strong)] py-2.5 last:border-0 last:pb-0">
       <div className={`grid size-[38px] shrink-0 place-items-center rounded-[10px] ${colors[tone % colors.length]}`}><Icon className="size-[18px]" /></div>
-      <div className="min-w-0 flex-1"><div className="truncate text-xs font-semibold">{title}</div><div className="text-[10px] text-[#6E738D]">{meta}</div></div>
-      <div className="text-right"><div className="text-[13px] font-bold">{score}</div><div className="text-[11px] font-semibold text-[#00C98D]">{points}</div></div>
+      <div className="min-w-0 flex-1"><div className="truncate text-xs font-semibold">{title}</div><div className="text-[10px] text-[var(--br-text-muted)]">{meta}</div></div>
+      <div className="text-right"><div className="text-[13px] font-bold">{score}</div><div className="text-[11px] font-semibold text-[var(--br-success)]">{points}</div></div>
     </div>
   );
 }
 
 function MiniStat({ dot, label, value }: { dot: string; label: string; value: number }) {
-  return <div className="text-center"><div className="mb-0.5 flex items-center justify-center gap-1"><span className="size-2 rounded-full" style={{ background: dot }} /><span className="text-[9px] text-[#6E738D]">{label}</span></div><div className="text-[22px] font-extrabold">{value}</div></div>;
+  return <div className="text-center"><div className="mb-0.5 flex items-center justify-center gap-1"><span className="size-2 rounded-full" style={{ background: dot }} /><span className="text-[9px] text-[var(--br-text-muted)]">{label}</span></div><div className="text-[22px] font-extrabold">{value}</div></div>;
 }
 
 function MiniChart() {
   return (
     <svg className="h-20 w-full" viewBox="0 0 240 80" xmlns="http://www.w3.org/2000/svg">
-      <defs><linearGradient id="chartGradAccount" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#6C3BFF" stopOpacity="0.2" /><stop offset="100%" stopColor="#6C3BFF" stopOpacity="0" /></linearGradient></defs>
-      <path d="M0,70 L40,65 L80,55 L120,50 L160,35 L200,28 L240,20" fill="none" stroke="#6C3BFF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+      <defs><linearGradient id="chartGradAccount" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="var(--br-chart-primary)" stopOpacity="0.2" /><stop offset="100%" stopColor="var(--br-chart-primary)" stopOpacity="0" /></linearGradient></defs>
+      <path d="M0,70 L40,65 L80,55 L120,50 L160,35 L200,28 L240,20" fill="none" stroke="var(--br-chart-primary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M0,70 L40,65 L80,55 L120,50 L160,35 L200,28 L240,20 L240,80 L0,80 Z" fill="url(#chartGradAccount)" />
-      {[40, 80, 120, 160, 200, 240].map((cx, index) => <circle key={cx} cx={cx} cy={[65, 55, 50, 35, 28, 20][index]} r={index === 5 ? 3.5 : 3} fill="#6C3BFF" stroke={index === 5 ? "white" : undefined} strokeWidth={index === 5 ? 1.5 : undefined} />)}
+      {[40, 80, 120, 160, 200, 240].map((cx, index) => <circle key={cx} cx={cx} cy={[65, 55, 50, 35, 28, 20][index]} r={index === 5 ? 3.5 : 3} fill="var(--br-chart-primary)" stroke={index === 5 ? "white" : undefined} strokeWidth={index === 5 ? 1.5 : undefined} />)}
     </svg>
   );
 }
@@ -383,18 +383,18 @@ function WishlistRow({ title, type, tone }: { title: string; type: string; tone:
   const tones = ["from-[#1A1060] to-[#4520D9]", "from-[#0C4A6E] to-[#0284C7]", "from-[#14532D] to-[#16A34A]"];
   const icons = ["📖", "📚", "💬"];
   return (
-    <div className="flex items-center gap-2.5 border-b border-[#ECECF5] py-2.5 last:border-0">
+    <div className="flex items-center gap-2.5 border-b border-[var(--br-surface-strong)] py-2.5 last:border-0">
       <div className={`grid size-10 shrink-0 place-items-center rounded-[10px] bg-gradient-to-br ${tones[tone % tones.length]} text-lg`}>{icons[tone % icons.length]}</div>
-      <div className="min-w-0 flex-1"><div className="truncate text-xs font-semibold">{title}</div><div className="text-[10px] text-[#6E738D]">{type}</div></div>
-      <Heart className="size-4 fill-[#FF5D73] text-[#FF5D73]" />
+      <div className="min-w-0 flex-1"><div className="truncate text-xs font-semibold">{title}</div><div className="text-[10px] text-[var(--br-text-muted)]">{type}</div></div>
+      <Heart className="size-4 fill-[var(--br-danger)] text-[var(--br-danger)]" />
     </div>
   );
 }
 
 function FooterStat({ icon: Icon, title, sub }: { icon: React.ElementType; title: string; sub: string }) {
-  return <div className="flex items-center gap-2.5"><div className="grid size-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-[#6C3BFF]/10 to-[#4E8DFF]/10"><Icon className="size-5 text-[#6C3BFF]" /></div><div><div className="text-xs font-bold">{title}</div><div className="text-[10px] text-[#6E738D]">{sub}</div></div></div>;
+  return <div className="flex items-center gap-2.5"><div className="grid size-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-[var(--br-chart-primary)]/10 to-[#4E8DFF]/10"><Icon className="size-5 text-[var(--br-chart-primary)]" /></div><div><div className="text-xs font-bold">{title}</div><div className="text-[10px] text-[var(--br-text-muted)]">{sub}</div></div></div>;
 }
 
 function EmptyMini({ text, href, label }: { text: string; href: string; label: string }) {
-  return <div className="rounded-2xl border border-dashed border-[#ECECF5] p-4 text-center"><p className="text-xs text-[#6E738D]">{text}</p><Link href={href} className="mt-2 inline-flex text-xs font-bold text-[#6C3BFF]">{label}</Link></div>;
+  return <div className="rounded-2xl border border-dashed border-[var(--br-surface-strong)] p-4 text-center"><p className="text-xs text-[var(--br-text-muted)]">{text}</p><Link href={href} className="mt-2 inline-flex text-xs font-bold text-[var(--br-chart-primary)]">{label}</Link></div>;
 }

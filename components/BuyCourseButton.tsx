@@ -62,7 +62,7 @@ export function BuyCourseButton({
     <>
       <button
         onClick={openModal}
-        className="inline-flex items-center justify-center gap-2 rounded-[12px] bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] px-6 py-3 text-sm font-extrabold text-white shadow-[0_8px_20px_rgba(108,59,255,.35)] hover:-translate-y-0.5 transition-transform"
+        className="inline-flex items-center justify-center gap-2 rounded-[12px] bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] px-6 py-3 text-sm font-extrabold text-white shadow-[0_8px_20px_rgba(108,59,255,.35)] hover:-translate-y-0.5 transition-transform"
       >
         Buy Course ·{" "}
         {hasDiscount && (
@@ -75,7 +75,7 @@ export function BuyCourseButton({
       <dialog
         ref={dialogRef}
         onClose={() => setOpen(false)}
-        className="fixed inset-0 z-50 m-auto w-full max-w-lg rounded-[20px] border border-[#ECECF5] bg-white p-0 shadow-[0_24px_64px_rgba(0,0,0,.18)] backdrop:bg-black/50 backdrop:backdrop-blur-sm open:animate-[fadeScaleIn_0.2s_ease-out]"
+        className="fixed inset-0 z-50 m-auto w-full max-w-lg rounded-[20px] border border-[var(--br-surface-strong)] bg-white p-0 shadow-[0_24px_64px_rgba(0,0,0,.18)] backdrop:bg-black/50 backdrop:backdrop-blur-sm open:animate-[fadeScaleIn_0.2s_ease-out]"
       >
         {open && (
           <div className="max-h-[85vh] overflow-y-auto p-6">
@@ -85,7 +85,7 @@ export function BuyCourseButton({
                 <h2 className="text-lg font-extrabold text-slate-900">
                   Complete Your Purchase
                 </h2>
-                <p className="mt-1 text-sm text-[#6E738D]">
+                <p className="mt-1 text-sm text-[var(--br-text-muted)]">
                   Send payment via mobile banking, then fill the form below
                 </p>
               </div>
@@ -99,7 +99,7 @@ export function BuyCourseButton({
 
             {/* Price badge */}
             <div className="flex items-center gap-3 mb-5 rounded-xl bg-gradient-to-br from-violet-50 to-violet-100/60 border border-violet-100 px-4 py-3">
-              <div className="grid size-10 place-items-center rounded-lg bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] text-white">
+              <div className="grid size-10 place-items-center rounded-lg bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] text-white">
                 <ShieldCheck className="size-5" />
               </div>
               <div>
@@ -129,7 +129,7 @@ export function BuyCourseButton({
             {/* Step 1: Payment instructions */}
             <div className="mb-5">
               <div className="flex items-center gap-2 mb-3">
-                <span className="grid size-6 place-items-center rounded-full bg-[#6C3BFF] text-xs font-bold text-white">1</span>
+                <span className="grid size-6 place-items-center rounded-full bg-[var(--br-chart-primary)] text-xs font-bold text-white">1</span>
                 <h3 className="text-sm font-extrabold text-slate-900">Send Payment</h3>
               </div>
               <div className="rounded-xl border border-violet-100 bg-violet-50/50 p-4">
@@ -160,7 +160,7 @@ export function BuyCourseButton({
             ) : (
               <div>
                 <div className="flex items-center gap-2 mb-3">
-                  <span className="grid size-6 place-items-center rounded-full bg-[#6C3BFF] text-xs font-bold text-white">2</span>
+                  <span className="grid size-6 place-items-center rounded-full bg-[var(--br-chart-primary)] text-xs font-bold text-white">2</span>
                   <h3 className="text-sm font-extrabold text-slate-900">Verify Payment</h3>
                 </div>
                 <form
@@ -182,7 +182,7 @@ export function BuyCourseButton({
                       <select
                         name="paymentMethod"
                         required
-                        className="mt-1.5 w-full rounded-lg border border-black/10 bg-white px-3 py-2.5 text-sm text-slate-800 font-semibold focus:border-[#6C3BFF] focus:ring-1 focus:ring-[#6C3BFF]/20 outline-none transition"
+                        className="mt-1.5 w-full rounded-lg border border-black/10 bg-white px-3 py-2.5 text-sm text-slate-800 font-semibold focus:border-[var(--br-chart-primary)] focus:ring-1 focus:ring-[var(--br-chart-primary)]/20 outline-none transition"
                       >
                         <option value="BKASH">bKash</option>
                         <option value="NAGAD">Nagad</option>
@@ -197,7 +197,7 @@ export function BuyCourseButton({
                         type="text"
                         required
                         placeholder="e.g. 017xxxxxxxx"
-                        className="mt-1.5 w-full rounded-lg border border-black/10 bg-white px-3 py-2.5 text-sm text-slate-800 font-semibold focus:border-[#6C3BFF] focus:ring-1 focus:ring-[#6C3BFF]/20 outline-none transition"
+                        className="mt-1.5 w-full rounded-lg border border-black/10 bg-white px-3 py-2.5 text-sm text-slate-800 font-semibold focus:border-[var(--br-chart-primary)] focus:ring-1 focus:ring-[var(--br-chart-primary)]/20 outline-none transition"
                       />
                     </label>
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
@@ -207,7 +207,7 @@ export function BuyCourseButton({
                         type="text"
                         required
                         placeholder="e.g. Trx98765432"
-                        className="mt-1.5 w-full rounded-lg border border-black/10 bg-white px-3 py-2.5 text-sm text-slate-800 font-semibold focus:border-[#6C3BFF] focus:ring-1 focus:ring-[#6C3BFF]/20 outline-none transition"
+                        className="mt-1.5 w-full rounded-lg border border-black/10 bg-white px-3 py-2.5 text-sm text-slate-800 font-semibold focus:border-[var(--br-chart-primary)] focus:ring-1 focus:ring-[var(--br-chart-primary)]/20 outline-none transition"
                       />
                     </label>
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
@@ -220,7 +220,7 @@ export function BuyCourseButton({
                           onChange={(e) => setFileName(e.target.files?.[0]?.name ?? null)}
                           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                         />
-                        <div className="flex items-center gap-2 rounded-lg border border-dashed border-black/15 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-500 hover:border-[#6C3BFF]/40 transition">
+                        <div className="flex items-center gap-2 rounded-lg border border-dashed border-black/15 bg-slate-50 px-3 py-2.5 text-sm font-semibold text-slate-500 hover:border-[var(--br-chart-primary)]/40 transition">
                           <Upload className="size-3.5 shrink-0" />
                           <span className="truncate">{fileName || "Choose file…"}</span>
                         </div>
@@ -232,7 +232,7 @@ export function BuyCourseButton({
                         name="note"
                         type="text"
                         placeholder="e.g. paid from personal wallet"
-                        className="mt-1.5 w-full rounded-lg border border-black/10 bg-white px-3 py-2.5 text-sm text-slate-800 font-semibold focus:border-[#6C3BFF] focus:ring-1 focus:ring-[#6C3BFF]/20 outline-none transition"
+                        className="mt-1.5 w-full rounded-lg border border-black/10 bg-white px-3 py-2.5 text-sm text-slate-800 font-semibold focus:border-[var(--br-chart-primary)] focus:ring-1 focus:ring-[var(--br-chart-primary)]/20 outline-none transition"
                       />
                     </label>
                   </div>
@@ -240,7 +240,7 @@ export function BuyCourseButton({
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="mt-2 w-full rounded-xl bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] px-6 py-3 text-sm font-extrabold text-white shadow-[0_8px_20px_rgba(108,59,255,.35)] transition-transform hover:-translate-y-0.5 disabled:cursor-wait disabled:opacity-65"
+                    className="mt-2 w-full rounded-xl bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] px-6 py-3 text-sm font-extrabold text-white shadow-[0_8px_20px_rgba(108,59,255,.35)] transition-transform hover:-translate-y-0.5 disabled:cursor-wait disabled:opacity-65"
                   >
                     {isSubmitting ? "Submitting…" : "Submit Verification"}
                   </button>
@@ -267,7 +267,7 @@ export function SignInToEnrollButton() {
   return (
     <Link
       href="/login"
-      className="inline-flex items-center justify-center gap-2 rounded-[12px] bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] px-6 py-3 text-sm font-extrabold text-white shadow-[0_8px_20px_rgba(108,59,255,.35)]"
+      className="inline-flex items-center justify-center gap-2 rounded-[12px] bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] px-6 py-3 text-sm font-extrabold text-white shadow-[0_8px_20px_rgba(108,59,255,.35)]"
     >
       Sign in to enroll <ArrowRight className="size-4" />
     </Link>

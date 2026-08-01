@@ -66,9 +66,9 @@ export default async function QuizzesPage() {
             bestAttempts={bestAttempts}
           />
         ) : (
-          <div className="rounded-[20px] border border-[#ECECF5] bg-white p-10 text-center shadow-[0_12px_32px_rgba(0,0,0,.06)]">
-            <Gamepad2 className="mx-auto text-[#6C3BFF]/40" size={36} />
-            <p className="mt-3 text-sm text-[#6E738D]">No published quizzes yet. Create and publish a quiz from the admin area.</p>
+          <div className="rounded-[20px] border border-[var(--br-surface-strong)] bg-white p-10 text-center shadow-[0_12px_32px_rgba(0,0,0,.06)]">
+            <Gamepad2 className="mx-auto text-[var(--br-chart-primary)]/40" size={36} />
+            <p className="mt-3 text-sm text-[var(--br-text-muted)]">No published quizzes yet. Create and publish a quiz from the admin area.</p>
           </div>
         )}
       </section>

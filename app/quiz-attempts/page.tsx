@@ -164,7 +164,7 @@ export default async function QuizAttemptsPage() {
           <div>
             <Award className="mx-auto size-10 text-[#B8B8C9]" />
             <h1 className="mt-4 text-2xl font-extrabold text-[#1B1B3A]">No quiz attempts yet.</h1>
-            <p className="mt-2 max-w-md text-sm leading-6 text-[#6E738D]">Take a quiz and BrenUp will build your attempt history, score trend, and review links here.</p>
+            <p className="mt-2 max-w-md text-sm leading-6 text-[var(--br-text-muted)]">Take a quiz and BrenUp will build your attempt history, score trend, and review links here.</p>
           </div>
         </section>
       )}

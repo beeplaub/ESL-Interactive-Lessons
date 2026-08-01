@@ -217,13 +217,13 @@ function ScoreHistory({ attempts, total }: { attempts: PastAttempt[]; total: num
   const latestPercent = total ? Math.round((latest.score / total) * 100) : 0;
 
   return (
-    <div className="mb-6 rounded-[20px] border border-[#ECECF5] bg-white p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)]">
+    <div className="mb-6 rounded-[20px] border border-[var(--br-surface-strong)] bg-white p-5 shadow-[0_12px_32px_rgba(0,0,0,.06)]">
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <TrendingUp size={16} className="text-[#6C3BFF]" />
+          <TrendingUp size={16} className="text-[var(--br-chart-primary)]" />
           <h2 className="text-sm font-extrabold">Your score history</h2>
         </div>
-        <span className="text-xs text-[#6E738D]">{last5.length} attempt{last5.length !== 1 ? "s" : ""}</span>
+        <span className="text-xs text-[var(--br-text-muted)]">{last5.length} attempt{last5.length !== 1 ? "s" : ""}</span>
       </div>
 
       {/* Bar chart */}
@@ -234,11 +234,11 @@ function ScoreHistory({ attempts, total }: { attempts: PastAttempt[]; total: num
           const isLatest = i === last5.length - 1;
           return (
             <div key={i} className="flex flex-1 flex-col items-center gap-1">
-              <span className="text-xs font-medium text-[#6E738D]">{attempt.score}</span>
+              <span className="text-xs font-medium text-[var(--br-text-muted)]">{attempt.score}</span>
               <div className="w-full rounded-t-sm" style={{
                 height: `${Math.max(percent, 6)}%`,
                 maxHeight: "100%",
-                backgroundColor: isLatest ? "#6C3BFF" : isBest ? "#00C98D" : undefined,
+                backgroundColor: isLatest ? "var(--br-chart-primary)" : isBest ? "var(--br-success)" : undefined,
                 opacity: isLatest ? 1 : 0.35,
                 background: isLatest
                   ? undefined
@@ -261,10 +261,10 @@ function ScoreHistory({ attempts, total }: { attempts: PastAttempt[]; total: num
       </div>
 
       {/* Summary line */}
-      <div className="mt-3 flex items-center gap-3 border-t border-[#ECECF5] pt-3 text-xs text-[#6E738D]">
-        <span>Latest: <strong className={latestPercent >= 80 ? "text-[#00A977]" : latestPercent >= 50 ? "text-[#14172B]" : "text-[#FF5D73]"}>{latest.score}/{total} ({latestPercent}%)</strong></span>
+      <div className="mt-3 flex items-center gap-3 border-t border-[var(--br-surface-strong)] pt-3 text-xs text-[var(--br-text-muted)]">
+        <span>Latest: <strong className={latestPercent >= 80 ? "text-[#00A977]" : latestPercent >= 50 ? "text-[var(--br-dark-card)]" : "text-[var(--br-danger)]"}>{latest.score}/{total} ({latestPercent}%)</strong></span>
         <span>·</span>
-        <span>Best: <strong className="text-[#14172B]">{best}/{total}</strong></span>
+        <span>Best: <strong className="text-[var(--br-dark-card)]">{best}/{total}</strong></span>
         {last5.length >= 2 && last5[last5.length - 1].score > last5[last5.length - 2].score && (
           <>
             <span>·</span>
@@ -498,15 +498,15 @@ export function QuizPlayer({
         <ScoreHistory attempts={allAttempts} total={questions.length} />
       )}
 
-      <div className="rounded-[20px] border border-[#ECECF5] bg-white p-4 shadow-[0_12px_32px_rgba(0,0,0,.06)] sm:p-5">
+      <div className="rounded-[20px] border border-[var(--br-surface-strong)] bg-white p-4 shadow-[0_12px_32px_rgba(0,0,0,.06)] sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[#6C3BFF]">Question {currentIndex + 1} of {questions.length}</p>
-            <p className="mt-1 inline-flex items-center gap-2 text-sm font-semibold text-[#6E738D]"><Sparkles size={15} className="text-[#6C3BFF]" /> {encouragement}</p>
+            <p className="text-xs font-extrabold uppercase tracking-[0.18em] text-[var(--br-chart-primary)]">Question {currentIndex + 1} of {questions.length}</p>
+            <p className="mt-1 inline-flex items-center gap-2 text-sm font-semibold text-[var(--br-text-muted)]"><Sparkles size={15} className="text-[var(--br-chart-primary)]" /> {encouragement}</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {remainingSeconds !== null ? (
-              <div className={`rounded-full px-3 py-1.5 text-sm font-extrabold ${timerUrgent ? "bg-[#FF5D73]/10 text-[#FF5D73]" : "bg-[#00C98D]/10 text-[#00A977]"}`}>
+              <div className={`rounded-full px-3 py-1.5 text-sm font-extrabold ${timerUrgent ? "bg-[var(--br-danger)]/10 text-[var(--br-danger)]" : "bg-[var(--br-success)]/10 text-[#00A977]"}`}>
                 {formatTime(remainingSeconds)}
               </div>
             ) : null}
@@ -515,7 +515,7 @@ export function QuizPlayer({
                 <Loader2 size={14} className="animate-spin" /> Pending grading
               </span>
             ) : submitted ? (
-              <span className="relative inline-block rounded-full bg-[#6C3BFF]/10 px-3 py-1.5 text-sm font-extrabold text-[#6C3BFF]">
+              <span className="relative inline-block rounded-full bg-[var(--br-chart-primary)]/10 px-3 py-1.5 text-sm font-extrabold text-[var(--br-chart-primary)]">
                 {score}/{totalPoints}
                 <StreakPopup
                   streak={!streakPopupDismissed && bestStreak >= NOTABLE_STREAK_THRESHOLD ? bestStreak : 0}
@@ -523,13 +523,13 @@ export function QuizPlayer({
                 />
               </span>
             ) : (
-              <div className="rounded-full bg-[#F6F7FB] px-3 py-1.5 text-sm font-extrabold text-[#14172B]">{answeredCount}/{questions.length} answered</div>
+              <div className="rounded-full bg-[var(--br-canvas-elevated)] px-3 py-1.5 text-sm font-extrabold text-[var(--br-dark-card)]">{answeredCount}/{questions.length} answered</div>
             )}
             <SoundToggle />
           </div>
         </div>
-        <div className="mt-4 h-2 overflow-hidden rounded-full bg-[#F6F7FB]">
-          <div className="h-full rounded-full bg-gradient-to-r from-[#6C3BFF] to-[#8A58FF] transition-all duration-500" style={{ width: `${progressPercent}%` }} />
+        <div className="mt-4 h-2 overflow-hidden rounded-full bg-[var(--br-canvas-elevated)]">
+          <div className="h-full rounded-full bg-gradient-to-r from-[var(--br-chart-primary)] to-[var(--br-brand)] transition-all duration-500" style={{ width: `${progressPercent}%` }} />
         </div>
       </div>
 
@@ -556,7 +556,7 @@ export function QuizPlayer({
               <button
                 type="button"
                 onClick={() => setShowPopup(true)}
-                className="mt-4 inline-flex items-center gap-2 rounded-[14px] bg-[#14172B] px-4 py-2.5 text-sm font-extrabold text-white"
+                className="mt-4 inline-flex items-center gap-2 rounded-[14px] bg-[var(--br-dark-card)] px-4 py-2.5 text-sm font-extrabold text-white"
               >
                 Save this score →
               </button>
@@ -569,7 +569,7 @@ export function QuizPlayer({
         <button
           type="button"
           onClick={() => setReviewMode("overview")}
-          className="inline-flex items-center gap-2 rounded-[14px] border border-[#ECECF5] bg-white px-4 py-2 text-sm font-bold text-[#6E738D] shadow-[0_8px_20px_rgba(0,0,0,.04)] hover:bg-[#F6F7FB]"
+          className="inline-flex items-center gap-2 rounded-[14px] border border-[var(--br-surface-strong)] bg-white px-4 py-2 text-sm font-bold text-[var(--br-text-muted)] shadow-[0_8px_20px_rgba(0,0,0,.04)] hover:bg-[var(--br-canvas-elevated)]"
         >
           <ChevronLeft size={16} /> Back to overview ({score}/{totalPoints})
         </button>
@@ -606,12 +606,12 @@ export function QuizPlayer({
         ) : null}
       </div>
 
-      <div className="flex flex-nowrap items-center justify-between gap-2 rounded-[20px] border border-[#ECECF5] bg-white p-2.5 shadow-[0_12px_32px_rgba(0,0,0,.06)] sm:gap-3 sm:p-3">
+      <div className="flex flex-nowrap items-center justify-between gap-2 rounded-[20px] border border-[var(--br-surface-strong)] bg-white p-2.5 shadow-[0_12px_32px_rgba(0,0,0,.06)] sm:gap-3 sm:p-3">
         <button
           type="button"
           onClick={() => goToQuestion(currentIndex - 1)}
           disabled={currentIndex === 0}
-          className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[#ECECF5] bg-[#F6F7FB] px-2.5 py-2 text-xs font-bold text-[#6E738D] hover:bg-white disabled:opacity-35 sm:gap-2 sm:px-4 sm:text-sm"
+          className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] px-2.5 py-2 text-xs font-bold text-[var(--br-text-muted)] hover:bg-white disabled:opacity-35 sm:gap-2 sm:px-4 sm:text-sm"
         >
           <ChevronLeft size={16} /> Previous
         </button>
@@ -627,9 +627,9 @@ export function QuizPlayer({
                 aria-label={`Go to question ${questionIndex + 1}`}
                 className={`${manyQuestions ? "size-1.5 sm:size-2" : "size-2 sm:size-2.5"} rounded-full transition-all ${
                   questionIndex === currentIndex
-                    ? manyQuestions ? "w-4 bg-[#6C3BFF] sm:w-5" : "w-5 bg-[#6C3BFF] sm:w-7"
+                    ? manyQuestions ? "w-4 bg-[var(--br-chart-primary)] sm:w-5" : "w-5 bg-[var(--br-chart-primary)] sm:w-7"
                     : done
-                    ? "bg-[#00C98D]"
+                    ? "bg-[var(--br-success)]"
                     : "bg-[#D9DCE8] hover:bg-[#A0A5BA]"
                 }`}
               />
@@ -640,7 +640,7 @@ export function QuizPlayer({
           type="button"
           onClick={() => goToQuestion(currentIndex + 1)}
           disabled={currentIndex === questions.length - 1}
-          className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#14172B] px-2.5 py-2 text-xs font-extrabold text-white hover:bg-[#6C3BFF] disabled:opacity-35 sm:gap-2 sm:px-4 sm:text-sm"
+          className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[var(--br-dark-card)] px-2.5 py-2 text-xs font-extrabold text-white hover:bg-[var(--br-chart-primary)] disabled:opacity-35 sm:gap-2 sm:px-4 sm:text-sm"
         >
           Next <ChevronRight size={16} />
         </button>
@@ -651,8 +651,8 @@ export function QuizPlayer({
       {!submitted || reviewMode === "detail" ? (
         (() => {
           return (
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-[20px] border border-[#ECECF5] bg-white p-4 shadow-[0_12px_32px_rgba(0,0,0,.06)]">
-              <p className="text-sm font-semibold text-[#6E738D]">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-[20px] border border-[var(--br-surface-strong)] bg-white p-4 shadow-[0_12px_32px_rgba(0,0,0,.06)]">
+              <p className="text-sm font-semibold text-[var(--br-text-muted)]">
                 {submitted ? isGuest ? "Create a free account to save your score and track progress." : "Review each question, or head back to the overview." : currentAnswered ? "Answered. Move on when ready." : "Answer this question, then continue."}
               </p>
               <div className="flex gap-2">
@@ -660,7 +660,7 @@ export function QuizPlayer({
                   <button
                     type="button"
                     onClick={reset}
-                    className="inline-flex items-center gap-2 rounded-[14px] border border-[#ECECF5] bg-[#F6F7FB] px-4 py-2 text-sm font-bold text-[#6E738D]"
+                    className="inline-flex items-center gap-2 rounded-[14px] border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] px-4 py-2 text-sm font-bold text-[var(--br-text-muted)]"
                   >
                     <RotateCcw size={16} /> Retake
                   </button>
@@ -670,7 +670,7 @@ export function QuizPlayer({
                     type="button"
                     disabled={!answered || submitted}
                     onClick={submit}
-                    className="inline-flex items-center gap-2 rounded-[14px] bg-gradient-to-br from-[#6C3BFF] to-[#8A58FF] px-4 py-2 text-sm font-extrabold text-white shadow-[0_8px_20px_rgba(108,59,255,.25)] disabled:opacity-45"
+                    className="inline-flex items-center gap-2 rounded-[14px] bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] px-4 py-2 text-sm font-extrabold text-white shadow-[0_8px_20px_rgba(108,59,255,.25)] disabled:opacity-45"
                   >
                     <CheckCircle2 size={16} /> {isPending ? "Saving..." : "Submit"}
                   </button>
@@ -680,7 +680,7 @@ export function QuizPlayer({
           );
         })()
       ) : null}
-      {message ? <p className="text-center text-sm font-semibold text-[#6E738D]">{message}</p> : null}
+      {message ? <p className="text-center text-sm font-semibold text-[var(--br-text-muted)]">{message}</p> : null}
     </div>
     {showPopup && guestAttempt ? (
       <GuestScorePopup score={score} total={totalPoints} attempt={guestAttempt} onDismiss={() => setShowPopup(false)} />
@@ -726,12 +726,12 @@ export function QuestionCard({
   const allWrong = Boolean(stats && stats.correctCount === 0);
   const isResolved = correct || allCorrect || wrong || allWrong || partial;
   const borderClass = correct || allCorrect
-    ? "border-[#00C98D]"
+    ? "border-[var(--br-success)]"
     : partial
     ? "border-[#FFB545]"
     : wrong || allWrong
-    ? "border-[#FF5D73]"
-    : "border-[#ECECF5]";
+    ? "border-[var(--br-danger)]"
+    : "border-[var(--br-surface-strong)]";
 
   const reportedRef = useRef<string | null>(null);
   useEffect(() => {
@@ -765,7 +765,7 @@ export function QuestionCard({
           animate={{ scale: 1, opacity: 1 }}
           transition={{ type: "spring", stiffness: 500, damping: 20, delay: 0.1 }}
           className={`absolute -right-2 -top-2 grid size-8 place-items-center rounded-full shadow-md ${
-            correct || allCorrect ? "bg-[#00C98D]" : partial ? "bg-[#FFB545]" : "bg-[#FF5D73]"
+            correct || allCorrect ? "bg-[var(--br-success)]" : partial ? "bg-[#FFB545]" : "bg-[var(--br-danger)]"
           }`}
         >
           {correct || allCorrect ? (
@@ -777,10 +777,10 @@ export function QuestionCard({
           )}
         </motion.div>
       ) : null}
-      <legend className="px-2 text-lg font-extrabold leading-snug text-[#14172B] sm:text-xl">
-        <span className="mr-2 inline-grid size-8 place-items-center rounded-full bg-[#6C3BFF]/10 text-sm font-black text-[#6C3BFF]">{question.question_number}</span>{question.question_text}
+      <legend className="px-2 text-lg font-extrabold leading-snug text-[var(--br-dark-card)] sm:text-xl">
+        <span className="mr-2 inline-grid size-8 place-items-center rounded-full bg-[var(--br-chart-primary)]/10 text-sm font-black text-[var(--br-chart-primary)]">{question.question_number}</span>{question.question_text}
       </legend>
-      {question.description ? <p className="mt-3 rounded-[14px] bg-[#F6F7FB] p-3 text-sm font-semibold leading-6 text-[#6E738D]">{question.description}</p> : null}
+      {question.description ? <p className="mt-3 rounded-[14px] bg-[var(--br-canvas-elevated)] p-3 text-sm font-semibold leading-6 text-[var(--br-text-muted)]">{question.description}</p> : null}
       <div className="mt-5">
         {question.question_type === "MCQ" ? <Mcq question={question} value={value as string | undefined} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "TRUE_FALSE" ? <TrueFalse value={value as boolean | undefined} disabled={submitted} onChange={onChange} /> : null}
@@ -813,12 +813,12 @@ export function QuestionCard({
         {question.question_type === "PEER_REVIEW_EDITING" ? <PeerReviewEditingPlayer question={question} value={value as WritingAnswerValue | undefined} submitted={submitted} onChange={onChange} quizId={quizId} lessonId={lessonId} /> : null}
       </div>
       {stats && stats.correctCount < stats.total ? (
-        <p className={`mt-4 rounded-[14px] p-3 text-sm font-semibold ${allWrong ? "bg-[#FF5D73]/10 text-[#FF5D73]" : "bg-[#FFB545]/10 text-amber-900"}`}>
+        <p className={`mt-4 rounded-[14px] p-3 text-sm font-semibold ${allWrong ? "bg-[var(--br-danger)]/10 text-[var(--br-danger)]" : "bg-[#FFB545]/10 text-amber-900"}`}>
           {stats.correctCount} of {stats.total} correct. Correct answer: {answerText(question)}
         </p>
       ) : null}
       {submitted && wrong ? (
-        <p className="mt-4 rounded-[14px] bg-[#FF5D73]/10 p-3 text-sm font-semibold text-[#FF5D73]">
+        <p className="mt-4 rounded-[14px] bg-[var(--br-danger)]/10 p-3 text-sm font-semibold text-[var(--br-danger)]">
           Correct answer: {answerText(question)}
         </p>
       ) : null}
@@ -831,9 +831,9 @@ function Mcq({ question, value, disabled, onChange }: { question: QuizQuestion; 
   return (
     <div className="grid gap-2">
       {Object.entries(options).map(([key, text]) => (
-        <label key={key} className="flex cursor-pointer items-center gap-3 rounded-[14px] border border-[#ECECF5] bg-[#F6F7FB] px-3 py-3 text-sm font-semibold text-[#14172B] transition hover:bg-white">
+        <label key={key} className="flex cursor-pointer items-center gap-3 rounded-[14px] border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] px-3 py-3 text-sm font-semibold text-[var(--br-dark-card)] transition hover:bg-white">
           <input type="radio" disabled={disabled} checked={value === key} onChange={() => onChange(key)} />
-          <strong className="text-[#6C3BFF]">{key}.</strong> {String(text)}
+          <strong className="text-[var(--br-chart-primary)]">{key}.</strong> {String(text)}
         </label>
       ))}
     </div>
@@ -878,21 +878,21 @@ function HeadingsMatching({
               key={pId}
               className={`rounded-[14px] border p-4 transition-colors space-y-3 bg-white ${
                 isRowCorrect
-                  ? "border-[#00C98D] bg-[#00C98D]/5"
+                  ? "border-[var(--br-success)] bg-[var(--br-success)]/5"
                   : isRowWrong
-                  ? "border-[#FF5D73] bg-[#FF5D73]/5"
-                  : "border-[#ECECF5]"
+                  ? "border-[var(--br-danger)] bg-[var(--br-danger)]/5"
+                  : "border-[var(--br-surface-strong)]"
               }`}
             >
               <div className="flex items-start gap-2">
-                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-[#6C3BFF]/10 text-xs font-bold text-[#6C3BFF]">
+                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-[var(--br-chart-primary)]/10 text-xs font-bold text-[var(--br-chart-primary)]">
                   {pId}
                 </span>
-                <div className="text-sm font-semibold text-[#14172B] leading-relaxed whitespace-pre-wrap">{pText}</div>
+                <div className="text-sm font-semibold text-[var(--br-dark-card)] leading-relaxed whitespace-pre-wrap">{pText}</div>
               </div>
 
               <div className="flex flex-wrap items-center gap-3">
-                <label className="text-xs font-bold uppercase tracking-wider text-[#6E738D]">Heading:</label>
+                <label className="text-xs font-bold uppercase tracking-wider text-[var(--br-text-muted)]">Heading:</label>
                 <select
                   disabled={disabled}
                   value={selectedHId}
@@ -903,10 +903,10 @@ function HeadingsMatching({
                   }}
                   className={`rounded-lg border px-3 py-1.5 text-sm font-semibold outline-none transition bg-white ${
                     isRowCorrect
-                      ? "border-[#00C98D] text-[#00A977]"
+                      ? "border-[var(--br-success)] text-[#00A977]"
                       : isRowWrong
-                      ? "border-[#FF5D73] text-[#FF5D73]"
-                      : "border-[#ECECF5] focus:border-[#6C3BFF]"
+                      ? "border-[var(--br-danger)] text-[var(--br-danger)]"
+                      : "border-[var(--br-surface-strong)] focus:border-[var(--br-chart-primary)]"
                   }`}
                 >
                   <option value="">-- Choose Heading --</option>
@@ -917,7 +917,7 @@ function HeadingsMatching({
                   ))}
                 </select>
                 {disabled && expected ? (
-                  <span className="text-xs font-bold text-[#6E738D]">
+                  <span className="text-xs font-bold text-[var(--br-text-muted)]">
                     Correct: Heading {expected}
                   </span>
                 ) : null}
@@ -996,16 +996,16 @@ function SkimChallenge({
   // PHASE 1: Not Started yet (Learner chooses when they are ready)
   if (phase === "NOT_STARTED") {
     return (
-      <div className="rounded-[16px] border border-[#ECECF5] bg-white p-6 shadow-sm text-center space-y-4">
-        <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-[#6C3BFF]/10 text-[#6C3BFF]">
+      <div className="rounded-[16px] border border-[var(--br-surface-strong)] bg-white p-6 shadow-sm text-center space-y-4">
+        <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-[var(--br-chart-primary)]/10 text-[var(--br-chart-primary)]">
           ⏱️
         </div>
         <div>
-          <h3 className="text-lg font-bold text-[#14172B]">Skimming Challenge</h3>
-          <p className="text-sm text-[#6E738D] mt-1 max-w-md mx-auto">
-            You will have <span className="font-extrabold text-[#6C3BFF]">{timeLimit} seconds</span> to read and skim the passage.
+          <h3 className="text-lg font-bold text-[var(--br-dark-card)]">Skimming Challenge</h3>
+          <p className="text-sm text-[var(--br-text-muted)] mt-1 max-w-md mx-auto">
+            You will have <span className="font-extrabold text-[var(--br-chart-primary)]">{timeLimit} seconds</span> to read and skim the passage.
             {questionTimeLimit > 0 ? (
-              <span> You will then have <span className="font-extrabold text-[#6C3BFF]">{questionTimeLimit} seconds</span> to answer the questions.</span>
+              <span> You will then have <span className="font-extrabold text-[var(--br-chart-primary)]">{questionTimeLimit} seconds</span> to answer the questions.</span>
             ) : null}
           </p>
         </div>
@@ -1015,7 +1015,7 @@ function SkimChallenge({
             setReadingTimeLeft(timeLimit);
             setPhase("READING");
           }}
-          className="inline-flex items-center gap-2 rounded-xl bg-[#6C3BFF] px-6 py-3 text-sm font-bold text-white shadow-md shadow-[#6C3BFF]/25 hover:bg-[#592ecc] transition active:scale-95"
+          className="inline-flex items-center gap-2 rounded-xl bg-[var(--br-chart-primary)] px-6 py-3 text-sm font-bold text-white shadow-md shadow-[var(--br-chart-primary)]/25 hover:bg-[#592ecc] transition active:scale-95"
         >
           🚀 I'm Ready — Start Skimming
         </button>
@@ -1027,20 +1027,20 @@ function SkimChallenge({
   if (phase === "READING") {
     return (
       <div className="grid gap-4">
-        <div className="flex items-center justify-between border-b border-[#ECECF5] pb-3">
+        <div className="flex items-center justify-between border-b border-[var(--br-surface-strong)] pb-3">
           <div className="flex items-center gap-2">
-            <span className="animate-pulse size-3 rounded-full bg-[#FF5D73]" />
-            <span className="text-sm font-bold text-[#FF5D73]">Reading Time Remaining: {readingTimeLeft}s</span>
+            <span className="animate-pulse size-3 rounded-full bg-[var(--br-danger)]" />
+            <span className="text-sm font-bold text-[var(--br-danger)]">Reading Time Remaining: {readingTimeLeft}s</span>
           </div>
           <button
             type="button"
             onClick={() => setPhase("ANSWERING")}
-            className="rounded-lg bg-[#6C3BFF] px-4 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-[#592ecc] transition"
+            className="rounded-lg bg-[var(--br-chart-primary)] px-4 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-[#592ecc] transition"
           >
             Finished Reading — Go to Questions
           </button>
         </div>
-        <div className="rounded-[14px] border border-[#ECECF5] bg-[#F6F7FB] p-5 text-sm font-semibold leading-7 text-[#14172B] whitespace-pre-wrap">
+        <div className="rounded-[14px] border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] p-5 text-sm font-semibold leading-7 text-[var(--br-dark-card)] whitespace-pre-wrap">
           {passage}
         </div>
       </div>
@@ -1064,9 +1064,9 @@ function SkimChallenge({
 
       {/* Passage Review (Only if enabled by creator OR if reviewing completed quiz) */}
       {passage && (allowPassageToggle || disabled) ? (
-        <details className="rounded-[14px] border border-[#ECECF5] bg-[#F6F7FB] p-3 text-sm animate-fade-in" open={disabled}>
-          <summary className="cursor-pointer font-bold text-[#6E738D] select-none">Show/Hide Passage</summary>
-          <div className="mt-3 leading-7 text-[#14172B] whitespace-pre-wrap font-semibold border-t border-[#ECECF5] pt-3">{passage}</div>
+        <details className="rounded-[14px] border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] p-3 text-sm animate-fade-in" open={disabled}>
+          <summary className="cursor-pointer font-bold text-[var(--br-text-muted)] select-none">Show/Hide Passage</summary>
+          <div className="mt-3 leading-7 text-[var(--br-dark-card)] whitespace-pre-wrap font-semibold border-t border-[var(--br-surface-strong)] pt-3">{passage}</div>
         </details>
       ) : passage && !allowPassageToggle && !disabled ? (
         <div className="rounded-[12px] border border-slate-200 bg-slate-50 p-2.5 text-xs font-semibold text-slate-500 text-center">
@@ -1083,8 +1083,8 @@ function SkimChallenge({
           const correctAns = asRecord(question.correct_answer)[qId];
 
           return (
-            <div key={qId} className="space-y-2 rounded-[14px] border border-[#ECECF5] p-4 bg-white">
-              <p className="text-sm font-bold text-[#14172B]">{qText}</p>
+            <div key={qId} className="space-y-2 rounded-[14px] border border-[var(--br-surface-strong)] p-4 bg-white">
+              <p className="text-sm font-bold text-[var(--br-dark-card)]">{qText}</p>
               <div className="grid gap-2 sm:grid-cols-2">
                 {Object.entries(choices).map(([key, text]) => {
                   const isSelected = selectedVal === key;
@@ -1096,12 +1096,12 @@ function SkimChallenge({
                       key={key}
                       className={`flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 text-xs font-bold transition ${
                         isCorrectChoice
-                          ? "border-[#00C98D] bg-[#00C98D]/10 text-[#00A977]"
+                          ? "border-[var(--br-success)] bg-[var(--br-success)]/10 text-[#00A977]"
                           : isWrongChoice
-                          ? "border-[#FF5D73] bg-[#FF5D73]/10 text-[#FF5D73]"
+                          ? "border-[var(--br-danger)] bg-[var(--br-danger)]/10 text-[var(--br-danger)]"
                           : isSelected
-                          ? "border-[#6C3BFF] bg-[#6C3BFF]/5 text-[#6C3BFF]"
-                          : "border-[#ECECF5] bg-[#F6F7FB] text-[#14172B] hover:bg-white"
+                          ? "border-[var(--br-chart-primary)] bg-[var(--br-chart-primary)]/5 text-[var(--br-chart-primary)]"
+                          : "border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] text-[var(--br-dark-card)] hover:bg-white"
                       }`}
                     >
                       <input
@@ -1110,7 +1110,7 @@ function SkimChallenge({
                         name={`skim-${question.id}-${qId}`}
                         checked={isSelected}
                         onChange={() => onChange({ ...matched, [qId]: key })}
-                        className="accent-[#6C3BFF]"
+                        className="accent-[var(--br-chart-primary)]"
                       />
                       <span>{key}. {String(text)}</span>
                     </label>
@@ -1142,7 +1142,7 @@ function ParaphraseId({
   return (
     <div className="grid gap-4">
       {passage ? (
-        <div className="rounded-[14px] border border-[#ECECF5] bg-[#F6F7FB] p-4 text-sm font-semibold leading-7 text-[#14172B] whitespace-pre-wrap">
+        <div className="rounded-[14px] border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] p-4 text-sm font-semibold leading-7 text-[var(--br-dark-card)] whitespace-pre-wrap">
           {passage}
         </div>
       ) : null}
@@ -1157,12 +1157,12 @@ function ParaphraseId({
               key={key}
               className={`flex cursor-pointer items-center gap-3 rounded-[14px] border px-3 py-3 text-sm font-semibold transition ${
                 isCorrectChoice
-                  ? "border-[#00C98D] bg-[#00C98D]/10 text-[#00A977]"
+                  ? "border-[var(--br-success)] bg-[var(--br-success)]/10 text-[#00A977]"
                   : isWrongChoice
-                  ? "border-[#FF5D73] bg-[#FF5D73]/10 text-[#FF5D73]"
+                  ? "border-[var(--br-danger)] bg-[var(--br-danger)]/10 text-[var(--br-danger)]"
                   : isSelected
-                  ? "border-[#6C3BFF] bg-[#6C3BFF]/5 text-[#6C3BFF]"
-                  : "border-[#ECECF5] bg-[#F6F7FB] text-[#14172B] hover:bg-white"
+                  ? "border-[var(--br-chart-primary)] bg-[var(--br-chart-primary)]/5 text-[var(--br-chart-primary)]"
+                  : "border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] text-[var(--br-dark-card)] hover:bg-white"
               }`}
             >
               <input
@@ -1170,9 +1170,9 @@ function ParaphraseId({
                 disabled={disabled}
                 checked={isSelected}
                 onChange={() => onChange(key)}
-                className="accent-[#6C3BFF]"
+                className="accent-[var(--br-chart-primary)]"
               />
-              <strong className="text-[#6C3BFF]">{key}.</strong> {String(text)}
+              <strong className="text-[var(--br-chart-primary)]">{key}.</strong> {String(text)}
             </label>
           );
         })}
@@ -1188,15 +1188,15 @@ function InferenceDetection({ question, value, disabled, onChange }: { question:
   return (
     <div className="grid gap-4">
       {passage ? (
-        <div className="rounded-[14px] border border-[#ECECF5] bg-[#F6F7FB] p-4 text-sm leading-6 text-[#14172B] whitespace-pre-wrap">
+        <div className="rounded-[14px] border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] p-4 text-sm leading-6 text-[var(--br-dark-card)] whitespace-pre-wrap">
           {passage}
         </div>
       ) : null}
       <div className="grid gap-2">
         {choices.map(([key, text]) => (
-          <label key={key} className="flex cursor-pointer items-center gap-3 rounded-[14px] border border-[#ECECF5] bg-[#F6F7FB] px-3 py-3 text-sm font-semibold text-[#14172B] transition hover:bg-white">
+          <label key={key} className="flex cursor-pointer items-center gap-3 rounded-[14px] border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] px-3 py-3 text-sm font-semibold text-[var(--br-dark-card)] transition hover:bg-white">
             <input type="radio" disabled={disabled} checked={value === key} onChange={() => onChange(key)} />
-            <strong className="text-[#6C3BFF]">{key}.</strong> {String(text)}
+            <strong className="text-[var(--br-chart-primary)]">{key}.</strong> {String(text)}
           </label>
         ))}
       </div>
@@ -1212,11 +1212,11 @@ function MultipleSelect({ question, value, disabled, onChange }: { question: Qui
   }
   return (
     <div className="grid gap-2">
-      <p className="text-xs font-semibold text-[#6E738D]">Select all that apply.</p>
+      <p className="text-xs font-semibold text-[var(--br-text-muted)]">Select all that apply.</p>
       {Object.entries(options).map(([key, text]) => (
-        <label key={key} className="flex cursor-pointer items-center gap-3 rounded-[14px] border border-[#ECECF5] bg-[#F6F7FB] px-3 py-3 text-sm font-semibold text-[#14172B] transition hover:bg-white">
+        <label key={key} className="flex cursor-pointer items-center gap-3 rounded-[14px] border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] px-3 py-3 text-sm font-semibold text-[var(--br-dark-card)] transition hover:bg-white">
           <input type="checkbox" disabled={disabled} checked={selected.includes(key)} onChange={() => toggle(key)} />
-          <strong className="text-[#6C3BFF]">{key}.</strong> {String(text)}
+          <strong className="text-[var(--br-chart-primary)]">{key}.</strong> {String(text)}
         </label>
       ))}
     </div>
@@ -1227,7 +1227,7 @@ function TrueFalse({ value, disabled, onChange }: { value?: boolean; disabled: b
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       {([true, false] as const).map((opt) => (
-        <label key={String(opt)} className="flex cursor-pointer items-center justify-center gap-2 rounded-[14px] border border-[#ECECF5] bg-[#F6F7FB] px-4 py-3 text-sm font-extrabold transition hover:bg-white">
+        <label key={String(opt)} className="flex cursor-pointer items-center justify-center gap-2 rounded-[14px] border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] px-4 py-3 text-sm font-extrabold transition hover:bg-white">
           <input type="radio" disabled={disabled} checked={value === opt} onChange={() => onChange(opt)} />
           {opt ? "True" : "False"}
         </label>
@@ -1262,7 +1262,7 @@ function Fill({ question, value, disabled, onChange }: { question: QuizQuestion;
             value={current[i] ?? ""}
             onChange={(e) => setAnswer(i, e.target.value)}
             placeholder={`Answer ${correct.length > 1 ? i + 1 : ""}`}
-            className="rounded-[14px] border border-[#ECECF5] bg-[#F6F7FB] px-3 py-3 text-sm font-semibold outline-none focus:border-[#6C3BFF] focus:bg-white"
+            className="rounded-[14px] border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] px-3 py-3 text-sm font-semibold outline-none focus:border-[var(--br-chart-primary)] focus:bg-white"
           />
         ))}
       </div>
@@ -1270,7 +1270,7 @@ function Fill({ question, value, disabled, onChange }: { question: QuizQuestion;
   }
 
   return (
-    <p className="rounded-[14px] bg-[#F6F7FB] p-3 text-sm leading-8">
+    <p className="rounded-[14px] bg-[var(--br-canvas-elevated)] p-3 text-sm leading-8">
       {segments.map((segment, i) => (
         <span key={i}>
           {segment}
@@ -1281,7 +1281,7 @@ function Fill({ question, value, disabled, onChange }: { question: QuizQuestion;
               value={current[i] ?? ""}
               onChange={(e) => setAnswer(i, e.target.value)}
               size={Math.max(4, (String(correct[i] ?? "")).length + 2)}
-              className="mx-1 inline-block rounded border border-[#D9DCE8] bg-white px-2 py-0.5 text-sm outline-none focus:border-[#6C3BFF]"
+              className="mx-1 inline-block rounded border border-[#D9DCE8] bg-white px-2 py-0.5 text-sm outline-none focus:border-[var(--br-chart-primary)]"
             />
           ) : null}
         </span>
@@ -1361,14 +1361,14 @@ function Matching({ question, value, disabled, onChange }: { question: QuizQuest
               whileTap={{ scale: disabled ? 1 : 0.97 }}
               className={`flex items-center justify-between gap-2 rounded-[14px] border-2 px-3 py-2.5 text-left text-sm font-semibold shadow-sm transition-colors ${
                 rowCorrect
-                  ? "border-[#00C98D] bg-[#00C98D]/10"
+                  ? "border-[var(--br-success)] bg-[var(--br-success)]/10"
                   : rowWrong
-                  ? "border-[#FF5D73] bg-[#FF5D73]/10"
+                  ? "border-[var(--br-danger)] bg-[var(--br-danger)]/10"
                   : active === key
-                  ? "border-[#6C3BFF] bg-[#6C3BFF]/5"
+                  ? "border-[var(--br-chart-primary)] bg-[var(--br-chart-primary)]/5"
                   : pickedLetter
-                  ? "border-[#6C3BFF]/30 bg-white"
-                  : "border-[#ECECF5] bg-white"
+                  ? "border-[var(--br-chart-primary)]/30 bg-white"
+                  : "border-[var(--br-surface-strong)] bg-white"
               }`}
             >
               <span>{key}. {leftLabel}</span>
@@ -1380,7 +1380,7 @@ function Matching({ question, value, disabled, onChange }: { question: QuizQuest
                     animate={{ scale: 1, opacity: 1 }}
                     transition={{ type: "spring", stiffness: 500, damping: 24 }}
                     className={`grid size-6 place-items-center rounded-full text-xs font-extrabold text-white ${
-                      rowCorrect ? "bg-[#00C98D]" : rowWrong ? "bg-[#FF5D73]" : "bg-[#6C3BFF]"
+                      rowCorrect ? "bg-[var(--br-success)]" : rowWrong ? "bg-[var(--br-danger)]" : "bg-[var(--br-chart-primary)]"
                     }`}
                   >
                     {pickedLetter}
@@ -1394,14 +1394,14 @@ function Matching({ question, value, disabled, onChange }: { question: QuizQuest
                     tabIndex={0}
                     onClick={(e) => { e.stopPropagation(); clearRow(key); }}
                     onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); clearRow(key); } }}
-                    className="text-[#A0A5BA] hover:text-[#FF5D73]"
+                    className="text-[#A0A5BA] hover:text-[var(--br-danger)]"
                     aria-label={`Clear match for ${key}`}
                   >
                     ×
                   </span>
                 ) : null}
-                {disabled && rowCorrect ? <CheckCircle2 size={16} className="text-[#00C98D]" /> : null}
-                {disabled && rowWrong ? <XCircle size={16} className="text-[#FF5D73]" /> : null}
+                {disabled && rowCorrect ? <CheckCircle2 size={16} className="text-[var(--br-success)]" /> : null}
+                {disabled && rowWrong ? <XCircle size={16} className="text-[var(--br-danger)]" /> : null}
               </span>
             </motion.button>
           );
@@ -1419,12 +1419,12 @@ function Matching({ question, value, disabled, onChange }: { question: QuizQuest
               onClick={() => { if (active) pick(active, letter); }}
               whileTap={{ scale: disabled || !active ? 1 : 0.97 }}
               className={`flex items-center justify-between gap-2 rounded-[14px] border-2 px-3 py-2.5 text-left text-sm shadow-sm transition-colors ${
-                linkedRows.length > 0 ? "border-[#6C3BFF]/30 bg-[#6C3BFF]/5" : "border-[#ECECF5] bg-white"
-              } ${active && !disabled ? "cursor-pointer hover:border-[#6C3BFF]" : ""} disabled:opacity-60`}
+                linkedRows.length > 0 ? "border-[var(--br-chart-primary)]/30 bg-[var(--br-chart-primary)]/5" : "border-[var(--br-surface-strong)] bg-white"
+              } ${active && !disabled ? "cursor-pointer hover:border-[var(--br-chart-primary)]" : ""} disabled:opacity-60`}
             >
               <span><strong>{letter}.</strong> {label}</span>
               {linkedRows.length > 0 ? (
-                <span className="rounded-full bg-[#6C3BFF]/15 px-2 py-0.5 text-xs font-extrabold text-[#6C3BFF]">{linkedRows.join(", ")}</span>
+                <span className="rounded-full bg-[var(--br-chart-primary)]/15 px-2 py-0.5 text-xs font-extrabold text-[var(--br-chart-primary)]">{linkedRows.join(", ")}</span>
               ) : null}
             </motion.button>
           );
@@ -1485,10 +1485,10 @@ function ErrorCorrection({
 
     return (
       <div className="grid gap-3">
-        <p className="text-xs text-[#6E738D]">
+        <p className="text-xs text-[var(--br-text-muted)]">
           Click the word or words that are wrong, then type the fix.
         </p>
-        <div className="flex flex-wrap gap-1 rounded-[14px] bg-[#F6F7FB] p-3 text-sm leading-7">
+        <div className="flex flex-wrap gap-1 rounded-[14px] bg-[var(--br-canvas-elevated)] p-3 text-sm leading-7">
           {words.map((word, i) => {
             const selected = selectedIndices.includes(i);
             return (
@@ -1498,7 +1498,7 @@ function ErrorCorrection({
                 disabled={disabled}
                 onClick={() => toggleWord(i)}
                 className={`rounded px-1 transition-colors ${
-                  selected ? "bg-[#FF5D73]/20 font-semibold text-[#14172B]" : "hover:bg-white"
+                  selected ? "bg-[var(--br-danger)]/20 font-semibold text-[var(--br-dark-card)]" : "hover:bg-white"
                 }`}
               >
                 {word}
@@ -1507,8 +1507,8 @@ function ErrorCorrection({
           })}
         </div>
         {selectedSpan ? (
-          <p className="text-xs text-[#6E738D]">
-            Selected: <span className="font-medium text-[#14172B]">&quot;{selectedSpan}&quot;</span>
+          <p className="text-xs text-[var(--br-text-muted)]">
+            Selected: <span className="font-medium text-[var(--br-dark-card)]">&quot;{selectedSpan}&quot;</span>
           </p>
         ) : null}
         <input
@@ -1517,7 +1517,7 @@ function ErrorCorrection({
           value={value.correction ?? ""}
           onChange={(e) => onChange({ ...value, correction: e.target.value })}
           placeholder="Type the correction"
-          className="rounded-[14px] border border-[#ECECF5] bg-[#F6F7FB] px-3 py-3 text-sm font-semibold outline-none focus:border-[#6C3BFF] focus:bg-white"
+          className="rounded-[14px] border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] px-3 py-3 text-sm font-semibold outline-none focus:border-[var(--br-chart-primary)] focus:bg-white"
         />
       </div>
     );
@@ -1525,14 +1525,14 @@ function ErrorCorrection({
 
   return (
     <div className="grid gap-2">
-      <p className="rounded-[14px] bg-[#F6F7FB] p-3 text-sm leading-6">{text}</p>
+      <p className="rounded-[14px] bg-[var(--br-canvas-elevated)] p-3 text-sm leading-6">{text}</p>
       <input
         type="text"
         disabled={disabled}
         value={value.correction ?? ""}
         onChange={(e) => onChange({ ...value, correction: e.target.value })}
         placeholder="Type the corrected sentence"
-        className="rounded-[14px] border border-[#ECECF5] bg-[#F6F7FB] px-3 py-3 text-sm font-semibold outline-none focus:border-[#6C3BFF] focus:bg-white"
+        className="rounded-[14px] border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] px-3 py-3 text-sm font-semibold outline-none focus:border-[var(--br-chart-primary)] focus:bg-white"
       />
     </div>
   );
@@ -1590,7 +1590,7 @@ function Reordering({
         axis="x"
         values={order}
         onReorder={onChange}
-        className="flex flex-wrap gap-2 rounded-[14px] bg-[#F6F7FB] p-3"
+        className="flex flex-wrap gap-2 rounded-[14px] bg-[var(--br-canvas-elevated)] p-3"
       >
         {order.map((id, i) => (
           <Reorder.Item
@@ -1600,13 +1600,13 @@ function Reordering({
             dragElastic={0.15}
             whileDrag={{ scale: 1.08, boxShadow: "0 8px 20px rgba(108,59,255,.25)", zIndex: 10 }}
             transition={{ type: "spring", stiffness: 500, damping: 32 }}
-            className="flex touch-none select-none items-center gap-1 rounded-[14px] border border-[#ECECF5] bg-white px-2 py-1 text-sm shadow-sm"
+            className="flex touch-none select-none items-center gap-1 rounded-[14px] border border-[var(--br-surface-strong)] bg-white px-2 py-1 text-sm shadow-sm"
           >
-            <button type="button" disabled={disabled || i === 0} onClick={() => move(i, i - 1)} className="text-[#6E738D] hover:text-[#14172B] disabled:opacity-25" aria-label="Move left">
+            <button type="button" disabled={disabled || i === 0} onClick={() => move(i, i - 1)} className="text-[var(--br-text-muted)] hover:text-[var(--br-dark-card)] disabled:opacity-25" aria-label="Move left">
               ←
             </button>
             <span className={`px-1 ${disabled ? "" : "cursor-grab active:cursor-grabbing"}`}>{byId.get(id) ?? ""}</span>
-            <button type="button" disabled={disabled || i === order.length - 1} onClick={() => move(i, i + 1)} className="text-[#6E738D] hover:text-[#14172B] disabled:opacity-25" aria-label="Move right">
+            <button type="button" disabled={disabled || i === order.length - 1} onClick={() => move(i, i + 1)} className="text-[var(--br-text-muted)] hover:text-[var(--br-dark-card)] disabled:opacity-25" aria-label="Move right">
               →
             </button>
           </Reorder.Item>
@@ -1625,15 +1625,15 @@ function Reordering({
           dragElastic={0.15}
           whileDrag={{ scale: 1.02, boxShadow: "0 8px 20px rgba(108,59,255,.2)", zIndex: 10 }}
           transition={{ type: "spring", stiffness: 500, damping: 32 }}
-          className="flex touch-none items-center gap-3 rounded-[14px] border border-[#ECECF5] bg-white px-3 py-2 text-sm shadow-sm"
+          className="flex touch-none items-center gap-3 rounded-[14px] border border-[var(--br-surface-strong)] bg-white px-3 py-2 text-sm shadow-sm"
         >
           <span className={`select-none text-[#A0A5BA] ${disabled ? "" : "cursor-grab active:cursor-grabbing"}`}>⠿</span>
           <span className="flex-1 select-none">{byId.get(id) ?? ""}</span>
           <div className="flex gap-1">
-            <button type="button" disabled={disabled || i === 0} onClick={() => move(i, i - 1)} className="rounded border border-[#ECECF5] px-2 py-1 text-xs text-[#6E738D] hover:bg-white disabled:opacity-25" aria-label="Move up">
+            <button type="button" disabled={disabled || i === 0} onClick={() => move(i, i - 1)} className="rounded border border-[var(--br-surface-strong)] px-2 py-1 text-xs text-[var(--br-text-muted)] hover:bg-white disabled:opacity-25" aria-label="Move up">
               ↑
             </button>
-            <button type="button" disabled={disabled || i === order.length - 1} onClick={() => move(i, i + 1)} className="rounded border border-[#ECECF5] px-2 py-1 text-xs text-[#6E738D] hover:bg-white disabled:opacity-25" aria-label="Move down">
+            <button type="button" disabled={disabled || i === order.length - 1} onClick={() => move(i, i + 1)} className="rounded border border-[var(--br-surface-strong)] px-2 py-1 text-xs text-[var(--br-text-muted)] hover:bg-white disabled:opacity-25" aria-label="Move down">
               ↓
             </button>
           </div>
@@ -1688,8 +1688,8 @@ function ShortAnswer({
   if (submitted) {
     return (
       <div className="grid gap-3">
-        <div className="rounded-[14px] bg-[#F6F7FB] p-3 text-sm leading-6 whitespace-pre-wrap">
-          {text || <span className="text-[#6E738D]">(No answer written)</span>}
+        <div className="rounded-[14px] bg-[var(--br-canvas-elevated)] p-3 text-sm leading-6 whitespace-pre-wrap">
+          {text || <span className="text-[var(--br-text-muted)]">(No answer written)</span>}
         </div>
 
         {!unmet.lengthOk || !unmet.wordsOk ? (
@@ -1728,23 +1728,23 @@ function ShortAnswer({
         value={text}
         onChange={(e) => onChange({ ...value, text: e.target.value })}
         placeholder="Write your answer..."
-        className="w-full rounded-[14px] border border-[#ECECF5] bg-[#F6F7FB] px-3 py-3 text-sm font-semibold outline-none focus:border-[#6C3BFF] focus:bg-white"
+        className="w-full rounded-[14px] border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] px-3 py-3 text-sm font-semibold outline-none focus:border-[var(--br-chart-primary)] focus:bg-white"
       />
       {minWords > 0 || (requiredWords.length > 0 && showRequiredWords) ? (
         <div className="flex flex-wrap items-center gap-3 text-xs">
           {minWords > 0 ? (
-            <span className={wordCount >= minWords ? "text-[#00A977]" : "text-[#6E738D]"}>
+            <span className={wordCount >= minWords ? "text-[#00A977]" : "text-[var(--br-text-muted)]"}>
               {wordCount} / {minWords} words
             </span>
           ) : null}
           {requiredWords.length > 0 && showRequiredWords ? (
             <span className="flex flex-wrap items-center gap-1.5">
-              <span className="text-[#6E738D]">Use:</span>
+              <span className="text-[var(--br-text-muted)]">Use:</span>
               {requiredWords.map((word) => (
                 <span
                   key={word}
                   className={`rounded-full border px-2 py-0.5 ${
-                    lowerText.includes(word.toLowerCase()) ? "border-[#00C98D] bg-[#00C98D]/10 text-[#00A977]" : "border-[#ECECF5] text-[#6E738D]"
+                    lowerText.includes(word.toLowerCase()) ? "border-[var(--br-success)] bg-[var(--br-success)]/10 text-[#00A977]" : "border-[var(--br-surface-strong)] text-[var(--br-text-muted)]"
                   }`}
                 >
                   {word}
@@ -1790,38 +1790,38 @@ function Summarization({
     return (
       <div className="grid gap-4">
         {passage ? (
-          <div className="rounded-[14px] bg-[#F6F7FB] border border-[#ECECF5] p-4 text-sm leading-6 text-[#14172B]">
-            <p className="mb-2 text-xs font-bold uppercase tracking-wider text-[#6E738D]">Passage</p>
+          <div className="rounded-[14px] bg-[var(--br-canvas-elevated)] border border-[var(--br-surface-strong)] p-4 text-sm leading-6 text-[var(--br-dark-card)]">
+            <p className="mb-2 text-xs font-bold uppercase tracking-wider text-[var(--br-text-muted)]">Passage</p>
             <div className="whitespace-pre-wrap font-medium">{passage}</div>
           </div>
         ) : null}
 
         <div>
-          <p className="mb-2 text-xs font-bold uppercase tracking-wider text-[#6E738D]">Your Summary</p>
-          <div className="rounded-[14px] bg-[#F6F7FB] border border-[#ECECF5] p-4 text-sm leading-6 whitespace-pre-wrap font-semibold">
-            {text || <span className="text-[#6E738D]">(No summary written)</span>}
+          <p className="mb-2 text-xs font-bold uppercase tracking-wider text-[var(--br-text-muted)]">Your Summary</p>
+          <div className="rounded-[14px] bg-[var(--br-canvas-elevated)] border border-[var(--br-surface-strong)] p-4 text-sm leading-6 whitespace-pre-wrap font-semibold">
+            {text || <span className="text-[var(--br-text-muted)]">(No summary written)</span>}
           </div>
           {maxWords > 0 ? (
-            <p className="mt-1.5 text-xs text-[#6E738D]">
-              Word count: <span className={lengthOk ? "text-[#00A977] font-bold" : "text-[#FF5D73] font-bold"}>{wordCount}</span> / {maxWords} words
+            <p className="mt-1.5 text-xs text-[var(--br-text-muted)]">
+              Word count: <span className={lengthOk ? "text-[#00A977] font-bold" : "text-[var(--br-danger)] font-bold"}>{wordCount}</span> / {maxWords} words
             </p>
           ) : null}
         </div>
 
         {opts.sample_answer ? (
-          <div className="rounded-[14px] border border-[#00C98D]/30 bg-[#00C98D]/5 p-4 text-sm leading-6">
+          <div className="rounded-[14px] border border-[var(--br-success)]/30 bg-[var(--br-success)]/5 p-4 text-sm leading-6">
             <p className="mb-2 text-xs font-bold uppercase tracking-wider text-[#00A977]">Model Summary</p>
-            <div className="font-semibold text-[#14172B]">{opts.sample_answer}</div>
+            <div className="font-semibold text-[var(--br-dark-card)]">{opts.sample_answer}</div>
           </div>
         ) : null}
 
-        <div className="flex flex-wrap items-center gap-2 border-t border-[#ECECF5] pt-3">
-          <span className="text-sm font-semibold text-[#6E738D]">How did you do?</span>
+        <div className="flex flex-wrap items-center gap-2 border-t border-[var(--br-surface-strong)] pt-3">
+          <span className="text-sm font-semibold text-[var(--br-text-muted)]">How did you do?</span>
           <button
             type="button"
             onClick={() => onChange({ text, selfMarked: true })}
             className={`rounded-[14px] border px-4 py-2 text-sm font-extrabold transition-colors ${
-              selfMarked === true ? "border-[#00C98D] bg-[#00C98D]/10 text-[#00A977]" : "border-[#ECECF5] text-[#6E738D] hover:bg-slate-50"
+              selfMarked === true ? "border-[var(--br-success)] bg-[var(--br-success)]/10 text-[#00A977]" : "border-[var(--br-surface-strong)] text-[var(--br-text-muted)] hover:bg-slate-50"
             }`}
           >
             Got it
@@ -1830,7 +1830,7 @@ function Summarization({
             type="button"
             onClick={() => onChange({ text, selfMarked: false })}
             className={`rounded-[14px] border px-4 py-2 text-sm font-extrabold transition-colors ${
-              selfMarked === false ? "border-[#FF5D73] bg-[#FF5D73]/10 text-[#FF5D73]" : "border-[#ECECF5] text-[#6E738D] hover:bg-slate-50"
+              selfMarked === false ? "border-[var(--br-danger)] bg-[var(--br-danger)]/10 text-[var(--br-danger)]" : "border-[var(--br-surface-strong)] text-[var(--br-text-muted)] hover:bg-slate-50"
             }`}
           >
             Needs work
@@ -1843,8 +1843,8 @@ function Summarization({
   return (
     <div className="grid gap-4">
       {passage ? (
-        <div className="rounded-[14px] bg-[#F6F7FB] border border-[#ECECF5] p-4 text-sm leading-6 text-[#14172B]">
-          <p className="mb-2 text-xs font-bold uppercase tracking-wider text-[#6E738D]">Passage to Summarize</p>
+        <div className="rounded-[14px] bg-[var(--br-canvas-elevated)] border border-[var(--br-surface-strong)] p-4 text-sm leading-6 text-[var(--br-dark-card)]">
+          <p className="mb-2 text-xs font-bold uppercase tracking-wider text-[var(--br-text-muted)]">Passage to Summarize</p>
           <div className="whitespace-pre-wrap font-medium">{passage}</div>
         </div>
       ) : null}
@@ -1855,15 +1855,15 @@ function Summarization({
           value={text}
           onChange={(e) => onChange({ text: e.target.value, selfMarked: undefined })}
           placeholder="Write your summary here..."
-          className="w-full rounded-[14px] border border-[#ECECF5] bg-[#F6F7FB] px-3 py-3 text-sm font-semibold outline-none focus:border-[#6C3BFF] focus:bg-white"
+          className="w-full rounded-[14px] border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] px-3 py-3 text-sm font-semibold outline-none focus:border-[var(--br-chart-primary)] focus:bg-white"
         />
         {maxWords > 0 ? (
           <div className="flex justify-between items-center text-xs">
-            <span className={lengthOk ? "text-[#00A977] font-semibold" : "text-[#FF5D73] font-semibold"}>
+            <span className={lengthOk ? "text-[#00A977] font-semibold" : "text-[var(--br-danger)] font-semibold"}>
               {wordCount} / {maxWords} words maximum
             </span>
             {!lengthOk ? (
-              <span className="text-[#FF5D73] font-bold">Word limit exceeded!</span>
+              <span className="text-[var(--br-danger)] font-bold">Word limit exceeded!</span>
             ) : null}
           </div>
         ) : null}
@@ -1903,9 +1903,9 @@ function DragDrop({
 
   return (
     <div className="grid gap-4">
-      <motion.div layout className="flex flex-wrap gap-2 rounded-[14px] bg-[#F6F7FB] p-3 min-h-[3rem]">
+      <motion.div layout className="flex flex-wrap gap-2 rounded-[14px] bg-[var(--br-canvas-elevated)] p-3 min-h-[3rem]">
         {unplacedItems.length === 0 ? (
-          <span className="text-xs text-[#6E738D]">All items placed.</span>
+          <span className="text-xs text-[var(--br-text-muted)]">All items placed.</span>
         ) : (
           unplacedItems.map((item) => {
             const id = String(item.id);
@@ -1922,7 +1922,7 @@ function DragDrop({
                 onClick={() => setPicked(picked === id ? null : id)}
                 transition={{ type: "spring", stiffness: 500, damping: 30 }}
                 className={`rounded-[14px] border px-3 py-1.5 text-sm shadow-sm transition-colors ${
-                  picked === id ? "border-[#00C98D] bg-[#00C98D]/10 text-[#00A977]" : "border-[#ECECF5] bg-white hover:bg-white"
+                  picked === id ? "border-[var(--br-success)] bg-[var(--br-success)]/10 text-[#00A977]" : "border-[var(--br-surface-strong)] bg-white hover:bg-white"
                 }`}
               >
                 {String(item.text ?? "")}
@@ -1931,7 +1931,7 @@ function DragDrop({
           })
         )}
       </motion.div>
-      {picked ? <p className="text-xs text-[#6E738D]">Now tap a box below to place it there.</p> : null}
+      {picked ? <p className="text-xs text-[var(--br-text-muted)]">Now tap a box below to place it there.</p> : null}
       <div className="grid gap-2 sm:grid-cols-2">
         {targets.map((target) => {
           const placedItems = items.filter((item) => value[String(item.id)] === target);
@@ -1945,10 +1945,10 @@ function DragDrop({
               onDrop={() => { if (dragItemId.current) { place(dragItemId.current, target); dragItemId.current = null; } }}
               onClick={() => { if (picked) place(picked, target); }}
               className={`rounded-[14px] border-2 border-dashed p-3 text-sm transition-colors ${
-                picked ? "cursor-pointer border-[#00C98D]/40 bg-[#00C98D]/5 hover:border-[#00C98D]" : "border-[#ECECF5]"
+                picked ? "cursor-pointer border-[var(--br-success)]/40 bg-[var(--br-success)]/5 hover:border-[var(--br-success)]" : "border-[var(--br-surface-strong)]"
               }`}
             >
-              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[#6E738D]">{target}</p>
+              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--br-text-muted)]">{target}</p>
               {placedItems.length > 0 ? (
                 <motion.div layout className="flex flex-wrap gap-1.5">
                   {placedItems.map((placedItem) => (
@@ -1962,9 +1962,9 @@ function DragDrop({
                       type="button"
                       disabled={disabled}
                       onClick={(e) => { e.stopPropagation(); unplace(String(placedItem.id)); }}
-                      className="rounded-[14px] border border-[#00C98D]/30 bg-[#00C98D]/10 px-3 py-1.5 text-sm text-[#14172B]"
+                      className="rounded-[14px] border border-[var(--br-success)]/30 bg-[var(--br-success)]/10 px-3 py-1.5 text-sm text-[var(--br-dark-card)]"
                     >
-                      {String(placedItem.text ?? "")} <span className="text-[#6E738D]">×</span>
+                      {String(placedItem.text ?? "")} <span className="text-[var(--br-text-muted)]">×</span>
                     </motion.button>
                   ))}
                 </motion.div>
@@ -2105,7 +2105,7 @@ function Pronunciation({
 
   if (micState === "denied") {
     return (
-      <div className="flex items-start gap-2 rounded-[14px] border border-[#FF5D73]/30 bg-[#FF5D73]/10 p-3 text-sm text-[#FF5D73]">
+      <div className="flex items-start gap-2 rounded-[14px] border border-[var(--br-danger)]/30 bg-[var(--br-danger)]/10 p-3 text-sm text-[var(--br-danger)]">
         <AlertCircle size={16} className="mt-0.5 shrink-0" />
         <span>Microphone access was denied. Check your browser&apos;s site permissions and reload the page to try again.</span>
       </div>
@@ -2121,11 +2121,11 @@ function Pronunciation({
           const outOfAttempts = used >= maxAttempts && !recognized;
           const isActive = activeKey === target.id && micState === "listening";
           return (
-            <div key={target.id} className="flex items-center justify-between gap-3 rounded-[14px] border border-[#ECECF5] p-3">
+            <div key={target.id} className="flex items-center justify-between gap-3 rounded-[14px] border border-[var(--br-surface-strong)] p-3">
               <div>
                 <p className="font-medium" style={{ color: target.color }}>{target.text}</p>
-                {lastHeard[target.id] ? <p className="line-clamp-2 text-xs text-[#6E738D]">Heard: &quot;{lastHeard[target.id]}&quot;</p> : null}
-                {outOfAttempts ? <p className="text-xs text-[#FF5D73]">No more attempts for this word.</p> : null}
+                {lastHeard[target.id] ? <p className="line-clamp-2 text-xs text-[var(--br-text-muted)]">Heard: &quot;{lastHeard[target.id]}&quot;</p> : null}
+                {outOfAttempts ? <p className="text-xs text-[var(--br-danger)]">No more attempts for this word.</p> : null}
               </div>
               <button
                 type="button"
@@ -2133,10 +2133,10 @@ function Pronunciation({
                 onClick={() => (isActive ? stopRecording() : recordFor(target.id, [target]))}
                 className={`flex shrink-0 items-center gap-2 rounded-[14px] border px-3 py-1.5 text-sm font-medium transition-colors ${
                   recognized
-                    ? "border-[#00C98D]/30 bg-[#00C98D]/10 text-[#00A977]"
+                    ? "border-[var(--br-success)]/30 bg-[var(--br-success)]/10 text-[#00A977]"
                     : isActive
                     ? "border-red-300 bg-red-50 text-red-500"
-                    : "border-[#ECECF5] hover:bg-white"
+                    : "border-[var(--br-surface-strong)] hover:bg-white"
                 }`}
               >
                 {recognized ? <CheckCircle2 size={15} /> : isActive ? <MicOff size={15} /> : <Mic size={15} />}
@@ -2161,7 +2161,7 @@ function Pronunciation({
 
   return (
     <div className="grid gap-3">
-      <p className="rounded-[14px] bg-[#F6F7FB] p-3 text-sm leading-7">
+      <p className="rounded-[14px] bg-[var(--br-canvas-elevated)] p-3 text-sm leading-7">
         {segments.map((segment, i) => {
           const target = targets.find((t) => t.text.toLowerCase() === segment.toLowerCase());
           if (!target) return <span key={i}>{segment}</span>;
@@ -2177,7 +2177,7 @@ function Pronunciation({
           );
         })}
       </p>
-      {lastHeard[passageKey] ? <p className="line-clamp-2 text-xs text-[#6E738D]">Heard: &quot;{lastHeard[passageKey]}&quot;</p> : null}
+      {lastHeard[passageKey] ? <p className="line-clamp-2 text-xs text-[var(--br-text-muted)]">Heard: &quot;{lastHeard[passageKey]}&quot;</p> : null}
       <div className="flex items-center gap-3">
         <button
           type="button"
@@ -2185,16 +2185,16 @@ function Pronunciation({
           onClick={() => (isActive ? stopRecording() : recordFor(passageKey, targets))}
           className={`flex items-center gap-2 rounded-[14px] border px-4 py-2 text-sm font-medium transition-colors ${
             allRecognized
-              ? "border-[#00C98D]/30 bg-[#00C98D]/10 text-[#00A977]"
+              ? "border-[var(--br-success)]/30 bg-[var(--br-success)]/10 text-[#00A977]"
               : isActive
               ? "border-red-300 bg-red-50 text-red-500"
-              : "border-[#ECECF5] hover:bg-white"
+              : "border-[var(--br-surface-strong)] hover:bg-white"
           }`}
         >
           {allRecognized ? <CheckCircle2 size={15} /> : isActive ? <MicOff size={15} /> : <Mic size={15} />}
           {allRecognized ? "All words recognized" : isActive ? "Stop" : `Record (${maxAttempts - used} left)`}
         </button>
-        {outOfAttempts && !allRecognized ? <span className="text-xs text-[#FF5D73]">No more attempts.</span> : null}
+        {outOfAttempts && !allRecognized ? <span className="text-xs text-[var(--br-danger)]">No more attempts.</span> : null}
       </div>
     </div>
   );
@@ -2820,15 +2820,15 @@ function SentenceCompletionPlayer({
 
   return (
     <div className="space-y-5">
-      <div className="rounded-3xl border border-[#6C3BFF]/15 bg-[#6C3BFF]/5 p-5 space-y-3">
-        <p className="text-xs font-black text-[#6C3BFF] uppercase tracking-wider">Sentence Stem to Complete</p>
+      <div className="rounded-3xl border border-[var(--br-chart-primary)]/15 bg-[var(--br-chart-primary)]/5 p-5 space-y-3">
+        <p className="text-xs font-black text-[var(--br-chart-primary)] uppercase tracking-wider">Sentence Stem to Complete</p>
         <p className="text-base font-bold text-ink leading-relaxed">{stem}</p>
         {connectors.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-[#6C3BFF]/10">
+          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-[var(--br-chart-primary)]/10">
             <span className="text-[11px] font-bold text-black/50 uppercase tracking-wide">Suggested Connectors:</span>
             <div className="flex flex-wrap gap-1.5">
               {connectors.map((c) => (
-                <span key={c} className="rounded-xl bg-[#6C3BFF]/10 border border-[#6C3BFF]/20 px-2.5 py-1 text-xs font-bold text-[#6C3BFF]">
+                <span key={c} className="rounded-xl bg-[var(--br-chart-primary)]/10 border border-[var(--br-chart-primary)]/20 px-2.5 py-1 text-xs font-bold text-[var(--br-chart-primary)]">
                   {c}
                 </span>
               ))}
@@ -2843,7 +2843,7 @@ function SentenceCompletionPlayer({
         value={text}
         onChange={(e) => onChange({ ...value, text: e.target.value })}
         placeholder="Type here to finish or expand the sentence..."
-        className="w-full rounded-2xl border border-black/10 p-4 text-sm font-medium text-ink bg-white shadow-xs focus:border-[#6C3BFF] focus:ring-1 focus:ring-[#6C3BFF] focus:outline-hidden disabled:bg-black/5 transition"
+        className="w-full rounded-2xl border border-black/10 p-4 text-sm font-medium text-ink bg-white shadow-xs focus:border-[var(--br-chart-primary)] focus:ring-1 focus:ring-[var(--br-chart-primary)] focus:outline-hidden disabled:bg-black/5 transition"
       />
 
       {submitted && (
@@ -2900,15 +2900,15 @@ function EssayWritingPlayer({
   return (
     <div className="space-y-5">
       {promptText && promptText !== question.question_text && (
-        <div className="rounded-3xl border border-[#6C3BFF]/15 bg-[#6C3BFF]/5 p-5 space-y-2">
-          <p className="text-xs font-black text-[#6C3BFF] uppercase tracking-wider">Essay Prompt & Task</p>
+        <div className="rounded-3xl border border-[var(--br-chart-primary)]/15 bg-[var(--br-chart-primary)]/5 p-5 space-y-2">
+          <p className="text-xs font-black text-[var(--br-chart-primary)] uppercase tracking-wider">Essay Prompt & Task</p>
           <p className="text-base font-bold text-ink leading-relaxed whitespace-pre-wrap">{promptText}</p>
         </div>
       )}
 
       <div className="flex items-center justify-between rounded-2xl border border-black/10 bg-black/5 px-4 py-3 text-xs font-bold shadow-xs">
         <span className="text-black/50">Target Length: {minWords}–{maxWords} words</span>
-        <span className={wordCount >= minWords && wordCount <= maxWords ? "text-[#6C3BFF]" : "text-amber-700"}>
+        <span className={wordCount >= minWords && wordCount <= maxWords ? "text-[var(--br-chart-primary)]" : "text-amber-700"}>
           Current Count: {wordCount} words
         </span>
       </div>
@@ -2919,7 +2919,7 @@ function EssayWritingPlayer({
         value={text}
         onChange={(e) => onChange({ ...value, text: e.target.value })}
         placeholder="Begin writing your response essay here..."
-        className="w-full rounded-2xl border border-black/10 p-4 text-sm font-medium text-ink bg-white shadow-xs focus:border-[#6C3BFF] focus:ring-1 focus:ring-[#6C3BFF] focus:outline-hidden disabled:bg-black/5 leading-relaxed transition"
+        className="w-full rounded-2xl border border-black/10 p-4 text-sm font-medium text-ink bg-white shadow-xs focus:border-[var(--br-chart-primary)] focus:ring-1 focus:ring-[var(--br-chart-primary)] focus:outline-hidden disabled:bg-black/5 leading-relaxed transition"
       />
 
       {submitted && (
@@ -2976,8 +2976,8 @@ function EmailLetterWritingPlayer({
   return (
     <div className="space-y-5">
       {promptText && promptText !== question.question_text && (
-        <div className="rounded-3xl border border-[#6C3BFF]/15 bg-[#6C3BFF]/5 p-5 space-y-2">
-          <p className="text-xs font-black text-[#6C3BFF] uppercase tracking-wider">Writing Task & Situation</p>
+        <div className="rounded-3xl border border-[var(--br-chart-primary)]/15 bg-[var(--br-chart-primary)]/5 p-5 space-y-2">
+          <p className="text-xs font-black text-[var(--br-chart-primary)] uppercase tracking-wider">Writing Task & Situation</p>
           <p className="text-base font-bold text-ink leading-relaxed whitespace-pre-wrap">{promptText}</p>
         </div>
       )}
@@ -2985,11 +2985,11 @@ function EmailLetterWritingPlayer({
       <div className="rounded-2xl border border-black/10 bg-white p-4 space-y-2 text-xs shadow-xs">
         <div className="flex items-center gap-2 border-b border-black/5 pb-2">
           <span className="font-bold text-black/40 w-16 uppercase">To:</span>
-          <span className="font-black text-[#6C3BFF]">{recipient}</span>
+          <span className="font-black text-[var(--br-chart-primary)]">{recipient}</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="font-bold text-black/40 w-16 uppercase">Tone:</span>
-          <span className="rounded-xl bg-[#6C3BFF]/10 px-3 py-1 font-black text-[#6C3BFF] uppercase tracking-wider">{tone}</span>
+          <span className="rounded-xl bg-[var(--br-chart-primary)]/10 px-3 py-1 font-black text-[var(--br-chart-primary)] uppercase tracking-wider">{tone}</span>
         </div>
       </div>
 
@@ -2999,7 +2999,7 @@ function EmailLetterWritingPlayer({
         value={text}
         onChange={(e) => onChange({ ...value, text: e.target.value })}
         placeholder="Compose your email/letter here..."
-        className="w-full rounded-2xl border border-black/10 p-4 text-sm font-medium text-ink bg-white shadow-xs focus:border-[#6C3BFF] focus:ring-1 focus:ring-[#6C3BFF] focus:outline-hidden disabled:bg-black/5 transition"
+        className="w-full rounded-2xl border border-black/10 p-4 text-sm font-medium text-ink bg-white shadow-xs focus:border-[var(--br-chart-primary)] focus:ring-1 focus:ring-[var(--br-chart-primary)] focus:outline-hidden disabled:bg-black/5 transition"
       />
 
       {submitted && (
@@ -3053,8 +3053,8 @@ function TranslationPlayer({
 
   return (
     <div className="space-y-5">
-      <div className="rounded-3xl border border-[#6C3BFF]/15 bg-[#6C3BFF]/5 p-5 space-y-3">
-        <div className="flex items-center justify-between text-xs font-black text-[#6C3BFF] uppercase tracking-wider">
+      <div className="rounded-3xl border border-[var(--br-chart-primary)]/15 bg-[var(--br-chart-primary)]/5 p-5 space-y-3">
+        <div className="flex items-center justify-between text-xs font-black text-[var(--br-chart-primary)] uppercase tracking-wider">
           <span>Translate to {targetLang}</span>
           <span className="text-[10px] text-black/40">From: {sourceLang}</span>
         </div>
@@ -3067,7 +3067,7 @@ function TranslationPlayer({
         value={text}
         onChange={(e) => onChange({ ...value, text: e.target.value })}
         placeholder={`Write your translation in ${targetLang} here...`}
-        className="w-full rounded-2xl border border-black/10 p-4 text-sm font-medium text-ink bg-white shadow-xs focus:border-[#6C3BFF] focus:ring-1 focus:ring-[#6C3BFF] focus:outline-hidden disabled:bg-black/5 transition"
+        className="w-full rounded-2xl border border-black/10 p-4 text-sm font-medium text-ink bg-white shadow-xs focus:border-[var(--br-chart-primary)] focus:ring-1 focus:ring-[var(--br-chart-primary)] focus:outline-hidden disabled:bg-black/5 transition"
       />
 
       {submitted && (
@@ -3143,7 +3143,7 @@ function ParaphrasePracticePlayer({
         value={text}
         onChange={(e) => onChange({ ...value, text: e.target.value })}
         placeholder="Paraphrase the original sentence..."
-        className="w-full rounded-2xl border border-black/10 p-4 text-sm font-medium text-ink bg-white shadow-xs focus:border-[#6C3BFF] focus:ring-1 focus:ring-[#6C3BFF] focus:outline-hidden disabled:bg-black/5 transition"
+        className="w-full rounded-2xl border border-black/10 p-4 text-sm font-medium text-ink bg-white shadow-xs focus:border-[var(--br-chart-primary)] focus:ring-1 focus:ring-[var(--br-chart-primary)] focus:outline-hidden disabled:bg-black/5 transition"
       />
 
       {submitted && (
@@ -3195,8 +3195,8 @@ function SentenceCombiningPlayer({
 
   return (
     <div className="space-y-5">
-      <div className="rounded-3xl border border-[#6C3BFF]/15 bg-[#6C3BFF]/5 p-5 space-y-3">
-        <p className="text-xs font-black text-[#6C3BFF] uppercase tracking-wider">Sentences to Combine</p>
+      <div className="rounded-3xl border border-[var(--br-chart-primary)]/15 bg-[var(--br-chart-primary)]/5 p-5 space-y-3">
+        <p className="text-xs font-black text-[var(--br-chart-primary)] uppercase tracking-wider">Sentences to Combine</p>
         <ul className="list-disc pl-5 space-y-1.5 text-sm font-bold text-ink leading-relaxed">
           {inputSentences.map((s, i) => (
             <li key={i}>{s}</li>
@@ -3210,7 +3210,7 @@ function SentenceCombiningPlayer({
         value={text}
         onChange={(e) => onChange({ ...value, text: e.target.value })}
         placeholder="Combine into one elegant complex sentence..."
-        className="w-full rounded-2xl border border-black/10 p-4 text-sm font-medium text-ink bg-white shadow-xs focus:border-[#6C3BFF] focus:ring-1 focus:ring-[#6C3BFF] focus:outline-hidden disabled:bg-black/5 transition"
+        className="w-full rounded-2xl border border-black/10 p-4 text-sm font-medium text-ink bg-white shadow-xs focus:border-[var(--br-chart-primary)] focus:ring-1 focus:ring-[var(--br-chart-primary)] focus:outline-hidden disabled:bg-black/5 transition"
       />
 
       {submitted && (
@@ -3271,8 +3271,8 @@ function CreativeWritingPlayer({
       )}
 
       {storyStarter && (
-        <div className="rounded-3xl border border-[#6C3BFF]/15 bg-[#6C3BFF]/5 p-5 space-y-1.5 shadow-xs">
-          <p className="text-xs font-black text-[#6C3BFF] uppercase tracking-wider">Story Starter</p>
+        <div className="rounded-3xl border border-[var(--br-chart-primary)]/15 bg-[var(--br-chart-primary)]/5 p-5 space-y-1.5 shadow-xs">
+          <p className="text-xs font-black text-[var(--br-chart-primary)] uppercase tracking-wider">Story Starter</p>
           <p className="text-sm font-semibold text-ink italic leading-relaxed">&quot;{storyStarter}&quot;</p>
         </div>
       )}
@@ -3287,7 +3287,7 @@ function CreativeWritingPlayer({
                 <span
                   key={word}
                   className={`rounded-lg px-2.5 py-1 font-bold transition-all duration-300 ${
-                    included ? "bg-[#6C3BFF] text-white shadow-xs" : "bg-black/5 text-black/50"
+                    included ? "bg-[var(--br-chart-primary)] text-white shadow-xs" : "bg-black/5 text-black/50"
                   }`}
                 >
                   {word} {included ? "✓" : ""}
@@ -3304,7 +3304,7 @@ function CreativeWritingPlayer({
         value={text}
         onChange={(e) => onChange({ ...value, text: e.target.value })}
         placeholder="Continue the story writing response here..."
-        className="w-full rounded-2xl border border-black/10 p-4 text-sm font-medium text-ink bg-white shadow-xs focus:border-[#6C3BFF] focus:ring-1 focus:ring-[#6C3BFF] focus:outline-hidden disabled:bg-black/5 leading-relaxed transition"
+        className="w-full rounded-2xl border border-black/10 p-4 text-sm font-medium text-ink bg-white shadow-xs focus:border-[var(--br-chart-primary)] focus:ring-1 focus:ring-[var(--br-chart-primary)] focus:outline-hidden disabled:bg-black/5 leading-relaxed transition"
       />
 
       {submitted && (
@@ -3367,7 +3367,7 @@ function PeerReviewEditingPlayer({
             <span className="font-bold text-black/50 uppercase tracking-wide text-[10px]">Focus Areas:</span>
             <div className="flex flex-wrap gap-1">
               {focusAreas.map((f) => (
-                <span key={f} className="rounded-lg bg-[#6C3BFF]/10 border border-[#6C3BFF]/20 px-2.5 py-0.5 font-bold text-[#6C3BFF]">
+                <span key={f} className="rounded-lg bg-[var(--br-chart-primary)]/10 border border-[var(--br-chart-primary)]/20 px-2.5 py-0.5 font-bold text-[var(--br-chart-primary)]">
                   {f}
                 </span>
               ))}
@@ -3382,7 +3382,7 @@ function PeerReviewEditingPlayer({
         value={text}
         onChange={(e) => onChange({ ...value, text: e.target.value })}
         placeholder="Input your corrected version and constructive comments here..."
-        className="w-full rounded-2xl border border-black/10 p-4 text-sm font-medium text-ink bg-white shadow-xs focus:border-[#6C3BFF] focus:ring-1 focus:ring-[#6C3BFF] focus:outline-hidden disabled:bg-black/5 leading-relaxed transition"
+        className="w-full rounded-2xl border border-black/10 p-4 text-sm font-medium text-ink bg-white shadow-xs focus:border-[var(--br-chart-primary)] focus:ring-1 focus:ring-[var(--br-chart-primary)] focus:outline-hidden disabled:bg-black/5 leading-relaxed transition"
       />
 
       {submitted && (

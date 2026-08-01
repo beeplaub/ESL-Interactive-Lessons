@@ -52,7 +52,7 @@ export function LessonOutcomeManager({
   return (
     <section className="mt-5 grid gap-5 border-t border-black/10 pt-5">
       <div>
-        <p className="text-xs font-bold uppercase tracking-wide text-[#6C3BFF]">Outcome-based education</p>
+        <p className="text-xs font-bold uppercase tracking-wide text-[var(--br-chart-primary)]">Outcome-based education</p>
         <h3 className="mt-1 text-lg font-extrabold">Lesson outcomes</h3>
         <p className="mt-1 text-sm text-black/55">Write one observable ability per outcome. Map it separately in every course that uses this lesson.</p>
       </div>
@@ -85,15 +85,15 @@ export function LessonOutcomeManager({
         {!outcomes.length ? <p className="rounded-xl border border-dashed border-black/15 p-5 text-center text-sm text-black/50">No lesson outcomes yet.</p> : null}
       </div>
 
-      <ObeActionForm action={addLessonOutcome.bind(null, lessonId)} successMessage="Outcome added." className="grid gap-2 rounded-xl bg-[#F6F7FB] p-3 sm:grid-cols-[90px_1fr_auto]">
+      <ObeActionForm action={addLessonOutcome.bind(null, lessonId)} successMessage="Outcome added." className="grid gap-2 rounded-xl bg-[var(--br-canvas-elevated)] p-3 sm:grid-cols-[90px_1fr_auto]">
         <input name="code" placeholder={`LO${outcomes.length + 1}`} aria-label="New outcome code" className="rounded-lg border border-black/15 bg-white px-3 py-2 text-sm font-bold" />
         <input name="outcome" placeholder="Learners will be able to..." className="min-w-0 rounded-lg border border-black/15 bg-white px-3 py-2 text-sm" />
-        <button className="inline-flex items-center justify-center gap-1 rounded-lg bg-[#6C3BFF] px-3 py-2 text-sm font-bold text-white"><Plus size={15} /> Add outcome</button>
+        <button className="inline-flex items-center justify-center gap-1 rounded-lg bg-[var(--br-chart-primary)] px-3 py-2 text-sm font-bold text-white"><Plus size={15} /> Add outcome</button>
       </ObeActionForm>
 
       <div className="border-t border-black/10 pt-5">
         <div className="flex items-center gap-2">
-          <Link2 size={17} className="text-[#6C3BFF]" />
+          <Link2 size={17} className="text-[var(--br-chart-primary)]" />
           <h3 className="font-extrabold">Course placements and mappings</h3>
         </div>
         <p className="mt-1 text-sm text-black/55">The lesson can be reused. Each placement keeps its own course-outcome mapping.</p>
@@ -138,7 +138,7 @@ export function LessonOutcomeManager({
                       key={outcome.id}
                       action={saveLessonOutcomeMapping.bind(null, lessonId, placement.id, outcome.id)}
                       successMessage={`${outcome.code} mapping saved.`}
-                      className="grid gap-2 rounded-lg bg-[#F6F7FB] p-2 sm:grid-cols-[minmax(150px,1fr)_minmax(180px,1fr)_90px_auto]"
+                      className="grid gap-2 rounded-lg bg-[var(--br-canvas-elevated)] p-2 sm:grid-cols-[minmax(150px,1fr)_minmax(180px,1fr)_90px_auto]"
                     >
                       <p className="self-center text-sm"><strong>{outcome.code}</strong> · {outcome.outcome}</p>
                       <select name="courseOutcomeId" defaultValue={mapping?.course_outcome_id ?? ""} className="min-w-0 rounded-lg border border-black/15 bg-white px-3 py-2 text-sm">

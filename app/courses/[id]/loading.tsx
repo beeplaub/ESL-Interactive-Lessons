@@ -4,7 +4,7 @@ export default function Loading() {
   return (
     <LearnerShellSkeleton showRightSidebar={false}>
       <div className="grid gap-5">
-        <div className="grid grid-cols-1 gap-6 rounded-[24px] border border-[#ECECF5] bg-white p-5 min-[1130px]:grid-cols-[340px_minmax(0,1fr)]">
+        <div className="grid grid-cols-1 gap-6 rounded-[24px] border border-[var(--br-surface-strong)] bg-white p-5 min-[1130px]:grid-cols-[340px_minmax(0,1fr)]">
           <Bone className="h-[230px] w-full rounded-[18px] sm:h-[280px] min-[1130px]:h-full" />
           <div className="flex flex-col justify-center gap-3 py-1">
             <Bone className="h-5 w-24 rounded-md" />

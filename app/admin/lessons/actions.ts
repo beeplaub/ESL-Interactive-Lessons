@@ -230,7 +230,7 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
     const people = formData.getAll("dialogue_person_name").map((value, index) => ({
       id: String(formData.getAll("dialogue_person_id")[index] || `person-${index + 1}`),
       name: String(value || "").trim(),
-      color: String(formData.getAll("dialogue_person_color")[index] || "#3E3A72"),
+      color: String(formData.getAll("dialogue_person_color")[index] || "var(--br-brand)"),
     })).filter((person) => person.name);
     const turns = formData.getAll("dialogue_turn_line").map((value, index) => {
       const speakerId = String(formData.getAll("dialogue_turn_speaker")[index] || "");

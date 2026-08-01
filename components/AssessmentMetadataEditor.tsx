@@ -39,9 +39,9 @@ export function LessonAssessmentMetadataEditor({
   if (!descriptors.length) return null;
 
   return (
-    <section className="mt-3 rounded-xl border border-[#6C3BFF]/20 bg-[#F8F6FF] p-3">
+    <section className="mt-3 rounded-xl border border-[var(--br-chart-primary)]/20 bg-[#F8F6FF] p-3">
       <div className="flex items-center gap-2">
-        <span className="grid size-8 place-items-center rounded-lg bg-[#6C3BFF]/10 text-[#6C3BFF]"><Target size={16} /></span>
+        <span className="grid size-8 place-items-center rounded-lg bg-[var(--br-chart-primary)]/10 text-[var(--br-chart-primary)]"><Target size={16} /></span>
         <div>
           <h4 className="text-sm font-extrabold">Outcome and scoring map</h4>
           <p className="text-xs text-black/50">Connect every question to measurable learning evidence.</p>
@@ -80,7 +80,7 @@ export function LessonAssessmentMetadataEditor({
                 <legend className="text-xs font-bold text-black/55">Specific learning targets</legend>
                 <div className="mt-2 flex max-h-32 flex-wrap gap-2 overflow-auto">
                   {targets.map((target) => (
-                    <label key={target.id} className="inline-flex items-center gap-1.5 rounded-full border border-black/10 bg-[#F6F7FB] px-2.5 py-1.5 text-xs">
+                    <label key={target.id} className="inline-flex items-center gap-1.5 rounded-full border border-black/10 bg-[var(--br-canvas-elevated)] px-2.5 py-1.5 text-xs">
                       <input type="checkbox" name="targetIds" value={target.id} defaultChecked={selectedTargets.has(target.id)} />
                       {target.label}
                     </label>
@@ -88,7 +88,7 @@ export function LessonAssessmentMetadataEditor({
                   {!targets.length ? <span className="text-xs text-black/45">No learning targets yet.</span> : null}
                 </div>
               </fieldset>
-              <button className="w-fit rounded-lg bg-[#6C3BFF] px-3 py-2 text-xs font-bold text-white">Save question mapping</button>
+              <button className="w-fit rounded-lg bg-[var(--br-chart-primary)] px-3 py-2 text-xs font-bold text-white">Save question mapping</button>
             </ObeActionForm>
           );
         })}
@@ -104,11 +104,11 @@ function NewLearningTarget() {
   const [message, setMessage] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   if (!open) {
-    return <button type="button" onClick={() => setOpen(true)} className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-[#6C3BFF]"><Plus size={13} /> New learning target</button>;
+    return <button type="button" onClick={() => setOpen(true)} className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-[var(--br-chart-primary)]"><Plus size={13} /> New learning target</button>;
   }
   return (
     <form
-      className="mt-3 grid gap-2 rounded-lg border border-dashed border-[#6C3BFF]/30 p-2 sm:grid-cols-[170px_1fr_auto]"
+      className="mt-3 grid gap-2 rounded-lg border border-dashed border-[var(--br-chart-primary)]/30 p-2 sm:grid-cols-[170px_1fr_auto]"
       onSubmit={(event) => {
         event.preventDefault();
         const form = event.currentTarget;
