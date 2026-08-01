@@ -111,7 +111,17 @@ export async function getPlatformStyle() {
 export async function getPlatformStyleRevisions() {
   const admin = createAdminClient();
   const { data } = await admin.from("platform_style_revisions").select("id,revision,settings,created_at").order("revision", { ascending: false }).limit(12);
-  return (data ?? []).map((row) => ({ id: row.id, revision: row.revision, settings: normalizePlatformStyle(row.settings), createdAt: row.created_at }));
+  return (data ?? []).map((row) => {
+    const raw = row.settings && typeof row.settings === "object" ? row.settings as Record<string, unknown> : {};
+    const meta = raw._meta && typeof raw._meta === "object" ? raw._meta as Record<string, unknown> : {};
+    return {
+      id: row.id,
+      revision: row.revision,
+      settings: normalizePlatformStyle(raw),
+      label: typeof meta.label === "string" ? meta.label : null,
+      createdAt: row.created_at,
+    };
+  });
 }
 
 export function platformStyleVariables(settings: PlatformStyleSettings) {

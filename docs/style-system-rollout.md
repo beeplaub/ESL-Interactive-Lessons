@@ -16,6 +16,7 @@ This checklist is the source of truth for the production design migration. It is
 - [x] Expand the platform style schema for surfaces, feedback, navigation, charts, and effects.
 - [x] Rebuild `/admin/style` into grouped, admin-readable controls with draft previews.
 - [x] Add theme export/import, per-token reset, and an admin-readable impact map.
+- [x] Add named, restorable theme snapshots.
 - [ ] Add complete contrast checks, named snapshots, comparison, import/export, and per-token reset.
 - [ ] Add a token-usage explorer so administrators can see what each control affects.
 
