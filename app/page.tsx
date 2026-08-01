@@ -6,15 +6,14 @@ import {
   ArrowRight,
   CheckCircle2,
   ChevronRight,
-  Clock3,
   Lightbulb,
   LayoutDashboard,
   Mic2,
-  PlayCircle
 } from "lucide-react";
 import { getFreshProfile, isStaff } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { MarketingCourseCard } from "@/components/MarketingCourseCard";
 
 export const metadata: Metadata = {
   title: "BrenUp | Free ESL Quizzes, CEFR Level Test and English Courses",
@@ -130,7 +129,7 @@ export default async function HomePage() {
             <div><h2 className="text-4xl font-bold tracking-tight text-[var(--br-text)]">Featured Courses</h2><p className="mt-2 text-[var(--br-text-muted)]">Curated paths from our top linguistic experts.</p></div>
             <Link href="/courses" className="inline-flex items-center gap-2 font-bold text-[var(--br-brand-strong)] transition hover:gap-3">View all courses <ChevronRight className="size-5" /></Link>
           </div>
-          {featuredCourses?.length ? <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">{featuredCourses.map((course, index) => <CourseCard key={course.id} course={course} lessonCount={lessonCountByCourse.get(course.id) ?? 0} tone={index} />)}</div> : <div className="rounded-[20px] border border-dashed border-[var(--br-border)] bg-surface px-6 py-12 text-center text-[var(--br-text-muted)]"><p className="font-semibold text-[var(--br-text)]">No published courses yet</p><p className="mt-2 text-sm">Courses will appear here as soon as they are published.</p></div>}
+          {featuredCourses?.length ? <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">{featuredCourses.map((course, index) => <MarketingCourseCard key={course.id} course={course} lessonCount={lessonCountByCourse.get(course.id) ?? 0} tone={index} />)}</div> : <div className="rounded-[20px] border border-dashed border-[var(--br-border)] bg-surface px-6 py-12 text-center text-[var(--br-text-muted)]"><p className="font-semibold text-[var(--br-text)]">No published courses yet</p><p className="mt-2 text-sm">Courses will appear here as soon as they are published.</p></div>}
         </div>
       </section>
 
@@ -153,29 +152,4 @@ function ValueCard({ icon: Icon, title, text, tone }: { icon: React.ElementType;
   return (
     <article className="group rounded-[20px] border border-[var(--br-border)] bg-surface p-8 transition duration-300 hover:-translate-y-1 hover:shadow-xl"><span className={`grid size-16 place-items-center rounded-xl transition-colors duration-300 group-hover:text-on-dark ${tones[tone]}`}><Icon className="size-8" /></span><h3 className="mt-6 text-2xl font-bold text-[var(--br-text)]">{title}</h3><p className="mt-3 leading-6 text-[var(--br-text-muted)]">{text}</p></article>
   );
-}
-
-function CourseCard({ course, lessonCount, tone }: { course: { id: string; title: string; level: string | null; thumbnail_path: string | null; cover_image_path: string | null; duration_minutes: number | null; estimated_completion_minutes: number | null }; lessonCount: number; tone: number }) {
-  const imageUrl = resolveCourseImage(course.thumbnail_path || course.cover_image_path);
-  const tones = ["from-[var(--br-action)] to-[var(--br-brand)]", "from-[var(--br-brand)] to-[var(--br-chart-primary)]", "from-[var(--br-achievement)] to-[var(--br-brand-strong)]", "from-[var(--br-success)] to-[var(--br-brand-strong)]", "from-[var(--br-action)] to-[var(--br-achievement)]", "from-[var(--br-brand-strong)] to-[var(--br-action)]"];
-  const duration = course.estimated_completion_minutes ?? course.duration_minutes;
-  return (
-    <Link href={`/courses/${course.id}`} className="group overflow-hidden rounded-[20px] border border-[var(--br-border)] bg-surface transition hover:shadow-2xl">
-      <div className={`relative h-48 overflow-hidden bg-gradient-to-br ${tones[tone % tones.length]}`}>
-        {imageUrl ? <>
-          {/* eslint-disable-next-line @next/next/no-img-element -- course images may be any administrator-supplied URL. */}
-          <img src={imageUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
-          <div className="absolute inset-0 bg-[var(--br-text)]/25 transition group-hover:bg-transparent" />
-        </> : null}
-        <span className="absolute right-3 top-3 rounded bg-surface px-2 py-1 font-mono text-sm font-semibold text-[var(--br-brand-strong)]">{course.level || "Course"}</span>
-      </div>
-      <div className="p-6"><h3 className="line-clamp-2 text-xl font-semibold text-[var(--br-text)]">{course.title}</h3><div className="mt-4 flex gap-4 text-sm text-[var(--br-text-muted)]">{duration ? <span className="inline-flex items-center gap-1"><Clock3 className="size-4" /> {duration} min</span> : null}<span className="inline-flex items-center gap-1"><PlayCircle className="size-4" /> {lessonCount} {lessonCount === 1 ? "Lesson" : "Lessons"}</span></div></div>
-    </Link>
-  );
-}
-
-function resolveCourseImage(value?: string | null) {
-  if (!value) return null;
-  if (/^https?:\/\//i.test(value)) return value;
-  return value.startsWith("/") ? value : `/${value}`;
 }
