@@ -1128,6 +1128,7 @@ function SelectedSlideEditor({
                 <option value="SENTENCE_COMBINING">Sentence Combining</option>
                 <option value="CREATIVE_WRITING">Prompted Creative Writing</option>
                 <option value="PEER_REVIEW_EDITING">Peer Review / Editing</option>
+                <option value="DIALOGUE_WRITING">Dialogue Writing Activity</option>
                 <option value="PRONUNCIATION">Pronunciation Practice</option>
                 <option value="AI_ROLEPLAY">AI Conversation Roleplay</option>
                 <option value="LIVE_SPEAK_TRANSLATE">Live Bangla → English Speaking</option>

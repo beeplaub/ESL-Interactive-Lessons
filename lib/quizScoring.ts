@@ -33,7 +33,8 @@ export type ScoredQuestion = {
     | "PARAPHRASE_PRACTICE"
     | "SENTENCE_COMBINING"
     | "CREATIVE_WRITING"
-    | "PEER_REVIEW_EDITING";
+    | "PEER_REVIEW_EDITING"
+    | "DIALOGUE_WRITING";
   options: Json | null;
   correct_answer: Json;
   max_points?: number | null;

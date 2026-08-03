@@ -21,7 +21,7 @@ import { asWritingValue, isAwaitingResolution, isWritingQuestionType, resolveWri
 export type QuizQuestion = {
   id: string;
   question_number: number;
-  question_type: "MCQ" | "TRUE_FALSE" | "FILL" | "MATCHING" | "ERROR_CORRECTION" | "REORDERING" | "MULTIPLE_SELECT" | "SHORT_ANSWER" | "DRAG_DROP" | "CATEGORIZATION" | "PRONUNCIATION" | "SUMMARIZATION" | "INFERENCE_DETECTION" | "HEADINGS_MATCHING" | "SKIM_CHALLENGE" | "PARAPHRASE_ID" | "DICTATION" | "LISTEN_AND_SELECT" | "SHADOWING" | "NOTE_TAKING_CHALLENGE" | "SOUND_DISCRIMINATION" | "LISTEN_AND_GAP_FILL" | "SENTENCE_COMPLETION" | "ESSAY_WRITING" | "EMAIL_LETTER_WRITING" | "TRANSLATION" | "PARAPHRASE_PRACTICE" | "SENTENCE_COMBINING" | "CREATIVE_WRITING" | "PEER_REVIEW_EDITING";
+  question_type: "MCQ" | "TRUE_FALSE" | "FILL" | "MATCHING" | "ERROR_CORRECTION" | "REORDERING" | "MULTIPLE_SELECT" | "SHORT_ANSWER" | "DRAG_DROP" | "CATEGORIZATION" | "PRONUNCIATION" | "SUMMARIZATION" | "INFERENCE_DETECTION" | "HEADINGS_MATCHING" | "SKIM_CHALLENGE" | "PARAPHRASE_ID" | "DICTATION" | "LISTEN_AND_SELECT" | "SHADOWING" | "NOTE_TAKING_CHALLENGE" | "SOUND_DISCRIMINATION" | "LISTEN_AND_GAP_FILL" | "SENTENCE_COMPLETION" | "ESSAY_WRITING" | "EMAIL_LETTER_WRITING" | "TRANSLATION" | "PARAPHRASE_PRACTICE" | "SENTENCE_COMBINING" | "CREATIVE_WRITING" | "PEER_REVIEW_EDITING" | "DIALOGUE_WRITING";
   question_text: string;
   description?: string | null;
   options: Json | null;
@@ -716,7 +716,8 @@ export function QuestionCard({
     question.question_type === "PARAPHRASE_PRACTICE" ||
     question.question_type === "SENTENCE_COMBINING" ||
     question.question_type === "CREATIVE_WRITING" ||
-    question.question_type === "PEER_REVIEW_EDITING";
+    question.question_type === "PEER_REVIEW_EDITING" ||
+    question.question_type === "DIALOGUE_WRITING";
   const isPartialCredit = question.question_type === "DRAG_DROP" || question.question_type === "CATEGORIZATION" || question.question_type === "FILL" || question.question_type === "PRONUNCIATION" || question.question_type === "LISTEN_AND_GAP_FILL";
   const stats = isPartialCredit && submitted ? partialCreditStats(question, value) : null;
   const correct = submitted && !isSelfChecked && !isPartialCredit ? isCorrect(question, value) : false;
@@ -811,6 +812,7 @@ export function QuestionCard({
         {question.question_type === "SENTENCE_COMBINING" ? <SentenceCombiningPlayer question={question} value={value as WritingAnswerValue | undefined} submitted={submitted} onChange={onChange} quizId={quizId} lessonId={lessonId} /> : null}
         {question.question_type === "CREATIVE_WRITING" ? <CreativeWritingPlayer question={question} value={value as WritingAnswerValue | undefined} submitted={submitted} onChange={onChange} quizId={quizId} lessonId={lessonId} /> : null}
         {question.question_type === "PEER_REVIEW_EDITING" ? <PeerReviewEditingPlayer question={question} value={value as WritingAnswerValue | undefined} submitted={submitted} onChange={onChange} quizId={quizId} lessonId={lessonId} /> : null}
+        {question.question_type === "DIALOGUE_WRITING" ? <DialogueWritingPlayer question={question} value={value as WritingAnswerValue | undefined} submitted={submitted} onChange={onChange} quizId={quizId} lessonId={lessonId} /> : null}
       </div>
       {stats && stats.correctCount < stats.total ? (
         <p className={`mt-4 rounded-[14px] p-3 text-sm font-semibold ${allWrong ? "bg-[var(--br-danger)]/10 text-[var(--br-danger)]" : "bg-[var(--br-achievement)]/10 text-amber-900"}`}>
@@ -3406,3 +3408,360 @@ function PeerReviewEditingPlayer({
     </div>
   );
 }
+
+type DialogueTurn = {
+  id: string;
+  speaker: string;
+  text: string;
+  isGiven?: boolean;
+};
+
+function DialogueWritingPlayer({
+  question,
+  value,
+  submitted,
+  onChange,
+  quizId,
+  lessonId,
+}: {
+  question: QuizQuestion;
+  value?: WritingAnswerValue;
+  submitted: boolean;
+  onChange: (val: WritingAnswerValue) => void;
+  quizId?: string | null;
+  lessonId?: string | null;
+}) {
+  const opts = asRecord(question.options);
+  const scenario = String(opts.scenario ?? question.description ?? "");
+  const speakerA = String(opts.speaker_a ?? "Speaker A");
+  const speakerB = String(opts.speaker_b ?? "Speaker B");
+  const minTurns = Number(opts.min_turns ?? 4);
+  const modelDialogue = String(opts.model_dialogue ?? question.correct_answer ?? "");
+  const rubricGuidelines = String(opts.rubric_guidelines ?? "");
+
+  const targetPhrases: string[] = useMemo(() => {
+    if (Array.isArray(opts.target_phrases)) return opts.target_phrases.map(String).filter(Boolean);
+    if (typeof opts.target_phrases === "string") return opts.target_phrases.split(",").map((s) => s.trim()).filter(Boolean);
+    return [];
+  }, [opts.target_phrases]);
+
+  const givenTurns: Array<{ speaker: string; text: string }> = useMemo(() => {
+    if (Array.isArray(opts.given_turns)) return opts.given_turns as Array<{ speaker: string; text: string }>;
+    return [];
+  }, [opts.given_turns]);
+
+  const [turns, setTurns] = useState<DialogueTurn[]>(() => {
+    if (value?.text) {
+      const lines = value.text.split("\n").map((l) => l.trim()).filter(Boolean);
+      return lines.map((line, idx) => {
+        const colonIdx = line.indexOf(":");
+        if (colonIdx > 0) {
+          const spk = line.slice(0, colonIdx).trim();
+          const txt = line.slice(colonIdx + 1).trim();
+          return { id: `turn-${idx}`, speaker: spk, text: txt };
+        }
+        return { id: `turn-${idx}`, speaker: idx % 2 === 0 ? speakerA : speakerB, text: line };
+      });
+    }
+    return givenTurns.map((g, idx) => ({
+      id: `given-${idx}`,
+      speaker: g.speaker,
+      text: g.text,
+      isGiven: true,
+    }));
+  });
+
+  const [activeSpeaker, setActiveSpeaker] = useState<string>(speakerA);
+  const [newTurnText, setNewTurnText] = useState<string>("");
+  const [isPlayingAudio, setIsPlayingAudio] = useState<boolean>(false);
+
+  const updateParentText = (currentTurns: DialogueTurn[]) => {
+    const formatted = currentTurns.map((t) => `${t.speaker}: ${t.text}`).join("\n");
+    onChange({ ...value, text: formatted });
+  };
+
+  const handleAddTurn = () => {
+    if (!newTurnText.trim()) return;
+    const nextTurns = [
+      ...turns,
+      { id: `turn-${Date.now()}`, speaker: activeSpeaker, text: newTurnText.trim() },
+    ];
+    setTurns(nextTurns);
+    setNewTurnText("");
+    setActiveSpeaker(activeSpeaker === speakerA ? speakerB : speakerA);
+    updateParentText(nextTurns);
+  };
+
+  const handleDeleteTurn = (id: string) => {
+    const nextTurns = turns.filter((t) => t.id !== id);
+    setTurns(nextTurns);
+    updateParentText(nextTurns);
+  };
+
+  const handleUpdateTurnText = (id: string, text: string) => {
+    const nextTurns = turns.map((t) => (t.id === id ? { ...t, text } : t));
+    setTurns(nextTurns);
+    updateParentText(nextTurns);
+  };
+
+  const handleUpdateTurnSpeaker = (id: string, speaker: string) => {
+    const nextTurns = turns.map((t) => (t.id === id ? { ...t, speaker } : t));
+    setTurns(nextTurns);
+    updateParentText(nextTurns);
+  };
+
+  const handlePlayAudio = () => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    if (isPlayingAudio) {
+      window.speechSynthesis.cancel();
+      setIsPlayingAudio(false);
+      return;
+    }
+    window.speechSynthesis.cancel();
+    setIsPlayingAudio(true);
+
+    let currentIdx = 0;
+    const speakNext = () => {
+      if (currentIdx >= turns.length) {
+        setIsPlayingAudio(false);
+        return;
+      }
+      const turn = turns[currentIdx];
+      const utterance = new SpeechSynthesisUtterance(`${turn.speaker} says: ${turn.text}`);
+      utterance.rate = 0.95;
+      utterance.pitch = turn.speaker === speakerA ? 1.0 : 1.2;
+      utterance.onend = () => {
+        currentIdx++;
+        speakNext();
+      };
+      utterance.onerror = () => {
+        setIsPlayingAudio(false);
+      };
+      window.speechSynthesis.speak(utterance);
+    };
+
+    speakNext();
+  };
+
+  const allTurnsText = turns.map((t) => t.text).join(" ").toLowerCase();
+
+  const allowSelfGraded = opts.allow_self_graded !== false;
+  const allowAiFeedback = opts.allow_ai_feedback !== false;
+  const allowTeacherReview = opts.allow_teacher_review !== false;
+
+  return (
+    <div className="grid gap-4">
+      {scenario ? (
+        <div className="rounded-xl border border-[var(--br-border)] bg-[var(--br-canvas-elevated)] p-4">
+          <div className="mb-1 text-xs font-bold uppercase tracking-wider text-[var(--br-chart-primary)]">
+            Scenario / Context
+          </div>
+          <p className="text-sm font-medium leading-relaxed">{scenario}</p>
+        </div>
+      ) : null}
+
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-surface-muted p-3">
+        <div className="flex items-center gap-3">
+          <span className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--br-chart-primary)]/10 px-3 py-1 text-xs font-bold text-[var(--br-chart-primary)]">
+            👤 {speakerA}
+          </span>
+          <span className="text-xs font-semibold text-[var(--br-text-muted)]">vs</span>
+          <span className="inline-flex items-center gap-1.5 rounded-lg bg-amber/10 px-3 py-1 text-xs font-bold text-amber">
+            🧑‍💼 {speakerB}
+          </span>
+        </div>
+
+        {turns.length > 0 && typeof window !== "undefined" && "speechSynthesis" in window ? (
+          <button
+            type="button"
+            onClick={handlePlayAudio}
+            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+              isPlayingAudio
+                ? "bg-coral/20 text-coral animate-pulse"
+                : "bg-surface border border-[var(--br-border)] text-ink hover:bg-black/5"
+            }`}
+          >
+            {isPlayingAudio ? "⏹ Stop Audio" : "🔊 Listen / Play Dialogue"}
+          </button>
+        ) : null}
+      </div>
+
+      {targetPhrases.length > 0 ? (
+        <div className="rounded-xl border border-[var(--br-border)] p-3">
+          <div className="mb-2 text-xs font-semibold text-[var(--br-text-muted)]">
+            Target Vocabulary & Phrases (Try to use all of these):
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {targetPhrases.map((phrase, i) => {
+              const isUsed = allTurnsText.includes(phrase.toLowerCase());
+              return (
+                <span
+                  key={i}
+                  className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium transition ${
+                    isUsed
+                      ? "bg-[var(--br-success)]/15 text-[var(--br-success)] border border-[var(--br-success)]/30"
+                      : "bg-surface-muted text-[var(--br-text-muted)] border border-[var(--br-border)]"
+                  }`}
+                >
+                  {isUsed ? "✓ " : ""}{phrase}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+
+      <div className="grid gap-3 rounded-2xl border border-[var(--br-border)] bg-surface p-4 min-h-[160px]">
+        {turns.length === 0 ? (
+          <p className="text-center py-6 text-xs text-[var(--br-text-muted)]">
+            No dialogue turns added yet. Start by writing the first turn below!
+          </p>
+        ) : (
+          turns.map((turn, i) => {
+            const isSpeakerA = turn.speaker === speakerA;
+            return (
+              <div
+                key={turn.id || i}
+                className={`flex flex-col gap-1 max-w-[85%] ${
+                  isSpeakerA ? "self-start" : "self-end items-end"
+                }`}
+              >
+                <div className="flex items-center gap-2 text-xs font-semibold text-[var(--br-text-muted)]">
+                  {!submitted && !turn.isGiven ? (
+                    <select
+                      value={turn.speaker}
+                      onChange={(e) => handleUpdateTurnSpeaker(turn.id, e.target.value)}
+                      className="rounded border border-[var(--br-border)] px-1 py-0.5 text-xs bg-surface"
+                    >
+                      <option value={speakerA}>{speakerA}</option>
+                      <option value={speakerB}>{speakerB}</option>
+                    </select>
+                  ) : (
+                    <span>{turn.speaker}</span>
+                  )}
+                  {turn.isGiven ? (
+                    <span className="rounded bg-black/10 px-1.5 py-0.2 text-[10px] uppercase tracking-wide">
+                      Given
+                    </span>
+                  ) : null}
+                </div>
+
+                <div
+                  className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed shadow-xs ${
+                    isSpeakerA
+                      ? "rounded-tl-xs bg-[var(--br-chart-primary)]/10 text-ink border border-[var(--br-chart-primary)]/20"
+                      : "rounded-tr-xs bg-amber/10 text-ink border border-amber/20"
+                  }`}
+                >
+                  {!submitted && !turn.isGiven ? (
+                    <div className="flex items-start gap-2">
+                      <textarea
+                        rows={2}
+                        value={turn.text}
+                        onChange={(e) => handleUpdateTurnText(turn.id, e.target.value)}
+                        className="w-full bg-transparent text-sm focus:outline-hidden resize-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteTurn(turn.id)}
+                        className="text-xs text-coral hover:opacity-80 p-0.5"
+                        title="Delete turn"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="whitespace-pre-wrap">{turn.text}</p>
+                  )}
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {!submitted ? (
+        <div className="rounded-xl border border-[var(--br-border)] bg-surface p-3 grid gap-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-[var(--br-text-muted)]">Add Turn As:</span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setActiveSpeaker(speakerA)}
+                className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${
+                  activeSpeaker === speakerA
+                    ? "bg-[var(--br-chart-primary)] text-on-dark shadow-xs"
+                    : "bg-surface-muted text-[var(--br-text-muted)] hover:bg-black/5"
+                }`}
+              >
+                👤 {speakerA}
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveSpeaker(speakerB)}
+                className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${
+                  activeSpeaker === speakerB
+                    ? "bg-amber text-on-dark shadow-xs"
+                    : "bg-surface-muted text-[var(--br-text-muted)] hover:bg-black/5"
+                }`}
+              >
+                🧑‍💼 {speakerB}
+              </button>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={newTurnText}
+              onChange={(e) => setNewTurnText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleAddTurn();
+                }
+              }}
+              placeholder={`Type line for ${activeSpeaker}...`}
+              className="w-full rounded-xl border border-[var(--br-border)] px-3 py-2 text-sm focus:border-[var(--br-chart-primary)] focus:outline-hidden"
+            />
+            <button
+              type="button"
+              onClick={handleAddTurn}
+              disabled={!newTurnText.trim()}
+              className="rounded-xl bg-dark px-4 py-2 text-xs font-bold text-on-dark hover:opacity-90 disabled:opacity-40 shrink-0"
+            >
+              + Add Line
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {turns.length < minTurns && !submitted ? (
+        <p className="text-xs font-medium text-amber-600">
+          💡 Try adding at least {minTurns} turns total ({minTurns - turns.length} more needed).
+        </p>
+      ) : null}
+
+      {submitted && (
+        <WritingEvaluationInterface
+          activityId={question.id}
+          activityType="DIALOGUE_WRITING"
+          prompt={question.question_text}
+          submissionText={turns.map((t) => `${t.speaker}: ${t.text}`).join("\n")}
+          modelAnswer={modelDialogue}
+          modelDescription={rubricGuidelines}
+          rubricGuidance={rubricGuidelines}
+          allowSelfGraded={allowSelfGraded}
+          allowAiFeedback={allowAiFeedback}
+          allowTeacherReview={allowTeacherReview}
+          onGraded={(outcome) => onChange(outcome)}
+          initialValue={value}
+          questionKey="1"
+          quizId={quizId}
+          lessonId={lessonId}
+        />
+      )}
+    </div>
+  );
+}
+

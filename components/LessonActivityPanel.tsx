@@ -388,6 +388,21 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
       correctAnswer: String(item.model_edited_draft ?? item.correct_answer ?? ""),
     }));
   }
+  if (activityType === "DIALOGUE_WRITING") {
+    return writingQuestionsFromData(data, "DIALOGUE_WRITING", "Write a dialogue responding to the scenario.", (item) => ({
+      options: {
+        scenario: item.scenario,
+        speaker_a: item.speaker_a,
+        speaker_b: item.speaker_b,
+        given_turns: item.given_turns,
+        target_phrases: item.target_phrases,
+        min_turns: item.min_turns,
+        model_dialogue: item.model_dialogue,
+        rubric_guidelines: item.rubric_guidelines,
+      },
+      correctAnswer: String(item.model_dialogue ?? item.correct_answer ?? ""),
+    }));
+  }
   if (activityType === "DRAG_DROP") {
     const rawItems: unknown[] = Array.isArray(data.items) ? data.items : [];
     const items = rawItems.map((item, index) => {

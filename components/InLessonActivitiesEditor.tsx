@@ -124,6 +124,7 @@ function labelFor(type: string) {
   if (type === "SENTENCE_COMBINING") return "Sentence Combining";
   if (type === "CREATIVE_WRITING") return "Prompted Creative Writing";
   if (type === "PEER_REVIEW_EDITING") return "Peer Review / Collaborative Editing";
+  if (type === "DIALOGUE_WRITING") return "Dialogue Writing Activity";
   if (type === "AI_ROLEPLAY") return "AI Conversation Roleplay";
   if (type === "LIVE_SPEAK_TRANSLATE") return "Live Bangla to English Speaking";
   return `${type.replaceAll("_", " ")} Activity`;
@@ -680,9 +681,10 @@ function ActivityPanel({
               {activity.activity_type === "SENTENCE_COMBINING" ? <SentenceCombiningEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "CREATIVE_WRITING" ? <CreativeWritingEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "PEER_REVIEW_EDITING" ? <PeerReviewEditingEditor activity={activity} onSave={save} /> : null}
+              {activity.activity_type === "DIALOGUE_WRITING" ? <DialogueWritingEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "AI_ROLEPLAY" ? <AiRoleplayEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "LIVE_SPEAK_TRANSLATE" ? <LiveSpeakTranslateEditor activity={activity} onSave={save} /> : null}
-              {!["MCQ", "GAP_FILL", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "SUMMARIZATION", "INFERENCE_DETECTION", "HEADINGS_MATCHING", "SKIM_CHALLENGE", "PARAPHRASE_ID", "DICTATION", "LISTEN_AND_SELECT", "SHADOWING", "NOTE_TAKING_CHALLENGE", "SOUND_DISCRIMINATION", "LISTEN_AND_GAP_FILL", "SENTENCE_COMPLETION", "ESSAY_WRITING", "EMAIL_LETTER_WRITING", "TRANSLATION", "PARAPHRASE_PRACTICE", "SENTENCE_COMBINING", "CREATIVE_WRITING", "PEER_REVIEW_EDITING", "AI_ROLEPLAY"].includes(activity.activity_type) ? (
+              {!["MCQ", "GAP_FILL", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "SUMMARIZATION", "INFERENCE_DETECTION", "HEADINGS_MATCHING", "SKIM_CHALLENGE", "PARAPHRASE_ID", "DICTATION", "LISTEN_AND_SELECT", "SHADOWING", "NOTE_TAKING_CHALLENGE", "SOUND_DISCRIMINATION", "LISTEN_AND_GAP_FILL", "SENTENCE_COMPLETION", "ESSAY_WRITING", "EMAIL_LETTER_WRITING", "TRANSLATION", "PARAPHRASE_PRACTICE", "SENTENCE_COMBINING", "CREATIVE_WRITING", "PEER_REVIEW_EDITING", "DIALOGUE_WRITING", "AI_ROLEPLAY"].includes(activity.activity_type) ? (
                 <p className="rounded-md bg-surface-muted p-3 text-sm text-[var(--br-text-muted)]">
                   This activity type has starter data and preview support. A detailed visual editor for it will be added in the next activity-builder pass.
                 </p>
@@ -3223,3 +3225,199 @@ function LiveSpeakTranslateEditor({ activity, onSave }: { activity: Activity; on
     </div>
   );
 }
+
+function DialogueWritingEditor({
+  activity,
+  onSave,
+}: {
+  activity: Activity;
+  onSave: (options: Json, needsReview: boolean) => void;
+}) {
+  const currentOptions = asRecord(activity.activity_data);
+  const [instruction, setInstruction] = useState<string>(String(currentOptions.instruction || currentOptions.prompt || "Write a dialogue responding to the scenario below."));
+  const [scenario, setScenario] = useState<string>(String(currentOptions.scenario || ""));
+  const [speakerA, setSpeakerA] = useState<string>(String(currentOptions.speaker_a || "Speaker A"));
+  const [speakerB, setSpeakerB] = useState<string>(String(currentOptions.speaker_b || "Speaker B"));
+  const [givenTurns, setGivenTurns] = useState<Array<{ speaker: string; text: string }>>(
+    Array.isArray(currentOptions.given_turns)
+      ? (currentOptions.given_turns as Array<{ speaker: string; text: string }>)
+      : []
+  );
+  const [targetPhrases, setTargetPhrases] = useState<string>(
+    Array.isArray(currentOptions.target_phrases)
+      ? (currentOptions.target_phrases as string[]).join(", ")
+      : String(currentOptions.target_phrases || "")
+  );
+  const [minTurns, setMinTurns] = useState<number>(Number(currentOptions.min_turns ?? 4));
+  const [modelDialogue, setModelDialogue] = useState<string>(String(currentOptions.model_dialogue || currentOptions.model_answer || ""));
+  const [rubricGuidelines, setRubricGuidelines] = useState<string>(String(currentOptions.rubric_guidelines || ""));
+
+  const addGivenTurn = () => {
+    setGivenTurns((prev) => [...prev, { speaker: speakerA, text: "" }]);
+  };
+
+  const removeGivenTurn = (index: number) => {
+    setGivenTurns((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const updateGivenTurn = (index: number, field: "speaker" | "text", val: string) => {
+    setGivenTurns((prev) => prev.map((t, i) => (i === index ? { ...t, [field]: val } : t)));
+  };
+
+  return (
+    <div className="grid gap-4">
+      <label className="text-sm font-medium">
+        Activity Instruction (Heading)
+        <input
+          value={instruction}
+          onChange={(e) => setInstruction(e.target.value)}
+          placeholder="e.g. Write a dialogue between a waiter and customer."
+          className="mt-1 w-full rounded-md border border-[var(--br-border)] p-2 text-sm"
+        />
+      </label>
+
+      <label className="text-sm font-medium">
+        Scenario & Context
+        <textarea
+          rows={3}
+          value={scenario}
+          onChange={(e) => setScenario(e.target.value)}
+          placeholder="Describe the context/situation for the dialogue..."
+          className="mt-1 w-full rounded-md border border-[var(--br-border)] p-2 text-sm"
+        />
+      </label>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="text-sm font-medium">
+          Speaker A Role/Name
+          <input
+            value={speakerA}
+            onChange={(e) => setSpeakerA(e.target.value)}
+            placeholder="e.g. Waiter / Receptionist"
+            className="mt-1 w-full rounded-md border border-[var(--br-border)] p-2 text-sm"
+          />
+        </label>
+        <label className="text-sm font-medium">
+          Speaker B Role/Name
+          <input
+            value={speakerB}
+            onChange={(e) => setSpeakerB(e.target.value)}
+            placeholder="e.g. Customer / Guest"
+            className="mt-1 w-full rounded-md border border-[var(--br-border)] p-2 text-sm"
+          />
+        </label>
+      </div>
+
+      <div className="rounded-lg border border-[var(--br-border)] p-3">
+        <div className="mb-2 flex items-center justify-between">
+          <span className="text-sm font-semibold">Given Starter Turns (Optional)</span>
+          <button
+            type="button"
+            onClick={addGivenTurn}
+            className="rounded-md bg-amber/10 px-3 py-1 text-xs font-medium text-amber hover:bg-amber/20"
+          >
+            + Add Starter Turn
+          </button>
+        </div>
+        {givenTurns.length === 0 ? (
+          <p className="text-xs text-[var(--br-text-muted)]">No starter turns added yet. Learners will write all turns from scratch.</p>
+        ) : (
+          <div className="grid gap-2">
+            {givenTurns.map((turn, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <select
+                  value={turn.speaker}
+                  onChange={(e) => updateGivenTurn(i, "speaker", e.target.value)}
+                  className="rounded-md border border-[var(--br-border)] p-1.5 text-xs font-medium"
+                >
+                  <option value={speakerA}>{speakerA}</option>
+                  <option value={speakerB}>{speakerB}</option>
+                </select>
+                <input
+                  value={turn.text}
+                  onChange={(e) => updateGivenTurn(i, "text", e.target.value)}
+                  placeholder="Turn line text..."
+                  className="min-w-0 flex-1 rounded-md border border-[var(--br-border)] p-1.5 text-xs"
+                />
+                <button
+                  type="button"
+                  onClick={() => removeGivenTurn(i)}
+                  className="text-xs text-coral hover:underline"
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="text-sm font-medium">
+          Target Phrases (comma separated)
+          <input
+            value={targetPhrases}
+            onChange={(e) => setTargetPhrases(e.target.value)}
+            placeholder="e.g. check in, reservation, keycard"
+            className="mt-1 w-full rounded-md border border-[var(--br-border)] p-2 text-sm"
+          />
+        </label>
+        <label className="text-sm font-medium">
+          Minimum Turns Required
+          <input
+            type="number"
+            min={1}
+            value={minTurns}
+            onChange={(e) => setMinTurns(Number(e.target.value))}
+            className="mt-1 w-full rounded-md border border-[var(--br-border)] p-2 text-sm"
+          />
+        </label>
+      </div>
+
+      <label className="text-sm font-medium">
+        Model / Exemplar Dialogue
+        <textarea
+          rows={5}
+          value={modelDialogue}
+          onChange={(e) => setModelDialogue(e.target.value)}
+          placeholder="Model answer dialogue..."
+          className="mt-1 w-full rounded-md border border-[var(--br-border)] p-2 text-sm font-mono"
+        />
+      </label>
+
+      <label className="text-sm font-medium">
+        Rubric / AI Guidelines
+        <textarea
+          rows={3}
+          value={rubricGuidelines}
+          onChange={(e) => setRubricGuidelines(e.target.value)}
+          placeholder="Evaluation guidelines for AI/Teacher review..."
+          className="mt-1 w-full rounded-md border border-[var(--br-border)] p-2 text-xs"
+        />
+      </label>
+
+      <SaveButton
+        onClick={() =>
+          onSave(
+            {
+              instruction,
+              prompt: instruction,
+              scenario,
+              speaker_a: speakerA,
+              speaker_b: speakerB,
+              given_turns: givenTurns,
+              target_phrases: targetPhrases.split(",").map((s) => s.trim()).filter(Boolean),
+              min_turns: minTurns,
+              model_dialogue: modelDialogue,
+              model_answer: modelDialogue,
+              correct_answer: modelDialogue,
+              rubric_guidelines: rubricGuidelines
+            } as Json,
+            !scenario.trim() && givenTurns.length === 0
+          )
+        }
+      />
+    </div>
+  );
+}
+

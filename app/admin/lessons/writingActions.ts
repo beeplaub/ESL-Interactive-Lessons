@@ -246,6 +246,9 @@ export async function evaluateWritingWithAiAction(input: {
   rubricGuidance?: string;
   modelAnswer?: string;
 }) {
+  if (input.activityType === "DIALOGUE_WRITING") {
+    return evaluateDialogueWritingWithAiAction(input);
+  }
   try {
     const contextParts = [
       input.modelAnswer ? `Model/reference answer: "${input.modelAnswer}"` : "",
@@ -288,3 +291,112 @@ export async function evaluateWritingWithAiAction(input: {
     };
   }
 }
+
+const dialogueFeedbackSchema = {
+  type: "object",
+  properties: {
+    scores: {
+      type: "object",
+      properties: {
+        turn_taking_flow: { type: "number" },
+        grammar_accuracy: { type: "number" },
+        pragmatic_tone: { type: "number" },
+        target_phrase_usage: { type: "number" },
+        overall: { type: "number" }
+      },
+      required: ["turn_taking_flow", "grammar_accuracy", "pragmatic_tone", "target_phrase_usage", "overall"]
+    },
+    feedback: { type: "string" },
+    target_phrases_found: {
+      type: "array",
+      items: { type: "string" }
+    },
+    corrections: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          original: { type: "string" },
+          corrected: { type: "string" },
+          explanation: { type: "string" }
+        },
+        required: ["original", "corrected", "explanation"]
+      }
+    }
+  },
+  required: ["scores", "feedback", "target_phrases_found", "corrections"]
+};
+
+type DialogueFeedbackResult = {
+  scores: {
+    turn_taking_flow: number;
+    grammar_accuracy: number;
+    pragmatic_tone: number;
+    target_phrase_usage: number;
+    overall: number;
+  };
+  feedback: string;
+  target_phrases_found: string[];
+  corrections: { original: string; corrected: string; explanation: string }[];
+};
+
+export async function evaluateDialogueWritingWithAiAction(input: {
+  prompt: string;
+  scenario?: string;
+  speakerA?: string;
+  speakerB?: string;
+  targetPhrases?: string[];
+  submissionText: string;
+  rubricGuidance?: string;
+  modelAnswer?: string;
+}) {
+  try {
+    const targetPhrasesList = (input.targetPhrases ?? []).filter(Boolean);
+    const contextParts = [
+      input.scenario ? `Scenario / Context: "${input.scenario}"` : "",
+      input.speakerA || input.speakerB ? `Roles: ${input.speakerA || "Speaker A"} and ${input.speakerB || "Speaker B"}` : "",
+      targetPhrasesList.length > 0 ? `Target Vocabulary/Phrases to check: ${targetPhrasesList.join(", ")}` : "",
+      input.modelAnswer ? `Model Dialogue: "${input.modelAnswer}"` : "",
+      input.rubricGuidance ? `Rubric Guidelines: ${input.rubricGuidance}` : ""
+    ].filter(Boolean).join("\n");
+
+    const result = await callGemini<DialogueFeedbackResult>({
+      templateKey: "learner_writing_feedback",
+      variables: {
+        prompt: `Dialogue Writing Evaluation Task:\nTask Instruction: ${input.prompt}\n${contextParts}\nEvaluate the student's written multi-turn dialogue. Analyze natural turn-taking flow between the characters, grammatical accuracy, appropriateness of tone for the situation, and correct usage of target phrases.`,
+        submission: input.submissionText,
+        level: "B1"
+      },
+      responseSchema: dialogueFeedbackSchema
+    });
+
+    const overall = Number(result.scores?.overall);
+    if (!Number.isFinite(overall)) {
+      throw new Error("AI evaluation did not return a valid overall score.");
+    }
+
+    return {
+      success: true as const,
+      data: {
+        score: Math.max(0, Math.min(100, Math.round(overall))),
+        feedbackSummary: String(result.feedback ?? ""),
+        grammarFeedback: `Grammar & Accuracy: ${result.scores?.grammar_accuracy ?? "-"}/100`,
+        vocabularyFeedback: `Target Phrases: ${result.scores?.target_phrase_usage ?? "-"}/100 | Flow: ${result.scores?.turn_taking_flow ?? "-"}/100`,
+        flowFeedback: `Conversational Flow: ${result.scores?.turn_taking_flow ?? "-"}/100`,
+        toneFeedback: `Pragmatics & Tone: ${result.scores?.pragmatic_tone ?? "-"}/100`,
+        phraseFeedback: `Target Phrases: ${result.scores?.target_phrase_usage ?? "-"}/100`,
+        targetPhrasesFound: result.target_phrases_found ?? [],
+        suggestions: Array.isArray(result.corrections)
+          ? result.corrections.map((c) => `"${c.original}" → "${c.corrected}" — ${c.explanation}`)
+          : []
+      }
+    };
+  } catch (error) {
+    console.error("evaluateDialogueWritingWithAiAction failed:", error);
+    return {
+      success: false as const,
+      error: "We couldn't generate an AI evaluation for this dialogue right now. Please try again shortly."
+    };
+  }
+}
+

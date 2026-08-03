@@ -53,7 +53,7 @@ const questionTypes: BuilderQuestion["questionType"][] = [
   "SHORT_ANSWER", "ERROR_CORRECTION", "REORDERING", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "SUMMARIZATION", "INFERENCE_DETECTION",
   "HEADINGS_MATCHING", "SKIM_CHALLENGE", "PARAPHRASE_ID",
   "DICTATION", "LISTEN_AND_SELECT", "SHADOWING", "NOTE_TAKING_CHALLENGE", "SOUND_DISCRIMINATION", "LISTEN_AND_GAP_FILL",
-  "SENTENCE_COMPLETION", "ESSAY_WRITING", "EMAIL_LETTER_WRITING", "TRANSLATION", "PARAPHRASE_PRACTICE", "SENTENCE_COMBINING", "CREATIVE_WRITING", "PEER_REVIEW_EDITING"
+  "SENTENCE_COMPLETION", "ESSAY_WRITING", "EMAIL_LETTER_WRITING", "TRANSLATION", "PARAPHRASE_PRACTICE", "SENTENCE_COMBINING", "CREATIVE_WRITING", "PEER_REVIEW_EDITING", "DIALOGUE_WRITING"
 ];
 
 const typeLabels: Record<string, string> = {
@@ -86,7 +86,8 @@ const typeLabels: Record<string, string> = {
   PARAPHRASE_PRACTICE: "Paraphrasing Tool",
   SENTENCE_COMBINING: "Sentence Combining",
   CREATIVE_WRITING: "Prompted Creative Writing",
-  PEER_REVIEW_EDITING: "Peer Review / Editing"
+  PEER_REVIEW_EDITING: "Peer Review / Editing",
+  DIALOGUE_WRITING: "Dialogue Writing Activity"
 };
 
 const PRONUNCIATION_COLORS = ["var(--br-achievement)", "var(--br-success)", "var(--br-info)", "#f472b6", "#a78bfa", "var(--br-achievement)"];
@@ -193,6 +194,7 @@ function defaultQuestion(type: BuilderQuestion["questionType"]): BuilderQuestion
   if (type === "SENTENCE_COMBINING") return { id, questionType: type, questionText: "Combine the simple sentences into a complex sentence.", description: "", options: { input_sentences: ["The weather was cold.", "We stayed inside.", "We drank hot chocolate."], model_combined_sentence: "Because the weather was cold, we stayed inside and drank hot chocolate.", explanation: "Uses causal conjunction 'because'." }, correctAnswer: "Combined sentence", assessment };
   if (type === "CREATIVE_WRITING") return { id, questionType: type, questionText: "Write a short creative story incorporating the required vocabulary.", description: "", options: { story_starter: "As the sun set over the quiet town...", required_vocabulary: ["whisper", "shadow", "discovery"], model_story: "As the sun set over the quiet town, Maria heard a faint whisper...", model_description: "Includes all 3 required vocabulary words." }, correctAnswer: "Creative story response", assessment };
   if (type === "PEER_REVIEW_EDITING") return { id, questionType: type, questionText: "Edit and critique the sample peer text below.", description: "", options: { sample_draft: "Yesterday I go to market and buyed many apples.", error_focus_areas: ["Past tense verbs", "Article usage"], model_edited_draft: "Yesterday I went to the market and bought many apples.", model_feedback_comments: "Remember irregular past tense verbs 'went' and 'bought'." }, correctAnswer: "Edited peer draft", assessment };
+  if (type === "DIALOGUE_WRITING") return { id, questionType: type, questionText: "Write a dialogue responding to the scenario below.", description: "", options: { scenario: "A customer ordering food at a café.", speaker_a: "Waiter", speaker_b: "Customer", given_turns: [{ speaker: "Waiter", text: "Hello! Welcome to Café Oasis. What can I get for you?" }], target_phrases: ["recommend", "vegetarian option", "bill"], min_turns: 4, model_dialogue: "Waiter: Hello! Welcome to Café Oasis...\nCustomer: Hi! What do you recommend?\nWaiter: Our vegetable soup is delicious.\nCustomer: Great, I'd like to order that, please.", rubric_guidelines: "Check natural turn-taking, polite requests, and correct usage of target phrases." }, correctAnswer: "Sample Dialogue Response", assessment };
   return { id, questionType: type, questionText: "Choose the best answer.", description: "", options: { A: "Option A", B: "Option B", C: "Option C", D: "Option D" }, correctAnswer: "A", assessment };
 }
 
@@ -2278,6 +2280,88 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
             onChange={(e) => onChange({ options: { ...options, model_feedback_comments: e.target.value, explanation: e.target.value } as Json })}
             placeholder="Constructive feedback points to highlight"
             className="mt-1 w-full rounded border border-[var(--br-border)] px-3 py-2 text-xs"
+          />
+        </label>
+        <WritingGradingSettings options={options} onChange={(opts) => onChange({ options: opts })} />
+      </div>
+    );
+  }
+
+  if (question.questionType === "DIALOGUE_WRITING") {
+    const speakerA = String(options.speaker_a ?? "Speaker A");
+    const speakerB = String(options.speaker_b ?? "Speaker B");
+    const targetPhrases = Array.isArray(options.target_phrases)
+      ? (options.target_phrases as string[]).join(", ")
+      : String(options.target_phrases ?? "");
+
+    return (
+      <div className="grid gap-3">
+        <label className="text-sm font-medium">
+          Scenario / Context
+          <textarea
+            rows={3}
+            value={String(options.scenario ?? question.description ?? "")}
+            onChange={(e) => onChange({ description: e.target.value, options: { ...options, scenario: e.target.value } as Json })}
+            placeholder="Describe the context for the dialogue..."
+            className="mt-1 w-full rounded border border-[var(--br-border)] px-3 py-2 text-sm"
+          />
+        </label>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="text-sm font-medium">
+            Speaker A Role
+            <input
+              value={speakerA}
+              onChange={(e) => onChange({ options: { ...options, speaker_a: e.target.value } as Json })}
+              placeholder="e.g. Waiter"
+              className="mt-1 w-full rounded border border-[var(--br-border)] px-3 py-2 text-sm"
+            />
+          </label>
+          <label className="text-sm font-medium">
+            Speaker B Role
+            <input
+              value={speakerB}
+              onChange={(e) => onChange({ options: { ...options, speaker_b: e.target.value } as Json })}
+              placeholder="e.g. Customer"
+              className="mt-1 w-full rounded border border-[var(--br-border)] px-3 py-2 text-sm"
+            />
+          </label>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="text-sm font-medium">
+            Target Phrases (comma separated)
+            <input
+              value={targetPhrases}
+              onChange={(e) =>
+                onChange({
+                  options: {
+                    ...options,
+                    target_phrases: e.target.value.split(",").map((s) => s.trim()).filter(Boolean),
+                  } as Json,
+                })
+              }
+              placeholder="e.g. recommend, vegetarian option, bill"
+              className="mt-1 w-full rounded border border-[var(--br-border)] px-3 py-2 text-sm"
+            />
+          </label>
+          <label className="text-sm font-medium">
+            Min Turns Required
+            <input
+              type="number"
+              min={1}
+              value={Number(options.min_turns ?? 4)}
+              onChange={(e) => onChange({ options: { ...options, min_turns: Number(e.target.value) } as Json })}
+              className="mt-1 w-full rounded border border-[var(--br-border)] px-3 py-2 text-sm"
+            />
+          </label>
+        </div>
+        <label className="text-sm font-medium">
+          Model Exemplar Dialogue
+          <textarea
+            rows={4}
+            value={String(options.model_dialogue ?? question.correctAnswer ?? "")}
+            onChange={(e) => onChange({ correctAnswer: e.target.value, options: { ...options, model_dialogue: e.target.value } as Json })}
+            placeholder="Model full dialogue..."
+            className="mt-1 w-full rounded border border-[var(--br-border)] px-3 py-2 text-sm font-mono"
           />
         </label>
         <WritingGradingSettings options={options} onChange={(opts) => onChange({ options: opts })} />
