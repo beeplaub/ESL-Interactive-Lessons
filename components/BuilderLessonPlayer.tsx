@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { TouchEvent } from "react";
-import { ArrowLeft, ArrowRight, Award, BookOpen, CheckCircle2, ChevronLeft, Languages, Lock, NotebookPen, Pause, Play, PenLine, RotateCcw, Sparkles, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Award, BookOpen, CheckCircle2, ChevronLeft, Languages, Lock, Music2, NotebookPen, Pause, Play, PenLine, RotateCcw, Sparkles, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { LessonActivityPanel, lessonActivityTotalPoints } from "@/components/LessonActivityPanel";
@@ -60,8 +60,19 @@ function LessonCompletionModal({ lessonTitle, score, total, activitiesAttempted,
   </div>;
 }
 
-function NarrationPill({ src, lessonId, slideId, translationEnabled = false, narrationLanguage = "en" }: { src: string; lessonId: string; slideId: string; translationEnabled?: boolean; narrationLanguage?: "en" | "bn" }) {
+function youtubeVideoId(url: string) {
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname.includes("youtu.be")) return parsed.pathname.split("/").filter(Boolean)[0] ?? null;
+    if (!parsed.hostname.includes("youtube.com")) return null;
+    if (parsed.pathname.startsWith("/shorts/") || parsed.pathname.startsWith("/embed/")) return parsed.pathname.split("/")[2] ?? null;
+    return parsed.searchParams.get("v");
+  } catch { return null; }
+}
+
+function NarrationPill({ src, lessonId, slideId, sourceType = "RECORDED", translationEnabled = false, narrationLanguage = "en" }: { src: string; lessonId: string; slideId: string; sourceType?: "RECORDED" | "UPLOADED" | "LINK"; translationEnabled?: boolean; narrationLanguage?: "en" | "bn" }) {
   const audioRef = useRef<HTMLAudioElement>(null);
+  const youtubeRef = useRef<HTMLIFrameElement>(null);
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -71,9 +82,20 @@ function NarrationPill({ src, lessonId, slideId, translationEnabled = false, nar
   const [originalFinished, setOriginalFinished] = useState(false);
   const [translationState, setTranslationState] = useState<"idle" | "loading" | "playing" | "done" | "error">("idle");
   const [translationError, setTranslationError] = useState<string | null>(null);
+  const videoId = useMemo(() => sourceType === "LINK" ? youtubeVideoId(src) : null, [sourceType, src]);
+  const isYouTubeAudio = Boolean(videoId);
 
   // Autoplay on mount
   useEffect(() => {
+    if (isYouTubeAudio) {
+      setPlaying(false);
+      setCurrentTime(0);
+      setDuration(0);
+      setAutoplayBlocked(false);
+      setOriginalFinished(false);
+      setTranslationState("idle");
+      return;
+    }
     const audio = audioRef.current;
     if (!audio) return;
     audio.playbackRate = 1;
@@ -90,21 +112,32 @@ function NarrationPill({ src, lessonId, slideId, translationEnabled = false, nar
       audio.pause();
       audio.currentTime = 0;
     };
-  }, [src]);
+  }, [src, isYouTubeAudio]);
+
+  function sendYouTube(command: "playVideo" | "pauseVideo" | "seekTo") {
+    youtubeRef.current?.contentWindow?.postMessage(JSON.stringify({ event: "command", func: command, args: command === "seekTo" ? [Math.max(0, currentTime), true] : [] }), "https://www.youtube-nocookie.com");
+  }
 
   function toggle() {
+    if (isYouTubeAudio) {
+      sendYouTube(playing ? "pauseVideo" : "playVideo");
+      setPlaying((value) => !value);
+      return;
+    }
     const a = audioRef.current;
     if (!a) return;
     if (a.paused) { void a.play(); } else { a.pause(); }
   }
 
   function skip(secs: number) {
+    if (isYouTubeAudio) return;
     const a = audioRef.current;
     if (!a) return;
     a.currentTime = Math.max(0, Math.min(a.duration, a.currentTime + secs));
   }
 
   function setPlaybackSpeed(s: number) {
+    if (isYouTubeAudio) return;
     const a = audioRef.current;
     if (a) a.playbackRate = s;
     setSpeed(s);
@@ -122,7 +155,13 @@ function NarrationPill({ src, lessonId, slideId, translationEnabled = false, nar
     <div
       className={`flex flex-col gap-1.5 rounded-2xl bg-black/35 px-3 py-2 backdrop-blur-sm transition-all duration-200 ${expanded ? "w-48" : "w-auto"}`}
     >
-      <audio
+      {isYouTubeAudio ? <iframe
+        ref={youtubeRef}
+        title="Study audio"
+        className="pointer-events-none absolute size-px opacity-0"
+        src={`https://www.youtube-nocookie.com/embed/${videoId}?enablejsapi=1&controls=0&playsinline=1&rel=0&modestbranding=1&origin=${encodeURIComponent(typeof window === "undefined" ? "" : window.location.origin)}`}
+        allow="autoplay; encrypted-media"
+      /> : <audio
         ref={audioRef}
         src={src}
         preload="auto"
@@ -131,7 +170,7 @@ function NarrationPill({ src, lessonId, slideId, translationEnabled = false, nar
         onEnded={() => { setPlaying(false); setCurrentTime(duration); setOriginalFinished(true); }}
         onTimeUpdate={() => setCurrentTime(audioRef.current?.currentTime ?? 0)}
         onLoadedMetadata={() => setDuration(audioRef.current?.duration ?? 0)}
-      />
+      />}
 
       {/* Autoplay blocked prompt */}
       {autoplayBlocked && !playing && (
@@ -156,7 +195,7 @@ function NarrationPill({ src, lessonId, slideId, translationEnabled = false, nar
           >
             {playing ? <Pause size={10} /> : <Play size={10} />}
           </button>
-          {translationEnabled && originalFinished ? (
+          {translationEnabled && sourceType !== "LINK" && originalFinished ? (
             <button
               type="button"
               disabled={translationState === "loading" || translationState === "playing"}
@@ -170,7 +209,7 @@ function NarrationPill({ src, lessonId, slideId, translationEnabled = false, nar
           ) : null}
 
           {/* Progress bar + time */}
-          <button
+          {isYouTubeAudio ? <span className="flex min-w-0 flex-1 items-center gap-1.5 text-[10px] font-semibold text-white/70"><Music2 size={11} /> Study audio</span> : <button
             type="button"
             onClick={() => setExpanded((p) => !p)}
             className="flex min-w-0 flex-1 items-center gap-1.5 text-left"
@@ -185,12 +224,12 @@ function NarrationPill({ src, lessonId, slideId, translationEnabled = false, nar
             <span className="shrink-0 text-[10px] tabular-nums text-white/60">
               {fmt(currentTime)}/{fmt(duration)}
             </span>
-          </button>
+          </button>}
         </div>
       )}
 
       {/* Expanded controls — skip + speed */}
-      {expanded && !autoplayBlocked && (
+      {expanded && !autoplayBlocked && !isYouTubeAudio && (
         <div className="flex items-center justify-between gap-1">
           {/* Skip back 5s */}
           <button
@@ -243,7 +282,7 @@ export function BuilderLessonPlayer({
   initialProgress: Progress; activityAttempts?: ActivityAttempt[];
   initialNotes?: Record<string, string>;
   narrationMap?: Record<string, string>;
-  narrationConfigMap?: Record<string, { translationEnabled: boolean; narrationLanguage: "en" | "bn" }>;
+  narrationConfigMap?: Record<string, { translationEnabled: boolean; narrationLanguage: "en" | "bn"; sourceType?: "RECORDED" | "UPLOADED" | "LINK" }>;
   courseItemId?: string | null;
   backHref?: string;
   liveSession?: LiveSessionMode | null;
@@ -672,7 +711,7 @@ export function BuilderLessonPlayer({
                   Slide {index + 1} of {slides.length}
                 </p>
                 {narrationUrl && (
-                  <NarrationPill key={slide.id} src={narrationUrl} lessonId={lesson.id} slideId={slide.id} translationEnabled={narrationConfig?.translationEnabled} narrationLanguage={narrationConfig?.narrationLanguage} />
+                  <NarrationPill key={slide.id} src={narrationUrl} lessonId={lesson.id} slideId={slide.id} sourceType={narrationConfig?.sourceType} translationEnabled={narrationConfig?.translationEnabled} narrationLanguage={narrationConfig?.narrationLanguage} />
                 )}
               </div>
 

@@ -157,7 +157,7 @@ export default async function LessonPage({
     admin.from("lesson_slide_activities").select("id,slide_id,slide_number,activity_type,activity_data").eq("lesson_id", lessonId).order("slide_number", { ascending: true }),
     admin.from("lesson_progress").select("current_slide_number,completed,notes").eq("lesson_id", lessonId).eq("user_id", user.id).maybeSingle(),
     admin.from("quiz_attempts").select("lesson_slide_activity_id,score,total,answers,completed_at").eq("user_id", user.id).not("lesson_slide_activity_id", "is", null).order("completed_at", { ascending: false }),
-    admin.from("lesson_audio_files").select("id,slide_id,storage_path,storage_provider,storage_bucket,public_url,label,linked_slide_number,translation_enabled,narration_language").eq("lesson_id", lessonId).eq("label", "narration"),
+    admin.from("lesson_audio_files").select("id,slide_id,storage_path,storage_provider,storage_bucket,public_url,external_url,source_type,label,linked_slide_number,translation_enabled,narration_language").eq("lesson_id", lessonId).eq("label", "narration"),
   ]);
 
   if (!lesson) notFound();
@@ -165,24 +165,25 @@ export default async function LessonPage({
   // Generate signed URLs for narrations
   const narrations = await Promise.all(
     (audioFiles ?? []).map(async (af) => {
-      const url = await resolveMediaUrl(admin, {
+      const url = af.external_url || await resolveMediaUrl(admin, {
         provider: af.storage_provider,
         bucket: af.storage_bucket ?? "lesson-audio",
         path: af.storage_path,
         publicUrl: af.public_url,
       });
       const narrationLanguage: "en" | "bn" = af.narration_language === "bn" ? "bn" : "en";
-      return { slideId: af.slide_id, signedUrl: url, translationEnabled: Boolean(af.translation_enabled), narrationLanguage };
+      const sourceType = af.source_type === "LINK" ? "LINK" as const : af.source_type === "UPLOADED" ? "UPLOADED" as const : "RECORDED" as const;
+      return { slideId: af.slide_id, signedUrl: url, translationEnabled: sourceType === "LINK" ? false : Boolean(af.translation_enabled), narrationLanguage, sourceType };
     })
   );
 
   // Map slideId → signedUrl
   const narrationMap: Record<string, string> = {};
-  const narrationConfigMap: Record<string, { translationEnabled: boolean; narrationLanguage: "en" | "bn" }> = {};
+  const narrationConfigMap: Record<string, { translationEnabled: boolean; narrationLanguage: "en" | "bn"; sourceType: "RECORDED" | "UPLOADED" | "LINK" }> = {};
   for (const n of narrations) {
     if (n.slideId && n.signedUrl) {
       narrationMap[n.slideId] = n.signedUrl;
-      narrationConfigMap[n.slideId] = { translationEnabled: n.translationEnabled, narrationLanguage: n.narrationLanguage };
+      narrationConfigMap[n.slideId] = { translationEnabled: n.translationEnabled, narrationLanguage: n.narrationLanguage, sourceType: n.sourceType };
     }
   }
 

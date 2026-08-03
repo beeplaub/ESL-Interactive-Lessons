@@ -32,12 +32,12 @@ export async function POST(request: Request) {
     if (!body.slideId) return NextResponse.json({ error: "Narration slide is required." }, { status: 400 });
     const { data: narration } = await admin
       .from("lesson_audio_files")
-      .select("id,translation_enabled,narration_language")
+      .select("id,translation_enabled,narration_language,source_type")
       .eq("lesson_id", body.lessonId)
       .eq("slide_id", body.slideId)
       .eq("label", "narration")
       .maybeSingle();
-    if (!narration?.translation_enabled) return NextResponse.json({ error: "Translation is not enabled for this narration." }, { status: 403 });
+    if (!narration?.translation_enabled || narration.source_type === "LINK") return NextResponse.json({ error: "Translation is not enabled for this narration." }, { status: 403 });
     targetLanguageCode = opposite(narration.narration_language || "en");
   } else {
     if (!body.activityId) return NextResponse.json({ error: "Activity is required." }, { status: 400 });

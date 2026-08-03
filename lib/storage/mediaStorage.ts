@@ -98,6 +98,8 @@ export async function uploadMediaObject(input: UploadInput): Promise<StoredMedia
 }
 
 export async function deleteMediaObject(admin: AdminClient, object: { provider?: string | null; bucket?: string | null; path?: string | null }) {
+  // Externally hosted study-audio links are references, never managed objects.
+  if (object.provider === "external") return;
   if (!object.bucket || !object.path) return;
 
   if (object.provider === "r2") {
@@ -118,7 +120,7 @@ export async function resolveMediaUrl(admin: AdminClient, object: {
   publicUrl?: string | null;
   expiresIn?: number;
 }) {
-  if (object.provider === "r2" && object.publicUrl) return object.publicUrl;
+  if ((object.provider === "r2" || object.provider === "external") && object.publicUrl) return object.publicUrl;
   if (!object.bucket || !object.path) return null;
 
   const { data } = await admin.storage
