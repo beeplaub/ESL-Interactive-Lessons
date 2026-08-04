@@ -3314,7 +3314,7 @@ function DialogueWritingEditor({
           <button
             type="button"
             onClick={addGivenTurn}
-            className="rounded-md bg-amber/10 px-3 py-1 text-xs font-medium text-amber hover:bg-amber/20"
+            className="rounded-md bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-700 hover:bg-amber-500/20"
           >
             + Add Starter Turn
           </button>

@@ -3566,7 +3566,7 @@ function DialogueWritingPlayer({
             👤 {speakerA}
           </span>
           <span className="text-xs font-semibold text-[var(--br-text-muted)]">vs</span>
-          <span className="inline-flex items-center gap-1.5 rounded-lg bg-amber/10 px-3 py-1 text-xs font-bold text-amber">
+          <span className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500/10 px-3 py-1 text-xs font-bold text-amber-700">
             🧑‍💼 {speakerB}
           </span>
         </div>
@@ -3650,7 +3650,7 @@ function DialogueWritingPlayer({
                   className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed shadow-xs ${
                     isSpeakerA
                       ? "rounded-tl-xs bg-[var(--br-chart-primary)]/10 text-ink border border-[var(--br-chart-primary)]/20"
-                      : "rounded-tr-xs bg-amber/10 text-ink border border-amber/20"
+                      : "rounded-tr-xs bg-amber-500/10 text-ink border border-amber-500/20"
                   }`}
                 >
                   {!submitted && !turn.isGiven ? (
@@ -3690,7 +3690,7 @@ function DialogueWritingPlayer({
                 onClick={() => setActiveSpeaker(speakerA)}
                 className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${
                   activeSpeaker === speakerA
-                    ? "bg-[var(--br-chart-primary)] text-on-dark shadow-xs"
+                    ? "bg-[var(--br-chart-primary)] text-white shadow-xs font-bold"
                     : "bg-surface-muted text-[var(--br-text-muted)] hover:bg-black/5"
                 }`}
               >
@@ -3701,7 +3701,7 @@ function DialogueWritingPlayer({
                 onClick={() => setActiveSpeaker(speakerB)}
                 className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${
                   activeSpeaker === speakerB
-                    ? "bg-amber text-on-dark shadow-xs"
+                    ? "bg-amber-600 text-white shadow-xs font-bold"
                     : "bg-surface-muted text-[var(--br-text-muted)] hover:bg-black/5"
                 }`}
               >
