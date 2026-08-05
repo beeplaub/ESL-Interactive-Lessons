@@ -97,9 +97,37 @@ export function hasAnswer(question: QuizQuestion, value: unknown): boolean {
     const keys = Object.keys(correct);
     return keys.length > 0 && keys.every((itemId) => Boolean(given[itemId]));
   }
-  if (question.question_type === "PRONUNCIATION" || question.question_type === "SHADOWING") {
+  if (question.question_type === "SHADOWING") {
     const rec = asRecord(value as Json);
     return rec.passed === true || String(rec.transcript ?? "").trim().length > 0 || Number(rec.accuracy ?? 0) > 0;
+  }
+  if (question.question_type === "PRONUNCIATION") {
+    const opts = asRecord(question.options) as { level?: string; targets?: unknown[]; max_attempts?: number };
+    const level = opts.level === "sentence" || opts.level === "paragraph" ? opts.level : "word";
+    const maxAttempts = Math.max(1, Number(opts.max_attempts ?? 3));
+    const targets = Array.isArray(opts.targets) ? opts.targets.map((t) => asRecord(t as Json)) : [];
+    const valRecord = asRecord(value as Json);
+    const results = asRecord(valRecord.results as Json);
+    const attemptsUsed = asRecord(valRecord.attemptsUsed as Json);
+
+    if (valRecord.passed === true || Number(valRecord.accuracy ?? 0) > 0) return true;
+
+    if (targets.length === 0) {
+      return Object.keys(attemptsUsed).length > 0 || Object.keys(results).length > 0;
+    }
+
+    if (level === "word") {
+      return targets.every((t) => {
+        const id = String(t.id ?? "");
+        const isRecognized = results[id] === true;
+        const used = Number(attemptsUsed[id] ?? 0);
+        return isRecognized || used >= maxAttempts;
+      });
+    } else {
+      const allRecognized = targets.every((t) => results[String(t.id ?? "")] === true);
+      const usedPassage = Number(attemptsUsed["__passage__"] ?? 0);
+      return allRecognized || usedPassage >= maxAttempts;
+    }
   }
   if (isWritingQuestionType(question.question_type)) {
     return resolveWritingOutcome(value).hasText;
