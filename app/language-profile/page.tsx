@@ -40,7 +40,7 @@ export default async function LanguageProfilePage() {
         .order("submitted_at", { ascending: false })
     : { data: [] };
   const assessmentItemIds = Array.from(new Set((responses ?? []).map((response) => response.assessment_item_id)));
-  const [{ data: skills }, { data: targets }, { data: itemSkills }, { data: itemTargets }] = await Promise.all([
+  const [{ data: skills }, { data: targets }, { data: itemSkills }, { data: itemTargets }, { data: courseResults }] = await Promise.all([
     admin.from("learning_skills").select("id,name,parent_id").eq("status", "ACTIVE").order("position"),
     admin.from("learning_targets").select("id,label,target_type").eq("status", "ACTIVE").order("label"),
     assessmentItemIds.length
@@ -49,7 +49,27 @@ export default async function LanguageProfilePage() {
     assessmentItemIds.length
       ? admin.from("assessment_item_targets").select("assessment_item_id,learning_target_id").in("assessment_item_id", assessmentItemIds)
       : Promise.resolve({ data: [] }),
+    admin.from("course_assessment_results").select("id,course_id,score_percent,coverage_percent,completion_percent,status,updated_at").eq("user_id", user.id).order("updated_at", { ascending: false }),
   ]);
+  const resultIds = (courseResults ?? []).map((result) => result.id);
+  const courseIds = Array.from(new Set((courseResults ?? []).map((result) => result.course_id)));
+  const [{ data: courseRows }, { data: outcomeRows }] = await Promise.all([
+    courseIds.length ? admin.from("courses").select("id,title").in("id", courseIds) : Promise.resolve({ data: [] }),
+    resultIds.length ? admin.from("course_outcome_assessment_results").select("course_assessment_result_id,course_outcome_id,attainment_percent,coverage_percent,attained").in("course_assessment_result_id", resultIds) : Promise.resolve({ data: [] }),
+  ]);
+  const outcomeIds = Array.from(new Set((outcomeRows ?? []).map((row) => row.course_outcome_id)));
+  const { data: courseOutcomes } = outcomeIds.length
+    ? await admin.from("course_outcomes").select("id,code,outcome").in("id", outcomeIds)
+    : { data: [] };
+  const courseById = new Map((courseRows ?? []).map((course) => [course.id, course]));
+  const resultById = new Map((courseResults ?? []).map((result) => [result.id, result]));
+  const outcomeById = new Map((courseOutcomes ?? []).map((outcome) => [outcome.id, outcome]));
+  const courseOutcomeRows = (outcomeRows ?? []).map((row) => ({
+    ...row,
+    courseId: resultById.get(row.course_assessment_result_id)?.course_id,
+    courseTitle: courseById.get(resultById.get(row.course_assessment_result_id)?.course_id ?? "")?.title ?? "Course",
+    outcome: outcomeById.get(row.course_outcome_id),
+  })).filter((row) => row.outcome);
 
   const skillRows = summarizeSkillEvidence({
     skills: skills ?? [],
@@ -74,6 +94,54 @@ export default async function LanguageProfilePage() {
         description="BrenUp tracks what your answers prove over time: skills, learning targets, confidence, and Can-Do growth."
         aside={<div className="grid w-full min-w-0 grid-cols-3 gap-2 text-center sm:min-w-[340px]"><Stat label="Evidence" value={String(responses?.length ?? 0)} /><Stat label="Attempts" value={String(attempts?.length ?? 0)} /><Stat label="Current" value={totalPossible ? pct(overall) : "—"} /></div>}
       />
+
+      {courseResults?.length ? (
+        <section className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
+          <section className="min-w-0 rounded-[24px] border border-[var(--br-border)] bg-surface p-4 shadow-[var(--br-shadow)] sm:p-5">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-black text-[var(--br-dark-card)]">Can-Do progress</h2>
+                <p className="text-xs font-medium text-[var(--br-text-muted)]">Course outcomes become evidence-backed abilities as your coverage grows.</p>
+              </div>
+              <Target className="size-5 shrink-0 text-[var(--br-chart-primary)]" />
+            </div>
+            <div className="grid gap-3">
+              {courseOutcomeRows.length ? courseOutcomeRows.slice(0, 8).map((row, index) => (
+                <div key={`${row.course_assessment_result_id}-${row.course_outcome_id}-${index}`} className="rounded-2xl border border-[var(--br-surface-strong)] p-4">
+                  <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-[11px] font-black uppercase tracking-wide text-[var(--br-chart-primary)]">{row.outcome?.code ?? "Outcome"} · {row.courseTitle}</p>
+                      <h3 className="mt-1 break-words font-bold text-[var(--br-dark-card)]">{row.outcome?.outcome}</h3>
+                    </div>
+                    <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-black ${row.attained ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
+                      {row.attained ? "Attained" : "Building"}
+                    </span>
+                  </div>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    <ProfileBar label="Attainment" value={Number(row.attainment_percent ?? 0)} />
+                    <ProfileBar label="Coverage" value={Number(row.coverage_percent ?? 0)} />
+                  </div>
+                </div>
+              )) : <EmptyLine text="Your mapped course outcomes will appear after submitted evidence is rolled up." />}
+            </div>
+          </section>
+          <aside className="min-w-0 rounded-[24px] border border-[var(--br-border)] bg-surface p-5 shadow-[var(--br-shadow)]">
+            <h2 className="text-lg font-black text-[var(--br-dark-card)]">Course evidence</h2>
+            <div className="mt-4 grid gap-2">
+              {courseResults.slice(0, 8).map((result) => (
+                <div key={result.id} className="rounded-2xl bg-[var(--br-canvas-elevated)] p-3">
+                  <p className="truncate text-sm font-bold text-[var(--br-dark-card)]">{courseById.get(result.course_id)?.title ?? "Course"}</p>
+                  <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold text-[var(--br-text-muted)]">
+                    <span>Score {Math.round(Number(result.score_percent ?? 0))}%</span>
+                    <span>Coverage {Math.round(Number(result.coverage_percent ?? 0))}%</span>
+                    <span className="text-[var(--br-chart-primary)]">{String(result.status).replaceAll("_", " ")}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </aside>
+        </section>
+      ) : null}
 
       {responses?.length ? (
         <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
@@ -164,4 +232,9 @@ function Stat({ label, value }: { label: string; value: string }) {
 
 function EmptyLine({ text }: { text: string }) {
   return <p className="rounded-2xl bg-[var(--br-canvas-elevated)] px-4 py-5 text-sm font-medium text-[var(--br-text-muted)]">{text}</p>;
+}
+
+function ProfileBar({ label, value }: { label: string; value: number }) {
+  const safe = Math.max(0, Math.min(100, value));
+  return <div><div className="mb-1 flex justify-between text-xs font-semibold text-[var(--br-text-muted)]"><span>{label}</span><span>{Math.round(safe)}%</span></div><div className="h-1.5 overflow-hidden rounded-full bg-[var(--br-surface-strong)]"><span className="block h-full rounded-full bg-[var(--br-chart-primary)]" style={{ width: `${safe}%` }} /></div></div>;
 }

@@ -49,7 +49,10 @@ export default async function CourseAnalyticsPage({ params }: { params: Promise<
           <p className="text-xs font-semibold uppercase tracking-wide text-moss">Course report</p>
           <h1 className="mt-1 text-2xl font-semibold sm:text-3xl">{course.title}</h1>
         </div>
-        <Link href={`/admin/courses/${course.id}/builder`} className="rounded-md border border-[var(--br-border)] px-3 py-2 text-sm font-semibold">Open builder</Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href={`/admin/courses/${course.id}/outcomes`} className="rounded-md border border-[var(--br-border)] px-3 py-2 text-sm font-semibold">Outcome report</Link>
+          <Link href={`/admin/courses/${course.id}/builder`} className="rounded-md border border-[var(--br-border)] px-3 py-2 text-sm font-semibold">Open builder</Link>
+        </div>
       </div>
 
       <section className="mt-5 grid gap-3 sm:grid-cols-5">
