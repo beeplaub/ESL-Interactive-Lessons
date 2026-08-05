@@ -4,6 +4,7 @@ import { requireUser } from "@/lib/auth";
 import { completeCourseItemsForContent } from "@/lib/courseProgress";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isCorrect, questionScore, questionTotal } from "@/lib/quizScoring";
+import { assessmentItemVersionSnapshots, clampPoints, scorePercent } from "@/lib/assessmentContract";
 import type { Json } from "@/types/database.types";
 
 export async function recordQuizAttempt(input: {
@@ -14,6 +15,7 @@ export async function recordQuizAttempt(input: {
   answers: Record<string, unknown>;
   timeTakenSeconds?: number | null;
   courseItemId?: string | null;
+  submissionKey?: string | null;
   responseScores?: Array<{
     itemKey: string;
     answer: unknown;
@@ -24,6 +26,16 @@ export async function recordQuizAttempt(input: {
 }) {
   const { user } = await requireUser();
   const admin = createAdminClient();
+  if (input.submissionKey) {
+    const { data: existingAttempt, error: existingAttemptError } = await admin
+      .from("assessment_attempts")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("submission_key", input.submissionKey)
+      .maybeSingle();
+    if (existingAttemptError) throw new Error(existingAttemptError.message);
+    if (existingAttempt) return { success: true, attemptId: existingAttempt.id, duplicate: true };
+  }
   const { data: legacyAttempt, error } = await admin.from("quiz_attempts").insert({
     user_id: user.id,
     quiz_id: input.quizId ?? null,
@@ -44,6 +56,9 @@ export async function recordQuizAttempt(input: {
     });
   } catch (evidenceError) {
     console.error("Detailed assessment evidence could not be saved", evidenceError);
+    await admin.from("assessment_attempts").delete().eq("legacy_quiz_attempt_id", legacyAttempt.id);
+    await admin.from("quiz_attempts").delete().eq("id", legacyAttempt.id);
+    throw new Error("Could not finalize this assessment attempt. Please try again.");
   }
 
   if (input.quizId) {
@@ -57,6 +72,7 @@ export async function recordQuizAttempt(input: {
     });
     await completeCourseItemsForContent(user.id, { kind: "QUIZ", id: input.quizId });
   }
+  return { success: true, attemptId: legacyAttempt.id, duplicate: false };
 }
 
 async function recordDetailedAssessmentEvidence({
@@ -68,6 +84,7 @@ async function recordDetailedAssessmentEvidence({
   answers,
   timeTakenSeconds,
   courseItemId,
+  submissionKey,
   responseScores,
 }: {
   admin: ReturnType<typeof createAdminClient>;
@@ -78,6 +95,7 @@ async function recordDetailedAssessmentEvidence({
   answers: Record<string, unknown>;
   timeTakenSeconds?: number | null;
   courseItemId?: string | null;
+  submissionKey?: string | null;
   responseScores?: Array<{ itemKey: string; answer: unknown; earnedPoints: number; maximumPoints: number; isCorrect: boolean }>;
 }) {
   const sourceType = quizId ? "QUIZ" : "LESSON_ACTIVITY";
@@ -90,6 +108,7 @@ async function recordDetailedAssessmentEvidence({
     earnedPoints: number;
     maximumPoints: number;
     isCorrect: boolean;
+    itemVersionId?: string;
   }> = [];
 
   if (quizId) {
@@ -100,7 +119,7 @@ async function recordDetailedAssessmentEvidence({
       .order("question_number");
     if (error) throw error;
     for (const question of questions ?? []) {
-      const { data: existing } = await admin.from("assessment_items").select("id,max_points").eq("quiz_question_id", question.id).maybeSingle();
+      const { data: existing } = await admin.from("assessment_items").select("id,max_points,analytical_weight,lesson_outcome_id").eq("quiz_question_id", question.id).maybeSingle();
       const { data: item, error: itemError } = existing
         ? { data: existing, error: null }
         : await admin.from("assessment_items").insert({
@@ -110,7 +129,7 @@ async function recordDetailedAssessmentEvidence({
             prompt_snapshot: question.question_text,
             max_points: questionTotal(question),
             analytical_weight: 1,
-          }).select("id,max_points").single();
+          }).select("id,max_points,analytical_weight,lesson_outcome_id").single();
       if (itemError || !item) throw itemError ?? new Error("Could not register quiz question evidence.");
       const configuredQuestion = { ...question, max_points: Number(item.max_points) };
       const answer = answers[question.id];
@@ -121,6 +140,30 @@ async function recordDetailedAssessmentEvidence({
         maximumPoints: questionTotal(configuredQuestion),
         isCorrect: isCorrect(configuredQuestion, answer),
       });
+      const snapshots = assessmentItemVersionSnapshots({
+        sourceType: "QUIZ_QUESTION",
+        sourceItemKey: question.id,
+        prompt: question.question_text,
+        questionType: question.question_type,
+        options: question.options,
+        correctAnswer: question.correct_answer,
+        maxPoints: questionTotal(configuredQuestion),
+        analyticalWeight: Number(item.analytical_weight ?? 1),
+        lessonOutcomeId: item.lesson_outcome_id,
+      });
+      const { data: version } = await admin.from("assessment_item_versions").select("id").eq("assessment_item_id", item.id).eq("version_number", 1).maybeSingle();
+      if (version) normalizedResponses[normalizedResponses.length - 1].itemVersionId = version.id;
+      else {
+        const { data: createdVersion, error: versionError } = await admin.from("assessment_item_versions").insert({
+          assessment_item_id: item.id,
+          version_number: 1,
+          content_snapshot: snapshots.contentSnapshot,
+          scoring_snapshot: snapshots.scoringSnapshot,
+          mapping_snapshot: snapshots.mappingSnapshot,
+        }).select("id").single();
+        if (versionError || !createdVersion) throw versionError ?? new Error("Could not save assessment version.");
+        normalizedResponses[normalizedResponses.length - 1].itemVersionId = createdVersion.id;
+      }
     }
   } else if (lessonSlideActivityId) {
     for (const response of responseScores ?? []) {
@@ -145,10 +188,29 @@ async function recordDetailedAssessmentEvidence({
       normalizedResponses.push({
         assessmentItemId: item.id,
         answer: response.answer,
-        earnedPoints: Math.max(0, Math.min(configuredMaximum, ratio * configuredMaximum)),
+        earnedPoints: clampPoints(ratio * configuredMaximum, configuredMaximum),
         maximumPoints: configuredMaximum,
         isCorrect: response.isCorrect,
       });
+      const snapshots = assessmentItemVersionSnapshots({
+        sourceType: "LESSON_ACTIVITY_QUESTION",
+        sourceItemKey: response.itemKey,
+        maxPoints: configuredMaximum,
+        analyticalWeight: 1,
+      });
+      const { data: version } = await admin.from("assessment_item_versions").select("id").eq("assessment_item_id", item.id).eq("version_number", 1).maybeSingle();
+      if (version) normalizedResponses[normalizedResponses.length - 1].itemVersionId = version.id;
+      else {
+        const { data: createdVersion, error: versionError } = await admin.from("assessment_item_versions").insert({
+          assessment_item_id: item.id,
+          version_number: 1,
+          content_snapshot: snapshots.contentSnapshot,
+          scoring_snapshot: snapshots.scoringSnapshot,
+          mapping_snapshot: snapshots.mappingSnapshot,
+        }).select("id").single();
+        if (versionError || !createdVersion) throw versionError ?? new Error("Could not save assessment version.");
+        normalizedResponses[normalizedResponses.length - 1].itemVersionId = createdVersion.id;
+      }
     }
   }
 
@@ -188,6 +250,13 @@ async function recordDetailedAssessmentEvidence({
     attempt_number: (count ?? 0) + 1,
     score,
     maximum_score: maximumScore,
+    score_percent: scorePercent(score, maximumScore),
+    status: "FINALIZED",
+    grading_source: "AUTO",
+    submission_key: submissionKey ?? null,
+    grading_version: 1,
+    submitted_at: new Date().toISOString(),
+    finalized_at: new Date().toISOString(),
     time_taken_seconds: timeTakenSeconds ?? null,
   }).select("id").single();
   if (attemptError || !attempt) throw attemptError ?? new Error("Could not save detailed attempt.");
@@ -200,6 +269,10 @@ async function recordDetailedAssessmentEvidence({
       earned_points: response.earnedPoints,
       maximum_points: response.maximumPoints,
       is_correct: response.isCorrect,
+      assessment_item_version_id: response.itemVersionId ?? null,
+      grading_status: "FINALIZED",
+      grading_source: "AUTO",
+      finalized_at: new Date().toISOString(),
     })),
   );
   if (responseError) throw responseError;

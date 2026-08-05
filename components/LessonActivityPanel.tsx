@@ -1260,6 +1260,7 @@ export function LessonActivityPanel({
   const [message, setMessage] = useState<string | null>(null);
   const [localAttempts, setLocalAttempts] = useState<SavedAttempt[]>(attempts);
   const [isPending, startTransition] = useTransition();
+  const submissionKeyRef = useRef<string | null>(null);
   const [streakPopupDismissed, setStreakPopupDismissed] = useState(false);
   const celebratedRef = useRef(false);
   const handleQuestionResult = useCallback((result: "correct" | "wrong" | "partial") => {
@@ -1370,12 +1371,14 @@ export function LessonActivityPanel({
     if (previewOnly) { setMessage("Preview only."); return; }
     startTransition(async () => {
       try {
+        if (!submissionKeyRef.current) submissionKeyRef.current = crypto.randomUUID();
         await recordQuizAttempt({
           lessonSlideActivityId: activity.id,
           score: finalScore,
           total,
           answers,
           courseItemId,
+          submissionKey: submissionKeyRef.current,
           responseScores: questions.map((question) => ({
             itemKey: question.id,
             answer: answers[question.id],
@@ -1402,6 +1405,7 @@ export function LessonActivityPanel({
     setReviewMode("overview");
     setStreakPopupDismissed(false);
     celebratedRef.current = false;
+    submissionKeyRef.current = null;
   }
 
   return (

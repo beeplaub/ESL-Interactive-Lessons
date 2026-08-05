@@ -306,6 +306,7 @@ export function QuizPlayer({
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const [remainingSeconds, setRemainingSeconds] = useState(() => timerMinutes ? timerMinutes * 60 : null);
   const attemptStartRef = useRef(Date.now());
+  const submissionKeyRef = useRef<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [streakPopupDismissed, setStreakPopupDismissed] = useState(false);
   const celebratedRef = useRef(false);
@@ -380,6 +381,7 @@ export function QuizPlayer({
     setReviewMode("overview");
     setRemainingSeconds(timerMinutes ? timerMinutes * 60 : null);
     attemptStartRef.current = Date.now();
+    submissionKeyRef.current = null;
     setStreakPopupDismissed(false);
     celebratedRef.current = false;
   }
@@ -462,7 +464,8 @@ export function QuizPlayer({
     }
     startTransition(async () => {
       try {
-        await recordQuizAttempt({ quizId, score: finalScore, total: finalTotal, answers, timeTakenSeconds: finalTimeTakenSeconds, courseItemId });
+        if (!submissionKeyRef.current) submissionKeyRef.current = crypto.randomUUID();
+        await recordQuizAttempt({ quizId, score: finalScore, total: finalTotal, answers, timeTakenSeconds: finalTimeTakenSeconds, courseItemId, submissionKey: submissionKeyRef.current });
         setAllAttempts((prev) => [
           ...prev,
           { score: finalScore, total: finalTotal, completedAt: new Date().toISOString() }
@@ -3764,4 +3767,3 @@ function DialogueWritingPlayer({
     </div>
   );
 }
-

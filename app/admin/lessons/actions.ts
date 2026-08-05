@@ -1291,8 +1291,9 @@ export async function permanentlyDeleteBuilderSlide(lessonId: string, slideId: s
   if (slideError) throw slideError;
   if (!slide) return { success: false, error: "This slide is no longer in the trash." };
 
-  // This is intentionally irreversible. Delete response evidence first because
-  // assessment responses protect their assessment item from accidental removal.
+  // Content can be removed from the lesson, but assessment evidence is permanent.
+  // Archive the source items before deleting the activity so historical grades,
+  // outcome attainment, and learner profiles remain auditable.
   const { data: activities, error: activitiesError } = await supabase
     .from("lesson_slide_activities")
     .select("id")
@@ -1303,15 +1304,29 @@ export async function permanentlyDeleteBuilderSlide(lessonId: string, slideId: s
   if (activityIds.length) {
     const { data: assessmentItems, error: itemError } = await supabase
       .from("assessment_items")
-      .select("id")
+      .select("id,source_item_key,prompt_snapshot")
       .in("lesson_activity_id", activityIds);
     if (itemError) throw itemError;
     const itemIds = (assessmentItems ?? []).map((item) => item.id);
     if (itemIds.length) {
-      const { error: responseError } = await supabase.from("assessment_responses").delete().in("assessment_item_id", itemIds);
-      if (responseError) throw responseError;
-      const { error: itemDeleteError } = await supabase.from("assessment_items").delete().in("id", itemIds);
-      if (itemDeleteError) throw itemDeleteError;
+      const deletedAt = new Date().toISOString();
+      const { error: itemArchiveError } = await supabase
+        .from("assessment_items")
+        .update({
+          status: "ARCHIVED",
+          source_deleted_at: deletedAt,
+          source_label_snapshot: `Deleted lesson activity ${activityIds[0]}`,
+        })
+        .in("id", itemIds);
+      if (itemArchiveError) throw itemArchiveError;
+      const { error: attemptArchiveError } = await supabase
+        .from("assessment_attempts")
+        .update({
+          source_deleted_at: deletedAt,
+          source_label_snapshot: `Deleted lesson activity ${activityIds[0]}`,
+        })
+        .in("lesson_activity_id", activityIds);
+      if (attemptArchiveError) throw attemptArchiveError;
     }
   }
 
