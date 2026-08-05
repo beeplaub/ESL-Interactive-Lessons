@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { isCorrect, questionScore, questionTotal } from "@/lib/quizScoring";
 import { assessmentItemVersionSnapshots, clampPoints, scorePercent } from "@/lib/assessmentContract";
 import { lessonScoredQuestions } from "@/lib/lessonActivityScoring";
+import { recalculateCourseAssessmentsForContent } from "@/lib/courseAssessmentService";
 import type { Json } from "@/types/database.types";
 
 export async function recordQuizAttempt(input: {
@@ -72,6 +73,11 @@ export async function recordQuizAttempt(input: {
       reason: "QUIZ_COMPLETED"
     });
     await completeCourseItemsForContent(user.id, { kind: "QUIZ", id: input.quizId });
+  }
+  if (input.quizId) {
+    await recalculateCourseAssessmentsForContent(user.id, "QUIZ", input.quizId);
+  } else if (input.lessonSlideActivityId) {
+    await recalculateCourseAssessmentsForContent(user.id, "LESSON_ACTIVITY", input.lessonSlideActivityId);
   }
   return { success: true, attemptId: legacyAttempt.id, duplicate: false };
 }
