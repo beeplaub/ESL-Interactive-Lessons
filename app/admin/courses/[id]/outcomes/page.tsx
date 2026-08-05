@@ -18,11 +18,16 @@ export default async function CourseOutcomeReportPage({ params }: { params: Prom
   ]);
   if (!course) notFound();
 
-  const { data: courseResults } = await admin.from("course_assessment_results").select("id,user_id").eq("course_id", id);
+  const { data: courseResults } = await admin.from("course_assessment_results").select("id,user_id,score_percent,coverage_percent,completion_percent,status,updated_at").eq("course_id", id).order("updated_at", { ascending: false });
   const resultIds = (courseResults ?? []).map((result) => result.id);
-  const { data: outcomeResults } = resultIds.length
-    ? await admin.from("course_outcome_assessment_results").select("course_assessment_result_id,course_outcome_id,attainment_percent,coverage_percent,mapped_weight,evidence_count,attained").in("course_assessment_result_id", resultIds)
-    : { data: [] };
+  const [{ data: outcomeResults }, { data: profiles }] = await Promise.all([
+    resultIds.length
+      ? admin.from("course_outcome_assessment_results").select("course_assessment_result_id,course_outcome_id,attainment_percent,coverage_percent,mapped_weight,evidence_count,attained").in("course_assessment_result_id", resultIds)
+      : Promise.resolve({ data: [] }),
+    resultIds.length
+      ? admin.from("profiles").select("id,full_name,first_name,last_name").in("id", Array.from(new Set((courseResults ?? []).map((result) => result.user_id))))
+      : Promise.resolve({ data: [] }),
+  ]);
   const aggregate = new Map<string, { attainment: number; coverage: number; mappedWeight: number; evidence: number; attained: number; learners: number }>();
   for (const row of outcomeResults ?? []) {
     const current = aggregate.get(row.course_outcome_id) ?? { attainment: 0, coverage: 0, mappedWeight: 0, evidence: 0, attained: 0, learners: 0 };
@@ -49,6 +54,8 @@ export default async function CourseOutcomeReportPage({ params }: { params: Prom
       learnerCount: learners,
     };
   });
+  const profileById = new Map((profiles ?? []).map((profile) => [profile.id, profile]));
+  const outcomeResultByKey = new Map((outcomeResults ?? []).map((row) => [`${row.course_assessment_result_id}:${row.course_outcome_id}`, row]));
 
   return (
     <main className="space-y-5">
@@ -120,6 +127,46 @@ export default async function CourseOutcomeReportPage({ params }: { params: Prom
                   </td>
                 </tr>
               ) : null}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="overflow-hidden rounded-2xl border border-[var(--br-border)] bg-surface shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--br-border)] p-4">
+          <div>
+            <h2 className="font-semibold text-ink">Learner outcome matrix</h2>
+            <p className="mt-1 text-xs text-[var(--br-text-muted)]">Current evidence selected using the course {course.evidence_selection ?? "LATEST"} policy.</p>
+          </div>
+          <a href={`/admin/courses/${course.id}/outcomes/export`} className="rounded-lg border border-[var(--br-border)] px-3 py-2 text-xs font-semibold hover:bg-surface-muted">Export CSV</a>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="min-w-[900px] w-full text-left text-sm">
+            <thead className="bg-surface-muted text-xs uppercase tracking-wide text-[var(--br-text-muted)]">
+              <tr>
+                <th className="px-4 py-3">Learner</th>
+                <th className="px-4 py-3">Score</th>
+                <th className="px-4 py-3">Coverage</th>
+                {(outcomes ?? []).map((outcome) => <th key={outcome.id} className="max-w-[180px] px-4 py-3">{outcome.code ?? "Outcome"}</th>)}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-black/5">
+              {(courseResults ?? []).map((result) => {
+                const profile = profileById.get(result.user_id);
+                const name = profile?.full_name?.trim() || [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || "Learner";
+                return (
+                  <tr key={result.id}>
+                    <td className="px-4 py-3 font-semibold text-ink">{name}<span className="mt-1 block text-xs font-normal text-[var(--br-text-muted)]">{String(result.status).replaceAll("_", " ")}</span></td>
+                    <td className="px-4 py-3 font-semibold">{Math.round(Number(result.score_percent ?? 0))}%</td>
+                    <td className="px-4 py-3">{Math.round(Number(result.coverage_percent ?? 0))}%</td>
+                    {(outcomes ?? []).map((outcome) => {
+                      const value = outcomeResultByKey.get(`${result.id}:${outcome.id}`);
+                      return <td key={outcome.id} className="px-4 py-3">{value ? `${Math.round(Number(value.attainment_percent ?? 0))}%` : "—"}</td>;
+                    })}
+                  </tr>
+                );
+              })}
+              {(courseResults?.length ?? 0) === 0 ? <tr><td colSpan={3 + (outcomes?.length ?? 0)} className="px-4 py-8 text-center text-sm text-[var(--br-text-muted)]">No learner assessment results yet.</td></tr> : null}
             </tbody>
           </table>
         </div>
