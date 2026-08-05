@@ -1461,36 +1461,43 @@ export function LessonActivityPanel({
               type="button"
               onClick={() => setQIndex((i) => Math.max(0, i - 1))}
               disabled={qIndex === 0}
-              className="flex size-7 items-center justify-center rounded-full border border-[var(--br-border)] hover:bg-black/5 disabled:opacity-30"
+              className="flex size-8 shrink-0 items-center justify-center rounded-full border border-[var(--br-border)] bg-surface hover:bg-black/5 disabled:opacity-30"
+              title="Previous question"
             >
-              <ChevronLeft size={15} />
+              <ChevronLeft size={16} />
             </button>
 
-            <div className="flex items-center gap-1.5">
-              {questions.map((q, i) => (
-                <button
-                  key={q.id}
-                  type="button"
-                  onClick={() => setQIndex(i)}
-                  aria-label={`Go to question ${i + 1}`}
-                  className={`size-2 rounded-full transition-all ${
-                    i === qIndex
-                      ? "scale-125 bg-moss"
-                      : hasAnswer(q, answers[q.id])
-                      ? "bg-moss/40"
-                      : "bg-black/15"
-                  }`}
-                />
-              ))}
+            <div className="flex flex-col items-center gap-1">
+              <span className="text-[11px] font-bold text-[var(--br-text-muted)]">
+                Question {qIndex + 1} of {questions.length}
+              </span>
+              <div className="flex items-center gap-1.5">
+                {questions.map((q, i) => (
+                  <button
+                    key={q.id}
+                    type="button"
+                    onClick={() => setQIndex(i)}
+                    aria-label={`Go to question ${i + 1}`}
+                    className={`h-2.5 rounded-full transition-all ${
+                      i === qIndex
+                        ? "w-6 bg-moss shadow-xs"
+                        : hasAnswer(q, answers[q.id])
+                        ? "w-2.5 bg-moss/60 hover:bg-moss/80"
+                        : "w-2.5 bg-[var(--br-border)] hover:bg-[var(--br-text-muted)]"
+                    }`}
+                  />
+                ))}
+              </div>
             </div>
 
             <button
               type="button"
               onClick={() => setQIndex((i) => Math.min(questions.length - 1, i + 1))}
               disabled={qIndex === questions.length - 1}
-              className="flex size-7 items-center justify-center rounded-full border border-[var(--br-border)] hover:bg-black/5 disabled:opacity-30"
+              className="flex size-8 shrink-0 items-center justify-center rounded-full border border-[var(--br-border)] bg-surface hover:bg-black/5 disabled:opacity-30"
+              title="Next question"
             >
-              <ChevronRight size={15} />
+              <ChevronRight size={16} />
             </button>
           </div>
 
