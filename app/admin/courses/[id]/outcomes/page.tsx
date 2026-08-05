@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, CheckCircle2, ShieldAlert } from "lucide-react";
 import { requireCourseAccess } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { calculateCourseOutcomeRows } from "@/lib/obeReports";
 
 function pct(value: number) {
   return `${Math.round(value)}%`;
@@ -13,73 +12,42 @@ export default async function CourseOutcomeReportPage({ params }: { params: Prom
   const { id } = await params;
   await requireCourseAccess(id);
   const admin = createAdminClient();
-  const [{ data: course }, { data: outcomes }, { data: items }] = await Promise.all([
+  const [{ data: course }, { data: outcomes }] = await Promise.all([
     admin.from("courses").select("*").eq("id", id).maybeSingle(),
     admin.from("course_outcomes").select("*").eq("course_id", id).order("position"),
-    admin.from("course_items").select("id,item_type,title,lesson_id,quiz_id,assessment_weight").eq("course_id", id),
   ]);
   if (!course) notFound();
 
-  const itemIds = (items ?? []).map((item) => item.id);
-  const { data: directMappings } = itemIds.length
-    ? await admin
-        .from("assessment_item_course_outcomes")
-        .select("assessment_item_id,course_item_id,course_outcome_id,contribution_weight")
-        .in("course_item_id", itemIds)
+  const { data: courseResults } = await admin.from("course_assessment_results").select("id,user_id").eq("course_id", id);
+  const resultIds = (courseResults ?? []).map((result) => result.id);
+  const { data: outcomeResults } = resultIds.length
+    ? await admin.from("course_outcome_assessment_results").select("course_assessment_result_id,course_outcome_id,attainment_percent,coverage_percent,mapped_weight,evidence_count,attained").in("course_assessment_result_id", resultIds)
     : { data: [] };
-  const { data: attempts } = itemIds.length
-    ? await admin
-        .from("assessment_attempts")
-        .select("id,user_id,course_item_id,completed_at")
-        .in("course_item_id", itemIds)
-    : { data: [] };
-  const attemptIds = (attempts ?? []).map((attempt) => attempt.id);
-  const { data: responses } = attemptIds.length
-    ? await admin
-        .from("assessment_responses")
-        .select("id,attempt_id,assessment_item_id,earned_points,maximum_points,is_correct,submitted_at")
-        .in("attempt_id", attemptIds)
-    : { data: [] };
-  const responseAssessmentIds = Array.from(new Set((responses ?? []).map((response) => response.assessment_item_id)));
-  const { data: responseAssessmentItems } = responseAssessmentIds.length
-    ? await admin
-        .from("assessment_items")
-        .select("id,lesson_outcome_id")
-        .in("id", responseAssessmentIds)
-    : { data: [] };
-  const { data: lessonOutcomeMappings } = itemIds.length
-    ? await admin
-        .from("course_lesson_outcome_mappings")
-        .select("course_item_id,lesson_outcome_id,course_outcome_id,contribution_weight")
-        .in("course_item_id", itemIds)
-    : { data: [] };
-  const lessonOutcomeByAssessmentItem = new Map((responseAssessmentItems ?? []).map((item) => [item.id, item.lesson_outcome_id]));
-  const derivedLessonMappings = (responses ?? []).flatMap((response) => {
-    const attempt = (attempts ?? []).find((candidate) => candidate.id === response.attempt_id);
-    if (!attempt?.course_item_id) return [];
-    const lessonOutcomeId = lessonOutcomeByAssessmentItem.get(response.assessment_item_id);
-    if (!lessonOutcomeId) return [];
-    return (lessonOutcomeMappings ?? [])
-      .filter((mapping) => mapping.course_item_id === attempt.course_item_id && mapping.lesson_outcome_id === lessonOutcomeId)
-      .map((mapping) => ({
-        assessment_item_id: response.assessment_item_id,
-        course_item_id: mapping.course_item_id,
-        course_outcome_id: mapping.course_outcome_id,
-        contribution_weight: mapping.contribution_weight,
-      }));
-  });
-  const mappings = [
-    ...(directMappings ?? []),
-    ...derivedLessonMappings,
-  ];
-
-  const rows = calculateCourseOutcomeRows({
-    outcomes: outcomes ?? [],
-    mappings,
-    responses: responses ?? [],
-    attempts: attempts ?? [],
-    defaultThreshold: course.mastery_threshold ?? 70,
-    defaultCoverage: course.minimum_evidence_coverage ?? 70,
+  const aggregate = new Map<string, { attainment: number; coverage: number; mappedWeight: number; evidence: number; attained: number; learners: number }>();
+  for (const row of outcomeResults ?? []) {
+    const current = aggregate.get(row.course_outcome_id) ?? { attainment: 0, coverage: 0, mappedWeight: 0, evidence: 0, attained: 0, learners: 0 };
+    current.attainment += Number(row.attainment_percent ?? 0);
+    current.coverage += Number(row.coverage_percent ?? 0);
+    current.mappedWeight = Math.max(current.mappedWeight, Number(row.mapped_weight ?? 0));
+    current.evidence += Number(row.evidence_count ?? 0);
+    current.attained += row.attained ? 1 : 0;
+    current.learners += 1;
+    aggregate.set(row.course_outcome_id, current);
+  }
+  const rows = (outcomes ?? []).map((outcome) => {
+    const value = aggregate.get(outcome.id);
+    const learners = value?.learners ?? 0;
+    return {
+      outcome,
+      masteryThreshold: Number(outcome.mastery_threshold_override ?? course.mastery_threshold ?? 70),
+      minimumCoverage: Number(course.minimum_evidence_coverage ?? 70),
+      mappedWeight: value?.mappedWeight ?? 0,
+      evidenceCount: value?.evidence ?? 0,
+      attainmentPercent: learners ? value!.attainment / learners : 0,
+      coveragePercent: learners ? value!.coverage / learners : 0,
+      attained: learners > 0 && value!.attained === learners,
+      learnerCount: learners,
+    };
   });
 
   return (
@@ -98,7 +66,7 @@ export default async function CourseOutcomeReportPage({ params }: { params: Prom
           </div>
           <div className="grid grid-cols-3 gap-2 text-center">
             <Metric label="Outcomes" value={String(rows.length)} />
-            <Metric label="Evidence" value={String(responses?.length ?? 0)} />
+            <Metric label="Learners" value={String(courseResults?.length ?? 0)} />
             <Metric label="Policy" value={course.evidence_selection ?? "LATEST"} />
           </div>
         </div>

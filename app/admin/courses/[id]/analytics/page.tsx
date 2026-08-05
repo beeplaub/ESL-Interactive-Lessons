@@ -13,12 +13,14 @@ export default async function CourseAnalyticsPage({ params }: { params: Promise<
     { data: course },
     { data: enrollments },
     { data: progressRows },
+    { data: assessmentRows },
     { data: profiles },
     usersResult,
   ] = await Promise.all([
     admin.from("courses").select("id,title,status").eq("id", id).maybeSingle(),
     admin.from("course_enrollments").select("*").eq("course_id", id).order("enrolled_at", { ascending: false }),
     admin.from("course_progress").select("*").eq("course_id", id),
+    admin.from("course_assessment_results").select("user_id,score_percent,coverage_percent,completion_percent,status,updated_at").eq("course_id", id),
     admin.from("profiles").select("id,full_name,first_name,last_name"),
     admin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
   ]);
@@ -26,12 +28,18 @@ export default async function CourseAnalyticsPage({ params }: { params: Promise<
   if (!course) notFound();
 
   const progressByUser = new Map((progressRows ?? []).map((row) => [row.user_id, row]));
+  const assessmentByUser = new Map((assessmentRows ?? []).map((row) => [row.user_id, row]));
   const profileByUser = new Map((profiles ?? []).map((profile) => [profile.id, profile]));
   const emailByUser = new Map((usersResult.data.users ?? []).map((user) => [user.id, user.email ?? ""]));
   const completed = (enrollments ?? []).filter((item) => item.status === "COMPLETED").length;
   const averageProgress = progressRows?.length
     ? Math.round(progressRows.reduce((sum, row) => sum + row.progress_percent, 0) / progressRows.length)
     : 0;
+  const assessedRows = assessmentRows ?? [];
+  const averageAssessment = assessedRows.length
+    ? Math.round(assessedRows.reduce((sum, row) => sum + Number(row.score_percent ?? 0), 0) / assessedRows.length)
+    : 0;
+  const masteredLearners = assessedRows.filter((row) => row.status === "MASTERED").length;
 
   return (
     <main className="min-w-0 overflow-hidden">
@@ -44,10 +52,12 @@ export default async function CourseAnalyticsPage({ params }: { params: Promise<
         <Link href={`/admin/courses/${course.id}/builder`} className="rounded-md border border-[var(--br-border)] px-3 py-2 text-sm font-semibold">Open builder</Link>
       </div>
 
-      <section className="mt-5 grid gap-3 sm:grid-cols-3">
+      <section className="mt-5 grid gap-3 sm:grid-cols-5">
         <Metric label="Enrollments" value={enrollments?.length ?? 0} />
         <Metric label="Completed" value={completed} />
         <Metric label="Average progress" value={`${averageProgress}%`} />
+        <Metric label="Average assessment" value={`${averageAssessment}%`} />
+        <Metric label="Mastered" value={masteredLearners} />
       </section>
 
       <section className="mt-5 rounded-xl border border-[var(--br-border)] bg-surface p-4 shadow-sm">
@@ -70,18 +80,19 @@ export default async function CourseAnalyticsPage({ params }: { params: Promise<
       </section>
 
       <section className="mt-6 overflow-hidden rounded-xl border border-[var(--br-border)] bg-surface shadow-sm">
-        <div className="hidden grid-cols-[1.1fr_1.2fr_0.9fr_0.7fr_0.8fr] gap-3 border-b border-[var(--br-border)] bg-surface-muted p-3 text-xs font-semibold uppercase tracking-wide text-[var(--br-text-muted)] md:grid">
-          <span>Learner</span><span>Email</span><span>Status</span><span>Items</span><span>Progress</span>
+        <div className="hidden grid-cols-[1.1fr_1.2fr_0.8fr_0.65fr_0.65fr_0.8fr_0.8fr] gap-3 border-b border-[var(--br-border)] bg-surface-muted p-3 text-xs font-semibold uppercase tracking-wide text-[var(--br-text-muted)] md:grid">
+          <span>Learner</span><span>Email</span><span>Status</span><span>Items</span><span>Progress</span><span>Score</span><span>Coverage</span>
         </div>
         <div className="divide-y divide-black/10">
           {(enrollments ?? []).map((enrollment) => {
             const profile = profileByUser.get(enrollment.user_id);
             const progress = progressByUser.get(enrollment.user_id);
+            const assessment = assessmentByUser.get(enrollment.user_id);
             const name = profile?.full_name?.trim()
               || [profile?.first_name, profile?.last_name].filter(Boolean).join(" ")
               || "Learner";
             return (
-              <div key={enrollment.id} className="grid gap-2 p-4 md:grid-cols-[1.1fr_1.2fr_0.9fr_0.7fr_0.8fr] md:items-center">
+              <div key={enrollment.id} className="grid gap-2 p-4 md:grid-cols-[1.1fr_1.2fr_0.8fr_0.65fr_0.65fr_0.8fr_0.8fr] md:items-center">
                 <Link href={`/admin/students/${enrollment.user_id}`} className="font-semibold text-moss hover:underline">{name}</Link>
                 <span className="min-w-0 truncate text-sm text-[var(--br-text-muted)]">{emailByUser.get(enrollment.user_id) || "No email"}</span>
                 <form
@@ -100,6 +111,8 @@ export default async function CourseAnalyticsPage({ params }: { params: Promise<
                 </form>
                 <span className="text-sm">{progress?.completed_items ?? 0}/{progress?.total_items ?? 0}</span>
                 <span className="font-semibold text-moss">{progress?.progress_percent ?? 0}%</span>
+                <span className="font-semibold text-moss">{assessment ? `${Math.round(Number(assessment.score_percent ?? 0))}%` : "—"}</span>
+                <span className="text-sm">{assessment ? `${Math.round(Number(assessment.coverage_percent ?? 0))}%` : "—"}</span>
               </div>
             );
           })}

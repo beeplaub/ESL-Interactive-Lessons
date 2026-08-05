@@ -79,7 +79,8 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
     { data: enrollment },
     { data: progress },
     { data: itemProgress },
-    { data: activeOrder }
+    { data: activeOrder },
+    { data: assessmentResult }
   ] = await Promise.all([
     courseQuery.maybeSingle(),
     admin.from("course_outcomes").select("*").eq("course_id", id).order("position", { ascending: true }),
@@ -90,6 +91,7 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
     user ? admin.from("course_progress").select("*").eq("course_id", id).eq("user_id", user.id).maybeSingle() : Promise.resolve({ data: null }),
     user ? admin.from("course_item_progress").select("course_item_id,completed").eq("course_id", id).eq("user_id", user.id) : Promise.resolve({ data: [] }),
     user ? admin.from("course_orders").select("*").eq("course_id", id).eq("user_id", user.id).order("created_at", { ascending: false }).limit(1).maybeSingle() : Promise.resolve({ data: null }),
+    user ? admin.from("course_assessment_results").select("id,score,maximum_score,score_percent,coverage_percent,completion_percent,status,updated_at").eq("course_id", id).eq("user_id", user.id).maybeSingle() : Promise.resolve({ data: null }),
   ]);
 
   if (!course) notFound();
@@ -127,6 +129,9 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
   const circumference = 2 * Math.PI * 42;
   const dashOffset = circumference - (progressPercent / 100) * circumference;
   const isPaidCourse = course.price_bdt !== null && course.price_bdt > 0;
+  const { data: assessmentOutcomes } = assessmentResult?.id
+    ? await admin.from("course_outcome_assessment_results").select("course_outcome_id,attainment_percent,coverage_percent,attained").eq("course_assessment_result_id", assessmentResult.id).order("attainment_percent", { ascending: false })
+    : { data: [] };
 
   const headerCard = (
     <div className="br-learner-card p-4 md:p-5">
@@ -319,6 +324,42 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
     </Panel>
   );
 
+  const assessmentPanel = isEnrolled ? (
+    <Panel title="Course assessment">
+      {assessmentResult ? (
+        <div className="grid gap-4">
+          <div className="flex items-end justify-between gap-3">
+            <div>
+              <p className="text-3xl font-extrabold text-[var(--br-dark-card)]">{Math.round(Number(assessmentResult.score_percent ?? 0))}%</p>
+              <p className="text-xs font-semibold text-[var(--br-text-muted)]">Current demonstrated score</p>
+            </div>
+            <span className="rounded-full bg-[var(--br-success-soft)] px-3 py-1 text-xs font-extrabold text-[var(--br-success)]">
+              {String(assessmentResult.status ?? "IN_PROGRESS").replaceAll("_", " ")}
+            </span>
+          </div>
+          <div className="grid gap-2 text-sm">
+            <AssessmentMetric label="Completion" value={Number(assessmentResult.completion_percent ?? 0)} />
+            <AssessmentMetric label="Evidence coverage" value={Number(assessmentResult.coverage_percent ?? 0)} />
+          </div>
+          {assessmentOutcomes?.length ? (
+            <div className="border-t border-[var(--br-border)] pt-3">
+              <p className="mb-2 text-xs font-extrabold uppercase tracking-wide text-[var(--br-text-muted)]">Outcome progress</p>
+              <div className="grid gap-2">
+                {assessmentOutcomes.slice(0, 3).map((outcome) => {
+                  const label = (outcomes ?? []).find((candidate) => candidate.id === outcome.course_outcome_id)?.outcome ?? "Course outcome";
+                  return <AssessmentMetric key={outcome.course_outcome_id} label={label} value={Number(outcome.attainment_percent ?? 0)} />;
+                })}
+              </div>
+            </div>
+          ) : null}
+          <p className="text-xs leading-5 text-[var(--br-text-muted)]">Attainment reflects submitted evidence. Coverage shows how much mapped evidence has been attempted.</p>
+        </div>
+      ) : (
+        <p className="text-sm leading-6 text-[var(--br-text-muted)]">Your assessment will appear here after you submit a graded lesson or quiz in this course.</p>
+      )}
+    </Panel>
+  ) : null;
+
 
   const outcomesPanel = (
     <Panel title="What You’ll Learn">
@@ -395,6 +436,7 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
               {headerCard}
               <aside className="grid min-w-0 gap-4">
                 {progressPanel}
+                {assessmentPanel}
                 {outcomesPanel}
               </aside>
             </section>
@@ -414,6 +456,7 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
             </div>
             <aside className="grid min-w-0 content-start gap-4">
               {progressPanel}
+              {assessmentPanel}
               {outcomesPanel}
               {supportPanel}
             </aside>
@@ -492,6 +535,18 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
       <h2 className="mb-4 text-lg font-extrabold">{title}</h2>
       {children}
     </section>
+  );
+}
+
+function AssessmentMetric({ label, value }: { label: string; value: number }) {
+  const safeValue = Math.max(0, Math.min(100, value));
+  return (
+    <div className="grid gap-1">
+      <div className="flex items-center justify-between gap-3 text-xs font-semibold text-[var(--br-text-muted)]">
+        <span className="min-w-0 break-words">{label}</span><span>{Math.round(safeValue)}%</span>
+      </div>
+      <div className="h-1.5 overflow-hidden rounded-full bg-[var(--br-surface-strong)]"><span className="block h-full rounded-full bg-[var(--br-chart-primary)]" style={{ width: `${safeValue}%` }} /></div>
+    </div>
   );
 }
 

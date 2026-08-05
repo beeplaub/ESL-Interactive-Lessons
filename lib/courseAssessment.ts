@@ -119,7 +119,8 @@ export function calculateCourseAssessment({
   completedItemIds?: Set<string>;
 }): CourseAssessmentSummary {
   const itemById = new Map(assessmentItems.map((item) => [item.id, item]));
-  const itemByCourseItem = new Map<string, Array<{ item: Item; mapping: Mapping; response: Response; attempt: Attempt }>>();
+  const selectedResponsesByCourseItem = new Map<string, Response[]>();
+  const selectedAttemptsByCourseItem = new Map<string, Attempt>();
   const responsesByAttempt = new Map<string, Response[]>();
   for (const response of responses) {
     if (response.grading_status === "VOID") continue;
@@ -128,24 +129,29 @@ export function calculateCourseAssessment({
     responsesByAttempt.set(response.attempt_id, list);
   }
 
-  for (const mapping of mappings) {
-    const item = itemById.get(mapping.assessment_item_id);
-    if (!item) continue;
-    const itemAttempts = attempts.filter((attempt) => attempt.course_item_id === mapping.course_item_id && attempt.status !== "VOID");
-    const policy = course.evidence_selection;
-    const selectedAttempt = selectAttemptEvidence(itemAttempts, responsesByAttempt, policy);
+  const attemptsByCourseItem = new Map<string, Attempt[]>();
+  for (const attempt of attempts) {
+    if (!attempt.course_item_id || attempt.status === "VOID") continue;
+    const list = attemptsByCourseItem.get(attempt.course_item_id) ?? [];
+    list.push(attempt);
+    attemptsByCourseItem.set(attempt.course_item_id, list);
+  }
+
+  for (const courseItem of items) {
+    const selectedAttempt = selectAttemptEvidence(
+      attemptsByCourseItem.get(courseItem.id) ?? [],
+      responsesByAttempt,
+      course.evidence_selection,
+    );
     if (!selectedAttempt) continue;
-    const response = (responsesByAttempt.get(selectedAttempt.id) ?? []).find((candidate) => candidate.assessment_item_id === mapping.assessment_item_id);
-    if (!response) continue;
-    const list = itemByCourseItem.get(mapping.course_item_id) ?? [];
-    list.push({ item, mapping, response, attempt: selectedAttempt });
-    itemByCourseItem.set(mapping.course_item_id, list);
+    selectedAttemptsByCourseItem.set(courseItem.id, selectedAttempt);
+    selectedResponsesByCourseItem.set(courseItem.id, (responsesByAttempt.get(selectedAttempt.id) ?? []).filter((response) => itemById.has(response.assessment_item_id)));
   }
 
   const itemResults = items.map((courseItem) => {
-    const selected = itemByCourseItem.get(courseItem.id) ?? [];
-    const score = selected.reduce((sum, row) => sum + Number(row.response.earned_points), 0);
-    const maximumScore = selected.reduce((sum, row) => sum + Number(row.response.maximum_points), 0);
+    const selected = selectedResponsesByCourseItem.get(courseItem.id) ?? [];
+    const score = selected.reduce((sum, response) => sum + Number(response.earned_points), 0);
+    const maximumScore = selected.reduce((sum, response) => sum + Number(response.maximum_points), 0);
     return {
       courseItemId: courseItem.id,
       title: courseItem.title,
@@ -161,15 +167,16 @@ export function calculateCourseAssessment({
     const outcomeMappings = mappings.filter((mapping) => mapping.course_outcome_id === outcome.id);
     const evidence: EvidencePoint[] = [];
     for (const mapping of outcomeMappings) {
-      const selected = itemByCourseItem.get(mapping.course_item_id)?.find((row) => row.mapping.assessment_item_id === mapping.assessment_item_id);
-      if (!selected) continue;
+      const selectedAttempt = selectedAttemptsByCourseItem.get(mapping.course_item_id);
+      const selected = (selectedResponsesByCourseItem.get(mapping.course_item_id) ?? []).find((response) => response.assessment_item_id === mapping.assessment_item_id);
+      if (!selected || !selectedAttempt) continue;
       const courseItem = items.find((item) => item.id === mapping.course_item_id);
       evidence.push({
-        earnedPoints: Number(selected.response.earned_points),
-        maximumPoints: Number(selected.response.maximum_points),
-        analyticalWeight: Number(selected.item.analytical_weight || 1) * Number(mapping.contribution_weight || 1),
+        earnedPoints: Number(selected.earned_points),
+        maximumPoints: Number(selected.maximum_points),
+        analyticalWeight: Number(itemById.get(mapping.assessment_item_id)?.analytical_weight || 1) * Number(mapping.contribution_weight || 1),
         courseItemWeight: Number(courseItem?.assessment_weight || 1),
-        completedAt: selected.response.submitted_at,
+        completedAt: selected.submitted_at || selectedAttempt.submitted_at,
       });
     }
     const mappedWeights = outcomeMappings.map((mapping) => {
