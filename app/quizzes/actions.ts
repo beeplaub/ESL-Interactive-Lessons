@@ -5,6 +5,7 @@ import { completeCourseItemsForContent } from "@/lib/courseProgress";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isCorrect, questionScore, questionTotal } from "@/lib/quizScoring";
 import { assessmentItemVersionSnapshots, clampPoints, scorePercent } from "@/lib/assessmentContract";
+import { lessonScoredQuestions } from "@/lib/lessonActivityScoring";
 import type { Json } from "@/types/database.types";
 
 export async function recordQuizAttempt(input: {
@@ -166,6 +167,14 @@ async function recordDetailedAssessmentEvidence({
       }
     }
   } else if (lessonSlideActivityId) {
+    const { data: activity, error: activityError } = await admin
+      .from("lesson_slide_activities")
+      .select("activity_type,activity_data")
+      .eq("id", lessonSlideActivityId)
+      .maybeSingle();
+    if (activityError) throw activityError;
+    const serverQuestions = activity ? lessonScoredQuestions(activity.activity_type, activity.activity_data) : [];
+    const serverQuestionById = new Map(serverQuestions.map((question) => [question.id, question]));
     for (const response of responseScores ?? []) {
       const { data: existing } = await admin
         .from("assessment_items")
@@ -173,29 +182,34 @@ async function recordDetailedAssessmentEvidence({
         .eq("lesson_activity_id", lessonSlideActivityId)
         .eq("source_item_key", response.itemKey)
         .maybeSingle();
+      const serverQuestion = serverQuestionById.get(response.itemKey);
       const { data: item, error: itemError } = existing
         ? { data: existing, error: null }
         : await admin.from("assessment_items").insert({
             source_type: "LESSON_ACTIVITY_QUESTION",
             lesson_activity_id: lessonSlideActivityId,
             source_item_key: response.itemKey,
-            max_points: Math.max(0.01, response.maximumPoints),
+            prompt_snapshot: serverQuestion?.id ?? response.itemKey,
+            max_points: Math.max(0.01, serverQuestion ? questionTotal(serverQuestion) : response.maximumPoints),
             analytical_weight: 1,
           }).select("id,max_points").single();
       if (itemError || !item) throw itemError ?? new Error("Could not register lesson question evidence.");
       const configuredMaximum = Number(item.max_points);
-      const ratio = response.maximumPoints > 0 ? response.earnedPoints / response.maximumPoints : 0;
+      const earnedPoints = serverQuestion ? questionScore(serverQuestion, response.answer) : response.earnedPoints;
+      const serverCorrect = serverQuestion ? isCorrect(serverQuestion, response.answer) : response.isCorrect;
       normalizedResponses.push({
         assessmentItemId: item.id,
         answer: response.answer,
-        earnedPoints: clampPoints(ratio * configuredMaximum, configuredMaximum),
+        earnedPoints: clampPoints(serverQuestion ? earnedPoints * (configuredMaximum / Math.max(0.01, questionTotal(serverQuestion))) : earnedPoints, configuredMaximum),
         maximumPoints: configuredMaximum,
-        isCorrect: response.isCorrect,
+        isCorrect: serverCorrect,
       });
       const snapshots = assessmentItemVersionSnapshots({
         sourceType: "LESSON_ACTIVITY_QUESTION",
         sourceItemKey: response.itemKey,
         maxPoints: configuredMaximum,
+        questionType: serverQuestion?.question_type,
+        correctAnswer: serverQuestion?.correct_answer,
         analyticalWeight: 1,
       });
       const { data: version } = await admin.from("assessment_item_versions").select("id").eq("assessment_item_id", item.id).eq("version_number", 1).maybeSingle();
