@@ -4,6 +4,7 @@ import { ArrowLeft, Printer } from "lucide-react";
 import { requireAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { Json } from "@/types/database.types";
+import { BrandLogo } from "@/components/BrandLogo";
 
 export const dynamic = "force-dynamic";
 
@@ -57,8 +58,7 @@ export default async function QuizPrintPage({ params }: { params: Promise<{ id: 
         
         {/* EXCLUSIVELY CUSTOM BRAND HEADER (NO ADMIN LINKS OR MENUS) */}
         <div className="text-center mb-8 border-b-2 border-[var(--br-border)] pb-4">
-          <h1 className="text-4xl font-black tracking-tight text-[var(--br-text-muted)] font-sans">BrenUp</h1>
-          <p className="text-xs font-bold uppercase tracking-widest text-slate-500 mt-1">Level Up Your English</p>
+          <BrandLogo variant="light" className="mx-auto h-14 w-[190px]" />
         </div>
 
         {/* METADATA & STUDENT INFO BLOCKS */}

@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { signOut, switchToLearnerView } from "@/app/auth/actions";
+import { BrandLogo } from "@/components/BrandLogo";
 
 const links = [
   { href: "/admin", label: "Overview", Icon: BarChart3 },
@@ -90,7 +91,8 @@ export function AdminSidebar({
     return (
       <div className="rounded-lg border border-[var(--br-border)] bg-[var(--br-surface)] p-3 shadow-[var(--br-shadow)]">
         <div className="border-b border-[var(--br-border)] pb-3">
-          <p className="text-xs uppercase tracking-wide text-[var(--br-text-muted)]">Admin</p>
+          <BrandLogo variant="light" className="h-8 w-[112px]" />
+          <p className="mt-3 text-xs uppercase tracking-wide text-[var(--br-text-muted)]">Admin</p>
           <p className="mt-1 truncate font-semibold">{name ?? "BrenUp"}</p>
         </div>
         <nav className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -156,13 +158,12 @@ export function AdminSidebar({
       <div className={`border-b border-[var(--br-border)] p-3 ${collapsed ? "px-2" : ""}`}>
         {collapsed ? (
           <div className="flex justify-center py-1">
-            <span className="flex size-7 items-center justify-center rounded-full bg-[var(--br-brand)] text-xs font-bold text-[var(--br-text-on-dark)]">
-              {(name ?? "B")[0].toUpperCase()}
-            </span>
+            <BrandLogo variant="icon" className="size-8" />
           </div>
         ) : (
           <>
-            <p className="text-xs uppercase tracking-wide text-[var(--br-text-muted)]">Admin</p>
+            <BrandLogo variant="light" className="h-8 w-[112px]" />
+            <p className="mt-3 text-xs uppercase tracking-wide text-[var(--br-text-muted)]">Admin</p>
             <p className="mt-1 truncate font-semibold">{name ?? "BrenUp"}</p>
           </>
         )}

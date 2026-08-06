@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { SiteNav } from "@/components/SiteNav";
+import { BrandLogo } from "@/components/BrandLogo";
 
 export async function SiteHeader() {
   const supabase = await createClient();
@@ -11,15 +12,8 @@ export async function SiteHeader() {
   return (
     <header className="sticky top-0 z-30 border-b border-[var(--br-border)] bg-[color:color-mix(in_srgb,var(--br-surface)_88%,transparent)] backdrop-blur-xl">
       <nav className="mx-auto flex max-w-[1540px] items-center justify-between px-4 py-3 sm:px-6">
-        <Link href="/" className="group flex items-center gap-3 font-semibold tracking-tight">
-          <span className="relative grid size-10 place-items-center overflow-hidden rounded-xl bg-[var(--br-brand)] text-sm font-black text-on-dark shadow-lg shadow-black/10">
-            <span className="absolute -left-2 top-1 h-7 w-7 rounded-full bg-white/20" />
-            B
-          </span>
-          <span className="leading-tight">
-            <span className="block text-lg font-black text-[var(--br-text)]">BrenUp</span>
-            <span className="hidden text-[11px] font-medium text-[var(--br-text-muted)] sm:block">Level Up Your English</span>
-          </span>
+        <Link href="/" className="group flex items-center font-semibold tracking-tight">
+          <BrandLogo variant="light" className="h-10 w-[132px]" priority />
         </Link>
         <SiteNav isLoggedIn={Boolean(user)} />
       </nav>

@@ -9,13 +9,13 @@ import {
   GraduationCap,
   HelpCircle,
   Home,
-  Layers,
   ClipboardList,
   Zap,
   Award, CalendarDays
   , Radio, Target
 } from "lucide-react";
 import type { ActiveItem } from "@/components/LearnerAppShell";
+import { BrandLogo } from "@/components/BrandLogo";
 
 const levelNames: Record<string, string> = {
   A1: "Beginner",
@@ -80,15 +80,13 @@ export function LearnerSidebar({
       {/* Brand logo & collapse button */}
       <div className={`relative flex items-center justify-center pb-8 ${collapsed ? "" : "gap-2"}`}>
         <Link href="/account" prefetch className="flex min-w-0 items-center gap-3">
-          <div className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-xl bg-[var(--br-brand)] shadow-md shadow-black/20" style={schoolBrand?.accentColor ? { background: schoolBrand.accentColor } : undefined}>
-            {schoolBrand?.logoUrl ? <img src={schoolBrand.logoUrl} alt="" className="size-full object-cover" /> : <Layers className="size-[22px] text-on-dark" />}
-          </div>
-          {collapsed ? null : (
+          {schoolBrand?.logoUrl ? <div className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-xl bg-[var(--br-brand)] shadow-md shadow-black/20" style={schoolBrand.accentColor ? { background: schoolBrand.accentColor } : undefined}><img src={schoolBrand.logoUrl} alt="" className="size-full object-cover" /></div> : collapsed ? <BrandLogo variant="icon" className="size-10 shrink-0" /> : <BrandLogo variant="dark" className="h-10 w-[150px] shrink-0" priority />}
+          {!collapsed && schoolBrand ? (
             <div className="min-w-0">
-              <div className="truncate text-base font-extrabold leading-tight text-[var(--br-text-on-dark)] tracking-tight">{schoolBrand?.name || "BrenUp"}</div>
-              <div className="truncate text-[10px] font-bold text-[var(--br-text-on-dark)]/50 uppercase tracking-wider">{schoolBrand ? "Powered by BrenUp" : "Level Up English"}</div>
+              <div className="truncate text-base font-extrabold leading-tight text-[var(--br-text-on-dark)] tracking-tight">{schoolBrand.name}</div>
+              <div className="truncate text-[10px] font-bold text-[var(--br-text-on-dark)]/50 uppercase tracking-wider">Powered by BrenUp</div>
             </div>
-          )}
+          ) : null}
         </Link>
         <button
           type="button"

@@ -10,7 +10,6 @@ import {
   GraduationCap,
   HelpCircle,
   Home,
-  Layers,
   LogOut,
   Menu,
   Target,
@@ -28,6 +27,7 @@ import { LearnerSidebar } from "@/components/LearnerSidebar";
 import { NotificationsDropdown } from "@/components/NotificationsDropdown";
 import { LearnerNavigationPreloader } from "@/components/LearnerNavigationPreloader";
 import { getLearnerAchievements, type LearnerAchievements } from "@/lib/achievements";
+import { BrandLogo } from "@/components/BrandLogo";
 
 export type ActiveItem = "home" | "quizzes" | "courses" | "live-classes" | "assignments" | "tasks" | "calendar" | "achievements" | "certificates" | "level-test" | "leaderboard" | "language-profile" | "profile";
 
@@ -548,8 +548,7 @@ function MobileTopbar({
   return (
     <div className="fixed inset-x-0 top-0 z-40 flex h-[60px] items-center justify-between gap-2 bg-[var(--br-dark-card)] px-3 min-[1180px]:hidden">
       <Link href="/account" prefetch className="flex min-w-0 items-center gap-2">
-        <span className="grid size-8 shrink-0 place-items-center rounded-[9px] bg-[var(--br-brand)]"><Layers className="size-[18px] text-on-dark" /></span>
-        <span className="truncate text-[15px] font-bold text-on-dark">BrenUp</span>
+        <BrandLogo variant="icon" className="size-8 shrink-0" priority />
       </Link>
       <div className="flex shrink-0 items-center gap-1.5">
         {isStaffUser ? (
