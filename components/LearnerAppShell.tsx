@@ -548,7 +548,7 @@ function MobileTopbar({
   return (
     <div className="fixed inset-x-0 top-0 z-40 flex h-[60px] items-center justify-between gap-2 bg-[var(--br-dark-card)] px-3 min-[1180px]:hidden">
       <Link href="/account" prefetch className="flex min-w-0 items-center gap-2">
-        <BrandLogo variant="icon" className="size-8 shrink-0" priority />
+        <BrandLogo variant="dark" className="h-8 w-[92px] shrink-0" priority />
       </Link>
       <div className="flex shrink-0 items-center gap-1.5">
         {isStaffUser ? (
