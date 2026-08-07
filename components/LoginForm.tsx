@@ -17,6 +17,7 @@ export function LoginForm() {
   const [lastName, setLastName] = useState("");
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [message, setMessage] = useState<string | null>(null);
+  const [magicLinkSent, setMagicLinkSent] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   async function redirectForRole() {
@@ -33,6 +34,7 @@ export function LoginForm() {
   function submit() {
     startTransition(async () => {
       setMessage(null);
+      setMagicLinkSent(false);
 
       if (mode === "signup") {
         const trimmedFirst = firstName.trim();
@@ -71,6 +73,35 @@ export function LoginForm() {
         return;
       }
       await redirectForRole();
+    });
+  }
+
+  function sendMagicLink() {
+    startTransition(async () => {
+      setMessage(null);
+      setMagicLinkSent(false);
+
+      const trimmedEmail = email.trim();
+      if (!trimmedEmail) {
+        setMessage("Enter your email address first.");
+        return;
+      }
+
+      const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`;
+      const { error } = await supabase.auth.signInWithOtp({
+        email: trimmedEmail,
+        options: {
+          emailRedirectTo: redirectTo,
+          shouldCreateUser: false,
+        },
+      });
+
+      if (error) {
+        setMessage(error.message);
+        return;
+      }
+
+      setMagicLinkSent(true);
     });
   }
 
@@ -182,7 +213,15 @@ export function LoginForm() {
 
       {/* Forgot password link — sign in only */}
       {mode === "signin" ? (
-        <div className="flex justify-end">
+        <div className="flex items-center justify-between gap-3">
+          <button
+            type="button"
+            disabled={isPending || !email.trim()}
+            onClick={sendMagicLink}
+            className="text-left text-xs font-semibold text-violetglow hover:underline disabled:opacity-50"
+          >
+            Email me a sign-in link
+          </button>
           <Link href="/forgot-password" className="text-xs text-violetglow hover:underline">
             Forgot password?
           </Link>
@@ -200,6 +239,12 @@ export function LoginForm() {
 
       {message ? (
         <p className="rounded-md bg-coral/10 p-3 text-sm text-coral">{message}</p>
+      ) : null}
+
+      {magicLinkSent ? (
+        <p className="rounded-md bg-moss/10 p-3 text-sm text-moss">
+          Check your inbox for a secure BrenUp sign-in link. It may take a moment to arrive.
+        </p>
       ) : null}
     </div>
   );

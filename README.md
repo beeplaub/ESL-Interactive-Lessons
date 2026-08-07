@@ -25,6 +25,21 @@ SUPABASE_SERVICE_ROLE_KEY=
 
 The service role key is used only on the server for admin upload, parsing, and storage writes.
 
+## Production email with Brevo
+
+BrenUp keeps Supabase Auth as the identity system. Brevo is the delivery service for confirmation emails, password resets, magic links, invitations, and future transactional notifications.
+
+1. In Brevo, verify the BrenUp sending domain and complete the SPF/DKIM records. Add a DMARC policy once mail flow is verified.
+2. Create separate sender addresses when possible, for example `no-reply@auth.brenup.com` for authentication and `updates@notify.brenup.com` for product notifications.
+3. In Supabase, open **Authentication > SMTP Settings** and configure Brevo's SMTP relay using the Brevo SMTP host, port, login, and SMTP key. Do not put the SMTP key in a `NEXT_PUBLIC_` variable or commit it to the repository.
+4. Set the sender name to `BrenUp` and the sender address to the verified authentication sender.
+5. Keep Supabase email confirmations enabled for new accounts unless there is a deliberate product reason to disable them. The login page supports password login, password reset, and passwordless email sign-in links.
+6. Test confirmation, password reset, magic link, invitation, expired-link, duplicate-account, bounce, and spam-folder behavior with real addresses.
+
+Brevo's Free plan currently provides 300 email sends per day. That is suitable for an early-stage authentication and notification volume, but the application should treat provider limits and delivery failures as normal states rather than assuming every message is delivered.
+
+For production, keep authentication mail and marketing mail separated by sender/domain reputation. Add a backup provider before a large launch or enrollment campaign.
+
 ## Cloudflare R2 media storage
 
 BrenUp can store creator-uploaded lesson/quiz media in Cloudflare R2 while keeping Supabase for Auth, Postgres, Realtime, and existing legacy files.
