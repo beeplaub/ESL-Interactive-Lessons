@@ -51,7 +51,7 @@ export function SiteFooter() {
           </div>
           <div className="flex flex-col gap-3">
             <h4 className="text-xs font-semibold text-on-dark uppercase tracking-wider">About</h4>
-            <Link href="/" className="text-sm text-[color-mix(in_srgb,var(--br-text-on-dark)_65%,transparent)] hover:text-on-dark transition-colors">Our Story</Link>
+            <Link href="/our-story" className="text-sm text-[color-mix(in_srgb,var(--br-text-on-dark)_65%,transparent)] hover:text-on-dark transition-colors">Our Story</Link>
             <Link href="/privacy" className="text-sm text-[color-mix(in_srgb,var(--br-text-on-dark)_65%,transparent)] hover:text-on-dark transition-colors">Privacy Policy</Link>
             <Link href="/terms" className="text-sm text-[color-mix(in_srgb,var(--br-text-on-dark)_65%,transparent)] hover:text-on-dark transition-colors">Terms of Service</Link>
           </div>
