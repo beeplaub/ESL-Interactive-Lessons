@@ -25,6 +25,16 @@ SUPABASE_SERVICE_ROLE_KEY=
 
 The service role key is used only on the server for admin upload, parsing, and storage writes.
 
+## Google Analytics 4
+
+BrenUp includes an optional GA4 integration. It is disabled unless a Measurement ID is present. Create a GA4 Web data stream for `https://www.brenup.com`, copy its Measurement ID in the form `G-XXXXXXXXXX`, and add it as:
+
+```bash
+NEXT_PUBLIC_GA_MEASUREMENT_ID=G-XXXXXXXXXX
+```
+
+Add the variable in both local `.env.local` and the Vercel Production/Preview environments, then redeploy. The integration tracks learner-facing route views and intentionally skips `/admin` pages. Do not send email addresses, quiz answers, lesson text, or other personal information as analytics parameters. Configure Google Analytics data retention, consent, and deletion settings to match BrenUp's privacy obligations before public launch.
+
 ## Production email with Brevo
 
 BrenUp keeps Supabase Auth as the identity system. Brevo is the delivery service for confirmation emails, password resets, magic links, invitations, and future transactional notifications.
