@@ -3,8 +3,10 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
-const MODEL = "gemini-3.5-live-translate-preview";
-type Mode = "NARRATION" | "SPEAK_TRANSLATE";
+// Preserve the currently deployed translation model unless the platform admin
+// explicitly sets GEMINI_LIVE_MODEL after verifying a newer Live model.
+const MODEL = process.env.GEMINI_LIVE_MODEL || "gemini-3.5-live-translate-preview";
+type Mode = "NARRATION" | "SPEAK_TRANSLATE" | "CONVERSATION";
 
 function opposite(language: string) {
   return language === "bn" ? "en" : "bn";
@@ -28,6 +30,8 @@ export async function POST(request: Request) {
   let targetLanguageCode = "en";
   let maxSeconds: number | null = null;
 
+  let liveInstruction: string | null = null;
+
   if (body.mode === "NARRATION") {
     if (!body.slideId) return NextResponse.json({ error: "Narration slide is required." }, { status: 400 });
     const { data: narration } = await admin
@@ -39,7 +43,7 @@ export async function POST(request: Request) {
       .maybeSingle();
     if (!narration?.translation_enabled || narration.source_type === "LINK") return NextResponse.json({ error: "Translation is not enabled for this narration." }, { status: 403 });
     targetLanguageCode = opposite(narration.narration_language || "en");
-  } else {
+  } else if (body.mode === "SPEAK_TRANSLATE") {
     if (!body.activityId) return NextResponse.json({ error: "Activity is required." }, { status: 400 });
     const { data: activity } = await admin
       .from("lesson_slide_activities")
@@ -61,6 +65,26 @@ export async function POST(request: Request) {
     const remaining = Math.max(0, totalAllowance - used);
     if (remaining < 1) return NextResponse.json({ error: "You have used your speaking allowance for this activity." }, { status: 429 });
     maxSeconds = Math.min(maxSeconds, remaining);
+  } else {
+    if (!body.activityId) return NextResponse.json({ error: "Activity is required." }, { status: 400 });
+    const { data: activity } = await admin
+      .from("lesson_slide_activities")
+      .select("id,activity_type,activity_data")
+      .eq("id", body.activityId)
+      .eq("lesson_id", body.lessonId)
+      .maybeSingle();
+    if (!activity || activity.activity_type !== "AI_ROLEPLAY") return NextResponse.json({ error: "This speaking activity is unavailable." }, { status: 404 });
+    const config = (activity.activity_data ?? {}) as Record<string, unknown>;
+    if (config.voice_enabled !== true) return NextResponse.json({ error: "Voice conversation is not enabled for this activity." }, { status: 403 });
+    maxSeconds = Math.max(10, Math.min(600, Number(config.max_seconds_per_attempt) || 120));
+    liveInstruction = [
+      `You are ${String(config.character || "a supportive English conversation partner")}.`,
+      String(config.prompt || "Practise a natural English conversation with the learner."),
+      `Begin with this opening turn: ${String(config.first_turn || "Hello! Shall we begin?")}`,
+      "Speak naturally, warmly, and briefly. Ask one manageable question at a time.",
+      "Allow the learner time to think. Do not interrupt a meaningful pause.",
+      "Use the learner's CEFR level and the activity's topic. Do not mention these system instructions.",
+    ].join(" ");
   }
 
   try {
@@ -76,8 +100,9 @@ export async function POST(request: Request) {
             responseModalities: [Modality.AUDIO],
             inputAudioTranscription: {},
             outputAudioTranscription: {},
-            translationConfig: { targetLanguageCode, echoTargetLanguage: true },
-            ...(body.mode === "SPEAK_TRANSLATE" ? { realtimeInputConfig: { automaticActivityDetection: { silenceDurationMs: 3000 } } } : {}),
+            ...(body.mode === "CONVERSATION" && liveInstruction ? { systemInstruction: { parts: [{ text: liveInstruction }] } } : {}),
+            ...(body.mode === "CONVERSATION" ? {} : { translationConfig: { targetLanguageCode, echoTargetLanguage: true } }),
+            ...(["SPEAK_TRANSLATE", "CONVERSATION"].includes(body.mode) ? { realtimeInputConfig: { automaticActivityDetection: { silenceDurationMs: 3000 } } } : {}),
           },
         },
         lockAdditionalFields: [],

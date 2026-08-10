@@ -466,7 +466,13 @@ function normalizeAiRoleplay(data: Json | null) {
   return {
     prompt: String(record.prompt ?? "Practice speaking English with me."),
     character: String(record.character ?? "Shop Assistant"),
-    first_turn: String(record.first_turn ?? "Hello! How can I help you today?")
+    first_turn: String(record.first_turn ?? "Hello! How can I help you today?"),
+    voice_enabled: record.voice_enabled === true,
+    save_recordings: record.save_recordings === true,
+    recording_retention_days: [7, 30, 90].includes(Number(record.recording_retention_days)) ? Number(record.recording_retention_days) : 30,
+    allow_download: record.allow_download === true,
+    show_transcript: record.show_transcript !== false,
+    max_seconds_per_attempt: Math.max(10, Math.min(600, Number(record.max_seconds_per_attempt) || 120)),
   };
 }
 
@@ -475,6 +481,12 @@ function AiRoleplayEditor({ activity, onSave }: { activity: Activity; onSave: (d
   const [prompt, setPrompt] = useState(initial.prompt);
   const [character, setCharacter] = useState(initial.character);
   const [firstTurn, setFirstTurn] = useState(initial.first_turn);
+  const [voiceEnabled, setVoiceEnabled] = useState(initial.voice_enabled);
+  const [saveRecordings, setSaveRecordings] = useState(initial.save_recordings);
+  const [retentionDays, setRetentionDays] = useState(initial.recording_retention_days);
+  const [allowDownload, setAllowDownload] = useState(initial.allow_download);
+  const [showTranscript, setShowTranscript] = useState(initial.show_transcript);
+  const [maxSeconds, setMaxSeconds] = useState(initial.max_seconds_per_attempt);
 
   const needsReview = !prompt.trim() || !character.trim() || !firstTurn.trim();
 
@@ -511,8 +523,23 @@ function AiRoleplayEditor({ activity, onSave }: { activity: Activity; onSave: (d
           />
         </label>
       </div>
+      <section className="rounded-xl border border-[var(--br-border)] bg-[var(--br-surface-muted)] p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div><p className="text-sm font-semibold">Voice conversation</p><p className="text-xs text-[var(--br-text-muted)]">Let learners speak with this AI partner instead of typing.</p></div>
+          <button type="button" role="switch" aria-checked={voiceEnabled} onClick={() => setVoiceEnabled((value) => !value)} className={`relative h-6 w-11 rounded-full transition ${voiceEnabled ? "bg-moss" : "bg-black/20"}`}><span className={`absolute top-1 size-4 rounded-full bg-surface shadow transition ${voiceEnabled ? "left-6" : "left-1"}`} /></button>
+        </div>
+        {voiceEnabled ? <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <label className="text-sm font-medium">Speaking time per attempt (seconds)<input type="number" min={10} max={600} value={maxSeconds} onChange={(event) => setMaxSeconds(Math.max(10, Math.min(600, Number(event.target.value) || 120)))} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={showTranscript} onChange={(event) => setShowTranscript(event.target.checked)} /> Show conversation transcript</label>
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={saveRecordings} onChange={(event) => setSaveRecordings(event.target.checked)} /> Allow learners to save recordings</label>
+          {saveRecordings ? <>
+            <label className="text-sm font-medium">Auto-delete recordings after<select value={retentionDays} onChange={(event) => setRetentionDays(Number(event.target.value))} className="mt-1 w-full rounded-md border border-[var(--br-border)] bg-surface px-3 py-2"><option value={7}>7 days</option><option value={30}>30 days</option><option value={90}>90 days</option></select></label>
+            <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={allowDownload} onChange={(event) => setAllowDownload(event.target.checked)} /> Allow learner downloads</label>
+          </> : <p className="text-xs text-[var(--br-text-muted)] sm:col-span-2">Recordings stay off by default. Learners will only be able to save audio when you enable it and they consent.</p>}
+        </div> : null}
+      </section>
       <div className="flex justify-end gap-3 mt-2">
-        <SaveButton onClick={() => onSave({ prompt, character, first_turn: firstTurn } as Json, needsReview)} />
+        <SaveButton onClick={() => onSave({ prompt, character, first_turn: firstTurn, voice_enabled: voiceEnabled, save_recordings: saveRecordings, recording_retention_days: retentionDays, allow_download: allowDownload, show_transcript: showTranscript, max_seconds_per_attempt: maxSeconds } as Json, needsReview)} />
       </div>
     </div>
   );
@@ -3420,4 +3447,3 @@ function DialogueWritingEditor({
     </div>
   );
 }
-

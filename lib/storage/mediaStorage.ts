@@ -1,4 +1,5 @@
-import { DeleteObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import type { createAdminClient } from "@/lib/supabase/admin";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
@@ -14,7 +15,7 @@ export type StoredMediaObject = {
 
 type UploadInput = {
   supabase: AdminClient;
-  supabaseBucket: "lessons" | "lesson-audio";
+  supabaseBucket: "lessons" | "lesson-audio" | "ai-recordings";
   path: string;
   body: Uint8Array;
   contentType: string;
@@ -111,6 +112,12 @@ export async function deleteMediaObject(admin: AdminClient, object: { provider?:
   }
 
   await admin.storage.from(object.bucket).remove([object.path]);
+}
+
+/** Returns a short-lived private URL for R2 objects such as learner recordings. */
+export async function createSignedR2MediaUrl(object: { bucket: string; path: string }, expiresIn = 600) {
+  const url = await getSignedUrl(getR2Client(), new GetObjectCommand({ Bucket: object.bucket, Key: object.path }), { expiresIn });
+  return url;
 }
 
 export async function resolveMediaUrl(admin: AdminClient, object: {

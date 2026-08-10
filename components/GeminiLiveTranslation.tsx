@@ -2,7 +2,7 @@
 
 import { GoogleGenAI, Modality } from "@google/genai";
 
-type TokenRequest = { mode: "NARRATION" | "SPEAK_TRANSLATE"; lessonId: string; slideId?: string; activityId?: string };
+type TokenRequest = { mode: "NARRATION" | "SPEAK_TRANSLATE" | "CONVERSATION"; lessonId: string; slideId?: string; activityId?: string };
 type LiveConnection = Awaited<ReturnType<GoogleGenAI["live"]["connect"]>>;
 
 function base64FromBytes(bytes: Uint8Array) {
@@ -203,5 +203,83 @@ export async function startSpeakTranslation({ lessonId, activityId, onAudio, onT
     stream?.getTracks().forEach((track) => track.stop());
     processor?.disconnect(); session?.close(); if (context) void context.close(); void player.close();
     onError(error instanceof Error ? error.message : "Microphone translation could not start.");
+  }
+}
+
+/**
+ * Starts a voice-to-voice AI roleplay. The microphone stream is sent to Gemini
+ * and, when requested, recorded locally at the same time for one R2 upload at
+ * the end of the attempt. No recording is uploaded by this function itself.
+ */
+export async function startLiveConversation({ lessonId, activityId, onAudio, onTranscript, onReady, onError }: {
+  lessonId: string;
+  activityId: string;
+  onAudio: (data: string) => void;
+  onTranscript?: (sender: "LEARNER" | "AI", text: string) => void;
+  onReady: (stop: () => Promise<{ recording: Blob | null; durationSeconds: number }>, maxSeconds: number) => void;
+  onError: (message: string) => void;
+}) {
+  const player = new PcmPlayer();
+  let stream: MediaStream | null = null;
+  let context: AudioContext | null = null;
+  let source: MediaStreamAudioSourceNode | null = null;
+  let processor: ScriptProcessorNode | null = null;
+  let silentGain: GainNode | null = null;
+  let session: LiveConnection | null = null;
+  let recorder: MediaRecorder | null = null;
+  const recordedChunks: Blob[] = [];
+  const startedAt = Date.now();
+  try {
+    await player.resume();
+    const connection = await requestToken({ mode: "CONVERSATION", lessonId, activityId });
+    const ai = new GoogleGenAI({ apiKey: connection.token, httpOptions: { apiVersion: "v1alpha" } });
+    session = await ai.live.connect({
+      model: connection.model,
+      config: { responseModalities: [Modality.AUDIO], inputAudioTranscription: {}, outputAudioTranscription: {}, realtimeInputConfig: { automaticActivityDetection: { silenceDurationMs: 3000 } } },
+      callbacks: {
+        onmessage: (message) => {
+          extractAudio(message).forEach((data) => { player.play(data); onAudio(data); });
+          const record = message as { serverContent?: { inputTranscription?: { text?: string }; outputTranscription?: { text?: string } } };
+          if (record.serverContent?.inputTranscription?.text) onTranscript?.("LEARNER", record.serverContent.inputTranscription.text);
+          if (record.serverContent?.outputTranscription?.text) onTranscript?.("AI", record.serverContent.outputTranscription.text);
+        },
+        onerror: () => onError("The AI conversation connection was interrupted."),
+      },
+    });
+    stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+    const mimeType = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"].find((candidate) => MediaRecorder.isTypeSupported(candidate));
+    recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+    recorder.ondataavailable = (event) => { if (event.data.size) recordedChunks.push(event.data); };
+    recorder.start(250);
+    context = new AudioContext();
+    source = context.createMediaStreamSource(stream);
+    processor = context.createScriptProcessor(4096, 1, 1);
+    silentGain = context.createGain();
+    silentGain.gain.value = 0;
+    processor.onaudioprocess = (event) => {
+      const pcm = downsample(event.inputBuffer.getChannelData(0), context?.sampleRate ?? 48000);
+      session?.sendRealtimeInput({ audio: { data: pcm16Base64(pcm), mimeType: "audio/pcm;rate=16000" } });
+    };
+    source.connect(processor); processor.connect(silentGain); silentGain.connect(context.destination);
+    session.sendRealtimeInput({ text: "Begin the roleplay now. Speak your opening turn to the learner." });
+    onReady(async () => {
+      processor?.disconnect(); silentGain?.disconnect(); source?.disconnect(); stream?.getTracks().forEach((track) => track.stop());
+      session?.sendRealtimeInput({ audioStreamEnd: true }); session?.close(); void context?.close();
+      if (recorder?.state === "recording") {
+        await new Promise<void>((resolve) => {
+          const current = recorder;
+          if (!current) { resolve(); return; }
+          current.onstop = () => resolve();
+          current.stop();
+        });
+      }
+      void player.close();
+      const blob = recordedChunks.length ? new Blob(recordedChunks, { type: recorder?.mimeType || "audio/webm" }) : null;
+      return { recording: blob, durationSeconds: Math.round((Date.now() - startedAt) / 1000) };
+    }, connection.maxSeconds ?? 120);
+  } catch (error) {
+    stream?.getTracks().forEach((track) => track.stop());
+    processor?.disconnect(); silentGain?.disconnect(); session?.close(); if (context) void context.close(); void player.close();
+    onError(error instanceof Error ? error.message : "Voice conversation could not start.");
   }
 }

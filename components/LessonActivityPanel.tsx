@@ -1,11 +1,11 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, Send, MessageCircle, Award, RefreshCw, Loader2, Mic, Pause, RotateCcw } from "lucide-react";
+import { ChevronLeft, ChevronRight, Send, MessageCircle, Award, RefreshCw, Loader2, Mic, Pause, RotateCcw, Square, Download, ShieldCheck } from "lucide-react";
 import { useState, useTransition, useRef, useCallback, useEffect } from "react";
 import { recordQuizAttempt } from "@/app/quizzes/actions";
 import { QuestionCard, hasAnswer, type QuizQuestion } from "@/components/QuizPlayer";
 import { isCorrect, questionScore, questionTotal } from "@/lib/quizScoring";
-import { startRoleplaySessionAction, submitRoleplayTurnAction, completeRoleplaySessionAction } from "@/app/admin/lessons/aiActions";
+import { startRoleplaySessionAction, submitRoleplayTurnAction, completeRoleplaySessionAction, saveRoleplayVoiceTranscriptAction } from "@/app/admin/lessons/aiActions";
 import type { Json } from "@/types/database.types";
 import { SoundToggle } from "@/components/gamification/SoundToggle";
 import { CELEBRATION_SCORE_THRESHOLD, fireCompletionConfetti } from "@/lib/gamification/confetti";
@@ -14,7 +14,7 @@ import { playCelebration, playCorrect, playPartial, playWrong } from "@/lib/gami
 import { ResultsOverview } from "@/components/gamification/ResultsOverview";
 import { computeBestStreak, NOTABLE_STREAK_THRESHOLD } from "@/lib/gamification/resultsOverview";
 import { StreakPopup } from "@/components/gamification/StreakPopup";
-import { startSpeakTranslation } from "@/components/GeminiLiveTranslation";
+import { startSpeakTranslation, startLiveConversation } from "@/components/GeminiLiveTranslation";
 
 type LessonSlideActivity = {
   id: string; activity_type: string; activity_data: Json | null;
@@ -698,16 +698,143 @@ function LiveSpeakTranslatePanel({ activity, lessonId, previewOnly, onNext }: { 
 
 type ChatMessage = { sender: "AI" | "LEARNER"; text: string; corrections?: any };
 
-function AiRoleplayPanel({
+function VoiceRoleplayPanel({ activity, lessonId, onNext, previewOnly, onSavedAttempt }: { activity: LessonSlideActivity; lessonId: string | null; onNext: () => void; previewOnly?: boolean; onSavedAttempt?: (attempt: SavedAttempt) => void }) {
+  const data = asRecord(activity.activity_data);
+  const scenario = String(data.prompt ?? "Practise speaking English with your AI partner.");
+  const character = String(data.character ?? "AI conversation partner");
+  const firstTurn = String(data.first_turn ?? "Hello! Shall we begin?");
+  const maxSeconds = Math.max(10, Math.min(600, Number(data.max_seconds_per_attempt) || 120));
+  const saveEnabled = data.save_recordings === true;
+  const showTranscript = data.show_transcript !== false;
+  const allowDownload = data.allow_download === true;
+  const [phase, setPhase] = useState<"idle" | "starting" | "recording" | "finishing" | "done">("idle");
+  const [secondsLeft, setSecondsLeft] = useState(maxSeconds);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [transcript, setTranscript] = useState<ChatMessage[]>([]);
+  const [recordingId, setRecordingId] = useState<string | null>(null);
+  const [recordingUrl, setRecordingUrl] = useState<string | null>(null);
+  const [consent, setConsent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [scorecard, setScorecard] = useState<any>(null);
+  const stopRef = useRef<(() => Promise<{ recording: Blob | null; durationSeconds: number }>) | null>(null);
+  const transcriptRef = useRef<ChatMessage[]>([]);
+
+  function addTranscript(sender: "AI" | "LEARNER", text: string) {
+    const clean = text.trim();
+    if (!clean) return;
+    transcriptRef.current = [...transcriptRef.current, { sender, text: clean }];
+    setTranscript((current) => {
+      const last = current[current.length - 1];
+      if (last?.sender === sender) return [...current.slice(0, -1), { ...last, text: `${last.text} ${clean}` }];
+      return [...current, { sender, text: clean }];
+    });
+  }
+
+  async function finish() {
+    if (!sessionId || phase === "finishing" || phase === "done") return;
+    setPhase("finishing");
+    try {
+      const result = stopRef.current ? await stopRef.current() : { recording: null, durationSeconds: 0 };
+      const turns = transcriptRef.current.map((turn) => ({ sender: turn.sender, text: turn.text }));
+      const transcriptResult = await saveRoleplayVoiceTranscriptAction(sessionId, turns);
+      if (transcriptResult.error) throw new Error(transcriptResult.error);
+      if (saveEnabled && result.recording && !previewOnly) {
+        const form = new FormData();
+        form.append("file", result.recording, "brenup-speaking-practice.webm");
+        form.append("sessionId", sessionId); form.append("activityId", activity.id);
+        form.append("durationSeconds", String(result.durationSeconds));
+        form.append("transcript", turns.map((turn) => `${turn.sender}: ${turn.text}`).join("\n"));
+        const response = await fetch("/api/ai/roleplay-recording", { method: "POST", body: form });
+        const body = await response.json() as { id?: string; error?: string };
+        if (!response.ok) throw new Error(body.error || "The recording could not be saved.");
+        setRecordingId(body.id ?? null);
+        if (body.id) {
+          const playback = await fetch(`/api/ai/roleplay-recording?id=${encodeURIComponent(body.id)}`);
+          const playbackBody = await playback.json() as { url?: string };
+          setRecordingUrl(playbackBody.url ?? null);
+        }
+      }
+      if (previewOnly) { setPhase("done"); return; }
+      const completed = await completeRoleplaySessionAction(sessionId);
+      if (completed.error) throw new Error(String(completed.error));
+      const card = (completed as any).scorecard;
+      setScorecard(card);
+      setPhase("done");
+      onSavedAttempt?.({ score: card?.scores?.overall ?? 0, total: 100, answers: { sessionId, scorecard: card } as Json, completed_at: new Date().toISOString() });
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not finish the speaking practice.");
+      setPhase("recording");
+    }
+  }
+
+  async function start() {
+    if (!lessonId || previewOnly || (saveEnabled && !consent)) return;
+    setPhase("starting"); setError(null); setTranscript([]); transcriptRef.current = [];
+    try {
+      const session = await startRoleplaySessionAction(activity.id);
+      if (session.error || !session.sessionId) throw new Error(session.error || "Could not start the conversation.");
+      setSessionId(session.sessionId);
+      setTranscript([{ sender: "AI", text: firstTurn }]);
+      await startLiveConversation({ lessonId, activityId: activity.id, onAudio: () => undefined, onTranscript: addTranscript, onReady: (stop, allowedSeconds) => { stopRef.current = stop; setSecondsLeft(Math.min(maxSeconds, allowedSeconds)); setPhase("recording"); }, onError: (message) => { setError(message); setPhase("idle"); } });
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not start the speaking practice."); setPhase("idle");
+    }
+  }
+
+  useEffect(() => {
+    if (phase !== "recording") return;
+    const timer = window.setInterval(() => setSecondsLeft((current) => { if (current <= 1) { void finish(); return 0; } return current - 1; }), 1000);
+    return () => window.clearInterval(timer);
+    // `finish` intentionally reads the current session and stop callback; the
+    // timer is restarted only when the recording phase/session changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, sessionId]);
+
+  async function downloadRecording() {
+    if (!recordingId) return;
+    const response = await fetch(`/api/ai/roleplay-recording?id=${encodeURIComponent(recordingId)}&download=1`);
+    const body = await response.json() as { url?: string; error?: string };
+    if (body.url) window.open(body.url, "_blank", "noopener,noreferrer"); else setError(body.error || "Recording is unavailable.");
+  }
+
+  if (phase === "done") return <section className="rounded-xl border border-[var(--br-border)] bg-surface p-5 shadow-sm"><div className="flex items-center gap-2 text-moss"><ShieldCheck size={18} /><p className="text-sm font-semibold">Speaking practice complete</p></div><p className="mt-2 text-sm text-[var(--br-text-muted)]">{scorecard?.scores?.overall ? `Your conversation score: ${scorecard.scores.overall}/100.` : "Your conversation has been saved."}</p>{recordingUrl ? <audio controls src={recordingUrl} className="mt-4 h-9 w-full" aria-label="Your saved speaking recording" /> : null}{recordingId && allowDownload ? <button type="button" onClick={() => void downloadRecording()} className="mt-4 inline-flex items-center gap-2 rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm font-semibold"><Download size={15} /> Download recording</button> : null}<button type="button" onClick={onNext} className="mt-4 ml-2 inline-flex items-center gap-2 rounded-lg bg-dark px-3 py-2 text-sm font-semibold text-on-dark">Next <ChevronRight size={15} /></button></section>;
+
+  return <section className="overflow-hidden rounded-xl border border-[var(--br-border)] bg-surface shadow-sm">
+    <div className="border-b border-[var(--br-border)] bg-gradient-to-r from-emerald-50 to-teal-50 p-4"><p className="text-xs font-semibold uppercase tracking-wide text-moss">Live speaking practice</p><h2 className="mt-1 text-lg font-semibold">Speak with {character}</h2><p className="mt-1 text-sm text-[var(--br-text-muted)]">{scenario}</p></div>
+    <div className="space-y-4 p-4">
+      {saveEnabled && phase === "idle" ? <label className="flex items-start gap-2 rounded-lg border border-[var(--br-border)] bg-[var(--br-surface-muted)] p-3 text-xs text-[var(--br-text-muted)]"><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} className="mt-0.5" />I agree to save my voice recording for {Number(data.recording_retention_days) || 30} days. It will then be automatically deleted.</label> : null}
+      {showTranscript ? <div className="max-h-64 space-y-2 overflow-y-auto rounded-lg bg-[var(--br-surface-muted)] p-3">{transcript.length ? transcript.map((message, index) => <div key={index} className={`rounded-lg px-3 py-2 text-sm ${message.sender === "LEARNER" ? "ml-6 bg-moss text-on-dark" : "mr-6 bg-surface"}`}><p className="mb-0.5 text-[10px] font-semibold uppercase opacity-70">{message.sender === "AI" ? character : "You"}</p>{message.text}</div>) : <p className="text-sm text-[var(--br-text-muted)]">Your conversation will appear here.</p>}</div> : null}
+      {error ? <p className="text-xs font-semibold text-coral">{error}</p> : null}
+      <div className="flex flex-wrap items-center gap-3"><button type="button" disabled={phase === "starting" || phase === "finishing" || (saveEnabled && !consent)} onClick={() => { if (phase === "idle") void start(); else if (phase === "recording") void finish(); }} className={`inline-flex items-center gap-2 rounded-full px-5 py-3 text-sm font-semibold text-on-dark disabled:opacity-50 ${phase === "recording" ? "bg-coral" : "bg-moss"}`}>{phase === "starting" ? <Loader2 size={16} className="animate-spin" /> : phase === "recording" ? <Square size={15} /> : <Mic size={16} />} {phase === "recording" ? "Finish" : "Start speaking"}</button>{phase === "recording" ? <span className="text-sm font-semibold text-coral">{Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, "0")} left</span> : null}</div>
+    </div>
+  </section>;
+}
+
+function AiRoleplayPanel(props: {
+  activity: LessonSlideActivity;
+  onNext: () => void;
+  previewOnly?: boolean;
+  lessonId: string | null;
+  attempts?: SavedAttempt[];
+  onSavedAttempt?: (attempt: SavedAttempt) => void;
+}) {
+  const data = asRecord(props.activity.activity_data);
+  if (data.voice_enabled === true) return <VoiceRoleplayPanel activity={props.activity} lessonId={props.lessonId} onNext={props.onNext} previewOnly={props.previewOnly} onSavedAttempt={props.onSavedAttempt} />;
+  return <TextRoleplayPanel {...props} />;
+}
+
+function TextRoleplayPanel({
   activity,
   onNext,
   previewOnly,
+  lessonId,
   attempts = [],
   onSavedAttempt
 }: {
   activity: LessonSlideActivity;
   onNext: () => void;
   previewOnly?: boolean;
+  lessonId: string | null;
   attempts?: SavedAttempt[];
   onSavedAttempt?: (attempt: SavedAttempt) => void;
 }) {
@@ -1321,6 +1448,7 @@ export function LessonActivityPanel({
         activity={activity}
         onNext={onNext}
         previewOnly={previewOnly}
+        lessonId={lessonId}
         attempts={localAttempts}
         onSavedAttempt={(a) => {
           setLocalAttempts((prev) => [a, ...prev]);

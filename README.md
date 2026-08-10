@@ -180,3 +180,8 @@ The current extractor handles common Rumor-style patterns:
 - writing and homework tasks
 
 Rule-based parsing is conservative by design. Admins can tweak slide type, prompt, activity items, answer key JSON, linked answer slide, and linked audio before publishing.
+### AI speaking recordings
+
+AI roleplay activities can optionally use Gemini Live voice conversation. Recording storage is off by default. A creator must enable it, and the learner must explicitly consent before the browser uploads the recording to R2. Stored recordings use a private, expiring R2 URL and are automatically cleaned up by the Vercel cron route.
+
+Run `supabase/migrations/20260810_ai_roleplay_voice_recordings.sql` in the Supabase SQL editor before enabling saved recordings. Set `CRON_SECRET` in Vercel so the cleanup route can run, and keep `GEMINI_LIVE_MODEL` set to a model currently enabled for the Google project. If `MEDIA_STORAGE_PROVIDER=r2` is not active, saved voice recordings are refused rather than silently falling back to public storage.

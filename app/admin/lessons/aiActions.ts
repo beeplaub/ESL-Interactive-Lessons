@@ -375,6 +375,23 @@ export async function startRoleplaySessionAction(activityId: string) {
   }
 }
 
+/** Saves finalized Live API transcript turns into the existing roleplay history. */
+export async function saveRoleplayVoiceTranscriptAction(sessionId: string, turns: Array<{ sender: "AI" | "LEARNER"; text: string }>) {
+  const { user } = await getSessionUser();
+  const supabase = createAdminClient();
+  const { data: session } = await supabase.from("ai_roleplay_sessions").select("id,user_id,status").eq("id", sessionId).eq("user_id", user.id).maybeSingle();
+  if (!session) return { error: "Conversation session not found." };
+  const rows = turns.map((turn) => ({ session_id: sessionId, sender: turn.sender, message_text: turn.text.trim() })).filter((turn) => turn.message_text);
+  if (rows.length) {
+    const { error } = await supabase.from("ai_roleplay_messages").insert(rows);
+    if (error) {
+      console.error("Voice roleplay transcript save failed", error);
+      return { error: "Could not save the conversation transcript." };
+    }
+  }
+  return { success: true };
+}
+
 /**
  * Action: Submits a learner turn message to an active roleplay session and returns character reply.
  */
@@ -968,4 +985,3 @@ export async function generateActivityQuestionsAction(input: {
     return { success: false, error: error?.message || "Failed to generate activity questions." };
   }
 }
-
