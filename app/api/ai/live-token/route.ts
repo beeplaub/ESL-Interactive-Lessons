@@ -5,7 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 
 // Preserve the currently deployed translation model unless the platform admin
 // explicitly sets GEMINI_LIVE_MODEL after verifying a newer Live model.
-const MODEL = process.env.GEMINI_LIVE_MODEL || "gemini-3.5-live-translate-preview";
+const TRANSLATION_MODEL = process.env.GEMINI_LIVE_MODEL || "gemini-3.5-live-translate-preview";
+const CONVERSATION_MODEL = process.env.GEMINI_CONVERSATION_MODEL || "gemini-3.1-flash-live-preview";
 type Mode = "NARRATION" | "SPEAK_TRANSLATE" | "CONVERSATION";
 
 function opposite(language: string) {
@@ -82,7 +83,8 @@ export async function POST(request: Request) {
       String(config.prompt || "Practise a natural English conversation with the learner."),
       `Begin with this opening turn: ${String(config.first_turn || "Hello! Shall we begin?")}`,
       "Speak naturally, warmly, and briefly. Ask one manageable question at a time.",
-      "Allow the learner time to think. Do not interrupt a meaningful pause.",
+      "Allow the learner at least three seconds to think. Do not interrupt a meaningful pause.",
+      "Do not echo or repeat the learner's words. Respond to what they mean, then ask a natural follow-up question.",
       "Use the learner's CEFR level and the activity's topic. Do not mention these system instructions.",
     ].join(" ");
   }
@@ -95,7 +97,7 @@ export async function POST(request: Request) {
         uses: 1,
         expireTime,
         liveConnectConstraints: {
-          model: MODEL,
+          model: body.mode === "CONVERSATION" ? CONVERSATION_MODEL : TRANSLATION_MODEL,
           config: {
             responseModalities: [Modality.AUDIO],
             inputAudioTranscription: {},
@@ -108,7 +110,7 @@ export async function POST(request: Request) {
         lockAdditionalFields: [],
       },
     });
-    return NextResponse.json({ token: token.name, model: MODEL, targetLanguageCode, maxSeconds });
+    return NextResponse.json({ token: token.name, model: body.mode === "CONVERSATION" ? CONVERSATION_MODEL : TRANSLATION_MODEL, targetLanguageCode, maxSeconds });
   } catch (error) {
     console.error("Gemini Live token creation failed", error);
     return NextResponse.json({ error: "Live translation is temporarily unavailable." }, { status: 502 });

@@ -392,6 +392,20 @@ export async function saveRoleplayVoiceTranscriptAction(sessionId: string, turns
   return { success: true };
 }
 
+export async function getRoleplayHistoryAction(activityId: string) {
+  const { user } = await getSessionUser();
+  const supabase = createAdminClient();
+  const { data, error } = await supabase.from("ai_roleplay_sessions")
+    .select("id,scorecard,created_at,updated_at,status")
+    .eq("lesson_activity_id", activityId).eq("user_id", user.id).eq("status", "COMPLETED")
+    .order("updated_at", { ascending: false }).limit(10);
+  if (error) {
+    console.error("Roleplay history lookup failed", error);
+    return { sessions: [] };
+  }
+  return { sessions: data ?? [] };
+}
+
 /**
  * Action: Submits a learner turn message to an active roleplay session and returns character reply.
  */

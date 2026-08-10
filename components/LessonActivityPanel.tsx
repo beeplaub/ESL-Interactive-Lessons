@@ -5,7 +5,7 @@ import { useState, useTransition, useRef, useCallback, useEffect } from "react";
 import { recordQuizAttempt } from "@/app/quizzes/actions";
 import { QuestionCard, hasAnswer, type QuizQuestion } from "@/components/QuizPlayer";
 import { isCorrect, questionScore, questionTotal } from "@/lib/quizScoring";
-import { startRoleplaySessionAction, submitRoleplayTurnAction, completeRoleplaySessionAction, saveRoleplayVoiceTranscriptAction } from "@/app/admin/lessons/aiActions";
+import { startRoleplaySessionAction, submitRoleplayTurnAction, completeRoleplaySessionAction, saveRoleplayVoiceTranscriptAction, getRoleplayHistoryAction } from "@/app/admin/lessons/aiActions";
 import type { Json } from "@/types/database.types";
 import { SoundToggle } from "@/components/gamification/SoundToggle";
 import { CELEBRATION_SCORE_THRESHOLD, fireCompletionConfetti } from "@/lib/gamification/confetti";
@@ -702,7 +702,6 @@ function VoiceRoleplayPanel({ activity, lessonId, onNext, previewOnly, onSavedAt
   const data = asRecord(activity.activity_data);
   const scenario = String(data.prompt ?? "Practise speaking English with your AI partner.");
   const character = String(data.character ?? "AI conversation partner");
-  const firstTurn = String(data.first_turn ?? "Hello! Shall we begin?");
   const maxSeconds = Math.max(10, Math.min(600, Number(data.max_seconds_per_attempt) || 120));
   const saveEnabled = data.save_recordings === true;
   const showTranscript = data.show_transcript !== false;
@@ -716,8 +715,20 @@ function VoiceRoleplayPanel({ activity, lessonId, onNext, previewOnly, onSavedAt
   const [consent, setConsent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [scorecard, setScorecard] = useState<any>(null);
+  const [pastRecordings, setPastRecordings] = useState<Array<{ id: string; duration_seconds: number; transcript: string | null; created_at: string; expires_at: string }>>([]);
+  const [pastSessions, setPastSessions] = useState<Array<{ id: string; scorecard: Json | null; created_at: string; updated_at: string }>>([]);
+  const [pastRecordingUrls, setPastRecordingUrls] = useState<Record<string, string>>({});
   const stopRef = useRef<(() => Promise<{ recording: Blob | null; durationSeconds: number }>) | null>(null);
   const transcriptRef = useRef<ChatMessage[]>([]);
+
+  useEffect(() => {
+    if (previewOnly) return;
+    void getRoleplayHistoryAction(activity.id).then((body) => setPastSessions(body.sessions as typeof pastSessions)).catch(() => undefined);
+    void fetch(`/api/ai/roleplay-recording?activityId=${encodeURIComponent(activity.id)}`)
+      .then(async (response) => response.ok ? await response.json() as { recordings?: typeof pastRecordings } : { recordings: [] })
+      .then((body) => setPastRecordings(body.recordings ?? []))
+      .catch(() => undefined);
+  }, [activity.id, previewOnly]);
 
   function addTranscript(sender: "AI" | "LEARNER", text: string) {
     const clean = text.trim();
@@ -748,6 +759,7 @@ function VoiceRoleplayPanel({ activity, lessonId, onNext, previewOnly, onSavedAt
         const body = await response.json() as { id?: string; error?: string };
         if (!response.ok) throw new Error(body.error || "The recording could not be saved.");
         setRecordingId(body.id ?? null);
+        if (body.id) setPastRecordings((current) => [{ id: body.id!, duration_seconds: result.durationSeconds, transcript: turns.map((turn) => `${turn.sender}: ${turn.text}`).join("\n"), created_at: new Date().toISOString(), expires_at: new Date(Date.now() + (Number(data.recording_retention_days) || 30) * 86400000).toISOString() }, ...current]);
         if (body.id) {
           const playback = await fetch(`/api/ai/roleplay-recording?id=${encodeURIComponent(body.id)}`);
           const playbackBody = await playback.json() as { url?: string };
@@ -759,6 +771,8 @@ function VoiceRoleplayPanel({ activity, lessonId, onNext, previewOnly, onSavedAt
       if (completed.error) throw new Error(String(completed.error));
       const card = (completed as any).scorecard;
       setScorecard(card);
+      const history = await getRoleplayHistoryAction(activity.id);
+      setPastSessions(history.sessions as typeof pastSessions);
       setPhase("done");
       onSavedAttempt?.({ score: card?.scores?.overall ?? 0, total: 100, answers: { sessionId, scorecard: card } as Json, completed_at: new Date().toISOString() });
     } catch (caught) {
@@ -774,7 +788,7 @@ function VoiceRoleplayPanel({ activity, lessonId, onNext, previewOnly, onSavedAt
       const session = await startRoleplaySessionAction(activity.id);
       if (session.error || !session.sessionId) throw new Error(session.error || "Could not start the conversation.");
       setSessionId(session.sessionId);
-      setTranscript([{ sender: "AI", text: firstTurn }]);
+      setTranscript([]);
       await startLiveConversation({ lessonId, activityId: activity.id, onAudio: () => undefined, onTranscript: addTranscript, onReady: (stop, allowedSeconds) => { stopRef.current = stop; setSecondsLeft(Math.min(maxSeconds, allowedSeconds)); setPhase("recording"); }, onError: (message) => { setError(message); setPhase("idle"); } });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not start the speaking practice."); setPhase("idle");
@@ -797,11 +811,19 @@ function VoiceRoleplayPanel({ activity, lessonId, onNext, previewOnly, onSavedAt
     if (body.url) window.open(body.url, "_blank", "noopener,noreferrer"); else setError(body.error || "Recording is unavailable.");
   }
 
+  async function loadPastRecording(id: string) {
+    const response = await fetch(`/api/ai/roleplay-recording?id=${encodeURIComponent(id)}`);
+    const body = await response.json() as { url?: string; error?: string };
+    if (body.url) setPastRecordingUrls((current) => ({ ...current, [id]: body.url! })); else setError(body.error || "Recording is unavailable.");
+  }
+
   if (phase === "done") return <section className="rounded-xl border border-[var(--br-border)] bg-surface p-5 shadow-sm"><div className="flex items-center gap-2 text-moss"><ShieldCheck size={18} /><p className="text-sm font-semibold">Speaking practice complete</p></div><p className="mt-2 text-sm text-[var(--br-text-muted)]">{scorecard?.scores?.overall ? `Your conversation score: ${scorecard.scores.overall}/100.` : "Your conversation has been saved."}</p>{recordingUrl ? <audio controls src={recordingUrl} className="mt-4 h-9 w-full" aria-label="Your saved speaking recording" /> : null}{recordingId && allowDownload ? <button type="button" onClick={() => void downloadRecording()} className="mt-4 inline-flex items-center gap-2 rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm font-semibold"><Download size={15} /> Download recording</button> : null}<button type="button" onClick={onNext} className="mt-4 ml-2 inline-flex items-center gap-2 rounded-lg bg-dark px-3 py-2 text-sm font-semibold text-on-dark">Next <ChevronRight size={15} /></button></section>;
 
   return <section className="overflow-hidden rounded-xl border border-[var(--br-border)] bg-surface shadow-sm">
     <div className="border-b border-[var(--br-border)] bg-gradient-to-r from-emerald-50 to-teal-50 p-4"><p className="text-xs font-semibold uppercase tracking-wide text-moss">Live speaking practice</p><h2 className="mt-1 text-lg font-semibold">Speak with {character}</h2><p className="mt-1 text-sm text-[var(--br-text-muted)]">{scenario}</p></div>
     <div className="space-y-4 p-4">
+      {pastSessions.length ? <div className="rounded-lg border border-[var(--br-border)] bg-[var(--br-surface-muted)] p-3"><p className="text-xs font-semibold uppercase tracking-wide text-[var(--br-text-muted)]">Previous attempts</p><div className="mt-2 grid gap-2 sm:grid-cols-2">{pastSessions.map((session) => { const card = asRecord(session.scorecard); const scores = asRecord(card.scores as Json); return <div key={session.id} className="rounded-lg bg-surface p-2.5 text-xs"><div className="flex items-center justify-between gap-2"><span className="font-semibold text-[var(--br-text-muted)]">{new Date(session.updated_at || session.created_at).toLocaleString()}</span><span className="rounded-full bg-moss/10 px-2 py-1 font-bold text-moss">{String(scores.overall ?? "–")}/100</span></div><p className="mt-1 text-[var(--br-text-muted)]">Completed conversation review</p></div>; })}</div></div> : null}
+      {pastRecordings.length ? <div className="rounded-lg border border-[var(--br-border)] bg-[var(--br-surface-muted)] p-3"><p className="text-xs font-semibold uppercase tracking-wide text-[var(--br-text-muted)]">Saved recordings</p><div className="mt-2 space-y-2">{pastRecordings.map((recording) => <div key={recording.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-surface p-2.5 text-xs"><div><p className="font-semibold text-ink">{new Date(recording.created_at).toLocaleString()}</p><p className="text-[var(--br-text-muted)]">{recording.duration_seconds}s · available until {new Date(recording.expires_at).toLocaleDateString()}</p></div>{pastRecordingUrls[recording.id] ? <audio controls src={pastRecordingUrls[recording.id]} className="h-8 max-w-full" aria-label="Saved speaking recording" /> : <button type="button" onClick={() => void loadPastRecording(recording.id)} className="rounded-lg border border-[var(--br-border)] px-3 py-1.5 font-semibold text-ink">Play recording</button>}</div>)}</div></div> : null}
       {saveEnabled && phase === "idle" ? <label className="flex items-start gap-2 rounded-lg border border-[var(--br-border)] bg-[var(--br-surface-muted)] p-3 text-xs text-[var(--br-text-muted)]"><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} className="mt-0.5" />I agree to save my voice recording for {Number(data.recording_retention_days) || 30} days. It will then be automatically deleted.</label> : null}
       {showTranscript ? <div className="max-h-64 space-y-2 overflow-y-auto rounded-lg bg-[var(--br-surface-muted)] p-3">{transcript.length ? transcript.map((message, index) => <div key={index} className={`rounded-lg px-3 py-2 text-sm ${message.sender === "LEARNER" ? "ml-6 bg-moss text-on-dark" : "mr-6 bg-surface"}`}><p className="mb-0.5 text-[10px] font-semibold uppercase opacity-70">{message.sender === "AI" ? character : "You"}</p>{message.text}</div>) : <p className="text-sm text-[var(--br-text-muted)]">Your conversation will appear here.</p>}</div> : null}
       {error ? <p className="text-xs font-semibold text-coral">{error}</p> : null}

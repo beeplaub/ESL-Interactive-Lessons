@@ -40,10 +40,14 @@ function pcm16Base64(samples: Float32Array) {
 
 class PcmPlayer {
   private context: AudioContext;
+  private recordDestination: MediaStreamAudioDestinationNode | null;
   private cursor = 0;
   private chunks: Uint8Array[] = [];
 
-  constructor() { this.context = new AudioContext(); }
+  constructor(context?: AudioContext, recordDestination?: MediaStreamAudioDestinationNode) {
+    this.context = context ?? new AudioContext();
+    this.recordDestination = recordDestination ?? null;
+  }
 
   async resume() { if (this.context.state !== "running") await this.context.resume(); }
 
@@ -58,12 +62,19 @@ class PcmPlayer {
     const source = this.context.createBufferSource();
     source.buffer = buffer;
     source.connect(this.context.destination);
+    if (this.recordDestination) source.connect(this.recordDestination);
     const at = Math.max(this.context.currentTime + 0.03, this.cursor);
     source.start(at);
     this.cursor = at + buffer.duration;
   }
 
   async close() { await this.context.close(); }
+
+  async waitForDrain(maxWaitMs = 3000) {
+    const remainingSeconds = Math.max(0, this.cursor - this.context.currentTime);
+    if (remainingSeconds <= 0) return;
+    await new Promise((resolve) => window.setTimeout(resolve, Math.min(maxWaitMs, Math.ceil(remainingSeconds * 1000) + 80)));
+  }
 
   wavBlob() {
     const pcmSize = this.chunks.reduce((total, chunk) => total + chunk.byteLength, 0);
@@ -219,9 +230,10 @@ export async function startLiveConversation({ lessonId, activityId, onAudio, onT
   onReady: (stop: () => Promise<{ recording: Blob | null; durationSeconds: number }>, maxSeconds: number) => void;
   onError: (message: string) => void;
 }) {
-  const player = new PcmPlayer();
   let stream: MediaStream | null = null;
-  let context: AudioContext | null = null;
+  const context = new AudioContext();
+  const mixDestination = context.createMediaStreamDestination();
+  const player = new PcmPlayer(context, mixDestination);
   let source: MediaStreamAudioSourceNode | null = null;
   let processor: ScriptProcessorNode | null = null;
   let silentGain: GainNode | null = null;
@@ -248,10 +260,9 @@ export async function startLiveConversation({ lessonId, activityId, onAudio, onT
     });
     stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
     const mimeType = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"].find((candidate) => MediaRecorder.isTypeSupported(candidate));
-    recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+    recorder = new MediaRecorder(mixDestination.stream, mimeType ? { mimeType } : undefined);
     recorder.ondataavailable = (event) => { if (event.data.size) recordedChunks.push(event.data); };
     recorder.start(250);
-    context = new AudioContext();
     source = context.createMediaStreamSource(stream);
     processor = context.createScriptProcessor(4096, 1, 1);
     silentGain = context.createGain();
@@ -260,11 +271,12 @@ export async function startLiveConversation({ lessonId, activityId, onAudio, onT
       const pcm = downsample(event.inputBuffer.getChannelData(0), context?.sampleRate ?? 48000);
       session?.sendRealtimeInput({ audio: { data: pcm16Base64(pcm), mimeType: "audio/pcm;rate=16000" } });
     };
-    source.connect(processor); processor.connect(silentGain); silentGain.connect(context.destination);
-    session.sendRealtimeInput({ text: "Begin the roleplay now. Speak your opening turn to the learner." });
+    source.connect(processor); source.connect(mixDestination); processor.connect(silentGain); silentGain.connect(context.destination);
+    session.sendClientContent({ turns: [{ role: "user", parts: [{ text: "Begin the roleplay now. Speak your opening turn to the learner. Do not repeat this instruction or the learner's words." }] }], turnComplete: true });
     onReady(async () => {
       processor?.disconnect(); silentGain?.disconnect(); source?.disconnect(); stream?.getTracks().forEach((track) => track.stop());
-      session?.sendRealtimeInput({ audioStreamEnd: true }); session?.close(); void context?.close();
+      session?.sendRealtimeInput({ audioStreamEnd: true }); session?.close();
+      await player.waitForDrain();
       if (recorder?.state === "recording") {
         await new Promise<void>((resolve) => {
           const current = recorder;
@@ -278,8 +290,8 @@ export async function startLiveConversation({ lessonId, activityId, onAudio, onT
       return { recording: blob, durationSeconds: Math.round((Date.now() - startedAt) / 1000) };
     }, connection.maxSeconds ?? 120);
   } catch (error) {
-    stream?.getTracks().forEach((track) => track.stop());
-    processor?.disconnect(); silentGain?.disconnect(); session?.close(); if (context) void context.close(); void player.close();
+      stream?.getTracks().forEach((track) => track.stop());
+    processor?.disconnect(); silentGain?.disconnect(); session?.close(); void player.close();
     onError(error instanceof Error ? error.message : "Voice conversation could not start.");
   }
 }

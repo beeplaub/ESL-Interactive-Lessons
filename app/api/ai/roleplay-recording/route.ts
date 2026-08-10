@@ -89,8 +89,18 @@ export async function GET(request: Request) {
   const user = await currentUser();
   if (!user) return NextResponse.json({ error: "Please sign in." }, { status: 401 });
   const id = new URL(request.url).searchParams.get("id");
-  if (!id) return NextResponse.json({ error: "Recording is required." }, { status: 400 });
   const admin = createAdminClient();
+  const activityId = new URL(request.url).searchParams.get("activityId");
+  if (!id && activityId) {
+    const { data: recordings } = await admin.from("ai_roleplay_voice_recordings")
+      .select("id,activity_id,session_id,duration_seconds,transcript,created_at,expires_at")
+      .eq("activity_id", activityId).eq("user_id", user.id).is("deleted_at", null)
+      .gt("expires_at", new Date().toISOString()).order("created_at", { ascending: false }).limit(10);
+    // The list is metadata only. Individual signed URLs are generated below by id
+    // so the route never guesses a storage key from user input.
+    return NextResponse.json({ recordings: recordings ?? [] });
+  }
+  if (!id) return NextResponse.json({ error: "Recording is required." }, { status: 400 });
   const { data: recording } = await admin.from("ai_roleplay_voice_recordings").select("*").eq("id", id).is("deleted_at", null).maybeSingle();
   if (!recording || recording.user_id !== user.id) return NextResponse.json({ error: "Recording not found." }, { status: 404 });
   const { data: activity } = await admin.from("lesson_slide_activities").select("activity_data").eq("id", recording.activity_id).maybeSingle();
