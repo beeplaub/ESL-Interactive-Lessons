@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 // explicitly sets GEMINI_LIVE_MODEL after verifying a newer Live model.
 const TRANSLATION_MODEL = process.env.GEMINI_LIVE_MODEL || "gemini-3.5-live-translate-preview";
 const CONVERSATION_MODEL = process.env.GEMINI_CONVERSATION_MODEL || "gemini-3.1-flash-live-preview";
-const CONVERSATION_VOICES = new Set(["Achird", "Gacrux", "Charon", "Kore", "Aoede", "Puck", "Sulafat"]);
+const CONVERSATION_VOICES = new Set(["Achird", "Gacrux", "Leda", "Charon", "Kore", "Aoede", "Puck", "Sulafat"]);
 type Mode = "NARRATION" | "SPEAK_TRANSLATE" | "CONVERSATION";
 
 function opposite(language: string) {

@@ -531,6 +531,7 @@ function AiRoleplayEditor({ activity, lessonId, onSave }: { activity: Activity; 
           <select value={voiceName} onChange={(event) => setVoiceName(event.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] bg-surface px-3 py-2">
             <option value="Achird">Achird · friendly</option>
             <option value="Gacrux">Gacrux · mature</option>
+            <option value="Leda">Leda · youthful</option>
             <option value="Charon">Charon · informative</option>
             <option value="Kore">Kore · firm</option>
             <option value="Aoede">Aoede · breezy</option>

@@ -314,20 +314,12 @@ export async function explainQuizAnswerAction(
 /**
  * Action: Starts a new AI Roleplay Session.
  */
-export async function startRoleplaySessionAction(activityId: string) {
+export async function startRoleplaySessionAction(activityId: string, includeOpeningMessage = true) {
   let isAdmin = false;
   try {
     const { user, profile } = await getSessionUser();
     isAdmin = profile?.role === "ADMIN";
     const supabase = createAdminClient();
-
-    // Close/complete any lingering IN_PROGRESS sessions first to prevent duplicate active sessions
-    await supabase
-      .from("ai_roleplay_sessions")
-      .update({ status: "COMPLETED" })
-      .eq("user_id", user.id)
-      .eq("lesson_activity_id", activityId)
-      .eq("status", "IN_PROGRESS");
 
     // Fetch the roleplay activity details to capture context
     const { data: activity } = await supabase
@@ -359,12 +351,13 @@ export async function startRoleplaySessionAction(activityId: string) {
 
     if (error) throw error;
 
-    // Insert first character turn message
-    await supabase.from("ai_roleplay_messages").insert({
-      session_id: session.id,
-      sender: "AI",
-      message_text: firstTurn
-    });
+    if (includeOpeningMessage) {
+      await supabase.from("ai_roleplay_messages").insert({
+        session_id: session.id,
+        sender: "AI",
+        message_text: firstTurn
+      });
+    }
 
     return { sessionId: session.id };
   } catch (error: any) {

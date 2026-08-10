@@ -106,10 +106,25 @@ export async function GET(request: Request) {
   const { data: activity } = await admin.from("lesson_slide_activities").select("activity_data").eq("id", recording.activity_id).maybeSingle();
   const config = (activity?.activity_data ?? {}) as Record<string, unknown>;
   const wantsDownload = new URL(request.url).searchParams.get("download") === "1";
+  const forceDownload = new URL(request.url).searchParams.get("force") === "1";
+  const openMedia = new URL(request.url).searchParams.get("open") === "1";
   if (wantsDownload && config.allow_download !== true) return NextResponse.json({ error: "Downloads are disabled for this activity." }, { status: 403 });
   if (new Date(recording.expires_at).getTime() <= Date.now()) return NextResponse.json({ error: "This recording has expired." }, { status: 410 });
   if (recording.storage_provider !== "r2") return NextResponse.json({ error: "This recording provider is not supported." }, { status: 501 });
   const url = await createSignedR2MediaUrl({ bucket: recording.storage_bucket, path: recording.storage_path });
+  if (forceDownload) {
+    const media = await fetch(url);
+    if (!media.ok || !media.body) return NextResponse.json({ error: "The recording could not be downloaded." }, { status: 502 });
+    const extension = String(recording.mime_type).includes("mp4") ? "m4a" : String(recording.mime_type).includes("ogg") ? "ogg" : "webm";
+    return new NextResponse(media.body, {
+      headers: {
+        "Content-Type": recording.mime_type || "audio/webm",
+        "Content-Disposition": `attachment; filename="brenup-speaking-practice-${recording.id}.${extension}"`,
+        "Cache-Control": "private, no-store",
+      },
+    });
+  }
+  if (openMedia) return NextResponse.redirect(url);
   return NextResponse.json({ url, expiresAt: recording.expires_at, mimeType: recording.mime_type });
 }
 
