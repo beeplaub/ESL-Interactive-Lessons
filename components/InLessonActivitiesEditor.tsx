@@ -466,6 +466,8 @@ function normalizeAiRoleplay(data: Json | null) {
   return {
     prompt: String(record.prompt ?? "Practice speaking English with me."),
     character: String(record.character ?? "Shop Assistant"),
+    character_image_url: String(record.character_image_url ?? ""),
+    voice_name: String(record.voice_name ?? "Achird"),
     first_turn: String(record.first_turn ?? "Hello! How can I help you today?"),
     voice_enabled: record.voice_enabled === true,
     save_recordings: record.save_recordings === true,
@@ -476,10 +478,12 @@ function normalizeAiRoleplay(data: Json | null) {
   };
 }
 
-function AiRoleplayEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
+function AiRoleplayEditor({ activity, lessonId, onSave }: { activity: Activity; lessonId: string; onSave: (data: Json, needsReview?: boolean) => void }) {
   const initial = useMemo(() => normalizeAiRoleplay(activity.activity_data), [activity.activity_data]);
   const [prompt, setPrompt] = useState(initial.prompt);
   const [character, setCharacter] = useState(initial.character);
+  const [characterImageUrl, setCharacterImageUrl] = useState(initial.character_image_url);
+  const [voiceName, setVoiceName] = useState(initial.voice_name);
   const [firstTurn, setFirstTurn] = useState(initial.first_turn);
   const [voiceEnabled, setVoiceEnabled] = useState(initial.voice_enabled);
   const [saveRecordings, setSaveRecordings] = useState(initial.save_recordings);
@@ -522,7 +526,21 @@ function AiRoleplayEditor({ activity, onSave }: { activity: Activity; onSave: (d
             placeholder="e.g. Welcome! What can I make for you today?"
           />
         </label>
+        <label className="text-sm font-medium">
+          Partner voice
+          <select value={voiceName} onChange={(event) => setVoiceName(event.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] bg-surface px-3 py-2">
+            <option value="Achird">Achird · friendly</option>
+            <option value="Gacrux">Gacrux · mature</option>
+            <option value="Charon">Charon · informative</option>
+            <option value="Kore">Kore · firm</option>
+            <option value="Aoede">Aoede · breezy</option>
+            <option value="Puck">Puck · upbeat</option>
+            <option value="Sulafat">Sulafat · warm</option>
+          </select>
+          <span className="mt-1 block text-xs font-normal text-[var(--br-text-muted)]">The character name does not choose the voice automatically.</span>
+        </label>
       </div>
+      <MediaRecorderInput value={characterImageUrl} onChange={setCharacterImageUrl} type="image" lessonId={lessonId} label="Partner portrait (optional)" />
       <section className="rounded-xl border border-[var(--br-border)] bg-[var(--br-surface-muted)] p-4">
         <div className="flex items-center justify-between gap-3">
           <div><p className="text-sm font-semibold">Voice conversation</p><p className="text-xs text-[var(--br-text-muted)]">Let learners speak with this AI partner instead of typing.</p></div>
@@ -539,7 +557,7 @@ function AiRoleplayEditor({ activity, onSave }: { activity: Activity; onSave: (d
         </div> : null}
       </section>
       <div className="flex justify-end gap-3 mt-2">
-        <SaveButton onClick={() => onSave({ prompt, character, first_turn: firstTurn, voice_enabled: voiceEnabled, save_recordings: saveRecordings, recording_retention_days: retentionDays, allow_download: allowDownload, show_transcript: showTranscript, max_seconds_per_attempt: maxSeconds } as Json, needsReview)} />
+        <SaveButton onClick={() => onSave({ prompt, character, character_image_url: characterImageUrl, voice_name: voiceName, first_turn: firstTurn, voice_enabled: voiceEnabled, save_recordings: saveRecordings, recording_retention_days: retentionDays, allow_download: allowDownload, show_transcript: showTranscript, max_seconds_per_attempt: maxSeconds } as Json, needsReview)} />
       </div>
     </div>
   );
@@ -709,7 +727,7 @@ function ActivityPanel({
               {activity.activity_type === "CREATIVE_WRITING" ? <CreativeWritingEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "PEER_REVIEW_EDITING" ? <PeerReviewEditingEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "DIALOGUE_WRITING" ? <DialogueWritingEditor activity={activity} onSave={save} /> : null}
-              {activity.activity_type === "AI_ROLEPLAY" ? <AiRoleplayEditor activity={activity} onSave={save} /> : null}
+              {activity.activity_type === "AI_ROLEPLAY" ? <AiRoleplayEditor activity={activity} lessonId={lessonId} onSave={save} /> : null}
               {activity.activity_type === "LIVE_SPEAK_TRANSLATE" ? <LiveSpeakTranslateEditor activity={activity} onSave={save} /> : null}
               {!["MCQ", "GAP_FILL", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "SUMMARIZATION", "INFERENCE_DETECTION", "HEADINGS_MATCHING", "SKIM_CHALLENGE", "PARAPHRASE_ID", "DICTATION", "LISTEN_AND_SELECT", "SHADOWING", "NOTE_TAKING_CHALLENGE", "SOUND_DISCRIMINATION", "LISTEN_AND_GAP_FILL", "SENTENCE_COMPLETION", "ESSAY_WRITING", "EMAIL_LETTER_WRITING", "TRANSLATION", "PARAPHRASE_PRACTICE", "SENTENCE_COMBINING", "CREATIVE_WRITING", "PEER_REVIEW_EDITING", "DIALOGUE_WRITING", "AI_ROLEPLAY"].includes(activity.activity_type) ? (
                 <p className="rounded-md bg-surface-muted p-3 text-sm text-[var(--br-text-muted)]">

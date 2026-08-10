@@ -92,9 +92,9 @@ class PcmPlayer {
 
 async function requestToken(request: TokenRequest) {
   const response = await fetch("/api/ai/live-token", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(request) });
-  const data = await response.json() as { token?: string; model?: string; targetLanguageCode?: string; maxSeconds?: number | null; error?: string };
+  const data = await response.json() as { token?: string; model?: string; targetLanguageCode?: string; maxSeconds?: number | null; voiceName?: string; error?: string };
   if (!response.ok || !data.token || !data.model) throw new Error(data.error || "Live translation is unavailable.");
-  return data as Required<Pick<typeof data, "token" | "model" | "targetLanguageCode">> & { maxSeconds?: number | null };
+  return data as Required<Pick<typeof data, "token" | "model" | "targetLanguageCode">> & { maxSeconds?: number | null; voiceName?: string };
 }
 
 function extractAudio(message: unknown) {
@@ -247,7 +247,13 @@ export async function startLiveConversation({ lessonId, activityId, onAudio, onT
     const ai = new GoogleGenAI({ apiKey: connection.token, httpOptions: { apiVersion: "v1alpha" } });
     session = await ai.live.connect({
       model: connection.model,
-      config: { responseModalities: [Modality.AUDIO], inputAudioTranscription: {}, outputAudioTranscription: {}, realtimeInputConfig: { automaticActivityDetection: { silenceDurationMs: 3000 } } },
+      config: {
+        responseModalities: [Modality.AUDIO],
+        inputAudioTranscription: {},
+        outputAudioTranscription: {},
+        speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: connection.voiceName || "Achird" } } },
+        realtimeInputConfig: { automaticActivityDetection: { silenceDurationMs: 3000 } },
+      },
       callbacks: {
         onmessage: (message) => {
           extractAudio(message).forEach((data) => { player.play(data); onAudio(data); });

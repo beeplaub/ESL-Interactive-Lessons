@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronLeft, ChevronRight, Send, MessageCircle, Award, RefreshCw, Loader2, Mic, Pause, RotateCcw, Square, Download, ShieldCheck } from "lucide-react";
-import { useState, useTransition, useRef, useCallback, useEffect } from "react";
+import { useState, useTransition, useRef, useCallback, useEffect, useLayoutEffect } from "react";
 import { recordQuizAttempt } from "@/app/quizzes/actions";
 import { QuestionCard, hasAnswer, type QuizQuestion } from "@/components/QuizPlayer";
 import { isCorrect, questionScore, questionTotal } from "@/lib/quizScoring";
@@ -702,6 +702,7 @@ function VoiceRoleplayPanel({ activity, lessonId, onNext, previewOnly, onSavedAt
   const data = asRecord(activity.activity_data);
   const scenario = String(data.prompt ?? "Practise speaking English with your AI partner.");
   const character = String(data.character ?? "AI conversation partner");
+  const characterImageUrl = String(data.character_image_url ?? "");
   const maxSeconds = Math.max(10, Math.min(600, Number(data.max_seconds_per_attempt) || 120));
   const saveEnabled = data.save_recordings === true;
   const showTranscript = data.show_transcript !== false;
@@ -715,11 +716,30 @@ function VoiceRoleplayPanel({ activity, lessonId, onNext, previewOnly, onSavedAt
   const [consent, setConsent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [scorecard, setScorecard] = useState<any>(null);
+  const [aiSpeaking, setAiSpeaking] = useState(false);
   const [pastRecordings, setPastRecordings] = useState<Array<{ id: string; duration_seconds: number; transcript: string | null; created_at: string; expires_at: string }>>([]);
   const [pastSessions, setPastSessions] = useState<Array<{ id: string; scorecard: Json | null; created_at: string; updated_at: string }>>([]);
   const [pastRecordingUrls, setPastRecordingUrls] = useState<Record<string, string>>({});
   const stopRef = useRef<(() => Promise<{ recording: Blob | null; durationSeconds: number }>) | null>(null);
   const transcriptRef = useRef<ChatMessage[]>([]);
+  const transcriptViewportRef = useRef<HTMLDivElement | null>(null);
+  const aiSpeakingTimerRef = useRef<number | null>(null);
+
+  useLayoutEffect(() => {
+    const viewport = transcriptViewportRef.current;
+    if (!viewport || !showTranscript) return;
+    viewport.scrollTop = viewport.scrollHeight;
+  }, [showTranscript, transcript]);
+
+  useEffect(() => () => {
+    if (aiSpeakingTimerRef.current !== null) window.clearTimeout(aiSpeakingTimerRef.current);
+  }, []);
+
+  function markAiSpeaking() {
+    setAiSpeaking(true);
+    if (aiSpeakingTimerRef.current !== null) window.clearTimeout(aiSpeakingTimerRef.current);
+    aiSpeakingTimerRef.current = window.setTimeout(() => setAiSpeaking(false), 700);
+  }
 
   useEffect(() => {
     if (previewOnly) return;
@@ -789,7 +809,7 @@ function VoiceRoleplayPanel({ activity, lessonId, onNext, previewOnly, onSavedAt
       if (session.error || !session.sessionId) throw new Error(session.error || "Could not start the conversation.");
       setSessionId(session.sessionId);
       setTranscript([]);
-      await startLiveConversation({ lessonId, activityId: activity.id, onAudio: () => undefined, onTranscript: addTranscript, onReady: (stop, allowedSeconds) => { stopRef.current = stop; setSecondsLeft(Math.min(maxSeconds, allowedSeconds)); setPhase("recording"); }, onError: (message) => { setError(message); setPhase("idle"); } });
+      await startLiveConversation({ lessonId, activityId: activity.id, onAudio: markAiSpeaking, onTranscript: addTranscript, onReady: (stop, allowedSeconds) => { stopRef.current = stop; setSecondsLeft(Math.min(maxSeconds, allowedSeconds)); setPhase("recording"); }, onError: (message) => { setError(message); setPhase("idle"); } });
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not start the speaking practice."); setPhase("idle");
     }
@@ -819,15 +839,31 @@ function VoiceRoleplayPanel({ activity, lessonId, onNext, previewOnly, onSavedAt
 
   if (phase === "done") return <section className="rounded-xl border border-[var(--br-border)] bg-surface p-5 shadow-sm"><div className="flex items-center gap-2 text-moss"><ShieldCheck size={18} /><p className="text-sm font-semibold">Speaking practice complete</p></div><p className="mt-2 text-sm text-[var(--br-text-muted)]">{scorecard?.scores?.overall ? `Your conversation score: ${scorecard.scores.overall}/100.` : "Your conversation has been saved."}</p>{recordingUrl ? <audio controls src={recordingUrl} className="mt-4 h-9 w-full" aria-label="Your saved speaking recording" /> : null}{recordingId && allowDownload ? <button type="button" onClick={() => void downloadRecording()} className="mt-4 inline-flex items-center gap-2 rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm font-semibold"><Download size={15} /> Download recording</button> : null}<button type="button" onClick={onNext} className="mt-4 ml-2 inline-flex items-center gap-2 rounded-lg bg-dark px-3 py-2 text-sm font-semibold text-on-dark">Next <ChevronRight size={15} /></button></section>;
 
-  return <section className="overflow-hidden rounded-xl border border-[var(--br-border)] bg-surface shadow-sm">
-    <div className="border-b border-[var(--br-border)] bg-gradient-to-r from-emerald-50 to-teal-50 p-4"><p className="text-xs font-semibold uppercase tracking-wide text-moss">Live speaking practice</p><h2 className="mt-1 text-lg font-semibold">Speak with {character}</h2><p className="mt-1 text-sm text-[var(--br-text-muted)]">{scenario}</p></div>
-    <div className="space-y-4 p-4">
+  return <section className="overflow-hidden rounded-2xl border border-[var(--br-border)] bg-surface shadow-[var(--br-shadow-card)]">
+    <div className="relative overflow-hidden bg-dark px-4 py-5 text-on-dark sm:px-5">
+      <div className="absolute -right-12 -top-12 size-36 rounded-full bg-[var(--br-action)]/15 blur-2xl" aria-hidden="true" />
+      <div className="relative flex items-center gap-4">
+        <div className="relative grid size-16 shrink-0 place-items-center rounded-full bg-[var(--br-action)]/15 ring-1 ring-white/20">
+          {aiSpeaking ? <><span className="absolute inset-0 animate-ping rounded-full bg-[var(--br-action)]/25 motion-reduce:animate-none" /><span className="absolute -inset-1 animate-pulse rounded-full border-2 border-[var(--br-action)]/70 motion-reduce:animate-none" /></> : null}
+          {characterImageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element -- creator media can come from R2 or an approved external URL
+            <img src={characterImageUrl} alt="" className="relative size-16 rounded-full object-cover" />
+          ) : <Mic size={25} className={`relative text-[var(--br-action)] ${aiSpeaking ? "animate-pulse motion-reduce:animate-none" : ""}`} aria-hidden="true" />}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-white/10 px-2 py-1 text-[10px] font-bold uppercase tracking-wide">AI speaking partner</span>{aiSpeaking ? <span className="flex items-center gap-1.5 text-xs font-semibold text-[var(--br-action)]"><span className="size-1.5 animate-pulse rounded-full bg-[var(--br-action)]" />Speaking</span> : null}</div>
+          <h2 className="mt-2 truncate text-lg font-semibold sm:text-xl">{character}</h2>
+          <p className="mt-1 line-clamp-2 text-sm text-white/70">{scenario}</p>
+        </div>
+      </div>
+    </div>
+    <div className="space-y-4 p-4 sm:p-5">
       {pastSessions.length ? <div className="rounded-lg border border-[var(--br-border)] bg-[var(--br-surface-muted)] p-3"><p className="text-xs font-semibold uppercase tracking-wide text-[var(--br-text-muted)]">Previous attempts</p><div className="mt-2 grid gap-2 sm:grid-cols-2">{pastSessions.map((session) => { const card = asRecord(session.scorecard); const scores = asRecord(card.scores as Json); return <div key={session.id} className="rounded-lg bg-surface p-2.5 text-xs"><div className="flex items-center justify-between gap-2"><span className="font-semibold text-[var(--br-text-muted)]">{new Date(session.updated_at || session.created_at).toLocaleString()}</span><span className="rounded-full bg-moss/10 px-2 py-1 font-bold text-moss">{String(scores.overall ?? "–")}/100</span></div><p className="mt-1 text-[var(--br-text-muted)]">Completed conversation review</p></div>; })}</div></div> : null}
       {pastRecordings.length ? <div className="rounded-lg border border-[var(--br-border)] bg-[var(--br-surface-muted)] p-3"><p className="text-xs font-semibold uppercase tracking-wide text-[var(--br-text-muted)]">Saved recordings</p><div className="mt-2 space-y-2">{pastRecordings.map((recording) => <div key={recording.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-surface p-2.5 text-xs"><div><p className="font-semibold text-ink">{new Date(recording.created_at).toLocaleString()}</p><p className="text-[var(--br-text-muted)]">{recording.duration_seconds}s · available until {new Date(recording.expires_at).toLocaleDateString()}</p></div>{pastRecordingUrls[recording.id] ? <audio controls src={pastRecordingUrls[recording.id]} className="h-8 max-w-full" aria-label="Saved speaking recording" /> : <button type="button" onClick={() => void loadPastRecording(recording.id)} className="rounded-lg border border-[var(--br-border)] px-3 py-1.5 font-semibold text-ink">Play recording</button>}</div>)}</div></div> : null}
       {saveEnabled && phase === "idle" ? <label className="flex items-start gap-2 rounded-lg border border-[var(--br-border)] bg-[var(--br-surface-muted)] p-3 text-xs text-[var(--br-text-muted)]"><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} className="mt-0.5" />I agree to save my voice recording for {Number(data.recording_retention_days) || 30} days. It will then be automatically deleted.</label> : null}
-      {showTranscript ? <div className="max-h-64 space-y-2 overflow-y-auto rounded-lg bg-[var(--br-surface-muted)] p-3">{transcript.length ? transcript.map((message, index) => <div key={index} className={`rounded-lg px-3 py-2 text-sm ${message.sender === "LEARNER" ? "ml-6 bg-moss text-on-dark" : "mr-6 bg-surface"}`}><p className="mb-0.5 text-[10px] font-semibold uppercase opacity-70">{message.sender === "AI" ? character : "You"}</p>{message.text}</div>) : <p className="text-sm text-[var(--br-text-muted)]">Your conversation will appear here.</p>}</div> : null}
+      {showTranscript ? <div ref={transcriptViewportRef} role="log" aria-live="polite" aria-relevant="additions text" className="max-h-72 scroll-smooth space-y-2 overflow-y-auto rounded-xl bg-[var(--br-surface-muted)] p-3 overscroll-contain">{transcript.length ? transcript.map((message, index) => <div key={index} className={`max-w-[88%] rounded-xl px-3 py-2.5 text-sm shadow-sm ${message.sender === "LEARNER" ? "ml-auto bg-moss text-on-dark" : "mr-auto border border-[var(--br-border)] bg-surface text-ink"}`}><p className="mb-0.5 text-[10px] font-semibold uppercase opacity-65">{message.sender === "AI" ? character : "You"}</p><p className="whitespace-pre-wrap leading-relaxed">{message.text}</p></div>) : <div className="grid min-h-24 place-items-center text-center"><p className="max-w-xs text-sm text-[var(--br-text-muted)]">Start when you are ready. {character} will speak first.</p></div>}</div> : null}
       {error ? <p className="text-xs font-semibold text-coral">{error}</p> : null}
-      <div className="flex flex-wrap items-center gap-3"><button type="button" disabled={phase === "starting" || phase === "finishing" || (saveEnabled && !consent)} onClick={() => { if (phase === "idle") void start(); else if (phase === "recording") void finish(); }} className={`inline-flex items-center gap-2 rounded-full px-5 py-3 text-sm font-semibold text-on-dark disabled:opacity-50 ${phase === "recording" ? "bg-coral" : "bg-moss"}`}>{phase === "starting" ? <Loader2 size={16} className="animate-spin" /> : phase === "recording" ? <Square size={15} /> : <Mic size={16} />} {phase === "recording" ? "Finish" : "Start speaking"}</button>{phase === "recording" ? <span className="text-sm font-semibold text-coral">{Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, "0")} left</span> : null}</div>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--br-border)] pt-4"><button type="button" disabled={phase === "starting" || phase === "finishing" || (saveEnabled && !consent)} onClick={() => { if (phase === "idle") void start(); else if (phase === "recording") void finish(); }} className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-on-dark shadow-sm transition hover:-translate-y-0.5 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 ${phase === "recording" ? "bg-coral" : "bg-[var(--br-action)]"}`}>{phase === "starting" || phase === "finishing" ? <Loader2 size={16} className="animate-spin" /> : phase === "recording" ? <Square size={15} /> : <Mic size={16} />} {phase === "finishing" ? "Finishing…" : phase === "recording" ? "Finish conversation" : "Start conversation"}</button>{phase === "recording" ? <span className="rounded-full bg-coral/10 px-3 py-1.5 text-sm font-semibold tabular-nums text-coral">{Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, "0")} left</span> : <span className="text-xs text-[var(--br-text-muted)]">Microphone access is used only during the conversation.</span>}</div>
     </div>
   </section>;
 }

@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 // explicitly sets GEMINI_LIVE_MODEL after verifying a newer Live model.
 const TRANSLATION_MODEL = process.env.GEMINI_LIVE_MODEL || "gemini-3.5-live-translate-preview";
 const CONVERSATION_MODEL = process.env.GEMINI_CONVERSATION_MODEL || "gemini-3.1-flash-live-preview";
+const CONVERSATION_VOICES = new Set(["Achird", "Gacrux", "Charon", "Kore", "Aoede", "Puck", "Sulafat"]);
 type Mode = "NARRATION" | "SPEAK_TRANSLATE" | "CONVERSATION";
 
 function opposite(language: string) {
@@ -32,6 +33,7 @@ export async function POST(request: Request) {
   let maxSeconds: number | null = null;
 
   let liveInstruction: string | null = null;
+  let voiceName = "Achird";
 
   if (body.mode === "NARRATION") {
     if (!body.slideId) return NextResponse.json({ error: "Narration slide is required." }, { status: 400 });
@@ -78,6 +80,7 @@ export async function POST(request: Request) {
     const config = (activity.activity_data ?? {}) as Record<string, unknown>;
     if (config.voice_enabled !== true) return NextResponse.json({ error: "Voice conversation is not enabled for this activity." }, { status: 403 });
     maxSeconds = Math.max(10, Math.min(600, Number(config.max_seconds_per_attempt) || 120));
+    voiceName = CONVERSATION_VOICES.has(String(config.voice_name)) ? String(config.voice_name) : "Achird";
     liveInstruction = [
       `You are ${String(config.character || "a supportive English conversation partner")}.`,
       String(config.prompt || "Practise a natural English conversation with the learner."),
@@ -103,6 +106,7 @@ export async function POST(request: Request) {
             inputAudioTranscription: {},
             outputAudioTranscription: {},
             ...(body.mode === "CONVERSATION" && liveInstruction ? { systemInstruction: { parts: [{ text: liveInstruction }] } } : {}),
+            ...(body.mode === "CONVERSATION" ? { speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } } } : {}),
             ...(body.mode === "CONVERSATION" ? {} : { translationConfig: { targetLanguageCode, echoTargetLanguage: true } }),
             ...(["SPEAK_TRANSLATE", "CONVERSATION"].includes(body.mode) ? { realtimeInputConfig: { automaticActivityDetection: { silenceDurationMs: 3000 } } } : {}),
           },
@@ -110,7 +114,7 @@ export async function POST(request: Request) {
         lockAdditionalFields: [],
       },
     });
-    return NextResponse.json({ token: token.name, model: body.mode === "CONVERSATION" ? CONVERSATION_MODEL : TRANSLATION_MODEL, targetLanguageCode, maxSeconds });
+    return NextResponse.json({ token: token.name, model: body.mode === "CONVERSATION" ? CONVERSATION_MODEL : TRANSLATION_MODEL, targetLanguageCode, maxSeconds, voiceName });
   } catch (error) {
     console.error("Gemini Live token creation failed", error);
     return NextResponse.json({ error: "Live translation is temporarily unavailable." }, { status: 502 });
