@@ -661,6 +661,19 @@ export async function toggleFeatureFlagAction(featureKey: string, enabled: boole
   return { success: true };
 }
 
+export async function updateAiFeatureRolesAction(featureKey: string, roles: string[]) {
+  await requireAdmin();
+  const supabase = createAdminClient();
+  const allowed = Array.from(new Set(["ADMIN", ...roles.filter((role) => ["TEACHER", "SCHOOL_ADMIN", "LEARNER"].includes(role))]));
+  const { error } = await supabase.from("ai_feature_flags").update({
+    allowed_roles: allowed,
+    updated_at: new Date().toISOString(),
+  }).eq("feature_key", featureKey);
+  if (error) throw error;
+  revalidatePath("/admin/ai-studio");
+  return { success: true, roles: allowed };
+}
+
 /**
  * Action: Test prompt execution with mock variables.
  */

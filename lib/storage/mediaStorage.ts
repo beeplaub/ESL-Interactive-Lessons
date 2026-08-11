@@ -1,4 +1,4 @@
-import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { CopyObjectCommand, DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import type { createAdminClient } from "@/lib/supabase/admin";
 
@@ -96,6 +96,50 @@ export async function uploadMediaObject(input: UploadInput): Promise<StoredMedia
     path: input.path,
     url: data.publicUrl,
   };
+}
+
+/**
+ * Copies a managed object without sending its bytes through the browser. This
+ * is used when an approved AI preview becomes permanent, or when a reusable
+ * asset is attached to a lesson-owned narration path.
+ */
+export async function copyMediaObject(input: {
+  supabase: AdminClient;
+  source: StoredMediaObject;
+  supabaseBucket: "lessons" | "lesson-audio" | "ai-recordings";
+  path: string;
+  contentType: string;
+}): Promise<StoredMediaObject> {
+  if (input.source.provider === "r2") {
+    const bucket = r2Bucket();
+    const key = r2Key(input.supabaseBucket, input.path);
+    await getR2Client().send(new CopyObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      CopySource: `${input.source.bucket}/${encodeURIComponent(input.source.path).replace(/%2F/g, "/")}`,
+      ContentType: input.contentType,
+      MetadataDirective: "REPLACE",
+    }));
+    return {
+      provider: "r2",
+      bucket,
+      path: key,
+      url: `${r2PublicBaseUrl()}/${encodeURI(key).replace(/%2F/g, "/")}`,
+    };
+  }
+
+  const { data, error: downloadError } = await input.supabase.storage
+    .from(input.source.bucket)
+    .download(input.source.path);
+  if (downloadError || !data) throw new Error(downloadError?.message || "Could not read the source media.");
+  return uploadMediaObject({
+    supabase: input.supabase,
+    supabaseBucket: input.supabaseBucket,
+    path: input.path,
+    body: new Uint8Array(await data.arrayBuffer()),
+    contentType: input.contentType,
+    upsert: false,
+  });
 }
 
 export async function deleteMediaObject(admin: AdminClient, object: { provider?: string | null; bucket?: string | null; path?: string | null }) {

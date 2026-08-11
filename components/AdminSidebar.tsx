@@ -23,6 +23,7 @@ import {
   School,
   Radio,
   Palette,
+  AudioLines,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { signOut, switchToLearnerView } from "@/app/auth/actions";
@@ -31,6 +32,7 @@ import { BrandLogo } from "@/components/BrandLogo";
 const links = [
   { href: "/admin", label: "Overview", Icon: BarChart3 },
   { href: "/admin/ai-studio", label: "AI Studio", Icon: Sparkles, adminOnly: true },
+  { href: "/admin/creator-tools", label: "Creator Tools", Icon: AudioLines },
   { href: "/admin/analytics", label: "Analytics", Icon: BarChart3, adminOnly: true },
   { href: "/admin/submissions", label: "Submissions", Icon: FileCheck },
   { href: "/admin/orders", label: "Orders", Icon: CreditCard, adminOnly: true },

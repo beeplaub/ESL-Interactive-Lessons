@@ -17,7 +17,8 @@ import {
   seedDefaultTemplatesAction, 
   updatePromptTemplateAction, 
   toggleFeatureFlagAction, 
-  testPromptAction 
+  testPromptAction,
+  updateAiFeatureRolesAction,
 } from "@/app/admin/lessons/aiActions";
 
 type Template = {
@@ -136,6 +137,21 @@ export function AdminAiStudioWorkspace({
     });
   };
 
+  const handleRoleToggle = (flag: Flag, role: "TEACHER" | "SCHOOL_ADMIN") => {
+    const nextRoles = flag.allowed_roles.includes(role)
+      ? flag.allowed_roles.filter((value) => value !== role)
+      : [...flag.allowed_roles, role];
+    startTransition(async () => {
+      try {
+        const result = await updateAiFeatureRolesAction(flag.feature_key, nextRoles);
+        setFlags((current) => current.map((item) => item.id === flag.id ? { ...item, allowed_roles: result.roles } : item));
+        setStatusMessage(`Access updated for ${flag.feature_key.replaceAll("_", " ")}.`);
+      } catch (error) {
+        setStatusMessage(`Access update failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+      }
+    });
+  };
+
   // Run test prompt
   const handleRunTest = async () => {
     setTesting(true);
@@ -218,17 +234,28 @@ export function AdminAiStudioWorkspace({
             <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-[var(--br-text-muted)]">Feature Flags</h2>
             <div className="space-y-3">
               {flags.map((flag) => (
-                <div key={flag.id} className="flex items-center justify-between text-sm">
-                  <div className="min-w-0 pr-2">
+                <div key={flag.id} className="rounded-lg border border-[var(--br-border)] p-2.5 text-sm">
+                  <div className="flex items-center justify-between">
+                    <div className="min-w-0 pr-2">
                     <p className="truncate font-semibold text-ink">{flag.feature_key.replaceAll("_", " ")}</p>
                     <p className="text-[10px] text-[var(--br-text-muted)]">Roles: {flag.allowed_roles.join(", ")}</p>
+                    </div>
+                    <button
+                      onClick={() => handleToggleFlag(flag.feature_key, flag.enabled)}
+                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${flag.enabled ? "bg-moss" : "bg-slate-200"}`}
+                    >
+                      <span className={`pointer-events-none inline-block size-4 transform rounded-full bg-surface shadow ring-0 transition duration-200 ease-in-out ${flag.enabled ? "translate-x-4" : "translate-x-0"}`} />
+                    </button>
                   </div>
-                  <button
-                    onClick={() => handleToggleFlag(flag.feature_key, flag.enabled)}
-                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${flag.enabled ? "bg-moss" : "bg-slate-200"}`}
-                  >
-                    <span className={`pointer-events-none inline-block size-4 transform rounded-full bg-surface shadow ring-0 transition duration-200 ease-in-out ${flag.enabled ? "translate-x-4" : "translate-x-0"}`} />
-                  </button>
+                  {flag.feature_key === "creator_voiceover" ? (
+                    <div className="mt-2 flex flex-wrap gap-1.5 border-t border-[var(--br-border)] pt-2">
+                      {(["TEACHER", "SCHOOL_ADMIN"] as const).map((role) => (
+                        <button key={role} type="button" disabled={isPending} onClick={() => handleRoleToggle(flag, role)} className={`rounded-full px-2 py-1 text-[10px] font-bold ${flag.allowed_roles.includes(role) ? "bg-[var(--br-brand)] text-on-dark" : "bg-surface-muted text-[var(--br-text-muted)]"}`}>
+                          {role === "SCHOOL_ADMIN" ? "School admins" : "Teachers"}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
                 </div>
               ))}
               {flags.length === 0 && <p className="text-xs text-[var(--br-text-muted)]">No feature flags found. Try Seeding.</p>}

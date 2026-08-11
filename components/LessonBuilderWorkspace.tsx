@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { FormEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { AlignCenter, AlignLeft, AlignRight, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, AlignVerticalJustifyStart, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Copy, Eye, Library, Plus, Redo2, Settings, Target, Trash2, Undo2, X, ChevronRight, RotateCcw } from "lucide-react";
+import { AlignCenter, AlignLeft, AlignRight, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, AlignVerticalJustifyStart, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, AudioLines, ChevronDown, Copy, Eye, Library, Plus, Redo2, Settings, Target, Trash2, Undo2, X, ChevronRight, RotateCcw } from "lucide-react";
 import {
   addBuilderSlideAt,
   addLessonBlock,
@@ -552,6 +552,7 @@ export function LessonBuilderWorkspace({ lesson, slides, trashedSlides = [], blo
   });
   const [isMetadataOpen, setIsMetadataOpen] = useState(false);
   const [isAiGeneratorOpen, setIsAiGeneratorOpen] = useState(false);
+  const [isAiMenuOpen, setIsAiMenuOpen] = useState(false);
   const [busyMessage, setBusyMessage] = useState<string | null>(null);
   const [draggedSlideId, setDraggedSlideId] = useState<string | null>(null);
   const [addAfter, setAddAfter] = useState<number | null>(null);
@@ -769,15 +770,36 @@ export function LessonBuilderWorkspace({ lesson, slides, trashedSlides = [], blo
         </div>
         <div className="flex flex-wrap gap-2">
           <BuilderHeaderUndoRedo />
-          {isAdmin && (
+          <div className="relative">
             <button
               type="button"
-              onClick={() => setIsAiGeneratorOpen(true)}
-              className="inline-flex items-center gap-2 rounded-md bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2 text-sm font-semibold text-on-dark shadow hover:from-emerald-700 hover:to-teal-700 transition-all"
+              onClick={() => setIsAiMenuOpen((open) => !open)}
+              aria-expanded={isAiMenuOpen}
+              className="inline-flex items-center gap-2 rounded-md bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2 text-sm font-semibold text-on-dark shadow transition-all hover:from-emerald-700 hover:to-teal-700"
             >
-              <Sparkles size={16} /> Generate with AI
+              <Sparkles size={16} /> Generate with AI <ChevronDown size={14} />
             </button>
-          )}
+            {isAiMenuOpen ? (
+              <div className="absolute right-0 top-full z-40 mt-2 w-64 overflow-hidden rounded-xl border border-[var(--br-border)] bg-surface p-1.5 shadow-2xl">
+                {isAdmin ? (
+                  <button type="button" onClick={() => { setIsAiMenuOpen(false); setIsAiGeneratorOpen(true); }} className="flex w-full items-start gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-surface-muted">
+                    <Sparkles size={17} className="mt-0.5 shrink-0 text-emerald-600" />
+                    <span><strong className="block text-sm">Generate lesson draft</strong><span className="text-xs text-[var(--br-text-muted)]">Create slides and activities.</span></span>
+                  </button>
+                ) : null}
+                {selectedSlide && !selectedSlide.id.startsWith("optimistic-slide-") ? (
+                  <Link
+                    href={`/admin/creator-tools/voiceover?lessonId=${lesson.id}&slideId=${selectedSlide.id}&returnTo=${encodeURIComponent(`/admin/lessons/${lesson.id}/builder`)}`}
+                    onClick={() => setIsAiMenuOpen(false)}
+                    className="flex items-start gap-3 rounded-lg px-3 py-2.5 hover:bg-surface-muted"
+                  >
+                    <AudioLines size={17} className="mt-0.5 shrink-0 text-[var(--br-brand)]" />
+                    <span><strong className="block text-sm">Create AI voiceover</strong><span className="text-xs text-[var(--br-text-muted)]">Narrate this slide or add audio.</span></span>
+                  </Link>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
           <Link href="/admin/content-library?type=LESSON_BLOCK" className="inline-flex items-center gap-2 rounded-md border border-[var(--br-border)] bg-surface px-4 py-2 text-sm font-medium hover:bg-black/5">
             <Library size={16} /> Content library
           </Link>
