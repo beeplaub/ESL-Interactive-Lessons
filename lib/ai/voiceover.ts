@@ -5,14 +5,38 @@ export const VOICEOVER_MODEL = process.env.GEMINI_TTS_MODEL || "gemini-3.1-flash
 export const MAX_VOICEOVER_SCRIPT_LENGTH = 4_000;
 
 export const VOICEOVER_VOICES = [
-  { name: "Aoede", label: "Aoede", description: "Breezy and natural" },
-  { name: "Kore", label: "Kore", description: "Clear and confident" },
-  { name: "Leda", label: "Leda", description: "Youthful and bright" },
-  { name: "Puck", label: "Puck", description: "Upbeat and lively" },
-  { name: "Charon", label: "Charon", description: "Informative and steady" },
-  { name: "Fenrir", label: "Fenrir", description: "Energetic and expressive" },
-  { name: "Gacrux", label: "Gacrux", description: "Mature and composed" },
-  { name: "Sulafat", label: "Sulafat", description: "Warm and encouraging" },
+  {
+    name: "Aoede", label: "Aoede", description: "Breezy and natural", presentation: "Female",
+    sampleUrl: "https://media.brenup.com/ai-recordings/voiceovers/fab99c28-0901-4159-877c-f56834c7833f/saved/1786434386973-aoede.wav",
+  },
+  {
+    name: "Kore", label: "Kore", description: "Clear and confident", presentation: "Female",
+    sampleUrl: "https://media.brenup.com/ai-recordings/voiceovers/fab99c28-0901-4159-877c-f56834c7833f/saved/1786434663688-aoede.wav",
+  },
+  {
+    name: "Leda", label: "Leda", description: "Youthful and bright", presentation: "Female",
+    sampleUrl: "https://media.brenup.com/ai-recordings/voiceovers/fab99c28-0901-4159-877c-f56834c7833f/saved/1786434762218-aoede.wav",
+  },
+  {
+    name: "Gacrux", label: "Gacrux", description: "Mature and composed", presentation: "Female",
+    sampleUrl: "https://media.brenup.com/ai-recordings/voiceovers/fab99c28-0901-4159-877c-f56834c7833f/saved/1786435143303-gacrux.wav",
+  },
+  {
+    name: "Sulafat", label: "Sulafat", description: "Warm and encouraging", presentation: "Female",
+    sampleUrl: "https://media.brenup.com/ai-recordings/voiceovers/fab99c28-0901-4159-877c-f56834c7833f/saved/1786442446428-sulafat.wav",
+  },
+  {
+    name: "Puck", label: "Puck", description: "Upbeat and lively", presentation: "Male",
+    sampleUrl: "https://media.brenup.com/ai-recordings/voiceovers/fab99c28-0901-4159-877c-f56834c7833f/saved/1786434855299-puck.wav",
+  },
+  {
+    name: "Charon", label: "Charon", description: "Informative and steady", presentation: "Male",
+    sampleUrl: "https://media.brenup.com/ai-recordings/voiceovers/fab99c28-0901-4159-877c-f56834c7833f/saved/1786434910089-charon.wav",
+  },
+  {
+    name: "Fenrir", label: "Fenrir", description: "Energetic and expressive", presentation: "Male",
+    sampleUrl: "https://media.brenup.com/ai-recordings/voiceovers/fab99c28-0901-4159-877c-f56834c7833f/saved/1786434969535-fenrir.wav",
+  },
 ] as const;
 
 export const VOICEOVER_STYLES = ["Natural", "Warm teacher", "Calm narration", "Energetic", "Conversational", "Storytelling"] as const;
