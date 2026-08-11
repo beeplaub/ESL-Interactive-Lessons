@@ -8,6 +8,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 function refreshClassPages(classId?: string) {
   revalidatePath("/admin/classes");
+  revalidatePath("/admin/assignments");
+  revalidatePath("/admin/tasks");
   if (classId) revalidatePath(`/admin/classes/${classId}`);
 }
 
