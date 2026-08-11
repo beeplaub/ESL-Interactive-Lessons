@@ -30,10 +30,17 @@ let client: GoogleGenAI | null = null;
 
 function geminiClient() {
   if (client) return client;
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error("GEMINI_API_KEY is not configured.");
+  // Voice generation has a dedicated project and quota. Keep GEMINI_API_KEY as
+  // a local-development fallback so existing developer setups do not break.
+  const apiKey = process.env.GEMINI_TTS_API_KEY || process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error("GEMINI_TTS_API_KEY is not configured.");
   client = new GoogleGenAI({ apiKey });
   return client;
+}
+
+export function isVoiceoverQuotaError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  return /RESOURCE_EXHAUSTED|quota exceeded|rate limit|\b429\b/i.test(message);
 }
 
 export function voiceoverRequestHash(request: VoiceoverRequest) {

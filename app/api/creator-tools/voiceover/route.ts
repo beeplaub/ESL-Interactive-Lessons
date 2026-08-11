@@ -5,6 +5,7 @@ import { checkUsageQuota, recordUsageEvent } from "@/lib/ai/usage";
 import { creatorAccessError, getCreatorAiAccess } from "@/lib/ai/creatorAccess";
 import {
   generateVoiceoverAudio,
+  isVoiceoverQuotaError,
   MAX_VOICEOVER_SCRIPT_LENGTH,
   VOICEOVER_MODEL,
   VOICEOVER_PACES,
@@ -145,6 +146,9 @@ export async function POST(request: Request) {
       error_message: error instanceof Error ? error.message : "Voiceover generation failed",
     });
     if (logError) console.error("Voiceover failure audit log failed", logError);
+    if (isVoiceoverQuotaError(error)) {
+      return jsonError("AI voice generation has reached its daily limit. Your existing saved voiceovers are still available. Try again after the Gemini quota resets, or use Record, Upload, or Link audio.", 429);
+    }
     return jsonError(error instanceof Error ? error.message : "Voiceover generation failed.", 500);
   }
 }
