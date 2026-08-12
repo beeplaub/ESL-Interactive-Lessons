@@ -496,6 +496,27 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
       correct_answer: targets.map((t) => t.id) as Json,
     }];
   }
+  if (activityType === "ORAL_RESPONSE") {
+    const sourceQuestions = Array.isArray(data.questions) ? data.questions : [data];
+    return sourceQuestions.map((item, index) => {
+      const question = asRecord(item as Json);
+      return {
+        id: String(question.id ?? index + 1),
+        question_number: index + 1,
+        question_type: "ORAL_RESPONSE",
+        question_text: String(question.text ?? question.question_text ?? question.prompt ?? data.prompt ?? "Speak about the topic in your own words."),
+        options: {
+          model_answer: String(question.model_answer ?? data.model_answer ?? ""),
+          target_phrases: Array.isArray(question.target_phrases) ? question.target_phrases.map(String) : [],
+          max_seconds: Math.max(5, Number(question.max_seconds ?? data.max_seconds ?? 60)),
+          allow_self_graded: (question.allow_self_graded ?? data.allow_self_graded) !== false,
+          allow_ai_feedback: (question.allow_ai_feedback ?? data.allow_ai_feedback) !== false,
+          allow_teacher_review: (question.allow_teacher_review ?? data.allow_teacher_review) !== false
+        } as Json,
+        correct_answer: true as Json
+      };
+    });
+  }
   if (activityType === "GAP_FILL") {
     const items = Array.isArray(data.items) ? data.items : Array.isArray(data.questions) ? data.questions : [];
     return items.map((item, index) => {
@@ -616,6 +637,7 @@ function activityLabel(type: string) {
   if (type === "DRAG_DROP") return "Drag and Drop";
   if (type === "CATEGORIZATION") return "Categorization";
   if (type === "PRONUNCIATION") return "Pronunciation Practice";
+  if (type === "ORAL_RESPONSE") return "Oral Response";
   if (type === "SUMMARIZATION") return "Summarization";
   if (type === "HEADINGS_MATCHING") return "Headings Matching";
   if (type === "SKIM_CHALLENGE") return "Skimming Challenge";

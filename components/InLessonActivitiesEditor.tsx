@@ -40,6 +40,14 @@ type ShortAnswerQuestion = {
   showRequiredWords: boolean;
 };
 
+type OralResponseQuestion = {
+  id: string | number;
+  text: string;
+  modelAnswer: string;
+  targetPhrasesText: string;
+  maxSeconds: number;
+};
+
 type DragDropItem = {
   id: string;
   text: string;
@@ -106,6 +114,7 @@ function labelFor(type: string) {
   if (type === "DRAG_DROP") return "Drag and Drop Activity";
   if (type === "CATEGORIZATION") return "Categorization Activity";
   if (type === "PRONUNCIATION") return "Pronunciation Practice Activity";
+  if (type === "ORAL_RESPONSE") return "Oral Response Activity";
   if (type === "SUMMARIZATION") return "Summarization Activity";
   if (type === "INFERENCE_DETECTION") return "Inference Detection Activity";
   if (type === "HEADINGS_MATCHING") return "Headings Matching Activity";
@@ -202,6 +211,29 @@ function normalizeShortAnswer(data: Json | null): { prompt: string; enableAiFeed
         minWords: rawMinWords === null || rawMinWords === undefined || Number(rawMinWords) <= 0 ? null : Number(rawMinWords),
         requiredWordsText: requiredWords.join(", "),
         showRequiredWords: question.show_required_words !== false
+      };
+    })
+  };
+}
+
+function normalizeOralResponse(data: Json | null): { prompt: string; allowSelfGraded: boolean; allowAiFeedback: boolean; allowTeacherReview: boolean; questions: OralResponseQuestion[] } {
+  const record = asRecord(data);
+  const questions = Array.isArray(record.questions) ? record.questions : [];
+  const fallback = questions.length ? questions : [record];
+  return {
+    prompt: String(record.prompt ?? "Speak your answer aloud."),
+    allowSelfGraded: record.allow_self_graded !== false,
+    allowAiFeedback: record.allow_ai_feedback !== false,
+    allowTeacherReview: record.allow_teacher_review !== false,
+    questions: fallback.map((item, index) => {
+      const question = asRecord(item);
+      const phrases = Array.isArray(question.target_phrases) ? question.target_phrases.map(String) : [];
+      return {
+        id: String(question.id ?? index + 1),
+        text: String(question.text ?? question.question_text ?? question.prompt ?? "Speak about the topic in your own words."),
+        modelAnswer: String(question.model_answer ?? record.model_answer ?? ""),
+        targetPhrasesText: phrases.join("\n"),
+        maxSeconds: Math.max(5, Number(question.max_seconds ?? record.max_seconds ?? 60))
       };
     })
   };
@@ -708,6 +740,7 @@ function ActivityPanel({
               {activity.activity_type === "SHORT_ANSWER" ? <ShortAnswerEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "DRAG_DROP" || activity.activity_type === "CATEGORIZATION" ? <DragDropEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "PRONUNCIATION" ? <PronunciationEditor activity={activity} onSave={save} /> : null}
+              {activity.activity_type === "ORAL_RESPONSE" ? <OralResponseEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "SUMMARIZATION" ? <SummarizationEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "INFERENCE_DETECTION" ? <InferenceDetectionEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "HEADINGS_MATCHING" ? <HeadingsMatchingEditor activity={activity} onSave={save} /> : null}
@@ -730,7 +763,7 @@ function ActivityPanel({
               {activity.activity_type === "DIALOGUE_WRITING" ? <DialogueWritingEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "AI_ROLEPLAY" ? <AiRoleplayEditor activity={activity} lessonId={lessonId} onSave={save} /> : null}
               {activity.activity_type === "LIVE_SPEAK_TRANSLATE" ? <LiveSpeakTranslateEditor activity={activity} onSave={save} /> : null}
-              {!["MCQ", "GAP_FILL", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "SUMMARIZATION", "INFERENCE_DETECTION", "HEADINGS_MATCHING", "SKIM_CHALLENGE", "PARAPHRASE_ID", "DICTATION", "LISTEN_AND_SELECT", "SHADOWING", "NOTE_TAKING_CHALLENGE", "SOUND_DISCRIMINATION", "LISTEN_AND_GAP_FILL", "SENTENCE_COMPLETION", "ESSAY_WRITING", "EMAIL_LETTER_WRITING", "TRANSLATION", "PARAPHRASE_PRACTICE", "SENTENCE_COMBINING", "CREATIVE_WRITING", "PEER_REVIEW_EDITING", "DIALOGUE_WRITING", "AI_ROLEPLAY"].includes(activity.activity_type) ? (
+              {!["MCQ", "GAP_FILL", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "ORAL_RESPONSE", "SUMMARIZATION", "INFERENCE_DETECTION", "HEADINGS_MATCHING", "SKIM_CHALLENGE", "PARAPHRASE_ID", "DICTATION", "LISTEN_AND_SELECT", "SHADOWING", "NOTE_TAKING_CHALLENGE", "SOUND_DISCRIMINATION", "LISTEN_AND_GAP_FILL", "SENTENCE_COMPLETION", "ESSAY_WRITING", "EMAIL_LETTER_WRITING", "TRANSLATION", "PARAPHRASE_PRACTICE", "SENTENCE_COMBINING", "CREATIVE_WRITING", "PEER_REVIEW_EDITING", "DIALOGUE_WRITING", "AI_ROLEPLAY"].includes(activity.activity_type) ? (
                 <p className="rounded-md bg-surface-muted p-3 text-sm text-[var(--br-text-muted)]">
                   This activity type has starter data and preview support. A detailed visual editor for it will be added in the next activity-builder pass.
                 </p>
@@ -1748,6 +1781,76 @@ function ShortAnswerEditor({ activity, onSave }: { activity: Activity; onSave: (
             min_words: question.minWords,
             required_words: question.requiredWordsText.split(",").map((w) => w.trim()).filter(Boolean),
             show_required_words: question.showRequiredWords
+          }))
+        } as Json, needsReview)} />
+      </div>
+    </div>
+  );
+}
+
+function OralResponseEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
+  const initial = useMemo(() => normalizeOralResponse(activity.activity_data), [activity.activity_data]);
+  const [prompt, setPrompt] = useState(initial.prompt);
+  const [allowSelfGraded, setAllowSelfGraded] = useState(initial.allowSelfGraded);
+  const [allowAiFeedback, setAllowAiFeedback] = useState(initial.allowAiFeedback);
+  const [allowTeacherReview, setAllowTeacherReview] = useState(initial.allowTeacherReview);
+  const [questions, setQuestions] = useState<OralResponseQuestion[]>(initial.questions.length ? initial.questions : [{
+    id: 1,
+    text: "",
+    modelAnswer: "",
+    targetPhrasesText: "",
+    maxSeconds: 60
+  }]);
+  const needsReview = questions.some((question) => !question.text.trim());
+
+  function updateQuestion(index: number, patch: Partial<OralResponseQuestion>) {
+    setQuestions((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item));
+  }
+
+  return (
+    <div className="grid gap-4">
+      <label className="text-sm font-medium">
+        Instruction
+        <input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" placeholder="Speak about the topic in your own words." />
+      </label>
+      <div className="rounded-2xl border border-[var(--br-chart-primary)]/20 bg-[var(--br-chart-primary)]/5 p-4">
+        <p className="mb-2 text-xs font-black uppercase tracking-wider text-[var(--br-chart-primary)]">Evaluation options</p>
+        <div className="grid gap-2 sm:grid-cols-3">
+          <label className="flex items-center gap-2 text-xs font-semibold"><input type="checkbox" checked={allowSelfGraded} onChange={(event) => setAllowSelfGraded(event.target.checked)} /> Self check</label>
+          <label className="flex items-center gap-2 text-xs font-semibold"><input type="checkbox" checked={allowAiFeedback} onChange={(event) => setAllowAiFeedback(event.target.checked)} /> AI feedback</label>
+          <label className="flex items-center gap-2 text-xs font-semibold"><input type="checkbox" checked={allowTeacherReview} onChange={(event) => setAllowTeacherReview(event.target.checked)} /> Teacher review</label>
+        </div>
+      </div>
+      {questions.map((question, index) => (
+        <div key={String(question.id)} className="rounded-md border border-[var(--br-border)] p-4">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <p className="font-medium">Speaking prompt {index + 1}</p>
+            {questions.length > 1 ? <button type="button" onClick={() => setQuestions((current) => current.filter((_, itemIndex) => itemIndex !== index))} className="text-sm text-coral">Remove prompt</button> : null}
+          </div>
+          <div className="grid gap-3">
+            <label className="text-sm">Question / prompt<input value={question.text} onChange={(event) => updateQuestion(index, { text: event.target.value })} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+            <label className="text-sm">Model answer<textarea rows={3} value={question.modelAnswer} onChange={(event) => updateQuestion(index, { modelAnswer: event.target.value })} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" placeholder="A natural example learners can compare with after submitting." /></label>
+            <label className="text-sm">Target phrases (one per line)<textarea rows={3} value={question.targetPhrasesText} onChange={(event) => updateQuestion(index, { targetPhrasesText: event.target.value })} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" placeholder={"In my opinion...\nI have been..."} /></label>
+            <label className="text-sm">Speaking time limit (seconds)<input type="number" min={5} max={600} value={question.maxSeconds} onChange={(event) => updateQuestion(index, { maxSeconds: Math.max(5, Number(event.target.value) || 60) })} className="mt-1 w-32 rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+          </div>
+        </div>
+      ))}
+      <div className="flex flex-wrap gap-3">
+        <button type="button" onClick={() => setQuestions((current) => [...current, { id: Date.now(), text: "", modelAnswer: "", targetPhrasesText: "", maxSeconds: 60 }])} className="rounded-md border border-[var(--br-border)] px-4 py-2 text-sm">Add speaking prompt</button>
+        <SaveButton onClick={() => onSave({
+          prompt,
+          allow_self_graded: allowSelfGraded,
+          allow_ai_feedback: allowAiFeedback,
+          allow_teacher_review: allowTeacherReview,
+          questions: questions.map((question, index) => ({
+            id: index + 1,
+            text: question.text,
+            model_answer: question.modelAnswer,
+            target_phrases: question.targetPhrasesText.split(/\r?\n/).map((item) => item.trim()).filter(Boolean),
+            max_seconds: question.maxSeconds,
+            allow_self_graded: allowSelfGraded,
+            allow_ai_feedback: allowAiFeedback,
+            allow_teacher_review: allowTeacherReview
           }))
         } as Json, needsReview)} />
       </div>

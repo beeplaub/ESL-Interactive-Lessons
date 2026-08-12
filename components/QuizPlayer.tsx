@@ -21,7 +21,7 @@ import { asWritingValue, isAwaitingResolution, isWritingQuestionType, resolveWri
 export type QuizQuestion = {
   id: string;
   question_number: number;
-  question_type: "MCQ" | "TRUE_FALSE" | "FILL" | "MATCHING" | "ERROR_CORRECTION" | "REORDERING" | "MULTIPLE_SELECT" | "SHORT_ANSWER" | "DRAG_DROP" | "CATEGORIZATION" | "PRONUNCIATION" | "SUMMARIZATION" | "INFERENCE_DETECTION" | "HEADINGS_MATCHING" | "SKIM_CHALLENGE" | "PARAPHRASE_ID" | "DICTATION" | "LISTEN_AND_SELECT" | "SHADOWING" | "NOTE_TAKING_CHALLENGE" | "SOUND_DISCRIMINATION" | "LISTEN_AND_GAP_FILL" | "SENTENCE_COMPLETION" | "ESSAY_WRITING" | "EMAIL_LETTER_WRITING" | "TRANSLATION" | "PARAPHRASE_PRACTICE" | "SENTENCE_COMBINING" | "CREATIVE_WRITING" | "PEER_REVIEW_EDITING" | "DIALOGUE_WRITING";
+  question_type: "MCQ" | "TRUE_FALSE" | "FILL" | "MATCHING" | "ERROR_CORRECTION" | "REORDERING" | "MULTIPLE_SELECT" | "SHORT_ANSWER" | "DRAG_DROP" | "CATEGORIZATION" | "PRONUNCIATION" | "ORAL_RESPONSE" | "SUMMARIZATION" | "INFERENCE_DETECTION" | "HEADINGS_MATCHING" | "SKIM_CHALLENGE" | "PARAPHRASE_ID" | "DICTATION" | "LISTEN_AND_SELECT" | "SHADOWING" | "NOTE_TAKING_CHALLENGE" | "SOUND_DISCRIMINATION" | "LISTEN_AND_GAP_FILL" | "SENTENCE_COMPLETION" | "ESSAY_WRITING" | "EMAIL_LETTER_WRITING" | "TRANSLATION" | "PARAPHRASE_PRACTICE" | "SENTENCE_COMBINING" | "CREATIVE_WRITING" | "PEER_REVIEW_EDITING" | "DIALOGUE_WRITING";
   question_text: string;
   description?: string | null;
   options: Json | null;
@@ -38,6 +38,12 @@ type PastAttempt = {
 type PronunciationValue = {
   results: Record<string, boolean>;
   attemptsUsed: Record<string, number>;
+};
+
+export type OralResponseValue = {
+  transcript: string;
+  duration_seconds?: number;
+  self_rating?: "needs_practice" | "getting_there" | "confident";
 };
 
 export function hasAnswer(question: QuizQuestion, value: unknown): boolean {
@@ -81,6 +87,9 @@ export function hasAnswer(question: QuizQuestion, value: unknown): boolean {
       if (!requiredWords.every((word) => lowerText.includes(word))) return false;
     }
     return true;
+  }
+  if (question.question_type === "ORAL_RESPONSE") {
+    return String(asRecord(value as Json).transcript ?? "").trim().length > 0;
   }
   if (question.question_type === "SUMMARIZATION") {
     const opts = asRecord(question.options);
@@ -748,7 +757,8 @@ export function QuestionCard({
     question.question_type === "SENTENCE_COMBINING" ||
     question.question_type === "CREATIVE_WRITING" ||
     question.question_type === "PEER_REVIEW_EDITING" ||
-    question.question_type === "DIALOGUE_WRITING";
+    question.question_type === "DIALOGUE_WRITING" ||
+    question.question_type === "ORAL_RESPONSE";
   const isPartialCredit = question.question_type === "DRAG_DROP" || question.question_type === "CATEGORIZATION" || question.question_type === "FILL" || question.question_type === "PRONUNCIATION" || question.question_type === "LISTEN_AND_GAP_FILL";
   const stats = isPartialCredit && submitted ? partialCreditStats(question, value) : null;
   const correct = submitted && !isSelfChecked && !isPartialCredit ? isCorrect(question, value) : false;
@@ -825,6 +835,7 @@ export function QuestionCard({
         {question.question_type === "SUMMARIZATION" ? <Summarization question={question} value={value as { text?: string; selfMarked?: boolean } | undefined} submitted={submitted} onChange={onChange} /> : null}
         {question.question_type === "DRAG_DROP" || question.question_type === "CATEGORIZATION" ? <DragDrop question={question} value={(value as Record<string, string>) ?? {}} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "PRONUNCIATION" ? <Pronunciation question={question} value={value as PronunciationValue | undefined} disabled={submitted} onChange={onChange} /> : null}
+        {question.question_type === "ORAL_RESPONSE" ? <OralResponse question={question} value={value as OralResponseValue | undefined} disabled={submitted} submitted={submitted} onChange={onChange} /> : null}
         {question.question_type === "INFERENCE_DETECTION" ? <InferenceDetection question={question} value={value as string | undefined} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "HEADINGS_MATCHING" ? <HeadingsMatching question={question} value={(value as Record<string, string>) ?? {}} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "SKIM_CHALLENGE" ? <SkimChallenge question={question} value={(value as Record<string, string>) ?? {}} disabled={submitted} onChange={onChange} /> : null}
@@ -2015,6 +2026,131 @@ function DragDrop({
 }
 
 type PronunciationTarget = { id: string; text: string; color: string };
+
+function OralResponse({
+  question,
+  value,
+  disabled,
+  submitted,
+  onChange,
+}: {
+  question: QuizQuestion;
+  value?: OralResponseValue;
+  disabled: boolean;
+  submitted: boolean;
+  onChange: (value: OralResponseValue) => void;
+}) {
+  const opts = asRecord(question.options);
+  const maxSeconds = Math.max(5, Number(opts.max_seconds ?? 60));
+  const allowSelfGraded = opts.allow_self_graded !== false;
+  const modelAnswer = String(opts.model_answer ?? "").trim();
+  const targetPhrases = Array.isArray(opts.target_phrases) ? opts.target_phrases.map(String).filter(Boolean) : [];
+  const [supported, setSupported] = useState(true);
+  const [recording, setRecording] = useState(false);
+  const [seconds, setSeconds] = useState(0);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const recordingRef = useRef(false);
+  const transcriptRef = useRef(value?.transcript ?? "");
+  const startedAtRef = useRef(0);
+
+  useEffect(() => {
+    setSupported(getSpeechRecognitionConstructor() !== null);
+    return () => {
+      recordingRef.current = false;
+      recognitionRef.current?.abort();
+    };
+  }, []);
+
+  function startRecording() {
+    const Recognition = getSpeechRecognitionConstructor();
+    if (!Recognition || disabled) return;
+    const recognition = new Recognition();
+    recognition.lang = "en-US";
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.maxAlternatives = 1;
+    recognitionRef.current = recognition;
+    recordingRef.current = true;
+    startedAtRef.current = Date.now();
+    setSeconds(0);
+    setRecording(true);
+    recognition.onresult = (event) => {
+      const transcript = Array.from({ length: event.results.length }, (_, index) => event.results.item(index).item(0).transcript)
+        .join(" ").replace(/\s+/g, " ").trim();
+      transcriptRef.current = transcript;
+      onChange({ transcript, duration_seconds: Math.floor((Date.now() - startedAtRef.current) / 1000) });
+    };
+    recognition.onerror = () => {
+      recordingRef.current = false;
+      setRecording(false);
+    };
+    recognition.onend = () => {
+      if (recordingRef.current) {
+        try { recognition.start(); } catch { /* browser may already be restarting */ }
+        return;
+      }
+      setRecording(false);
+    };
+    recognition.start();
+  }
+
+  const stopRecording = useCallback(() => {
+    recordingRef.current = false;
+    recognitionRef.current?.stop();
+    setRecording(false);
+    onChange({
+      transcript: transcriptRef.current,
+      duration_seconds: Math.floor((Date.now() - startedAtRef.current) / 1000),
+      self_rating: value?.self_rating,
+    });
+  }, [onChange, value?.self_rating]);
+
+  useEffect(() => {
+    if (!recording) return;
+    const timer = window.setInterval(() => {
+      const elapsed = Math.floor((Date.now() - startedAtRef.current) / 1000);
+      setSeconds(elapsed);
+      if (elapsed >= maxSeconds) stopRecording();
+    }, 250);
+    return () => window.clearInterval(timer);
+  }, [recording, maxSeconds, stopRecording]);
+
+  if (!supported) {
+    return <p className="rounded-[14px] border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Speech recognition is unavailable in this browser. Try Chrome or Edge.</p>;
+  }
+
+  return (
+    <div className="grid justify-items-center gap-4 rounded-[22px] border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] p-5 text-center">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={recording ? stopRecording : startRecording}
+        aria-label={recording ? "Tap to finish speaking" : "Start speaking"}
+        className={`grid size-20 place-items-center rounded-full bg-[var(--br-brand)] text-white shadow-[var(--br-shadow)] transition-transform disabled:opacity-50 ${recording ? "animate-pulse scale-110" : "hover:scale-105"}`}
+      >
+        {recording ? <MicOff size={30} /> : <Mic size={30} />}
+      </button>
+      {recording ? <p className="text-sm font-semibold text-[var(--br-brand)]">Tap to finish · {Math.max(0, maxSeconds - seconds)}s</p> : null}
+      {!recording && value?.transcript ? <p className="text-xs text-[var(--br-text-muted)]">Response recorded</p> : null}
+      {submitted && modelAnswer ? (
+        <div className="w-full rounded-[14px] border border-[var(--br-success)]/20 bg-[var(--br-success)]/5 p-3 text-left">
+          <p className="text-xs font-bold uppercase tracking-wide text-[var(--br-success)]">Model answer</p>
+          <p className="mt-1 whitespace-pre-wrap text-sm text-[var(--br-text)]">{modelAnswer}</p>
+        </div>
+      ) : null}
+      {targetPhrases.length > 0 && !submitted ? <p className="text-xs text-[var(--br-text-muted)]">Speak naturally and try to use the target language.</p> : null}
+      {allowSelfGraded && value?.transcript && !submitted ? (
+        <div className="flex flex-wrap justify-center gap-2">
+          {(["needs_practice", "getting_there", "confident"] as const).map((rating) => (
+            <button key={rating} type="button" onClick={() => onChange({ ...value, self_rating: rating })} className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${value.self_rating === rating ? "border-[var(--br-brand)] bg-[var(--br-brand)] text-white" : "border-[var(--br-surface-strong)] text-[var(--br-text-muted)]"}`}>
+              {rating === "needs_practice" ? "Needs practice" : rating === "getting_there" ? "Getting there" : "Confident"}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 function Pronunciation({
   question,

@@ -50,7 +50,7 @@ type QuestionBankItem = {
 
 const questionTypes: BuilderQuestion["questionType"][] = [
   "MCQ", "TRUE_FALSE", "FILL", "MATCHING", "MULTIPLE_SELECT",
-  "SHORT_ANSWER", "ERROR_CORRECTION", "REORDERING", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "SUMMARIZATION", "INFERENCE_DETECTION",
+  "SHORT_ANSWER", "ERROR_CORRECTION", "REORDERING", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "ORAL_RESPONSE", "SUMMARIZATION", "INFERENCE_DETECTION",
   "HEADINGS_MATCHING", "SKIM_CHALLENGE", "PARAPHRASE_ID",
   "DICTATION", "LISTEN_AND_SELECT", "SHADOWING", "NOTE_TAKING_CHALLENGE", "SOUND_DISCRIMINATION", "LISTEN_AND_GAP_FILL",
   "SENTENCE_COMPLETION", "ESSAY_WRITING", "EMAIL_LETTER_WRITING", "TRANSLATION", "PARAPHRASE_PRACTICE", "SENTENCE_COMBINING", "CREATIVE_WRITING", "PEER_REVIEW_EDITING", "DIALOGUE_WRITING"
@@ -68,6 +68,7 @@ const typeLabels: Record<string, string> = {
   DRAG_DROP: "Drag & Drop",
   CATEGORIZATION: "Categorization",
   PRONUNCIATION: "Pronunciation",
+  ORAL_RESPONSE: "Oral Response",
   SUMMARIZATION: "Summarization",
   INFERENCE_DETECTION: "Inference Detection",
   HEADINGS_MATCHING: "Headings Matching",
@@ -160,6 +161,11 @@ TEXT: The punctual student waited patiently in the queue.
 TARGETS: punctual | patiently | queue
 ATTEMPTS: 3
 
+15. Tell us about a memorable waiting experience. (ORAL_RESPONSE)
+MODEL ANSWER: I once waited for a delayed flight, so I used the time to read.
+TARGET PHRASES: I once | I had been | In my opinion
+TIME LIMIT: 60
+
 Note: The parser imports MCQ, T/F, FILL, and MATCH directly. Use the visual builder or Question Bank for the advanced types above.`;
 
 function defaultQuestion(type: BuilderQuestion["questionType"]): BuilderQuestion {
@@ -175,6 +181,7 @@ function defaultQuestion(type: BuilderQuestion["questionType"]): BuilderQuestion
   if (type === "DRAG_DROP") return { id, questionType: type, questionText: "Place each item in the correct group.", description: "", options: { targets: ["Group A", "Group B"], items: [{ id: "1", text: "Item 1" }, { id: "2", text: "Item 2" }] }, correctAnswer: { "1": "Group A", "2": "Group B" }, assessment };
   if (type === "CATEGORIZATION") return { id, questionType: type, questionText: "Sort each item into the correct category.", description: "", options: { targets: ["Category A", "Category B"], items: [{ id: "1", text: "Item 1" }, { id: "2", text: "Item 2" }] }, correctAnswer: { "1": "Category A", "2": "Category B" }, assessment };
   if (type === "PRONUNCIATION") return { id, questionType: type, questionText: "Practise the pronunciation.", description: "", options: { level: "word", passage: "", targets: [{ id: "1", text: "comfortable", color: "var(--br-achievement)" }], max_attempts: 3 }, correctAnswer: ["1"], assessment };
+  if (type === "ORAL_RESPONSE") return { id, questionType: type, questionText: "Speak about the topic in your own words.", description: "", options: { model_answer: "", target_phrases: [], max_seconds: 60, allow_self_graded: true, allow_ai_feedback: true, allow_teacher_review: true }, correctAnswer: true, assessment };
   if (type === "SUMMARIZATION") return { id, questionType: type, questionText: "Summarize the passage in your own words.", description: "", options: { passage: "Enter the source passage here.", max_words: 30, sample_answer: "A concise summary." }, correctAnswer: true, assessment };
   if (type === "INFERENCE_DETECTION") return { id, questionType: type, questionText: "What can we infer from the passage?", description: "", options: { instruction: "Read the passage. What can we infer?", passage: "Enter the source passage here.", A: "Option A", B: "Option B", C: "Option C", D: "Option D" }, correctAnswer: "A", assessment };
   if (type === "HEADINGS_MATCHING") return { id, questionType: type, questionText: "Match the paragraphs to the correct headings.", description: "", options: { paragraphs: [{ id: "A", text: "Paragraph A text" }, { id: "B", text: "Paragraph B text" }], headings: [{ id: "1", text: "Heading 1" }, { id: "2", text: "Heading 2" }, { id: "3", text: "Distractor heading" }] }, correctAnswer: { A: "1", B: "2" }, assessment };
@@ -905,6 +912,25 @@ function questionToPreviewActivity(question: BuilderQuestion) {
       } as Json
     };
   }
+  if (question.questionType === "ORAL_RESPONSE") {
+    return {
+      id: question.id,
+      activity_type: "ORAL_RESPONSE",
+      activity_data: {
+        prompt: question.questionText,
+        questions: [{
+          id: 1,
+          text: question.questionText,
+          model_answer: String(options.model_answer ?? ""),
+          target_phrases: Array.isArray(options.target_phrases) ? options.target_phrases : [],
+          max_seconds: Number(options.max_seconds ?? 60),
+          allow_self_graded: options.allow_self_graded !== false,
+          allow_ai_feedback: options.allow_ai_feedback !== false,
+          allow_teacher_review: options.allow_teacher_review !== false
+        }]
+      } as Json
+    };
+  }
   if (question.questionType === "MULTIPLE_SELECT") {
     return {
       id: question.id,
@@ -948,6 +974,7 @@ function questionToPreviewActivity(question: BuilderQuestion) {
       } as Json
     };
   }
+
   if (question.questionType === "HEADINGS_MATCHING") {
     return {
       id: question.id,
@@ -1029,6 +1056,26 @@ function questionToPreviewActivity(question: BuilderQuestion) {
 
 function QuestionFields({ question, onChange }: { question: BuilderQuestion; onChange: (patch: Partial<BuilderQuestion>) => void }) {
   const options = asRecord(question.options);
+
+  if (question.questionType === "ORAL_RESPONSE") {
+    return (
+      <div className="grid gap-3">
+        <label className="text-sm">
+          Model answer
+          <textarea value={String(options.model_answer ?? "")} onChange={(event) => onChange({ options: { ...options, model_answer: event.target.value } as Json })} rows={3} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" placeholder="A natural answer learners can compare with after submitting." />
+        </label>
+        <label className="text-sm">
+          Target phrases (one per line)
+          <textarea value={Array.isArray(options.target_phrases) ? options.target_phrases.map(String).join("\n") : ""} onChange={(event) => onChange({ options: { ...options, target_phrases: splitLines(event.target.value) } as Json })} rows={3} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" placeholder={"In my opinion...\nI have been..."} />
+        </label>
+        <label className="text-sm">
+          Speaking time limit (seconds)
+          <input type="number" min={5} max={600} value={Number(options.max_seconds ?? 60)} onChange={(event) => onChange({ options: { ...options, max_seconds: Math.max(5, Number(event.target.value) || 60) } as Json })} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" />
+        </label>
+        <WritingGradingSettings options={options} onChange={(opts) => onChange({ options: opts })} />
+      </div>
+    );
+  }
 
   if (question.questionType === "INFERENCE_DETECTION") {
     return (

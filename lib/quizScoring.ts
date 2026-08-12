@@ -15,6 +15,7 @@ export type ScoredQuestion = {
     | "DRAG_DROP"
     | "CATEGORIZATION"
     | "PRONUNCIATION"
+    | "ORAL_RESPONSE"
     | "SUMMARIZATION"
     | "INFERENCE_DETECTION"
     | "HEADINGS_MATCHING"
@@ -57,6 +58,8 @@ function baseQuestionTotal(question: ScoredQuestion): number {
     return (Array.isArray(question.correct_answer) ? question.correct_answer.length : 0) || 1;
   }
 
+  if (question.question_type === "ORAL_RESPONSE") return 1;
+
   if (question.question_type === "FILL" || question.question_type === "LISTEN_AND_GAP_FILL") {
     return Array.isArray(question.correct_answer) ? Math.max(1, question.correct_answer.length) : 1;
   }
@@ -70,6 +73,10 @@ export function questionTotal(question: ScoredQuestion): number {
 }
 
 function baseQuestionScore(question: ScoredQuestion, answer: unknown): number {
+  if (question.question_type === "ORAL_RESPONSE") {
+    const rating = String(asRecord(answer as Json).self_rating ?? "");
+    return rating === "confident" ? 1 : rating === "getting_there" ? 0.7 : 0;
+  }
   if (question.question_type === "DRAG_DROP" || question.question_type === "CATEGORIZATION" || question.question_type === "HEADINGS_MATCHING" || question.question_type === "SKIM_CHALLENGE") {
     const correct = asRecord(question.correct_answer);
     const given = asRecord(answer as Json);
@@ -111,6 +118,9 @@ export function scoreQuestions(questions: ScoredQuestion[], answers: Record<stri
 }
 
 export function isCorrect(question: ScoredQuestion, value: unknown): boolean {
+  if (question.question_type === "ORAL_RESPONSE") {
+    return String(asRecord(value as Json).self_rating ?? "") === "confident";
+  }
   if (
     question.question_type === "MCQ" ||
     question.question_type === "INFERENCE_DETECTION" ||

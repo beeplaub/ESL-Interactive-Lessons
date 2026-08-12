@@ -154,6 +154,19 @@ export function lessonScoredQuestions(activityType: string, value: Json | null):
     return [common(data, 0, "PRONUNCIATION", targets.map((target) => target.id), { targets, level: data.level ?? "word" } as unknown as Json)];
   }
 
+  if (activityType === "ORAL_RESPONSE") {
+    const sourceRows = rows(data, "questions");
+    const list = sourceRows.length ? sourceRows : [data];
+    return list.map((row, index) => common(row, index, "ORAL_RESPONSE", true, {
+      model_answer: text(row.model_answer ?? data.model_answer),
+      target_phrases: Array.isArray(row.target_phrases) ? row.target_phrases.map(text) : [],
+      max_seconds: Math.max(5, Number(row.max_seconds ?? data.max_seconds ?? 60)),
+      allow_self_graded: (row.allow_self_graded ?? data.allow_self_graded) !== false,
+      allow_ai_feedback: (row.allow_ai_feedback ?? data.allow_ai_feedback) !== false,
+      allow_teacher_review: (row.allow_teacher_review ?? data.allow_teacher_review) !== false,
+    } as Json));
+  }
+
   if (activityType === "DICTATION") return [common(data, 0, "DICTATION", text(data.correct_answer), { ignore_punctuation: data.ignore_punctuation !== false } as Json)];
   if (activityType === "LISTEN_AND_SELECT" || activityType === "SOUND_DISCRIMINATION") return [common(data, 0, activityType, text(data.correct_answer ?? "0"), { choices: data.choices ?? data.pairs ?? [] } as unknown as Json)];
   if (activityType === "SHADOWING") return [common(data, 0, "SHADOWING", text(data.target_text || data.correct_answer), { target_text: data.target_text ?? data.correct_answer } as Json)];
