@@ -1020,9 +1020,6 @@ function CustomYouTubeVideoPlayer({
             <span>{formatPlayerTime(progressDuration)}</span>
           </div>
           <div className="flex items-center justify-center gap-1 overflow-visible sm:gap-2">
-            <button type="button" onClick={toggle} className="relative grid size-8 shrink-0 place-items-center rounded-lg bg-surface text-ink shadow-sm transition hover:bg-[var(--br-surface-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white sm:size-9">
-              {playing ? <Pause size={16} /> : <Play size={16} />}
-            </button>
             <button type="button" onClick={() => seekRelative(-10)} className={controlClass} aria-label="Rewind 10 seconds" title="Rewind 10 seconds"><SkipBack size={16} /></button>
             <button type="button" onClick={() => seekRelative(10)} className={controlClass} aria-label="Forward 10 seconds" title="Forward 10 seconds"><SkipForward size={16} /></button>
             <button type="button" onClick={restart} className={controlClass} aria-label="Restart video" title="Restart video"><RotateCcw size={16} /></button>
