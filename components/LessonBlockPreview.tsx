@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, FlipHorizontal2, Headphones, ImageIcon, ListChecks, Maximize, MessageSquareQuote, Pause, Play, PlayCircle, Settings, Volume2, RotateCcw, RotateCw } from "lucide-react";
+import { BookOpen, FlipHorizontal2, Headphones, ImageIcon, ListChecks, Maximize, Minimize, MessageSquareQuote, Pause, Play, PlayCircle, Settings, Volume2, RotateCcw, RotateCw } from "lucide-react";
 import type { RefObject } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Json } from "@/types/database.types";
@@ -291,6 +291,20 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
             startTime={asString(content.startTime)}
             endTime={asString(content.endTime)}
           />
+        ) : url && (/^https?:\/\//i.test(url) || url.startsWith("/")) ? (
+          <div className="bg-dark text-on-dark">
+            {asString(content.title) ? <p className="border-b border-white/10 px-4 py-2.5 text-sm font-bold">{asString(content.title)}</p> : null}
+            <video
+              src={url}
+              controls
+              playsInline
+              preload="metadata"
+              controlsList="nodownload noremoteplayback"
+              className="aspect-video w-full bg-black object-contain"
+            >
+              Your browser does not support video playback.
+            </video>
+          </div>
         ) : (
           <div className="grid aspect-video place-items-center p-4 text-center">
             <div>
@@ -659,12 +673,18 @@ function CustomYouTubeVideoPlayer({
   const [openVolume, setOpenVolume] = useState(false);
   const [speed, setSpeed] = useState(1);
   const [currentTime, setCurrentTime] = useState(0);
+  const [ended, setEnded] = useState(false);
+  const [nativeFullscreen, setNativeFullscreen] = useState(false);
+  const [viewportFullscreen, setViewportFullscreen] = useState(false);
+  const [zoom, setZoom] = useState(1);
+
+  const fullscreenActive = nativeFullscreen || viewportFullscreen;
 
   const startSeconds = useMemo(() => parseTimeToSeconds(startTime) || 0, [startTime]);
   const endSeconds = useMemo(() => parseTimeToSeconds(endTime), [endTime]);
 
   const src = useMemo(() => {
-    let url = `https://www.youtube-nocookie.com/embed/${videoId}?enablejsapi=1&controls=0&rel=0&modestbranding=1&playsinline=1&iv_load_policy=3&disablekb=1&fs=0`;
+    let url = `https://www.youtube-nocookie.com/embed/${videoId}?enablejsapi=1&controls=0&rel=0&playsinline=1&iv_load_policy=3&disablekb=1&fs=0`;
     if (startSeconds > 0) url += `&start=${startSeconds}`;
     if (endSeconds !== null && endSeconds > startSeconds) url += `&end=${endSeconds}`;
     return url;
@@ -680,6 +700,7 @@ function CustomYouTubeVideoPlayer({
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
+      if (event.source !== iframeRef.current?.contentWindow || !/^https:\/\/(www\.)?(youtube(-nocookie)?\.com|youtube\.com)$/.test(event.origin)) return;
       if (typeof event.data === "string") {
         try {
           const data = JSON.parse(event.data);
@@ -691,8 +712,10 @@ function CustomYouTubeVideoPlayer({
               if (data.info.playerState === 1) {
                 setPlaying(true);
                 setStarted(true);
+                setEnded(false);
               } else if (data.info.playerState === 2 || data.info.playerState === 0) {
                 setPlaying(false);
+                if (data.info.playerState === 0) setEnded(true);
               }
             }
           } else if (data.event === "onStateChange") {
@@ -700,8 +723,10 @@ function CustomYouTubeVideoPlayer({
             if (state === 1) {
               setPlaying(true);
               setStarted(true);
+              setEnded(false);
             } else if (state === 2 || state === 0) {
               setPlaying(false);
+              if (state === 0) setEnded(true);
             }
           }
         } catch (e) {
@@ -713,8 +738,39 @@ function CustomYouTubeVideoPlayer({
     return () => window.removeEventListener("message", handleMessage);
   }, []);
 
+  useEffect(() => {
+    const fullscreenDocument = document as Document & {
+      webkitFullscreenElement?: Element | null;
+    };
+    const handleFullscreenChange = () => {
+      const activeElement = document.fullscreenElement || fullscreenDocument.webkitFullscreenElement;
+      setNativeFullscreen(activeElement === wrapperRef.current);
+    };
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
+      document.removeEventListener("webkitfullscreenchange", handleFullscreenChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!viewportFullscreen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setViewportFullscreen(false);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [viewportFullscreen]);
+
   function toggle() {
     if (!started) setStarted(true);
+    setEnded(false);
     if (playing) {
       command("pauseVideo");
       setPlaying(false);
@@ -729,6 +785,7 @@ function CustomYouTubeVideoPlayer({
 
   function restart() {
     if (!started) setStarted(true);
+    setEnded(false);
     command("seekTo", [startSeconds, true]);
     command("playVideo");
     setPlaying(true);
@@ -740,17 +797,69 @@ function CustomYouTubeVideoPlayer({
     setCurrentTime(targetTime);
   }
 
-  function fullscreen() { void wrapperRef.current?.requestFullscreen?.(); }
+  async function toggleFullscreen() {
+    const fullscreenDocument = document as Document & {
+      webkitExitFullscreen?: () => Promise<void> | void;
+      webkitFullscreenElement?: Element | null;
+    };
+
+    if (viewportFullscreen) {
+      setViewportFullscreen(false);
+      return;
+    }
+
+    if (document.fullscreenElement || fullscreenDocument.webkitFullscreenElement) {
+      if (document.exitFullscreen) await document.exitFullscreen();
+      else await fullscreenDocument.webkitExitFullscreen?.();
+      return;
+    }
+
+    const element = wrapperRef.current as (HTMLDivElement & {
+      webkitRequestFullscreen?: () => Promise<void> | void;
+    }) | null;
+    if (!element) return;
+
+    try {
+      if (element.requestFullscreen) {
+        await element.requestFullscreen({ navigationUI: "hide" });
+        window.setTimeout(() => {
+          const activeElement = document.fullscreenElement || fullscreenDocument.webkitFullscreenElement;
+          if (activeElement !== wrapperRef.current) setViewportFullscreen(true);
+        }, 150);
+        return;
+      }
+      if (element.webkitRequestFullscreen) {
+        await element.webkitRequestFullscreen();
+        window.setTimeout(() => {
+          const activeElement = document.fullscreenElement || fullscreenDocument.webkitFullscreenElement;
+          if (activeElement !== wrapperRef.current) setViewportFullscreen(true);
+        }, 150);
+        return;
+      }
+    } catch {
+      // iPhone Safari and some in-app browsers reject element fullscreen.
+    }
+
+    setViewportFullscreen(true);
+  }
+
+  const controlClass = "relative grid size-9 shrink-0 place-items-center rounded-lg border border-white/10 bg-white/10 text-on-dark transition hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 min-[390px]:size-10 sm:size-11";
 
   return (
-    <div ref={wrapperRef} className="overflow-hidden rounded-lg bg-dark text-on-dark">
-      <div className="relative aspect-video bg-black overflow-hidden">
+    <div
+      ref={wrapperRef}
+      className={`bg-dark text-on-dark ${viewportFullscreen ? "fixed inset-0 z-[9999] flex h-[100dvh] w-screen flex-col overflow-hidden rounded-none" : nativeFullscreen ? "flex h-[100dvh] w-screen flex-col overflow-hidden rounded-none" : "overflow-hidden rounded-lg"}`}
+    >
+      <div className={`relative overflow-hidden bg-black ${fullscreenActive ? "min-h-0 flex-1" : "aspect-video"}`}>
         <iframe
           ref={iframeRef}
           src={src}
           title={title}
-          className={`absolute h-full w-full inset-0 pointer-events-none transition-opacity duration-300 ${started ? "opacity-100" : "opacity-0"}`}
-          allow="autoplay; encrypted-media; picture-in-picture"
+          className={`pointer-events-none absolute inset-0 h-full w-full transition duration-300 ${started ? "opacity-100" : "opacity-0"}`}
+          style={{ transform: `scale(${zoom})` }}
+          allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+          allowFullScreen
+          onLoad={() => iframeRef.current?.contentWindow?.postMessage(JSON.stringify({ event: "listening", id: videoId }), "*")}
         />
         {playing ? (
           <div onClick={toggle} className="absolute inset-0 cursor-pointer z-10" aria-label="Pause video" />
@@ -763,25 +872,34 @@ function CustomYouTubeVideoPlayer({
             style={{ backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url(https://img.youtube.com/vi/${videoId}/hqdefault.jpg)` }}
           >
             <span className="grid size-16 place-items-center rounded-full bg-surface text-ink shadow-xl transition-transform hover:scale-105">
-              <Play size={26} className="ml-1" />
+              {ended ? <RotateCcw size={25} /> : <Play size={26} className="ml-1" />}
             </span>
-            <span className="sr-only">Play video</span>
+            <span className="mt-3 rounded-full bg-black/60 px-3 py-1 text-xs font-bold text-white">{ended ? "Replay video" : "Play video"}</span>
           </button>
         ) : null}
       </div>
-      <div className="flex items-center gap-1 overflow-x-auto p-2">
-        <button type="button" onClick={toggle} className="inline-flex shrink-0 items-center gap-1 rounded-md bg-surface px-2.5 py-1.5 text-xs font-semibold text-ink z-30">{playing ? <Pause size={14} /> : <Play size={14} />} {playing ? "Pause" : "Play"}</button>
-        <button type="button" onClick={restart} className="shrink-0 rounded-md bg-white/10 px-2.5 py-1.5 text-xs font-semibold hover:bg-white/20">Restart</button>
-        <button type="button" onClick={() => seekRelative(-10)} className="shrink-0 rounded-md bg-white/10 p-1.5 hover:bg-white/20" aria-label="Rewind 10 seconds"><RotateCcw size={15} /></button>
-        <button type="button" onClick={() => seekRelative(10)} className="shrink-0 rounded-md bg-white/10 p-1.5 hover:bg-white/20" aria-label="Forward 10 seconds"><RotateCw size={15} /></button>
-        <div className="relative ml-auto shrink-0 z-30">
-          <button type="button" onClick={() => setOpenVolume((current) => !current)} className="rounded-md bg-white/10 p-1.5 hover:bg-white/20" aria-label="Volume"><Volume2 size={15} /></button>
-          {openVolume ? (<div className="absolute bottom-9 right-0 rounded-md bg-dark/95 p-3 shadow-xl"><input aria-label="Volume" type="range" min="0" max="100" step="5" value={volume} onChange={(event) => setVolume(Number(event.target.value))} className="h-24 w-6 [writing-mode:vertical-rl]" /></div>) : null}
+      <div className="flex items-center justify-center gap-1 overflow-visible border-t border-white/10 p-2 sm:gap-2 sm:p-3">
+        <button type="button" onClick={toggle} className="relative inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-lg bg-surface px-2.5 text-sm font-bold text-ink shadow-sm transition hover:bg-[var(--br-surface-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white min-[390px]:h-10 min-[390px]:px-3 sm:h-11 sm:px-4">
+          {playing ? <Pause size={18} /> : <Play size={18} />}
+          <span className="hidden min-[390px]:inline">{playing ? "Pause" : "Play"}</span>
+        </button>
+        <button type="button" onClick={() => seekRelative(-10)} className={controlClass} aria-label="Rewind 10 seconds" title="Rewind 10 seconds"><RotateCcw size={19} /><span className="absolute text-[8px] font-black">10</span></button>
+        <button type="button" onClick={() => seekRelative(10)} className={controlClass} aria-label="Forward 10 seconds" title="Forward 10 seconds"><RotateCw size={19} /><span className="absolute text-[8px] font-black">10</span></button>
+        <button type="button" onClick={restart} className={controlClass} aria-label="Restart video" title="Restart video"><RotateCcw size={19} /></button>
+        <div className="relative shrink-0 z-30">
+          <button type="button" onClick={() => setOpenVolume((current) => !current)} className={controlClass} aria-label="Volume" title="Volume"><Volume2 size={19} /></button>
+          {openVolume ? (<div className="absolute bottom-12 right-0 rounded-lg border border-white/10 bg-dark/95 p-3 shadow-xl"><input aria-label="Volume" type="range" min="0" max="100" step="5" value={volume} onChange={(event) => setVolume(Number(event.target.value))} className="h-24 w-6 [writing-mode:vertical-rl]" /></div>) : null}
         </div>
-        <button type="button" onClick={fullscreen} className="shrink-0 rounded-md bg-white/10 p-1.5 hover:bg-white/20" aria-label="Fullscreen"><Maximize size={15} /></button>
-        <button type="button" onClick={() => setOpenSettings((current) => !current)} className="shrink-0 rounded-md bg-white/10 p-1.5 hover:bg-white/20" aria-label="Video settings"><Settings size={15} /></button>
+        <button type="button" onClick={() => void toggleFullscreen()} className={controlClass} aria-label={fullscreenActive ? "Exit fullscreen" : "Enter fullscreen"} title={fullscreenActive ? "Exit fullscreen" : "Fullscreen"}>{fullscreenActive ? <Minimize size={19} /> : <Maximize size={19} />}</button>
+        <button type="button" onClick={() => setOpenSettings((current) => !current)} className={controlClass} aria-label="Video settings" title="Video settings"><Settings size={19} /></button>
       </div>
-      {openSettings ? (<div className="border-t border-white/10 p-3 text-sm"><label className="flex items-center justify-between gap-3">Speed<select value={speed} onChange={(event) => setSpeed(Number(event.target.value))} className="rounded-md border border-white/20 bg-dark px-2 py-1 text-on-dark">{[0.75, 1, 1.25, 1.5, 2].map((value) => <option key={value} value={value}>{value}x</option>)}</select></label></div>) : null}
+      {openSettings ? (
+        <div className="grid gap-3 border-t border-white/10 p-3 text-sm sm:grid-cols-2">
+          <label className="flex items-center justify-between gap-3">Speed<select value={speed} onChange={(event) => setSpeed(Number(event.target.value))} className="rounded-md border border-white/20 bg-dark px-2 py-1 text-on-dark">{[0.75, 1, 1.25, 1.5, 2].map((value) => <option key={value} value={value}>{value}x</option>)}</select></label>
+          <label className="flex items-center justify-between gap-3">Picture size<select value={zoom} onChange={(event) => setZoom(Number(event.target.value))} className="rounded-md border border-white/20 bg-dark px-2 py-1 text-on-dark"><option value={1}>Fit</option><option value={1.15}>Zoom 115%</option><option value={1.3}>Zoom 130%</option></select></label>
+        </div>
+      ) : null}
+      <p className="sr-only" aria-live="polite">{fullscreenActive ? "Video is fullscreen" : "Video is not fullscreen"}</p>
     </div>
   );
 }

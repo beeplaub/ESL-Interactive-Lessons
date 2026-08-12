@@ -1550,6 +1550,7 @@ function BlockFields({ blockType, content, lessonId }: { blockType: string; cont
       <div className="grid gap-3">
         <label className="text-sm">Video URL<input name="url" value={videoPath} onChange={(event) => setVideoPath(event.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
         <BlockMediaUploader type="video" lessonId={lessonId} currentSrc={videoPath} onUploaded={setVideoPath} />
+        <p className="text-xs leading-5 text-[var(--br-text-muted)]">Upload MP4 or WebM for a fully BrenUp-branded player. YouTube embeds may retain YouTube-required attribution even when its controls are hidden.</p>
         <label className="text-sm">Title <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><input name="title" defaultValue={asString(data.title)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="text-sm">Start time <span className="font-normal text-[var(--br-text-muted)]">(optional, e.g. 1:30 or 90)</span><input name="startTime" defaultValue={asString(data.startTime)} placeholder="0:00" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
