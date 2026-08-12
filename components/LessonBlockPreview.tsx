@@ -674,9 +674,13 @@ function CustomYouTubeVideoPlayer({
   const [speed, setSpeed] = useState(1);
   const [currentTime, setCurrentTime] = useState(0);
   const [ended, setEnded] = useState(false);
+  const [playRequested, setPlayRequested] = useState(false);
+  const [guardStartupChrome, setGuardStartupChrome] = useState(false);
   const [nativeFullscreen, setNativeFullscreen] = useState(false);
   const [viewportFullscreen, setViewportFullscreen] = useState(false);
   const [zoom, setZoom] = useState(1);
+  const chromeGuardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const confirmedPlayingRef = useRef(false);
 
   const fullscreenActive = nativeFullscreen || viewportFullscreen;
 
@@ -713,8 +717,17 @@ function CustomYouTubeVideoPlayer({
                 setPlaying(true);
                 setStarted(true);
                 setEnded(false);
+                setPlayRequested(false);
+                if (!confirmedPlayingRef.current) {
+                  setGuardStartupChrome(true);
+                  if (chromeGuardTimerRef.current) clearTimeout(chromeGuardTimerRef.current);
+                  chromeGuardTimerRef.current = setTimeout(() => setGuardStartupChrome(false), 3500);
+                }
+                confirmedPlayingRef.current = true;
               } else if (data.info.playerState === 2 || data.info.playerState === 0) {
                 setPlaying(false);
+                setPlayRequested(false);
+                confirmedPlayingRef.current = false;
                 if (data.info.playerState === 0) setEnded(true);
               }
             }
@@ -724,8 +737,17 @@ function CustomYouTubeVideoPlayer({
               setPlaying(true);
               setStarted(true);
               setEnded(false);
+              setPlayRequested(false);
+              if (!confirmedPlayingRef.current) {
+                setGuardStartupChrome(true);
+                if (chromeGuardTimerRef.current) clearTimeout(chromeGuardTimerRef.current);
+                chromeGuardTimerRef.current = setTimeout(() => setGuardStartupChrome(false), 3500);
+              }
+              confirmedPlayingRef.current = true;
             } else if (state === 2 || state === 0) {
               setPlaying(false);
+              setPlayRequested(false);
+              confirmedPlayingRef.current = false;
               if (state === 0) setEnded(true);
             }
           }
@@ -735,7 +757,10 @@ function CustomYouTubeVideoPlayer({
       }
     };
     window.addEventListener("message", handleMessage);
-    return () => window.removeEventListener("message", handleMessage);
+    return () => {
+      window.removeEventListener("message", handleMessage);
+      if (chromeGuardTimerRef.current) clearTimeout(chromeGuardTimerRef.current);
+    };
   }, []);
 
   useEffect(() => {
@@ -774,21 +799,23 @@ function CustomYouTubeVideoPlayer({
     if (playing) {
       command("pauseVideo");
       setPlaying(false);
+      setPlayRequested(false);
+      confirmedPlayingRef.current = false;
     } else {
+      setPlayRequested(true);
       command("playVideo");
       command("unMute");
       command("setVolume", [volume]);
       command("setPlaybackRate", [speed]);
-      setPlaying(true);
     }
   }
 
   function restart() {
     if (!started) setStarted(true);
     setEnded(false);
+    setPlayRequested(true);
     command("seekTo", [startSeconds, true]);
     command("playVideo");
-    setPlaying(true);
   }
 
   function seekRelative(seconds: number) {
@@ -848,6 +875,7 @@ function CustomYouTubeVideoPlayer({
   return (
     <div
       ref={wrapperRef}
+      onContextMenu={(event) => event.preventDefault()}
       className={`bg-dark text-on-dark ${viewportFullscreen ? "fixed inset-0 z-[9999] flex h-[100dvh] w-screen flex-col overflow-hidden rounded-none" : nativeFullscreen ? "flex h-[100dvh] w-screen flex-col overflow-hidden rounded-none" : "overflow-hidden rounded-lg"}`}
     >
       <div className={`relative overflow-hidden bg-black ${fullscreenActive ? "min-h-0 flex-1" : "aspect-video"}`}>
@@ -856,7 +884,7 @@ function CustomYouTubeVideoPlayer({
           src={src}
           title={title}
           className={`pointer-events-none absolute inset-0 h-full w-full transition duration-300 ${started ? "opacity-100" : "opacity-0"}`}
-          style={{ transform: `scale(${zoom})` }}
+          style={{ transform: `scale(${zoom === 1 ? 1.01 : zoom})` }}
           allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
           allowFullScreen
           onLoad={() => iframeRef.current?.contentWindow?.postMessage(JSON.stringify({ event: "listening", id: videoId }), "*")}
@@ -864,17 +892,20 @@ function CustomYouTubeVideoPlayer({
         {playing ? (
           <div onClick={toggle} className="absolute inset-0 cursor-pointer z-10" aria-label="Pause video" />
         ) : null}
+        {playing && guardStartupChrome ? <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-14 bg-gradient-to-b from-black via-black/80 to-transparent" /> : null}
+        {playing ? <div className="pointer-events-none absolute bottom-1 right-1 z-20 rounded-md bg-dark/95 px-2 py-1 text-[10px] font-black tracking-wide text-on-dark shadow-lg">BrenUp</div> : null}
         {!playing ? (
           <button
             type="button"
             onClick={toggle}
+            disabled={playRequested}
             className="absolute inset-0 z-20 grid place-items-center bg-black/60 bg-cover bg-center transition-all hover:bg-black/50"
             style={{ backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url(https://img.youtube.com/vi/${videoId}/hqdefault.jpg)` }}
           >
             <span className="grid size-16 place-items-center rounded-full bg-surface text-ink shadow-xl transition-transform hover:scale-105">
-              {ended ? <RotateCcw size={25} /> : <Play size={26} className="ml-1" />}
+              {playRequested ? <span className="size-6 animate-spin rounded-full border-2 border-[var(--br-border)] border-t-[var(--br-brand)]" /> : ended ? <RotateCcw size={25} /> : <Play size={26} className="ml-1" />}
             </span>
-            <span className="mt-3 rounded-full bg-black/60 px-3 py-1 text-xs font-bold text-white">{ended ? "Replay video" : "Play video"}</span>
+            <span className="mt-3 rounded-full bg-black/60 px-3 py-1 text-xs font-bold text-white">{playRequested ? "Starting video" : ended ? "Replay video" : "Play video"}</span>
           </button>
         ) : null}
       </div>
