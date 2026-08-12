@@ -111,7 +111,7 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
         question_number: Number(q.question_number ?? index + 1),
         question_type: "INFERENCE_DETECTION",
         question_text: String(q.question_text ?? q.text ?? ""),
-        options: { ...opts, passage } as Json,
+        options: { A: String(opts.A ?? ""), B: String(opts.B ?? ""), C: String(opts.C ?? ""), D: String(opts.D ?? ""), passage, instruction: String(data.prompt ?? "") } as Json,
         correct_answer: String(q.correct_answer ?? q.answer ?? "").toUpperCase() as Json,
       };
     });

@@ -1217,9 +1217,11 @@ function ParaphraseId({
 function InferenceDetection({ question, value, disabled, onChange }: { question: QuizQuestion; value?: string; disabled: boolean; onChange: (value: string) => void }) {
   const options = asRecord(question.options);
   const passage = String(options.passage ?? "");
-  const choices = Object.entries(options).filter(([key]) => key !== "passage");
+  const instruction = String(options.instruction ?? "");
+  const choices = (["A", "B", "C", "D"] as const).map((key) => [key, options[key]] as const).filter(([, text]) => String(text ?? "").trim());
   return (
     <div className="grid gap-4">
+      {instruction ? <p className="text-sm font-bold leading-6 text-[var(--br-dark-card)]">{instruction}</p> : null}
       {passage ? (
         <div className="rounded-[14px] border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] p-4 text-sm leading-6 text-[var(--br-dark-card)] whitespace-pre-wrap">
           {passage}

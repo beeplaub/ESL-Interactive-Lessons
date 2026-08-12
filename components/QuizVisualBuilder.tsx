@@ -176,7 +176,7 @@ function defaultQuestion(type: BuilderQuestion["questionType"]): BuilderQuestion
   if (type === "CATEGORIZATION") return { id, questionType: type, questionText: "Sort each item into the correct category.", description: "", options: { targets: ["Category A", "Category B"], items: [{ id: "1", text: "Item 1" }, { id: "2", text: "Item 2" }] }, correctAnswer: { "1": "Category A", "2": "Category B" }, assessment };
   if (type === "PRONUNCIATION") return { id, questionType: type, questionText: "Practise the pronunciation.", description: "", options: { level: "word", passage: "", targets: [{ id: "1", text: "comfortable", color: "var(--br-achievement)" }], max_attempts: 3 }, correctAnswer: ["1"], assessment };
   if (type === "SUMMARIZATION") return { id, questionType: type, questionText: "Summarize the passage in your own words.", description: "", options: { passage: "Enter the source passage here.", max_words: 30, sample_answer: "A concise summary." }, correctAnswer: true, assessment };
-  if (type === "INFERENCE_DETECTION") return { id, questionType: type, questionText: "What can we infer from the passage?", description: "", options: { passage: "Enter the source passage here.", A: "Option A", B: "Option B", C: "Option C", D: "Option D" }, correctAnswer: "A", assessment };
+  if (type === "INFERENCE_DETECTION") return { id, questionType: type, questionText: "What can we infer from the passage?", description: "", options: { instruction: "Read the passage. What can we infer?", passage: "Enter the source passage here.", A: "Option A", B: "Option B", C: "Option C", D: "Option D" }, correctAnswer: "A", assessment };
   if (type === "HEADINGS_MATCHING") return { id, questionType: type, questionText: "Match the paragraphs to the correct headings.", description: "", options: { paragraphs: [{ id: "A", text: "Paragraph A text" }, { id: "B", text: "Paragraph B text" }], headings: [{ id: "1", text: "Heading 1" }, { id: "2", text: "Heading 2" }, { id: "3", text: "Distractor heading" }] }, correctAnswer: { A: "1", B: "2" }, assessment };
   if (type === "SKIM_CHALLENGE") return { id, questionType: type, questionText: "Skimming Challenge", description: "", options: { passage: "Enter the passage to skim here.", time_limit_seconds: 45, allow_passage_toggle: true, question_time_limit_seconds: 0, questions: [{ id: "1", question_text: "What is the main idea?", options: { A: "Option A", B: "Option B", C: "Option C", D: "Option D" } }] }, correctAnswer: { "1": "A" }, assessment };
   if (type === "PARAPHRASE_ID") return { id, questionType: type, questionText: "Which option best paraphrases the text?", description: "", options: { passage: "Enter the source text here.", choices: { A: "Paraphrase A", B: "Paraphrase B", C: "Paraphrase C", D: "Paraphrase D" } }, correctAnswer: "A", assessment };
@@ -831,6 +831,22 @@ function questionToPreviewActivity(question: BuilderQuestion) {
       } as Json
     };
   }
+  if (question.questionType === "INFERENCE_DETECTION") {
+    return {
+      id: question.id,
+      activity_type: "INFERENCE_DETECTION",
+      activity_data: {
+        prompt: String(options.instruction ?? "Read the passage. What can we infer?"),
+        passage: String(options.passage ?? ""),
+        questions: [{
+          id: 1,
+          text: question.questionText,
+          options: { A: String(options.A ?? ""), B: String(options.B ?? ""), C: String(options.C ?? ""), D: String(options.D ?? "") },
+          answer: question.correctAnswer
+        }]
+      } as Json
+    };
+  }
   if (question.questionType === "DRAG_DROP" || question.questionType === "CATEGORIZATION") {
     const items = Array.isArray(options.items) ? options.items.map((item) => asRecord(item as Json)) : [];
     const correct = asRecord(question.correctAnswer);
@@ -1017,6 +1033,14 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
   if (question.questionType === "INFERENCE_DETECTION") {
     return (
       <div className="grid gap-3">
+        <label className="text-sm font-medium">
+          Instruction
+          <input
+            value={String(options.instruction ?? "Read the passage. What can we infer?")}
+            onChange={(event) => onChange({ options: { ...options, instruction: event.target.value } as Json })}
+            className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2"
+          />
+        </label>
         <label className="text-sm font-medium">
           Passage
           <textarea
