@@ -1749,7 +1749,7 @@ export function LessonActivityPanel({
         <p className="text-sm text-[var(--br-text-muted)]">
           {submitted
             ? hasPendingWritingGrading
-              ? "Saved. Choose how each written answer should be evaluated below — your result isn't final until grading is complete."
+              ? "Saved. Choose how each response should be evaluated below — your result isn't final until grading is complete."
               : message ?? "Review your feedback, then continue."
             : allAnswered
             ? "All answered — ready to check!"

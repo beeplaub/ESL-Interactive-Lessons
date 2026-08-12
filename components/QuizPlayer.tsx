@@ -581,7 +581,7 @@ export function QuizPlayer({
 
       {submitted && hasPendingWritingGrading && reviewMode === "overview" ? (
         <div className="rounded-[16px] border border-[var(--br-achievement)]/30 bg-[var(--br-achievement)]/5 p-4 text-sm font-semibold text-[var(--br-text-muted)]">
-          Your written answers are saved. Choose how you'd like each one evaluated below — your final score
+          Your responses are saved. Choose how you&apos;d like each one evaluated below — your final score
           will be ready once every question has been graded.
         </div>
       ) : null}
@@ -2138,26 +2138,26 @@ function OralResponse({
       </button>
       {recording ? <p className="text-sm font-semibold text-[var(--br-brand)]">Tap to finish · {Math.max(0, maxSeconds - seconds)}s</p> : null}
       {!recording && value?.transcript ? <p className="text-xs text-[var(--br-text-muted)]">Response recorded</p> : null}
-      {submitted && modelAnswer ? (
-        <div className="w-full rounded-[14px] border border-[var(--br-success)]/20 bg-[var(--br-success)]/5 p-3 text-left">
-          <p className="text-xs font-bold uppercase tracking-wide text-[var(--br-success)]">Model answer</p>
-          <p className="mt-1 whitespace-pre-wrap text-sm text-[var(--br-text)]">{modelAnswer}</p>
-        </div>
-      ) : null}
       {targetPhrases.length > 0 && !submitted ? <p className="text-xs text-[var(--br-text-muted)]">Speak naturally and try to use the target language.</p> : null}
       {submitted && value?.transcript ? (
-        <WritingEvaluationInterface
-          activityId={question.id}
-          activityType="ORAL_RESPONSE"
-          prompt={question.question_text}
-          submissionText={value.transcript}
-          modelAnswer={modelAnswer}
-          allowSelfGraded={allowSelfGraded}
-          allowAiFeedback={opts.allow_ai_feedback !== false}
-          allowTeacherReview={opts.allow_teacher_review !== false}
-          initialValue={{ ...value, text: value.transcript } as unknown as WritingAnswerValue}
-          onGraded={(outcome) => onChange({ ...value, ...outcome, transcript: value.transcript } as OralResponseValue)}
-        />
+        <>
+          <div className="w-full rounded-[14px] bg-[var(--br-canvas-elevated)] p-3 text-left text-sm leading-6 whitespace-pre-wrap">
+            <p className="mb-1 text-xs font-bold uppercase tracking-wide text-[var(--br-text-muted)]">Your spoken response</p>
+            {value.transcript}
+          </div>
+          <WritingEvaluationInterface
+            activityId={question.id}
+            activityType="ORAL_RESPONSE"
+            prompt={question.question_text}
+            submissionText={value.transcript}
+            modelAnswer={modelAnswer}
+            allowSelfGraded={allowSelfGraded}
+            allowAiFeedback={opts.allow_ai_feedback !== false}
+            allowTeacherReview={opts.allow_teacher_review !== false}
+            initialValue={{ ...value, text: value.transcript } as unknown as WritingAnswerValue}
+            onGraded={(outcome) => onChange({ ...value, ...outcome, transcript: value.transcript } as OralResponseValue)}
+          />
+        </>
       ) : null}
     </div>
   );
