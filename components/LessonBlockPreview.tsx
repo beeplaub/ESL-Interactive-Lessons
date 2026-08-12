@@ -985,23 +985,22 @@ function CustomYouTubeVideoPlayer({
           allowFullScreen
           onLoad={() => iframeRef.current?.contentWindow?.postMessage(JSON.stringify({ event: "listening", id: videoId }), "*")}
         />
-        {playing ? (
-          <div onClick={toggle} className="absolute inset-0 cursor-pointer z-10" aria-label="Pause video" />
-        ) : null}
         {playing && guardStartupChrome ? <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-14 bg-gradient-to-b from-black via-black/80 to-transparent" /> : null}
         {!playing ? (
-          <button
-            type="button"
-            onClick={toggle}
-            disabled={playRequested}
-            className="absolute inset-0 z-20 grid place-items-center bg-black/60 bg-cover bg-center transition-all hover:bg-black/50"
+          <div
+            className="absolute inset-0 z-10 bg-black/45 bg-cover bg-center"
             style={{ backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url(https://img.youtube.com/vi/${videoId}/hqdefault.jpg)` }}
-          >
-            <span className="grid size-8 place-items-center rounded-full bg-surface text-ink shadow-xl transition-transform hover:scale-105 sm:size-9">
-              {playRequested ? <span className="size-4 animate-spin rounded-full border-2 border-[var(--br-border)] border-t-[var(--br-brand)]" /> : ended ? <RotateCcw size={17} /> : <Play size={17} className="ml-0.5" />}
-            </span>
-          </button>
+          />
         ) : null}
+        <button
+          type="button"
+          onClick={toggle}
+          disabled={playRequested}
+          aria-label={playing ? "Pause video" : ended ? "Replay video" : "Play video"}
+          className="absolute left-1/2 top-1/2 z-20 grid size-9 -translate-x-1/2 -translate-y-1/2 place-items-center bg-transparent text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90 sm:size-10"
+        >
+          {playRequested ? <span className="size-4 animate-spin rounded-full border-2 border-white/50 border-t-white" /> : playing ? <Pause size={20} /> : ended ? <RotateCcw size={20} /> : <Play size={20} className="ml-0.5" />}
+        </button>
         <div className={`absolute inset-x-0 bottom-0 z-30 bg-gradient-to-t from-black/95 via-black/75 to-transparent px-2 pb-2 pt-12 transition-opacity duration-300 sm:px-4 sm:pb-3 ${controlsVisible ? "opacity-100" : "pointer-events-none opacity-0"}`}>
           <div className="mb-1 flex items-center gap-2 px-1 text-[10px] font-semibold tabular-nums text-white/80">
             <span>{formatPlayerTime(currentTime)}</span>
