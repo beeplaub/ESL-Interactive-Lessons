@@ -1817,6 +1817,15 @@ function defaultActivityData(activityType: string, prompt: string): Json {
   if (activityType === "PRONUNCIATION") {
     return { prompt, level: "word", max_attempts: 3, passage: "", targets: [{ id: "1", text: "pronunciation", color: "var(--br-achievement)" }] };
   }
+  if (activityType === "ORAL_RESPONSE") {
+    return {
+      prompt,
+      allow_self_graded: true,
+      allow_ai_feedback: true,
+      allow_teacher_review: true,
+      questions: [{ id: 1, text: "Speak about the topic in your own words.", model_answer: "", target_phrases: [], max_seconds: 60 }]
+    };
+  }
   if (activityType === "SUMMARIZATION") {
     return { prompt, passage: "Enter the passage text here.", max_words: 30, sample_answer: "A concise summary." };
   }
