@@ -681,8 +681,8 @@ function CustomYouTubeVideoPlayer({
   const [speed, setSpeed] = useState(1);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [, setEnded] = useState(false);
-  const [, setPlayRequested] = useState(false);
+  const [ended, setEnded] = useState(false);
+  const [playRequested, setPlayRequested] = useState(false);
   const [guardStartupChrome, setGuardStartupChrome] = useState(false);
   const [nativeFullscreen, setNativeFullscreen] = useState(false);
   const [viewportFullscreen, setViewportFullscreen] = useState(false);
@@ -992,6 +992,19 @@ function CustomYouTubeVideoPlayer({
             style={{ backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url(https://img.youtube.com/vi/${videoId}/hqdefault.jpg)` }}
           />
         ) : null}
+        <button
+          type="button"
+          onPointerDown={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            wakeControls();
+            toggle();
+          }}
+          aria-label={playing ? "Pause video" : ended ? "Replay video" : "Play video"}
+          className="pointer-events-auto absolute left-1/2 top-1/2 z-40 grid size-16 -translate-x-1/2 -translate-y-1/2 touch-none place-items-center rounded-full bg-transparent text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90 sm:size-[4.5rem]"
+        >
+          {playing ? null : playRequested ? <span className="size-5 animate-spin rounded-full border-2 border-white/50 border-t-white" /> : ended ? <RotateCcw size={24} /> : <Play size={24} className="ml-0.5" />}
+        </button>
         <div className={`absolute inset-x-0 bottom-0 z-30 bg-gradient-to-t from-black/95 via-black/75 to-transparent px-2 pb-2 pt-12 transition-opacity duration-300 sm:px-4 sm:pb-3 ${controlsVisible ? "opacity-100" : "pointer-events-none opacity-0"}`}>
           <div className="mb-1 flex items-center gap-2 px-1 text-[10px] font-semibold tabular-nums text-white/80">
             <span>{formatPlayerTime(currentTime)}</span>
