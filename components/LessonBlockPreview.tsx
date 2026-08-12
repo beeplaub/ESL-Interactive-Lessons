@@ -681,8 +681,8 @@ function CustomYouTubeVideoPlayer({
   const [speed, setSpeed] = useState(1);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [ended, setEnded] = useState(false);
-  const [playRequested, setPlayRequested] = useState(false);
+  const [, setEnded] = useState(false);
+  const [, setPlayRequested] = useState(false);
   const [guardStartupChrome, setGuardStartupChrome] = useState(false);
   const [nativeFullscreen, setNativeFullscreen] = useState(false);
   const [viewportFullscreen, setViewportFullscreen] = useState(false);
@@ -690,7 +690,6 @@ function CustomYouTubeVideoPlayer({
   const [controlsVisible, setControlsVisible] = useState(true);
   const chromeGuardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const controlsHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const centerTapLockRef = useRef(false);
   const confirmedPlayingRef = useRef(false);
 
   const fullscreenActive = nativeFullscreen || viewportFullscreen;
@@ -993,26 +992,6 @@ function CustomYouTubeVideoPlayer({
             style={{ backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url(https://img.youtube.com/vi/${videoId}/hqdefault.jpg)` }}
           />
         ) : null}
-        {!playing || controlsVisible ? (
-          <button
-            type="button"
-            onPointerDown={(event) => {
-              event.preventDefault();
-              event.stopPropagation();
-              if (centerTapLockRef.current) return;
-              centerTapLockRef.current = true;
-              window.setTimeout(() => {
-                centerTapLockRef.current = false;
-              }, 250);
-              wakeControls();
-              toggle();
-            }}
-            aria-label={playing ? "Pause video" : ended ? "Replay video" : "Play video"}
-            className="pointer-events-auto absolute left-1/2 top-1/2 z-40 grid size-16 -translate-x-1/2 -translate-y-1/2 touch-none place-items-center rounded-full bg-transparent text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90 sm:size-[4.5rem]"
-          >
-            {playRequested ? <span className="size-5 animate-spin rounded-full border-2 border-white/50 border-t-white" /> : playing ? <Pause size={24} /> : ended ? <RotateCcw size={24} /> : <Play size={24} className="ml-0.5" />}
-          </button>
-        ) : null}
         <div className={`absolute inset-x-0 bottom-0 z-30 bg-gradient-to-t from-black/95 via-black/75 to-transparent px-2 pb-2 pt-12 transition-opacity duration-300 sm:px-4 sm:pb-3 ${controlsVisible ? "opacity-100" : "pointer-events-none opacity-0"}`}>
           <div className="mb-1 flex items-center gap-2 px-1 text-[10px] font-semibold tabular-nums text-white/80">
             <span>{formatPlayerTime(currentTime)}</span>
@@ -1020,6 +999,9 @@ function CustomYouTubeVideoPlayer({
             <span>{formatPlayerTime(progressDuration)}</span>
           </div>
           <div className="flex items-center justify-center gap-1 overflow-visible sm:gap-2">
+            <button type="button" onClick={toggle} className="relative grid size-8 shrink-0 place-items-center rounded-lg bg-surface text-ink shadow-sm transition hover:bg-[var(--br-surface-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white sm:size-9">
+              {playing ? <Pause size={16} /> : <Play size={16} />}
+            </button>
             <button type="button" onClick={() => seekRelative(-10)} className={controlClass} aria-label="Rewind 10 seconds" title="Rewind 10 seconds"><SkipBack size={16} /></button>
             <button type="button" onClick={() => seekRelative(10)} className={controlClass} aria-label="Forward 10 seconds" title="Forward 10 seconds"><SkipForward size={16} /></button>
             <button type="button" onClick={restart} className={controlClass} aria-label="Restart video" title="Restart video"><RotateCcw size={16} /></button>
