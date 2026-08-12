@@ -949,7 +949,7 @@ function CustomYouTubeVideoPlayer({
     await lockOrientation(requestedOrientation);
   }
 
-  const controlClass = "relative grid size-9 shrink-0 place-items-center rounded-lg border border-white/10 bg-white/10 text-on-dark transition hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 min-[390px]:size-10 sm:size-11";
+  const controlClass = "relative grid size-8 shrink-0 place-items-center rounded-lg border border-white/10 bg-white/10 text-on-dark transition hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 sm:size-9";
   const progressDuration = endSeconds && endSeconds > startSeconds ? endSeconds : duration;
   const progressValue = progressDuration > startSeconds ? Math.min(100, Math.max(0, ((currentTime - startSeconds) / (progressDuration - startSeconds)) * 100)) : 0;
 
@@ -997,8 +997,8 @@ function CustomYouTubeVideoPlayer({
             className="absolute inset-0 z-20 grid place-items-center bg-black/60 bg-cover bg-center transition-all hover:bg-black/50"
             style={{ backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url(https://img.youtube.com/vi/${videoId}/hqdefault.jpg)` }}
           >
-            <span className="grid size-16 place-items-center rounded-full bg-surface text-ink shadow-xl transition-transform hover:scale-105">
-              {playRequested ? <span className="size-6 animate-spin rounded-full border-2 border-[var(--br-border)] border-t-[var(--br-brand)]" /> : ended ? <RotateCcw size={25} /> : <Play size={26} className="ml-1" />}
+            <span className="grid size-8 place-items-center rounded-full bg-surface text-ink shadow-xl transition-transform hover:scale-105 sm:size-9">
+              {playRequested ? <span className="size-4 animate-spin rounded-full border-2 border-[var(--br-border)] border-t-[var(--br-brand)]" /> : ended ? <RotateCcw size={17} /> : <Play size={17} className="ml-0.5" />}
             </span>
           </button>
         ) : null}
@@ -1009,18 +1009,18 @@ function CustomYouTubeVideoPlayer({
             <span>{formatPlayerTime(progressDuration)}</span>
           </div>
           <div className="flex items-center justify-center gap-1 overflow-visible sm:gap-2">
-            <button type="button" onClick={toggle} className="relative grid size-9 shrink-0 place-items-center rounded-lg bg-surface text-ink shadow-sm transition hover:bg-[var(--br-surface-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white min-[390px]:size-10 sm:size-11">
-              {playing ? <Pause size={18} /> : <Play size={18} />}
+            <button type="button" onClick={toggle} className="relative grid size-8 shrink-0 place-items-center rounded-lg bg-surface text-ink shadow-sm transition hover:bg-[var(--br-surface-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white sm:size-9">
+              {playing ? <Pause size={16} /> : <Play size={16} />}
             </button>
-            <button type="button" onClick={() => seekRelative(-10)} className={controlClass} aria-label="Rewind 10 seconds" title="Rewind 10 seconds"><SkipBack size={18} /></button>
-            <button type="button" onClick={() => seekRelative(10)} className={controlClass} aria-label="Forward 10 seconds" title="Forward 10 seconds"><SkipForward size={18} /></button>
-            <button type="button" onClick={restart} className={controlClass} aria-label="Restart video" title="Restart video"><RotateCcw size={19} /></button>
+            <button type="button" onClick={() => seekRelative(-10)} className={controlClass} aria-label="Rewind 10 seconds" title="Rewind 10 seconds"><SkipBack size={16} /></button>
+            <button type="button" onClick={() => seekRelative(10)} className={controlClass} aria-label="Forward 10 seconds" title="Forward 10 seconds"><SkipForward size={16} /></button>
+            <button type="button" onClick={restart} className={controlClass} aria-label="Restart video" title="Restart video"><RotateCcw size={16} /></button>
             <div className="relative z-30 shrink-0">
-              <button type="button" onClick={() => setOpenVolume((current) => !current)} className={controlClass} aria-label="Volume" title="Volume"><Volume2 size={19} /></button>
+              <button type="button" onClick={() => setOpenVolume((current) => !current)} className={controlClass} aria-label="Volume" title="Volume"><Volume2 size={16} /></button>
               {openVolume ? (<div className="absolute bottom-12 right-0 rounded-lg border border-white/10 bg-dark/95 p-3 shadow-xl"><input aria-label="Volume" type="range" min="0" max="100" step="5" value={volume} onChange={(event) => setVolume(Number(event.target.value))} className="h-24 w-6 [writing-mode:vertical-rl]" /></div>) : null}
             </div>
-            <button type="button" onClick={() => void toggleFullscreen()} className={controlClass} aria-label={fullscreenOrientation === "landscape" ? "Exit fullscreen" : "Enter fullscreen"} title={fullscreenOrientation === "landscape" ? "Exit fullscreen" : "Fullscreen"}>{fullscreenOrientation === "landscape" ? <Minimize size={19} /> : <Maximize size={19} />}</button>
-            <button type="button" onClick={() => setOpenSettings((current) => !current)} className={controlClass} aria-label="Video settings" title="Video settings"><Settings size={19} /></button>
+            <button type="button" onClick={() => void toggleFullscreen()} className={controlClass} aria-label={fullscreenOrientation === "landscape" ? "Exit fullscreen" : "Enter fullscreen"} title={fullscreenOrientation === "landscape" ? "Exit fullscreen" : "Fullscreen"}>{fullscreenOrientation === "landscape" ? <Minimize size={16} /> : <Maximize size={16} />}</button>
+            <button type="button" onClick={() => setOpenSettings((current) => !current)} className={controlClass} aria-label="Video settings" title="Video settings"><Settings size={16} /></button>
           </div>
         </div>
       </div>
