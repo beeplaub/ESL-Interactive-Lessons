@@ -233,6 +233,32 @@ type WritingFeedbackResult = {
   corrections: { original: string; corrected: string; explanation: string }[];
 };
 
+const oralResponseFeedbackSchema = {
+  type: "object",
+  properties: {
+    scores: {
+      type: "object",
+      properties: {
+        fluency: { type: "number" },
+        vocabulary: { type: "number" },
+        pronunciation: { type: "number" },
+        sentence_structure: { type: "number" },
+        overall: { type: "number" }
+      },
+      required: ["fluency", "vocabulary", "pronunciation", "sentence_structure", "overall"]
+    },
+    feedback: { type: "string" },
+    suggestions: { type: "array", items: { type: "string" } }
+  },
+  required: ["scores", "feedback", "suggestions"]
+};
+
+type OralResponseFeedbackResult = {
+  scores: { fluency: number; vocabulary: number; pronunciation: number; sentence_structure: number; overall: number };
+  feedback: string;
+  suggestions: string[];
+};
+
 /**
  * Real AI grading, routed through the shared callGemini pipeline (DB-overridable prompt
  * template, model fallback chain, OpenRouter fallback) instead of a raw, unwrapped fetch.
@@ -248,6 +274,47 @@ export async function evaluateWritingWithAiAction(input: {
 }) {
   if (input.activityType === "DIALOGUE_WRITING") {
     return evaluateDialogueWritingWithAiAction(input);
+  }
+  if (input.activityType === "ORAL_RESPONSE") {
+    try {
+      const result = await callGemini<OralResponseFeedbackResult>({
+        templateKey: "learner_writing_feedback",
+        variables: {
+          prompt: [
+            "Oral Response speaking evaluation.",
+            `Task prompt: ${input.prompt}`,
+            input.modelAnswer ? `Model answer for meaning and language reference: ${input.modelAnswer}` : "",
+            input.rubricGuidance ? `Creator guidance: ${input.rubricGuidance}` : "",
+            "Evaluate this as spontaneous spoken English represented by an automatic speech-recognition transcript.",
+            "Ignore punctuation, capitalization, spelling artifacts, missing commas, and other transcription formatting errors.",
+            "Judge only communicative fluency, vocabulary and pronunciation signals in the transcript, sentence structure, and how clearly the learner expresses the intended meaning.",
+            "Do not penalize the learner for the transcript being unpunctuated or for homophone/spelling errors caused by speech recognition. Do not pretend the transcript is a written assignment."
+          ].filter(Boolean).join("\n"),
+          submission: input.submissionText,
+          level: "B1"
+        },
+        responseSchema: oralResponseFeedbackSchema
+      });
+      const overall = Number(result.scores?.overall);
+      if (!Number.isFinite(overall)) throw new Error("AI oral evaluation did not return a valid overall score.");
+      return {
+        success: true as const,
+        data: {
+          score: Math.max(0, Math.min(100, Math.round(overall))),
+          feedbackSummary: String(result.feedback ?? ""),
+          grammarFeedback: `Sentence structure: ${result.scores?.sentence_structure ?? "-"}/100`,
+          vocabularyFeedback: `Vocabulary: ${result.scores?.vocabulary ?? "-"}/100 · Pronunciation signals: ${result.scores?.pronunciation ?? "-"}/100`,
+          fluencyFeedback: `Fluency: ${result.scores?.fluency ?? "-"}/100`,
+          suggestions: Array.isArray(result.suggestions) ? result.suggestions : []
+        }
+      };
+    } catch (error) {
+      console.error("evaluateOralResponseWithAiAction failed:", error);
+      return {
+        success: false as const,
+        error: "We couldn't generate an AI speaking evaluation right now. Please try again shortly, or choose a different grading option."
+      };
+    }
   }
   try {
     const contextParts = [
@@ -399,4 +466,3 @@ export async function evaluateDialogueWritingWithAiAction(input: {
     };
   }
 }
-

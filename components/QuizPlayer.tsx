@@ -2151,6 +2151,7 @@ function OralResponse({
             prompt={question.question_text}
             submissionText={value.transcript}
             modelAnswer={modelAnswer}
+            rubricGuidance={targetPhrases.length ? `Target phrases to consider for meaningful spoken use: ${targetPhrases.join(", ")}` : undefined}
             allowSelfGraded={allowSelfGraded}
             allowAiFeedback={opts.allow_ai_feedback !== false}
             allowTeacherReview={opts.allow_teacher_review !== false}

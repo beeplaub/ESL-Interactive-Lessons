@@ -18,6 +18,7 @@ type AiResultShape = {
   feedbackSummary: string;
   grammarFeedback: string;
   vocabularyFeedback: string;
+  fluencyFeedback?: string;
   suggestions: string[];
 };
 
@@ -228,7 +229,11 @@ export function WritingEvaluationInterface({
                   {isPending ? <div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--br-chart-primary)] border-t-transparent" /> : <Sparkles size={20} />}
                 </div>
                 <h5 className="text-sm font-bold text-ink">AI Evaluation</h5>
-                <p className="mt-1 text-xs text-[var(--br-text-muted)]">Real, instant feedback and a score on grammar, tone & task response.</p>
+                <p className="mt-1 text-xs text-[var(--br-text-muted)]">
+                  {activityType === "ORAL_RESPONSE"
+                    ? "Instant speaking feedback on fluency, vocabulary, pronunciation signals, and sentence structure."
+                    : "Real, instant feedback and a score on grammar, tone & task response."}
+                </p>
               </button>
             )}
 
@@ -290,13 +295,19 @@ export function WritingEvaluationInterface({
                   <p className="text-xs font-medium text-ink leading-relaxed">{aiResult.feedbackSummary}</p>
                 </div>
 
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className={`grid gap-4 ${aiResult.fluencyFeedback ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
+                  {aiResult.fluencyFeedback ? (
+                    <div className="rounded-2xl bg-surface p-4 border border-[var(--br-border)] shadow-xs space-y-1.5">
+                      <p className="text-xs font-bold text-[var(--br-text-muted)]">Fluency</p>
+                      <p className="text-xs text-[var(--br-text-muted)] leading-relaxed font-medium">{aiResult.fluencyFeedback}</p>
+                    </div>
+                  ) : null}
                   <div className="rounded-2xl bg-surface p-4 border border-[var(--br-border)] shadow-xs space-y-1.5">
-                    <p className="text-xs font-bold text-[var(--br-text-muted)]">Grammar & Structure</p>
+                    <p className="text-xs font-bold text-[var(--br-text-muted)]">{activityType === "ORAL_RESPONSE" ? "Sentence Structure" : "Grammar & Structure"}</p>
                     <p className="text-xs text-[var(--br-text-muted)] leading-relaxed font-medium">{aiResult.grammarFeedback}</p>
                   </div>
                   <div className="rounded-2xl bg-surface p-4 border border-[var(--br-border)] shadow-xs space-y-1.5">
-                    <p className="text-xs font-bold text-[var(--br-text-muted)]">Vocabulary & Tone</p>
+                    <p className="text-xs font-bold text-[var(--br-text-muted)]">{activityType === "ORAL_RESPONSE" ? "Vocabulary & Pronunciation" : "Vocabulary & Tone"}</p>
                     <p className="text-xs text-[var(--br-text-muted)] leading-relaxed font-medium">{aiResult.vocabularyFeedback}</p>
                   </div>
                 </div>
