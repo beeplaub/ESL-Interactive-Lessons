@@ -673,7 +673,6 @@ function CustomYouTubeVideoPlayer({
 }) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [started, setStarted] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [volume, setVolume] = useState(80);
   const [openSettings, setOpenSettings] = useState(false);
@@ -756,7 +755,6 @@ function CustomYouTubeVideoPlayer({
             if (typeof data.info.playerState === "number") {
               if (data.info.playerState === 1) {
                 setPlaying(true);
-                setStarted(true);
                 setEnded(false);
                 setPlayRequested(false);
                 if (!confirmedPlayingRef.current) {
@@ -776,7 +774,6 @@ function CustomYouTubeVideoPlayer({
             const state = Number(data.info);
             if (state === 1) {
               setPlaying(true);
-              setStarted(true);
               setEnded(false);
               setPlayRequested(false);
               if (!confirmedPlayingRef.current) {
@@ -845,7 +842,6 @@ function CustomYouTubeVideoPlayer({
   }, [viewportFullscreen]);
 
   function toggle() {
-    if (!started) setStarted(true);
     setEnded(false);
     if (playing) {
       command("pauseVideo");
@@ -862,7 +858,6 @@ function CustomYouTubeVideoPlayer({
   }
 
   function restart() {
-    if (!started) setStarted(true);
     setEnded(false);
     setPlayRequested(true);
     command("seekTo", [startSeconds, true]);
@@ -979,19 +974,13 @@ function CustomYouTubeVideoPlayer({
           ref={iframeRef}
           src={src}
           title={title}
-          className={`pointer-events-none absolute inset-0 h-full w-full transition duration-300 ${started ? "opacity-100" : "opacity-0"}`}
+          className="pointer-events-auto absolute inset-0 h-full w-full"
           style={{ transform: "scale(1.01)" }}
           allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
           allowFullScreen
           onLoad={() => iframeRef.current?.contentWindow?.postMessage(JSON.stringify({ event: "listening", id: videoId }), "*")}
         />
         {playing && guardStartupChrome ? <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-14 bg-gradient-to-b from-black via-black/80 to-transparent" /> : null}
-        {!playing ? (
-          <div
-            className="absolute inset-0 z-10 bg-black/45 bg-cover bg-center"
-            style={{ backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url(https://img.youtube.com/vi/${videoId}/hqdefault.jpg)` }}
-          />
-        ) : null}
         <div className={`absolute inset-x-0 bottom-0 z-30 bg-gradient-to-t from-black/95 via-black/75 to-transparent px-2 pb-2 pt-12 transition-opacity duration-300 sm:px-4 sm:pb-3 ${controlsVisible ? "opacity-100" : "pointer-events-none opacity-0"}`}>
           <div className="mb-1 flex items-center gap-2 px-1 text-[10px] font-semibold tabular-nums text-white/80">
             <span>{formatPlayerTime(currentTime)}</span>
