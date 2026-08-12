@@ -1,7 +1,7 @@
 "use client";
 
-import { BookOpen, FlipHorizontal2, Headphones, ImageIcon, ListChecks, Maximize, Minimize, MessageSquareQuote, Pause, Play, PlayCircle, Settings, Volume2, RotateCcw, RotateCw } from "lucide-react";
-import type { RefObject } from "react";
+import { BookOpen, FlipHorizontal2, Headphones, ImageIcon, ListChecks, Maximize, Minimize, MessageSquareQuote, Pause, Play, PlayCircle, Settings, Volume2, RotateCcw, RotateCw, SkipBack, SkipForward } from "lucide-react";
+import type { ChangeEvent, RefObject } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Json } from "@/types/database.types";
 
@@ -653,6 +653,13 @@ function parseTimeToSeconds(timeStr: string | null | undefined): number | null {
   return null;
 }
 
+function formatPlayerTime(seconds: number) {
+  const value = Math.max(0, Math.floor(seconds));
+  const minutes = Math.floor(value / 60);
+  const remainder = value % 60;
+  return `${minutes}:${String(remainder).padStart(2, "0")}`;
+}
+
 function CustomYouTubeVideoPlayer({
   videoId,
   title,
@@ -673,6 +680,7 @@ function CustomYouTubeVideoPlayer({
   const [openVolume, setOpenVolume] = useState(false);
   const [speed, setSpeed] = useState(1);
   const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
   const [ended, setEnded] = useState(false);
   const [playRequested, setPlayRequested] = useState(false);
   const [guardStartupChrome, setGuardStartupChrome] = useState(false);
@@ -711,6 +719,9 @@ function CustomYouTubeVideoPlayer({
           if (data.event === "infoDelivery" && data.info) {
             if (typeof data.info.currentTime === "number") {
               setCurrentTime(data.info.currentTime);
+            }
+            if (typeof data.info.duration === "number") {
+              setDuration(data.info.duration);
             }
             if (typeof data.info.playerState === "number") {
               if (data.info.playerState === 1) {
@@ -871,6 +882,15 @@ function CustomYouTubeVideoPlayer({
   }
 
   const controlClass = "relative grid size-9 shrink-0 place-items-center rounded-lg border border-white/10 bg-white/10 text-on-dark transition hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 min-[390px]:size-10 sm:size-11";
+  const progressDuration = endSeconds && endSeconds > startSeconds ? endSeconds : duration;
+  const progressValue = progressDuration > startSeconds ? Math.min(100, Math.max(0, ((currentTime - startSeconds) / (progressDuration - startSeconds)) * 100)) : 0;
+
+  function seekFromProgress(event: ChangeEvent<HTMLInputElement>) {
+    const target = Number(event.target.value);
+    const nextTime = startSeconds + ((progressDuration - startSeconds) * target) / 100;
+    command("seekTo", [nextTime, true]);
+    setCurrentTime(nextTime);
+  }
 
   return (
     <div
@@ -879,6 +899,13 @@ function CustomYouTubeVideoPlayer({
       className={`bg-dark text-on-dark ${viewportFullscreen ? "fixed inset-0 z-[9999] flex h-[100dvh] w-screen flex-col overflow-hidden rounded-none" : nativeFullscreen ? "flex h-[100dvh] w-screen flex-col overflow-hidden rounded-none" : "overflow-hidden rounded-lg"}`}
     >
       <div className={`relative overflow-hidden bg-black ${fullscreenActive ? "min-h-0 flex-1" : "aspect-video"}`}>
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-center justify-between bg-gradient-to-b from-black/80 via-black/35 to-transparent px-3 pb-8 pt-3 text-white sm:px-5 sm:pt-4">
+          <div className="min-w-0 pr-4">
+            <p className="truncate text-sm font-bold sm:text-base">{title || "Lesson video"}</p>
+            <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/60">BrenUp player</p>
+          </div>
+          <span className="shrink-0 rounded-full border border-white/20 bg-black/25 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-white/75">Video</span>
+        </div>
         <iframe
           ref={iframeRef}
           src={src}
@@ -893,7 +920,7 @@ function CustomYouTubeVideoPlayer({
           <div onClick={toggle} className="absolute inset-0 cursor-pointer z-10" aria-label="Pause video" />
         ) : null}
         {playing && guardStartupChrome ? <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-14 bg-gradient-to-b from-black via-black/80 to-transparent" /> : null}
-        {playing ? <div className="pointer-events-none absolute bottom-1 right-1 z-20 rounded-md bg-dark/95 px-2 py-1 text-[10px] font-black tracking-wide text-on-dark shadow-lg">BrenUp</div> : null}
+        {playing ? <div className="pointer-events-none absolute bottom-24 right-3 z-20 rounded-md bg-dark/95 px-2 py-1 text-[10px] font-black tracking-wide text-on-dark shadow-lg">BrenUp</div> : null}
         {!playing ? (
           <button
             type="button"
@@ -908,21 +935,28 @@ function CustomYouTubeVideoPlayer({
             <span className="mt-3 rounded-full bg-black/60 px-3 py-1 text-xs font-bold text-white">{playRequested ? "Starting video" : ended ? "Replay video" : "Play video"}</span>
           </button>
         ) : null}
-      </div>
-      <div className="flex items-center justify-center gap-1 overflow-visible border-t border-white/10 p-2 sm:gap-2 sm:p-3">
-        <button type="button" onClick={toggle} className="relative inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-lg bg-surface px-2.5 text-sm font-bold text-ink shadow-sm transition hover:bg-[var(--br-surface-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white min-[390px]:h-10 min-[390px]:px-3 sm:h-11 sm:px-4">
-          {playing ? <Pause size={18} /> : <Play size={18} />}
-          <span className="hidden min-[390px]:inline">{playing ? "Pause" : "Play"}</span>
-        </button>
-        <button type="button" onClick={() => seekRelative(-10)} className={controlClass} aria-label="Rewind 10 seconds" title="Rewind 10 seconds"><RotateCcw size={19} /><span className="absolute text-[8px] font-black">10</span></button>
-        <button type="button" onClick={() => seekRelative(10)} className={controlClass} aria-label="Forward 10 seconds" title="Forward 10 seconds"><RotateCw size={19} /><span className="absolute text-[8px] font-black">10</span></button>
-        <button type="button" onClick={restart} className={controlClass} aria-label="Restart video" title="Restart video"><RotateCcw size={19} /></button>
-        <div className="relative shrink-0 z-30">
-          <button type="button" onClick={() => setOpenVolume((current) => !current)} className={controlClass} aria-label="Volume" title="Volume"><Volume2 size={19} /></button>
-          {openVolume ? (<div className="absolute bottom-12 right-0 rounded-lg border border-white/10 bg-dark/95 p-3 shadow-xl"><input aria-label="Volume" type="range" min="0" max="100" step="5" value={volume} onChange={(event) => setVolume(Number(event.target.value))} className="h-24 w-6 [writing-mode:vertical-rl]" /></div>) : null}
+        <div className="absolute inset-x-0 bottom-0 z-30 bg-gradient-to-t from-black/95 via-black/75 to-transparent px-2 pb-2 pt-12 sm:px-4 sm:pb-3">
+          <div className="mb-1 flex items-center gap-2 px-1 text-[10px] font-semibold tabular-nums text-white/80">
+            <span>{formatPlayerTime(currentTime)}</span>
+            <input type="range" min="0" max="100" step="0.1" value={progressValue} onChange={seekFromProgress} aria-label="Video progress" className="h-1.5 min-w-0 flex-1 cursor-pointer accent-[var(--br-brand)]" />
+            <span>{formatPlayerTime(progressDuration)}</span>
+          </div>
+          <div className="flex items-center justify-center gap-1 overflow-visible sm:gap-2">
+            <button type="button" onClick={toggle} className="relative inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-lg bg-surface px-2.5 text-sm font-bold text-ink shadow-sm transition hover:bg-[var(--br-surface-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white min-[390px]:h-10 min-[390px]:px-3 sm:h-11 sm:px-4">
+              {playing ? <Pause size={18} /> : <Play size={18} />}
+              <span className="hidden min-[390px]:inline">{playing ? "Pause" : "Play"}</span>
+            </button>
+            <button type="button" onClick={() => seekRelative(-10)} className={controlClass} aria-label="Rewind 10 seconds" title="Rewind 10 seconds"><SkipBack size={18} /><span className="absolute text-[8px] font-black">10</span></button>
+            <button type="button" onClick={() => seekRelative(10)} className={controlClass} aria-label="Forward 10 seconds" title="Forward 10 seconds"><SkipForward size={18} /><span className="absolute text-[8px] font-black">10</span></button>
+            <button type="button" onClick={restart} className={controlClass} aria-label="Restart video" title="Restart video"><RotateCcw size={19} /></button>
+            <div className="relative z-30 shrink-0">
+              <button type="button" onClick={() => setOpenVolume((current) => !current)} className={controlClass} aria-label="Volume" title="Volume"><Volume2 size={19} /></button>
+              {openVolume ? (<div className="absolute bottom-12 right-0 rounded-lg border border-white/10 bg-dark/95 p-3 shadow-xl"><input aria-label="Volume" type="range" min="0" max="100" step="5" value={volume} onChange={(event) => setVolume(Number(event.target.value))} className="h-24 w-6 [writing-mode:vertical-rl]" /></div>) : null}
+            </div>
+            <button type="button" onClick={() => void toggleFullscreen()} className={controlClass} aria-label={fullscreenActive ? "Exit fullscreen" : "Enter fullscreen"} title={fullscreenActive ? "Exit fullscreen" : "Fullscreen"}>{fullscreenActive ? <Minimize size={19} /> : <Maximize size={19} />}</button>
+            <button type="button" onClick={() => setOpenSettings((current) => !current)} className={controlClass} aria-label="Video settings" title="Video settings"><Settings size={19} /></button>
+          </div>
         </div>
-        <button type="button" onClick={() => void toggleFullscreen()} className={controlClass} aria-label={fullscreenActive ? "Exit fullscreen" : "Enter fullscreen"} title={fullscreenActive ? "Exit fullscreen" : "Fullscreen"}>{fullscreenActive ? <Minimize size={19} /> : <Maximize size={19} />}</button>
-        <button type="button" onClick={() => setOpenSettings((current) => !current)} className={controlClass} aria-label="Video settings" title="Video settings"><Settings size={19} /></button>
       </div>
       {openSettings ? (
         <div className="grid gap-3 border-t border-white/10 p-3 text-sm sm:grid-cols-2">
