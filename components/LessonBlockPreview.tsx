@@ -683,6 +683,7 @@ function CustomYouTubeVideoPlayer({
   const [duration, setDuration] = useState(0);
   const [ended, setEnded] = useState(false);
   const [playRequested, setPlayRequested] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [guardStartupChrome, setGuardStartupChrome] = useState(false);
   const [nativeFullscreen, setNativeFullscreen] = useState(false);
   const [viewportFullscreen, setViewportFullscreen] = useState(false);
@@ -732,6 +733,12 @@ function CustomYouTubeVideoPlayer({
   }, [playing, wakeControls]);
 
   useEffect(() => {
+    if (!loading && !playRequested) return;
+    setControlsVisible(true);
+    if (controlsHideTimerRef.current) clearTimeout(controlsHideTimerRef.current);
+  }, [loading, playRequested]);
+
+  useEffect(() => {
     window.addEventListener("keydown", wakeControls);
     window.addEventListener("visibilitychange", wakeControls);
     return () => {
@@ -759,15 +766,20 @@ function CustomYouTubeVideoPlayer({
                 setStarted(true);
                 setEnded(false);
                 setPlayRequested(false);
+                setLoading(false);
                 if (!confirmedPlayingRef.current) {
                   setGuardStartupChrome(true);
                   if (chromeGuardTimerRef.current) clearTimeout(chromeGuardTimerRef.current);
                   chromeGuardTimerRef.current = setTimeout(() => setGuardStartupChrome(false), 3500);
                 }
                 confirmedPlayingRef.current = true;
+              } else if (data.info.playerState === 3) {
+                setLoading(true);
+                setControlsVisible(true);
               } else if (data.info.playerState === 2 || data.info.playerState === 0) {
                 setPlaying(false);
                 setPlayRequested(false);
+                setLoading(false);
                 confirmedPlayingRef.current = false;
                 if (data.info.playerState === 0) setEnded(true);
               }
@@ -776,18 +788,23 @@ function CustomYouTubeVideoPlayer({
             const state = Number(data.info);
             if (state === 1) {
               setPlaying(true);
-              setStarted(true);
+                setStarted(true);
               setEnded(false);
               setPlayRequested(false);
+              setLoading(false);
               if (!confirmedPlayingRef.current) {
                 setGuardStartupChrome(true);
                 if (chromeGuardTimerRef.current) clearTimeout(chromeGuardTimerRef.current);
                 chromeGuardTimerRef.current = setTimeout(() => setGuardStartupChrome(false), 3500);
               }
               confirmedPlayingRef.current = true;
+            } else if (state === 3) {
+              setLoading(true);
+              setControlsVisible(true);
             } else if (state === 2 || state === 0) {
               setPlaying(false);
               setPlayRequested(false);
+              setLoading(false);
               confirmedPlayingRef.current = false;
               if (state === 0) setEnded(true);
             }
@@ -853,6 +870,7 @@ function CustomYouTubeVideoPlayer({
       setPlayRequested(false);
       confirmedPlayingRef.current = false;
     } else {
+      setLoading(true);
       setPlayRequested(true);
       command("playVideo");
       command("unMute");
@@ -864,6 +882,7 @@ function CustomYouTubeVideoPlayer({
   function restart() {
     if (!started) setStarted(true);
     setEnded(false);
+    setLoading(true);
     setPlayRequested(true);
     command("seekTo", [startSeconds, true]);
     command("playVideo");
@@ -983,7 +1002,10 @@ function CustomYouTubeVideoPlayer({
           style={{ transform: "scale(1.01)" }}
           allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
           allowFullScreen
-          onLoad={() => iframeRef.current?.contentWindow?.postMessage(JSON.stringify({ event: "listening", id: videoId }), "*")}
+          onLoad={() => {
+            setControlsVisible(true);
+            iframeRef.current?.contentWindow?.postMessage(JSON.stringify({ event: "listening", id: videoId }), "*");
+          }}
         />
         {playing && guardStartupChrome ? <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-14 bg-gradient-to-b from-black via-black/80 to-transparent" /> : null}
         {!playing ? (
