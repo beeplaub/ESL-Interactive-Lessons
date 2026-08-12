@@ -691,7 +691,6 @@ function CustomYouTubeVideoPlayer({
   const chromeGuardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const controlsHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const confirmedPlayingRef = useRef(false);
-  const centerPointerTimeRef = useRef(0);
 
   const fullscreenActive = nativeFullscreen || viewportFullscreen;
 
@@ -862,20 +861,6 @@ function CustomYouTubeVideoPlayer({
     }
   }
 
-  function activateCenterControl() {
-    const now = Date.now();
-    if (now - centerPointerTimeRef.current < 250) return;
-    centerPointerTimeRef.current = now;
-    wakeControls();
-    toggle();
-  }
-
-  function handleCenterClick() {
-    if (Date.now() - centerPointerTimeRef.current < 500) return;
-    wakeControls();
-    toggle();
-  }
-
   function restart() {
     if (!started) setStarted(true);
     setEnded(false);
@@ -1009,17 +994,14 @@ function CustomYouTubeVideoPlayer({
         ) : null}
         <button
           type="button"
-          onPointerUp={(event) => {
+          onPointerDown={(event) => {
             event.preventDefault();
-            activateCenterControl();
+            event.stopPropagation();
+            wakeControls();
+            toggle();
           }}
-          onTouchEnd={(event) => {
-            event.preventDefault();
-            activateCenterControl();
-          }}
-          onClick={handleCenterClick}
           aria-label={playing ? "Pause video" : ended ? "Replay video" : "Play video"}
-          className="pointer-events-auto absolute left-1/2 top-1/2 z-20 grid size-9 -translate-x-1/2 -translate-y-1/2 touch-manipulation place-items-center bg-transparent text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90 sm:size-10"
+          className="pointer-events-auto absolute left-1/2 top-1/2 z-40 grid size-9 -translate-x-1/2 -translate-y-1/2 touch-none place-items-center bg-transparent text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)] transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90 sm:size-10"
         >
           {playRequested ? <span className="size-4 animate-spin rounded-full border-2 border-white/50 border-t-white" /> : playing ? <Pause size={20} /> : ended ? <RotateCcw size={20} /> : <Play size={20} className="ml-0.5" />}
         </button>
