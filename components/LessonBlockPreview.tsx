@@ -989,7 +989,6 @@ function CustomYouTubeVideoPlayer({
           <div onClick={toggle} className="absolute inset-0 cursor-pointer z-10" aria-label="Pause video" />
         ) : null}
         {playing && guardStartupChrome ? <div className="pointer-events-none absolute inset-x-0 top-0 z-20 h-14 bg-gradient-to-b from-black via-black/80 to-transparent" /> : null}
-        {playing ? <div className="pointer-events-none absolute bottom-24 right-3 z-20 rounded-md bg-dark/95 px-2 py-1 text-[10px] font-black tracking-wide text-on-dark shadow-lg">BrenUp</div> : null}
         {!playing ? (
           <button
             type="button"
