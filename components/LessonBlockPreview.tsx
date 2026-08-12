@@ -2,7 +2,7 @@
 
 import { BookOpen, FlipHorizontal2, Headphones, ImageIcon, ListChecks, Maximize, Minimize, MessageSquareQuote, Pause, Play, PlayCircle, Settings, Volume2, RotateCcw, RotateCw, SkipBack, SkipForward } from "lucide-react";
 import type { ChangeEvent, RefObject } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Json } from "@/types/database.types";
 
 export type PreviewLessonBlock = {
@@ -687,7 +687,9 @@ function CustomYouTubeVideoPlayer({
   const [nativeFullscreen, setNativeFullscreen] = useState(false);
   const [viewportFullscreen, setViewportFullscreen] = useState(false);
   const [fullscreenOrientation, setFullscreenOrientation] = useState<"portrait" | "landscape" | null>(null);
+  const [controlsVisible, setControlsVisible] = useState(true);
   const chromeGuardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const controlsHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const confirmedPlayingRef = useRef(false);
 
   const fullscreenActive = nativeFullscreen || viewportFullscreen;
@@ -703,12 +705,40 @@ function CustomYouTubeVideoPlayer({
   }, [videoId, startSeconds, endSeconds]);
 
   function command(func: string, args: unknown[] = []) { iframeRef.current?.contentWindow?.postMessage(JSON.stringify({ event: "command", func, args }), "*"); }
+
+  const wakeControls = useCallback(() => {
+    setControlsVisible(true);
+    if (controlsHideTimerRef.current) clearTimeout(controlsHideTimerRef.current);
+    if (playing) {
+      controlsHideTimerRef.current = setTimeout(() => {
+        setControlsVisible(false);
+        setOpenSettings(false);
+        setOpenVolume(false);
+      }, 4000);
+    }
+  }, [playing]);
   
   useEffect(() => {
     command("unMute");
     command("setVolume", [volume]);
     command("setPlaybackRate", [speed]);
   }, [volume, speed, playing]);
+
+  useEffect(() => {
+    wakeControls();
+    return () => {
+      if (controlsHideTimerRef.current) clearTimeout(controlsHideTimerRef.current);
+    };
+  }, [playing, wakeControls]);
+
+  useEffect(() => {
+    window.addEventListener("keydown", wakeControls);
+    window.addEventListener("visibilitychange", wakeControls);
+    return () => {
+      window.removeEventListener("keydown", wakeControls);
+      window.removeEventListener("visibilitychange", wakeControls);
+    };
+  }, [wakeControls]);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -933,11 +963,12 @@ function CustomYouTubeVideoPlayer({
   return (
     <div
       ref={wrapperRef}
+      onPointerDown={wakeControls}
       onContextMenu={(event) => event.preventDefault()}
       className={`relative bg-dark text-on-dark ${viewportFullscreen ? fullscreenOrientation === "landscape" ? "fixed left-1/2 top-1/2 z-[9999] flex h-[100vw] w-[100vh] -translate-x-1/2 -translate-y-1/2 rotate-90 flex-col overflow-hidden rounded-none" : "fixed inset-0 z-[9999] flex h-[100dvh] w-screen flex-col overflow-hidden rounded-none" : nativeFullscreen ? "flex h-[100dvh] w-screen flex-col overflow-hidden rounded-none" : "overflow-hidden rounded-lg"}`}
     >
       <div className={`relative overflow-hidden bg-black ${fullscreenActive ? "min-h-0 flex-1" : "aspect-video"}`}>
-        <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-center justify-between bg-gradient-to-b from-black/80 via-black/35 to-transparent px-3 pb-8 pt-3 text-white sm:px-5 sm:pt-4">
+        <div className={`pointer-events-none absolute inset-x-0 top-0 z-30 flex items-center justify-between bg-gradient-to-b from-black/80 via-black/35 to-transparent px-3 pb-8 pt-3 text-white transition-opacity duration-300 sm:px-5 sm:pt-4 ${controlsVisible ? "opacity-100" : "opacity-0"}`}>
           <div className="min-w-0 pr-4">
             <p className="truncate text-sm font-bold sm:text-base">{title || "Lesson video"}</p>
             <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/60">BrenUp player</p>
@@ -972,7 +1003,7 @@ function CustomYouTubeVideoPlayer({
             </span>
           </button>
         ) : null}
-        <div className="absolute inset-x-0 bottom-0 z-30 bg-gradient-to-t from-black/95 via-black/75 to-transparent px-2 pb-2 pt-12 sm:px-4 sm:pb-3">
+        <div className={`absolute inset-x-0 bottom-0 z-30 bg-gradient-to-t from-black/95 via-black/75 to-transparent px-2 pb-2 pt-12 transition-opacity duration-300 sm:px-4 sm:pb-3 ${controlsVisible ? "opacity-100" : "pointer-events-none opacity-0"}`}>
           <div className="mb-1 flex items-center gap-2 px-1 text-[10px] font-semibold tabular-nums text-white/80">
             <span>{formatPlayerTime(currentTime)}</span>
             <input type="range" min="0" max="100" step="0.1" value={progressValue} onChange={seekFromProgress} aria-label="Video progress" className="h-1.5 min-w-0 flex-1 cursor-pointer accent-[var(--br-brand)]" />
@@ -989,7 +1020,7 @@ function CustomYouTubeVideoPlayer({
               <button type="button" onClick={() => setOpenVolume((current) => !current)} className={controlClass} aria-label="Volume" title="Volume"><Volume2 size={19} /></button>
               {openVolume ? (<div className="absolute bottom-12 right-0 rounded-lg border border-white/10 bg-dark/95 p-3 shadow-xl"><input aria-label="Volume" type="range" min="0" max="100" step="5" value={volume} onChange={(event) => setVolume(Number(event.target.value))} className="h-24 w-6 [writing-mode:vertical-rl]" /></div>) : null}
             </div>
-            <button type="button" onClick={() => void toggleFullscreen()} className={controlClass} aria-label={fullscreenActive ? "Exit fullscreen" : "Enter fullscreen"} title={fullscreenActive ? "Exit fullscreen" : "Fullscreen"}>{fullscreenActive ? <Minimize size={19} /> : <Maximize size={19} />}</button>
+            <button type="button" onClick={() => void toggleFullscreen()} className={controlClass} aria-label={fullscreenOrientation === "landscape" ? "Exit fullscreen" : "Enter fullscreen"} title={fullscreenOrientation === "landscape" ? "Exit fullscreen" : "Fullscreen"}>{fullscreenOrientation === "landscape" ? <Minimize size={19} /> : <Maximize size={19} />}</button>
             <button type="button" onClick={() => setOpenSettings((current) => !current)} className={controlClass} aria-label="Video settings" title="Video settings"><Settings size={19} /></button>
           </div>
         </div>
