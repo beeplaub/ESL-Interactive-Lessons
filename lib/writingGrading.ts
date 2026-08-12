@@ -22,7 +22,8 @@ export const WRITING_QUESTION_TYPES = [
   "SENTENCE_COMBINING",
   "CREATIVE_WRITING",
   "PEER_REVIEW_EDITING",
-  "DIALOGUE_WRITING"
+  "DIALOGUE_WRITING",
+  "ORAL_RESPONSE"
 ] as const;
 
 export type WritingQuestionType = (typeof WRITING_QUESTION_TYPES)[number];

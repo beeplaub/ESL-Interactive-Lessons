@@ -44,6 +44,12 @@ export type OralResponseValue = {
   transcript: string;
   duration_seconds?: number;
   self_rating?: "needs_practice" | "getting_there" | "confident";
+  mode?: "SELF_GRADED" | "AI_FEEDBACK" | "TEACHER_REVIEW";
+  gradingState?: "PENDING" | "GRADED";
+  score?: number | null;
+  selfMarked?: boolean;
+  aiFeedback?: Record<string, unknown> | null;
+  teacherFeedback?: string | null;
 };
 
 export function hasAnswer(question: QuizQuestion, value: unknown): boolean {
@@ -2139,14 +2145,19 @@ function OralResponse({
         </div>
       ) : null}
       {targetPhrases.length > 0 && !submitted ? <p className="text-xs text-[var(--br-text-muted)]">Speak naturally and try to use the target language.</p> : null}
-      {allowSelfGraded && value?.transcript && !submitted ? (
-        <div className="flex flex-wrap justify-center gap-2">
-          {(["needs_practice", "getting_there", "confident"] as const).map((rating) => (
-            <button key={rating} type="button" onClick={() => onChange({ ...value, self_rating: rating })} className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${value.self_rating === rating ? "border-[var(--br-brand)] bg-[var(--br-brand)] text-white" : "border-[var(--br-surface-strong)] text-[var(--br-text-muted)]"}`}>
-              {rating === "needs_practice" ? "Needs practice" : rating === "getting_there" ? "Getting there" : "Confident"}
-            </button>
-          ))}
-        </div>
+      {submitted && value?.transcript ? (
+        <WritingEvaluationInterface
+          activityId={question.id}
+          activityType="ORAL_RESPONSE"
+          prompt={question.question_text}
+          submissionText={value.transcript}
+          modelAnswer={modelAnswer}
+          allowSelfGraded={allowSelfGraded}
+          allowAiFeedback={opts.allow_ai_feedback !== false}
+          allowTeacherReview={opts.allow_teacher_review !== false}
+          initialValue={{ ...value, text: value.transcript } as unknown as WritingAnswerValue}
+          onGraded={(outcome) => onChange({ ...value, ...outcome, transcript: value.transcript } as OralResponseValue)}
+        />
       ) : null}
     </div>
   );

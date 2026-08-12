@@ -74,8 +74,10 @@ export function questionTotal(question: ScoredQuestion): number {
 
 function baseQuestionScore(question: ScoredQuestion, answer: unknown): number {
   if (question.question_type === "ORAL_RESPONSE") {
-    const rating = String(asRecord(answer as Json).self_rating ?? "");
-    return rating === "confident" ? 1 : rating === "getting_there" ? 0.7 : 0;
+    const oral = asRecord(answer as Json);
+    if (oral.mode === "SELF_GRADED") return oral.selfMarked === true ? 1 : 0;
+    if (typeof oral.score === "number") return Math.max(0, Math.min(1, oral.score / 100));
+    return 0;
   }
   if (question.question_type === "DRAG_DROP" || question.question_type === "CATEGORIZATION" || question.question_type === "HEADINGS_MATCHING" || question.question_type === "SKIM_CHALLENGE") {
     const correct = asRecord(question.correct_answer);
@@ -119,7 +121,8 @@ export function scoreQuestions(questions: ScoredQuestion[], answers: Record<stri
 
 export function isCorrect(question: ScoredQuestion, value: unknown): boolean {
   if (question.question_type === "ORAL_RESPONSE") {
-    return String(asRecord(value as Json).self_rating ?? "") === "confident";
+    const oral = asRecord(value as Json);
+    return oral.mode === "SELF_GRADED" ? oral.selfMarked === true : typeof oral.score === "number" && oral.score >= 60;
   }
   if (
     question.question_type === "MCQ" ||
