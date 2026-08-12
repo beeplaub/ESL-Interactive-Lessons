@@ -686,7 +686,7 @@ function CustomYouTubeVideoPlayer({
   const [guardStartupChrome, setGuardStartupChrome] = useState(false);
   const [nativeFullscreen, setNativeFullscreen] = useState(false);
   const [viewportFullscreen, setViewportFullscreen] = useState(false);
-  const [zoom, setZoom] = useState(1);
+  const [fullscreenOrientation, setFullscreenOrientation] = useState<"portrait" | "landscape" | null>(null);
   const chromeGuardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const confirmedPlayingRef = useRef(false);
 
@@ -780,7 +780,9 @@ function CustomYouTubeVideoPlayer({
     };
     const handleFullscreenChange = () => {
       const activeElement = document.fullscreenElement || fullscreenDocument.webkitFullscreenElement;
-      setNativeFullscreen(activeElement === wrapperRef.current);
+      const active = activeElement === wrapperRef.current;
+      setNativeFullscreen(active);
+      if (!active && !viewportFullscreen) setFullscreenOrientation(null);
     };
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     document.addEventListener("webkitfullscreenchange", handleFullscreenChange);
@@ -788,14 +790,22 @@ function CustomYouTubeVideoPlayer({
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
       document.removeEventListener("webkitfullscreenchange", handleFullscreenChange);
     };
-  }, []);
+  }, [viewportFullscreen]);
 
   useEffect(() => {
     if (!viewportFullscreen) return;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setViewportFullscreen(false);
+      if (event.key === "Escape") {
+        setViewportFullscreen(false);
+        setFullscreenOrientation(null);
+        try {
+          window.screen.orientation.unlock();
+        } catch {
+          // Orientation unlock is not available in every browser.
+        }
+      }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => {
@@ -835,20 +845,41 @@ function CustomYouTubeVideoPlayer({
     setCurrentTime(targetTime);
   }
 
+  async function lockOrientation(orientation: "portrait" | "landscape") {
+    const orientationApi = window.screen.orientation as ScreenOrientation & { lock?: (value: "portrait" | "landscape") => Promise<void> };
+    try {
+      await orientationApi.lock?.(orientation);
+    } catch {
+      // Some mobile browsers only allow orientation changes through device controls.
+    }
+  }
+
+  async function unlockOrientation() {
+    try {
+      window.screen.orientation.unlock();
+    } catch {
+      // Orientation unlock is not available in every browser.
+    }
+  }
+
   async function toggleFullscreen() {
     const fullscreenDocument = document as Document & {
       webkitExitFullscreen?: () => Promise<void> | void;
       webkitFullscreenElement?: Element | null;
     };
 
-    if (viewportFullscreen) {
-      setViewportFullscreen(false);
+    if (fullscreenActive && fullscreenOrientation === "portrait") {
+      setFullscreenOrientation("landscape");
+      await lockOrientation("landscape");
       return;
     }
 
-    if (document.fullscreenElement || fullscreenDocument.webkitFullscreenElement) {
+    if (fullscreenActive || document.fullscreenElement || fullscreenDocument.webkitFullscreenElement) {
       if (document.exitFullscreen) await document.exitFullscreen();
       else await fullscreenDocument.webkitExitFullscreen?.();
+      await unlockOrientation();
+      setViewportFullscreen(false);
+      setFullscreenOrientation(null);
       return;
     }
 
@@ -857,9 +888,14 @@ function CustomYouTubeVideoPlayer({
     }) | null;
     if (!element) return;
 
+    const isMobile = window.matchMedia("(pointer: coarse)").matches || window.innerWidth < 768;
+    const requestedOrientation = isMobile ? "portrait" : "landscape";
+    setFullscreenOrientation(requestedOrientation);
+
     try {
       if (element.requestFullscreen) {
         await element.requestFullscreen({ navigationUI: "hide" });
+        await lockOrientation(requestedOrientation);
         window.setTimeout(() => {
           const activeElement = document.fullscreenElement || fullscreenDocument.webkitFullscreenElement;
           if (activeElement !== wrapperRef.current) setViewportFullscreen(true);
@@ -868,6 +904,7 @@ function CustomYouTubeVideoPlayer({
       }
       if (element.webkitRequestFullscreen) {
         await element.webkitRequestFullscreen();
+        await lockOrientation(requestedOrientation);
         window.setTimeout(() => {
           const activeElement = document.fullscreenElement || fullscreenDocument.webkitFullscreenElement;
           if (activeElement !== wrapperRef.current) setViewportFullscreen(true);
@@ -879,6 +916,7 @@ function CustomYouTubeVideoPlayer({
     }
 
     setViewportFullscreen(true);
+    await lockOrientation(requestedOrientation);
   }
 
   const controlClass = "relative grid size-9 shrink-0 place-items-center rounded-lg border border-white/10 bg-white/10 text-on-dark transition hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 min-[390px]:size-10 sm:size-11";
@@ -896,7 +934,7 @@ function CustomYouTubeVideoPlayer({
     <div
       ref={wrapperRef}
       onContextMenu={(event) => event.preventDefault()}
-      className={`bg-dark text-on-dark ${viewportFullscreen ? "fixed inset-0 z-[9999] flex h-[100dvh] w-screen flex-col overflow-hidden rounded-none" : nativeFullscreen ? "flex h-[100dvh] w-screen flex-col overflow-hidden rounded-none" : "overflow-hidden rounded-lg"}`}
+      className={`relative bg-dark text-on-dark ${viewportFullscreen ? fullscreenOrientation === "landscape" ? "fixed left-1/2 top-1/2 z-[9999] flex h-[100vw] w-[100vh] -translate-x-1/2 -translate-y-1/2 rotate-90 flex-col overflow-hidden rounded-none" : "fixed inset-0 z-[9999] flex h-[100dvh] w-screen flex-col overflow-hidden rounded-none" : nativeFullscreen ? "flex h-[100dvh] w-screen flex-col overflow-hidden rounded-none" : "overflow-hidden rounded-lg"}`}
     >
       <div className={`relative overflow-hidden bg-black ${fullscreenActive ? "min-h-0 flex-1" : "aspect-video"}`}>
         <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-center justify-between bg-gradient-to-b from-black/80 via-black/35 to-transparent px-3 pb-8 pt-3 text-white sm:px-5 sm:pt-4">
@@ -911,7 +949,7 @@ function CustomYouTubeVideoPlayer({
           src={src}
           title={title}
           className={`pointer-events-none absolute inset-0 h-full w-full transition duration-300 ${started ? "opacity-100" : "opacity-0"}`}
-          style={{ transform: `scale(${zoom === 1 ? 1.01 : zoom})` }}
+          style={{ transform: "scale(1.01)" }}
           allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
           allowFullScreen
           onLoad={() => iframeRef.current?.contentWindow?.postMessage(JSON.stringify({ event: "listening", id: videoId }), "*")}
@@ -932,7 +970,6 @@ function CustomYouTubeVideoPlayer({
             <span className="grid size-16 place-items-center rounded-full bg-surface text-ink shadow-xl transition-transform hover:scale-105">
               {playRequested ? <span className="size-6 animate-spin rounded-full border-2 border-[var(--br-border)] border-t-[var(--br-brand)]" /> : ended ? <RotateCcw size={25} /> : <Play size={26} className="ml-1" />}
             </span>
-            <span className="mt-3 rounded-full bg-black/60 px-3 py-1 text-xs font-bold text-white">{playRequested ? "Starting video" : ended ? "Replay video" : "Play video"}</span>
           </button>
         ) : null}
         <div className="absolute inset-x-0 bottom-0 z-30 bg-gradient-to-t from-black/95 via-black/75 to-transparent px-2 pb-2 pt-12 sm:px-4 sm:pb-3">
@@ -942,12 +979,11 @@ function CustomYouTubeVideoPlayer({
             <span>{formatPlayerTime(progressDuration)}</span>
           </div>
           <div className="flex items-center justify-center gap-1 overflow-visible sm:gap-2">
-            <button type="button" onClick={toggle} className="relative inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-lg bg-surface px-2.5 text-sm font-bold text-ink shadow-sm transition hover:bg-[var(--br-surface-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white min-[390px]:h-10 min-[390px]:px-3 sm:h-11 sm:px-4">
+            <button type="button" onClick={toggle} className="relative grid size-9 shrink-0 place-items-center rounded-lg bg-surface text-ink shadow-sm transition hover:bg-[var(--br-surface-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white min-[390px]:size-10 sm:size-11">
               {playing ? <Pause size={18} /> : <Play size={18} />}
-              <span className="hidden min-[390px]:inline">{playing ? "Pause" : "Play"}</span>
             </button>
-            <button type="button" onClick={() => seekRelative(-10)} className={controlClass} aria-label="Rewind 10 seconds" title="Rewind 10 seconds"><SkipBack size={18} /><span className="absolute text-[8px] font-black">10</span></button>
-            <button type="button" onClick={() => seekRelative(10)} className={controlClass} aria-label="Forward 10 seconds" title="Forward 10 seconds"><SkipForward size={18} /><span className="absolute text-[8px] font-black">10</span></button>
+            <button type="button" onClick={() => seekRelative(-10)} className={controlClass} aria-label="Rewind 10 seconds" title="Rewind 10 seconds"><SkipBack size={18} /></button>
+            <button type="button" onClick={() => seekRelative(10)} className={controlClass} aria-label="Forward 10 seconds" title="Forward 10 seconds"><SkipForward size={18} /></button>
             <button type="button" onClick={restart} className={controlClass} aria-label="Restart video" title="Restart video"><RotateCcw size={19} /></button>
             <div className="relative z-30 shrink-0">
               <button type="button" onClick={() => setOpenVolume((current) => !current)} className={controlClass} aria-label="Volume" title="Volume"><Volume2 size={19} /></button>
@@ -959,9 +995,8 @@ function CustomYouTubeVideoPlayer({
         </div>
       </div>
       {openSettings ? (
-        <div className="grid gap-3 border-t border-white/10 p-3 text-sm sm:grid-cols-2">
-          <label className="flex items-center justify-between gap-3">Speed<select value={speed} onChange={(event) => setSpeed(Number(event.target.value))} className="rounded-md border border-white/20 bg-dark px-2 py-1 text-on-dark">{[0.75, 1, 1.25, 1.5, 2].map((value) => <option key={value} value={value}>{value}x</option>)}</select></label>
-          <label className="flex items-center justify-between gap-3">Picture size<select value={zoom} onChange={(event) => setZoom(Number(event.target.value))} className="rounded-md border border-white/20 bg-dark px-2 py-1 text-on-dark"><option value={1}>Fit</option><option value={1.15}>Zoom 115%</option><option value={1.3}>Zoom 130%</option></select></label>
+        <div role="dialog" aria-label="Video settings" className="absolute bottom-16 right-3 z-50 w-48 rounded-xl border border-[var(--br-border)] bg-white p-3 text-sm text-[var(--br-text)] shadow-2xl">
+          <label className="flex items-center justify-between gap-3 font-semibold">Speed<select value={speed} onChange={(event) => setSpeed(Number(event.target.value))} className="rounded-lg border border-[var(--br-border)] bg-white px-2 py-1 text-[var(--br-text)]">{[0.75, 1, 1.25, 1.5, 2].map((value) => <option key={value} value={value}>{value}x</option>)}</select></label>
         </div>
       ) : null}
       <p className="sr-only" aria-live="polite">{fullscreenActive ? "Video is fullscreen" : "Video is not fullscreen"}</p>
