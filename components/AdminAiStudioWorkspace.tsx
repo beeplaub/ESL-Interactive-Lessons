@@ -121,6 +121,17 @@ function formatCost(value: number) {
   return `$${value.toFixed(2)}`;
 }
 
+function formatBdtTimestamp(value: string) {
+  return `${new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Dhaka",
+    day: "2-digit",
+    month: "short",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).format(new Date(value))} BDT`;
+}
+
 function readable(value: string) {
   return value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
@@ -180,7 +191,7 @@ function MetricCard({ icon: Icon, label, value, note, tone = "brand" }: {
 function TrendChart({ points, metric }: { points: Array<{ label: string; value: number }>; metric: TrendMetric }) {
   const width = 900;
   const height = 240;
-  const left = 28;
+  const left = 76;
   const top = 18;
   const bottom = 34;
   const chartHeight = height - top - bottom;
@@ -198,8 +209,14 @@ function TrendChart({ points, metric }: { points: Array<{ label: string; value: 
       <svg viewBox={`0 0 ${width} ${height}`} className="min-w-[620px] w-full" role="img">
         {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
           const y = top + chartHeight - ratio * chartHeight;
-          return <line key={ratio} x1={left} x2={width - left} y1={y} y2={y} stroke="var(--br-border)" strokeWidth="1" />;
+          return (
+            <g key={ratio}>
+              <line x1={left} x2={width - left} y1={y} y2={y} stroke="var(--br-border)" strokeWidth="1" />
+              <text x={left - 10} y={y + 4} textAnchor="end" fontSize="10" fontWeight="700" fill="var(--br-text-muted)">{formatter(max * ratio)}</text>
+            </g>
+          );
         })}
+        <line x1={left} x2={left} y1={top} y2={top + chartHeight} stroke="var(--br-text-muted)" strokeWidth="1" opacity="0.45" />
         <polygon points={area} fill="var(--br-brand)" opacity="0.08" />
         <polyline points={polyline} fill="none" stroke="var(--br-brand)" strokeWidth="3" strokeLinejoin="round" strokeLinecap="round" />
         {coords.map((point, index) => (
@@ -364,18 +381,19 @@ export function AdminAiStudioWorkspace({
   }, [filteredLogs]);
 
   const featureBreakdown = useMemo(() => {
-    const rows = new Map<string, { requests: number; failures: number; cache: number; tokens: number; cost: number; credits: number }>();
+    const rows = new Map<string, { requests: number; failures: number; cache: number; tokens: number; cost: number; credits: number; latestAt: string | null }>();
     filteredLogs.forEach((log) => {
-      const row = rows.get(log.feature_key) || { requests: 0, failures: 0, cache: 0, tokens: 0, cost: 0, credits: 0 };
+      const row = rows.get(log.feature_key) || { requests: 0, failures: 0, cache: 0, tokens: 0, cost: 0, credits: 0, latestAt: null };
       row.requests += 1;
       if (logStatus(log) === "FAILED") row.failures += 1;
       if (logStatus(log) === "CACHED") row.cache += 1;
       row.tokens += logTokens(log);
       row.cost += num(log.estimated_cost_usd);
+      if (!row.latestAt || new Date(log.created_at).getTime() > new Date(row.latestAt).getTime()) row.latestAt = log.created_at;
       rows.set(log.feature_key, row);
     });
     filteredCredits.forEach((usage) => {
-      const row = rows.get(usage.feature_key) || { requests: 0, failures: 0, cache: 0, tokens: 0, cost: 0, credits: 0 };
+      const row = rows.get(usage.feature_key) || { requests: 0, failures: 0, cache: 0, tokens: 0, cost: 0, credits: 0, latestAt: null };
       row.credits += num(usage.credits_used);
       rows.set(usage.feature_key, row);
     });
@@ -545,9 +563,9 @@ export function AdminAiStudioWorkspace({
             <section className="rounded-xl border border-[var(--br-border)] bg-surface p-4 shadow-sm sm:p-5">
               <div><h2 className="font-black text-ink">Feature usage</h2><p className="mt-0.5 text-xs text-[var(--br-text-muted)]">Which experiences consume AI capacity.</p></div>
               <div className="mt-4 overflow-x-auto">
-                <table className="w-full min-w-[560px] text-left text-xs">
-                  <thead><tr className="border-b border-[var(--br-border)] text-[10px] uppercase tracking-wide text-[var(--br-text-muted)]"><th className="pb-2">Feature</th><th className="pb-2 text-right">Requests</th><th className="pb-2 text-right">Cache</th><th className="pb-2 text-right">Credits</th><th className="pb-2 text-right">Cost</th></tr></thead>
-                  <tbody className="divide-y divide-[var(--br-border)]">{featureBreakdown.slice(0, 12).map((row) => <tr key={row.name} className="hover:bg-[var(--br-surface-muted)]/60"><td className="py-3 pr-3"><button onClick={() => setFeature(row.name)} className="max-w-[240px] truncate font-bold text-ink hover:text-[var(--br-brand)]">{readable(row.name)}</button>{row.failures ? <p className="text-[10px] text-[var(--br-danger)]">{row.failures} failed</p> : null}</td><td className="py-3 text-right font-bold">{row.requests}</td><td className="py-3 text-right">{row.cache}</td><td className="py-3 text-right">{formatCompact(row.credits)}</td><td className="py-3 text-right">{formatCost(row.cost)}</td></tr>)}</tbody>
+                <table className="w-full min-w-[700px] text-left text-xs">
+                  <thead><tr className="border-b border-[var(--br-border)] text-[10px] uppercase tracking-wide text-[var(--br-text-muted)]"><th className="pb-2">Feature</th><th className="pb-2">Latest request</th><th className="pb-2 text-right">Requests</th><th className="pb-2 text-right">Cache</th><th className="pb-2 text-right">Credits</th><th className="pb-2 text-right">Cost</th></tr></thead>
+                  <tbody className="divide-y divide-[var(--br-border)]">{featureBreakdown.slice(0, 12).map((row) => <tr key={row.name} className="hover:bg-[var(--br-surface-muted)]/60"><td className="py-3 pr-3"><button onClick={() => setFeature(row.name)} className="max-w-[220px] truncate font-bold text-ink hover:text-[var(--br-brand)]">{readable(row.name)}</button>{row.failures ? <p className="text-[10px] text-[var(--br-danger)]">{row.failures} failed</p> : null}</td><td className="whitespace-nowrap py-3 pr-3 text-[10px] font-bold text-[var(--br-text-muted)]">{row.latestAt ? formatBdtTimestamp(row.latestAt) : "No logged request"}</td><td className="py-3 text-right font-bold">{row.requests}</td><td className="py-3 text-right">{row.cache}</td><td className="py-3 text-right">{formatCompact(row.credits)}</td><td className="py-3 text-right">{formatCost(row.cost)}</td></tr>)}</tbody>
                 </table>
               </div>
             </section>
