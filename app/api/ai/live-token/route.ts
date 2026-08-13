@@ -114,7 +114,30 @@ export async function POST(request: Request) {
         lockAdditionalFields: [],
       },
     });
-    return NextResponse.json({ token: token.name, model: body.mode === "CONVERSATION" ? CONVERSATION_MODEL : TRANSLATION_MODEL, targetLanguageCode, maxSeconds, voiceName });
+    const modelUsed = body.mode === "CONVERSATION" ? CONVERSATION_MODEL : TRANSLATION_MODEL;
+    const featureKey = body.mode === "CONVERSATION"
+      ? "learner_live_conversation"
+      : body.mode === "NARRATION"
+        ? "learner_narration_translation"
+        : "learner_live_speak_translation";
+    const { data: profile } = await admin.from("profiles").select("role,cefr_level").eq("id", user.id).maybeSingle();
+    const { error: telemetryError } = await admin.from("ai_generations").insert({
+      user_id: user.id,
+      user_role: profile?.role || "LEARNER",
+      feature_key: featureKey,
+      model_used: modelUsed,
+      provider: "google",
+      status: "STARTED",
+      response_preview: `${body.mode.toLowerCase()} live session token issued${maxSeconds ? ` · up to ${maxSeconds}s` : ""}`,
+      cefr_level: profile?.cefr_level ?? null,
+      prompt_version: body.mode === "CONVERSATION" ? "live-conversation-v1" : "live-translation-v1",
+      completed_at: new Date().toISOString(),
+    });
+    if (telemetryError) {
+      // Telemetry must never prevent a learner from entering an already-authorized live session.
+      console.error("Gemini Live telemetry save failed", telemetryError);
+    }
+    return NextResponse.json({ token: token.name, model: modelUsed, targetLanguageCode, maxSeconds, voiceName });
   } catch (error) {
     console.error("Gemini Live token creation failed", error);
     return NextResponse.json({ error: "Live translation is temporarily unavailable." }, { status: 502 });

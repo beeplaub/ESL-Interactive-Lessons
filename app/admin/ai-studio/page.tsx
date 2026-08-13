@@ -10,18 +10,23 @@ export default async function AdminAiStudioPage() {
   await requireAdmin();
   const admin = createAdminClient();
   const todayStr = new Date().toISOString().split("T")[0];
+  const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
 
   // Fetch prompts, feature flags, logs, and total daily usage counts
   const [
     { data: templates },
     { data: flags },
     { data: logs },
-    { data: usageToday }
+    { data: usageToday },
+    { data: creditUsage },
+    { data: dailyBalances },
   ] = await Promise.all([
     admin.from("ai_prompt_templates").select("*").order("template_key"),
     admin.from("ai_feature_flags").select("*").order("feature_key"),
-    admin.from("ai_generations").select("*").order("created_at", { ascending: false }).limit(25),
-    admin.from("ai_usage_events").select("request_count, estimated_tokens").eq("request_date", todayStr)
+    admin.from("ai_generations").select("*").gte("created_at", ninetyDaysAgo).order("created_at", { ascending: false }).limit(2000),
+    admin.from("ai_usage_events").select("request_count, estimated_tokens").eq("request_date", todayStr),
+    admin.from("ai_credit_usage").select("*").gte("usage_date", ninetyDaysAgo.slice(0, 10)).order("usage_date", { ascending: false }).limit(2000),
+    admin.from("ai_daily_credit_balances").select("*").gte("usage_date", ninetyDaysAgo.slice(0, 10)).order("usage_date", { ascending: false }).limit(2000),
   ]);
 
   const totalRequestsToday = (usageToday ?? []).reduce((sum, u) => sum + u.request_count, 0);
@@ -34,6 +39,8 @@ export default async function AdminAiStudioPage() {
       initialLogs={logs ?? []}
       totalRequestsToday={totalRequestsToday}
       totalTokensToday={totalTokensToday}
+      initialCreditUsage={creditUsage ?? []}
+      initialDailyBalances={dailyBalances ?? []}
     />
   );
 }
