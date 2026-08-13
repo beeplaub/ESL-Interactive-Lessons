@@ -42,6 +42,7 @@ import { useDeleteConfirm } from "@/components/DeleteConfirmModal";
 import { DeleteButton } from "@/components/DeleteButton";
 import { LESSON_ACTIVITY_CATALOG, LESSON_ACTIVITY_SKILLS, type LessonActivitySkill, lessonActivityDefinition } from "@/lib/lessonActivityCatalog";
 import { BuilderModalLayer } from "@/components/BuilderModalLayer";
+import { BuilderDevicePreviewFrame, type BuilderPreviewDevice } from "@/components/BuilderDevicePreviewFrame";
 
 const blockTypes = [
   "HEADING", "TEXT", "BULLETS", "QUOTE", "CALLOUT",
@@ -116,17 +117,10 @@ type ObeData = {
 
 type Props = { lesson: Lesson; slides: Slide[]; trashedSlides?: TrashedSlide[]; blocks: LessonBlock[]; activities: Activity[]; obe?: ObeData; isAdmin?: boolean };
 type BuilderMode = "SLIDE" | "LEARN" | "PRACTICE";
-type PreviewDevice = "DESKTOP" | "TABLET" | "MOBILE";
-
-const previewWidths: Record<PreviewDevice, string> = {
-  DESKTOP: "max-w-none",
-  TABLET: "max-w-[768px]",
-  MOBILE: "max-w-[390px]",
-};
 
 function PreviewDeviceControl({ value, onChange, dark = false }: {
-  value: PreviewDevice;
-  onChange: (device: PreviewDevice) => void;
+  value: BuilderPreviewDevice;
+  onChange: (device: BuilderPreviewDevice) => void;
   dark?: boolean;
 }) {
   const options = [
@@ -592,7 +586,7 @@ export function LessonBuilderWorkspace({ lesson, slides, trashedSlides = [], blo
   });
   const [isMetadataOpen, setIsMetadataOpen] = useState(false);
   const [builderMode, setBuilderMode] = useState<BuilderMode>("LEARN");
-  const [previewDevice, setPreviewDevice] = useState<PreviewDevice>("DESKTOP");
+  const [previewDevice, setPreviewDevice] = useState<BuilderPreviewDevice>("DESKTOP");
   const [isLessonPreviewOpen, setIsLessonPreviewOpen] = useState(false);
   const [isAiGeneratorOpen, setIsAiGeneratorOpen] = useState(false);
   const [isAiMenuOpen, setIsAiMenuOpen] = useState(false);
@@ -887,10 +881,9 @@ export function LessonBuilderWorkspace({ lesson, slides, trashedSlides = [], blo
               <button type="button" onClick={() => selectRelative(1)} disabled={selectedIndex < 0 || selectedIndex >= localSlides.length - 1} className="rounded-md border border-[var(--br-border)] p-2 hover:bg-black/5 disabled:opacity-35"><ArrowRight size={16} /></button>
             </div>
           </div>
-          <div className="overflow-x-auto pb-1">
-            <div className={`mx-auto w-full transition-[max-width] duration-300 ${previewWidths[previewDevice]}`} data-preview-device={previewDevice.toLowerCase()}>
-              <div className="rounded-[18px] bg-[var(--br-canvas-elevated)] p-1.5 sm:p-2">
-                <div className="min-h-[480px] rounded-[15px] bg-surface p-2 shadow-inner sm:p-3">
+          <BuilderDevicePreviewFrame device={previewDevice} title={`${previewDevice.toLowerCase()} preview of ${selectedSlide?.title ?? lesson.title}`}>
+            <div className="rounded-[18px] bg-[var(--br-canvas-elevated)] p-1.5 sm:p-2">
+              <div className="min-h-[480px] rounded-[15px] bg-surface p-2 shadow-inner sm:p-3">
               {selectedSlide ? (
                 <>
                   <div className="mb-3 rounded-[14px] bg-[var(--br-dark-card)] px-4 py-3 text-on-dark">
@@ -904,10 +897,9 @@ export function LessonBuilderWorkspace({ lesson, slides, trashedSlides = [], blo
               ) : (
                 <div className="grid min-h-[360px] place-items-center text-center text-sm text-[var(--br-text-muted)]">Add your first slide below.</div>
               )}
-                </div>
               </div>
             </div>
-          </div>
+          </BuilderDevicePreviewFrame>
           <div className="mt-3 flex items-center justify-between gap-3 border-t border-[var(--br-border)] pt-3"><button type="button" onClick={() => selectRelative(-1)} disabled={selectedIndex <= 0} className="inline-flex items-center gap-2 rounded-lg border border-[var(--br-border)] px-3 py-2 text-xs font-black disabled:opacity-35"><ArrowLeft size={14} /> Previous</button><span className="text-[10px] font-bold text-[var(--br-text-muted)]">Preview follows the selected editor tab</span><button type="button" onClick={() => selectRelative(1)} disabled={selectedIndex < 0 || selectedIndex >= localSlides.length - 1} className="inline-flex items-center gap-2 rounded-lg border border-[var(--br-border)] px-3 py-2 text-xs font-black disabled:opacity-35">Next <ArrowRight size={14} /></button></div>
         </section>
         <aside className="min-w-0 rounded-xl border border-[var(--br-border)] bg-surface p-3 shadow-sm sm:p-4 2xl:sticky 2xl:top-[92px] 2xl:max-h-[calc(100vh-108px)] 2xl:overflow-y-auto">
@@ -981,7 +973,7 @@ function LessonPreviewModal({ lesson, slides, blocks, activities, initialSlideId
   const initialIndex = Math.max(0, slides.findIndex((slide) => slide.id === initialSlideId));
   const [index, setIndex] = useState(initialIndex);
   const [tab, setTab] = useState<"LEARN" | "PRACTICE">("LEARN");
-  const [previewDevice, setPreviewDevice] = useState<PreviewDevice>("DESKTOP");
+  const [previewDevice, setPreviewDevice] = useState<BuilderPreviewDevice>("DESKTOP");
   const slide = slides[index] ?? null;
   const slideBlocks = slide ? blocks.filter((block) => block.slide_id === slide.id) : [];
   const slideActivities = slide ? activities.filter((activity) => activity.slide_id === slide.id) : [];
@@ -1002,13 +994,13 @@ function LessonPreviewModal({ lesson, slides, blocks, activities, initialSlideId
       </header>
       <div className="flex gap-1 px-3 pt-3 sm:px-5" aria-label="Lesson progress">{slides.map((item, itemIndex) => <button key={item.id} type="button" onClick={() => go(itemIndex)} className={`h-1.5 min-w-1 flex-1 rounded-full transition ${itemIndex <= index ? "bg-[var(--br-brand)]" : "bg-[var(--br-border)]"}`} aria-label={`Preview slide ${itemIndex + 1}: ${item.title}`} />)}</div>
       <main className="flex min-h-0 w-full flex-1 flex-col overflow-y-auto px-2 py-3 sm:px-5 sm:py-5">
-        <div className={`mx-auto w-full transition-[max-width] duration-300 ${previewWidths[previewDevice] === "max-w-none" ? "max-w-5xl" : previewWidths[previewDevice]}`} data-preview-device={previewDevice.toLowerCase()}>
-        {slide ? <section className="rounded-[18px] border border-[var(--br-border)] bg-surface p-2 shadow-sm sm:p-4">
+        <BuilderDevicePreviewFrame device={previewDevice} title={`${previewDevice.toLowerCase()} full preview of ${lesson.title}`} minHeight={560}>
+        {slide ? <section className="mx-auto max-w-5xl rounded-[18px] border border-[var(--br-border)] bg-surface p-2 shadow-sm sm:p-4">
           <div className="rounded-[14px] bg-[var(--br-dark-card)] px-4 py-3 text-on-dark"><p className="text-[10px] font-black uppercase tracking-[0.12em] text-white/50">Slide {index + 1}{slide.section_label ? ` · ${slide.section_label}` : ""}</p><h3 className="mt-1 text-xl font-black sm:text-2xl">{slide.title}</h3></div>
           <div className="my-3 grid grid-cols-2 gap-2"><button type="button" onClick={() => setTab("LEARN")} className={`inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-black ${tab === "LEARN" ? "bg-[var(--br-brand)] text-on-dark" : "bg-[var(--br-surface-muted)] text-[var(--br-brand)]"}`}><BookOpen size={15} /> Learn</button><button type="button" onClick={() => setTab("PRACTICE")} className={`inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-black ${tab === "PRACTICE" ? "bg-[var(--br-chart-secondary)] text-on-dark" : "bg-[var(--br-success-soft)] text-[var(--br-chart-secondary)]"}`}><PenLine size={15} /> Practice</button></div>
           {tab === "LEARN" ? slideBlocks.length ? <div className="lesson-builder-content"><LessonBlockPreview blocks={slideBlocks} /></div> : <div className="grid min-h-56 place-items-center rounded-xl border border-dashed border-[var(--br-border)] text-sm text-[var(--br-text-muted)]">No Learn content on this slide.</div> : slideActivities.length ? <div className="space-y-3">{slideActivities.map((activity) => <LessonActivityPanel key={activity.id} activity={{ id: activity.id, activity_type: activity.activity_type, activity_data: activity.activity_data }} onNext={() => go(index + 1)} previewOnly />)}</div> : <div className="grid min-h-56 place-items-center rounded-xl border border-dashed border-[var(--br-border)] text-sm text-[var(--br-text-muted)]">No Practice activity on this slide.</div>}
         </section> : <div className="grid flex-1 place-items-center text-sm text-[var(--br-text-muted)]">This lesson has no slides yet.</div>}
-        </div>
+        </BuilderDevicePreviewFrame>
       </main>
       <footer className="flex items-center justify-between gap-3 border-t border-[var(--br-border)] bg-surface px-3 py-3 sm:px-5"><button type="button" onClick={() => go(index - 1)} disabled={index <= 0} className="inline-flex items-center gap-2 rounded-lg border border-[var(--br-border)] px-3 py-2 text-xs font-black disabled:opacity-35"><ArrowLeft size={14} /> Previous</button><label className="text-xs font-bold text-[var(--br-text-muted)]"><span className="sr-only">Jump to slide</span><select value={index} onChange={(event) => go(Number(event.target.value))} className="rounded-lg border border-[var(--br-border)] bg-surface px-3 py-2 text-xs font-black text-ink">{slides.map((item, itemIndex) => <option key={item.id} value={itemIndex}>{itemIndex + 1}. {item.title}</option>)}</select></label><button type="button" onClick={() => go(index + 1)} disabled={index >= slides.length - 1} className="inline-flex items-center gap-2 rounded-lg bg-[var(--br-brand)] px-3 py-2 text-xs font-black text-on-dark disabled:opacity-35">Next <ArrowRight size={14} /></button></footer>
     </div>
