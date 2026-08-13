@@ -11,7 +11,7 @@ export function AdminShell({
 }) {
   return (
     <div className="min-h-screen bg-[var(--br-surface-muted)] px-3 py-4 sm:px-4 sm:py-6">
-      <div className="mx-auto w-full max-w-7xl">
+      <div className="mx-auto w-full max-w-[1800px]">
       {/* Mobile: top bar (original behaviour) */}
       <div className="mb-4 md:hidden">
         <AdminSidebar name={name} role={role} mobileTop />

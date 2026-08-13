@@ -5,6 +5,7 @@ import { deleteSlideActivity, updateSlideActivity } from "@/app/admin/lessons/ac
 import type { Json } from "@/types/database.types";
 import { useDeleteConfirm } from "@/components/DeleteConfirmModal";
 import { MediaRecorderInput } from "@/components/MediaRecorderInput";
+import { lessonActivityDefinition } from "@/lib/lessonActivityCatalog";
 
 type Activity = {
   id: string;
@@ -103,6 +104,8 @@ function asRecord(value: unknown): Record<string, unknown> {
 }
 
 function labelFor(type: string) {
+  const catalogLabel = lessonActivityDefinition(type)?.label;
+  if (catalogLabel) return `${catalogLabel} Activity`;
   if (type === "MCQ") return "MCQ Activity";
   if (type === "GAP_FILL") return "Gap Fill Activity";
   if (type === "TRUE_FALSE") return "True/False Activity";

@@ -15,6 +15,7 @@ import { ResultsOverview } from "@/components/gamification/ResultsOverview";
 import { computeBestStreak, NOTABLE_STREAK_THRESHOLD } from "@/lib/gamification/resultsOverview";
 import { StreakPopup } from "@/components/gamification/StreakPopup";
 import { startSpeakTranslation, startLiveConversation } from "@/components/GeminiLiveTranslation";
+import { lessonActivityDefinition } from "@/lib/lessonActivityCatalog";
 
 type LessonSlideActivity = {
   id: string; activity_type: string; activity_data: Json | null;
@@ -626,6 +627,8 @@ export function lessonActivityTotalPoints(activity: LessonSlideActivity): number
 }
 
 function activityLabel(type: string) {
+  const catalogLabel = lessonActivityDefinition(type)?.label;
+  if (catalogLabel) return catalogLabel;
   if (type === "MCQ") return "Multiple Choice";
   if (type === "TRUE_FALSE") return "True or False";
   if (type === "GAP_FILL") return "Fill in the Blanks";
