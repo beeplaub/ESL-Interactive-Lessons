@@ -2,37 +2,64 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { FileVideo, Link2, Loader2, Music, Plus, UploadCloud, X } from "lucide-react";
+import { ImagePlus, Link2, Loader2, Plus, UploadCloud, X } from "lucide-react";
 import { addMediaLink } from "@/app/admin/media/actions";
 
 export function MediaLibraryUploader() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<"upload" | "link">("upload");
-  const [kind, setKind] = useState<"image" | "audio" | "video">("image");
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState({ complete: 0, total: 0 });
+  const [dragging, setDragging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [linkPending, setLinkPending] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const accept = kind === "image"
-    ? "image/jpeg,image/png,image/webp,image/gif"
-    : kind === "audio"
-    ? "audio/mpeg,audio/mp3,audio/wav,audio/ogg,audio/mp4,audio/webm"
-    : "video/mp4,video/webm,video/ogg,video/quicktime";
+  const accept = "image/*,audio/*,video/*";
 
-  async function handleFile(file: File) {
+  function mediaKind(file: File) {
+    if (file.type.startsWith("image/")) return "image";
+    if (file.type.startsWith("audio/")) return "audio";
+    if (file.type.startsWith("video/")) return "video";
+    const extension = file.name.split(".").pop()?.toLowerCase();
+    if (["jpg", "jpeg", "png", "webp", "gif", "avif"].includes(extension ?? "")) return "image";
+    if (["mp3", "wav", "ogg", "m4a", "aac", "webm"].includes(extension ?? "")) return "audio";
+    if (["mp4", "mov", "m4v", "ogv", "webm"].includes(extension ?? "")) return "video";
+    return null;
+  }
+
+  async function uploadFiles(fileList: FileList | File[]) {
+    const files = Array.from(fileList);
+    if (!files.length || uploading) return;
     setError(null);
     setUploading(true);
+    setUploadProgress({ complete: 0, total: files.length });
+    const failures: string[] = [];
     try {
-      const fd = new FormData();
-      fd.append("file", file);
-      fd.append("type", kind);
-      fd.append("lessonId", "library");
-      const res = await fetch("/api/admin/upload", { method: "POST", body: fd });
-      const data = (await res.json()) as { url?: string; error?: string };
-      if (data.error) throw new Error(data.error);
-      setOpen(false);
+      for (const file of files) {
+        const kind = mediaKind(file);
+        if (!kind) {
+          failures.push(`${file.name}: unsupported file type`);
+          setUploadProgress((progress) => ({ ...progress, complete: progress.complete + 1 }));
+          continue;
+        }
+        try {
+          const fd = new FormData();
+          fd.append("file", file);
+          fd.append("type", kind);
+          fd.append("lessonId", "library");
+          const res = await fetch("/api/admin/upload", { method: "POST", body: fd });
+          const data = (await res.json()) as { url?: string; error?: string };
+          if (!res.ok || data.error) throw new Error(data.error || "Upload failed");
+        } catch (e) {
+          failures.push(`${file.name}: ${e instanceof Error ? e.message : "upload failed"}`);
+        } finally {
+          setUploadProgress((progress) => ({ ...progress, complete: progress.complete + 1 }));
+        }
+      }
+      if (failures.length) setError(failures.join("\n"));
+      else setOpen(false);
       router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Upload failed");
@@ -43,14 +70,13 @@ export function MediaLibraryUploader() {
   }
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (file) void handleFile(file);
+    if (e.target.files?.length) void uploadFiles(e.target.files);
   }
 
   function handleDrop(e: React.DragEvent) {
     e.preventDefault();
-    const file = e.dataTransfer.files?.[0];
-    if (file) void handleFile(file);
+    setDragging(false);
+    if (e.dataTransfer.files?.length) void uploadFiles(e.dataTransfer.files);
   }
 
   async function handleAddLink(formData: FormData) {
@@ -67,20 +93,28 @@ export function MediaLibraryUploader() {
     }
   }
 
-  if (!open) {
-    return (
+  return (
+    <div className="relative flex w-full flex-col items-stretch gap-2 sm:w-auto sm:flex-row sm:items-center">
+      <div
+        onDrop={handleDrop}
+        onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+        onDragLeave={() => setDragging(false)}
+        className={`flex min-h-10 flex-1 items-center justify-center gap-2 rounded-full border border-dashed px-3 py-2 text-xs font-semibold transition sm:min-w-48
+          ${dragging ? "border-violetglow bg-violetglow/10 text-violetglow" : "border-[var(--br-border)] text-[var(--br-text-muted)] hover:border-violetglow/50 hover:text-violetglow"}`}
+      >
+        <UploadCloud size={15} />
+        <span>{uploading ? `Uploading ${uploadProgress.complete}/${uploadProgress.total}…` : "Drop files here"}</span>
+      </div>
       <button
         type="button"
-        onClick={() => setOpen(true)}
-        className="inline-flex shrink-0 items-center gap-2 rounded-full bg-violetglow px-4 py-2.5 text-sm font-semibold text-on-dark shadow-sm hover:bg-violetglow/90"
+        onClick={() => { setOpen(true); setError(null); }}
+        className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-violetglow px-4 py-2.5 text-sm font-semibold text-on-dark shadow-sm hover:bg-violetglow/90 disabled:opacity-60"
+        disabled={uploading}
       >
         <Plus size={16} /> Add New
       </button>
-    );
-  }
 
-  return (
-    <div className="w-full max-w-md rounded-2xl border border-[var(--br-border)] bg-surface p-4 shadow-lg sm:w-[26rem]">
+      {open ? <div className="absolute right-0 top-full z-30 mt-2 w-full max-w-md rounded-2xl border border-[var(--br-border)] bg-surface p-4 shadow-lg sm:w-[26rem]">
       <div className="flex items-center justify-between">
         <div className="inline-flex rounded-full bg-surface-strong p-1 text-sm font-semibold">
           <button
@@ -105,49 +139,27 @@ export function MediaLibraryUploader() {
 
       {tab === "upload" ? (
         <div className="mt-4 space-y-3">
-          <div className="inline-flex rounded-full border border-[var(--br-border)] p-1 text-xs font-semibold">
-            <button
-              type="button"
-              onClick={() => setKind("image")}
-              className={`rounded-full px-3 py-1 ${kind === "image" ? "bg-violetglow text-on-dark" : "text-[var(--br-text-muted)]"}`}
-            >
-              Image
-            </button>
-            <button
-              type="button"
-              onClick={() => setKind("audio")}
-              className={`rounded-full px-3 py-1 ${kind === "audio" ? "bg-violetglow text-on-dark" : "text-[var(--br-text-muted)]"}`}
-            >
-              Audio
-            </button>
-            <button
-              type="button"
-              onClick={() => setKind("video")}
-              className={`rounded-full px-3 py-1 ${kind === "video" ? "bg-violetglow text-on-dark" : "text-[var(--br-text-muted)]"}`}
-            >
-              Video
-            </button>
-          </div>
           <div
             onDrop={handleDrop}
-            onDragOver={(e) => e.preventDefault()}
+            onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+            onDragLeave={() => setDragging(false)}
             onClick={() => !uploading && inputRef.current?.click()}
             className={`relative flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-8 text-center transition
-              ${uploading ? "border-violetglow/40 bg-violetglow/5 cursor-wait" : "border-[var(--br-border)] hover:border-violetglow/40 hover:bg-violetglow/5"}`}
+              ${uploading ? "border-violetglow/40 bg-violetglow/5 cursor-wait" : dragging ? "border-violetglow bg-violetglow/10" : "border-[var(--br-border)] hover:border-violetglow/40 hover:bg-violetglow/5"}`}
           >
-            <input ref={inputRef} type="file" accept={accept} onChange={handleChange} className="sr-only" />
+            <input ref={inputRef} type="file" multiple accept={accept} onChange={handleChange} className="sr-only" />
             {uploading ? (
               <>
                 <Loader2 size={22} className="animate-spin text-violetglow" />
-                <p className="text-xs text-[var(--br-text-muted)]">Uploading…</p>
+                <p className="text-xs text-[var(--br-text-muted)]">Uploading {uploadProgress.complete} of {uploadProgress.total}…</p>
               </>
             ) : (
               <>
-                {kind === "image" ? <UploadCloud size={22} className="text-[var(--br-text-muted)]" /> : kind === "audio" ? <Music size={22} className="text-[var(--br-text-muted)]" /> : <FileVideo size={22} className="text-[var(--br-text-muted)]" />}
+                <ImagePlus size={22} className="text-[var(--br-text-muted)]" />
                 <p className="text-xs text-[var(--br-text-muted)]">
-                  <span className="font-medium text-violetglow">Click to upload</span> or drag & drop
+                  <span className="font-medium text-violetglow">Choose multiple files</span> or drag & drop
                 </p>
-                <p className="text-[11px] text-[var(--br-text-muted)]">{kind === "image" ? "JPG, PNG, WebP, GIF" : kind === "audio" ? "MP3, WAV, OGG, M4A" : "MP4, WebM, OGG, MOV"}</p>
+                <p className="text-[11px] text-[var(--br-text-muted)]">Images, audio, and video are detected automatically</p>
               </>
             )}
           </div>
@@ -180,7 +192,8 @@ export function MediaLibraryUploader() {
         </form>
       )}
 
-      {error && <p className="mt-2 text-xs text-coral">{error}</p>}
+      {error && <p className="mt-2 whitespace-pre-line text-xs text-coral">{error}</p>}
+      </div> : null}
     </div>
   );
 }
