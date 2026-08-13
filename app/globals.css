@@ -87,6 +87,54 @@ select {
   }
 }
 
+/* Creator builder controls use a slightly more comfortable reading scale.
+   Lesson content remains unchanged so preview typography stays learner-accurate. */
+.lesson-builder-ui .text-\[9px\] {
+  font-size: 0.6875rem;
+  line-height: 0.95rem;
+}
+
+.lesson-builder-ui .text-\[10px\] {
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+.lesson-builder-ui .text-\[11px\],
+.lesson-builder-ui .text-xs {
+  font-size: 0.8125rem;
+  line-height: 1.125rem;
+}
+
+.lesson-builder-ui .text-sm {
+  font-size: 0.9375rem;
+  line-height: 1.4rem;
+}
+
+.lesson-builder-ui .lesson-builder-content .text-\[9px\] {
+  font-size: 9px;
+  line-height: inherit;
+}
+
+.lesson-builder-ui .lesson-builder-content .text-\[10px\] {
+  font-size: 10px;
+  line-height: inherit;
+}
+
+.lesson-builder-ui .lesson-builder-content .text-\[11px\] {
+  font-size: 11px;
+  line-height: inherit;
+}
+
+.lesson-builder-ui .lesson-builder-content .text-xs {
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+.lesson-builder-ui .lesson-builder-content .text-sm {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
 @media (prefers-contrast: more) {
   :root {
     --br-border: var(--br-border-strong);

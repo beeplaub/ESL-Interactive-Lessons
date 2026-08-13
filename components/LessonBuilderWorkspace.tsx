@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { FormEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { Activity, AlignCenter, AlignLeft, AlignRight, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, AlignVerticalJustifyStart, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, AudioLines, BookOpen, ChevronDown, Copy, Eye, GripVertical, Headphones, Library, Mic2, PenLine, Plus, Redo2, Search, Settings, SlidersHorizontal, Target, Trash2, Undo2, X, ChevronRight, RotateCcw } from "lucide-react";
+import { Activity, AlignCenter, AlignLeft, AlignRight, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, AlignVerticalJustifyStart, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, AudioLines, BookOpen, ChevronDown, Copy, Eye, GripVertical, Headphones, Library, Mic2, Monitor, PenLine, Plus, Redo2, Search, Settings, SlidersHorizontal, Smartphone, Tablet, Target, Trash2, Undo2, X, ChevronRight, RotateCcw } from "lucide-react";
 import {
   addBuilderSlideAt,
   addLessonBlock,
@@ -41,6 +41,7 @@ import type { Json } from "@/types/database.types";
 import { useDeleteConfirm } from "@/components/DeleteConfirmModal";
 import { DeleteButton } from "@/components/DeleteButton";
 import { LESSON_ACTIVITY_CATALOG, LESSON_ACTIVITY_SKILLS, type LessonActivitySkill, lessonActivityDefinition } from "@/lib/lessonActivityCatalog";
+import { BuilderModalLayer } from "@/components/BuilderModalLayer";
 
 const blockTypes = [
   "HEADING", "TEXT", "BULLETS", "QUOTE", "CALLOUT",
@@ -115,6 +116,43 @@ type ObeData = {
 
 type Props = { lesson: Lesson; slides: Slide[]; trashedSlides?: TrashedSlide[]; blocks: LessonBlock[]; activities: Activity[]; obe?: ObeData; isAdmin?: boolean };
 type BuilderMode = "SLIDE" | "LEARN" | "PRACTICE";
+type PreviewDevice = "DESKTOP" | "TABLET" | "MOBILE";
+
+const previewWidths: Record<PreviewDevice, string> = {
+  DESKTOP: "max-w-none",
+  TABLET: "max-w-[768px]",
+  MOBILE: "max-w-[390px]",
+};
+
+function PreviewDeviceControl({ value, onChange, dark = false }: {
+  value: PreviewDevice;
+  onChange: (device: PreviewDevice) => void;
+  dark?: boolean;
+}) {
+  const options = [
+    { value: "DESKTOP" as const, label: "Desktop preview", icon: Monitor },
+    { value: "TABLET" as const, label: "Tablet preview", icon: Tablet },
+    { value: "MOBILE" as const, label: "Mobile preview", icon: Smartphone },
+  ];
+
+  return (
+    <div className={`inline-flex rounded-lg border p-1 ${dark ? "border-white/15 bg-white/5" : "border-[var(--br-border)] bg-[var(--br-surface-muted)]"}`} aria-label="Preview device">
+      {options.map(({ value: device, label, icon: Icon }) => (
+        <button
+          key={device}
+          type="button"
+          onClick={() => onChange(device)}
+          className={`grid size-8 place-items-center rounded-md transition ${value === device ? (dark ? "bg-white text-[var(--br-brand)] shadow-sm" : "bg-surface text-[var(--br-brand)] shadow-sm") : (dark ? "text-white/55 hover:text-white" : "text-[var(--br-text-muted)] hover:text-ink")}`}
+          aria-label={label}
+          title={label}
+          aria-pressed={value === device}
+        >
+          <Icon size={15} />
+        </button>
+      ))}
+    </div>
+  );
+}
 
 function asRecord(value: Json | null | undefined): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -180,7 +218,7 @@ function AddSlideModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 px-4">
+    <BuilderModalLayer label={`Add slide after ${afterSlideNumber}`}>
       <div className="w-full max-w-md rounded-xl bg-surface p-5 shadow-2xl">
         <div className="flex items-center justify-between gap-4">
           <h2 className="text-lg font-semibold">Add slide after #{afterSlideNumber}</h2>
@@ -203,7 +241,7 @@ function AddSlideModal({
           </div>
         </div>
       </div>
-    </div>
+    </BuilderModalLayer>
   );
 }
 
@@ -228,7 +266,7 @@ function DuplicateSlideModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 px-4">
+    <BuilderModalLayer label="Duplicate slide">
       <div className="w-full max-w-md rounded-xl bg-surface p-5 shadow-2xl">
         <div className="flex items-start justify-between gap-4">
           <div><h2 className="text-lg font-semibold">Duplicate slide</h2><p className="mt-1 text-sm text-[var(--br-text-muted)]">A full copy will appear immediately after this slide.</p></div>
@@ -241,7 +279,7 @@ function DuplicateSlideModal({
           </button>
         </div>
       </div>
-    </div>
+    </BuilderModalLayer>
   );
 }
 
@@ -283,8 +321,8 @@ function SlideTrashModal({ lessonId, slides, onClose, onRestored, onBusy }: {
   const visibleSlides = slides.filter((slide) => !hiddenIds.includes(slide.id));
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 px-4 py-6">
-      <div className="max-h-[80vh] w-full max-w-lg overflow-auto rounded-xl bg-surface p-5 shadow-2xl">
+    <BuilderModalLayer label="Slide trash">
+      <div className="max-h-[calc(100dvh-1.5rem)] w-full max-w-lg overflow-auto rounded-xl bg-surface p-5 shadow-2xl sm:max-h-[calc(100dvh-3rem)]">
         <div className="flex items-start justify-between gap-4">
           <div><h2 className="text-lg font-semibold">Slide trash</h2><p className="mt-1 text-sm text-[var(--br-text-muted)]">Restoring a slide brings back its blocks, activity, and saved learner evidence.</p></div>
           <button type="button" onClick={onClose} className="rounded-md border border-[var(--br-border)] p-1.5 hover:bg-black/5"><X size={16} /></button>
@@ -301,7 +339,7 @@ function SlideTrashModal({ lessonId, slides, onClose, onRestored, onBusy }: {
           </div>)}
         </div> : <div className="mt-5 rounded-lg border border-dashed border-[var(--br-border)] bg-surface-muted p-8 text-center text-sm text-[var(--br-text-muted)]">No deleted slides in this lesson.</div>}
       </div>
-    </div>
+    </BuilderModalLayer>
   );
 }
 
@@ -381,8 +419,8 @@ function AiGeneratorModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 px-4 py-6">
-      <div className="flex flex-col max-h-[90vh] w-full max-w-2xl overflow-hidden rounded-xl bg-surface shadow-2xl">
+    <BuilderModalLayer label="Generate lesson with AI">
+      <div className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl flex-col overflow-hidden rounded-xl bg-surface shadow-2xl sm:max-h-[calc(100dvh-3rem)]">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-[var(--br-border)] px-5 py-4">
           <div className="flex items-center gap-2">
@@ -541,7 +579,7 @@ function AiGeneratorModal({
           )}
         </div>
       </div>
-    </div>
+    </BuilderModalLayer>
   );
 }
 
@@ -554,6 +592,7 @@ export function LessonBuilderWorkspace({ lesson, slides, trashedSlides = [], blo
   });
   const [isMetadataOpen, setIsMetadataOpen] = useState(false);
   const [builderMode, setBuilderMode] = useState<BuilderMode>("LEARN");
+  const [previewDevice, setPreviewDevice] = useState<PreviewDevice>("DESKTOP");
   const [isLessonPreviewOpen, setIsLessonPreviewOpen] = useState(false);
   const [isAiGeneratorOpen, setIsAiGeneratorOpen] = useState(false);
   const [isAiMenuOpen, setIsAiMenuOpen] = useState(false);
@@ -690,7 +729,7 @@ export function LessonBuilderWorkspace({ lesson, slides, trashedSlides = [], blo
 
   return (
     <main
-      className="mx-auto max-w-[1800px] overflow-x-hidden px-1.5 py-3 sm:px-3 sm:py-4"
+      className="lesson-builder-ui mx-auto max-w-[1800px] overflow-x-hidden px-1.5 py-3 sm:px-3 sm:py-4"
       onSubmitCapture={(event) => {
         const form = event.target instanceof HTMLFormElement ? event.target : null;
         setBusyMessage(form?.dataset.busyMessage || "Applying changes...");
@@ -714,8 +753,8 @@ export function LessonBuilderWorkspace({ lesson, slides, trashedSlides = [], blo
       {duplicateSlide && <DuplicateSlideModal lessonId={lesson.id} sourceSlide={duplicateSlide} onClose={() => setDuplicateSlide(null)} onBusy={setBusyMessage} onDuplicated={selectSlide} onOptimisticDuplicate={optimisticDuplicateSlide} />}
       {isSlideTrashOpen && <SlideTrashModal lessonId={lesson.id} slides={trashedSlides} onClose={() => setIsSlideTrashOpen(false)} onBusy={setBusyMessage} onRestored={selectSlide} />}
       {isMetadataOpen && (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 px-4 py-6">
-          <div className="max-h-[90vh] w-full max-w-3xl overflow-auto rounded-xl bg-surface p-5 shadow-2xl">
+        <BuilderModalLayer label="Lesson settings">
+          <div className="max-h-[calc(100dvh-1.5rem)] w-full max-w-3xl overflow-auto rounded-xl bg-surface p-5 shadow-2xl sm:max-h-[calc(100dvh-3rem)]">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-xl font-semibold">Lesson settings</h2>
@@ -725,7 +764,7 @@ export function LessonBuilderWorkspace({ lesson, slides, trashedSlides = [], blo
             </div>
             <MetadataForm lesson={lesson} obe={obe} />
           </div>
-        </div>
+        </BuilderModalLayer>
       )}
       {isAiGeneratorOpen && (
         <AiGeneratorModal
@@ -841,14 +880,17 @@ export function LessonBuilderWorkspace({ lesson, slides, trashedSlides = [], blo
               <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--br-brand)]">Learner preview</p>
               <h2 className="mt-1 text-sm font-black text-ink">{selectedSlide ? `Slide ${selectedIndex + 1} of ${localSlides.length}` : "No slide selected"}</h2>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <PreviewDeviceControl value={previewDevice} onChange={setPreviewDevice} />
               <button type="button" onClick={() => selectRelative(-1)} disabled={selectedIndex <= 0} className="rounded-md border border-[var(--br-border)] p-2 hover:bg-black/5 disabled:opacity-35"><ArrowLeft size={16} /></button>
               <span className="min-w-16 text-center text-sm text-[var(--br-text-muted)]">{selectedSlide ? `${selectedIndex + 1} / ${localSlides.length}` : "0 / 0"}</span>
               <button type="button" onClick={() => selectRelative(1)} disabled={selectedIndex < 0 || selectedIndex >= localSlides.length - 1} className="rounded-md border border-[var(--br-border)] p-2 hover:bg-black/5 disabled:opacity-35"><ArrowRight size={16} /></button>
             </div>
           </div>
-          <div className="rounded-[18px] bg-[var(--br-canvas-elevated)] p-1.5 sm:p-2">
-            <div className="min-h-[480px] rounded-[15px] bg-surface p-2 shadow-inner sm:p-3">
+          <div className="overflow-x-auto pb-1">
+            <div className={`mx-auto w-full transition-[max-width] duration-300 ${previewWidths[previewDevice]}`} data-preview-device={previewDevice.toLowerCase()}>
+              <div className="rounded-[18px] bg-[var(--br-canvas-elevated)] p-1.5 sm:p-2">
+                <div className="min-h-[480px] rounded-[15px] bg-surface p-2 shadow-inner sm:p-3">
               {selectedSlide ? (
                 <>
                   <div className="mb-3 rounded-[14px] bg-[var(--br-dark-card)] px-4 py-3 text-on-dark">
@@ -857,11 +899,13 @@ export function LessonBuilderWorkspace({ lesson, slides, trashedSlides = [], blo
                     {selectedSlide.section_label && <p className="mt-1 text-sm text-white/60">{selectedSlide.section_label}</p>}
                   </div>
                   <div className="mb-3 grid grid-cols-2 gap-2" role="tablist" aria-label="Preview Learn or Practice"><button type="button" onClick={() => setBuilderMode("LEARN")} className={`inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-black ${builderMode !== "PRACTICE" ? "bg-[var(--br-brand)] text-on-dark shadow-sm" : "bg-[var(--br-surface-muted)] text-[var(--br-brand)]"}`}><BookOpen size={15} /> Learn</button><button type="button" onClick={() => setBuilderMode("PRACTICE")} className={`inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-black ${builderMode === "PRACTICE" ? "bg-[var(--br-chart-secondary)] text-on-dark shadow-sm" : "bg-[var(--br-success-soft)] text-[var(--br-chart-secondary)]"}`}><PenLine size={15} /> Practice</button></div>
-                  {builderMode === "PRACTICE" ? selectedActivities.length ? <div className="space-y-3">{selectedActivities.map((activity) => <LessonActivityPanel key={activity.id} activity={{ id: activity.id, activity_type: activity.activity_type, activity_data: activity.activity_data }} onNext={() => selectRelative(1)} previewOnly />)}</div> : <button type="button" onClick={() => setBuilderMode("PRACTICE")} className="grid min-h-56 w-full place-items-center rounded-xl border border-dashed border-[var(--br-border)] p-6 text-center text-sm text-[var(--br-text-muted)]">No Practice activity on this slide yet.</button> : selectedBlocks.length ? <LessonBlockPreview blocks={selectedBlocks} /> : <button type="button" onClick={() => setBuilderMode("LEARN")} className="grid min-h-56 w-full place-items-center rounded-xl border border-dashed border-[var(--br-border)] p-6 text-center text-sm text-[var(--br-text-muted)]">No Learn content on this slide yet.</button>}
+                  {builderMode === "PRACTICE" ? selectedActivities.length ? <div className="space-y-3">{selectedActivities.map((activity) => <LessonActivityPanel key={activity.id} activity={{ id: activity.id, activity_type: activity.activity_type, activity_data: activity.activity_data }} onNext={() => selectRelative(1)} previewOnly />)}</div> : <button type="button" onClick={() => setBuilderMode("PRACTICE")} className="grid min-h-56 w-full place-items-center rounded-xl border border-dashed border-[var(--br-border)] p-6 text-center text-sm text-[var(--br-text-muted)]">No Practice activity on this slide yet.</button> : selectedBlocks.length ? <div className="lesson-builder-content"><LessonBlockPreview blocks={selectedBlocks} /></div> : <button type="button" onClick={() => setBuilderMode("LEARN")} className="grid min-h-56 w-full place-items-center rounded-xl border border-dashed border-[var(--br-border)] p-6 text-center text-sm text-[var(--br-text-muted)]">No Learn content on this slide yet.</button>}
                 </>
               ) : (
                 <div className="grid min-h-[360px] place-items-center text-center text-sm text-[var(--br-text-muted)]">Add your first slide below.</div>
               )}
+                </div>
+              </div>
             </div>
           </div>
           <div className="mt-3 flex items-center justify-between gap-3 border-t border-[var(--br-border)] pt-3"><button type="button" onClick={() => selectRelative(-1)} disabled={selectedIndex <= 0} className="inline-flex items-center gap-2 rounded-lg border border-[var(--br-border)] px-3 py-2 text-xs font-black disabled:opacity-35"><ArrowLeft size={14} /> Previous</button><span className="text-[10px] font-bold text-[var(--br-text-muted)]">Preview follows the selected editor tab</span><button type="button" onClick={() => selectRelative(1)} disabled={selectedIndex < 0 || selectedIndex >= localSlides.length - 1} className="inline-flex items-center gap-2 rounded-lg border border-[var(--br-border)] px-3 py-2 text-xs font-black disabled:opacity-35">Next <ArrowRight size={14} /></button></div>
@@ -937,6 +981,7 @@ function LessonPreviewModal({ lesson, slides, blocks, activities, initialSlideId
   const initialIndex = Math.max(0, slides.findIndex((slide) => slide.id === initialSlideId));
   const [index, setIndex] = useState(initialIndex);
   const [tab, setTab] = useState<"LEARN" | "PRACTICE">("LEARN");
+  const [previewDevice, setPreviewDevice] = useState<PreviewDevice>("DESKTOP");
   const slide = slides[index] ?? null;
   const slideBlocks = slide ? blocks.filter((block) => block.slide_id === slide.id) : [];
   const slideActivities = slide ? activities.filter((activity) => activity.slide_id === slide.id) : [];
@@ -949,21 +994,25 @@ function LessonPreviewModal({ lesson, slides, blocks, activities, initialSlideId
   }
 
   return (
-    <div className="fixed inset-0 z-[80] flex flex-col bg-[var(--br-canvas)]" role="dialog" aria-modal="true" aria-label={`Preview ${lesson.title}`}>
+    <BuilderModalLayer label={`Preview ${lesson.title}`} className="bg-[var(--br-canvas)] backdrop-blur-none" fullBleed>
+    <div className="flex min-h-dvh w-full flex-col bg-[var(--br-canvas)]">
       <header className="flex min-w-0 items-center justify-between gap-3 border-b border-white/10 bg-[var(--br-dark-card)] px-3 py-3 text-on-dark sm:px-5">
         <div className="min-w-0"><p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/50">Creator preview</p><h2 className="truncate text-base font-black sm:text-lg">{lesson.title}</h2></div>
-        <div className="flex shrink-0 items-center gap-2"><span className="hidden rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-white/70 sm:inline">Slide {index + 1} of {slides.length}</span><button type="button" onClick={onClose} className="grid size-9 place-items-center rounded-lg border border-white/15 hover:bg-white/10" aria-label="Close lesson preview"><X size={17} /></button></div>
+        <div className="flex shrink-0 items-center gap-2"><PreviewDeviceControl value={previewDevice} onChange={setPreviewDevice} dark /><span className="hidden rounded-full bg-white/10 px-3 py-1 text-xs font-bold text-white/70 lg:inline">Slide {index + 1} of {slides.length}</span><button type="button" onClick={onClose} className="grid size-9 place-items-center rounded-lg border border-white/15 hover:bg-white/10" aria-label="Close lesson preview"><X size={17} /></button></div>
       </header>
       <div className="flex gap-1 px-3 pt-3 sm:px-5" aria-label="Lesson progress">{slides.map((item, itemIndex) => <button key={item.id} type="button" onClick={() => go(itemIndex)} className={`h-1.5 min-w-1 flex-1 rounded-full transition ${itemIndex <= index ? "bg-[var(--br-brand)]" : "bg-[var(--br-border)]"}`} aria-label={`Preview slide ${itemIndex + 1}: ${item.title}`} />)}</div>
-      <main className="mx-auto flex min-h-0 w-full max-w-5xl flex-1 flex-col overflow-y-auto px-2 py-3 sm:px-5 sm:py-5">
+      <main className="flex min-h-0 w-full flex-1 flex-col overflow-y-auto px-2 py-3 sm:px-5 sm:py-5">
+        <div className={`mx-auto w-full transition-[max-width] duration-300 ${previewWidths[previewDevice] === "max-w-none" ? "max-w-5xl" : previewWidths[previewDevice]}`} data-preview-device={previewDevice.toLowerCase()}>
         {slide ? <section className="rounded-[18px] border border-[var(--br-border)] bg-surface p-2 shadow-sm sm:p-4">
           <div className="rounded-[14px] bg-[var(--br-dark-card)] px-4 py-3 text-on-dark"><p className="text-[10px] font-black uppercase tracking-[0.12em] text-white/50">Slide {index + 1}{slide.section_label ? ` · ${slide.section_label}` : ""}</p><h3 className="mt-1 text-xl font-black sm:text-2xl">{slide.title}</h3></div>
           <div className="my-3 grid grid-cols-2 gap-2"><button type="button" onClick={() => setTab("LEARN")} className={`inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-black ${tab === "LEARN" ? "bg-[var(--br-brand)] text-on-dark" : "bg-[var(--br-surface-muted)] text-[var(--br-brand)]"}`}><BookOpen size={15} /> Learn</button><button type="button" onClick={() => setTab("PRACTICE")} className={`inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-black ${tab === "PRACTICE" ? "bg-[var(--br-chart-secondary)] text-on-dark" : "bg-[var(--br-success-soft)] text-[var(--br-chart-secondary)]"}`}><PenLine size={15} /> Practice</button></div>
-          {tab === "LEARN" ? slideBlocks.length ? <LessonBlockPreview blocks={slideBlocks} /> : <div className="grid min-h-56 place-items-center rounded-xl border border-dashed border-[var(--br-border)] text-sm text-[var(--br-text-muted)]">No Learn content on this slide.</div> : slideActivities.length ? <div className="space-y-3">{slideActivities.map((activity) => <LessonActivityPanel key={activity.id} activity={{ id: activity.id, activity_type: activity.activity_type, activity_data: activity.activity_data }} onNext={() => go(index + 1)} previewOnly />)}</div> : <div className="grid min-h-56 place-items-center rounded-xl border border-dashed border-[var(--br-border)] text-sm text-[var(--br-text-muted)]">No Practice activity on this slide.</div>}
+          {tab === "LEARN" ? slideBlocks.length ? <div className="lesson-builder-content"><LessonBlockPreview blocks={slideBlocks} /></div> : <div className="grid min-h-56 place-items-center rounded-xl border border-dashed border-[var(--br-border)] text-sm text-[var(--br-text-muted)]">No Learn content on this slide.</div> : slideActivities.length ? <div className="space-y-3">{slideActivities.map((activity) => <LessonActivityPanel key={activity.id} activity={{ id: activity.id, activity_type: activity.activity_type, activity_data: activity.activity_data }} onNext={() => go(index + 1)} previewOnly />)}</div> : <div className="grid min-h-56 place-items-center rounded-xl border border-dashed border-[var(--br-border)] text-sm text-[var(--br-text-muted)]">No Practice activity on this slide.</div>}
         </section> : <div className="grid flex-1 place-items-center text-sm text-[var(--br-text-muted)]">This lesson has no slides yet.</div>}
+        </div>
       </main>
       <footer className="flex items-center justify-between gap-3 border-t border-[var(--br-border)] bg-surface px-3 py-3 sm:px-5"><button type="button" onClick={() => go(index - 1)} disabled={index <= 0} className="inline-flex items-center gap-2 rounded-lg border border-[var(--br-border)] px-3 py-2 text-xs font-black disabled:opacity-35"><ArrowLeft size={14} /> Previous</button><label className="text-xs font-bold text-[var(--br-text-muted)]"><span className="sr-only">Jump to slide</span><select value={index} onChange={(event) => go(Number(event.target.value))} className="rounded-lg border border-[var(--br-border)] bg-surface px-3 py-2 text-xs font-black text-ink">{slides.map((item, itemIndex) => <option key={item.id} value={itemIndex}>{itemIndex + 1}. {item.title}</option>)}</select></label><button type="button" onClick={() => go(index + 1)} disabled={index >= slides.length - 1} className="inline-flex items-center gap-2 rounded-lg bg-[var(--br-brand)] px-3 py-2 text-xs font-black text-on-dark disabled:opacity-35">Next <ArrowRight size={14} /></button></footer>
     </div>
+    </BuilderModalLayer>
   );
 }
 
@@ -993,8 +1042,8 @@ function ActivityPickerModal({ lessonId, slide, onClose, onOpenBank, onOpenAi }:
   }
 
   return (
-    <div className="fixed inset-0 z-[70] grid place-items-center bg-black/50 px-3 py-5 backdrop-blur-[2px]" role="dialog" aria-modal="true" aria-labelledby="activity-picker-title">
-      <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-[18px] border border-[var(--br-border)] bg-surface shadow-2xl">
+    <BuilderModalLayer labelledBy="activity-picker-title">
+      <div className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-5xl flex-col overflow-hidden rounded-[18px] border border-[var(--br-border)] bg-surface shadow-2xl sm:max-h-[calc(100dvh-3rem)]">
         <div className="flex items-start justify-between gap-4 border-b border-[var(--br-border)] px-4 py-4 sm:px-5">
           <div>
             <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[var(--br-chart-secondary)]">Practice</p>
@@ -1035,7 +1084,7 @@ function ActivityPickerModal({ lessonId, slide, onClose, onOpenBank, onOpenAi }:
           </form>
         </div>
       </div>
-    </div>
+    </BuilderModalLayer>
   );
 }
 
@@ -1122,8 +1171,8 @@ function SelectedSlideEditor({
           <ActivityBankModal lessonId={lessonId} slide={slide} slides={slides} activities={activities} onClose={() => setIsActivityBankOpen(false)} />
         ) : null}
         {isMappingOpen && obe && (
-          <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 px-3 py-6">
-            <div className="flex max-h-[90vh] w-full max-w-3xl flex-col rounded-xl bg-surface p-4 shadow-2xl sm:p-5">
+          <BuilderModalLayer label="Outcome and scoring mapping">
+            <div className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-3xl flex-col rounded-xl bg-surface p-4 shadow-2xl sm:max-h-[calc(100dvh-3rem)] sm:p-5">
               <div className="flex items-start justify-between gap-4 border-b border-[var(--br-border)] pb-3">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wide text-[var(--br-chart-primary)] font-bold">Outcome &amp; Scoring Mapping</p>
@@ -1148,7 +1197,7 @@ function SelectedSlideEditor({
                 ))}
               </div>
             </div>
-          </div>
+          </BuilderModalLayer>
         )}
         {isAiGenOpen && (
           <AiActivityGeneratorModal
@@ -1169,8 +1218,8 @@ function BlockEditModal({
   lessonId: string; slideId: string; block: LessonBlock; blockIndex: number; blockCount: number; onClose: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 px-3 py-6">
-      <div className="max-h-[92vh] w-full max-w-3xl overflow-auto rounded-xl bg-surface p-4 shadow-2xl sm:p-5">
+    <BuilderModalLayer label={`Edit ${labelForBlockType(block.block_type)} content block`}>
+      <div className="max-h-[calc(100dvh-1.5rem)] w-full max-w-3xl overflow-auto rounded-xl bg-surface p-4 shadow-2xl sm:max-h-[calc(100dvh-3rem)] sm:p-5">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-wide text-moss">Edit content block</p>
@@ -1213,7 +1262,7 @@ function BlockEditModal({
           </div>
         </div>
       </div>
-    </div>
+    </BuilderModalLayer>
   );
 }
 
@@ -1252,8 +1301,8 @@ function ActivityBankModal({ lessonId, slide, slides, activities, onClose }: {
   lessonId: string; slide: Slide; slides: Slide[]; activities: Activity[]; onClose: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 px-3 py-6">
-      <div className="max-h-[90vh] w-full max-w-2xl overflow-auto rounded-xl bg-surface p-4 shadow-2xl sm:p-5">
+    <BuilderModalLayer label="Activity bank">
+      <div className="max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl overflow-auto rounded-xl bg-surface p-4 shadow-2xl sm:max-h-[calc(100dvh-3rem)] sm:p-5">
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-moss">Activity bank</p>
@@ -1264,7 +1313,7 @@ function ActivityBankModal({ lessonId, slide, slides, activities, onClose }: {
         </div>
         <ActivityBank lessonId={lessonId} slide={slide} slides={slides} activities={activities} />
       </div>
-    </div>
+    </BuilderModalLayer>
   );
 }
 

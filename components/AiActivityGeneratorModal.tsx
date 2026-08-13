@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Sparkles, X, ChevronRight, AlertCircle, CheckCircle } from "lucide-react";
 import { generateActivityQuestionsAction } from "@/app/admin/lessons/aiActions";
 import { insertGeneratedQuestionsAction } from "@/app/admin/lessons/actions";
+import { BuilderModalLayer } from "@/components/BuilderModalLayer";
 import type { Json } from "@/types/database.types";
 
 type Activity = {
@@ -113,8 +114,8 @@ export default function AiActivityGeneratorModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 px-3 py-6 backdrop-blur-sm">
-      <div className="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-xl bg-surface p-5 shadow-2xl transition-all duration-300">
+    <BuilderModalLayer label="Generate activity with AI">
+      <div className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl flex-col rounded-xl bg-surface p-5 shadow-2xl transition-all duration-300 sm:max-h-[calc(100dvh-3rem)]">
         
         {/* Header */}
         <div className="flex items-start justify-between gap-4 border-b border-[var(--br-border)] pb-3">
@@ -333,6 +334,6 @@ export default function AiActivityGeneratorModal({
         </div>
 
       </div>
-    </div>
+    </BuilderModalLayer>
   );
 }

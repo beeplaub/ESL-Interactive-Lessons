@@ -6,6 +6,7 @@ import type { Json } from "@/types/database.types";
 import { useDeleteConfirm } from "@/components/DeleteConfirmModal";
 import { MediaRecorderInput } from "@/components/MediaRecorderInput";
 import { lessonActivityDefinition } from "@/lib/lessonActivityCatalog";
+import { BuilderModalLayer } from "@/components/BuilderModalLayer";
 
 type Activity = {
   id: string;
@@ -715,8 +716,8 @@ function ActivityPanel({
         </button>
       </div>
       {isOpen ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/45 px-3 py-6">
-          <div className="max-h-[92vh] w-full max-w-4xl overflow-auto rounded-xl bg-surface p-4 shadow-2xl sm:p-5">
+        <BuilderModalLayer label={`Edit ${labelFor(activity.activity_type)} activity`}>
+          <div className="max-h-[calc(100dvh-1.5rem)] w-full max-w-4xl overflow-auto rounded-xl bg-surface p-4 shadow-2xl sm:max-h-[calc(100dvh-3rem)] sm:p-5">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-moss">Activity editor</p>
@@ -788,7 +789,7 @@ function ActivityPanel({
               </div>
             </div>
           </div>
-        </div>
+        </BuilderModalLayer>
       ) : null}
     </div>
   );
