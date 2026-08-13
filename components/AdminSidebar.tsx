@@ -20,6 +20,7 @@ import {
   Library,
   ListChecks,
   LogOut,
+  Menu,
   Palette,
   Plus,
   Radio,
@@ -28,6 +29,7 @@ import {
   Sparkles,
   Target,
   UsersRound,
+  X,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { signOut, switchToLearnerView } from "@/app/auth/actions";
@@ -149,6 +151,7 @@ export function AdminSidebar({
   const activeGroup = visibleGroups.find((group) => group.links.some((link) => link.href === activeHref))?.id ?? null;
   const [collapsed, setCollapsed] = useState(false);
   const [openGroup, setOpenGroup] = useState(activeGroup ?? "build");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -158,6 +161,10 @@ export function AdminSidebar({
     else if (storedGroup && visibleGroups.some((group) => group.id === storedGroup)) setOpenGroup(storedGroup);
     setMounted(true);
   }, [activeGroup, visibleGroups]);
+
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname]);
 
   function toggleSidebar() {
     setCollapsed((current) => {
@@ -189,6 +196,9 @@ export function AdminSidebar({
     { href: "/admin/live-classes#schedule", label: "Live class" },
   ];
   const navigationCollapsed = !mobileTop && collapsed;
+  const activeLabel = pathname === "/admin"
+    ? "Overview"
+    : visibleGroups.flatMap((group) => group.links).find((link) => link.href === activeHref)?.label ?? "Creator workspace";
 
   const navigation = (
     <>
@@ -225,13 +235,34 @@ export function AdminSidebar({
 
   if (mobileTop) {
     return (
-      <div className="rounded-2xl border border-[var(--br-border)] bg-[var(--br-surface)] p-3 shadow-[var(--br-shadow)]">
-        <div className="flex items-center justify-between gap-3 border-b border-[var(--br-border)] pb-3">
-          <div className="min-w-0"><BrandLogo variant="light" className="h-8 w-[112px]" /><p className="mt-2 truncate text-xs font-semibold text-[var(--br-text-muted)]">{name ?? "BrenUp"} · {role.replace("_", " ")}</p></div>
-          <details className="relative"><summary className="grid size-9 cursor-pointer list-none place-items-center rounded-lg bg-[var(--br-brand)] text-on-dark [&::-webkit-details-marker]:hidden" title="Create"><Plus size={17} /></summary><div className="absolute right-0 z-30 mt-2 w-44 rounded-xl border border-[var(--br-border)] bg-surface p-2 shadow-xl">{createLinks.map((item) => <Link key={item.label} href={item.href} className="block rounded-lg px-3 py-2 text-sm font-semibold hover:bg-[var(--br-surface-muted)]">New {item.label}</Link>)}</div></details>
+      <div className="relative z-50">
+        {mobileMenuOpen ? <button type="button" onClick={() => setMobileMenuOpen(false)} className="fixed inset-0 z-40 bg-[var(--br-dark-card)]/20 backdrop-blur-[1px]" aria-label="Dismiss creator navigation" /> : null}
+        <div className="relative z-50 flex h-[58px] items-center gap-3 rounded-2xl border border-white/10 bg-[var(--br-dark-card)] px-3 text-on-dark shadow-[var(--br-shadow)]">
+          <Link href="/admin" className="shrink-0" aria-label="Creator overview"><BrandLogo variant="dark" className="h-8 w-[104px]" priority /></Link>
+          <div className="min-w-0 flex-1 border-l border-white/15 pl-3">
+            <p className="truncate text-[9px] font-black uppercase tracking-[0.14em] text-white/45">{role.replace("_", " ")}</p>
+            <p className="truncate text-xs font-black text-white/90">{activeLabel}</p>
+          </div>
+          <details className="relative shrink-0">
+            <summary className="grid size-9 cursor-pointer list-none place-items-center rounded-xl bg-[var(--br-brand)] text-on-dark shadow-sm [&::-webkit-details-marker]:hidden" title="Create" aria-label="Create content"><Plus size={17} /></summary>
+            <div className="absolute right-0 top-full z-[60] mt-2 w-48 rounded-xl border border-[var(--br-border)] bg-surface p-2 text-ink shadow-2xl">{createLinks.map((item) => <Link key={item.label} href={item.href} className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold hover:bg-[var(--br-surface-muted)]"><Plus size={14} className="text-[var(--br-brand)]" /> New {item.label}</Link>)}</div>
+          </details>
+          <button type="button" onClick={() => setMobileMenuOpen((open) => !open)} aria-expanded={mobileMenuOpen} aria-controls="mobile-creator-navigation" className={`grid size-9 shrink-0 place-items-center rounded-xl border transition ${mobileMenuOpen ? "border-white/25 bg-white text-[var(--br-dark-card)]" : "border-white/15 bg-white/10 text-on-dark hover:bg-white/15"}`} aria-label={mobileMenuOpen ? "Close creator menu" : "Open creator menu"}>
+            {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
+          </button>
         </div>
-        <nav className="mt-3 space-y-1">{navigation}</nav>
-        <div className="mt-3 grid gap-2 border-t border-[var(--br-border)] pt-3 sm:grid-cols-3"><form action={switchToLearnerView}><button className="w-full rounded-lg border border-[var(--br-warning)]/30 px-3 py-2 text-sm font-medium">Learner View</button></form><Link href="/admin/account" className="rounded-lg px-3 py-2 text-center text-sm font-medium text-[var(--br-text-muted)] hover:bg-[var(--br-surface-muted)]">Account</Link><form action={signOut}><button className="w-full rounded-lg px-3 py-2 text-sm text-[var(--br-text-muted)] hover:bg-[var(--br-surface-muted)]">Sign out</button></form></div>
+        <div id="mobile-creator-navigation" className={`absolute inset-x-0 top-[66px] z-50 origin-top overflow-hidden rounded-2xl border border-[var(--br-border)] bg-surface shadow-2xl transition-all duration-200 ${mobileMenuOpen ? "visible translate-y-0 opacity-100" : "invisible -translate-y-2 opacity-0"}`}>
+          <div className="flex items-center gap-3 border-b border-[var(--br-border)] px-3 py-3">
+            <div className="grid size-9 shrink-0 place-items-center rounded-xl bg-[var(--br-brand-soft)] text-[var(--br-brand)]"><UsersRound size={17} /></div>
+            <div className="min-w-0"><p className="truncate text-sm font-black text-ink">{name ?? "BrenUp creator"}</p><p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--br-text-muted)]">{role.replace("_", " ")}</p></div>
+          </div>
+          <nav className="max-h-[min(62vh,520px)] space-y-1 overflow-y-auto overscroll-contain p-2.5">{navigation}</nav>
+          <div className="grid grid-cols-3 gap-1.5 border-t border-[var(--br-border)] p-2.5">
+            <form action={switchToLearnerView}><button className="inline-flex h-full w-full flex-col items-center justify-center gap-1 rounded-xl border border-[var(--br-warning)]/25 px-2 py-2 text-[10px] font-bold text-ink hover:bg-[var(--br-warning)]/5"><UsersRound size={15} />Learner</button></form>
+            <Link href="/admin/account" className="inline-flex flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 text-[10px] font-bold text-[var(--br-text-muted)] hover:bg-[var(--br-surface-muted)]"><Settings size={15} />Account</Link>
+            <form action={signOut}><button className="inline-flex h-full w-full flex-col items-center justify-center gap-1 rounded-xl px-2 py-2 text-[10px] font-bold text-[var(--br-text-muted)] hover:bg-[var(--br-surface-muted)]"><LogOut size={15} />Sign out</button></form>
+          </div>
+        </div>
       </div>
     );
   }
