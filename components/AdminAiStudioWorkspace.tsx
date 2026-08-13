@@ -102,6 +102,7 @@ type Props = {
 
 type View = "overview" | "controls" | "logs";
 type TrendMetric = "requests" | "tokens" | "cost" | "cache";
+type DateRange = "TODAY" | 7 | 30 | 90;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -122,6 +123,23 @@ function formatCost(value: number) {
 
 function readable(value: string) {
   return value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function dhakaDateParts(value: string | number | Date) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Dhaka",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date(value));
+  return Object.fromEntries(parts.map((part) => [part.type, part.value])) as Record<string, string>;
+}
+
+function dhakaDateKey(value: string | number | Date) {
+  const parts = dhakaDateParts(value);
+  return `${parts.year}-${parts.month}-${parts.day}`;
 }
 
 function logStatus(log: GenerationLog) {
@@ -227,7 +245,7 @@ export function AdminAiStudioWorkspace({
 }: Props) {
   const router = useRouter();
   const [view, setView] = useState<View>("overview");
-  const [days, setDays] = useState(30);
+  const [dateRange, setDateRange] = useState<DateRange>("TODAY");
   const [model, setModel] = useState("ALL");
   const [feature, setFeature] = useState("ALL");
   const [provider, setProvider] = useState("ALL");
@@ -257,10 +275,12 @@ export function AdminAiStudioWorkspace({
   const models = useMemo(() => Array.from(new Set(initialLogs.map((log) => log.model_used).filter(Boolean))).sort(), [initialLogs]);
   const features = useMemo(() => Array.from(new Set(initialLogs.map((log) => log.feature_key).filter(Boolean))).sort(), [initialLogs]);
   const providers = useMemo(() => Array.from(new Set(initialLogs.map((log) => log.provider || (log.model_used.startsWith("openrouter") ? "openrouter" : "google")))).sort(), [initialLogs]);
-  const cutoff = Date.now() - days * DAY_MS;
+  const todayKey = dhakaDateKey(Date.now());
+  const rollingDays = dateRange === "TODAY" ? 1 : dateRange;
+  const cutoff = Date.now() - rollingDays * DAY_MS;
 
   const filteredLogs = useMemo(() => initialLogs.filter((log) => {
-    if (new Date(log.created_at).getTime() < cutoff) return false;
+    if (dateRange === "TODAY" ? dhakaDateKey(log.created_at) !== todayKey : new Date(log.created_at).getTime() < cutoff) return false;
     if (model !== "ALL" && log.model_used !== model) return false;
     if (feature !== "ALL" && log.feature_key !== feature) return false;
     const actualProvider = log.provider || (log.model_used.startsWith("openrouter") ? "openrouter" : "google");
@@ -271,12 +291,12 @@ export function AdminAiStudioWorkspace({
       if (!haystack.includes(search.toLowerCase())) return false;
     }
     return true;
-  }), [cutoff, feature, initialLogs, model, provider, search, status]);
+  }), [cutoff, dateRange, feature, initialLogs, model, provider, search, status, todayKey]);
 
   const filteredCredits = useMemo(() => initialCreditUsage.filter((row) => {
-    if (new Date(`${row.usage_date}T00:00:00`).getTime() < cutoff) return false;
+    if (dateRange === "TODAY" ? row.usage_date !== todayKey : new Date(`${row.usage_date}T00:00:00`).getTime() < cutoff) return false;
     return feature === "ALL" || row.feature_key === feature;
-  }), [cutoff, feature, initialCreditUsage]);
+  }), [cutoff, dateRange, feature, initialCreditUsage, todayKey]);
 
   const metrics = useMemo(() => {
     const completed = filteredLogs.filter((log) => logStatus(log) !== "FAILED");
@@ -299,12 +319,17 @@ export function AdminAiStudioWorkspace({
 
   const trend = useMemo(() => {
     const buckets = new Map<string, { requests: number; tokens: number; cost: number; cache: number }>();
-    for (let offset = days - 1; offset >= 0; offset -= 1) {
-      const date = new Date(Date.now() - offset * DAY_MS);
-      buckets.set(date.toISOString().slice(0, 10), { requests: 0, tokens: 0, cost: 0, cache: 0 });
+    if (dateRange === "TODAY") {
+      for (let hour = 0; hour < 24; hour += 1) buckets.set(String(hour).padStart(2, "0"), { requests: 0, tokens: 0, cost: 0, cache: 0 });
+    } else {
+      for (let offset = dateRange - 1; offset >= 0; offset -= 1) {
+        const date = new Date(Date.now() - offset * DAY_MS);
+        buckets.set(dhakaDateKey(date), { requests: 0, tokens: 0, cost: 0, cache: 0 });
+      }
     }
     filteredLogs.forEach((log) => {
-      const key = log.created_at.slice(0, 10);
+      const parts = dhakaDateParts(log.created_at);
+      const key = dateRange === "TODAY" ? parts.hour : `${parts.year}-${parts.month}-${parts.day}`;
       const bucket = buckets.get(key);
       if (!bucket) return;
       bucket.requests += 1;
@@ -313,10 +338,10 @@ export function AdminAiStudioWorkspace({
       if (logStatus(log) === "CACHED") bucket.cache += 1;
     });
     return Array.from(buckets.entries()).map(([date, values]) => ({
-      label: new Date(`${date}T00:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+      label: dateRange === "TODAY" ? `${date}:00` : new Date(`${date}T00:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" }),
       value: values[trendMetric],
     }));
-  }, [days, filteredLogs, trendMetric]);
+  }, [dateRange, filteredLogs, trendMetric]);
 
   const modelBreakdown = useMemo(() => {
     const rows = new Map<string, { requests: number; success: number; cache: number; tokens: number; cost: number; latency: number[] }>();
@@ -357,7 +382,7 @@ export function AdminAiStudioWorkspace({
     return Array.from(rows.entries()).map(([name, row]) => ({ name, ...row })).sort((a, b) => b.requests - a.requests || b.credits - a.credits);
   }, [filteredCredits, filteredLogs]);
 
-  const creditUsers = useMemo(() => new Set(initialDailyBalances.filter((row) => new Date(`${row.usage_date}T00:00:00`).getTime() >= cutoff).map((row) => row.user_id)).size, [cutoff, initialDailyBalances]);
+  const creditUsers = useMemo(() => new Set(initialDailyBalances.filter((row) => dateRange === "TODAY" ? row.usage_date === todayKey : new Date(`${row.usage_date}T00:00:00`).getTime() >= cutoff).map((row) => row.user_id)).size, [cutoff, dateRange, initialDailyBalances, todayKey]);
 
   function handleTemplateChange(key: string) {
     setSelectedTemplateKey(key);
@@ -463,7 +488,7 @@ export function AdminAiStudioWorkspace({
       {view !== "controls" ? (
         <section className="flex flex-col gap-3 rounded-xl border border-[var(--br-border)] bg-surface p-3 shadow-sm xl:flex-row xl:items-center xl:justify-between">
           <div className="flex gap-1 overflow-x-auto">
-            {[7, 30, 90].map((value) => <button key={value} onClick={() => setDays(value)} className={`shrink-0 rounded-lg px-3 py-2 text-xs font-black ${days === value ? "bg-[var(--br-brand)] text-on-dark" : "bg-[var(--br-surface-muted)] text-[var(--br-text-muted)]"}`}>{value} days</button>)}
+            {(["TODAY", 7, 30, 90] as DateRange[]).map((value) => <button key={value} onClick={() => setDateRange(value)} className={`shrink-0 rounded-lg px-3 py-2 text-xs font-black ${dateRange === value ? "bg-[var(--br-brand)] text-on-dark" : "bg-[var(--br-surface-muted)] text-[var(--br-text-muted)]"}`}>{value === "TODAY" ? "Today" : `${value} days`}</button>)}
           </div>
           <div className="flex flex-wrap gap-2">
             <FilterSelect label="Model" value={model} onChange={setModel}><option value="ALL">All models</option>{models.map((item) => <option key={item}>{item}</option>)}</FilterSelect>
@@ -494,7 +519,7 @@ export function AdminAiStudioWorkspace({
 
           <section className="rounded-xl border border-[var(--br-border)] bg-surface p-4 shadow-sm sm:p-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div><h2 className="text-base font-black text-ink">Usage over time</h2><p className="mt-0.5 text-xs text-[var(--br-text-muted)]">Daily activity for the selected filters.</p></div>
+              <div><h2 className="text-base font-black text-ink">Usage over time</h2><p className="mt-0.5 text-xs text-[var(--br-text-muted)]">{dateRange === "TODAY" ? "Hourly activity today in Bangladesh time." : "Daily activity for the selected filters."}</p></div>
               <div className="flex gap-1 overflow-x-auto">
                 {(["requests", "tokens", "cost", "cache"] as TrendMetric[]).map((item) => <button key={item} onClick={() => setTrendMetric(item)} className={`shrink-0 rounded-lg px-2.5 py-1.5 text-[11px] font-black ${trendMetric === item ? "bg-[var(--br-brand)] text-on-dark" : "bg-[var(--br-surface-muted)] text-[var(--br-text-muted)]"}`}>{readable(item)}</button>)}
               </div>
@@ -529,8 +554,8 @@ export function AdminAiStudioWorkspace({
           </div>
 
           <section className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-xl border border-[var(--br-border)] bg-surface p-4"><p className="text-xs font-bold text-[var(--br-text-muted)]">Today, legacy counter</p><p className="mt-1 text-xl font-black">{totalRequestsToday} requests</p></div>
-            <div className="rounded-xl border border-[var(--br-border)] bg-surface p-4"><p className="text-xs font-bold text-[var(--br-text-muted)]">Today, legacy estimate</p><p className="mt-1 text-xl font-black">{formatCompact(totalTokensToday)} tokens</p></div>
+            <div className="rounded-xl border border-[var(--br-border)] bg-surface p-4"><p className="text-xs font-bold text-[var(--br-text-muted)]">Today, request ledger</p><p className="mt-1 text-xl font-black">{totalRequestsToday} requests</p><p className="mt-1 text-[10px] text-[var(--br-text-muted)]">Independent daily usage counter</p></div>
+            <div className="rounded-xl border border-[var(--br-border)] bg-surface p-4"><p className="text-xs font-bold text-[var(--br-text-muted)]">Today, token ledger</p><p className="mt-1 text-xl font-black">{formatCompact(totalTokensToday)} tokens</p><p className="mt-1 text-[10px] text-[var(--br-text-muted)]">Independent daily usage estimate</p></div>
             <div className="rounded-xl border border-[var(--br-border)] bg-surface p-4"><p className="text-xs font-bold text-[var(--br-text-muted)]">Average response latency</p><p className="mt-1 text-xl font-black">{metrics.averageLatency ? `${Math.round(metrics.averageLatency)} ms` : "Collecting"}</p></div>
           </section>
         </div>

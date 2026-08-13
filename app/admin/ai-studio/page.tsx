@@ -4,12 +4,23 @@ import { AdminAiStudioWorkspace } from "@/components/AdminAiStudioWorkspace";
 
 export const dynamic = "force-dynamic";
 
+function dhakaDateKey(date: Date) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Dhaka",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${value.year}-${value.month}-${value.day}`;
+}
+
 export default async function AdminAiStudioPage() {
   // Prompt templates, feature flags, and usage/cost are platform-wide
   // settings, not something any individual course teacher should control.
   await requireAdmin();
   const admin = createAdminClient();
-  const todayStr = new Date().toISOString().split("T")[0];
+  const todayStr = dhakaDateKey(new Date());
   const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
 
   // Fetch prompts, feature flags, logs, and total daily usage counts
