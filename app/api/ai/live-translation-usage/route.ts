@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { settleAiCredits } from "@/lib/ai/efficiency";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -31,5 +32,25 @@ export async function POST(request: Request) {
     console.error("Live translation usage save failed", error);
     return NextResponse.json({ error: "Could not save activity usage." }, { status: 500 });
   }
+  await Promise.all([
+    settleAiCredits({
+      userId: user.id,
+      featureKey: "learner_live_speak_translation",
+      reservedCredits: 0,
+      actualCredits: Math.max(1, Math.ceil(secondsUsed / 30)),
+      audioSeconds: secondsUsed,
+    }),
+    admin.from("ai_generations").insert({
+      user_id: user.id,
+      user_role: "LEARNER",
+      feature_key: "learner_live_speak_translation",
+      model_used: process.env.GEMINI_LIVE_MODEL || "gemini-3.5-live-translate-preview",
+      provider: "google",
+      status: "COMPLETED",
+      response_preview: `${secondsUsed}s live speaking translation`,
+      prompt_version: "live-speak-translation-v1",
+      completed_at: new Date().toISOString(),
+    }),
+  ]);
   return NextResponse.json({ ok: true });
 }

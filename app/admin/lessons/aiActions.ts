@@ -5,7 +5,6 @@ import { requireAdmin, requireLessonAccess, getFreshProfile } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { callGemini } from "@/lib/ai/gemini";
-import { checkUsageQuota, recordUsageEvent } from "@/lib/ai/usage";
 
 // 1. Zod schemas for structured responses from Gemini
 import { z } from "zod";
@@ -144,17 +143,12 @@ export async function generateLessonDraftAction(formData: FormData) {
   const style = String(formData.get("style") || "Communicative ESL");
   const slideCount = String(formData.get("slideCount") || "6");
 
-  // Check daily creator quota
-  const quota = await checkUsageQuota(user.id, profile.role);
-  if (!quota.allowed) {
-    throw new Error(quota.message || "Quota exceeded.");
-  }
-
   // Call Gemini
   const draft = await callGemini<any>({
     templateKey: "creator_lesson_designer",
     variables: { topic, level, outcomes, style, slideCount },
-    responseSchema: slideBlockSchema
+    responseSchema: slideBlockSchema,
+    context: { userId: user.id, userRole: profile.role, cefrLevel: level, cache: true }
   });
 
   const supabase = createAdminClient();
@@ -172,9 +166,6 @@ export async function generateLessonDraftAction(formData: FormData) {
     .single();
 
   if (saveError) throw saveError;
-
-  // Record usage event
-  await recordUsageEvent(user.id, "creator_lesson_designer", 1000);
 
   return { draftId: savedRow.id, draftContent: draft };
 }
@@ -284,11 +275,6 @@ export async function explainQuizAnswerAction(
     const { user, profile } = await getSessionUser();
     isAdmin = profile?.role === "ADMIN";
 
-    const quota = await checkUsageQuota(user.id, profile.role);
-    if (!quota.allowed) {
-      return { error: quota.message };
-    }
-
     const response = await callGemini<{ explanation: string }>({
       templateKey: "learner_answer_explainer",
       variables: {
@@ -296,10 +282,9 @@ export async function explainQuizAnswerAction(
         correctAnswer,
         learnerAnswer,
         level: profile.cefr_level || "B1"
-      }
+      },
+      context: { userId: user.id, userRole: profile.role, cefrLevel: profile.cefr_level || "B1", cache: true }
     });
-
-    await recordUsageEvent(user.id, "learner_answer_explainer", 300);
     return { explanation: response.explanation };
   } catch (error: any) {
     console.error("Error in explainQuizAnswerAction:", error);
@@ -409,12 +394,6 @@ export async function submitRoleplayTurnAction(sessionId: string, learnerText: s
     isAdmin = profile?.role === "ADMIN";
     const supabase = createAdminClient();
 
-    // Check quota
-    const quota = await checkUsageQuota(user.id, profile.role);
-    if (!quota.allowed) {
-      throw new Error(quota.message || "Daily quota exceeded.");
-    }
-
     // A. Fetch session and message history
     const { data: session } = await supabase
       .from("ai_roleplay_sessions")
@@ -448,7 +427,8 @@ export async function submitRoleplayTurnAction(sessionId: string, learnerText: s
         level: session.cefr_level,
         history: historyStr
       },
-      responseSchema: roleplayTurnSchema
+      responseSchema: roleplayTurnSchema,
+      context: { userId: user.id, userRole: profile.role, cefrLevel: session.cefr_level, cache: false }
     });
 
     // C. Insert learner turn with corrections metadata
@@ -465,9 +445,6 @@ export async function submitRoleplayTurnAction(sessionId: string, learnerText: s
       sender: "AI",
       message_text: response.character_reply
     });
-
-    // E. Record usage event
-    await recordUsageEvent(user.id, "learner_roleplay_coach", 500);
 
     return {
       characterReply: response.character_reply,
@@ -521,7 +498,14 @@ export async function completeRoleplaySessionAction(sessionId: string) {
         level: session.cefr_level,
         transcript
       },
-      responseSchema: scorecardSchema
+      responseSchema: scorecardSchema,
+      context: {
+        userId: user.id,
+        userRole: profile.role,
+        cefrLevel: session.cefr_level,
+        assessmentCritical: true,
+        cache: true,
+      }
     });
 
     // Save evaluation scorecard to DB
@@ -547,9 +531,6 @@ export async function completeRoleplaySessionAction(sessionId: string) {
           scorecard: scorecard
         }
       });
-
-    // Record usage event
-    await recordUsageEvent(user.id, "learner_roleplay_evaluator", 800);
 
     return { scorecard };
   } catch (error: any) {
@@ -679,6 +660,7 @@ export async function updateAiFeatureRolesAction(featureKey: string, roles: stri
  */
 export async function testPromptAction(templateKey: string, variablesJson: string) {
   await requireAdmin();
+  const { user, profile } = await getSessionUser();
   let vars: Record<string, string> = {};
   try {
     vars = JSON.parse(variablesJson);
@@ -688,7 +670,8 @@ export async function testPromptAction(templateKey: string, variablesJson: strin
 
   const result = await callGemini<any>({
     templateKey,
-    variables: vars
+    variables: vars,
+    context: { userId: user.id, userRole: profile.role, cache: false }
   });
 
   return result;
@@ -771,6 +754,7 @@ export async function getRoleplaySessionMessagesAction(sessionId: string) {
  */
 export async function getShortAnswerAiFeedbackAction(prompt: string, submission: string, sampleAnswer: string) {
   try {
+    const { user, profile } = await getSessionUser();
     const feedback = await callGemini<{ corrected_text: string; explanation: string }>({
       templateKey: "learner_short_answer_feedback",
       variables: {
@@ -778,7 +762,14 @@ export async function getShortAnswerAiFeedbackAction(prompt: string, submission:
         submission: submission || "",
         sampleAnswer: sampleAnswer || ""
       },
-      responseSchema: shortAnswerFeedbackSchema
+      responseSchema: shortAnswerFeedbackSchema,
+      context: {
+        userId: user.id,
+        userRole: profile.role,
+        cefrLevel: profile.cefr_level || "B1",
+        assessmentCritical: true,
+        cache: true,
+      }
     });
     return { feedback };
   } catch (error) {
@@ -920,11 +911,6 @@ export async function generateActivityQuestionsAction(input: {
     if (!slideRow) throw new Error("That slide no longer exists.");
     await requireLessonAccess(slideRow.lesson_id);
     const { user, profile } = await getSessionUser();
-    const quota = await checkUsageQuota(user.id, profile.role);
-    if (!quota.allowed) {
-      return { success: false, error: quota.message || "Quota limit reached." };
-    }
-
     const supabase = createAdminClient();
     const { data: blocks, error: blocksError } = await supabase
       .from("lesson_blocks")
@@ -994,10 +980,9 @@ export async function generateActivityQuestionsAction(input: {
         guidelines: input.guidelines || "Keep it simple and engaging.",
         activityType: input.activityType
       },
-      responseSchema: responseSchema
+      responseSchema: responseSchema,
+      context: { userId: user.id, userRole: profile.role, cache: true }
     });
-
-    await recordUsageEvent(user.id, "creator_activity_generator", 500);
 
     return { success: true, data: result };
   } catch (error: any) {

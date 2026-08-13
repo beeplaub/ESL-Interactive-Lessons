@@ -841,7 +841,7 @@ export function QuestionCard({
         {question.question_type === "SUMMARIZATION" ? <Summarization question={question} value={value as { text?: string; selfMarked?: boolean } | undefined} submitted={submitted} onChange={onChange} /> : null}
         {question.question_type === "DRAG_DROP" || question.question_type === "CATEGORIZATION" ? <DragDrop question={question} value={(value as Record<string, string>) ?? {}} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "PRONUNCIATION" ? <Pronunciation question={question} value={value as PronunciationValue | undefined} disabled={submitted} onChange={onChange} /> : null}
-        {question.question_type === "ORAL_RESPONSE" ? <OralResponse question={question} value={value as OralResponseValue | undefined} disabled={submitted} submitted={submitted} onChange={onChange} /> : null}
+        {question.question_type === "ORAL_RESPONSE" ? <OralResponse question={question} value={value as OralResponseValue | undefined} disabled={submitted} submitted={submitted} onChange={onChange} quizId={quizId} lessonId={lessonId} /> : null}
         {question.question_type === "INFERENCE_DETECTION" ? <InferenceDetection question={question} value={value as string | undefined} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "HEADINGS_MATCHING" ? <HeadingsMatching question={question} value={(value as Record<string, string>) ?? {}} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "SKIM_CHALLENGE" ? <SkimChallenge question={question} value={(value as Record<string, string>) ?? {}} disabled={submitted} onChange={onChange} /> : null}
@@ -2039,12 +2039,16 @@ function OralResponse({
   disabled,
   submitted,
   onChange,
+  quizId,
+  lessonId,
 }: {
   question: QuizQuestion;
   value?: OralResponseValue;
   disabled: boolean;
   submitted: boolean;
   onChange: (value: OralResponseValue) => void;
+  quizId?: string | null;
+  lessonId?: string | null;
 }) {
   const opts = asRecord(question.options);
   const maxSeconds = Math.max(5, Number(opts.max_seconds ?? 60));
@@ -2155,6 +2159,8 @@ function OralResponse({
             allowSelfGraded={allowSelfGraded}
             allowAiFeedback={opts.allow_ai_feedback !== false}
             allowTeacherReview={opts.allow_teacher_review !== false}
+            quizId={quizId}
+            lessonId={lessonId}
             initialValue={{ ...value, text: value.transcript } as unknown as WritingAnswerValue}
             onGraded={(outcome) => onChange({ ...value, ...outcome, transcript: value.transcript } as OralResponseValue)}
           />

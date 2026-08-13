@@ -1,6 +1,22 @@
 import { GoogleGenAI } from "@google/genai";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { z } from "zod";
+import {
+  type AiCallContext,
+  type AiUsage,
+  claimAiGeneration,
+  defaultCacheTtl,
+  estimateModelCost,
+  featureCredits,
+  getCachedAiResponse,
+  markAiCacheHit,
+  releaseAiCredits,
+  releaseAiGeneration,
+  reserveAiCredits,
+  saveAiResponseCache,
+  settleAiCredits,
+  stableHash,
+  waitForCachedAiResponse,
+} from "@/lib/ai/efficiency";
 
 // Initialize Gemini client lazily when first called
 let aiClient: GoogleGenAI | null = null;
@@ -225,11 +241,45 @@ Your response must follow this JSON schema exactly:
     "grammar_range": 80,
     "overall": 76
   },
+
   "feedback": "Overall review summary",
   "corrections": [
     {"original": "original text", "corrected": "corrected text", "explanation": "Why"}
   ]
 }`
+  },
+
+  learner_writing_grading_v1: {
+    role_description: "You are a careful CEFR writing assessor. Judge only the submitted writing and never invent evidence.",
+    prompt_text: `Writing task: "{prompt}"
+Learner submission: "{submission}"
+Target CEFR level: {level}.
+
+Assess task response, coherence, lexical resource, and grammar range against the target CEFR level. Give concise, actionable feedback. Do not use IELTS band assumptions unless the task explicitly asks for IELTS.
+
+Return only the JSON shape requested by the response schema.`
+  },
+
+  learner_oral_response_grading_v1: {
+    role_description: "You are a fair CEFR speaking assessor evaluating an automatic speech-recognition transcript.",
+    prompt_text: `Speaking task: "{prompt}"
+Automatic transcript of the learner's spoken response: "{submission}"
+Target CEFR level: {level}.
+
+Judge communicative fluency signals, vocabulary, spoken clarity signals visible in the transcript, sentence structure, and task achievement. Ignore punctuation, capitalization, formatting, and likely speech-recognition spelling or homophone errors. Never claim to have heard pronunciation or audio because only a transcript is available.
+
+Return only the JSON shape requested by the response schema.`
+  },
+
+  learner_dialogue_grading_v1: {
+    role_description: "You are a careful CEFR dialogue assessor. Judge interactional language without inventing context.",
+    prompt_text: `Dialogue task and context: "{prompt}"
+Learner dialogue: "{submission}"
+Target CEFR level: {level}.
+
+Assess turn-taking flow, grammar accuracy, pragmatic tone, task achievement, and appropriate use of any stated target phrases.
+
+Return only the JSON shape requested by the response schema.`
   },
 
   learner_short_answer_feedback: {
@@ -265,21 +315,18 @@ export async function callGemini<T>({
   templateKey,
   variables,
   responseSchema,
-  fallbackModel
+  fallbackModel,
+  context,
 }: {
   templateKey: string;
   variables: Record<string, string>;
-  responseSchema?: any;
+  responseSchema?: unknown;
   fallbackModel?: string;
+  context?: AiCallContext;
 }): Promise<T> {
   const primaryModel = fallbackModel || process.env.GEMINI_DEFAULT_MODEL || "gemini-3.5-flash";
-  const modelCandidates = [
-    primaryModel,
-    "gemini-2.5-flash",
-    "gemini-2.0-flash",
-    "gemini-1.5-flash",
-    "gemini-3.5-flash"
-  ].filter((val, index, self) => self.indexOf(val) === index); // remove duplicates
+  const modelCandidates = [primaryModel, "gemini-2.5-flash"]
+    .filter((val, index, self) => self.indexOf(val) === index);
 
   const ai = getGeminiClient();
   const supabase = createAdminClient();
@@ -318,13 +365,112 @@ export async function callGemini<T>({
     finalPrompt = finalPrompt.replace(new RegExp(`{${key}}`, "g"), value);
   }
 
+  const featureKey = context?.featureKey || templateKey;
+  const promptVersion = context?.promptVersion || stableHash({ roleDescription, promptText }).slice(0, 16);
+  const requestedTtl = typeof context?.cache === "object" ? context.cache.ttlSeconds : undefined;
+  const cacheTtl = context?.cache === false ? 0 : requestedTtl ?? defaultCacheTtl(featureKey);
+  const inputHash = stableHash({ roleDescription, finalPrompt, responseSchema });
+  const cacheKey = stableHash({ featureKey, inputHash, primaryModel, promptVersion });
+  const startedAt = Date.now();
+  const reservedCredits = featureCredits(featureKey);
+  let creditReserved = false;
+  let lockOwner: string | null = null;
+  let retryCount = 0;
+
+  const audit = async (input: {
+    model: string;
+    provider: string;
+    status: "COMPLETED" | "FAILED" | "CACHED";
+    usage?: AiUsage;
+    responsePreview?: string | null;
+    error?: unknown;
+    cacheHit?: boolean;
+  }) => {
+    const usage = input.usage ?? { inputTokens: 0, outputTokens: 0, cachedTokens: 0 };
+    const payload = {
+      user_id: context?.userId ?? null,
+      user_role: context?.userRole ?? "SYSTEM",
+      feature_key: featureKey,
+      model_used: input.model,
+      provider: input.provider,
+      status: input.status,
+      prompt_raw: finalPrompt,
+      response_preview: input.responsePreview?.slice(0, 500) ?? null,
+      token_estimate: usage.inputTokens + usage.outputTokens,
+      input_tokens: usage.inputTokens,
+      output_tokens: usage.outputTokens,
+      cached_tokens: usage.cachedTokens,
+      latency_ms: Date.now() - startedAt,
+      retry_count: retryCount,
+      estimated_cost_usd: estimateModelCost(input.model, usage),
+      cache_hit: input.cacheHit ?? false,
+      cache_key: cacheTtl > 0 ? cacheKey : null,
+      cefr_level: context?.cefrLevel ?? null,
+      prompt_version: promptVersion,
+      error_message: input.error instanceof Error ? input.error.message : input.error ? String(input.error) : null,
+      completed_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("ai_generations").insert(payload);
+    if (error) {
+      await supabase.from("ai_generations").insert({
+        user_id: context?.userId ?? null,
+        user_role: context?.userRole ?? "SYSTEM",
+        feature_key: featureKey,
+        model_used: input.model,
+        prompt_raw: finalPrompt,
+        response_preview: input.responsePreview?.slice(0, 500) ?? null,
+        token_estimate: usage.inputTokens + usage.outputTokens,
+        error_message: input.error instanceof Error ? input.error.message : input.error ? String(input.error) : null,
+      });
+    }
+  };
+
+  if (cacheTtl > 0) {
+    const cached = await getCachedAiResponse<T>(cacheKey);
+    if (cached) {
+      await Promise.all([
+        markAiCacheHit(cacheKey),
+        context?.userId ? settleAiCredits({ userId: context.userId, featureKey, reservedCredits: 0, actualCredits: 0, cacheHit: true }) : Promise.resolve(),
+        audit({ model: primaryModel, provider: "cache", status: "CACHED", responsePreview: JSON.stringify(cached), cacheHit: true }),
+      ]);
+      return cached;
+    }
+
+    const lock = await claimAiGeneration(cacheKey);
+    if (lock.claimed) {
+      lockOwner = lock.ownerToken;
+    } else {
+      const shared = await waitForCachedAiResponse<T>(cacheKey, 20_000);
+      if (shared) {
+        await Promise.all([
+          markAiCacheHit(cacheKey),
+          context?.userId ? settleAiCredits({ userId: context.userId, featureKey, reservedCredits: 0, actualCredits: 0, cacheHit: true }) : Promise.resolve(),
+          audit({ model: primaryModel, provider: "cache", status: "CACHED", responsePreview: JSON.stringify(shared), cacheHit: true }),
+        ]);
+        return shared;
+      }
+      throw new Error("An identical AI request is still being generated. Please try again in a moment.");
+    }
+  }
+
+  if (context?.userId) {
+    const reservation = await reserveAiCredits(context.userId, context.userRole, reservedCredits);
+    if (!reservation.allowed) {
+      if (lockOwner) await releaseAiGeneration(cacheKey, lockOwner);
+      throw new Error("You have reached today's AI credit limit. Your allowance resets tomorrow.");
+    }
+    creditReserved = reservation.supported;
+  }
+
   // C. Execute generative call with structured JSON parameters over model candidates
-  let lastError: any = null;
+  let lastError: unknown = null;
   let rawText = "";
   let successfulModel = "";
+  let successfulUsage: AiUsage = { inputTokens: 0, outputTokens: 0, cachedTokens: 0 };
 
+  try {
   for (const modelName of modelCandidates) {
-    const generateCall = async (promptOverride?: string): Promise<string> => {
+    const generateCall = async (promptOverride?: string): Promise<{ text: string; usage: AiUsage }> => {
       const response = await ai.models.generateContent({
         model: modelName,
         contents: promptOverride || finalPrompt,
@@ -339,30 +485,46 @@ export async function callGemini<T>({
       if (!text) {
         throw new Error("Gemini returned an empty response.");
       }
-      return text;
+      const metadata = response.usageMetadata;
+      return {
+        text,
+        usage: {
+          inputTokens: Number(metadata?.promptTokenCount ?? 0),
+          outputTokens: Number(metadata?.candidatesTokenCount ?? 0),
+          cachedTokens: Number(metadata?.cachedContentTokenCount ?? 0),
+        },
+      };
     };
 
     // D. Execution with retry/repair loop for Free Tier limits
     for (let attempt = 1; attempt <= 2; attempt++) {
       try {
-        rawText = await generateCall(attempt > 1 ? undefined : undefined);
+        const generated = await generateCall();
+        rawText = generated.text;
+        successfulUsage = generated.usage;
         
         // Basic JSON validation before returning
         const parsed = JSON.parse(rawText);
         successfulModel = modelName;
+        if (cacheTtl > 0) await saveAiResponseCache({ cacheKey, featureKey, model: modelName, promptVersion, inputHash, response: parsed, ttlSeconds: cacheTtl });
+        if (context?.userId && creditReserved) await settleAiCredits({ userId: context.userId, featureKey, reservedCredits, usage: successfulUsage });
+        await audit({ model: modelName, provider: "google", status: "COMPLETED", usage: successfulUsage, responsePreview: rawText });
         return parsed as T;
-      } catch (error: any) {
+      } catch (error: unknown) {
         lastError = error;
+        const apiError = error as { status?: number; message?: string };
 
         // Handle Free Tier 429 Rate Limit (RPM/RPD)
-        if (error?.status === 429 || error?.message?.includes("429")) {
-          // Sleep for 2.5 seconds before retrying on rate limit
-          await new Promise((resolve) => setTimeout(resolve, 2500));
-          continue;
+        if (apiError?.status === 429 || apiError?.message?.includes("429")) {
+          retryCount += 1;
+          // A daily/project quota will not recover during this request. Move directly to
+          // the supported fallback model instead of making the learner wait on a dead retry.
+          break;
         }
 
         // If it's a 503 Service Unavailable or other temporary error, fall back to next model
-        if (error?.status === 503 || error?.message?.includes("503") || error?.message?.toLowerCase().includes("unavailable")) {
+        if (apiError?.status === 503 || apiError?.message?.includes("503") || apiError?.message?.toLowerCase().includes("unavailable")) {
+          retryCount += 1;
           break; // break the attempt loop to try next modelName
         }
 
@@ -370,9 +532,15 @@ export async function callGemini<T>({
         if (error instanceof SyntaxError && attempt < 2) {
           const repairPrompt = `${finalPrompt}\n\nCRITICAL ERROR: Your previous response was not valid JSON: "${rawText}".\nPlease fix any missing brackets, trailing commas, or escape characters. Output ONLY valid JSON.`;
           try {
-            rawText = await generateCall(repairPrompt);
+            const repaired = await generateCall(repairPrompt);
+            rawText = repaired.text;
+            successfulUsage = repaired.usage;
             const parsed = JSON.parse(rawText);
             successfulModel = modelName;
+            retryCount += 1;
+            if (cacheTtl > 0) await saveAiResponseCache({ cacheKey, featureKey, model: modelName, promptVersion, inputHash, response: parsed, ttlSeconds: cacheTtl });
+            if (context?.userId && creditReserved) await settleAiCredits({ userId: context.userId, featureKey, reservedCredits, usage: successfulUsage });
+            await audit({ model: modelName, provider: "google", status: "COMPLETED", usage: successfulUsage, responsePreview: rawText });
             return parsed as T;
           } catch (repairError) {
             lastError = repairError;
@@ -383,7 +551,7 @@ export async function callGemini<T>({
   }
 
   // F. Final fallback: OpenRouter (if API key is present)
-  if (process.env.OPENROUTER_API_KEY) {
+  if (process.env.OPENROUTER_API_KEY && !context?.assessmentCritical) {
     try {
       console.log("Gemini models exhausted. Attempting fallback via OpenRouter...");
       const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -410,6 +578,14 @@ export async function callGemini<T>({
         if (content) {
           const parsed = JSON.parse(content.trim());
           successfulModel = "openrouter/google/gemini-2.5-flash:free";
+          const usage: AiUsage = {
+            inputTokens: Number(data.usage?.prompt_tokens ?? 0),
+            outputTokens: Number(data.usage?.completion_tokens ?? 0),
+            cachedTokens: 0,
+          };
+          if (cacheTtl > 0) await saveAiResponseCache({ cacheKey, featureKey, model: successfulModel, promptVersion, inputHash, response: parsed, ttlSeconds: cacheTtl });
+          if (context?.userId && creditReserved) await settleAiCredits({ userId: context.userId, featureKey, reservedCredits, usage });
+          await audit({ model: successfulModel, provider: "openrouter", status: "COMPLETED", usage, responsePreview: content });
           return parsed as T;
         }
       } else {
@@ -422,23 +598,15 @@ export async function callGemini<T>({
     }
   }
 
-  // E. Log failures to the audit table (ai_generations) for tracing
-  try {
-    await supabase.from("ai_generations").insert({
-      user_role: "SYSTEM",
-      feature_key: templateKey,
-      model_used: successfulModel || primaryModel,
-      prompt_raw: finalPrompt,
-      response_preview: rawText ? rawText.slice(0, 500) : null,
-      error_message: lastError instanceof Error ? lastError.message : String(lastError)
-    });
-  } catch {
-    // Audit log table failure must not crash client execution
-  }
+  if (context?.userId && creditReserved) await releaseAiCredits(context.userId, reservedCredits);
+  await audit({ model: successfulModel || primaryModel, provider: "google", status: "FAILED", usage: successfulUsage, responsePreview: rawText, error: lastError });
 
   throw new Error(
     `Failed to get a valid response from Gemini after retries. Error: ${
       lastError instanceof Error ? lastError.message : String(lastError)
     }`
   );
+  } finally {
+    if (lockOwner) await releaseAiGeneration(cacheKey, lockOwner);
+  }
 }

@@ -129,16 +129,17 @@ async function connect(request: TokenRequest, onAudio: (data: string) => void, o
 
 async function cachedNarrationUrl(lessonId: string, slideId: string) {
   const response = await fetch(`/api/ai/narration-translation?lessonId=${encodeURIComponent(lessonId)}&slideId=${encodeURIComponent(slideId)}`);
-  const data = await response.json() as { url?: string | null; targetLanguageCode?: string; error?: string };
+  const data = await response.json() as { url?: string | null; targetLanguageCode?: string; generationToken?: string; error?: string };
   if (!response.ok) throw new Error(data.error || "Translation is unavailable.");
   return data;
 }
 
-async function saveNarrationTranslation(lessonId: string, slideId: string, targetLanguageCode: string, audio: Blob) {
+async function saveNarrationTranslation(lessonId: string, slideId: string, targetLanguageCode: string, audio: Blob, generationToken?: string) {
   if (!audio.size) return null;
   const form = new FormData();
   form.append("lessonId", lessonId); form.append("slideId", slideId); form.append("targetLanguageCode", targetLanguageCode);
   form.append("audio", audio, "translated-narration.wav");
+  if (generationToken) form.append("generationToken", generationToken);
   const response = await fetch("/api/ai/narration-translation", { method: "POST", body: form });
   const data = await response.json() as { url?: string | null };
   return response.ok ? data.url ?? null : null;
@@ -178,7 +179,7 @@ export async function playNarrationTranslation({ lessonId, slideId, src, onState
     window.setTimeout(() => {
       session.close();
       void context.close();
-      void saveNarrationTranslation(lessonId, slideId, targetLanguageCode, player.wavBlob());
+      void saveNarrationTranslation(lessonId, slideId, targetLanguageCode, player.wavBlob(), cached.generationToken);
       void player.close();
       onState?.("done");
     }, 4000);

@@ -241,11 +241,11 @@ const oralResponseFeedbackSchema = {
       properties: {
         fluency: { type: "number" },
         vocabulary: { type: "number" },
-        pronunciation: { type: "number" },
+        spoken_clarity: { type: "number" },
         sentence_structure: { type: "number" },
         overall: { type: "number" }
       },
-      required: ["fluency", "vocabulary", "pronunciation", "sentence_structure", "overall"]
+      required: ["fluency", "vocabulary", "spoken_clarity", "sentence_structure", "overall"]
     },
     feedback: { type: "string" },
     suggestions: { type: "array", items: { type: "string" } }
@@ -254,10 +254,39 @@ const oralResponseFeedbackSchema = {
 };
 
 type OralResponseFeedbackResult = {
-  scores: { fluency: number; vocabulary: number; pronunciation: number; sentence_structure: number; overall: number };
+  scores: { fluency: number; vocabulary: number; spoken_clarity: number; sentence_structure: number; overall: number };
   feedback: string;
   suggestions: string[];
 };
+
+async function resolveEvaluationContext(input: {
+  activityId?: string | null;
+  lessonId?: string | null;
+  quizId?: string | null;
+  level?: string | null;
+}) {
+  const supabase = await createClient();
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) throw new Error("Please log in to use AI grading.");
+
+  const admin = createAdminClient();
+  const [profileResult, lessonResult, quizResult, activityResult] = await Promise.all([
+    admin.from("profiles").select("role,cefr_level").eq("id", user.id).maybeSingle(),
+    input.lessonId ? admin.from("lessons").select("level").eq("id", input.lessonId).maybeSingle() : Promise.resolve({ data: null }),
+    input.quizId ? admin.from("quizzes").select("level").eq("id", input.quizId).maybeSingle() : Promise.resolve({ data: null }),
+    input.lessonId && input.activityId
+      ? admin.from("lesson_slide_activities").select("activity_data").eq("id", input.activityId).maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+
+  const activityData = asRecord(activityResult.data?.activity_data as Json | null | undefined);
+  const requested = String(input.level || activityData.cefr_level || activityData.level || "").trim().toUpperCase();
+  const contentLevel = String(quizResult.data?.level || lessonResult.data?.level || "").trim().toUpperCase();
+  const profileLevel = String(profileResult.data?.cefr_level || "").trim().toUpperCase();
+  const validLevel = (value: string) => /^(A1|A2|B1|B2|C1|C2|A1-A2|B1-B2|C1-C2|ALL LEVELS)$/.test(value);
+  const level = [requested, contentLevel, profileLevel].find(validLevel) || "B1";
+  return { user, role: String(profileResult.data?.role || "LEARNER"), level };
+}
 
 /**
  * Real AI grading, routed through the shared callGemini pipeline (DB-overridable prompt
@@ -267,18 +296,28 @@ type OralResponseFeedbackResult = {
  */
 export async function evaluateWritingWithAiAction(input: {
   activityType: string;
+  activityId?: string | null;
+  lessonId?: string | null;
+  quizId?: string | null;
+  level?: string | null;
   prompt: string;
   submissionText: string;
   rubricGuidance?: string;
   modelAnswer?: string;
 }) {
+  let evaluationContext: Awaited<ReturnType<typeof resolveEvaluationContext>>;
+  try {
+    evaluationContext = await resolveEvaluationContext(input);
+  } catch (error) {
+    return { success: false as const, error: error instanceof Error ? error.message : "Could not verify AI grading access." };
+  }
   if (input.activityType === "DIALOGUE_WRITING") {
-    return evaluateDialogueWritingWithAiAction(input);
+    return evaluateDialogueWritingWithAiAction(input, evaluationContext);
   }
   if (input.activityType === "ORAL_RESPONSE") {
     try {
       const result = await callGemini<OralResponseFeedbackResult>({
-        templateKey: "learner_writing_feedback",
+        templateKey: "learner_oral_response_grading_v1",
         variables: {
           prompt: [
             "Oral Response speaking evaluation.",
@@ -287,13 +326,22 @@ export async function evaluateWritingWithAiAction(input: {
             input.rubricGuidance ? `Creator guidance: ${input.rubricGuidance}` : "",
             "Evaluate this as spontaneous spoken English represented by an automatic speech-recognition transcript.",
             "Ignore punctuation, capitalization, spelling artifacts, missing commas, and other transcription formatting errors.",
-            "Judge only communicative fluency, vocabulary and pronunciation signals in the transcript, sentence structure, and how clearly the learner expresses the intended meaning.",
+            "Judge only communicative fluency, vocabulary, spoken clarity signals visible in the transcript, sentence structure, and how clearly the learner expresses the intended meaning.",
             "Do not penalize the learner for the transcript being unpunctuated or for homophone/spelling errors caused by speech recognition. Do not pretend the transcript is a written assignment."
           ].filter(Boolean).join("\n"),
           submission: input.submissionText,
-          level: "B1"
+          level: evaluationContext.level
         },
-        responseSchema: oralResponseFeedbackSchema
+        responseSchema: oralResponseFeedbackSchema,
+        context: {
+          userId: evaluationContext.user.id,
+          userRole: evaluationContext.role,
+          featureKey: "learner_oral_response_grading_v1",
+          cefrLevel: evaluationContext.level,
+          promptVersion: "oral-response-v1",
+          assessmentCritical: true,
+          cache: { ttlSeconds: 365 * 24 * 60 * 60 },
+        },
       });
       const overall = Number(result.scores?.overall);
       if (!Number.isFinite(overall)) throw new Error("AI oral evaluation did not return a valid overall score.");
@@ -303,7 +351,7 @@ export async function evaluateWritingWithAiAction(input: {
           score: Math.max(0, Math.min(100, Math.round(overall))),
           feedbackSummary: String(result.feedback ?? ""),
           grammarFeedback: `Sentence structure: ${result.scores?.sentence_structure ?? "-"}/100`,
-          vocabularyFeedback: `Vocabulary: ${result.scores?.vocabulary ?? "-"}/100 · Pronunciation signals: ${result.scores?.pronunciation ?? "-"}/100`,
+          vocabularyFeedback: `Vocabulary: ${result.scores?.vocabulary ?? "-"}/100 · Spoken clarity signals: ${result.scores?.spoken_clarity ?? "-"}/100`,
           fluencyFeedback: `Fluency: ${result.scores?.fluency ?? "-"}/100`,
           suggestions: Array.isArray(result.suggestions) ? result.suggestions : []
         }
@@ -324,13 +372,22 @@ export async function evaluateWritingWithAiAction(input: {
     ].filter(Boolean).join("\n");
 
     const result = await callGemini<WritingFeedbackResult>({
-      templateKey: "learner_writing_feedback",
+      templateKey: "learner_writing_grading_v1",
       variables: {
         prompt: `${input.prompt}\n${contextParts}`,
         submission: input.submissionText,
-        level: "B1"
+        level: evaluationContext.level
       },
-      responseSchema: writingFeedbackSchema
+      responseSchema: writingFeedbackSchema,
+      context: {
+        userId: evaluationContext.user.id,
+        userRole: evaluationContext.role,
+        featureKey: "learner_writing_grading_v1",
+        cefrLevel: evaluationContext.level,
+        promptVersion: "writing-grading-v1",
+        assessmentCritical: true,
+        cache: { ttlSeconds: 365 * 24 * 60 * 60 },
+      },
     });
 
     const overall = Number(result.scores?.overall);
@@ -408,6 +465,10 @@ type DialogueFeedbackResult = {
 };
 
 export async function evaluateDialogueWritingWithAiAction(input: {
+  activityId?: string | null;
+  lessonId?: string | null;
+  quizId?: string | null;
+  level?: string | null;
   prompt: string;
   scenario?: string;
   speakerA?: string;
@@ -416,8 +477,9 @@ export async function evaluateDialogueWritingWithAiAction(input: {
   submissionText: string;
   rubricGuidance?: string;
   modelAnswer?: string;
-}) {
+}, evaluationContext?: Awaited<ReturnType<typeof resolveEvaluationContext>>) {
   try {
+    const resolved = evaluationContext ?? await resolveEvaluationContext(input);
     const targetPhrasesList = (input.targetPhrases ?? []).filter(Boolean);
     const contextParts = [
       input.scenario ? `Scenario / Context: "${input.scenario}"` : "",
@@ -428,13 +490,22 @@ export async function evaluateDialogueWritingWithAiAction(input: {
     ].filter(Boolean).join("\n");
 
     const result = await callGemini<DialogueFeedbackResult>({
-      templateKey: "learner_writing_feedback",
+      templateKey: "learner_dialogue_grading_v1",
       variables: {
         prompt: `Dialogue Writing Evaluation Task:\nTask Instruction: ${input.prompt}\n${contextParts}\nEvaluate the student's written multi-turn dialogue. Analyze natural turn-taking flow between the characters, grammatical accuracy, appropriateness of tone for the situation, and correct usage of target phrases.`,
         submission: input.submissionText,
-        level: "B1"
+        level: resolved.level
       },
-      responseSchema: dialogueFeedbackSchema
+      responseSchema: dialogueFeedbackSchema,
+      context: {
+        userId: resolved.user.id,
+        userRole: resolved.role,
+        featureKey: "learner_dialogue_grading_v1",
+        cefrLevel: resolved.level,
+        promptVersion: "dialogue-grading-v1",
+        assessmentCritical: true,
+        cache: { ttlSeconds: 365 * 24 * 60 * 60 },
+      },
     });
 
     const overall = Number(result.scores?.overall);

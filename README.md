@@ -185,3 +185,9 @@ Rule-based parsing is conservative by design. Admins can tweak slide type, promp
 AI roleplay activities can optionally use Gemini Live voice conversation. Recording storage is off by default. A creator must enable it, and the learner must explicitly consent before the browser uploads the recording to R2. Stored recordings use a private, expiring R2 URL and are automatically cleaned up by the Vercel cron route.
 
 Run `supabase/migrations/20260810_ai_roleplay_voice_recordings.sql` in the Supabase SQL editor before enabling saved recordings. Set `CRON_SECRET` in Vercel so the cleanup route can run, and keep `GEMINI_LIVE_MODEL` set to a model currently enabled for the Google project. If `MEDIA_STORAGE_PROVIDER=r2` is not active, saved voice recordings are refused rather than silently falling back to public storage.
+
+### AI efficiency foundation
+
+Run `supabase/migrations/20260813_ai_efficiency_foundation.sql` before deploying the matching application code. It adds server-only exact-response caching, duplicate-generation locks, weighted daily credits, and generation telemetry. Cached responses consume no AI credits. The cache key includes the prompt, rubric/schema, model, CEFR context, and prompt version, so content or grading changes invalidate old results automatically.
+
+Use `AI_DAILY_LEARNER_CREDITS` and `AI_DAILY_CREATOR_CREDITS` to change daily weighted allowances. The defaults are 30 learner credits and 100 creator credits. Voice and live translation usage is accounted for in 30-second units; saved narration translations and saved voiceovers are reused instead of regenerated.

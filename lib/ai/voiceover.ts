@@ -138,5 +138,7 @@ export async function generateVoiceoverAudio(request: VoiceoverRequest) {
     durationSeconds: pcm.byteLength / (sampleRate * 2),
     model: response.modelVersion || VOICEOVER_MODEL,
     tokenEstimate: response.usageMetadata?.totalTokenCount ?? Math.ceil(request.script.length / 4),
+    inputTokens: response.usageMetadata?.promptTokenCount ?? Math.ceil(request.script.length / 4),
+    outputTokens: response.usageMetadata?.candidatesTokenCount ?? 0,
   };
 }

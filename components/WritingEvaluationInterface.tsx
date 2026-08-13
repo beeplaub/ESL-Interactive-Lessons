@@ -91,6 +91,9 @@ export function WritingEvaluationInterface({
     setError(null);
     startTransition(async () => {
       const res = await evaluateWritingWithAiAction({
+        activityId,
+        lessonId,
+        quizId,
         activityType,
         prompt,
         submissionText,
@@ -307,7 +310,7 @@ export function WritingEvaluationInterface({
                     <p className="text-xs text-[var(--br-text-muted)] leading-relaxed font-medium">{aiResult.grammarFeedback}</p>
                   </div>
                   <div className="rounded-2xl bg-surface p-4 border border-[var(--br-border)] shadow-xs space-y-1.5">
-                    <p className="text-xs font-bold text-[var(--br-text-muted)]">{activityType === "ORAL_RESPONSE" ? "Vocabulary & Pronunciation" : "Vocabulary & Tone"}</p>
+                    <p className="text-xs font-bold text-[var(--br-text-muted)]">{activityType === "ORAL_RESPONSE" ? "Vocabulary & Spoken Clarity" : "Vocabulary & Tone"}</p>
                     <p className="text-xs text-[var(--br-text-muted)] leading-relaxed font-medium">{aiResult.vocabularyFeedback}</p>
                   </div>
                 </div>

@@ -1728,6 +1728,7 @@ export function LessonActivityPanel({
               submitted={submitted}
               onChange={(value) => setAnswers((prev) => ({ ...prev, [currentQuestion.id]: value }))}
               onResult={handleQuestionResult}
+              lessonId={lessonId}
             />
           </div>
 

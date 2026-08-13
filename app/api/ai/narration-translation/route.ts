@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { resolveMediaUrl, uploadMediaObject } from "@/lib/storage/mediaStorage";
+import { deleteMediaObject, resolveMediaUrl, uploadMediaObject } from "@/lib/storage/mediaStorage";
 import { registerMediaAsset } from "@/lib/storage/mediaLibrary";
+import { claimAiGeneration, releaseAiGeneration, settleAiCredits } from "@/lib/ai/efficiency";
 
 function targetFor(language: string | null) {
   return language === "bn" ? "en" : "bn";
@@ -51,7 +52,13 @@ export async function GET(request: Request) {
   if (!narration?.translation_enabled || narration.source_type === "LINK") return NextResponse.json({ error: "Translation is not available for this narration." }, { status: 404 });
   const targetLanguageCode = targetFor(narration.narration_language);
   const urlValue = await signedCachedUrl(admin, narration.id, targetLanguageCode);
-  return NextResponse.json({ url: urlValue, targetLanguageCode });
+  if (urlValue) return NextResponse.json({ url: urlValue, targetLanguageCode });
+  const lockKey = `narration:${narration.id}:${targetLanguageCode}`;
+  const lock = await claimAiGeneration(lockKey, 120);
+  if (!lock.claimed) {
+    return NextResponse.json({ error: "This translation is already being prepared. Try again in a moment." }, { status: 409 });
+  }
+  return NextResponse.json({ url: null, targetLanguageCode, generationToken: lock.ownerToken });
 }
 
 export async function POST(request: Request) {
@@ -62,6 +69,7 @@ export async function POST(request: Request) {
   const lessonId = String(form.get("lessonId") || "");
   const slideId = String(form.get("slideId") || "");
   const requestedTarget = String(form.get("targetLanguageCode") || "");
+  const suppliedToken = String(form.get("generationToken") || "");
   const audio = form.get("audio");
   if (!lessonId || !slideId || !(audio instanceof File) || !audio.size) return NextResponse.json({ error: "Translated audio is required." }, { status: 400 });
   if (audio.size > 25 * 1024 * 1024) return NextResponse.json({ error: "Translated audio is too large." }, { status: 413 });
@@ -73,6 +81,14 @@ export async function POST(request: Request) {
 
   const alreadyCached = await signedCachedUrl(admin, narration.id, targetLanguageCode);
   if (alreadyCached) return NextResponse.json({ url: alreadyCached, cached: true });
+
+  const lockKey = `narration:${narration.id}:${targetLanguageCode}`;
+  let generationToken = suppliedToken;
+  if (!generationToken) {
+    const lock = await claimAiGeneration(lockKey, 120);
+    if (!lock.claimed) return NextResponse.json({ error: "This translation is already being prepared." }, { status: 409 });
+    generationToken = lock.ownerToken;
+  }
 
   const path = `${lessonId}/translations/${narration.id}-${targetLanguageCode}.wav`;
   let stored;
@@ -86,6 +102,7 @@ export async function POST(request: Request) {
       upsert: false,
     });
   } catch (uploadError) {
+    await releaseAiGeneration(lockKey, generationToken);
     console.error("Narration translation upload failed", uploadError);
     return NextResponse.json({ error: "Could not save translated narration." }, { status: 500 });
   }
@@ -98,8 +115,13 @@ export async function POST(request: Request) {
     public_url: stored.url,
   });
   if (cacheError && cacheError.code !== "23505") {
+    await deleteMediaObject(admin, stored).catch(() => undefined);
+    await releaseAiGeneration(lockKey, generationToken);
     console.error("Narration translation cache insert failed", cacheError);
     return NextResponse.json({ error: "Could not save translated narration." }, { status: 500 });
+  }
+  if (cacheError?.code === "23505") {
+    await deleteMediaObject(admin, stored).catch(() => undefined);
   }
   if (!cacheError && lesson?.created_by) {
     try {
@@ -121,5 +143,29 @@ export async function POST(request: Request) {
     }
   }
   const urlValue = await signedCachedUrl(admin, narration.id, targetLanguageCode);
+  const durationSeconds = Math.max(1, (audio.size - 44) / 48_000);
+  await Promise.all([
+    settleAiCredits({
+      userId: user.id,
+      featureKey: "learner_narration_translation",
+      reservedCredits: 0,
+      actualCredits: Math.max(1, Math.ceil(durationSeconds / 30)),
+      audioSeconds: durationSeconds,
+    }),
+    admin.from("ai_generations").insert({
+      user_id: user.id,
+      user_role: "LEARNER",
+      feature_key: "learner_narration_translation",
+      model_used: process.env.GEMINI_LIVE_MODEL || "gemini-3.5-live-translate-preview",
+      provider: "google",
+      status: "COMPLETED",
+      response_preview: `${Math.round(durationSeconds)}s translated narration cached permanently`,
+      cache_hit: false,
+      cache_key: lockKey,
+      prompt_version: "narration-translation-v1",
+      completed_at: new Date().toISOString(),
+    }),
+  ]);
+  await releaseAiGeneration(lockKey, generationToken);
   return NextResponse.json({ url: urlValue, cached: false });
 }

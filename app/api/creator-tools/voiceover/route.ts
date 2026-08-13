@@ -2,6 +2,13 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { checkUsageQuota, recordUsageEvent } from "@/lib/ai/usage";
+import {
+  claimAiGeneration,
+  releaseAiCredits,
+  releaseAiGeneration,
+  reserveAiCredits,
+  settleAiCredits,
+} from "@/lib/ai/efficiency";
 import { creatorAccessError, getCreatorAiAccess } from "@/lib/ai/creatorAccess";
 import {
   generateVoiceoverAudio,
@@ -32,6 +39,7 @@ function jsonError(message: string, status: number) {
 }
 
 export async function POST(request: Request) {
+  const requestStartedAt = Date.now();
   let access;
   try {
     access = await getCreatorAiAccess();
@@ -63,18 +71,105 @@ export async function POST(request: Request) {
       path: reusable.storage_path,
       publicUrl: reusable.public_url,
     });
-    if (url) return NextResponse.json({
-      generationId: reusable.id,
-      url,
-      saved: reusable.status === "SAVED",
-      mediaAssetId: reusable.media_asset_id,
-      durationSeconds: Number(reusable.duration_seconds ?? 0),
-      reused: true,
-    });
+    if (url) {
+      await Promise.all([
+        settleAiCredits({ userId: access.user.id, featureKey: "creator_voiceover", reservedCredits: 0, actualCredits: 0, cacheHit: true }),
+        admin.from("ai_generations").insert({
+          user_id: access.user.id,
+          user_role: access.profile.role,
+          feature_key: "creator_voiceover",
+          model_used: VOICEOVER_MODEL,
+          provider: "cache",
+          status: "CACHED",
+          response_preview: `${reusable.id} · reusable voiceover`,
+          latency_ms: Date.now() - requestStartedAt,
+          cache_hit: true,
+          cache_key: requestHash,
+          prompt_version: "voiceover-v1",
+          completed_at: new Date().toISOString(),
+        }),
+      ]);
+      return NextResponse.json({
+        generationId: reusable.id,
+        url,
+        saved: reusable.status === "SAVED",
+        mediaAssetId: reusable.media_asset_id,
+        durationSeconds: Number(reusable.duration_seconds ?? 0),
+        reused: true,
+      });
+    }
   }
 
-  const quota = await checkUsageQuota(access.user.id, access.profile.role);
-  if (!quota.allowed) return jsonError(quota.message || "Your daily AI allowance has been reached.", 429);
+  const generationLock = await claimAiGeneration(`voiceover:${access.user.id}:${requestHash}`, 120);
+  if (!generationLock.claimed) {
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      const { data: shared } = await admin
+        .from("ai_voiceover_generations")
+        .select("id,status,storage_provider,storage_bucket,storage_path,public_url,media_asset_id,duration_seconds,expires_at")
+        .eq("creator_id", access.user.id)
+        .eq("request_hash", requestHash)
+        .in("status", ["SAVED", "PREVIEW"])
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!shared) continue;
+      const url = shared.public_url || await resolveMediaUrl(admin, {
+        provider: shared.storage_provider,
+        bucket: shared.storage_bucket,
+        path: shared.storage_path,
+        publicUrl: shared.public_url,
+      });
+      if (url) {
+        await Promise.all([
+          settleAiCredits({ userId: access.user.id, featureKey: "creator_voiceover", reservedCredits: 0, actualCredits: 0, cacheHit: true }),
+          admin.from("ai_generations").insert({
+            user_id: access.user.id,
+            user_role: access.profile.role,
+            feature_key: "creator_voiceover",
+            model_used: VOICEOVER_MODEL,
+            provider: "cache",
+            status: "CACHED",
+            response_preview: `${shared.id} · shared voiceover generation`,
+            latency_ms: Date.now() - requestStartedAt,
+            cache_hit: true,
+            cache_key: requestHash,
+            prompt_version: "voiceover-v1",
+            completed_at: new Date().toISOString(),
+          }),
+        ]);
+        return NextResponse.json({
+          generationId: shared.id,
+          url,
+          saved: shared.status === "SAVED",
+          mediaAssetId: shared.media_asset_id,
+          durationSeconds: Number(shared.duration_seconds ?? 0),
+          reused: true,
+        });
+      }
+    }
+    return jsonError("This same voiceover is already being generated. Please try again in a moment.", 409);
+  }
+
+  const estimatedSeconds = Math.max(1, input.script.trim().split(/\s+/).length / 2.4);
+  const reservedCredits = Math.max(1, Math.ceil(estimatedSeconds / 30));
+  const creditReservation = await reserveAiCredits(access.user.id, access.profile.role, reservedCredits);
+  let quota: { allowed: boolean; remaining: number; message?: string } = {
+    allowed: true,
+    remaining: creditReservation.remaining,
+  };
+  if (creditReservation.supported) {
+    if (!creditReservation.allowed) {
+      await releaseAiGeneration(`voiceover:${access.user.id}:${requestHash}`, generationLock.ownerToken);
+      return jsonError("Your daily AI credit allowance has been reached. Saved voiceovers remain available.", 429);
+    }
+  } else {
+    quota = await checkUsageQuota(access.user.id, access.profile.role);
+    if (!quota.allowed) {
+      await releaseAiGeneration(`voiceover:${access.user.id}:${requestHash}`, generationLock.ownerToken);
+      return jsonError(quota.message || "Your daily AI allowance has been reached.", 429);
+    }
+  }
 
   const generationId = crypto.randomUUID();
   try {
@@ -115,8 +210,18 @@ export async function POST(request: Request) {
       throw new Error(insertError.message);
     }
 
+    const actualCredits = Math.max(1, Math.ceil(generated.durationSeconds / 30));
     await Promise.all([
-      recordUsageEvent(access.user.id, "creator_voiceover", generated.tokenEstimate),
+      creditReservation.supported
+        ? settleAiCredits({
+            userId: access.user.id,
+            featureKey: "creator_voiceover",
+            reservedCredits,
+            actualCredits,
+            audioSeconds: generated.durationSeconds,
+            usage: { inputTokens: generated.inputTokens, outputTokens: generated.outputTokens, cachedTokens: 0 },
+          })
+        : recordUsageEvent(access.user.id, "creator_voiceover", generated.tokenEstimate),
       admin.from("ai_generations").insert({
         user_id: access.user.id,
         user_role: access.profile.role,
@@ -125,6 +230,15 @@ export async function POST(request: Request) {
         prompt_raw: input.script.slice(0, 2_000),
         response_preview: `${input.voiceName} · ${input.style} · ${Math.round(generated.durationSeconds)}s`,
         token_estimate: generated.tokenEstimate,
+        provider: "google",
+        status: "COMPLETED",
+        input_tokens: generated.inputTokens,
+        output_tokens: generated.outputTokens,
+        latency_ms: Date.now() - requestStartedAt,
+        cache_hit: false,
+        cache_key: requestHash,
+        prompt_version: "voiceover-v1",
+        completed_at: new Date().toISOString(),
       }),
     ]);
 
@@ -133,9 +247,10 @@ export async function POST(request: Request) {
       url: stored.url,
       saved: false,
       durationSeconds: generated.durationSeconds,
-      remaining: Math.max(0, quota.remaining - 1),
+      remaining: Math.max(0, quota.remaining),
     });
   } catch (error) {
+    if (creditReservation.supported) await releaseAiCredits(access.user.id, reservedCredits);
     console.error("AI voiceover generation failed", error);
     const { error: logError } = await admin.from("ai_generations").insert({
       user_id: access.user.id,
@@ -144,12 +259,19 @@ export async function POST(request: Request) {
       model_used: VOICEOVER_MODEL,
       prompt_raw: input.script.slice(0, 2_000),
       error_message: error instanceof Error ? error.message : "Voiceover generation failed",
+      provider: "google",
+      status: "FAILED",
+      cache_key: requestHash,
+      prompt_version: "voiceover-v1",
+      completed_at: new Date().toISOString(),
     });
     if (logError) console.error("Voiceover failure audit log failed", logError);
     if (isVoiceoverQuotaError(error)) {
       return jsonError("AI voice generation has reached its daily limit. Your existing saved voiceovers are still available. Try again after the Gemini quota resets, or use Record, Upload, or Link audio.", 429);
     }
     return jsonError(error instanceof Error ? error.message : "Voiceover generation failed.", 500);
+  } finally {
+    await releaseAiGeneration(`voiceover:${access.user.id}:${requestHash}`, generationLock.ownerToken);
   }
 }
 
