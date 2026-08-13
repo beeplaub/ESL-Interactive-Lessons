@@ -1,154 +1,106 @@
 "use client";
 
-import { useState } from "react";
-import { Plus, X } from "lucide-react";
+import Link from "next/link";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { BookTemplate, Plus, X } from "lucide-react";
 import { createCourse } from "@/app/admin/courses/actions";
 import { CONTENT_LEVELS } from "@/lib/levels";
 
-export function NewCourseModal({ organizations = [] }: { organizations?: Array<{ id: string; name: string }> }) {
+export function NewCourseModal({ organizations = [], organizationRequired = false }: { organizations?: Array<{ id: string; name: string }>; organizationRequired?: boolean }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+  const titleRef = useRef<HTMLInputElement>(null);
 
-  const handleSubmit = () => {
-    setIsSubmitting(true);
+  useEffect(() => {
+    if (!isOpen) return;
+    titleRef.current?.focus();
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !isPending) setIsOpen(false);
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [isOpen, isPending]);
+
+  const close = () => {
+    if (isPending) return;
+    setError(null);
+    setIsOpen(false);
   };
 
   return (
     <>
-      <button
-        onClick={() => setIsOpen(true)}
-        className="inline-flex items-center gap-2 rounded-xl bg-violetglow px-4 py-2.5 text-sm font-bold text-on-dark hover:bg-violetglow/90 transition shadow-sm"
-      >
+      <button type="button" onClick={() => setIsOpen(true)} className="inline-flex items-center gap-2 rounded-lg bg-[var(--br-brand)] px-3.5 py-2.5 text-sm font-bold text-on-dark shadow-sm transition hover:bg-[var(--br-brand-strong)]">
         <Plus size={16} /> New course
       </button>
 
-      {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          {/* Backdrop blur & overlay */}
-          <div
-            onClick={() => {
-              if (!isSubmitting) setIsOpen(false);
-            }}
-            className="absolute inset-0 bg-[var(--br-dark-card)]/50 backdrop-blur-sm transition-opacity"
-          />
-
-          {/* Modal content wrapper */}
-          <div className="relative w-full max-w-xl scale-100 transform overflow-hidden rounded-[24px] border border-[var(--br-surface-strong)] bg-surface p-6 shadow-[var(--br-shadow)] transition-all animate-[modal-zoom_0.2s_ease-out]">
-            {/* Header */}
-            <div className="flex items-center justify-between border-b border-[var(--br-surface-strong)] pb-4">
+      {isOpen ? (
+        <div className="fixed inset-0 z-[80] grid place-items-center overflow-y-auto bg-[var(--br-dark-card)]/55 p-4 backdrop-blur-sm" onMouseDown={(event) => { if (event.currentTarget === event.target) close(); }}>
+          <section role="dialog" aria-modal="true" aria-labelledby="new-course-title" className="w-full max-w-lg rounded-lg border border-[var(--br-border)] bg-surface shadow-2xl">
+            <div className="flex items-start justify-between gap-4 border-b border-[var(--br-border)] px-5 py-4">
               <div>
-                <h3 className="text-lg font-extrabold text-[var(--br-dark-card)]">Create course shell</h3>
-                <p className="mt-1 text-xs font-semibold text-[var(--br-text-muted)]">
-                  Initialize your new course outline and metadata.
-                </p>
+                <h2 id="new-course-title" className="text-lg font-bold text-ink">Start a new course</h2>
+                <p className="mt-1 text-sm text-[var(--br-text-muted)]">Add only the essentials now. Build the full landing page and curriculum next.</p>
               </div>
-              <button
-                disabled={isSubmitting}
-                onClick={() => setIsOpen(false)}
-                className="rounded-full p-1.5 text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)] hover:text-[var(--br-dark-card)] disabled:opacity-50 transition"
-              >
-                <X size={18} />
-              </button>
+              <button type="button" onClick={close} disabled={isPending} aria-label="Close" className="grid size-8 shrink-0 place-items-center rounded-lg text-[var(--br-text-muted)] hover:bg-[var(--br-surface-muted)]"><X size={17} /></button>
             </div>
 
-            {/* Form */}
             <form
-              action={async (formData) => {
-                handleSubmit();
-                try {
-                  await createCourse(formData);
-                } catch (e) {
-                  setIsSubmitting(false);
-                  alert(e instanceof Error ? e.message : "Error creating course");
-                }
+              onSubmit={(event) => {
+                event.preventDefault();
+                setError(null);
+                const formData = new FormData(event.currentTarget);
+                startTransition(async () => {
+                  try {
+                    await createCourse(formData);
+                  } catch (caught) {
+                    setError(caught instanceof Error ? caught.message : "Could not create the course.");
+                  }
+                });
               }}
-              className="mt-5 grid gap-4 sm:grid-cols-2"
+              className="grid gap-4 p-5 sm:grid-cols-2"
             >
-              <div className="sm:col-span-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-[var(--br-text-muted)]">
-                  Course Title <span className="text-red-500">*</span>
-                </label>
-                <input
-                  name="title"
-                  required
-                  placeholder="e.g. Intermediate Business English"
-                  className="mt-1.5 w-full rounded-xl border border-[var(--br-surface-strong)] px-3.5 py-2.5 text-sm font-semibold placeholder-[var(--br-text-muted)] focus:border-violetglow focus:outline-none focus:ring-4 focus:ring-violetglow/10 transition"
-                />
-              </div>
+              <label className="sm:col-span-2 text-xs font-bold text-[var(--br-text-muted)]">Course title
+                <input ref={titleRef} name="title" required placeholder="Intermediate Business English" className="mt-1.5 w-full rounded-lg border border-[var(--br-border)] bg-surface px-3 py-2.5 text-sm font-semibold text-ink outline-none focus:border-[var(--br-brand)] focus:ring-2 focus:ring-[var(--br-brand)]/10" />
+              </label>
 
-              {organizations.length ? <div className="sm:col-span-2"><label className="text-xs font-bold uppercase tracking-wider text-[var(--br-text-muted)]">School <span className="text-red-500">*</span></label><select name="organizationId" required className="mt-1.5 w-full rounded-xl border border-[var(--br-surface-strong)] bg-surface px-3.5 py-2.5 text-sm font-semibold focus:border-violetglow focus:outline-none focus:ring-4 focus:ring-violetglow/10"><option value="">Choose school...</option>{organizations.map((organization) => <option key={organization.id} value={organization.id}>{organization.name}</option>)}</select></div> : null}
-
-              <div className="sm:col-span-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-[var(--br-text-muted)]">
-                  Subtitle
-                </label>
-                <input
-                  name="subtitle"
-                  placeholder="e.g. Master essential vocabulary and communication strategies"
-                  className="mt-1.5 w-full rounded-xl border border-[var(--br-surface-strong)] px-3.5 py-2.5 text-sm font-semibold placeholder-[var(--br-text-muted)] focus:border-violetglow focus:outline-none focus:ring-4 focus:ring-violetglow/10 transition"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-[var(--br-text-muted)]">
-                  Topic
-                </label>
-                <input
-                  name="topic"
-                  placeholder="e.g. Business Communication"
-                  className="mt-1.5 w-full rounded-xl border border-[var(--br-surface-strong)] px-3.5 py-2.5 text-sm font-semibold placeholder-[var(--br-text-muted)] focus:border-violetglow focus:outline-none focus:ring-4 focus:ring-violetglow/10 transition"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-[var(--br-text-muted)]">
-                  Target Level
-                </label>
-                <select
-                  name="level"
-                  defaultValue="All Levels"
-                  className="mt-1.5 w-full rounded-xl border border-[var(--br-surface-strong)] bg-surface px-3.5 py-2.5 text-sm font-semibold placeholder-[var(--br-text-muted)] focus:border-violetglow focus:outline-none focus:ring-4 focus:ring-violetglow/10 transition"
-                >
-                  {CONTENT_LEVELS.map((level) => (
-                    <option key={level}>{level}</option>
-                  ))}
+              <label className="text-xs font-bold text-[var(--br-text-muted)]">Target level
+                <select name="level" defaultValue="All Levels" className="mt-1.5 w-full rounded-lg border border-[var(--br-border)] bg-surface px-3 py-2.5 text-sm text-ink outline-none focus:border-[var(--br-brand)]">
+                  {CONTENT_LEVELS.map((level) => <option key={level}>{level}</option>)}
                 </select>
-              </div>
+              </label>
 
-              <div className="sm:col-span-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-[var(--br-text-muted)]">
-                  Description
+              <label className="text-xs font-bold text-[var(--br-text-muted)]">Topic
+                <input name="topic" placeholder="Business communication" className="mt-1.5 w-full rounded-lg border border-[var(--br-border)] bg-surface px-3 py-2.5 text-sm text-ink outline-none focus:border-[var(--br-brand)]" />
+              </label>
+
+              {organizations.length ? (
+                <label className="sm:col-span-2 text-xs font-bold text-[var(--br-text-muted)]">Owner
+                  <select name="organizationId" required={organizationRequired} defaultValue="" className="mt-1.5 w-full rounded-lg border border-[var(--br-border)] bg-surface px-3 py-2.5 text-sm text-ink outline-none focus:border-[var(--br-brand)]">
+                    <option value="">{organizationRequired ? "Choose school" : "BrenUp platform"}</option>
+                    {organizations.map((organization) => <option key={organization.id} value={organization.id}>{organization.name}</option>)}
+                  </select>
                 </label>
-                <textarea
-                  name="description"
-                  placeholder="Write a brief overview of the learning outcomes and target audience..."
-                  rows={3}
-                  className="mt-1.5 w-full rounded-xl border border-[var(--br-surface-strong)] px-3.5 py-2.5 text-sm font-semibold placeholder-[var(--br-text-muted)] focus:border-violetglow focus:outline-none focus:ring-4 focus:ring-violetglow/10 transition resize-none"
-                />
-              </div>
+              ) : null}
 
-              {/* Actions Footer */}
-              <div className="mt-4 flex items-center justify-end gap-2 border-t border-[var(--br-surface-strong)] pt-4 sm:col-span-2">
-                <button
-                  type="button"
-                  disabled={isSubmitting}
-                  onClick={() => setIsOpen(false)}
-                  className="rounded-xl px-5 py-2.5 text-sm font-extrabold text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)] disabled:opacity-50 transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="inline-flex items-center gap-2 rounded-xl bg-violetglow px-5 py-2.5 text-sm font-extrabold text-on-dark shadow-[var(--br-shadow)] hover:bg-[var(--br-brand-strong)] disabled:opacity-50 transition"
-                >
-                  {isSubmitting ? "Creating..." : "Create and open builder"}
-                </button>
+              {error ? <p role="alert" className="sm:col-span-2 rounded-lg bg-[var(--br-danger)]/8 px-3 py-2 text-xs font-semibold text-[var(--br-danger)]">{error}</p> : null}
+
+              <div className="flex flex-col-reverse gap-2 border-t border-[var(--br-border)] pt-4 sm:col-span-2 sm:flex-row sm:items-center sm:justify-between">
+                <Link href="/admin/content-library?type=COURSE_TEMPLATE" onClick={close} className="inline-flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-bold text-[var(--br-brand)] hover:bg-[var(--br-brand-soft)]">
+                  <BookTemplate size={16} /> Start from a template
+                </Link>
+                <div className="flex items-center justify-end gap-2">
+                  <button type="button" onClick={close} disabled={isPending} className="rounded-lg px-3 py-2 text-sm font-bold text-[var(--br-text-muted)] hover:bg-[var(--br-surface-muted)]">Cancel</button>
+                  <button type="submit" disabled={isPending} className="inline-flex items-center gap-2 rounded-lg bg-[var(--br-brand)] px-4 py-2 text-sm font-bold text-on-dark disabled:opacity-60">
+                    {isPending ? <span className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" /> : null}
+                    {isPending ? "Creating..." : "Create and open"}
+                  </button>
+                </div>
               </div>
             </form>
-          </div>
+          </section>
         </div>
-      )}
+      ) : null}
     </>
   );
 }

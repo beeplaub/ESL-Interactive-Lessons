@@ -1,107 +1,158 @@
-import Link from "next/link";
-import { Archive, BarChart3, Eye, GraduationCap, Pencil, Trash2 } from "lucide-react";
 import { requireStaff, isPlatformAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { deleteCourse, setCourseStatus } from "@/app/admin/courses/actions";
-import { NewCourseModal } from "@/components/NewCourseModal";
-import { DeleteButton } from "@/components/DeleteButton";
 import { getSchoolAdminOrganizationIds } from "@/lib/schoolAccess";
+import { AdminCoursesWorkspace, type AdminCourseSummary } from "@/components/AdminCoursesWorkspace";
+
+type CourseRow = {
+  id: string;
+  title: string;
+  subtitle: string | null;
+  topic: string | null;
+  category: string | null;
+  level: string;
+  status: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+  thumbnail_path: string | null;
+  cover_image_path: string | null;
+  description: string | null;
+  price_bdt: number | null;
+  payment_instructions: string | null;
+  organization_id: string | null;
+  owner_id: string | null;
+  created_by: string | null;
+  updated_at: string;
+};
+
+type CourseRelationRow = { course_id: string | null };
+type CourseItemRow = CourseRelationRow & { item_type: string };
 
 export default async function AdminCoursesPage() {
   const { user, profile } = await requireStaff();
   const admin = createAdminClient();
-  const scopedToOwn = !isPlatformAdmin(profile?.role);
+  const isAdmin = isPlatformAdmin(profile?.role);
+  const scopedToOwn = !isAdmin;
   const schoolOrganizationIds = profile?.role === "SCHOOL_ADMIN" ? await getSchoolAdminOrganizationIds(user.id) : [];
 
-  let coursesQuery = admin.from("courses").select("*").is("deleted_at", null).order("created_at", { ascending: false });
+  let coursesQuery = admin
+    .from("courses")
+    .select("id,title,subtitle,topic,category,level,status,thumbnail_path,cover_image_path,description,price_bdt,payment_instructions,organization_id,owner_id,created_by,updated_at")
+    .is("deleted_at", null)
+    .order("updated_at", { ascending: false });
   let trashedQuery = admin.from("courses").select("id", { count: "exact", head: true }).not("deleted_at", "is", null);
+
   if (profile?.role === "SCHOOL_ADMIN") {
-    coursesQuery = schoolOrganizationIds.length ? coursesQuery.in("organization_id", schoolOrganizationIds) : coursesQuery.eq("id", "00000000-0000-0000-0000-000000000000");
-    trashedQuery = schoolOrganizationIds.length ? trashedQuery.in("organization_id", schoolOrganizationIds) : trashedQuery.eq("id", "00000000-0000-0000-0000-000000000000");
+    coursesQuery = schoolOrganizationIds.length
+      ? coursesQuery.in("organization_id", schoolOrganizationIds)
+      : coursesQuery.eq("id", "00000000-0000-0000-0000-000000000000");
+    trashedQuery = schoolOrganizationIds.length
+      ? trashedQuery.in("organization_id", schoolOrganizationIds)
+      : trashedQuery.eq("id", "00000000-0000-0000-0000-000000000000");
   } else if (scopedToOwn) {
     coursesQuery = coursesQuery.or(`owner_id.eq.${user.id},created_by.eq.${user.id}`);
     trashedQuery = trashedQuery.or(`owner_id.eq.${user.id},created_by.eq.${user.id}`);
   }
 
-  const [{ data: courses }, { data: enrollments }, { data: items }, { count: trashedCount }] = await Promise.all([
+  const [{ data: courseRows, error: coursesError }, { count: trashedCount }] = await Promise.all([
     coursesQuery,
-    admin.from("course_enrollments").select("course_id"),
-    admin.from("course_items").select("course_id"),
     trashedQuery,
   ]);
+  if (coursesError) throw new Error(coursesError.message);
 
-  const enrollmentCounts = countByCourse(enrollments ?? []);
-  const itemCounts = countByCourse(items ?? []);
+  const courses = (courseRows ?? []) as CourseRow[];
+  const courseIds = courses.map((course) => course.id);
+  const organizationIds = Array.from(new Set(courses.map((course) => course.organization_id).filter((id): id is string => Boolean(id))));
+  const creatorIds = Array.from(new Set(courses.flatMap((course) => [course.owner_id, course.created_by]).filter((id): id is string => Boolean(id))));
+
+  const emptyRows = Promise.resolve({ data: [], error: null });
+  const [enrollmentResult, itemResult, sectionResult, outcomeResult, organizationResult, creatorResult, creationOrganizationResult] = await Promise.all([
+    courseIds.length ? admin.from("course_enrollments").select("course_id,status").in("course_id", courseIds) : emptyRows,
+    courseIds.length ? admin.from("course_items").select("course_id,item_type").in("course_id", courseIds) : emptyRows,
+    courseIds.length ? admin.from("course_sections").select("course_id").in("course_id", courseIds) : emptyRows,
+    courseIds.length ? admin.from("course_outcomes").select("course_id").in("course_id", courseIds) : emptyRows,
+    organizationIds.length ? admin.from("organizations").select("id,name").in("id", organizationIds) : emptyRows,
+    creatorIds.length ? admin.from("profiles").select("id,full_name,first_name,last_name").in("id", creatorIds) : emptyRows,
+    isAdmin
+      ? admin.from("organizations").select("id,name").order("name")
+      : profile?.role === "SCHOOL_ADMIN" && schoolOrganizationIds.length
+        ? admin.from("organizations").select("id,name").in("id", schoolOrganizationIds).order("name")
+        : emptyRows,
+  ]);
+
+  const enrollments = (enrollmentResult.data ?? []) as Array<CourseRelationRow & { status: string }>;
+  const items = (itemResult.data ?? []) as CourseItemRow[];
+  const sections = (sectionResult.data ?? []) as CourseRelationRow[];
+  const outcomes = (outcomeResult.data ?? []) as CourseRelationRow[];
+  const organizations = (organizationResult.data ?? []) as Array<{ id: string; name: string }>;
+  const creators = (creatorResult.data ?? []) as Array<{ id: string; full_name?: string | null; first_name?: string | null; last_name?: string | null }>;
+
+  const organizationNames = new Map(organizations.map((organization) => [organization.id, organization.name]));
+  const creatorNames = new Map(creators.map((creator) => [creator.id, displayName(creator)]));
+  const enrollmentCounts = countByCourse(enrollments.filter((row) => row.status !== "CANCELLED"));
+  const itemCounts = countByCourse(items);
+  const lessonCounts = countByCourse(items.filter((row) => row.item_type === "LESSON"));
+  const quizCounts = countByCourse(items.filter((row) => row.item_type === "QUIZ"));
+  const sectionCounts = countByCourse(sections);
+  const outcomeCounts = countByCourse(outcomes);
+
+  const summaries: AdminCourseSummary[] = courses.map((course) => {
+    const itemCount = itemCounts.get(course.id) ?? 0;
+    const sectionCount = sectionCounts.get(course.id) ?? 0;
+    const outcomeCount = outcomeCounts.get(course.id) ?? 0;
+    const checks = [
+      { label: "Add the course description and target level", ready: Boolean(course.description?.trim() && course.level) },
+      { label: "Add a cover or card image", ready: Boolean(course.thumbnail_path || course.cover_image_path) },
+      { label: "Add curriculum items", ready: itemCount > 0 },
+      { label: "Organize the curriculum into sections", ready: sectionCount > 0 },
+      { label: "Define at least one course outcome", ready: outcomeCount > 0 },
+      { label: "Add payment instructions for this paid course", ready: !course.price_bdt || Boolean(course.payment_instructions?.trim()) },
+    ];
+    const readinessScore = Math.round((checks.filter((check) => check.ready).length / checks.length) * 100);
+
+    return {
+      id: course.id,
+      title: course.title,
+      subtitle: course.subtitle,
+      topic: course.topic,
+      category: course.category,
+      level: course.level,
+      status: course.status,
+      thumbnailPath: course.thumbnail_path,
+      coverImagePath: course.cover_image_path,
+      organizationId: course.organization_id,
+      organizationName: course.organization_id ? organizationNames.get(course.organization_id) ?? "School course" : null,
+      creatorId: course.owner_id ?? course.created_by,
+      creatorName: creatorNames.get(course.owner_id ?? course.created_by ?? "") ?? "BrenUp creator",
+      itemCount,
+      lessonCount: lessonCounts.get(course.id) ?? 0,
+      quizCount: quizCounts.get(course.id) ?? 0,
+      enrollmentCount: enrollmentCounts.get(course.id) ?? 0,
+      sectionCount,
+      outcomeCount,
+      readinessScore,
+      readinessIssues: checks.filter((check) => !check.ready).map((check) => check.label),
+      updatedAt: course.updated_at,
+    };
+  });
 
   return (
-    <main className="min-w-0 overflow-hidden">
-      <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold sm:text-3xl">Courses</h1>
-          <p className="mt-2 text-sm text-[var(--br-text-muted)]">Build the LMS layer: course landing pages, curriculum, and enrollments.</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Link href="/admin/courses/trash" className="inline-flex items-center gap-2 rounded-xl border border-[var(--br-border)] px-4 py-2 text-sm font-bold hover:bg-black/5">
-            <Trash2 size={16} /> Trash{trashedCount ? ` (${trashedCount})` : ""}
-          </Link>
-          <NewCourseModal organizations={profile?.role === "SCHOOL_ADMIN" ? (await admin.from("organizations").select("id,name").in("id", schoolOrganizationIds).order("name")).data ?? [] : []} />
-        </div>
-      </div>
-
-      <section className="overflow-hidden br-card rounded-20">
-        <div className="hidden grid-cols-[1.4fr_0.7fr_0.7fr_0.7fr_1.2fr] gap-3 border-b border-[var(--br-border)] bg-surface-muted/50 p-4 text-xs font-semibold uppercase tracking-wide text-[var(--br-text-muted)] md:grid">
-          <span>Course</span><span>Status</span><span>Items</span><span>Enrollments</span><span>Actions</span>
-        </div>
-        <div className="divide-y divide-black/10">
-          {(courses ?? []).map((course) => (
-            <div key={course.id} className="grid gap-3 p-4 md:grid-cols-[1.4fr_0.7fr_0.7fr_0.7fr_1.2fr] md:items-center">
-              <div className="min-w-0">
-                <p className="font-semibold">{course.title}</p>
-                <p className="mt-1 truncate text-xs text-[var(--br-text-muted)]">{course.level} · {course.topic ?? "No topic"}</p>
-              </div>
-              <span className={`w-fit rounded-full px-2.5 py-1 text-xs font-semibold ${course.status === "PUBLISHED" ? "bg-violetglow/10 text-violetglow" : course.status === "ARCHIVED" ? "bg-black/10 text-[var(--br-text-muted)]" : "bg-amber-50 text-amber-800"}`}>
-                {course.status}
-              </span>
-              <span className="text-sm text-[var(--br-text-muted)]">{itemCounts.get(course.id) ?? 0}</span>
-              <span className="text-sm text-[var(--br-text-muted)]">{enrollmentCounts.get(course.id) ?? 0}</span>
-              <div className="flex flex-wrap gap-2">
-                <Link href={`/admin/courses/${course.id}/builder`} className="inline-flex items-center gap-1 rounded-md border border-[var(--br-border)] px-2.5 py-1.5 text-xs font-semibold hover:bg-black/5"><Pencil size={13} /> Edit</Link>
-                <Link href={`/admin/courses/${course.id}/analytics`} className="inline-flex items-center gap-1 rounded-md border border-[var(--br-border)] px-2.5 py-1.5 text-xs font-semibold hover:bg-black/5"><BarChart3 size={13} /> Analytics</Link>
-                {course.status === "PUBLISHED" ? (
-                  <form action={setCourseStatus.bind(null, course.id, "DRAFT")}><button className="inline-flex items-center gap-1 rounded-md border border-[var(--br-border)] px-2.5 py-1.5 text-xs font-semibold hover:bg-black/5"><Archive size={13} /> Unpublish</button></form>
-                ) : (
-                  <form action={setCourseStatus.bind(null, course.id, "PUBLISHED")}><button className="inline-flex items-center gap-1 rounded-md bg-violetglow px-2.5 py-1.5 text-xs font-semibold text-on-dark hover:bg-violetglow/90"><Eye size={13} /> Publish</button></form>
-                )}
-                <form action={deleteCourse.bind(null, course.id)}>
-                  <DeleteButton
-                    title="Move course to trash?"
-                    message={`Are you sure you want to move "${course.title}" to the trash?`}
-                    isSoftDelete={true}
-                    className="inline-flex items-center gap-1 rounded-md border border-coral/30 px-2.5 py-1.5 text-xs font-semibold text-coral hover:bg-coral/5"
-                  >
-                    <Trash2 size={13} /> Move to trash
-                  </DeleteButton>
-                </form>
-              </div>
-            </div>
-          ))}
-          {(courses?.length ?? 0) === 0 ? (
-            <div className="p-8 text-center text-sm text-[var(--br-text-muted)]">
-              <GraduationCap className="mx-auto mb-3 text-[var(--br-text-muted)]" size={32} />
-              No courses yet. Create the first course shell above.
-            </div>
-          ) : null}
-        </div>
-      </section>
-    </main>
+    <AdminCoursesWorkspace
+      initialCourses={summaries}
+      trashedCount={trashedCount ?? 0}
+      organizations={(creationOrganizationResult.data ?? []) as Array<{ id: string; name: string }>}
+      organizationRequired={profile?.role === "SCHOOL_ADMIN"}
+      showOwnershipFilters={isAdmin || profile?.role === "SCHOOL_ADMIN"}
+    />
   );
 }
 
-function countByCourse(rows: Array<{ course_id: string | null }>) {
+function countByCourse(rows: CourseRelationRow[]) {
   const map = new Map<string, number>();
   for (const row of rows) {
     if (!row.course_id) continue;
     map.set(row.course_id, (map.get(row.course_id) ?? 0) + 1);
   }
   return map;
+}
+
+function displayName(profile: { full_name?: string | null; first_name?: string | null; last_name?: string | null }) {
+  return profile.full_name?.trim() || [profile.first_name, profile.last_name].filter(Boolean).join(" ") || "BrenUp creator";
 }
