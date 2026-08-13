@@ -320,7 +320,7 @@ function defaultBlockContent(blockType: string): Json {
   if (blockType === "VOCABULARY") {
     return { entries: [{ word: "word", pronunciation: "", meaning: "meaning", example: "", notes: "" }] };
   }
-  if (blockType === "GRAMMAR") return { title: "Grammar focus", explanation: "", examples: [], notes: null };
+  if (blockType === "GRAMMAR") return { title: "", explanation: "", examples: [], notes: null };
   if (blockType === "READING") return { title: "Reading passage", passage: "", questions: [] };
   if (blockType === "DIALOGUE") return { title: "Dialogue", turns: [{ speaker: "A", line: "" }, { speaker: "B", line: "" }] };
   if (blockType === "FLASHCARD") return {

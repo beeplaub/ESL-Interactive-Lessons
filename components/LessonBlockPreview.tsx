@@ -354,8 +354,8 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
   if (block.block_type === "GRAMMAR") {
     return (
       <div className="rounded-lg border border-blue-100 bg-blue-50 p-4">
-        <h3 className="font-semibold text-ink">{asString(content.title) || "Grammar focus"}</h3>
-        <div className="mt-2"><FormattedText text={asString(content.explanation) || "Add a grammar explanation."} /></div>
+        {asString(content.title) ? <h3 className="font-semibold text-ink">{asString(content.title)}</h3> : null}
+        {asString(content.explanation) ? <div className={`${asString(content.title) ? "mt-2" : ""}`}><FormattedText text={asString(content.explanation)} /></div> : null}
         {asArray(content.examples).length ? (
           <ul className="mt-3 space-y-2 text-base text-[var(--br-text-muted)]">
             {asArray(content.examples).map((example, index) => (

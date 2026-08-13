@@ -1680,8 +1680,8 @@ function BlockFields({ blockType, content, lessonId }: { blockType: string; cont
   if (blockType === "GRAMMAR") {
     return (
       <div className="grid gap-3">
-        <label className="text-sm">Title<input name="title" defaultValue={asString(data.title)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
-        <label className="text-sm">Explanation<textarea name="explanation" rows={3} defaultValue={asString(data.explanation)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+        <label className="text-sm">Title <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><input name="title" defaultValue={asString(data.title)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+        <label className="text-sm">Explanation <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><textarea name="explanation" rows={3} defaultValue={asString(data.explanation)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
         <label className="text-sm">Examples <span className="font-normal text-[var(--br-text-muted)]">(one per line)</span><textarea name="examples" rows={3} defaultValue={lines(data.examples)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
         <label className="text-sm">Notes <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><textarea name="notes" rows={2} defaultValue={asString(data.notes)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
       </div>
