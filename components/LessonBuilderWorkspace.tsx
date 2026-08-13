@@ -117,6 +117,9 @@ type ObeData = {
 
 type Props = { lesson: Lesson; slides: Slide[]; trashedSlides?: TrashedSlide[]; blocks: LessonBlock[]; activities: Activity[]; obe?: ObeData; isAdmin?: boolean };
 type BuilderMode = "SLIDE" | "LEARN" | "PRACTICE";
+type BuilderEditable = HTMLInputElement | HTMLTextAreaElement;
+type BuilderTextSnapshot = { value: string; selectionStart: number | null; selectionEnd: number | null };
+type BuilderTextHistory = { undo: BuilderTextSnapshot[]; redo: BuilderTextSnapshot[]; current: BuilderTextSnapshot };
 
 function PreviewDeviceControl({ value, onChange, dark = false }: {
   value: BuilderPreviewDevice;
@@ -171,19 +174,135 @@ function SubmitButton({ label }: { label: string }) {
   );
 }
 
-function BuilderHeaderUndoRedo() {
-  const history = (command: "undo" | "redo") => {
-    const active = document.activeElement as HTMLElement | null;
-    active?.focus();
-    document.execCommand(command);
-    active?.dispatchEvent(new Event("input", { bubbles: true }));
+function isBuilderEditable(target: EventTarget | null): target is BuilderEditable {
+  if (target instanceof HTMLTextAreaElement) return true;
+  if (!(target instanceof HTMLInputElement)) return false;
+  return !["button", "checkbox", "color", "file", "hidden", "image", "radio", "range", "reset", "submit"].includes(target.type);
+}
+
+function textSnapshot(element: BuilderEditable): BuilderTextSnapshot {
+  return {
+    value: element.value,
+    selectionStart: element.selectionStart,
+    selectionEnd: element.selectionEnd,
   };
+}
+
+function sameTextSnapshot(left: BuilderTextSnapshot, right: BuilderTextSnapshot) {
+  return left.value === right.value
+    && left.selectionStart === right.selectionStart
+    && left.selectionEnd === right.selectionEnd;
+}
+
+function setNativeTextValue(element: BuilderEditable, value: string) {
+  const prototype = element instanceof HTMLTextAreaElement
+    ? HTMLTextAreaElement.prototype
+    : HTMLInputElement.prototype;
+  const setter = Object.getOwnPropertyDescriptor(prototype, "value")?.set;
+  setter?.call(element, value);
+}
+
+function useBuilderTextHistory() {
+  const historiesRef = useRef(new WeakMap<BuilderEditable, BuilderTextHistory>());
+  const lastEditedRef = useRef<BuilderEditable | null>(null);
+  const applyingRef = useRef(false);
+  const [, refreshControls] = useState(0);
+
+  const ensureHistory = useCallback((element: BuilderEditable) => {
+    let history = historiesRef.current.get(element);
+    if (!history) {
+      history = { undo: [], redo: [], current: textSnapshot(element) };
+      historiesRef.current.set(element, history);
+    }
+    return history;
+  }, []);
+
+  const apply = useCallback((command: "undo" | "redo") => {
+    const element = lastEditedRef.current;
+    if (!element || !element.isConnected) return false;
+    const history = ensureHistory(element);
+    const source = command === "undo" ? history.undo : history.redo;
+    const destination = command === "undo" ? history.redo : history.undo;
+    const next = source.pop();
+    if (!next) return false;
+
+    destination.push(textSnapshot(element));
+    applyingRef.current = true;
+    setNativeTextValue(element, next.value);
+    element.focus({ preventScroll: true });
+    try { element.setSelectionRange(next.selectionStart, next.selectionEnd); } catch { /* Number inputs do not expose a selection range. */ }
+    element.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: command === "undo" ? "historyUndo" : "historyRedo" }));
+    applyingRef.current = false;
+    history.current = textSnapshot(element);
+    refreshControls((version) => version + 1);
+    return true;
+  }, [ensureHistory]);
+
+  useEffect(() => {
+    function rememberFocus(event: FocusEvent) {
+      if (!isBuilderEditable(event.target)) return;
+      lastEditedRef.current = event.target;
+      ensureHistory(event.target);
+      refreshControls((version) => version + 1);
+    }
+
+    function rememberInput(event: Event) {
+      if (applyingRef.current || !isBuilderEditable(event.target)) return;
+      const element = event.target;
+      const history = ensureHistory(element);
+      const next = textSnapshot(element);
+      if (!sameTextSnapshot(history.current, next)) {
+        history.undo.push(history.current);
+        if (history.undo.length > 100) history.undo.shift();
+        history.redo = [];
+        history.current = next;
+      }
+      lastEditedRef.current = element;
+      refreshControls((version) => version + 1);
+    }
+
+    function handleKeyboard(event: KeyboardEvent) {
+      if (!(event.metaKey || event.ctrlKey) || event.altKey || event.key.toLowerCase() !== "z") return;
+      if (!isBuilderEditable(event.target)) return;
+      lastEditedRef.current = event.target;
+      const handled = apply(event.shiftKey ? "redo" : "undo");
+      if (handled) event.preventDefault();
+    }
+
+    document.addEventListener("focusin", rememberFocus, true);
+    document.addEventListener("input", rememberInput, true);
+    document.addEventListener("keydown", handleKeyboard, true);
+    return () => {
+      document.removeEventListener("focusin", rememberFocus, true);
+      document.removeEventListener("input", rememberInput, true);
+      document.removeEventListener("keydown", handleKeyboard, true);
+    };
+  }, [apply, ensureHistory]);
+
+  const activeHistory = lastEditedRef.current && lastEditedRef.current.isConnected
+    ? historiesRef.current.get(lastEditedRef.current)
+    : null;
+
+  return {
+    undo: () => apply("undo"),
+    redo: () => apply("redo"),
+    canUndo: Boolean(activeHistory?.undo.length),
+    canRedo: Boolean(activeHistory?.redo.length),
+  };
+}
+
+function BuilderHeaderUndoRedo({ undo, redo, canUndo, canRedo }: {
+  undo: () => void;
+  redo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
+}) {
   return (
     <div className="inline-flex overflow-hidden rounded-md border border-[var(--br-border)] bg-surface shadow-sm" aria-label="Text history controls">
-      <button type="button" title="Undo text change (Ctrl/Command Z)" onMouseDown={(event) => event.preventDefault()} onClick={() => history("undo")} className="grid size-9 place-items-center text-[var(--br-brand)] hover:bg-[var(--br-surface-muted)]">
+      <button type="button" title="Undo text change (Ctrl/Command Z)" disabled={!canUndo} onMouseDown={(event) => event.preventDefault()} onClick={undo} className="grid size-9 place-items-center text-[var(--br-brand)] hover:bg-[var(--br-surface-muted)] disabled:cursor-not-allowed disabled:opacity-35">
         <Undo2 size={16} />
       </button>
-      <button type="button" title="Redo text change (Ctrl/Command Shift Z)" onMouseDown={(event) => event.preventDefault()} onClick={() => history("redo")} className="grid size-9 place-items-center border-l border-[var(--br-border)] text-[var(--br-brand)] hover:bg-[var(--br-surface-muted)]">
+      <button type="button" title="Redo text change (Ctrl/Command Shift Z)" disabled={!canRedo} onMouseDown={(event) => event.preventDefault()} onClick={redo} className="grid size-9 place-items-center border-l border-[var(--br-border)] text-[var(--br-brand)] hover:bg-[var(--br-surface-muted)] disabled:cursor-not-allowed disabled:opacity-35">
         <Redo2 size={16} />
       </button>
     </div>
@@ -578,6 +697,7 @@ function AiGeneratorModal({
 }
 
 export function LessonBuilderWorkspace({ lesson, slides, trashedSlides = [], blocks, activities, obe, isAdmin = false }: Props) {
+  const textHistory = useBuilderTextHistory();
   const [localSlides, setLocalSlides] = useState(slides);
   const [selectedSlideId, setSelectedSlideId] = useState(() => {
     if (typeof window === "undefined") return slides[0]?.id ?? "";
@@ -801,7 +921,7 @@ export function LessonBuilderWorkspace({ lesson, slides, trashedSlides = [], blo
           </div>
         </div>
         <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <BuilderHeaderUndoRedo />
+          <BuilderHeaderUndoRedo {...textHistory} />
           <div className="relative">
             <button
               type="button"
