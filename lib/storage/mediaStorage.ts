@@ -25,7 +25,15 @@ type UploadInput = {
 let r2Client: S3Client | null = null;
 
 function configuredProvider(): MediaStorageProvider {
-  return process.env.MEDIA_STORAGE_PROVIDER?.toLowerCase() === "r2" ? "r2" : "supabase";
+  // New media must be written to R2. Supabase remains supported below for
+  // reading and cleaning up legacy objects, but an unset provider must never
+  // silently send a new upload back to Supabase.
+  const configured = process.env.MEDIA_STORAGE_PROVIDER?.toLowerCase();
+  if (!configured || configured === "r2") return "r2";
+  if (configured === "supabase") {
+    throw new Error("Supabase media uploads are disabled. Set MEDIA_STORAGE_PROVIDER=r2 and configure the R2 environment variables.");
+  }
+  throw new Error(`Unsupported media storage provider: ${configured}. Use R2.`);
 }
 
 function r2Bucket() {
