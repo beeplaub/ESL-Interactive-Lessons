@@ -26,17 +26,33 @@ WARMUP_TEXT = "BrenUp voice service is ready."
 
 VOICES = {
     "af_heart": ("Heart", "Female", "American English"),
+    "af_alloy": ("Alloy", "Female", "American English"),
+    "af_aoede": ("Aoede", "Female", "American English"),
     "af_bella": ("Bella", "Female", "American English"),
+    "af_jessica": ("Jessica", "Female", "American English"),
     "af_nova": ("Nova", "Female", "American English"),
     "af_kore": ("Kore", "Female", "American English"),
+    "af_nicole": ("Nicole", "Female", "American English"),
+    "af_river": ("River", "Female", "American English"),
     "af_sarah": ("Sarah", "Female", "American English"),
+    "af_sky": ("Sky", "Female", "American English"),
+    "am_adam": ("Adam", "Male", "American English"),
+    "am_echo": ("Echo", "Male", "American English"),
+    "am_eric": ("Eric", "Male", "American English"),
     "am_michael": ("Michael", "Male", "American English"),
+    "am_liam": ("Liam", "Male", "American English"),
+    "am_onyx": ("Onyx", "Male", "American English"),
     "am_puck": ("Puck", "Male", "American English"),
     "am_fenrir": ("Fenrir", "Male", "American English"),
+    "am_santa": ("Santa", "Male", "American English"),
+    "bf_alice": ("Alice", "Female", "British English"),
     "bf_emma": ("Emma", "Female", "British English"),
     "bf_isabella": ("Isabella", "Female", "British English"),
+    "bf_lily": ("Lily", "Female", "British English"),
+    "bm_daniel": ("Daniel", "Male", "British English"),
     "bm_george": ("George", "Male", "British English"),
     "bm_fable": ("Fable", "Male", "British English"),
+    "bm_lewis": ("Lewis", "Male", "British English"),
 }
 
 model: KokoroTTS | None = None

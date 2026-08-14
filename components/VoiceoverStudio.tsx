@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, AudioLines, Check, Copy, ExternalLink, Library, Loader2, Mic2, Music2, Pause, Play, RefreshCw, Save, Sparkles, Volume2 } from "lucide-react";
 
-type Voice = { name: string; label: string; description: string; presentation: "Female" | "Male"; sampleUrl: string; kokoroVoice?: string };
+type Voice = { name: string; label: string; description: string; presentation: "Female" | "Male"; sampleUrl?: string; kokoroVoice?: string };
 type SavedVoiceover = { id: string; title: string | null; public_url: string; voice_name: string; style: string; duration_seconds: number | null; saved_at: string | null; media_asset_id: string | null };
 type LessonContext = { lessonId: string; lessonTitle: string; slideId: string; slideTitle: string; slideNumber: number; returnTo: string };
 type Preview = { generationId: string; url: string; saved: boolean; mediaAssetId?: string | null; durationSeconds: number; reused?: boolean };
@@ -37,6 +37,12 @@ export function VoiceoverStudio({ canUse, accessMessage, voices, styles, paces, 
   const kokoroAvailable = /^en(?:-|$)/i.test(languageCode);
   const effectiveProvider = provider === "auto" ? (kokoroAvailable && style === "Natural" ? "kokoro" : "google") : provider;
   const availableStyles = effectiveProvider === "kokoro" ? styles.filter((value) => value === "Natural") : styles;
+  const kokoroVoices = voices.filter((voice) => {
+    if (!voice.kokoroVoice) return false;
+    const isBritish = voice.kokoroVoice.startsWith("b");
+    return languageCode.toLowerCase().startsWith("en-gb") ? isBritish : !isBritish;
+  });
+  const displayVoices = effectiveProvider === "kokoro" ? kokoroVoices : voices;
   const words = script.trim() ? script.trim().split(/\s+/).length : 0;
   const estimatedSeconds = Math.max(0, Math.round(words / (pace === "Slow" ? 1.8 : pace === "Brisk" ? 2.8 : 2.25)));
 
@@ -48,7 +54,10 @@ export function VoiceoverStudio({ canUse, accessMessage, voices, styles, paces, 
   useEffect(() => {
     if (provider === "kokoro" && !kokoroAvailable) setProvider("auto");
     if (effectiveProvider === "kokoro" && style !== "Natural") setStyle("Natural");
-  }, [effectiveProvider, kokoroAvailable, provider, style]);
+    if (effectiveProvider === "kokoro" && !kokoroVoices.some((voice) => voice.name === voiceName)) {
+      setVoiceName(kokoroVoices[0]?.name ?? "Aoede");
+    }
+  }, [effectiveProvider, kokoroAvailable, kokoroVoices, provider, style, voiceName]);
 
   useEffect(() => {
     const sampleAudio = sampleAudioRef.current;
@@ -154,7 +163,7 @@ export function VoiceoverStudio({ canUse, accessMessage, voices, styles, paces, 
           <div className="flex flex-wrap justify-between gap-2 text-xs text-[var(--br-text-muted)]"><span>{script.length.toLocaleString()} / 4,000 characters · {words} words</span><span>About {estimatedSeconds < 60 ? `${estimatedSeconds}s` : `${Math.floor(estimatedSeconds / 60)}m ${estimatedSeconds % 60}s`}</span></div>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="text-sm font-semibold">Language<select value={languageCode} onChange={(event) => setLanguageCode(event.target.value)} className="mt-1.5 w-full rounded-lg border border-[var(--br-border)] bg-surface px-3 py-2.5 font-normal">{languageOptions.map(([value,label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-            <div className="min-w-0"><div className="flex items-end gap-2"><label className="min-w-0 flex-1 text-sm font-semibold">Voice<select value={voiceName} onChange={(event) => setVoiceName(event.target.value)} className="mt-1.5 w-full rounded-lg border border-[var(--br-border)] bg-surface px-3 py-2.5 font-normal"><optgroup label="Female voices">{voices.filter((voice) => voice.presentation === "Female").map((voice) => <option key={voice.name} value={voice.name}>{voice.label} · {voice.description}</option>)}</optgroup><optgroup label="Male voices">{voices.filter((voice) => voice.presentation === "Male").map((voice) => <option key={voice.name} value={voice.name}>{voice.label} · {voice.description}</option>)}</optgroup></select></label><button type="button" onClick={toggleVoiceSample} disabled={!selectedVoice?.sampleUrl} className="mb-0.5 grid size-11 shrink-0 place-items-center rounded-lg border border-[var(--br-brand)]/25 bg-[var(--br-brand)]/5 text-[var(--br-brand)] transition hover:bg-[var(--br-brand)]/10 disabled:opacity-50" title={`Listen to ${selectedVoice?.label ?? "voice"} sample`} aria-label={`Listen to ${selectedVoice?.label ?? "voice"} sample`}>{samplePlaying ? <Pause size={17} fill="currentColor" /> : <Play size={17} fill="currentColor" />}</button></div><audio ref={sampleAudioRef} key={selectedVoice?.name} src={selectedVoice?.sampleUrl} preload="metadata" className="hidden" onEnded={() => setSamplePlaying(false)} onPause={() => setSamplePlaying(false)} /></div>
+            <div className="min-w-0"><div className="flex items-end gap-2"><label className="min-w-0 flex-1 text-sm font-semibold">Voice<select value={voiceName} onChange={(event) => setVoiceName(event.target.value)} className="mt-1.5 w-full rounded-lg border border-[var(--br-border)] bg-surface px-3 py-2.5 font-normal"><optgroup label="Female voices">{displayVoices.filter((voice) => voice.presentation === "Female").map((voice) => <option key={voice.name} value={voice.name}>{voice.label} · {voice.description}</option>)}</optgroup><optgroup label="Male voices">{displayVoices.filter((voice) => voice.presentation === "Male").map((voice) => <option key={voice.name} value={voice.name}>{voice.label} · {voice.description}</option>)}</optgroup></select></label><button type="button" onClick={toggleVoiceSample} disabled={!selectedVoice?.sampleUrl} className="mb-0.5 grid size-11 shrink-0 place-items-center rounded-lg border border-[var(--br-brand)]/25 bg-[var(--br-brand)]/5 text-[var(--br-brand)] transition hover:bg-[var(--br-brand)]/10 disabled:opacity-50" title={`Listen to ${selectedVoice?.label ?? "voice"} sample`} aria-label={`Listen to ${selectedVoice?.label ?? "voice"} sample`}>{samplePlaying ? <Pause size={17} fill="currentColor" /> : <Play size={17} fill="currentColor" />}</button></div><audio ref={sampleAudioRef} key={selectedVoice?.name} src={selectedVoice?.sampleUrl} preload="metadata" className="hidden" onEnded={() => setSamplePlaying(false)} onPause={() => setSamplePlaying(false)} /></div>
             <label className="text-sm font-semibold">Engine<select value={provider} onChange={(event) => setProvider(event.target.value as "auto" | "kokoro" | "google")} className="mt-1.5 w-full rounded-lg border border-[var(--br-border)] bg-surface px-3 py-2.5 font-normal"><option value="auto">Auto · best fit</option><option value="kokoro" disabled={!kokoroAvailable}>Kokoro · English only</option><option value="google">Gemini · languages & styles</option></select></label>
             <label className="text-sm font-semibold">Delivery style<select value={style} onChange={(event) => setStyle(event.target.value)} className="mt-1.5 w-full rounded-lg border border-[var(--br-border)] bg-surface px-3 py-2.5 font-normal">{availableStyles.map((value) => <option key={value}>{value}</option>)}</select></label>
             <label className="text-sm font-semibold">Pace<select value={pace} onChange={(event) => setPace(event.target.value)} className="mt-1.5 w-full rounded-lg border border-[var(--br-border)] bg-surface px-3 py-2.5 font-normal">{paces.map((value) => <option key={value}>{value}</option>)}</select></label>
