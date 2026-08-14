@@ -1,0 +1,7 @@
+tunnel: 84e921b4-5a40-482f-99c8-13ad0eff29f7
+credentials-file: __HOME__/.cloudflared/84e921b4-5a40-482f-99c8-13ad0eff29f7.json
+
+ingress:
+  - hostname: tts.brenup.com
+    service: http://127.0.0.1:8880
+  - service: http_status:404

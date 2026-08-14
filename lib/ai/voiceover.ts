@@ -2,40 +2,41 @@ import { createHash } from "node:crypto";
 import { GoogleGenAI, Modality } from "@google/genai";
 
 export const VOICEOVER_MODEL = process.env.GEMINI_TTS_MODEL || "gemini-3.1-flash-tts-preview";
+export const KOKORO_VOICEOVER_MODEL = process.env.KOKORO_TTS_MODEL || "kokoro-82m";
 export const MAX_VOICEOVER_SCRIPT_LENGTH = 4_000;
 
 export const VOICEOVER_VOICES = [
   {
-    name: "Aoede", label: "Aoede", description: "Breezy and natural", presentation: "Female",
-    sampleUrl: "https://media.brenup.com/ai-recordings/voiceovers/fab99c28-0901-4159-877c-f56834c7833f/saved/1786434386973-aoede.wav",
+    name: "Aoede", label: "Aoede", description: "Breezy and natural", presentation: "Female", kokoroVoice: "af_heart",
+    sampleUrl: "https://media.brenup.com/ai-recordings/voiceovers/system/kokoro-samples/af_heart.wav",
   },
   {
-    name: "Kore", label: "Kore", description: "Clear and confident", presentation: "Female",
-    sampleUrl: "https://media.brenup.com/ai-recordings/voiceovers/fab99c28-0901-4159-877c-f56834c7833f/saved/1786434663688-aoede.wav",
+    name: "Kore", label: "Kore", description: "Clear and confident", presentation: "Female", kokoroVoice: "af_bella",
+    sampleUrl: "https://media.brenup.com/ai-recordings/voiceovers/system/kokoro-samples/af_bella.wav",
   },
   {
-    name: "Leda", label: "Leda", description: "Youthful and bright", presentation: "Female",
-    sampleUrl: "https://media.brenup.com/ai-recordings/voiceovers/fab99c28-0901-4159-877c-f56834c7833f/saved/1786434762218-aoede.wav",
+    name: "Leda", label: "Leda", description: "Youthful and bright", presentation: "Female", kokoroVoice: "af_nova",
+    sampleUrl: "https://media.brenup.com/ai-recordings/voiceovers/system/kokoro-samples/af_nova.wav",
   },
   {
-    name: "Gacrux", label: "Gacrux", description: "Mature and composed", presentation: "Female",
-    sampleUrl: "https://media.brenup.com/ai-recordings/voiceovers/fab99c28-0901-4159-877c-f56834c7833f/saved/1786435143303-gacrux.wav",
+    name: "Gacrux", label: "Gacrux", description: "Mature and composed", presentation: "Female", kokoroVoice: "bf_emma",
+    sampleUrl: "https://media.brenup.com/ai-recordings/voiceovers/system/kokoro-samples/bf_emma.wav",
   },
   {
-    name: "Sulafat", label: "Sulafat", description: "Warm and encouraging", presentation: "Female",
-    sampleUrl: "https://media.brenup.com/ai-recordings/voiceovers/fab99c28-0901-4159-877c-f56834c7833f/saved/1786442446428-sulafat.wav",
+    name: "Sulafat", label: "Sulafat", description: "Warm and encouraging", presentation: "Female", kokoroVoice: "af_sarah",
+    sampleUrl: "https://media.brenup.com/ai-recordings/voiceovers/system/kokoro-samples/af_sarah.wav",
   },
   {
-    name: "Puck", label: "Puck", description: "Upbeat and lively", presentation: "Male",
-    sampleUrl: "https://media.brenup.com/ai-recordings/voiceovers/fab99c28-0901-4159-877c-f56834c7833f/saved/1786434855299-puck.wav",
+    name: "Puck", label: "Puck", description: "Upbeat and lively", presentation: "Male", kokoroVoice: "am_puck",
+    sampleUrl: "https://media.brenup.com/ai-recordings/voiceovers/system/kokoro-samples/am_puck.wav",
   },
   {
-    name: "Charon", label: "Charon", description: "Informative and steady", presentation: "Male",
-    sampleUrl: "https://media.brenup.com/ai-recordings/voiceovers/fab99c28-0901-4159-877c-f56834c7833f/saved/1786434910089-charon.wav",
+    name: "Charon", label: "Charon", description: "Informative and steady", presentation: "Male", kokoroVoice: "bm_george",
+    sampleUrl: "https://media.brenup.com/ai-recordings/voiceovers/system/kokoro-samples/bm_george.wav",
   },
   {
-    name: "Fenrir", label: "Fenrir", description: "Energetic and expressive", presentation: "Male",
-    sampleUrl: "https://media.brenup.com/ai-recordings/voiceovers/fab99c28-0901-4159-877c-f56834c7833f/saved/1786434969535-fenrir.wav",
+    name: "Fenrir", label: "Fenrir", description: "Energetic and expressive", presentation: "Male", kokoroVoice: "am_fenrir",
+    sampleUrl: "https://media.brenup.com/ai-recordings/voiceovers/system/kokoro-samples/am_fenrir.wav",
   },
 ] as const;
 
@@ -67,7 +68,11 @@ export function isVoiceoverQuotaError(error: unknown) {
   return /RESOURCE_EXHAUSTED|quota exceeded|rate limit|\b429\b/i.test(message);
 }
 
-export function voiceoverRequestHash(request: VoiceoverRequest) {
+export function voiceoverRequestHash(request: VoiceoverRequest, provider = voiceoverProviderForRequest(request)) {
+  const providerModel = provider === "kokoro" ? KOKORO_VOICEOVER_MODEL : VOICEOVER_MODEL;
+  const providerVoice = provider === "kokoro"
+    ? VOICEOVER_VOICES.find((candidate) => candidate.name === request.voiceName)?.kokoroVoice || "af_heart"
+    : request.voiceName;
   return createHash("sha256")
     .update(JSON.stringify({
       script: request.script.trim(),
@@ -75,9 +80,30 @@ export function voiceoverRequestHash(request: VoiceoverRequest) {
       languageCode: request.languageCode,
       style: request.style,
       pace: request.pace,
-      model: VOICEOVER_MODEL,
+      provider,
+      model: providerModel,
+      providerVoice,
     }))
     .digest("hex");
+}
+
+function isEnglishLanguage(languageCode: string) {
+  return /^en(?:-|$)/i.test(languageCode);
+}
+
+export function voiceoverProviderForLanguage(languageCode: string): "kokoro" | "google" {
+  const preference = (process.env.VOICEOVER_PROVIDER || "auto").toLowerCase();
+  const configured = Boolean(process.env.KOKORO_TTS_URL && process.env.KOKORO_TTS_API_KEY);
+  if (preference === "gemini" || !isEnglishLanguage(languageCode)) return "google";
+  if ((preference === "kokoro" || preference === "auto") && configured) return "kokoro";
+  return "google";
+}
+
+export function voiceoverProviderForRequest(request: Pick<VoiceoverRequest, "languageCode" | "style">): "kokoro" | "google" {
+  const provider = voiceoverProviderForLanguage(request.languageCode);
+  const preference = (process.env.VOICEOVER_PROVIDER || "auto").toLowerCase();
+  if (provider === "kokoro" && preference === "auto" && request.style !== "Natural") return "google";
+  return provider;
 }
 
 function sampleRateFromMime(mimeType?: string) {
@@ -104,7 +130,7 @@ export function pcmToWav(pcm: Uint8Array, sampleRate = 24_000) {
   return new Uint8Array(Buffer.concat([header, Buffer.from(pcm)]));
 }
 
-export async function generateVoiceoverAudio(request: VoiceoverRequest) {
+async function generateGeminiVoiceover(request: VoiceoverRequest) {
   const styleInstruction = request.style === "Natural" ? "natural and clear" : request.style.toLowerCase();
   const paceInstruction = request.pace === "Natural" ? "a natural speaking pace" : `a ${request.pace.toLowerCase()} speaking pace`;
   const prompt = [
@@ -140,5 +166,68 @@ export async function generateVoiceoverAudio(request: VoiceoverRequest) {
     tokenEstimate: response.usageMetadata?.totalTokenCount ?? Math.ceil(request.script.length / 4),
     inputTokens: response.usageMetadata?.promptTokenCount ?? Math.ceil(request.script.length / 4),
     outputTokens: response.usageMetadata?.candidatesTokenCount ?? 0,
+    provider: "google" as const,
   };
+}
+
+function kokoroSpeed(pace: string) {
+  if (pace === "Slow") return 0.85;
+  if (pace === "Brisk") return 1.15;
+  return 1;
+}
+
+function wavDurationSeconds(wav: Uint8Array) {
+  if (wav.byteLength < 44) return 0;
+  const view = new DataView(wav.buffer, wav.byteOffset, wav.byteLength);
+  const sampleRate = view.getUint32(24, true);
+  const channels = view.getUint16(22, true);
+  const bitsPerSample = view.getUint16(34, true);
+  const dataBytes = view.getUint32(40, true);
+  return sampleRate && channels && bitsPerSample ? dataBytes / (sampleRate * channels * (bitsPerSample / 8)) : 0;
+}
+
+async function generateKokoroVoiceover(request: VoiceoverRequest) {
+  const baseUrl = process.env.KOKORO_TTS_URL?.replace(/\/$/, "");
+  const apiKey = process.env.KOKORO_TTS_API_KEY;
+  if (!baseUrl || !apiKey) throw new Error("The BrenUp Kokoro voice service is not configured.");
+  const voice = VOICEOVER_VOICES.find((candidate) => candidate.name === request.voiceName)?.kokoroVoice || "af_heart";
+  const timeoutMs = Math.min(35_000, Math.max(5_000, Number(process.env.KOKORO_TTS_TIMEOUT_MS || 20_000)));
+  const response = await fetch(`${baseUrl}/v1/audio/speech`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ model: "kokoro", input: request.script.trim(), voice, speed: kokoroSpeed(request.pace), response_format: "wav" }),
+    signal: AbortSignal.timeout(timeoutMs),
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    const details = await response.text().catch(() => "");
+    throw new Error(`Kokoro voice service returned ${response.status}${details ? `: ${details.slice(0, 240)}` : ""}`);
+  }
+  const wav = new Uint8Array(await response.arrayBuffer());
+  if (wav.byteLength < 44) throw new Error("Kokoro returned an invalid audio file.");
+  const durationSeconds = Number(response.headers.get("x-audio-duration")) || wavDurationSeconds(wav);
+  return {
+    wav,
+    sampleRate: 24_000,
+    durationSeconds,
+    model: response.headers.get("x-tts-model") || KOKORO_VOICEOVER_MODEL,
+    tokenEstimate: 0,
+    inputTokens: 0,
+    outputTokens: 0,
+    provider: "kokoro" as const,
+  };
+}
+
+export async function generateVoiceoverAudio(request: VoiceoverRequest) {
+  const provider = voiceoverProviderForRequest(request);
+  if (provider === "kokoro") {
+    try {
+      return await generateKokoroVoiceover(request);
+    } catch (error) {
+      const fallbackAllowed = process.env.KOKORO_FALLBACK_TO_GEMINI !== "false";
+      if (!fallbackAllowed || (process.env.VOICEOVER_PROVIDER || "auto").toLowerCase() === "kokoro") throw error;
+      console.error("Kokoro generation failed; using Gemini fallback", error);
+    }
+  }
+  return generateGeminiVoiceover(request);
 }

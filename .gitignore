@@ -10,3 +10,6 @@ tsconfig.tsbuildinfo
 .vercel
 .DS_Store
 .env*
+services/kokoro-tts/.venv/
+__pycache__/
+*.pyc

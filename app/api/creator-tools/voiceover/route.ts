@@ -13,11 +13,13 @@ import { creatorAccessError, getCreatorAiAccess } from "@/lib/ai/creatorAccess";
 import {
   generateVoiceoverAudio,
   isVoiceoverQuotaError,
+  KOKORO_VOICEOVER_MODEL,
   MAX_VOICEOVER_SCRIPT_LENGTH,
   VOICEOVER_MODEL,
   VOICEOVER_PACES,
   VOICEOVER_STYLES,
   VOICEOVER_VOICES,
+  voiceoverProviderForRequest,
   voiceoverRequestHash,
 } from "@/lib/ai/voiceover";
 import { deleteMediaObject, resolveMediaUrl, uploadMediaObject } from "@/lib/storage/mediaStorage";
@@ -51,6 +53,7 @@ export async function POST(request: Request) {
   const parsed = requestSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return jsonError(parsed.error.issues[0]?.message || "Check the voiceover settings.", 400);
   const input = parsed.data;
+  const preferredProvider = voiceoverProviderForRequest(input);
   const admin = createAdminClient();
   const requestHash = voiceoverRequestHash(input);
 
@@ -78,7 +81,7 @@ export async function POST(request: Request) {
           user_id: access.user.id,
           user_role: access.profile.role,
           feature_key: "creator_voiceover",
-          model_used: VOICEOVER_MODEL,
+          model_used: "voiceover-cache",
           provider: "cache",
           status: "CACHED",
           response_preview: `${reusable.id} · reusable voiceover`,
@@ -127,7 +130,7 @@ export async function POST(request: Request) {
             user_id: access.user.id,
             user_role: access.profile.role,
             feature_key: "creator_voiceover",
-            model_used: VOICEOVER_MODEL,
+            model_used: "voiceover-cache",
             provider: "cache",
             status: "CACHED",
             response_preview: `${shared.id} · shared voiceover generation`,
@@ -174,6 +177,7 @@ export async function POST(request: Request) {
   const generationId = crypto.randomUUID();
   try {
     const generated = await generateVoiceoverAudio(input);
+    const completedRequestHash = voiceoverRequestHash(input, generated.provider);
     const path = `voiceovers/${access.user.id}/previews/${generationId}.wav`;
     const stored = await uploadMediaObject({
       supabase: admin,
@@ -190,7 +194,7 @@ export async function POST(request: Request) {
       status: "PREVIEW",
       title: input.title || null,
       script: input.script,
-      request_hash: requestHash,
+      request_hash: completedRequestHash,
       language_code: input.languageCode,
       voice_name: input.voiceName,
       style: input.style,
@@ -230,13 +234,13 @@ export async function POST(request: Request) {
         prompt_raw: input.script.slice(0, 2_000),
         response_preview: `${input.voiceName} · ${input.style} · ${Math.round(generated.durationSeconds)}s`,
         token_estimate: generated.tokenEstimate,
-        provider: "google",
+        provider: generated.provider,
         status: "COMPLETED",
         input_tokens: generated.inputTokens,
         output_tokens: generated.outputTokens,
         latency_ms: Date.now() - requestStartedAt,
         cache_hit: false,
-        cache_key: requestHash,
+        cache_key: completedRequestHash,
         prompt_version: "voiceover-v1",
         completed_at: new Date().toISOString(),
       }),
@@ -256,10 +260,10 @@ export async function POST(request: Request) {
       user_id: access.user.id,
       user_role: access.profile.role,
       feature_key: "creator_voiceover",
-      model_used: VOICEOVER_MODEL,
+      model_used: preferredProvider === "kokoro" ? KOKORO_VOICEOVER_MODEL : VOICEOVER_MODEL,
       prompt_raw: input.script.slice(0, 2_000),
       error_message: error instanceof Error ? error.message : "Voiceover generation failed",
-      provider: "google",
+      provider: preferredProvider,
       status: "FAILED",
       cache_key: requestHash,
       prompt_version: "voiceover-v1",
@@ -267,7 +271,7 @@ export async function POST(request: Request) {
     });
     if (logError) console.error("Voiceover failure audit log failed", logError);
     if (isVoiceoverQuotaError(error)) {
-      return jsonError("AI voice generation has reached its daily limit. Your existing saved voiceovers are still available. Try again after the Gemini quota resets, or use Record, Upload, or Link audio.", 429);
+      return jsonError("Gemini voice generation has reached its daily limit. Existing saved voiceovers remain available; English Kokoro generation will continue whenever the local service is online.", 429);
     }
     return jsonError(error instanceof Error ? error.message : "Voiceover generation failed.", 500);
   } finally {
