@@ -207,6 +207,16 @@ function useBuilderTextHistory() {
   const lastEditedRef = useRef<BuilderEditable | null>(null);
   const applyingRef = useRef(false);
   const [, refreshControls] = useState(0);
+  const refreshQueuedRef = useRef(false);
+
+  const scheduleControlsRefresh = useCallback(() => {
+    if (refreshQueuedRef.current) return;
+    refreshQueuedRef.current = true;
+    queueMicrotask(() => {
+      refreshQueuedRef.current = false;
+      refreshControls((version) => version + 1);
+    });
+  }, []);
 
   const ensureHistory = useCallback((element: BuilderEditable) => {
     let history = historiesRef.current.get(element);
@@ -234,16 +244,16 @@ function useBuilderTextHistory() {
     element.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: command === "undo" ? "historyUndo" : "historyRedo" }));
     applyingRef.current = false;
     history.current = textSnapshot(element);
-    refreshControls((version) => version + 1);
+    scheduleControlsRefresh();
     return true;
-  }, [ensureHistory]);
+  }, [ensureHistory, scheduleControlsRefresh]);
 
   useEffect(() => {
     function rememberFocus(event: FocusEvent) {
       if (!isBuilderEditable(event.target)) return;
       lastEditedRef.current = event.target;
       ensureHistory(event.target);
-      refreshControls((version) => version + 1);
+      scheduleControlsRefresh();
     }
 
     function rememberInput(event: Event) {
@@ -258,7 +268,9 @@ function useBuilderTextHistory() {
         history.current = next;
       }
       lastEditedRef.current = element;
-      refreshControls((version) => version + 1);
+      // React's controlled input handler must commit first. Refreshing this
+      // parent during capture resets the field to its previous value.
+      scheduleControlsRefresh();
     }
 
     function handleKeyboard(event: KeyboardEvent) {
@@ -270,14 +282,14 @@ function useBuilderTextHistory() {
     }
 
     document.addEventListener("focusin", rememberFocus, true);
-    document.addEventListener("input", rememberInput, true);
+    document.addEventListener("input", rememberInput);
     document.addEventListener("keydown", handleKeyboard, true);
     return () => {
       document.removeEventListener("focusin", rememberFocus, true);
-      document.removeEventListener("input", rememberInput, true);
+      document.removeEventListener("input", rememberInput);
       document.removeEventListener("keydown", handleKeyboard, true);
     };
-  }, [apply, ensureHistory]);
+  }, [apply, ensureHistory, scheduleControlsRefresh]);
 
   const activeHistory = lastEditedRef.current && lastEditedRef.current.isConnected
     ? historiesRef.current.get(lastEditedRef.current)
