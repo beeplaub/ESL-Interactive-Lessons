@@ -209,7 +209,7 @@ function geminiVoiceName(requestedVoice: string) {
 }
 
 function kokoroSpeed(pace: string) {
-  if (pace === "Very slow") return 0.7;
+  if (pace === "Very slow") return 0.75;
   if (pace === "Slow") return 0.85;
   if (pace === "Brisk") return 1.15;
   return 1;
