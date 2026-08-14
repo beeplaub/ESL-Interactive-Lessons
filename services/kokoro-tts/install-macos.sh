@@ -10,11 +10,11 @@ CLOUDFLARED_AGENT_PATH="$AGENT_DIR/com.brenup.cloudflared.plist"
 
 restart_agent() {
   local label="$1"
-  local path="$2"
+  local plist_path="$2"
   launchctl bootout "gui/$(id -u)/$label" >/dev/null 2>&1 || true
   for attempt in 1 2 3 4 5; do
     sleep 1
-    if launchctl bootstrap "gui/$(id -u)" "$path"; then
+    if launchctl bootstrap "gui/$(id -u)" "$plist_path"; then
       launchctl kickstart -k "gui/$(id -u)/$label"
       return 0
     fi
