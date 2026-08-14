@@ -21,6 +21,7 @@ import { EditItemModal } from "@/app/admin/courses/[id]/builder/EditItemModal";
 import { CourseQuizOutcomeMapper } from "@/components/CourseQuizOutcomeMapper";
 import { DeleteButton } from "@/components/DeleteButton";
 import { CourseItemsList } from "@/app/admin/courses/[id]/builder/CourseItemsList";
+import { CourseTeamManager, type CourseTeamRow } from "@/components/CourseTeamManager";
 import {
   addCourseFaq,
   addCourseItem,
@@ -41,6 +42,8 @@ import {
   updateCourseOutcome,
   updateCourseSection,
   reorderCourseItems,
+  removeCourseStaffMember,
+  saveCourseStaffMember,
 } from "@/app/admin/courses/actions";
 
 const levels = CONTENT_LEVELS;
@@ -68,7 +71,7 @@ type CourseItem = {
 
 export default async function CourseBuilderPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { user, profile } = await requireCourseAccess(id);
+  const { user, profile, courseAccess } = await requireCourseAccess(id);
   const admin = createAdminClient();
 
   let lessonsPickerQuery = admin.from("lessons").select("id,title,level,topic,status").is("deleted_at", null).order("created_at", { ascending: false });
@@ -102,6 +105,24 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
   ]);
 
   if (!course) notFound();
+
+  const [{ data: staffRows }, { data: staffProfiles }] = await Promise.all([
+    admin.from("course_staff").select("*").eq("course_id", id).order("display_order", { ascending: true }),
+    admin.from("profiles").select("id,full_name,first_name,last_name,avatar_url,role").in("role", ["ADMIN", "TEACHER", "SCHOOL_ADMIN"]).order("full_name"),
+  ]);
+  const staffProfileMap = new Map((staffProfiles ?? []).map((staffProfile) => [staffProfile.id, {
+    id: staffProfile.id,
+    name: staffProfile.full_name?.trim() || [staffProfile.first_name, staffProfile.last_name].filter(Boolean).join(" ") || "BrenUp staff",
+    avatarUrl: staffProfile.avatar_url ?? null,
+    role: String(staffProfile.role),
+  }]));
+  const ownerId = course.owner_id ?? course.created_by;
+  const courseTeam = (staffRows ?? []).flatMap((member) => {
+    const memberProfile = staffProfileMap.get(member.user_id);
+    return memberProfile ? [{ ...member, profile: memberProfile, isOwner: member.user_id === ownerId } as CourseTeamRow] : [];
+  });
+  const staffCandidates = Array.from(staffProfileMap.values());
+  const canManageTeam = courseAccess.kind !== "COURSE_STAFF" || Boolean(courseAccess.staff?.manage_course_staff);
 
   const courseItems = (items ?? []) as CourseItem[];
   const quizItemRows = courseItems.filter((item) => item.item_type === "QUIZ" && item.quiz_id);
@@ -280,6 +301,22 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
       </section>
 
       <section className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        {canManageTeam ? (
+          <BuilderDialog
+            icon="team"
+            triggerLabel="Course team"
+            countLabel={`${courseTeam.filter((member) => member.show_to_learners).length} public instructors`}
+            title="Course team and instructor access"
+            description="Choose who teaches this course, who learners see, and exactly what each creator may manage."
+          >
+            <CourseTeamManager
+              team={courseTeam}
+              candidates={staffCandidates}
+              saveAction={saveCourseStaffMember.bind(null, course.id)}
+              removeAction={removeCourseStaffMember.bind(null, course.id)}
+            />
+          </BuilderDialog>
+        ) : null}
         <BuilderDialog
           icon="settings"
           triggerLabel="Landing page"

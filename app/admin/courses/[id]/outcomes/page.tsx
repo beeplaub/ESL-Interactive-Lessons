@@ -10,7 +10,7 @@ function pct(value: number) {
 
 export default async function CourseOutcomeReportPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  await requireCourseAccess(id);
+  await requireCourseAccess(id, "view_analytics");
   const admin = createAdminClient();
   const [{ data: course }, { data: outcomes }] = await Promise.all([
     admin.from("courses").select("*").eq("id", id).maybeSingle(),

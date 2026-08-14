@@ -69,6 +69,19 @@ export function isStaff(role?: string | null) {
   return role === "ADMIN" || role === "TEACHER" || role === "SCHOOL_ADMIN";
 }
 
+export type CoursePermission =
+  | "view_course"
+  | "edit_course_details"
+  | "manage_curriculum"
+  | "create_content"
+  | "edit_assigned_content"
+  | "publish_content"
+  | "manage_enrollments"
+  | "grade_submissions"
+  | "view_analytics"
+  | "run_live_classes"
+  | "manage_course_staff";
+
 /**
  * Gate for any /admin page a TEACHER should be able to reach at all
  * (course-scoped creator tools). Platform-wide pages (Users, Organizations,
@@ -88,9 +101,9 @@ export async function requireStaff() {
  * analytics, course-item mutations). ADMIN can access any course. TEACHER
  * can only access a course they own (courses.owner_id / created_by).
  */
-export async function requireCourseAccess(courseId: string) {
+export async function requireCourseAccess(courseId: string, permission: CoursePermission = "view_course") {
   const session = await requireStaff();
-  if (isPlatformAdmin(session.profile?.role)) return session;
+  if (isPlatformAdmin(session.profile?.role)) return { ...session, courseAccess: { kind: "PLATFORM_ADMIN" as const } };
 
   const admin = createAdminClient();
   const { data: course } = await admin
@@ -104,8 +117,17 @@ export async function requireCourseAccess(courseId: string) {
     ? await admin.from("organization_members").select("organization_id").eq("user_id", session.user.id).in("role", ["OWNER", "SCHOOL_ADMIN"])
     : { data: [] };
   const schoolOwns = Boolean(course?.organization_id && (memberships ?? []).some((membership) => membership.organization_id === course.organization_id));
-  if (!owns && !schoolOwns) redirect("/admin/courses");
-  return session;
+  if (owns || schoolOwns) return { ...session, courseAccess: { kind: owns ? "OWNER" as const : "SCHOOL_ADMIN" as const } };
+
+  const { data: staff } = await admin
+    .from("course_staff")
+    .select("staff_role,edit_course_details,manage_curriculum,create_content,edit_assigned_content,publish_content,manage_enrollments,grade_submissions,view_analytics,run_live_classes,manage_course_staff")
+    .eq("course_id", courseId)
+    .eq("user_id", session.user.id)
+    .maybeSingle();
+  const allowed = permission === "view_course" ? Boolean(staff) : Boolean(staff?.[permission]);
+  if (!allowed) redirect("/admin/courses");
+  return { ...session, courseAccess: { kind: "COURSE_STAFF" as const, staff } };
 }
 
 /** Gate for a single lesson's builder/edit pages and mutation actions. */
@@ -120,7 +142,15 @@ export async function requireLessonAccess(lessonId: string) {
     .eq("id", lessonId)
     .maybeSingle();
 
-  if (!lesson || lesson.created_by !== session.user.id) redirect("/admin/lessons");
+  if (!lesson) redirect("/admin/lessons");
+  if (lesson.created_by === session.user.id) return session;
+
+  const { data: placements } = await admin.from("course_items").select("course_id").eq("lesson_id", lessonId);
+  const courseIds = Array.from(new Set((placements ?? []).map((item) => item.course_id).filter(Boolean)));
+  // Shared source lessons remain protected: course staff should duplicate or
+  // receive ownership rather than changing several courses at once.
+  if (courseIds.length === 1 && await canEditAssignedCourseContent(session, courseIds[0])) return session;
+  redirect("/admin/lessons");
   return session;
 }
 
@@ -132,10 +162,28 @@ export async function requireQuizAccess(quizId: string) {
   const admin = createAdminClient();
   const { data: quiz } = await admin
     .from("quizzes")
-    .select("id, created_by")
+    .select("id, created_by, course_id")
     .eq("id", quizId)
     .maybeSingle();
 
-  if (!quiz || quiz.created_by !== session.user.id) redirect("/admin/quizzes");
+  if (!quiz) redirect("/admin/quizzes");
+  if (quiz.created_by === session.user.id) return session;
+  if (quiz.course_id && await canEditAssignedCourseContent(session, quiz.course_id)) return session;
+  redirect("/admin/quizzes");
   return session;
+}
+
+async function canEditAssignedCourseContent(
+  session: Awaited<ReturnType<typeof requireStaff>>,
+  courseId: string,
+) {
+  const admin = createAdminClient();
+  const { data: course } = await admin.from("courses").select("owner_id,created_by,organization_id").eq("id", courseId).maybeSingle();
+  if (!course) return false;
+  if (course.owner_id === session.user.id || course.created_by === session.user.id) return true;
+  const { data: staff } = await admin.from("course_staff").select("edit_assigned_content").eq("course_id", courseId).eq("user_id", session.user.id).maybeSingle();
+  if (staff?.edit_assigned_content) return true;
+  if (session.profile?.role !== "SCHOOL_ADMIN" || !course.organization_id) return false;
+  const { data: membership } = await admin.from("organization_members").select("id").eq("organization_id", course.organization_id).eq("user_id", session.user.id).in("role", ["OWNER", "SCHOOL_ADMIN"]).maybeSingle();
+  return Boolean(membership);
 }

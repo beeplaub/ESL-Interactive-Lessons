@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { Clock3, PlayCircle } from "lucide-react";
+import { CourseInstructorByline } from "@/components/CourseInstructorByline";
+import type { CourseInstructor } from "@/lib/courseInstructors";
 
 export type MarketingCourseCardCourse = {
   id: string;
@@ -20,7 +22,7 @@ const tones = [
   "from-[var(--br-brand-strong)] to-[var(--br-action)]",
 ];
 
-export function MarketingCourseCard({ course, lessonCount, tone }: { course: MarketingCourseCardCourse; lessonCount: number; tone: number }) {
+export function MarketingCourseCard({ course, lessonCount, tone, instructors }: { course: MarketingCourseCardCourse; lessonCount: number; tone: number; instructors?: CourseInstructor[] }) {
   const imageUrl = resolveCourseImage(course.thumbnail_path || course.cover_image_path);
   const duration = course.estimated_completion_minutes ?? course.duration_minutes;
 
@@ -35,7 +37,7 @@ export function MarketingCourseCard({ course, lessonCount, tone }: { course: Mar
         </> : null}
         <span className="absolute right-3 top-3 rounded bg-surface px-2 py-1 font-mono text-sm font-semibold text-[var(--br-brand-strong)]">{course.level || "Course"}</span>
       </div>
-      <div className="p-6"><h3 className="line-clamp-2 text-xl font-semibold text-[var(--br-text)]">{course.title}</h3><div className="mt-4 flex gap-4 text-sm text-[var(--br-text-muted)]">{duration ? <span className="inline-flex items-center gap-1"><Clock3 className="size-4" /> {duration} min</span> : null}<span className="inline-flex items-center gap-1"><PlayCircle className="size-4" /> {lessonCount} {lessonCount === 1 ? "Lesson" : "Lessons"}</span></div></div>
+      <div className="p-6"><h3 className="line-clamp-2 text-xl font-semibold text-[var(--br-text)]">{course.title}</h3><div className="mt-3"><CourseInstructorByline instructors={instructors} compact /></div><div className="mt-4 flex gap-4 text-sm text-[var(--br-text-muted)]">{duration ? <span className="inline-flex items-center gap-1"><Clock3 className="size-4" /> {duration} min</span> : null}<span className="inline-flex items-center gap-1"><PlayCircle className="size-4" /> {lessonCount} {lessonCount === 1 ? "Lesson" : "Lessons"}</span></div></div>
     </Link>
   );
 }

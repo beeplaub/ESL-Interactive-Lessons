@@ -7,7 +7,7 @@ function csvCell(value: unknown) {
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  await requireCourseAccess(id);
+  await requireCourseAccess(id, "view_analytics");
   const admin = createAdminClient();
   const [{ data: course }, { data: outcomes }, { data: results }] = await Promise.all([
     admin.from("courses").select("id,title,evidence_selection").eq("id", id).maybeSingle(),

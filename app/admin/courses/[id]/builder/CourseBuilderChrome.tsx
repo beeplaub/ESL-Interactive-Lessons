@@ -1,14 +1,14 @@
 "use client";
 
 import { type ReactNode, useEffect, useState, useTransition } from "react";
-import { BookOpen, CheckCircle2, ChevronRight, HelpCircle, Plus, Settings2, X, Coins } from "lucide-react";
+import { BookOpen, CheckCircle2, ChevronRight, HelpCircle, Plus, Settings2, X, Coins, Users } from "lucide-react";
 
 type BuilderDialogProps = {
   title: string;
   description: string;
   triggerLabel: string;
   countLabel?: string;
-  icon: "settings" | "outcomes" | "faq" | "pricing";
+  icon: "settings" | "outcomes" | "faq" | "pricing" | "team";
   children: ReactNode;
 };
 
@@ -17,6 +17,7 @@ const icons = {
   outcomes: CheckCircle2,
   faq: HelpCircle,
   pricing: Coins,
+  team: Users,
 };
 
 export function BuilderDialog({

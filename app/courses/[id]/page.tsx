@@ -21,6 +21,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { enrollInCourse, markCourseItemComplete } from "@/app/courses/actions";
 import { getFreshProfile } from "@/lib/auth";
+import { CourseInstructorByline } from "@/components/CourseInstructorByline";
+import { getCourseInstructorMap } from "@/lib/courseInstructors";
 
 type CourseItemView = {
   id: string;
@@ -95,6 +97,8 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
   ]);
 
   if (!course) notFound();
+  const courseInstructorMap = await getCourseInstructorMap([course.id]);
+  const courseInstructors = courseInstructorMap.get(course.id);
 
   const rawItems = (items ?? []) as CourseItemView[];
   const sectionsList = sections ?? [];
@@ -153,6 +157,7 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
           </div>
           <h1 className="mt-4 break-words text-[26px] font-extrabold leading-tight tracking-[-0.01em] text-[var(--br-dark-card)] sm:text-[30px] md:text-[38px]">{course.title}</h1>
           {course.subtitle ? <p className="mt-3 max-w-2xl break-words text-sm leading-6 text-[var(--br-text-muted)] md:text-base">{course.subtitle}</p> : null}
+          <div className="mt-4"><CourseInstructorByline instructors={courseInstructors} /></div>
           <div className="mt-5 flex flex-wrap gap-4 text-xs font-bold text-[var(--br-text-muted)]">
             <Meta icon={BookOpen} label={`${totalItems} items`} />
             <Meta icon={Layers} label={`${sectionCount} modules`} />

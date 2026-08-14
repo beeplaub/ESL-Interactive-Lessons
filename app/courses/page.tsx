@@ -14,6 +14,8 @@ import { CourseFilterControls } from "@/components/CourseFilterControls";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { CEFR_LEVELS, expandLevelToBands, type CefrLevel } from "@/lib/levels";
+import { CourseInstructorByline } from "@/components/CourseInstructorByline";
+import { getCourseInstructorMap, type CourseInstructor } from "@/lib/courseInstructors";
 
 /** Accessible tooltip text for each CEFR band pill (not shown in the pill label itself). */
 const LEVEL_DESCRIPTORS: Record<CefrLevel, string> = {
@@ -53,6 +55,7 @@ export default async function CoursesPage({
   const selectedTopics = Array.isArray(rawTopic) ? rawTopic.filter(Boolean) : rawTopic ? [rawTopic] : [];
 
   const allCourses = courses ?? [];
+  const instructorMap = await getCourseInstructorMap(allCourses.map((course) => course.id));
   const enrolled = new Map((enrollments ?? []).map((item) => [item.course_id, item.status]));
   const progressByCourse = new Map((progressRows ?? []).map((item) => [item.course_id, item]));
   const popularityByCourse = new Map<string, number>();
@@ -196,6 +199,7 @@ export default async function CoursesPage({
                     completedItems={progress?.completed_items ?? 0}
                     totalItems={progress?.total_items ?? 0}
                     tone={index}
+                    instructors={instructorMap.get(course.id)}
                   />
                 );
               })}
@@ -212,7 +216,8 @@ function CourseCard({
   progress,
   completedItems,
   totalItems,
-  tone
+  tone,
+  instructors
 }: {
   course: { id: string; title: string; subtitle?: string | null; topic?: string | null; level?: string | null; estimated_completion_minutes?: number | null; thumbnail_path?: string | null; cover_image_path?: string | null; price_bdt?: number | null; original_price_bdt?: number | null };
   status?: string;
@@ -220,6 +225,7 @@ function CourseCard({
   completedItems: number;
   totalItems: number;
   tone: number;
+  instructors?: CourseInstructor[];
 }) {
   const tones = [
     "from-[var(--br-action)] to-[var(--br-action)]",
@@ -247,6 +253,7 @@ function CourseCard({
       </div>
       <div className="p-4">
         <div className="mb-1 line-clamp-2 text-base font-bold leading-snug">{course.title}</div>
+        <div className="mt-2"><CourseInstructorByline instructors={instructors} compact /></div>
         <p className="line-clamp-2 min-h-[40px] text-[13px] leading-5 text-[var(--br-text-muted)]">{course.subtitle || "A guided BrenUp course with lessons, practice, and progress tracking."}</p>
         <div className="mt-3 flex flex-wrap gap-2">
           {course.topic ? <span className="rounded-full bg-[var(--br-canvas-elevated)] px-2.5 py-1 text-[11px] font-semibold text-[var(--br-text-muted)]">{course.topic}</span> : null}
@@ -288,4 +295,3 @@ function resolveCourseImage(value?: string | null) {
   if (/^https?:\/\//i.test(value)) return value;
   return value.startsWith("/") ? value : `/${value}`;
 }
-

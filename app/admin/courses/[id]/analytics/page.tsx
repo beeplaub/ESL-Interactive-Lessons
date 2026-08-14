@@ -7,7 +7,7 @@ import { enrollStudentByEmail, updateEnrollmentStatusAction } from "@/app/admin/
 
 export default async function CourseAnalyticsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  await requireCourseAccess(id);
+  await requireCourseAccess(id, "view_analytics");
   const admin = createAdminClient();
   const [
     { data: course },

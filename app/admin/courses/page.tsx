@@ -31,6 +31,10 @@ export default async function AdminCoursesPage() {
   const isAdmin = isPlatformAdmin(profile?.role);
   const scopedToOwn = !isAdmin;
   const schoolOrganizationIds = profile?.role === "SCHOOL_ADMIN" ? await getSchoolAdminOrganizationIds(user.id) : [];
+  const { data: assignedCourseRows } = !isAdmin
+    ? await admin.from("course_staff").select("course_id").eq("user_id", user.id)
+    : { data: [] };
+  const assignedCourseIds = (assignedCourseRows ?? []).map((row) => row.course_id);
 
   let coursesQuery = admin
     .from("courses")
@@ -40,15 +44,16 @@ export default async function AdminCoursesPage() {
   let trashedQuery = admin.from("courses").select("id", { count: "exact", head: true }).not("deleted_at", "is", null);
 
   if (profile?.role === "SCHOOL_ADMIN") {
-    coursesQuery = schoolOrganizationIds.length
-      ? coursesQuery.in("organization_id", schoolOrganizationIds)
-      : coursesQuery.eq("id", "00000000-0000-0000-0000-000000000000");
-    trashedQuery = schoolOrganizationIds.length
-      ? trashedQuery.in("organization_id", schoolOrganizationIds)
-      : trashedQuery.eq("id", "00000000-0000-0000-0000-000000000000");
+    const accessFilters = [
+      schoolOrganizationIds.length ? `organization_id.in.(${schoolOrganizationIds.join(",")})` : "",
+      assignedCourseIds.length ? `id.in.(${assignedCourseIds.join(",")})` : "",
+    ].filter(Boolean).join(",");
+    coursesQuery = accessFilters ? coursesQuery.or(accessFilters) : coursesQuery.eq("id", "00000000-0000-0000-0000-000000000000");
+    trashedQuery = accessFilters ? trashedQuery.or(accessFilters) : trashedQuery.eq("id", "00000000-0000-0000-0000-000000000000");
   } else if (scopedToOwn) {
-    coursesQuery = coursesQuery.or(`owner_id.eq.${user.id},created_by.eq.${user.id}`);
-    trashedQuery = trashedQuery.or(`owner_id.eq.${user.id},created_by.eq.${user.id}`);
+    const assignedFilter = assignedCourseIds.length ? `,id.in.(${assignedCourseIds.join(",")})` : "";
+    coursesQuery = coursesQuery.or(`owner_id.eq.${user.id},created_by.eq.${user.id}${assignedFilter}`);
+    trashedQuery = trashedQuery.or(`owner_id.eq.${user.id},created_by.eq.${user.id}${assignedFilter}`);
   }
 
   const [{ data: courseRows, error: coursesError }, { count: trashedCount }] = await Promise.all([

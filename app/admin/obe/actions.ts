@@ -16,7 +16,7 @@ function text(value: FormDataEntryValue | null) {
 
 export async function saveCourseAssessmentPolicy(courseId: string, formData: FormData): Promise<ObeActionResult> {
   try {
-    await requireCourseAccess(courseId);
+    await requireCourseAccess(courseId, "manage_curriculum");
     const admin = createAdminClient();
     const masteryThreshold = Number(formData.get("masteryThreshold"));
     const minimumCoverage = Number(formData.get("minimumEvidenceCoverage"));
@@ -147,7 +147,7 @@ export async function placeLessonInCourse(lessonId: string, formData: FormData):
     await requireLessonAccess(lessonId);
     const courseId = text(formData.get("courseId"));
     if (!courseId) throw new Error("Choose a course and section.");
-    await requireCourseAccess(courseId);
+    await requireCourseAccess(courseId, "manage_curriculum");
     const sectionId = text(formData.get("sectionId"));
     const requestedPosition = Number(formData.get("position"));
     if (!sectionId) throw new Error("Choose a course and section.");
@@ -191,6 +191,7 @@ export async function removeLessonPlacement(lessonId: string, courseItemId: stri
     await requireLessonAccess(lessonId);
     const admin = createAdminClient();
     const { data: item } = await admin.from("course_items").select("course_id").eq("id", courseItemId).eq("lesson_id", lessonId).maybeSingle();
+    if (item?.course_id) await requireCourseAccess(item.course_id, "manage_curriculum");
     const { error } = await admin.from("course_items").delete().eq("id", courseItemId).eq("lesson_id", lessonId);
     if (error) throw error;
     revalidateLessonBuilder(lessonId);
@@ -213,7 +214,7 @@ export async function saveLessonOutcomeMapping(
     const admin = createAdminClient();
     const { data: courseItem } = await admin.from("course_items").select("course_id").eq("id", courseItemId).maybeSingle();
     if (!courseItem) throw new Error("That course placement no longer exists.");
-    await requireCourseAccess(courseItem.course_id);
+    await requireCourseAccess(courseItem.course_id, "manage_curriculum");
     const courseOutcomeId = text(formData.get("courseOutcomeId"));
     const contributionWeight = Number(formData.get("contributionWeight") || 1);
     if (!courseOutcomeId) {
@@ -386,7 +387,7 @@ export async function saveQuizQuestionCourseOutcomeMapping(
   formData: FormData,
 ): Promise<ObeActionResult> {
   try {
-    await requireCourseAccess(courseId);
+    await requireCourseAccess(courseId, "manage_curriculum");
     const courseOutcomeId = text(formData.get("courseOutcomeId"));
     const contributionWeight = Math.max(0.01, Number(formData.get("contributionWeight") || 1));
     const admin = createAdminClient();
