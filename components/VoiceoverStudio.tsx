@@ -23,7 +23,7 @@ export function VoiceoverStudio({ canUse, accessMessage, voices, styles, paces, 
   const [voiceName, setVoiceName] = useState(voices[0]?.name ?? "Aoede");
   const [languageCode, setLanguageCode] = useState("en-US");
   const [style, setStyle] = useState(styles[0] ?? "Natural");
-  const [pace, setPace] = useState(paces[1] ?? "Natural");
+  const [pace, setPace] = useState(paces.includes("Natural") ? "Natural" : paces[0] ?? "Natural");
   const [provider, setProvider] = useState<"auto" | "kokoro" | "google">("auto");
   const [preview, setPreview] = useState<Preview | null>(null);
   const [busy, setBusy] = useState<"generate" | "save" | "narration" | "block" | null>(null);
@@ -44,7 +44,7 @@ export function VoiceoverStudio({ canUse, accessMessage, voices, styles, paces, 
   });
   const displayVoices = effectiveProvider === "kokoro" ? kokoroVoices : voices;
   const words = script.trim() ? script.trim().split(/\s+/).length : 0;
-  const estimatedSeconds = Math.max(0, Math.round(words / (pace === "Slow" ? 1.8 : pace === "Brisk" ? 2.8 : 2.25)));
+  const estimatedSeconds = Math.max(0, Math.round(words / (pace === "Very slow" ? 1.35 : pace === "Slow" ? 1.8 : pace === "Brisk" ? 2.8 : 2.25)));
 
   useEffect(() => {
     setPreview(null);

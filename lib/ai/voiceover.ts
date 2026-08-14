@@ -67,7 +67,7 @@ export const VOICEOVER_VOICES = [
 ] as const;
 
 export const VOICEOVER_STYLES = ["Natural", "Warm teacher", "Calm narration", "Energetic", "Conversational", "Storytelling"] as const;
-export const VOICEOVER_PACES = ["Slow", "Natural", "Brisk"] as const;
+export const VOICEOVER_PACES = ["Very slow", "Slow", "Natural", "Brisk"] as const;
 
 type VoiceoverRequest = {
   script: string;
@@ -209,6 +209,7 @@ function geminiVoiceName(requestedVoice: string) {
 }
 
 function kokoroSpeed(pace: string) {
+  if (pace === "Very slow") return 0.5;
   if (pace === "Slow") return 0.85;
   if (pace === "Brisk") return 1.15;
   return 1;
