@@ -1022,7 +1022,7 @@ export function LessonBuilderWorkspace({ lesson, slides, trashedSlides = [], blo
           </BuilderDevicePreviewFrame>
           <div className="mt-3 flex items-center justify-between gap-3 border-t border-[var(--br-border)] pt-3"><button type="button" onClick={() => selectRelative(-1)} disabled={selectedIndex <= 0} className="inline-flex items-center gap-2 rounded-lg border border-[var(--br-border)] px-3 py-2 text-xs font-black disabled:opacity-35"><ArrowLeft size={14} /> Previous</button><span className="text-[10px] font-bold text-[var(--br-text-muted)]">Preview follows the selected editor tab</span><button type="button" onClick={() => selectRelative(1)} disabled={selectedIndex < 0 || selectedIndex >= localSlides.length - 1} className="inline-flex items-center gap-2 rounded-lg border border-[var(--br-border)] px-3 py-2 text-xs font-black disabled:opacity-35">Next <ArrowRight size={14} /></button></div>
         </section>
-        <aside className="min-w-0 rounded-xl border border-[var(--br-border)] bg-surface p-3 shadow-sm sm:p-4 2xl:sticky 2xl:top-[92px] 2xl:max-h-[calc(100vh-108px)] 2xl:overflow-y-auto">
+        <aside className="min-w-0 max-w-full overflow-x-hidden rounded-xl border border-[var(--br-border)] bg-surface p-3 shadow-sm sm:p-4 2xl:sticky 2xl:top-[92px] 2xl:max-h-[calc(100vh-108px)] 2xl:overflow-y-auto">
           {selectedSlide ? (
             <SelectedSlideEditor
               key={selectedSlide.id}
@@ -1244,7 +1244,7 @@ function SelectedSlideEditor({
   }
 
   return (
-    <div className="min-w-0">
+    <div className="min-w-0 max-w-full overflow-x-hidden">
       <div className="grid grid-cols-3 gap-1 rounded-xl bg-[var(--br-surface-muted)] p-1" role="tablist" aria-label="Selected slide editor">
         {([
           { id: "SLIDE" as const, label: "Slide", icon: SlidersHorizontal },
@@ -1393,16 +1393,16 @@ function ActivityMoveCopyControls({ lessonId, activity, currentSlide, slides, ac
     }
   }
   return (
-    <div className="rounded-lg border border-[var(--br-border)] bg-surface-muted p-3">
+    <div className="min-w-0 max-w-full overflow-hidden rounded-lg border border-[var(--br-border)] bg-surface-muted p-3">
       <p className="text-xs font-semibold uppercase tracking-wide text-[var(--br-text-muted)]">{lessonActivityDefinition(activity.activity_type)?.label ?? activity.activity_type.replaceAll("_", " ")}</p>
-      <form action={moveOrCopySlideActivityToSlide.bind(null, lessonId, activity.id)} onSubmit={handleTargetSubmit} data-busy-message="Updating activity..." className="mt-2">
+      <form action={moveOrCopySlideActivityToSlide.bind(null, lessonId, activity.id)} onSubmit={handleTargetSubmit} data-busy-message="Updating activity..." className="mt-2 min-w-0">
         <input type="hidden" name="replaceExisting" value="false" />
-        <div className="flex flex-wrap items-center gap-2">
-          <select name="mode" defaultValue="move" aria-label="Move or copy" className="min-w-28 rounded-md border border-[var(--br-border)] bg-surface px-3 py-2 text-sm"><option value="move">Move</option><option value="copy">Copy</option></select>
-          <select name="slideId" defaultValue={currentSlide.id} aria-label="Target slide" className="min-w-0 flex-1 rounded-md border border-[var(--br-border)] bg-surface px-3 py-2 text-sm">
+        <div className="grid min-w-0 grid-cols-[minmax(0,7rem)_minmax(0,1fr)_auto] items-center gap-2">
+          <select name="mode" defaultValue="move" aria-label="Move or copy" className="min-w-0 max-w-full rounded-md border border-[var(--br-border)] bg-surface px-2 py-2 text-sm"><option value="move">Move</option><option value="copy">Copy</option></select>
+          <select name="slideId" defaultValue={currentSlide.id} aria-label="Target slide" className="min-w-0 max-w-full truncate rounded-md border border-[var(--br-border)] bg-surface px-2 py-2 text-sm">
             {slides.map((item, index) => <option key={item.id} value={item.id}>{index + 1}. {item.title}</option>)}
           </select>
-          <button className="rounded-md bg-dark px-4 py-2 text-sm font-semibold text-on-dark">Apply</button>
+          <button className="whitespace-nowrap rounded-md bg-dark px-3 py-2 text-sm font-semibold text-on-dark">Apply</button>
         </div>
       </form>
     </div>

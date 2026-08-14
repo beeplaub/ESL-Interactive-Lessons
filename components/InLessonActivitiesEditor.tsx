@@ -701,7 +701,7 @@ function ActivityPanel({
   }
 
   return (
-    <div className="rounded-md border border-[var(--br-border)] p-4">
+    <div className="min-w-0 max-w-full overflow-x-hidden rounded-md border border-[var(--br-border)] p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <span className="text-sm font-semibold">Slide {displaySlideNumber}</span>
