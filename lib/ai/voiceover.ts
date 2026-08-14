@@ -49,6 +49,7 @@ type VoiceoverRequest = {
   languageCode: string;
   style: string;
   pace: string;
+  provider?: "auto" | "kokoro" | "google";
 };
 
 let client: GoogleGenAI | null = null;
@@ -83,6 +84,7 @@ export function voiceoverRequestHash(request: VoiceoverRequest, provider = voice
       provider,
       model: providerModel,
       providerVoice,
+      providerPreference: request.provider || "auto",
     }))
     .digest("hex");
 }
@@ -99,7 +101,9 @@ export function voiceoverProviderForLanguage(languageCode: string): "kokoro" | "
   return "google";
 }
 
-export function voiceoverProviderForRequest(request: Pick<VoiceoverRequest, "languageCode" | "style">): "kokoro" | "google" {
+export function voiceoverProviderForRequest(request: Pick<VoiceoverRequest, "languageCode" | "style" | "provider">): "kokoro" | "google" {
+  if (request.provider === "google") return "google";
+  if (request.provider === "kokoro") return "kokoro";
   const provider = voiceoverProviderForLanguage(request.languageCode);
   const preference = (process.env.VOICEOVER_PROVIDER || "auto").toLowerCase();
   if (provider === "kokoro" && preference === "auto" && request.style !== "Natural") return "google";
@@ -187,6 +191,8 @@ function wavDurationSeconds(wav: Uint8Array) {
 }
 
 async function generateKokoroVoiceover(request: VoiceoverRequest) {
+  if (!isEnglishLanguage(request.languageCode)) throw new Error("Kokoro currently supports English voiceovers only. Choose Gemini for this language.");
+  if (request.style !== "Natural") throw new Error("Kokoro currently supports Natural delivery only. Choose Gemini for delivery styles.");
   const baseUrl = process.env.KOKORO_TTS_URL?.replace(/\/$/, "");
   const apiKey = process.env.KOKORO_TTS_API_KEY;
   if (!baseUrl || !apiKey) throw new Error("The BrenUp Kokoro voice service is not configured.");

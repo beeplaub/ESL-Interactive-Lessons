@@ -34,6 +34,7 @@ const requestSchema = z.object({
   languageCode: z.string().trim().regex(/^[a-z]{2,3}(?:-[A-Z]{2})?$/).default("en-US"),
   style: z.enum(VOICEOVER_STYLES as unknown as [string, ...string[]]),
   pace: z.enum(VOICEOVER_PACES as unknown as [string, ...string[]]),
+  provider: z.enum(["auto", "kokoro", "google"]).default("auto"),
 });
 
 function jsonError(message: string, status: number) {
