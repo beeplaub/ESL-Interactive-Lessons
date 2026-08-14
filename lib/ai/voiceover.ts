@@ -177,7 +177,7 @@ async function generateGeminiVoiceover(request: VoiceoverRequest) {
       responseModalities: [Modality.AUDIO],
       speechConfig: {
         languageCode: request.languageCode,
-        voiceConfig: { prebuiltVoiceConfig: { voiceName: request.voiceName } },
+        voiceConfig: { prebuiltVoiceConfig: { voiceName: geminiVoiceName(request.voiceName) } },
       },
     },
   });
@@ -198,6 +198,14 @@ async function generateGeminiVoiceover(request: VoiceoverRequest) {
     outputTokens: response.usageMetadata?.candidatesTokenCount ?? 0,
     provider: "google" as const,
   };
+}
+
+const GEMINI_VOICE_NAMES = new Set(["Aoede", "Kore", "Leda", "Gacrux", "Sulafat", "Puck", "Charon", "Fenrir"]);
+
+function geminiVoiceName(requestedVoice: string) {
+  if (GEMINI_VOICE_NAMES.has(requestedVoice)) return requestedVoice;
+  const selected = VOICEOVER_VOICES.find((voice) => voice.name === requestedVoice);
+  return selected?.presentation === "Male" ? "Puck" : "Aoede";
 }
 
 function kokoroSpeed(pace: string) {
@@ -257,7 +265,8 @@ export async function generateVoiceoverAudio(request: VoiceoverRequest) {
       return await generateKokoroVoiceover(request);
     } catch (error) {
       const fallbackAllowed = process.env.KOKORO_FALLBACK_TO_GEMINI !== "false";
-      if (!fallbackAllowed || (process.env.VOICEOVER_PROVIDER || "auto").toLowerCase() === "kokoro") throw error;
+      const explicitlySelectedKokoro = request.provider === "kokoro";
+      if (explicitlySelectedKokoro || !fallbackAllowed || (process.env.VOICEOVER_PROVIDER || "auto").toLowerCase() === "kokoro") throw error;
       console.error("Kokoro generation failed; using Gemini fallback", error);
     }
   }
