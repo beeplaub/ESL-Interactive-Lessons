@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Link2, Languages, Mic, MicOff, Music2, Pause, Play, RotateCcw, Trash2, Upload } from "lucide-react";
+import { Link2, Languages, Mic, MicOff, Music2, Pause, Play, RotateCcw, Sparkles, Trash2, Upload } from "lucide-react";
+import { BuilderModalLayer } from "@/components/BuilderModalLayer";
+import { SlideNarrationVoiceoverGenerator } from "@/components/SlideNarrationVoiceoverGenerator";
 
 type RecorderState = "loading" | "idle" | "recording" | "recorded" | "saving" | "saved" | "error";
 type SourceType = "RECORDED" | "UPLOADED" | "LINK";
@@ -18,6 +20,7 @@ export function SlideNarrationRecorder({ lessonId, slideId }: { lessonId: string
   const [elapsed, setElapsed] = useState(0);
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"picker" | "link" | "manage">("picker");
+  const [isGeneratorOpen, setIsGeneratorOpen] = useState(false);
   const [linkValue, setLinkValue] = useState("");
   const [playing, setPlaying] = useState(false);
   const [translationEnabled, setTranslationEnabled] = useState(false);
@@ -191,10 +194,11 @@ export function SlideNarrationRecorder({ lessonId, slideId }: { lessonId: string
     </button>
     {open && state !== "loading" ? <div className="absolute right-0 top-10 z-50 w-72 rounded-xl border border-[var(--br-border)] bg-surface p-3 shadow-xl">
       <div className="mb-2 flex items-center justify-between gap-3"><p className="text-xs font-semibold uppercase tracking-wide text-[var(--br-text-muted)]">Slide audio</p>{sourceType === "LINK" ? <span className="text-[10px] font-semibold text-[var(--br-text-muted)]">Study audio</span> : null}</div>
-      {(state === "idle" || (state === "saved" && mode === "picker")) && <div className="grid grid-cols-3 gap-2">
+      {(state === "idle" || (state === "saved" && mode === "picker")) && <div className="grid grid-cols-4 gap-2">
         <button type="button" onClick={startRecording} className="flex flex-col items-center gap-1 rounded-lg border border-[var(--br-border)] px-2 py-2 text-[11px] font-semibold hover:bg-[var(--br-canvas-elevated)]"><Mic size={15} />Record</button>
         <button type="button" onClick={() => uploadInputRef.current?.click()} className="flex flex-col items-center gap-1 rounded-lg border border-[var(--br-border)] px-2 py-2 text-[11px] font-semibold hover:bg-[var(--br-canvas-elevated)]"><Upload size={15} />Upload</button>
         <button type="button" onClick={() => setMode("link")} className="flex flex-col items-center gap-1 rounded-lg border border-[var(--br-border)] px-2 py-2 text-[11px] font-semibold hover:bg-[var(--br-canvas-elevated)]"><Link2 size={15} />Link</button>
+        <button type="button" onClick={() => setIsGeneratorOpen(true)} className="flex flex-col items-center gap-1 rounded-lg border border-[var(--br-brand)]/25 bg-[var(--br-brand)]/5 px-2 py-2 text-[11px] font-semibold text-[var(--br-brand)] hover:bg-[var(--br-brand)]/10"><Sparkles size={15} />Generate</button>
       </div>}
       {mode === "link" && state !== "saving" && <div className="space-y-2"><p className="text-xs text-[var(--br-text-muted)]">Paste a public audio or video link. YouTube plays as audio for learners.</p><input autoFocus value={linkValue} onChange={(event) => setLinkValue(event.target.value)} placeholder="https://..." className="w-full rounded-lg border border-[var(--br-border)] bg-surface px-2.5 py-2 text-xs outline-none focus:border-moss"/><div className="flex gap-2"><button type="button" onClick={() => setMode(existingUrl ? "manage" : "picker")} className="flex-1 rounded-lg border border-[var(--br-border)] px-2 py-2 text-xs font-semibold">Back</button><button type="button" onClick={() => void saveLink()} className="flex-1 rounded-lg bg-moss px-2 py-2 text-xs font-semibold text-on-dark">Save link</button></div></div>}
       {state === "recording" && <div className="space-y-2"><div className="flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2"><span className="size-2 animate-pulse rounded-full bg-red-500"/><span className="text-sm font-semibold text-red-600">{fmt(elapsed)}</span><span className="text-xs text-red-400">Recording</span></div><button type="button" onClick={stopRecording} className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm font-medium"><MicOff size={15}/>Stop</button></div>}
@@ -204,5 +208,6 @@ export function SlideNarrationRecorder({ lessonId, slideId }: { lessonId: string
       {errorMessage ? <p className="mt-2 text-xs text-coral">{errorMessage}</p> : null}
       {state === "error" && <button type="button" onClick={() => { setState(existingUrl ? "saved" : "idle"); setMode(existingUrl ? "manage" : "picker"); }} className="mt-2 w-full rounded-lg border border-[var(--br-border)] px-3 py-2 text-xs font-semibold">Try again</button>}
     </div> : null}
+    {isGeneratorOpen ? <BuilderModalLayer label="Generate slide narration"><SlideNarrationVoiceoverGenerator lessonId={lessonId} slideId={slideId} onClose={() => setIsGeneratorOpen(false)} onAttached={({ url, narrationLanguage: language }) => { setExistingUrl(url); setSourceType("UPLOADED"); setTranslationEnabled(false); setNarrationLanguage(language); setState("saved"); setMode("manage"); setOpen(true); }} /></BuilderModalLayer> : null}
   </div>;
 }
