@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { TouchEvent } from "react";
-import { ArrowLeft, ArrowRight, Award, BookOpen, CheckCircle2, ChevronLeft, Languages, Lock, Music2, NotebookPen, Pause, Play, PenLine, RotateCcw, Sparkles, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Award, BookOpen, BookOpenText, CheckCircle2, ChevronLeft, Languages, List, Lock, Music2, NotebookPen, Pause, Play, PenLine, RotateCcw, Sparkles, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { LessonActivityPanel, lessonActivityTotalPoints } from "@/components/LessonActivityPanel";
@@ -11,7 +11,7 @@ import { createClient } from "@/lib/supabase/client";
 import { LiveTeacherToolbar } from "@/components/LiveTeacherToolbar";
 import type { Json } from "@/types/database.types";
 import { playNarrationTranslation } from "@/components/GeminiLiveTranslation";
-import { NarrationStudyAssist } from "@/components/NarrationStudyAssist";
+import { NarrationFullScript, NarrationGlossaryPanel, NarrationReadPreview, narrationGlossary } from "@/components/NarrationStudyAssist";
 
 type Lesson = { id: string; title: string; topic: string | null; level: string | null; timer_minutes?: number | null };
 type Slide = {
@@ -295,6 +295,8 @@ export function BuilderLessonPlayer({
   const initialIndex = Math.max(0, Math.min(slides.length - 1, initialSlideNumber - 1));
   const [index, setIndex] = useState(initialIndex);
   const [narrationProgress, setNarrationProgress] = useState({ currentTime: 0, duration: 0 });
+  const [studyPanel, setStudyPanel] = useState<"read" | "glossary" | "notes" | null>(null);
+  const [fullScriptOpen, setFullScriptOpen] = useState(false);
   const [completed, setCompleted] = useState(Boolean(initialProgress?.completed));
   const [showCompletion, setShowCompletion] = useState(false);
   const [remainingSeconds, setRemainingSeconds] = useState(() => lesson.timer_minutes ? lesson.timer_minutes * 60 : null);
@@ -447,8 +449,10 @@ export function BuilderLessonPlayer({
   // Narration for current slide
   const narrationUrl = slide ? (narrationMap[slide.id] ?? null) : null;
   const narrationConfig = slide ? narrationConfigMap[slide.id] : undefined;
+  const hasTranscript = Boolean(narrationConfig?.transcript?.trim());
+  const hasGlossary = narrationGlossary(narrationConfig?.glossary).length > 0;
 
-  useEffect(() => { setNarrationProgress({ currentTime: 0, duration: 0 }); }, [slide?.id]);
+  useEffect(() => { setNarrationProgress({ currentTime: 0, duration: 0 }); setStudyPanel(null); setFullScriptOpen(false); }, [slide?.id]);
 
   const saveNotes = useCallback((map: Record<string, string>) => {
     fetch(`/api/lessons/${lesson.id}/progress`, {
@@ -728,7 +732,6 @@ export function BuilderLessonPlayer({
               {slide.section_label && (
                 <p className="mt-1 text-sm text-white/60">{slide.section_label}</p>
               )}
-              {(narrationConfig?.transcript || narrationConfig?.glossary?.length) ? <NarrationStudyAssist transcript={narrationConfig.transcript} glossary={narrationConfig.glossary} currentTime={narrationProgress.currentTime} duration={narrationProgress.duration} /> : null}
             </div>
 
             {/* ── Learn / Practice tabs — side by side at every breakpoint ── */}
@@ -827,38 +830,25 @@ export function BuilderLessonPlayer({
           </section>
         </div>
 
-        {/* Notes panel — always visible, full width, not tied to either tab */}
-        <div className="rounded-[22px] border border-[var(--br-surface-strong)] bg-surface shadow-[var(--br-shadow)]">
-          <div className="flex items-center justify-between border-b border-[var(--br-surface-strong)] px-4 py-3">
-            <div className="flex items-center gap-2">
-              <NotebookPen size={15} className="text-[var(--br-chart-primary)]" />
-              <span className="text-sm font-extrabold">My Notes</span>
-              <span className="rounded-full bg-[var(--br-canvas-elevated)] px-2 py-0.5 text-[10px] font-bold text-[var(--br-text-muted)]">
-                Slide {index + 1}
-              </span>
-            </div>
-            <span className={`text-[11px] font-bold transition-opacity duration-300 ${notesSaved ? "text-[var(--br-chart-secondary)] opacity-100" : "opacity-0"}`}>
-              ✓ Saved
-            </span>
-          </div>
-          <div className="p-3">
-            <textarea
-              key={slide.id}
-              value={notesMap[slide.id] ?? ""}
-              onChange={handleNotesChange}
-              placeholder="Type your notes here… they save automatically."
-              rows={4}
-              className="w-full resize-none rounded-[16px] border border-[var(--br-surface-strong)] bg-[var(--br-surface)] px-3 py-2.5 text-base font-semibold leading-relaxed text-[var(--br-text)] placeholder:text-[var(--br-text-muted)] focus:border-[var(--br-chart-primary)]/40 focus:bg-surface focus:outline-none focus:ring-2 focus:ring-[var(--br-chart-primary)]/15"
-            />
-            <p className="mt-1.5 text-[11px] font-semibold text-[var(--br-text-muted)]">
-              Notes are saved per slide and will be here when you return.
-            </p>
-          </div>
-        </div>
       </div>
 
+      {/* ── Sticky study dock and bottom navigation ── */}
+      <div className="sticky bottom-2 z-30 mt-5">
+        <div className="relative">
+          {studyPanel || fullScriptOpen ? <div className="absolute bottom-full left-1/2 z-20 mb-2 w-[calc(100vw-1rem)] max-w-2xl -translate-x-1/2 sm:left-0 sm:w-auto sm:max-w-none sm:translate-x-0">
+            {fullScriptOpen ? <NarrationFullScript transcript={narrationConfig?.transcript} glossary={narrationConfig?.glossary} currentTime={narrationProgress.currentTime} duration={narrationProgress.duration} onClose={() => setFullScriptOpen(false)} /> : null}
+            {studyPanel === "read" ? <NarrationReadPreview transcript={narrationConfig?.transcript} currentTime={narrationProgress.currentTime} duration={narrationProgress.duration} onOpenScript={() => { setStudyPanel(null); setFullScriptOpen(true); }} /> : null}
+            {studyPanel === "glossary" ? <NarrationGlossaryPanel glossary={narrationConfig?.glossary} /> : null}
+            {studyPanel === "notes" ? <section className="w-[min(100%,30rem)] rounded-2xl border-2 border-[var(--br-action)] bg-white p-3 shadow-xl"><div className="flex items-center justify-between gap-3"><div className="flex items-center gap-2"><NotebookPen size={15} className="text-[var(--br-action)]" /><p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--br-action)]">Notes</p></div><span className={`text-[11px] font-bold transition-opacity duration-300 ${notesSaved ? "text-[var(--br-chart-secondary)] opacity-100" : "opacity-0"}`}>Saved</span></div><textarea key={slide.id} value={notesMap[slide.id] ?? ""} onChange={handleNotesChange} placeholder="Type your notes here… they save automatically." rows={5} className="mt-3 w-full resize-none rounded-xl border border-[var(--br-border)] bg-surface px-3 py-2.5 text-base font-semibold leading-relaxed text-[var(--br-text)] placeholder:text-[var(--br-text-muted)] focus:border-[var(--br-action)] focus:outline-none focus:ring-2 focus:ring-[var(--br-action)]/15" /><p className="mt-1.5 text-[11px] font-semibold text-[var(--br-text-muted)]">Saved per slide.</p></section> : null}
+          </div> : null}
+          <div className="mx-auto flex w-fit items-center gap-1 rounded-[16px] border border-[var(--br-surface-strong)] bg-white/95 p-1.5 shadow-[var(--br-shadow)] backdrop-blur">
+            <button type="button" disabled={!hasTranscript} onClick={() => { setFullScriptOpen(false); setStudyPanel((current) => current === "read" ? null : "read"); }} className={`inline-flex min-w-20 items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-extrabold transition ${hasTranscript ? studyPanel === "read" ? "bg-[var(--br-action)] text-on-dark" : "text-[var(--br-action)] hover:bg-[var(--br-action)]/10" : "cursor-not-allowed text-[var(--br-text-muted)] opacity-45"}`} title={hasTranscript ? "Follow the narration" : "No reading script on this slide"}><BookOpenText size={14} />Read</button>
+            <button type="button" disabled={!hasGlossary} onClick={() => { setFullScriptOpen(false); setStudyPanel((current) => current === "glossary" ? null : "glossary"); }} className={`inline-flex min-w-24 items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-extrabold transition ${hasGlossary ? studyPanel === "glossary" ? "bg-[var(--br-action)] text-on-dark" : "text-[var(--br-action)] hover:bg-[var(--br-action)]/10" : "cursor-not-allowed text-[var(--br-text-muted)] opacity-45"}`} title={hasGlossary ? "Open glossary" : "No glossary on this slide"}><List size={14} />Glossary</button>
+            <button type="button" onClick={() => { setFullScriptOpen(false); setStudyPanel((current) => current === "notes" ? null : "notes"); }} className={`inline-flex min-w-20 items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-extrabold transition ${studyPanel === "notes" ? "bg-[var(--br-action)] text-on-dark" : "text-[var(--br-action)] hover:bg-[var(--br-action)]/10"}`}><NotebookPen size={14} />Notes</button>
+          </div>
+        </div>
       {/* ── Bottom navigation bar ── */}
-      <div className="mt-5 flex flex-nowrap items-center justify-between gap-1.5 rounded-[22px] border border-[var(--br-surface-strong)] bg-white/95 p-2 shadow-[var(--br-shadow)] backdrop-blur sm:gap-3 sm:p-3">
+      <div className="mt-2 flex flex-nowrap items-center justify-between gap-1.5 rounded-[22px] border border-[var(--br-surface-strong)] bg-white/95 p-2 shadow-[var(--br-shadow)] backdrop-blur sm:gap-3 sm:p-3">
         <button
           type="button"
           onClick={() => move(-1)}
@@ -917,6 +907,7 @@ export function BuilderLessonPlayer({
             Next <ArrowRight size={14} className="shrink-0" />
           </button>
         )}
+      </div>
       </div>
       </div>
       </div>
