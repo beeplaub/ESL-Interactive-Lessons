@@ -41,6 +41,25 @@ async function deleteNarrationMediaEntry(admin: ReturnType<typeof createAdminCli
   await admin.from("media_assets").delete().eq("lesson_id", lessonId).contains("tags", ["slide-audio", `slide:${slideId}`]);
 }
 
+async function deleteNarrationObjectWhenUnreferenced(
+  admin: ReturnType<typeof createAdminClient>,
+  narration: { id: string; storage_path: string | null; storage_provider: string | null; storage_bucket: string | null },
+) {
+  if (!narration.storage_path || !narration.storage_provider || narration.storage_provider === "external") return;
+  const [{ count: libraryReferences }, { count: narrationReferences }] = await Promise.all([
+    admin.from("media_assets").select("id", { count: "exact", head: true })
+      .eq("storage_provider", narration.storage_provider).eq("storage_path", narration.storage_path),
+    admin.from("lesson_audio_files").select("id", { count: "exact", head: true })
+      .eq("storage_provider", narration.storage_provider).eq("storage_path", narration.storage_path).neq("id", narration.id),
+  ]);
+  if (libraryReferences || narrationReferences) return;
+  await deleteMediaObject(admin, {
+    provider: narration.storage_provider,
+    bucket: narration.storage_bucket ?? "lesson-audio",
+    path: narration.storage_path,
+  }).catch((error) => console.error("Narration source cleanup failed", error));
+}
+
 // GET — resolve the saved narration/study-audio URL for the authoring popover.
 export async function GET(_req: Request, { params }: Params) {
   const { lessonId, slideId } = await params;
@@ -116,14 +135,8 @@ export async function POST(req: Request, { params }: Params) {
       return NextResponse.json({ error: "Could not save the study audio link." }, { status: 500 });
     }
 
-    if (existing?.storage_path) {
-      await deleteMediaObject(admin, {
-        provider: existing.storage_provider,
-        bucket: existing.storage_bucket ?? "lesson-audio",
-        path: existing.storage_path,
-      }).catch((cleanupError) => console.error("Previous narration cleanup failed", cleanupError));
-    }
     await deleteNarrationMediaEntry(admin, lessonId, slideId);
+    if (existing?.storage_path) await deleteNarrationObjectWhenUnreferenced(admin, existing);
     if (lesson?.created_by) {
       await registerMediaAsset(admin, {
         ownerId: lesson.created_by,
@@ -194,14 +207,8 @@ export async function POST(req: Request, { params }: Params) {
     return NextResponse.json({ error: "Could not save narration details." }, { status: 500 });
   }
 
-  if (existing?.storage_path) {
-    await deleteMediaObject(admin, {
-      provider: existing.storage_provider,
-      bucket: existing.storage_bucket ?? "lesson-audio",
-      path: existing.storage_path,
-    }).catch((cleanupError) => console.error("Previous narration cleanup failed", cleanupError));
-  }
   await deleteNarrationMediaEntry(admin, lessonId, slideId);
+  if (existing?.storage_path) await deleteNarrationObjectWhenUnreferenced(admin, existing);
   if (lesson?.created_by) {
     await registerMediaAsset(admin, {
       ownerId: lesson.created_by,
@@ -254,11 +261,7 @@ export async function DELETE(_req: Request, { params }: Params) {
   if (!data) return NextResponse.json({ ok: true });
 
   await clearCachedTranslations(admin, data.id, lessonId);
-  await deleteMediaObject(admin, {
-    provider: data.storage_provider,
-    bucket: data.storage_bucket ?? "lesson-audio",
-    path: data.storage_path,
-  }).catch((error) => console.error("Narration source cleanup failed", error));
+  await deleteNarrationObjectWhenUnreferenced(admin, data);
   const { error } = await admin.from("lesson_audio_files").delete().eq("id", data.id);
   if (error) return NextResponse.json({ error: "Could not remove the slide audio." }, { status: 500 });
   await deleteNarrationMediaEntry(admin, lessonId, slideId);

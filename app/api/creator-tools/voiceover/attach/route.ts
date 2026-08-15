@@ -2,11 +2,32 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { creatorAccessError, getCreatorAiAccess } from "@/lib/ai/creatorAccess";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { copyMediaObject, deleteMediaObject } from "@/lib/storage/mediaStorage";
+import { deleteMediaObject } from "@/lib/storage/mediaStorage";
 import { registerMediaAsset } from "@/lib/storage/mediaLibrary";
-import { audioExtension, audioMimeType } from "@/lib/media/audioStorage";
+import { audioMimeType } from "@/lib/media/audioStorage";
 
 export const runtime = "nodejs";
+
+async function removeReplacedNarrationObject(
+  admin: ReturnType<typeof createAdminClient>,
+  narration: { storage_provider: string | null; storage_bucket: string | null; storage_path: string | null },
+) {
+  if (!narration.storage_path || !narration.storage_provider || narration.storage_provider === "external") return;
+  // Saved voiceovers are Media Library assets. A narration points straight to
+  // that single object, so replacing it must only detach the old narration,
+  // never silently delete a reusable library file.
+  const { count } = await admin
+    .from("media_assets")
+    .select("id", { count: "exact", head: true })
+    .eq("storage_provider", narration.storage_provider)
+    .eq("storage_path", narration.storage_path);
+  if (count) return;
+  await deleteMediaObject(admin, {
+    provider: narration.storage_provider,
+    bucket: narration.storage_bucket,
+    path: narration.storage_path,
+  }).catch((cleanupError) => console.error("Previous narration cleanup failed", cleanupError));
+}
 
 const schema = z.object({
   generationId: z.string().uuid(),
@@ -36,7 +57,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "You cannot edit this lesson." }, { status: 403 });
   }
   const mimeType = audioMimeType(generation.mime_type);
-  const extension = audioExtension(mimeType);
 
   if (parsed.data.mode === "AUDIO_BLOCK") {
     const { data: last } = await admin.from("lesson_blocks").select("position").eq("slide_id", slide.id).order("position", { ascending: false }).limit(1).maybeSingle();
@@ -68,25 +88,16 @@ export async function POST(request: Request) {
   const { data: existing } = await admin.from("lesson_audio_files")
     .select("id,storage_provider,storage_bucket,storage_path")
     .eq("lesson_id", lesson.id).eq("slide_id", slide.id).eq("label", "narration").maybeSingle();
-  const stored = await copyMediaObject({
-    supabase: admin,
-    source: {
-      provider: generation.storage_provider,
-      bucket: generation.storage_bucket,
-      path: generation.storage_path,
-      url: generation.public_url,
-    },
-    supabaseBucket: "lesson-audio",
-    path: `${lesson.id}/${slide.id}/ai-voiceover-${Date.now()}.${extension}`,
-    contentType: mimeType,
-  });
+  // One physical R2 object: the permanent Media Library voiceover is also the
+  // lesson narration. This keeps storage compact and lets creators reuse the
+  // exact same URL elsewhere without producing a second copy.
   const row = {
     lesson_id: lesson.id,
     slide_id: slide.id,
-    storage_path: stored.path,
-    storage_provider: stored.provider,
-    storage_bucket: stored.bucket,
-    public_url: stored.url,
+    storage_path: generation.storage_path,
+    storage_provider: generation.storage_provider,
+    storage_bucket: generation.storage_bucket,
+    public_url: generation.public_url,
     external_url: null,
     source_type: "UPLOADED",
     label: "narration",
@@ -98,7 +109,6 @@ export async function POST(request: Request) {
     ? await admin.from("lesson_audio_files").update(row).eq("id", existing.id)
     : await admin.from("lesson_audio_files").insert(row);
   if (error) {
-    await deleteMediaObject(admin, stored).catch(() => undefined);
     console.error("Voiceover narration insert failed", error);
     return NextResponse.json({ error: "Could not attach the narration." }, { status: 500 });
   }
@@ -116,21 +126,7 @@ export async function POST(request: Request) {
     await admin.from("narration_translation_cache").delete().eq("narration_audio_file_id", existing.id);
     await admin.from("media_assets").delete().eq("lesson_id", lesson.id).contains("tags", ["narration-translation", `narration:${existing.id}`]);
   }
-  if (existing?.storage_path) {
-    await deleteMediaObject(admin, { provider: existing.storage_provider, bucket: existing.storage_bucket, path: existing.storage_path })
-      .catch((cleanupError) => console.error("Previous narration cleanup failed", cleanupError));
-  }
   await admin.from("media_assets").delete().eq("lesson_id", lesson.id).contains("tags", ["narration", `slide:${slide.id}`]);
-  await registerMediaAsset(admin, {
-    ownerId: lesson.created_by,
-    type: "AUDIO",
-    source: "UPLOAD",
-    url: stored.url,
-    lessonId: lesson.id,
-    lessonTitle: lesson.title,
-    title: generation.title || `Slide ${slide.slide_number} AI narration`,
-    mimeType,
-    tags: ["ai-voiceover", "narration", `slide:${slide.id}`],
-  }).catch((libraryError) => console.error("Voiceover narration media registration failed", libraryError));
-  return NextResponse.json({ ok: true, url: stored.url, message: `Narration attached to slide ${slide.slide_number}.` });
+  if (existing?.storage_path) await removeReplacedNarrationObject(admin, existing);
+  return NextResponse.json({ ok: true, url: generation.public_url, message: `Narration attached to slide ${slide.slide_number}.` });
 }

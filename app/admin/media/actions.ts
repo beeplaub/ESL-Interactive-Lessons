@@ -111,6 +111,17 @@ export async function restoreMediaAsset(assetId: string) {
 export async function permanentlyDeleteMediaAsset(assetId: string) {
   const { admin, asset } = await loadOwnedAsset(assetId);
 
+  if (asset.storage_provider && asset.storage_path) {
+    const { count: activeNarrationReferences } = await admin
+      .from("lesson_audio_files")
+      .select("id", { count: "exact", head: true })
+      .eq("storage_provider", asset.storage_provider)
+      .eq("storage_path", asset.storage_path);
+    if (activeNarrationReferences) {
+      throw new Error("This audio is still used as slide narration. Remove or replace it from the lesson first.");
+    }
+  }
+
   if (asset.source === "UPLOAD" && asset.storage_bucket && asset.storage_path) {
     const { count } = await admin
       .from("media_assets")

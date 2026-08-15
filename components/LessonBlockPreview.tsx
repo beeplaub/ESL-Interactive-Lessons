@@ -3,6 +3,7 @@
 import { BookOpen, FlipHorizontal2, Headphones, ImageIcon, ListChecks, Maximize, Minimize, MessageSquareQuote, Pause, Play, PlayCircle, Settings, Volume2, RotateCcw, RotateCw, SkipBack, SkipForward } from "lucide-react";
 import type { ChangeEvent, RefObject } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { Json } from "@/types/database.types";
 
 export type PreviewLessonBlock = {
@@ -81,6 +82,37 @@ function mediaUrl(value: string, kind: "image" | "audio") {
       : `https://drive.google.com/uc?export=download&id=${id}`;
   }
   return value;
+}
+
+function ZoomableImage({ src, alt, className }: { src: string; alt: string; className: string }) {
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false); };
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
+
+  return <>
+    {/* eslint-disable-next-line @next/next/no-img-element */}
+    <img src={src} alt={alt} className={`${className} cursor-zoom-in`} onClick={() => setOpen(true)} />
+    <button type="button" onClick={() => setOpen(true)} className="absolute right-3 top-3 grid size-9 place-items-center rounded-full border border-white/20 bg-black/55 text-white shadow-lg backdrop-blur transition hover:bg-black/75" aria-label="Expand image" title="Expand image"><Maximize size={17} /></button>
+    {open && typeof document !== "undefined" ? createPortal(
+      <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/90 p-3 sm:p-6" role="dialog" aria-modal="true" aria-label="Expanded image" onClick={() => setOpen(false)}>
+        <div className="absolute left-4 top-4 text-xs font-semibold text-white/70">Tap outside or press Esc to close</div>
+        <button type="button" onClick={() => setOpen(false)} className="absolute right-4 top-4 grid size-10 place-items-center rounded-full border border-white/20 bg-white/10 text-white backdrop-blur hover:bg-white/20" aria-label="Close expanded image"><Minimize size={18} /></button>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={src} alt={alt} className="max-h-full max-w-full touch-auto select-none object-contain" onClick={(event) => event.stopPropagation()} />
+      </div>,
+      document.body,
+    ) : null}
+  </>;
 }
 
 function getYouTubeId(value: string) {
@@ -197,10 +229,9 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
     const path = asString(content.path);
     const src = mediaUrl(path, "image");
     return (
-      <figure className="overflow-hidden rounded-lg border border-[var(--br-border)] bg-surface-muted">
+      <figure className="relative overflow-hidden rounded-lg border border-[var(--br-border)] bg-surface-muted">
         {path && isImageUrl(path) ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={src} alt={asString(content.alt) || ""} className="max-h-[520px] w-full object-contain" />
+          <ZoomableImage src={src} alt={asString(content.alt) || ""} className="max-h-[520px] w-full object-contain" />
         ) : (
           <div className="grid aspect-video place-items-center text-sm text-[var(--br-text-muted)]">
             <div className="text-center">
@@ -226,10 +257,9 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
     const alt = asString(content.alt);
 
     const imageCol = (
-      <figure className="overflow-hidden rounded-xl border border-[var(--br-border)] bg-surface-muted">
+      <figure className="relative overflow-hidden rounded-xl border border-[var(--br-border)] bg-surface-muted">
         {src && isImageUrl(src) ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={src} alt={alt || heading || ""} className="h-full max-h-[340px] w-full object-cover" />
+          <ZoomableImage src={src} alt={alt || heading || ""} className="h-full max-h-[340px] w-full object-cover" />
         ) : (
           <div className="flex min-h-[180px] flex-col items-center justify-center gap-2 p-6 text-center text-sm text-[var(--br-text-muted)]">
             <ImageIcon size={28} />
