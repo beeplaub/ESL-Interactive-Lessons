@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Link2, Languages, Mic, MicOff, Music2, Pause, Play, RotateCcw, Sparkles, Trash2, Upload } from "lucide-react";
+import { BookOpenText, Link2, Languages, Mic, MicOff, Music2, Pause, Play, RotateCcw, Sparkles, Trash2, Upload } from "lucide-react";
 import { BuilderModalLayer } from "@/components/BuilderModalLayer";
 import { SlideNarrationVoiceoverGenerator } from "@/components/SlideNarrationVoiceoverGenerator";
+import { SlideNarrationStudyAssistEditor } from "@/components/SlideNarrationStudyAssistEditor";
+import type { NarrationGlossaryEntry } from "@/components/NarrationStudyAssist";
 
 type RecorderState = "loading" | "idle" | "recording" | "recorded" | "saving" | "saved" | "error";
 type SourceType = "RECORDED" | "UPLOADED" | "LINK";
@@ -21,12 +23,15 @@ export function SlideNarrationRecorder({ lessonId, slideId }: { lessonId: string
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"picker" | "link" | "manage">("picker");
   const [isGeneratorOpen, setIsGeneratorOpen] = useState(false);
+  const [isStudyAssistOpen, setIsStudyAssistOpen] = useState(false);
   const [linkValue, setLinkValue] = useState("");
   const [playing, setPlaying] = useState(false);
   const [translationEnabled, setTranslationEnabled] = useState(false);
   const [narrationLanguage, setNarrationLanguage] = useState<"en" | "bn">("en");
   const [savingTranslation, setSavingTranslation] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [transcript, setTranscript] = useState("");
+  const [glossary, setGlossary] = useState<NarrationGlossaryEntry[]>([]);
 
   const mediaRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -44,13 +49,15 @@ export function SlideNarrationRecorder({ lessonId, slideId }: { lessonId: string
     setErrorMessage(null);
     fetch(`/api/lessons/${lessonId}/narration/${slideId}`)
       .then((response) => response.json())
-      .then((data: { url: string | null; sourceType?: SourceType; translationEnabled?: boolean; narrationLanguage?: "en" | "bn" }) => {
+      .then((data: { url: string | null; sourceType?: SourceType; translationEnabled?: boolean; narrationLanguage?: "en" | "bn"; transcript?: string; glossary?: NarrationGlossaryEntry[] }) => {
         if (data.url) {
           const type = data.sourceType === "LINK" ? "LINK" : data.sourceType === "UPLOADED" ? "UPLOADED" : "RECORDED";
           setExistingUrl(data.url);
           setSourceType(type);
           setTranslationEnabled(Boolean(data.translationEnabled));
           setNarrationLanguage(data.narrationLanguage === "bn" ? "bn" : "en");
+          setTranscript(data.transcript || "");
+          setGlossary(Array.isArray(data.glossary) ? data.glossary : []);
           setState("saved");
         } else {
           setState("idle");
@@ -205,10 +212,11 @@ export function SlideNarrationRecorder({ lessonId, slideId }: { lessonId: string
       {state === "recording" && <div className="space-y-2"><div className="flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2"><span className="size-2 animate-pulse rounded-full bg-red-500"/><span className="text-sm font-semibold text-red-600">{fmt(elapsed)}</span><span className="text-xs text-red-400">Recording</span></div><button type="button" onClick={stopRecording} className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm font-medium"><MicOff size={15}/>Stop</button></div>}
       {state === "recorded" && recordedUrl && <div className="space-y-2"><p className="text-xs text-[var(--br-text-muted)]">Preview before saving</p><button type="button" onClick={() => togglePlay(recordedUrl)} className="inline-flex w-full items-center gap-2 rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm font-medium">{playing ? <Pause size={15}/> : <Play size={15}/>} {playing ? "Pause" : "Play preview"}</button><button type="button" onClick={() => void saveFile(new File([blobRef.current!], "narration.webm", { type: blobRef.current?.type || "audio/webm" }), "RECORDED")} className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-moss px-3 py-2 text-sm font-semibold text-on-dark"><Upload size={15}/>Save recording</button><button type="button" onClick={resetDraft} className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm font-medium"><RotateCcw size={15}/>Start over</button></div>}
       {state === "saving" && <div className="flex items-center justify-center gap-2 py-3 text-sm text-[var(--br-text-muted)]"><span className="size-4 animate-spin rounded-full border-2 border-moss border-t-transparent"/>Saving</div>}
-      {state === "saved" && existingUrl && mode === "manage" && <div className="space-y-2"><button type="button" onClick={() => togglePlay(existingUrl)} className="inline-flex w-full items-center gap-2 rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm font-medium">{playing ? <Pause size={15}/> : <Play size={15}/>} {playing ? "Pause" : sourceType === "LINK" ? "Preview study audio" : "Play audio"}</button><button type="button" onClick={() => setMode("picker")} className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm font-medium"><RotateCcw size={15}/>Replace source</button><div className="rounded-lg border border-violetglow/15 bg-violetglow/[0.04] p-2.5"><div className="flex items-center justify-between gap-3"><div className="flex items-center gap-2"><Languages size={14} className="text-violetglow"/><span className="text-xs font-semibold text-ink">AI translation</span></div><button type="button" role="switch" aria-checked={translationEnabled} disabled={savingTranslation} onClick={() => void saveTranslationSettings(!translationEnabled, narrationLanguage)} className={`relative h-5 w-9 rounded-full transition ${translationEnabled ? "bg-violetglow" : "bg-black/15"}`}><span className={`absolute top-0.5 size-4 rounded-full bg-surface shadow transition ${translationEnabled ? "left-[18px]" : "left-0.5"}`}/></button></div>{translationEnabled ? <><label className="mt-2 block text-xs text-[var(--br-text-muted)]">Original language<select value={narrationLanguage} disabled={savingTranslation} onChange={(event) => void saveTranslationSettings(translationEnabled, event.target.value === "bn" ? "bn" : "en")} className="mt-1 w-full rounded-md border border-[var(--br-border)] bg-surface px-2 py-1.5 text-xs text-ink"><option value="en">English → Bangla</option><option value="bn">Bangla → English</option></select></label>{sourceType === "LINK" ? <p className="mt-2 text-[10px] leading-4 text-[var(--br-text-muted)]">Works with public downloadable audio links. YouTube and other video-host pages need an uploaded audio file or narration script.</p> : null}</> : null}</div><button type="button" onClick={() => void deleteAudio()} className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-coral/30 px-3 py-2 text-sm font-medium text-coral hover:bg-coral/10"><Trash2 size={15}/>Remove audio</button></div>}
+      {state === "saved" && existingUrl && mode === "manage" && <div className="space-y-2"><button type="button" onClick={() => togglePlay(existingUrl)} className="inline-flex w-full items-center gap-2 rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm font-medium">{playing ? <Pause size={15}/> : <Play size={15}/>} {playing ? "Pause" : sourceType === "LINK" ? "Preview study audio" : "Play audio"}</button><button type="button" onClick={() => setIsStudyAssistOpen(true)} className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[var(--br-action)]/25 bg-[var(--br-action)]/5 px-3 py-2 text-sm font-semibold text-[var(--br-action)]"><BookOpenText size={15}/>Study assist</button><button type="button" onClick={() => setMode("picker")} className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm font-medium"><RotateCcw size={15}/>Replace source</button><div className="rounded-lg border border-violetglow/15 bg-violetglow/[0.04] p-2.5"><div className="flex items-center justify-between gap-3"><div className="flex items-center gap-2"><Languages size={14} className="text-violetglow"/><span className="text-xs font-semibold text-ink">AI translation</span></div><button type="button" role="switch" aria-checked={translationEnabled} disabled={savingTranslation} onClick={() => void saveTranslationSettings(!translationEnabled, narrationLanguage)} className={`relative h-5 w-9 rounded-full transition ${translationEnabled ? "bg-violetglow" : "bg-black/15"}`}><span className={`absolute top-0.5 size-4 rounded-full bg-surface shadow transition ${translationEnabled ? "left-[18px]" : "left-0.5"}`}/></button></div>{translationEnabled ? <><label className="mt-2 block text-xs text-[var(--br-text-muted)]">Original language<select value={narrationLanguage} disabled={savingTranslation} onChange={(event) => void saveTranslationSettings(translationEnabled, event.target.value === "bn" ? "bn" : "en")} className="mt-1 w-full rounded-md border border-[var(--br-border)] bg-surface px-2 py-1.5 text-xs text-ink"><option value="en">English → Bangla</option><option value="bn">Bangla → English</option></select></label>{sourceType === "LINK" ? <p className="mt-2 text-[10px] leading-4 text-[var(--br-text-muted)]">Works with public downloadable audio links. YouTube and other video-host pages need an uploaded audio file or narration script.</p> : null}</> : null}</div><button type="button" onClick={() => void deleteAudio()} className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-coral/30 px-3 py-2 text-sm font-medium text-coral hover:bg-coral/10"><Trash2 size={15}/>Remove audio</button></div>}
       {errorMessage ? <p className="mt-2 text-xs text-coral">{errorMessage}</p> : null}
       {state === "error" && <button type="button" onClick={() => { setState(existingUrl ? "saved" : "idle"); setMode(existingUrl ? "manage" : "picker"); }} className="mt-2 w-full rounded-lg border border-[var(--br-border)] px-3 py-2 text-xs font-semibold">Try again</button>}
     </div> : null}
-    {isGeneratorOpen ? <BuilderModalLayer label="Generate slide narration"><SlideNarrationVoiceoverGenerator lessonId={lessonId} slideId={slideId} onClose={() => setIsGeneratorOpen(false)} onAttached={({ url, narrationLanguage: language }) => { setExistingUrl(url); setSourceType("UPLOADED"); setTranslationEnabled(false); setNarrationLanguage(language); setState("saved"); setMode("manage"); setOpen(true); }} /></BuilderModalLayer> : null}
+    {isGeneratorOpen ? <BuilderModalLayer label="Generate slide narration"><SlideNarrationVoiceoverGenerator lessonId={lessonId} slideId={slideId} onClose={() => setIsGeneratorOpen(false)} onAttached={({ url, narrationLanguage: language, transcript: generatedTranscript }) => { setExistingUrl(url); setSourceType("UPLOADED"); setTranslationEnabled(false); setNarrationLanguage(language); setTranscript(generatedTranscript || ""); setState("saved"); setMode("manage"); setOpen(true); }} /></BuilderModalLayer> : null}
+    {isStudyAssistOpen ? <BuilderModalLayer label="Narration study assist"><SlideNarrationStudyAssistEditor lessonId={lessonId} slideId={slideId} initialTranscript={transcript} initialGlossary={glossary} translationEnabled={translationEnabled} narrationLanguage={narrationLanguage} onClose={() => setIsStudyAssistOpen(false)} onSaved={({ transcript: nextTranscript, glossary: nextGlossary }) => { setTranscript(nextTranscript); setGlossary(nextGlossary); }} /></BuilderModalLayer> : null}
   </div>;
 }

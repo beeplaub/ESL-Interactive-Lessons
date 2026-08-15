@@ -122,6 +122,8 @@ export type Database = {
           linked_slide_number: number | null;
           translation_enabled?: boolean;
           narration_language?: "en" | "bn";
+          transcript?: string | null;
+          glossary?: Json;
           created_at: string;
           updated_at: string;
         };
@@ -139,6 +141,8 @@ export type Database = {
           linked_slide_number?: number | null;
           translation_enabled?: boolean;
           narration_language?: "en" | "bn";
+          transcript?: string | null;
+          glossary?: Json;
           created_at?: string;
           updated_at?: string;
         };
@@ -156,6 +160,8 @@ export type Database = {
           linked_slide_number?: number | null;
           translation_enabled?: boolean;
           narration_language?: "en" | "bn";
+          transcript?: string | null;
+          glossary?: Json;
           created_at?: string;
           updated_at?: string;
         };

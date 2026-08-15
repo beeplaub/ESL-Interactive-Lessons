@@ -11,6 +11,7 @@ import { createClient } from "@/lib/supabase/client";
 import { LiveTeacherToolbar } from "@/components/LiveTeacherToolbar";
 import type { Json } from "@/types/database.types";
 import { playNarrationTranslation } from "@/components/GeminiLiveTranslation";
+import { NarrationStudyAssist } from "@/components/NarrationStudyAssist";
 
 type Lesson = { id: string; title: string; topic: string | null; level: string | null; timer_minutes?: number | null };
 type Slide = {
@@ -70,7 +71,7 @@ function youtubeVideoId(url: string) {
   } catch { return null; }
 }
 
-function NarrationPill({ src, lessonId, slideId, sourceType = "RECORDED", translationEnabled = false, narrationLanguage = "en" }: { src: string; lessonId: string; slideId: string; sourceType?: "RECORDED" | "UPLOADED" | "LINK"; translationEnabled?: boolean; narrationLanguage?: "en" | "bn" }) {
+function NarrationPill({ src, lessonId, slideId, sourceType = "RECORDED", translationEnabled = false, narrationLanguage = "en", onProgressChange }: { src: string; lessonId: string; slideId: string; sourceType?: "RECORDED" | "UPLOADED" | "LINK"; translationEnabled?: boolean; narrationLanguage?: "en" | "bn"; onProgressChange?: (state: { currentTime: number; duration: number }) => void }) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const youtubeRef = useRef<HTMLIFrameElement>(null);
   const [playing, setPlaying] = useState(false);
@@ -150,6 +151,8 @@ function NarrationPill({ src, lessonId, slideId, sourceType = "RECORDED", transl
 
   const percent = duration ? (currentTime / duration) * 100 : 0;
   const speeds = [0.75, 1, 1.25, 1.5];
+
+  useEffect(() => { onProgressChange?.({ currentTime, duration }); }, [currentTime, duration, onProgressChange]);
 
   return (
     <div
@@ -282,7 +285,7 @@ export function BuilderLessonPlayer({
   initialProgress: Progress; activityAttempts?: ActivityAttempt[];
   initialNotes?: Record<string, string>;
   narrationMap?: Record<string, string>;
-  narrationConfigMap?: Record<string, { translationEnabled: boolean; narrationLanguage: "en" | "bn"; sourceType?: "RECORDED" | "UPLOADED" | "LINK" }>;
+  narrationConfigMap?: Record<string, { translationEnabled: boolean; narrationLanguage: "en" | "bn"; sourceType?: "RECORDED" | "UPLOADED" | "LINK"; transcript?: string; glossary?: unknown[] }>;
   courseItemId?: string | null;
   backHref?: string;
   liveSession?: LiveSessionMode | null;
@@ -291,6 +294,7 @@ export function BuilderLessonPlayer({
   const initialSlideNumber = startInReviewMode ? 1 : liveSession?.initialSlideNumber ?? initialProgress?.current_slide_number ?? 1;
   const initialIndex = Math.max(0, Math.min(slides.length - 1, initialSlideNumber - 1));
   const [index, setIndex] = useState(initialIndex);
+  const [narrationProgress, setNarrationProgress] = useState({ currentTime: 0, duration: 0 });
   const [completed, setCompleted] = useState(Boolean(initialProgress?.completed));
   const [showCompletion, setShowCompletion] = useState(false);
   const [remainingSeconds, setRemainingSeconds] = useState(() => lesson.timer_minutes ? lesson.timer_minutes * 60 : null);
@@ -443,6 +447,8 @@ export function BuilderLessonPlayer({
   // Narration for current slide
   const narrationUrl = slide ? (narrationMap[slide.id] ?? null) : null;
   const narrationConfig = slide ? narrationConfigMap[slide.id] : undefined;
+
+  useEffect(() => { setNarrationProgress({ currentTime: 0, duration: 0 }); }, [slide?.id]);
 
   const saveNotes = useCallback((map: Record<string, string>) => {
     fetch(`/api/lessons/${lesson.id}/progress`, {
@@ -711,7 +717,7 @@ export function BuilderLessonPlayer({
                   Slide {index + 1} of {slides.length}
                 </p>
                 {narrationUrl && (
-                  <NarrationPill key={slide.id} src={narrationUrl} lessonId={lesson.id} slideId={slide.id} sourceType={narrationConfig?.sourceType} translationEnabled={narrationConfig?.translationEnabled} narrationLanguage={narrationConfig?.narrationLanguage} />
+                  <NarrationPill key={slide.id} src={narrationUrl} lessonId={lesson.id} slideId={slide.id} sourceType={narrationConfig?.sourceType} translationEnabled={narrationConfig?.translationEnabled} narrationLanguage={narrationConfig?.narrationLanguage} onProgressChange={setNarrationProgress} />
                 )}
               </div>
 
@@ -722,6 +728,7 @@ export function BuilderLessonPlayer({
               {slide.section_label && (
                 <p className="mt-1 text-sm text-white/60">{slide.section_label}</p>
               )}
+              {(narrationConfig?.transcript || narrationConfig?.glossary?.length) ? <NarrationStudyAssist transcript={narrationConfig.transcript} glossary={narrationConfig.glossary} currentTime={narrationProgress.currentTime} duration={narrationProgress.duration} /> : null}
             </div>
 
             {/* ── Learn / Practice tabs — side by side at every breakpoint ── */}

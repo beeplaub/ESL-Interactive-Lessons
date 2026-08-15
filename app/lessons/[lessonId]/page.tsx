@@ -157,7 +157,7 @@ export default async function LessonPage({
     admin.from("lesson_slide_activities").select("id,slide_id,slide_number,activity_type,activity_data").eq("lesson_id", lessonId).order("slide_number", { ascending: true }),
     admin.from("lesson_progress").select("current_slide_number,completed,notes").eq("lesson_id", lessonId).eq("user_id", user.id).maybeSingle(),
     admin.from("quiz_attempts").select("lesson_slide_activity_id,score,total,answers,completed_at").eq("user_id", user.id).not("lesson_slide_activity_id", "is", null).order("completed_at", { ascending: false }),
-    admin.from("lesson_audio_files").select("id,slide_id,storage_path,storage_provider,storage_bucket,public_url,external_url,source_type,label,linked_slide_number,translation_enabled,narration_language").eq("lesson_id", lessonId).eq("label", "narration"),
+    admin.from("lesson_audio_files").select("id,slide_id,storage_path,storage_provider,storage_bucket,public_url,external_url,source_type,label,linked_slide_number,translation_enabled,narration_language,transcript,glossary").eq("lesson_id", lessonId).eq("label", "narration"),
   ]);
 
   if (!lesson) notFound();
@@ -173,17 +173,17 @@ export default async function LessonPage({
       });
       const narrationLanguage: "en" | "bn" = af.narration_language === "bn" ? "bn" : "en";
       const sourceType = af.source_type === "LINK" ? "LINK" as const : af.source_type === "UPLOADED" ? "UPLOADED" as const : "RECORDED" as const;
-      return { slideId: af.slide_id, signedUrl: url, translationEnabled: Boolean(af.translation_enabled), narrationLanguage, sourceType };
+      return { slideId: af.slide_id, signedUrl: url, translationEnabled: Boolean(af.translation_enabled), narrationLanguage, sourceType, transcript: af.transcript || "", glossary: Array.isArray(af.glossary) ? af.glossary : [] };
     })
   );
 
   // Map slideId → signedUrl
   const narrationMap: Record<string, string> = {};
-  const narrationConfigMap: Record<string, { translationEnabled: boolean; narrationLanguage: "en" | "bn"; sourceType: "RECORDED" | "UPLOADED" | "LINK" }> = {};
+  const narrationConfigMap: Record<string, { translationEnabled: boolean; narrationLanguage: "en" | "bn"; sourceType: "RECORDED" | "UPLOADED" | "LINK"; transcript?: string; glossary?: unknown[] }> = {};
   for (const n of narrations) {
     if (n.slideId && n.signedUrl) {
       narrationMap[n.slideId] = n.signedUrl;
-      narrationConfigMap[n.slideId] = { translationEnabled: n.translationEnabled, narrationLanguage: n.narrationLanguage, sourceType: n.sourceType };
+      narrationConfigMap[n.slideId] = { translationEnabled: n.translationEnabled, narrationLanguage: n.narrationLanguage, sourceType: n.sourceType, transcript: n.transcript, glossary: n.glossary };
     }
   }
 

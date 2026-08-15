@@ -66,7 +66,7 @@ export async function GET(_req: Request, { params }: Params) {
   const admin = createAdminClient();
   const { data } = await admin
     .from("lesson_audio_files")
-    .select("id,storage_path,storage_provider,storage_bucket,public_url,external_url,source_type,translation_enabled,narration_language")
+    .select("id,storage_path,storage_provider,storage_bucket,public_url,external_url,source_type,translation_enabled,narration_language,transcript,glossary")
     .eq("lesson_id", lessonId)
     .eq("slide_id", slideId)
     .eq("label", "narration")
@@ -86,6 +86,8 @@ export async function GET(_req: Request, { params }: Params) {
     sourceType: data.source_type === "LINK" ? "LINK" : data.source_type === "UPLOADED" ? "UPLOADED" : "RECORDED",
     translationEnabled: Boolean(data.translation_enabled),
     narrationLanguage: data.narration_language === "bn" ? "bn" : "en",
+    transcript: data.transcript || "",
+    glossary: Array.isArray(data.glossary) ? data.glossary : [],
   });
 }
 
@@ -234,15 +236,27 @@ export async function POST(req: Request, { params }: Params) {
 export async function PATCH(req: Request, { params }: Params) {
   await requireAdmin();
   const { lessonId, slideId } = await params;
-  const body = await req.json().catch(() => null) as { translationEnabled?: boolean; narrationLanguage?: string } | null;
+  const body = await req.json().catch(() => null) as { translationEnabled?: boolean; narrationLanguage?: string; transcript?: string; glossary?: unknown } | null;
   const admin = createAdminClient();
   const { data: narration } = await admin.from("lesson_audio_files")
     .select("id,source_type").eq("lesson_id", lessonId).eq("slide_id", slideId).eq("label", "narration").maybeSingle();
   if (!narration) return NextResponse.json({ error: "Slide audio was not found." }, { status: 404 });
-  const { error } = await admin.from("lesson_audio_files").update({
+  const update: Record<string, unknown> = {
     translation_enabled: Boolean(body?.translationEnabled),
     narration_language: body?.narrationLanguage === "bn" ? "bn" : "en",
-  }).eq("id", narration.id);
+  };
+  if (typeof body?.transcript === "string") update.transcript = body.transcript.trim().slice(0, 20_000) || null;
+  if (Array.isArray(body?.glossary)) {
+    update.glossary = body.glossary.slice(0, 40).flatMap((entry, index) => {
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) return [];
+      const item = entry as Record<string, unknown>;
+      const term = typeof item.term === "string" ? item.term.trim().slice(0, 120) : "";
+      const definition = typeof item.definition === "string" ? item.definition.trim().slice(0, 600) : "";
+      if (!term || !definition) return [];
+      return [{ term, definition, example: typeof item.example === "string" ? item.example.trim().slice(0, 800) : "", position: index }];
+    });
+  }
+  const { error } = await admin.from("lesson_audio_files").update(update).eq("id", narration.id);
   if (error) {
     console.error("Narration translation settings update failed", error);
     return NextResponse.json({ error: "Could not save translation settings." }, { status: 500 });

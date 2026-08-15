@@ -15,7 +15,7 @@ type Preview = {
 type Props = {
   lessonId: string;
   slideId: string;
-  onAttached: (result: { url: string; narrationLanguage: "en" | "bn" }) => void;
+  onAttached: (result: { url: string; narrationLanguage: "en" | "bn"; transcript?: string }) => void;
   onClose: () => void;
 };
 
@@ -126,7 +126,7 @@ export function SlideNarrationVoiceoverGenerator({ lessonId, slideId, onAttached
       const url = String(attached.url || "");
       if (!url) throw new Error("The narration was saved but could not be attached to this slide.");
       setMessage("Saved to R2 and Media Library, then added as this slide's narration.");
-      onAttached({ url, narrationLanguage: languageCode.toLowerCase().startsWith("bn") ? "bn" : "en" });
+      onAttached({ url, narrationLanguage: languageCode.toLowerCase().startsWith("bn") ? "bn" : "en", transcript: script.trim() });
       window.setTimeout(onClose, 500);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not save and attach the voiceover.");

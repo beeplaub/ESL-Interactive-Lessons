@@ -105,11 +105,11 @@ export async function POST(request: Request) {
     translation_enabled: false,
     narration_language: generation.language_code?.toLowerCase().startsWith("bn") ? "bn" : "en",
   };
-  const { error } = existing
-    ? await admin.from("lesson_audio_files").update(row).eq("id", existing.id)
-    : await admin.from("lesson_audio_files").insert(row);
-  if (error) {
-    console.error("Voiceover narration insert failed", error);
+  const savedNarration = existing
+    ? await admin.from("lesson_audio_files").update({ ...row, transcript: generation.script }).eq("id", existing.id).select("id").single()
+    : await admin.from("lesson_audio_files").insert({ ...row, transcript: generation.script }).select("id").single();
+  if (savedNarration.error) {
+    console.error("Voiceover narration insert failed", savedNarration.error);
     return NextResponse.json({ error: "Could not attach the narration." }, { status: 500 });
   }
   if (existing?.id) {
