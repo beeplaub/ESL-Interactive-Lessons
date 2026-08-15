@@ -119,10 +119,14 @@ def voices() -> dict[str, object]:
 
 
 def ffmpeg_path() -> str:
-    binary = shutil.which("ffmpeg")
-    if not binary:
-        raise RuntimeError("ffmpeg is not installed. Run the BrenUp Kokoro installer again to enable compact Opus audio.")
-    return binary
+    # launchd starts services with PATH=/usr/bin:/bin:... and therefore cannot
+    # discover Homebrew binaries on Apple Silicon without an explicit path.
+    configured = os.getenv("FFMPEG_BINARY", "").strip()
+    candidates = [configured, "/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg", shutil.which("ffmpeg") or ""]
+    for candidate in candidates:
+        if candidate and Path(candidate).is_file() and os.access(candidate, os.X_OK):
+            return candidate
+    raise RuntimeError("ffmpeg is not installed. Run the BrenUp Kokoro installer again to enable compact Opus audio.")
 
 
 def encode_opus(input_path: Path) -> bytes:
