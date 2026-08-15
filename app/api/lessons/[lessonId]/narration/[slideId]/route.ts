@@ -84,7 +84,7 @@ export async function GET(_req: Request, { params }: Params) {
     url,
     id: data.id,
     sourceType: data.source_type === "LINK" ? "LINK" : data.source_type === "UPLOADED" ? "UPLOADED" : "RECORDED",
-    translationEnabled: data.source_type === "LINK" ? false : Boolean(data.translation_enabled),
+    translationEnabled: Boolean(data.translation_enabled),
     narrationLanguage: data.narration_language === "bn" ? "bn" : "en",
   });
 }
@@ -124,8 +124,8 @@ export async function POST(req: Request, { params }: Params) {
       source_type: "LINK" as const,
       label: "narration",
       linked_slide_number: slide?.slide_number ?? null,
-      translation_enabled: false,
-      narration_language: "en" as const,
+      translation_enabled: formData.get("translationEnabled") === "true",
+      narration_language: formData.get("narrationLanguage") === "bn" ? "bn" as const : "en" as const,
     };
     const { error } = existing
       ? await admin.from("lesson_audio_files").update(row).eq("id", existing.id)
@@ -150,7 +150,7 @@ export async function POST(req: Request, { params }: Params) {
         tags: ["slide-audio", `slide:${slideId}`],
       }).catch((libraryError) => console.error("Study audio Media Library registration failed", libraryError));
     }
-    return NextResponse.json({ url: externalUrl, sourceType: "LINK", translationEnabled: false });
+    return NextResponse.json({ url: externalUrl, sourceType: "LINK", translationEnabled: row.translation_enabled });
   }
 
   const file = formData.get("audio");
@@ -229,7 +229,8 @@ export async function POST(req: Request, { params }: Params) {
   return NextResponse.json({ url: stored.url, sourceType, translationEnabled: row.translation_enabled });
 }
 
-// PATCH — translation is available only for recorded/uploaded audio.
+// PATCH — translation is available for any usable narration source. Direct
+// audio links are proxied safely when a learner asks for a translation.
 export async function PATCH(req: Request, { params }: Params) {
   await requireAdmin();
   const { lessonId, slideId } = await params;
@@ -238,7 +239,6 @@ export async function PATCH(req: Request, { params }: Params) {
   const { data: narration } = await admin.from("lesson_audio_files")
     .select("id,source_type").eq("lesson_id", lessonId).eq("slide_id", slideId).eq("label", "narration").maybeSingle();
   if (!narration) return NextResponse.json({ error: "Slide audio was not found." }, { status: 404 });
-  if (narration.source_type === "LINK") return NextResponse.json({ error: "External study audio cannot be translated." }, { status: 400 });
   const { error } = await admin.from("lesson_audio_files").update({
     translation_enabled: Boolean(body?.translationEnabled),
     narration_language: body?.narrationLanguage === "bn" ? "bn" : "en",

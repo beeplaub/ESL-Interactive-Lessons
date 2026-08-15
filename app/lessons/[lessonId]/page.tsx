@@ -173,7 +173,7 @@ export default async function LessonPage({
       });
       const narrationLanguage: "en" | "bn" = af.narration_language === "bn" ? "bn" : "en";
       const sourceType = af.source_type === "LINK" ? "LINK" as const : af.source_type === "UPLOADED" ? "UPLOADED" as const : "RECORDED" as const;
-      return { slideId: af.slide_id, signedUrl: url, translationEnabled: sourceType === "LINK" ? false : Boolean(af.translation_enabled), narrationLanguage, sourceType };
+      return { slideId: af.slide_id, signedUrl: url, translationEnabled: Boolean(af.translation_enabled), narrationLanguage, sourceType };
     })
   );
 

@@ -146,7 +146,7 @@ async function saveNarrationTranslation(lessonId: string, slideId: string, targe
 }
 
 /** Uses Gemini only for the first request; every later request plays saved lesson audio. */
-export async function playNarrationTranslation({ lessonId, slideId, src, onState }: { lessonId: string; slideId: string; src: string; onState?: (state: "loading" | "playing" | "done" | "error", message?: string) => void }) {
+export async function playNarrationTranslation({ lessonId, slideId, src, sourceType = "RECORDED", onState }: { lessonId: string; slideId: string; src: string; sourceType?: "RECORDED" | "UPLOADED" | "LINK"; onState?: (state: "loading" | "playing" | "done" | "error", message?: string) => void }) {
   onState?.("loading");
   try {
     const cached = await cachedNarrationUrl(lessonId, slideId);
@@ -160,7 +160,14 @@ export async function playNarrationTranslation({ lessonId, slideId, src, onState
     const player = new PcmPlayer();
     await player.resume();
     const { session, targetLanguageCode } = await connect({ mode: "NARRATION", lessonId, slideId }, (audio) => { player.play(audio); onState?.("playing"); }, (message) => onState?.("error", message));
-    const response = await fetch(src);
+    const sourceUrl = sourceType === "LINK"
+      ? `/api/ai/narration-source?lessonId=${encodeURIComponent(lessonId)}&slideId=${encodeURIComponent(slideId)}`
+      : src;
+    const response = await fetch(sourceUrl);
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({})) as { error?: string };
+      throw new Error(data.error || "The narration audio could not be prepared for translation.");
+    }
     const bytes = await response.arrayBuffer();
     const context = new AudioContext();
     const decoded = await context.decodeAudioData(bytes.slice(0));

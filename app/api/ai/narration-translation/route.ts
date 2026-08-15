@@ -50,7 +50,7 @@ export async function GET(request: Request) {
   const slideId = url.searchParams.get("slideId");
   if (!lessonId || !slideId) return NextResponse.json({ error: "Narration is required." }, { status: 400 });
   const { admin, narration } = await narrationFor(lessonId, slideId);
-  if (!narration?.translation_enabled || narration.source_type === "LINK") return NextResponse.json({ error: "Translation is not available for this narration." }, { status: 404 });
+  if (!narration?.translation_enabled) return NextResponse.json({ error: "Translation is not available for this narration." }, { status: 404 });
   const targetLanguageCode = targetFor(narration.narration_language);
   const urlValue = await signedCachedUrl(admin, narration.id, targetLanguageCode);
   if (urlValue) return NextResponse.json({ url: urlValue, targetLanguageCode });
@@ -76,7 +76,7 @@ export async function POST(request: Request) {
   if (audio.size > 25 * 1024 * 1024) return NextResponse.json({ error: "Translated audio is too large." }, { status: 413 });
 
   const { admin, narration, lesson } = await narrationFor(lessonId, slideId);
-  if (!narration?.translation_enabled || narration.source_type === "LINK") return NextResponse.json({ error: "Translation is not available for this narration." }, { status: 404 });
+  if (!narration?.translation_enabled) return NextResponse.json({ error: "Translation is not available for this narration." }, { status: 404 });
   const targetLanguageCode = targetFor(narration.narration_language);
   if (requestedTarget !== targetLanguageCode) return NextResponse.json({ error: "Invalid translation target." }, { status: 400 });
 

@@ -195,11 +195,11 @@ function NarrationPill({ src, lessonId, slideId, sourceType = "RECORDED", transl
           >
             {playing ? <Pause size={10} /> : <Play size={10} />}
           </button>
-          {translationEnabled && sourceType !== "LINK" && originalFinished ? (
+          {translationEnabled && !isYouTubeAudio && originalFinished ? (
             <button
               type="button"
               disabled={translationState === "loading" || translationState === "playing"}
-              onClick={() => void playNarrationTranslation({ lessonId, slideId, src, onState: (state, message) => { setTranslationState(state); setTranslationError(message ?? null); } })}
+              onClick={() => void playNarrationTranslation({ lessonId, slideId, src, sourceType, onState: (state, message) => { setTranslationState(state); setTranslationError(message ?? null); } })}
               aria-label={narrationLanguage === "bn" ? "Listen in English" : "Listen in Bangla"}
               title={narrationLanguage === "bn" ? "Listen in English" : "Listen in Bangla"}
               className="flex size-6 shrink-0 items-center justify-center rounded-full bg-white/15 text-on-dark transition hover:bg-violetglow disabled:opacity-60"

@@ -44,7 +44,7 @@ export async function POST(request: Request) {
       .eq("slide_id", body.slideId)
       .eq("label", "narration")
       .maybeSingle();
-    if (!narration?.translation_enabled || narration.source_type === "LINK") return NextResponse.json({ error: "Translation is not enabled for this narration." }, { status: 403 });
+    if (!narration?.translation_enabled) return NextResponse.json({ error: "Translation is not enabled for this narration." }, { status: 403 });
     targetLanguageCode = opposite(narration.narration_language || "en");
   } else if (body.mode === "SPEAK_TRANSLATE") {
     if (!body.activityId) return NextResponse.json({ error: "Activity is required." }, { status: 400 });
