@@ -181,10 +181,11 @@ export default async function LessonPage({
   const narrationMap: Record<string, string> = {};
   const narrationConfigMap: Record<string, { translationEnabled: boolean; narrationLanguage: "en" | "bn"; sourceType: "RECORDED" | "UPLOADED" | "LINK"; transcript?: string; glossary?: unknown[] }> = {};
   for (const n of narrations) {
-    if (n.slideId && n.signedUrl) {
-      narrationMap[n.slideId] = n.signedUrl;
-      narrationConfigMap[n.slideId] = { translationEnabled: n.translationEnabled, narrationLanguage: n.narrationLanguage, sourceType: n.sourceType, transcript: n.transcript, glossary: n.glossary };
-    }
+    if (!n.slideId) continue;
+    if (n.signedUrl) narrationMap[n.slideId] = n.signedUrl;
+    // Keep study-support metadata even when an external audio URL cannot be
+    // resolved at render time. The learner can still read the saved script.
+    narrationConfigMap[n.slideId] = { translationEnabled: n.translationEnabled, narrationLanguage: n.narrationLanguage, sourceType: n.sourceType, transcript: n.transcript, glossary: n.glossary };
   }
 
   return (
