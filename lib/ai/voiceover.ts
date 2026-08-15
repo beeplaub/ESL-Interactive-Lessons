@@ -51,6 +51,10 @@ export function voiceoverRequestHash(request: VoiceoverRequest, provider = voice
       model: providerModel,
       providerVoice,
       providerPreference: request.provider || "auto",
+      // Saved WAV generations use the pre-Opus cache shape. Version the
+      // format so a creator can regenerate the same script once and receive
+      // a compact replacement instead of silently reusing a legacy WAV.
+      storageFormat: "opus-v1",
     }))
     .digest("hex");
 }
