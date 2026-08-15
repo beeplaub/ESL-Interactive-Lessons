@@ -34,21 +34,22 @@ function activeSentenceIndex(sentences: string[], currentTime: number, duration:
   return 0;
 }
 
-function HighlightedText({ text, entries }: { text: string; entries: NarrationGlossaryEntry[] }) {
+function HighlightedText({ text, entries, onSelect }: { text: string; entries: NarrationGlossaryEntry[]; onSelect?: (entry: NarrationGlossaryEntry) => void }) {
   const terms = entries.map((entry) => entry.term).filter(Boolean).sort((a, b) => b.length - a.length);
   if (!terms.length) return <>{text}</>;
   const expression = new RegExp(`(${terms.map(escapeRegExp).join("|")})`, "gi");
   return <>{text.split(expression).map((part, index) => {
     const match = entries.find((entry) => entry.term.toLocaleLowerCase() === part.toLocaleLowerCase());
-    return match ? <span key={`${part}-${index}`} className="rounded px-0.5 font-semibold text-[var(--br-action)]">{part}</span> : <span key={`${part}-${index}`}>{part}</span>;
+    return match ? <button key={`${part}-${index}`} type="button" onClick={() => onSelect?.(match)} className="rounded px-0.5 font-semibold text-[var(--br-action)] transition hover:bg-[var(--br-action)]/10 focus:outline-none focus:ring-2 focus:ring-[var(--br-action)]/35">{part}</button> : <span key={`${part}-${index}`}>{part}</span>;
   })}</>;
 }
 
 /** Small pop-down used by the sticky learner study dock. */
-export function NarrationReadPreview({ transcript = "", currentTime, duration, onOpenScript }: SharedProps & { onOpenScript: () => void }) {
+export function NarrationReadPreview({ transcript = "", glossary = [], currentTime, duration, onOpenScript, onOpenGlossary }: SharedProps & { onOpenScript: () => void; onOpenGlossary: () => void }) {
   const sentences = useMemo(() => narrationSentences(transcript), [transcript]);
+  const entries = useMemo(() => narrationGlossary(glossary), [glossary]);
   const sentence = sentences[activeSentenceIndex(sentences, currentTime, duration)] || sentences[0] || "";
-  return <section className="w-[min(100%,30rem)] rounded-2xl border-2 border-[var(--br-action)] bg-white p-4 shadow-xl"><div className="flex items-center gap-2"><BookOpenText size={16} className="text-[var(--br-action)]" /><p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--br-action)]">Reading guide</p></div><p className="mt-3 rounded-xl bg-[var(--br-action)]/10 px-3 py-2.5 text-[15px] font-semibold leading-7 text-ink">{sentence || "Your teacher has not added a reading script for this narration yet."}</p><button type="button" onClick={onOpenScript} className="mt-3 inline-flex items-center gap-1 text-sm font-extrabold text-[var(--br-action)]">Open full script <ChevronRight size={15} /></button></section>;
+  return <section className="w-full max-w-xl rounded-2xl border-2 border-[var(--br-action)] bg-white p-4 shadow-[var(--br-shadow)]"><div className="flex items-center gap-2"><BookOpenText size={16} className="text-[var(--br-action)]" /><p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--br-action)]">Reading guide</p></div><p className="mt-3 rounded-xl bg-[var(--br-action)]/10 px-3 py-2.5 text-[15px] font-semibold leading-7 text-ink"><HighlightedText text={sentence || "Your teacher has not added a reading script for this narration yet."} entries={entries} onSelect={onOpenGlossary} /></p><button type="button" onClick={onOpenScript} className="mt-3 inline-flex items-center gap-1 text-sm font-extrabold text-[var(--br-action)]">Open full script <ChevronRight size={15} /></button></section>;
 }
 
 export function NarrationGlossaryPanel({ glossary = [] }: Pick<SharedProps, "glossary">) {
