@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpenText, ChevronRight, List, X } from "lucide-react";
+import { BookOpenText, ChevronRight, List, Pin, PinOff, X } from "lucide-react";
 import { useEffect, useMemo, useRef } from "react";
 
 export type NarrationGlossaryEntry = { term: string; definition: string; example?: string; position?: number };
@@ -45,11 +45,11 @@ function HighlightedText({ text, entries, onSelect }: { text: string; entries: N
 }
 
 /** Small pop-down used by the sticky learner study dock. */
-export function NarrationReadPreview({ transcript = "", glossary = [], currentTime, duration, onOpenScript, onOpenGlossary }: SharedProps & { onOpenScript: () => void; onOpenGlossary: () => void }) {
+export function NarrationReadPreview({ transcript = "", glossary = [], currentTime, duration, onOpenScript, onSelectTerm, pinned = false, onTogglePin }: SharedProps & { onOpenScript: () => void; onSelectTerm: (entry: NarrationGlossaryEntry) => void; pinned?: boolean; onTogglePin?: () => void }) {
   const sentences = useMemo(() => narrationSentences(transcript), [transcript]);
   const entries = useMemo(() => narrationGlossary(glossary), [glossary]);
   const sentence = sentences[activeSentenceIndex(sentences, currentTime, duration)] || sentences[0] || "";
-  return <section className="w-full max-w-xl rounded-2xl border-2 border-[var(--br-action)] bg-white p-4 shadow-[var(--br-shadow)]"><div className="flex items-center gap-2"><BookOpenText size={16} className="text-[var(--br-action)]" /><p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--br-action)]">Reading guide</p></div><p className="mt-3 rounded-xl bg-[var(--br-action)]/10 px-3 py-2.5 text-[15px] font-semibold leading-7 text-ink"><HighlightedText text={sentence || "Your teacher has not added a reading script for this narration yet."} entries={entries} onSelect={onOpenGlossary} /></p><button type="button" onClick={onOpenScript} className="mt-3 inline-flex items-center gap-1 text-sm font-extrabold text-[var(--br-action)]">Open full script <ChevronRight size={15} /></button></section>;
+  return <section className="w-full max-w-xl rounded-2xl border-2 border-[var(--br-action)] bg-white p-4 shadow-[var(--br-shadow)]"><div className="flex items-center justify-between gap-3"><div className="flex items-center gap-2"><BookOpenText size={16} className="text-[var(--br-action)]" /><p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--br-action)]">Reading guide</p></div>{onTogglePin ? <button type="button" onClick={onTogglePin} className={`grid size-8 place-items-center rounded-lg border transition ${pinned ? "border-[var(--br-action)] bg-[var(--br-action)] text-on-dark" : "border-[var(--br-border)] text-[var(--br-action)] hover:bg-[var(--br-action)]/10"}`} aria-label={pinned ? "Return reading guide to page" : "Keep reading guide on screen"} title={pinned ? "Unpin" : "Keep on screen"}>{pinned ? <PinOff size={15} /> : <Pin size={15} />}</button> : null}</div><p className="mt-3 rounded-xl bg-[var(--br-action)]/10 px-3 py-2.5 text-[15px] font-semibold leading-7 text-ink"><HighlightedText text={sentence || "Your teacher has not added a reading script for this narration yet."} entries={entries} onSelect={onSelectTerm} /></p><button type="button" onClick={onOpenScript} className="mt-3 inline-flex items-center gap-1 text-sm font-extrabold text-[var(--br-action)]">Open full script <ChevronRight size={15} /></button></section>;
 }
 
 export function NarrationGlossaryPanel({ glossary = [] }: Pick<SharedProps, "glossary">) {
@@ -58,11 +58,15 @@ export function NarrationGlossaryPanel({ glossary = [] }: Pick<SharedProps, "glo
 }
 
 /** Full script sheet, intentionally without a screen-darkening overlay. */
-export function NarrationFullScript({ transcript = "", glossary = [], currentTime, duration, onClose }: SharedProps & { onClose: () => void }) {
+export function NarrationFullScript({ transcript = "", glossary = [], currentTime, duration, onClose, onSelectTerm }: SharedProps & { onClose: () => void; onSelectTerm: (entry: NarrationGlossaryEntry) => void }) {
   const entries = useMemo(() => narrationGlossary(glossary), [glossary]);
   const sentences = useMemo(() => narrationSentences(transcript), [transcript]);
   const activeIndex = activeSentenceIndex(sentences, currentTime, duration);
   const refs = useRef<Array<HTMLParagraphElement | null>>([]);
   useEffect(() => { refs.current[activeIndex]?.scrollIntoView({ block: "center", behavior: "smooth" }); }, [activeIndex]);
-  return <section className="flex max-h-[72svh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border-2 border-[var(--br-action)] bg-white shadow-2xl"><header className="flex items-center justify-between gap-3 border-b border-[var(--br-border)] px-4 py-3"><div><p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--br-action)]">Study assist</p><h2 className="mt-0.5 text-base font-extrabold text-ink">Read the narration</h2></div><button type="button" onClick={onClose} className="grid size-8 place-items-center rounded-full border border-[var(--br-border)] text-[var(--br-text-muted)] hover:bg-[var(--br-surface-muted)]" aria-label="Close script"><X size={16} /></button></header><div className="min-h-0 overflow-y-auto p-4 text-[15px] leading-8 text-ink sm:text-base">{sentences.map((sentence, index) => <p key={`${index}-${sentence.slice(0, 18)}`} ref={(node) => { refs.current[index] = node; }} className={`rounded-xl px-3 py-2 transition-colors ${index === activeIndex ? "bg-[var(--br-action)]/12 font-medium" : ""}`}><HighlightedText text={sentence} entries={entries} /></p>)}</div></section>;
+  return <section className="flex max-h-[72svh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border-2 border-[var(--br-action)] bg-white shadow-2xl"><header className="flex items-center justify-between gap-3 border-b border-[var(--br-border)] px-4 py-3"><div><p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--br-action)]">Study assist</p><h2 className="mt-0.5 text-base font-extrabold text-ink">Read the narration</h2></div><button type="button" onClick={onClose} className="grid size-8 place-items-center rounded-full border border-[var(--br-border)] text-[var(--br-text-muted)] hover:bg-[var(--br-surface-muted)]" aria-label="Close script"><X size={16} /></button></header><div className="min-h-0 overflow-y-auto p-4 text-[15px] leading-8 text-ink sm:text-base">{sentences.map((sentence, index) => <p key={`${index}-${sentence.slice(0, 18)}`} ref={(node) => { refs.current[index] = node; }} className={`rounded-xl px-3 py-2 transition-colors ${index === activeIndex ? "bg-[var(--br-action)]/12 font-medium" : ""}`}><HighlightedText text={sentence} entries={entries} onSelect={onSelectTerm} /></p>)}</div></section>;
+}
+
+export function NarrationGlossaryWord({ entry, onClose }: { entry: NarrationGlossaryEntry; onClose: () => void }) {
+  return <section className="w-full max-w-xl rounded-2xl border-2 border-[var(--br-action)] bg-white p-4 shadow-[var(--br-shadow)]"><div className="flex items-start justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--br-action)]">Glossary word</p><h2 className="mt-1 text-lg font-extrabold text-[var(--br-action)]">{entry.term}</h2></div><button type="button" onClick={onClose} className="grid size-8 place-items-center rounded-full border border-[var(--br-border)] text-[var(--br-text-muted)] hover:bg-[var(--br-surface-muted)]" aria-label="Close word meaning"><X size={16} /></button></div><p className="mt-3 text-sm leading-6 text-ink">{entry.definition}</p>{entry.example ? <p className="mt-2 text-xs italic leading-5 text-[var(--br-text-muted)]">{entry.example}</p> : null}</section>;
 }
