@@ -54,13 +54,15 @@ export function NarrationReadPreview({ transcript = "", glossary = [], currentTi
 }
 
 /** Escapes transformed lesson containers so the guide stays fixed to the device viewport. */
-export function PinnedNarrationReadPreview(props: Parameters<typeof NarrationReadPreview>[0]) {
+export function PinnedNarrationReadPreview({ anchor, ...props }: Parameters<typeof NarrationReadPreview>[0] & { anchor?: { left: number; width: number } | null }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   if (!mounted) return null;
   return createPortal(
-    <div className="fixed inset-x-2 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-[110] mx-auto w-auto max-w-xl sm:inset-x-auto sm:left-1/2 sm:w-full sm:-translate-x-1/2">
+    <div style={anchor ? { left: anchor.left, width: anchor.width } : undefined} className={`fixed bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-[110] ${anchor ? "px-2" : "inset-x-2 mx-auto w-auto max-w-xl sm:inset-x-auto sm:left-1/2 sm:w-full sm:-translate-x-1/2"}`}>
+      <div className="mx-auto w-full max-w-xl">
       <NarrationReadPreview {...props} />
+      </div>
     </div>,
     document.body,
   );

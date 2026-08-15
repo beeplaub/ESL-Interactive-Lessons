@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { TouchEvent } from "react";
 import { ArrowLeft, ArrowRight, Award, BookOpen, BookOpenText, CheckCircle2, ChevronLeft, Languages, List, Lock, Music2, NotebookPen, Pause, Play, PenLine, RotateCcw, Sparkles, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { LessonActivityPanel, lessonActivityTotalPoints } from "@/components/LessonActivityPanel";
 import { LessonBlockPreview } from "@/components/LessonBlockPreview";
@@ -299,6 +299,7 @@ export function BuilderLessonPlayer({
   const [fullScriptOpen, setFullScriptOpen] = useState(false);
   const [pinnedReadingGuide, setPinnedReadingGuide] = useState(false);
   const [selectedGlossaryEntry, setSelectedGlossaryEntry] = useState<NarrationGlossaryEntry | null>(null);
+  const [lessonViewport, setLessonViewport] = useState<{ left: number; width: number } | null>(null);
   const [completed, setCompleted] = useState(Boolean(initialProgress?.completed));
   const [showCompletion, setShowCompletion] = useState(false);
   const [remainingSeconds, setRemainingSeconds] = useState(() => lesson.timer_minutes ? lesson.timer_minutes * 60 : null);
@@ -321,10 +322,25 @@ export function BuilderLessonPlayer({
   const [liveNavigationLocked, setLiveNavigationLocked] = useState(Boolean(liveSession?.navigationLocked));
   const [, setLiveClock] = useState(0);
   const liveChannelRef = useRef<RealtimeChannel | null>(null);
+  const lessonViewportRef = useRef<HTMLElement | null>(null);
   const isLiveStudent = liveSession?.role === "STUDENT";
   const isLiveTeacher = liveSession?.role === "TEACHER";
 
   const slide = slides[index] ?? null;
+
+  useLayoutEffect(() => {
+    const element = lessonViewportRef.current;
+    if (!element) return;
+    const update = () => {
+      const rect = element.getBoundingClientRect();
+      setLessonViewport(window.innerWidth >= 768 ? { left: rect.left, width: rect.width } : null);
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(element);
+    window.addEventListener("resize", update);
+    return () => { observer.disconnect(); window.removeEventListener("resize", update); };
+  }, []);
 
   useEffect(() => {
     if (!liveSession) return;
@@ -615,7 +631,7 @@ export function BuilderLessonPlayer({
   }
 
   return (
-    <main className="mx-auto max-w-7xl overflow-x-hidden px-3 sm:px-4 min-[1180px]:px-0">
+    <main ref={lessonViewportRef} className="mx-auto max-w-7xl overflow-x-hidden px-3 sm:px-4 min-[1180px]:px-0">
       {showCompletion ? <LessonCompletionModal lessonTitle={lesson.title} score={earnedLessonMarks} total={totalLessonMarks} activitiesAttempted={attemptedActivities} totalQuestions={totalLessonQuestions} grade={lessonGrade} onClose={() => setShowCompletion(false)} onRetake={retakeLesson} /> : null}
       {/* ── Header ── */}
       <div className="mb-3 rounded-[22px] border border-[var(--br-surface-strong)] bg-surface px-3 py-2 shadow-[var(--br-shadow)]">
@@ -836,7 +852,7 @@ export function BuilderLessonPlayer({
 
       {/* ── In-flow study dock and bottom navigation ── */}
       <div className="mt-5">
-          {pinnedReadingGuide && hasTranscript ? <PinnedNarrationReadPreview transcript={narrationConfig?.transcript} glossary={narrationConfig?.glossary} currentTime={narrationProgress.currentTime} duration={narrationProgress.duration} pinned onTogglePin={() => { setPinnedReadingGuide(false); setStudyPanel("read"); }} onOpenScript={() => { setPinnedReadingGuide(false); setStudyPanel(null); setFullScriptOpen(true); }} onSelectTerm={(entry) => { setPinnedReadingGuide(false); setStudyPanel(null); setSelectedGlossaryEntry(entry); }} /> : null}
+          {pinnedReadingGuide && hasTranscript ? <PinnedNarrationReadPreview anchor={lessonViewport} transcript={narrationConfig?.transcript} glossary={narrationConfig?.glossary} currentTime={narrationProgress.currentTime} duration={narrationProgress.duration} pinned onTogglePin={() => { setPinnedReadingGuide(false); setStudyPanel("read"); }} onOpenScript={() => { setPinnedReadingGuide(false); setStudyPanel(null); setFullScriptOpen(true); }} onSelectTerm={(entry) => { setPinnedReadingGuide(false); setStudyPanel(null); setSelectedGlossaryEntry(entry); }} /> : null}
           <div className="mx-auto flex w-fit items-center gap-1 rounded-[16px] border border-[var(--br-surface-strong)] bg-white p-1.5 shadow-[var(--br-shadow)]">
             <button type="button" disabled={!hasTranscript} onClick={() => { setPinnedReadingGuide(false); setSelectedGlossaryEntry(null); setFullScriptOpen(false); setStudyPanel((current) => current === "read" ? null : "read"); }} className={`inline-flex min-w-20 items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-extrabold transition ${hasTranscript ? studyPanel === "read" ? "bg-[var(--br-action)] text-on-dark" : "text-[var(--br-action)] hover:bg-[var(--br-action)]/10" : "cursor-not-allowed text-[var(--br-text-muted)] opacity-45"}`} title={hasTranscript ? "Follow the narration" : "No reading script on this slide"}><BookOpenText size={14} />Read</button>
             <button type="button" disabled={!hasGlossary} onClick={() => { setPinnedReadingGuide(false); setSelectedGlossaryEntry(null); setFullScriptOpen(false); setStudyPanel((current) => current === "glossary" ? null : "glossary"); }} className={`inline-flex min-w-24 items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-extrabold transition ${hasGlossary ? studyPanel === "glossary" ? "bg-[var(--br-action)] text-on-dark" : "text-[var(--br-action)] hover:bg-[var(--br-action)]/10" : "cursor-not-allowed text-[var(--br-text-muted)] opacity-45"}`} title={hasGlossary ? "Open glossary" : "No glossary on this slide"}><List size={14} />Glossary</button>
