@@ -179,13 +179,13 @@ export async function POST(request: Request) {
   try {
     const generated = await generateVoiceoverAudio(input);
     const completedRequestHash = voiceoverRequestHash(input, generated.provider);
-    const path = `voiceovers/${access.user.id}/previews/${generationId}.wav`;
+    const path = `voiceovers/${access.user.id}/previews/${generationId}.${generated.extension}`;
     const stored = await uploadMediaObject({
       supabase: admin,
       supabaseBucket: "ai-recordings",
       path,
-      body: generated.wav,
-      contentType: "audio/wav",
+      body: generated.audio,
+      contentType: generated.mimeType,
       upsert: false,
     });
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
@@ -205,8 +205,8 @@ export async function POST(request: Request) {
       storage_bucket: stored.bucket,
       storage_path: stored.path,
       public_url: stored.url,
-      mime_type: "audio/wav",
-      file_size: generated.wav.byteLength,
+      mime_type: generated.mimeType,
+      file_size: generated.audio.byteLength,
       duration_seconds: generated.durationSeconds,
       expires_at: expiresAt,
     });

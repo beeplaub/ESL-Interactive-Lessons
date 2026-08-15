@@ -83,6 +83,9 @@ export async function uploadMediaObject(input: UploadInput): Promise<StoredMedia
       Key: key,
       Body: input.body,
       ContentType: input.contentType,
+      // Asset paths are versioned with an id/timestamp. Cache them at the edge
+      // so repeat playback does not repeatedly read the R2 object.
+      CacheControl: "public, max-age=31536000, immutable",
     }));
     return {
       provider: "r2",

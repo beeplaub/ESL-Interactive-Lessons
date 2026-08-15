@@ -57,12 +57,14 @@ export function MediaRecorderInput({ value, onChange, type = "audio", label, les
     navigator.mediaDevices
       .getUserMedia({ audio: true })
       .then((stream) => {
-        const mimeType = MediaRecorder.isTypeSupported("audio/webm")
+        const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+          ? "audio/webm;codecs=opus"
+          : MediaRecorder.isTypeSupported("audio/webm")
           ? "audio/webm"
           : MediaRecorder.isTypeSupported("audio/mp4")
           ? "audio/mp4"
           : "";
-        const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+        const recorder = mimeType ? new MediaRecorder(stream, { mimeType, audioBitsPerSecond: 48_000 }) : new MediaRecorder(stream, { audioBitsPerSecond: 48_000 });
         chunksRef.current = [];
 
         recorder.ondataavailable = (e) => {

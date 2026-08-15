@@ -69,8 +69,8 @@ export function SlideNarrationRecorder({ lessonId, slideId }: { lessonId: string
   function startRecording() {
     setErrorMessage(null);
     navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
-      const mimeType = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "audio/mp4";
-      const recorder = new MediaRecorder(stream, { mimeType });
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus") ? "audio/webm;codecs=opus" : MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "audio/mp4";
+      const recorder = new MediaRecorder(stream, { mimeType, audioBitsPerSecond: 48_000 });
       chunksRef.current = [];
       recorder.ondataavailable = (event) => { if (event.data.size > 0) chunksRef.current.push(event.data); };
       recorder.onstop = () => {

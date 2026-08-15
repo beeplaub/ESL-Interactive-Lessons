@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { deleteMediaObject, resolveMediaUrl, uploadMediaObject } from "@/lib/storage/mediaStorage";
 import { registerMediaAsset } from "@/lib/storage/mediaLibrary";
 import { claimAiGeneration, releaseAiGeneration, settleAiCredits } from "@/lib/ai/efficiency";
+import { optimizeAudioForStorage } from "@/lib/media/audioStorage";
 
 function targetFor(language: string | null) {
   return language === "bn" ? "en" : "bn";
@@ -90,15 +91,21 @@ export async function POST(request: Request) {
     generationToken = lock.ownerToken;
   }
 
-  const path = `${lessonId}/translations/${narration.id}-${targetLanguageCode}.wav`;
+  const originalAudio = new Uint8Array(await audio.arrayBuffer());
+  const compact = await optimizeAudioForStorage({
+    bytes: originalAudio,
+    mimeType: audio.type || "audio/wav",
+    fileName: `translated-narration.wav`,
+  });
+  const path = `${lessonId}/translations/${narration.id}-${targetLanguageCode}.${compact.extension}`;
   let stored;
   try {
     stored = await uploadMediaObject({
       supabase: admin,
       supabaseBucket: "lesson-audio",
       path,
-      body: new Uint8Array(await audio.arrayBuffer()),
-      contentType: "audio/wav",
+      body: compact.bytes,
+      contentType: compact.mimeType,
       upsert: false,
     });
   } catch (uploadError) {
@@ -134,8 +141,8 @@ export async function POST(request: Request) {
         lessonTitle: lesson.title ?? null,
         title: `Bengali translation · slide narration`,
         caption: "AI narration translation",
-        fileName: `${narration.id}-${targetLanguageCode}.wav`,
-        mimeType: "audio/wav",
+        fileName: `${narration.id}-${targetLanguageCode}.${compact.extension}`,
+        mimeType: compact.mimeType,
         tags: ["narration-translation", `narration:${narration.id}`],
       });
     } catch (libraryError) {
@@ -143,7 +150,7 @@ export async function POST(request: Request) {
     }
   }
   const urlValue = await signedCachedUrl(admin, narration.id, targetLanguageCode);
-  const durationSeconds = Math.max(1, (audio.size - 44) / 48_000);
+  const durationSeconds = Math.max(1, (originalAudio.byteLength - 44) / 48_000);
   await Promise.all([
     settleAiCredits({
       userId: user.id,

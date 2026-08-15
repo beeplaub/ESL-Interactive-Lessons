@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { GoogleGenAI, Modality } from "@google/genai";
 import { VOICEOVER_PACES, VOICEOVER_STYLES, VOICEOVER_VOICES } from "@/lib/ai/voiceoverCatalog";
+import { audioExtension, audioMimeType, optimizeAudioForStorage } from "@/lib/media/audioStorage";
 
 export { VOICEOVER_PACES, VOICEOVER_STYLES, VOICEOVER_VOICES } from "@/lib/ai/voiceoverCatalog";
 
@@ -127,8 +128,15 @@ async function generateGeminiVoiceover(request: VoiceoverRequest) {
   const pcm = new Uint8Array(Buffer.from(encoded, "base64"));
   const sampleRate = sampleRateFromMime(part.inlineData?.mimeType);
   const wav = pcmToWav(pcm, sampleRate);
+  const compact = await optimizeAudioForStorage({
+    bytes: wav,
+    mimeType: "audio/wav",
+    fileName: "gemini-voiceover.wav",
+  });
   return {
-    wav,
+    audio: compact.bytes,
+    mimeType: compact.mimeType,
+    extension: compact.extension,
     sampleRate,
     durationSeconds: pcm.byteLength / (sampleRate * 2),
     model: response.modelVersion || VOICEOVER_MODEL,
@@ -154,16 +162,6 @@ function kokoroSpeed(pace: string) {
   return 1;
 }
 
-function wavDurationSeconds(wav: Uint8Array) {
-  if (wav.byteLength < 44) return 0;
-  const view = new DataView(wav.buffer, wav.byteOffset, wav.byteLength);
-  const sampleRate = view.getUint32(24, true);
-  const channels = view.getUint16(22, true);
-  const bitsPerSample = view.getUint16(34, true);
-  const dataBytes = view.getUint32(40, true);
-  return sampleRate && channels && bitsPerSample ? dataBytes / (sampleRate * channels * (bitsPerSample / 8)) : 0;
-}
-
 async function generateKokoroVoiceover(request: VoiceoverRequest) {
   if (!isEnglishLanguage(request.languageCode)) throw new Error("Kokoro currently supports English voiceovers only. Choose Gemini for this language.");
   if (request.style !== "Natural") throw new Error("Kokoro currently supports Natural delivery only. Choose Gemini for delivery styles.");
@@ -172,22 +170,36 @@ async function generateKokoroVoiceover(request: VoiceoverRequest) {
   if (!baseUrl || !apiKey) throw new Error("The BrenUp Kokoro voice service is not configured.");
   const voice = VOICEOVER_VOICES.find((candidate) => candidate.name === request.voiceName)?.kokoroVoice || "af_heart";
   const timeoutMs = Math.min(35_000, Math.max(5_000, Number(process.env.KOKORO_TTS_TIMEOUT_MS || 20_000)));
-  const response = await fetch(`${baseUrl}/v1/audio/speech`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ model: "kokoro", input: request.script.trim(), voice, speed: kokoroSpeed(request.pace), response_format: "wav" }),
-    signal: AbortSignal.timeout(timeoutMs),
-    cache: "no-store",
-  });
+  async function requestSpeech(responseFormat: "opus" | "wav") {
+    return fetch(`${baseUrl}/v1/audio/speech`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ model: "kokoro", input: request.script.trim(), voice, speed: kokoroSpeed(request.pace), response_format: responseFormat }),
+      signal: AbortSignal.timeout(timeoutMs),
+      cache: "no-store",
+    });
+  }
+
+  let response = await requestSpeech("opus");
+  // During rollout an existing Mac Mini service may still be the prior
+  // WAV-only release. Keep voiceover creation working until its installer has
+  // been run, then switch to Opus automatically on the next request.
+  if (!response.ok && response.status === 400) {
+    const details = await response.clone().text().catch(() => "");
+    if (/response_format|wav output/i.test(details)) response = await requestSpeech("wav");
+  }
   if (!response.ok) {
     const details = await response.text().catch(() => "");
     throw new Error(`Kokoro voice service returned ${response.status}${details ? `: ${details.slice(0, 240)}` : ""}`);
   }
-  const wav = new Uint8Array(await response.arrayBuffer());
-  if (wav.byteLength < 44) throw new Error("Kokoro returned an invalid audio file.");
-  const durationSeconds = Number(response.headers.get("x-audio-duration")) || wavDurationSeconds(wav);
+  const audio = new Uint8Array(await response.arrayBuffer());
+  if (audio.byteLength < 128) throw new Error("Kokoro returned an invalid audio file.");
+  const mimeType = audioMimeType(response.headers.get("content-type") || "audio/ogg");
+  const durationSeconds = Number(response.headers.get("x-audio-duration")) || 0;
   return {
-    wav,
+    audio,
+    mimeType,
+    extension: audioExtension(mimeType),
     sampleRate: 24_000,
     durationSeconds,
     model: response.headers.get("x-tts-model") || KOKORO_VOICEOVER_MODEL,

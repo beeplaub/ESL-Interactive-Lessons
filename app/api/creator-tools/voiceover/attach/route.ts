@@ -4,6 +4,7 @@ import { creatorAccessError, getCreatorAiAccess } from "@/lib/ai/creatorAccess";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { copyMediaObject, deleteMediaObject } from "@/lib/storage/mediaStorage";
 import { registerMediaAsset } from "@/lib/storage/mediaLibrary";
+import { audioExtension, audioMimeType } from "@/lib/media/audioStorage";
 
 export const runtime = "nodejs";
 
@@ -34,6 +35,8 @@ export async function POST(request: Request) {
   if (!lesson || !slide || (access.profile.role !== "ADMIN" && lesson.created_by !== access.user.id)) {
     return NextResponse.json({ error: "You cannot edit this lesson." }, { status: 403 });
   }
+  const mimeType = audioMimeType(generation.mime_type);
+  const extension = audioExtension(mimeType);
 
   if (parsed.data.mode === "AUDIO_BLOCK") {
     const { data: last } = await admin.from("lesson_blocks").select("position").eq("slide_id", slide.id).order("position", { ascending: false }).limit(1).maybeSingle();
@@ -56,7 +59,7 @@ export async function POST(request: Request) {
       lessonId: lesson.id,
       lessonTitle: lesson.title,
       title: generation.title || "AI voiceover",
-      mimeType: "audio/wav",
+      mimeType,
       tags: ["ai-voiceover", `slide:${slide.id}`],
     }).catch((libraryError) => console.error("Voiceover block media registration failed", libraryError));
     return NextResponse.json({ ok: true, blockId: block.id, message: `Audio block added to slide ${slide.slide_number}.` });
@@ -74,8 +77,8 @@ export async function POST(request: Request) {
       url: generation.public_url,
     },
     supabaseBucket: "lesson-audio",
-    path: `${lesson.id}/${slide.id}/ai-voiceover-${Date.now()}.wav`,
-    contentType: "audio/wav",
+    path: `${lesson.id}/${slide.id}/ai-voiceover-${Date.now()}.${extension}`,
+    contentType: mimeType,
   });
   const row = {
     lesson_id: lesson.id,
@@ -126,7 +129,7 @@ export async function POST(request: Request) {
     lessonId: lesson.id,
     lessonTitle: lesson.title,
     title: generation.title || `Slide ${slide.slide_number} AI narration`,
-    mimeType: "audio/wav",
+    mimeType,
     tags: ["ai-voiceover", "narration", `slide:${slide.id}`],
   }).catch((libraryError) => console.error("Voiceover narration media registration failed", libraryError));
   return NextResponse.json({ ok: true, url: stored.url, message: `Narration attached to slide ${slide.slide_number}.` });

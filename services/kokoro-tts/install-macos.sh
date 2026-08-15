@@ -24,6 +24,12 @@ restart_agent() {
 }
 
 mkdir -p "$RUNTIME_DIR" "$LOG_DIR" "$AGENT_DIR"
+
+if [[ ! -x /opt/homebrew/bin/ffmpeg ]]; then
+  echo "Installing ffmpeg for compact Opus voice files…"
+  /opt/homebrew/bin/brew install ffmpeg
+fi
+
 install -m 700 "$SOURCE_DIR/run.sh" "$RUNTIME_DIR/run.sh"
 install -m 600 "$SOURCE_DIR/server.py" "$RUNTIME_DIR/server.py"
 install -m 600 "$SOURCE_DIR/requirements.txt" "$RUNTIME_DIR/requirements.txt"

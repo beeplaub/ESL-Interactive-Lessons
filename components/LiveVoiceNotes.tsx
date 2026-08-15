@@ -72,7 +72,7 @@ export function LiveVoiceNotes({ sessionId, teacher: initialTeacher = false }: {
       const media = await navigator.mediaDevices.getUserMedia({ audio: true });
       stream.current = media; chunks.current = [];
       const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus") ? "audio/webm;codecs=opus" : MediaRecorder.isTypeSupported("audio/mp4") ? "audio/mp4" : "";
-      const next = mimeType ? new MediaRecorder(media, { mimeType }) : new MediaRecorder(media);
+      const next = mimeType ? new MediaRecorder(media, { mimeType, audioBitsPerSecond: 32_000 }) : new MediaRecorder(media, { audioBitsPerSecond: 32_000 });
       next.ondataavailable = (event) => { if (event.data.size) chunks.current.push(event.data); };
       next.onstop = () => {
         if (timer.current) window.clearInterval(timer.current);

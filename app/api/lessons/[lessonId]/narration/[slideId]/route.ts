@@ -3,6 +3,7 @@ import { requireAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { deleteMediaObject, resolveMediaUrl, uploadMediaObject } from "@/lib/storage/mediaStorage";
 import { registerMediaAsset } from "@/lib/storage/mediaLibrary";
+import { optimizeAudioForStorage } from "@/lib/media/audioStorage";
 
 type Params = { params: Promise<{ lessonId: string; slideId: string }> };
 type SourceType = "RECORDED" | "UPLOADED" | "LINK";
@@ -150,7 +151,9 @@ export async function POST(req: Request, { params }: Params) {
     return NextResponse.json({ error: "Audio files must be smaller than 100 MB." }, { status: 413 });
   }
 
-  const extension = file.name.split(".").pop()?.replace(/[^a-z0-9]/gi, "") || (file.type.includes("mp4") ? "m4a" : "webm");
+  const originalBytes = new Uint8Array(await file.arrayBuffer());
+  const audio = await optimizeAudioForStorage({ bytes: originalBytes, mimeType: file.type, fileName: file.name });
+  const extension = audio.extension || file.name.split(".").pop()?.replace(/[^a-z0-9]/gi, "") || (file.type.includes("mp4") ? "m4a" : "webm");
   const path = `${lessonId}/${slideId}/narration-${Date.now()}.${extension}`;
   let stored;
   try {
@@ -158,8 +161,8 @@ export async function POST(req: Request, { params }: Params) {
       supabase: admin,
       supabaseBucket: "lesson-audio",
       path,
-      body: new Uint8Array(await file.arrayBuffer()),
-      contentType: file.type || "audio/webm",
+      body: audio.bytes,
+      contentType: audio.mimeType,
       upsert: false,
     });
   } catch (uploadError) {
@@ -209,9 +212,9 @@ export async function POST(req: Request, { params }: Params) {
       lessonTitle: lesson.title ?? null,
       title: `Slide ${slide?.slide_number ?? ""} ${sourceType === "UPLOADED" ? "audio" : "narration"}`.trim(),
       caption: sourceType === "UPLOADED" ? "Uploaded slide audio" : "Slide narration",
-      fileName: file.name || `slide-${slide?.slide_number ?? slideId}-narration.${extension}`,
-      mimeType: file.type || "audio/webm",
-      fileSize: file.size,
+      fileName: file.name ? file.name.replace(/\.[^.]+$/, `.${extension}`) : `slide-${slide?.slide_number ?? slideId}-narration.${extension}`,
+      mimeType: audio.mimeType,
+      fileSize: audio.bytes.byteLength,
       tags: ["narration", `slide:${slideId}`],
     }).catch((libraryError) => console.error("Narration Media Library registration failed", libraryError));
   }

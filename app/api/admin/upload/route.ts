@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { requireStaff } from "@/lib/auth";
 import { deleteMediaObject, uploadMediaObject } from "@/lib/storage/mediaStorage";
 import { registerMediaAsset } from "@/lib/storage/mediaLibrary";
+import { optimizeAudioForStorage } from "@/lib/media/audioStorage";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -21,7 +22,11 @@ export async function POST(req: Request) {
   }
 
   const mediaType = type === "audio" ? "AUDIO" : type === "video" ? "VIDEO" : "IMAGE";
-  const ext = file.name.split(".").pop()?.toLowerCase() ?? (mediaType === "AUDIO" ? "mp3" : mediaType === "VIDEO" ? "mp4" : "jpg");
+  const originalBytes = new Uint8Array(await file.arrayBuffer());
+  const audio = mediaType === "AUDIO"
+    ? await optimizeAudioForStorage({ bytes: originalBytes, mimeType: file.type, fileName: file.name })
+    : null;
+  const ext = audio?.extension ?? file.name.split(".").pop()?.toLowerCase() ?? (mediaType === "AUDIO" ? "mp3" : mediaType === "VIDEO" ? "mp4" : "jpg");
   const timestamp = Date.now();
   const bucket = mediaType === "AUDIO" ? "lesson-audio" : "lessons";
   // Uploads made from the standalone Media Library (no lesson yet) land in a
@@ -29,7 +34,8 @@ export async function POST(req: Request) {
   const folderScope = lessonId ?? "library";
   const folder = mediaType === "AUDIO" ? `${folderScope}/audio` : mediaType === "VIDEO" ? `${folderScope}/video` : `${folderScope}/images`;
   const path = `${folder}/${timestamp}-${crypto.randomUUID()}.${ext}`;
-  const buffer = new Uint8Array(await file.arrayBuffer());
+  const buffer = audio?.bytes ?? originalBytes;
+  const contentType = audio?.mimeType || file.type || "application/octet-stream";
 
   let stored;
   try {
@@ -38,7 +44,7 @@ export async function POST(req: Request) {
       supabaseBucket: bucket,
       path,
       body: buffer,
-      contentType: file.type || "application/octet-stream",
+      contentType,
       upsert: true,
     });
   } catch (error) {
@@ -64,9 +70,9 @@ export async function POST(req: Request) {
       source: "UPLOAD",
       url: stored.url,
       lessonId,
-      fileName: file.name,
-      mimeType: file.type || null,
-      fileSize: file.size,
+      fileName: audio ? file.name.replace(/\.[^.]+$/, `.${audio.extension}`) : file.name,
+      mimeType: contentType,
+      fileSize: buffer.byteLength,
     });
   } catch (mediaError) {
     // Do not report success for an upload that cannot be found or reused.

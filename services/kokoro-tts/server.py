@@ -5,13 +5,15 @@ from __future__ import annotations
 import hmac
 import logging
 import os
+import shutil
+import subprocess
 import tempfile
 import threading
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import Response
 from kokoro_mlx import KokoroTTS
@@ -23,6 +25,8 @@ MODEL_ID = os.getenv("KOKORO_MODEL", "mlx-community/Kokoro-82M-bf16")
 MAX_TEXT_LENGTH = int(os.getenv("KOKORO_MAX_TEXT_LENGTH", "4000"))
 SERVICE_TOKEN = os.getenv("KOKORO_API_KEY", "")
 WARMUP_TEXT = "BrenUp voice service is ready."
+OPUS_BITRATE = os.getenv("KOKORO_OPUS_BITRATE", "40k")
+MAX_TRANSCODE_BYTES = int(os.getenv("KOKORO_MAX_TRANSCODE_BYTES", str(25 * 1024 * 1024)))
 
 VOICES = {
     "af_heart": ("Heart", "Female", "American English"),
@@ -66,7 +70,7 @@ class SpeechRequest(BaseModel):
     input: str = Field(min_length=1, max_length=MAX_TEXT_LENGTH)
     voice: str = "af_heart"
     speed: float = Field(default=1.0, ge=0.75, le=1.5)
-    response_format: str = "wav"
+    response_format: str = "opus"
 
 
 def require_token(authorization: str | None = Header(default=None)) -> None:
@@ -114,13 +118,41 @@ def voices() -> dict[str, object]:
     }
 
 
-def synthesize(request: SpeechRequest) -> tuple[bytes, float]:
+def ffmpeg_path() -> str:
+    binary = shutil.which("ffmpeg")
+    if not binary:
+        raise RuntimeError("ffmpeg is not installed. Run the BrenUp Kokoro installer again to enable compact Opus audio.")
+    return binary
+
+
+def encode_opus(input_path: Path) -> bytes:
+    with tempfile.NamedTemporaryFile(suffix=".opus", delete=False) as temporary:
+        output_path = Path(temporary.name)
+    try:
+        subprocess.run(
+            [
+                ffmpeg_path(), "-y", "-hide_banner", "-loglevel", "error", "-i", str(input_path),
+                "-vn", "-ac", "1", "-ar", "24000", "-c:a", "libopus", "-b:a", OPUS_BITRATE,
+                "-vbr", "on", str(output_path),
+            ],
+            check=True,
+            timeout=60,
+        )
+        audio = output_path.read_bytes()
+        if len(audio) < 128:
+            raise RuntimeError("ffmpeg returned an invalid Opus file.")
+        return audio
+    finally:
+        output_path.unlink(missing_ok=True)
+
+
+def synthesize(request: SpeechRequest) -> tuple[bytes, float, str]:
     if model is None:
         raise RuntimeError("Kokoro is not ready.")
     if request.voice not in VOICES:
         raise ValueError(f"Unsupported voice: {request.voice}")
-    if request.response_format != "wav":
-        raise ValueError("BrenUp currently requests WAV output only.")
+    if request.response_format not in {"wav", "opus"}:
+        raise ValueError("response_format must be wav or opus.")
 
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temporary:
         output_path = Path(temporary.name)
@@ -134,7 +166,9 @@ def synthesize(request: SpeechRequest) -> tuple[bytes, float]:
                 sample_rate=24000,
             )
         duration = float(sf.info(output_path).duration)
-        return output_path.read_bytes(), duration
+        if request.response_format == "wav":
+            return output_path.read_bytes(), duration, "audio/wav"
+        return encode_opus(output_path), duration, "audio/ogg"
     finally:
         output_path.unlink(missing_ok=True)
 
@@ -142,7 +176,7 @@ def synthesize(request: SpeechRequest) -> tuple[bytes, float]:
 @app.post("/v1/audio/speech", dependencies=[Depends(require_token)])
 async def speech(request: SpeechRequest) -> Response:
     try:
-        audio, duration = await run_in_threadpool(synthesize, request)
+        audio, duration, mime_type = await run_in_threadpool(synthesize, request)
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
     except Exception as error:
@@ -150,10 +184,50 @@ async def speech(request: SpeechRequest) -> Response:
         raise HTTPException(status_code=500, detail="Speech generation failed.") from error
     return Response(
         content=audio,
-        media_type="audio/wav",
+        media_type=mime_type,
         headers={
             "Cache-Control": "no-store",
             "X-Audio-Duration": f"{duration:.3f}",
             "X-TTS-Model": "kokoro-82m",
+        },
+    )
+
+
+@app.post("/v1/audio/transcode", dependencies=[Depends(require_token)])
+async def transcode(request: Request, content_type: str | None = Header(default=None)) -> Response:
+    """Convert creator-uploaded lossless/oversized audio to compact 24kHz mono Opus."""
+    if content_type and not content_type.lower().startswith("audio/"):
+        raise HTTPException(status_code=415, detail="Only audio files can be optimized.")
+    payload = await request.body()
+    if not payload:
+        raise HTTPException(status_code=400, detail="Audio is required.")
+    if len(payload) > MAX_TRANSCODE_BYTES:
+        raise HTTPException(status_code=413, detail="Audio is too large to optimize.")
+    suffix = ".wav"
+    if content_type and "mpeg" in content_type.lower():
+        suffix = ".mp3"
+    elif content_type and "mp4" in content_type.lower():
+        suffix = ".m4a"
+    elif content_type and "webm" in content_type.lower():
+        suffix = ".webm"
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as temporary:
+        input_path = Path(temporary.name)
+        temporary.write(payload)
+    try:
+        audio = await run_in_threadpool(encode_opus, input_path)
+    except HTTPException:
+        raise
+    except Exception as error:
+        logger.exception("Audio transcoding failed")
+        raise HTTPException(status_code=500, detail="Audio optimization failed.") from error
+    finally:
+        input_path.unlink(missing_ok=True)
+    return Response(
+        content=audio,
+        media_type="audio/ogg",
+        headers={
+            "Cache-Control": "no-store",
+            "X-Audio-Codec": "opus",
+            "X-Audio-Original-Bytes": str(len(payload)),
         },
     )

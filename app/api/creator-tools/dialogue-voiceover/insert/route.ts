@@ -7,6 +7,7 @@ import { KOKORO_VOICEOVER_MODEL } from "@/lib/ai/voiceover";
 import { requireLessonAccess } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { registerMediaAsset } from "@/lib/storage/mediaLibrary";
+import { audioExtension, audioMimeType } from "@/lib/media/audioStorage";
 import { copyMediaObject, deleteMediaObject, type StoredMediaObject } from "@/lib/storage/mediaStorage";
 
 export const runtime = "nodejs";
@@ -124,6 +125,8 @@ export async function POST(request: Request) {
 
     for (const item of resolved) {
       const hash = scriptHash(item.line);
+      const mimeType = audioMimeType(item.generation.mime_type);
+      const extension = audioExtension(mimeType);
       const stored = await copyMediaObject({
         supabase: admin,
         source: {
@@ -133,8 +136,8 @@ export async function POST(request: Request) {
           url: item.generation.public_url,
         },
         supabaseBucket: "ai-recordings",
-        path: `dialogues/${lesson.id}/${block.id}/${safeFilePart(item.turnId)}-${hash.slice(0, 12)}-${item.generationId.slice(0, 8)}-${Date.now()}.wav`,
-        contentType: "audio/wav",
+        path: `dialogues/${lesson.id}/${block.id}/${safeFilePart(item.turnId)}-${hash.slice(0, 12)}-${item.generationId.slice(0, 8)}-${Date.now()}.${extension}`,
+        contentType: mimeType,
       });
       const speakerId = text(item.turn.speaker_id);
       const speaker = currentPeople.find((person) => text(person.id) === speakerId);
@@ -147,8 +150,8 @@ export async function POST(request: Request) {
         lessonTitle: lesson.title,
         title: `${text(speaker?.name) || text(item.turn.speaker) || "Speaker"} · dialogue turn ${item.index + 1}`,
         caption: `${item.generation.voice_name} · Kokoro dialogue voiceover`,
-        fileName: `${safeFilePart(item.turnId)}.wav`,
-        mimeType: "audio/wav",
+        fileName: `${safeFilePart(item.turnId)}.${extension}`,
+        mimeType,
         fileSize: Number(item.generation.file_size || 0),
         tags: ["ai-voiceover", "dialogue-voiceover", `block:${block.id}`, `turn:${item.turnId}`],
       });

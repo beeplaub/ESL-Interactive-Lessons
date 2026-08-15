@@ -267,7 +267,7 @@ export async function startLiveConversation({ lessonId, activityId, onAudio, onT
     });
     stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
     const mimeType = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"].find((candidate) => MediaRecorder.isTypeSupported(candidate));
-    recorder = new MediaRecorder(mixDestination.stream, mimeType ? { mimeType } : undefined);
+    recorder = new MediaRecorder(mixDestination.stream, mimeType ? { mimeType, audioBitsPerSecond: 48_000 } : { audioBitsPerSecond: 48_000 });
     recorder.ondataavailable = (event) => { if (event.data.size) recordedChunks.push(event.data); };
     recorder.start(250);
     source = context.createMediaStreamSource(stream);
