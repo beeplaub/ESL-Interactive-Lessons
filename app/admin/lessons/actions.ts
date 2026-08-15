@@ -109,6 +109,17 @@ function nullableText(value: unknown) {
   return text || null;
 }
 
+function formJsonObject(value: unknown): Json | null {
+  const raw = String(value ?? "").trim();
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Json : null;
+  } catch {
+    return null;
+  }
+}
+
 function optionalPositiveInt(value: unknown) {
   const number = Number(value);
   return Number.isFinite(number) && number > 0 ? Math.round(number) : null;
@@ -231,16 +242,30 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
       id: String(formData.getAll("dialogue_person_id")[index] || `person-${index + 1}`),
       name: String(value || "").trim(),
       color: String(formData.getAll("dialogue_person_color")[index] || "var(--br-brand)"),
+      voice_name: nullableText(formData.getAll("dialogue_person_voice")[index]),
     })).filter((person) => person.name);
     const turns = formData.getAll("dialogue_turn_line").map((value, index) => {
       const speakerId = String(formData.getAll("dialogue_turn_speaker")[index] || "");
       const person = people.find((candidate) => candidate.id === speakerId);
-      return { speaker_id: speakerId || null, speaker: person?.name || "Speaker", line: String(value || "").trim(), audio_url: nullableText(formData.getAll("dialogue_turn_audio")[index]) };
+      return {
+        id: String(formData.getAll("dialogue_turn_id")[index] || `turn-${index + 1}`),
+        speaker_id: speakerId || null,
+        speaker: person?.name || "Speaker",
+        line: String(value || "").trim(),
+        audio_url: nullableText(formData.getAll("dialogue_turn_audio")[index]),
+        voiceover: formJsonObject(formData.getAll("dialogue_turn_voiceover")[index]),
+      };
     }).filter((turn) => turn.line);
     return {
       title: nullableText(formData.get("title")),
       people,
       turns,
+      voiceover_settings: {
+        provider: "kokoro",
+        model: String(formData.get("dialogue_voiceover_model") || "kokoro-82m"),
+        language_code: String(formData.get("dialogue_voiceover_language") || "en-US"),
+        pace: String(formData.get("dialogue_voiceover_pace") || "Natural"),
+      },
     };
   }
   if (blockType === "FLASHCARD") {
