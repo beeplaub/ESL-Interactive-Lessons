@@ -1,7 +1,8 @@
 "use client";
 
 import { BookOpenText, ChevronRight, List, Pin, PinOff, X } from "lucide-react";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 export type NarrationGlossaryEntry = { term: string; definition: string; example?: string; position?: number };
 type SharedProps = { transcript?: string; glossary?: unknown[]; currentTime: number; duration: number };
@@ -50,6 +51,19 @@ export function NarrationReadPreview({ transcript = "", glossary = [], currentTi
   const entries = useMemo(() => narrationGlossary(glossary), [glossary]);
   const sentence = sentences[activeSentenceIndex(sentences, currentTime, duration)] || sentences[0] || "";
   return <section className="w-full max-w-xl rounded-2xl border-2 border-[var(--br-action)] bg-white p-4 shadow-[var(--br-shadow)]"><div className="flex items-center justify-between gap-3"><div className="flex items-center gap-2"><BookOpenText size={16} className="text-[var(--br-action)]" /><p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--br-action)]">Reading guide</p></div>{onTogglePin ? <button type="button" onClick={onTogglePin} className={`grid size-8 place-items-center rounded-lg border transition ${pinned ? "border-[var(--br-action)] bg-[var(--br-action)] text-on-dark" : "border-[var(--br-border)] text-[var(--br-action)] hover:bg-[var(--br-action)]/10"}`} aria-label={pinned ? "Return reading guide to page" : "Keep reading guide on screen"} title={pinned ? "Unpin" : "Keep on screen"}>{pinned ? <PinOff size={15} /> : <Pin size={15} />}</button> : null}</div><p className="mt-3 rounded-xl bg-[var(--br-action)]/10 px-3 py-2.5 text-[15px] font-semibold leading-7 text-ink"><HighlightedText text={sentence || "Your teacher has not added a reading script for this narration yet."} entries={entries} onSelect={onSelectTerm} /></p><button type="button" onClick={onOpenScript} className="mt-3 inline-flex items-center gap-1 text-sm font-extrabold text-[var(--br-action)]">Open full script <ChevronRight size={15} /></button></section>;
+}
+
+/** Escapes transformed lesson containers so the guide stays fixed to the device viewport. */
+export function PinnedNarrationReadPreview(props: Parameters<typeof NarrationReadPreview>[0]) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!mounted) return null;
+  return createPortal(
+    <div className="fixed inset-x-2 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-[110] mx-auto w-auto max-w-xl sm:inset-x-auto sm:left-1/2 sm:w-full sm:-translate-x-1/2">
+      <NarrationReadPreview {...props} />
+    </div>,
+    document.body,
+  );
 }
 
 export function NarrationGlossaryPanel({ glossary = [] }: Pick<SharedProps, "glossary">) {
