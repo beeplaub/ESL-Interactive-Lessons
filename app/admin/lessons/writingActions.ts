@@ -173,17 +173,29 @@ export async function gradeWritingSubmissionAction(input: {
         updated_at: new Date().toISOString()
       })
       .eq("id", input.submissionId)
-      .select("learner_id")
+      .select("learner_id,lesson_id,activity_id")
       .maybeSingle();
 
     if (error) throw error;
     if (gradedSubmission?.learner_id) {
+      let href = "/account";
+      if (gradedSubmission.lesson_id && gradedSubmission.activity_id) {
+        const [{ data: activity }, { data: placement }] = await Promise.all([
+          adminSupabase.from("lesson_slide_activities").select("slide_number").eq("id", gradedSubmission.activity_id).maybeSingle(),
+          adminSupabase.from("course_items").select("id").eq("lesson_id", gradedSubmission.lesson_id).order("position").limit(1).maybeSingle(),
+        ]);
+        const query = new URLSearchParams({ tab: "practice", activity: gradedSubmission.activity_id });
+        if (placement?.id) query.set("courseItem", placement.id);
+        if (activity?.slide_number) query.set("slide", String(activity.slide_number));
+        href = `/lessons/${gradedSubmission.lesson_id}?${query.toString()}`;
+      }
       await notifyUser({
         userId: gradedSubmission.learner_id,
         type: "WRITING_GRADED",
         title: "Your writing received feedback",
         detail: `Your teacher awarded ${input.score}% and left feedback for you.`,
-        href: "/account",
+        href,
+        actionLabel: "View feedback",
         tone: "purple",
         dedupeKey: `writing-graded:${input.submissionId}`,
       });

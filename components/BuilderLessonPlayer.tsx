@@ -279,7 +279,7 @@ function NarrationPill({ src, lessonId, slideId, sourceType = "RECORDED", transl
 }
 
 export function BuilderLessonPlayer({
-  lesson, slides, blocks, activities, initialProgress, activityAttempts = [], initialNotes = {}, narrationMap = {}, narrationConfigMap = {}, courseItemId = null, backHref = "/courses", liveSession = null, startInReviewMode = false,
+  lesson, slides, blocks, activities, initialProgress, activityAttempts = [], initialNotes = {}, narrationMap = {}, narrationConfigMap = {}, courseItemId = null, backHref = "/courses", liveSession = null, startInReviewMode = false, initialSlideNumber, initialTab, focusActivityId = null,
 }: {
   lesson: Lesson; slides: Slide[]; blocks: Block[]; activities: Activity[];
   initialProgress: Progress; activityAttempts?: ActivityAttempt[];
@@ -290,9 +290,12 @@ export function BuilderLessonPlayer({
   backHref?: string;
   liveSession?: LiveSessionMode | null;
   startInReviewMode?: boolean;
+  initialSlideNumber?: number;
+  initialTab?: "learn" | "practice";
+  focusActivityId?: string | null;
 }) {
-  const initialSlideNumber = startInReviewMode ? 1 : liveSession?.initialSlideNumber ?? initialProgress?.current_slide_number ?? 1;
-  const initialIndex = Math.max(0, Math.min(slides.length - 1, initialSlideNumber - 1));
+  const resolvedInitialSlideNumber = startInReviewMode ? 1 : initialSlideNumber ?? liveSession?.initialSlideNumber ?? initialProgress?.current_slide_number ?? 1;
+  const initialIndex = Math.max(0, Math.min(slides.length - 1, resolvedInitialSlideNumber - 1));
   const [index, setIndex] = useState(initialIndex);
   const [narrationProgress, setNarrationProgress] = useState({ currentTime: 0, duration: 0 });
   const [studyPanel, setStudyPanel] = useState<"read" | "glossary" | "notes" | null>(null);
@@ -411,12 +414,20 @@ export function BuilderLessonPlayer({
   const defaultTab: "learn" | "practice" =
     practiceFirst && practiceAvailable ? "practice" : learnAvailable ? "learn" : practiceAvailable ? "practice" : "learn";
   const [activeTab, setActiveTab] = useState<"learn" | "practice">(defaultTab);
+  const initialTabRef = useRef(initialTab);
 
   useEffect(() => {
-    setActiveTab(defaultTab);
+    setActiveTab(initialTabRef.current === "practice" && practiceAvailable ? "practice" : initialTabRef.current === "learn" && learnAvailable ? "learn" : defaultTab);
+    initialTabRef.current = undefined;
     // Only re-run when the slide itself changes, not on every re-render caused by, e.g., new attempts.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slide?.id]);
+
+  useEffect(() => {
+    if (activeTab !== "practice" || !focusActivityId) return;
+    const target = document.getElementById(`lesson-activity-${focusActivityId}`);
+    target?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [activeTab, focusActivityId, slide?.id]);
 
   const progressPercent = slides.length ? Math.round(((index + 1) / slides.length) * 100) : 0;
   const timerUrgent = remainingSeconds !== null && remainingSeconds <= 60;
@@ -807,7 +818,7 @@ export function BuilderLessonPlayer({
               <div className="space-y-4">
                 {slideActivities.map((activity) => (
                   liveSession && !isLiveTeacher && (activityState(activity.id).state === "CLOSED" || liveActivitySeconds(activity.id) === 0) ? <div key={activity.id} className="rounded-lg border border-dashed border-[var(--br-chart-primary)]/25 bg-[var(--br-surface-muted)] p-5 text-center text-sm font-semibold text-[var(--br-text-muted)]">{liveActivitySeconds(activity.id) === 0 ? "Time is up. Your teacher may extend or reveal this activity." : "Your teacher will open this activity when the class is ready."}</div> :
-                  <div key={activity.id}>
+                  <div key={activity.id} id={`lesson-activity-${activity.id}`}>
                     {liveSession && liveActivitySeconds(activity.id) !== null ? <p className="mb-2 text-xs font-extrabold text-[var(--br-chart-primary)]">Activity time: {formatTime(liveActivitySeconds(activity.id) ?? 0)}</p> : null}
                     <LessonActivityPanel
                     activity={{

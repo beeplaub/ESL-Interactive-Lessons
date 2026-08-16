@@ -10,10 +10,10 @@ export default async function LessonPage({
   searchParams,
 }: {
   params: Promise<{ lessonId: string }>;
-  searchParams: Promise<{ courseItem?: string; review?: string }>;
+  searchParams: Promise<{ courseItem?: string; review?: string; slide?: string; tab?: string; activity?: string }>;
 }) {
   const { lessonId } = await params;
-  const { courseItem = null, review = null } = await searchParams;
+  const { courseItem = null, review = null, slide = null, tab = null, activity = null } = await searchParams;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -222,6 +222,9 @@ export default async function LessonPage({
         courseItemId={courseItem}
         backHref={courseId ? `/courses/${courseId}` : "/courses"}
         startInReviewMode={review === "1"}
+        initialSlideNumber={slide ? Number(slide) : undefined}
+        initialTab={tab === "practice" ? "practice" : tab === "learn" ? "learn" : undefined}
+        focusActivityId={activity}
       />
     </LearnerAppShell>
   );

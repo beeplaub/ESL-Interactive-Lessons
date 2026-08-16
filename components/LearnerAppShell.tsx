@@ -26,13 +26,14 @@ import { createClient } from "@/lib/supabase/server";
 import { LearnerSidebar } from "@/components/LearnerSidebar";
 import { NotificationsDropdown } from "@/components/NotificationsDropdown";
 import { LearnerNavigationPreloader } from "@/components/LearnerNavigationPreloader";
+import { NotificationSoundWatcher } from "@/components/NotificationSoundWatcher";
 import { getLearnerAchievements, type LearnerAchievements } from "@/lib/achievements";
 import { BrandLogo } from "@/components/BrandLogo";
 
 export type ActiveItem = "home" | "quizzes" | "courses" | "live-classes" | "assignments" | "tasks" | "calendar" | "achievements" | "certificates" | "level-test" | "leaderboard" | "language-profile" | "profile" | "notifications";
 
 type BreadcrumbItem = { label: string; href?: string };
-export type NotificationItem = { key: string; title: string; detail: string; href: string; tone: "purple" | "orange" | "green" | "blue"; notificationId?: string; isRead?: boolean };
+export type NotificationItem = { key: string; title: string; detail: string; href: string; targetHref?: string | null; actionLabel?: string | null; tone: "purple" | "orange" | "green" | "blue"; notificationId?: string; isRead?: boolean };
 
 const defaultBreadcrumbs: Record<ActiveItem, BreadcrumbItem[]> = {
   home: [{ label: "Home" }],
@@ -112,6 +113,7 @@ export async function LearnerAppShell({
   return (
     <main className="min-h-screen bg-[var(--br-canvas)] font-sans text-[var(--br-text)]">
       <LearnerNavigationPreloader />
+      <NotificationSoundWatcher notificationIds={notifications.map((notification) => notification.notificationId).filter((id): id is string => Boolean(id))} />
       <MobileTopbar
         active={active}
         initials={initials}
@@ -262,7 +264,7 @@ async function buildRightSidebarData(
 
 async function buildNotifications(admin: ReturnType<typeof createAdminClient>, userId: string | null, _currentLevel: string | null): Promise<NotificationItem[]> {
   const { data: savedNotifications } = userId
-    ? await admin.from("user_notifications").select("id,title,detail,href,tone,read_at,created_at").eq("user_id", userId).eq("in_app_enabled", true).is("archived_at", null).or("expires_at.is.null,expires_at.gt." + new Date().toISOString()).order("created_at", { ascending: false }).limit(8)
+    ? await admin.from("user_notifications").select("id,title,detail,href,action_label,tone,read_at,created_at").eq("user_id", userId).eq("in_app_enabled", true).is("archived_at", null).or("expires_at.is.null,expires_at.gt." + new Date().toISOString()).order("created_at", { ascending: false }).limit(8)
     : { data: [] };
   const items: NotificationItem[] = [];
   for (const notification of savedNotifications ?? []) {
@@ -273,7 +275,9 @@ async function buildNotifications(admin: ReturnType<typeof createAdminClient>, u
       isRead: Boolean(notification.read_at),
       title: notification.title,
       detail: notification.detail ?? "BrenUp has an update for you.",
-      href: notification.href ?? "/account",
+      href: `/notifications/${notification.id}`,
+      targetHref: notification.href,
+      actionLabel: notification.action_label,
       tone,
     });
   }

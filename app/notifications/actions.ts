@@ -39,6 +39,19 @@ export async function deleteNotification(notificationId: string) {
     .eq("user_id", user.id);
   if (error) throw new Error(error.message);
   revalidatePath("/account");
+  revalidatePath("/notifications");
+}
+
+export async function restoreNotification(notificationId: string) {
+  const { user } = await requireUser();
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("user_notifications")
+    .update({ archived_at: null })
+    .eq("id", notificationId)
+    .eq("user_id", user.id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/notifications");
 }
 
 export async function saveNotificationPreferences(formData: FormData): Promise<{ success: boolean; error?: string }> {
@@ -73,4 +86,5 @@ export async function markAllNotificationsRead() {
     .is("read_at", null);
   if (error) throw new Error(error.message);
   revalidatePath("/account");
+  revalidatePath("/notifications");
 }

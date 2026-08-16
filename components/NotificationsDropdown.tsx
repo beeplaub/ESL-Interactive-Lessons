@@ -159,7 +159,7 @@ function NotificationRow({ item, read, onOpen, onToggleRead, onDelete }: { item:
   return (
     <div className={`flex gap-2 rounded-2xl px-3 py-3 transition hover:bg-[var(--br-canvas-elevated)] ${read ? "opacity-65" : ""}`}>
       <span className={`mt-1.5 size-2.5 shrink-0 rounded-full ${tones[item.tone]}`} />
-      <Link href={item.href} onClick={onOpen} className="min-w-0 flex-1"><span className={`block truncate text-sm ${read ? "font-semibold text-[var(--br-text-muted)]" : "font-extrabold text-[var(--br-dark-card)]"}`}>{item.title}</span><span className={`mt-0.5 block line-clamp-2 text-xs leading-5 ${read ? "font-normal text-[var(--br-text-muted)]" : "font-semibold text-[var(--br-text-muted)]"}`}>{item.detail}</span></Link>
+      <Link href={item.href} onClick={onOpen} className="min-w-0 flex-1"><span className={`block truncate text-sm ${read ? "font-semibold text-[var(--br-text-muted)]" : "font-extrabold text-[var(--br-dark-card)]"}`}>{item.title}</span><span className="mt-1 block text-[11px] font-semibold text-[var(--br-text-muted)]">Open in inbox</span></Link>
       <div className="flex shrink-0 flex-col gap-1"><button type="button" onClick={onToggleRead} title={read ? "Mark as unread" : "Mark as read"} className="grid size-7 place-items-center rounded-lg text-[var(--br-text-muted)] hover:bg-surface hover:text-[var(--br-chart-primary)]">{read ? <Mail className="size-3.5" /> : <MailOpen className="size-3.5" />}</button><button type="button" onClick={onDelete} title="Delete notification" className="grid size-7 place-items-center rounded-lg text-[var(--br-text-muted)] hover:bg-surface hover:text-[var(--br-danger)]"><Trash2 className="size-3.5" /></button></div>
     </div>
   );

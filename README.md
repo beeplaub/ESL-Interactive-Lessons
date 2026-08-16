@@ -82,6 +82,17 @@ NEXT_PUBLIC_FIREBASE_VAPID_KEY=
 
 Use a dedicated Firebase project or a clearly named BrenUp web app. Enable **Cloud Messaging**, create a Web Push certificate, and add all variables to Vercel Production and Preview. Never expose the Firebase service-account private key. `CRON_SECRET` is also required for scheduled notification dispatch; use the same secret already used by BrenUp's cleanup cron routes. On Vercel Hobby, the notification cron runs daily at 08:00 Bangladesh time; immediate campaigns and event notifications remain immediate.
 
+### Reliable scheduled notifications on Cloudflare Workers Free
+
+The BrenUp app is event-driven for immediate notifications. For scheduled campaigns and due reminders, deploy the tiny external scheduler in `cloudflare/notification-scheduler`. Cloudflare Workers Free currently supports cron triggers no more frequently than every 15 minutes, which is sufficient for a practical school reminder window without a paid scheduler.
+
+1. From `cloudflare/notification-scheduler`, run `npx wrangler login` and complete the browser sign-in.
+2. Run `npx wrangler secret put CRON_SECRET`, then paste the **same** secret stored in Vercel as `CRON_SECRET`.
+3. Run `npx wrangler deploy`.
+4. Open the deployed Worker's `/health` URL to confirm its configuration. The cron trigger then calls BrenUp every 15 minutes.
+
+The Vercel daily cron remains a harmless fallback. Campaign status and notification dedupe keys make the dispatcher idempotent, so the two schedulers cannot double-send a notification.
+
 ## Cloudflare R2 media storage
 
 BrenUp can store creator-uploaded lesson/quiz media in Cloudflare R2 while keeping Supabase for Auth, Postgres, Realtime, and existing legacy files.
