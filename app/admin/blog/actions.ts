@@ -167,6 +167,8 @@ type BlogBlock = {
 
 type BlogPostInput = {
   title: string;
+  slug?: string;
+  coverAssetId?: string | null;
   excerpt?: string;
   content: { type: "doc"; content: BlogBlock[] };
   visibility: "PUBLIC" | "UNLISTED" | "PRIVATE";
@@ -218,11 +220,14 @@ export async function saveBlogPost(postId: string, input: BlogPostInput, event: 
     const canEditAny = ["PLATFORM_ADMIN", "EDITOR"].includes(session.blogRole);
     if (!canEditAny && post.created_by !== session.user.id) return { success: false, error: "You can only edit your own posts." };
     if (session.blogRole === "CONTRIBUTOR" && !["DRAFT", "CHANGES_REQUESTED", "IN_REVIEW"].includes(post.status)) return { success: false, error: "Contributors cannot edit this post in its current state." };
-    const slug = cleanTitle === "Untitled post" ? post.slug : await uniqueSlug(cleanTitle, postId);
+    const requestedSlug = input.slug?.trim().replace(/^\/+/, "").replace(/^blog\//, "").replace(/\/+$/, "");
+    const slug = requestedSlug ? await uniqueSlug(requestedSlug, postId) : cleanTitle === "Untitled post" ? post.slug : await uniqueSlug(cleanTitle, postId);
     const categoryIds = Array.from(new Set((input.categoryIds || []).filter(Boolean)));
     const tagIds = Array.from(new Set((input.tagIds || []).filter(Boolean)));
     const contentText = contentTextFromBlocks(input.content.content);
-    const nextVersion = post.content_version + 1;
+    // Quiet autosaves keep the draft safe but do not turn every keystroke into
+    // an editorial revision. Manual saves, workflow actions, and restores do.
+    const nextVersion = event === "AUTOSAVED" ? post.content_version : post.content_version + 1;
     const { error } = await admin.from("blog_posts").update({
       title: cleanTitle,
       slug,
@@ -236,6 +241,7 @@ export async function saveBlogPost(postId: string, input: BlogPostInput, event: 
       social_title: input.socialTitle?.trim() || null,
       social_description: input.socialDescription?.trim() || null,
       canonical_url: input.canonicalUrl?.trim() || null,
+      cover_asset_id: input.coverAssetId || null,
       primary_keyword: input.primaryKeyword?.trim() || null,
       allow_index: input.allowIndex !== false,
       is_featured: Boolean(input.isFeatured),
@@ -262,7 +268,7 @@ export async function saveBlogPost(postId: string, input: BlogPostInput, event: 
       const { error: tagError } = await admin.from("blog_post_tags").insert(tagIds.map((tagId) => ({ post_id: postId, tag_id: tagId })));
       if (tagError) return { success: false, error: tagError.message };
     }
-    await writeRevision({ postId, version: nextVersion, eventType: event, title: cleanTitle, slug, excerpt: input.excerpt, content: input.content, contentText, createdBy: session.user.id, metadata: { visibility: input.visibility, categoryIds, tagIds, primaryCategoryId: input.primaryCategoryId || null, seoTitle: input.seoTitle || null, seoDescription: input.seoDescription || null, socialTitle: input.socialTitle || null, socialDescription: input.socialDescription || null, canonicalUrl: input.canonicalUrl || null, primaryKeyword: input.primaryKeyword || null, allowIndex: input.allowIndex !== false, isFeatured: Boolean(input.isFeatured) } });
+    if (event !== "AUTOSAVED") await writeRevision({ postId, version: nextVersion, eventType: event, title: cleanTitle, slug, excerpt: input.excerpt, content: input.content, contentText, createdBy: session.user.id, metadata: { visibility: input.visibility, categoryIds, tagIds, primaryCategoryId: input.primaryCategoryId || null, seoTitle: input.seoTitle || null, seoDescription: input.seoDescription || null, socialTitle: input.socialTitle || null, socialDescription: input.socialDescription || null, canonicalUrl: input.canonicalUrl || null, coverAssetId: input.coverAssetId || null, primaryKeyword: input.primaryKeyword || null, allowIndex: input.allowIndex !== false, isFeatured: Boolean(input.isFeatured) } });
     refreshBlog(postId);
     return { success: true, slug };
   } catch (error) {
@@ -388,7 +394,7 @@ export async function restoreBlogRevision(postId: string, revisionId: string): P
     const canEditAny = ["PLATFORM_ADMIN", "EDITOR"].includes(session.blogRole);
     if (!canEditAny && post.created_by !== session.user.id) return { success: false, error: "You can only restore your own post." };
     const metadata = (revision.metadata && typeof revision.metadata === "object" ? revision.metadata : {}) as Record<string, unknown>;
-    const slug = await uniqueSlug(revision.title, postId);
+    const slug = await uniqueSlug(revision.slug || revision.title, postId);
     const version = post.content_version + 1;
     const { error } = await admin.from("blog_posts").update({
       title: revision.title,
@@ -403,6 +409,7 @@ export async function restoreBlogRevision(postId: string, revisionId: string): P
       social_title: typeof metadata.socialTitle === "string" ? metadata.socialTitle : null,
       social_description: typeof metadata.socialDescription === "string" ? metadata.socialDescription : null,
       canonical_url: typeof metadata.canonicalUrl === "string" ? metadata.canonicalUrl : null,
+      cover_asset_id: typeof metadata.coverAssetId === "string" ? metadata.coverAssetId : null,
       primary_keyword: typeof metadata.primaryKeyword === "string" ? metadata.primaryKeyword : null,
       allow_index: metadata.allowIndex !== false,
       is_featured: Boolean(metadata.isFeatured),

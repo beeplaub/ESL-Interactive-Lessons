@@ -11,7 +11,7 @@ export default async function AdminBlogPostEditorPage({ params }: { params: Prom
   const session = await getBlogSession();
   if (!session.blogRole) notFound();
   const admin = createAdminClient();
-  let query = admin.from("blog_posts").select("id,title,slug,excerpt,content,status,visibility,primary_category_id,seo_title,seo_description,social_title,social_description,canonical_url,primary_keyword,allow_index,is_featured,updated_at,scheduled_at,created_by").eq("id", id);
+  let query = admin.from("blog_posts").select("id,title,slug,excerpt,content,status,visibility,primary_category_id,seo_title,seo_description,social_title,social_description,canonical_url,primary_keyword,allow_index,is_featured,cover_asset_id,updated_at,scheduled_at,created_by").eq("id", id);
   if (["AUTHOR", "CONTRIBUTOR"].includes(session.blogRole)) query = query.eq("created_by", session.user.id);
   const { data: post } = await query.maybeSingle();
   if (!post) notFound();
@@ -38,7 +38,7 @@ export default async function AdminBlogPostEditorPage({ params }: { params: Prom
   const commentCreatorNames = new Map((commentCreators ?? []).map((profile) => [profile.id, profile.full_name || [profile.first_name, profile.last_name].filter(Boolean).join(" ") || "BrenUp editor"]));
   const comments: BlogEditorialComment[] = (commentRows ?? []).map((comment) => ({ id: comment.id, body: comment.body, status: comment.status, createdAt: comment.created_at, createdByName: commentCreatorNames.get(comment.created_by) || "BrenUp editor" }));
   const editable: EditableBlogPost = {
-    id: post.id, title: post.title, slug: post.slug, excerpt: post.excerpt, content: post.content as EditableBlogPost["content"], status: post.status, visibility: post.visibility, primaryCategoryId: post.primary_category_id, categoryIds: (mappings ?? []).map((row) => row.category_id), tagIds: (tagMappings ?? []).map((row) => row.tag_id), seoTitle: post.seo_title, seoDescription: post.seo_description, socialTitle: post.social_title, socialDescription: post.social_description, canonicalUrl: post.canonical_url, primaryKeyword: post.primary_keyword, allowIndex: post.allow_index, isFeatured: post.is_featured, updatedAt: post.updated_at, scheduledAt: post.scheduled_at,
+    id: post.id, title: post.title, slug: post.slug, excerpt: post.excerpt, content: post.content as EditableBlogPost["content"], status: post.status, visibility: post.visibility, primaryCategoryId: post.primary_category_id, categoryIds: (mappings ?? []).map((row) => row.category_id), tagIds: (tagMappings ?? []).map((row) => row.tag_id), seoTitle: post.seo_title, seoDescription: post.seo_description, socialTitle: post.social_title, socialDescription: post.social_description, canonicalUrl: post.canonical_url, coverAssetId: post.cover_asset_id, primaryKeyword: post.primary_keyword, allowIndex: post.allow_index, isFeatured: post.is_featured, updatedAt: post.updated_at, scheduledAt: post.scheduled_at,
   };
   return <BlogPostEditor post={editable} role={session.blogRole} categories={categories ?? []} tags={tags ?? []} media={media ?? []} revisions={revisions} patterns={patterns} comments={comments} />;
 }

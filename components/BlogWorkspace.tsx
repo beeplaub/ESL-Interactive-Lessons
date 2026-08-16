@@ -55,6 +55,7 @@ function formatDate(value: string | null) {
 export function BlogWorkspace({ posts, blogRole, categories, legacyArticleCount }: BlogWorkspaceProps) {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<"ALL" | BlogPostSummary["status"]>("ALL");
+  const [showTrash, setShowTrash] = useState(false);
   const [category, setCategory] = useState("ALL");
   const [createOpen, setCreateOpen] = useState(false);
   const [title, setTitle] = useState("");
@@ -64,17 +65,19 @@ export function BlogWorkspace({ posts, blogRole, categories, legacyArticleCount 
   const canPublish = ["PLATFORM_ADMIN", "EDITOR"].includes(blogRole);
 
   const filtered = useMemo(() => posts.filter((post) => {
+    if (showTrash ? post.status !== "TRASH" : post.status === "TRASH") return false;
     if (status !== "ALL" && post.status !== status) return false;
     if (category !== "ALL" && post.categoryName !== category) return false;
     const needle = query.trim().toLowerCase();
     return !needle || [post.title, post.excerpt, post.authorName, post.categoryName].filter(Boolean).join(" ").toLowerCase().includes(needle);
-  }), [posts, query, status, category]);
+  }), [posts, query, status, category, showTrash]);
 
   const counts = useMemo(() => ({
     drafts: posts.filter((post) => ["DRAFT", "CHANGES_REQUESTED"].includes(post.status)).length,
     review: posts.filter((post) => post.status === "IN_REVIEW").length,
     scheduled: posts.filter((post) => post.status === "SCHEDULED").length,
     published: posts.filter((post) => post.status === "PUBLISHED").length,
+    trash: posts.filter((post) => post.status === "TRASH").length,
   }), [posts]);
 
   function create() {
@@ -114,6 +117,10 @@ export function BlogWorkspace({ posts, blogRole, categories, legacyArticleCount 
         </div>
       </section>
 
+      <div className="flex justify-end">
+        <button type="button" onClick={() => { setShowTrash((current) => !current); setStatus("ALL"); }} className={`inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-bold ${showTrash ? "border-rose-200 bg-rose-50 text-rose-700" : "border-[var(--br-border)] bg-surface text-[var(--br-text-muted)] hover:bg-[var(--br-surface-muted)]"}`}><Trash2 size={15} /> {showTrash ? "Back to articles" : `Trash${counts.trash ? ` (${counts.trash})` : ""}`}</button>
+      </div>
+
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {[
           ["Drafts", counts.drafts, FilePenLine, "Keep shaping your next useful idea."],
@@ -129,11 +136,11 @@ export function BlogWorkspace({ posts, blogRole, categories, legacyArticleCount 
       <section className="overflow-hidden rounded-2xl border border-[var(--br-border)] bg-surface shadow-sm">
         <div className="flex flex-col gap-3 border-b border-[var(--br-border)] p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4">
           <div className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-[var(--br-border)] bg-[var(--br-surface-muted)] px-3 py-2"><Search size={16} className="shrink-0 text-[var(--br-text-muted)]" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search title, author, or content" className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-[var(--br-text-muted)]" /></div>
-          <div className="flex gap-2"><label className="sr-only" htmlFor="blog-status-filter">Status</label><select id="blog-status-filter" value={status} onChange={(event) => setStatus(event.target.value as typeof status)} className="min-w-0 rounded-xl border border-[var(--br-border)] bg-surface px-3 py-2 text-sm font-medium"><option value="ALL">All states</option>{Object.entries(labels).map(([value, text]) => <option key={value} value={value}>{text}</option>)}</select><label className="sr-only" htmlFor="blog-category-filter">Category</label><select id="blog-category-filter" value={category} onChange={(event) => setCategory(event.target.value)} className="min-w-0 rounded-xl border border-[var(--br-border)] bg-surface px-3 py-2 text-sm font-medium"><option value="ALL">All topics</option>{categories.map((item) => <option key={item.id} value={item.name}>{item.name}</option>)}</select></div>
+          <div className="flex gap-2"><label className="sr-only" htmlFor="blog-status-filter">Status</label><select id="blog-status-filter" value={status} onChange={(event) => setStatus(event.target.value as typeof status)} className="min-w-0 rounded-xl border border-[var(--br-border)] bg-surface px-3 py-2 text-sm font-medium"><option value="ALL">{showTrash ? "All trash" : "All states"}</option>{Object.entries(labels).filter(([value]) => showTrash ? value === "TRASH" : value !== "TRASH").map(([value, text]) => <option key={value} value={value}>{text}</option>)}</select><label className="sr-only" htmlFor="blog-category-filter">Category</label><select id="blog-category-filter" value={category} onChange={(event) => setCategory(event.target.value)} className="min-w-0 rounded-xl border border-[var(--br-border)] bg-surface px-3 py-2 text-sm font-medium"><option value="ALL">All topics</option>{categories.map((item) => <option key={item.id} value={item.name}>{item.name}</option>)}</select></div>
         </div>
         <div className="divide-y divide-[var(--br-border)]">
           {filtered.map((post) => <article key={post.id} className="flex flex-col gap-3 p-4 transition hover:bg-[var(--br-surface-muted)]/55 lg:flex-row lg:items-center">
-            <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${tones[post.status]}`}>{labels[post.status]}</span>{post.categoryName ? <span className="text-xs font-medium text-[var(--br-text-muted)]">{post.categoryName}</span> : null}</div><Link href={`/admin/blog/${post.id}/edit`} className="mt-2 block truncate text-base font-bold text-ink hover:text-[var(--br-brand)]">{post.title}</Link><p className="mt-1 line-clamp-1 text-sm text-[var(--br-text-muted)]">{post.excerpt || "No excerpt yet. Open the editor to give readers a clear reason to continue."}</p><p className="mt-2 text-xs text-[var(--br-text-muted)]">By {post.authorName} · Updated {formatDate(post.updatedAt)}</p></div>
+            <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${tones[post.status]}`}>{labels[post.status]}</span>{post.categoryName ? <span className="text-xs font-medium text-[var(--br-text-muted)]">{post.categoryName}</span> : null}</div><Link href={`/admin/blog/${post.id}/edit`} className="mt-2 block max-w-3xl text-base font-bold leading-6 text-ink hover:text-[var(--br-brand)]">{post.title}</Link><p className="mt-1 line-clamp-2 text-sm leading-6 text-[var(--br-text-muted)]">{post.excerpt || "No excerpt yet. Open the editor to give readers a clear reason to continue."}</p><p className="mt-2 text-xs text-[var(--br-text-muted)]">By {post.authorName} · Updated {formatDate(post.updatedAt)}</p></div>
             <div className="flex flex-wrap items-center gap-2 lg:justify-end"><Link href={`/admin/blog/${post.id}/edit`} className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--br-border)] px-3 py-2 text-xs font-bold text-ink hover:bg-surface"><FilePenLine size={14} /> Edit</Link><button type="button" disabled={isPending} onClick={() => duplicate(post.id)} className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--br-border)] px-3 py-2 text-xs font-bold text-[var(--br-text-muted)] hover:bg-surface"><Copy size={14} /> Copy</button>{post.status === "DRAFT" || post.status === "CHANGES_REQUESTED" ? <button type="button" disabled={isPending} onClick={() => action(post.id, "IN_REVIEW", "Sent to review.")} className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--br-border)] px-3 py-2 text-xs font-bold text-[var(--br-brand)] hover:bg-[var(--br-brand-soft)]"><Send size={14} /> Review</button> : null}{canPublish && ["DRAFT", "APPROVED", "SCHEDULED"].includes(post.status) ? <button type="button" disabled={isPending} onClick={() => action(post.id, "PUBLISHED", "Post published.")} className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--br-brand)] px-3 py-2 text-xs font-bold text-on-dark"><CheckCircle2 size={14} /> Publish</button> : null}{post.status !== "TRASH" ? <button type="button" disabled={isPending} onClick={() => action(post.id, "TRASH", "Post moved to trash.")} className="grid size-8 place-items-center rounded-lg border border-[var(--br-border)] text-[var(--br-text-muted)] hover:bg-rose-50 hover:text-rose-600" aria-label="Move to trash"><Trash2 size={14} /></button> : <button type="button" disabled={isPending} onClick={() => action(post.id, "DRAFT", "Post restored to drafts.")} className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--br-border)] px-3 py-2 text-xs font-bold text-ink"><Archive size={14} /> Restore</button>}</div>
           </article>)}
           {!filtered.length ? <div className="p-12 text-center"><Filter className="mx-auto text-[var(--br-text-muted)]" size={26} /><p className="mt-3 font-semibold text-ink">No articles match those filters.</p><p className="mt-1 text-sm text-[var(--br-text-muted)]">Try another filter or start a fresh draft.</p></div> : null}

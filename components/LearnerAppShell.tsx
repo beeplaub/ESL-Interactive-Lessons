@@ -16,6 +16,7 @@ import {
   Trophy,
   User,
   Radio
+  , Newspaper
 } from "lucide-react";
 import { signOut, switchToAdminView } from "@/app/auth/actions";
 import { isStaff } from "@/lib/auth";
@@ -30,7 +31,7 @@ import { NotificationSoundWatcher } from "@/components/NotificationSoundWatcher"
 import { getLearnerAchievements, type LearnerAchievements } from "@/lib/achievements";
 import { BrandLogo } from "@/components/BrandLogo";
 
-export type ActiveItem = "home" | "quizzes" | "courses" | "live-classes" | "assignments" | "tasks" | "calendar" | "achievements" | "certificates" | "level-test" | "leaderboard" | "language-profile" | "profile" | "notifications";
+export type ActiveItem = "home" | "quizzes" | "courses" | "journal" | "live-classes" | "assignments" | "tasks" | "calendar" | "achievements" | "certificates" | "level-test" | "leaderboard" | "language-profile" | "profile" | "notifications";
 
 type BreadcrumbItem = { label: string; href?: string };
 export type NotificationItem = { key: string; title: string; detail: string; href: string; targetHref?: string | null; actionLabel?: string | null; tone: "purple" | "orange" | "green" | "blue"; notificationId?: string; isRead?: boolean };
@@ -39,6 +40,7 @@ const defaultBreadcrumbs: Record<ActiveItem, BreadcrumbItem[]> = {
   home: [{ label: "Home" }],
   quizzes: [{ label: "Home", href: "/account" }, { label: "Quizzes" }],
   courses: [{ label: "Home", href: "/account" }, { label: "Courses" }],
+  journal: [{ label: "Home", href: "/account" }, { label: "Journal" }],
   "live-classes": [{ label: "Home", href: "/account" }, { label: "Live Classes" }],
   assignments: [{ label: "Home", href: "/account" }, { label: "Assignments" }],
   tasks: [{ label: "Home", href: "/account" }, { label: "Tasks" }],
@@ -529,6 +531,7 @@ function MobileTopbar({
               <MobileDrawerLink href="/account" label="Home" icon={Home} active={active === "home"} />
               <MobileDrawerLink href="/quizzes" label="Quizzes" icon={HelpCircle} active={active === "quizzes"} />
               <MobileDrawerLink href="/courses" label="Courses" icon={GraduationCap} active={active === "courses"} />
+              <MobileDrawerLink href="/blog" label="Journal" icon={Newspaper} active={active === "journal"} />
               <MobileDrawerLink href="/live-classes" label="Live Classes" icon={Radio} active={active === "live-classes"} />
               <MobileDrawerLink href="/assignments" label="Assignments" icon={ClipboardList} active={active === "assignments"} />
               <MobileDrawerLink href="/certificates" label="Certificates" icon={Award} active={active === "certificates"} />

@@ -5,6 +5,7 @@ import { notFound, redirect } from "next/navigation";
 import { getKnowledgeEntry, getKnowledgeEntries, renderKnowledgeMarkdown } from "@/lib/knowledge-base";
 import { getBlogRedirect, getPublishedBlogPost, getReadingMinutes } from "@/lib/blog-public";
 import { BlogViewTracker } from "@/components/BlogViewTracker";
+import { parseBlogRichText } from "@/lib/blog-rich-text";
 
 export const dynamicParams = true;
 export const revalidate = 300;
@@ -52,5 +53,30 @@ function DatabaseArticle({ post }: { post: Awaited<ReturnType<typeof getPublishe
 }
 
 function DatabaseBlocks({ blocks }: { blocks: Array<Record<string, unknown>> }) {
-  return <>{blocks.map((block, index) => { const type = block.type; const text = typeof block.text === "string" ? block.text : ""; if (type === "heading") { const Tag = (Number(block.level) === 2 ? "h2" : Number(block.level) === 3 ? "h3" : "h4") as "h2" | "h3" | "h4"; return <Tag key={String(block.id || index)}>{text}</Tag>; } if (type === "quote") return <blockquote key={String(block.id || index)}><p>{text}</p>{typeof block.attribution === "string" && block.attribution ? <cite>— {block.attribution}</cite> : null}</blockquote>; if (type === "callout") return <aside key={String(block.id || index)} className="my-5 rounded-2xl border border-[var(--br-action)]/30 bg-[var(--br-action)]/5 p-4">{text}</aside>; if (type === "list") { const items = Array.isArray(block.items) ? block.items.filter((item): item is string => typeof item === "string") : []; return block.style === "NUMBERED" ? <ol key={String(block.id || index)}>{items.map((item, itemIndex) => <li key={itemIndex}>{item}</li>)}</ol> : <ul key={String(block.id || index)}>{items.map((item, itemIndex) => <li key={itemIndex}>{item}</li>)}</ul>; } if (type === "image") return typeof block.src === "string" && block.src ? <figure key={String(block.id || index)}><img src={block.src} alt={typeof block.alt === "string" ? block.alt : ""} className="w-full rounded-2xl" />{typeof block.caption === "string" && block.caption ? <figcaption>{block.caption}</figcaption> : null}</figure> : null; if (type === "cta") return <aside key={String(block.id || index)} className="my-6 rounded-2xl bg-[var(--br-dark-card)] p-5 text-on-dark"><p className="text-lg font-black">{typeof block.label === "string" ? block.label : "Explore BrenUp"}</p>{typeof block.description === "string" && block.description ? <p className="mt-2 text-sm text-white/75">{block.description}</p> : null}{typeof block.href === "string" && block.href ? <Link href={block.href} className="mt-4 inline-flex rounded-xl bg-white px-3 py-2 text-sm font-bold text-[var(--br-dark-card)]">Continue</Link> : null}</aside>; return <p key={String(block.id || index)}>{text}</p>; })}</>;
+  return <>{blocks.map((block, index) => {
+    const type = block.type;
+    const key = String(block.id || index);
+    const text = typeof block.text === "string" ? block.text : "";
+    if (type === "heading") {
+      const Tag = (Number(block.level) === 2 ? "h2" : Number(block.level) === 3 ? "h3" : "h4") as "h2" | "h3" | "h4";
+      return <Tag key={key}>{text}</Tag>;
+    }
+    if (type === "quote") return <blockquote key={key}><p>{text}</p>{typeof block.attribution === "string" && block.attribution ? <cite>— {block.attribution}</cite> : null}</blockquote>;
+    if (type === "callout") return <aside key={key} className="my-5 rounded-2xl border border-[var(--br-action)]/30 bg-[var(--br-action)]/5 p-4">{text}</aside>;
+    if (type === "list") {
+      const items = Array.isArray(block.items) ? block.items.filter((item): item is string => typeof item === "string") : [];
+      return block.style === "NUMBERED" ? <ol key={key}>{items.map((item, itemIndex) => <li key={itemIndex}>{item}</li>)}</ol> : <ul key={key}>{items.map((item, itemIndex) => <li key={itemIndex}>{item}</li>)}</ul>;
+    }
+    if (type === "image") return typeof block.src === "string" && block.src ? <figure key={key}><img src={block.src} alt={typeof block.alt === "string" ? block.alt : ""} className="w-full rounded-2xl" />{typeof block.caption === "string" && block.caption ? <figcaption>{block.caption}</figcaption> : null}</figure> : null;
+    if (type === "cta") return <aside key={key} className="my-6 rounded-2xl bg-[var(--br-dark-card)] p-5 text-on-dark"><p className="text-lg font-black">{typeof block.label === "string" ? block.label : "Explore BrenUp"}</p>{typeof block.description === "string" && block.description ? <p className="mt-2 text-sm text-white/75">{block.description}</p> : null}{typeof block.href === "string" && block.href ? <Link href={block.href} className="mt-4 inline-flex rounded-xl bg-white px-3 py-2 text-sm font-bold text-[var(--br-dark-card)]">Continue</Link> : null}</aside>;
+    return <RichParagraph key={key} text={text} />;
+  })}</>;
+}
+
+function RichParagraph({ text }: { text: string }) {
+  return <>{parseBlogRichText(text).map((segment, index) => {
+    if (segment.kind === "bullet") return <ul key={index}>{segment.items.map((item, itemIndex) => <li key={itemIndex}>{item}</li>)}</ul>;
+    if (segment.kind === "numbered") return <ol key={index}>{segment.items.map((item, itemIndex) => <li key={itemIndex}>{item}</li>)}</ol>;
+    return <p key={index}>{segment.text}</p>;
+  })}</>;
 }
