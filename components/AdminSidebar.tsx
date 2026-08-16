@@ -21,6 +21,7 @@ import {
   ListChecks,
   LogOut,
   Menu,
+  Bell,
   Palette,
   Plus,
   Radio,
@@ -119,6 +120,7 @@ const groups: NavGroup[] = [
     Icon: Settings,
     links: [
       { href: "/admin/ai-studio", label: "AI Studio", Icon: Sparkles, roles: PLATFORM_ADMIN },
+      { href: "/admin/notifications", label: "Notifications", Icon: Bell, roles: ALL_STAFF },
       { href: "/admin/style", label: "Style System", Icon: Palette, roles: PLATFORM_ADMIN },
     ],
   },

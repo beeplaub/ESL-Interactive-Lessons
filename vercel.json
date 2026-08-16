@@ -7,6 +7,10 @@
     {
       "path": "/api/creator-tools/voiceover/cleanup",
       "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/cron/notifications",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

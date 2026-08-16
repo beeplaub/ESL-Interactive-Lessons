@@ -149,6 +149,7 @@ export function NotificationsDropdown({ initialNotifications, mode }: Props) {
         <div className="max-h-[360px] overflow-y-auto p-2">
           {visibleNotifications.length ? visibleNotifications.map((item, index) => <NotificationRow key={`${item.key}-${index}`} item={item} read={isRead(item)} onOpen={() => markRead(item)} onToggleRead={() => toggleRead(item)} onDelete={() => remove(item)} />) : <p className="rounded-2xl bg-[var(--br-canvas-elevated)] px-4 py-6 text-center text-sm font-semibold text-[var(--br-text-muted)]">No notifications yet.</p>}
         </div>
+        <Link href="/notifications" className="flex items-center justify-center border-t border-[var(--br-surface-strong)] px-4 py-3 text-xs font-extrabold text-[var(--br-chart-primary)] hover:bg-[var(--br-canvas-elevated)]">View all notifications</Link>
       </div>
     </details>
   );

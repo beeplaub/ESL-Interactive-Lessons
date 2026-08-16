@@ -5,6 +5,7 @@ import { isPlatformAdmin, requireStaff } from "@/lib/auth";
 import { requireClassAccess } from "@/lib/classAccess";
 import { enrollUserInCourseDirectly } from "@/app/admin/courses/actions";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { notifyUser, notifyUsers } from "@/lib/notifications";
 
 function refreshClassPages(classId?: string) {
   revalidatePath("/admin/classes");
@@ -124,6 +125,11 @@ export async function createTeacherClassAssignment(classId: string, formData: Fo
     const { data: members } = await admin.from("class_members").select("user_id").eq("class_id", classId).eq("role", "STUDENT");
     await Promise.all((members ?? []).map((member) => enrollUserInCourseDirectly(member.user_id, resourceId)));
   }
+  const { data: learners } = await admin.from("class_members").select("user_id").eq("class_id", classId).eq("role", "STUDENT");
+  await notifyUsers((learners ?? []).map((member) => member.user_id), {
+    type: "CLASS_ASSIGNMENT", title: "New class assignment", detail: String(formData.get("title") || "").trim() || `${itemType.replace("_", " ")} assigned by your teacher.`,
+    href: "/assignments", tone: "blue", dedupeKeyPrefix: `teacher-assignment:${classId}:${Date.now()}`,
+  });
   refreshClassPages(classId);
   revalidatePath("/assignments");
 }
@@ -158,6 +164,7 @@ export async function createTeacherPracticeTask(classId: string, formData: FormD
     estimated_minutes: Number.isFinite(minutes) && minutes > 0 ? Math.round(minutes) : null,
   });
   if (error) throw new Error(error.message);
+  await notifyUser({ userId: learnerId, type: "PRACTICE_TASK", title: "New practice task", detail: title, href: "/tasks", tone: "purple", dedupeKey: `practice-task:${classId}:${learnerId}:${title}` });
   refreshClassPages(classId);
   revalidatePath("/assignments");
   revalidatePath("/tasks");

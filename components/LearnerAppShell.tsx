@@ -29,7 +29,7 @@ import { LearnerNavigationPreloader } from "@/components/LearnerNavigationPreloa
 import { getLearnerAchievements, type LearnerAchievements } from "@/lib/achievements";
 import { BrandLogo } from "@/components/BrandLogo";
 
-export type ActiveItem = "home" | "quizzes" | "courses" | "live-classes" | "assignments" | "tasks" | "calendar" | "achievements" | "certificates" | "level-test" | "leaderboard" | "language-profile" | "profile";
+export type ActiveItem = "home" | "quizzes" | "courses" | "live-classes" | "assignments" | "tasks" | "calendar" | "achievements" | "certificates" | "level-test" | "leaderboard" | "language-profile" | "profile" | "notifications";
 
 type BreadcrumbItem = { label: string; href?: string };
 export type NotificationItem = { key: string; title: string; detail: string; href: string; tone: "purple" | "orange" | "green" | "blue"; notificationId?: string; isRead?: boolean };
@@ -48,6 +48,7 @@ const defaultBreadcrumbs: Record<ActiveItem, BreadcrumbItem[]> = {
   leaderboard: [{ label: "Home", href: "/account" }, { label: "Leaderboard" }],
   "language-profile": [{ label: "Home", href: "/account" }, { label: "Language Profile" }],
   profile: [{ label: "Home", href: "/account" }, { label: "Profile" }],
+  notifications: [{ label: "Home", href: "/account" }, { label: "Notifications" }],
 };
 
 export async function LearnerAppShell({
@@ -259,20 +260,10 @@ async function buildRightSidebarData(
   };
 }
 
-async function buildNotifications(admin: ReturnType<typeof createAdminClient>, userId: string | null, currentLevel: string | null): Promise<NotificationItem[]> {
-  const [{ data: quizzes }, { data: courses }, { data: attempts }, { data: points }, { data: savedNotifications }] = await Promise.all([
-    admin.from("quizzes").select("id,title,level,created_at").eq("status", "PUBLISHED").is("deleted_at", null).order("created_at", { ascending: false }).limit(2),
-    admin.from("courses").select("id,title,level,created_at").eq("status", "PUBLISHED").is("deleted_at", null).order("created_at", { ascending: false }).limit(2),
-    userId
-      ? admin.from("quiz_attempts").select("quiz_id,score,total,completed_at,quizzes(title)").eq("user_id", userId).not("quiz_id", "is", null).order("completed_at", { ascending: false }).limit(2)
-      : Promise.resolve({ data: [] }),
-    userId
-      ? admin.from("quiz_leaderboard_points").select("points,created_at,quiz_id").eq("user_id", userId).order("created_at", { ascending: false }).limit(1)
-      : Promise.resolve({ data: [] }),
-    userId
-      ? admin.from("user_notifications").select("id,title,detail,href,tone,read_at,created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(8)
-      : Promise.resolve({ data: [] }),
-  ]);
+async function buildNotifications(admin: ReturnType<typeof createAdminClient>, userId: string | null, _currentLevel: string | null): Promise<NotificationItem[]> {
+  const { data: savedNotifications } = userId
+    ? await admin.from("user_notifications").select("id,title,detail,href,tone,read_at,created_at").eq("user_id", userId).eq("in_app_enabled", true).is("archived_at", null).or("expires_at.is.null,expires_at.gt." + new Date().toISOString()).order("created_at", { ascending: false }).limit(8)
+    : { data: [] };
   const items: NotificationItem[] = [];
   for (const notification of savedNotifications ?? []) {
     const tone = notification.tone === "orange" || notification.tone === "green" || notification.tone === "blue" ? notification.tone : "purple";
@@ -286,54 +277,7 @@ async function buildNotifications(admin: ReturnType<typeof createAdminClient>, u
       tone,
     });
   }
-  if (currentLevel) {
-    items.push({
-      key: `level-${currentLevel}`,
-      title: `Your level is ${currentLevel}`,
-      detail: "Use it to choose better courses and quizzes.",
-      href: "/level-test/result",
-      tone: "purple"
-    });
-  }
-  for (const attempt of attempts ?? []) {
-    const percent = attempt.total ? Math.round((Number(attempt.score) / Number(attempt.total)) * 100) : 0;
-    const quiz = Array.isArray(attempt.quizzes) ? attempt.quizzes[0] : attempt.quizzes;
-    items.push({
-      key: `attempt-${attempt.quiz_id}-${attempt.completed_at}`,
-      title: `Quiz completed: ${percent}%`,
-      detail: quiz?.title ?? "Your latest quiz attempt was saved.",
-      href: attempt.quiz_id ? `/quizzes/${attempt.quiz_id}` : "/quizzes",
-      tone: "green"
-    });
-  }
-  for (const point of points ?? []) {
-    items.push({
-      key: `point-${point.created_at}`,
-      title: `+${Number(point.points ?? 0)} leaderboard points`,
-      detail: "Your quiz activity moved your badge progress.",
-      href: "/leaderboard",
-      tone: "orange"
-    });
-  }
-  for (const quiz of quizzes ?? []) {
-    items.push({
-      key: `quiz-${quiz.id}`,
-      title: "New quiz published",
-      detail: `${quiz.title}${quiz.level ? ` · ${quiz.level}` : ""}`,
-      href: `/quizzes/${quiz.id}`,
-      tone: "blue"
-    });
-  }
-  for (const course of courses ?? []) {
-    items.push({
-      key: `course-${course.id}`,
-      title: "Course available",
-      detail: `${course.title}${course.level ? ` · ${course.level}` : ""}`,
-      href: `/courses/${course.id}`,
-      tone: "purple"
-    });
-  }
-  return items.slice(0, 6);
+  return items.slice(0, 8);
 }
 
 function DesktopLearnerChrome({

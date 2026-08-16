@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireClassAccess } from "@/lib/classAccess";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { notifyUsers } from "@/lib/notifications";
 
 function refresh() { revalidatePath("/admin/live-classes"); }
 
@@ -36,16 +37,17 @@ export async function createLiveSession(formData: FormData) {
   if (error || !session) throw new Error(error?.message || "Could not create live class.");
   const { data: learners } = await admin.from("class_members").select("user_id").eq("class_id", classId).eq("role", "STUDENT");
   await admin.from("live_session_members").upsert([{ session_id: session.id, user_id: user.id, role: "TEACHER", status: "JOINED", joined_at: new Date().toISOString() }, ...(learners ?? []).map((learner) => ({ session_id: session.id, user_id: learner.user_id, role: "STUDENT", status: "INVITED" }))], { onConflict: "session_id,user_id" });
+  if (scheduledValue) await notifyUsers((learners ?? []).map((learner) => learner.user_id), { type: "LIVE_CLASS_SCHEDULED", title: "Live class scheduled", detail: `${title} is scheduled for ${new Date(scheduledValue).toLocaleString()}.`, href: `/live/${session.id}`, tone: "purple", dedupeKeyPrefix: `live-scheduled:${session.id}` });
   await admin.from("live_events").insert({ session_id: session.id, actor_id: user.id, event_type: "SESSION_CREATED", payload: { classId, lessonId, courseId } });
   refresh();
   redirect(`/admin/live-classes/${session.id}`);
 }
 
 export async function startLiveSession(sessionId: string) {
-  const admin = createAdminClient(); const { data: session } = await admin.from("live_sessions").select("class_id").eq("id", sessionId).maybeSingle();
+  const admin = createAdminClient(); const { data: session } = await admin.from("live_sessions").select("class_id,title").eq("id", sessionId).maybeSingle();
   if (!session) throw new Error("Live class not found."); const { user } = await requireClassAccess(session.class_id);
   const { error } = await admin.from("live_sessions").update({ status: "LIVE", started_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", sessionId).eq("teacher_id", user.id);
-  if (error) throw new Error(error.message); await admin.from("live_events").insert({ session_id: sessionId, actor_id: user.id, event_type: "SESSION_STARTED" }); refresh(); revalidatePath(`/admin/live-classes/${sessionId}`); revalidatePath(`/live/${sessionId}`);
+  if (error) throw new Error(error.message); await admin.from("live_events").insert({ session_id: sessionId, actor_id: user.id, event_type: "SESSION_STARTED" }); const { data: learners } = await admin.from("class_members").select("user_id").eq("class_id", session.class_id).eq("role", "STUDENT"); await notifyUsers((learners ?? []).map((learner) => learner.user_id), { type: "LIVE_CLASS_STARTED", title: "Your live class is ready", detail: `${session.title || "Your class"} has started.`, href: `/live/${sessionId}`, tone: "green", dedupeKeyPrefix: `live-started:${sessionId}` }); refresh(); revalidatePath(`/admin/live-classes/${sessionId}`); revalidatePath(`/live/${sessionId}`);
 }
 
 export async function endLiveSession(sessionId: string) {
@@ -56,10 +58,10 @@ export async function endLiveSession(sessionId: string) {
 }
 
 export async function cancelLiveSession(sessionId: string) {
-  const admin = createAdminClient(); const { data: session } = await admin.from("live_sessions").select("class_id").eq("id", sessionId).maybeSingle();
+  const admin = createAdminClient(); const { data: session } = await admin.from("live_sessions").select("class_id,title").eq("id", sessionId).maybeSingle();
   if (!session) throw new Error("Live class not found."); const { user } = await requireClassAccess(session.class_id);
   const { error } = await admin.from("live_sessions").update({ status: "CANCELLED", updated_at: new Date().toISOString() }).eq("id", sessionId);
-  if (error) throw new Error(error.message); await admin.from("live_events").insert({ session_id: sessionId, actor_id: user.id, event_type: "SESSION_CANCELLED" }); refresh(); revalidatePath(`/admin/live-classes/${sessionId}`); revalidatePath(`/live/${sessionId}`);
+  if (error) throw new Error(error.message); await admin.from("live_events").insert({ session_id: sessionId, actor_id: user.id, event_type: "SESSION_CANCELLED" }); const { data: learners } = await admin.from("class_members").select("user_id").eq("class_id", session.class_id).eq("role", "STUDENT"); await notifyUsers((learners ?? []).map((learner) => learner.user_id), { type: "LIVE_CLASS_CANCELLED", title: "Live class cancelled", detail: `${session.title || "Your class"} will not run as scheduled.`, href: "/live-classes", tone: "orange", dedupeKeyPrefix: `live-cancelled:${sessionId}` }); refresh(); revalidatePath(`/admin/live-classes/${sessionId}`); revalidatePath(`/live/${sessionId}`);
 }
 
 export async function duplicateLiveSession(sessionId: string) {

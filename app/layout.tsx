@@ -44,7 +44,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <script dangerouslySetInnerHTML={{ __html: `
           if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-              navigator.serviceWorker.register('/sw.js');
+              navigator.serviceWorker.register('/api/push/worker', { scope: '/' });
             });
           }
         `}} />

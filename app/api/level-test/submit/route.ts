@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { getLevelTestForScoring, scoreConfigurableTest } from "@/lib/configurableLevelTest";
 import { levelGuidance, type LevelAnswer } from "@/lib/levelTestBank";
+import { notifyUser } from "@/lib/notifications";
 
 export const runtime = "nodejs";
 
@@ -67,7 +68,15 @@ export async function POST(request: Request) {
   }
   if (error || !result) return NextResponse.json({ error: error?.message ?? "Could not save the result." }, { status: 500 });
 
+  const { data: previousProfile } = await admin.from("profiles").select("cefr_level").eq("id", user.id).maybeSingle();
   await admin.from("profiles").update({ cefr_level: score.cefrLevel }).eq("id", user.id);
+  if (previousProfile?.cefr_level !== score.cefrLevel) {
+    await notifyUser({
+      userId: user.id, type: "LEVEL_CHANGED", title: `Your English level is ${score.cefrLevel}`,
+      detail: "Your latest level test result is ready with guidance for what to practise next.", href: `/level-test/result?resultId=${result.id}`,
+      tone: "purple", dedupeKey: `level-changed:${user.id}:${result.id}`,
+    });
+  }
 
   return NextResponse.json({
     resultId: result.id,
