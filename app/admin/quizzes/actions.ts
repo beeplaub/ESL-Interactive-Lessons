@@ -5,6 +5,7 @@ import { z } from "zod";
 import { requireStaff, requireQuizAccess } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { assertCreatorCanCreate } from "@/lib/entitlements";
+import { notifyUser } from "@/lib/notifications";
 import type { Json } from "@/types/database.types";
 
 const questionSchema = z.object({
@@ -197,7 +198,15 @@ async function saveQuestionAssessmentMetadata(
 export async function updateQuizStatus(quizId: string, status: "DRAFT" | "PUBLISHED") {
   await requireQuizAccess(quizId);
   const admin = createAdminClient();
+  const { data: quiz } = await admin.from("quizzes").select("title,status,course_id").eq("id", quizId).maybeSingle();
   await admin.from("quizzes").update({ status }).eq("id", quizId);
+  const newlyPublishedCourseQuiz = quiz && status === "PUBLISHED" && quiz.status !== "PUBLISHED" && quiz.course_id ? quiz : null;
+  if (newlyPublishedCourseQuiz) {
+    const courseId = newlyPublishedCourseQuiz.course_id;
+    const quizTitle = newlyPublishedCourseQuiz.title || "A new quiz is ready for you.";
+    const { data: enrollments } = await admin.from("course_enrollments").select("user_id").eq("course_id", courseId).in("status", ["ACTIVE", "COMPLETED"]);
+    await Promise.all((enrollments ?? []).map((enrollment) => notifyUser({ userId: enrollment.user_id, type: "QUIZ_PUBLISHED", title: "New course quiz available", detail: quizTitle, href: `/quizzes/${quizId}`, tone: "blue", dedupeKey: `quiz-published:${quizId}:${enrollment.user_id}` })));
+  }
   revalidatePath("/admin/quizzes");
   revalidatePath("/quizzes");
 }

@@ -7,6 +7,7 @@ import { requireStaff, requireLessonAccess } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isR2PublicUrl, pathFromR2PublicUrl } from "@/lib/storage/mediaStorage";
 import { assertCreatorWithinLimit } from "@/lib/entitlements";
+import { notifyUser } from "@/lib/notifications";
 import { parsePdfPages } from "@/lib/pdfParser";
 import { parseLessonSlideActivities } from "@/lib/lessonTextParser";
 import { classifyAndExtractLesson } from "@/lib/slideClassifier";
@@ -768,8 +769,18 @@ export async function createVisualLesson(formData: FormData) {
 export async function updateLessonStatus(lessonId: string, status: "DRAFT" | "PUBLISHED") {
   await requireLessonAccess(lessonId);
   const supabase = createAdminClient();
+  const { data: lesson } = await supabase.from("lessons").select("title,status").eq("id", lessonId).maybeSingle();
   const { error } = await supabase.from("lessons").update({ status }).eq("id", lessonId);
   if (error) throw error;
+  if (status === "PUBLISHED" && lesson?.status !== "PUBLISHED") {
+    const lessonTitle = lesson?.title || "A new lesson";
+    const { data: placements } = await supabase.from("course_items").select("course_id").eq("lesson_id", lessonId);
+    const courseIds = [...new Set((placements ?? []).map((placement) => placement.course_id).filter(Boolean))];
+    if (courseIds.length) {
+      const { data: enrollments } = await supabase.from("course_enrollments").select("user_id,course_id").in("course_id", courseIds).in("status", ["ACTIVE", "COMPLETED"]);
+      await Promise.all((enrollments ?? []).map((enrollment) => notifyUser({ userId: enrollment.user_id, type: "LESSON_PUBLISHED", title: "A lesson is ready", detail: lessonTitle, href: `/lessons/${lessonId}?courseId=${enrollment.course_id}`, tone: "purple", dedupeKey: `lesson-published:${lessonId}:${enrollment.user_id}` })));
+    }
+  }
   revalidatePath("/admin/lessons");
   revalidatePath(`/admin/lessons/${lessonId}/edit`);
 }

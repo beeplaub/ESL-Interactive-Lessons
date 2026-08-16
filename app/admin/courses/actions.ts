@@ -83,11 +83,16 @@ export async function createCourse(formData: FormData) {
 export async function setCourseStatus(courseId: string, status: "DRAFT" | "PUBLISHED" | "ARCHIVED") {
   await requireCourseAccess(courseId, "publish_content");
   const admin = createAdminClient();
+  const { data: existingCourse } = await admin.from("courses").select("title,status").eq("id", courseId).maybeSingle();
   const { error } = await admin
     .from("courses")
     .update({ status, updated_at: new Date().toISOString() })
     .eq("id", courseId);
   if (error) throw new Error(error.message);
+  if (status === "PUBLISHED" && existingCourse?.status !== "PUBLISHED") {
+    const { data: enrollments } = await admin.from("course_enrollments").select("user_id").eq("course_id", courseId).in("status", ["ACTIVE", "COMPLETED"]);
+    await Promise.all((enrollments ?? []).map((enrollment) => notifyUser({ userId: enrollment.user_id, type: "COURSE_PUBLISHED", title: "Your course is published", detail: `${existingCourse?.title || "Your course"} is ready to explore.`, href: `/courses/${courseId}`, tone: "purple", dedupeKey: `course-published:${courseId}:${enrollment.user_id}` })));
+  }
   revalidatePath("/admin");
   revalidatePath("/admin/courses");
   revalidatePath("/courses");
@@ -653,6 +658,7 @@ export async function permanentlyDeleteCourse(courseId: string) {
 
 export async function enrollUserInCourseDirectly(userId: string, courseId: string) {
   const admin = createAdminClient();
+  const { data: course } = await admin.from("courses").select("title").eq("id", courseId).maybeSingle();
   
   const { count } = await admin
     .from("course_items")
@@ -665,6 +671,7 @@ export async function enrollUserInCourseDirectly(userId: string, courseId: strin
     course_id: courseId,
     status: "ACTIVE",
   }, { onConflict: "user_id,course_id" });
+  await notifyUser({ userId, type: "COURSE_ENROLLED", title: "You are enrolled", detail: `Your learning path for ${course?.title || "this course"} is ready.`, href: `/courses/${courseId}`, tone: "green", dedupeKey: `course-enrolled:${courseId}:${userId}` });
 
   await admin.from("course_progress").upsert({
     user_id: userId,

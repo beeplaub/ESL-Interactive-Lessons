@@ -7,6 +7,8 @@ import { isCorrect, questionScore, questionTotal } from "@/lib/quizScoring";
 import { assessmentItemVersionSnapshots, clampPoints, scorePercent } from "@/lib/assessmentContract";
 import { lessonScoredQuestions } from "@/lib/lessonActivityScoring";
 import { recalculateCourseAssessmentsForContent } from "@/lib/courseAssessmentService";
+import { getQuizBadge } from "@/lib/quizBadges";
+import { notifyUser } from "@/lib/notifications";
 import type { Json } from "@/types/database.types";
 
 export async function recordQuizAttempt(input: {
@@ -66,12 +68,27 @@ export async function recordQuizAttempt(input: {
   if (input.quizId) {
     const percent = input.total > 0 ? input.score / input.total : 0;
     const points = Math.max(1, Math.round(input.score * 10 + percent * 25));
+    const { data: priorPointRows } = await admin.from("quiz_leaderboard_points").select("points").eq("user_id", user.id);
+    const priorPoints = (priorPointRows ?? []).reduce((total, row) => total + Number(row.points ?? 0), 0);
+    const priorBadge = getQuizBadge(priorPoints);
     await admin.from("quiz_leaderboard_points").insert({
       user_id: user.id,
       quiz_id: input.quizId,
       points,
       reason: "QUIZ_COMPLETED"
     });
+    const nextBadge = getQuizBadge(priorPoints + points);
+    if (nextBadge.name !== priorBadge.name) {
+      await notifyUser({
+        userId: user.id,
+        type: "BADGE_UNLOCKED",
+        title: `New quiz badge: ${nextBadge.name}`,
+        detail: `You reached ${nextBadge.minPoints.toLocaleString()} quiz points. Keep the momentum going.`,
+        href: "/achievements",
+        tone: "orange",
+        dedupeKey: `quiz-badge:${user.id}:${nextBadge.name}`,
+      });
+    }
     await completeCourseItemsForContent(user.id, { kind: "QUIZ", id: input.quizId });
   }
   if (input.quizId) {
