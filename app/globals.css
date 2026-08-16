@@ -157,6 +157,33 @@ select {
   list-style: disc;
 }
 
+.knowledge-prose {
+  color: var(--br-text-muted);
+  font-size: 1rem;
+  line-height: 1.85;
+}
+.knowledge-prose > * + * { margin-top: 1.25rem; }
+.knowledge-prose h2,
+.knowledge-prose h3,
+.knowledge-prose h4 { color: var(--br-text); font-weight: 800; line-height: 1.25; letter-spacing: -0.01em; }
+.knowledge-prose h2 { margin-top: 2.6rem; font-size: 1.7rem; }
+.knowledge-prose h3 { margin-top: 2rem; font-size: 1.28rem; }
+.knowledge-prose h4 { margin-top: 1.5rem; font-size: 1.08rem; }
+.knowledge-prose p { max-width: 46rem; }
+.knowledge-prose ul,
+.knowledge-prose ol { max-width: 46rem; padding-left: 1.35rem; }
+.knowledge-prose ul { list-style: disc; }
+.knowledge-prose ol { list-style: decimal; }
+.knowledge-prose li + li { margin-top: .45rem; }
+.knowledge-prose a { color: var(--br-brand); font-weight: 700; text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--br-action) 60%, transparent); text-underline-offset: 3px; }
+.knowledge-prose blockquote { border-left: 3px solid var(--br-action); background: var(--br-brand-soft); border-radius: 0 .75rem .75rem 0; color: var(--br-text); font-weight: 650; padding: 1rem 1.15rem; }
+.knowledge-prose code { border-radius: .35rem; background: var(--br-surface-muted); color: var(--br-brand); font-family: var(--font-jetbrains-mono), ui-monospace, monospace; font-size: .86em; padding: .15rem .35rem; }
+.knowledge-prose pre { overflow-x: auto; border-radius: 1rem; background: var(--br-dark-card); color: var(--br-text-on-dark); padding: 1rem 1.25rem; }
+.knowledge-prose pre code { background: transparent; color: inherit; padding: 0; }
+.knowledge-prose table { display: block; width: 100%; overflow-x: auto; border: 1px solid var(--br-border); border-radius: .8rem; border-spacing: 0; }
+.knowledge-prose th, .knowledge-prose td { border-bottom: 1px solid var(--br-border); padding: .7rem .85rem; text-align: left; }
+.knowledge-prose th { background: var(--br-surface-muted); color: var(--br-text); font-size: .86rem; }
+
 @layer components {
   .br-card {
     border: 1px solid var(--br-border);

@@ -42,6 +42,7 @@ export function SiteFooter() {
             <Link href="/achievements" className="text-sm text-[color-mix(in_srgb,var(--br-text-on-dark)_65%,transparent)] hover:text-on-dark transition-colors">Achievements</Link>
             <Link href="/certificates" className="text-sm text-[color-mix(in_srgb,var(--br-text-on-dark)_65%,transparent)] hover:text-on-dark transition-colors">Certificates</Link>
             <Link href="/leaderboard" className="text-sm text-[color-mix(in_srgb,var(--br-text-on-dark)_65%,transparent)] hover:text-on-dark transition-colors">Leaderboard</Link>
+            <Link href="/docs" className="text-sm text-[color-mix(in_srgb,var(--br-text-on-dark)_65%,transparent)] hover:text-on-dark transition-colors">Help centre</Link>
           </div>
           <div className="flex flex-col gap-3">
             <h4 className="text-xs font-semibold text-on-dark uppercase tracking-wider">Platform</h4>
@@ -54,6 +55,7 @@ export function SiteFooter() {
             <Link href="/our-story" className="text-sm text-[color-mix(in_srgb,var(--br-text-on-dark)_65%,transparent)] hover:text-on-dark transition-colors">Our Story</Link>
             <Link href="/privacy" className="text-sm text-[color-mix(in_srgb,var(--br-text-on-dark)_65%,transparent)] hover:text-on-dark transition-colors">Privacy Policy</Link>
             <Link href="/terms" className="text-sm text-[color-mix(in_srgb,var(--br-text-on-dark)_65%,transparent)] hover:text-on-dark transition-colors">Terms of Service</Link>
+            <Link href="/blog" className="text-sm text-[color-mix(in_srgb,var(--br-text-on-dark)_65%,transparent)] hover:text-on-dark transition-colors">Journal</Link>
           </div>
         </div>
       </div>

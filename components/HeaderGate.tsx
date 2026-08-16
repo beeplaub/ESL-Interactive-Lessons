@@ -15,6 +15,8 @@ export function HeaderGate({ children }: { children: React.ReactNode }) {
     pathname.startsWith("/language-profile") ||
     pathname.startsWith("/profile") ||
     pathname.startsWith("/lessons") ||
+    pathname.startsWith("/docs") ||
+    pathname.startsWith("/blog") ||
     pathname.startsWith("/admin")
   ) return null;
   return <div className={pathname === "/" ? "" : "min-[1180px]:hidden"}>{children}</div>;
