@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireBlogCapability, getBlogSession } from "@/lib/blog-auth";
+import { getKnowledgeEntries } from "@/lib/knowledge-base";
 
 type PostStatus = "DRAFT" | "IN_REVIEW" | "CHANGES_REQUESTED" | "APPROVED" | "SCHEDULED" | "PUBLISHED" | "ARCHIVED" | "TRASH";
 
@@ -478,4 +479,45 @@ export async function resolveBlogEditorialComment(commentId: string): Promise<{ 
     if (error) return { success: false, error: error.message };
     revalidatePath(`/admin/blog/${comment.post_id}/edit`); return { success: true };
   } catch (error) { return { success: false, error: error instanceof Error ? error.message : "Could not resolve the review note." }; }
+}
+
+function legacyMarkdownBlocks(markdown: string): BlogBlock[] {
+  const lines = markdown.replace(/\r/g, "").split("\n");
+  const blocks: BlogBlock[] = [];
+  let paragraph: string[] = [];
+  const flushParagraph = () => { const text = paragraph.join(" ").trim(); if (text) blocks.push({ type: "paragraph", text }); paragraph = []; };
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index].trim();
+    if (!line) { flushParagraph(); continue; }
+    const heading = line.match(/^(#{1,4})\s+(.+)$/);
+    if (heading) { flushParagraph(); blocks.push({ type: "heading", level: Math.min(4, Math.max(2, heading[1].length)) as 2 | 3 | 4, text: heading[2] }); continue; }
+    if (line.startsWith(">")) { flushParagraph(); blocks.push({ type: "quote", text: line.replace(/^>\s*/, "") }); continue; }
+    if (/^[-*]\s+/.test(line)) { flushParagraph(); const items: string[] = []; while (index < lines.length && /^[-*]\s+/.test(lines[index].trim())) { items.push(lines[index].trim().replace(/^[-*]\s+/, "")); index += 1; } index -= 1; blocks.push({ type: "list", style: "BULLET", items }); continue; }
+    paragraph.push(line);
+  }
+  flushParagraph();
+  return blocks;
+}
+
+export async function importLegacyJournalPosts(): Promise<{ success: boolean; imported?: number; error?: string }> {
+  try {
+    const session = await getBlogSession();
+    if (session.blogRole !== "PLATFORM_ADMIN") return { success: false, error: "Only a platform administrator can import legacy Journal posts." };
+    const admin = createAdminClient();
+    let imported = 0;
+    for (const entry of getKnowledgeEntries("blog")) {
+      const slug = entry.slug[0];
+      if (!slug) continue;
+      const { data: existing } = await admin.from("blog_posts").select("id").eq("slug", slug).maybeSingle();
+      if (existing) continue;
+      const content = { type: "doc" as const, content: legacyMarkdownBlocks(entry.content) };
+      const contentText = contentTextFromBlocks(content.content);
+      const { data: post, error } = await admin.from("blog_posts").insert({ title: entry.title, slug, excerpt: entry.description || null, content, content_text: contentText, status: "PUBLISHED", visibility: "PUBLIC", created_by: session.user.id, author_id: session.user.id, published_at: entry.publishedAt || new Date().toISOString(), allow_index: true }).select("id,content_version").single();
+      if (error || !post) return { success: false, error: error?.message || "Could not import a legacy article." };
+      await writeRevision({ postId: post.id, version: post.content_version, eventType: "CREATED", title: entry.title, slug, excerpt: entry.description, content, contentText, createdBy: session.user.id, metadata: { legacyImport: true } });
+      imported += 1;
+    }
+    refreshBlog();
+    return { success: true, imported };
+  } catch (error) { return { success: false, error: error instanceof Error ? error.message : "Could not import the legacy Journal posts." }; }
 }

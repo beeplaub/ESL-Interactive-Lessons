@@ -1,6 +1,7 @@
 import { BlogWorkspace, type BlogPostSummary } from "@/components/BlogWorkspace";
 import { getBlogSession } from "@/lib/blog-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getKnowledgeEntries } from "@/lib/knowledge-base";
 
 type BlogPostRow = Omit<BlogPostSummary, "authorName" | "categoryName" | "updatedAt" | "publishedAt" | "scheduledAt"> & {
   author_id: string | null;
@@ -29,5 +30,6 @@ export default async function AdminBlogPage() {
   const authorNames = new Map((authors ?? []).map((author) => [author.id, author.full_name || [author.first_name, author.last_name].filter(Boolean).join(" ") || "BrenUp author"]));
   const categoryNames = new Map((categories ?? []).map((category) => [category.id, category.name]));
   const summaries: BlogPostSummary[] = posts.map((post) => ({ id: post.id, title: post.title, slug: post.slug, status: post.status, excerpt: post.excerpt, authorName: authorNames.get(post.author_id || "") || "BrenUp author", categoryName: categoryNames.get(post.primary_category_id || "") || null, updatedAt: post.updated_at, publishedAt: post.published_at, scheduledAt: post.scheduled_at }));
-  return <BlogWorkspace posts={summaries} blogRole={session.blogRole} categories={(categories ?? []) as Array<{ id: string; name: string }>} />;
+  const legacyArticleCount = getKnowledgeEntries("blog").filter((entry) => !posts.some((post) => post.slug === entry.slug[0])).length;
+  return <BlogWorkspace posts={summaries} blogRole={session.blogRole} categories={(categories ?? []) as Array<{ id: string; name: string }>} legacyArticleCount={legacyArticleCount} />;
 }

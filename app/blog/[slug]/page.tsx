@@ -14,7 +14,19 @@ export function generateStaticParams() { return getKnowledgeEntries("blog").map(
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const databasePost = await getPublishedBlogPost(slug);
-  if (databasePost) return { title: `${databasePost.seoTitle || databasePost.title} | BrenUp Journal`, description: databasePost.seoDescription || databasePost.excerpt || undefined, alternates: databasePost.canonicalUrl ? { canonical: databasePost.canonicalUrl } : undefined, robots: databasePost.allowIndex ? undefined : { index: false, follow: false } };
+  if (databasePost) return {
+    title: `${databasePost.seoTitle || databasePost.title} | BrenUp Journal`,
+    description: databasePost.seoDescription || databasePost.excerpt || undefined,
+    alternates: { canonical: databasePost.canonicalUrl || `https://www.brenup.com/blog/${databasePost.slug}` },
+    openGraph: {
+      type: "article",
+      title: databasePost.seoTitle || databasePost.title,
+      description: databasePost.seoDescription || databasePost.excerpt || undefined,
+      url: databasePost.canonicalUrl || `https://www.brenup.com/blog/${databasePost.slug}`,
+      images: databasePost.coverUrl ? [{ url: databasePost.coverUrl }] : undefined,
+    },
+    robots: databasePost.allowIndex ? undefined : { index: false, follow: false },
+  };
   const entry = getKnowledgeEntry("blog", [slug]);
   return entry ? { title: `${entry.title} | BrenUp Journal`, description: entry.description } : {};
 }

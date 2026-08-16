@@ -3,10 +3,12 @@ import { AdminSidebar } from "@/components/AdminSidebar";
 export function AdminShell({
   name,
   role = "ADMIN",
+  blogEnabled = false,
   children,
 }: {
   name: string | null | undefined;
   role?: "ADMIN" | "TEACHER" | "SCHOOL_ADMIN";
+  blogEnabled?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -14,12 +16,12 @@ export function AdminShell({
       <div className="mx-auto w-full max-w-[1800px]">
       {/* Mobile: top bar (original behaviour) */}
       <div className="mb-4 md:hidden">
-        <AdminSidebar name={name} role={role} mobileTop />
+        <AdminSidebar name={name} role={role} blogEnabled={blogEnabled} mobileTop />
       </div>
 
       {/* Desktop: collapsible side rail */}
       <div className="hidden md:flex md:gap-4">
-        <AdminSidebar name={name} role={role} />
+        <AdminSidebar name={name} role={role} blogEnabled={blogEnabled} />
         <div className="min-w-0 flex-1 overflow-hidden">{children}</div>
       </div>
 

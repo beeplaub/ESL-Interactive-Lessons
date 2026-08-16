@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
 import { Archive, BarChart3, CheckCircle2, ChevronRight, Clock3, Copy, FilePenLine, Filter, Inbox, Plus, Search, Send, Settings2, Trash2 } from "lucide-react";
-import { changeBlogPostStatus, createBlogPost, duplicateBlogPost } from "@/app/admin/blog/actions";
+import { changeBlogPostStatus, createBlogPost, duplicateBlogPost, importLegacyJournalPosts } from "@/app/admin/blog/actions";
 
 export type BlogPostSummary = {
   id: string;
@@ -22,6 +22,7 @@ type BlogWorkspaceProps = {
   posts: BlogPostSummary[];
   blogRole: "PLATFORM_ADMIN" | "EDITOR" | "AUTHOR" | "CONTRIBUTOR" | "REVIEWER";
   categories: Array<{ id: string; name: string }>;
+  legacyArticleCount: number;
 };
 
 const labels: Record<BlogPostSummary["status"], string> = {
@@ -51,7 +52,7 @@ function formatDate(value: string | null) {
   return new Intl.DateTimeFormat("en", { day: "numeric", month: "short", year: "numeric" }).format(new Date(value));
 }
 
-export function BlogWorkspace({ posts, blogRole, categories }: BlogWorkspaceProps) {
+export function BlogWorkspace({ posts, blogRole, categories, legacyArticleCount }: BlogWorkspaceProps) {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<"ALL" | BlogPostSummary["status"]>("ALL");
   const [category, setCategory] = useState("ALL");
@@ -98,6 +99,7 @@ export function BlogWorkspace({ posts, blogRole, categories }: BlogWorkspaceProp
       window.location.assign(`/admin/blog/${result.id}/edit`);
     });
   }
+  function importLegacy() { if (!window.confirm("Import the original Markdown Journal articles as editable published copies? Existing public links will stay the same.")) return; startTransition(async () => { const result = await importLegacyJournalPosts(); setNotice(result.success ? `${result.imported || 0} legacy articles imported.` : result.error || "Could not import the legacy articles."); if (result.success) window.setTimeout(() => window.location.reload(), 400); }); }
 
   return (
     <main className="min-w-0 space-y-5">
@@ -108,7 +110,7 @@ export function BlogWorkspace({ posts, blogRole, categories }: BlogWorkspaceProp
             <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">BrenUp Journal</h1>
             <p className="mt-1 max-w-2xl text-sm leading-6 text-[var(--br-text-muted)]">Plan, write, review, and publish useful learning stories without leaving BrenUp.</p>
           </div>
-          <div className="flex items-center gap-2">{["PLATFORM_ADMIN", "EDITOR"].includes(blogRole) ? <><Link href="/admin/blog/analytics" className="grid size-10 place-items-center rounded-xl border border-[var(--br-border)] text-[var(--br-text-muted)] hover:bg-[var(--br-surface-muted)]" aria-label="Journal analytics"><BarChart3 size={17} /></Link><Link href="/admin/blog/settings" className="grid size-10 place-items-center rounded-xl border border-[var(--br-border)] text-[var(--br-text-muted)] hover:bg-[var(--br-surface-muted)]" aria-label="Journal settings"><Settings2 size={17} /></Link></> : null}{canCreate ? <button type="button" onClick={() => setCreateOpen(true)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--br-brand)] px-4 py-2.5 text-sm font-bold text-on-dark shadow-sm hover:brightness-95"><Plus size={17} /> New article</button> : null}</div>
+          <div className="flex items-center gap-2">{["PLATFORM_ADMIN", "EDITOR"].includes(blogRole) ? <><Link href="/admin/blog/analytics" className="grid size-10 place-items-center rounded-xl border border-[var(--br-border)] text-[var(--br-text-muted)] hover:bg-[var(--br-surface-muted)]" aria-label="Journal analytics"><BarChart3 size={17} /></Link><Link href="/admin/blog/settings" className="grid size-10 place-items-center rounded-xl border border-[var(--br-border)] text-[var(--br-text-muted)] hover:bg-[var(--br-surface-muted)]" aria-label="Journal settings"><Settings2 size={17} /></Link></> : null}{blogRole === "PLATFORM_ADMIN" && legacyArticleCount ? <button type="button" disabled={isPending} onClick={importLegacy} className="hidden rounded-xl border border-[var(--br-border)] px-3 py-2 text-xs font-bold text-[var(--br-text-muted)] hover:bg-[var(--br-surface-muted)] lg:inline-flex">Import {legacyArticleCount} legacy</button> : null}{canCreate ? <button type="button" onClick={() => setCreateOpen(true)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--br-brand)] px-4 py-2.5 text-sm font-bold text-on-dark shadow-sm hover:brightness-95"><Plus size={17} /> New article</button> : null}</div>
         </div>
       </section>
 

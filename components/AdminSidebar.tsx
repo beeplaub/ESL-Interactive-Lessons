@@ -43,6 +43,7 @@ type NavLink = {
   label: string;
   Icon: typeof BarChart3;
   roles?: StaffRole[];
+  requiresBlog?: boolean;
 };
 type NavGroup = {
   id: string;
@@ -121,7 +122,7 @@ const groups: NavGroup[] = [
     Icon: Settings,
     links: [
       { href: "/admin/ai-studio", label: "AI Studio", Icon: Sparkles, roles: PLATFORM_ADMIN },
-      { href: "/admin/blog", label: "Journal", Icon: Newspaper, roles: PLATFORM_ADMIN },
+      { href: "/admin/blog", label: "Journal", Icon: Newspaper, roles: ALL_STAFF, requiresBlog: true },
       { href: "/admin/notifications", label: "Notifications", Icon: Bell, roles: ALL_STAFF },
       { href: "/admin/style", label: "Style System", Icon: Palette, roles: PLATFORM_ADMIN },
     ],
@@ -139,16 +140,18 @@ function linkIsActive(pathname: string, href: string) {
 export function AdminSidebar({
   name,
   role = "ADMIN",
+  blogEnabled = false,
   mobileTop = false,
 }: {
   name: string | null | undefined;
   role?: StaffRole;
+  blogEnabled?: boolean;
   mobileTop?: boolean;
 }) {
   const pathname = usePathname();
   const visibleGroups = useMemo(() => groups
-    .map((group) => ({ ...group, links: group.links.filter((link) => !link.roles || link.roles.includes(role)) }))
-    .filter((group) => group.links.length), [role]);
+    .map((group) => ({ ...group, links: group.links.filter((link) => (!link.roles || link.roles.includes(role)) && (!link.requiresBlog || blogEnabled)) }))
+    .filter((group) => group.links.length), [role, blogEnabled]);
   const activeHref = visibleGroups.flatMap((group) => group.links)
     .filter((link) => linkIsActive(pathname, link.href))
     .sort((left, right) => right.href.length - left.href.length)[0]?.href ?? null;
