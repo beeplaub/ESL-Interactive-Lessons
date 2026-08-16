@@ -421,3 +421,32 @@ export async function restoreBlogRevision(postId: string, revisionId: string): P
     return { success: true };
   } catch (error) { return { success: false, error: error instanceof Error ? error.message : "Could not restore the revision." }; }
 }
+
+export async function saveBlogPostPattern(input: { name: string; description?: string; content: { type: "doc"; content: BlogBlock[] }; scope: "PERSONAL" | "GLOBAL" }): Promise<{ success: boolean; error?: string }> {
+  try {
+    const session = await getBlogSession();
+    if (!session.blogRole || !["PLATFORM_ADMIN", "EDITOR", "AUTHOR"].includes(session.blogRole)) return { success: false, error: "Your Journal role cannot save reusable patterns." };
+    const name = input.name.trim();
+    if (!name || !validContent(input.content) || !input.content.content.length) return { success: false, error: "Give this non-empty pattern a name." };
+    if (input.scope === "GLOBAL" && !["PLATFORM_ADMIN", "EDITOR"].includes(session.blogRole)) return { success: false, error: "Only editors can share a pattern with the whole Journal team." };
+    const admin = createAdminClient();
+    const { error } = await admin.from("blog_post_patterns").insert({ name, description: input.description?.trim() || null, content: input.content, scope: input.scope, created_by: session.user.id, updated_by: session.user.id });
+    if (error) return { success: false, error: error.message };
+    revalidatePath("/admin/blog"); revalidatePath("/admin/blog/[id]/edit", "page");
+    return { success: true };
+  } catch (error) { return { success: false, error: error instanceof Error ? error.message : "Could not save the reusable pattern." }; }
+}
+
+export async function archiveBlogPostPattern(patternId: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const session = await getBlogSession();
+    if (!session.blogRole) return { success: false, error: "You do not have access to BrenUp Journal." };
+    const admin = createAdminClient();
+    const { data: pattern, error: readError } = await admin.from("blog_post_patterns").select("created_by,scope").eq("id", patternId).maybeSingle();
+    if (readError || !pattern) return { success: false, error: readError?.message || "Pattern not found." };
+    if (pattern.created_by !== session.user.id && !["PLATFORM_ADMIN", "EDITOR"].includes(session.blogRole)) return { success: false, error: "You can only archive your own pattern." };
+    const { error } = await admin.from("blog_post_patterns").update({ is_active: false, updated_by: session.user.id, updated_at: new Date().toISOString() }).eq("id", patternId);
+    if (error) return { success: false, error: error.message };
+    revalidatePath("/admin/blog/[id]/edit", "page"); return { success: true };
+  } catch (error) { return { success: false, error: error instanceof Error ? error.message : "Could not archive the pattern." }; }
+}
