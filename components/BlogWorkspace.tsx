@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState, useTransition } from "react";
-import { Archive, CheckCircle2, ChevronRight, Clock3, Copy, FilePenLine, Filter, Inbox, Plus, Search, Send, Settings2, Trash2 } from "lucide-react";
+import { Archive, BarChart3, CheckCircle2, ChevronRight, Clock3, Copy, FilePenLine, Filter, Inbox, Plus, Search, Send, Settings2, Trash2 } from "lucide-react";
 import { changeBlogPostStatus, createBlogPost, duplicateBlogPost } from "@/app/admin/blog/actions";
 
 export type BlogPostSummary = {
@@ -108,7 +108,7 @@ export function BlogWorkspace({ posts, blogRole, categories }: BlogWorkspaceProp
             <h1 className="mt-1 text-2xl font-semibold tracking-tight text-ink sm:text-3xl">BrenUp Journal</h1>
             <p className="mt-1 max-w-2xl text-sm leading-6 text-[var(--br-text-muted)]">Plan, write, review, and publish useful learning stories without leaving BrenUp.</p>
           </div>
-          <div className="flex items-center gap-2">{["PLATFORM_ADMIN", "EDITOR"].includes(blogRole) ? <Link href="/admin/blog/settings" className="grid size-10 place-items-center rounded-xl border border-[var(--br-border)] text-[var(--br-text-muted)] hover:bg-[var(--br-surface-muted)]" aria-label="Journal settings"><Settings2 size={17} /></Link> : null}{canCreate ? <button type="button" onClick={() => setCreateOpen(true)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--br-brand)] px-4 py-2.5 text-sm font-bold text-on-dark shadow-sm hover:brightness-95"><Plus size={17} /> New article</button> : null}</div>
+          <div className="flex items-center gap-2">{["PLATFORM_ADMIN", "EDITOR"].includes(blogRole) ? <><Link href="/admin/blog/analytics" className="grid size-10 place-items-center rounded-xl border border-[var(--br-border)] text-[var(--br-text-muted)] hover:bg-[var(--br-surface-muted)]" aria-label="Journal analytics"><BarChart3 size={17} /></Link><Link href="/admin/blog/settings" className="grid size-10 place-items-center rounded-xl border border-[var(--br-border)] text-[var(--br-text-muted)] hover:bg-[var(--br-surface-muted)]" aria-label="Journal settings"><Settings2 size={17} /></Link></> : null}{canCreate ? <button type="button" onClick={() => setCreateOpen(true)} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[var(--br-brand)] px-4 py-2.5 text-sm font-bold text-on-dark shadow-sm hover:brightness-95"><Plus size={17} /> New article</button> : null}</div>
         </div>
       </section>
 
