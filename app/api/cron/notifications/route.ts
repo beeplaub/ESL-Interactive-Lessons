@@ -12,7 +12,7 @@ async function sendAutomaticReminders() {
   const [{ data: tasks }, { data: assignments }, { data: sessions }] = await Promise.all([
     admin.from("practice_tasks").select("id,learner_id,title,due_at,status").gte("due_at", now.toISOString()).lte("due_at", horizon.toISOString()).in("status", ["TODO", "IN_PROGRESS"]),
     admin.from("class_assignments").select("id,class_id,title,item_type,due_at").gte("due_at", now.toISOString()).lte("due_at", horizon.toISOString()),
-    admin.from("live_sessions").select("id,class_id,title,scheduled_at,status").eq("status", "SCHEDULED").gte("scheduled_at", now.toISOString()).lte("scheduled_at", new Date(now.getTime() + 15 * 60 * 1000).toISOString()),
+    admin.from("live_sessions").select("id,class_id,title,scheduled_at,status").eq("status", "SCHEDULED").gte("scheduled_at", now.toISOString()).lte("scheduled_at", horizon.toISOString()),
   ]);
 
   await Promise.all((tasks ?? []).map((task) => notifyUser({
@@ -41,8 +41,8 @@ async function sendAutomaticReminders() {
     const { data: learners } = await admin.from("class_members").select("user_id").eq("class_id", session.class_id).eq("role", "STUDENT");
     return notifyUsers((learners ?? []).map((learner) => learner.user_id), {
       type: "LIVE_CLASS_REMINDER",
-      title: "Live class starting soon",
-      detail: `${session.title} begins shortly.`,
+      title: "Live class today",
+      detail: `${session.title} is scheduled for today.`,
       href: `/live/${session.id}`,
       tone: "purple",
       dedupeKeyPrefix: `live-reminder:${session.id}:${dateKey}`,

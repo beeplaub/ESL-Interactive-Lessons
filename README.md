@@ -80,7 +80,7 @@ NEXT_PUBLIC_FIREBASE_APP_ID=
 NEXT_PUBLIC_FIREBASE_VAPID_KEY=
 ```
 
-Use a dedicated Firebase project or a clearly named BrenUp web app. Enable **Cloud Messaging**, create a Web Push certificate, and add all variables to Vercel Production and Preview. Never expose the Firebase service-account private key. `CRON_SECRET` is also required for scheduled notification dispatch; use the same secret already used by BrenUp's cleanup cron routes.
+Use a dedicated Firebase project or a clearly named BrenUp web app. Enable **Cloud Messaging**, create a Web Push certificate, and add all variables to Vercel Production and Preview. Never expose the Firebase service-account private key. `CRON_SECRET` is also required for scheduled notification dispatch; use the same secret already used by BrenUp's cleanup cron routes. On Vercel Hobby, the notification cron runs daily at 08:00 Bangladesh time; immediate campaigns and event notifications remain immediate.
 
 ## Cloudflare R2 media storage
 
