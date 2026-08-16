@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { BlogPostEditor, type EditableBlogPost } from "@/components/BlogPostEditor";
 import type { BlogRevisionSummary } from "@/components/BlogRevisionPanel";
 import type { BlogPattern } from "@/components/BlogPatternLibrary";
+import type { BlogEditorialComment } from "@/components/BlogReviewPanel";
 import { getBlogSession } from "@/lib/blog-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -14,7 +15,7 @@ export default async function AdminBlogPostEditorPage({ params }: { params: Prom
   if (["AUTHOR", "CONTRIBUTOR"].includes(session.blogRole)) query = query.eq("created_by", session.user.id);
   const { data: post } = await query.maybeSingle();
   if (!post) notFound();
-  const [{ data: mappings }, { data: tagMappings }, { data: categories }, { data: tags }, { data: media }, { data: revisionRows }, { data: patternRows }] = await Promise.all([
+  const [{ data: mappings }, { data: tagMappings }, { data: categories }, { data: tags }, { data: media }, { data: revisionRows }, { data: patternRows }, { data: commentRows }] = await Promise.all([
     admin.from("blog_post_categories").select("category_id").eq("post_id", id),
     admin.from("blog_post_tags").select("tag_id").eq("post_id", id),
     admin.from("blog_categories").select("id,name").eq("is_active", true).order("position").order("name"),
@@ -22,6 +23,7 @@ export default async function AdminBlogPostEditorPage({ params }: { params: Prom
     admin.from("media_assets").select("id,title,url,type").is("deleted_at", null).order("created_at", { ascending: false }).limit(80),
     admin.from("blog_post_revisions").select("id,version,event_type,title,created_at,created_by").eq("post_id", id).order("version", { ascending: false }).limit(30),
     admin.from("blog_post_patterns").select("id,name,description,scope,content,created_by").eq("is_active", true).or(`scope.eq.GLOBAL,created_by.eq.${session.user.id}`).order("updated_at", { ascending: false }).limit(50),
+    admin.from("blog_editorial_comments").select("id,body,status,created_at,created_by").eq("post_id", id).order("created_at", { ascending: false }).limit(50),
   ]);
   const revisionCreatorIds = Array.from(new Set((revisionRows ?? []).map((revision) => revision.created_by).filter((id): id is string => Boolean(id))));
   const { data: revisionCreators } = revisionCreatorIds.length ? await admin.from("profiles").select("id,full_name,first_name,last_name").in("id", revisionCreatorIds) : { data: [] };
@@ -31,8 +33,12 @@ export default async function AdminBlogPostEditorPage({ params }: { params: Prom
   const { data: patternCreators } = patternCreatorIds.length ? await admin.from("profiles").select("id,full_name,first_name,last_name").in("id", patternCreatorIds) : { data: [] };
   const patternCreatorNames = new Map((patternCreators ?? []).map((profile) => [profile.id, profile.full_name || [profile.first_name, profile.last_name].filter(Boolean).join(" ") || "BrenUp editor"]));
   const patterns: BlogPattern[] = (patternRows ?? []).map((pattern) => ({ id: pattern.id, name: pattern.name, description: pattern.description, scope: pattern.scope, content: pattern.content as BlogPattern["content"], createdByName: patternCreatorNames.get(pattern.created_by) || "BrenUp editor" }));
+  const commentCreatorIds = Array.from(new Set((commentRows ?? []).map((comment) => comment.created_by).filter((id): id is string => Boolean(id))));
+  const { data: commentCreators } = commentCreatorIds.length ? await admin.from("profiles").select("id,full_name,first_name,last_name").in("id", commentCreatorIds) : { data: [] };
+  const commentCreatorNames = new Map((commentCreators ?? []).map((profile) => [profile.id, profile.full_name || [profile.first_name, profile.last_name].filter(Boolean).join(" ") || "BrenUp editor"]));
+  const comments: BlogEditorialComment[] = (commentRows ?? []).map((comment) => ({ id: comment.id, body: comment.body, status: comment.status, createdAt: comment.created_at, createdByName: commentCreatorNames.get(comment.created_by) || "BrenUp editor" }));
   const editable: EditableBlogPost = {
     id: post.id, title: post.title, slug: post.slug, excerpt: post.excerpt, content: post.content as EditableBlogPost["content"], status: post.status, visibility: post.visibility, primaryCategoryId: post.primary_category_id, categoryIds: (mappings ?? []).map((row) => row.category_id), tagIds: (tagMappings ?? []).map((row) => row.tag_id), seoTitle: post.seo_title, seoDescription: post.seo_description, socialTitle: post.social_title, socialDescription: post.social_description, canonicalUrl: post.canonical_url, primaryKeyword: post.primary_keyword, allowIndex: post.allow_index, isFeatured: post.is_featured, updatedAt: post.updated_at, scheduledAt: post.scheduled_at,
   };
-  return <BlogPostEditor post={editable} role={session.blogRole} categories={categories ?? []} tags={tags ?? []} media={media ?? []} revisions={revisions} patterns={patterns} />;
+  return <BlogPostEditor post={editable} role={session.blogRole} categories={categories ?? []} tags={tags ?? []} media={media ?? []} revisions={revisions} patterns={patterns} comments={comments} />;
 }

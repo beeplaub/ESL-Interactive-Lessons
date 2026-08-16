@@ -6,6 +6,7 @@ import { ArrowLeft, BookOpenText, CheckCircle2, ChevronDown, CircleHelp, Clock3,
 import { changeBlogPostStatus, saveBlogPost, scheduleBlogPost } from "@/app/admin/blog/actions";
 import { BlogRevisionPanel, type BlogRevisionSummary } from "@/components/BlogRevisionPanel";
 import { BlogPatternLibrary, type BlogPattern } from "@/components/BlogPatternLibrary";
+import { BlogReviewPanel, type BlogEditorialComment } from "@/components/BlogReviewPanel";
 
 type BlogRole = "PLATFORM_ADMIN" | "EDITOR" | "AUTHOR" | "CONTRIBUTOR" | "REVIEWER";
 type BlockType = "paragraph" | "heading" | "quote" | "callout" | "list" | "image" | "cta";
@@ -23,7 +24,7 @@ function blockName(type: BlockType) { return ({ paragraph: "Text", heading: "Hea
 
 function iconFor(type: BlockType) { return ({ paragraph: Type, heading: BookOpenText, quote: MessageSquareQuote, callout: Lightbulb, list: List, image: Image, cta: Sparkles })[type]; }
 
-export function BlogPostEditor({ post, role, categories, tags, media, revisions, patterns }: { post: EditableBlogPost; role: BlogRole; categories: Array<{ id: string; name: string }>; tags: Array<{ id: string; name: string }>; media: Array<{ id: string; title: string | null; url: string; type: string }>; revisions: BlogRevisionSummary[]; patterns: BlogPattern[] }) {
+export function BlogPostEditor({ post, role, categories, tags, media, revisions, patterns, comments }: { post: EditableBlogPost; role: BlogRole; categories: Array<{ id: string; name: string }>; tags: Array<{ id: string; name: string }>; media: Array<{ id: string; title: string | null; url: string; type: string }>; revisions: BlogRevisionSummary[]; patterns: BlogPattern[]; comments: BlogEditorialComment[] }) {
   const [title, setTitle] = useState(post.title);
   const [excerpt, setExcerpt] = useState(post.excerpt || "");
   const [blocks, setBlocks] = useState<Block[]>(() => normalizeBlocks(post.content));
@@ -80,6 +81,7 @@ export function BlogPostEditor({ post, role, categories, tags, media, revisions,
       {canPublish && post.status !== "PUBLISHED" ? <button type="button" onClick={() => workflow("PUBLISHED", "Published. It is now live in BrenUp Journal.")} disabled={isPending} className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--br-brand)] px-3 py-2 text-sm font-bold text-on-dark"><CheckCircle2 size={15} /> Publish</button> : null}
     </header>
     <BlogPatternLibrary patterns={patterns} currentBlocks={blocks} canSave={canEdit} canShare={["PLATFORM_ADMIN", "EDITOR"].includes(role)} onInsert={(incoming) => setBlocks((current) => [...current, ...(incoming as Block[])])} />
+    <BlogReviewPanel postId={post.id} comments={comments} canComment={["PLATFORM_ADMIN", "EDITOR", "REVIEWER", "AUTHOR", "CONTRIBUTOR"].includes(role)} />
     <BlogRevisionPanel postId={post.id} revisions={revisions} canRestore={canEdit} />
     <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
       <section className="min-w-0 rounded-2xl border border-[var(--br-border)] bg-surface shadow-sm">

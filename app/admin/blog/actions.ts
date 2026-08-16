@@ -450,3 +450,32 @@ export async function archiveBlogPostPattern(patternId: string): Promise<{ succe
     revalidatePath("/admin/blog/[id]/edit", "page"); return { success: true };
   } catch (error) { return { success: false, error: error instanceof Error ? error.message : "Could not archive the pattern." }; }
 }
+
+export async function addBlogEditorialComment(postId: string, body: string, revisionId?: string | null): Promise<{ success: boolean; error?: string }> {
+  try {
+    const session = await getBlogSession();
+    if (!session.blogRole) return { success: false, error: "You do not have access to BrenUp Journal." };
+    const cleanBody = body.trim();
+    if (!cleanBody) return { success: false, error: "Write a review note first." };
+    const admin = createAdminClient();
+    const { data: post, error: postError } = await admin.from("blog_posts").select("created_by").eq("id", postId).maybeSingle();
+    if (postError || !post) return { success: false, error: postError?.message || "Post not found." };
+    if (!["PLATFORM_ADMIN", "EDITOR", "REVIEWER"].includes(session.blogRole) && post.created_by !== session.user.id) return { success: false, error: "You can only comment on your own draft." };
+    const { error } = await admin.from("blog_editorial_comments").insert({ post_id: postId, revision_id: revisionId || null, body: cleanBody, created_by: session.user.id });
+    if (error) return { success: false, error: error.message };
+    revalidatePath(`/admin/blog/${postId}/edit`); return { success: true };
+  } catch (error) { return { success: false, error: error instanceof Error ? error.message : "Could not save the review note." }; }
+}
+
+export async function resolveBlogEditorialComment(commentId: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const session = await getBlogSession();
+    if (!session.blogRole) return { success: false, error: "You do not have access to BrenUp Journal." };
+    const admin = createAdminClient();
+    const { data: comment, error: readError } = await admin.from("blog_editorial_comments").select("id,post_id").eq("id", commentId).maybeSingle();
+    if (readError || !comment) return { success: false, error: readError?.message || "Review note not found." };
+    const { error } = await admin.from("blog_editorial_comments").update({ status: "RESOLVED", resolved_by: session.user.id, resolved_at: new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", commentId);
+    if (error) return { success: false, error: error.message };
+    revalidatePath(`/admin/blog/${comment.post_id}/edit`); return { success: true };
+  } catch (error) { return { success: false, error: error instanceof Error ? error.message : "Could not resolve the review note." }; }
+}
