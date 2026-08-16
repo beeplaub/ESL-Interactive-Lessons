@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { dispatchScheduledNotificationCampaign } from "@/app/admin/notifications/actions";
+import { publishDueBlogPosts } from "@/app/admin/blog/actions";
 import { notifyUser, notifyUsers } from "@/lib/notifications";
 
 async function sendAutomaticReminders() {
@@ -58,5 +59,6 @@ export async function GET(request: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   const results = await Promise.all((campaigns ?? []).map((campaign) => dispatchScheduledNotificationCampaign(campaign.id)));
   await sendAutomaticReminders();
-  return NextResponse.json({ processed: results.filter((result) => result.success).length, failed: results.filter((result) => !result.success).length });
+  const publishedPosts = await publishDueBlogPosts();
+  return NextResponse.json({ processed: results.filter((result) => result.success).length, failed: results.filter((result) => !result.success).length, publishedPosts });
 }

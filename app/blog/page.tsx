@@ -2,14 +2,25 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, Clock3, Sparkles } from "lucide-react";
 import { getKnowledgeEntries } from "@/lib/knowledge-base";
+import { getPublishedBlogPosts } from "@/lib/blog-public";
 
 export const metadata: Metadata = {
   title: "BrenUp Journal | English learning, teaching, and outcomes",
   description: "Practical ideas for English learners, teachers, and course creators.",
 };
 
-export default function BlogPage() {
-  const articles = getKnowledgeEntries("blog").sort((a, b) => (b.publishedAt ?? "").localeCompare(a.publishedAt ?? ""));
+export const revalidate = 300;
+
+export default async function BlogPage() {
+  const [databasePosts, markdownPosts] = await Promise.all([
+    getPublishedBlogPosts(),
+    Promise.resolve(getKnowledgeEntries("blog").sort((a, b) => (b.publishedAt ?? "").localeCompare(a.publishedAt ?? ""))),
+  ]);
+  const liveSlugs = new Set(databasePosts.map((post) => post.slug));
+  const articles = [
+    ...databasePosts.map((post) => ({ url: `/blog/${post.slug}`, title: post.title, description: post.excerpt || "Practical guidance from BrenUp.", tags: [...post.categoryNames, ...post.tagNames], publishedAt: post.publishedAt || post.updatedAt, author: post.authorName, readingMinutes: Math.max(1, Math.ceil(post.contentText.split(/\s+/).filter(Boolean).length / 220)) })),
+    ...markdownPosts.filter((post) => !liveSlugs.has(post.slug[0] || "")),
+  ].sort((a, b) => (b.publishedAt ?? "").localeCompare(a.publishedAt ?? ""));
   return <main className="min-h-screen bg-[var(--br-canvas-elevated)] px-4 py-10 sm:px-6 sm:py-14">
     <section className="mx-auto max-w-6xl">
       <header className="rounded-3xl bg-[var(--br-dark-card)] px-6 py-10 text-on-dark shadow-[var(--br-shadow)] sm:px-10 sm:py-14"><span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-extrabold text-white/85"><Sparkles className="size-3.5" /> BrenUp Journal</span><h1 className="mt-4 max-w-3xl text-3xl font-black tracking-[-0.03em] sm:text-5xl">English learning that becomes alive.</h1><p className="mt-4 max-w-2xl text-base leading-7 text-white/75">Ideas for learners, educators, and course creators who care about meaningful practice and measurable growth.</p></header>
