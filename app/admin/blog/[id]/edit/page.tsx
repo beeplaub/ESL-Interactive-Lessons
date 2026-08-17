@@ -20,7 +20,7 @@ export default async function AdminBlogPostEditorPage({ params }: { params: Prom
     admin.from("blog_post_tags").select("tag_id").eq("post_id", id),
     admin.from("blog_categories").select("id,name").eq("is_active", true).order("position").order("name"),
     admin.from("blog_tags").select("id,name").eq("is_active", true).order("name").limit(100),
-    admin.from("media_assets").select("id,title,url,type").is("deleted_at", null).order("created_at", { ascending: false }).limit(80),
+    admin.from("media_assets").select("id,title,url,type").eq("type", "IMAGE").is("deleted_at", null).order("created_at", { ascending: false }).limit(1000),
     admin.from("blog_post_revisions").select("id,version,event_type,title,created_at,created_by").eq("post_id", id).order("version", { ascending: false }).limit(30),
     admin.from("blog_post_patterns").select("id,name,description,scope,content,created_by").eq("is_active", true).or(`scope.eq.GLOBAL,created_by.eq.${session.user.id}`).order("updated_at", { ascending: false }).limit(50),
     admin.from("blog_editorial_comments").select("id,body,status,created_at,created_by").eq("post_id", id).order("created_at", { ascending: false }).limit(50),

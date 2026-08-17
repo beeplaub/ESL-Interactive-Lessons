@@ -845,8 +845,10 @@ function FeatureImageField({
 }) {
   const [open, setOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement | null>(null);
   const images = media.filter((item) => item.type === "IMAGE");
+  const visibleImages = images.filter((item) => (item.title || "").toLowerCase().includes(query.trim().toLowerCase()));
   const selected = images.find((item) => item.id === value);
   async function upload(file: File) {
     setUploading(true);
@@ -971,8 +973,9 @@ function FeatureImageField({
                   No feature image
                 </button>
               </div>
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search your image library" className="mb-4 w-full rounded-xl border border-[var(--br-border)] bg-[var(--br-surface-muted)] px-3 py-2.5 text-sm text-ink outline-none focus:border-[var(--br-brand)]" />
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                {images.map((image) => (
+                {visibleImages.map((image) => (
                   <button
                     key={image.id}
                     type="button"
@@ -992,10 +995,10 @@ function FeatureImageField({
                     </span>
                   </button>
                 ))}
-                {!images.length ? (
-                  <p className="col-span-full rounded-xl border border-dashed border-[var(--br-border)] p-8 text-center text-sm text-[var(--br-text-muted)]">
-                    Your image library is empty. Upload an image to use it here.
-                  </p>
+              {!visibleImages.length ? (
+                <p className="col-span-full rounded-xl border border-dashed border-[var(--br-border)] p-8 text-center text-sm text-[var(--br-text-muted)]">
+                  {images.length ? "No images match that search." : "Your image library is empty. Upload an image to use it here."}
+                </p>
                 ) : null}
               </div>
             </div>

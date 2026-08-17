@@ -115,7 +115,7 @@ export default async function BlogArticlePage({
   };
   return (
     <main className="min-h-0 px-1 pb-10 sm:px-2">
-      <article className="mx-auto w-full max-w-6xl">
+      <article className="mx-auto w-full max-w-4xl">
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
@@ -189,7 +189,7 @@ function DatabaseArticle({
   return (
     <main className="min-h-0 px-1 pb-10 sm:px-2">
       <BlogViewTracker slug={post.slug} />
-      <article className="mx-auto w-full max-w-6xl">
+      <article className="mx-auto w-full max-w-4xl">
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
@@ -242,7 +242,7 @@ function DatabaseArticle({
 
 function AuthorCard({ post }: { post: PublicBlogPost }) {
   const initials = post.authorName.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "B";
-  return <section className="mt-5 flex items-center gap-4 rounded-3xl bg-surface p-5 shadow-[var(--br-shadow)] sm:p-7"><div className="grid size-14 shrink-0 place-items-center overflow-hidden rounded-full bg-[var(--br-brand-soft)] font-black text-[var(--br-brand)]">{post.authorAvatarUrl ? <img src={post.authorAvatarUrl} alt="" className="size-full object-cover" /> : initials}</div><div className="min-w-0"><p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--br-brand)]">About the author</p><h2 className="mt-1 text-lg font-black text-ink">{post.authorName}</h2><p className="mt-1 max-w-3xl text-sm leading-6 text-[var(--br-text-muted)]">{post.authorBio || "A BrenUp contributor helping learners build confident, practical English."}</p></div></section>;
+  return <section className="mx-auto mt-5 flex w-full items-center gap-4 rounded-3xl border border-[var(--br-brand)]/15 bg-[linear-gradient(135deg,var(--br-brand-soft),var(--br-surface))] p-5 shadow-[var(--br-shadow)] sm:p-7"><div className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-full border-2 border-white bg-[var(--br-brand-soft)] font-black text-[var(--br-brand)] shadow-sm">{post.authorAvatarUrl ? <img src={post.authorAvatarUrl} alt={`${post.authorName} profile`} className="size-full object-cover" /> : initials}</div><div className="min-w-0"><p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--br-brand)]">Written by</p><h2 className="mt-1 text-xl font-black text-ink">{post.authorName}</h2><p className="mt-1 max-w-3xl text-sm leading-6 text-[var(--br-text-muted)]">{post.authorBio || "A BrenUp contributor helping learners build confident, practical English."}</p></div></section>;
 }
 
 function RelatedReading({ posts }: { posts: PublicBlogPost[] }) {
