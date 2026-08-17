@@ -10,7 +10,7 @@ Run `npm run typecheck`, `npm run lint`, and `npm run build` before accepting a 
 
 ## AI rules
 
-The existing `callGemini` path owns caching, duplicate-generation locks, credits, validation, and telemetry. Extend it rather than creating a second AI pipeline. Local Ollama is allowed only during local development when `AI_LOCAL_PROVIDER_ENABLED=true` and `AI_PROVIDER=ollama`. Production must remain Gemini-only. A local-provider failure must not silently send private content to a cloud provider.
+The existing `callGemini` path owns caching, duplicate-generation locks, credits, validation, and telemetry. Extend it rather than creating a second AI pipeline. Production AI generation uses the configured cloud providers and must preserve the existing fallback and privacy rules.
 
 Generated ESL content must be CEFR-appropriate, editable, schema-validated, and checked for answer correctness. Do not let model output alter permissions, publishing state, RLS, or unrelated records.
 

@@ -35,11 +35,6 @@ function getGeminiClient(): GoogleGenAI {
   return aiClient;
 }
 
-function parseJsonResponse(text: string) {
-  const trimmed = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
-  return JSON.parse(trimmed);
-}
-
 // 1. Default fallback prompt templates in case DB isn't seeded yet
 export const DEFAULT_PROMPTS: Record<string, { role_description: string; prompt_text: string }> = {
   creator_course_architect: {
@@ -340,14 +335,10 @@ export async function callGemini<T>({
   context?: AiCallContext;
 }): Promise<T> {
   const primaryModel = fallbackModel || process.env.GEMINI_DEFAULT_MODEL || "gemini-3.5-flash";
-  const localOllamaEnabled = process.env.NODE_ENV !== "production"
-    && process.env.AI_LOCAL_PROVIDER_ENABLED === "true"
-    && (process.env.AI_PROVIDER || "ollama").toLowerCase() === "ollama";
-  const localModel = process.env.OLLAMA_CREATOR_MODEL || "gemma3:4b";
-  const modelCandidates = (localOllamaEnabled ? [localModel] : [primaryModel, "gemini-2.5-flash"])
+  const modelCandidates = [primaryModel, "gemini-2.5-flash"]
     .filter((val, index, self) => self.indexOf(val) === index);
 
-  const ai = localOllamaEnabled ? null : getGeminiClient();
+  const ai = getGeminiClient();
   const supabase = createAdminClient();
 
   // A. Fetch template from DB, fallback to code default if not present
@@ -472,10 +463,7 @@ export async function callGemini<T>({
     }
   }
 
-  // Ollama runs on the creator's own machine and does not consume Gemini or
-  // BrenUp cloud AI allowance. Keep telemetry and caching, but do not block
-  // local drafts because the cloud quota has reached its daily limit.
-  if (context?.userId && !localOllamaEnabled) {
+  if (context?.userId) {
     const reservation = await reserveAiCredits(context.userId, context.userRole, reservedCredits);
     if (!reservation.allowed) {
       if (lockOwner) await releaseAiGeneration(cacheKey, lockOwner);
@@ -493,34 +481,7 @@ export async function callGemini<T>({
   try {
   for (const modelName of modelCandidates) {
     const generateCall = async (promptOverride?: string): Promise<{ text: string; usage: AiUsage }> => {
-      if (localOllamaEnabled) {
-        const baseUrl = (process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434").replace(/\/$/, "");
-        const response = await fetch(`${baseUrl}/api/chat`, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            model: modelName,
-            stream: false,
-            messages: [
-              { role: "system", content: roleDescription },
-              { role: "user", content: promptOverride || finalPrompt },
-            ],
-            format: responseSchema && typeof responseSchema === "object" ? responseSchema : "json",
-            // Large lesson drafts can contain many nested blocks and questions.
-            // The Ollama default output limit can truncate JSON mid-string.
-            options: { temperature: 0.35, num_predict: 12000, top_p: 0.9 },
-          }),
-          signal: AbortSignal.timeout(180_000),
-          cache: "no-store",
-        });
-        const payload = await response.json().catch(() => ({})) as { message?: { content?: string }; error?: string; prompt_eval_count?: number; eval_count?: number };
-        if (!response.ok) throw new Error(payload.error || `Ollama returned HTTP ${response.status}. Is Ollama running?`);
-        const text = payload.message?.content?.trim();
-        if (!text) throw new Error("Ollama returned an empty response.");
-        return { text, usage: { inputTokens: Number(payload.prompt_eval_count || 0), outputTokens: Number(payload.eval_count || 0), cachedTokens: 0 } };
-      }
-
-      const response = await ai!.models.generateContent({
+      const response = await ai.models.generateContent({
         model: modelName,
         contents: promptOverride || finalPrompt,
         config: {
@@ -553,11 +514,11 @@ export async function callGemini<T>({
         successfulUsage = generated.usage;
         
         // Basic JSON validation before returning
-        const parsed = parseJsonResponse(rawText);
+        const parsed = JSON.parse(rawText);
         successfulModel = modelName;
         if (cacheTtl > 0) await saveAiResponseCache({ cacheKey, featureKey, model: modelName, promptVersion, inputHash, response: parsed, ttlSeconds: cacheTtl });
         if (context?.userId && creditReserved) await settleAiCredits({ userId: context.userId, featureKey, reservedCredits, usage: successfulUsage });
-        await audit({ model: modelName, provider: localOllamaEnabled ? "ollama" : "google", status: "COMPLETED", usage: successfulUsage, responsePreview: rawText });
+        await audit({ model: modelName, provider: "google", status: "COMPLETED", usage: successfulUsage, responsePreview: rawText });
         return parsed as T;
       } catch (error: unknown) {
         lastError = error;
@@ -584,12 +545,12 @@ export async function callGemini<T>({
             const repaired = await generateCall(repairPrompt);
             rawText = repaired.text;
             successfulUsage = repaired.usage;
-            const parsed = parseJsonResponse(rawText);
+            const parsed = JSON.parse(rawText);
             successfulModel = modelName;
             retryCount += 1;
             if (cacheTtl > 0) await saveAiResponseCache({ cacheKey, featureKey, model: modelName, promptVersion, inputHash, response: parsed, ttlSeconds: cacheTtl });
             if (context?.userId && creditReserved) await settleAiCredits({ userId: context.userId, featureKey, reservedCredits, usage: successfulUsage });
-            await audit({ model: modelName, provider: localOllamaEnabled ? "ollama" : "google", status: "COMPLETED", usage: successfulUsage, responsePreview: rawText });
+            await audit({ model: modelName, provider: "google", status: "COMPLETED", usage: successfulUsage, responsePreview: rawText });
             return parsed as T;
           } catch (repairError) {
             lastError = repairError;
@@ -600,7 +561,7 @@ export async function callGemini<T>({
   }
 
   // F. Final fallback: OpenRouter (if API key is present)
-  if (!localOllamaEnabled && process.env.OPENROUTER_API_KEY && !context?.assessmentCritical) {
+  if (process.env.OPENROUTER_API_KEY && !context?.assessmentCritical) {
     try {
       console.log("Gemini models exhausted. Attempting fallback via OpenRouter...");
       const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -648,7 +609,7 @@ export async function callGemini<T>({
   }
 
   if (context?.userId && creditReserved) await releaseAiCredits(context.userId, reservedCredits);
-  await audit({ model: successfulModel || primaryModel, provider: localOllamaEnabled ? "ollama" : "google", status: "FAILED", usage: successfulUsage, responsePreview: rawText, error: lastError });
+  await audit({ model: successfulModel || primaryModel, provider: "google", status: "FAILED", usage: successfulUsage, responsePreview: rawText, error: lastError });
 
   throw new Error(
     `Failed to get a valid response from Gemini after retries. Error: ${
