@@ -457,7 +457,10 @@ export async function callGemini<T>({
     }
   }
 
-  if (context?.userId) {
+  // Ollama runs on the creator's own machine and does not consume Gemini or
+  // BrenUp cloud AI allowance. Keep telemetry and caching, but do not block
+  // local drafts because the cloud quota has reached its daily limit.
+  if (context?.userId && !localOllamaEnabled) {
     const reservation = await reserveAiCredits(context.userId, context.userRole, reservedCredits);
     if (!reservation.allowed) {
       if (lockOwner) await releaseAiGeneration(cacheKey, lockOwner);
