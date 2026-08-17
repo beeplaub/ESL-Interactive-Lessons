@@ -25,12 +25,13 @@ import {
 import { deleteMediaObject, resolveMediaUrl, uploadMediaObject } from "@/lib/storage/mediaStorage";
 
 export const runtime = "nodejs";
-export const maxDuration = 60;
+// Gemini TTS can need more time for long narration scripts. This requires a
+// Vercel plan/runtime that supports the declared duration; Kokoro remains
+// bounded separately in lib/ai/voiceover.ts.
+export const maxDuration = 300;
 
-// Keep enough time for R2 upload, database writes, and cleanup before the
-// platform's hard function limit. A controlled error is much better than a
-// FUNCTION_INVOCATION_TIMEOUT page with no useful explanation.
-const GENERATION_BUDGET_MS = 42_000;
+const GEMINI_GENERATION_BUDGET_MS = 180_000;
+const KOKORO_GENERATION_BUDGET_MS = 42_000;
 
 const requestSchema = z.object({
   title: z.string().trim().max(120).optional().default(""),
@@ -75,13 +76,13 @@ function jsonError(message: string, status: number) {
   return NextResponse.json({ error: message }, { status });
 }
 
-async function withinVoiceoverBudget<T>(work: Promise<T>) {
+async function withinVoiceoverBudget<T>(work: Promise<T>, budgetMs: number) {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     return await Promise.race([
       work,
       new Promise<T>((_, reject) => {
-        timer = setTimeout(() => reject(new Error("Voice generation took too long. Please use a shorter script or try again with Kokoro for English.")), GENERATION_BUDGET_MS);
+        timer = setTimeout(() => reject(new Error("Voice generation took longer than the server window. Try a shorter section of narration, then generate the next section separately.")), budgetMs);
       }),
     ]);
   } finally {
@@ -231,7 +232,10 @@ export async function POST(request: Request) {
 
   const generationId = crypto.randomUUID();
   try {
-    const generated = await withinVoiceoverBudget(generateVoiceoverAudio(input));
+    const generated = await withinVoiceoverBudget(
+      generateVoiceoverAudio(input),
+      preferredProvider === "kokoro" ? KOKORO_GENERATION_BUDGET_MS : GEMINI_GENERATION_BUDGET_MS,
+    );
     const completedRequestHash = voiceoverRequestHash(input, generated.provider);
     const path = `voiceovers/${access.user.id}/previews/${generationId}.${generated.extension}`;
     const stored = await uploadMediaObject({
