@@ -127,7 +127,7 @@ export default async function BlogArticlePage({
           <ArrowLeft className="size-4" /> Back to Journal
         </Link>
         <header className="mt-5 rounded-3xl bg-surface p-6 shadow-[var(--br-shadow)] sm:p-10">
-          <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-[var(--br-text-muted)]">
+          <div className="flex flex-wrap items-center justify-center gap-2 text-center text-xs font-bold text-[var(--br-text-muted)]">
             {article.tags.map((tag) => (
               <span
                 key={tag}
@@ -140,10 +140,10 @@ export default async function BlogArticlePage({
               <Clock3 className="size-3.5" /> {article.readingMinutes} min read
             </span>
           </div>
-          <h1 className="mt-5 max-w-5xl text-3xl font-black leading-tight tracking-[-0.02em] sm:text-4xl">
+          <h1 className="mx-auto mt-5 max-w-5xl text-center text-3xl font-black leading-tight tracking-[-0.02em] sm:text-4xl">
             {article.title}
           </h1>
-          <p className="mt-4 max-w-4xl text-base leading-7 text-[var(--br-text-muted)]">
+          <p className="mx-auto mt-4 max-w-4xl text-center text-base leading-7 text-[var(--br-text-muted)]">
             {article.description}
           </p>
           <p className="mt-5 text-sm font-bold text-[var(--br-text-muted)]">
@@ -202,7 +202,7 @@ function DatabaseArticle({
         </Link>
         <header className="mt-5 overflow-hidden rounded-3xl bg-surface shadow-[var(--br-shadow)]">
           <div className="mx-auto w-full max-w-[46rem] p-6 sm:p-10 sm:px-0">
-            <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-[var(--br-text-muted)]">
+            <div className="flex flex-wrap items-center justify-center gap-2 text-center text-xs font-bold text-[var(--br-text-muted)]">
               {[...post.categoryNames, ...post.tagNames].map((tag) => (
                 <span
                   key={tag}
@@ -216,11 +216,11 @@ function DatabaseArticle({
                 read
               </span>
             </div>
-            <h1 className="mt-5 max-w-4xl text-3xl font-black leading-tight tracking-[-0.02em] sm:text-4xl">
+            <h1 className="mx-auto mt-5 max-w-4xl text-center text-3xl font-black leading-tight tracking-[-0.02em] sm:text-4xl">
               {post.title}
             </h1>
             {post.excerpt ? (
-              <p className="mt-4 max-w-3xl text-base leading-7 text-[var(--br-text-muted)]">
+              <p className="mx-auto mt-4 max-w-3xl text-center text-base leading-7 text-[var(--br-text-muted)]">
                 {post.excerpt}
               </p>
             ) : null}
