@@ -80,6 +80,16 @@ Number of slides requested: {slideCount}.
 Create a sequence of slides. Each slide contains visual blocks and/or interactive activities.
 Ensure that the language is perfectly appropriate for level {level}.
 
+IMPORTANT CONTENT RULES:
+- Every slide MUST contain at least one non-empty content block in its blocks array. Never return blocks: [] or an empty content object.
+- Use the slide title as the slide header; do not repeat it as a HEADING block.
+- Use only these block_type values: TEXT, HEADING, BULLETS, QUOTE, CALLOUT, IMAGE, IMAGE_TEXT, AUDIO, VIDEO, VOCABULARY, GRAMMAR, READING, DIALOGUE, FLASHCARD, TABLE, DIVIDER.
+- TEXT content is {"body":"..."}; BULLETS is {"title":"...","items":["...","..."]}; GRAMMAR is {"title":"...","explanation":"...","examples":["..."],"notes":"..."}; READING is {"title":"...","passage":"...","questions":[]}; DIALOGUE is {"title":"...","speakers":["..."],"turns":[{"speaker":"...","line":"..."}]}.
+- For a media slide, include a non-empty TEXT instruction before the AUDIO or VIDEO block. Do not invent media URLs; use an empty media URL and explain what the creator should provide.
+- Every block must contain real learner-facing content, not placeholders such as "Text here" or "Add content".
+- Activities must use the top-level key prompt, not instruction. Include complete questions, options, and answer keys when the activity is objectively gradable.
+- Return exactly the requested number of slides, numbered sequentially from 1.
+
 Your response must follow this JSON schema exactly:
 {
   "title": "Lesson Title",

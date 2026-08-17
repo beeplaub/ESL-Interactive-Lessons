@@ -26,6 +26,7 @@ const slideBlockSchema = {
           section_label: { type: "string" },
           blocks: {
             type: "array",
+            minItems: 1,
             items: {
               type: "object",
               properties: {
@@ -53,6 +54,59 @@ const slideBlockSchema = {
   },
   required: ["title", "topic", "slides"]
 };
+
+const supportedLessonBlockTypes = new Set([
+  "TEXT", "HEADING", "BULLETS", "QUOTE", "CALLOUT", "IMAGE", "IMAGE_TEXT", "AUDIO", "VIDEO",
+  "VOCABULARY", "GRAMMAR", "READING", "DIALOGUE", "FLASHCARD", "TABLE", "DIVIDER",
+]);
+
+function nonEmptyString(value: unknown) {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : "";
+}
+
+function normalizeLessonDraft(input: any, fallback: { topic: string; level: string; slideCount: number }) {
+  const rawSlides = Array.isArray(input?.slides) ? input.slides : [];
+  const slides = rawSlides.slice(0, fallback.slideCount).map((slide: any, index: number) => {
+    const title = nonEmptyString(slide?.title) || `Slide ${index + 1}`;
+    const blocks = (Array.isArray(slide?.blocks) ? slide.blocks : [])
+      .map((block: any) => {
+        const blockType = nonEmptyString(block?.block_type).toUpperCase();
+        const content = block?.content && typeof block.content === "object" && !Array.isArray(block.content) ? block.content : {};
+        if (!supportedLessonBlockTypes.has(blockType)) return null;
+        if (blockType === "TEXT" && !nonEmptyString(content.body)) return null;
+        if (blockType === "HEADING" && !nonEmptyString(content.text)) return null;
+        return { block_type: blockType, content };
+      })
+      .filter(Boolean);
+
+    if (!blocks.length) {
+      blocks.push({
+        block_type: "TEXT",
+        content: {
+          body: nonEmptyString(slide?.framing_text) || nonEmptyString(slide?.description)
+            || `Explore ${title.toLowerCase()} through the examples and practice on this slide.`,
+        },
+      });
+    }
+
+    return {
+      slide_number: index + 1,
+      title,
+      section_label: nonEmptyString(slide?.section_label) || "Lesson",
+      blocks,
+      activities: Array.isArray(slide?.activities)
+        ? slide.activities.filter((activity: any) => nonEmptyString(activity?.activity_type) && activity?.activity_data && typeof activity.activity_data === "object")
+        : [],
+    };
+  });
+
+  return {
+    title: nonEmptyString(input?.title) || fallback.topic,
+    topic: nonEmptyString(input?.topic) || fallback.topic,
+    description: nonEmptyString(input?.description) || `A ${fallback.level} lesson about ${fallback.topic}.`,
+    slides,
+  };
+}
 
 // Schema for roleplay turn replies
 const roleplayTurnSchema = {
@@ -144,13 +198,15 @@ export async function generateLessonDraftAction(formData: FormData) {
   const slideCount = String(formData.get("slideCount") || "6");
 
   // Call Gemini
-  const draft = await callGemini<any>({
+  const generated = await callGemini<any>({
     templateKey: "creator_lesson_designer",
     variables: { topic, level, outcomes, style, slideCount },
     responseSchema: slideBlockSchema,
     context: { userId: user.id, userRole: profile.role, cefrLevel: level, cache: true }
   });
 
+  const draft = normalizeLessonDraft(generated, { topic, level, slideCount: Number(slideCount) || 6 });
+  if (!draft.slides.length) throw new Error("The lesson generator returned no usable slides. Please try again.");
   const supabase = createAdminClient();
   
   // Insert draft in intermediate drafts table
