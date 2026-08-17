@@ -173,9 +173,9 @@ async function generateKokoroVoiceover(request: VoiceoverRequest) {
   const apiKey = process.env.KOKORO_TTS_API_KEY;
   if (!baseUrl || !apiKey) throw new Error("The BrenUp Kokoro voice service is not configured.");
   const voice = VOICEOVER_VOICES.find((candidate) => candidate.name === request.voiceName)?.kokoroVoice || "af_heart";
-  // Leave room for the optional Gemini fallback and the subsequent R2 write
-  // inside Vercel's function window.
-  const timeoutMs = Math.min(14_000, Math.max(5_000, Number(process.env.KOKORO_TTS_TIMEOUT_MS || 12_000)));
+  // Leave room for the subsequent audio optimization and R2 write inside the
+  // 300-second voiceover function window, while allowing long local renders.
+  const timeoutMs = Math.min(120_000, Math.max(5_000, Number(process.env.KOKORO_TTS_TIMEOUT_MS || 90_000)));
   async function requestSpeech(responseFormat: "opus" | "wav") {
     return fetch(`${baseUrl}/v1/audio/speech`, {
       method: "POST",

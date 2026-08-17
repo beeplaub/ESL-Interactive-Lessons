@@ -31,7 +31,7 @@ export const runtime = "nodejs";
 export const maxDuration = 300;
 
 const GEMINI_GENERATION_BUDGET_MS = 180_000;
-const KOKORO_GENERATION_BUDGET_MS = 42_000;
+const KOKORO_GENERATION_BUDGET_MS = 150_000;
 
 const requestSchema = z.object({
   title: z.string().trim().max(120).optional().default(""),
