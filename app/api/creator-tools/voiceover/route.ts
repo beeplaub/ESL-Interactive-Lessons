@@ -29,6 +29,8 @@ export const maxDuration = 60;
 
 const requestSchema = z.object({
   title: z.string().trim().max(120).optional().default(""),
+  lessonId: z.string().uuid().optional(),
+  slideId: z.string().uuid().optional(),
   script: z.string().trim().min(1).max(MAX_VOICEOVER_SCRIPT_LENGTH),
   voiceName: z.enum(VOICEOVER_VOICES.map((voice) => voice.name) as [string, ...string[]]),
   languageCode: z.string().trim().regex(/^[a-z]{2,3}(?:-[A-Z]{2})?$/).default("en-US"),
@@ -36,6 +38,28 @@ const requestSchema = z.object({
   pace: z.enum(VOICEOVER_PACES as unknown as [string, ...string[]]),
   provider: z.enum(["auto", "kokoro", "google"]).default("auto"),
 });
+
+function compactCode(value: string | null | undefined, fallback: string) {
+  const clean = String(value || "").replace(/[^a-z0-9\s]/gi, " ").trim();
+  const words = clean.split(/\s+/).filter(Boolean);
+  const acronym = words.length > 1 ? words.map((word) => word[0]).join("") : clean;
+  return (acronym || fallback).replace(/[^a-z0-9]/gi, "").slice(0, 10).toUpperCase() || fallback;
+}
+
+async function automaticNarrationTitle(admin: ReturnType<typeof createAdminClient>, lessonId?: string, slideId?: string) {
+  if (!lessonId || !slideId) return "Slide narration";
+  const [{ data: lesson }, { data: slide }, { data: placement }] = await Promise.all([
+    admin.from("lessons").select("id,title").eq("id", lessonId).maybeSingle(),
+    admin.from("slides").select("id,slide_number,lesson_id").eq("id", slideId).eq("lesson_id", lessonId).maybeSingle(),
+    admin.from("course_items").select("position,courses(title)").eq("lesson_id", lessonId).order("position", { ascending: true }).limit(1).maybeSingle(),
+  ]);
+  const courseRecord = Array.isArray(placement?.courses) ? placement?.courses[0] : placement?.courses;
+  const courseTitle = courseRecord && typeof courseRecord === "object" && "title" in courseRecord ? String(courseRecord.title || "") : "";
+  const lessonNumber = Number(placement?.position || 0);
+  const slideNumber = Number(slide?.slide_number || 0);
+  const code = `S${String(slideNumber || 0).padStart(2, "0")}_L${String(lessonNumber || 0).padStart(2, "0")}_${compactCode(courseTitle, compactCode(lesson?.title, "LESSON"))}`;
+  return `${code} narration`;
+}
 
 function jsonError(message: string, status: number) {
   return NextResponse.json({ error: message }, { status });
@@ -53,9 +77,10 @@ export async function POST(request: Request) {
 
   const parsed = requestSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return jsonError(parsed.error.issues[0]?.message || "Check the voiceover settings.", 400);
-  const input = parsed.data;
-  const preferredProvider = voiceoverProviderForRequest(input);
   const admin = createAdminClient();
+  const input = parsed.data;
+  const title = input.title || await automaticNarrationTitle(admin, input.lessonId, input.slideId);
+  const preferredProvider = voiceoverProviderForRequest(input);
   const requestHash = voiceoverRequestHash(input);
 
   const { data: reusable } = await admin
@@ -95,6 +120,7 @@ export async function POST(request: Request) {
       ]);
       return NextResponse.json({
         generationId: reusable.id,
+        title: reusable.title || title,
         url,
         saved: reusable.status === "SAVED",
         mediaAssetId: reusable.media_asset_id,
@@ -110,7 +136,7 @@ export async function POST(request: Request) {
       await new Promise((resolve) => setTimeout(resolve, 500));
       const { data: shared } = await admin
         .from("ai_voiceover_generations")
-        .select("id,status,storage_provider,storage_bucket,storage_path,public_url,media_asset_id,duration_seconds,expires_at")
+        .select("id,status,title,storage_provider,storage_bucket,storage_path,public_url,media_asset_id,duration_seconds,expires_at")
         .eq("creator_id", access.user.id)
         .eq("request_hash", requestHash)
         .in("status", ["SAVED", "PREVIEW"])
@@ -144,6 +170,7 @@ export async function POST(request: Request) {
         ]);
         return NextResponse.json({
           generationId: shared.id,
+          title: shared.title || title,
           url,
           saved: shared.status === "SAVED",
           mediaAssetId: shared.media_asset_id,
@@ -193,7 +220,7 @@ export async function POST(request: Request) {
       id: generationId,
       creator_id: access.user.id,
       status: "PREVIEW",
-      title: input.title || null,
+      title,
       script: input.script,
       request_hash: completedRequestHash,
       language_code: input.languageCode,
@@ -249,6 +276,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       generationId,
+      title,
       url: stored.url,
       saved: false,
       durationSeconds: generated.durationSeconds,

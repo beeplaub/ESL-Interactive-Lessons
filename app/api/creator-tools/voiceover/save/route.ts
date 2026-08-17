@@ -8,7 +8,7 @@ import { audioExtension, audioMimeType } from "@/lib/media/audioStorage";
 
 export const runtime = "nodejs";
 
-const schema = z.object({ generationId: z.string().uuid(), title: z.string().trim().min(1).max(120) });
+const schema = z.object({ generationId: z.string().uuid(), title: z.string().trim().min(1).max(120).optional() });
 
 export async function POST(request: Request) {
   let access;
@@ -19,14 +19,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: known?.message ?? "Could not verify Creator Tools access." }, { status: known?.status ?? 500 });
   }
   const parsed = schema.safeParse(await request.json().catch(() => null));
-  if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message || "A title is required." }, { status: 400 });
+  if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message || "The voiceover could not be saved." }, { status: 400 });
   const admin = createAdminClient();
   const { data: row, error } = await admin.from("ai_voiceover_generations").select("*").eq("id", parsed.data.generationId).eq("creator_id", access.user.id).maybeSingle();
   if (error || !row) return NextResponse.json({ error: "Voiceover preview was not found." }, { status: 404 });
   if (row.status === "SAVED") return NextResponse.json({ url: row.public_url, mediaAssetId: row.media_asset_id, saved: true });
   if (row.status !== "PREVIEW") return NextResponse.json({ error: "This preview has expired. Generate it again." }, { status: 410 });
 
-  const safeTitle = parsed.data.title.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase() || "voiceover";
+  const finalTitle = parsed.data.title || row.title || "AI voiceover";
+  const safeTitle = finalTitle.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase() || "voiceover";
   const mimeType = audioMimeType(row.mime_type);
   const extension = audioExtension(mimeType);
   let stored;
@@ -44,7 +45,7 @@ export async function POST(request: Request) {
       type: "AUDIO",
       source: "UPLOAD",
       url: stored.url,
-      title: parsed.data.title,
+      title: finalTitle,
       caption: `${row.voice_name} · ${row.style} · AI voiceover`,
       fileName: `${safeTitle}.${extension}`,
       mimeType,
@@ -53,7 +54,7 @@ export async function POST(request: Request) {
     });
     const { error: updateError } = await admin.from("ai_voiceover_generations").update({
       status: "SAVED",
-      title: parsed.data.title,
+      title: finalTitle,
       storage_provider: stored.provider,
       storage_bucket: stored.bucket,
       storage_path: stored.path,
