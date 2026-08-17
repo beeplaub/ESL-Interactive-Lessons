@@ -106,6 +106,7 @@ export async function POST(request: Request) {
   const input = parsed.data;
   const title = input.title || await automaticNarrationTitle(admin, input.lessonId, input.slideId);
   const preferredProvider = voiceoverProviderForRequest(input);
+  const usesCloudCredits = preferredProvider !== "kokoro";
   const requestHash = voiceoverRequestHash(input);
 
   const { data: reusable } = await admin
@@ -212,7 +213,12 @@ export async function POST(request: Request) {
 
   const estimatedSeconds = Math.max(1, input.script.trim().split(/\s+/).length / 2.4);
   const reservedCredits = Math.max(1, Math.ceil(estimatedSeconds / 30));
-  const creditReservation = await reserveAiCredits(access.user.id, access.profile.role, reservedCredits);
+  // Kokoro runs through BrenUp's local/self-hosted voice service. It does not
+  // consume Gemini/BrenUp cloud AI credits, so only cloud voice generation
+  // participates in the daily credit allowance.
+  const creditReservation = usesCloudCredits
+    ? await reserveAiCredits(access.user.id, access.profile.role, reservedCredits)
+    : { supported: false, allowed: true, remaining: 0 };
   let quota: { allowed: boolean; remaining: number; message?: string } = {
     allowed: true,
     remaining: creditReservation.remaining,
@@ -222,7 +228,7 @@ export async function POST(request: Request) {
       await releaseAiGeneration(`voiceover:${access.user.id}:${requestHash}`, generationLock.ownerToken);
       return jsonError("Your daily AI credit allowance has been reached. Saved voiceovers remain available.", 429);
     }
-  } else {
+  } else if (usesCloudCredits) {
     quota = await checkUsageQuota(access.user.id, access.profile.role);
     if (!quota.allowed) {
       await releaseAiGeneration(`voiceover:${access.user.id}:${requestHash}`, generationLock.ownerToken);
@@ -284,7 +290,9 @@ export async function POST(request: Request) {
             audioSeconds: generated.durationSeconds,
             usage: { inputTokens: generated.inputTokens, outputTokens: generated.outputTokens, cachedTokens: 0 },
           })
-        : recordUsageEvent(access.user.id, "creator_voiceover", generated.tokenEstimate),
+        : usesCloudCredits
+          ? recordUsageEvent(access.user.id, "creator_voiceover", generated.tokenEstimate)
+          : Promise.resolve(),
       admin.from("ai_generations").insert({
         user_id: access.user.id,
         user_role: access.profile.role,
