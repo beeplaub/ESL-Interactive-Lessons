@@ -35,6 +35,11 @@ function getGeminiClient(): GoogleGenAI {
   return aiClient;
 }
 
+function parseJsonResponse(text: string) {
+  const trimmed = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
+  return JSON.parse(trimmed);
+}
+
 // 1. Default fallback prompt templates in case DB isn't seeded yet
 export const DEFAULT_PROMPTS: Record<string, { role_description: string; prompt_text: string }> = {
   creator_course_architect: {
@@ -501,7 +506,9 @@ export async function callGemini<T>({
               { role: "user", content: promptOverride || finalPrompt },
             ],
             format: responseSchema && typeof responseSchema === "object" ? responseSchema : "json",
-            options: { temperature: 0.35 },
+            // Large lesson drafts can contain many nested blocks and questions.
+            // The Ollama default output limit can truncate JSON mid-string.
+            options: { temperature: 0.35, num_predict: 12000, top_p: 0.9 },
           }),
           signal: AbortSignal.timeout(180_000),
           cache: "no-store",
@@ -546,7 +553,7 @@ export async function callGemini<T>({
         successfulUsage = generated.usage;
         
         // Basic JSON validation before returning
-        const parsed = JSON.parse(rawText);
+        const parsed = parseJsonResponse(rawText);
         successfulModel = modelName;
         if (cacheTtl > 0) await saveAiResponseCache({ cacheKey, featureKey, model: modelName, promptVersion, inputHash, response: parsed, ttlSeconds: cacheTtl });
         if (context?.userId && creditReserved) await settleAiCredits({ userId: context.userId, featureKey, reservedCredits, usage: successfulUsage });
@@ -577,7 +584,7 @@ export async function callGemini<T>({
             const repaired = await generateCall(repairPrompt);
             rawText = repaired.text;
             successfulUsage = repaired.usage;
-            const parsed = JSON.parse(rawText);
+            const parsed = parseJsonResponse(rawText);
             successfulModel = modelName;
             retryCount += 1;
             if (cacheTtl > 0) await saveAiResponseCache({ cacheKey, featureKey, model: modelName, promptVersion, inputHash, response: parsed, ttlSeconds: cacheTtl });
