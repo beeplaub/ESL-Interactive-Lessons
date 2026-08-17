@@ -48,17 +48,22 @@ function compactCode(value: string | null | undefined, fallback: string) {
 
 async function automaticNarrationTitle(admin: ReturnType<typeof createAdminClient>, lessonId?: string, slideId?: string) {
   if (!lessonId || !slideId) return "Slide narration";
-  const [{ data: lesson }, { data: slide }, { data: placement }] = await Promise.all([
-    admin.from("lessons").select("id,title").eq("id", lessonId).maybeSingle(),
-    admin.from("slides").select("id,slide_number,lesson_id").eq("id", slideId).eq("lesson_id", lessonId).maybeSingle(),
-    admin.from("course_items").select("position,courses(title)").eq("lesson_id", lessonId).order("position", { ascending: true }).limit(1).maybeSingle(),
-  ]);
-  const courseRecord = Array.isArray(placement?.courses) ? placement?.courses[0] : placement?.courses;
-  const courseTitle = courseRecord && typeof courseRecord === "object" && "title" in courseRecord ? String(courseRecord.title || "") : "";
-  const lessonNumber = Number(placement?.position || 0);
-  const slideNumber = Number(slide?.slide_number || 0);
-  const code = `S${String(slideNumber || 0).padStart(2, "0")}_L${String(lessonNumber || 0).padStart(2, "0")}_${compactCode(courseTitle, compactCode(lesson?.title, "LESSON"))}`;
-  return `${code} narration`;
+  try {
+    const [{ data: lesson }, { data: slide }, { data: placement }] = await Promise.all([
+      admin.from("lessons").select("id,title").eq("id", lessonId).maybeSingle(),
+      admin.from("slides").select("id,slide_number,lesson_id").eq("id", slideId).eq("lesson_id", lessonId).maybeSingle(),
+      admin.from("course_items").select("position,courses(title)").eq("lesson_id", lessonId).order("position", { ascending: true }).limit(1).maybeSingle(),
+    ]);
+    const courseRecord = Array.isArray(placement?.courses) ? placement?.courses[0] : placement?.courses;
+    const courseTitle = courseRecord && typeof courseRecord === "object" && "title" in courseRecord ? String(courseRecord.title || "") : "";
+    const lessonNumber = Number(placement?.position || 0);
+    const slideNumber = Number(slide?.slide_number || 0);
+    const code = `S${String(slideNumber || 0).padStart(2, "0")}_L${String(lessonNumber || 0).padStart(2, "0")}_${compactCode(courseTitle, compactCode(lesson?.title, "LESSON"))}`;
+    return `${code} narration`;
+  } catch (error) {
+    console.error("Automatic narration title lookup failed", error);
+    return `slide-${slideId.slice(0, 8)} narration`;
+  }
 }
 
 function jsonError(message: string, status: number) {

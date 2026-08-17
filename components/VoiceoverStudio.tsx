@@ -86,8 +86,10 @@ export function VoiceoverStudio({ canUse, accessMessage, voices, styles, paces, 
   }, [voiceName]);
 
   async function readJson(response: Response) {
-    const data = await response.json().catch(() => ({})) as Record<string, unknown>;
-    if (!response.ok) throw new Error(typeof data.error === "string" ? data.error : "The request could not be completed.");
+    const raw = await response.text();
+    let data: Record<string, unknown> = {};
+    try { data = raw ? JSON.parse(raw) as Record<string, unknown> : {}; } catch { /* Vercel may return a plain gateway error. */ }
+    if (!response.ok) throw new Error(typeof data.error === "string" ? data.error : raw.slice(0, 240) || `Voiceover request failed (${response.status}).`);
     return data;
   }
 
