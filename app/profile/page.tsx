@@ -1,5 +1,15 @@
 import Link from "next/link";
-import { BadgeCheck, ChevronRight, KeyRound, Mail, ShieldCheck, Sparkles, Trophy, UserRound, LogOut } from "lucide-react";
+import {
+  BadgeCheck,
+  ChevronRight,
+  KeyRound,
+  Mail,
+  ShieldCheck,
+  Sparkles,
+  Trophy,
+  UserRound,
+  LogOut,
+} from "lucide-react";
 import { LearnerAppShell } from "@/components/LearnerAppShell";
 import { LearnerPageHero } from "@/components/LearnerPageHero";
 import { requireUser } from "@/lib/auth";
@@ -17,11 +27,22 @@ export default async function ProfilePage() {
   const provider = authUser?.user?.app_metadata?.provider ?? "email";
   const isEmailUser = provider === "email";
 
-  const displayName = [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") || profile?.full_name || "BrenUp learner";
-  const initials = displayName.split(/\s+/).slice(0, 2).map((part: string) => part[0]?.toUpperCase()).join("") || user.email?.[0]?.toUpperCase() || "U";
+  const displayName =
+    [profile?.first_name, profile?.last_name].filter(Boolean).join(" ") ||
+    profile?.full_name ||
+    "BrenUp learner";
+  const initials =
+    displayName
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((part: string) => part[0]?.toUpperCase())
+      .join("") ||
+    user.email?.[0]?.toUpperCase() ||
+    "U";
   const level = profile?.cefr_level as CefrLevel | null;
   const missingName = !profile?.first_name?.trim();
-  const providerLabel = provider === "google" ? "Google account" : "Email account";
+  const providerLabel =
+    provider === "google" ? "Google account" : "Email account";
 
   return (
     <LearnerAppShell active="profile" showRightSidebar>
@@ -31,19 +52,38 @@ export default async function ProfilePage() {
           eyebrowIcon={Sparkles}
           title={displayName}
           description="Keep your learning identity, CEFR level, avatar, and account security tidy in one place."
-          aside={<div className="grid gap-2 sm:grid-cols-3 lg:min-w-[420px]">
-              <ProfileMetric icon={BadgeCheck} value={level ?? "--"} label={level ? levelGuidance[level].name : "Level pending"} />
-              <ProfileMetric icon={ShieldCheck} value={providerLabel} label="Sign-in method" />
-              <ProfileMetric icon={Trophy} value="Active" label="Learning status" />
-          </div>}
+          aside={
+            <div className="grid gap-2 sm:grid-cols-3 lg:min-w-[420px]">
+              <ProfileMetric
+                icon={BadgeCheck}
+                value={level ?? "--"}
+                label={level ? levelGuidance[level].name : "Level pending"}
+              />
+              <ProfileMetric
+                icon={ShieldCheck}
+                value={providerLabel}
+                label="Sign-in method"
+              />
+              <ProfileMetric
+                icon={Trophy}
+                value="Active"
+                label="Learning status"
+              />
+            </div>
+          }
         />
 
         {missingName ? (
           <div className="flex items-start gap-3 rounded-[20px] border border-[var(--br-success-soft)] bg-[var(--br-success-soft)] p-4 shadow-[var(--br-shadow)]">
             <UserRound className="mt-0.5 size-5 shrink-0 text-[var(--br-chart-secondary)]" />
             <div>
-              <p className="text-sm font-extrabold text-[var(--br-success)]">Add your name</p>
-              <p className="mt-0.5 text-sm leading-6 text-[var(--br-text-muted)]">This helps BrenUp greet you properly across your dashboard, courses, and quiz results.</p>
+              <p className="text-sm font-extrabold text-[var(--br-success)]">
+                Add your name
+              </p>
+              <p className="mt-0.5 text-sm leading-6 text-[var(--br-text-muted)]">
+                This helps BrenUp greet you properly across your dashboard,
+                courses, and quiz results.
+              </p>
             </div>
           </div>
         ) : null}
@@ -51,11 +91,22 @@ export default async function ProfilePage() {
         <section className="grid gap-5 xl:grid-cols-[360px_minmax(0,1fr)]">
           <aside className="grid content-start gap-5">
             <div className="br-learner-card p-6 text-center">
-              <AvatarUploader initialUrl={profile?.avatar_url ?? null} initials={initials} />
+              <AvatarUploader
+                initialUrl={profile?.avatar_url ?? null}
+                initials={initials}
+              />
               <h2 className="mt-5 text-xl font-extrabold">{displayName}</h2>
-              <p className="mt-1 break-words text-sm font-semibold text-[var(--br-text-muted)]">{user.email}</p>
-              <form action={signOut} className="mt-5 border-t border-[var(--br-surface-strong)] pt-4">
-                <button type="submit" className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-bold text-red-600 hover:bg-red-100/70 transition">
+              <p className="mt-1 break-words text-sm font-semibold text-[var(--br-text-muted)]">
+                {user.email}
+              </p>
+              <form
+                action={signOut}
+                className="mt-5 border-t border-[var(--br-surface-strong)] pt-4"
+              >
+                <button
+                  type="submit"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-bold text-red-600 hover:bg-red-100/70 transition"
+                >
                   <LogOut size={16} /> Sign out
                 </button>
               </form>
@@ -63,23 +114,39 @@ export default async function ProfilePage() {
 
             <div className="br-learner-card p-5">
               <div className="flex items-center gap-3">
-                <span className="grid size-11 place-items-center rounded-[14px] bg-[var(--br-surface-muted)] text-[var(--br-chart-primary)]"><BadgeCheck className="size-5" /></span>
+                <span className="grid size-11 place-items-center rounded-[14px] bg-[var(--br-surface-muted)] text-[var(--br-chart-primary)]">
+                  <BadgeCheck className="size-5" />
+                </span>
                 <div>
                   <h2 className="text-lg font-extrabold">Level test result</h2>
-                  <p className="text-xs font-semibold text-[var(--br-text-muted)]">Your current CEFR reference</p>
+                  <p className="text-xs font-semibold text-[var(--br-text-muted)]">
+                    Your current CEFR reference
+                  </p>
                 </div>
               </div>
               {level ? (
                 <div className="mt-5 rounded-[18px] bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-chart-primary)] p-5 text-on-dark">
-                  <div className="text-[46px] font-black leading-none">{level}</div>
-                  <p className="mt-1 text-sm font-bold text-white/80">{levelGuidance[level].name}</p>
-                  <p className="mt-3 text-xs leading-5 text-white/65">{levelGuidance[level].summary}</p>
+                  <div className="text-[46px] font-black leading-none">
+                    {level}
+                  </div>
+                  <p className="mt-1 text-sm font-bold text-white/80">
+                    {levelGuidance[level].name}
+                  </p>
+                  <p className="mt-3 text-xs leading-5 text-white/65">
+                    {levelGuidance[level].summary}
+                  </p>
                 </div>
               ) : (
-                <p className="mt-4 rounded-[16px] bg-[var(--br-canvas-elevated)] p-4 text-sm font-semibold leading-6 text-[var(--br-text-muted)]">You have not taken the level test yet.</p>
+                <p className="mt-4 rounded-[16px] bg-[var(--br-canvas-elevated)] p-4 text-sm font-semibold leading-6 text-[var(--br-text-muted)]">
+                  You have not taken the level test yet.
+                </p>
               )}
-              <Link href="/level-test" className="mt-4 flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] px-4 py-3 text-xs font-bold text-on-dark">
-                {level ? "Retake level test" : "Take level test"} <ChevronRight className="size-4" />
+              <Link
+                href="/level-test"
+                className="mt-4 flex items-center justify-center gap-1.5 rounded-xl bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] px-4 py-3 text-xs font-bold text-on-dark"
+              >
+                {level ? "Retake level test" : "Take level test"}{" "}
+                <ChevronRight className="size-4" />
               </Link>
             </div>
           </aside>
@@ -87,21 +154,38 @@ export default async function ProfilePage() {
           <div className="grid gap-5">
             <section className="br-learner-card p-5 sm:p-6">
               <div className="mb-5 flex items-center gap-3">
-                <span className="grid size-11 place-items-center rounded-[14px] bg-[color-mix(in_srgb,var(--br-success)_12%,var(--br-surface))] text-[var(--br-chart-secondary)]"><UserRound className="size-5" /></span>
+                <span className="grid size-11 place-items-center rounded-[14px] bg-[color-mix(in_srgb,var(--br-success)_12%,var(--br-surface))] text-[var(--br-chart-secondary)]">
+                  <UserRound className="size-5" />
+                </span>
                 <div>
                   <h2 className="text-xl font-extrabold">Personal details</h2>
-                  <p className="text-xs font-semibold text-[var(--br-text-muted)]">Update the name shown on your learning profile.</p>
+                  <p className="text-xs font-semibold text-[var(--br-text-muted)]">
+                    Update the name shown on your learning profile.
+                  </p>
                 </div>
               </div>
-              <ProfileForm email={user.email ?? ""} firstName={profile?.first_name ?? ""} lastName={profile?.last_name ?? ""} />
+              <ProfileForm
+                email={user.email ?? ""}
+                firstName={profile?.first_name ?? ""}
+                lastName={profile?.last_name ?? ""}
+                bio={profile?.bio ?? ""}
+              />
             </section>
 
             <section className="br-learner-card p-5 sm:p-6">
               <div className="mb-4 flex items-center gap-3">
-                <span className={`grid size-11 place-items-center rounded-[14px] ${isEmailUser ? "bg-[var(--br-warning-soft)] text-[var(--br-warning)]" : "bg-[var(--br-canvas-elevated)] text-[var(--br-text-muted)]"}`}><KeyRound className="size-5" /></span>
+                <span
+                  className={`grid size-11 place-items-center rounded-[14px] ${isEmailUser ? "bg-[var(--br-warning-soft)] text-[var(--br-warning)]" : "bg-[var(--br-canvas-elevated)] text-[var(--br-text-muted)]"}`}
+                >
+                  <KeyRound className="size-5" />
+                </span>
                 <div>
                   <h2 className="text-xl font-extrabold">Password</h2>
-                  <p className="text-xs font-semibold text-[var(--br-text-muted)]">{isEmailUser ? "Change your BrenUp password." : "Managed by your sign-in provider."}</p>
+                  <p className="text-xs font-semibold text-[var(--br-text-muted)]">
+                    {isEmailUser
+                      ? "Change your BrenUp password."
+                      : "Managed by your sign-in provider."}
+                  </p>
                 </div>
               </div>
               {isEmailUser ? (
@@ -109,7 +193,10 @@ export default async function ProfilePage() {
               ) : (
                 <div className="flex items-start gap-3 rounded-[18px] bg-[var(--br-canvas-elevated)] p-4">
                   <Mail className="mt-0.5 size-5 shrink-0 text-[var(--br-chart-primary)]" />
-                  <p className="text-sm font-semibold leading-6 text-[var(--br-text-muted)]">You signed in with Google. Password management is handled by your Google account.</p>
+                  <p className="text-sm font-semibold leading-6 text-[var(--br-text-muted)]">
+                    You signed in with Google. Password management is handled by
+                    your Google account.
+                  </p>
                 </div>
               )}
             </section>
@@ -120,7 +207,15 @@ export default async function ProfilePage() {
   );
 }
 
-function ProfileMetric({ icon: Icon, value, label }: { icon: React.ElementType; value: string; label: string }) {
+function ProfileMetric({
+  icon: Icon,
+  value,
+  label,
+}: {
+  icon: React.ElementType;
+  value: string;
+  label: string;
+}) {
   return (
     <div className="rounded-[18px] border border-white/10 bg-white/10 p-4 backdrop-blur">
       <Icon className="size-5 text-[var(--br-info)]" />

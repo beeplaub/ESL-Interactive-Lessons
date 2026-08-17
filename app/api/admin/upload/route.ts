@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireStaff } from "@/lib/auth";
-import { deleteMediaObject, uploadMediaObject } from "@/lib/storage/mediaStorage";
+import {
+  deleteMediaObject,
+  uploadMediaObject,
+} from "@/lib/storage/mediaStorage";
 import { registerMediaAsset } from "@/lib/storage/mediaLibrary";
 import { optimizeAudioForStorage } from "@/lib/media/audioStorage";
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function POST(req: Request) {
   const { user } = await requireStaff();
@@ -21,21 +25,36 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "No file provided" }, { status: 400 });
   }
 
-  const mediaType = type === "audio" ? "AUDIO" : type === "video" ? "VIDEO" : "IMAGE";
+  const mediaType =
+    type === "audio" ? "AUDIO" : type === "video" ? "VIDEO" : "IMAGE";
   const originalBytes = new Uint8Array(await file.arrayBuffer());
-  const audio = mediaType === "AUDIO"
-    ? await optimizeAudioForStorage({ bytes: originalBytes, mimeType: file.type, fileName: file.name })
-    : null;
-  const ext = audio?.extension ?? file.name.split(".").pop()?.toLowerCase() ?? (mediaType === "AUDIO" ? "mp3" : mediaType === "VIDEO" ? "mp4" : "jpg");
+  const audio =
+    mediaType === "AUDIO"
+      ? await optimizeAudioForStorage({
+          bytes: originalBytes,
+          mimeType: file.type,
+          fileName: file.name,
+        })
+      : null;
+  const ext =
+    audio?.extension ??
+    file.name.split(".").pop()?.toLowerCase() ??
+    (mediaType === "AUDIO" ? "mp3" : mediaType === "VIDEO" ? "mp4" : "jpg");
   const timestamp = Date.now();
   const bucket = mediaType === "AUDIO" ? "lesson-audio" : "lessons";
   // Uploads made from the standalone Media Library (no lesson yet) land in a
   // shared "library" folder instead of a lesson id folder.
   const folderScope = lessonId ?? "library";
-  const folder = mediaType === "AUDIO" ? `${folderScope}/audio` : mediaType === "VIDEO" ? `${folderScope}/video` : `${folderScope}/images`;
+  const folder =
+    mediaType === "AUDIO"
+      ? `${folderScope}/audio`
+      : mediaType === "VIDEO"
+        ? `${folderScope}/video`
+        : `${folderScope}/images`;
   const path = `${folder}/${timestamp}-${crypto.randomUUID()}.${ext}`;
   const buffer = audio?.bytes ?? originalBytes;
-  const contentType = audio?.mimeType || file.type || "application/octet-stream";
+  const contentType =
+    audio?.mimeType || file.type || "application/octet-stream";
 
   let stored;
   try {
@@ -49,7 +68,10 @@ export async function POST(req: Request) {
     });
   } catch (error) {
     console.error("Media upload failed", error);
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Upload failed." }, { status: 500 });
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Upload failed." },
+      { status: 500 },
+    );
   }
 
   // Mirror this upload into the creator's Media Library. Attribute it to the
@@ -59,18 +81,25 @@ export async function POST(req: Request) {
   // else in this app.
   let ownerId = user.id;
   if (lessonId) {
-    const { data: lesson } = await admin.from("lessons").select("created_by").eq("id", lessonId).maybeSingle();
+    const { data: lesson } = await admin
+      .from("lessons")
+      .select("created_by")
+      .eq("id", lessonId)
+      .maybeSingle();
     if (lesson?.created_by) ownerId = lesson.created_by;
   }
 
+  let assetId: string;
   try {
-    await registerMediaAsset(admin, {
+    assetId = await registerMediaAsset(admin, {
       ownerId,
       type: mediaType,
       source: "UPLOAD",
       url: stored.url,
       lessonId,
-      fileName: audio ? file.name.replace(/\.[^.]+$/, `.${audio.extension}`) : file.name,
+      fileName: audio
+        ? file.name.replace(/\.[^.]+$/, `.${audio.extension}`)
+        : file.name,
       mimeType: contentType,
       fileSize: buffer.byteLength,
     });
@@ -83,8 +112,19 @@ export async function POST(req: Request) {
     } catch (cleanupError) {
       console.error("Media upload cleanup failed", cleanupError);
     }
-    return NextResponse.json({ error: "The file uploaded, but BrenUp could not save it to your Media Library. Please try again." }, { status: 500 });
+    return NextResponse.json(
+      {
+        error:
+          "The file uploaded, but BrenUp could not save it to your Media Library. Please try again.",
+      },
+      { status: 500 },
+    );
   }
 
-  return NextResponse.json({ url: stored.url });
+  return NextResponse.json({
+    id: assetId,
+    url: stored.url,
+    type: mediaType,
+    title: file.name,
+  });
 }

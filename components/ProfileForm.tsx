@@ -19,10 +19,12 @@ export function ProfileForm({
   email,
   firstName,
   lastName,
+  bio = "",
 }: {
   email: string;
   firstName: string;
   lastName: string;
+  bio?: string;
 }) {
   const [state, formAction, isPending] = useActionState(action, null);
 
@@ -47,9 +49,28 @@ export function ProfileForm({
         </label>
       </div>
 
+      <label className="text-sm font-extrabold text-[var(--br-text)]">
+        Short bio{" "}
+        <span className="font-semibold text-[var(--br-text-muted)]">
+          (optional)
+        </span>
+        <textarea
+          name="bio"
+          defaultValue={bio}
+          rows={3}
+          maxLength={360}
+          placeholder="A little about you, your English-learning interests, or your teaching focus."
+          className="mt-2 w-full resize-y rounded-[14px] border border-[var(--br-surface-strong)] bg-[var(--br-surface)] px-4 py-3 font-semibold leading-6 text-[var(--br-dark-card)] outline-none transition focus:border-[var(--br-chart-primary)] focus:bg-surface"
+        />
+      </label>
+
       <div className="rounded-[16px] border border-[var(--br-surface-strong)] bg-[var(--br-surface)] p-4">
-        <p className="break-words text-sm font-extrabold text-[var(--br-dark-card)]">{email}</p>
-        <p className="mt-1 text-xs font-semibold text-[var(--br-text-muted)]">Email cannot be changed</p>
+        <p className="break-words text-sm font-extrabold text-[var(--br-dark-card)]">
+          {email}
+        </p>
+        <p className="mt-1 text-xs font-semibold text-[var(--br-text-muted)]">
+          Email cannot be changed
+        </p>
       </div>
 
       {state?.success && (
