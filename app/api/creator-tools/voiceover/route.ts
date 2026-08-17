@@ -27,6 +27,11 @@ import { deleteMediaObject, resolveMediaUrl, uploadMediaObject } from "@/lib/sto
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
+// Keep enough time for R2 upload, database writes, and cleanup before the
+// platform's hard function limit. A controlled error is much better than a
+// FUNCTION_INVOCATION_TIMEOUT page with no useful explanation.
+const GENERATION_BUDGET_MS = 42_000;
+
 const requestSchema = z.object({
   title: z.string().trim().max(120).optional().default(""),
   lessonId: z.string().uuid().optional(),
@@ -68,6 +73,20 @@ async function automaticNarrationTitle(admin: ReturnType<typeof createAdminClien
 
 function jsonError(message: string, status: number) {
   return NextResponse.json({ error: message }, { status });
+}
+
+async function withinVoiceoverBudget<T>(work: Promise<T>) {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      work,
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(() => reject(new Error("Voice generation took too long. Please use a shorter script or try again with Kokoro for English.")), GENERATION_BUDGET_MS);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 export async function POST(request: Request) {
@@ -137,7 +156,10 @@ export async function POST(request: Request) {
 
   const generationLock = await claimAiGeneration(`voiceover:${access.user.id}:${requestHash}`, 120);
   if (!generationLock.claimed) {
-    for (let attempt = 0; attempt < 40; attempt += 1) {
+    // Another identical request is already doing the work. Poll briefly,
+    // then let the caller retry instead of spending most of the invocation
+    // waiting while the original request may still need upload time.
+    for (let attempt = 0; attempt < 16; attempt += 1) {
       await new Promise((resolve) => setTimeout(resolve, 500));
       const { data: shared } = await admin
         .from("ai_voiceover_generations")
@@ -209,7 +231,7 @@ export async function POST(request: Request) {
 
   const generationId = crypto.randomUUID();
   try {
-    const generated = await generateVoiceoverAudio(input);
+    const generated = await withinVoiceoverBudget(generateVoiceoverAudio(input));
     const completedRequestHash = voiceoverRequestHash(input, generated.provider);
     const path = `voiceovers/${access.user.id}/previews/${generationId}.${generated.extension}`;
     const stored = await uploadMediaObject({
