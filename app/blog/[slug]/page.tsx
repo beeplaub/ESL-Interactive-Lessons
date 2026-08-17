@@ -241,10 +241,18 @@ function DatabaseArticle({
           </div>
         </header>
         <div className="knowledge-prose mt-5 max-w-none rounded-3xl bg-surface p-6 shadow-[var(--br-shadow)] sm:p-10">
-          {navigation.items.length ? (
-            <TableOfContents title={post.tocTitle} items={navigation.items} />
-          ) : null}
-          <DatabaseBlocks blocks={blocks} anchors={navigation.anchors} />
+          {(() => {
+            const firstTocBlockIndex = blocks.findIndex((block, index) => {
+              const key = String(block.id || index);
+              return block.type === "heading" && navigation.anchors.has(key) && navigation.items.some((item) => item.id === navigation.anchors.get(key));
+            });
+            if (!navigation.items.length || firstTocBlockIndex < 0) return <DatabaseBlocks blocks={blocks} anchors={navigation.anchors} />;
+            return <>
+              <DatabaseBlocks blocks={blocks.slice(0, firstTocBlockIndex)} anchors={navigation.anchors} startIndex={0} />
+              <TableOfContents title={post.tocTitle} items={navigation.items} />
+              <DatabaseBlocks blocks={blocks.slice(firstTocBlockIndex)} anchors={navigation.anchors} startIndex={firstTocBlockIndex} />
+            </>;
+          })()}
         </div>
         <AuthorCard post={post} />
         <RelatedReading posts={related} />
@@ -306,22 +314,14 @@ function TableOfContents({
       aria-label={title}
       className="mx-auto mb-8 max-w-[46rem] rounded-2xl border border-[var(--br-border)] bg-white p-5 shadow-sm sm:p-6"
     >
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-lg font-black text-ink">{title}</h2>
-        <span className="rounded-full bg-[var(--br-brand-soft)] px-2.5 py-1 text-xs font-bold text-[var(--br-brand)]">
-          {items.length} sections
-        </span>
-      </div>
+      <h2 className="text-[1.7rem] font-black leading-tight tracking-[-0.01em] text-ink">{title}</h2>
       <ol className="mt-4 space-y-1.5">
-        {items.map((item, index) => (
+        {items.map((item) => (
           <li key={item.id} className={item.level > 2 ? "pl-4" : ""}>
             <a
               href={`#${item.id}`}
               className="group flex items-start gap-3 rounded-xl px-3 py-2 text-sm font-semibold text-[var(--br-text-muted)] no-underline transition hover:bg-[var(--br-brand-soft)] hover:text-[var(--br-brand)]"
             >
-              <span className="grid size-5 shrink-0 place-items-center rounded-full bg-[var(--br-surface-muted)] text-[11px] font-bold text-[var(--br-brand)] group-hover:bg-white">
-                {index + 1}
-              </span>
               <span>{item.label}</span>
             </a>
           </li>
@@ -422,15 +422,17 @@ function RelatedReading({ posts }: { posts: PublicBlogPost[] }) {
 function DatabaseBlocks({
   blocks,
   anchors,
+  startIndex = 0,
 }: {
   blocks: Array<Record<string, unknown>>;
   anchors: Map<string, string>;
+  startIndex?: number;
 }) {
   return (
     <>
       {blocks.map((block, index) => {
         const type = block.type;
-        const key = String(block.id || index);
+        const key = String(block.id || startIndex + index);
         const text = typeof block.text === "string" ? block.text : "";
         if (type === "heading") {
           const Tag = (
