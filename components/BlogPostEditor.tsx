@@ -111,6 +111,12 @@ export type EditableBlogPost = {
   primaryKeyword: string | null;
   allowIndex: boolean;
   isFeatured: boolean;
+  tocEnabled: boolean;
+  tocTitle: string;
+  tocIncludeH3: boolean;
+  tocIncludeH4: boolean;
+  tocIncludeH5: boolean;
+  tocIncludeH6: boolean;
   updatedAt: string;
   scheduledAt: string | null;
 };
@@ -233,10 +239,16 @@ export function BlogPostEditor({
   );
   const [allowIndex, setAllowIndex] = useState(post.allowIndex);
   const [isFeatured, setIsFeatured] = useState(post.isFeatured);
+  const [tocEnabled, setTocEnabled] = useState(post.tocEnabled);
+  const [tocTitle, setTocTitle] = useState(post.tocTitle);
+  const [tocIncludeH3, setTocIncludeH3] = useState(post.tocIncludeH3);
+  const [tocIncludeH4, setTocIncludeH4] = useState(post.tocIncludeH4);
+  const [tocIncludeH5, setTocIncludeH5] = useState(post.tocIncludeH5);
+  const [tocIncludeH6, setTocIncludeH6] = useState(post.tocIncludeH6);
   const [scheduledAt, setScheduledAt] = useState(
     post.scheduledAt ? post.scheduledAt.slice(0, 16) : "",
   );
-  const [panel, setPanel] = useState<"SEO" | "TAXONOMY">("TAXONOMY");
+  const [panel, setPanel] = useState<"SEO" | "TAXONOMY" | "TOC">("TAXONOMY");
   const [workspace, setWorkspace] = useState<
     "REVIEW" | "REVISION" | "PREVIEW" | null
   >(null);
@@ -268,6 +280,12 @@ export function BlogPostEditor({
       primaryKeyword,
       allowIndex,
       isFeatured,
+      tocEnabled,
+      tocTitle,
+      tocIncludeH3,
+      tocIncludeH4,
+      tocIncludeH5,
+      tocIncludeH6,
     }),
     [
       title,
@@ -287,6 +305,12 @@ export function BlogPostEditor({
       primaryKeyword,
       allowIndex,
       isFeatured,
+      tocEnabled,
+      tocTitle,
+      tocIncludeH3,
+      tocIncludeH4,
+      tocIncludeH5,
+      tocIncludeH6,
     ],
   );
 
@@ -540,15 +564,19 @@ export function BlogPostEditor({
         </section>
         <aside className="min-w-0 space-y-3 xl:sticky xl:top-[76px] xl:self-start">
           <section className="rounded-2xl border border-[var(--br-border)] bg-surface p-3 shadow-sm">
-            <div className="grid grid-cols-2 gap-1 rounded-xl bg-[var(--br-surface-muted)] p-1">
-              {(["TAXONOMY", "SEO"] as const).map((item) => (
+            <div className="grid grid-cols-3 gap-1 rounded-xl bg-[var(--br-surface-muted)] p-1">
+              {(["TAXONOMY", "TOC", "SEO"] as const).map((item) => (
                 <button
                   key={item}
                   type="button"
                   onClick={() => setPanel(item)}
                   className={`rounded-lg px-2 py-2 text-[11px] font-bold ${panel === item ? "bg-surface text-[var(--br-brand)] shadow-sm" : "text-[var(--br-text-muted)]"}`}
                 >
-                  {item === "TAXONOMY" ? "Topics" : "SEO"}
+                  {item === "TAXONOMY"
+                    ? "Topics"
+                    : item === "TOC"
+                      ? "TOC"
+                      : "SEO"}
                 </button>
               ))}
             </div>
@@ -710,6 +738,65 @@ export function BlogPostEditor({
                 </label>
               </div>
             ) : null}
+            {panel === "TOC" ? (
+              <div className="space-y-4 p-2 pt-4">
+                <div>
+                  <p className="text-sm font-bold text-ink">
+                    Table of contents
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-[var(--br-text-muted)]">
+                    BrenUp builds this automatically from your article headings.
+                  </p>
+                </div>
+                <label className="flex items-center justify-between gap-3 rounded-xl bg-[var(--br-surface-muted)] px-3 py-3 text-sm font-bold text-ink">
+                  <span>Show on article</span>
+                  <input
+                    type="checkbox"
+                    checked={tocEnabled}
+                    disabled={!canEdit}
+                    onChange={(event) => setTocEnabled(event.target.checked)}
+                  />
+                </label>
+                <Field
+                  label="TOC title"
+                  value={tocTitle}
+                  onChange={setTocTitle}
+                  disabled={!canEdit}
+                />
+                <div className="space-y-2">
+                  <p className="text-xs font-bold text-[var(--br-text-muted)]">
+                    Include heading levels
+                  </p>
+                  {[
+                    ["H3", tocIncludeH3, setTocIncludeH3],
+                    ["H4", tocIncludeH4, setTocIncludeH4],
+                    ["H5", tocIncludeH5, setTocIncludeH5],
+                    ["H6", tocIncludeH6, setTocIncludeH6],
+                  ].map(([label, checked, setChecked]) => (
+                    <label
+                      key={label as string}
+                      className="flex items-center justify-between rounded-xl border border-[var(--br-border)] px-3 py-2 text-sm font-semibold text-ink"
+                    >
+                      <span>{label as string}</span>
+                      <input
+                        type="checkbox"
+                        checked={checked as boolean}
+                        disabled={!canEdit}
+                        onChange={(event) =>
+                          (setChecked as (value: boolean) => void)(
+                            event.target.checked,
+                          )
+                        }
+                      />
+                    </label>
+                  ))}
+                </div>
+                <p className="text-[11px] leading-5 text-[var(--br-text-muted)]">
+                  H2 headings are always included. The TOC stays hidden when the
+                  article has no eligible headings.
+                </p>
+              </div>
+            ) : null}
           </section>
           {canPublish ? (
             <section className="rounded-2xl border border-[var(--br-border)] bg-surface p-4 shadow-sm">
@@ -848,7 +935,9 @@ function FeatureImageField({
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement | null>(null);
   const images = media.filter((item) => item.type === "IMAGE");
-  const visibleImages = images.filter((item) => (item.title || "").toLowerCase().includes(query.trim().toLowerCase()));
+  const visibleImages = images.filter((item) =>
+    (item.title || "").toLowerCase().includes(query.trim().toLowerCase()),
+  );
   const selected = images.find((item) => item.id === value);
   async function upload(file: File) {
     setUploading(true);
@@ -973,7 +1062,12 @@ function FeatureImageField({
                   No feature image
                 </button>
               </div>
-              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search your image library" className="mb-4 w-full rounded-xl border border-[var(--br-border)] bg-[var(--br-surface-muted)] px-3 py-2.5 text-sm text-ink outline-none focus:border-[var(--br-brand)]" />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search your image library"
+                className="mb-4 w-full rounded-xl border border-[var(--br-border)] bg-[var(--br-surface-muted)] px-3 py-2.5 text-sm text-ink outline-none focus:border-[var(--br-brand)]"
+              />
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
                 {visibleImages.map((image) => (
                   <button
@@ -995,10 +1089,12 @@ function FeatureImageField({
                     </span>
                   </button>
                 ))}
-              {!visibleImages.length ? (
-                <p className="col-span-full rounded-xl border border-dashed border-[var(--br-border)] p-8 text-center text-sm text-[var(--br-text-muted)]">
-                  {images.length ? "No images match that search." : "Your image library is empty. Upload an image to use it here."}
-                </p>
+                {!visibleImages.length ? (
+                  <p className="col-span-full rounded-xl border border-dashed border-[var(--br-border)] p-8 text-center text-sm text-[var(--br-text-muted)]">
+                    {images.length
+                      ? "No images match that search."
+                      : "Your image library is empty. Upload an image to use it here."}
+                  </p>
                 ) : null}
               </div>
             </div>

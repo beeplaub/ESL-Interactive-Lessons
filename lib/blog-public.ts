@@ -22,6 +22,12 @@ export type PublicBlogPost = {
   authorName: string;
   authorBio: string | null;
   authorAvatarUrl: string | null;
+  tocEnabled: boolean;
+  tocTitle: string;
+  tocIncludeH3: boolean;
+  tocIncludeH4: boolean;
+  tocIncludeH5: boolean;
+  tocIncludeH6: boolean;
   categoryNames: string[];
   tagNames: string[];
   visibility: "PUBLIC" | "UNLISTED";
@@ -177,6 +183,15 @@ async function hydrate(
         : null,
     categoryNames: (categoriesByPost.get(String(row.id)) ?? []).filter(Boolean),
     tagNames: (tagsByPost.get(String(row.id)) ?? []).filter(Boolean),
+    tocEnabled: row.toc_enabled !== false,
+    tocTitle:
+      typeof row.toc_title === "string" && row.toc_title.trim()
+        ? row.toc_title
+        : "On this page",
+    tocIncludeH3: row.toc_include_h3 !== false,
+    tocIncludeH4: row.toc_include_h4 !== false,
+    tocIncludeH5: row.toc_include_h5 === true,
+    tocIncludeH6: row.toc_include_h6 === true,
     visibility: row.visibility === "UNLISTED" ? "UNLISTED" : "PUBLIC",
   }));
 }
@@ -187,7 +202,7 @@ export async function getPublishedBlogPosts() {
     const { data, error } = await admin
       .from("blog_posts")
       .select(
-        "id,title,slug,excerpt,content,content_text,published_at,updated_at,seo_title,seo_description,social_title,social_description,canonical_url,allow_index,primary_keyword,cover_asset_id,author_id,primary_category_id,visibility",
+        "id,title,slug,excerpt,content,content_text,published_at,updated_at,seo_title,seo_description,social_title,social_description,canonical_url,allow_index,primary_keyword,cover_asset_id,author_id,primary_category_id,toc_enabled,toc_title,toc_include_h3,toc_include_h4,toc_include_h5,toc_include_h6,visibility",
       )
       .eq("status", "PUBLISHED")
       .eq("visibility", "PUBLIC")
@@ -206,7 +221,7 @@ export async function getPublishedBlogPost(slug: string) {
     const { data, error } = await admin
       .from("blog_posts")
       .select(
-        "id,title,slug,excerpt,content,content_text,published_at,updated_at,seo_title,seo_description,social_title,social_description,canonical_url,allow_index,primary_keyword,cover_asset_id,author_id,primary_category_id,visibility",
+        "id,title,slug,excerpt,content,content_text,published_at,updated_at,seo_title,seo_description,social_title,social_description,canonical_url,allow_index,primary_keyword,cover_asset_id,author_id,primary_category_id,toc_enabled,toc_title,toc_include_h3,toc_include_h4,toc_include_h5,toc_include_h6,visibility",
       )
       .eq("slug", slug)
       .eq("status", "PUBLISHED")

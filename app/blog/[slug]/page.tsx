@@ -186,6 +186,7 @@ function DatabaseArticle({
   const blocks = Array.isArray(post.content?.content)
     ? post.content.content
     : [];
+  const navigation = buildArticleNavigation(blocks, post);
   return (
     <main className="min-h-0 px-1 pb-10 sm:px-2">
       <BlogViewTracker slug={post.slug} />
@@ -240,12 +241,93 @@ function DatabaseArticle({
           </div>
         </header>
         <div className="knowledge-prose mt-5 max-w-none rounded-3xl bg-surface p-6 shadow-[var(--br-shadow)] sm:p-10">
-          <DatabaseBlocks blocks={blocks} />
+          {navigation.items.length ? (
+            <TableOfContents title={post.tocTitle} items={navigation.items} />
+          ) : null}
+          <DatabaseBlocks blocks={blocks} anchors={navigation.anchors} />
         </div>
         <AuthorCard post={post} />
         <RelatedReading posts={related} />
       </article>
     </main>
+  );
+}
+
+type TocItem = { id: string; label: string; level: number };
+
+function slugForHeading(value: string) {
+  return (
+    value
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 72) || "section"
+  );
+}
+
+function buildArticleNavigation(
+  blocks: Array<Record<string, unknown>>,
+  post: PublicBlogPost,
+) {
+  const items: TocItem[] = [];
+  const anchors = new Map<string, string>();
+  blocks.forEach((block, index) => {
+    if (
+      block.type !== "heading" ||
+      typeof block.text !== "string" ||
+      !block.text.trim()
+    )
+      return;
+    const level = Number(block.level) || 2;
+    const id = `section-${slugForHeading(block.text)}-${index + 1}`;
+    anchors.set(String(block.id || index), id);
+    const included =
+      level === 2 ||
+      (level === 3 && post.tocIncludeH3) ||
+      (level === 4 && post.tocIncludeH4) ||
+      (level === 5 && post.tocIncludeH5) ||
+      (level === 6 && post.tocIncludeH6);
+    if (post.tocEnabled && included)
+      items.push({ id, label: block.text, level });
+  });
+  return { items, anchors };
+}
+
+function TableOfContents({
+  title,
+  items,
+}: {
+  title: string;
+  items: TocItem[];
+}) {
+  return (
+    <nav
+      aria-label={title}
+      className="mx-auto mb-8 max-w-[46rem] rounded-2xl border border-[var(--br-border)] bg-white p-5 shadow-sm sm:p-6"
+    >
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-lg font-black text-ink">{title}</h2>
+        <span className="rounded-full bg-[var(--br-brand-soft)] px-2.5 py-1 text-xs font-bold text-[var(--br-brand)]">
+          {items.length} sections
+        </span>
+      </div>
+      <ol className="mt-4 space-y-1.5">
+        {items.map((item, index) => (
+          <li key={item.id} className={item.level > 2 ? "pl-4" : ""}>
+            <a
+              href={`#${item.id}`}
+              className="group flex items-start gap-3 rounded-xl px-3 py-2 text-sm font-semibold text-[var(--br-text-muted)] no-underline transition hover:bg-[var(--br-brand-soft)] hover:text-[var(--br-brand)]"
+            >
+              <span className="grid size-5 shrink-0 place-items-center rounded-full bg-[var(--br-surface-muted)] text-[11px] font-bold text-[var(--br-brand)] group-hover:bg-white">
+                {index + 1}
+              </span>
+              <span>{item.label}</span>
+            </a>
+          </li>
+        ))}
+      </ol>
+    </nav>
   );
 }
 
@@ -339,8 +421,10 @@ function RelatedReading({ posts }: { posts: PublicBlogPost[] }) {
 
 function DatabaseBlocks({
   blocks,
+  anchors,
 }: {
   blocks: Array<Record<string, unknown>>;
+  anchors: Map<string, string>;
 }) {
   return (
     <>
@@ -354,9 +438,17 @@ function DatabaseBlocks({
               ? "h2"
               : Number(block.level) === 3
                 ? "h3"
-                : "h4"
-          ) as "h2" | "h3" | "h4";
-          return <Tag key={key}>{text}</Tag>;
+                : Number(block.level) === 4
+                  ? "h4"
+                  : Number(block.level) === 5
+                    ? "h5"
+                    : "h6"
+          ) as "h2" | "h3" | "h4" | "h5" | "h6";
+          return (
+            <Tag key={key} id={anchors.get(key)}>
+              {text}
+            </Tag>
+          );
         }
         if (type === "quote")
           return (
