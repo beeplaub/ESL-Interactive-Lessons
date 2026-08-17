@@ -201,7 +201,7 @@ function DatabaseArticle({
           <ArrowLeft className="size-4" /> Back to Journal
         </Link>
         <header className="mt-5 overflow-hidden rounded-3xl bg-surface shadow-[var(--br-shadow)]">
-          <div className="mx-auto w-full max-w-[46rem] p-6 sm:p-10 sm:px-0">
+          <div className="w-full p-6 sm:p-10">
             <div className="flex flex-wrap items-center justify-center gap-2 text-center text-xs font-bold text-[var(--br-text-muted)]">
               {[...post.categoryNames, ...post.tagNames].map((tag) => (
                 <span
@@ -229,10 +229,10 @@ function DatabaseArticle({
             <img
               src={post.coverUrl}
               alt=""
-              className="aspect-[16/7] w-full object-cover"
+              className="aspect-[16/7] w-full rounded-2xl object-cover"
             />
           ) : null}
-          <div className="mx-auto w-full max-w-[46rem] border-t border-[var(--br-border)] px-6 py-4 text-sm font-bold text-[var(--br-text-muted)] sm:px-0">
+          <div className="w-full border-t border-[var(--br-border)] px-6 py-4 text-sm font-bold text-[var(--br-text-muted)] sm:px-10">
             {post.authorName}
             {post.publishedAt
               ? ` · ${new Intl.DateTimeFormat("en", { month: "long", day: "numeric", year: "numeric" }).format(new Date(post.publishedAt))}`
