@@ -186,6 +186,8 @@ select {
 .knowledge-prose h2,
 .knowledge-prose h3,
 .knowledge-prose h4 {
+  max-width: 46rem;
+  margin-inline: auto;
   color: var(--br-text);
   font-weight: 800;
   line-height: 1.25;

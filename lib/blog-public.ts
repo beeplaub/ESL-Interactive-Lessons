@@ -56,6 +56,7 @@ async function hydrate(
   );
   const [
     authorsResult,
+    profilesResult,
     categoriesResult,
     mappingsResult,
     tagMappingsResult,
@@ -67,6 +68,12 @@ async function hydrate(
           .from("blog_authors")
           .select("user_id,display_name,bio,avatar_url")
           .in("user_id", authorIds)
+      : { data: [] },
+    authorIds.length
+      ? admin
+          .from("profiles")
+          .select("id,full_name,first_name,last_name,bio,avatar_url")
+          .in("id", authorIds)
       : { data: [] },
     admin.from("blog_categories").select("id,name").eq("is_active", true),
     admin
@@ -82,15 +89,27 @@ async function hydrate(
       ? admin.from("media_assets").select("id,url").in("id", coverAssetIds)
       : { data: [] },
   ]);
+  const profileById = new Map(
+    (profilesResult.data ?? []).map((profile) => [profile.id, profile]),
+  );
   const authors = new Map(
-    (authorsResult.data ?? []).map((author) => [
-      author.user_id,
-      {
-        name: author.display_name || "BrenUp author",
-        bio: author.bio || null,
-        avatarUrl: author.avatar_url || null,
-      },
-    ]),
+    authorIds.map((authorId) => {
+      const author = (authorsResult.data ?? []).find(
+        (item) => item.user_id === authorId,
+      );
+      const profile = profileById.get(authorId);
+      const profileName =
+        profile?.full_name ||
+        [profile?.first_name, profile?.last_name].filter(Boolean).join(" ");
+      return [
+        authorId,
+        {
+          name: author?.display_name || profileName || "BrenUp author",
+          bio: author?.bio || profile?.bio || null,
+          avatarUrl: author?.avatar_url || profile?.avatar_url || null,
+        },
+      ];
+    }),
   );
   const categoryNames = new Map(
     (categoriesResult.data ?? []).map((category) => [

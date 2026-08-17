@@ -201,7 +201,7 @@ function DatabaseArticle({
           <ArrowLeft className="size-4" /> Back to Journal
         </Link>
         <header className="mt-5 overflow-hidden rounded-3xl bg-surface shadow-[var(--br-shadow)]">
-          <div className="p-6 sm:p-10">
+          <div className="mx-auto w-full max-w-[46rem] p-6 sm:p-10 sm:px-0">
             <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-[var(--br-text-muted)]">
               {[...post.categoryNames, ...post.tagNames].map((tag) => (
                 <span
@@ -225,9 +225,18 @@ function DatabaseArticle({
               </p>
             ) : null}
           </div>
-          {post.coverUrl ? <img src={post.coverUrl} alt="" className="aspect-[16/7] w-full object-cover" /> : null}
-          <div className="border-t border-[var(--br-border)] px-6 py-4 text-sm font-bold text-[var(--br-text-muted)] sm:px-10">
-            {post.authorName}{post.publishedAt ? ` · ${new Intl.DateTimeFormat("en", { month: "long", day: "numeric", year: "numeric" }).format(new Date(post.publishedAt))}` : ""}
+          {post.coverUrl ? (
+            <img
+              src={post.coverUrl}
+              alt=""
+              className="aspect-[16/7] w-full object-cover"
+            />
+          ) : null}
+          <div className="mx-auto w-full max-w-[46rem] border-t border-[var(--br-border)] px-6 py-4 text-sm font-bold text-[var(--br-text-muted)] sm:px-0">
+            {post.authorName}
+            {post.publishedAt
+              ? ` · ${new Intl.DateTimeFormat("en", { month: "long", day: "numeric", year: "numeric" }).format(new Date(post.publishedAt))}`
+              : ""}
           </div>
         </header>
         <div className="knowledge-prose mt-5 max-w-none rounded-3xl bg-surface p-6 shadow-[var(--br-shadow)] sm:p-10">
@@ -241,8 +250,39 @@ function DatabaseArticle({
 }
 
 function AuthorCard({ post }: { post: PublicBlogPost }) {
-  const initials = post.authorName.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "B";
-  return <section className="mx-auto mt-5 flex w-full items-center gap-4 rounded-3xl border border-[var(--br-brand)]/15 bg-[linear-gradient(135deg,var(--br-brand-soft),var(--br-surface))] p-5 shadow-[var(--br-shadow)] sm:p-7"><div className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-full border-2 border-white bg-[var(--br-brand-soft)] font-black text-[var(--br-brand)] shadow-sm">{post.authorAvatarUrl ? <img src={post.authorAvatarUrl} alt={`${post.authorName} profile`} className="size-full object-cover" /> : initials}</div><div className="min-w-0"><p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--br-brand)]">Written by</p><h2 className="mt-1 text-xl font-black text-ink">{post.authorName}</h2><p className="mt-1 max-w-3xl text-sm leading-6 text-[var(--br-text-muted)]">{post.authorBio || "A BrenUp contributor helping learners build confident, practical English."}</p></div></section>;
+  const initials =
+    post.authorName
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0])
+      .join("")
+      .toUpperCase() || "B";
+  return (
+    <section className="mx-auto mt-5 flex w-full max-w-[46rem] items-center gap-5 rounded-2xl border border-[var(--br-border)] bg-white p-5 shadow-sm sm:p-6">
+      <div className="grid size-20 shrink-0 place-items-center overflow-hidden rounded-xl border border-[var(--br-brand)] bg-[var(--br-brand-soft)] font-black text-[var(--br-brand)] sm:size-24">
+        {post.authorAvatarUrl ? (
+          <img
+            src={post.authorAvatarUrl}
+            alt={`${post.authorName} profile`}
+            className="size-full object-cover"
+          />
+        ) : (
+          initials
+        )}
+      </div>
+      <div className="min-w-0">
+        <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--br-brand)]">
+          Written by
+        </p>
+        <h2 className="mt-1 text-xl font-black text-ink">{post.authorName}</h2>
+        <p className="mt-1 text-sm leading-6 text-[var(--br-text-muted)]">
+          {post.authorBio ||
+            "A BrenUp contributor helping learners build confident, practical English."}
+        </p>
+      </div>
+    </section>
+  );
 }
 
 function RelatedReading({ posts }: { posts: PublicBlogPost[] }) {
