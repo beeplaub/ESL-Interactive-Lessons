@@ -75,6 +75,9 @@ export function CreateItemModal({ action, sectionId, defaultTopic, defaultLevel 
               <input type="hidden" name="itemType" value={itemType} />
               <input type="hidden" name="topic" value={defaultTopic} />
               <input type="hidden" name="level" value={defaultLevel} />
+              <input type="hidden" name="assessmentType" value="FORMATIVE" />
+              <input type="hidden" name="itemAssessmentWeight" value="1" />
+              <input type="hidden" name="normalizationTarget" value="100" />
 
               <div className="grid grid-cols-2 gap-2">
                 <button

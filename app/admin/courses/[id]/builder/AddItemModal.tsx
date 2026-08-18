@@ -228,6 +228,12 @@ export function AddItemModal({ action, sectionId, lessons, quizzes }: Props) {
                 <label className="inline-flex items-center gap-2 text-xs text-[var(--br-text-muted)]"><input type="checkbox" name="isFreePreview" /> Free preview</label>
               </div>
 
+              {(itemType === "LESSON" || itemType === "QUIZ") ? <div className="grid gap-3 rounded-lg border border-[var(--br-border)] bg-surface-muted p-3 sm:grid-cols-3">
+                <label className="text-sm font-medium">Assessment<select name="assessmentType" defaultValue="FORMATIVE" className="mt-1 w-full rounded-md border border-[var(--br-border)] bg-surface px-3 py-2 font-normal"><option value="FORMATIVE">Formative</option><option value="SUMMATIVE">Summative</option></select></label>
+                <label className="text-sm font-medium">Weight in category<input name="itemAssessmentWeight" type="number" min="0.01" step="0.01" defaultValue="1" className="mt-1 w-full rounded-md border border-[var(--br-border)] bg-surface px-3 py-2 font-normal" /></label>
+                <label className="text-sm font-medium">Normalize to<input name="normalizationTarget" type="number" min="0.01" step="0.01" defaultValue="100" className="mt-1 w-full rounded-md border border-[var(--br-border)] bg-surface px-3 py-2 font-normal" /></label>
+              </div> : null}
+
               {error ? <p className="rounded-md bg-coral/10 px-3 py-2 text-sm text-coral">{error}</p> : null}
 
               <div className="flex items-center justify-end gap-2 border-t border-[var(--br-border)] pt-4">
