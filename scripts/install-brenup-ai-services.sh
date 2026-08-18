@@ -6,22 +6,27 @@ USER_ID="$(id -u)"
 CLOUDFLARED_BIN="$(command -v cloudflared)"
 LAUNCH_AGENTS="$HOME/Library/LaunchAgents"
 LOG_DIR="$HOME/Library/Logs/BrenUp"
-mkdir -p "$LAUNCH_AGENTS" "$LOG_DIR"
+SERVICE_DIR="$HOME/.brenup"
+mkdir -p "$LAUNCH_AGENTS" "$LOG_DIR" "$SERVICE_DIR"
 
 read -r -s "SECRET?Paste the BrenUp gateway secret: "
 printf '\n'
 if [[ -z "$SECRET" ]]; then echo "A secret is required." >&2; exit 1; fi
-security add-generic-password -a "$USER" -s brenup-ai-gateway-secret -w "$SECRET" -U >/dev/null
+security add-generic-password -a "$(id -un)" -s brenup-ai-gateway-secret -w "$SECRET" -U >/dev/null
 unset SECRET
 
 chmod 700 "$ROOT/scripts/run-brenup-ai-gateway.sh" "$ROOT/scripts/install-brenup-ai-services.sh"
+chmod 755 "$ROOT/scripts/brenup-ai-launcher.mjs"
+rm -f "$SERVICE_DIR/run-brenup-ai-gateway.sh"
+cp "$ROOT/scripts/brenup-ai-launcher.mjs" "$SERVICE_DIR/brenup-ai-launcher.mjs"
+chmod 755 "$SERVICE_DIR/brenup-ai-launcher.mjs"
 
 cat > "$LAUNCH_AGENTS/com.brenup.ai-gateway.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
   <key>Label</key><string>com.brenup.ai-gateway</string>
-  <key>ProgramArguments</key><array><string>$ROOT/scripts/run-brenup-ai-gateway.sh</string></array>
+  <key>ProgramArguments</key><array><string>$(command -v node)</string><string>$SERVICE_DIR/brenup-ai-launcher.mjs</string></array>
   <key>WorkingDirectory</key><string>$ROOT</string>
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><true/>
