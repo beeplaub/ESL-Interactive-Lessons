@@ -123,6 +123,9 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
   });
   const staffCandidates = Array.from(staffProfileMap.values());
   const canManageTeam = courseAccess.kind !== "COURSE_STAFF" || Boolean(courseAccess.staff?.manage_course_staff);
+  const canEditDetails = courseAccess.kind !== "COURSE_STAFF" || Boolean(courseAccess.staff?.edit_course_details);
+  const canManageCurriculum = courseAccess.kind !== "COURSE_STAFF" || Boolean(courseAccess.staff?.manage_curriculum);
+  const canPublish = courseAccess.kind !== "COURSE_STAFF" || Boolean(courseAccess.staff?.publish_content);
 
   const courseItems = (items ?? []) as CourseItem[];
   const quizItemRows = courseItems.filter((item) => item.item_type === "QUIZ" && item.quiz_id);
@@ -226,18 +229,18 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
             <p className="text-xs text-[var(--br-text-muted)]">{sectionItems.length} {sectionItems.length === 1 ? "item" : "items"} in learning order</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <CreateItemModal
+            {canManageCurriculum ? <CreateItemModal
               action={createAndAddCourseItem.bind(null, course.id)}
               sectionId={section.id}
               defaultTopic={course.topic ?? ""}
               defaultLevel={course.level}
-            />
-            <AddItemModal
+            /> : null}
+            {canManageCurriculum ? <AddItemModal
               action={addCourseItem.bind(null, course.id)}
               sectionId={section.id}
               lessons={lessonOptions}
               quizzes={quizOptions}
-            />
+            /> : null}
           </div>
         </div>
 
@@ -251,6 +254,7 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
           sectionOptions={sectionOptions}
           updateItemAction={updateCourseItem.bind(null, course.id)}
           deleteItemAction={deleteCourseItem.bind(null, course.id)}
+          readOnly={!canManageCurriculum}
         />
       </div>
     );
@@ -279,15 +283,15 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
             <Link href={`/admin/courses/${course.id}/outcomes`} className="inline-flex items-center gap-2 rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm font-semibold">
               <BarChart3 size={15} /> Outcomes
             </Link>
-            {course.status === "PUBLISHED" ? (
+            {canPublish && course.status === "PUBLISHED" ? (
               <form action={setCourseStatus.bind(null, course.id, "DRAFT")}>
                 <button className="rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm font-semibold">Unpublish</button>
               </form>
-            ) : (
+            ) : canPublish ? (
               <form action={setCourseStatus.bind(null, course.id, "PUBLISHED")}>
                 <button className="rounded-lg bg-moss px-3 py-2 text-sm font-semibold text-on-dark">Publish</button>
               </form>
-            )}
+            ) : null}
             <Link
               href={`/courses/${course.id}`}
               target="_blank"

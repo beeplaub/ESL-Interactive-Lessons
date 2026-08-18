@@ -37,6 +37,7 @@ interface CourseItemsListProps {
   sectionOptions: { id: string; title: string }[];
   updateItemAction: any;
   deleteItemAction: any;
+  readOnly?: boolean;
 }
 
 export function CourseItemsList({
@@ -49,6 +50,7 @@ export function CourseItemsList({
   sectionOptions,
   updateItemAction,
   deleteItemAction,
+  readOnly = false,
 }: CourseItemsListProps) {
   const [items, setItems] = useState<CourseItem[]>(initialItems);
   const [isPending, startTransition] = useTransition();
@@ -83,6 +85,7 @@ export function CourseItemsList({
     newItems.splice(index, 0, draggedItem);
 
     // Optimistically update the UI
+    if (readOnly) return;
     setItems(newItems);
     setDraggedIndex(null);
     setDragOverIndex(null);
@@ -110,6 +113,7 @@ export function CourseItemsList({
     newItems[swapIndex] = current;
 
     // Optimistic UI update
+    if (readOnly) return;
     setItems(newItems);
 
     startTransition(async () => {
@@ -147,11 +151,11 @@ export function CourseItemsList({
         return (
           <div
             key={item.id}
-            draggable
-            onDragStart={() => handleDragStart(itemIndex)}
+            draggable={!readOnly}
+            onDragStart={() => { if (!readOnly) handleDragStart(itemIndex); }}
             onDragOver={(e) => handleDragOver(e, itemIndex)}
             onDragEnd={handleDragEnd}
-            onDrop={() => handleDrop(itemIndex)}
+            onDrop={() => { if (!readOnly) handleDrop(itemIndex); }}
             className={`flex min-w-0 items-start gap-2 rounded-xl border transition-all duration-150 ${
               isDragged ? "opacity-40 border-dashed border-violet-400 bg-violet-50/20" : "border-transparent"
             } ${
@@ -161,13 +165,18 @@ export function CourseItemsList({
             {/* Drag Handle */}
             <div
               className="grid size-8 shrink-0 cursor-grab active:cursor-grabbing place-items-center rounded-lg border border-[var(--br-border)] bg-surface text-[var(--br-text-muted)] hover:bg-surface-muted hover:text-[var(--br-text-muted)] transition"
-              title="Drag to reorder"
+              title={readOnly ? "Course item" : "Drag to reorder"}
             >
               <GripVertical size={14} />
             </div>
 
             <div className="min-w-0 flex-1">
-              <EditItemModal
+              {readOnly ? (
+                <div className="rounded-xl border border-[var(--br-border)] bg-surface px-3 py-3">
+                  <p className="break-words font-semibold text-ink">{label}</p>
+                  <p className="mt-1 text-xs text-[var(--br-text-muted)]">{item.item_type.replaceAll("_", " ")}{status ? ` · ${status}` : ""}{count !== null ? ` · ${count} ${item.item_type === "LESSON" ? "slides" : "questions"}` : ""}</p>
+                </div>
+              ) : <EditItemModal
                 action={updateItemAction.bind(null, item.id)}
                 deleteAction={deleteItemAction.bind(null, item.id)}
                 item={item}
@@ -177,11 +186,11 @@ export function CourseItemsList({
                 sections={sectionOptions}
                 lessons={lessonOptions}
                 quizzes={quizOptions}
-              />
+              />}
             </div>
 
             {/* Manual controls (accessible fallback) */}
-            <div className="flex shrink-0 flex-col gap-1">
+            {!readOnly ? <div className="flex shrink-0 flex-col gap-1">
               <button
                 type="button"
                 onClick={() => handleManualMove(item.id, "up", itemIndex)}
@@ -200,7 +209,7 @@ export function CourseItemsList({
               >
                 <ArrowDown size={13} />
               </button>
-            </div>
+            </div> : null}
           </div>
         );
       })}
