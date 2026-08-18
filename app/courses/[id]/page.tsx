@@ -38,6 +38,7 @@ type CourseItemView = {
   lessons?: { title?: string | null; level?: string | null; status?: string | null; deleted_at?: string | null } | null;
   quizzes?: { title?: string | null; level?: string | null; status?: string | null; deleted_at?: string | null } | null;
   bypass_sequential_unlock?: boolean | null;
+  assessment_type?: "FORMATIVE" | "SUMMATIVE" | null;
 };
 
 const demoImage = "https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=1200&q=80";
@@ -136,6 +137,16 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
   const { data: assessmentOutcomes } = assessmentResult?.id
     ? await admin.from("course_outcome_assessment_results").select("course_outcome_id,attainment_percent,coverage_percent,attained").eq("course_assessment_result_id", assessmentResult.id).order("attainment_percent", { ascending: false })
     : { data: [] };
+  const { data: assessmentItemResults } = assessmentResult?.id
+    ? await admin.from("course_item_assessment_results").select("course_item_id,score_percent,completed").eq("course_assessment_result_id", assessmentResult.id)
+    : { data: [] };
+  const assessmentCategoryScores = (["FORMATIVE", "SUMMATIVE"] as const).map((category) => {
+    const rows = (assessmentItemResults ?? []).filter((row) => {
+      const item = courseItems.find((candidate) => candidate.id === row.course_item_id);
+      return (item?.assessment_type ?? "FORMATIVE") === category && row.completed;
+    });
+    return { category, score: rows.length ? Math.round(rows.reduce((sum, row) => sum + Number(row.score_percent ?? 0), 0) / rows.length) : null };
+  });
 
   const headerCard = (
     <div className="br-learner-card p-4 md:p-5">
@@ -345,6 +356,12 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
           <div className="grid gap-2 text-sm">
             <AssessmentMetric label="Completion" value={Number(assessmentResult.completion_percent ?? 0)} />
             <AssessmentMetric label="Evidence coverage" value={Number(assessmentResult.coverage_percent ?? 0)} />
+          </div>
+          <div className="grid gap-3 border-t border-[var(--br-border)] pt-3">
+            {assessmentCategoryScores.map((category) => {
+              const weight = Number(category.category === "FORMATIVE" ? course.formative_weight ?? 40 : course.summative_weight ?? 60);
+              return <div key={category.category}><div className="flex items-center justify-between gap-3 text-xs font-semibold"><span>{category.category === "FORMATIVE" ? "Formative practice" : "Summative milestones"}</span><span className="text-[var(--br-text-muted)]">{category.score == null ? "Not attempted" : `${category.score}%`} · {weight}%</span></div><div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-[var(--br-border)]"><div className="h-full rounded-full bg-[var(--br-chart-primary)]" style={{ width: `${category.score ?? 0}%` }} /></div></div>;
+            })}
           </div>
           {assessmentOutcomes?.length ? (
             <div className="border-t border-[var(--br-border)] pt-3">
