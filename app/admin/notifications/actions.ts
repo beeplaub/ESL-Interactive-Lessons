@@ -125,12 +125,24 @@ async function dispatchNotificationCampaign(campaignId: string, recipients: stri
 /** Internal scheduler entry point. The cron route is the only caller. */
 export async function dispatchScheduledNotificationCampaign(campaignId: string) {
   const admin = createAdminClient();
-  const { data: campaign } = await admin.from("notification_campaigns").select("created_by,status,audience,audience_type").eq("id", campaignId).maybeSingle();
-  if (!campaign || campaign.status !== "SCHEDULED" || !campaign.created_by) return { success: false, error: "Campaign is no longer scheduled." };
+  // Claim the campaign before resolving recipients or sending anything. The
+  // Vercel fallback and Cloudflare scheduler can overlap, so reading first
+  // would allow two workers to dispatch the same scheduled campaign.
+  const { data: campaign, error: claimError } = await admin
+    .from("notification_campaigns")
+    .update({ status: "SENDING", updated_at: new Date().toISOString() })
+    .eq("id", campaignId)
+    .eq("status", "SCHEDULED")
+    .select("created_by,status,audience,audience_type")
+    .maybeSingle();
+  if (claimError) return { success: false, error: claimError.message };
+  if (!campaign || !campaign.created_by) return { success: false, error: "Campaign is no longer scheduled." };
   const { data: creator } = await admin.from("profiles").select("role").eq("id", campaign.created_by).maybeSingle();
   const audience = campaign.audience as { value?: string | null; userIds?: string[] };
   const recipients = await resolveNotificationAudience({ id: campaign.created_by, role: creator?.role }, { type: campaign.audience_type, value: audience.value, userIds: audience.userIds });
-  return dispatchNotificationCampaign(campaignId, recipients);
+  const result = await dispatchNotificationCampaign(campaignId, recipients);
+  if (!result.success) await admin.from("notification_campaigns").update({ status: "FAILED", updated_at: new Date().toISOString() }).eq("id", campaignId).eq("status", "SENDING");
+  return result;
 }
 
 async function assertCampaignAccess(campaignId: string, userId: string, role?: string | null) {
