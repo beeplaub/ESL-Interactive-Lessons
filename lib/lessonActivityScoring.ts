@@ -14,6 +14,7 @@ function questionId(row: Record<string, unknown>, index: number) {
 function common(row: Record<string, unknown>, index: number, type: LessonScoredQuestion["question_type"], correctAnswer: unknown, options: Json | null = null): LessonScoredQuestion {
   return {
     id: questionId(row, index),
+    prompt: text(row.question_text || row.question || row.sentence || row.text || row.statement || row.prompt || row.instruction),
     question_number: Number(row.question_number ?? index + 1),
     question_type: type,
     options,

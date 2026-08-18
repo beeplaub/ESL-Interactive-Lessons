@@ -212,7 +212,7 @@ async function recordDetailedAssessmentEvidence({
             source_type: "LESSON_ACTIVITY_QUESTION",
             lesson_activity_id: lessonSlideActivityId,
             source_item_key: response.itemKey,
-            prompt_snapshot: serverQuestion?.id ?? response.itemKey,
+            prompt_snapshot: serverQuestion?.prompt || serverQuestion?.options && typeof serverQuestion.options === "object" && !Array.isArray(serverQuestion.options) && typeof (serverQuestion.options as Record<string, unknown>).text === "string" ? String((serverQuestion.options as Record<string, unknown>).text) : response.itemKey,
             max_points: Math.max(0.01, serverQuestion ? questionTotal(serverQuestion) : response.maximumPoints),
             analytical_weight: 1,
           }).select("id,max_points").single();

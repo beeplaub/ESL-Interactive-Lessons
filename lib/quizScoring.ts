@@ -3,6 +3,7 @@ import { isWritingQuestionType, resolveWritingOutcome } from "@/lib/writingGradi
 
 export type ScoredQuestion = {
   id?: string;
+  prompt?: string;
   question_type:
     | "MCQ"
     | "TRUE_FALSE"
