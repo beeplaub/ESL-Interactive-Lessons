@@ -9,7 +9,7 @@ https://www.brenup.com/admin/brenup-ai
   -> BrenUp server-side admin proxy
   -> https://ai-agent.brenup.com (Cloudflare Tunnel)
   -> Mac Mini gateway (loopback only)
-  -> DeepSeek Harness
+  -> Read-only BrenUp gateway
   -> Ollama
 ```
 
@@ -31,22 +31,23 @@ It must not be printed, committed, or exposed to the browser.
 
 ## Start the local boundary
 
-The repository includes a dependency-free gateway skeleton at
-`/Users/bren/Documents/ESL App/scripts/brenup-ai-gateway.mjs`. Run it on the Mac Mini after
-confirming the Harness release's local chat endpoint:
+The repository includes a dependency-free gateway at
+`/Users/bren/Documents/ESL App/scripts/brenup-ai-gateway.mjs`. It talks directly to Ollama;
+DeepSeek Harness is intentionally outside the live path because its preview filesystem/tool
+boundary was not reliable enough for a production read-only service.
 
 ```text
 BRENUP_AI_GATEWAY_SECRET=<same-long-random-shared-secret> \
-BRENUP_HARNESS_CHAT_URL=http://127.0.0.1:<harness-chat-port>/<chat-path> \
-BRENUP_OLLAMA_MODEL=<installed-ollama-model> \
+BRENUP_REPOSITORY_ROOT="/Users/bren/Documents/ESL App" \
+BRENUP_OLLAMA_MODEL=qwen2.5:7b \
+BRENUP_OLLAMA_URL=http://127.0.0.1:11434/v1 \
 node scripts/brenup-ai-gateway.mjs
 ```
 
-The gateway binds to `127.0.0.1` by default. `BRENUP_HARNESS_CHAT_URL` is deliberately
-explicit rather than guessed: the official Harness developer preview may expose different
-local endpoints between releases. The gateway forwards only the validated message, mode, and
-optional session ID; it does not provide Harness with database credentials or repository
-secrets.
+The gateway binds to `127.0.0.1` by default. It exposes only two model tools:
+`search_repository` and `read_safe_repository_file`. Both enforce the approved repository root,
+block secrets and private paths, cap file size, and never write. It does not provide Ollama,
+Supabase, R2, database, shell, or deployment credentials to the model.
 
 ## Gateway contract
 
