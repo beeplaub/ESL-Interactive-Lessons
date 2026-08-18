@@ -418,7 +418,13 @@ export async function addCourseItem(courseId: string, formData: FormData) {
   };
 
   const { error } = await admin.from("course_items").insert(row);
-  if (error) throw new Error(error.message);
+  if (error) {
+    // A course quiz is forked before its placement is written. Remove that
+    // private fork if placement fails so the builder never leaves orphaned
+    // drafts behind.
+    if (quizId) await admin.from("quizzes").delete().eq("id", quizId);
+    throw new Error(error.message);
+  }
   revalidatePath(`/admin/courses/${courseId}/builder`);
   revalidatePath(`/courses/${courseId}`);
 }
@@ -482,7 +488,10 @@ export async function createAndAddCourseItem(
       raw_text: title,
       type: "INFO",
     });
-    if (slideError) throw new Error(slideError.message);
+    if (slideError) {
+      await admin.from("lessons").delete().eq("id", newLessonId);
+      throw new Error(slideError.message);
+    }
 
     lessonId = newLessonId;
   }
@@ -502,7 +511,14 @@ export async function createAndAddCourseItem(
     is_free_preview: false,
     assessment_weight: 1,
   });
-  if (itemError) throw new Error(itemError.message);
+  if (itemError) {
+    if (lessonId) {
+      await admin.from("slides").delete().eq("lesson_id", lessonId);
+      await admin.from("lessons").delete().eq("id", lessonId);
+    }
+    if (quizId) await admin.from("quizzes").delete().eq("id", quizId);
+    throw new Error(itemError.message);
+  }
 
   revalidatePath(`/admin/courses/${courseId}/builder`);
   revalidatePath(`/courses/${courseId}`);
