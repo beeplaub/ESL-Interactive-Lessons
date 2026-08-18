@@ -1,4 +1,4 @@
-import { Plus, Target } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Plus, Target } from "lucide-react";
 import { requireAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createLearningSkill, createLearningTarget } from "@/app/admin/obe/actions";
@@ -20,11 +20,27 @@ export default async function ObeAdminPage() {
   // lesson/quiz questions inside the lesson builder.
   await requireAdmin();
   const admin = createAdminClient();
-  const [{ data: skills }, { data: targets }] = await Promise.all([
+  const [{ data: skills }, { data: targets }, { data: assessmentItems }] = await Promise.all([
     admin.from("learning_skills").select("id,parent_id,name,slug,status").order("position"),
     admin.from("learning_targets").select("id,target_type,label,status").order("label"),
+    admin.from("assessment_items").select("id,source_type,prompt_snapshot").eq("status", "ACTIVE").order("created_at", { ascending: false }).limit(2000),
   ]);
   const topSkills = (skills ?? []).filter((skill) => !skill.parent_id);
+  const assessmentItemIds = (assessmentItems ?? []).map((item) => item.id);
+  const [{ data: mappedSkills }, { data: mappedTargets }, { data: mappedOutcomes }] = await Promise.all([
+    assessmentItemIds.length ? admin.from("assessment_item_skills").select("assessment_item_id").in("assessment_item_id", assessmentItemIds) : Promise.resolve({ data: [] }),
+    assessmentItemIds.length ? admin.from("assessment_item_targets").select("assessment_item_id").in("assessment_item_id", assessmentItemIds) : Promise.resolve({ data: [] }),
+    assessmentItemIds.length ? admin.from("assessment_item_course_outcomes").select("assessment_item_id").in("assessment_item_id", assessmentItemIds) : Promise.resolve({ data: [] }),
+  ]);
+  const skillMappedIds = new Set((mappedSkills ?? []).map((row) => row.assessment_item_id));
+  const targetMappedIds = new Set((mappedTargets ?? []).map((row) => row.assessment_item_id));
+  const outcomeMappedIds = new Set((mappedOutcomes ?? []).map((row) => row.assessment_item_id));
+  const audit = {
+    total: assessmentItems?.length ?? 0,
+    noSkill: (assessmentItems ?? []).filter((item) => !skillMappedIds.has(item.id)).length,
+    noTarget: (assessmentItems ?? []).filter((item) => !targetMappedIds.has(item.id)).length,
+    noOutcome: (assessmentItems ?? []).filter((item) => !outcomeMappedIds.has(item.id)).length,
+  };
 
   return (
     <main className="space-y-5">
@@ -40,6 +56,19 @@ export default async function ObeAdminPage() {
           <div className="rounded-xl bg-moss/10 px-4 py-3 text-sm font-semibold text-moss">
             {(targets ?? []).length} reusable targets
           </div>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-[var(--br-border)] bg-surface p-5 shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div><p className="text-xs font-semibold uppercase tracking-wide text-moss">Assessment readiness</p><h2 className="mt-1 text-lg font-semibold text-ink">Evidence mapping audit</h2><p className="mt-1 max-w-2xl text-sm leading-6 text-[var(--br-text-muted)]">This is a creator checklist, not a score change. Historical attempts stay untouched; unmapped items simply do not contribute to that dimension.</p></div>
+          <span className="rounded-full bg-surface-muted px-3 py-1 text-xs font-semibold text-[var(--br-text-muted)]">{audit.total} active scored items checked</span>
+        </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <AuditMetric label="Ready" value={Math.max(0, audit.total - new Set((assessmentItems ?? []).filter((item) => !skillMappedIds.has(item.id) || !targetMappedIds.has(item.id) || !outcomeMappedIds.has(item.id)).map((item) => item.id)).size)} tone="good" icon={<CheckCircle2 className="size-4" />} />
+          <AuditMetric label="Missing skill" value={audit.noSkill} tone={audit.noSkill ? "warn" : "good"} icon={<AlertTriangle className="size-4" />} />
+          <AuditMetric label="Missing target" value={audit.noTarget} tone={audit.noTarget ? "warn" : "good"} icon={<AlertTriangle className="size-4" />} />
+          <AuditMetric label="Missing outcome" value={audit.noOutcome} tone={audit.noOutcome ? "warn" : "good"} icon={<AlertTriangle className="size-4" />} />
         </div>
       </section>
 
@@ -135,4 +164,8 @@ export default async function ObeAdminPage() {
       </div>
     </main>
   );
+}
+
+function AuditMetric({ label, value, tone, icon }: { label: string; value: number; tone: "good" | "warn"; icon: React.ReactNode }) {
+  return <div className={`flex items-center justify-between rounded-xl border px-3 py-3 ${tone === "warn" ? "border-amber-200 bg-amber-50 text-amber-800" : "border-emerald-200 bg-emerald-50 text-emerald-800"}`}><span className="flex items-center gap-2 text-xs font-semibold">{icon}{label}</span><strong className="text-lg">{value}</strong></div>;
 }
