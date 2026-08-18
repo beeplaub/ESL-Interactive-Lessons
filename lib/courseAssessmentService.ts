@@ -5,8 +5,8 @@ export async function recalculateCourseAssessment(userId: string, courseId: stri
   const admin = createAdminClient();
   const [{ data: course }, { data: items }, { data: outcomes }] = await Promise.all([
     admin.from("courses").select("id,mastery_threshold,minimum_evidence_coverage,evidence_selection,formative_weight,summative_weight").eq("id", courseId).maybeSingle(),
-    admin.from("course_items").select("id,title,assessment_weight,assessment_type,item_assessment_weight,normalization_target,is_required,lesson_id,quiz_id").eq("course_id", courseId),
-    admin.from("course_outcomes").select("id,mastery_threshold_override,weight").eq("course_id", courseId).eq("status", "ACTIVE"),
+    admin.from("course_items").select("id,title,assessment_weight,assessment_type,item_assessment_weight,normalization_target,is_required,evidence_selection_override,lesson_id,quiz_id").eq("course_id", courseId),
+    admin.from("course_outcomes").select("id,mastery_threshold_override,weight,evidence_selection_override").eq("course_id", courseId).eq("status", "ACTIVE"),
   ]);
   if (!course) return null;
 
@@ -80,12 +80,14 @@ export async function recalculateCourseAssessment(userId: string, courseId: stri
       assessment_type: item.assessment_type === "SUMMATIVE" ? "SUMMATIVE" : "FORMATIVE",
       item_assessment_weight: Number(item.item_assessment_weight ?? item.assessment_weight ?? 1),
       normalization_target: Number(item.normalization_target ?? 100),
+      evidence_selection_override: ["LATEST", "BEST", "FIRST"].includes(String(item.evidence_selection_override)) ? item.evidence_selection_override as "LATEST" | "BEST" | "FIRST" : null,
       is_required: item.is_required !== false,
     })),
     outcomes: (outcomes ?? []).map((outcome) => ({
       id: outcome.id,
       mastery_threshold_override: outcome.mastery_threshold_override == null ? null : Number(outcome.mastery_threshold_override),
       weight: Number(outcome.weight ?? 1),
+      evidence_selection_override: ["LATEST", "BEST", "FIRST"].includes(String(outcome.evidence_selection_override)) ? outcome.evidence_selection_override as "LATEST" | "BEST" | "FIRST" : null,
     })),
     attempts: attempts ?? [],
     responses: responses ?? [],

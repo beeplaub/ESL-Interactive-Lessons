@@ -16,6 +16,7 @@ type CourseItem = {
   assessment_type?: "FORMATIVE" | "SUMMATIVE" | null;
   item_assessment_weight?: number | null;
   normalization_target?: number | null;
+  evidence_selection_override?: EvidenceSelection | null;
   is_required: boolean;
 };
 
@@ -23,6 +24,7 @@ type Outcome = {
   id: string;
   mastery_threshold_override: number | null;
   weight: number;
+  evidence_selection_override?: EvidenceSelection | null;
 };
 
 type Attempt = {
@@ -148,7 +150,7 @@ export function calculateCourseAssessment({
     const selectedAttempt = selectAttemptEvidence(
       attemptsByCourseItem.get(courseItem.id) ?? [],
       responsesByAttempt,
-      course.evidence_selection,
+      courseItem.evidence_selection_override ?? course.evidence_selection,
     );
     if (!selectedAttempt) continue;
     selectedAttemptsByCourseItem.set(courseItem.id, selectedAttempt);
@@ -178,10 +180,15 @@ export function calculateCourseAssessment({
     const outcomeMappings = mappings.filter((mapping) => mapping.course_outcome_id === outcome.id);
     const evidence: EvidencePoint[] = [];
     for (const mapping of outcomeMappings) {
-      const selectedAttempt = selectedAttemptsByCourseItem.get(mapping.course_item_id);
-      const selected = (selectedResponsesByCourseItem.get(mapping.course_item_id) ?? []).find((response) => response.assessment_item_id === mapping.assessment_item_id);
-      if (!selected || !selectedAttempt) continue;
       const courseItem = items.find((item) => item.id === mapping.course_item_id);
+      const outcomePolicy = outcome.evidence_selection_override;
+      const selectedAttempt = outcomePolicy
+        ? selectAttemptEvidence(attemptsByCourseItem.get(mapping.course_item_id) ?? [], responsesByAttempt, outcomePolicy)
+        : selectedAttemptsByCourseItem.get(mapping.course_item_id);
+      const selected = selectedAttempt
+        ? (responsesByAttempt.get(selectedAttempt.id) ?? []).find((response) => response.assessment_item_id === mapping.assessment_item_id && itemById.has(response.assessment_item_id))
+        : (selectedResponsesByCourseItem.get(mapping.course_item_id) ?? []).find((response) => response.assessment_item_id === mapping.assessment_item_id);
+      if (!selected || !selectedAttempt) continue;
       evidence.push({
         earnedPoints: Number(selected.earned_points),
         maximumPoints: Number(selected.maximum_points),
