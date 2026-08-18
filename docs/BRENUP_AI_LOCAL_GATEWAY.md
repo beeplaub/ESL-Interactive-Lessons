@@ -49,6 +49,25 @@ The gateway binds to `127.0.0.1` by default. It exposes only two model tools:
 block secrets and private paths, cap file size, and never write. It does not provide Ollama,
 Supabase, R2, database, shell, or deployment credentials to the model.
 
+## Automatic Mac startup
+
+After the one-time tunnel setup, install the gateway and tunnel as macOS login services:
+
+```text
+cd "/Users/bren/Documents/ESL App"
+zsh scripts/install-brenup-ai-services.sh
+```
+
+The installer stores the gateway secret in macOS Keychain and creates two user launch agents.
+It does not place the secret in the repository or in a plist. Logs are written to
+`~/Library/Logs/BrenUp/`.
+
+Check the complete service from any terminal:
+
+```text
+curl https://ai-agent.brenup.com/health
+```
+
 ## Gateway contract
 
 ### Health
