@@ -25,8 +25,8 @@ import {
   updateLessonBuilderDetails,
   updateLessonStatus
 } from "@/app/admin/lessons/actions";
-import { generateLessonDraftAction, insertDraftIntoLessonAction } from "@/app/admin/lessons/aiActions";
 import { Sparkles, Loader2 } from "lucide-react";
+import { generateLessonDraftAction, insertDraftIntoLessonAction } from "@/app/admin/lessons/aiActions";
 import { InLessonActivitiesEditor } from "@/components/InLessonActivitiesEditor";
 import AiActivityGeneratorModal from "@/components/AiActivityGeneratorModal";
 import { LessonActivityPanel } from "@/components/LessonActivityPanel";
@@ -721,8 +721,6 @@ export function LessonBuilderWorkspace({ lesson, slides, trashedSlides = [], blo
   const [builderMode, setBuilderMode] = useState<BuilderMode>("LEARN");
   const [previewDevice, setPreviewDevice] = useState<BuilderPreviewDevice>("DESKTOP");
   const [isLessonPreviewOpen, setIsLessonPreviewOpen] = useState(false);
-  const [isAiGeneratorOpen, setIsAiGeneratorOpen] = useState(false);
-  const [isAiMenuOpen, setIsAiMenuOpen] = useState(false);
   const [busyMessage, setBusyMessage] = useState<string | null>(null);
   const [draggedSlideId, setDraggedSlideId] = useState<string | null>(null);
   const [addAfter, setAddAfter] = useState<number | null>(null);
@@ -893,17 +891,6 @@ export function LessonBuilderWorkspace({ lesson, slides, trashedSlides = [], blo
           </div>
         </BuilderModalLayer>
       )}
-      {isAiGeneratorOpen && (
-        <AiGeneratorModal
-          lesson={lesson}
-          obe={obe}
-          onClose={() => setIsAiGeneratorOpen(false)}
-          onBusy={setBusyMessage}
-          onComplete={() => {
-            window.location.reload();
-          }}
-        />
-      )}
       {isLessonPreviewOpen ? <LessonPreviewModal lesson={lesson} slides={localSlides} blocks={blocks} activities={activities} initialSlideId={selectedSlide?.id ?? null} onClose={() => setIsLessonPreviewOpen(false)} /> : null}
 
       <header className="sticky top-0 z-30 mb-4 rounded-2xl border border-white/10 bg-[var(--br-dark-card)] px-3 py-3 text-on-dark shadow-xl sm:px-4">
@@ -935,36 +922,14 @@ export function LessonBuilderWorkspace({ lesson, slides, trashedSlides = [], blo
         </div>
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <BuilderHeaderUndoRedo {...textHistory} />
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setIsAiMenuOpen((open) => !open)}
-              aria-expanded={isAiMenuOpen}
-              className="inline-flex h-9 items-center gap-2 rounded-lg bg-emerald-600 px-3 text-xs font-black text-on-dark transition hover:bg-emerald-700"
+          {selectedSlide && !selectedSlide.id.startsWith("optimistic-slide-") ? (
+            <Link
+              href={`/admin/creator-tools/voiceover?lessonId=${lesson.id}&slideId=${selectedSlide.id}&returnTo=${encodeURIComponent(`/admin/lessons/${lesson.id}/builder`)}`}
+              className="inline-flex h-9 items-center gap-2 rounded-lg border border-white/15 px-3 text-xs font-black text-white/85 hover:bg-white/10"
             >
-              <Sparkles size={16} /> Generate with AI <ChevronDown size={14} />
-            </button>
-            {isAiMenuOpen ? (
-              <div className="absolute right-0 top-full z-40 mt-2 w-64 overflow-hidden rounded-xl border border-[var(--br-border)] bg-surface p-1.5 shadow-2xl">
-                {isAdmin ? (
-                  <button type="button" onClick={() => { setIsAiMenuOpen(false); setIsAiGeneratorOpen(true); }} className="flex w-full items-start gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-surface-muted">
-                    <Sparkles size={17} className="mt-0.5 shrink-0 text-emerald-600" />
-                    <span><strong className="block text-sm">Generate lesson draft</strong><span className="text-xs text-[var(--br-text-muted)]">Create slides and activities.</span></span>
-                  </button>
-                ) : null}
-                {selectedSlide && !selectedSlide.id.startsWith("optimistic-slide-") ? (
-                  <Link
-                    href={`/admin/creator-tools/voiceover?lessonId=${lesson.id}&slideId=${selectedSlide.id}&returnTo=${encodeURIComponent(`/admin/lessons/${lesson.id}/builder`)}`}
-                    onClick={() => setIsAiMenuOpen(false)}
-                    className="flex items-start gap-3 rounded-lg px-3 py-2.5 hover:bg-surface-muted"
-                  >
-                    <AudioLines size={17} className="mt-0.5 shrink-0 text-[var(--br-brand)]" />
-                    <span><strong className="block text-sm">Create AI voiceover</strong><span className="text-xs text-[var(--br-text-muted)]">Narrate this slide or add audio.</span></span>
-                  </Link>
-                ) : null}
-              </div>
-            ) : null}
-          </div>
+              <AudioLines size={15} /> <span className="hidden sm:inline">Create AI voiceover</span>
+            </Link>
+          ) : null}
           <button type="button" onClick={() => setIsLessonPreviewOpen(true)} className="inline-flex h-9 items-center gap-2 rounded-lg border border-white/15 px-3 text-xs font-black text-white/85 hover:bg-white/10">
             <Eye size={15} /> <span className="hidden sm:inline">Preview lesson</span>
           </button>
