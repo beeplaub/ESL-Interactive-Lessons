@@ -92,6 +92,21 @@ async function sendBrevoEmail(userId: string, notificationId: string, title: str
   }
 }
 
+export async function retryNotificationDelivery(notificationId: string, channel: NotificationChannel) {
+  if (channel === "IN_APP") return { success: false, error: "In-app delivery does not need a retry." };
+  const admin = createAdminClient();
+  const { data: notification, error } = await admin.from("user_notifications").select("id,user_id,title,detail,href").eq("id", notificationId).maybeSingle();
+  if (error || !notification) return { success: false, error: error?.message || "Notification not found." };
+  await createDelivery(notification.id, channel, "PENDING");
+  if (channel === "EMAIL") await sendBrevoEmail(notification.user_id, notification.id, notification.title, notification.detail, notification.href);
+  if (channel === "PUSH") {
+    const { sendPushNotification } = await import("@/lib/push-notifications");
+    await sendPushNotification({ userId: notification.user_id, notificationId: notification.id, title: notification.title, detail: notification.detail, href: notification.href });
+  }
+  const { data: delivery } = await admin.from("notification_deliveries").select("status,error_message").eq("notification_id", notification.id).eq("channel", channel).maybeSingle();
+  return { success: delivery?.status === "SENT" || delivery?.status === "DELIVERED", error: delivery?.error_message || undefined };
+}
+
 function escapeHtml(value: string) {
   return value.replace(/[&<>'"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#039;", '"': "&quot;" })[character] || character);
 }

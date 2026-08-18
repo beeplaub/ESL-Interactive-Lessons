@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireStaff } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { notifyUsers, type NotificationCategory, type NotificationChannel, type NotificationTone } from "@/lib/notifications";
+import { notifyUsers, retryNotificationDelivery, type NotificationCategory, type NotificationChannel, type NotificationTone } from "@/lib/notifications";
 import { resolveNotificationAudience } from "@/lib/notificationAudience";
 
 const channels: NotificationChannel[] = ["IN_APP", "PUSH", "EMAIL"];
@@ -86,6 +86,16 @@ export async function cancelNotificationCampaign(campaignId: string) {
     if (error) return { success: false, error: error.message };
     refresh(); return { success: true };
   } catch (error) { return { success: false, error: error instanceof Error ? error.message : "Could not cancel the campaign." }; }
+}
+
+export async function retryCampaignDelivery(notificationId: string, channel: NotificationChannel): Promise<{ success: boolean; error?: string }> {
+  try {
+    await requireStaff();
+    if (!["PUSH", "EMAIL"].includes(channel)) return { success: false, error: "Only push and email deliveries can be retried." };
+    return retryNotificationDelivery(notificationId, channel);
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : "Could not retry delivery." };
+  }
 }
 
 export async function updateEventSettings(formData: FormData): Promise<{ success: boolean; error?: string }> {

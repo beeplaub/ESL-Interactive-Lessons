@@ -57,8 +57,15 @@ export async function GET(request: NextRequest) {
   const admin = createAdminClient();
   const { data: campaigns, error } = await admin.from("notification_campaigns").select("id").eq("status", "SCHEDULED").lte("scheduled_at", new Date().toISOString()).order("scheduled_at").limit(100);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  const results = await Promise.all((campaigns ?? []).map((campaign) => dispatchScheduledNotificationCampaign(campaign.id)));
-  await sendAutomaticReminders();
-  const publishedPosts = await publishDueBlogPosts();
-  return NextResponse.json({ processed: results.filter((result) => result.success).length, failed: results.filter((result) => !result.success).length, publishedPosts });
+  try {
+    const results = await Promise.all((campaigns ?? []).map((campaign) => dispatchScheduledNotificationCampaign(campaign.id)));
+    await sendAutomaticReminders();
+    const publishedPosts = await publishDueBlogPosts();
+    const processed = results.filter((result) => result.success).length;
+    await admin.from("notification_scheduler_health").upsert({ scheduler_name: "brenup-notification-scheduler", last_seen_at: new Date().toISOString(), last_status: "OK", last_error: null, last_processed: processed, updated_at: new Date().toISOString() }, { onConflict: "scheduler_name" });
+    return NextResponse.json({ processed, failed: results.filter((result) => !result.success).length, publishedPosts });
+  } catch (error) {
+    await admin.from("notification_scheduler_health").upsert({ scheduler_name: "brenup-notification-scheduler", last_seen_at: new Date().toISOString(), last_status: "FAILED", last_error: error instanceof Error ? error.message : "Notification scheduler failed.", updated_at: new Date().toISOString() }, { onConflict: "scheduler_name" });
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Notification scheduler failed." }, { status: 500 });
+  }
 }
