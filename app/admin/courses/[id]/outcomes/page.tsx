@@ -12,9 +12,10 @@ export default async function CourseOutcomeReportPage({ params }: { params: Prom
   const { id } = await params;
   await requireCourseAccess(id, "view_analytics");
   const admin = createAdminClient();
-  const [{ data: course }, { data: outcomes }] = await Promise.all([
+  const [{ data: course }, { data: outcomes }, { data: courseItems }] = await Promise.all([
     admin.from("courses").select("*").eq("id", id).maybeSingle(),
     admin.from("course_outcomes").select("*").eq("course_id", id).order("position"),
+    admin.from("course_items").select("id,assessment_type").eq("course_id", id),
   ]);
   if (!course) notFound();
 
@@ -28,6 +29,14 @@ export default async function CourseOutcomeReportPage({ params }: { params: Prom
       ? admin.from("profiles").select("id,full_name,first_name,last_name").in("id", Array.from(new Set((courseResults ?? []).map((result) => result.user_id))))
       : Promise.resolve({ data: [] }),
   ]);
+  const { data: itemResults } = resultIds.length
+    ? await admin.from("course_item_assessment_results").select("course_assessment_result_id,course_item_id,score_percent,completed").in("course_assessment_result_id", resultIds)
+    : { data: [] };
+  const itemTypeById = new Map((courseItems ?? []).map((item) => [item.id, item.assessment_type ?? "FORMATIVE"]));
+  const categoryAverages = (["FORMATIVE", "SUMMATIVE"] as const).map((category) => {
+    const values = (itemResults ?? []).filter((row) => itemTypeById.get(row.course_item_id) === category && row.completed).map((row) => Number(row.score_percent ?? 0));
+    return { category, average: values.length ? Math.round(values.reduce((sum, value) => sum + value, 0) / values.length) : null };
+  });
   const aggregate = new Map<string, { attainment: number; coverage: number; mappedWeight: number; evidence: number; attained: number; learners: number }>();
   for (const row of outcomeResults ?? []) {
     const current = aggregate.get(row.course_outcome_id) ?? { attainment: 0, coverage: 0, mappedWeight: 0, evidence: 0, attained: 0, learners: 0 };
@@ -76,6 +85,9 @@ export default async function CourseOutcomeReportPage({ params }: { params: Prom
             <Metric label="Learners" value={String(courseResults?.length ?? 0)} />
             <Metric label="Policy" value={course.evidence_selection ?? "LATEST"} />
           </div>
+        </div>
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          {categoryAverages.map((category) => <div key={category.category} className="rounded-xl border border-[var(--br-border)] bg-surface-muted p-3"><div className="flex items-center justify-between text-xs font-semibold"><span>{category.category === "FORMATIVE" ? "Formative evidence" : "Summative evidence"}</span><span className="text-[var(--br-text-muted)]">{category.average == null ? "No evidence" : `${category.average}% average`}</span></div><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-strong"><div className="h-full rounded-full bg-moss" style={{ width: `${category.average ?? 0}%` }} /></div></div>)}
         </div>
       </section>
 
