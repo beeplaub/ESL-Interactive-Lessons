@@ -51,7 +51,7 @@ export async function enrollInCourse(courseId: string) {
   // Fetch sections and items, sort them globally, and get the first item
   const [{ data: sections }, { data: items }] = await Promise.all([
     admin.from("course_sections").select("id").eq("course_id", courseId).order("position", { ascending: true }),
-    admin.from("course_items").select("id, section_id, position").eq("course_id", courseId)
+    admin.from("course_items").select("id, section_id, position, bypass_sequential_unlock").eq("course_id", courseId)
   ]);
 
   const rawItems = items ?? [];
@@ -133,7 +133,12 @@ export async function markCourseItemComplete(courseId: string, itemId: string) {
   const orderedIds = orderedCItems.map((i) => i.id);
   const currentIdx = orderedIds.indexOf(itemId);
 
-  if (currentIdx > 0) {
+  const currentItem = (currentIdx >= 0 ? orderedCItems[currentIdx] : null) as (typeof orderedCItems[number] & { bypass_sequential_unlock?: boolean | null }) | null;
+  if (!currentItem) {
+    throw new Error("This course item is not part of the course.");
+  }
+
+  if (currentIdx > 0 && !currentItem.bypass_sequential_unlock) {
     const prevItemId = orderedIds[currentIdx - 1];
     const { data: prevProgress } = await admin
       .from("course_item_progress")
