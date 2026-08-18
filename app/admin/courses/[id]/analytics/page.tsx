@@ -14,13 +14,15 @@ export default async function CourseAnalyticsPage({ params }: { params: Promise<
     { data: enrollments },
     { data: progressRows },
     { data: assessmentRows },
+    { data: assessmentItemRows },
     { data: profiles },
     usersResult,
   ] = await Promise.all([
-    admin.from("courses").select("id,title,status").eq("id", id).maybeSingle(),
+    admin.from("courses").select("id,title,status,formative_weight,summative_weight,mastery_threshold,minimum_evidence_coverage").eq("id", id).maybeSingle(),
     admin.from("course_enrollments").select("*").eq("course_id", id).order("enrolled_at", { ascending: false }),
     admin.from("course_progress").select("*").eq("course_id", id),
-    admin.from("course_assessment_results").select("user_id,score_percent,coverage_percent,completion_percent,status,updated_at").eq("course_id", id),
+    admin.from("course_assessment_results").select("id,user_id,score_percent,coverage_percent,completion_percent,status,updated_at").eq("course_id", id),
+    admin.from("course_item_assessment_results").select("course_assessment_result_id,course_item_id,score_percent,completed").in("course_assessment_result_id", (await admin.from("course_assessment_results").select("id").eq("course_id", id)).data?.map((row) => row.id) ?? []),
     admin.from("profiles").select("id,full_name,first_name,last_name"),
     admin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
   ]);
@@ -40,6 +42,17 @@ export default async function CourseAnalyticsPage({ params }: { params: Promise<
     ? Math.round(assessedRows.reduce((sum, row) => sum + Number(row.score_percent ?? 0), 0) / assessedRows.length)
     : 0;
   const masteredLearners = assessedRows.filter((row) => row.status === "MASTERED").length;
+  const itemRows = assessmentItemRows ?? [];
+  const itemIds = Array.from(new Set(itemRows.map((row) => row.course_item_id)));
+  const { data: assessmentItems } = itemIds.length
+    ? await admin.from("course_items").select("id,title,assessment_type,item_assessment_weight,normalization_target").in("id", itemIds)
+    : { data: [] };
+  const itemConfig = new Map((assessmentItems ?? []).map((item) => [item.id, item]));
+  const categoryStats = (["FORMATIVE", "SUMMATIVE"] as const).map((category) => {
+    const rows = itemRows.filter((row) => (itemConfig.get(row.course_item_id)?.assessment_type ?? "FORMATIVE") === category);
+    const values = rows.map((row) => Number(row.score_percent ?? 0));
+    return { category, score: values.length ? Math.round(values.reduce((sum, value) => sum + value, 0) / values.length) : 0, attempted: rows.filter((row) => row.completed).length };
+  });
 
   return (
     <main className="min-w-0 overflow-hidden">
@@ -61,6 +74,24 @@ export default async function CourseAnalyticsPage({ params }: { params: Promise<
         <Metric label="Average progress" value={`${averageProgress}%`} />
         <Metric label="Average assessment" value={`${averageAssessment}%`} />
         <Metric label="Mastered" value={masteredLearners} />
+      </section>
+
+      <section className="mt-5 rounded-2xl border border-[var(--br-border)] bg-dark p-5 text-on-dark shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-moss">Assessment plan</p>
+            <h2 className="mt-1 text-xl font-semibold">Formative + summative evidence</h2>
+            <p className="mt-1 max-w-2xl text-sm text-on-dark/70">Continuous practice and milestone assessments are combined only after each item is normalized to a common scale.</p>
+          </div>
+          <Link href={`/admin/courses/${course.id}/builder`} className="rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold hover:bg-white/10">Edit plan</Link>
+        </div>
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          {categoryStats.map((stat) => {
+            const weight = Number(stat.category === "FORMATIVE" ? course.formative_weight ?? 40 : course.summative_weight ?? 60);
+            return <div key={stat.category} className="rounded-xl border border-white/15 bg-white/10 p-4"><div className="flex items-center justify-between"><span className="text-sm font-semibold">{stat.category === "FORMATIVE" ? "Formative" : "Summative"}</span><span className="text-xs text-on-dark/70">{weight}% of course</span></div><p className="mt-3 text-3xl font-semibold">{stat.score}%</p><p className="mt-1 text-xs text-on-dark/70">Average normalized score · {stat.attempted} evidence items</p><div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/15"><div className="h-full rounded-full bg-moss" style={{ width: `${Math.min(100, stat.score)}%` }} /></div></div>;
+          })}
+        </div>
+        <p className="mt-4 text-xs text-on-dark/60">Mastery target {Number(course.mastery_threshold ?? 70)}% · minimum evidence coverage {Number(course.minimum_evidence_coverage ?? 70)}%</p>
       </section>
 
       <section className="mt-5 rounded-xl border border-[var(--br-border)] bg-surface p-4 shadow-sm">
