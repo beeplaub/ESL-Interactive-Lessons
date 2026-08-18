@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   AudioLines,
   BarChart3,
+  Bot,
   BookOpen,
   Building2,
   CalendarDays,
@@ -122,6 +123,7 @@ const groups: NavGroup[] = [
     Icon: Settings,
     links: [
       { href: "/admin/ai-studio", label: "AI Studio", Icon: Sparkles, roles: PLATFORM_ADMIN },
+      { href: "/admin/brenup-ai", label: "BrenUp AI", Icon: Bot, roles: PLATFORM_ADMIN },
       { href: "/admin/blog", label: "Journal", Icon: Newspaper, roles: ALL_STAFF, requiresBlog: true },
       { href: "/admin/notifications", label: "Notifications", Icon: Bell, roles: ALL_STAFF },
       { href: "/admin/style", label: "Style System", Icon: Palette, roles: PLATFORM_ADMIN },
