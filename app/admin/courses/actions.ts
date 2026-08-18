@@ -9,6 +9,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { assertCreatorCanCreate, assertCreatorWithinLimit } from "@/lib/entitlements";
 import { notifyUser } from "@/lib/notifications";
 import { getSchoolAdminOrganizationIds } from "@/lib/schoolAccess";
+import { recalculateCourseAssessment } from "@/lib/courseAssessmentService";
 
 function slugify(value: string) {
   return value
@@ -272,6 +273,8 @@ export async function updateCourseAssessmentPolicy(courseId: string, formData: F
     updated_at: new Date().toISOString(),
   }).eq("id", courseId);
   if (error) throw new Error(error.message);
+  const { data: enrolledUsers } = await admin.from("course_enrollments").select("user_id").eq("course_id", courseId).in("status", ["ACTIVE", "COMPLETED"]);
+  await Promise.all((enrolledUsers ?? []).map((row) => recalculateCourseAssessment(row.user_id, courseId)));
   revalidatePath(`/admin/courses/${courseId}/builder`);
 }
 

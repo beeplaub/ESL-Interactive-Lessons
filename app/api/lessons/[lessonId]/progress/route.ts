@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { completeCourseItemsForContent } from "@/lib/courseProgress";
+import { recalculateCourseAssessmentsForContent } from "@/lib/courseAssessmentService";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -74,6 +75,7 @@ export async function POST(
 
   if (payload.completed) {
     await completeCourseItemsForContent(user.id, { kind: "LESSON", id: lessonId });
+    await recalculateCourseAssessmentsForContent(user.id, "LESSON", lessonId);
   }
 
   return NextResponse.json({ progress: result.data });
