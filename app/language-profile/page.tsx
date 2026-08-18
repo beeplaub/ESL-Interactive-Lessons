@@ -27,12 +27,15 @@ export default async function LanguageProfilePage({ searchParams }: { searchPara
 
   const admin = createAdminClient();
   const query = searchParams ? await searchParams : {};
-  const { data: attempts } = await admin.from("assessment_attempts").select("id,user_id,course_item_id,completed_at").eq("user_id", user.id).order("completed_at", { ascending: false });
+  const { data: attempts } = await admin.from("assessment_attempts").select("id,user_id,course_item_id,source_type,quiz_id,lesson_activity_id,attempt_number,completed_at").eq("user_id", user.id).order("completed_at", { ascending: false });
   const attemptIds = (attempts ?? []).map((attempt) => attempt.id);
   const { data: responses } = attemptIds.length
-    ? await admin.from("assessment_responses").select("id,attempt_id,assessment_item_id,earned_points,maximum_points,is_correct,submitted_at").in("attempt_id", attemptIds).order("submitted_at", { ascending: false })
+    ? await admin.from("assessment_responses").select("id,attempt_id,assessment_item_id,earned_points,maximum_points,is_correct,response_data,submitted_at").in("attempt_id", attemptIds).order("submitted_at", { ascending: false })
     : { data: [] };
   const assessmentItemIds = Array.from(new Set((responses ?? []).map((response) => response.assessment_item_id)));
+  const { data: evidenceItems } = assessmentItemIds.length
+    ? await admin.from("assessment_items").select("id,prompt_snapshot,lesson_outcome_id,quiz_question_id,lesson_activity_id").in("id", assessmentItemIds)
+    : { data: [] };
   const [{ data: skills }, { data: targets }, { data: itemSkills }, { data: itemTargets }, { data: courseResults }] = await Promise.all([
     admin.from("learning_skills").select("id,name,parent_id").eq("status", "ACTIVE").order("position"),
     admin.from("learning_targets").select("id,label,target_type").eq("status", "ACTIVE").order("label"),
@@ -49,6 +52,8 @@ export default async function LanguageProfilePage({ searchParams }: { searchPara
   ]);
   const outcomeIds = Array.from(new Set((outcomeRows ?? []).map((row) => row.course_outcome_id)));
   const { data: outcomes } = outcomeIds.length ? await admin.from("course_outcomes").select("id,code,outcome").in("id", outcomeIds) : { data: [] };
+  const lessonOutcomeIds = Array.from(new Set((evidenceItems ?? []).map((item) => item.lesson_outcome_id).filter((id): id is string => Boolean(id))));
+  const { data: lessonOutcomes } = lessonOutcomeIds.length ? await admin.from("lesson_outcomes").select("id,code,outcome").in("id", lessonOutcomeIds) : { data: [] };
 
   const skillRows = summarizeSkillEvidence({ skills: skills ?? [], responses: responses ?? [], itemSkills: itemSkills ?? [] }).sort((a, b) => b.confidence - a.confidence);
   const targetRows = summarizeTargetEvidence({ targets: targets ?? [], responses: responses ?? [], itemTargets: itemTargets ?? [] }).sort((a, b) => b.confidence - a.confidence);
@@ -58,6 +63,28 @@ export default async function LanguageProfilePage({ searchParams }: { searchPara
   const courseById = new Map((courses ?? []).map((course) => [course.id, course]));
   const resultById = new Map((courseResults ?? []).map((result) => [result.id, result]));
   const outcomeById = new Map((outcomes ?? []).map((outcome) => [outcome.id, outcome]));
+  const lessonOutcomeById = new Map((lessonOutcomes ?? []).map((outcome) => [outcome.id, outcome]));
+  const evidenceItemById = new Map((evidenceItems ?? []).map((item) => [item.id, item]));
+  const courseItemIds = Array.from(new Set((attempts ?? []).map((attempt) => attempt.course_item_id).filter((id): id is string => Boolean(id))));
+  const { data: evidenceCourseItems } = courseItemIds.length ? await admin.from("course_items").select("id,title,course_id,lessons(title),quizzes(title)").in("id", courseItemIds) : { data: [] };
+  const evidenceCourseItemById = new Map((evidenceCourseItems ?? []).map((item) => [item.id, item]));
+  const attemptById = new Map((attempts ?? []).map((attempt) => [attempt.id, attempt]));
+  const evidenceRows = (responses ?? []).slice(0, 30).map((response) => {
+    const attempt = attemptById.get(response.attempt_id);
+    const item = evidenceItemById.get(response.assessment_item_id);
+    const courseItem = attempt?.course_item_id ? evidenceCourseItemById.get(attempt.course_item_id) : null;
+    return {
+      id: response.id,
+      source: courseItem?.title || courseItem?.lessons?.[0]?.title || courseItem?.quizzes?.[0]?.title || (attempt?.source_type === "QUIZ" ? "Standalone quiz" : "Lesson activity"),
+      courseId: courseItem?.course_id ?? null,
+      prompt: item?.prompt_snapshot || "Assessment question",
+      earned: Number(response.earned_points ?? 0),
+      maximum: Number(response.maximum_points ?? 0),
+      correct: response.is_correct,
+      submittedAt: response.submitted_at,
+      outcome: item?.lesson_outcome_id ? outcomeById.get(item.lesson_outcome_id)?.outcome ?? lessonOutcomeById.get(item.lesson_outcome_id)?.outcome ?? null : null,
+    };
+  });
   const allCanDos = (outcomeRows ?? []).map((row) => ({ ...row, outcome: outcomeById.get(row.course_outcome_id), courseId: resultById.get(row.course_assessment_result_id)?.course_id })).filter((row) => row.outcome);
   const selectedCourseId = query.course && courseIds.includes(query.course) ? query.course : courseIds[0] ?? null;
   const selectedResult = (courseResults ?? []).find((result) => result.course_id === selectedCourseId) ?? null;
@@ -104,6 +131,7 @@ export default async function LanguageProfilePage({ searchParams }: { searchPara
       ) : null}
 
       {responses?.length ? <div className="grid min-w-0 gap-5 xl:grid-cols-2"><EvidenceSection title="Skill mastery" icon={<TrendingUp className="size-5 text-[var(--br-chart-primary)]" />} description="Confidence uses your most recent evidence first." rows={skillRows.map((row) => ({ key: row.skill.id, label: row.skill.name, detail: `${row.evidenceCount} evidence record${row.evidenceCount === 1 ? "" : "s"}`, band: row.band, value: row.confidence }))} empty="No skill-labeled evidence yet. New quizzes and lessons will start filling this in." /><EvidenceSection title="Learned targets" icon={<Sparkles className="size-5 text-[var(--br-achievement)]" />} description="Vocabulary, grammar, idioms, and pronunciation targets." rows={targetRows.slice(0, 12).map((row) => ({ key: row.target.id, label: row.target.label, detail: row.target.target_type.replaceAll("_", " "), band: row.band, value: row.confidence }))} empty="No learning targets have been mastered yet." /></div> : <section className="br-learner-card p-8 text-center"><CheckCircle2 className="mx-auto size-10 text-[var(--br-chart-primary)]" /><h2 className="mt-3 text-xl font-black text-[var(--br-dark-card)]">Your profile is ready to grow</h2><p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-[var(--br-text-muted)]">Once you complete scored quizzes or course activities, this page will show your strengths, learned items, confidence, and Can-Do evidence.</p><Link href="/quizzes" className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-[var(--br-chart-primary)] to-[var(--br-brand)] px-5 py-3 text-sm font-black text-on-dark">Start with a quiz <ArrowRight className="size-4" /></Link></section>}
+      {evidenceRows.length ? <section className="br-learner-card min-w-0 p-4 sm:p-5"><div className="mb-4"><p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--br-chart-primary)]">Traceable evidence</p><h2 className="mt-1 text-xl font-black text-[var(--br-dark-card)]">Recent answers behind your progress</h2><p className="mt-1 text-sm text-[var(--br-text-muted)]">Every result keeps its source, score, and date so your profile remains explainable.</p></div><div className="grid gap-2">{evidenceRows.map((row) => <div key={row.id} className="min-w-0 rounded-2xl border border-[var(--br-surface-strong)] p-3"><div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between"><div className="min-w-0"><p className="text-xs font-black uppercase tracking-wide text-[var(--br-chart-primary)]">{row.source}</p><p className="mt-1 break-words text-sm font-bold text-[var(--br-dark-card)]">{row.prompt}</p>{row.outcome ? <p className="mt-1 break-words text-xs text-[var(--br-text-muted)]">Can-Do: {row.outcome}</p> : null}</div><span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-black ${row.correct === true ? "bg-emerald-50 text-emerald-700" : row.correct === false ? "bg-rose-50 text-rose-700" : "bg-amber-50 text-amber-700"}`}>{row.earned}/{row.maximum}</span></div><p className="mt-2 text-[11px] font-semibold text-[var(--br-text-muted)]">{new Date(row.submittedAt).toLocaleString("en-BD", { dateStyle: "medium", timeStyle: "short" })}</p></div>)}</div></section> : null}
     </LearnerAppShell>
   );
 }
