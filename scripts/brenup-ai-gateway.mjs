@@ -9,6 +9,7 @@ const secret = process.env.BRENUP_AI_GATEWAY_SECRET;
 const model = process.env.BRENUP_OLLAMA_MODEL || "qwen2.5:7b";
 const ollamaUrl = (process.env.BRENUP_OLLAMA_URL || "http://127.0.0.1:11434/v1").replace(/\/$/, "");
 const repositoryRoot = path.resolve(process.env.BRENUP_REPOSITORY_ROOT || process.cwd());
+const dataUrl = (process.env.BRENUP_AI_DATA_URL || "https://www.brenup.com/api/admin/brenup-ai/data").replace(/\/$/, "");
 const startedAt = new Date().toISOString();
 const allowedModes = new Set(["research", "audit", "review", "code-review"]);
 const blockedPath = /(^|\/)(\.env($|\.)|node_modules|\.next|\.git|secrets?|credentials?|private)(\/|$)|service[-_ ]?role|access[-_ ]?key|secret[-_ ]?key/i;
@@ -64,11 +65,26 @@ async function searchRepository(query) {
 }
 
 const tools = [
+  { type: "function", function: { name: "search_courses", description: "Search the live BrenUp database for courses by title, topic, or slug. Use this before auditing a named course.", parameters: { type: "object", properties: { query: { type: "string" } }, required: ["query"] } } },
+  { type: "function", function: { name: "get_course_overview", description: "Read a safe overview of one live course, its sections, lessons, quizzes, outcomes, and assessment settings.", parameters: { type: "object", properties: { courseId: { type: "string" }, query: { type: "string" } } } } },
+  { type: "function", function: { name: "audit_lesson", description: "Audit one live lesson's slides, blocks, activities, outcomes, and activity data. Resolve it by course plus lesson title/number when possible.", parameters: { type: "object", properties: { courseId: { type: "string" }, courseQuery: { type: "string" }, lessonId: { type: "string" }, lessonQuery: { type: "string" } } } } },
+  { type: "function", function: { name: "get_quiz_overview", description: "Read one live quiz and its questions, options, and answer keys for creator QA.", parameters: { type: "object", properties: { quizId: { type: "string" }, query: { type: "string" }, title: { type: "string" } } } } },
+  { type: "function", function: { name: "get_obe_audit", description: "Audit live course outcomes, lesson mappings, question mappings, and mapping coverage.", parameters: { type: "object", properties: { courseId: { type: "string" }, query: { type: "string" } } } } },
   { type: "function", function: { name: "search_repository", description: "Search approved BrenUp text files without exposing secrets.", parameters: { type: "object", properties: { query: { type: "string" } }, required: ["query"] } } },
   { type: "function", function: { name: "read_safe_repository_file", description: "Read one approved BrenUp text file by relative path.", parameters: { type: "object", properties: { path: { type: "string" } }, required: ["path"] } } },
 ];
 
-async function runTool(name, args) { if (name === "read_safe_repository_file") return readSafeFile(args?.path); if (name === "search_repository") return searchRepository(args?.query); throw new Error("Tool is not available."); }
+async function runTool(name, args) {
+  if (name === "read_safe_repository_file") return readSafeFile(args?.path);
+  if (name === "search_repository") return searchRepository(args?.query);
+  if (["search_courses", "get_course_overview", "audit_lesson", "get_quiz_overview", "get_obe_audit"].includes(name)) {
+    const response = await fetch(dataUrl, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${secret}` }, body: JSON.stringify({ tool: name, args }), signal: AbortSignal.timeout(30000) });
+    const data = await response.json().catch(() => ({ error: "The safe data bridge returned invalid JSON." }));
+    if (!response.ok) throw new Error(data?.error || "The safe data bridge rejected the request.");
+    return data;
+  }
+  throw new Error("Tool is not available.");
+}
 
 async function proxyChat(request, response) {
   if (request.headers.authorization !== `Bearer ${secret}`) return json(response, 401, { error: "Unauthorized" });
@@ -77,7 +93,7 @@ async function proxyChat(request, response) {
   if (!message || message.length > 12000) return json(response, 400, { error: "Enter a message up to 12,000 characters." });
   const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), 120000);
   try {
-    const messages = [{ role: "system", content: `You are BrenUp's admin-only read-only audit assistant. Use only supplied tools. Never edit files, run shell commands, use web search, access secrets, access private learner data, mutate databases, deploy, commit, or delete anything. Answer directly in chat and state that no BrenUp records changed. Current mode: ${mode}.` }, { role: "user", content: message }];
+    const messages = [{ role: "system", content: `You are BrenUp's admin-only read-only product and data auditor. You are not a general chatbot and you must not invent BrenUp facts. Use the live database tools for courses, lessons, quizzes, activities, and OBE questions; use repository tools only for code/architecture questions. For any named course or lesson, search the live database first. If a search finds nothing, say exactly what was searched and do not invent a repository filename. Never edit files, run shell commands, use web search, access secrets, access private learner data, mutate databases, deploy, commit, or delete anything. If asked to introduce yourself, say you are BrenUp AI, a local Ollama read-only auditor for the admin, and do not invent personal details. Answer directly, identify the records/tools inspected, include concrete inconsistencies and next actions, and end with: No BrenUp records changed. Current mode: ${mode}.` }, { role: "user", content: message }];
     let result; const usedTools = [];
     for (let turn = 0; turn < 5; turn += 1) {
       const upstream = await fetch(`${ollamaUrl}/chat/completions`, { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer ollama" }, body: JSON.stringify({ model, messages, tools, tool_choice: "auto", stream: false }), signal: controller.signal });
