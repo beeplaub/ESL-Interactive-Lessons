@@ -136,6 +136,10 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
   const summativeItems = assessableItems.filter((item) => item.assessment_type === "SUMMATIVE");
   const formativeItemWeight = formativeItems.reduce((sum, item) => sum + Number(item.item_assessment_weight ?? item.assessment_weight ?? 1), 0);
   const summativeItemWeight = summativeItems.reduce((sum, item) => sum + Number(item.item_assessment_weight ?? item.assessment_weight ?? 1), 0);
+  const lessonIdsForCoverage = assessableItems.map((item) => item.lesson_id).filter((value): value is string => Boolean(value));
+  const { data: coverageActivities } = lessonIdsForCoverage.length
+    ? await admin.from("lesson_slide_activities").select("id,lesson_id").in("lesson_id", lessonIdsForCoverage)
+    : { data: [] };
   const quizItemRows = courseItems.filter((item) => item.item_type === "QUIZ" && item.quiz_id);
   const quizIds = quizItemRows.map((item) => item.quiz_id).filter((value): value is string => Boolean(value));
   const { data: courseQuizQuestions } = quizIds.length
@@ -150,6 +154,27 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
   const { data: quizOutcomeMappings } = courseQuizAssessmentIds.length
     ? await admin.from("assessment_item_course_outcomes").select("*").in("assessment_item_id", courseQuizAssessmentIds).in("course_item_id", quizCourseItemIds)
     : { data: [] };
+  const coverageQuizQuestionIds = (courseQuizQuestions ?? []).map((question) => question.id);
+  const coverageActivityIds = (coverageActivities ?? []).map((activity) => activity.id);
+  const [{ data: quizCoverageItems }, { data: lessonCoverageItems }] = await Promise.all([
+    coverageQuizQuestionIds.length ? admin.from("assessment_items").select("id,quiz_question_id,lesson_outcome_id,max_points").in("quiz_question_id", coverageQuizQuestionIds) : Promise.resolve({ data: [] }),
+    coverageActivityIds.length ? admin.from("assessment_items").select("id,lesson_activity_id,lesson_outcome_id,max_points").in("lesson_activity_id", coverageActivityIds) : Promise.resolve({ data: [] }),
+  ]);
+  const coverageItems = [...(quizCoverageItems ?? []), ...(lessonCoverageItems ?? [])];
+  const coverageIds = coverageItems.map((item) => item.id);
+  const [{ data: coverageSkills }, { data: coverageTargets }] = await Promise.all([
+    coverageIds.length ? admin.from("assessment_item_skills").select("assessment_item_id,is_primary").in("assessment_item_id", coverageIds) : Promise.resolve({ data: [] }),
+    coverageIds.length ? admin.from("assessment_item_targets").select("assessment_item_id").in("assessment_item_id", coverageIds) : Promise.resolve({ data: [] }),
+  ]);
+  const primarySkillIds = new Set((coverageSkills ?? []).filter((row) => row.is_primary).map((row) => row.assessment_item_id));
+  const targetIds = new Set((coverageTargets ?? []).map((row) => row.assessment_item_id));
+  const coverageWarnings = {
+    total: coverageItems.length,
+    missingPoints: coverageItems.filter((item) => Number(item.max_points ?? 0) <= 0).length,
+    missingSkill: coverageItems.filter((item) => !primarySkillIds.has(item.id)).length,
+    missingOutcome: coverageItems.filter((item) => !item.lesson_outcome_id).length,
+    targetTagged: coverageItems.filter((item) => targetIds.has(item.id)).length,
+  };
   const lessonItemRows = courseItems.filter((item) => item.item_type === "LESSON" && item.lesson_id);
   const courseLessonIds = lessonItemRows.map((item) => item.lesson_id).filter((value): value is string => Boolean(value));
   const { data: courseLessonSlides } = courseLessonIds.length
@@ -327,6 +352,7 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
         {Math.abs(formativeItemWeight - 100) > 0.001 || (summativeItems.length > 0 && Math.abs(summativeItemWeight - 100) > 0.001) ? (
           <p className="mt-3 rounded-lg border border-amber-400/40 bg-amber-50 px-3 py-2 text-xs text-amber-900">Item weights should total 100% inside each active category. You can keep building; this is a readiness warning, not a block.</p>
         ) : null}
+        {coverageWarnings.total ? <div className="mt-3 rounded-xl border border-[var(--br-border)] bg-surface-muted p-3"><div className="flex flex-wrap items-center justify-between gap-2"><p className="text-xs font-bold text-ink">Question coverage</p><Link href={`/admin/courses/${course.id}/outcomes`} className="text-xs font-bold text-moss hover:underline">Open outcome report</Link></div><p className="mt-1 text-xs text-[var(--br-text-muted)]">{coverageWarnings.total} scored questions detected · {coverageWarnings.missingSkill} need a skill · {coverageWarnings.missingOutcome} need a lesson outcome · {coverageWarnings.targetTagged} have learning targets.</p>{coverageWarnings.missingSkill || coverageWarnings.missingOutcome ? <p className="mt-2 text-xs font-semibold text-amber-800">Complete these mappings in the lesson or quiz question editors to strengthen OBE evidence.</p> : <p className="mt-2 text-xs font-semibold text-moss">Core question mapping is covered.</p>}</div> : null}
       </section>
 
       <section className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
