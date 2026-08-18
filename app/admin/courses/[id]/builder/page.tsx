@@ -63,6 +63,9 @@ type CourseItem = {
   is_free_preview: boolean;
   bypass_sequential_unlock?: boolean | null;
   assessment_weight: number;
+  assessment_type?: "FORMATIVE" | "SUMMATIVE" | null;
+  item_assessment_weight?: number | null;
+  normalization_target?: number | null;
   mastery_threshold_override: number | null;
   evidence_selection_override: string | null;
   lessons?: { title?: string | null; level?: string | null; status?: string | null } | null;
@@ -487,8 +490,10 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
               <label className="text-sm font-medium">Mastery threshold %<input name="masteryThreshold" type="number" min="0" max="100" defaultValue={course.mastery_threshold ?? 70} className="mt-1 w-full rounded-lg border border-[var(--br-border)] px-3 py-2" /></label>
               <label className="text-sm font-medium">Minimum evidence coverage %<input name="minimumEvidenceCoverage" type="number" min="0" max="100" defaultValue={course.minimum_evidence_coverage ?? 70} className="mt-1 w-full rounded-lg border border-[var(--br-border)] px-3 py-2" /></label>
               <label className="text-sm font-medium">Attempt evidence<select name="evidenceSelection" defaultValue={course.evidence_selection ?? "LATEST"} className="mt-1 w-full rounded-lg border border-[var(--br-border)] px-3 py-2"><option value="LATEST">Latest attempt</option><option value="BEST">Best attempt</option><option value="FIRST">First attempt</option></select></label>
+              <label className="text-sm font-medium">Formative weight %<input name="formativeWeight" type="number" min="0" max="100" defaultValue={course.formative_weight ?? 40} className="mt-1 w-full rounded-lg border border-[var(--br-border)] px-3 py-2" /></label>
+              <label className="text-sm font-medium">Summative weight %<input name="summativeWeight" type="number" min="0" max="100" defaultValue={course.summative_weight ?? 60} className="mt-1 w-full rounded-lg border border-[var(--br-border)] px-3 py-2" /></label>
             </div>
-            <p className="rounded-xl bg-[var(--br-canvas-elevated)] p-3 text-sm text-[var(--br-text-muted)]">Attainment measures performance on attempted evidence. Coverage shows how much mapped evidence has been attempted. Both thresholds must be met.</p>
+            <p className="rounded-xl bg-[var(--br-canvas-elevated)] p-3 text-sm text-[var(--br-text-muted)]">Formative and summative weights must total 100%. Each item can then have its own weight inside its category and a normalization target, so a 7/10 lesson can be compared fairly with a 40-question quiz.</p>
             <button className="w-fit rounded-lg bg-dark px-4 py-2 text-sm font-semibold text-on-dark">Save policy</button>
           </form>
         </BuilderDialog>

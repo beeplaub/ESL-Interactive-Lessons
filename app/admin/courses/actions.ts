@@ -249,10 +249,15 @@ export async function updateCourseAssessmentPolicy(courseId: string, formData: F
   await requireCourseAccess(courseId, "manage_curriculum");
   const masteryThreshold = Number(formData.get("masteryThreshold"));
   const minimumEvidenceCoverage = Number(formData.get("minimumEvidenceCoverage"));
+  const formativeWeight = Number(formData.get("formativeWeight") ?? 40);
+  const summativeWeight = Number(formData.get("summativeWeight") ?? 60);
   const evidenceSelection = String(formData.get("evidenceSelection") || "LATEST");
   if (
     masteryThreshold < 0 || masteryThreshold > 100
     || minimumEvidenceCoverage < 0 || minimumEvidenceCoverage > 100
+    || formativeWeight < 0 || formativeWeight > 100
+    || summativeWeight < 0 || summativeWeight > 100
+    || Math.abs(formativeWeight + summativeWeight - 100) > 0.001
     || !["LATEST", "BEST", "FIRST"].includes(evidenceSelection)
   ) {
     throw new Error("Assessment thresholds must be between 0 and 100.");
@@ -262,6 +267,8 @@ export async function updateCourseAssessmentPolicy(courseId: string, formData: F
     mastery_threshold: masteryThreshold,
     minimum_evidence_coverage: minimumEvidenceCoverage,
     evidence_selection: evidenceSelection,
+    formative_weight: formativeWeight,
+    summative_weight: summativeWeight,
     updated_at: new Date().toISOString(),
   }).eq("id", courseId);
   if (error) throw new Error(error.message);
@@ -415,6 +422,10 @@ export async function addCourseItem(courseId: string, formData: FormData) {
     is_required: formData.get("isRequired") !== "off",
     is_free_preview: formData.get("isFreePreview") === "on",
     assessment_weight: Math.max(0.01, Number(formData.get("assessmentWeight") || 1)),
+    assessment_type: ["FORMATIVE", "SUMMATIVE"].includes(String(formData.get("assessmentType")))
+      ? String(formData.get("assessmentType")) : "FORMATIVE",
+    item_assessment_weight: Math.max(0.01, Number(formData.get("itemAssessmentWeight") || 1)),
+    normalization_target: Math.max(0.01, Number(formData.get("normalizationTarget") || 100)),
   };
 
   const { error } = await admin.from("course_items").insert(row);
@@ -510,6 +521,10 @@ export async function createAndAddCourseItem(
     is_required: true,
     is_free_preview: false,
     assessment_weight: 1,
+    assessment_type: ["FORMATIVE", "SUMMATIVE"].includes(String(formData.get("assessmentType")))
+      ? String(formData.get("assessmentType")) : "FORMATIVE",
+    item_assessment_weight: Math.max(0.01, Number(formData.get("itemAssessmentWeight") || 1)),
+    normalization_target: Math.max(0.01, Number(formData.get("normalizationTarget") || 100)),
   });
   if (itemError) {
     if (lessonId) {
@@ -550,6 +565,10 @@ export async function updateCourseItem(courseId: string, itemId: string, formDat
     is_free_preview: formData.get("isFreePreview") === "on",
     bypass_sequential_unlock: formData.get("bypassSequentialUnlock") === "on",
     assessment_weight: Math.max(0.01, Number(formData.get("assessmentWeight") || 1)),
+    assessment_type: ["FORMATIVE", "SUMMATIVE"].includes(String(formData.get("assessmentType")))
+      ? String(formData.get("assessmentType")) : "FORMATIVE",
+    item_assessment_weight: Math.max(0.01, Number(formData.get("itemAssessmentWeight") || 1)),
+    normalization_target: Math.max(0.01, Number(formData.get("normalizationTarget") || 100)),
     mastery_threshold_override: String(formData.get("masteryThresholdOverride") || "").trim()
       ? Number(formData.get("masteryThresholdOverride"))
       : null,

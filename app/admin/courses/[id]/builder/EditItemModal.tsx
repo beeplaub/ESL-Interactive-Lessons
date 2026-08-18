@@ -33,6 +33,9 @@ type ItemShape = {
   is_free_preview: boolean;
   bypass_sequential_unlock?: boolean | null;
   assessment_weight?: number;
+  assessment_type?: "FORMATIVE" | "SUMMATIVE" | null;
+  item_assessment_weight?: number | null;
+  normalization_target?: number | null;
   mastery_threshold_override?: number | null;
   evidence_selection_override?: string | null;
 };
@@ -322,7 +325,9 @@ export function EditItemModal({ action, deleteAction, item, label, status, count
                 <section className="rounded-xl border border-[var(--br-chart-primary)]/20 bg-[var(--br-surface-muted)] p-3">
                   <p className="text-xs font-extrabold uppercase tracking-wide text-[var(--br-chart-primary)]">Course assessment contribution</p>
                   <div className="mt-3 grid gap-3 sm:grid-cols-3">
-                    <label className="text-sm font-medium">Item weight<input name="assessmentWeight" type="number" min="0.01" step="0.01" defaultValue={item.assessment_weight ?? 1} className="mt-1 w-full rounded-lg border border-[var(--br-border)] bg-surface px-3 py-2 font-normal" /></label>
+                    <label className="text-sm font-medium">Assessment type<select name="assessmentType" defaultValue={item.assessment_type ?? "FORMATIVE"} className="mt-1 w-full rounded-lg border border-[var(--br-border)] bg-surface px-3 py-2 font-normal"><option value="FORMATIVE">Formative</option><option value="SUMMATIVE">Summative</option></select></label>
+                    <label className="text-sm font-medium">Weight in category<input name="itemAssessmentWeight" type="number" min="0.01" step="0.01" defaultValue={item.item_assessment_weight ?? item.assessment_weight ?? 1} className="mt-1 w-full rounded-lg border border-[var(--br-border)] bg-surface px-3 py-2 font-normal" /></label>
+                    <label className="text-sm font-medium">Normalize to<input name="normalizationTarget" type="number" min="0.01" step="0.01" defaultValue={item.normalization_target ?? 100} className="mt-1 w-full rounded-lg border border-[var(--br-border)] bg-surface px-3 py-2 font-normal" /></label>
                     <label className="text-sm font-medium">Mastery override %<input name="masteryThresholdOverride" type="number" min="0" max="100" defaultValue={item.mastery_threshold_override ?? ""} placeholder="Course default" className="mt-1 w-full rounded-lg border border-[var(--br-border)] bg-surface px-3 py-2 font-normal" /></label>
                     <label className="text-sm font-medium">Evidence override<select name="evidenceSelectionOverride" defaultValue={item.evidence_selection_override ?? ""} className="mt-1 w-full rounded-lg border border-[var(--br-border)] bg-surface px-3 py-2 font-normal"><option value="">Course default</option><option value="LATEST">Latest</option><option value="BEST">Best</option><option value="FIRST">First</option></select></label>
                   </div>

@@ -21,6 +21,9 @@ type CourseItem = {
   is_free_preview: boolean;
   bypass_sequential_unlock?: boolean | null;
   assessment_weight: number;
+  assessment_type?: "FORMATIVE" | "SUMMATIVE" | null;
+  item_assessment_weight?: number | null;
+  normalization_target?: number | null;
   mastery_threshold_override: number | null;
   evidence_selection_override: string | null;
   lessons?: { title?: string | null; level?: string | null; status?: string | null } | null;

@@ -5,12 +5,17 @@ type Course = {
   mastery_threshold: number;
   minimum_evidence_coverage: number;
   evidence_selection: EvidenceSelection;
+  formative_weight?: number;
+  summative_weight?: number;
 };
 
 type CourseItem = {
   id: string;
   title: string | null;
   assessment_weight: number;
+  assessment_type?: "FORMATIVE" | "SUMMATIVE" | null;
+  item_assessment_weight?: number | null;
+  normalization_target?: number | null;
   is_required: boolean;
 };
 
@@ -175,14 +180,14 @@ export function calculateCourseAssessment({
         earnedPoints: Number(selected.earned_points),
         maximumPoints: Number(selected.maximum_points),
         analyticalWeight: Number(itemById.get(mapping.assessment_item_id)?.analytical_weight || 1) * Number(mapping.contribution_weight || 1),
-        courseItemWeight: Number(courseItem?.assessment_weight || 1),
+        courseItemWeight: Number(courseItem?.item_assessment_weight ?? courseItem?.assessment_weight ?? 1),
         completedAt: selected.submitted_at || selectedAttempt.submitted_at,
       });
     }
     const mappedWeights = outcomeMappings.map((mapping) => {
       const courseItem = items.find((item) => item.id === mapping.course_item_id);
       const item = itemById.get(mapping.assessment_item_id);
-      return Number(mapping.contribution_weight || 1) * Number(item?.analytical_weight || 1) * Number(courseItem?.assessment_weight || 1);
+      return Number(mapping.contribution_weight || 1) * Number(item?.analytical_weight || 1) * Number(courseItem?.item_assessment_weight ?? courseItem?.assessment_weight ?? 1);
     });
     const result = calculateAttainment({
       selectedEvidence: evidence,
@@ -201,21 +206,37 @@ export function calculateCourseAssessment({
   });
 
   const gradedItems = itemResults.filter((item) => item.maximumScore > 0);
-  const weightedMaximum = gradedItems.reduce((sum, item) => {
-    const courseItem = items.find((candidate) => candidate.id === item.courseItemId);
-    return sum + Number(courseItem?.assessment_weight || 1);
-  }, 0);
-  const weightedScore = gradedItems.reduce((sum, item) => {
-    const courseItem = items.find((candidate) => candidate.id === item.courseItemId);
-    return sum + (item.scorePercent / 100) * Number(courseItem?.assessment_weight || 1);
-  }, 0);
+  const itemByResultId = new Map(gradedItems.map((result) => [result.courseItemId, result]));
+  const categoryScores = new Map<"FORMATIVE" | "SUMMATIVE", number>();
+  for (const category of ["FORMATIVE", "SUMMATIVE"] as const) {
+    const categoryItems = items.filter((item) => (item.assessment_type ?? "FORMATIVE") === category)
+      .map((item) => ({ item, result: itemByResultId.get(item.id) }))
+      .filter((entry): entry is { item: CourseItem; result: (typeof gradedItems)[number] } => Boolean(entry.result));
+    const totalWeight = categoryItems.reduce((sum, entry) => sum + Number(entry.item.item_assessment_weight ?? entry.item.assessment_weight ?? 1), 0);
+    if (totalWeight > 0) {
+      categoryScores.set(category, categoryItems.reduce((sum, entry) => {
+        const weight = Number(entry.item.item_assessment_weight ?? entry.item.assessment_weight ?? 1);
+        return sum + (entry.result.scorePercent * weight);
+      }, 0) / totalWeight);
+    }
+  }
+  // A category with no attempted evidence does not artificially depress the
+  // score; coverage still records that the evidence is missing.
+  const activeCategoryWeights = (["FORMATIVE", "SUMMATIVE"] as const)
+    .filter((category) => categoryScores.has(category))
+    .map((category) => ({ category, weight: Number(category === "FORMATIVE" ? (course.formative_weight ?? 40) : (course.summative_weight ?? 60)) }));
+  const activeWeightTotal = activeCategoryWeights.reduce((sum, entry) => sum + entry.weight, 0);
+  const weightedScore = activeWeightTotal
+    ? activeCategoryWeights.reduce((sum, entry) => sum + (categoryScores.get(entry.category) ?? 0) * entry.weight, 0) / activeWeightTotal
+    : 0;
+  const weightedMaximum = activeWeightTotal ? 100 : 0;
   const requiredItems = items.filter((item) => item.is_required);
   const completedRequired = requiredItems.filter((item) => itemResults.find((result) => result.courseItemId === item.id)?.completed).length;
   const completionPercent = requiredItems.length ? Math.round((completedRequired / requiredItems.length) * 1000) / 10 : 0;
   const mappedWeightTotal = outcomeResults.reduce((sum, outcome) => sum + outcome.mappedWeight, 0);
   const attemptedOutcomeWeight = outcomeResults.reduce((sum, outcome) => sum + (outcome.mappedWeight * outcome.coveragePercent / 100), 0);
   const coveragePercent = mappedWeightTotal ? Math.round((attemptedOutcomeWeight / mappedWeightTotal) * 1000) / 10 : 0;
-  const scorePercent = weightedMaximum ? Math.round((weightedScore / weightedMaximum) * 1000) / 10 : 0;
+  const scorePercent = Math.round(weightedScore * 10) / 10;
   const pending = attempts.some((attempt) => attempt.status === "PENDING_REVIEW") || responses.some((response) => response.grading_status === "PENDING_REVIEW");
   const allOutcomesAttained = outcomeResults.length > 0 && outcomeResults.every((outcome) => outcome.attained);
   const passed = scorePercent >= course.mastery_threshold && coveragePercent >= course.minimum_evidence_coverage;
