@@ -19,7 +19,7 @@ export default async function CalendarPage() {
     admin.from("practice_tasks").select("id,title,due_at,classes(name)").eq("learner_id", user.id).not("due_at", "is", null).neq("status", "CANCELLED").order("due_at"),
   ]);
   const entries: CalendarEntry[] = [
-    ...(assignments ?? []).map((row) => ({ id: `a-${row.id}`, title: row.title?.trim() || `${row.item_type.replace("_", " ")} assignment`, dueAt: row.due_at!, kind: "ASSIGNMENT" as const, href: "/assignments", className: joinedClassName(row.classes) })),
+    ...(assignments ?? []).map((row) => ({ id: `a-${row.id}`, title: row.title?.trim() || `${row.item_type.replace("_", " ")} assignment`, dueAt: row.due_at!, kind: "ASSIGNMENT" as const, href: assignmentHref(row), className: joinedClassName(row.classes) })),
     ...(tasks ?? []).map((row) => ({ id: `t-${row.id}`, title: row.title, dueAt: row.due_at!, kind: "TASK" as const, href: "/tasks", className: joinedClassName(row.classes) })),
   ].sort((a, b) => new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime());
   const groups = new Map<string, CalendarEntry[]>();
@@ -50,4 +50,11 @@ export default async function CalendarPage() {
       </section>
     </LearnerAppShell>
   );
+}
+
+function assignmentHref(assignment: { item_type: string; course_id: string | null; lesson_id: string | null; quiz_id: string | null }) {
+  if (assignment.item_type === "COURSE" && assignment.course_id) return `/courses/${assignment.course_id}`;
+  if (assignment.item_type === "LESSON" && assignment.lesson_id) return `/lessons/${assignment.lesson_id}`;
+  if (assignment.item_type === "QUIZ" && assignment.quiz_id) return `/quizzes/${assignment.quiz_id}`;
+  return "/assignments";
 }
