@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireAdmin, requireCourseAccess, requireLessonAccess, requireQuizAccess } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { recalculateCourseAssessment } from "@/lib/courseAssessmentService";
 
 export type ObeActionResult = { success: boolean; error?: string };
 
@@ -12,6 +13,12 @@ function message(error: unknown) {
 
 function text(value: FormDataEntryValue | null) {
   return String(value ?? "").trim();
+}
+
+async function refreshCourseEvidence(courseId: string) {
+  const admin = createAdminClient();
+  const { data: enrollments } = await admin.from("course_enrollments").select("user_id").eq("course_id", courseId).in("status", ["ACTIVE", "COMPLETED"]);
+  await Promise.all(Array.from(new Set((enrollments ?? []).map((enrollment) => enrollment.user_id))).map((userId) => recalculateCourseAssessment(userId, courseId)));
 }
 
 export async function saveCourseAssessmentPolicy(courseId: string, formData: FormData): Promise<ObeActionResult> {
@@ -235,6 +242,7 @@ export async function saveLessonOutcomeMapping(
       if (error) throw error;
     }
     revalidateLessonBuilder(lessonId);
+    await refreshCourseEvidence(courseItem.course_id);
     return { success: true };
   } catch (error) {
     console.error("saveLessonOutcomeMapping failed", error);
@@ -311,6 +319,14 @@ export async function saveAssessmentItemMetadata(formData: FormData): Promise<Ob
         })),
       );
       if (targetError) throw targetError;
+    }
+    const contentColumn = sourceType === "QUIZ_QUESTION" ? "quiz_id" : "lesson_id";
+    const contentTable = sourceType === "QUIZ_QUESTION" ? "quiz_questions" : "lesson_slide_activities";
+    const { data: source } = await admin.from(contentTable).select(contentColumn).eq("id", sourceId).maybeSingle();
+    const contentId = source ? (source as Record<string, unknown>)[contentColumn] as string | undefined : undefined;
+    if (contentId) {
+      const { data: placements } = await admin.from("course_items").select("course_id").eq(contentColumn, contentId);
+      await Promise.all(Array.from(new Set((placements ?? []).map((placement) => placement.course_id))).map((courseId) => refreshCourseEvidence(courseId)));
     }
     return { success: true };
   } catch (error) {
@@ -407,6 +423,7 @@ export async function saveQuizQuestionCourseOutcomeMapping(
     }
     revalidatePath(`/admin/courses/${courseId}/builder`);
     revalidatePath(`/admin/courses/${courseId}/outcomes`);
+    await refreshCourseEvidence(courseId);
     return { success: true };
   } catch (error) {
     console.error("saveQuizQuestionCourseOutcomeMapping failed", error);
