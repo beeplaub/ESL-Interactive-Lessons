@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { FormEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { Activity, AlignCenter, AlignLeft, AlignRight, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, AlignVerticalJustifyStart, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, AudioLines, BookOpen, ChevronDown, Copy, Eye, GripVertical, Headphones, Library, Mic2, Monitor, PenLine, Plus, Redo2, Search, Settings, SlidersHorizontal, Smartphone, Tablet, Target, Trash2, Undo2, X, ChevronRight, RotateCcw } from "lucide-react";
+import { Activity, AlignCenter, AlignLeft, AlignRight, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, AlignVerticalJustifyStart, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, BookOpen, Copy, Eye, GripVertical, Headphones, Library, Mic2, Monitor, PenLine, Plus, Redo2, Search, Settings, SlidersHorizontal, Smartphone, Tablet, Target, Trash2, Undo2, X, ChevronRight, RotateCcw } from "lucide-react";
 import {
   addBuilderSlideAt,
   addLessonBlock,
@@ -922,14 +922,6 @@ export function LessonBuilderWorkspace({ lesson, slides, trashedSlides = [], blo
         </div>
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <BuilderHeaderUndoRedo {...textHistory} />
-          {selectedSlide && !selectedSlide.id.startsWith("optimistic-slide-") ? (
-            <Link
-              href={`/admin/creator-tools/voiceover?lessonId=${lesson.id}&slideId=${selectedSlide.id}&returnTo=${encodeURIComponent(`/admin/lessons/${lesson.id}/builder`)}`}
-              className="inline-flex h-9 items-center gap-2 rounded-lg border border-white/15 px-3 text-xs font-black text-white/85 hover:bg-white/10"
-            >
-              <AudioLines size={15} /> <span className="hidden sm:inline">Create AI voiceover</span>
-            </Link>
-          ) : null}
           <button type="button" onClick={() => setIsLessonPreviewOpen(true)} className="inline-flex h-9 items-center gap-2 rounded-lg border border-white/15 px-3 text-xs font-black text-white/85 hover:bg-white/10">
             <Eye size={15} /> <span className="hidden sm:inline">Preview lesson</span>
           </button>
