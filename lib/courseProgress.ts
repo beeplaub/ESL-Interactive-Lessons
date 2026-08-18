@@ -42,11 +42,13 @@ export async function completeCourseItemsForContent(userId: string, reference: C
   }
 }
 
-export async function recalculateCourseProgress(userId: string, courseId: string, currentItemId?: string | null) {
+export async function recalculateCourseProgress(userId: string, courseId: string, _currentItemId?: string | null) {
   const admin = createAdminClient();
-  const [{ data: requiredItems }, { data: completedRows }] = await Promise.all([
+  const [{ data: allItems }, { data: requiredItems }, { data: completedRows }, { data: sections }] = await Promise.all([
+    admin.from("course_items").select("id,section_id,position,is_required").eq("course_id", courseId),
     admin.from("course_items").select("id").eq("course_id", courseId).eq("is_required", true),
     admin.from("course_item_progress").select("course_item_id").eq("user_id", userId).eq("course_id", courseId).eq("completed", true),
+    admin.from("course_sections").select("id,position").eq("course_id", courseId).order("position", { ascending: true }),
   ]);
 
   const requiredIds = new Set((requiredItems ?? []).map((item) => item.id));
@@ -55,10 +57,18 @@ export async function recalculateCourseProgress(userId: string, courseId: string
   const total = requiredIds.size;
   const percent = total ? Math.min(100, Math.round((completed / total) * 100)) : 0;
 
+  const sectionOrder = new Map((sections ?? []).map((section, index) => [section.id, index]));
+  const orderedItems = [...(allItems ?? [])].sort((a, b) => {
+    const sectionA = a.section_id === null ? Number.MAX_SAFE_INTEGER : sectionOrder.get(a.section_id) ?? Number.MAX_SAFE_INTEGER;
+    const sectionB = b.section_id === null ? Number.MAX_SAFE_INTEGER : sectionOrder.get(b.section_id) ?? Number.MAX_SAFE_INTEGER;
+    return sectionA - sectionB || a.position - b.position;
+  });
+  const nextItem = orderedItems.find((item) => !completedIds.has(item.id)) ?? null;
+
   await admin.from("course_progress").upsert({
     user_id: userId,
     course_id: courseId,
-    current_item_id: currentItemId ?? null,
+    current_item_id: nextItem?.id ?? null,
     total_items: total,
     completed_items: completed,
     progress_percent: percent,
