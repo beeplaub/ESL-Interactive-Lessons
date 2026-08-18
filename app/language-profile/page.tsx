@@ -54,6 +54,9 @@ export default async function LanguageProfilePage({ searchParams }: { searchPara
   const { data: outcomes } = outcomeIds.length ? await admin.from("course_outcomes").select("id,code,outcome").in("id", outcomeIds) : { data: [] };
   const lessonOutcomeIds = Array.from(new Set((evidenceItems ?? []).map((item) => item.lesson_outcome_id).filter((id): id is string => Boolean(id))));
   const { data: lessonOutcomes } = lessonOutcomeIds.length ? await admin.from("lesson_outcomes").select("id,code,outcome").in("id", lessonOutcomeIds) : { data: [] };
+  const { data: evidenceMappings } = assessmentItemIds.length
+    ? await admin.from("assessment_item_course_outcomes").select("assessment_item_id,course_item_id,course_outcome_id").in("assessment_item_id", assessmentItemIds)
+    : { data: [] };
 
   const skillRows = summarizeSkillEvidence({ skills: skills ?? [], responses: responses ?? [], itemSkills: itemSkills ?? [] }).sort((a, b) => b.confidence - a.confidence);
   const targetRows = summarizeTargetEvidence({ targets: targets ?? [], responses: responses ?? [], itemTargets: itemTargets ?? [] }).sort((a, b) => b.confidence - a.confidence);
@@ -65,14 +68,26 @@ export default async function LanguageProfilePage({ searchParams }: { searchPara
   const outcomeById = new Map((outcomes ?? []).map((outcome) => [outcome.id, outcome]));
   const lessonOutcomeById = new Map((lessonOutcomes ?? []).map((outcome) => [outcome.id, outcome]));
   const evidenceItemById = new Map((evidenceItems ?? []).map((item) => [item.id, item]));
+  const courseOutcomeMappingByKey = new Map((evidenceMappings ?? []).map((mapping) => [`${mapping.assessment_item_id}:${mapping.course_item_id}`, mapping.course_outcome_id]));
   const courseItemIds = Array.from(new Set((attempts ?? []).map((attempt) => attempt.course_item_id).filter((id): id is string => Boolean(id))));
   const { data: evidenceCourseItems } = courseItemIds.length ? await admin.from("course_items").select("id,title,course_id,lessons(title),quizzes(title)").in("id", courseItemIds) : { data: [] };
   const evidenceCourseItemById = new Map((evidenceCourseItems ?? []).map((item) => [item.id, item]));
+  const quizQuestionIds = Array.from(new Set((evidenceItems ?? []).map((item) => item.quiz_question_id).filter((id): id is string => Boolean(id))));
+  const activityIds = Array.from(new Set((evidenceItems ?? []).map((item) => item.lesson_activity_id).filter((id): id is string => Boolean(id))));
+  const [{ data: evidenceQuestions }, { data: evidenceActivities }] = await Promise.all([
+    quizQuestionIds.length ? admin.from("quiz_questions").select("id,quiz_id,question_number").in("id", quizQuestionIds) : Promise.resolve({ data: [] }),
+    activityIds.length ? admin.from("lesson_slide_activities").select("id,lesson_id,slide_number").in("id", activityIds) : Promise.resolve({ data: [] }),
+  ]);
+  const questionById = new Map((evidenceQuestions ?? []).map((question) => [question.id, question]));
+  const activityById = new Map((evidenceActivities ?? []).map((activity) => [activity.id, activity]));
   const attemptById = new Map((attempts ?? []).map((attempt) => [attempt.id, attempt]));
   const evidenceRows = (responses ?? []).slice(0, 30).map((response) => {
     const attempt = attemptById.get(response.attempt_id);
     const item = evidenceItemById.get(response.assessment_item_id);
     const courseItem = attempt?.course_item_id ? evidenceCourseItemById.get(attempt.course_item_id) : null;
+    const question = item?.quiz_question_id ? questionById.get(item.quiz_question_id) : null;
+    const activity = item?.lesson_activity_id ? activityById.get(item.lesson_activity_id) : null;
+    const mappedOutcomeId = item && attempt?.course_item_id ? courseOutcomeMappingByKey.get(`${item.id}:${attempt.course_item_id}`) : null;
     return {
       id: response.id,
       source: courseItem?.title || courseItem?.lessons?.[0]?.title || courseItem?.quizzes?.[0]?.title || (attempt?.source_type === "QUIZ" ? "Standalone quiz" : "Lesson activity"),
@@ -82,7 +97,8 @@ export default async function LanguageProfilePage({ searchParams }: { searchPara
       maximum: Number(response.maximum_points ?? 0),
       correct: response.is_correct,
       submittedAt: response.submitted_at,
-      outcome: item?.lesson_outcome_id ? outcomeById.get(item.lesson_outcome_id)?.outcome ?? lessonOutcomeById.get(item.lesson_outcome_id)?.outcome ?? null : null,
+      href: question ? `/quizzes/${question.quiz_id}` : activity ? `/lessons/${activity.lesson_id}?slide=${activity.slide_number}` : null,
+      outcome: mappedOutcomeId ? outcomeById.get(mappedOutcomeId)?.outcome ?? null : item?.lesson_outcome_id ? lessonOutcomeById.get(item.lesson_outcome_id)?.outcome ?? null : null,
     };
   });
   const allCanDos = (outcomeRows ?? []).map((row) => ({ ...row, outcome: outcomeById.get(row.course_outcome_id), courseId: resultById.get(row.course_assessment_result_id)?.course_id })).filter((row) => row.outcome);
@@ -131,7 +147,7 @@ export default async function LanguageProfilePage({ searchParams }: { searchPara
       ) : null}
 
       {responses?.length ? <div className="grid min-w-0 gap-5 xl:grid-cols-2"><EvidenceSection title="Skill mastery" icon={<TrendingUp className="size-5 text-[var(--br-chart-primary)]" />} description="Confidence uses your most recent evidence first." rows={skillRows.map((row) => ({ key: row.skill.id, label: row.skill.name, detail: `${row.evidenceCount} evidence record${row.evidenceCount === 1 ? "" : "s"}`, band: row.band, value: row.confidence }))} empty="No skill-labeled evidence yet. New quizzes and lessons will start filling this in." /><EvidenceSection title="Learned targets" icon={<Sparkles className="size-5 text-[var(--br-achievement)]" />} description="Vocabulary, grammar, idioms, and pronunciation targets." rows={targetRows.slice(0, 12).map((row) => ({ key: row.target.id, label: row.target.label, detail: row.target.target_type.replaceAll("_", " "), band: row.band, value: row.confidence }))} empty="No learning targets have been mastered yet." /></div> : <section className="br-learner-card p-8 text-center"><CheckCircle2 className="mx-auto size-10 text-[var(--br-chart-primary)]" /><h2 className="mt-3 text-xl font-black text-[var(--br-dark-card)]">Your profile is ready to grow</h2><p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-[var(--br-text-muted)]">Once you complete scored quizzes or course activities, this page will show your strengths, learned items, confidence, and Can-Do evidence.</p><Link href="/quizzes" className="mt-5 inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-[var(--br-chart-primary)] to-[var(--br-brand)] px-5 py-3 text-sm font-black text-on-dark">Start with a quiz <ArrowRight className="size-4" /></Link></section>}
-      {evidenceRows.length ? <section className="br-learner-card min-w-0 p-4 sm:p-5"><div className="mb-4"><p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--br-chart-primary)]">Traceable evidence</p><h2 className="mt-1 text-xl font-black text-[var(--br-dark-card)]">Recent answers behind your progress</h2><p className="mt-1 text-sm text-[var(--br-text-muted)]">Every result keeps its source, score, and date so your profile remains explainable.</p></div><div className="grid gap-2">{evidenceRows.map((row) => <div key={row.id} className="min-w-0 rounded-2xl border border-[var(--br-surface-strong)] p-3"><div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between"><div className="min-w-0"><p className="text-xs font-black uppercase tracking-wide text-[var(--br-chart-primary)]">{row.source}</p><p className="mt-1 break-words text-sm font-bold text-[var(--br-dark-card)]">{row.prompt}</p>{row.outcome ? <p className="mt-1 break-words text-xs text-[var(--br-text-muted)]">Can-Do: {row.outcome}</p> : null}</div><span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-black ${row.correct === true ? "bg-emerald-50 text-emerald-700" : row.correct === false ? "bg-rose-50 text-rose-700" : "bg-amber-50 text-amber-700"}`}>{row.earned}/{row.maximum}</span></div><p className="mt-2 text-[11px] font-semibold text-[var(--br-text-muted)]">{new Date(row.submittedAt).toLocaleString("en-BD", { dateStyle: "medium", timeStyle: "short" })}</p></div>)}</div></section> : null}
+      {evidenceRows.length ? <section className="br-learner-card min-w-0 p-4 sm:p-5"><div className="mb-4"><p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--br-chart-primary)]">Traceable evidence</p><h2 className="mt-1 text-xl font-black text-[var(--br-dark-card)]">Recent answers behind your progress</h2><p className="mt-1 text-sm text-[var(--br-text-muted)]">Every result keeps its source, score, and date so your profile remains explainable.</p></div><div className="grid gap-2">{evidenceRows.map((row) => <div key={row.id} className="min-w-0 rounded-2xl border border-[var(--br-surface-strong)] p-3"><div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between"><div className="min-w-0"><p className="text-xs font-black uppercase tracking-wide text-[var(--br-chart-primary)]">{row.href ? <Link href={row.href} className="hover:underline">{row.source} <ArrowRight className="inline size-3" /></Link> : row.source}</p><p className="mt-1 break-words text-sm font-bold text-[var(--br-dark-card)]">{row.prompt}</p>{row.outcome ? <p className="mt-1 break-words text-xs text-[var(--br-text-muted)]">Can-Do: {row.outcome}</p> : null}</div><span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-black ${row.correct === true ? "bg-emerald-50 text-emerald-700" : row.correct === false ? "bg-rose-50 text-rose-700" : "bg-amber-50 text-amber-700"}`}>{row.earned}/{row.maximum}</span></div><p className="mt-2 text-[11px] font-semibold text-[var(--br-text-muted)]">{new Date(row.submittedAt).toLocaleString("en-BD", { dateStyle: "medium", timeStyle: "short" })}</p></div>)}</div></section> : null}
     </LearnerAppShell>
   );
 }
