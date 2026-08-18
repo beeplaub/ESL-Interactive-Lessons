@@ -68,6 +68,8 @@ export type CourseAssessmentSummary = {
     score: number;
     maximumScore: number;
     scorePercent: number;
+    normalizedScore: number;
+    normalizationTarget: number;
     evidenceCount: number;
     completed: boolean;
   }>;
@@ -163,6 +165,10 @@ export function calculateCourseAssessment({
       score,
       maximumScore,
       scorePercent: percent(score, maximumScore),
+      normalizedScore: maximumScore > 0
+        ? Math.round((score / maximumScore) * Number(courseItem.normalization_target ?? 100) * 10) / 10
+        : 0,
+      normalizationTarget: Number(courseItem.normalization_target ?? 100),
       evidenceCount: selected.length,
       completed: completedItemIds.has(courseItem.id) || selected.length > 0,
     };

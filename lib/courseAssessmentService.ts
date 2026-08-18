@@ -120,6 +120,8 @@ export async function recalculateCourseAssessment(userId: string, courseId: stri
     title_snapshot: item.title,
     score: item.score,
     maximum_score: item.maximumScore,
+    normalized_score: item.normalizedScore,
+    normalization_target: item.normalizationTarget,
     score_percent: item.scorePercent,
     evidence_count: item.evidenceCount,
     completed: item.completed,
