@@ -146,6 +146,9 @@ const scorecardSchema = {
         task_achievement: { type: "integer" },
         vocabulary_range: { type: "integer" },
         grammar_accuracy: { type: "integer" },
+        fluency: { type: "integer" },
+        pronunciation_clarity: { type: "integer" },
+        sentence_structure: { type: "integer" },
         overall: { type: "integer" }
       },
       required: ["task_achievement", "vocabulary_range", "grammar_accuracy", "overall"]

@@ -184,12 +184,12 @@ Your response must follow this JSON schema exactly:
 
   learner_roleplay_evaluator: {
     role_description: "You are an expert ESL Speaking Assessor.",
-    prompt_text: `Evaluate the following completed roleplay conversation:
+    prompt_text: `Evaluate the following completed spoken English roleplay conversation:
 Scenario: "{scenario}"
 Target level: {level}
 Conversation transcript: {transcript}
 
-Grade the learner's performance and provide detailed feedback.
+Grade the learner's spoken performance, not written English. Encourage the learner first and keep feedback selective. Do not penalize punctuation, spelling, capitalization, or transcript imperfections. Assess fluency, pronunciation clarity only when the transcript supports a reasonable inference, vocabulary range, sentence structure, and task achievement. Do not invent pronunciation problems from text alone. Give one or two useful next steps, not a long error list.
 
 Your response must follow this JSON schema exactly:
 {

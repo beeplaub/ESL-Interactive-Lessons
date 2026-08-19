@@ -505,6 +505,8 @@ function normalizeAiRoleplay(data: Json | null) {
     character_image_url: String(record.character_image_url ?? ""),
     voice_name: String(record.voice_name ?? "Achird"),
     first_turn: String(record.first_turn ?? "Hello! How can I help you today?"),
+    correction_style: ["GENTLE", "COACH", "CHALLENGE"].includes(String(record.correction_style)) ? String(record.correction_style) : "GENTLE",
+    target_phrases: Array.isArray(record.target_phrases) ? record.target_phrases.map(String).filter(Boolean) : [],
     voice_enabled: record.voice_enabled === true,
     save_recordings: record.save_recordings === true,
     recording_retention_days: [7, 30, 90].includes(Number(record.recording_retention_days)) ? Number(record.recording_retention_days) : 30,
@@ -521,6 +523,8 @@ function AiRoleplayEditor({ activity, lessonId, onSave }: { activity: Activity; 
   const [characterImageUrl, setCharacterImageUrl] = useState(initial.character_image_url);
   const [voiceName, setVoiceName] = useState(initial.voice_name);
   const [firstTurn, setFirstTurn] = useState(initial.first_turn);
+  const [correctionStyle, setCorrectionStyle] = useState(initial.correction_style);
+  const [targetPhrases, setTargetPhrases] = useState(initial.target_phrases.join("\n"));
   const [voiceEnabled, setVoiceEnabled] = useState(initial.voice_enabled);
   const [saveRecordings, setSaveRecordings] = useState(initial.save_recordings);
   const [retentionDays, setRetentionDays] = useState(initial.recording_retention_days);
@@ -578,6 +582,22 @@ function AiRoleplayEditor({ activity, lessonId, onSave }: { activity: Activity; 
         </label>
       </div>
       <MediaRecorderInput value={characterImageUrl} onChange={setCharacterImageUrl} type="image" lessonId={lessonId} label="Partner portrait (optional)" />
+      <div className="grid gap-4 md:grid-cols-2">
+        <label className="text-sm font-medium">
+          Feedback style
+          <select value={correctionStyle} onChange={(event) => setCorrectionStyle(event.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] bg-surface px-3 py-2">
+            <option value="GENTLE">Gentle · encourage first</option>
+            <option value="COACH">Coach · correct useful errors</option>
+            <option value="CHALLENGE">Challenge · give more direct feedback</option>
+          </select>
+          <span className="mt-1 block text-xs font-normal text-[var(--br-text-muted)]">The AI always keeps the conversation moving and never corrects every small mistake.</span>
+        </label>
+        <label className="text-sm font-medium">
+          Target phrases (optional)
+          <textarea value={targetPhrases} onChange={(event) => setTargetPhrases(event.target.value)} className="mt-1 min-h-20 w-full rounded-md border border-[var(--br-border)] px-3 py-2" placeholder="One useful phrase per line" />
+          <span className="mt-1 block text-xs font-normal text-[var(--br-text-muted)]">The partner will naturally invite the learner to use these phrases.</span>
+        </label>
+      </div>
       <section className="rounded-xl border border-[var(--br-border)] bg-[var(--br-surface-muted)] p-4">
         <div className="flex items-center justify-between gap-3">
           <div><p className="text-sm font-semibold">Voice conversation</p><p className="text-xs text-[var(--br-text-muted)]">Let learners speak with this AI partner instead of typing.</p></div>
@@ -594,7 +614,7 @@ function AiRoleplayEditor({ activity, lessonId, onSave }: { activity: Activity; 
         </div> : null}
       </section>
       <div className="flex justify-end gap-3 mt-2">
-        <SaveButton onClick={() => onSave({ prompt, character, character_image_url: characterImageUrl, voice_name: voiceName, first_turn: firstTurn, voice_enabled: voiceEnabled, save_recordings: saveRecordings, recording_retention_days: retentionDays, allow_download: allowDownload, show_transcript: showTranscript, max_seconds_per_attempt: maxSeconds } as Json, needsReview)} />
+        <SaveButton onClick={() => onSave({ prompt, character, character_image_url: characterImageUrl, voice_name: voiceName, first_turn: firstTurn, correction_style: correctionStyle, target_phrases: targetPhrases.split("\n").map((value) => value.trim()).filter(Boolean), voice_enabled: voiceEnabled, save_recordings: saveRecordings, recording_retention_days: retentionDays, allow_download: allowDownload, show_transcript: showTranscript, max_seconds_per_attempt: maxSeconds } as Json, needsReview)} />
       </div>
     </div>
   );
