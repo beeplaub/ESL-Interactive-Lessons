@@ -168,7 +168,6 @@ function kokoroSpeed(pace: string) {
 
 async function generateKokoroVoiceover(request: VoiceoverRequest) {
   if (!isEnglishLanguage(request.languageCode)) throw new Error("Kokoro currently supports English voiceovers only. Choose Gemini for this language.");
-  if (request.style !== "Natural") throw new Error("Kokoro currently supports Natural delivery only. Choose Gemini for delivery styles.");
   const baseUrl = process.env.KOKORO_TTS_URL?.replace(/\/$/, "");
   const apiKey = process.env.KOKORO_TTS_API_KEY;
   if (!baseUrl || !apiKey) throw new Error("The BrenUp Kokoro voice service is not configured.");
@@ -190,9 +189,9 @@ async function generateKokoroVoiceover(request: VoiceoverRequest) {
   // During rollout an existing Mac Mini service may still be the prior
   // WAV-only release. Keep voiceover creation working until its installer has
   // been run, then switch to Opus automatically on the next request.
-  if (!response.ok && response.status === 400) {
+  if (!response.ok && [400, 404, 415, 422].includes(response.status)) {
     const details = await response.clone().text().catch(() => "");
-    if (/response_format|wav output/i.test(details)) response = await requestSpeech("wav");
+    if (/response_format|wav output|opus|unsupported/i.test(details)) response = await requestSpeech("wav");
   }
   if (!response.ok) {
     const details = await response.text().catch(() => "");
