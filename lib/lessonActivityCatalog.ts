@@ -51,6 +51,7 @@ export const LESSON_ACTIVITY_CATALOG: LessonActivityDefinition[] = [
   { type: "PRONUNCIATION", label: "Pronunciation Practice", description: "Record and compare spoken language.", skills: ["SPEAKING", "LISTENING"] },
   { type: "ORAL_RESPONSE", label: "Oral Response", description: "Answer a prompt by speaking.", skills: ["SPEAKING"] },
   { type: "AI_ROLEPLAY", label: "AI Conversation Roleplay", description: "Hold a guided conversation with AI.", skills: ["SPEAKING", "LISTENING"], aiEnhanced: true },
+  { type: "AI_INTERVIEW", label: "Interview with AI", description: "Answer spoken questions from a context-aware AI interviewer.", skills: ["SPEAKING", "LISTENING"], aiEnhanced: true },
   { type: "LIVE_SPEAK_TRANSLATE", label: "Live Bangla to English", description: "Speak in Bangla and hear natural English.", skills: ["SPEAKING", "LISTENING"], aiEnhanced: true },
 ];
 

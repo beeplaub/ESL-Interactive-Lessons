@@ -139,6 +139,7 @@ function labelFor(type: string) {
   if (type === "PEER_REVIEW_EDITING") return "Peer Review / Collaborative Editing";
   if (type === "DIALOGUE_WRITING") return "Dialogue Writing Activity";
   if (type === "AI_ROLEPLAY") return "AI Conversation Roleplay";
+  if (type === "AI_INTERVIEW") return "Interview with AI";
   if (type === "LIVE_SPEAK_TRANSLATE") return "Live Bangla to English Speaking";
   return `${type.replaceAll("_", " ")} Activity`;
 }
@@ -620,6 +621,34 @@ function AiRoleplayEditor({ activity, lessonId, onSave }: { activity: Activity; 
   );
 }
 
+function AiInterviewEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
+  const current = asRecord(activity.activity_data);
+  const [context, setContext] = useState(String(current.interview_context ?? ""));
+  const [level, setLevel] = useState(String(current.level ?? "B1"));
+  const [questionCount, setQuestionCount] = useState(Math.max(1, Math.min(20, Number(current.question_count) || 5)));
+  const [answerSeconds, setAnswerSeconds] = useState(Math.max(10, Math.min(180, Number(current.answer_seconds) || 45)));
+  const [character, setCharacter] = useState(String(current.character ?? "AI interviewer"));
+  const [voiceName, setVoiceName] = useState(String(current.voice_name ?? "Achird"));
+  const [correctionStyle, setCorrectionStyle] = useState(String(current.correction_style ?? "GENTLE"));
+  const [saveRecordings, setSaveRecordings] = useState(current.save_recordings === true);
+  const [allowDownload, setAllowDownload] = useState(current.allow_download === true);
+  const needsReview = !context.trim() || !character.trim();
+  return <div className="grid gap-4">
+    <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"><strong>Creator context stays hidden.</strong> The interviewer uses it to create questions, but learners only hear the questions and feedback.</div>
+    <label className="text-sm font-medium">Interview context / source material<textarea value={context} onChange={(e) => setContext(e.target.value)} rows={8} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" placeholder="Paste the facts, paragraph, essay, image description, or knowledge the interview must be based on..." /></label>
+    <div className="grid gap-4 md:grid-cols-3">
+      <label className="text-sm font-medium">Learner level<select value={level} onChange={(e) => setLevel(e.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] bg-surface px-3 py-2">{["A1","A2","B1","B2","C1","C2"].map((item) => <option key={item}>{item}</option>)}</select></label>
+      <label className="text-sm font-medium">Questions<input type="number" min={1} max={20} value={questionCount} onChange={(e) => setQuestionCount(Math.max(1, Math.min(20, Number(e.target.value) || 1)))} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+      <label className="text-sm font-medium">Seconds per answer<input type="number" min={10} max={180} value={answerSeconds} onChange={(e) => setAnswerSeconds(Math.max(10, Math.min(180, Number(e.target.value) || 10)))} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+      <label className="text-sm font-medium">Interviewer name<input value={character} onChange={(e) => setCharacter(e.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+      <label className="text-sm font-medium">Voice<select value={voiceName} onChange={(e) => setVoiceName(e.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] bg-surface px-3 py-2">{["Achird","Gacrux","Leda","Charon","Kore","Aoede","Puck","Sulafat"].map((item) => <option key={item}>{item}</option>)}</select></label>
+      <label className="text-sm font-medium">Correction style<select value={correctionStyle} onChange={(e) => setCorrectionStyle(e.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] bg-surface px-3 py-2"><option value="GENTLE">Gentle and encouraging</option><option value="COACH">Coach and clarify</option><option value="CHALLENGE">Challenge and extend</option></select></label>
+    </div>
+    <div className="flex flex-wrap gap-4 text-sm"><label className="flex items-center gap-2"><input type="checkbox" checked={saveRecordings} onChange={(e) => setSaveRecordings(e.target.checked)} /> Allow saved conversation</label><label className="flex items-center gap-2"><input type="checkbox" checked={allowDownload} onChange={(e) => setAllowDownload(e.target.checked)} /> Allow download</label></div>
+    <div className="flex justify-end"><SaveButton onClick={() => onSave({ interview_context: context, level, question_count: questionCount, answer_seconds: answerSeconds, character, voice_name: voiceName, correction_style: correctionStyle, first_turn: "Welcome. I will ask you a few questions based on what you studied. Take your time.", prompt: "Conduct a spoken interview based only on the hidden context.", voice_enabled: true, show_transcript: true, save_recordings: saveRecordings, allow_download: allowDownload, max_seconds_per_attempt: questionCount * answerSeconds + 60 } as Json, needsReview)} /></div>
+  </div>;
+}
+
 export function InLessonActivitiesEditor({
   lessonId,
   initialActivities,
@@ -786,8 +815,9 @@ function ActivityPanel({
               {activity.activity_type === "PEER_REVIEW_EDITING" ? <PeerReviewEditingEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "DIALOGUE_WRITING" ? <DialogueWritingEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "AI_ROLEPLAY" ? <AiRoleplayEditor activity={activity} lessonId={lessonId} onSave={save} /> : null}
+              {activity.activity_type === "AI_INTERVIEW" ? <AiInterviewEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "LIVE_SPEAK_TRANSLATE" ? <LiveSpeakTranslateEditor activity={activity} onSave={save} /> : null}
-              {!["MCQ", "GAP_FILL", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "ORAL_RESPONSE", "SUMMARIZATION", "INFERENCE_DETECTION", "HEADINGS_MATCHING", "SKIM_CHALLENGE", "PARAPHRASE_ID", "DICTATION", "LISTEN_AND_SELECT", "SHADOWING", "NOTE_TAKING_CHALLENGE", "SOUND_DISCRIMINATION", "LISTEN_AND_GAP_FILL", "SENTENCE_COMPLETION", "ESSAY_WRITING", "EMAIL_LETTER_WRITING", "TRANSLATION", "PARAPHRASE_PRACTICE", "SENTENCE_COMBINING", "CREATIVE_WRITING", "PEER_REVIEW_EDITING", "DIALOGUE_WRITING", "AI_ROLEPLAY"].includes(activity.activity_type) ? (
+              {!["MCQ", "GAP_FILL", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "ORAL_RESPONSE", "SUMMARIZATION", "INFERENCE_DETECTION", "HEADINGS_MATCHING", "SKIM_CHALLENGE", "PARAPHRASE_ID", "DICTATION", "LISTEN_AND_SELECT", "SHADOWING", "NOTE_TAKING_CHALLENGE", "SOUND_DISCRIMINATION", "LISTEN_AND_GAP_FILL", "SENTENCE_COMPLETION", "ESSAY_WRITING", "EMAIL_LETTER_WRITING", "TRANSLATION", "PARAPHRASE_PRACTICE", "SENTENCE_COMBINING", "CREATIVE_WRITING", "PEER_REVIEW_EDITING", "DIALOGUE_WRITING", "AI_ROLEPLAY", "AI_INTERVIEW"].includes(activity.activity_type) ? (
                 <p className="rounded-md bg-surface-muted p-3 text-sm text-[var(--br-text-muted)]">
                   This activity type has starter data and preview support. A detailed visual editor for it will be added in the next activity-builder pass.
                 </p>

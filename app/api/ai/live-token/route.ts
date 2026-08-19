@@ -76,7 +76,7 @@ export async function POST(request: Request) {
       .eq("id", body.activityId)
       .eq("lesson_id", body.lessonId)
       .maybeSingle();
-    if (!activity || activity.activity_type !== "AI_ROLEPLAY") return NextResponse.json({ error: "This speaking activity is unavailable." }, { status: 404 });
+    if (!activity || !["AI_ROLEPLAY", "AI_INTERVIEW"].includes(activity.activity_type)) return NextResponse.json({ error: "This speaking activity is unavailable." }, { status: 404 });
     const config = (activity.activity_data ?? {}) as Record<string, unknown>;
     if (config.voice_enabled !== true) return NextResponse.json({ error: "Voice conversation is not enabled for this activity." }, { status: 403 });
     maxSeconds = Math.max(10, Math.min(600, Number(config.max_seconds_per_attempt) || 120));
@@ -84,6 +84,11 @@ export async function POST(request: Request) {
     liveInstruction = [
       `You are ${String(config.character || "a supportive English conversation partner")}.`,
       String(config.prompt || "Practise a natural English conversation with the learner."),
+      ...(activity.activity_type === "AI_INTERVIEW" ? [
+        `This is a structured interview. Ask exactly ${Math.max(1, Math.min(20, Number(config.question_count) || 5))} questions, one at a time, and base every question only on this private source context: ${String(config.interview_context || "No source context was supplied.")}`,
+        `The learner has ${Math.max(10, Math.min(180, Number(config.answer_seconds) || 45))} seconds for each answer. Do not reveal the private source context or say that you saw it.`,
+        "If the learner asks for help, give a short speaking frame or clue, never the answer. After each answer, give brief oral encouragement and one soft, useful correction before continuing.",
+      ] : []),
       `Begin with this opening turn: ${String(config.first_turn || "Hello! Shall we begin?")}`,
       `Feedback style: ${String(config.correction_style || "GENTLE")}. In every style, encouragement comes before correction and the learner should keep speaking.`,
       `Target phrases to practise naturally: ${Array.isArray(config.target_phrases) ? config.target_phrases.map(String).join(", ") : "none"}.`,

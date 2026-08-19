@@ -652,6 +652,7 @@ function activityLabel(type: string) {
   if (type === "SOUND_DISCRIMINATION") return "Sound Discrimination";
   if (type === "LISTEN_AND_GAP_FILL") return "Gap Fill while Listening";
   if (type === "AI_ROLEPLAY") return "AI Conversation Roleplay";
+  if (type === "AI_INTERVIEW") return "Interview with AI";
   if (type === "LIVE_SPEAK_TRANSLATE") return "Live Bangla to English";
   return "Activity";
 }
@@ -725,6 +726,7 @@ type ChatMessage = { sender: "AI" | "LEARNER"; text: string; corrections?: any }
 
 function VoiceRoleplayPanel({ activity, lessonId, onNext, previewOnly, onSavedAttempt }: { activity: LessonSlideActivity; lessonId: string | null; onNext: () => void; previewOnly?: boolean; onSavedAttempt?: (attempt: SavedAttempt) => void }) {
   const data = asRecord(activity.activity_data);
+  const isInterview = activity.activity_type === "AI_INTERVIEW";
   const scenario = String(data.prompt ?? "Practise speaking English with your AI partner.");
   const character = String(data.character ?? "AI conversation partner");
   const characterImageUrl = String(data.character_image_url ?? "");
@@ -741,6 +743,8 @@ function VoiceRoleplayPanel({ activity, lessonId, onNext, previewOnly, onSavedAt
   const [error, setError] = useState<string | null>(null);
   const [scorecard, setScorecard] = useState<any>(null);
   const [aiSpeaking, setAiSpeaking] = useState(false);
+  const [hint, setHint] = useState<string | null>(null);
+  const [hintLoading, setHintLoading] = useState(false);
   const [pastRecordings, setPastRecordings] = useState<Array<{ id: string; duration_seconds: number; transcript: string | null; created_at: string; expires_at: string }>>([]);
   const [pastSessions, setPastSessions] = useState<Array<{ id: string; scorecard: Json | null; created_at: string; updated_at: string }>>([]);
   const [pastRecordingUrls, setPastRecordingUrls] = useState<Record<string, string>>({});
@@ -841,6 +845,19 @@ function VoiceRoleplayPanel({ activity, lessonId, onNext, previewOnly, onSavedAt
     }
   }
 
+  async function requestHint() {
+    if (!isInterview || hintLoading) return;
+    setHintLoading(true); setError(null);
+    try {
+      const response = await fetch("/api/ai/interview-hint", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ activityId: activity.id, transcript: transcriptRef.current }) });
+      const body = await response.json() as { hint?: string; error?: string };
+      if (!response.ok) throw new Error(body.error || "A hint is unavailable right now.");
+      setHint(body.hint || null);
+      if (body.hint && typeof window !== "undefined" && "speechSynthesis" in window) { window.speechSynthesis.cancel(); window.speechSynthesis.speak(new SpeechSynthesisUtterance(body.hint)); }
+    } catch (caught) { setError(caught instanceof Error ? caught.message : "A hint is unavailable right now."); }
+    finally { setHintLoading(false); }
+  }
+
   useEffect(() => {
     if (phase !== "recording") return;
     const timer = window.setInterval(() => setSecondsLeft((current) => { if (current <= 1) { void finish(); return 0; } return current - 1; }), 1000);
@@ -888,7 +905,7 @@ function VoiceRoleplayPanel({ activity, lessonId, onNext, previewOnly, onSavedAt
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-white/10 px-2 py-1 text-[10px] font-bold uppercase tracking-wide">AI speaking partner</span>{aiSpeaking ? <span className="flex items-center gap-1.5 text-xs font-semibold text-[var(--br-action)]"><span className="size-1.5 animate-pulse rounded-full bg-[var(--br-action)]" />Speaking</span> : null}</div>
           <h2 className="mt-2 truncate text-lg font-semibold sm:text-xl">{character}</h2>
-          <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-white/75">{scenario}</p>
+          <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-white/75">{isInterview ? "A friendly AI interviewer will ask questions based on your study material." : scenario}</p>
         </div>
       </div>
     </div>
@@ -897,6 +914,7 @@ function VoiceRoleplayPanel({ activity, lessonId, onNext, previewOnly, onSavedAt
       {pastRecordings.length ? <div className="rounded-lg border border-[var(--br-border)] bg-[var(--br-surface-muted)] p-3"><p className="text-xs font-semibold uppercase tracking-wide text-[var(--br-text-muted)]">Saved recordings</p><div className="mt-2 space-y-2">{pastRecordings.map((recording) => <div key={recording.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-surface p-2.5 text-xs"><div><p className="font-semibold text-ink">{new Date(recording.created_at).toLocaleString()}</p><p className="text-[var(--br-text-muted)]">{recording.duration_seconds}s · available until {new Date(recording.expires_at).toLocaleDateString()}</p></div><div className="flex flex-wrap items-center gap-2">{pastRecordingUrls[recording.id] ? <audio controls src={pastRecordingUrls[recording.id]} className="h-8 max-w-full" aria-label="Saved speaking recording" /> : <button type="button" onClick={() => void loadPastRecording(recording.id)} className="rounded-lg border border-[var(--br-border)] px-3 py-1.5 font-semibold text-ink">Play recording</button>}{allowDownload ? <button type="button" onClick={() => downloadRecording(recording.id)} className="rounded-lg border border-[var(--br-border)] p-2 text-ink" aria-label="Download saved recording"><Download size={14} /></button> : null}</div></div>)}</div></div> : null}
       {saveEnabled && phase === "idle" ? <label className="flex min-h-14 cursor-pointer items-start gap-3 rounded-xl border border-[var(--br-border)] bg-[var(--br-surface-muted)] p-3 text-sm text-[var(--br-text-muted)]"><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} className="mt-0.5 size-6 shrink-0 accent-[var(--br-action)]" /><span>I agree to save my voice recording for {Number(data.recording_retention_days) || 30} days. It will then be automatically deleted.</span></label> : null}
       {showTranscript ? <div ref={transcriptViewportRef} role="log" aria-live="polite" aria-relevant="additions text" className="max-h-72 scroll-smooth space-y-2 overflow-y-auto rounded-xl bg-[var(--br-surface-muted)] p-3 overscroll-contain">{transcript.length ? transcript.map((message, index) => <div key={index} className={`max-w-[88%] rounded-xl px-3 py-2.5 text-sm shadow-sm ${message.sender === "LEARNER" ? "ml-auto bg-moss text-on-dark" : "mr-auto border border-[var(--br-border)] bg-surface text-ink"}`}><p className="mb-0.5 text-[10px] font-semibold uppercase opacity-65">{message.sender === "AI" ? character : "You"}</p><p className="whitespace-pre-wrap leading-relaxed">{message.text}</p></div>) : <div className="grid min-h-24 place-items-center text-center"><p className="max-w-xs text-sm text-[var(--br-text-muted)]">Start when you are ready. {character} will speak first.</p></div>}</div> : null}
+      {isInterview ? <div className="flex flex-wrap items-center gap-2"><button type="button" onClick={() => void requestHint()} disabled={hintLoading || phase !== "recording"} className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-900 disabled:opacity-45">{hintLoading ? "Preparing hint…" : "Help / hint"}</button>{hint ? <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">{hint}</p> : null}</div> : null}
       {error ? <p className="text-xs font-semibold text-coral">{error}</p> : null}
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--br-border)] pt-4"><button type="button" disabled={phase === "starting" || phase === "finishing" || (saveEnabled && !consent)} onClick={() => { if (phase === "idle") void start(); else if (phase === "recording") void finish(); }} className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-on-dark shadow-sm transition hover:-translate-y-0.5 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 ${phase === "recording" ? "bg-coral" : "bg-[var(--br-action)]"}`}>{phase === "starting" || phase === "finishing" ? <Loader2 size={16} className="animate-spin" /> : phase === "recording" ? <Square size={15} /> : <Mic size={16} />} {phase === "finishing" ? "Finishing…" : phase === "recording" ? "Finish conversation" : "Start conversation"}</button>{phase === "recording" ? <span className="rounded-full bg-coral/10 px-3 py-1.5 text-sm font-semibold tabular-nums text-coral">{Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, "0")} left</span> : <span className="text-xs text-[var(--br-text-muted)]">Microphone access is used only during the conversation.</span>}</div>
     </div>
@@ -1535,7 +1553,7 @@ export function LessonActivityPanel({
   }, [submitted, answers, questions, hasPendingWritingGrading, isSelfGradedOnly]);
 
   // ── AI Roleplay: full chat UI instead of quiz carousel ──
-  if (activity.activity_type === "AI_ROLEPLAY") {
+  if (activity.activity_type === "AI_ROLEPLAY" || activity.activity_type === "AI_INTERVIEW") {
     return (
       <AiRoleplayPanel
         activity={activity}
