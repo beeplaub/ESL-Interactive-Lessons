@@ -6,12 +6,17 @@ import path from "node:path";
 
 const port = Number(process.env.BRENUP_AI_GATEWAY_PORT || 8787);
 const secret = process.env.BRENUP_AI_GATEWAY_SECRET;
-const model = process.env.BRENUP_OLLAMA_MODEL || "qwen2.5:7b";
+const defaultProvider = process.env.BRENUP_AI_PROVIDER === "deepseek" ? "deepseek" : "ollama";
+const defaultModel = defaultProvider === "deepseek"
+  ? (process.env.BRENUP_DEEPSEEK_MODEL || "deepseek-v4-flash")
+  : (process.env.BRENUP_OLLAMA_MODEL || "qwen2.5:7b");
 const ollamaUrl = (process.env.BRENUP_OLLAMA_URL || "http://127.0.0.1:11434/v1").replace(/\/$/, "");
+const deepseekUrl = (process.env.BRENUP_DEEPSEEK_URL || "https://api.deepseek.com").replace(/\/$/, "");
+const deepseekKey = process.env.BRENUP_DEEPSEEK_API_KEY || "";
 const repositoryRoot = path.resolve(process.env.BRENUP_REPOSITORY_ROOT || process.cwd());
 const dataUrl = (process.env.BRENUP_AI_DATA_URL || "https://www.brenup.com/api/admin/brenup-ai/data").replace(/\/$/, "");
 const startedAt = new Date().toISOString();
-const allowedModes = new Set(["research", "audit", "review", "code-review"]);
+const allowedModes = new Set(["research", "audit", "review", "code-review", "coding", "content"]);
 const blockedPath = /(^|\/)(\.env($|\.)|node_modules|\.next|\.git|secrets?|credentials?|private)(\/|$)|service[-_ ]?role|access[-_ ]?key|secret[-_ ]?key/i;
 const maxBodyBytes = 64 * 1024;
 
@@ -87,10 +92,21 @@ async function runTool(name, args) {
   throw new Error("Tool is not available.");
 }
 
+function providerConfig(provider, requestedModel) {
+  if (provider === "deepseek") {
+    if (!deepseekKey) throw new Error("DeepSeek is not configured on the BrenUp AI gateway.");
+    return { baseUrl: deepseekUrl, apiKey: deepseekKey, model: requestedModel || defaultModel };
+  }
+  return { baseUrl: ollamaUrl, apiKey: "ollama", model: requestedModel || "qwen2.5:7b" };
+}
+
 async function proxyChat(request, response) {
   if (request.headers.authorization !== `Bearer ${secret}`) return json(response, 401, { error: "Unauthorized" });
   let body; try { body = await readBody(request); } catch { return json(response, 400, { error: "Invalid request body." }); }
-  const message = typeof body?.message === "string" ? body.message.trim() : ""; const mode = allowedModes.has(body?.mode) ? body.mode : "research";
+  const message = typeof body?.message === "string" ? body.message.trim() : "";
+  const provider = body?.provider === "deepseek" ? "deepseek" : "ollama";
+  const config = providerConfig(provider, typeof body?.model === "string" ? body.model : "");
+  const mode = allowedModes.has(body?.mode) ? body.mode : "research";
   if (!message || message.length > 12000) return json(response, 400, { error: "Enter a message up to 12,000 characters." });
   const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), 120000);
   try {
@@ -100,10 +116,10 @@ async function proxyChat(request, response) {
       : lowerMessage.includes("course") || lowerMessage.includes("lesson") || lowerMessage.includes("quiz") || lowerMessage.includes("activity")
         ? "ROUTING REQUIREMENT: This concerns live BrenUp content. Use the live database tools first; do not search the repository for imaginary lesson or course filenames."
         : "";
-    const messages = [{ role: "system", content: `You are BrenUp's admin-only read-only product and data auditor. You are not a general chatbot and you must not invent BrenUp facts. Use the live database tools for courses, lessons, quizzes, activities, and OBE questions; use repository tools only for code/architecture questions. For any named course or lesson, search the live database first. If a search finds nothing, say exactly what was searched and do not invent a repository filename. Never edit files, run shell commands, use web search, access secrets, access private learner data, mutate databases, deploy, commit, or delete anything. If asked to introduce yourself, say you are BrenUp AI, a local Ollama read-only auditor for the admin, and do not invent personal details. Answer directly, identify the records/tools inspected, include concrete inconsistencies and next actions, and end with: No BrenUp records changed. Current mode: ${mode}.` }, { role: "user", content: `${routingHint}\n\nUser request: ${message}` }];
+    const messages = [{ role: "system", content: `You are BrenUp AI, the admin's engineering, curriculum, content, and audit agent. Provider: ${provider}; model: ${config.model}. You are not a general chatbot and must not invent BrenUp facts. Use live database tools for courses, lessons, quizzes, activities, and OBE questions; use repository tools for code and architecture questions. For any named course or lesson, search live data first. If a search finds nothing, say exactly what was searched and do not invent a repository filename. In audit/research/review mode, never modify anything. In coding or content mode, produce a clear draft or patch plan first and wait for explicit approval before any future write action. Never access secrets, private learner content, payment data, raw recordings, or credentials. Never deploy, commit, delete, publish, or mutate production data from this chat. Identify the records/tools inspected, give concrete findings, and end with: No BrenUp records changed. Current mode: ${mode}.` }, { role: "user", content: `${routingHint}\n\nUser request: ${message}` }];
     let result; const usedTools = [];
     for (let turn = 0; turn < 5; turn += 1) {
-      const upstream = await fetch(`${ollamaUrl}/chat/completions`, { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer ollama" }, body: JSON.stringify({ model, messages, tools, tool_choice: "auto", stream: false }), signal: controller.signal });
+      const upstream = await fetch(`${config.baseUrl}/chat/completions`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${config.apiKey}` }, body: JSON.stringify({ model: config.model, messages, tools, tool_choice: "auto", stream: false }), signal: controller.signal });
       if (!upstream.ok) return json(response, upstream.status, { error: await upstream.text() });
       result = await upstream.json(); const assistant = result?.choices?.[0]?.message;
       if (!assistant) return json(response, 502, { error: "The local model returned an invalid response." });
@@ -115,7 +131,7 @@ async function proxyChat(request, response) {
 }
 
 const server = http.createServer(async (request, response) => {
-  if (request.method === "GET" && request.url === "/health") { const connected = await fetch(`${ollamaUrl}/models`, { signal: AbortSignal.timeout(1500) }).then((result) => result.ok).catch(() => false); return json(response, 200, { status: "ok", connected, model, repository: repositoryRoot, startedAt }); }
+  if (request.method === "GET" && request.url === "/health") { const ollamaConnected = await fetch(`${ollamaUrl}/models`, { signal: AbortSignal.timeout(1500) }).then((result) => result.ok).catch(() => false); return json(response, 200, { status: "ok", connected: ollamaConnected || Boolean(deepseekKey), provider: defaultProvider, model: defaultModel, providers: { ollama: { configured: true, connected: ollamaConnected, models: ["qwen2.5:7b", "gemma3:4b"] }, deepseek: { configured: Boolean(deepseekKey), models: ["deepseek-v4-flash", "deepseek-v4-pro"] } }, repository: repositoryRoot, startedAt }); }
   if (request.method === "POST" && request.url === "/chat") return proxyChat(request, response);
   return json(response, 404, { error: "Not found" });
 });

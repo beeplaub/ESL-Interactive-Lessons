@@ -44,10 +44,25 @@ BRENUP_OLLAMA_URL=http://127.0.0.1:11434/v1 \
 node scripts/brenup-ai-gateway.mjs
 ```
 
-The gateway binds to `127.0.0.1` by default. It exposes only two model tools:
-`search_repository` and `read_safe_repository_file`. Both enforce the approved repository root,
-block secrets and private paths, cap file size, and never write. It does not provide Ollama,
-Supabase, R2, database, shell, or deployment credentials to the model.
+The gateway binds to `127.0.0.1` by default. It exposes named repository and safe live-data
+tools, not generic SQL or shell access. Both enforce the approved repository root, block secrets
+and private paths, cap results, and never write. The live data bridge runs inside BrenUp's
+server-side admin environment; its service-role key never enters the Mac gateway or model.
+
+## Provider selection
+
+The admin UI can select Ollama or DeepSeek per request. Ollama remains local and free. DeepSeek
+uses the paid API only when selected and configured.
+
+Configure the DeepSeek key on the Mac without placing it in the repository:
+
+```text
+cd "/Users/bren/Documents/ESL App"
+zsh scripts/configure-brenup-ai-deepseek.sh
+```
+
+The key is stored in macOS Keychain under `brenup-deepseek-api-key`. The browser never receives
+it, and it is never sent to the model as prompt content.
 
 ## Automatic Mac startup
 
@@ -109,7 +124,7 @@ Body:
 }
 ```
 
-Allowed modes are `research`, `audit`, `review`, and `code-review`. The gateway must reject
+Allowed modes are `research`, `audit`, `review`, `code-review`, `coding`, and `content`. The gateway must reject
 unknown modes, messages larger than 12,000 characters, unauthenticated requests, and any
 request that asks for writes, secrets, arbitrary SQL, deployment, or destructive shell work.
 
@@ -123,6 +138,10 @@ Expected response:
   "readOnly": true
 }
 ```
+
+Coding and content modes currently produce drafts and plans only. Production writes, publishing,
+deployment, deletion, and private learner-data access remain blocked until an explicit approval
+workflow is implemented.
 
 The response must contain aggregate or pseudonymous data only. Do not pass emails, phone
 numbers, passwords, auth tokens, raw learner answers, private messages, recordings, guardian
