@@ -70,6 +70,7 @@ const tools = [
   { type: "function", function: { name: "audit_lesson", description: "Audit one live lesson's slides, blocks, activities, outcomes, and activity data. Resolve it by course plus lesson title/number when possible.", parameters: { type: "object", properties: { courseId: { type: "string" }, courseQuery: { type: "string" }, lessonId: { type: "string" }, lessonQuery: { type: "string" } } } } },
   { type: "function", function: { name: "get_quiz_overview", description: "Read one live quiz and its questions, options, and answer keys for creator QA.", parameters: { type: "object", properties: { quizId: { type: "string" }, query: { type: "string" }, title: { type: "string" } } } } },
   { type: "function", function: { name: "get_obe_audit", description: "Audit live course outcomes, lesson mappings, question mappings, and mapping coverage.", parameters: { type: "object", properties: { courseId: { type: "string" }, query: { type: "string" } } } } },
+  { type: "function", function: { name: "audit_obe_all_courses", description: "Audit OBE mapping completeness across every active course. Use for questions like which courses have incomplete OBE mappings; do not use search_courses for that request.", parameters: { type: "object", properties: {} } } },
   { type: "function", function: { name: "search_repository", description: "Search approved BrenUp text files without exposing secrets.", parameters: { type: "object", properties: { query: { type: "string" } }, required: ["query"] } } },
   { type: "function", function: { name: "read_safe_repository_file", description: "Read one approved BrenUp text file by relative path.", parameters: { type: "object", properties: { path: { type: "string" } }, required: ["path"] } } },
 ];
@@ -77,7 +78,7 @@ const tools = [
 async function runTool(name, args) {
   if (name === "read_safe_repository_file") return readSafeFile(args?.path);
   if (name === "search_repository") return searchRepository(args?.query);
-  if (["search_courses", "get_course_overview", "audit_lesson", "get_quiz_overview", "get_obe_audit"].includes(name)) {
+  if (["search_courses", "get_course_overview", "audit_lesson", "get_quiz_overview", "get_obe_audit", "audit_obe_all_courses"].includes(name)) {
     const response = await fetch(dataUrl, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${secret}` }, body: JSON.stringify({ tool: name, args }), signal: AbortSignal.timeout(30000) });
     const data = await response.json().catch(() => ({ error: "The safe data bridge returned invalid JSON." }));
     if (!response.ok) throw new Error(data?.error || "The safe data bridge rejected the request.");
@@ -93,7 +94,13 @@ async function proxyChat(request, response) {
   if (!message || message.length > 12000) return json(response, 400, { error: "Enter a message up to 12,000 characters." });
   const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), 120000);
   try {
-    const messages = [{ role: "system", content: `You are BrenUp's admin-only read-only product and data auditor. You are not a general chatbot and you must not invent BrenUp facts. Use the live database tools for courses, lessons, quizzes, activities, and OBE questions; use repository tools only for code/architecture questions. For any named course or lesson, search the live database first. If a search finds nothing, say exactly what was searched and do not invent a repository filename. Never edit files, run shell commands, use web search, access secrets, access private learner data, mutate databases, deploy, commit, or delete anything. If asked to introduce yourself, say you are BrenUp AI, a local Ollama read-only auditor for the admin, and do not invent personal details. Answer directly, identify the records/tools inspected, include concrete inconsistencies and next actions, and end with: No BrenUp records changed. Current mode: ${mode}.` }, { role: "user", content: message }];
+    const lowerMessage = message.toLowerCase();
+    const routingHint = lowerMessage.includes("incomplete obe") || lowerMessage.includes("obe mapping") || lowerMessage.includes("mapping coverage")
+      ? "ROUTING REQUIREMENT: This is a cross-course OBE audit. Call audit_obe_all_courses now. Do not call search_courses with the user's entire sentence."
+      : lowerMessage.includes("course") || lowerMessage.includes("lesson") || lowerMessage.includes("quiz") || lowerMessage.includes("activity")
+        ? "ROUTING REQUIREMENT: This concerns live BrenUp content. Use the live database tools first; do not search the repository for imaginary lesson or course filenames."
+        : "";
+    const messages = [{ role: "system", content: `You are BrenUp's admin-only read-only product and data auditor. You are not a general chatbot and you must not invent BrenUp facts. Use the live database tools for courses, lessons, quizzes, activities, and OBE questions; use repository tools only for code/architecture questions. For any named course or lesson, search the live database first. If a search finds nothing, say exactly what was searched and do not invent a repository filename. Never edit files, run shell commands, use web search, access secrets, access private learner data, mutate databases, deploy, commit, or delete anything. If asked to introduce yourself, say you are BrenUp AI, a local Ollama read-only auditor for the admin, and do not invent personal details. Answer directly, identify the records/tools inspected, include concrete inconsistencies and next actions, and end with: No BrenUp records changed. Current mode: ${mode}.` }, { role: "user", content: `${routingHint}\n\nUser request: ${message}` }];
     let result; const usedTools = [];
     for (let turn = 0; turn < 5; turn += 1) {
       const upstream = await fetch(`${ollamaUrl}/chat/completions`, { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer ollama" }, body: JSON.stringify({ model, messages, tools, tool_choice: "auto", stream: false }), signal: controller.signal });

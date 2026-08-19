@@ -29,7 +29,7 @@ async function findCourse(admin: ReturnType<typeof createAdminClient>, args: Arg
     const { data } = await admin.from("courses").select("id,title,status,level,topic,category,description,updated_at").eq("id", id).maybeSingle();
     return data;
   }
-  const query = text(args.query);
+  const query = text(args.query || args.courseQuery);
   if (!query) return null;
   const { data } = await admin.from("courses").select("id,title,status,level,topic,category,description,updated_at").or(`title.ilike.%${query}%,topic.ilike.%${query}%,slug.ilike.%${query}%`).order("updated_at", { ascending: false }).limit(5);
   return data?.[0] ?? null;
@@ -118,6 +118,39 @@ async function obeAudit(admin: ReturnType<typeof createAdminClient>, args: Args)
   return { found: true, course: { id: course.id, title: course.title, status: course.status }, outcomes: outcomes ?? [], items: items ?? [], lessonOutcomeMappings: lessonMappings ?? [], questionOutcomeMappings: directMappings ?? [], coverage: { courseItems: items?.length ?? 0, courseOutcomes: outcomes?.length ?? 0, mappedCourseItemRows: lessonMappings?.length ?? 0, mappedQuestionRows: directMappings?.length ?? 0 } };
 }
 
+async function obeAuditAll(admin: ReturnType<typeof createAdminClient>) {
+  const [{ data: courses }, { data: items }, { data: outcomes }] = await Promise.all([
+    admin.from("courses").select("id,title,status,level,topic").is("deleted_at", null).order("title").limit(100),
+    admin.from("course_items").select("id,course_id,item_type,title,lesson_id,quiz_id,assessment_type,item_assessment_weight,normalization_target").order("course_id").order("position"),
+    admin.from("course_outcomes").select("id,course_id,code,outcome,status").order("course_id").order("position"),
+  ]);
+  const itemIds = (items ?? []).map((item) => item.id);
+  const [{ data: lessonMappings }, { data: questionMappings }] = await Promise.all([
+    itemIds.length ? admin.from("course_lesson_outcome_mappings").select("course_item_id,course_outcome_id,lesson_outcome_id,contribution_weight").in("course_item_id", itemIds) : Promise.resolve({ data: [] }),
+    itemIds.length ? admin.from("assessment_item_course_outcomes").select("course_item_id,course_outcome_id,assessment_item_id,contribution_weight").in("course_item_id", itemIds) : Promise.resolve({ data: [] }),
+  ]);
+  const summaries = (courses ?? []).map((course) => {
+    const courseItems = (items ?? []).filter((item) => item.course_id === course.id);
+    const courseOutcomes = (outcomes ?? []).filter((outcome) => outcome.course_id === course.id);
+    const courseLessonMappings = (lessonMappings ?? []).filter((mapping) => courseItems.some((item) => item.id === mapping.course_item_id));
+    const courseQuestionMappings = (questionMappings ?? []).filter((mapping) => courseItems.some((item) => item.id === mapping.course_item_id));
+    const mappedOutcomeIds = new Set([...courseLessonMappings.map((mapping) => mapping.course_outcome_id), ...courseQuestionMappings.map((mapping) => mapping.course_outcome_id)]);
+    return {
+      course,
+      outcomeCount: courseOutcomes.length,
+      itemCount: courseItems.length,
+      lessonCount: courseItems.filter((item) => item.item_type === "LESSON").length,
+      quizCount: courseItems.filter((item) => item.item_type === "QUIZ").length,
+      mappedOutcomeCount: mappedOutcomeIds.size,
+      unmappedOutcomes: courseOutcomes.filter((outcome) => !mappedOutcomeIds.has(outcome.id)).map((outcome) => ({ code: outcome.code, outcome: outcome.outcome })),
+      lessonMappingRows: courseLessonMappings.length,
+      questionMappingRows: courseQuestionMappings.length,
+      hasIncompleteMapping: courseOutcomes.some((outcome) => !mappedOutcomeIds.has(outcome.id)) || courseItems.length === 0,
+    };
+  });
+  return { readOnly: true, scope: "all active courses", courses: summaries, totals: { courses: summaries.length, incompleteCourses: summaries.filter((summary) => summary.hasIncompleteMapping).length } };
+}
+
 export async function POST(request: Request) {
   if (!authorized(request)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const body = await request.json().catch(() => null) as { tool?: unknown; args?: Args } | null;
@@ -130,6 +163,7 @@ export async function POST(request: Request) {
       : tool === "audit_lesson" ? await lessonAudit(admin, args)
       : tool === "get_quiz_overview" ? await quizOverview(admin, args)
       : tool === "get_obe_audit" ? await obeAudit(admin, args)
+      : tool === "audit_obe_all_courses" ? await obeAuditAll(admin)
       : null;
     if (result === null) return NextResponse.json({ error: "Tool is not available." }, { status: 400 });
     return NextResponse.json({ readOnly: true, source: "BrenUp database", result: cap(result, 10000) });
