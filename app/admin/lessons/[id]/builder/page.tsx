@@ -26,7 +26,7 @@ export default async function LessonBuilderPage({ params }: { params: Promise<{ 
     // Keep the first render bounded. The old wildcard selects pulled large
     // activity payloads plus a nested slide relation before the preview could
     // hydrate, which made the creator see an empty/late preview on large lessons.
-    supabase.from("lesson_slide_activities").select("id,lesson_id,slide_id,slide_number,activity_type,activity_data,position,needs_review,raw_text,created_at,updated_at").eq("lesson_id", id).not("slide_id", "is", null).order("position", { ascending: true }),
+    supabase.from("lesson_slide_activities").select("id,lesson_id,slide_id,slide_number,activity_type,activity_data,needs_review,raw_text,created_at,updated_at").eq("lesson_id", id).not("slide_id", "is", null).order("slide_number", { ascending: true }),
     supabase.from("lesson_blocks").select("id,lesson_id,slide_id,block_type,content,position,created_at,updated_at").eq("lesson_id", id).order("position", { ascending: true })
   ]);
 
