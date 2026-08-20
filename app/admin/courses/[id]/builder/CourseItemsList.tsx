@@ -165,9 +165,10 @@ export function CourseItemsList({
               isDragOver ? "border-solid border-violet-500 bg-violet-50/50 scale-[1.01] shadow-sm" : ""
             }`}
           >
-            {/* Drag Handle */}
+            {/* Drag Handle: keep the desktop affordance on the left. On mobile it
+                moves into the right-side control stack below the arrows. */}
             <div
-              className="grid size-8 shrink-0 cursor-grab active:cursor-grabbing place-items-center rounded-lg border border-[var(--br-border)] bg-surface text-[var(--br-text-muted)] hover:bg-surface-muted hover:text-[var(--br-text-muted)] transition"
+              className="hidden size-8 shrink-0 cursor-grab active:cursor-grabbing place-items-center rounded-lg border border-[var(--br-border)] bg-surface text-[var(--br-text-muted)] hover:bg-surface-muted hover:text-[var(--br-text-muted)] transition sm:grid"
               title={readOnly ? "Course item" : "Drag to reorder"}
             >
               <GripVertical size={14} />
@@ -212,6 +213,16 @@ export function CourseItemsList({
               >
                 <ArrowDown size={13} />
               </button>
+              <div
+                draggable
+                onDragStart={() => handleDragStart(itemIndex)}
+                onDragEnd={handleDragEnd}
+                className="grid size-8 cursor-grab active:cursor-grabbing place-items-center rounded-lg border border-[var(--br-border)] bg-surface text-[var(--br-text-muted)] hover:bg-surface-muted hover:text-[var(--br-text-muted)] transition sm:hidden"
+                title="Drag to reorder"
+                aria-label="Drag to reorder"
+              >
+                <GripVertical size={14} />
+              </div>
             </div> : null}
           </div>
         );
