@@ -256,12 +256,12 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
           </div>
         </form>
 
-        <div className="mt-4 flex items-center justify-between gap-3">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h3 className="text-sm font-semibold text-ink">Section content</h3>
             <p className="text-xs text-[var(--br-text-muted)]">{sectionItems.length} {sectionItems.length === 1 ? "item" : "items"} in learning order</p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
             {canManageCurriculum ? <CreateItemModal
               action={createAndAddCourseItem.bind(null, course.id)}
               sectionId={section.id}

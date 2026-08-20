@@ -143,14 +143,14 @@ export function EditItemModal({ action, deleteAction, item, label, status, count
 
   return (
     <>
-      <div className="flex items-center justify-between gap-2 rounded-lg border border-[var(--br-border)] bg-surface p-3">
+      <div className="flex items-start justify-between gap-2 rounded-lg border border-[var(--br-border)] bg-surface p-2.5 sm:items-center sm:p-3">
         <div className="flex min-w-0 items-center gap-2.5">
           <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-moss/10 text-moss">
             <TypeIcon size={18} />
           </span>
           <div className="min-w-0">
-          <p className="flex min-w-0 items-center gap-1.5 truncate text-sm font-semibold">
-            <span className="truncate">{label}</span>
+          <p className="flex min-w-0 flex-wrap items-center gap-1.5 text-sm font-semibold leading-5 sm:flex-nowrap sm:truncate">
+            <span className="min-w-0 break-words sm:truncate">{label}</span>
             {typeof count === "number" ? <span className="shrink-0 font-normal text-[var(--br-text-muted)]">({count})</span> : null}
             {status === "PUBLISHED" ? (
               <span title="Published" className="shrink-0"><CheckCircle2 size={13} className="text-emerald-600" aria-label="Published" /></span>
@@ -161,15 +161,17 @@ export function EditItemModal({ action, deleteAction, item, label, status, count
           <p className="mt-0.5 text-xs text-[var(--br-text-muted)]">{item.item_type.replaceAll("_", " ")}{item.is_free_preview ? " \u00b7 Free preview" : ""}{item.bypass_sequential_unlock ? " \u00b7 Open access" : ""}{item.is_required ? " \u00b7 Required" : " \u00b7 Optional"}</p>
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-1.5">
+        <div className="flex shrink-0 items-center gap-1 sm:gap-1.5">
           {item.item_type === "LESSON" && item.lesson_id ? (
             <a
               href={`/admin/lessons/${item.lesson_id}/builder`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-md border border-moss/30 px-3 py-1.5 text-xs font-semibold text-moss hover:bg-moss/10"
+              title="Build lesson"
+              aria-label="Build lesson"
+              className="inline-flex size-9 items-center justify-center gap-1.5 rounded-md border border-moss/30 px-2 py-1.5 text-xs font-semibold text-moss hover:bg-moss/10 sm:size-auto sm:px-3"
             >
-              <Hammer size={13} /> Build
+              <Hammer size={13} /> <span className="hidden sm:inline">Build</span>
             </a>
           ) : null}
           {item.item_type === "QUIZ" && item.quiz_id ? (
@@ -177,17 +179,21 @@ export function EditItemModal({ action, deleteAction, item, label, status, count
               href={`/admin/quizzes/${item.quiz_id}/edit`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-md border border-moss/30 px-3 py-1.5 text-xs font-semibold text-moss hover:bg-moss/10"
+              title="Build quiz"
+              aria-label="Build quiz"
+              className="inline-flex size-9 items-center justify-center gap-1.5 rounded-md border border-moss/30 px-2 py-1.5 text-xs font-semibold text-moss hover:bg-moss/10 sm:size-auto sm:px-3"
             >
-              <Hammer size={13} /> Build
+              <Hammer size={13} /> <span className="hidden sm:inline">Build</span>
             </a>
           ) : null}
           <button
             type="button"
             onClick={() => setOpen(true)}
-            className="inline-flex items-center gap-1.5 rounded-md border border-[var(--br-border)] px-3 py-1.5 text-xs font-semibold hover:bg-black/5"
+            aria-label={`Edit ${label}`}
+            title="Edit item"
+            className="inline-flex size-9 items-center justify-center gap-1.5 rounded-md border border-[var(--br-border)] px-2 py-1.5 text-xs font-semibold hover:bg-black/5 sm:size-auto sm:px-3"
           >
-            <Edit3 size={13} /> Edit
+            <Edit3 size={13} /> <span className="hidden sm:inline">Edit</span>
           </button>
         </div>
       </div>
