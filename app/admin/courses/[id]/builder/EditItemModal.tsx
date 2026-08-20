@@ -144,8 +144,8 @@ export function EditItemModal({ action, deleteAction, item, label, status, count
   return (
     <>
       <div className="flex items-start justify-between gap-2 rounded-lg border border-[var(--br-border)] bg-surface p-2.5 sm:items-center sm:p-3">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-moss/10 text-moss">
+        <div className="flex min-w-0 items-center gap-1.5 sm:gap-2.5">
+          <span className="hidden size-9 shrink-0 place-items-center rounded-lg bg-moss/10 text-moss sm:grid">
             <TypeIcon size={18} />
           </span>
           <div className="min-w-0">
