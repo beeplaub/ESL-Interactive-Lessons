@@ -445,11 +445,36 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
     return <FlashcardBlock content={content} />;
   }
 
+  if (block.block_type === "COMMON_MISTAKE") {
+    return <CommonMistakeBlock content={content} />;
+  }
+
   if (block.block_type === "TABLE") {
     return <TableBlock content={content} />;
   }
 
   return null;
+}
+
+function CommonMistakeBlock({ content }: { content: Record<string, unknown> }) {
+  const examples = asArray(content.examples).map((item) => asRecord(item as Json));
+  const pair = (incorrect: string, correct: string, context?: string) => (
+    <div className="grid gap-2">
+      {context ? <p className="text-sm leading-6 text-[var(--br-text-muted)]">{context}</p> : null}
+      <div className="rounded-md border border-coral/25 bg-coral/10 px-3 py-2 text-base leading-6 text-ink"><span className="mr-2 font-bold text-coral">✕ Wrong</span>{incorrect || "Add the incorrect sentence."}</div>
+      <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-base leading-6 text-ink"><span className="mr-2 font-bold text-emerald-700">✓ Right</span>{correct || "Add the corrected sentence."}</div>
+    </div>
+  );
+  return (
+    <section className="rounded-lg border border-amber-200 bg-amber-50 p-4 sm:p-5">
+      <h3 className="font-semibold text-amber-950">{asString(content.title) || "Common mistake"}</h3>
+      {asString(content.context) ? <p className="mt-2 text-base leading-6 text-amber-900">{asString(content.context)}</p> : null}
+      <div className="mt-4">{pair(asString(content.mistake), asString(content.correction))}</div>
+      {asString(content.explanation) ? <p className="mt-4 text-base leading-6 text-amber-950"><span className="font-semibold">Why:</span> {asString(content.explanation)}</p> : null}
+      {asString(content.tip) ? <p className="mt-3 rounded-md bg-surface px-3 py-2 text-sm leading-6 text-ink"><span className="font-semibold">Tip:</span> {asString(content.tip)}</p> : null}
+      {examples.length ? <div className="mt-5 border-t border-amber-200 pt-4"><p className="mb-3 font-semibold text-amber-950">More examples</p><div className="space-y-4">{examples.map((example, index) => <div key={index}>{pair(asString(example.incorrect), asString(example.correct), asString(example.context))}</div>)}</div></div> : null}
+    </section>
+  );
 }
 
 function TableBlock({ content }: { content: Record<string, unknown> }) {

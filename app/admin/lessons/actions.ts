@@ -66,7 +66,8 @@ const lessonBlockTypes = [
   "READING",
   "DIALOGUE",
   "FLASHCARD",
-  "TABLE"
+  "TABLE",
+  "COMMON_MISTAKE"
 ] as const;
 
 const lessonBlockSchema = z.object({
@@ -231,6 +232,20 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
       notes: nullableText(formData.get("notes"))
     };
   }
+  if (blockType === "COMMON_MISTAKE") {
+    return {
+      title: String(formData.get("title") || "").trim(),
+      context: nullableText(formData.get("context")),
+      mistake: String(formData.get("mistake") || "").trim(),
+      correction: String(formData.get("correction") || "").trim(),
+      explanation: String(formData.get("explanation") || "").trim(),
+      tip: nullableText(formData.get("tip")),
+      examples: splitLines(formData.get("examples")).map((line) => {
+        const [context, incorrect, correct] = line.split("|").map((part) => part.trim());
+        return { context, incorrect, correct };
+      }).filter((example) => example.incorrect || example.correct)
+    };
+  }
   if (blockType === "READING") {
     return {
       title: String(formData.get("title") || "").trim(),
@@ -372,6 +387,15 @@ function defaultBlockContent(blockType: string): Json {
     headers: ["Column 1", "Column 2"],
     rows: [["", ""], ["", ""]],
     header_fill: "var(--br-info)"
+  };
+  if (blockType === "COMMON_MISTAKE") return {
+    title: "Common mistake",
+    context: "Learners often use this form when talking about agreement.",
+    mistake: "I am agree with you.",
+    correction: "I agree with you.",
+    explanation: "Agree is already a verb, so we do not use am before it.",
+    tip: "Use agree, not am agree.",
+    examples: []
   };
   return {};
 }

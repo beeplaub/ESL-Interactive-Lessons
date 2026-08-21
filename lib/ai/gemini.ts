@@ -83,7 +83,7 @@ Ensure that the language is perfectly appropriate for level {level}.
 IMPORTANT CONTENT RULES:
 - Every slide MUST contain at least one non-empty content block in its blocks array. Never return blocks: [] or an empty content object.
 - Use the slide title as the slide header; do not repeat it as a HEADING block.
-- Use only these block_type values: TEXT, HEADING, BULLETS, QUOTE, CALLOUT, IMAGE, IMAGE_TEXT, AUDIO, VIDEO, VOCABULARY, GRAMMAR, READING, DIALOGUE, FLASHCARD, TABLE, DIVIDER.
+- Use only these block_type values: TEXT, HEADING, BULLETS, QUOTE, CALLOUT, IMAGE, IMAGE_TEXT, AUDIO, VIDEO, VOCABULARY, GRAMMAR, READING, DIALOGUE, FLASHCARD, TABLE, COMMON_MISTAKE, DIVIDER.
 - TEXT content is {"body":"..."}; BULLETS is {"title":"...","items":["...","..."]}; GRAMMAR is {"title":"...","explanation":"...","examples":["..."],"notes":"..."}; READING is {"title":"...","passage":"...","questions":[]}; DIALOGUE is {"title":"...","speakers":["..."],"turns":[{"speaker":"...","line":"..."}]}.
 - For a media slide, include a non-empty TEXT instruction before the AUDIO or VIDEO block. Do not invent media URLs; use an empty media URL and explain what the creator should provide.
 - Every block must contain real learner-facing content, not placeholders such as "Text here" or "Add content".

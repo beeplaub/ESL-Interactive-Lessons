@@ -57,7 +57,7 @@ const slideBlockSchema = {
 
 const supportedLessonBlockTypes = new Set([
   "TEXT", "HEADING", "BULLETS", "QUOTE", "CALLOUT", "IMAGE", "IMAGE_TEXT", "AUDIO", "VIDEO",
-  "VOCABULARY", "GRAMMAR", "READING", "DIALOGUE", "FLASHCARD", "TABLE", "DIVIDER",
+  "VOCABULARY", "GRAMMAR", "READING", "DIALOGUE", "FLASHCARD", "TABLE", "COMMON_MISTAKE", "DIVIDER",
 ]);
 
 function nonEmptyString(value: unknown) {

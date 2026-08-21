@@ -49,7 +49,7 @@ const blockTypes = [
   "HEADING", "TEXT", "BULLETS", "QUOTE", "CALLOUT",
   "IMAGE", "IMAGE_TEXT", "AUDIO", "VIDEO", "DIVIDER",
   "VOCABULARY", "GRAMMAR", "READING", "DIALOGUE",
-  "FLASHCARD", "TABLE"
+  "FLASHCARD", "TABLE", "COMMON_MISTAKE"
 ] as const;
 
 const levelOptions = CONTENT_LEVELS;
@@ -1429,7 +1429,7 @@ function labelForBlockType(type: string) {
     AUDIO: "Audio", VIDEO: "Video", DIVIDER: "Divider",
     VOCABULARY: "Vocabulary list", GRAMMAR: "Grammar",
     READING: "Reading passage", DIALOGUE: "Dialogue",
-    FLASHCARD: "Flashcard", TABLE: "Table",
+    FLASHCARD: "Flashcard", TABLE: "Table", COMMON_MISTAKE: "Common mistake",
   };
   return labels[type] ?? type;
 }
@@ -1441,6 +1441,10 @@ function blockSummary(block: LessonBlock) {
     const rowCount = Array.isArray(data.rows) ? data.rows.length : 0;
     const caption = asString(data.caption);
     return caption || `${colCount} column${colCount === 1 ? "" : "s"} \u00d7 ${rowCount} row${rowCount === 1 ? "" : "s"}`;
+  }
+  if (block.block_type === "COMMON_MISTAKE") {
+    const exampleCount = Array.isArray(data.examples) ? data.examples.length : 0;
+    return asString(data.title) || `${exampleCount} example${exampleCount === 1 ? "" : "s"}`;
   }
   return asString(data.text ?? data.title ?? data.body ?? data.heading ?? data.path ?? data.src ?? data.url ?? data.word ?? data.prompt ?? "");
 }
@@ -1644,6 +1648,24 @@ function BlockFields({ blockType, content, lessonId, blockId }: { blockType: str
         <label className="text-sm">Explanation <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><textarea name="explanation" rows={3} defaultValue={asString(data.explanation)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
         <label className="text-sm">Examples <span className="font-normal text-[var(--br-text-muted)]">(one per line)</span><textarea name="examples" rows={3} defaultValue={lines(data.examples)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
         <label className="text-sm">Notes <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><textarea name="notes" rows={2} defaultValue={asString(data.notes)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+      </div>
+    );
+  }
+  if (blockType === "COMMON_MISTAKE") {
+    const examples = Array.isArray(data.examples)
+      ? (data.examples as Record<string, unknown>[]).map((example) => [example.context, example.incorrect, example.correct].map((value) => asString(value)).join(" | ")).join("\n")
+      : "";
+    return (
+      <div className="grid gap-3">
+        <label className="text-sm">Title<input name="title" defaultValue={asString(data.title)} placeholder="Common mistake" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+        <label className="text-sm">Context <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><textarea name="context" rows={2} defaultValue={asString(data.context)} placeholder="When does this mistake usually happen?" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="text-sm">Wrong sentence<textarea name="mistake" rows={2} defaultValue={asString(data.mistake)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+          <label className="text-sm">Right sentence<textarea name="correction" rows={2} defaultValue={asString(data.correction)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+        </div>
+        <label className="text-sm">Explanation<textarea name="explanation" rows={3} defaultValue={asString(data.explanation)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+        <label className="text-sm">Memory tip <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><textarea name="tip" rows={2} defaultValue={asString(data.tip)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+        <label className="text-sm">Additional examples <span className="font-normal text-[var(--br-text-muted)]">(one per line: context | wrong sentence | right sentence)</span><textarea name="examples" rows={4} defaultValue={examples} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 font-mono text-xs" /></label>
       </div>
     );
   }
