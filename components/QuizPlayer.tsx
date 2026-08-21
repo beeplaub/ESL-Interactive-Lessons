@@ -1344,8 +1344,15 @@ function Fill({ question, value, disabled, onChange }: { question: QuizQuestion;
 
 function Matching({ question, value, disabled, onChange }: { question: QuizQuestion; value: Record<string, string>; disabled: boolean; onChange: (value: Record<string, string>) => void }) {
   const opts = asRecord(question.options) as { a_items?: unknown[]; b_items?: unknown[]; shuffle_options?: boolean };
-  const aItems = Array.isArray(opts.a_items) ? opts.a_items.map(String) : [];
-  const bItems = Array.isArray(opts.b_items) ? opts.b_items.map(String) : [];
+  const itemLabel = (item: unknown) => {
+    if (item && typeof item === "object" && !Array.isArray(item)) {
+      const row = item as Record<string, unknown>;
+      return String(row.text ?? row.label ?? row.name ?? "");
+    }
+    return String(item ?? "");
+  };
+  const aItems = Array.isArray(opts.a_items) ? opts.a_items.map(itemLabel) : [];
+  const bItems = Array.isArray(opts.b_items) ? opts.b_items.map(itemLabel) : [];
   const rows = aItems.map((leftLabel, i) => ({ key: String(i + 1), leftLabel }));
   const letters = bItems.map((_, i) => String.fromCharCode(65 + i));
   const displayOptions = useMemo<Array<{ label: string; letter: string }>>(() => {

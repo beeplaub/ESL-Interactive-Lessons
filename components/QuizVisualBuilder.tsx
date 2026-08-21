@@ -1192,8 +1192,15 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
   }
 
   if (question.questionType === "MATCHING") {
-    const aItems = Array.isArray(options.a_items) ? options.a_items.map(String) : [""];
-    const bItems = Array.isArray(options.b_items) ? options.b_items.map(String) : [""];
+    const itemLabel = (item: unknown) => {
+      if (item && typeof item === "object" && !Array.isArray(item)) {
+        const row = item as Record<string, unknown>;
+        return String(row.text ?? row.label ?? row.name ?? "");
+      }
+      return String(item ?? "");
+    };
+    const aItems = Array.isArray(options.a_items) ? options.a_items.map(itemLabel) : [""];
+    const bItems = Array.isArray(options.b_items) ? options.b_items.map(itemLabel) : [""];
     const pairs = Array.isArray(question.correctAnswer) ? question.correctAnswer as Array<{ a: number; b: string }> : [];
     const answers = new Map(pairs.map((pair) => [String(pair.a), String(pair.b).toUpperCase()]));
     const letters = bItems.map((_, index) => String.fromCharCode(65 + index));
