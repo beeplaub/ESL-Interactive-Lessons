@@ -229,7 +229,7 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
             <div className={`min-w-0 flex-1 ${align}`}>
               {title ? <h3 className="font-semibold text-amber-950">{title}</h3> : null}
               <details className="mt-1">
-                <summary className="cursor-pointer list-none text-sm font-semibold text-amber-900 marker:hidden">Reveal callout text</summary>
+                <summary className="cursor-pointer list-none marker:hidden"><span className="inline-flex rounded-md border border-amber-300 bg-surface px-2 py-1 text-xs font-semibold text-amber-900">Reveal</span></summary>
                 <div className="mt-2 border-t border-amber-200 pt-2">{bodyContent}</div>
               </details>
             </div>
