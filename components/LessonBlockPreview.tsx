@@ -213,22 +213,28 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
   if (block.block_type === "CALLOUT") {
     const align = textAlignClass(content.text_align);
     const hidden = content.reveal_hidden === true;
+    const title = asString(content.title);
+    const bodyContent = <div className="text-base leading-6 text-amber-900"><FormattedText text={asString(content.body) || "Add a callout message."} /></div>;
     const calloutContent = (
       <div className={align}>
-        {asString(content.title) ? <h3 className="font-semibold text-amber-950">{asString(content.title)}</h3> : null}
-        <div className="mt-1 text-base leading-6 text-amber-900"><FormattedText text={asString(content.body) || "Add a callout message."} /></div>
+        {title ? <h3 className="font-semibold text-amber-950">{title}</h3> : null}
+        <div className="mt-1">{bodyContent}</div>
       </div>
     );
     if (hidden) {
       return (
-        <details className="rounded-lg border border-amber-200 bg-amber-50 p-3 sm:p-4">
-          <summary className="flex cursor-pointer list-none items-start gap-3 font-semibold text-amber-950 marker:hidden">
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 sm:p-4">
+          <div className="flex items-start gap-3">
             <MessageSquareQuote className="mt-0.5 shrink-0 text-amber-700" size={18} />
-            <span className="flex-1">{asString(content.title) || "Reveal note"}</span>
-            <span className="rounded-md border border-amber-300 bg-surface px-2 py-1 text-xs font-semibold text-amber-900">Reveal</span>
-          </summary>
-          <div className="mt-3 border-t border-amber-200 pt-3">{calloutContent}</div>
-        </details>
+            <div className={`min-w-0 flex-1 ${align}`}>
+              {title ? <h3 className="font-semibold text-amber-950">{title}</h3> : null}
+              <details className="mt-1">
+                <summary className="cursor-pointer list-none text-sm font-semibold text-amber-900 marker:hidden">Reveal callout text</summary>
+                <div className="mt-2 border-t border-amber-200 pt-2">{bodyContent}</div>
+              </details>
+            </div>
+          </div>
+        </div>
       );
     }
     return (
