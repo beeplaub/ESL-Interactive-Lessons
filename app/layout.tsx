@@ -7,6 +7,7 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { DeleteConfirmProvider } from "@/components/DeleteConfirmModal";
 import { RouteScrollReset } from "@/components/RouteScrollReset";
 import { BuilderTextToolbar } from "@/components/BuilderTextToolbar";
+import { ExclusivePopupDetails } from "@/components/ExclusivePopupDetails";
 import { GoogleAnalytics } from "@/components/GoogleAnalytics";
 import { getPlatformStyle, platformStyleVariables } from "@/lib/design-system";
 import "./globals.css";
@@ -55,6 +56,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <RouteScrollReset />
           </Suspense>
           <BuilderTextToolbar />
+          <ExclusivePopupDetails />
           <GoogleAnalytics />
           <HeaderGate>
             <SiteHeader />

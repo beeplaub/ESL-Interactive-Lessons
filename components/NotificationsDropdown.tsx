@@ -139,7 +139,7 @@ export function NotificationsDropdown({ initialNotifications, mode }: Props) {
     : "relative grid size-9 cursor-pointer list-none place-items-center rounded-[10px] text-on-dark marker:hidden [&::-webkit-details-marker]:hidden";
 
   return (
-    <details ref={detailsRef} onToggle={(event) => setIsOpen(event.currentTarget.open)} className="group relative">
+    <details data-exclusive-popup ref={detailsRef} onToggle={(event) => setIsOpen(event.currentTarget.open)} className="group relative">
       <summary className={summaryClass} aria-label="Notifications">
         <Bell className={mode === "desktop" ? "size-[18px] text-[var(--br-text-muted)]" : "size-5"} />
         {unreadCount > 0 ? <span className={mode === "desktop" ? "absolute -right-1 -top-1 grid size-5 place-items-center rounded-full border-2 border-[var(--br-canvas-elevated)] bg-[var(--br-danger)] text-[10px] font-black text-on-dark" : "absolute right-0.5 top-0.5 grid size-3.5 place-items-center rounded-full border border-[var(--br-dark-card)] bg-[var(--br-danger)] text-[8px] font-bold"}>{unreadCount}</span> : null}

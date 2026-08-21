@@ -326,7 +326,7 @@ function CourseActions({ course, openUpward, onStatusChange, onTrash }: { course
   };
 
   return (
-    <details className="group relative">
+    <details data-exclusive-popup className="group relative">
       <summary aria-label={`More actions for ${course.title}`} className="grid size-9 cursor-pointer list-none place-items-center rounded-lg border border-[var(--br-border)] text-ink transition hover:bg-surface [&::-webkit-details-marker]:hidden">
         {pending ? <span className="size-4 animate-spin rounded-full border-2 border-[var(--br-brand)] border-t-transparent" /> : <Ellipsis size={18} />}
       </summary>
