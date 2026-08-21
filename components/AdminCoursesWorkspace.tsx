@@ -237,8 +237,8 @@ export function AdminCoursesWorkspace({ initialCourses, trashedCount, organizati
           <span>Course</span><span>Status</span><span>Curriculum</span><span>Learners</span><span>Readiness</span><span>Updated</span><span className="text-right">Actions</span>
         </div>
         <div className="divide-y divide-[var(--br-border)]">
-          {visibleCourses.map((course) => (
-            <CourseRow key={course.id} course={course} onStatusChange={updateStatus} onTrash={moveToTrash} />
+          {visibleCourses.map((course, index) => (
+            <CourseRow key={course.id} course={course} openActionsUpward={index >= visibleCourses.length - 2} onStatusChange={updateStatus} onTrash={moveToTrash} />
           ))}
           {!filteredCourses.length ? <EmptyCourses hasCourses={Boolean(courses.length)} onClear={() => { setQuery(""); setLevel(""); setOrganizationId(""); setTab("ALL"); setSort("UPDATED"); }} /> : null}
         </div>
@@ -258,7 +258,7 @@ export function AdminCoursesWorkspace({ initialCourses, trashedCount, organizati
   );
 }
 
-function CourseRow({ course, onStatusChange, onTrash }: { course: AdminCourseSummary; onStatusChange: (course: AdminCourseSummary, status: AdminCourseSummary["status"]) => Promise<void>; onTrash: (course: AdminCourseSummary) => Promise<void> }) {
+function CourseRow({ course, openActionsUpward, onStatusChange, onTrash }: { course: AdminCourseSummary; openActionsUpward: boolean; onStatusChange: (course: AdminCourseSummary, status: AdminCourseSummary["status"]) => Promise<void>; onTrash: (course: AdminCourseSummary) => Promise<void> }) {
   const imageUrl = resolveCourseImage(course.thumbnailPath || course.coverImagePath);
   return (
     <article className="grid min-w-0 gap-4 p-4 transition hover:bg-[var(--br-surface-muted)]/45 xl:grid-cols-[minmax(260px,1.7fr)_110px_150px_90px_170px_105px_138px] xl:items-center xl:gap-3">
@@ -295,13 +295,13 @@ function CourseRow({ course, onStatusChange, onTrash }: { course: AdminCourseSum
         <Link href={`/admin/courses/${course.id}/builder`} className="inline-flex min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg bg-[var(--br-brand)] px-3 py-2 text-xs font-bold text-on-dark transition hover:bg-[var(--br-brand-strong)] xl:flex-none">
           <Pencil size={14} /> Open builder
         </Link>
-        <CourseActions course={course} onStatusChange={onStatusChange} onTrash={onTrash} />
+        <CourseActions course={course} openUpward={openActionsUpward} onStatusChange={onStatusChange} onTrash={onTrash} />
       </div>
     </article>
   );
 }
 
-function CourseActions({ course, onStatusChange, onTrash }: { course: AdminCourseSummary; onStatusChange: (course: AdminCourseSummary, status: AdminCourseSummary["status"]) => Promise<void>; onTrash: (course: AdminCourseSummary) => Promise<void> }) {
+function CourseActions({ course, openUpward, onStatusChange, onTrash }: { course: AdminCourseSummary; openUpward: boolean; onStatusChange: (course: AdminCourseSummary, status: AdminCourseSummary["status"]) => Promise<void>; onTrash: (course: AdminCourseSummary) => Promise<void> }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -330,7 +330,7 @@ function CourseActions({ course, onStatusChange, onTrash }: { course: AdminCours
       <summary aria-label={`More actions for ${course.title}`} className="grid size-9 cursor-pointer list-none place-items-center rounded-lg border border-[var(--br-border)] text-ink transition hover:bg-surface [&::-webkit-details-marker]:hidden">
         {pending ? <span className="size-4 animate-spin rounded-full border-2 border-[var(--br-brand)] border-t-transparent" /> : <Ellipsis size={18} />}
       </summary>
-      <div className="absolute bottom-11 right-0 z-30 w-56 rounded-lg border border-[var(--br-border)] bg-surface p-1.5 shadow-xl xl:bottom-auto xl:top-11">
+      <div className={`absolute right-0 z-30 w-56 rounded-lg border border-[var(--br-border)] bg-surface p-1.5 shadow-xl ${openUpward ? "bottom-11" : "bottom-11 xl:bottom-auto xl:top-11"}`}>
         <MenuLink href={`/courses/${course.id}`} icon={Eye}>Preview course</MenuLink>
         <MenuLink href={`/admin/courses/${course.id}/analytics`} icon={BarChart3}>Course analytics</MenuLink>
         <MenuLink href="/admin/content-library?type=COURSE_TEMPLATE" icon={Library}>Course templates</MenuLink>
