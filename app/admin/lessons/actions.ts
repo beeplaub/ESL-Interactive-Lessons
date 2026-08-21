@@ -180,7 +180,8 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
     return {
       title: nullableText(formData.get("title")),
       body: String(formData.get("body") || "").trim(),
-      text_align: textAlignValue(formData.get("text_align"))
+      text_align: textAlignValue(formData.get("text_align")),
+      reveal_hidden: formData.get("reveal_hidden") === "on"
     };
   }
   if (blockType === "IMAGE") {
@@ -346,7 +347,7 @@ function defaultBlockContent(blockType: string): Json {
   if (blockType === "TEXT") return { body: "Add lesson text here." };
   if (blockType === "BULLETS") return { title: "Key points", items: ["First point", "Second point"] };
   if (blockType === "QUOTE") return { body: "Add a quote.", attribution: null };
-  if (blockType === "CALLOUT") return { title: "Note", body: "Add a short note for learners." };
+  if (blockType === "CALLOUT") return { title: "Note", body: "Add a short note for learners.", reveal_hidden: false };
   if (blockType === "IMAGE") return { path: "", alt: "", caption: "" };
   if (blockType === "IMAGE_TEXT") return {
     image_position: "left",

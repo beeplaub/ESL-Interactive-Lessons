@@ -212,14 +212,30 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
 
   if (block.block_type === "CALLOUT") {
     const align = textAlignClass(content.text_align);
+    const hidden = content.reveal_hidden === true;
+    const calloutContent = (
+      <div className={align}>
+        {asString(content.title) ? <h3 className="font-semibold text-amber-950">{asString(content.title)}</h3> : null}
+        <div className="mt-1 text-base leading-6 text-amber-900"><FormattedText text={asString(content.body) || "Add a callout message."} /></div>
+      </div>
+    );
+    if (hidden) {
+      return (
+        <details className="rounded-lg border border-amber-200 bg-amber-50 p-3 sm:p-4">
+          <summary className="flex cursor-pointer list-none items-start gap-3 font-semibold text-amber-950 marker:hidden">
+            <MessageSquareQuote className="mt-0.5 shrink-0 text-amber-700" size={18} />
+            <span className="flex-1">{asString(content.title) || "Reveal note"}</span>
+            <span className="rounded-md border border-amber-300 bg-surface px-2 py-1 text-xs font-semibold text-amber-900">Reveal</span>
+          </summary>
+          <div className="mt-3 border-t border-amber-200 pt-3">{calloutContent}</div>
+        </details>
+      );
+    }
     return (
       <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 sm:p-4">
         <div className="flex items-start gap-3">
           <MessageSquareQuote className="mt-0.5 shrink-0 text-amber-700" size={18} />
-          <div className={align}>
-            {asString(content.title) ? <h3 className="font-semibold text-amber-950">{asString(content.title)}</h3> : null}
-            <p className="mt-1 text-base leading-6 text-amber-900">{asString(content.body) || "Add a callout message."}</p>
-          </div>
+          {calloutContent}
         </div>
       </div>
     );
