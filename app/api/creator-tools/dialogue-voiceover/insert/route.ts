@@ -100,6 +100,9 @@ export async function POST(request: Request) {
   if (stableJson(content) !== stableJson(input.baseContent)) {
     return NextResponse.json({ error: "This dialogue changed in another tab or session. Reopen the block before inserting voices." }, { status: 409 });
   }
+  // Some legacy lessons do not have created_by populated. Media assets still
+  // require a valid UUID owner, so fall back to the authenticated creator.
+  const mediaOwnerId = text(lesson.created_by) || access.user.id;
   const databaseTurns = Array.isArray(content.turns) ? content.turns.map(record) : [];
   const currentPeople = input.people.map((person) => ({ id: person.id, name: person.name, color: person.color, voice_name: person.voiceName }));
   const currentTurns = input.turns.map((turn) => ({
@@ -142,7 +145,7 @@ export async function POST(request: Request) {
       const speakerId = text(item.turn.speaker_id);
       const speaker = currentPeople.find((person) => text(person.id) === speakerId);
       const mediaAssetId = await registerMediaAsset(admin, {
-        ownerId: lesson.created_by,
+        ownerId: mediaOwnerId,
         type: "AUDIO",
         source: "UPLOAD",
         url: stored.url,
@@ -236,7 +239,7 @@ export async function POST(request: Request) {
           bucket: text(item.oldVoiceover.storage_bucket),
           path: text(item.oldVoiceover.storage_path),
         }).catch((cleanupError) => console.error("Previous dialogue voice cleanup failed", cleanupError));
-        await admin.from("media_assets").delete().eq("owner_id", lesson.created_by).eq("url", oldUrl);
+        await admin.from("media_assets").delete().eq("owner_id", mediaOwnerId).eq("url", oldUrl);
       }
     }
 
