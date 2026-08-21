@@ -529,6 +529,18 @@ function DatabaseBlocks({
               ) : null}
             </aside>
           );
+        if (type === "lesson") {
+          const lessonType = typeof block.lessonType === "string" ? block.lessonType : "";
+          const content = block.lessonContent && typeof block.lessonContent === "object" && !Array.isArray(block.lessonContent)
+            ? block.lessonContent as Record<string, unknown>
+            : {};
+          const value = (name: string) => typeof content[name] === "string" ? String(content[name]) : "";
+          if (lessonType === "DIVIDER") return <hr key={key} className="my-6 border-[var(--br-border)]" />;
+          if (lessonType === "BULLETS") return <ul key={key}>{(Array.isArray(content.items) ? content.items : []).map((item, itemIndex) => <li key={itemIndex}>{String(item)}</li>)}</ul>;
+          if (lessonType === "AUDIO") return <audio key={key} controls src={value("path")} className="my-5 w-full" />;
+          if (lessonType === "VIDEO") return <video key={key} controls src={value("url")} className="my-5 w-full rounded-2xl" />;
+          return <div key={key} className="my-5 whitespace-pre-wrap">{value("body") || value("passage") || value("explanation") || value("title")}</div>;
+        }
         return <RichParagraph key={key} text={text} />;
       })}
     </>

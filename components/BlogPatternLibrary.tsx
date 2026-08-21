@@ -16,7 +16,8 @@ type PatternBlock = {
     | "callout"
     | "list"
     | "image"
-    | "cta";
+    | "cta"
+    | "lesson";
   text?: string;
   level?: 2 | 3 | 4;
   attribution?: string;
@@ -29,6 +30,8 @@ type PatternBlock = {
   label?: string;
   href?: string;
   description?: string;
+  lessonType?: string;
+  lessonContent?: Record<string, unknown>;
 };
 export type BlogPattern = {
   id: string;
