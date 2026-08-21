@@ -227,9 +227,11 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
           <div className="flex items-start gap-3">
             <MessageSquareQuote className="mt-0.5 shrink-0 text-amber-700" size={18} />
             <div className={`min-w-0 flex-1 ${align}`}>
-              {title ? <h3 className="font-semibold text-amber-950">{title}</h3> : null}
-              <details className="mt-1">
-                <summary className="cursor-pointer list-none marker:hidden"><span className="inline-flex rounded-md border border-amber-300 bg-surface px-2 py-1 text-xs font-semibold text-amber-900">Reveal</span></summary>
+              <details>
+                <summary className="flex cursor-pointer list-none items-start justify-between gap-3 marker:hidden">
+                  <span className="min-w-0 flex-1 font-semibold text-amber-950">{title || "Reveal note"}</span>
+                  <span className="inline-flex shrink-0 rounded-md border border-amber-300 bg-surface px-2 py-1 text-xs font-semibold text-amber-900">Reveal</span>
+                </summary>
                 <div className="mt-2 border-t border-amber-200 pt-2">{bodyContent}</div>
               </details>
             </div>
