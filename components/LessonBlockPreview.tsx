@@ -576,10 +576,10 @@ function ContrastPairBlock({ content }: { content: Record<string, unknown> }) {
         {asString(content.instruction) ? <p className="mt-1 text-sm text-[var(--br-text-muted)]">{asString(content.instruction)}</p> : null}
       </div>
       <div className="space-y-3 p-3 sm:p-4">
-        {pairs.length ? pairs.map((pair, index) => { const pairColor = asString(pair.left_color) || "var(--br-brand)"; return <details key={index} className="group rounded-xl border border-[var(--br-brand)]/20 bg-surface shadow-sm transition hover:border-[var(--br-brand)]/45">
-          <summary className="flex cursor-pointer list-none items-start justify-between gap-3 rounded-xl p-3 marker:hidden group-open:rounded-b-none sm:p-4" style={{ backgroundColor: pairColor }}>
-            <span className="min-w-0 flex-1 font-semibold text-on-dark">{asString(pair.title) || `${asString(pair.left_term)} vs. ${asString(pair.right_term)}`}</span>
-            <span className="inline-flex shrink-0 rounded-md border border-white/60 bg-white/15 px-2 py-1 text-xs font-semibold text-on-dark" style={{ backgroundColor: pairColor }}>Reveal</span>
+        {pairs.length ? pairs.map((pair, index) => <details key={index} className="group rounded-xl border border-amber-200 bg-amber-50 shadow-sm transition hover:border-amber-300">
+          <summary className="flex cursor-pointer list-none items-start justify-between gap-3 rounded-xl p-3 marker:hidden group-open:rounded-b-none sm:p-4">
+            <span className="flex min-w-0 flex-1 items-center gap-3 font-semibold text-amber-950"><MessageSquareQuote className="shrink-0 text-amber-700" size={17} />{asString(pair.title) || `${asString(pair.left_term)} vs. ${asString(pair.right_term)}`}</span>
+            <span className="inline-flex shrink-0 rounded-md border border-amber-300 bg-surface px-2 py-1 text-xs font-semibold text-amber-900">Reveal</span>
           </summary>
           <div className="border-t border-[var(--br-brand)]/15 p-3 sm:p-4">
             {asString(pair.context) ? <p className="mb-4 rounded-lg bg-[var(--br-info)]/10 px-3 py-2 text-sm leading-6 text-ink">{asString(pair.context)}</p> : null}
@@ -590,7 +590,7 @@ function ContrastPairBlock({ content }: { content: Record<string, unknown> }) {
             {asString(pair.key_difference) ? <p className="mt-4 rounded-md bg-skywash px-3 py-2 text-sm leading-6 text-ink"><span className="font-semibold">Key difference:</span> {asString(pair.key_difference)}</p> : null}
             {asString(pair.common_mistake) ? <p className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-sm leading-6 text-amber-950"><span className="font-semibold">Common mistake:</span> {asString(pair.common_mistake)}</p> : null}
           </div>
-        </details>; }) : <p className="text-sm text-[var(--br-text-muted)]">Add contrast pairs.</p>}
+        </details>) : <p className="text-sm text-[var(--br-text-muted)]">Add contrast pairs.</p>}
       </div>
     </section>
   );
