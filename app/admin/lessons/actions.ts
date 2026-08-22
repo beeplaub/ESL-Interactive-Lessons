@@ -265,6 +265,20 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
     };
   }
   if (blockType === "CONTRAST_PAIR") {
+    let parsedPairs: unknown[] = [];
+    try {
+      const raw = JSON.parse(String(formData.get("pairs_json") || "[]"));
+      if (Array.isArray(raw)) parsedPairs = raw;
+    } catch {
+      parsedPairs = [];
+    }
+    if (parsedPairs.length) {
+      return {
+        title: nullableText(formData.get("title")),
+        instruction: nullableText(formData.get("instruction")),
+        pairs: parsedPairs.filter((pair): pair is Record<string, unknown> => Boolean(pair && typeof pair === "object" && !Array.isArray(pair))).map((pair) => pair as Json)
+      };
+    }
     return {
       title: nullableText(formData.get("title")),
       instruction: nullableText(formData.get("instruction")),
