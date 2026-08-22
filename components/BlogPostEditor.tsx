@@ -65,13 +65,7 @@ type BlockType =
   | "callout"
   | "list"
   | "image"
-  | "cta"
-  | "lesson";
-const LESSON_BLOCK_TYPES = [
-  "BULLETS", "IMAGE_TEXT", "AUDIO", "VIDEO",
-  "VOCABULARY", "GRAMMAR", "READING", "DIALOGUE", "FLASHCARD", "TABLE", "COMMON_MISTAKE", "DIVIDER",
-] as const;
-type LessonBlockType = typeof LESSON_BLOCK_TYPES[number];
+  | "cta";
 type Block = {
   id: string;
   type: BlockType;
@@ -87,8 +81,6 @@ type Block = {
   label?: string;
   href?: string;
   description?: string;
-  lessonType?: LessonBlockType;
-  lessonContent?: Record<string, unknown>;
 };
 
 export type EditableBlogPost = {
@@ -167,9 +159,7 @@ const blankBlock = (type: BlockType): Block =>
                   href: "/courses",
                   description: "Give readers one clear next step.",
                 }
-              : type === "lesson"
-                ? { id: uid(), type, lessonType: "BULLETS", lessonContent: { title: "Key points", items: ["First point", "Second point"] } }
-                : { id: uid(), type, text: "Start writing here…" };
+              : { id: uid(), type, text: "Start writing here…" };
 const normalizeBlocks = (value: EditableBlogPost["content"]) =>
   Array.isArray(value?.content)
     ? value.content.map((block) => ({
@@ -188,7 +178,6 @@ function blockName(type: BlockType) {
     list: "List",
     image: "Image",
     cta: "Call to action",
-    lesson: "Lesson content block",
   }[type];
 }
 
@@ -201,7 +190,6 @@ function iconFor(type: BlockType) {
     list: List,
     image: ImageIcon,
     cta: Sparkles,
-    lesson: Layers3,
   }[type];
 }
 
@@ -1171,7 +1159,6 @@ function AddBlock({ onAdd }: { onAdd: (type: BlockType) => void }) {
     ["callout", "Callout"],
     ["image", "Image"],
     ["cta", "Call to action"],
-    ["lesson", "Lesson content block"],
   ];
   function toggle() {
     if (!open && buttonRef.current) {
@@ -1315,42 +1302,8 @@ function BlockFields({
   editable: boolean;
   onChange: (patch: Partial<Block>) => void;
 }) {
-  const [lessonDraft, setLessonDraft] = useState(() => JSON.stringify(block.lessonContent || {}, null, 2));
-  useEffect(() => setLessonDraft(JSON.stringify(block.lessonContent || {}, null, 2)), [block.lessonContent]);
   const input =
     "w-full rounded-xl border border-[var(--br-border)] bg-[var(--br-surface-muted)] px-3 py-2 text-sm text-ink outline-none focus:border-[var(--br-brand)] disabled:opacity-70";
-  if (block.type === "lesson") {
-    return (
-      <div className="grid gap-3">
-        <label className="text-xs font-bold text-[var(--br-text-muted)]">
-          Lesson block type
-          <select
-            value={block.lessonType || "TEXT"}
-            disabled={!editable}
-            onChange={(event) => onChange({ lessonType: event.target.value as LessonBlockType })}
-            className={`${input} mt-1.5 bg-surface`}
-          >
-            {LESSON_BLOCK_TYPES.map((type) => <option key={type} value={type}>{type.replaceAll("_", " ")}</option>)}
-          </select>
-        </label>
-        <label className="text-xs font-bold text-[var(--br-text-muted)]">
-          Block content (JSON)
-          <textarea
-            value={lessonDraft}
-            disabled={!editable}
-            rows={12}
-            onChange={(event) => {
-              setLessonDraft(event.target.value);
-              try { onChange({ lessonContent: JSON.parse(event.target.value) as Record<string, unknown> }); } catch { /* wait for valid JSON */ }
-            }}
-            className={`${input} mt-1.5 resize-y font-mono text-xs leading-5`}
-            spellCheck={false}
-          />
-        </label>
-        <p className="text-xs leading-5 text-[var(--br-text-muted)]">This uses the same block type and content shape as lesson slides. Choose a type, then edit its fields in JSON without creating a second blog-specific schema.</p>
-      </div>
-    );
-  }
   if (block.type === "paragraph")
     return (
       <textarea
@@ -1665,17 +1618,6 @@ function EditorPreview({
 }
 
 function PreviewBlock({ block }: { block: Block }) {
-  if (block.type === "lesson") {
-    const content = block.lessonContent || {};
-    const text = (key: string) => typeof content[key] === "string" ? String(content[key]) : "";
-    if (block.lessonType === "DIVIDER") return <hr className="border-[var(--br-border)]" />;
-    if (block.lessonType === "BULLETS") return <ul className="list-disc space-y-1 pl-5">{(Array.isArray(content.items) ? content.items : []).map((item, index) => <li key={index}>{String(item)}</li>)}</ul>;
-    if (block.lessonType === "IMAGE_TEXT") return <div className="grid gap-3 sm:grid-cols-2"><img src={text("image_path")} alt={text("alt")} className="w-full rounded-xl object-contain" /><p className="whitespace-pre-wrap">{text("text") || text("body")}</p></div>;
-    if (block.lessonType === "AUDIO") return <audio controls src={text("path")} className="w-full" />;
-    if (block.lessonType === "VIDEO") return <video controls src={text("url")} className="w-full rounded-xl" />;
-    if (block.lessonType === "COMMON_MISTAKE") return <div className="rounded-xl border border-[var(--br-action)]/25 bg-[var(--br-action)]/5 p-3 whitespace-pre-wrap">{text("body") || text("explanation") || text("correction")}</div>;
-    return <div className="whitespace-pre-wrap">{text("body") || text("passage") || text("explanation") || text("title")}</div>;
-  }
   if (block.type === "heading")
     return (
       <h3 className={block.level === 2 ? "text-lg font-bold" : "font-bold"}>

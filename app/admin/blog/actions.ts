@@ -332,8 +332,7 @@ type BlogBlock = {
     | "callout"
     | "list"
     | "image"
-    | "cta"
-    | "lesson";
+    | "cta";
   text?: string;
   level?: 2 | 3 | 4;
   attribution?: string;
@@ -346,8 +345,6 @@ type BlogBlock = {
   label?: string;
   href?: string;
   description?: string;
-  lessonType?: string;
-  lessonContent?: Record<string, unknown>;
 };
 
 type BlogPostInput = {
@@ -386,8 +383,6 @@ function contentTextFromBlocks(blocks: BlogBlock[]) {
       block.caption || "",
       block.label || "",
       block.description || "",
-      block.lessonType || "",
-      block.lessonContent ? JSON.stringify(block.lessonContent) : "",
     ])
     .join("\n")
     .replace(/\n{3,}/g, "\n\n")
@@ -411,7 +406,6 @@ function validContent(
       "list",
       "image",
       "cta",
-      "lesson",
     ].includes(type || "");
   });
 }
