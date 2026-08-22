@@ -503,6 +503,11 @@ function extractMediaFromBlock(blockType: string, content: Record<string, unknow
   } else if (blockType === "IMAGE_ANNOTATION") {
     const url = str(content.path);
     if (url) out.push({ type: "IMAGE", url, alt: str(content.alt) || null, caption: str(content.title) || null });
+    const markers = Array.isArray(content.markers) ? content.markers as Array<Record<string, unknown>> : [];
+    for (const marker of markers) {
+      const audio = str(marker.audio_url ?? marker.audioUrl);
+      if (audio) out.push({ type: "AUDIO", url: audio, caption: str(marker.label) || "Image annotation" });
+    }
   } else if (blockType === "AUDIO") {
     const url = str(content.path);
     if (url) out.push({ type: "AUDIO", url, caption: str(content.label) || null });

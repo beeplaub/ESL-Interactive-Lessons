@@ -511,12 +511,14 @@ function ImageAnnotationBlock({ content }: { content: Record<string, unknown> })
       label: asString(marker.label),
       detail: asString(marker.detail),
       example: asString(marker.example),
+      audioUrl: asString(marker.audio_url ?? marker.audioUrl),
       index: index + 1,
       x: Math.min(100, Math.max(0, Number(marker.x) || 50)),
       y: Math.min(100, Math.max(0, Number(marker.y) || 50))
     };
   });
   const [active, setActive] = useState<number | null>(null);
+  const audioRefs = useRef<Array<HTMLAudioElement | null>>([]);
   const current = active === null ? null : markers[active];
   return (
     <section className="overflow-hidden rounded-xl border border-[var(--br-border)] bg-surface">
@@ -527,12 +529,13 @@ function ImageAnnotationBlock({ content }: { content: Record<string, unknown> })
           <div ref={imageFrameRef} className="relative overflow-hidden rounded-lg bg-surface-muted">
             <img src={src} alt={asString(content.alt)} className="block h-auto w-full" />
             {markers.map((marker) => (
-              <button key={String(marker.id ?? marker.index)} type="button" onClick={() => setActive(marker.index - 1)} aria-label={`Marker ${marker.index}${asString(marker.label) ? `: ${asString(marker.label)}` : ""}`} className={`absolute -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 border-[var(--br-info)] bg-white text-sm font-bold text-[var(--br-info)] shadow-lg transition hover:scale-110 focus:outline-none focus:ring-2 focus:ring-[var(--br-info)] focus:ring-offset-2 ${active === marker.index - 1 ? "ring-2 ring-[var(--br-info)] ring-offset-2" : ""}`} style={{ left: `${marker.x}%`, top: `${marker.y}%`, width: renderedMarkerSize, height: renderedMarkerSize, fontSize: Math.max(10, Math.round(renderedMarkerSize * 0.34)), display: "grid" }}>{marker.index}</button>
+              <button key={String(marker.id ?? marker.index)} type="button" onClick={() => { const hasText = Boolean(marker.label || marker.detail || marker.example); if (!hasText && marker.audioUrl) { void audioRefs.current[marker.index - 1]?.play(); setActive(null); } else setActive(marker.index - 1); }} aria-label={`Marker ${marker.index}${asString(marker.label) ? `: ${asString(marker.label)}` : ""}`} className={`absolute -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 border-[var(--br-info)] bg-white text-sm font-bold text-[var(--br-info)] shadow-lg transition hover:scale-110 focus:outline-none focus:ring-2 focus:ring-[var(--br-info)] focus:ring-offset-2 ${active === marker.index - 1 ? "ring-2 ring-[var(--br-info)] ring-offset-2" : ""}`} style={{ left: `${marker.x}%`, top: `${marker.y}%`, width: renderedMarkerSize, height: renderedMarkerSize, fontSize: Math.max(10, Math.round(renderedMarkerSize * 0.34)), display: "grid" }}>{marker.index}</button>
             ))}
+            {markers.map((marker, index) => marker.audioUrl ? <audio key={`annotation-audio-${marker.id}`} ref={(element) => { audioRefs.current[index] = element; }} src={mediaUrl(marker.audioUrl, "audio")} preload="none" /> : null)}
             {current ? (
               <div className="absolute inset-0 z-10 grid place-items-center p-2 sm:p-4" role="presentation">
                 <div className="max-h-[84%] w-[min(92%,22rem)] overflow-y-auto rounded-xl border border-[var(--br-info)] bg-white p-3 shadow-2xl sm:rounded-2xl sm:p-4" role="dialog" aria-label={asString(current.label) || `Marker ${current.index}`}>
-                  <div className="flex items-start gap-2"><MapPin size={17} className="mt-0.5 shrink-0 text-[var(--br-info)]" /><div className="min-w-0 flex-1"><p className="text-sm font-bold text-ink sm:text-base">{asString(current.label) || `Marker ${current.index}`}</p>{asString(current.detail) ? <p className="mt-1 text-xs leading-5 text-[var(--br-text-muted)] sm:text-sm sm:leading-6">{asString(current.detail)}</p> : null}{asString(current.example) ? <p className="mt-2 rounded-lg bg-[var(--br-info)]/10 px-2.5 py-2 text-xs italic text-ink sm:px-3">{asString(current.example)}</p> : null}</div><button type="button" onClick={() => setActive(null)} className="shrink-0 rounded-full border border-[var(--br-border)] px-2 py-0.5 text-[10px] font-bold text-[var(--br-text-muted)] sm:text-[11px]">Close</button></div>
+                  <div className="flex items-start gap-2"><MapPin size={17} className="mt-0.5 shrink-0 text-[var(--br-info)]" /><div className="min-w-0 flex-1"><p className="text-sm font-bold text-ink sm:text-base">{asString(current.label) || `Marker ${current.index}`}</p>{asString(current.detail) ? <p className="mt-1 text-xs leading-5 text-[var(--br-text-muted)] sm:text-sm sm:leading-6">{asString(current.detail)}</p> : null}{asString(current.example) ? <p className="mt-2 rounded-lg bg-[var(--br-info)]/10 px-2.5 py-2 text-xs italic text-ink sm:px-3">{asString(current.example)}</p> : null}</div>{current.audioUrl ? <button type="button" onClick={() => { void audioRefs.current[current.index - 1]?.play(); }} className="grid size-8 shrink-0 place-items-center rounded-full border border-[var(--br-info)] text-[var(--br-info)]" aria-label="Play annotation audio"><Volume2 size={15} /></button> : null}<button type="button" onClick={() => setActive(null)} className="shrink-0 rounded-full border border-[var(--br-border)] px-2 py-0.5 text-[10px] font-bold text-[var(--br-text-muted)] sm:text-[11px]">Close</button></div>
                 </div>
               </div>
             ) : null}

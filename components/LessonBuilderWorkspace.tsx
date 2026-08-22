@@ -1517,7 +1517,8 @@ function BlockFields({ blockType, content, lessonId, blockId }: { blockType: str
     y: Number(marker.y) || 50,
     label: asString(marker.label),
     detail: asString(marker.detail),
-    example: asString(marker.example)
+    example: asString(marker.example),
+    audioUrl: asString(marker.audio_url)
   })) : []);
   const initialFlashcards = Array.isArray(data.cards) && data.cards.length
     ? (data.cards as Record<string, unknown>[]) : [data];
@@ -1867,7 +1868,7 @@ function BlockFields({ blockType, content, lessonId, blockId }: { blockType: str
   return <p className="text-sm text-[var(--br-text-muted)]">No fields for {blockType}.</p>;
 }
 
-type AnnotationMarkerDraft = { id: string; x: number; y: number; label: string; detail: string; example: string };
+type AnnotationMarkerDraft = { id: string; x: number; y: number; label: string; detail: string; example: string; audioUrl: string };
 
 function ImageAnnotationFields({
   data, imagePath, setImagePath, markers, setMarkers, markerSize, setMarkerSize, lessonId
@@ -1881,8 +1882,23 @@ function ImageAnnotationFields({
   setMarkerSize: (value: number) => void;
   lessonId: string;
 }) {
+  const placementRef = useRef<HTMLDivElement>(null);
   const update = (id: string, key: keyof AnnotationMarkerDraft, value: string | number) => {
     setMarkers((current) => current.map((marker) => marker.id === id ? { ...marker, [key]: value } : marker));
+  };
+  const dragMarker = (event: React.PointerEvent<HTMLSpanElement>, markerId: string) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const move = (moveEvent: PointerEvent) => {
+      const image = placementRef.current?.querySelector("img");
+      if (!image) return;
+      const rect = image.getBoundingClientRect();
+      update(markerId, "x", Math.round(Math.min(100, Math.max(0, ((moveEvent.clientX - rect.left) / rect.width) * 100)) * 10) / 10);
+      update(markerId, "y", Math.round(Math.min(100, Math.max(0, ((moveEvent.clientY - rect.top) / rect.height) * 100)) * 10) / 10);
+    };
+    const stop = () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", stop); };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", stop, { once: true });
   };
   return (
     <div className="grid gap-4">
@@ -1900,7 +1916,7 @@ function ImageAnnotationFields({
       <div className="rounded-xl border border-[var(--br-border)] bg-surface-muted p-3">
         <div className="flex items-center justify-between gap-3">
           <div><p className="text-sm font-semibold text-ink">Image markers</p><p className="text-xs text-[var(--br-text-muted)]">Add one marker for each important area.</p></div>
-          <button type="button" onClick={() => setMarkers((current) => [...current, { id: `marker-${Date.now()}`, x: 50, y: 50, label: "", detail: "", example: "" }])} className="inline-flex items-center gap-1 rounded-md bg-[var(--br-dark-card)] px-3 py-2 text-xs font-bold text-white"><Plus size={13} /> Add marker</button>
+          <button type="button" onClick={() => setMarkers((current) => [...current, { id: `marker-${Date.now()}`, x: 50, y: 50, label: "", detail: "", example: "", audioUrl: "" }])} className="inline-flex items-center gap-1 rounded-md bg-[var(--br-dark-card)] px-3 py-2 text-xs font-bold text-white"><Plus size={13} /> Add marker</button>
         </div>
         {imagePath ? (
           <div className="relative mt-3 overflow-hidden rounded-lg border border-[var(--br-border)] bg-surface">
@@ -1908,9 +1924,9 @@ function ImageAnnotationFields({
             const rect = event.currentTarget.getBoundingClientRect();
             const x = Math.round(((event.clientX - rect.left) / rect.width) * 1000) / 10;
             const y = Math.round(((event.clientY - rect.top) / rect.height) * 1000) / 10;
-            setMarkers((current) => [...current, { id: `marker-${Date.now()}`, x, y, label: "", detail: "", example: "" }]);
+            setMarkers((current) => [...current, { id: `marker-${Date.now()}`, x, y, label: "", detail: "", example: "", audioUrl: "" }]);
             }} />
-            {markers.map((marker, index) => <span key={marker.id} className="absolute grid size-7 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 border-white bg-[var(--br-brand)] text-xs font-bold text-white shadow" style={{ left: `${marker.x}%`, top: `${marker.y}%` }}>{index + 1}</span>)}
+            {markers.map((marker, index) => <span key={marker.id} role="button" tabIndex={0} aria-label={`Drag marker ${index + 1}`} onPointerDown={(event) => dragMarker(event, marker.id)} className="absolute grid size-7 -translate-x-1/2 -translate-y-1/2 cursor-grab touch-none place-items-center rounded-full border-2 border-[var(--br-info)] bg-white text-xs font-bold text-[var(--br-info)] shadow active:cursor-grabbing" style={{ left: `${marker.x}%`, top: `${marker.y}%` }}>{index + 1}</span>)}
             <span className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-black/70 px-3 py-1 text-[11px] font-semibold text-white">Click the image to place a marker</span>
           </div>
         ) : null}
@@ -1926,12 +1942,14 @@ function ImageAnnotationFields({
               </div>
               <label className="mt-2 block text-xs">Information<textarea value={marker.detail} onChange={(event) => update(marker.id, "detail", event.target.value)} rows={2} placeholder="What should the learner discover?" className="mt-1 w-full rounded border border-[var(--br-border)] px-2 py-2 text-sm" /></label>
               <label className="mt-2 block text-xs">Example <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><input value={marker.example} onChange={(event) => update(marker.id, "example", event.target.value)} placeholder="An example sentence" className="mt-1 w-full rounded border border-[var(--br-border)] px-2 py-2 text-sm" /></label>
+              <label className="mt-2 block text-xs">Audio URL <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><input value={marker.audioUrl} onChange={(event) => update(marker.id, "audioUrl", event.target.value)} placeholder="https://..." className="mt-1 w-full rounded border border-[var(--br-border)] px-2 py-2 text-sm" /></label>
+              <BlockMediaUploader type="audio" lessonId={lessonId} currentSrc={marker.audioUrl} onUploaded={(url) => update(marker.id, "audioUrl", url)} />
             </div>
           ))}
           {!markers.length ? <p className="rounded-lg border border-dashed border-[var(--br-border)] p-4 text-center text-xs text-[var(--br-text-muted)]">No markers yet. Add one to begin.</p> : null}
         </div>
       </div>
-      <input type="hidden" name="markers" value={JSON.stringify(markers)} />
+      <input type="hidden" name="markers" value={JSON.stringify(markers.map((marker) => ({ id: marker.id, x: marker.x, y: marker.y, label: marker.label, detail: marker.detail, example: marker.example, audio_url: marker.audioUrl })))} />
     </div>
   );
 }
