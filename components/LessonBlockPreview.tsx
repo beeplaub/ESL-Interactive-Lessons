@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, FlipHorizontal2, Headphones, ImageIcon, ListChecks, Maximize, Minimize, MessageSquareQuote, Pause, Play, PlayCircle, Settings, Volume2, RotateCcw, RotateCw, SkipBack, SkipForward } from "lucide-react";
+import { BookOpen, FlipHorizontal2, Headphones, ImageIcon, ListChecks, Maximize, Minimize, MessageSquareQuote, Pause, Play, PlayCircle, Settings, Volume2, RotateCcw, RotateCw, SkipBack, SkipForward, MapPin } from "lucide-react";
 import type { ChangeEvent, RefObject } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -313,6 +313,10 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
     );
   }
 
+  if (block.block_type === "IMAGE_ANNOTATION") {
+    return <ImageAnnotationBlock content={content} />;
+  }
+
   if (block.block_type === "AUDIO") {
     const path = asString(content.path);
     const src = mediaUrl(path, "audio");
@@ -482,6 +486,46 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
   }
 
   return null;
+}
+
+function ImageAnnotationBlock({ content }: { content: Record<string, unknown> }) {
+  const path = asString(content.path);
+  const src = mediaUrl(path, "image");
+  const markers = asArray(content.markers).map((item, index) => {
+    const marker = asRecord(item as Json);
+    return {
+      id: asString(marker.id),
+      label: asString(marker.label),
+      detail: asString(marker.detail),
+      example: asString(marker.example),
+      index: index + 1,
+      x: Math.min(100, Math.max(0, Number(marker.x) || 50)),
+      y: Math.min(100, Math.max(0, Number(marker.y) || 50))
+    };
+  });
+  const [active, setActive] = useState<number | null>(null);
+  const current = active === null ? null : markers[active];
+  return (
+    <section className="overflow-hidden rounded-xl border border-[var(--br-border)] bg-surface">
+      {asString(content.title) ? <h3 className="px-4 pt-4 text-lg font-semibold text-ink">{asString(content.title)}</h3> : null}
+      {asString(content.instruction) ? <p className="px-4 pt-1 text-sm text-[var(--br-text-muted)]">{asString(content.instruction)}</p> : null}
+      <div className="p-3 sm:p-4">
+        {path && isImageUrl(src) ? (
+          <div className="relative overflow-hidden rounded-lg bg-surface-muted">
+            <img src={src} alt={asString(content.alt)} className="block h-auto w-full" />
+            {markers.map((marker) => (
+              <button key={String(marker.id ?? marker.index)} type="button" onClick={() => setActive(marker.index - 1)} aria-label={`Marker ${marker.index}${asString(marker.label) ? `: ${asString(marker.label)}` : ""}`} className={`absolute grid size-8 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 border-white bg-[var(--br-brand)] text-sm font-bold text-white shadow-lg transition hover:scale-110 focus:outline-none focus:ring-2 focus:ring-[var(--br-brand)] focus:ring-offset-2 ${active === marker.index - 1 ? "ring-2 ring-[var(--br-brand)] ring-offset-2" : ""}`} style={{ left: `${marker.x}%`, top: `${marker.y}%` }}>{marker.index}</button>
+            ))}
+          </div>
+        ) : <div className="grid aspect-video place-items-center rounded-lg bg-surface-muted text-sm text-[var(--br-text-muted)]"><ImageIcon size={24} /> Add an image URL.</div>}
+      </div>
+      {current ? (
+        <div className="border-t border-[var(--br-border)] bg-skywash px-4 py-3" role="status">
+          <div className="flex items-start gap-2"><MapPin size={17} className="mt-0.5 shrink-0 text-[var(--br-brand)]" /><div className="min-w-0"><p className="font-semibold text-ink">{asString(current.label) || `Marker ${current.index}`}</p>{asString(current.detail) ? <p className="mt-1 text-sm leading-6 text-[var(--br-text-muted)]">{asString(current.detail)}</p> : null}{asString(current.example) ? <p className="mt-2 rounded-md bg-surface px-3 py-2 text-sm italic text-ink">{asString(current.example)}</p> : null}</div></div>
+        </div>
+      ) : null}
+    </section>
+  );
 }
 
 function CommonMistakeBlock({ content }: { content: Record<string, unknown> }) {

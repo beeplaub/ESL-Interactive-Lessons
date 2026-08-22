@@ -47,7 +47,7 @@ import { DialogueVoiceoverEditor } from "@/components/DialogueVoiceoverEditor";
 
 const blockTypes = [
   "HEADING", "TEXT", "BULLETS", "QUOTE", "CALLOUT",
-  "IMAGE", "IMAGE_TEXT", "AUDIO", "VIDEO", "DIVIDER",
+  "IMAGE", "IMAGE_TEXT", "IMAGE_ANNOTATION", "AUDIO", "VIDEO", "DIVIDER",
   "VOCABULARY", "GRAMMAR", "READING", "DIALOGUE",
   "FLASHCARD", "TABLE", "COMMON_MISTAKE", "CONTRAST_PAIR"
 ] as const;
@@ -1425,7 +1425,7 @@ function ActivityBank({ lessonId, slide, slides, activities }: {
 function labelForBlockType(type: string) {
   const labels: Record<string, string> = {
     HEADING: "Heading", TEXT: "Text", BULLETS: "Bullet points", QUOTE: "Quote",
-    CALLOUT: "Callout", IMAGE: "Image", IMAGE_TEXT: "Image + Text",
+    CALLOUT: "Callout", IMAGE: "Image", IMAGE_TEXT: "Image + Text", IMAGE_ANNOTATION: "Image annotations",
     AUDIO: "Audio", VIDEO: "Video", DIVIDER: "Divider",
     VOCABULARY: "Vocabulary list", GRAMMAR: "Grammar",
     READING: "Reading passage", DIALOGUE: "Dialogue",
@@ -1510,6 +1510,14 @@ function BlockFields({ blockType, content, lessonId, blockId }: { blockType: str
     blockType === "FLASHCARD" ? asString(data.audio_path) : asString(data.path ?? data.src ?? data.url)
   );
   const [videoPath, setVideoPath] = useState(asString(data.url ?? data.src));
+  const [annotationMarkers, setAnnotationMarkers] = useState(() => Array.isArray(data.markers) ? (data.markers as Record<string, unknown>[]).map((marker, index) => ({
+    id: asString(marker.id) || `marker-${index + 1}`,
+    x: Number(marker.x) || 50,
+    y: Number(marker.y) || 50,
+    label: asString(marker.label),
+    detail: asString(marker.detail),
+    example: asString(marker.example)
+  })) : []);
   const initialFlashcards = Array.isArray(data.cards) && data.cards.length
     ? (data.cards as Record<string, unknown>[]) : [data];
   const [flashcards, setFlashcards] = useState(() => initialFlashcards.map((card) => ({
@@ -1613,6 +1621,18 @@ function BlockFields({ blockType, content, lessonId, blockId }: { blockType: str
           <AlignmentGroup label="Vertical alignment (vs. image)" name="vertical_align" value={asString(data.vertical_align) || "middle"} options={VERTICAL_ALIGN_OPTIONS} />
         </div>
       </div>
+    );
+  }
+  if (blockType === "IMAGE_ANNOTATION") {
+    return (
+      <ImageAnnotationFields
+        data={data}
+        imagePath={imagePath}
+        setImagePath={setImagePath}
+        markers={annotationMarkers}
+        setMarkers={setAnnotationMarkers}
+        lessonId={lessonId}
+      />
     );
   }
   if (blockType === "AUDIO") {
@@ -1831,4 +1851,70 @@ function BlockFields({ blockType, content, lessonId, blockId }: { blockType: str
     );
   }
   return <p className="text-sm text-[var(--br-text-muted)]">No fields for {blockType}.</p>;
+}
+
+type AnnotationMarkerDraft = { id: string; x: number; y: number; label: string; detail: string; example: string };
+
+function ImageAnnotationFields({
+  data, imagePath, setImagePath, markers, setMarkers, lessonId
+}: {
+  data: Record<string, unknown>;
+  imagePath: string;
+  setImagePath: (value: string) => void;
+  markers: AnnotationMarkerDraft[];
+  setMarkers: React.Dispatch<React.SetStateAction<AnnotationMarkerDraft[]>>;
+  lessonId: string;
+}) {
+  const update = (id: string, key: keyof AnnotationMarkerDraft, value: string | number) => {
+    setMarkers((current) => current.map((marker) => marker.id === id ? { ...marker, [key]: value } : marker));
+  };
+  return (
+    <div className="grid gap-4">
+      <div>
+        <p className="text-sm font-semibold text-ink">Annotated image</p>
+        <p className="mt-1 text-xs leading-5 text-[var(--br-text-muted)]">Place markers by percentage, so they remain aligned on every screen size. X is left-to-right and Y is top-to-bottom.</p>
+      </div>
+      <label className="text-sm">Image URL<input name="path" value={imagePath} onChange={(event) => setImagePath(event.target.value)} placeholder="https://... or upload below" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+      <BlockMediaUploader type="image" lessonId={lessonId} currentSrc={imagePath} onUploaded={setImagePath} />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="text-sm">Title <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><input name="title" defaultValue={asString(data.title)} placeholder="Explore the image" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+        <label className="text-sm">Instruction <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><input name="instruction" defaultValue={asString(data.instruction)} placeholder="Tap a marker to learn more" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+      </div>
+      <label className="text-sm">Alt text <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><input name="alt" defaultValue={asString(data.alt)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+      <div className="rounded-xl border border-[var(--br-border)] bg-surface-muted p-3">
+        <div className="flex items-center justify-between gap-3">
+          <div><p className="text-sm font-semibold text-ink">Image markers</p><p className="text-xs text-[var(--br-text-muted)]">Add one marker for each important area.</p></div>
+          <button type="button" onClick={() => setMarkers((current) => [...current, { id: `marker-${Date.now()}`, x: 50, y: 50, label: "", detail: "", example: "" }])} className="inline-flex items-center gap-1 rounded-md bg-[var(--br-dark-card)] px-3 py-2 text-xs font-bold text-white"><Plus size={13} /> Add marker</button>
+        </div>
+        {imagePath ? (
+          <div className="relative mt-3 cursor-crosshair overflow-hidden rounded-lg border border-[var(--br-border)] bg-surface" onClick={(event) => {
+            const rect = event.currentTarget.getBoundingClientRect();
+            const x = Math.round(((event.clientX - rect.left) / rect.width) * 1000) / 10;
+            const y = Math.round(((event.clientY - rect.top) / rect.height) * 1000) / 10;
+            setMarkers((current) => [...current, { id: `marker-${Date.now()}`, x, y, label: "", detail: "", example: "" }]);
+          }}>
+            <img src={imagePath} alt="Annotation placement preview" className="block max-h-72 w-full object-contain" />
+            {markers.map((marker, index) => <span key={marker.id} className="absolute grid size-7 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 border-white bg-[var(--br-brand)] text-xs font-bold text-white shadow" style={{ left: `${marker.x}%`, top: `${marker.y}%` }}>{index + 1}</span>)}
+            <span className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-black/70 px-3 py-1 text-[11px] font-semibold text-white">Click the image to place a marker</span>
+          </div>
+        ) : null}
+        <div className="mt-3 grid gap-3">
+          {markers.map((marker, index) => (
+            <div key={marker.id} className="rounded-lg border border-[var(--br-border)] bg-surface p-3">
+              <div className="mb-2 flex items-center justify-between"><p className="text-sm font-semibold">Marker {index + 1}</p><button type="button" onClick={() => setMarkers((current) => current.filter((item) => item.id !== marker.id))} className="text-xs font-semibold text-coral">Remove</button></div>
+              <div className="grid gap-2 sm:grid-cols-[90px_90px_1fr]">
+                <label className="text-xs">X %<input type="number" min="0" max="100" step="0.1" value={marker.x} onChange={(event) => update(marker.id, "x", Number(event.target.value))} className="mt-1 w-full rounded border border-[var(--br-border)] px-2 py-2 text-sm" /></label>
+                <label className="text-xs">Y %<input type="number" min="0" max="100" step="0.1" value={marker.y} onChange={(event) => update(marker.id, "y", Number(event.target.value))} className="mt-1 w-full rounded border border-[var(--br-border)] px-2 py-2 text-sm" /></label>
+                <label className="text-xs">Label<input value={marker.label} onChange={(event) => update(marker.id, "label", event.target.value)} placeholder="e.g. The window" className="mt-1 w-full rounded border border-[var(--br-border)] px-2 py-2 text-sm" /></label>
+              </div>
+              <label className="mt-2 block text-xs">Information<textarea value={marker.detail} onChange={(event) => update(marker.id, "detail", event.target.value)} rows={2} placeholder="What should the learner discover?" className="mt-1 w-full rounded border border-[var(--br-border)] px-2 py-2 text-sm" /></label>
+              <label className="mt-2 block text-xs">Example <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><input value={marker.example} onChange={(event) => update(marker.id, "example", event.target.value)} placeholder="An example sentence" className="mt-1 w-full rounded border border-[var(--br-border)] px-2 py-2 text-sm" /></label>
+            </div>
+          ))}
+          {!markers.length ? <p className="rounded-lg border border-dashed border-[var(--br-border)] p-4 text-center text-xs text-[var(--br-text-muted)]">No markers yet. Add one to begin.</p> : null}
+        </div>
+      </div>
+      <input type="hidden" name="markers" value={JSON.stringify(markers)} />
+    </div>
+  );
 }

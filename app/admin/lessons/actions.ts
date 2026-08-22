@@ -58,6 +58,7 @@ const lessonBlockTypes = [
   "CALLOUT",
   "IMAGE",
   "IMAGE_TEXT",
+  "IMAGE_ANNOTATION",
   "AUDIO",
   "VIDEO",
   "DIVIDER",
@@ -202,6 +203,20 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
       body: String(formData.get("body") || "").trim(),
       text_align: textAlignValue(formData.get("text_align")),
       vertical_align: verticalAlignValue(formData.get("vertical_align"))
+    };
+  }
+  if (blockType === "IMAGE_ANNOTATION") {
+    let markers: Json[] = [];
+    try {
+      const parsed = JSON.parse(String(formData.get("markers") || "[]"));
+      markers = Array.isArray(parsed) ? parsed as Json[] : [];
+    } catch { markers = []; }
+    return {
+      path: String(formData.get("path") || "").trim(),
+      alt: nullableText(formData.get("alt")),
+      title: nullableText(formData.get("title")),
+      instruction: nullableText(formData.get("instruction")),
+      markers
     };
   }
   if (blockType === "AUDIO") {
@@ -382,6 +397,13 @@ function defaultBlockContent(blockType: string): Json {
     heading: "Section heading",
     body: "Add supporting text here."
   };
+  if (blockType === "IMAGE_ANNOTATION") return {
+    path: "",
+    alt: "",
+    title: "Explore the image",
+    instruction: "Tap a numbered marker to learn more.",
+    markers: []
+  };
   if (blockType === "AUDIO") return { path: "", label: "Audio" };
   if (blockType === "VIDEO") return { url: "", title: "Video" };
   if (blockType === "VOCABULARY") {
@@ -445,7 +467,7 @@ function defaultBlockContent(blockType: string): Json {
 }
 
 // ── Media Library capture ──────────────────────────────────────────────
-// Every IMAGE/IMAGE_TEXT/AUDIO/VIDEO/FLASHCARD block a creator saves gets
+// Every IMAGE/IMAGE_TEXT/IMAGE_ANNOTATION/AUDIO/VIDEO/FLASHCARD block a creator saves gets
 // mirrored into media_assets so it shows up in their Media Library — no
 // matter whether the url came from the uploader or a pasted public link.
 // This never throws into the caller: a media_assets hiccup must not break
@@ -462,6 +484,9 @@ function extractMediaFromBlock(blockType: string, content: Record<string, unknow
   } else if (blockType === "IMAGE_TEXT") {
     const url = str(content.image_path);
     if (url) out.push({ type: "IMAGE", url, alt: str(content.alt) || null, caption: str(content.caption) || null });
+  } else if (blockType === "IMAGE_ANNOTATION") {
+    const url = str(content.path);
+    if (url) out.push({ type: "IMAGE", url, alt: str(content.alt) || null, caption: str(content.title) || null });
   } else if (blockType === "AUDIO") {
     const url = str(content.path);
     if (url) out.push({ type: "AUDIO", url, caption: str(content.label) || null });
