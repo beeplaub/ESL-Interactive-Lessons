@@ -4,8 +4,6 @@ import {
   BookOpen,
   ChevronRight,
   Clock3,
-  GraduationCap,
-  Play,
   Sparkles,
 } from "lucide-react";
 import { LearnerAppShell } from "@/components/LearnerAppShell";
@@ -246,10 +244,6 @@ function CourseCard({
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,.28),transparent_32%),radial-gradient(circle_at_85%_80%,rgba(255,255,255,.16),transparent_28%)]" />
         <span className="absolute left-3 top-3 rounded-md bg-[var(--br-chart-primary)] px-2 py-1 text-[10px] font-bold text-on-dark">{level}</span>
         {status ? <span className="absolute right-3 top-3 rounded-md bg-white/90 px-2 py-1 text-[10px] font-bold text-[var(--br-chart-primary)]">{status === "COMPLETED" ? "Completed" : "Enrolled"}</span> : null}
-        <GraduationCap className="relative z-10 size-12 text-white/70" />
-        <span className="absolute bottom-3 right-3 grid size-8 place-items-center rounded-full bg-white/90 shadow-[var(--br-shadow)]">
-          <Play className="ml-px size-3.5 fill-[var(--br-chart-primary)] text-[var(--br-chart-primary)]" />
-        </span>
       </div>
       <div className="p-4">
         <div className="mb-1 line-clamp-2 text-base font-bold leading-snug">{course.title}</div>
