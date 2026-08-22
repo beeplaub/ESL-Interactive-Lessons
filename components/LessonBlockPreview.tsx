@@ -581,8 +581,8 @@ function ContrastPairBlock({ content }: { content: Record<string, unknown> }) {
           <div className="border-t border-[var(--br-brand)]/15 p-3 sm:p-4">
             {asString(pair.context) ? <p className="mb-4 rounded-lg bg-[var(--br-info)]/10 px-3 py-2 text-sm leading-6 text-ink">{asString(pair.context)}</p> : null}
             <div className="grid gap-3 md:grid-cols-2">
-              <ContrastSide variant="left" term={asString(pair.left_term)} meaning={asString(pair.left_meaning)} pattern={asString(pair.left_pattern)} examples={pair.left_examples} />
-              <ContrastSide variant="right" term={asString(pair.right_term)} meaning={asString(pair.right_meaning)} pattern={asString(pair.right_pattern)} examples={pair.right_examples} />
+              <ContrastSide variant="left" color={asString(pair.left_color) || "var(--br-brand)"} term={asString(pair.left_term)} meaning={asString(pair.left_meaning)} pattern={asString(pair.left_pattern)} examples={pair.left_examples} />
+              <ContrastSide variant="right" color={asString(pair.right_color) || "var(--br-info)"} term={asString(pair.right_term)} meaning={asString(pair.right_meaning)} pattern={asString(pair.right_pattern)} examples={pair.right_examples} />
             </div>
             {asString(pair.key_difference) ? <p className="mt-4 rounded-md bg-skywash px-3 py-2 text-sm leading-6 text-ink"><span className="font-semibold">Key difference:</span> {asString(pair.key_difference)}</p> : null}
             {asString(pair.common_mistake) ? <p className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-sm leading-6 text-amber-950"><span className="font-semibold">Common mistake:</span> {asString(pair.common_mistake)}</p> : null}
@@ -593,11 +593,11 @@ function ContrastPairBlock({ content }: { content: Record<string, unknown> }) {
   );
 }
 
-function ContrastSide({ variant, term, meaning, pattern, examples }: { variant: "left" | "right"; term: string; meaning: string; pattern: string; examples: unknown }) {
+function ContrastSide({ variant, color, term, meaning, pattern, examples }: { variant: "left" | "right"; color: string; term: string; meaning: string; pattern: string; examples: unknown }) {
   const isLeft = variant === "left";
-  const cardClass = isLeft ? "border-[var(--br-brand)] bg-[var(--br-brand)]" : "border-[var(--br-info)] bg-[var(--br-info)]";
+  const fallbackColor = isLeft ? "var(--br-brand)" : "var(--br-info)";
   const patternClass = isLeft ? "border-[var(--br-brand)]/25 text-[var(--br-brand)]" : "border-[var(--br-info)]/25 text-[var(--br-info)]";
-  return <div className={`rounded-xl border p-3 text-on-dark shadow-sm sm:p-4 ${cardClass}`}><h4 className="text-lg font-semibold text-on-dark">{term || "Term"}</h4>{meaning ? <p className="mt-1 text-sm leading-6 text-on-dark/85">{meaning}</p> : null}{pattern ? <p className={`mt-3 rounded-md border bg-surface px-2.5 py-1.5 font-mono text-xs ${patternClass}`}>{pattern}</p> : null}{asArray(examples).length ? <div className="mt-3 space-y-1.5">{asArray(examples).map((example, index) => <p key={index} className="rounded-md bg-white/15 px-2.5 py-1.5 text-sm leading-6 text-on-dark">{String(example)}</p>)}</div> : null}</div>;
+  return <div className="rounded-xl border p-3 text-on-dark shadow-sm sm:p-4" style={{ backgroundColor: color || fallbackColor, borderColor: color || fallbackColor }}><h4 className="text-lg font-semibold text-on-dark">{term || "Term"}</h4>{meaning ? <p className="mt-1 text-sm leading-6 text-on-dark/85">{meaning}</p> : null}{pattern ? <p className={`mt-3 rounded-md border bg-surface px-2.5 py-1.5 font-mono text-xs ${patternClass}`}>{pattern}</p> : null}{asArray(examples).length ? <div className="mt-3 space-y-1.5">{asArray(examples).map((example, index) => <p key={index} className="rounded-md bg-white/15 px-2.5 py-1.5 text-sm leading-6 text-on-dark">{String(example)}</p>)}</div> : null}</div>;
 }
 
 function TableBlock({ content }: { content: Record<string, unknown> }) {
