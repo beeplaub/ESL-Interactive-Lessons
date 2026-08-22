@@ -473,6 +473,10 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
     return <CommonMistakeBlock content={content} />;
   }
 
+  if (block.block_type === "CONTRAST_PAIR") {
+    return <ContrastPairBlock content={content} />;
+  }
+
   if (block.block_type === "TABLE") {
     return <TableBlock content={content} />;
   }
@@ -499,6 +503,37 @@ function CommonMistakeBlock({ content }: { content: Record<string, unknown> }) {
       {examples.length ? <div className="mt-5 border-t border-amber-200 pt-4"><p className="mb-3 font-semibold text-amber-950">More examples</p><div className="space-y-4">{examples.map((example, index) => <div key={index}>{pair(asString(example.incorrect), asString(example.correct), asString(example.context))}</div>)}</div></div> : null}
     </section>
   );
+}
+
+function ContrastPairBlock({ content }: { content: Record<string, unknown> }) {
+  const pairs = asArray(content.pairs).map((item) => asRecord(item as Json));
+  return (
+    <section className="rounded-lg border border-[var(--br-border)] bg-surface p-4 sm:p-5">
+      <h3 className="font-semibold text-ink">{asString(content.title) || "Contrast pairs"}</h3>
+      {asString(content.instruction) ? <p className="mt-1 text-sm text-[var(--br-text-muted)]">{asString(content.instruction)}</p> : null}
+      <div className="mt-4 space-y-2">
+        {pairs.length ? pairs.map((pair, index) => <details key={index} className="rounded-lg border border-[var(--br-border)] bg-surface-muted">
+          <summary className="flex cursor-pointer list-none items-start justify-between gap-3 p-3 marker:hidden">
+            <span className="min-w-0 flex-1 font-semibold text-ink">{asString(pair.title) || `${asString(pair.left_term)} vs. ${asString(pair.right_term)}`}</span>
+            <span className="inline-flex shrink-0 rounded-md border border-[var(--br-border)] bg-surface px-2 py-1 text-xs font-semibold text-[var(--br-text-muted)]">Reveal</span>
+          </summary>
+          <div className="border-t border-[var(--br-border)] p-3 sm:p-4">
+            {asString(pair.context) ? <p className="mb-4 text-sm leading-6 text-[var(--br-text-muted)]">{asString(pair.context)}</p> : null}
+            <div className="grid gap-3 md:grid-cols-2">
+              <ContrastSide term={asString(pair.left_term)} meaning={asString(pair.left_meaning)} pattern={asString(pair.left_pattern)} examples={pair.left_examples} />
+              <ContrastSide term={asString(pair.right_term)} meaning={asString(pair.right_meaning)} pattern={asString(pair.right_pattern)} examples={pair.right_examples} />
+            </div>
+            {asString(pair.key_difference) ? <p className="mt-4 rounded-md bg-skywash px-3 py-2 text-sm leading-6 text-ink"><span className="font-semibold">Key difference:</span> {asString(pair.key_difference)}</p> : null}
+            {asString(pair.common_mistake) ? <p className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-sm leading-6 text-amber-950"><span className="font-semibold">Common mistake:</span> {asString(pair.common_mistake)}</p> : null}
+          </div>
+        </details>) : <p className="text-sm text-[var(--br-text-muted)]">Add contrast pairs.</p>}
+      </div>
+    </section>
+  );
+}
+
+function ContrastSide({ term, meaning, pattern, examples }: { term: string; meaning: string; pattern: string; examples: unknown }) {
+  return <div className="rounded-lg border border-[var(--br-border)] bg-surface p-3"><h4 className="text-lg font-semibold text-ink">{term || "Term"}</h4>{meaning ? <p className="mt-1 text-sm leading-6 text-[var(--br-text-muted)]">{meaning}</p> : null}{pattern ? <p className="mt-2 rounded bg-surface-muted px-2 py-1 font-mono text-xs text-ink">{pattern}</p> : null}{asArray(examples).length ? <ul className="mt-3 space-y-1 text-sm leading-6 text-[var(--br-text-muted)]">{asArray(examples).map((example, index) => <li key={index}>• {String(example)}</li>)}</ul> : null}</div>;
 }
 
 function TableBlock({ content }: { content: Record<string, unknown> }) {

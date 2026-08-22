@@ -67,7 +67,8 @@ const lessonBlockTypes = [
   "DIALOGUE",
   "FLASHCARD",
   "TABLE",
-  "COMMON_MISTAKE"
+  "COMMON_MISTAKE",
+  "CONTRAST_PAIR"
 ] as const;
 
 const lessonBlockSchema = z.object({
@@ -247,6 +248,30 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
       }).filter((example) => example.incorrect || example.correct)
     };
   }
+  if (blockType === "CONTRAST_PAIR") {
+    return {
+      title: nullableText(formData.get("title")),
+      instruction: nullableText(formData.get("instruction")),
+      pairs: splitLines(formData.get("pairs")).map((line) => {
+        const fields = line.split("|").map((part) => part.trim());
+        const examples = (value: string | undefined) => value ? value.split(";").map((item) => item.trim()).filter(Boolean) : [];
+        return {
+          title: fields[0] || "Contrast pair",
+          context: fields[1] || null,
+          left_term: fields[2] || "",
+          left_meaning: fields[3] || "",
+          left_pattern: fields[4] || null,
+          left_examples: examples(fields[5]),
+          right_term: fields[6] || "",
+          right_meaning: fields[7] || "",
+          right_pattern: fields[8] || null,
+          right_examples: examples(fields[9]),
+          key_difference: fields[10] || null,
+          common_mistake: fields[11] || null
+        };
+      }).filter((pair) => pair.left_term || pair.right_term)
+    };
+  }
   if (blockType === "READING") {
     return {
       title: String(formData.get("title") || "").trim(),
@@ -397,6 +422,24 @@ function defaultBlockContent(blockType: string): Json {
     explanation: "Agree is already a verb, so we do not use am before it.",
     tip: "Use agree, not am agree.",
     examples: []
+  };
+  if (blockType === "CONTRAST_PAIR") return {
+    title: "Commonly confused words",
+    instruction: "Choose a pair to compare.",
+    pairs: [{
+      title: "Say vs. Tell",
+      context: "Both words relate to communication.",
+      left_term: "say",
+      left_meaning: "Express words or an idea.",
+      left_pattern: "say + something",
+      left_examples: ["She said hello."],
+      right_term: "tell",
+      right_meaning: "Give information to a person.",
+      right_pattern: "tell + someone + something",
+      right_examples: ["She told me the news."],
+      key_difference: "Use tell when you mention the person receiving the information.",
+      common_mistake: "Do not say “She said me.” Say “She told me.”"
+    }]
   };
   return {};
 }

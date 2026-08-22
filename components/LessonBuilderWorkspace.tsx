@@ -49,7 +49,7 @@ const blockTypes = [
   "HEADING", "TEXT", "BULLETS", "QUOTE", "CALLOUT",
   "IMAGE", "IMAGE_TEXT", "AUDIO", "VIDEO", "DIVIDER",
   "VOCABULARY", "GRAMMAR", "READING", "DIALOGUE",
-  "FLASHCARD", "TABLE", "COMMON_MISTAKE"
+  "FLASHCARD", "TABLE", "COMMON_MISTAKE", "CONTRAST_PAIR"
 ] as const;
 
 const levelOptions = CONTENT_LEVELS;
@@ -1429,7 +1429,7 @@ function labelForBlockType(type: string) {
     AUDIO: "Audio", VIDEO: "Video", DIVIDER: "Divider",
     VOCABULARY: "Vocabulary list", GRAMMAR: "Grammar",
     READING: "Reading passage", DIALOGUE: "Dialogue",
-    FLASHCARD: "Flashcard", TABLE: "Table", COMMON_MISTAKE: "Common mistake",
+    FLASHCARD: "Flashcard", TABLE: "Table", COMMON_MISTAKE: "Common mistake", CONTRAST_PAIR: "Contrast pair",
   };
   return labels[type] ?? type;
 }
@@ -1445,6 +1445,10 @@ function blockSummary(block: LessonBlock) {
   if (block.block_type === "COMMON_MISTAKE") {
     const exampleCount = Array.isArray(data.examples) ? data.examples.length : 0;
     return asString(data.title) || `${exampleCount} example${exampleCount === 1 ? "" : "s"}`;
+  }
+  if (block.block_type === "CONTRAST_PAIR") {
+    const count = Array.isArray(data.pairs) ? data.pairs.length : 0;
+    return asString(data.title) || `${count} pair${count === 1 ? "" : "s"}`;
   }
   return asString(data.text ?? data.title ?? data.body ?? data.heading ?? data.path ?? data.src ?? data.url ?? data.word ?? data.prompt ?? "");
 }
@@ -1667,6 +1671,31 @@ function BlockFields({ blockType, content, lessonId, blockId }: { blockType: str
         <label className="text-sm">Explanation<textarea name="explanation" rows={3} defaultValue={asString(data.explanation)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
         <label className="text-sm">Memory tip <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><textarea name="tip" rows={2} defaultValue={asString(data.tip)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
         <label className="text-sm">Additional examples <span className="font-normal text-[var(--br-text-muted)]">(one per line: context | wrong sentence | right sentence)</span><textarea name="examples" rows={4} defaultValue={examples} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 font-mono text-xs" /></label>
+      </div>
+    );
+  }
+  if (blockType === "CONTRAST_PAIR") {
+    const pairs = Array.isArray(data.pairs)
+      ? (data.pairs as Record<string, unknown>[]).map((pair) => [
+        pair.title,
+        pair.context,
+        pair.left_term,
+        pair.left_meaning,
+        pair.left_pattern,
+        Array.isArray(pair.left_examples) ? pair.left_examples.map(String).join(";") : pair.left_examples,
+        pair.right_term,
+        pair.right_meaning,
+        pair.right_pattern,
+        Array.isArray(pair.right_examples) ? pair.right_examples.map(String).join(";") : pair.right_examples,
+        pair.key_difference,
+        pair.common_mistake
+      ].map((value) => asString(value)).join(" | ")).join("\n")
+      : "";
+    return (
+      <div className="grid gap-3">
+        <label className="text-sm">Block title<input name="title" defaultValue={asString(data.title)} placeholder="Commonly confused words" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+        <label className="text-sm">Instruction <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><input name="instruction" defaultValue={asString(data.instruction)} placeholder="Choose a pair to compare." className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+        <label className="text-sm">Contrast pairs <span className="font-normal text-[var(--br-text-muted)]">(one per line; separate fields with |, examples with ;)</span><textarea name="pairs" rows={8} defaultValue={pairs} placeholder="Say vs. Tell | Communication verbs | say | Express words | say + something | She said hello. | tell | Give information to a person | tell + someone + something | She told me the news. | Key difference | Common mistake" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 font-mono text-xs" /></label>
       </div>
     );
   }
