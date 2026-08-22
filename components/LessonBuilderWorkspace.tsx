@@ -1510,6 +1510,7 @@ function BlockFields({ blockType, content, lessonId, blockId }: { blockType: str
     blockType === "FLASHCARD" ? asString(data.audio_path) : asString(data.path ?? data.src ?? data.url)
   );
   const [videoPath, setVideoPath] = useState(asString(data.url ?? data.src));
+  const [annotationMarkerSize, setAnnotationMarkerSize] = useState(() => Math.min(64, Math.max(20, Number(data.marker_size) || 32)));
   const [annotationMarkers, setAnnotationMarkers] = useState(() => Array.isArray(data.markers) ? (data.markers as Record<string, unknown>[]).map((marker, index) => ({
     id: asString(marker.id) || `marker-${index + 1}`,
     x: Number(marker.x) || 50,
@@ -1631,6 +1632,8 @@ function BlockFields({ blockType, content, lessonId, blockId }: { blockType: str
         setImagePath={setImagePath}
         markers={annotationMarkers}
         setMarkers={setAnnotationMarkers}
+        markerSize={annotationMarkerSize}
+        setMarkerSize={setAnnotationMarkerSize}
         lessonId={lessonId}
       />
     );
@@ -1856,13 +1859,15 @@ function BlockFields({ blockType, content, lessonId, blockId }: { blockType: str
 type AnnotationMarkerDraft = { id: string; x: number; y: number; label: string; detail: string; example: string };
 
 function ImageAnnotationFields({
-  data, imagePath, setImagePath, markers, setMarkers, lessonId
+  data, imagePath, setImagePath, markers, setMarkers, markerSize, setMarkerSize, lessonId
 }: {
   data: Record<string, unknown>;
   imagePath: string;
   setImagePath: (value: string) => void;
   markers: AnnotationMarkerDraft[];
   setMarkers: React.Dispatch<React.SetStateAction<AnnotationMarkerDraft[]>>;
+  markerSize: number;
+  setMarkerSize: (value: number) => void;
   lessonId: string;
 }) {
   const update = (id: string, key: keyof AnnotationMarkerDraft, value: string | number) => {
@@ -1887,17 +1892,18 @@ function ImageAnnotationFields({
           <button type="button" onClick={() => setMarkers((current) => [...current, { id: `marker-${Date.now()}`, x: 50, y: 50, label: "", detail: "", example: "" }])} className="inline-flex items-center gap-1 rounded-md bg-[var(--br-dark-card)] px-3 py-2 text-xs font-bold text-white"><Plus size={13} /> Add marker</button>
         </div>
         {imagePath ? (
-          <div className="relative mt-3 cursor-crosshair overflow-hidden rounded-lg border border-[var(--br-border)] bg-surface" onClick={(event) => {
+          <div className="relative mt-3 overflow-hidden rounded-lg border border-[var(--br-border)] bg-surface">
+            <img src={imagePath} alt="Annotation placement preview" className="block h-auto max-h-72 w-full cursor-crosshair object-contain" onClick={(event) => {
             const rect = event.currentTarget.getBoundingClientRect();
             const x = Math.round(((event.clientX - rect.left) / rect.width) * 1000) / 10;
             const y = Math.round(((event.clientY - rect.top) / rect.height) * 1000) / 10;
             setMarkers((current) => [...current, { id: `marker-${Date.now()}`, x, y, label: "", detail: "", example: "" }]);
-          }}>
-            <img src={imagePath} alt="Annotation placement preview" className="block max-h-72 w-full object-contain" />
+            }} />
             {markers.map((marker, index) => <span key={marker.id} className="absolute grid size-7 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 border-white bg-[var(--br-brand)] text-xs font-bold text-white shadow" style={{ left: `${marker.x}%`, top: `${marker.y}%` }}>{index + 1}</span>)}
             <span className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full bg-black/70 px-3 py-1 text-[11px] font-semibold text-white">Click the image to place a marker</span>
           </div>
         ) : null}
+        <label className="mt-3 block text-sm">Marker size <span className="font-normal text-[var(--br-text-muted)]">({markerSize}px)</span><input name="marker_size" type="range" min="20" max="64" step="1" value={markerSize} onChange={(event) => setMarkerSize(Number(event.target.value))} className="mt-2 w-full accent-[var(--br-action)]" /></label>
         <div className="mt-3 grid gap-3">
           {markers.map((marker, index) => (
             <div key={marker.id} className="rounded-lg border border-[var(--br-border)] bg-surface p-3">

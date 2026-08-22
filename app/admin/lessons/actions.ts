@@ -216,6 +216,7 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
       alt: nullableText(formData.get("alt")),
       title: nullableText(formData.get("title")),
       instruction: nullableText(formData.get("instruction")),
+      marker_size: Math.min(64, Math.max(20, Number(formData.get("marker_size") || 32))),
       markers
     };
   }
@@ -402,6 +403,7 @@ function defaultBlockContent(blockType: string): Json {
     alt: "",
     title: "Explore the image",
     instruction: "Tap a numbered marker to learn more.",
+    marker_size: 32,
     markers: []
   };
   if (blockType === "AUDIO") return { path: "", label: "Audio" };
