@@ -492,6 +492,18 @@ function ImageAnnotationBlock({ content }: { content: Record<string, unknown> })
   const path = asString(content.path);
   const src = mediaUrl(path, "image");
   const markerSize = Math.min(64, Math.max(20, Number(content.marker_size) || 32));
+  const imageFrameRef = useRef<HTMLDivElement>(null);
+  const [imageWidth, setImageWidth] = useState(800);
+  useEffect(() => {
+    const frame = imageFrameRef.current;
+    if (!frame) return;
+    const updateWidth = () => setImageWidth(frame.clientWidth || 800);
+    updateWidth();
+    const observer = new ResizeObserver(updateWidth);
+    observer.observe(frame);
+    return () => observer.disconnect();
+  }, [path]);
+  const renderedMarkerSize = Math.max(16, Math.round(markerSize * Math.min(1, imageWidth / 800)));
   const markers = asArray(content.markers).map((item, index) => {
     const marker = asRecord(item as Json);
     return {
@@ -512,21 +524,19 @@ function ImageAnnotationBlock({ content }: { content: Record<string, unknown> })
       {asString(content.instruction) ? <p className="px-4 pt-1 text-sm text-[var(--br-text-muted)]">{asString(content.instruction)}</p> : null}
       <div className="p-3 sm:p-4">
         {path && isImageUrl(src) ? (
-          <div className="relative overflow-hidden rounded-lg bg-surface-muted">
+          <div ref={imageFrameRef} className="relative overflow-hidden rounded-lg bg-surface-muted">
             <img src={src} alt={asString(content.alt)} className="block h-auto w-full" />
             {markers.map((marker) => (
-              <button key={String(marker.id ?? marker.index)} type="button" onClick={() => setActive(marker.index - 1)} aria-label={`Marker ${marker.index}${asString(marker.label) ? `: ${asString(marker.label)}` : ""}`} className={`absolute -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 border-white bg-[var(--br-action)] text-sm font-bold text-white shadow-lg transition hover:scale-110 focus:outline-none focus:ring-2 focus:ring-[var(--br-action)] focus:ring-offset-2 ${active === marker.index - 1 ? "ring-2 ring-[var(--br-action)] ring-offset-2" : ""}`} style={{ left: `${marker.x}%`, top: `${marker.y}%`, width: markerSize, height: markerSize, display: "grid" }}>{marker.index}</button>
+              <button key={String(marker.id ?? marker.index)} type="button" onClick={() => setActive(marker.index - 1)} aria-label={`Marker ${marker.index}${asString(marker.label) ? `: ${asString(marker.label)}` : ""}`} className={`absolute -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full border-2 border-white bg-[var(--br-action)] text-sm font-bold text-white shadow-lg transition hover:scale-110 focus:outline-none focus:ring-2 focus:ring-[var(--br-action)] focus:ring-offset-2 ${active === marker.index - 1 ? "ring-2 ring-[var(--br-action)] ring-offset-2" : ""}`} style={{ left: `${marker.x}%`, top: `${marker.y}%`, width: renderedMarkerSize, height: renderedMarkerSize, fontSize: Math.max(11, Math.round(renderedMarkerSize * 0.42)), display: "grid" }}>{marker.index}</button>
             ))}
+            {current ? (
+              <div className="absolute z-10 w-[min(280px,calc(100%-16px))] rounded-xl border border-[var(--br-border)] bg-white p-4 shadow-2xl" style={{ left: `${Math.min(68, Math.max(4, current.x))}%`, top: `${Math.min(68, Math.max(4, current.y))}%` }} role="dialog" aria-label={asString(current.label) || `Marker ${current.index}`}>
+                <div className="flex items-start gap-2"><MapPin size={17} className="mt-0.5 shrink-0 text-[var(--br-action)]" /><div className="min-w-0 flex-1"><p className="font-bold text-ink">{asString(current.label) || `Marker ${current.index}`}</p>{asString(current.detail) ? <p className="mt-1.5 text-sm leading-6 text-[var(--br-text-muted)]">{asString(current.detail)}</p> : null}{asString(current.example) ? <p className="mt-2 rounded-lg bg-[var(--br-action)]/10 px-3 py-2 text-xs italic text-ink">{asString(current.example)}</p> : null}</div><button type="button" onClick={() => setActive(null)} className="rounded-full border border-[var(--br-border)] px-2 py-0.5 text-[11px] font-bold text-[var(--br-text-muted)]">Close</button></div>
+              </div>
+            ) : null}
           </div>
         ) : <div className="grid aspect-video place-items-center rounded-lg bg-surface-muted text-sm text-[var(--br-text-muted)]"><ImageIcon size={24} /> Add an image URL.</div>}
       </div>
-      {current ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/25 p-4" role="presentation" onClick={() => setActive(null)}>
-          <div className="w-full max-w-md rounded-2xl border border-[var(--br-border)] bg-white p-5 shadow-2xl" role="dialog" aria-modal="true" aria-label={asString(current.label) || `Marker ${current.index}`} onClick={(event) => event.stopPropagation()}>
-            <div className="flex items-start gap-3"><MapPin size={19} className="mt-0.5 shrink-0 text-[var(--br-action)]" /><div className="min-w-0 flex-1"><p className="text-lg font-bold text-ink">{asString(current.label) || `Marker ${current.index}`}</p>{asString(current.detail) ? <p className="mt-2 text-sm leading-6 text-[var(--br-text-muted)]">{asString(current.detail)}</p> : null}{asString(current.example) ? <p className="mt-3 rounded-lg bg-[var(--br-action)]/10 px-3 py-2 text-sm italic text-ink">{asString(current.example)}</p> : null}</div><button type="button" onClick={() => setActive(null)} className="rounded-full border border-[var(--br-border)] px-2.5 py-1 text-xs font-bold text-[var(--br-text-muted)]">Close</button></div>
-          </div>
-        </div>
-      ) : null}
     </section>
   );
 }
@@ -569,8 +579,8 @@ function ContrastPairBlock({ content }: { content: Record<string, unknown> }) {
           <div className="border-t border-[var(--br-brand)]/15 p-3 sm:p-4">
             {asString(pair.context) ? <p className="mb-4 rounded-lg bg-[var(--br-info)]/10 px-3 py-2 text-sm leading-6 text-ink">{asString(pair.context)}</p> : null}
             <div className="grid gap-3 md:grid-cols-2">
-              <ContrastSide term={asString(pair.left_term)} meaning={asString(pair.left_meaning)} pattern={asString(pair.left_pattern)} examples={pair.left_examples} />
-              <ContrastSide term={asString(pair.right_term)} meaning={asString(pair.right_meaning)} pattern={asString(pair.right_pattern)} examples={pair.right_examples} />
+              <ContrastSide variant="left" term={asString(pair.left_term)} meaning={asString(pair.left_meaning)} pattern={asString(pair.left_pattern)} examples={pair.left_examples} />
+              <ContrastSide variant="right" term={asString(pair.right_term)} meaning={asString(pair.right_meaning)} pattern={asString(pair.right_pattern)} examples={pair.right_examples} />
             </div>
             {asString(pair.key_difference) ? <p className="mt-4 rounded-md bg-skywash px-3 py-2 text-sm leading-6 text-ink"><span className="font-semibold">Key difference:</span> {asString(pair.key_difference)}</p> : null}
             {asString(pair.common_mistake) ? <p className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-sm leading-6 text-amber-950"><span className="font-semibold">Common mistake:</span> {asString(pair.common_mistake)}</p> : null}
@@ -581,8 +591,12 @@ function ContrastPairBlock({ content }: { content: Record<string, unknown> }) {
   );
 }
 
-function ContrastSide({ term, meaning, pattern, examples }: { term: string; meaning: string; pattern: string; examples: unknown }) {
-  return <div className="rounded-xl border border-[var(--br-info)]/25 bg-[var(--br-info)]/10 p-3 sm:p-4"><div className="flex items-center gap-2"><span className="size-2 rounded-full bg-[var(--br-info)]" /><h4 className="text-lg font-semibold text-ink">{term || "Term"}</h4></div>{meaning ? <p className="mt-1 text-sm leading-6 text-[var(--br-text-muted)]">{meaning}</p> : null}{pattern ? <p className="mt-2 rounded-md border border-[var(--br-brand)]/15 bg-surface px-2 py-1 font-mono text-xs text-[var(--br-brand)]">{pattern}</p> : null}{asArray(examples).length ? <ul className="mt-3 space-y-1 text-sm leading-6 text-[var(--br-text-muted)]">{asArray(examples).map((example, index) => <li key={index} className="rounded-md bg-surface/70 px-2 py-1">• {String(example)}</li>)}</ul> : null}</div>;
+function ContrastSide({ variant, term, meaning, pattern, examples }: { variant: "left" | "right"; term: string; meaning: string; pattern: string; examples: unknown }) {
+  const isLeft = variant === "left";
+  const cardClass = isLeft ? "border-[var(--br-brand)]/30 bg-[var(--br-brand)]/12" : "border-violetglow/30 bg-violetglow/10";
+  const accentClass = isLeft ? "text-[var(--br-brand)]" : "text-violetglow";
+  const patternClass = isLeft ? "border-[var(--br-brand)]/20 text-[var(--br-brand)]" : "border-violetglow/20 text-violetglow";
+  return <div className={`rounded-xl border p-3 sm:p-4 ${cardClass}`}><h4 className={`text-lg font-semibold ${accentClass}`}>{term || "Term"}</h4>{meaning ? <p className="mt-1 text-sm leading-6 text-[var(--br-text-muted)]">{meaning}</p> : null}{pattern ? <p className={`mt-3 rounded-md border bg-surface/80 px-2.5 py-1.5 font-mono text-xs ${patternClass}`}>{pattern}</p> : null}{asArray(examples).length ? <div className="mt-3 space-y-1.5">{asArray(examples).map((example, index) => <p key={index} className="rounded-md bg-surface/75 px-2.5 py-1.5 text-sm leading-6 text-[var(--br-text-muted)]">{String(example)}</p>)}</div> : null}</div>;
 }
 
 function TableBlock({ content }: { content: Record<string, unknown> }) {
