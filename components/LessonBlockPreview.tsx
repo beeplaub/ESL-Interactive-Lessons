@@ -587,7 +587,7 @@ function ContrastPairBlock({ content }: { content: Record<string, unknown> }) {
               <ContrastSide variant="left" color={asString(pair.left_color) || "var(--br-brand)"} term={asString(pair.left_term)} meaning={asString(pair.left_meaning)} pattern={asString(pair.left_pattern)} examples={pair.left_examples} />
               <ContrastSide variant="right" color={asString(pair.right_color) || "var(--br-info)"} term={asString(pair.right_term)} meaning={asString(pair.right_meaning)} pattern={asString(pair.right_pattern)} examples={pair.right_examples} />
             </div>
-            {asString(pair.key_difference) ? <p className="mt-4 rounded-md bg-skywash px-3 py-2 text-sm leading-6 text-ink"><span className="font-semibold">Key difference:</span> {asString(pair.key_difference)}</p> : null}
+            {asString(pair.key_difference) ? <p className="mt-4 rounded-md border border-black/10 bg-white px-3 py-2 text-sm leading-6 text-ink"><span className="font-semibold">Key difference:</span> {asString(pair.key_difference)}</p> : null}
             {asString(pair.common_mistake) ? <p className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-sm leading-6 text-amber-950"><span className="font-semibold">Common mistake:</span> {asString(pair.common_mistake)}</p> : null}
           </div>
         </details>) : <p className="text-sm text-[var(--br-text-muted)]">Add contrast pairs.</p>}
