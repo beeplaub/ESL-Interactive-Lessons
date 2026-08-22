@@ -599,7 +599,7 @@ function ContrastPairBlock({ content }: { content: Record<string, unknown> }) {
 function ContrastSide({ variant, color, term, meaning, pattern, examples }: { variant: "left" | "right"; color: string; term: string; meaning: string; pattern: string; examples: unknown }) {
   const isLeft = variant === "left";
   const fallbackColor = isLeft ? "var(--br-brand)" : "var(--br-info)";
-  const patternClass = isLeft ? "border-[var(--br-brand)]/25 text-[var(--br-brand)]" : "border-[var(--br-info)]/25 text-[var(--br-info)]";
+  const patternClass = "border-[var(--br-brand)]/25 text-[var(--br-brand)]";
   return <div className="rounded-xl border p-3 text-on-dark shadow-sm sm:p-4" style={{ backgroundColor: color || fallbackColor, borderColor: color || fallbackColor }}><h4 className="text-lg font-semibold text-on-dark">{term || "Term"}</h4>{meaning ? <p className="mt-1 text-sm leading-6 text-on-dark/85">{meaning}</p> : null}{pattern ? <p className={`mt-3 rounded-md border bg-surface px-2.5 py-1.5 font-mono text-xs ${patternClass}`}>{pattern}</p> : null}{asArray(examples).length ? <div className="mt-3 space-y-1.5">{asArray(examples).map((example, index) => <p key={index} className="rounded-md bg-white/15 px-2.5 py-1.5 text-sm leading-6 text-on-dark">{String(example)}</p>)}</div> : null}</div>;
 }
 
