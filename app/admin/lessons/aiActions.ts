@@ -375,6 +375,18 @@ export async function startRoleplaySessionAction(activityId: string, includeOpen
     if (!activity) throw new Error("AI Roleplay activity not found.");
 
     const data = activity.activity_data as any;
+    const attemptQuota = Math.max(0, Math.min(1000, Number(data?.attempt_quota) || 0));
+    if (attemptQuota > 0) {
+      const { count, error: quotaError } = await supabase
+        .from("ai_roleplay_sessions")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("lesson_activity_id", activityId);
+      if (quotaError) throw quotaError;
+      if ((count ?? 0) >= attemptQuota) {
+        return { error: `You have used all ${attemptQuota} conversation attempt${attemptQuota === 1 ? "" : "s"} for this activity. You can still listen to your saved conversations.` };
+      }
+    }
     const scenario = data?.prompt || "Standard Conversation";
     const character = data?.character || "Assistant";
     const firstTurn = data?.first_turn || "Hello! Shall we begin?";
@@ -432,15 +444,18 @@ export async function saveRoleplayVoiceTranscriptAction(sessionId: string, turns
 export async function getRoleplayHistoryAction(activityId: string) {
   const { user } = await getSessionUser();
   const supabase = createAdminClient();
+  const { data: activity } = await supabase.from("lesson_slide_activities").select("activity_data").eq("id", activityId).maybeSingle();
+  const attemptQuota = Math.max(0, Math.min(1000, Number((activity?.activity_data as any)?.attempt_quota) || 0));
   const { data, error } = await supabase.from("ai_roleplay_sessions")
     .select("id,scorecard,created_at,updated_at,status")
     .eq("lesson_activity_id", activityId).eq("user_id", user.id).eq("status", "COMPLETED")
     .order("updated_at", { ascending: false }).limit(10);
   if (error) {
     console.error("Roleplay history lookup failed", error);
-    return { sessions: [] };
+    return { sessions: [], attemptQuota, attemptsUsed: 0, quotaReached: false };
   }
-  return { sessions: data ?? [] };
+  const { count } = await supabase.from("ai_roleplay_sessions").select("id", { count: "exact", head: true }).eq("lesson_activity_id", activityId).eq("user_id", user.id);
+  return { sessions: data ?? [], attemptQuota, attemptsUsed: count ?? 0, quotaReached: attemptQuota > 0 && (count ?? 0) >= attemptQuota };
 }
 
 /**

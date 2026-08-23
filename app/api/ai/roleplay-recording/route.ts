@@ -46,7 +46,8 @@ export async function POST(request: Request) {
   if (mediaStorageProvider() !== "r2") return NextResponse.json({ error: "Private voice recording storage is not configured." }, { status: 503 });
 
   const retentionDays = [7, 30, 90].includes(Number(config.recording_retention_days)) ? Number(config.recording_retention_days) : 30;
-  const extension = file.type.includes("mp4") ? "mp4" : file.type.includes("ogg") ? "ogg" : "webm";
+  const isOpus = file.type.includes("opus") || file.type.includes("webm") || file.name.toLowerCase().endsWith(".opus");
+  const extension = isOpus ? "opus" : file.type.includes("mp4") ? "mp4" : file.type.includes("ogg") ? "ogg" : "webm";
   const path = `${activityId}/${user.id}/${Date.now()}-${crypto.randomUUID()}.${extension}`;
   let stored: { provider: string; bucket: string; path: string; url: string };
   try {
@@ -71,7 +72,7 @@ export async function POST(request: Request) {
     storage_provider: stored.provider,
     storage_bucket: stored.bucket,
     storage_path: stored.path,
-    mime_type: file.type || "audio/webm",
+    mime_type: isOpus ? "audio/opus" : file.type || "audio/webm",
     file_size: file.size,
     duration_seconds: durationSeconds,
     transcript: transcript || null,
@@ -115,7 +116,7 @@ export async function GET(request: Request) {
   if (forceDownload) {
     const media = await fetch(url);
     if (!media.ok || !media.body) return NextResponse.json({ error: "The recording could not be downloaded." }, { status: 502 });
-    const extension = String(recording.mime_type).includes("mp4") ? "m4a" : String(recording.mime_type).includes("ogg") ? "ogg" : "webm";
+    const extension = String(recording.mime_type).includes("opus") ? "opus" : String(recording.mime_type).includes("mp4") ? "m4a" : String(recording.mime_type).includes("ogg") ? "ogg" : "webm";
     return new NextResponse(media.body, {
       headers: {
         "Content-Type": recording.mime_type || "audio/webm",

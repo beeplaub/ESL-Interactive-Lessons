@@ -748,6 +748,9 @@ function VoiceRoleplayPanel({ activity, lessonId, onNext, previewOnly, onSavedAt
   const [pastRecordings, setPastRecordings] = useState<Array<{ id: string; duration_seconds: number; transcript: string | null; created_at: string; expires_at: string }>>([]);
   const [pastSessions, setPastSessions] = useState<Array<{ id: string; scorecard: Json | null; created_at: string; updated_at: string }>>([]);
   const [pastRecordingUrls, setPastRecordingUrls] = useState<Record<string, string>>({});
+  const [attemptQuota, setAttemptQuota] = useState(0);
+  const [attemptsUsed, setAttemptsUsed] = useState(0);
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const stopRef = useRef<(() => Promise<{ recording: Blob | null; durationSeconds: number }>) | null>(null);
   const transcriptRef = useRef<ChatMessage[]>([]);
   const transcriptViewportRef = useRef<HTMLDivElement | null>(null);
@@ -771,7 +774,7 @@ function VoiceRoleplayPanel({ activity, lessonId, onNext, previewOnly, onSavedAt
 
   useEffect(() => {
     if (previewOnly) return;
-    void getRoleplayHistoryAction(activity.id).then((body) => setPastSessions(body.sessions as typeof pastSessions)).catch(() => undefined);
+    void getRoleplayHistoryAction(activity.id).then((body) => { setPastSessions(body.sessions as typeof pastSessions); setAttemptQuota(body.attemptQuota ?? 0); setAttemptsUsed(body.attemptsUsed ?? 0); }).catch(() => undefined);
     void fetch(`/api/ai/roleplay-recording?activityId=${encodeURIComponent(activity.id)}`)
       .then(async (response) => response.ok ? await response.json() as { recordings?: typeof pastRecordings } : { recordings: [] })
       .then((body) => setPastRecordings(body.recordings ?? []))
@@ -796,7 +799,7 @@ function VoiceRoleplayPanel({ activity, lessonId, onNext, previewOnly, onSavedAt
       const result = stopRef.current ? await stopRef.current() : { recording: null, durationSeconds: 0 };
       if (saveEnabled && !result.recording && !previewOnly) throw new Error("The conversation audio could not be prepared. Please try again.");
       if (previewOnly) { setPhase("done"); return; }
-      const session = await startRoleplaySessionAction(activity.id, false);
+      const session = sessionId ? { sessionId } : await startRoleplaySessionAction(activity.id, false);
       if (session.error || !session.sessionId) throw new Error(session.error || "Could not save the conversation.");
       const completedSessionId = session.sessionId;
       const turns = transcriptRef.current.map((turn) => ({ sender: turn.sender, text: turn.text }));
@@ -804,7 +807,7 @@ function VoiceRoleplayPanel({ activity, lessonId, onNext, previewOnly, onSavedAt
       if (transcriptResult.error) throw new Error(transcriptResult.error);
       if (saveEnabled && result.recording && !previewOnly) {
         const form = new FormData();
-        form.append("file", result.recording, "brenup-speaking-practice.webm");
+        form.append("file", result.recording, "brenup-speaking-practice.opus");
         form.append("sessionId", completedSessionId); form.append("activityId", activity.id);
         form.append("durationSeconds", String(result.durationSeconds));
         form.append("transcript", turns.map((turn) => `${turn.sender}: ${turn.text}`).join("\n"));
@@ -838,9 +841,12 @@ function VoiceRoleplayPanel({ activity, lessonId, onNext, previewOnly, onSavedAt
     if (!lessonId || previewOnly || (saveEnabled && !consent)) return;
     setPhase("starting"); setError(null); setTranscript([]); transcriptRef.current = [];
     try {
+      const session = await startRoleplaySessionAction(activity.id, false);
+      if (session.error || !session.sessionId) throw new Error(session.error || "Could not start the conversation.");
+      setSessionId(session.sessionId);
       setTranscript([]);
       await startLiveConversation({ lessonId, activityId: activity.id, onAudio: markAiSpeaking, onTranscript: addTranscript, onReady: (stop, allowedSeconds) => { stopRef.current = stop; setSecondsLeft(Math.min(maxSeconds, allowedSeconds)); setPhase("recording"); }, onError: (message) => { setError(message); setPhase("idle"); } });
-    } catch (caught) {
+      } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not start the speaking practice."); setPhase("idle");
     }
   }
@@ -916,7 +922,7 @@ function VoiceRoleplayPanel({ activity, lessonId, onNext, previewOnly, onSavedAt
       {showTranscript ? <div ref={transcriptViewportRef} role="log" aria-live="polite" aria-relevant="additions text" className="max-h-72 scroll-smooth space-y-2 overflow-y-auto rounded-xl bg-[var(--br-surface-muted)] p-3 overscroll-contain">{transcript.length ? transcript.map((message, index) => <div key={index} className={`max-w-[88%] rounded-xl px-3 py-2.5 text-sm shadow-sm ${message.sender === "LEARNER" ? "ml-auto bg-moss text-on-dark" : "mr-auto border border-[var(--br-border)] bg-surface text-ink"}`}><p className="mb-0.5 text-[10px] font-semibold uppercase opacity-65">{message.sender === "AI" ? character : "You"}</p><p className="whitespace-pre-wrap leading-relaxed">{message.text}</p></div>) : <div className="grid min-h-24 place-items-center text-center"><p className="max-w-xs text-sm text-[var(--br-text-muted)]">Start when you are ready. {character} will speak first.</p></div>}</div> : null}
       {isInterview ? <div className="flex flex-wrap items-center gap-2"><button type="button" onClick={() => void requestHint()} disabled={hintLoading || phase !== "recording"} className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-900 disabled:opacity-45">{hintLoading ? "Preparing hint…" : "Help / hint"}</button>{hint ? <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">{hint}</p> : null}</div> : null}
       {error ? <p className="text-xs font-semibold text-coral">{error}</p> : null}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--br-border)] pt-4"><button type="button" disabled={phase === "starting" || phase === "finishing" || (saveEnabled && !consent)} onClick={() => { if (phase === "idle") void start(); else if (phase === "recording") void finish(); }} className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-on-dark shadow-sm transition hover:-translate-y-0.5 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 ${phase === "recording" ? "bg-coral" : "bg-[var(--br-action)]"}`}>{phase === "starting" || phase === "finishing" ? <Loader2 size={16} className="animate-spin" /> : phase === "recording" ? <Square size={15} /> : <Mic size={16} />} {phase === "finishing" ? "Finishing…" : phase === "recording" ? "Finish conversation" : "Start conversation"}</button>{phase === "recording" ? <span className="rounded-full bg-coral/10 px-3 py-1.5 text-sm font-semibold tabular-nums text-coral">{Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, "0")} left</span> : <span className="text-xs text-[var(--br-text-muted)]">Microphone access is used only during the conversation.</span>}</div>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--br-border)] pt-4"><button type="button" disabled={phase === "starting" || phase === "finishing" || (saveEnabled && !consent) || (attemptQuota > 0 && attemptsUsed >= attemptQuota)} onClick={() => { if (phase === "idle") void start(); else if (phase === "recording") void finish(); }} className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-on-dark shadow-sm transition hover:-translate-y-0.5 disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 ${phase === "recording" ? "bg-coral" : "bg-[var(--br-action)]"}`}>{phase === "starting" || phase === "finishing" ? <Loader2 size={16} className="animate-spin" /> : phase === "recording" ? <Square size={15} /> : <Mic size={16} />} {phase === "finishing" ? "Finishing…" : phase === "recording" ? "Finish conversation" : attemptQuota > 0 && attemptsUsed >= attemptQuota ? "Attempt quota reached" : "Start conversation"}</button>{phase === "recording" ? <span className="rounded-full bg-coral/10 px-3 py-1.5 text-sm font-semibold tabular-nums text-coral">{Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, "0")} left</span> : <span className="text-xs text-[var(--br-text-muted)]">Microphone access is used only during the conversation.</span>}</div>
     </div>
   </section>;
 }
