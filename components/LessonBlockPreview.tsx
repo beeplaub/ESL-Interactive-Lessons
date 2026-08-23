@@ -429,10 +429,10 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
   if (block.block_type === "READING") {
     return (
       <article className="rounded-lg border border-[var(--br-border)] p-4">
-        <div className="mb-3 flex items-center gap-2">
+        {asString(content.title) ? <div className="mb-3 flex items-center gap-2">
           <BookOpen size={18} className="text-moss" />
-          <h3 className="font-semibold">{asString(content.title) || "Reading passage"}</h3>
-        </div>
+          <h3 className="font-semibold">{asString(content.title)}</h3>
+        </div> : null}
         <FormattedText text={asString(content.passage) || "Add a reading passage."} />
         {asArray(content.questions).length ? (
           <div className="mt-4 rounded-md bg-surface-muted p-3">

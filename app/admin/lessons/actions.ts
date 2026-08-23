@@ -426,7 +426,7 @@ function defaultBlockContent(blockType: string): Json {
     return { entries: [{ word: "word", pronunciation: "", meaning: "meaning", example: "", notes: "" }] };
   }
   if (blockType === "GRAMMAR") return { title: "", explanation: "", examples: [], notes: null };
-  if (blockType === "READING") return { title: "Reading passage", passage: "", questions: [] };
+  if (blockType === "READING") return { title: "", passage: "", questions: [] };
   if (blockType === "DIALOGUE") return { title: "Dialogue", turns: [{ speaker: "A", line: "" }, { speaker: "B", line: "" }] };
   if (blockType === "FLASHCARD") return {
     card_type: "IMAGE",
