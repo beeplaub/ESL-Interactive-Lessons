@@ -189,6 +189,22 @@ async function generateKokoroVoiceover(request: VoiceoverRequest) {
   }
 
   let response = await requestSpeech("opus");
+  // Keep older deployed Kokoro gateways usable during a rolling restart. The
+  // newer service accepts 0.5+, while the previous schema rejected values
+  // below 0.75. Once the service is upgraded, the requested slower pace is
+  // sent unchanged.
+  if (!response.ok && response.status === 422 && kokoroSpeed(request.pace) < 0.75) {
+    const details = await response.clone().text().catch(() => "");
+    if (/greater_than_equal|0\.75/i.test(details)) {
+      response = await fetch(`${baseUrl}/v1/audio/speech`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ model: "kokoro", input: request.script.trim(), voice, speed: 0.75, response_format: "opus" }),
+        signal: AbortSignal.timeout(timeoutMs),
+        cache: "no-store",
+      });
+    }
+  }
   // During rollout an existing Mac Mini service may still be the prior
   // WAV-only release. Keep voiceover creation working until its installer has
   // been run, then switch to Opus automatically on the next request.
