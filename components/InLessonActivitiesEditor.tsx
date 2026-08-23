@@ -624,6 +624,9 @@ function AiRoleplayEditor({ activity, lessonId, onSave }: { activity: Activity; 
 function AiInterviewEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
   const current = asRecord(activity.activity_data);
   const [context, setContext] = useState(String(current.interview_context ?? ""));
+  const [exactQuestions, setExactQuestions] = useState(
+    Array.isArray(current.exact_questions) ? current.exact_questions.map(String).join("\n") : "",
+  );
   const [level, setLevel] = useState(String(current.level ?? "B1"));
   const [questionCount, setQuestionCount] = useState(Math.max(1, Math.min(20, Number(current.question_count) || 5)));
   const [answerSeconds, setAnswerSeconds] = useState(Math.max(10, Math.min(180, Number(current.answer_seconds) || 45)));
@@ -636,6 +639,7 @@ function AiInterviewEditor({ activity, onSave }: { activity: Activity; onSave: (
   return <div className="grid gap-4">
     <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"><strong>Creator context stays hidden.</strong> The interviewer uses it to create questions, but learners only hear the questions and feedback.</div>
     <label className="text-sm font-medium">Interview context / source material<textarea value={context} onChange={(e) => setContext(e.target.value)} rows={8} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" placeholder="Paste the facts, paragraph, essay, image description, or knowledge the interview must be based on..." /></label>
+    <label className="text-sm font-medium">Exact questions <span className="font-normal text-[var(--br-text-muted)]">(optional, one per line)</span><textarea value={exactQuestions} onChange={(e) => setExactQuestions(e.target.value)} rows={5} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" placeholder="What is your name?\nWhere do you live?\nWhat do you enjoy doing?" /><span className="mt-1 block text-xs font-normal text-[var(--br-text-muted)]">When provided, the AI asks only these questions, in this order, one at a time. It will not rewrite or invent questions.</span></label>
     <div className="grid gap-4 md:grid-cols-3">
       <label className="text-sm font-medium">Learner level<select value={level} onChange={(e) => setLevel(e.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] bg-surface px-3 py-2">{["A1","A2","B1","B2","C1","C2"].map((item) => <option key={item}>{item}</option>)}</select></label>
       <label className="text-sm font-medium">Questions<input type="number" min={1} max={20} value={questionCount} onChange={(e) => setQuestionCount(Math.max(1, Math.min(20, Number(e.target.value) || 1)))} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
@@ -645,7 +649,7 @@ function AiInterviewEditor({ activity, onSave }: { activity: Activity; onSave: (
       <label className="text-sm font-medium">Correction style<select value={correctionStyle} onChange={(e) => setCorrectionStyle(e.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] bg-surface px-3 py-2"><option value="GENTLE">Gentle and encouraging</option><option value="COACH">Coach and clarify</option><option value="CHALLENGE">Challenge and extend</option></select></label>
     </div>
     <div className="flex flex-wrap gap-4 text-sm"><label className="flex items-center gap-2"><input type="checkbox" checked={saveRecordings} onChange={(e) => setSaveRecordings(e.target.checked)} /> Allow saved conversation</label><label className="flex items-center gap-2"><input type="checkbox" checked={allowDownload} onChange={(e) => setAllowDownload(e.target.checked)} /> Allow download</label></div>
-    <div className="flex justify-end"><SaveButton onClick={() => onSave({ interview_context: context, level, question_count: questionCount, answer_seconds: answerSeconds, character, voice_name: voiceName, correction_style: correctionStyle, first_turn: "Welcome. I will ask you a few questions based on what you studied. Take your time.", prompt: "Conduct a spoken interview based only on the hidden context.", voice_enabled: true, show_transcript: true, save_recordings: saveRecordings, allow_download: allowDownload, max_seconds_per_attempt: questionCount * answerSeconds + 60 } as Json, needsReview)} /></div>
+    <div className="flex justify-end"><SaveButton onClick={() => { const questions = exactQuestions.split("\n").map((value) => value.trim()).filter(Boolean).slice(0, 20); onSave({ interview_context: context, exact_questions: questions, level, question_count: questions.length || questionCount, answer_seconds: answerSeconds, character, voice_name: voiceName, correction_style: correctionStyle, first_turn: "Welcome. I will ask you a few questions based on what you studied. Take your time.", prompt: "Conduct a spoken interview based only on the hidden context.", voice_enabled: true, show_transcript: true, save_recordings: saveRecordings, allow_download: allowDownload, max_seconds_per_attempt: (questions.length || questionCount) * answerSeconds + 60 } as Json, needsReview); }} /></div>
   </div>;
 }
 
