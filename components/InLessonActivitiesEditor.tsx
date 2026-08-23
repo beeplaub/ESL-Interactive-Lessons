@@ -635,7 +635,8 @@ function AiInterviewEditor({ activity, onSave }: { activity: Activity; onSave: (
   const [correctionStyle, setCorrectionStyle] = useState(String(current.correction_style ?? "GENTLE"));
   const [saveRecordings, setSaveRecordings] = useState(current.save_recordings === true);
   const [allowDownload, setAllowDownload] = useState(current.allow_download === true);
-  const needsReview = !context.trim() || !character.trim();
+  const hasExactQuestions = exactQuestions.split("\n").some((value) => value.trim());
+  const needsReview = (!context.trim() && !hasExactQuestions) || !character.trim();
   return <div className="grid gap-4">
     <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"><strong>Creator context stays hidden.</strong> The interviewer uses it to create questions, but learners only hear the questions and feedback.</div>
     <label className="text-sm font-medium">Interview context / source material<textarea value={context} onChange={(e) => setContext(e.target.value)} rows={8} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" placeholder="Paste the facts, paragraph, essay, image description, or knowledge the interview must be based on..." /></label>
