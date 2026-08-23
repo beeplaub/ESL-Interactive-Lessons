@@ -84,6 +84,13 @@ function mediaUrl(value: string, kind: "image" | "audio") {
   return value;
 }
 
+function ReadingPassageAudioButton({ src }: { src: string }) {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [playing, setPlaying] = useState(false);
+  if (!src) return null;
+  return <><audio ref={audioRef} src={mediaUrl(src, "audio")} preload="none" onEnded={() => setPlaying(false)} /><button type="button" onClick={() => { const audio = audioRef.current; if (!audio) return; if (audio.paused) { void audio.play(); setPlaying(true); } else { audio.pause(); setPlaying(false); } }} className="grid size-8 shrink-0 place-items-center rounded-full border border-[var(--br-border)] bg-surface text-[var(--br-brand)] shadow-sm transition hover:bg-[var(--br-surface-muted)]" aria-label={playing ? "Pause reading passage audio" : "Play reading passage audio"} title={playing ? "Pause audio" : "Play audio"}>{playing ? <Pause size={15} /> : <Play size={15} />}</button></>;
+}
+
 function ZoomableImage({ src, alt, className }: { src: string; alt: string; className: string }) {
   const [open, setOpen] = useState(false);
 
@@ -427,11 +434,15 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
   }
 
   if (block.block_type === "READING") {
+    const audioPath = asString(content.audio_path);
     return (
       <article className="rounded-lg border border-[var(--br-border)] p-4">
-        {asString(content.title) ? <div className="mb-3 flex items-center gap-2">
+        {asString(content.title) || audioPath ? <div className="mb-3 flex items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2">
           <BookOpen size={18} className="text-moss" />
-          <h3 className="font-semibold">{asString(content.title)}</h3>
+          {asString(content.title) ? <h3 className="font-semibold">{asString(content.title)}</h3> : null}
+          </div>
+          <ReadingPassageAudioButton src={audioPath} />
         </div> : null}
         <FormattedText text={asString(content.passage) || "Add a reading passage."} />
         {asArray(content.questions).length ? (

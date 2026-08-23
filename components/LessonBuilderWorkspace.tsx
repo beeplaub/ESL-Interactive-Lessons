@@ -35,6 +35,7 @@ import { LessonAssessmentMetadataEditor } from "@/components/AssessmentMetadataE
 import { LessonOutcomeManager } from "@/components/LessonOutcomeManager";
 import { SlideNarrationRecorder } from "@/components/SlideNarrationRecorder";
 import { BlockMediaUploader } from "@/components/BlockMediaUploader";
+import { ReadingPassageAudioControls } from "@/components/ReadingPassageAudioControls";
 import { CONTENT_LEVELS } from "@/lib/levels";
 import type { LessonOutcome } from "@/types/obe.types";
 import type { Json } from "@/types/database.types";
@@ -1748,6 +1749,8 @@ function BlockFields({ blockType, content, lessonId, blockId }: { blockType: str
       <div className="grid gap-3">
         <label className="text-sm">Title<input name="title" defaultValue={asString(data.title)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
         <label className="text-sm">Passage<textarea name="passage" rows={6} defaultValue={asString(data.passage ?? data.text)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+        <input type="hidden" name="audio_path" value={audioPath} />
+        <ReadingPassageAudioControls lessonId={lessonId} passage={asString(data.passage ?? data.text)} value={audioPath} onChange={setAudioPath} />
       </div>
     );
   }

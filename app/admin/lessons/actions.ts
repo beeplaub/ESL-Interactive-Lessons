@@ -306,6 +306,7 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
     return {
       title: String(formData.get("title") || "").trim(),
       passage: String(formData.get("passage") || "").trim(),
+      audio_path: nullableText(formData.get("audio_path")),
       questions: splitLines(formData.get("questions"))
     };
   }
