@@ -160,8 +160,11 @@ function geminiVoiceName(requestedVoice: string) {
 }
 
 function kokoroSpeed(pace: string) {
-  if (pace === "Very slow") return 0.75;
-  if (pace === "Slow") return 0.85;
+  // Kokoro's default is 1.0. The previous values (0.75/0.85) were too close
+  // to normal speed for language-learning narration, especially on shorter
+  // dialogue turns where the difference was barely perceptible.
+  if (pace === "Very slow") return 0.55;
+  if (pace === "Slow") return 0.72;
   if (pace === "Brisk") return 1.15;
   return 1;
 }

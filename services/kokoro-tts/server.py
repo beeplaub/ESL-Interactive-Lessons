@@ -69,7 +69,8 @@ class SpeechRequest(BaseModel):
     model: str = "kokoro"
     input: str = Field(min_length=1, max_length=MAX_TEXT_LENGTH)
     voice: str = "af_heart"
-    speed: float = Field(default=1.0, ge=0.75, le=1.5)
+    # Keep the lower range available for deliberate ESL listening practice.
+    speed: float = Field(default=1.0, ge=0.5, le=1.5)
     response_format: str = "opus"
 
 
