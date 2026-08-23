@@ -807,7 +807,7 @@ function VoiceRoleplayPanel({ activity, lessonId, onNext, previewOnly, onSavedAt
       if (transcriptResult.error) throw new Error(transcriptResult.error);
       if (saveEnabled && result.recording && !previewOnly) {
         const form = new FormData();
-        form.append("file", result.recording, "brenup-speaking-practice.opus");
+        form.append("file", result.recording, "brenup-speaking-practice.webm");
         form.append("sessionId", completedSessionId); form.append("activityId", activity.id);
         form.append("durationSeconds", String(result.durationSeconds));
         form.append("transcript", turns.map((turn) => `${turn.sender}: ${turn.text}`).join("\n"));

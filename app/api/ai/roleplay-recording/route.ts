@@ -47,7 +47,9 @@ export async function POST(request: Request) {
 
   const retentionDays = [7, 30, 90].includes(Number(config.recording_retention_days)) ? Number(config.recording_retention_days) : 30;
   const isOpus = file.type.includes("opus") || file.type.includes("webm") || file.name.toLowerCase().endsWith(".opus");
-  const extension = isOpus ? "opus" : file.type.includes("mp4") ? "mp4" : file.type.includes("ogg") ? "ogg" : "webm";
+  // Chrome/Firefox deliver Opus in a WebM container. Keep the container and
+  // codec declaration intact so browsers can play the saved lightweight file.
+  const extension = isOpus ? "webm" : file.type.includes("mp4") ? "mp4" : file.type.includes("ogg") ? "ogg" : "webm";
   const path = `${activityId}/${user.id}/${Date.now()}-${crypto.randomUUID()}.${extension}`;
   let stored: { provider: string; bucket: string; path: string; url: string };
   try {
@@ -72,7 +74,7 @@ export async function POST(request: Request) {
     storage_provider: stored.provider,
     storage_bucket: stored.bucket,
     storage_path: stored.path,
-    mime_type: isOpus ? "audio/opus" : file.type || "audio/webm",
+    mime_type: isOpus ? (file.type || "audio/webm;codecs=opus") : file.type || "audio/webm",
     file_size: file.size,
     duration_seconds: durationSeconds,
     transcript: transcript || null,
@@ -116,7 +118,7 @@ export async function GET(request: Request) {
   if (forceDownload) {
     const media = await fetch(url);
     if (!media.ok || !media.body) return NextResponse.json({ error: "The recording could not be downloaded." }, { status: 502 });
-    const extension = String(recording.mime_type).includes("opus") ? "opus" : String(recording.mime_type).includes("mp4") ? "m4a" : String(recording.mime_type).includes("ogg") ? "ogg" : "webm";
+    const extension = String(recording.mime_type).includes("mp4") ? "m4a" : String(recording.mime_type).includes("ogg") ? "ogg" : "webm";
     return new NextResponse(media.body, {
       headers: {
         "Content-Type": recording.mime_type || "audio/webm",
