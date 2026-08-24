@@ -15,7 +15,7 @@ import { playCelebration, playCorrect, playPartial, playWrong } from "@/lib/gami
 import { ResultsOverview } from "@/components/gamification/ResultsOverview";
 import { StreakPopup } from "@/components/gamification/StreakPopup";
 import { computeBestStreak, NOTABLE_STREAK_THRESHOLD } from "@/lib/gamification/resultsOverview";
-import { ActivityEvaluationModeContext, EvaluationMethodPicker, WritingEvaluationInterface } from "@/components/WritingEvaluationInterface";
+import { ActivityEvaluationModeContext, EvaluationMethodDialog, WritingEvaluationInterface } from "@/components/WritingEvaluationInterface";
 import { asWritingValue, isAwaitingResolution, isWritingQuestionType, resolveWritingOutcome, type EvaluationMode, type WritingAnswerValue } from "@/lib/writingGrading";
 
 export type QuizQuestion = {
@@ -359,6 +359,8 @@ export function QuizPlayer({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [reviewMode, setReviewMode] = useState<"overview" | "detail">("overview");
   const [evaluationMode, setEvaluationMode] = useState<EvaluationMode | null>(null);
+  const [showEvaluationDialog, setShowEvaluationDialog] = useState(false);
+  const [autoGradingActive, setAutoGradingActive] = useState(false);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const [remainingSeconds, setRemainingSeconds] = useState(() => timerMinutes ? timerMinutes * 60 : null);
   const attemptStartRef = useRef(Date.now());
@@ -374,6 +376,8 @@ export function QuizPlayer({
   const answered = questions.every((question) => hasAnswer(question, answers[question.id]));
   const hasSubjectiveQuestions = questions.some((question) => isWritingQuestionType(question.question_type));
   const availableEvaluationModes = allowedEvaluationModes(questions);
+  const subjectiveQuestions = questions.filter((question) => isWritingQuestionType(question.question_type));
+  const gradingCompletedCount = subjectiveQuestions.filter((question) => resolveWritingOutcome(answers[question.id]).hasChosenMode).length;
   const totalPoints = questions.reduce((sum, question) => sum + questionTotal(question), 0);
   const currentScore = questions.reduce((sum, question) => sum + questionScore(question, answers[question.id]), 0);
   const score = submitted ? currentScore : 0;
@@ -438,6 +442,8 @@ export function QuizPlayer({
     setCurrentIndex(0);
     setReviewMode("overview");
     setEvaluationMode(null);
+    setShowEvaluationDialog(false);
+    setAutoGradingActive(false);
     setRemainingSeconds(timerMinutes ? timerMinutes * 60 : null);
     attemptStartRef.current = Date.now();
     submissionKeyRef.current = null;
@@ -497,12 +503,16 @@ export function QuizPlayer({
     if (deltaX > 0) goToQuestion(currentIndex - 1);
   }
 
-  const submit = useCallback(() => {
+  const submit = useCallback((modeOverride?: EvaluationMode) => {
     if (submitted) return;
-    if (hasSubjectiveQuestions && !evaluationMode) {
-      setMessage("Choose one grading method for this attempt first.");
+    const selectedMode = modeOverride ?? evaluationMode;
+    if (hasSubjectiveQuestions && !selectedMode) {
+      setShowEvaluationDialog(true);
       return;
     }
+    if (selectedMode) setEvaluationMode(selectedMode);
+    setShowEvaluationDialog(false);
+    setAutoGradingActive(selectedMode === "AI_FEEDBACK" || selectedMode === "TEACHER_REVIEW");
     const finalScore = questions.reduce((sum, question) => sum + questionScore(question, answers[question.id]), 0);
     const finalTotal = questions.reduce((sum, question) => sum + questionTotal(question), 0);
     const finalTimeTakenSeconds = Math.max(0, Math.round((Date.now() - attemptStartRef.current) / 1000));
@@ -545,7 +555,7 @@ export function QuizPlayer({
   }, [answers, courseItemId, evaluationMode, hasSubjectiveQuestions, isGuest, questions, quizId, submitted]);
 
   useEffect(() => {
-    if (!submitted || !evaluationMode || evaluationMode === "SELF_GRADED") return;
+    if (!submitted || !autoGradingActive || !evaluationMode || evaluationMode === "SELF_GRADED") return;
     const nextIndex = questions.findIndex((question) =>
       isWritingQuestionType(question.question_type) && !resolveWritingOutcome(answers[question.id]).hasChosenMode
     );
@@ -553,9 +563,10 @@ export function QuizPlayer({
       setReviewMode("detail");
       setCurrentIndex(nextIndex);
     } else {
+      setAutoGradingActive(false);
       setReviewMode("overview");
     }
-  }, [answers, evaluationMode, questions, submitted]);
+  }, [answers, autoGradingActive, evaluationMode, questions, submitted]);
 
   useEffect(() => {
     if (!timerMinutes || submitted) return;
@@ -611,8 +622,8 @@ export function QuizPlayer({
             <SoundToggle />
           </div>
         </div>
-        <div className="mt-4 h-2 overflow-hidden rounded-full bg-[var(--br-canvas-elevated)]">
-          <div className="h-full rounded-full bg-gradient-to-r from-[var(--br-chart-primary)] to-[var(--br-brand)] transition-all duration-500" style={{ width: `${progressPercent}%` }} />
+        <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-slate-200 ring-1 ring-slate-300/70" role="progressbar" aria-label="Questions answered" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progressPercent}>
+          <div className="h-full rounded-full bg-[#6c3bff] shadow-[0_0_8px_rgba(108,59,255,0.45)] transition-all duration-500" style={{ width: `${progressPercent}%` }} />
         </div>
       </div>
 
@@ -623,7 +634,7 @@ export function QuizPlayer({
         </div>
       ) : null}
 
-      {submitted && reviewMode === "overview" ? (
+      {submitted && !autoGradingActive && reviewMode === "overview" ? (
         <ResultsOverview
           questions={questions}
           answers={answers}
@@ -648,7 +659,7 @@ export function QuizPlayer({
         />
       ) : null}
 
-      {submitted && reviewMode === "detail" ? (
+      {submitted && !autoGradingActive && reviewMode === "detail" ? (
         <button
           type="button"
           onClick={() => setReviewMode("overview")}
@@ -663,10 +674,21 @@ export function QuizPlayer({
         <ScoreHistory attempts={allAttempts} total={totalPoints} />
       )}
 
+      {autoGradingActive ? (
+        <div className="rounded-[20px] border border-[var(--br-chart-primary)]/20 bg-surface p-6 text-center shadow-[var(--br-shadow)]" role="status" aria-live="polite">
+          <Loader2 className="mx-auto size-8 animate-spin text-[var(--br-chart-primary)]" />
+          <h3 className="mt-3 text-lg font-extrabold text-ink">{evaluationMode === "AI_FEEDBACK" ? "Reviewing your responses" : "Sending your responses to your teacher"}</h3>
+          <p className="mt-1 text-sm text-[var(--br-text-muted)]">{gradingCompletedCount} of {subjectiveQuestions.length} responses prepared</p>
+          <div className="mx-auto mt-4 h-2.5 max-w-md overflow-hidden rounded-full bg-slate-200 ring-1 ring-slate-300/70">
+            <div className="h-full rounded-full bg-[#6c3bff] transition-all duration-500" style={{ width: `${subjectiveQuestions.length ? Math.round(gradingCompletedCount / subjectiveQuestions.length * 100) : 0}%` }} />
+          </div>
+        </div>
+      ) : null}
+
       {!submitted || reviewMode === "detail" ? (
       <>
       <div
-        className="overflow-hidden"
+        className={autoGradingActive ? "hidden" : "overflow-hidden"}
         style={{ touchAction: "pan-y" }}
         onTouchStart={(event) => {
           const touch = event.touches[0];
@@ -691,7 +713,7 @@ export function QuizPlayer({
         ) : null}
       </div>
 
-      <div className="flex flex-nowrap items-center justify-between gap-2 rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-2.5 shadow-[var(--br-shadow)] sm:gap-3 sm:p-3">
+      {!autoGradingActive ? <div className="flex flex-nowrap items-center justify-between gap-2 rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-2.5 shadow-[var(--br-shadow)] sm:gap-3 sm:p-3">
         <button
           type="button"
           onClick={() => goToQuestion(currentIndex - 1)}
@@ -729,13 +751,11 @@ export function QuizPlayer({
         >
           Next <ChevronRight size={16} />
         </button>
-      </div>
+      </div> : null}
       </>
       ) : null}
 
-      {!submitted && answered && hasSubjectiveQuestions ? <EvaluationMethodPicker value={evaluationMode} allowedModes={availableEvaluationModes} onChange={(mode) => { setEvaluationMode(mode); setMessage(null); }} /> : null}
-
-      {!submitted || reviewMode === "detail" ? (
+      {(!submitted || reviewMode === "detail") && !autoGradingActive ? (
         (() => {
           return (
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-4 shadow-[var(--br-shadow)]">
@@ -755,11 +775,11 @@ export function QuizPlayer({
                 {!submitted && (
                   <button
                     type="button"
-                    disabled={!answered || submitted || (hasSubjectiveQuestions && !evaluationMode)}
-                    onClick={submit}
+                    disabled={!answered || submitted}
+                    onClick={() => submit()}
                     className="inline-flex items-center gap-2 rounded-[14px] bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] px-4 py-2 text-sm font-extrabold text-on-dark shadow-[var(--br-shadow)] disabled:opacity-45"
                   >
-                    <CheckCircle2 size={16} /> {isPending ? "Saving..." : "Submit"}
+                    <CheckCircle2 size={16} /> {isPending ? "Saving..." : hasSubjectiveQuestions ? "Continue to grading" : "Submit"}
                   </button>
                 )}
               </div>
@@ -772,6 +792,7 @@ export function QuizPlayer({
     {showPopup && guestAttempt ? (
       <GuestScorePopup score={score} total={totalPoints} attempt={guestAttempt} onDismiss={() => setShowPopup(false)} />
     ) : null}
+    {showEvaluationDialog ? <EvaluationMethodDialog allowedModes={availableEvaluationModes} onClose={() => setShowEvaluationDialog(false)} onChoose={(mode) => { setMessage(null); submit(mode); }} /> : null}
     </>
   );
 }

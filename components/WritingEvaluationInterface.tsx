@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useRef, useState, useTransition } from "react";
-import { CheckCircle2, Sparkles, Send, FileText, UserCheck, RotateCcw, RefreshCw } from "lucide-react";
+import { CheckCircle2, Sparkles, Send, FileText, UserCheck, RotateCcw, RefreshCw, X } from "lucide-react";
 import {
   evaluateWritingWithAiAction,
   saveWritingGradingOutcomeAction,
@@ -31,6 +31,24 @@ export function EvaluationMethodPicker({ value, onChange, allowedModes = ["AI_FE
             <span className="mt-1 block text-xs leading-5 text-[var(--br-text-muted)]">{choice.detail}</span>
           </button>
         ))}
+      </div>
+    </div>
+  );
+}
+
+export function EvaluationMethodDialog({ allowedModes, onChoose, onClose }: { allowedModes: EvaluationMode[]; onChoose: (mode: EvaluationMode) => void; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="evaluation-method-title" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <div className="w-full max-w-3xl rounded-[24px] border border-white/20 bg-surface p-5 shadow-2xl sm:p-7">
+        <div className="mb-5 flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[var(--br-chart-primary)]">Answers complete</p>
+            <h2 id="evaluation-method-title" className="mt-1 text-xl font-extrabold text-ink sm:text-2xl">Choose how to review your attempt</h2>
+            <p className="mt-1 text-sm leading-6 text-[var(--br-text-muted)]">This choice applies to every written or spoken answer in this attempt.</p>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close grading options" className="grid size-10 shrink-0 place-items-center rounded-full border border-[var(--br-border)] text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"><X size={18} /></button>
+        </div>
+        <EvaluationMethodPicker value={null} allowedModes={allowedModes} onChange={onChoose} />
       </div>
     </div>
   );

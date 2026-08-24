@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, Send, MessageCircle, Award, RefreshCw, Loade
 import { useState, useTransition, useRef, useCallback, useEffect, useLayoutEffect } from "react";
 import { recordQuizAttempt } from "@/app/quizzes/actions";
 import { QuestionCard, hasAnswer, type QuizQuestion } from "@/components/QuizPlayer";
-import { ActivityEvaluationModeContext, EvaluationMethodPicker } from "@/components/WritingEvaluationInterface";
+import { ActivityEvaluationModeContext, EvaluationMethodDialog } from "@/components/WritingEvaluationInterface";
 import { isCorrect, questionScore, questionTotal } from "@/lib/quizScoring";
 import { startRoleplaySessionAction, submitRoleplayTurnAction, completeRoleplaySessionAction, saveRoleplayVoiceTranscriptAction, getRoleplayHistoryAction } from "@/app/admin/lessons/aiActions";
 import type { Json } from "@/types/database.types";
@@ -1504,6 +1504,8 @@ export function LessonActivityPanel({
   });
   const [submitted, setSubmitted] = useState(Boolean(initialAttempt));
   const [evaluationMode, setEvaluationMode] = useState<EvaluationMode | null>(null);
+  const [showEvaluationDialog, setShowEvaluationDialog] = useState(false);
+  const [autoGradingActive, setAutoGradingActive] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [localAttempts, setLocalAttempts] = useState<SavedAttempt[]>(attempts);
   const [isPending, startTransition] = useTransition();
@@ -1530,7 +1532,8 @@ export function LessonActivityPanel({
     try { window.sessionStorage.removeItem(draftKey); } catch { /* no-op */ }
   }, [draftKey, submitted]);
 
-  const hasWritingActivity = questions.some((q) => isWritingQuestionType(q.question_type));
+  const subjectiveQuestions = questions.filter((question) => isWritingQuestionType(question.question_type));
+  const gradingCompletedCount = subjectiveQuestions.filter((question) => resolveWritingOutcome(answers[question.id]).hasChosenMode).length;
   // True once submitted but at least one writing question hasn't reached a final graded
   // outcome yet (no grading mode chosen, or a teacher review still pending) — held back from
   // celebrating until every question is actually resolved, not just "has text been typed".
@@ -1562,7 +1565,7 @@ export function LessonActivityPanel({
   }, [submitted, answers, questions, hasPendingWritingGrading, isSelfGradedOnly]);
 
   useEffect(() => {
-    if (!submitted || !evaluationMode || evaluationMode === "SELF_GRADED") return;
+    if (!submitted || !autoGradingActive || !evaluationMode || evaluationMode === "SELF_GRADED") return;
     const nextIndex = questions.findIndex((question) =>
       isWritingQuestionType(question.question_type) && !resolveWritingOutcome(answers[question.id]).hasChosenMode
     );
@@ -1570,9 +1573,10 @@ export function LessonActivityPanel({
       setReviewMode("detail");
       setQIndex(nextIndex);
     } else {
+      setAutoGradingActive(false);
       setReviewMode("overview");
     }
-  }, [answers, evaluationMode, questions, submitted]);
+  }, [answers, autoGradingActive, evaluationMode, questions, submitted]);
 
   // ── AI Roleplay: full chat UI instead of quiz carousel ──
   if (activity.activity_type === "AI_ROLEPLAY" || activity.activity_type === "AI_INTERVIEW") {
@@ -1597,6 +1601,8 @@ export function LessonActivityPanel({
 
   const currentQuestion = questions[qIndex] ?? null;
   const allAnswered = questions.length > 0 && questions.every((q) => hasAnswer(q, answers[q.id]));
+  const answeredCount = questions.filter((question) => hasAnswer(question, answers[question.id])).length;
+  const progressPercent = questions.length ? Math.round(answeredCount / questions.length * 100) : 0;
   const hasSubjectiveQuestions = questions.some((question) => isWritingQuestionType(question.question_type));
   const availableEvaluationModes = ([
     ["AI_FEEDBACK", "allow_ai_feedback"],
@@ -1620,11 +1626,15 @@ export function LessonActivityPanel({
     );
   }
 
-  function submit() {
-    if (hasSubjectiveQuestions && !evaluationMode) {
-      setMessage("Choose one grading method for this attempt first.");
+  function submit(modeOverride?: EvaluationMode) {
+    const selectedMode = modeOverride ?? evaluationMode;
+    if (hasSubjectiveQuestions && !selectedMode) {
+      setShowEvaluationDialog(true);
       return;
     }
+    if (selectedMode) setEvaluationMode(selectedMode);
+    setShowEvaluationDialog(false);
+    setAutoGradingActive(selectedMode === "AI_FEEDBACK" || selectedMode === "TEACHER_REVIEW");
     const finalScore = questions.reduce((sum, q) => sum + questionScore(q, answers[q.id]), 0);
     setSubmitted(true);
 
@@ -1679,6 +1689,8 @@ export function LessonActivityPanel({
     setQIndex(0);
     setReviewMode("overview");
     setEvaluationMode(null);
+    setShowEvaluationDialog(false);
+    setAutoGradingActive(false);
     setStreakPopupDismissed(false);
     celebratedRef.current = false;
     submissionKeyRef.current = null;
@@ -1706,7 +1718,16 @@ export function LessonActivityPanel({
         </div>
       </div>
 
-      {submitted && reviewMode === "overview" ? (
+      {!submitted ? (
+        <div className="mb-4">
+          <div className="mb-1.5 flex items-center justify-between text-xs font-semibold text-[var(--br-text-muted)]"><span>Progress</span><span>{answeredCount}/{questions.length}</span></div>
+          <div className="h-2.5 overflow-hidden rounded-full bg-slate-200 ring-1 ring-slate-300/70" role="progressbar" aria-label="Questions answered" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progressPercent}>
+            <div className="h-full rounded-full bg-[#6c3bff] shadow-[0_0_8px_rgba(108,59,255,0.45)] transition-all duration-500" style={{ width: `${progressPercent}%` }} />
+          </div>
+        </div>
+      ) : null}
+
+      {submitted && !autoGradingActive && reviewMode === "overview" ? (
         <ResultsOverview
           questions={questions}
           answers={answers}
@@ -1718,7 +1739,7 @@ export function LessonActivityPanel({
         />
       ) : null}
 
-      {submitted && reviewMode === "detail" ? (
+      {submitted && !autoGradingActive && reviewMode === "detail" ? (
         <button
           type="button"
           onClick={() => setReviewMode("overview")}
@@ -1729,8 +1750,17 @@ export function LessonActivityPanel({
       ) : null}
 
       {/* Question carousel */}
+      {autoGradingActive ? (
+        <div className="rounded-[18px] border border-[var(--br-chart-primary)]/20 bg-surface p-6 text-center shadow-sm" role="status" aria-live="polite">
+          <Loader2 className="mx-auto size-8 animate-spin text-[var(--br-chart-primary)]" />
+          <h3 className="mt-3 text-lg font-bold text-ink">{evaluationMode === "AI_FEEDBACK" ? "Reviewing your responses" : "Sending your responses to your teacher"}</h3>
+          <p className="mt-1 text-sm text-[var(--br-text-muted)]">{gradingCompletedCount} of {subjectiveQuestions.length} responses prepared</p>
+          <div className="mx-auto mt-4 h-2.5 max-w-md overflow-hidden rounded-full bg-slate-200 ring-1 ring-slate-300/70"><div className="h-full rounded-full bg-[#6c3bff] transition-all duration-500" style={{ width: `${subjectiveQuestions.length ? Math.round(gradingCompletedCount / subjectiveQuestions.length * 100) : 0}%` }} /></div>
+        </div>
+      ) : null}
+
       {currentQuestion && (!submitted || reviewMode === "detail") && (
-        <div>
+        <div className={autoGradingActive ? "hidden" : undefined}>
           {/* Question counter + arrows */}
           <div className="mb-3 flex items-center justify-between gap-2">
             <button
@@ -1805,12 +1835,8 @@ export function LessonActivityPanel({
         </div>
       )}
 
-      {!submitted && allAnswered && hasSubjectiveQuestions ? (
-        <div className="mt-4"><EvaluationMethodPicker value={evaluationMode} allowedModes={availableEvaluationModes} onChange={(mode) => { setEvaluationMode(mode); setMessage(null); }} /></div>
-      ) : null}
-
       {/* Footer */}
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--br-border)] pt-3">
+      {!autoGradingActive ? <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--br-border)] pt-3">
         <p className="text-sm text-[var(--br-text-muted)]">
           {submitted
             ? hasPendingWritingGrading
@@ -1833,15 +1859,15 @@ export function LessonActivityPanel({
           ) : (
             <button
               type="button"
-              onClick={submit}
-              disabled={!allAnswered || isPending || (hasSubjectiveQuestions && !evaluationMode)}
+              onClick={() => submit()}
+              disabled={!allAnswered || isPending}
               className="rounded-md bg-moss px-4 py-2 text-sm font-semibold text-on-dark disabled:opacity-40"
             >
-              {isPending ? "Saving…" : hasSubjectiveQuestions ? "Submit for grading" : "Check answers"}
+              {isPending ? "Saving…" : hasSubjectiveQuestions ? "Continue to grading" : "Check answers"}
             </button>
           )}
         </div>
-      </div>
+      </div> : null}
       {localAttempts.length ? (
         <div className="mt-4 rounded-md bg-surface-muted p-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-[var(--br-text-muted)]">Attempts</p>
@@ -1855,6 +1881,7 @@ export function LessonActivityPanel({
           </div>
         </div>
       ) : null}
+      {showEvaluationDialog ? <EvaluationMethodDialog allowedModes={availableEvaluationModes} onClose={() => setShowEvaluationDialog(false)} onChoose={(mode) => { setMessage(null); submit(mode); }} /> : null}
     </section>
   );
 }
