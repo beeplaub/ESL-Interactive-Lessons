@@ -17,6 +17,7 @@ import { computeBestStreak, NOTABLE_STREAK_THRESHOLD } from "@/lib/gamification/
 import { StreakPopup } from "@/components/gamification/StreakPopup";
 import { startSpeakTranslation, startLiveConversation } from "@/components/GeminiLiveTranslation";
 import { lessonActivityDefinition } from "@/lib/lessonActivityCatalog";
+import { normalizeDisplayScore } from "@/lib/assessmentContract";
 
 type LessonSlideActivity = {
   id: string; activity_type: string; activity_data: Json | null;
@@ -1509,7 +1510,11 @@ export function LessonActivityPanel({
   const [aiTemporarilyUnavailable, setAiTemporarilyUnavailable] = useState(false);
   const [showAiUnavailableDialog, setShowAiUnavailableDialog] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [localAttempts, setLocalAttempts] = useState<SavedAttempt[]>(attempts);
+  const [localAttempts, setLocalAttempts] = useState<SavedAttempt[]>(() => {
+    const expectedTotal = questionsFromData(activity.activity_data, activity.activity_type, activity.id)
+      .reduce((sum, question) => sum + questionTotal(question), 0);
+    return attempts.map((attempt) => ({ ...attempt, ...normalizeDisplayScore(attempt.score, attempt.total, expectedTotal) }));
+  });
   const [isPending, startTransition] = useTransition();
   const submissionKeyRef = useRef<string | null>(null);
   const finalizedAttemptListedRef = useRef(Boolean(initialAttempt));

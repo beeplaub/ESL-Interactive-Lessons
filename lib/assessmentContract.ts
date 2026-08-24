@@ -26,6 +26,33 @@ export function legacyQuizPoints(score: number, total: number) {
   };
 }
 
+/**
+ * Converts legacy integer compatibility values back to the canonical point scale
+ * for learner-facing displays. The expected total comes from the current content,
+ * so a legitimate 100-point assessment is never guessed as a scaled 1-point one.
+ */
+export function normalizeDisplayScore(score: number, total: number, expectedTotal?: number) {
+  const safeScore = Number.isFinite(score) ? score : 0;
+  const safeTotal = Number.isFinite(total) ? total : 0;
+  const safeExpectedTotal = Number.isFinite(expectedTotal) && Number(expectedTotal) > 0 ? Number(expectedTotal) : null;
+  const rounded = (value: number) => Math.round(value * 100) / 100;
+
+  if (safeExpectedTotal !== null) {
+    const scaledTotalMatches = safeTotal > safeExpectedTotal && Math.abs(safeTotal / 100 - safeExpectedTotal) < 0.001;
+    if (scaledTotalMatches) return { score: rounded(safeScore / 100), total: rounded(safeTotal / 100) };
+
+    const scoreLooksScaled = safeScore > safeExpectedTotal && safeScore / 100 <= safeExpectedTotal;
+    if (scoreLooksScaled) return { score: rounded(safeScore / 100), total: rounded(safeExpectedTotal) };
+
+    return { score: rounded(safeScore), total: rounded(safeExpectedTotal) };
+  }
+
+  if (safeTotal > 100 && safeTotal % 100 === 0 && safeScore <= safeTotal) {
+    return { score: rounded(safeScore / 100), total: rounded(safeTotal / 100) };
+  }
+  return { score: rounded(safeScore), total: rounded(safeTotal) };
+}
+
 export function assessmentItemVersionSnapshots(input: {
   sourceType: "QUIZ_QUESTION" | "LESSON_ACTIVITY_QUESTION";
   sourceItemKey: string;

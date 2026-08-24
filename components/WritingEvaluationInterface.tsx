@@ -332,7 +332,7 @@ export function WritingEvaluationInterface({
   }, [activityMode]);
 
   return (
-    <div className="mt-6 space-y-5 border-t border-[var(--br-chart-primary)]/10 pt-6">
+    <div className="mt-5 min-w-0 space-y-4 border-t border-[var(--br-chart-primary)]/10 pt-4">
       {error && (
         <div className="rounded-2xl bg-rose-50 border border-rose-100 p-4 text-xs font-bold text-rose-600 flex items-center gap-2">
           <span>⚠️</span> {error}
@@ -411,10 +411,10 @@ export function WritingEvaluationInterface({
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="rounded-3xl border border-[var(--br-chart-primary)]/20 bg-[var(--br-chart-primary)]/5 p-5 space-y-4 shadow-xs"
+            className="w-full min-w-0 rounded-2xl border border-[var(--br-chart-primary)]/20 bg-[var(--br-chart-primary)]/5 p-3 space-y-3 shadow-xs sm:rounded-3xl sm:p-5 sm:space-y-4"
           >
             {aiResult ? (
-              <div className="space-y-5">
+              <div className="min-w-0 space-y-3 sm:space-y-4">
                 <div className="flex items-center justify-between border-b border-[var(--br-chart-primary)]/10 pb-4">
                   <span className="text-xs font-black text-[var(--br-chart-primary)] uppercase tracking-wider flex items-center gap-1.5">
                     <Sparkles size={14} /> AI Evaluation Report
@@ -424,28 +424,28 @@ export function WritingEvaluationInterface({
                   </span>
                 </div>
 
-                <div className="rounded-2xl bg-surface p-4 border border-[var(--br-chart-primary)]/10 shadow-xs space-y-1">
+                <div className="w-full rounded-2xl bg-surface p-4 border border-[var(--br-chart-primary)]/10 shadow-xs space-y-1 sm:p-5">
                   <p className="text-xs font-black text-[var(--br-chart-primary)] uppercase tracking-wider">Summary</p>
                   <p className="text-sm font-medium text-ink leading-relaxed">{aiResult.summary}</p>
                 </div>
 
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="rounded-2xl bg-surface p-4 border border-[var(--br-border)] shadow-xs space-y-2">
+                <div className="grid w-full min-w-0 gap-3 sm:grid-cols-2">
+                  <div className="min-w-0 rounded-2xl bg-surface p-4 border border-[var(--br-border)] shadow-xs space-y-2 sm:p-5">
                     <p className="text-xs font-bold text-[var(--br-text-muted)]">Strengths</p>
-                    <ul className="grid gap-1.5 text-sm text-[var(--br-text-muted)] font-medium">
+                    <ul className="grid gap-1.5 text-sm leading-6 text-[var(--br-text-muted)] font-medium">
                       {aiResult.strengths.map((item, index) => <li key={index}>• {item}</li>)}
                     </ul>
                   </div>
-                  <div className="rounded-2xl bg-surface p-4 border border-[var(--br-border)] shadow-xs space-y-2">
+                  <div className="min-w-0 rounded-2xl bg-surface p-4 border border-[var(--br-border)] shadow-xs space-y-2 sm:p-5">
                     <p className="text-xs font-bold text-[var(--br-text-muted)]">Improvements</p>
-                    <ul className="grid gap-1.5 text-sm text-[var(--br-text-muted)] font-medium">
+                    <ul className="grid gap-1.5 text-sm leading-6 text-[var(--br-text-muted)] font-medium">
                       {aiResult.improvements.map((item, index) => <li key={index}>• {item}</li>)}
                     </ul>
                   </div>
                 </div>
 
                 {aiResult.exampleCorrection ? (
-                  <div className="rounded-2xl bg-surface p-4 border border-[var(--br-border)] shadow-xs space-y-2 text-sm text-[var(--br-text-muted)]">
+                  <div className="w-full min-w-0 rounded-2xl bg-surface p-4 border border-[var(--br-border)] shadow-xs space-y-2 text-sm leading-6 text-[var(--br-text-muted)] sm:p-5">
                     <p className="font-bold">Example correction</p>
                     <p><span className="font-semibold">Original:</span> {aiResult.exampleCorrection.original}</p>
                     <p><span className="font-semibold">Corrected:</span> {aiResult.exampleCorrection.corrected}</p>

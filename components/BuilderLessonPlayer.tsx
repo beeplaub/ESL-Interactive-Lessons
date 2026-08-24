@@ -12,6 +12,7 @@ import { LiveTeacherToolbar } from "@/components/LiveTeacherToolbar";
 import type { Json } from "@/types/database.types";
 import { playNarrationTranslation } from "@/components/GeminiLiveTranslation";
 import { NarrationFullScript, NarrationGlossaryPanel, NarrationGlossaryWord, NarrationReadPreview, PinnedNarrationReadPreview, narrationGlossary, type NarrationGlossaryEntry } from "@/components/NarrationStudyAssist";
+import { normalizeDisplayScore } from "@/lib/assessmentContract";
 
 type Lesson = { id: string; title: string; topic: string | null; level: string | null; timer_minutes?: number | null };
 type Slide = {
@@ -446,10 +447,15 @@ export function BuilderLessonPlayer({
     const map = new Map<string, ActivityAttempt>();
     for (const attempt of savedActivityAttempts) {
       const id = attempt.lesson_slide_activity_id;
-      if (id && !map.has(id)) map.set(id, attempt);
+      if (id && !map.has(id)) {
+        const activity = activities.find((candidate) => candidate.id === id);
+        const expectedTotal = activity ? lessonActivityTotalPoints({ id: activity.id, activity_type: activity.activity_type, activity_data: activity.activity_data }) : attempt.total;
+        const normalized = normalizeDisplayScore(attempt.score, attempt.total, expectedTotal);
+        map.set(id, { ...attempt, ...normalized });
+      }
     }
     return map;
-  }, [savedActivityAttempts]);
+  }, [activities, savedActivityAttempts]);
   const totalLessonMarks = useMemo(
     () => activities.reduce((sum, activity) => sum + lessonActivityTotalPoints({
       id: activity.id,
@@ -833,10 +839,12 @@ export function BuilderLessonPlayer({
                     preserveDraft={!lesson.timer_minutes}
                     attempts={savedActivityAttempts.filter((attempt) => attempt.lesson_slide_activity_id === activity.id)}
                     onSavedAttempt={(attempt) => {
+                      const expectedTotal = lessonActivityTotalPoints({ id: activity.id, activity_type: activity.activity_type, activity_data: activity.activity_data });
+                      const normalized = normalizeDisplayScore(attempt.score, attempt.total, expectedTotal);
                       setSavedActivityAttempts((current) => [{
                         lesson_slide_activity_id: activity.id,
-                        score: attempt.score,
-                        total: attempt.total,
+                        score: normalized.score,
+                        total: normalized.total,
                         answers: attempt.answers,
                         completed_at: attempt.completed_at ?? new Date().toISOString()
                       }, ...current]);

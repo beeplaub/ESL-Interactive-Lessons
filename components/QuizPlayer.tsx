@@ -18,6 +18,7 @@ import { computeBestStreak, NOTABLE_STREAK_THRESHOLD } from "@/lib/gamification/
 import { ActivityEvaluationModeContext, AiUnavailableDialog, EvaluationMethodDialog, WritingEvaluationInterface } from "@/components/WritingEvaluationInterface";
 import { transcribeOralResponseAudioAction } from "@/app/admin/lessons/writingActions";
 import { asWritingValue, isAwaitingResolution, isWritingQuestionType, resolveWritingOutcome, type EvaluationMode, type WritingAnswerValue } from "@/lib/writingGrading";
+import { normalizeDisplayScore } from "@/lib/assessmentContract";
 
 export type QuizQuestion = {
   id: string;
@@ -267,7 +268,10 @@ function answerText(question: QuizQuestion): string {
 // ── Score history chart ──
 function ScoreHistory({ attempts, total }: { attempts: PastAttempt[]; total: number }) {
   if (!attempts.length) return null;
-  const last5 = attempts.slice(-5);
+  const last5 = attempts.slice(-5).map((attempt) => {
+    const normalized = normalizeDisplayScore(attempt.score, attempt.total, total);
+    return { ...attempt, ...normalized };
+  });
   const best = Math.max(...last5.map((a) => a.score));
   const latest = last5[last5.length - 1];
   const latestPercent = total ? Math.round((latest.score / total) * 100) : 0;
@@ -632,7 +636,7 @@ export function QuizPlayer({
     <div className="space-y-4">
       {/* Score history — shown before starting if they have attempts */}
       {allAttempts.length > 0 && !submitted && (
-        <ScoreHistory attempts={allAttempts} total={questions.length} />
+        <ScoreHistory attempts={allAttempts} total={totalPoints} />
       )}
 
       <div className="rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-4 shadow-[var(--br-shadow)] sm:p-5">
@@ -2325,7 +2329,7 @@ function OralResponse({
     return () => window.clearInterval(timer);
   }, [recording, maxSeconds, stopRecording]);
 
-  if (!supported) {
+  if (!supported && !submitted) {
     return <p className="rounded-[14px] border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Speech recognition is unavailable in this browser. Try Chrome or Edge.</p>;
   }
 
@@ -2333,6 +2337,7 @@ function OralResponse({
     <div className="relative grid justify-items-center gap-4 overflow-hidden rounded-[24px] border border-violet-200/80 bg-gradient-to-br from-violet-50 via-white to-orange-50 p-6 text-center shadow-sm">
       <div className="pointer-events-none absolute -left-12 -top-14 size-36 rounded-full bg-[var(--br-chart-primary)]/10 blur-2xl" />
       <div className="pointer-events-none absolute -bottom-16 -right-10 size-40 rounded-full bg-[var(--br-action)]/15 blur-2xl" />
+      {!submitted ? <>
       <div className="relative grid place-items-center">
         {recording ? (
           <>
@@ -2371,6 +2376,7 @@ function OralResponse({
         <p className="relative z-10 text-sm font-bold text-[var(--br-action-strong)]">Tap the microphone and start speaking</p>
       )}
       {targetPhrases.length > 0 && !submitted && !hasRecordedResponse ? <p className="relative z-10 text-xs text-[var(--br-text-muted)]">Speak naturally and try to use the target language.</p> : null}
+      </> : null}
       {submitted && value?.transcript ? (
         <>
           <div className="w-full rounded-[14px] bg-[var(--br-canvas-elevated)] p-3 text-left text-sm leading-6 whitespace-pre-wrap">
@@ -2394,7 +2400,7 @@ function OralResponse({
             onGraded={(outcome) => onChange({ ...value, ...outcome, transcript: value.transcript } as OralResponseValue)}
           />
         </>
-      ) : null}
+      ) : submitted ? <p className="w-full rounded-[14px] bg-[var(--br-canvas-elevated)] p-4 text-sm text-[var(--br-text-muted)]">Your recorded response is unavailable for review.</p> : null}
     </div>
   );
 }
