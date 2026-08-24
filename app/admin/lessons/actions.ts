@@ -1758,6 +1758,16 @@ export async function addLessonSlideActivity(lessonId: string, slideId: string, 
   try {
     await requireLessonAccess(lessonId);
     const supabase = createAdminClient();
+    const { data: slide, error: slideError } = await supabase
+      .from("slides")
+      .select("id")
+      .eq("id", slideId)
+      .eq("lesson_id", lessonId)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (slideError) throw slideError;
+    if (!slide) throw new Error("This slide is no longer available.");
+
     const activityType = String(formData.get("activityType") || "MCQ");
     const prompt = String(formData.get("prompt") || defaultActivityPrompt(activityType)).trim();
 
@@ -1776,7 +1786,7 @@ export async function addLessonSlideActivity(lessonId: string, slideId: string, 
     return;
   } catch (error) {
     console.error("addLessonSlideActivity failed", error);
-    return;
+    throw new Error(getErrorMessage(error));
   }
 }
 
