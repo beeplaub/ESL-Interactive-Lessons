@@ -9,6 +9,7 @@ import { notifyUser } from "@/lib/notifications";
 import { requireStaff } from "@/lib/auth";
 import { recalculateCourseAssessmentsForContent } from "@/lib/courseAssessmentService";
 import { completeCourseItemsForContent } from "@/lib/courseProgress";
+import { legacyQuizPoints } from "@/lib/assessmentContract";
 
 function asRecord(value: Json | null | undefined): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
@@ -121,9 +122,9 @@ async function finalizeAssessmentResponse(admin: ReturnType<typeof createAdminCl
     const { data: legacy, error: legacyLookupError } = await (admin.from("quiz_attempts") as any).select("answers").eq("id", attempt.legacy_quiz_attempt_id).maybeSingle();
     if (legacyLookupError) throw legacyLookupError;
     const answers = asRecord(legacy?.answers as Json | null | undefined);
+    const legacyPoints = legacyQuizPoints(score, total);
     const { error: legacyUpdateError } = await (admin.from("quiz_attempts") as any).update({
-      score,
-      total,
+      ...legacyPoints,
       answers: { ...answers, [input.questionKey]: input.outcome },
       status: pending ? "PENDING_REVIEW" : "FINALIZED",
       grading_source: sources.size === 1 ? source : "MIXED",

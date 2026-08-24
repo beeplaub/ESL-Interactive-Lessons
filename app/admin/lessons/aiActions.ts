@@ -5,6 +5,7 @@ import { requireAdmin, requireLessonAccess, getFreshProfile } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { callGemini } from "@/lib/ai/gemini";
+import { legacyQuizPoints } from "@/lib/assessmentContract";
 
 // 1. Zod schemas for structured responses from Gemini
 import { z } from "zod";
@@ -593,13 +594,13 @@ export async function completeRoleplaySessionAction(sessionId: string) {
 
     // Save attempt to quiz_attempts table so standard components fetch it
     const overallScore = scorecard.scores?.overall ?? 0;
+    const legacyPoints = legacyQuizPoints(overallScore, 100);
     await supabase
       .from("quiz_attempts")
       .insert({
         user_id: user.id,
         lesson_slide_activity_id: session.lesson_activity_id,
-        score: overallScore,
-        total: 100,
+        ...legacyPoints,
         answers: {
           sessionId: sessionId,
           scorecard: scorecard

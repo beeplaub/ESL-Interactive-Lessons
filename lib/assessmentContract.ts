@@ -11,6 +11,21 @@ export function clampPoints(points: number, maximumPoints: number) {
   return Math.max(0, Math.min(maximumPoints, Number.isFinite(points) ? points : 0));
 }
 
+/**
+ * The legacy quiz_attempts table stores score and total as integers, while the
+ * assessment tables support decimal points. Preserve the ratio in the legacy
+ * compatibility row whenever either value contains a fraction.
+ */
+export function legacyQuizPoints(score: number, total: number) {
+  const safeScore = Number.isFinite(score) ? score : 0;
+  const safeTotal = Number.isFinite(total) ? total : 0;
+  const scale = Number.isInteger(safeScore) && Number.isInteger(safeTotal) ? 1 : 100;
+  return {
+    score: Math.round(safeScore * scale),
+    total: Math.round(safeTotal * scale),
+  };
+}
+
 export function assessmentItemVersionSnapshots(input: {
   sourceType: "QUIZ_QUESTION" | "LESSON_ACTIVITY_QUESTION";
   sourceItemKey: string;
@@ -46,4 +61,3 @@ export function assessmentItemVersionSnapshots(input: {
     },
   };
 }
-

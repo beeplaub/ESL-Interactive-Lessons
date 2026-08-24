@@ -4,7 +4,7 @@ import { requireUser } from "@/lib/auth";
 import { completeCourseItemsForContent } from "@/lib/courseProgress";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { asRecord, isCorrect, questionScore, questionTotal } from "@/lib/quizScoring";
-import { assessmentItemVersionSnapshots, clampPoints, scorePercent } from "@/lib/assessmentContract";
+import { assessmentItemVersionSnapshots, clampPoints, legacyQuizPoints, scorePercent } from "@/lib/assessmentContract";
 import { lessonScoredQuestions } from "@/lib/lessonActivityScoring";
 import { isWritingQuestionType, resolveWritingOutcome } from "@/lib/writingGrading";
 import { recalculateCourseAssessmentsForContent } from "@/lib/courseAssessmentService";
@@ -51,8 +51,7 @@ export async function recordQuizAttempt(input: {
     user_id: user.id,
     quiz_id: input.quizId ?? null,
     lesson_slide_activity_id: input.lessonSlideActivityId ?? null,
-    score: input.score,
-    total: input.total,
+    ...legacyQuizPoints(input.score, input.total),
     answers: input.answers as Json,
     time_taken_seconds: input.timeTakenSeconds ?? null,
     status: "SUBMITTED",
@@ -68,9 +67,9 @@ export async function recordQuizAttempt(input: {
       ...input,
     });
     if (detailed) {
+      const legacyPoints = legacyQuizPoints(detailed.score, detailed.total);
       await (admin.from("quiz_attempts") as any).update({
-        score: detailed.score,
-        total: detailed.total,
+        ...legacyPoints,
         status: detailed.status,
         grading_source: detailed.gradingSource,
         assessment_attempt_id: detailed.attemptId,
