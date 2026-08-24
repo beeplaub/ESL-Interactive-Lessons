@@ -11,7 +11,7 @@ import { getSpeechRecognitionConstructor, transcriptContainsTarget } from "@/lib
 import { asRecord, isCorrect, partialCreditStats, questionScore, questionTotal } from "@/lib/quizScoring";
 import { SoundToggle } from "@/components/gamification/SoundToggle";
 import { CELEBRATION_SCORE_THRESHOLD, fireCompletionConfetti } from "@/lib/gamification/confetti";
-import { playCelebration, playCorrect, playPartial, playWrong } from "@/lib/gamification/sounds";
+import { playCelebration, playCorrect, playPartial, playRecordingEnd, playRecordingStart, playWrong } from "@/lib/gamification/sounds";
 import { ResultsOverview } from "@/components/gamification/ResultsOverview";
 import { StreakPopup } from "@/components/gamification/StreakPopup";
 import { computeBestStreak, NOTABLE_STREAK_THRESHOLD } from "@/lib/gamification/resultsOverview";
@@ -2267,6 +2267,7 @@ function OralResponse({
           }
         };
         recorder.start(1000);
+        playRecordingStart();
       } catch {
         recordingRef.current = false;
         setRecording(false);
@@ -2361,6 +2362,7 @@ function OralResponse({
     };
 
     startRecognitionSession();
+    playRecordingStart();
   }
 
   const stopRecording = useCallback(() => {
@@ -2368,6 +2370,7 @@ function OralResponse({
       recordingRef.current = false;
       setRecording(false);
       setProcessing(true);
+      playRecordingEnd();
       mediaRecorderRef.current.stop();
       return;
     }
@@ -2378,6 +2381,7 @@ function OralResponse({
     }
     recognitionRef.current?.stop();
     setRecording(false);
+    playRecordingEnd();
     onChange({
       transcript: transcriptRef.current,
       duration_seconds: Math.floor((Date.now() - startedAtRef.current) / 1000),

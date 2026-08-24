@@ -96,3 +96,19 @@ export function playCelebration() {
     { frequency: 1046.5, startOffset: 0.27, duration: 0.28, gain: 0.08 }
   ]);
 }
+
+/** Soft rising cue when a speaking response begins. */
+export function playRecordingStart() {
+  playTones([
+    { frequency: 523.25, startOffset: 0, duration: 0.12, gain: 0.045 },
+    { frequency: 659.25, startOffset: 0.08, duration: 0.16, gain: 0.05 },
+  ]);
+}
+
+/** Soft falling cue when a speaking response is finished. */
+export function playRecordingEnd() {
+  playTones([
+    { frequency: 659.25, startOffset: 0, duration: 0.12, gain: 0.045 },
+    { frequency: 523.25, startOffset: 0.08, duration: 0.18, gain: 0.05 },
+  ]);
+}
