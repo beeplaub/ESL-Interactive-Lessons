@@ -2174,6 +2174,8 @@ function OralResponse({
   const hasRecordedResponse = Boolean(value?.transcript?.trim());
   const [supported, setSupported] = useState(true);
   const [recording, setRecording] = useState(false);
+  const [processing, setProcessing] = useState(false);
+  const [mobileError, setMobileError] = useState<string | null>(null);
   const [seconds, setSeconds] = useState(0);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const recordingRef = useRef(false);
@@ -2183,12 +2185,17 @@ function OralResponse({
   const startedAtRef = useRef(0);
   const mobileSilenceTimerRef = useRef<number | null>(null);
   const mobileRestartDelayRef = useRef(750);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const mobileAudioChunksRef = useRef<Blob[]>([]);
 
   useEffect(() => {
     setSupported(getSpeechRecognitionConstructor() !== null);
     return () => {
       recordingRef.current = false;
       recognitionRef.current?.abort();
+      mediaRecorderRef.current?.stop();
+      mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
       if (mobileSilenceTimerRef.current !== null) window.clearTimeout(mobileSilenceTimerRef.current);
     };
   }, []);
@@ -2196,10 +2203,81 @@ function OralResponse({
   const isMobileBrowser = () => /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
     || (navigator.maxTouchPoints > 1 && /Macintosh/i.test(navigator.userAgent));
 
-  function startRecording() {
+  async function startRecording() {
+    const mobile = isMobileBrowser();
+    if (mobile) {
+      if (disabled || !navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") return;
+      setMobileError(null);
+      setProcessing(false);
+      recordingRef.current = true;
+      startedAtRef.current = Date.now();
+      setSeconds(0);
+      setRecording(true);
+      mobileAudioChunksRef.current = [];
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        if (!recordingRef.current) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+        mediaStreamRef.current = stream;
+        const mimeType = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"]
+          .find((candidate) => MediaRecorder.isTypeSupported(candidate));
+        const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+        mediaRecorderRef.current = recorder;
+        recorder.ondataavailable = (event) => {
+          if (event.data.size > 0) mobileAudioChunksRef.current.push(event.data);
+        };
+        recorder.onerror = () => {
+          setMobileError("The microphone stopped unexpectedly. Please try again.");
+          setRecording(false);
+          setProcessing(false);
+        };
+        recorder.onstop = async () => {
+          mediaRecorderRef.current = null;
+          mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+          mediaStreamRef.current = null;
+          const audio = new Blob(mobileAudioChunksRef.current, { type: recorder.mimeType || "audio/webm" });
+          mobileAudioChunksRef.current = [];
+          if (!audio.size) {
+            setProcessing(false);
+            setMobileError("No audio was recorded. Please try again.");
+            return;
+          }
+          setProcessing(true);
+          const form = new FormData();
+          form.append("file", audio, `oral-response.${audio.type.includes("mp4") ? "mp4" : "webm"}`);
+          form.append("durationSeconds", String(Math.floor((Date.now() - startedAtRef.current) / 1000)));
+          try {
+            const response = await fetch("/api/speech/transcribe", { method: "POST", body: form });
+            const result = await response.json().catch(() => ({})) as { transcript?: string; error?: string };
+            if (!response.ok || !result.transcript) {
+              setMobileError(result.error || "Transcription is temporarily unavailable. Please try again later.");
+              return;
+            }
+            onChange({
+              transcript: result.transcript,
+              duration_seconds: Math.floor((Date.now() - startedAtRef.current) / 1000),
+              self_rating: value?.self_rating,
+            });
+          } catch {
+            setMobileError("Transcription is temporarily unavailable. Please try again later.");
+          } finally {
+            setProcessing(false);
+          }
+        };
+        recorder.start(1000);
+      } catch {
+        recordingRef.current = false;
+        setRecording(false);
+        setProcessing(false);
+        setMobileError("Microphone access was blocked. Please allow microphone access and try again.");
+      }
+      return;
+    }
+
     const Recognition = getSpeechRecognitionConstructor();
     if (!Recognition || disabled) return;
-    const mobile = isMobileBrowser();
     recordingRef.current = true;
     transcriptRef.current = "";
     committedTranscriptRef.current = "";
@@ -2286,6 +2364,13 @@ function OralResponse({
   }
 
   const stopRecording = useCallback(() => {
+    if (isMobileBrowser() && mediaRecorderRef.current?.state === "recording") {
+      recordingRef.current = false;
+      setRecording(false);
+      setProcessing(true);
+      mediaRecorderRef.current.stop();
+      return;
+    }
     recordingRef.current = false;
     if (mobileSilenceTimerRef.current !== null) {
       window.clearTimeout(mobileSilenceTimerRef.current);
@@ -2310,7 +2395,7 @@ function OralResponse({
     return () => window.clearInterval(timer);
   }, [recording, maxSeconds, stopRecording]);
 
-  if (!supported && !submitted) {
+  if (!supported && !submitted && !isMobileBrowser()) {
     return <p className="rounded-[14px] border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Speech recognition is unavailable in this browser. Try Chrome or Edge.</p>;
   }
 
@@ -2332,7 +2417,7 @@ function OralResponse({
         )}
         <motion.button
           type="button"
-          disabled={disabled}
+          disabled={disabled || processing}
           onClick={recording ? stopRecording : startRecording}
           aria-label={recording ? "Tap to finish speaking" : hasRecordedResponse ? "Record again" : "Start speaking"}
           whileHover={disabled ? undefined : { scale: 1.06 }}
@@ -2349,11 +2434,14 @@ function OralResponse({
           </div>
           <p className="text-sm font-bold text-[var(--br-chart-primary)]">I&apos;m listening · Tap to finish · {Math.max(0, maxSeconds - seconds)}s</p>
         </div>
+      ) : processing ? (
+        <p className="relative z-10 flex items-center gap-2 text-sm font-bold text-[var(--br-chart-primary)]"><Loader2 size={16} className="animate-spin" /> Preparing your response…</p>
       ) : hasRecordedResponse ? (
         <p className="relative z-10 rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-bold text-emerald-700">{submitted ? "Response recorded" : "Response recorded · Tap the green button to record again"}</p>
       ) : (
         <p className="relative z-10 text-sm font-bold text-[var(--br-action-strong)]">Tap the microphone and start speaking</p>
       )}
+      {mobileError ? <p className="relative z-10 w-full rounded-[14px] border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-900">{mobileError}</p> : null}
       {targetPhrases.length > 0 && !submitted && !hasRecordedResponse ? <p className="relative z-10 text-xs text-[var(--br-text-muted)]">Speak naturally and try to use the target language.</p> : null}
       </> : null}
       {submitted && value?.transcript ? (
