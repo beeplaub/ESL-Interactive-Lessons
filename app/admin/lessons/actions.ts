@@ -1854,7 +1854,7 @@ export async function updateSlideActivity(input: {
   needsReview?: boolean;
 }): Promise<{ success: boolean; error?: string }> {
   try {
-    await requireLessonAccess(input.lessonId);
+    const { user } = await requireLessonAccess(input.lessonId);
     const supabase = createAdminClient();
     const activityData =
       typeof input.activityData === "string"
@@ -1886,9 +1886,11 @@ export async function deleteSlideActivity(input: {
   lessonId: string;
 }): Promise<{ success: boolean; error?: string }> {
   try {
-    await requireLessonAccess(input.lessonId);
+    const { user } = await requireLessonAccess(input.lessonId);
     const supabase = createAdminClient();
-    const { error } = await supabase.from("lesson_slide_activities").delete().eq("id", input.activityId);
+    const { error } = await (supabase.from("lesson_slide_activities") as any)
+      .update({ deleted_at: new Date().toISOString(), deleted_by: user.id })
+      .eq("id", input.activityId).is("deleted_at", null);
     if (error) throw error;
     revalidatePath(`/admin/lessons/${input.lessonId}/edit`);
     return { success: true };
