@@ -2187,9 +2187,14 @@ function OralResponse({
   function startRecording() {
     const Recognition = getSpeechRecognitionConstructor();
     if (!Recognition || disabled) return;
+    const isMobileBrowser = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
+      || (navigator.maxTouchPoints > 1 && /Macintosh/i.test(navigator.userAgent));
     const recognition = new Recognition();
     recognition.lang = "en-US";
-    recognition.continuous = true;
+    // Mobile Chrome frequently ends a continuous Web Speech session during an ordinary pause.
+    // Restarting it here reopens the microphone and produces the repeated notification beep.
+    // Let the mobile session finish quietly; desktop browsers reliably keep continuous sessions alive.
+    recognition.continuous = !isMobileBrowser;
     recognition.interimResults = true;
     recognition.maxAlternatives = 1;
     recognitionRef.current = recognition;
@@ -2210,6 +2215,16 @@ function OralResponse({
     };
     recognition.onend = () => {
       if (recordingRef.current) {
+        if (isMobileBrowser) {
+          recordingRef.current = false;
+          setRecording(false);
+          onChange({
+            transcript: transcriptRef.current,
+            duration_seconds: Math.floor((Date.now() - startedAtRef.current) / 1000),
+            self_rating: value?.self_rating,
+          });
+          return;
+        }
         try { recognition.start(); } catch { /* browser may already be restarting */ }
         return;
       }

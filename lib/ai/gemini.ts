@@ -21,6 +21,24 @@ import {
 // Initialize Gemini client lazily when first called
 let aiClient: GoogleGenAI | null = null;
 
+const AI_GENERATION_TIMEOUT_MS = 45_000;
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(message)), timeoutMs);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      }
+    );
+  });
+}
+
 function getGeminiClient(): GoogleGenAI {
   if (aiClient) return aiClient;
 
@@ -487,7 +505,7 @@ export async function callGemini<T>({
   try {
   for (const modelName of modelCandidates) {
     const generateCall = async (promptOverride?: string): Promise<{ text: string; usage: AiUsage }> => {
-      const response = await ai.models.generateContent({
+      const response = await withTimeout(ai.models.generateContent({
         model: modelName,
         contents: promptOverride || finalPrompt,
         config: {
@@ -495,7 +513,7 @@ export async function callGemini<T>({
           responseMimeType: "application/json",
           responseSchema: responseSchema // Passes JSON schema constraints directly to Gemini
         }
-      });
+      }), AI_GENERATION_TIMEOUT_MS, "AI grading timed out while waiting for a response.");
 
       const text = response.text;
       if (!text) {

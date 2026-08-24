@@ -12,6 +12,25 @@ import type { EvaluationMode, WritingAnswerValue } from "@/lib/writingGrading";
 import type { Json } from "@/types/database.types";
 
 export type { EvaluationMode };
+const AI_GRADING_TIMEOUT_MS = 60_000;
+const GRADING_SAVE_TIMEOUT_MS = 20_000;
+
+function withClientTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = window.setTimeout(() => reject(new Error(message)), timeoutMs);
+    promise.then(
+      (value) => {
+        window.clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        window.clearTimeout(timer);
+        reject(error);
+      }
+    );
+  });
+}
+
 type ActivityEvaluationSelection = {
   mode: EvaluationMode;
   onAiUnavailable?: () => void;
@@ -166,7 +185,7 @@ export function WritingEvaluationInterface({
   function handleRunAiFeedback() {
     setError(null);
     startTransition(async () => {
-      const res = await evaluateWritingWithAiAction({
+      const res = await withClientTimeout(evaluateWritingWithAiAction({
         activityId,
         lessonId,
         quizId,
@@ -175,7 +194,10 @@ export function WritingEvaluationInterface({
         submissionText,
         rubricGuidance,
         modelAnswer
-      });
+      }), AI_GRADING_TIMEOUT_MS, "AI grading timed out. Please choose another grading method.").catch((error) => ({
+        success: false as const,
+        error: error instanceof Error ? error.message : "AI grading timed out. Please choose another grading method."
+      }));
 
       if (res.success && res.data) {
         const outcome: WritingAnswerValue = {
@@ -185,7 +207,7 @@ export function WritingEvaluationInterface({
           score: res.data.score,
           aiFeedback: res.data as unknown as Record<string, unknown>
         };
-        const saved = await saveWritingGradingOutcomeAction({
+        const saved = await withClientTimeout(saveWritingGradingOutcomeAction({
           lessonId,
           quizId,
           activityId,
@@ -197,9 +219,15 @@ export function WritingEvaluationInterface({
           status: "GRADED",
           aiScore: res.data.score,
           aiFeedback: res.data as unknown as Json
-        });
+        }), GRADING_SAVE_TIMEOUT_MS, "Saving the AI feedback timed out. Please choose another grading method.").catch((error) => ({
+          success: false as const,
+          error: error instanceof Error ? error.message : "Saving the AI feedback timed out. Please choose another grading method."
+        }));
         if (!saved.success) {
-          setError(saved.error || "Your feedback was created, but it could not be saved. Please try again.");
+          autoStartedRef.current = false;
+          setChosenMode(null);
+          if (activitySelection?.onAiUnavailable) activitySelection.onAiUnavailable();
+          else setError(saved.error || "Your feedback could not be saved. Please try again.");
           return;
         }
         setChosenMode("AI_FEEDBACK");
@@ -207,7 +235,7 @@ export function WritingEvaluationInterface({
         onGraded?.({ ...outcome, submissionId: saved.submissionId });
       } else {
         const failure = res as { error?: string; reason?: string };
-        if (failure.reason === "AI_BUSY" && activitySelection?.onAiUnavailable) {
+        if (activitySelection?.onAiUnavailable) {
           autoStartedRef.current = false;
           setChosenMode(null);
           activitySelection.onAiUnavailable();
