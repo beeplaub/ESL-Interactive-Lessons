@@ -2179,14 +2179,14 @@ function OralResponse({
   const recordingRef = useRef(false);
   const transcriptRef = useRef(value?.transcript ?? "");
   const startedAtRef = useRef(0);
+  const mobileSilenceTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
-    const mobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
-      || (navigator.maxTouchPoints > 1 && /Macintosh/i.test(navigator.userAgent));
     setSupported(getSpeechRecognitionConstructor() !== null);
     return () => {
       recordingRef.current = false;
       recognitionRef.current?.abort();
+      if (mobileSilenceTimerRef.current !== null) window.clearTimeout(mobileSilenceTimerRef.current);
     };
   }, []);
 
@@ -2221,13 +2221,14 @@ function OralResponse({
     recognition.onend = () => {
       if (recordingRef.current) {
         if (mobile) {
-          recordingRef.current = false;
-          setRecording(false);
-          onChange({
-            transcript: transcriptRef.current,
-            duration_seconds: Math.floor((Date.now() - startedAtRef.current) / 1000),
-            self_rating: value?.self_rating,
-          });
+          // Mobile browsers may end Speech Recognition after a short silence even
+          // with continuous=true. Keep the learner's recording session alive and
+          // reopen recognition after a 10-second grace period.
+          mobileSilenceTimerRef.current = window.setTimeout(() => {
+            mobileSilenceTimerRef.current = null;
+            if (!recordingRef.current) return;
+            try { recognition.start(); } catch { /* the learner can still finish the session */ }
+          }, 10_000);
           return;
         }
         try { recognition.start(); } catch { /* browser may already be restarting */ }
@@ -2240,6 +2241,10 @@ function OralResponse({
 
   const stopRecording = useCallback(() => {
     recordingRef.current = false;
+    if (mobileSilenceTimerRef.current !== null) {
+      window.clearTimeout(mobileSilenceTimerRef.current);
+      mobileSilenceTimerRef.current = null;
+    }
     recognitionRef.current?.stop();
     setRecording(false);
     onChange({
