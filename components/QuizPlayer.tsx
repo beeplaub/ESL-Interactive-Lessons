@@ -16,6 +16,7 @@ import { ResultsOverview } from "@/components/gamification/ResultsOverview";
 import { StreakPopup } from "@/components/gamification/StreakPopup";
 import { computeBestStreak, NOTABLE_STREAK_THRESHOLD } from "@/lib/gamification/resultsOverview";
 import { ActivityEvaluationModeContext, AiUnavailableDialog, EvaluationMethodDialog, WritingEvaluationInterface } from "@/components/WritingEvaluationInterface";
+import { transcribeOralResponseAudioAction } from "@/app/admin/lessons/writingActions";
 import { asWritingValue, isAwaitingResolution, isWritingQuestionType, resolveWritingOutcome, type EvaluationMode, type WritingAnswerValue } from "@/lib/writingGrading";
 
 export type QuizQuestion = {
@@ -2170,31 +2171,107 @@ function OralResponse({
   const hasRecordedResponse = Boolean(value?.transcript?.trim());
   const [supported, setSupported] = useState(true);
   const [recording, setRecording] = useState(false);
+  const [processingAudio, setProcessingAudio] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const mediaChunksRef = useRef<Blob[]>([]);
   const recordingRef = useRef(false);
   const transcriptRef = useRef(value?.transcript ?? "");
   const startedAtRef = useRef(0);
 
   useEffect(() => {
-    setSupported(getSpeechRecognitionConstructor() !== null);
+    const mobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
+      || (navigator.maxTouchPoints > 1 && /Macintosh/i.test(navigator.userAgent));
+    setSupported(mobile ? Boolean(navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === "function" && typeof MediaRecorder !== "undefined") : getSpeechRecognitionConstructor() !== null);
     return () => {
       recordingRef.current = false;
       recognitionRef.current?.abort();
+      if (mediaRecorderRef.current?.state === "recording") mediaRecorderRef.current.stop();
+      mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
     };
   }, []);
 
+  const isMobileBrowser = () => /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
+    || (navigator.maxTouchPoints > 1 && /Macintosh/i.test(navigator.userAgent));
+
+  async function blobToBase64(blob: Blob) {
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    let binary = "";
+    const chunkSize = 0x8000;
+    for (let index = 0; index < bytes.length; index += chunkSize) {
+      binary += String.fromCharCode(...bytes.subarray(index, index + chunkSize));
+    }
+    return btoa(binary);
+  }
+
+  async function startMobileRecording() {
+    if (disabled || !navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== "function" || typeof MediaRecorder === "undefined") return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"]
+        .find((candidate) => MediaRecorder.isTypeSupported(candidate)) ?? "";
+      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+      mediaStreamRef.current = stream;
+      mediaRecorderRef.current = recorder;
+      mediaChunksRef.current = [];
+      startedAtRef.current = Date.now();
+      setSeconds(0);
+      setRecording(true);
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) mediaChunksRef.current.push(event.data);
+      };
+      recorder.onstop = async () => {
+        const audioBlob = new Blob(mediaChunksRef.current, { type: recorder.mimeType || mimeType || "audio/webm" });
+        mediaChunksRef.current = [];
+        mediaRecorderRef.current = null;
+        mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+        mediaStreamRef.current = null;
+        setRecording(false);
+        if (!audioBlob.size) return;
+        setProcessingAudio(true);
+        try {
+          const result = await transcribeOralResponseAudioAction({
+            audioBase64: await blobToBase64(audioBlob),
+            mimeType: audioBlob.type,
+            activityId: question.source_activity_id ?? question.id,
+            lessonId,
+            quizId,
+            prompt: question.question_text,
+          });
+          if (result.success && result.transcript) {
+            transcriptRef.current = result.transcript;
+            onChange({
+              transcript: result.transcript,
+              duration_seconds: Math.floor((Date.now() - startedAtRef.current) / 1000),
+              self_rating: value?.self_rating,
+            });
+          }
+        } finally {
+          setProcessingAudio(false);
+        }
+      };
+      recorder.start();
+    } catch {
+      mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+      mediaStreamRef.current = null;
+      setRecording(false);
+    }
+  }
+
   function startRecording() {
+    if (isMobileBrowser()) {
+      void startMobileRecording();
+      return;
+    }
     const Recognition = getSpeechRecognitionConstructor();
     if (!Recognition || disabled) return;
-    const isMobileBrowser = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
-      || (navigator.maxTouchPoints > 1 && /Macintosh/i.test(navigator.userAgent));
     const recognition = new Recognition();
     recognition.lang = "en-US";
-    // Mobile Chrome frequently ends a continuous Web Speech session during an ordinary pause.
-    // Restarting it here reopens the microphone and produces the repeated notification beep.
-    // Let the mobile session finish quietly; desktop browsers reliably keep continuous sessions alive.
-    recognition.continuous = !isMobileBrowser;
+    // Desktop keeps the existing live transcript experience. Mobile uses MediaRecorder above
+    // because mobile Web Speech sessions can end during ordinary pauses.
+    recognition.continuous = true;
     recognition.interimResults = true;
     recognition.maxAlternatives = 1;
     recognitionRef.current = recognition;
@@ -2215,16 +2292,6 @@ function OralResponse({
     };
     recognition.onend = () => {
       if (recordingRef.current) {
-        if (isMobileBrowser) {
-          recordingRef.current = false;
-          setRecording(false);
-          onChange({
-            transcript: transcriptRef.current,
-            duration_seconds: Math.floor((Date.now() - startedAtRef.current) / 1000),
-            self_rating: value?.self_rating,
-          });
-          return;
-        }
         try { recognition.start(); } catch { /* browser may already be restarting */ }
         return;
       }
@@ -2234,6 +2301,10 @@ function OralResponse({
   }
 
   const stopRecording = useCallback(() => {
+    if (mediaRecorderRef.current?.state === "recording") {
+      mediaRecorderRef.current.stop();
+      return;
+    }
     recordingRef.current = false;
     recognitionRef.current?.stop();
     setRecording(false);
@@ -2275,7 +2346,7 @@ function OralResponse({
         )}
         <motion.button
           type="button"
-          disabled={disabled}
+          disabled={disabled || processingAudio}
           onClick={recording ? stopRecording : startRecording}
           aria-label={recording ? "Tap to finish speaking" : hasRecordedResponse ? "Record again" : "Start speaking"}
           whileHover={disabled ? undefined : { scale: 1.06 }}
@@ -2292,6 +2363,8 @@ function OralResponse({
           </div>
           <p className="text-sm font-bold text-[var(--br-chart-primary)]">I&apos;m listening · Tap to finish · {Math.max(0, maxSeconds - seconds)}s</p>
         </div>
+      ) : processingAudio ? (
+        <p className="relative z-10 rounded-full bg-amber-100 px-3 py-1.5 text-xs font-bold text-amber-800">Processing your response…</p>
       ) : hasRecordedResponse ? (
         <p className="relative z-10 rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-bold text-emerald-700">{submitted ? "Response recorded" : "Response recorded · Tap the green button to record again"}</p>
       ) : (
