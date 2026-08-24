@@ -441,6 +441,11 @@ type OralResponseFeedbackResult = {
   example_correction: { original: string; corrected: string; explanation: string } | null;
 };
 
+function isAiTemporarilyUnavailable(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  return /credit limit|resource_exhausted|quota|rate limit|\b429\b|capacity|overloaded|\b503\b|unavailable/i.test(message);
+}
+
 /** Models occasionally answer rubric dimensions as 4/5 instead of 80/100.
  * Normalize that representation before it reaches learner scoring. */
 function scoreFromDimensions(value: unknown) {
@@ -566,6 +571,9 @@ export async function evaluateWritingWithAiAction(input: {
       };
     } catch (error) {
       console.error("evaluateOralResponseWithAiAction failed:", error);
+      if (isAiTemporarilyUnavailable(error)) {
+        return { success: false as const, reason: "AI_BUSY" as const };
+      }
       return {
         success: false as const,
         error: "We couldn't generate an AI speaking evaluation right now. Please try again shortly, or choose a different grading option."
@@ -613,6 +621,9 @@ export async function evaluateWritingWithAiAction(input: {
     };
   } catch (error) {
     console.error("evaluateWritingWithAiAction failed:", error);
+    if (isAiTemporarilyUnavailable(error)) {
+      return { success: false as const, reason: "AI_BUSY" as const };
+    }
     return {
       success: false as const,
       error: "We couldn't generate an AI evaluation for this response right now. Please try again shortly, or choose a different grading option."
@@ -708,6 +719,9 @@ export async function evaluateDialogueWritingWithAiAction(input: {
     };
   } catch (error) {
     console.error("evaluateDialogueWritingWithAiAction failed:", error);
+    if (isAiTemporarilyUnavailable(error)) {
+      return { success: false as const, reason: "AI_BUSY" as const };
+    }
     return {
       success: false as const,
       error: "We couldn't generate an AI evaluation for this dialogue right now. Please try again shortly."

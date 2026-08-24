@@ -15,7 +15,7 @@ import { playCelebration, playCorrect, playPartial, playWrong } from "@/lib/gami
 import { ResultsOverview } from "@/components/gamification/ResultsOverview";
 import { StreakPopup } from "@/components/gamification/StreakPopup";
 import { computeBestStreak, NOTABLE_STREAK_THRESHOLD } from "@/lib/gamification/resultsOverview";
-import { ActivityEvaluationModeContext, EvaluationMethodDialog, WritingEvaluationInterface } from "@/components/WritingEvaluationInterface";
+import { ActivityEvaluationModeContext, AiUnavailableDialog, EvaluationMethodDialog, WritingEvaluationInterface } from "@/components/WritingEvaluationInterface";
 import { asWritingValue, isAwaitingResolution, isWritingQuestionType, resolveWritingOutcome, type EvaluationMode, type WritingAnswerValue } from "@/lib/writingGrading";
 
 export type QuizQuestion = {
@@ -361,6 +361,8 @@ export function QuizPlayer({
   const [evaluationMode, setEvaluationMode] = useState<EvaluationMode | null>(null);
   const [showEvaluationDialog, setShowEvaluationDialog] = useState(false);
   const [autoGradingActive, setAutoGradingActive] = useState(false);
+  const [aiTemporarilyUnavailable, setAiTemporarilyUnavailable] = useState(false);
+  const [showAiUnavailableDialog, setShowAiUnavailableDialog] = useState(false);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const [remainingSeconds, setRemainingSeconds] = useState(() => timerMinutes ? timerMinutes * 60 : null);
   const attemptStartRef = useRef(Date.now());
@@ -374,9 +376,18 @@ export function QuizPlayer({
     else if (result === "partial") playPartial();
     else playWrong();
   }, []);
+  const handleAiUnavailable = useCallback(() => {
+    setAiTemporarilyUnavailable(true);
+    setEvaluationMode(null);
+    setAutoGradingActive(false);
+    setShowAiUnavailableDialog(true);
+  }, []);
   const answered = questions.every((question) => hasAnswer(question, answers[question.id]));
   const hasSubjectiveQuestions = questions.some((question) => isWritingQuestionType(question.question_type));
-  const availableEvaluationModes = allowedEvaluationModes(questions);
+  const configuredEvaluationModes = allowedEvaluationModes(questions);
+  const availableEvaluationModes = aiTemporarilyUnavailable
+    ? configuredEvaluationModes.filter((mode) => mode !== "AI_FEEDBACK")
+    : configuredEvaluationModes;
   const subjectiveQuestions = questions.filter((question) => isWritingQuestionType(question.question_type));
   const gradingCompletedCount = subjectiveQuestions.filter((question) => resolveWritingOutcome(answers[question.id]).hasChosenMode).length;
   const totalPoints = questions.reduce((sum, question) => sum + questionTotal(question), 0);
@@ -445,6 +456,8 @@ export function QuizPlayer({
     setEvaluationMode(null);
     setShowEvaluationDialog(false);
     setAutoGradingActive(false);
+    setAiTemporarilyUnavailable(false);
+    setShowAiUnavailableDialog(false);
     setRemainingSeconds(timerMinutes ? timerMinutes * 60 : null);
     attemptStartRef.current = Date.now();
     submissionKeyRef.current = null;
@@ -513,6 +526,19 @@ export function QuizPlayer({
     if (Math.abs(deltaX) < 55 || Math.abs(deltaX) < Math.abs(deltaY) * 1.2) return;
     if (deltaX < 0) goToQuestion(currentIndex + 1);
     if (deltaX > 0) goToQuestion(currentIndex - 1);
+  }
+
+  function resumeSavedAttemptGrading(mode: EvaluationMode) {
+    setEvaluationMode(mode);
+    setShowEvaluationDialog(false);
+    setAutoGradingActive(mode === "AI_FEEDBACK" || mode === "TEACHER_REVIEW");
+    const nextIndex = questions.findIndex((question) =>
+      isWritingQuestionType(question.question_type) && isAwaitingResolution(answers[question.id])
+    );
+    if (nextIndex >= 0) {
+      setReviewMode("detail");
+      setCurrentIndex(nextIndex);
+    }
   }
 
   const submit = useCallback((modeOverride?: EvaluationMode) => {
@@ -715,7 +741,7 @@ export function QuizPlayer({
         onTouchCancel={() => { touchStartRef.current = null; }}
       >
         {currentQuestion ? (
-          <ActivityEvaluationModeContext.Provider value={evaluationMode}>
+          <ActivityEvaluationModeContext.Provider value={evaluationMode ? { mode: evaluationMode, onAiUnavailable: handleAiUnavailable } : null}>
             <QuestionCard
               key={currentQuestion.id}
               question={currentQuestion}
@@ -808,7 +834,8 @@ export function QuizPlayer({
     {showPopup && guestAttempt ? (
       <GuestScorePopup score={score} total={totalPoints} attempt={guestAttempt} onDismiss={() => setShowPopup(false)} />
     ) : null}
-    {showEvaluationDialog ? <EvaluationMethodDialog allowedModes={availableEvaluationModes} onClose={() => setShowEvaluationDialog(false)} onChoose={(mode) => { setMessage(null); submit(mode); }} /> : null}
+    {showEvaluationDialog ? <EvaluationMethodDialog allowedModes={availableEvaluationModes} onClose={() => setShowEvaluationDialog(false)} onChoose={(mode) => { setMessage(null); if (submitted) resumeSavedAttemptGrading(mode); else submit(mode); }} /> : null}
+    {showAiUnavailableDialog ? <AiUnavailableDialog onClose={() => { setShowAiUnavailableDialog(false); setShowEvaluationDialog(true); }} /> : null}
     </>
   );
 }
@@ -2140,6 +2167,7 @@ function OralResponse({
   const allowSelfGraded = opts.allow_self_graded !== false;
   const modelAnswer = String(opts.model_answer ?? "").trim();
   const targetPhrases = Array.isArray(opts.target_phrases) ? opts.target_phrases.map(String).filter(Boolean) : [];
+  const hasRecordedResponse = Boolean(value?.transcript?.trim());
   const [supported, setSupported] = useState(true);
   const [recording, setRecording] = useState(false);
   const [seconds, setSeconds] = useState(0);
@@ -2166,6 +2194,7 @@ function OralResponse({
     recognition.maxAlternatives = 1;
     recognitionRef.current = recognition;
     recordingRef.current = true;
+    transcriptRef.current = "";
     startedAtRef.current = Date.now();
     setSeconds(0);
     setRecording(true);
@@ -2215,19 +2244,45 @@ function OralResponse({
   }
 
   return (
-    <div className="grid justify-items-center gap-4 rounded-[22px] border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] p-5 text-center">
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={recording ? stopRecording : startRecording}
-        aria-label={recording ? "Tap to finish speaking" : "Start speaking"}
-        className={`grid size-20 place-items-center rounded-full bg-[var(--br-brand)] text-white shadow-[var(--br-shadow)] transition-transform disabled:opacity-50 ${recording ? "animate-pulse scale-110" : "hover:scale-105"}`}
-      >
-        {recording ? <MicOff size={30} /> : <Mic size={30} />}
-      </button>
-      {recording ? <p className="text-sm font-semibold text-[var(--br-brand)]">Tap to finish · {Math.max(0, maxSeconds - seconds)}s</p> : null}
-      {!recording && value?.transcript ? <p className="text-xs text-[var(--br-text-muted)]">Response recorded</p> : null}
-      {targetPhrases.length > 0 && !submitted ? <p className="text-xs text-[var(--br-text-muted)]">Speak naturally and try to use the target language.</p> : null}
+    <div className="relative grid justify-items-center gap-4 overflow-hidden rounded-[24px] border border-violet-200/80 bg-gradient-to-br from-violet-50 via-white to-orange-50 p-6 text-center shadow-sm">
+      <div className="pointer-events-none absolute -left-12 -top-14 size-36 rounded-full bg-[var(--br-chart-primary)]/10 blur-2xl" />
+      <div className="pointer-events-none absolute -bottom-16 -right-10 size-40 rounded-full bg-[var(--br-action)]/15 blur-2xl" />
+      <div className="relative grid place-items-center">
+        {recording ? (
+          <>
+            <span className="absolute size-24 animate-ping rounded-full bg-[var(--br-chart-primary)]/20 [animation-duration:1.6s]" />
+            <span className="absolute size-28 animate-pulse rounded-full border border-[var(--br-chart-primary)]/25" />
+          </>
+        ) : !hasRecordedResponse ? (
+          <span className="absolute size-24 animate-pulse rounded-full bg-[var(--br-action)]/15" />
+        ) : (
+          <span className="absolute size-24 rounded-full bg-[var(--br-success)]/15" />
+        )}
+        <motion.button
+          type="button"
+          disabled={disabled}
+          onClick={recording ? stopRecording : startRecording}
+          aria-label={recording ? "Tap to finish speaking" : hasRecordedResponse ? "Record again" : "Start speaking"}
+          whileHover={disabled ? undefined : { scale: 1.06 }}
+          whileTap={disabled ? undefined : { scale: 0.94 }}
+          className={`relative z-10 grid size-20 place-items-center rounded-full text-white shadow-lg transition-colors disabled:opacity-50 ${recording ? "bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)]" : hasRecordedResponse ? "bg-[var(--br-success)]" : "bg-gradient-to-br from-[var(--br-action)] to-[var(--br-action-strong)]"}`}
+        >
+          {recording ? <MicOff size={30} /> : hasRecordedResponse ? <CheckCircle2 size={31} /> : <Mic size={30} />}
+        </motion.button>
+      </div>
+      {recording ? (
+        <div className="relative z-10 space-y-2">
+          <div className="flex h-5 items-center justify-center gap-1" aria-hidden="true">
+            {[0, 1, 2, 3, 4].map((bar) => <span key={bar} className="w-1 animate-pulse rounded-full bg-[var(--br-chart-primary)]" style={{ height: `${10 + (bar % 3) * 5}px`, animationDelay: `${bar * 100}ms` }} />)}
+          </div>
+          <p className="text-sm font-bold text-[var(--br-chart-primary)]">I&apos;m listening · Tap to finish · {Math.max(0, maxSeconds - seconds)}s</p>
+        </div>
+      ) : hasRecordedResponse ? (
+        <p className="relative z-10 rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-bold text-emerald-700">{submitted ? "Response recorded" : "Response recorded · Tap the green button to record again"}</p>
+      ) : (
+        <p className="relative z-10 text-sm font-bold text-[var(--br-action-strong)]">Tap the microphone and start speaking</p>
+      )}
+      {targetPhrases.length > 0 && !submitted && !hasRecordedResponse ? <p className="relative z-10 text-xs text-[var(--br-text-muted)]">Speak naturally and try to use the target language.</p> : null}
       {submitted && value?.transcript ? (
         <>
           <div className="w-full rounded-[14px] bg-[var(--br-canvas-elevated)] p-3 text-left text-sm leading-6 whitespace-pre-wrap">

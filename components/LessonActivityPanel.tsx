@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, Send, MessageCircle, Award, RefreshCw, Loade
 import { useState, useTransition, useRef, useCallback, useEffect, useLayoutEffect } from "react";
 import { recordQuizAttempt } from "@/app/quizzes/actions";
 import { QuestionCard, hasAnswer, type QuizQuestion } from "@/components/QuizPlayer";
-import { ActivityEvaluationModeContext, EvaluationMethodDialog } from "@/components/WritingEvaluationInterface";
+import { ActivityEvaluationModeContext, AiUnavailableDialog, EvaluationMethodDialog } from "@/components/WritingEvaluationInterface";
 import { isCorrect, questionScore, questionTotal } from "@/lib/quizScoring";
 import { startRoleplaySessionAction, submitRoleplayTurnAction, completeRoleplaySessionAction, saveRoleplayVoiceTranscriptAction, getRoleplayHistoryAction } from "@/app/admin/lessons/aiActions";
 import type { Json } from "@/types/database.types";
@@ -1506,6 +1506,8 @@ export function LessonActivityPanel({
   const [evaluationMode, setEvaluationMode] = useState<EvaluationMode | null>(null);
   const [showEvaluationDialog, setShowEvaluationDialog] = useState(false);
   const [autoGradingActive, setAutoGradingActive] = useState(false);
+  const [aiTemporarilyUnavailable, setAiTemporarilyUnavailable] = useState(false);
+  const [showAiUnavailableDialog, setShowAiUnavailableDialog] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [localAttempts, setLocalAttempts] = useState<SavedAttempt[]>(attempts);
   const [isPending, startTransition] = useTransition();
@@ -1517,6 +1519,12 @@ export function LessonActivityPanel({
     if (result === "correct") playCorrect();
     else if (result === "partial") playPartial();
     else playWrong();
+  }, []);
+  const handleAiUnavailable = useCallback(() => {
+    setAiTemporarilyUnavailable(true);
+    setEvaluationMode(null);
+    setAutoGradingActive(false);
+    setShowAiUnavailableDialog(true);
   }, []);
 
   // Carousel state
@@ -1616,11 +1624,14 @@ export function LessonActivityPanel({
   const allAnswered = questions.length > 0 && questions.every((q) => hasAnswer(q, answers[q.id]));
   const answeredCount = questions.filter((question) => hasAnswer(question, answers[question.id])).length;
   const progressPercent = questions.length ? Math.round(answeredCount / questions.length * 100) : 0;
-  const availableEvaluationModes = ([
+  const configuredEvaluationModes = ([
     ["AI_FEEDBACK", "allow_ai_feedback"],
     ["SELF_GRADED", "allow_self_graded"],
     ["TEACHER_REVIEW", "allow_teacher_review"],
   ] as Array<[EvaluationMode, string]>).filter(([, key]) => questions.filter((question) => isWritingQuestionType(question.question_type)).every((question) => asRecord(question.options)[key] !== false)).map(([mode]) => mode);
+  const availableEvaluationModes = aiTemporarilyUnavailable
+    ? configuredEvaluationModes.filter((mode) => mode !== "AI_FEEDBACK")
+    : configuredEvaluationModes;
   const bestStreak = submitted ? computeBestStreak(questions, answers) : 0;
 
   if (questions.length === 0) {
@@ -1634,6 +1645,19 @@ export function LessonActivityPanel({
         </p>
       </section>
     );
+  }
+
+  function resumeSavedAttemptGrading(mode: EvaluationMode) {
+    setEvaluationMode(mode);
+    setShowEvaluationDialog(false);
+    setAutoGradingActive(mode === "AI_FEEDBACK" || mode === "TEACHER_REVIEW");
+    const nextIndex = questions.findIndex((question) =>
+      isWritingQuestionType(question.question_type) && isAwaitingResolution(answers[question.id])
+    );
+    if (nextIndex >= 0) {
+      setReviewMode("detail");
+      setQIndex(nextIndex);
+    }
   }
 
   function submit(modeOverride?: EvaluationMode) {
@@ -1705,6 +1729,8 @@ export function LessonActivityPanel({
     setEvaluationMode(null);
     setShowEvaluationDialog(false);
     setAutoGradingActive(false);
+    setAiTemporarilyUnavailable(false);
+    setShowAiUnavailableDialog(false);
     setStreakPopupDismissed(false);
     celebratedRef.current = false;
     submissionKeyRef.current = null;
@@ -1824,7 +1850,7 @@ export function LessonActivityPanel({
 
           {/* Current question */}
           <div className="min-h-[120px]">
-            <ActivityEvaluationModeContext.Provider value={evaluationMode}>
+            <ActivityEvaluationModeContext.Provider value={evaluationMode ? { mode: evaluationMode, onAiUnavailable: handleAiUnavailable } : null}>
               <QuestionCard
                 key={currentQuestion.id}
                 question={currentQuestion}
@@ -1896,7 +1922,8 @@ export function LessonActivityPanel({
           </div>
         </div>
       ) : null}
-      {showEvaluationDialog ? <EvaluationMethodDialog allowedModes={availableEvaluationModes} onClose={() => setShowEvaluationDialog(false)} onChoose={(mode) => { setMessage(null); submit(mode); }} /> : null}
+      {showEvaluationDialog ? <EvaluationMethodDialog allowedModes={availableEvaluationModes} onClose={() => setShowEvaluationDialog(false)} onChoose={(mode) => { setMessage(null); if (submitted) resumeSavedAttemptGrading(mode); else submit(mode); }} /> : null}
+      {showAiUnavailableDialog ? <AiUnavailableDialog onClose={() => { setShowAiUnavailableDialog(false); setShowEvaluationDialog(true); }} /> : null}
     </section>
   );
 }

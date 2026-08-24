@@ -12,7 +12,11 @@ import type { EvaluationMode, WritingAnswerValue } from "@/lib/writingGrading";
 import type { Json } from "@/types/database.types";
 
 export type { EvaluationMode };
-export const ActivityEvaluationModeContext = createContext<EvaluationMode | null>(null);
+type ActivityEvaluationSelection = {
+  mode: EvaluationMode;
+  onAiUnavailable?: () => void;
+};
+export const ActivityEvaluationModeContext = createContext<ActivityEvaluationSelection | null>(null);
 
 export function EvaluationMethodPicker({ value, onChange, allowedModes = ["AI_FEEDBACK", "SELF_GRADED", "TEACHER_REVIEW"] }: { value: EvaluationMode | null; onChange: (mode: EvaluationMode) => void; allowedModes?: EvaluationMode[] }) {
   const choices: Array<{ mode: EvaluationMode; title: string; detail: string; className: string }> = [
@@ -22,22 +26,47 @@ export function EvaluationMethodPicker({ value, onChange, allowedModes = ["AI_FE
   ];
   return (
     <div className="grid gap-3 sm:grid-cols-3">
-        {choices.filter((choice) => allowedModes.includes(choice.mode)).map((choice) => (
-          <button key={choice.mode} type="button" onClick={() => onChange(choice.mode)} className={`rounded-2xl border p-4 text-left transition ${choice.className} ${value === choice.mode ? "ring-2 ring-[var(--br-chart-primary)]/25" : ""}`}>
-            <span className="block text-sm font-bold text-ink">{choice.title}</span>
+      {choices.map((choice) => {
+        const available = allowedModes.includes(choice.mode);
+        return (
+          <button
+            key={choice.mode}
+            type="button"
+            disabled={!available}
+            onClick={() => onChange(choice.mode)}
+            className={`relative rounded-2xl border p-4 text-left transition ${available ? `${choice.className} hover:-translate-y-0.5 hover:shadow-md` : "cursor-not-allowed border-slate-200 bg-slate-100/80 opacity-70"} ${value === choice.mode ? "ring-2 ring-[var(--br-chart-primary)]/25" : ""}`}
+          >
+            <span className={`block text-sm font-bold ${available ? "text-ink" : "text-slate-500"}`}>{choice.title}</span>
             <span className="mt-1 block text-xs leading-5 text-[var(--br-text-muted)]">{choice.detail}</span>
+            {!available ? <span className="mt-3 inline-flex rounded-full bg-slate-200 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-600">Unavailable</span> : null}
           </button>
-        ))}
+        );
+      })}
     </div>
   );
 }
 
 export function EvaluationMethodDialog({ allowedModes, onChoose, onClose }: { allowedModes: EvaluationMode[]; onChoose: (mode: EvaluationMode) => void; onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Choose grading method" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <div className="relative w-full max-w-3xl rounded-[24px] border border-white/20 bg-surface p-5 pt-16 shadow-2xl sm:p-7 sm:pt-16">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="evaluation-method-title" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <div className="relative w-full max-w-3xl rounded-[24px] border border-white/20 bg-surface p-5 shadow-2xl sm:p-7">
         <button type="button" onClick={onClose} aria-label="Close grading options" className="absolute right-4 top-4 grid size-10 place-items-center rounded-full border border-[var(--br-border)] text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"><X size={18} /></button>
+        <h2 id="evaluation-method-title" className="mb-5 pr-12 text-xl font-extrabold text-ink">Choose a grading method</h2>
         <EvaluationMethodPicker value={null} allowedModes={allowedModes} onChange={onChoose} />
+      </div>
+    </div>
+  );
+}
+
+export function AiUnavailableDialog({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/45 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="ai-unavailable-title">
+      <div className="relative w-full max-w-md rounded-[24px] border border-white/50 bg-white p-6 text-center shadow-2xl sm:p-8">
+        <button type="button" onClick={onClose} aria-label="Choose another grading method" className="absolute right-4 top-4 grid size-9 place-items-center rounded-full border border-slate-200 text-slate-500 hover:bg-slate-50"><X size={17} /></button>
+        <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-violet-50 text-[var(--br-chart-primary)]"><Sparkles size={23} /></span>
+        <h2 id="ai-unavailable-title" className="mt-4 text-xl font-extrabold text-ink">Oops! AI is busy right now.</h2>
+        <p className="mt-2 text-sm leading-6 text-[var(--br-text-muted)]">Let&apos;s choose another grading method.</p>
+        <button type="button" onClick={onClose} className="mt-5 w-full rounded-xl bg-[var(--br-action)] px-4 py-3 text-sm font-extrabold text-white shadow-sm hover:bg-[var(--br-action-strong)]">Choose another method</button>
       </div>
     </div>
   );
@@ -103,7 +132,8 @@ export function WritingEvaluationInterface({
    * its answers state (and, for AI/self, it's also independently saved server-side for the record). */
   onGraded?: (outcome: WritingAnswerValue) => void;
 }) {
-  const activityMode = useContext(ActivityEvaluationModeContext);
+  const activitySelection = useContext(ActivityEvaluationModeContext);
+  const activityMode = activitySelection?.mode ?? null;
   // Chosen evaluation mode — once set (and resolved), it is locked for the remainder of this attempt.
   // The only way to pick a different method is to retake the whole activity (see the parent's Retake
   // button), not an in-place reset here — otherwise a learner could see a weak AI/teacher score and
@@ -176,9 +206,16 @@ export function WritingEvaluationInterface({
         setAiResult(res.data);
         onGraded?.({ ...outcome, submissionId: saved.submissionId });
       } else {
+        const failure = res as { error?: string; reason?: string };
+        if (failure.reason === "AI_BUSY" && activitySelection?.onAiUnavailable) {
+          autoStartedRef.current = false;
+          setChosenMode(null);
+          activitySelection.onAiUnavailable();
+          return;
+        }
         // A genuine AI/system failure — not a completed grading choice — so it's fine to let the
         // learner try again rather than treating this as a locked-in outcome.
-        setError((res as { error?: string }).error || "AI evaluation encountered an issue. Please try again.");
+        setError(failure.error || "AI evaluation encountered an issue. Please try again.");
       }
     });
   }
