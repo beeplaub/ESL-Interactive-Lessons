@@ -64,16 +64,17 @@ async function finalizeAssessmentResponse(admin: ReturnType<typeof createAdminCl
   feedback?: string | null;
 }) {
   const source = input.mode === "AI_FEEDBACK" ? "AI" : input.mode === "SELF_GRADED" ? "SELF" : "TEACHER";
-  const { data: response } = await (admin.from("assessment_responses") as any)
+  const { data: response, error: responseLookupError } = await (admin.from("assessment_responses") as any)
     .select("maximum_points")
     .eq("id", input.responseId)
     .eq("attempt_id", input.attemptId)
     .maybeSingle();
-  if (!response) return;
+  if (responseLookupError) throw responseLookupError;
+  if (!response) throw new Error("The saved assessment response could not be found.");
   const maximum = Number(response.maximum_points ?? 1);
   const earned = Math.max(0, Math.min(maximum, maximum * input.scorePercent / 100));
   const finalizedAt = new Date().toISOString();
-  await (admin.from("assessment_responses") as any).update({
+  const { error: responseUpdateError } = await (admin.from("assessment_responses") as any).update({
     response_data: input.outcome,
     earned_points: earned,
     is_correct: input.scorePercent >= 60,
@@ -83,18 +84,20 @@ async function finalizeAssessmentResponse(admin: ReturnType<typeof createAdminCl
     rubric_data: input.mode === "AI_FEEDBACK" ? input.outcome : null,
     finalized_at: finalizedAt,
   }).eq("id", input.responseId).eq("attempt_id", input.attemptId);
+  if (responseUpdateError) throw responseUpdateError;
 
-  const { data: responses } = await (admin.from("assessment_responses") as any)
+  const { data: responses, error: responsesError } = await (admin.from("assessment_responses") as any)
     .select("earned_points,maximum_points,grading_status,grading_source")
     .eq("attempt_id", input.attemptId)
     .neq("grading_status", "VOID");
+  if (responsesError) throw responsesError;
   const rows = responses ?? [];
   const score = rows.reduce((sum: number, row: any) => sum + Number(row.earned_points ?? 0), 0);
   const total = rows.reduce((sum: number, row: any) => sum + Number(row.maximum_points ?? 0), 0);
   const pending = rows.some((row: any) => row.grading_status === "PENDING_REVIEW");
   const sources = new Set(rows.map((row: any) => String(row.grading_source)));
   const attemptSource = sources.size === 1 ? String(rows[0]?.grading_source ?? source) : source;
-  const { data: attempt } = await (admin.from("assessment_attempts") as any).update({
+  const { data: attempt, error: attemptUpdateError } = await (admin.from("assessment_attempts") as any).update({
     score,
     maximum_score: total,
     score_percent: pending ? null : (total > 0 ? Math.round(score / total * 10000) / 100 : 0),
@@ -102,17 +105,21 @@ async function finalizeAssessmentResponse(admin: ReturnType<typeof createAdminCl
     grading_source: attemptSource,
     finalized_at: pending ? null : finalizedAt,
   }).eq("id", input.attemptId).select("legacy_quiz_attempt_id,source_type,quiz_id,lesson_activity_id,user_id").maybeSingle();
+  if (attemptUpdateError) throw attemptUpdateError;
+  if (!attempt) throw new Error("The assessment attempt score could not be updated.");
 
   if (attempt?.legacy_quiz_attempt_id) {
-    const { data: legacy } = await (admin.from("quiz_attempts") as any).select("answers").eq("id", attempt.legacy_quiz_attempt_id).maybeSingle();
+    const { data: legacy, error: legacyLookupError } = await (admin.from("quiz_attempts") as any).select("answers").eq("id", attempt.legacy_quiz_attempt_id).maybeSingle();
+    if (legacyLookupError) throw legacyLookupError;
     const answers = asRecord(legacy?.answers as Json | null | undefined);
-    await (admin.from("quiz_attempts") as any).update({
+    const { error: legacyUpdateError } = await (admin.from("quiz_attempts") as any).update({
       score,
       total,
       answers: { ...answers, [input.questionKey]: input.outcome },
       status: pending ? "PENDING_REVIEW" : "FINALIZED",
       grading_source: sources.size === 1 ? source : "MIXED",
     }).eq("id", attempt.legacy_quiz_attempt_id);
+    if (legacyUpdateError) throw legacyUpdateError;
   }
   if (!pending && attempt?.user_id) {
     if (attempt.source_type === "QUIZ" && attempt.quiz_id) {
@@ -122,6 +129,7 @@ async function finalizeAssessmentResponse(admin: ReturnType<typeof createAdminCl
       await recalculateCourseAssessmentsForContent(attempt.user_id, "LESSON_ACTIVITY", attempt.lesson_activity_id);
     }
   }
+  return { status: pending ? "PENDING_REVIEW" as const : "FINALIZED" as const, score, total };
 }
 
 /**
@@ -155,6 +163,9 @@ export async function saveWritingGradingOutcomeAction(input: WritingSubmissionIn
     const adminSupabase = createAdminClient();
     const questionKey = input.questionKey ?? "1";
     const assessmentLink = await findPendingAssessmentLink(adminSupabase, user.id, { ...input, questionKey });
+    if (input.status === "GRADED" && !assessmentLink) {
+      throw new Error("Your attempt is still being prepared. Please try grading again.");
+    }
 
     const { data: upserted, error } = await adminSupabase
       .from("writing_submissions")
@@ -186,35 +197,36 @@ export async function saveWritingGradingOutcomeAction(input: WritingSubmissionIn
 
     if (error || !upserted) throw error || new Error("Failed to save grading outcome.");
 
-    if (input.status === "GRADED" && assessmentLink) {
+    let assessmentResult: Awaited<ReturnType<typeof finalizeAssessmentResponse>> | null = null;
+    if (input.status === "GRADED") {
+      if (!assessmentLink) throw new Error("Your assessment attempt is not ready for grading.");
       const score = input.mode === "SELF_GRADED"
         ? (input.selfMarked ? 100 : 0)
         : Number(input.mode === "AI_FEEDBACK" ? input.aiScore : input.teacherScore);
-      if (Number.isFinite(score)) {
-        const outcome = {
-          text: input.submissionText.trim(),
-          mode: input.mode,
-          gradingState: "GRADED",
-          score,
-          selfMarked: input.selfMarked ?? null,
-          aiFeedback: input.aiFeedback ?? null,
-          teacherFeedback: input.teacherFeedback ?? null,
-          submissionId: upserted.id,
-        } as Json;
-        await finalizeAssessmentResponse(adminSupabase, {
-          ...assessmentLink,
-          questionKey,
-          mode: input.mode,
-          scorePercent: score,
-          outcome,
-          feedback: input.teacherFeedback ?? (input.aiFeedback ? String(asRecord(input.aiFeedback).summary ?? "") : null),
-        });
-      }
+      if (!Number.isFinite(score)) throw new Error("The grading result did not include a valid score.");
+      const outcome = {
+        text: input.submissionText.trim(),
+        mode: input.mode,
+        gradingState: "GRADED",
+        score,
+        selfMarked: input.selfMarked ?? null,
+        aiFeedback: input.aiFeedback ?? null,
+        teacherFeedback: input.teacherFeedback ?? null,
+        submissionId: upserted.id,
+      } as Json;
+      assessmentResult = await finalizeAssessmentResponse(adminSupabase, {
+        ...assessmentLink,
+        questionKey,
+        mode: input.mode,
+        scorePercent: score,
+        outcome,
+        feedback: input.teacherFeedback ?? (input.aiFeedback ? String(asRecord(input.aiFeedback).summary ?? "") : null),
+      });
     }
 
     if (input.mode === "TEACHER_REVIEW") revalidatePath("/admin/submissions");
 
-    return { success: true, submissionId: upserted.id };
+    return { success: true, submissionId: upserted.id, assessmentResult };
   } catch (error: any) {
     console.error("saveWritingGradingOutcomeAction failed:", error);
     return { success: false, error: error?.message || "Failed to save your answer." };

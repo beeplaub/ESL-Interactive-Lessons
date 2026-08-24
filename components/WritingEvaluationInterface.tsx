@@ -15,39 +15,28 @@ export type { EvaluationMode };
 export const ActivityEvaluationModeContext = createContext<EvaluationMode | null>(null);
 
 export function EvaluationMethodPicker({ value, onChange, allowedModes = ["AI_FEEDBACK", "SELF_GRADED", "TEACHER_REVIEW"] }: { value: EvaluationMode | null; onChange: (mode: EvaluationMode) => void; allowedModes?: EvaluationMode[] }) {
-  const choices: Array<{ mode: EvaluationMode; title: string; detail: string }> = [
-    { mode: "AI_FEEDBACK", title: "AI feedback", detail: "Instant score and practical feedback" },
-    { mode: "SELF_GRADED", title: "Self-check", detail: "Compare with the model response" },
-    { mode: "TEACHER_REVIEW", title: "Teacher review", detail: "Send all responses to your teacher" },
+  const choices: Array<{ mode: EvaluationMode; title: string; detail: string; className: string }> = [
+    { mode: "AI_FEEDBACK", title: "AI feedback", detail: "Instant score and practical feedback", className: "border-violet-200 bg-violet-50 hover:border-violet-400 hover:bg-violet-100/70" },
+    { mode: "SELF_GRADED", title: "Self-check", detail: "Compare with the model response", className: "border-amber-200 bg-amber-50 hover:border-amber-400 hover:bg-amber-100/70" },
+    { mode: "TEACHER_REVIEW", title: "Teacher review", detail: "Send all responses to your teacher", className: "border-sky-200 bg-sky-50 hover:border-sky-400 hover:bg-sky-100/70" },
   ];
   return (
-    <div className="rounded-[18px] border border-[var(--br-chart-primary)]/20 bg-[var(--br-chart-primary)]/5 p-4">
-      <p className="text-sm font-extrabold text-ink">How should this attempt be graded?</p>
-      <p className="mt-1 text-sm text-[var(--br-text-muted)]">Choose once. The same method will apply to every written or spoken response.</p>
-      <div className="mt-3 grid gap-2 sm:grid-cols-3">
+    <div className="grid gap-3 sm:grid-cols-3">
         {choices.filter((choice) => allowedModes.includes(choice.mode)).map((choice) => (
-          <button key={choice.mode} type="button" onClick={() => onChange(choice.mode)} className={`rounded-xl border p-3 text-left transition ${value === choice.mode ? "border-[var(--br-chart-primary)] bg-surface ring-2 ring-[var(--br-chart-primary)]/15" : "border-[var(--br-border)] bg-surface hover:border-[var(--br-chart-primary)]/50"}`}>
+          <button key={choice.mode} type="button" onClick={() => onChange(choice.mode)} className={`rounded-2xl border p-4 text-left transition ${choice.className} ${value === choice.mode ? "ring-2 ring-[var(--br-chart-primary)]/25" : ""}`}>
             <span className="block text-sm font-bold text-ink">{choice.title}</span>
             <span className="mt-1 block text-xs leading-5 text-[var(--br-text-muted)]">{choice.detail}</span>
           </button>
         ))}
-      </div>
     </div>
   );
 }
 
 export function EvaluationMethodDialog({ allowedModes, onChoose, onClose }: { allowedModes: EvaluationMode[]; onChoose: (mode: EvaluationMode) => void; onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="evaluation-method-title" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-      <div className="w-full max-w-3xl rounded-[24px] border border-white/20 bg-surface p-5 shadow-2xl sm:p-7">
-        <div className="mb-5 flex items-start justify-between gap-4">
-          <div>
-            <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-[var(--br-chart-primary)]">Answers complete</p>
-            <h2 id="evaluation-method-title" className="mt-1 text-xl font-extrabold text-ink sm:text-2xl">Choose how to review your attempt</h2>
-            <p className="mt-1 text-sm leading-6 text-[var(--br-text-muted)]">This choice applies to every written or spoken answer in this attempt.</p>
-          </div>
-          <button type="button" onClick={onClose} aria-label="Close grading options" className="grid size-10 shrink-0 place-items-center rounded-full border border-[var(--br-border)] text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"><X size={18} /></button>
-        </div>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Choose grading method" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <div className="relative w-full max-w-3xl rounded-[24px] border border-white/20 bg-surface p-5 pt-16 shadow-2xl sm:p-7 sm:pt-16">
+        <button type="button" onClick={onClose} aria-label="Close grading options" className="absolute right-4 top-4 grid size-10 place-items-center rounded-full border border-[var(--br-border)] text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"><X size={18} /></button>
         <EvaluationMethodPicker value={null} allowedModes={allowedModes} onChange={onChoose} />
       </div>
     </div>
@@ -159,8 +148,6 @@ export function WritingEvaluationInterface({
       });
 
       if (res.success && res.data) {
-        setChosenMode("AI_FEEDBACK");
-        setAiResult(res.data);
         const outcome: WritingAnswerValue = {
           text: submissionText,
           mode: "AI_FEEDBACK",
@@ -168,8 +155,7 @@ export function WritingEvaluationInterface({
           score: res.data.score,
           aiFeedback: res.data as unknown as Record<string, unknown>
         };
-        onGraded?.(outcome);
-        void saveWritingGradingOutcomeAction({
+        const saved = await saveWritingGradingOutcomeAction({
           lessonId,
           quizId,
           activityId,
@@ -182,6 +168,13 @@ export function WritingEvaluationInterface({
           aiScore: res.data.score,
           aiFeedback: res.data as unknown as Json
         });
+        if (!saved.success) {
+          setError(saved.error || "Your feedback was created, but it could not be saved. Please try again.");
+          return;
+        }
+        setChosenMode("AI_FEEDBACK");
+        setAiResult(res.data);
+        onGraded?.({ ...outcome, submissionId: saved.submissionId });
       } else {
         // A genuine AI/system failure — not a completed grading choice — so it's fine to let the
         // learner try again rather than treating this as a locked-in outcome.
@@ -239,21 +232,27 @@ export function WritingEvaluationInterface({
   }
 
   function handleSelectSelfGraded(passed: boolean) {
-    setChosenMode("SELF_GRADED");
-    setSelfGradedChoice(passed);
-    const outcome: WritingAnswerValue = { text: submissionText, mode: "SELF_GRADED", gradingState: "GRADED", selfMarked: passed, score: passed ? 100 : 0 };
-    onGraded?.(outcome);
-    void saveWritingGradingOutcomeAction({
-      lessonId,
-      quizId,
-      activityId,
-      activityType,
-      questionKey,
-      prompt,
-      submissionText,
-      mode: "SELF_GRADED",
-      status: "GRADED",
-      selfMarked: passed
+    setError(null);
+    startTransition(async () => {
+      const saved = await saveWritingGradingOutcomeAction({
+        lessonId,
+        quizId,
+        activityId,
+        activityType,
+        questionKey,
+        prompt,
+        submissionText,
+        mode: "SELF_GRADED",
+        status: "GRADED",
+        selfMarked: passed
+      });
+      if (!saved.success) {
+        setError(saved.error || "Your self-check could not be saved. Please try again.");
+        return;
+      }
+      setChosenMode("SELF_GRADED");
+      setSelfGradedChoice(passed);
+      onGraded?.({ text: submissionText, mode: "SELF_GRADED", gradingState: "GRADED", selfMarked: passed, score: passed ? 100 : 0, submissionId: saved.submissionId });
     });
   }
 

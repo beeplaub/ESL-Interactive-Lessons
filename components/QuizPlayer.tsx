@@ -365,6 +365,7 @@ export function QuizPlayer({
   const [remainingSeconds, setRemainingSeconds] = useState(() => timerMinutes ? timerMinutes * 60 : null);
   const attemptStartRef = useRef(Date.now());
   const submissionKeyRef = useRef<string | null>(null);
+  const finalizedAttemptListedRef = useRef(false);
   const [isPending, startTransition] = useTransition();
   const [streakPopupDismissed, setStreakPopupDismissed] = useState(false);
   const celebratedRef = useRef(false);
@@ -447,6 +448,7 @@ export function QuizPlayer({
     setRemainingSeconds(timerMinutes ? timerMinutes * 60 : null);
     attemptStartRef.current = Date.now();
     submissionKeyRef.current = null;
+    finalizedAttemptListedRef.current = false;
     setStreakPopupDismissed(false);
     celebratedRef.current = false;
   }
@@ -474,6 +476,16 @@ export function QuizPlayer({
       playCelebration();
     }
   }, [submitted, hasPendingWritingGrading, isSelfGradedOnly, score, totalPoints]);
+
+  useEffect(() => {
+    if (!submitted || !hasSubjectiveQuestions || hasPendingWritingGrading || autoGradingActive || finalizedAttemptListedRef.current) return;
+    finalizedAttemptListedRef.current = true;
+    setAllAttempts((current) => [
+      ...current,
+      { score, total: totalPoints, completedAt: new Date().toISOString() },
+    ]);
+    setMessage("Quiz attempt saved.");
+  }, [autoGradingActive, hasPendingWritingGrading, hasSubjectiveQuestions, score, submitted, totalPoints]);
 
   function goToQuestion(nextIndex: number) {
     setCurrentIndex(Math.max(0, Math.min(questions.length - 1, nextIndex)));
@@ -512,25 +524,25 @@ export function QuizPlayer({
     }
     if (selectedMode) setEvaluationMode(selectedMode);
     setShowEvaluationDialog(false);
-    setAutoGradingActive(selectedMode === "AI_FEEDBACK" || selectedMode === "TEACHER_REVIEW");
     const finalScore = questions.reduce((sum, question) => sum + questionScore(question, answers[question.id]), 0);
     const finalTotal = questions.reduce((sum, question) => sum + questionTotal(question), 0);
     const finalTimeTakenSeconds = Math.max(0, Math.round((Date.now() - attemptStartRef.current) / 1000));
-    setSubmitted(true);
-
-    // Check if any writing question needs grading resolution (mode picker or teacher evaluation)
-    const firstPendingIdx = questions.findIndex(
-      (q) => isWritingQuestionType(q.question_type) && isAwaitingResolution(answers[q.id])
-    );
-
-    if (firstPendingIdx !== -1) {
-      setReviewMode("detail");
-      setCurrentIndex(firstPendingIdx);
-    } else {
-      setReviewMode("overview");
-    }
+    const beginSubmittedView = () => {
+      setSubmitted(true);
+      setAutoGradingActive(selectedMode === "AI_FEEDBACK" || selectedMode === "TEACHER_REVIEW");
+      const firstPendingIdx = questions.findIndex(
+        (q) => isWritingQuestionType(q.question_type) && isAwaitingResolution(answers[q.id])
+      );
+      if (firstPendingIdx !== -1) {
+        setReviewMode("detail");
+        setCurrentIndex(firstPendingIdx);
+      } else {
+        setReviewMode("overview");
+      }
+    };
 
     if (isGuest) {
+      beginSubmittedView();
       setGuestAttempt({ quizId, score: finalScore, total: finalTotal, answers: answers as Record<string, unknown> });
       setShowPopup(true);
       return;
@@ -539,7 +551,9 @@ export function QuizPlayer({
       try {
         if (!submissionKeyRef.current) submissionKeyRef.current = crypto.randomUUID();
         const saved = await recordQuizAttempt({ quizId, score: finalScore, total: finalTotal, answers, timeTakenSeconds: finalTimeTakenSeconds, courseItemId, submissionKey: submissionKeyRef.current });
+        beginSubmittedView();
         if (saved.status === "FINALIZED") {
+          finalizedAttemptListedRef.current = true;
           setAllAttempts((prev) => [
             ...prev,
             { score: finalScore, total: finalTotal, completedAt: new Date().toISOString() }
@@ -549,6 +563,8 @@ export function QuizPlayer({
           setMessage("Responses saved. Your final result will appear when grading is complete.");
         }
       } catch (error) {
+        setEvaluationMode(null);
+        setAutoGradingActive(false);
         setMessage(error instanceof Error ? error.message : "Could not save quiz attempt.");
       }
     });

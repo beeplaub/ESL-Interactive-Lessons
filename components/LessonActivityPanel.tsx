@@ -1510,6 +1510,7 @@ export function LessonActivityPanel({
   const [localAttempts, setLocalAttempts] = useState<SavedAttempt[]>(attempts);
   const [isPending, startTransition] = useTransition();
   const submissionKeyRef = useRef<string | null>(null);
+  const finalizedAttemptListedRef = useRef(Boolean(initialAttempt));
   const [streakPopupDismissed, setStreakPopupDismissed] = useState(false);
   const celebratedRef = useRef(false);
   const handleQuestionResult = useCallback((result: "correct" | "wrong" | "partial") => {
@@ -1533,6 +1534,9 @@ export function LessonActivityPanel({
   }, [draftKey, submitted]);
 
   const subjectiveQuestions = questions.filter((question) => isWritingQuestionType(question.question_type));
+  const hasSubjectiveQuestions = subjectiveQuestions.length > 0;
+  const score = questions.reduce((sum, q) => sum + questionScore(q, answers[q.id]), 0);
+  const total = questions.reduce((sum, q) => sum + questionTotal(q), 0);
   const gradingCompletedCount = subjectiveQuestions.filter((question) => resolveWritingOutcome(answers[question.id]).hasChosenMode).length;
   // True once submitted but at least one writing question hasn't reached a final graded
   // outcome yet (no grading mode chosen, or a teacher review still pending) — held back from
@@ -1578,6 +1582,15 @@ export function LessonActivityPanel({
     }
   }, [answers, autoGradingActive, evaluationMode, questions, submitted]);
 
+  useEffect(() => {
+    if (previewOnly || !submitted || !hasSubjectiveQuestions || hasPendingWritingGrading || autoGradingActive || finalizedAttemptListedRef.current) return;
+    finalizedAttemptListedRef.current = true;
+    const savedAttempt = { score, total, answers: answers as Json, completed_at: new Date().toISOString() };
+    setLocalAttempts((current) => [savedAttempt, ...current]);
+    onSavedAttempt?.(savedAttempt);
+    setMessage("Activity saved.");
+  }, [answers, autoGradingActive, hasPendingWritingGrading, hasSubjectiveQuestions, onSavedAttempt, previewOnly, score, submitted, total]);
+
   // ── AI Roleplay: full chat UI instead of quiz carousel ──
   if (activity.activity_type === "AI_ROLEPLAY" || activity.activity_type === "AI_INTERVIEW") {
     return (
@@ -1603,14 +1616,11 @@ export function LessonActivityPanel({
   const allAnswered = questions.length > 0 && questions.every((q) => hasAnswer(q, answers[q.id]));
   const answeredCount = questions.filter((question) => hasAnswer(question, answers[question.id])).length;
   const progressPercent = questions.length ? Math.round(answeredCount / questions.length * 100) : 0;
-  const hasSubjectiveQuestions = questions.some((question) => isWritingQuestionType(question.question_type));
   const availableEvaluationModes = ([
     ["AI_FEEDBACK", "allow_ai_feedback"],
     ["SELF_GRADED", "allow_self_graded"],
     ["TEACHER_REVIEW", "allow_teacher_review"],
   ] as Array<[EvaluationMode, string]>).filter(([, key]) => questions.filter((question) => isWritingQuestionType(question.question_type)).every((question) => asRecord(question.options)[key] !== false)).map(([mode]) => mode);
-  const score = questions.reduce((sum, q) => sum + questionScore(q, answers[q.id]), 0);
-  const total = questions.reduce((sum, q) => sum + questionTotal(q), 0);
   const bestStreak = submitted ? computeBestStreak(questions, answers) : 0;
 
   if (questions.length === 0) {
@@ -1634,22 +1644,22 @@ export function LessonActivityPanel({
     }
     if (selectedMode) setEvaluationMode(selectedMode);
     setShowEvaluationDialog(false);
-    setAutoGradingActive(selectedMode === "AI_FEEDBACK" || selectedMode === "TEACHER_REVIEW");
     const finalScore = questions.reduce((sum, q) => sum + questionScore(q, answers[q.id]), 0);
-    setSubmitted(true);
+    const beginSubmittedView = () => {
+      setSubmitted(true);
+      setAutoGradingActive(selectedMode === "AI_FEEDBACK" || selectedMode === "TEACHER_REVIEW");
+      const firstPendingIdx = questions.findIndex(
+        (q) => isWritingQuestionType(q.question_type) && isAwaitingResolution(answers[q.id])
+      );
+      if (firstPendingIdx !== -1) {
+        setReviewMode("detail");
+        setQIndex(firstPendingIdx);
+      } else {
+        setReviewMode("overview");
+      }
+    };
 
-    const firstPendingIdx = questions.findIndex(
-      (q) => isWritingQuestionType(q.question_type) && isAwaitingResolution(answers[q.id])
-    );
-
-    if (firstPendingIdx !== -1) {
-      setReviewMode("detail");
-      setQIndex(firstPendingIdx);
-    } else {
-      setReviewMode("overview");
-    }
-
-    if (previewOnly) { setMessage("Preview only."); return; }
+    if (previewOnly) { beginSubmittedView(); setMessage("Preview only."); return; }
     startTransition(async () => {
       try {
         if (!submissionKeyRef.current) submissionKeyRef.current = crypto.randomUUID();
@@ -1668,7 +1678,9 @@ export function LessonActivityPanel({
             isCorrect: isCorrect(question, answers[question.id]),
           })),
         });
+        beginSubmittedView();
         if (saved.status === "FINALIZED") {
+          finalizedAttemptListedRef.current = true;
           const savedAttempt = { score: finalScore, total, answers: answers as Json, completed_at: new Date().toISOString() };
           setLocalAttempts((current) => [savedAttempt, ...current]);
           onSavedAttempt?.(savedAttempt);
@@ -1677,6 +1689,8 @@ export function LessonActivityPanel({
           setMessage("Responses saved. Your final result will appear when grading is complete.");
         }
       } catch (error) {
+        setEvaluationMode(null);
+        setAutoGradingActive(false);
         setMessage(error instanceof Error ? error.message : "Could not save.");
       }
     });
@@ -1694,6 +1708,7 @@ export function LessonActivityPanel({
     setStreakPopupDismissed(false);
     celebratedRef.current = false;
     submissionKeyRef.current = null;
+    finalizedAttemptListedRef.current = false;
   }
 
   return (
