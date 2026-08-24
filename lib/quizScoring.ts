@@ -59,6 +59,13 @@ function baseQuestionTotal(question: ScoredQuestion): number {
     return (Array.isArray(question.correct_answer) ? question.correct_answer.length : 0) || 1;
   }
 
+  if (question.question_type === "MATCHING") {
+    const pairCount = Array.isArray(question.correct_answer)
+      ? question.correct_answer.length
+      : Object.keys(asRecord(question.correct_answer)).length;
+    return pairCount || 1;
+  }
+
   if (question.question_type === "ORAL_RESPONSE") return 1;
 
   if (question.question_type === "FILL" || question.question_type === "LISTEN_AND_GAP_FILL") {
@@ -96,6 +103,20 @@ function baseQuestionScore(question: ScoredQuestion, answer: unknown): number {
     const targetIds = Array.isArray(question.correct_answer) ? question.correct_answer.map(String) : [];
     const results = asRecord(asRecord(answer as Json).results as Json);
     return targetIds.filter((id) => results[id] === true).length;
+  }
+
+  if (question.question_type === "MATCHING") {
+    const given = asRecord(answer as Json);
+    if (Array.isArray(question.correct_answer)) {
+      return (question.correct_answer as Array<{ a: number; b: string }>).filter((pair) => {
+        const selected = normalizeAnswer(given[String(pair.a)]);
+        return selected === normalizeAnswer(pair.b);
+      }).length;
+    }
+    const correct = asRecord(question.correct_answer);
+    return Object.entries(correct).filter(([key, expected]) => (
+      normalizeAnswer(given[key]) === normalizeAnswer(expected)
+    )).length;
   }
 
   return isCorrect(question, answer) ? 1 : 0;
