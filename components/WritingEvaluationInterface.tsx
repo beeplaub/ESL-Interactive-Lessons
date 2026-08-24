@@ -15,12 +15,26 @@ export type { EvaluationMode };
 
 type AiResultShape = {
   score: number;
-  feedbackSummary: string;
-  grammarFeedback: string;
-  vocabularyFeedback: string;
-  fluencyFeedback?: string;
-  suggestions: string[];
+  summary: string;
+  strengths: string[];
+  improvements: string[];
+  exampleCorrection: { original: string; corrected: string; explanation: string } | null;
 };
+
+function normalizeAiResult(value: Record<string, unknown>, fallbackScore = 0): AiResultShape {
+  const legacySuggestions = Array.isArray(value.suggestions) ? value.suggestions.filter((item): item is string => typeof item === "string") : [];
+  return {
+    score: typeof value.score === "number" ? value.score : fallbackScore,
+    summary: String(value.summary ?? value.feedbackSummary ?? ""),
+    strengths: Array.isArray(value.strengths) ? value.strengths.filter((item): item is string => typeof item === "string") : [],
+    improvements: Array.isArray(value.improvements)
+      ? value.improvements.filter((item): item is string => typeof item === "string")
+      : legacySuggestions,
+    exampleCorrection: value.exampleCorrection && typeof value.exampleCorrection === "object"
+      ? value.exampleCorrection as AiResultShape["exampleCorrection"]
+      : null,
+  };
+}
 
 export function WritingEvaluationInterface({
   activityId,
@@ -67,7 +81,7 @@ export function WritingEvaluationInterface({
 
   const [aiResult, setAiResult] = useState<AiResultShape | null>(
     initialValue?.mode === "AI_FEEDBACK" && initialValue.aiFeedback
-      ? (initialValue.aiFeedback as unknown as AiResultShape)
+      ? normalizeAiResult(initialValue.aiFeedback as Record<string, unknown>, typeof initialValue.score === "number" ? initialValue.score : 0)
       : null
   );
 
@@ -294,39 +308,34 @@ export function WritingEvaluationInterface({
                 </div>
 
                 <div className="rounded-2xl bg-surface p-4 border border-[var(--br-chart-primary)]/10 shadow-xs space-y-1">
-                  <p className="text-xs font-black text-[var(--br-chart-primary)] uppercase tracking-wider">Summary Feedback</p>
-                  <p className="text-xs font-medium text-ink leading-relaxed">{aiResult.feedbackSummary}</p>
+                  <p className="text-xs font-black text-[var(--br-chart-primary)] uppercase tracking-wider">Summary</p>
+                  <p className="text-xs font-medium text-ink leading-relaxed">{aiResult.summary}</p>
                 </div>
 
-                <div className={`grid gap-4 ${aiResult.fluencyFeedback ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
-                  {aiResult.fluencyFeedback ? (
-                    <div className="rounded-2xl bg-surface p-4 border border-[var(--br-border)] shadow-xs space-y-1.5">
-                      <p className="text-xs font-bold text-[var(--br-text-muted)]">Fluency</p>
-                      <p className="text-xs text-[var(--br-text-muted)] leading-relaxed font-medium">{aiResult.fluencyFeedback}</p>
-                    </div>
-                  ) : null}
-                  <div className="rounded-2xl bg-surface p-4 border border-[var(--br-border)] shadow-xs space-y-1.5">
-                    <p className="text-xs font-bold text-[var(--br-text-muted)]">{activityType === "ORAL_RESPONSE" ? "Sentence Structure" : "Grammar & Structure"}</p>
-                    <p className="text-xs text-[var(--br-text-muted)] leading-relaxed font-medium">{aiResult.grammarFeedback}</p>
-                  </div>
-                  <div className="rounded-2xl bg-surface p-4 border border-[var(--br-border)] shadow-xs space-y-1.5">
-                    <p className="text-xs font-bold text-[var(--br-text-muted)]">{activityType === "ORAL_RESPONSE" ? "Vocabulary & Spoken Clarity" : "Vocabulary & Tone"}</p>
-                    <p className="text-xs text-[var(--br-text-muted)] leading-relaxed font-medium">{aiResult.vocabularyFeedback}</p>
-                  </div>
-                </div>
-
-                {aiResult.suggestions.length > 0 && (
+                <div className="grid gap-4 sm:grid-cols-2">
                   <div className="rounded-2xl bg-surface p-4 border border-[var(--br-border)] shadow-xs space-y-2">
-                    <p className="text-xs font-bold text-[var(--br-text-muted)]">Key Areas to Improve</p>
-                    <ul className="grid gap-1.5 pl-1.5 text-xs text-[var(--br-text-muted)] font-medium">
-                      {aiResult.suggestions.map((sug, i) => (
-                        <li key={i} className="flex items-start gap-2">
-                          <span className="text-[var(--br-chart-primary)] mt-0.5">•</span>
-                          <span>{sug}</span>
-                        </li>
-                      ))}
+                    <p className="text-xs font-bold text-[var(--br-text-muted)]">Strengths</p>
+                    <ul className="grid gap-1.5 text-xs text-[var(--br-text-muted)] font-medium">
+                      {aiResult.strengths.map((item, index) => <li key={index}>• {item}</li>)}
                     </ul>
                   </div>
+                  <div className="rounded-2xl bg-surface p-4 border border-[var(--br-border)] shadow-xs space-y-2">
+                    <p className="text-xs font-bold text-[var(--br-text-muted)]">Improvements</p>
+                    <ul className="grid gap-1.5 text-xs text-[var(--br-text-muted)] font-medium">
+                      {aiResult.improvements.map((item, index) => <li key={index}>• {item}</li>)}
+                    </ul>
+                  </div>
+                </div>
+
+                {aiResult.exampleCorrection ? (
+                  <div className="rounded-2xl bg-surface p-4 border border-[var(--br-border)] shadow-xs space-y-2 text-xs text-[var(--br-text-muted)]">
+                    <p className="font-bold">Example correction</p>
+                    <p><span className="font-semibold">Original:</span> {aiResult.exampleCorrection.original}</p>
+                    <p><span className="font-semibold">Corrected:</span> {aiResult.exampleCorrection.corrected}</p>
+                    <p>{aiResult.exampleCorrection.explanation}</p>
+                  </div>
+                ) : (
+                  <p className="text-xs font-medium text-[var(--br-text-muted)]">No example correction is needed for this response.</p>
                 )}
 
                 <div className="pt-2 border-t border-[var(--br-chart-primary)]/10">

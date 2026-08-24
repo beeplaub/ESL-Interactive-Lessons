@@ -211,64 +211,59 @@ export async function gradeWritingSubmissionAction(input: {
 const writingFeedbackSchema = {
   type: "object",
   properties: {
-    scores: {
+    score: { type: "number" },
+    summary: { type: "string" },
+    strengths: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 3 },
+    improvements: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 3 },
+    example_correction: {
       type: "object",
+      nullable: true,
       properties: {
-        task_response: { type: "number" },
-        coherence: { type: "number" },
-        lexical_resource: { type: "number" },
-        grammar_range: { type: "number" },
-        overall: { type: "number" }
+        original: { type: "string" },
+        corrected: { type: "string" },
+        explanation: { type: "string" }
       },
-      required: ["task_response", "coherence", "lexical_resource", "grammar_range", "overall"]
+      required: ["original", "corrected", "explanation"]
     },
-    feedback: { type: "string" },
-    corrections: {
-      type: "array",
-      items: {
-        type: "object",
-        properties: {
-          original: { type: "string" },
-          corrected: { type: "string" },
-          explanation: { type: "string" }
-        },
-        required: ["original", "corrected", "explanation"]
-      }
-    }
   },
-  required: ["scores", "feedback", "corrections"]
+  required: ["score", "summary", "strengths", "improvements", "example_correction"]
 };
 
 type WritingFeedbackResult = {
-  scores: { task_response: number; coherence: number; lexical_resource: number; grammar_range: number; overall: number };
-  feedback: string;
-  corrections: { original: string; corrected: string; explanation: string }[];
+  score: number;
+  summary: string;
+  strengths: string[];
+  improvements: string[];
+  example_correction: { original: string; corrected: string; explanation: string } | null;
 };
 
 const oralResponseFeedbackSchema = {
   type: "object",
   properties: {
-    scores: {
+    score: { type: "number" },
+    summary: { type: "string" },
+    strengths: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 3 },
+    improvements: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 3 },
+    example_correction: {
       type: "object",
+      nullable: true,
       properties: {
-        fluency: { type: "number" },
-        vocabulary: { type: "number" },
-        spoken_clarity: { type: "number" },
-        sentence_structure: { type: "number" },
-        overall: { type: "number" }
+        original: { type: "string" },
+        corrected: { type: "string" },
+        explanation: { type: "string" }
       },
-      required: ["fluency", "vocabulary", "spoken_clarity", "sentence_structure", "overall"]
-    },
-    feedback: { type: "string" },
-    suggestions: { type: "array", items: { type: "string" } }
+      required: ["original", "corrected", "explanation"]
+    }
   },
-  required: ["scores", "feedback", "suggestions"]
+  required: ["score", "summary", "strengths", "improvements", "example_correction"]
 };
 
 type OralResponseFeedbackResult = {
-  scores: { fluency: number; vocabulary: number; spoken_clarity: number; sentence_structure: number; overall: number };
-  feedback: string;
-  suggestions: string[];
+  score: number;
+  summary: string;
+  strengths: string[];
+  improvements: string[];
+  example_correction: { original: string; corrected: string; explanation: string } | null;
 };
 
 /** Models occasionally answer rubric dimensions as 4/5 instead of 80/100.
@@ -279,6 +274,16 @@ function normalizeAiScore(value: unknown) {
   const scaled = numeric >= 0 && numeric <= 5 ? numeric * 20 : numeric;
   return Math.max(0, Math.min(100, Math.round(scaled)));
 }
+
+const simpleLearnerFeedbackInstruction = `Return learner-facing feedback in this exact structure:
+{
+  "score": 78,
+  "summary": "One concise overall review.",
+  "strengths": ["Strength 1", "Strength 2"],
+  "improvements": ["Improvement 1", "Improvement 2"],
+  "example_correction": null
+}
+Use 1-3 short strengths and 1-3 short improvements. Use one example_correction object only when a correction is useful; otherwise return null. Return every score on a 0-100 scale.`;
 
 async function resolveEvaluationContext(input: {
   activityId?: string | null;
@@ -348,7 +353,8 @@ export async function evaluateWritingWithAiAction(input: {
             "Evaluate this as spontaneous spoken English represented by an automatic speech-recognition transcript.",
             "Ignore punctuation, capitalization, spelling artifacts, missing commas, and other transcription formatting errors.",
             "Judge only communicative fluency, vocabulary, spoken clarity signals visible in the transcript, sentence structure, and how clearly the learner expresses the intended meaning.",
-            "Do not penalize the learner for the transcript being unpunctuated or for homophone/spelling errors caused by speech recognition. Do not pretend the transcript is a written assignment."
+            "Do not penalize the learner for the transcript being unpunctuated or for homophone/spelling errors caused by speech recognition. Do not pretend the transcript is a written assignment.",
+            simpleLearnerFeedbackInstruction
           ].filter(Boolean).join("\n"),
           submission: input.submissionText,
           level: evaluationContext.level
@@ -359,22 +365,21 @@ export async function evaluateWritingWithAiAction(input: {
           userRole: evaluationContext.role,
           featureKey: "learner_oral_response_grading_v1",
           cefrLevel: evaluationContext.level,
-          promptVersion: "oral-response-v1",
+          promptVersion: "oral-response-v2-simple-feedback",
           assessmentCritical: true,
           cache: { ttlSeconds: 365 * 24 * 60 * 60 },
         },
       });
-      const overall = Number(result.scores?.overall);
-      if (!Number.isFinite(overall)) throw new Error("AI oral evaluation did not return a valid overall score.");
+      const overall = Number(result.score);
+      if (!Number.isFinite(overall)) throw new Error("AI oral evaluation did not return a valid score.");
       return {
         success: true as const,
         data: {
           score: normalizeAiScore(overall),
-          feedbackSummary: String(result.feedback ?? ""),
-          grammarFeedback: `Sentence structure: ${normalizeAiScore(result.scores?.sentence_structure)}/100`,
-          vocabularyFeedback: `Vocabulary: ${normalizeAiScore(result.scores?.vocabulary)}/100 · Spoken clarity signals: ${normalizeAiScore(result.scores?.spoken_clarity)}/100`,
-          fluencyFeedback: `Fluency: ${normalizeAiScore(result.scores?.fluency)}/100`,
-          suggestions: Array.isArray(result.suggestions) ? result.suggestions : []
+          summary: String(result.summary ?? ""),
+          strengths: Array.isArray(result.strengths) ? result.strengths : [],
+          improvements: Array.isArray(result.improvements) ? result.improvements : [],
+          exampleCorrection: result.example_correction ?? null,
         }
       };
     } catch (error) {
@@ -395,7 +400,7 @@ export async function evaluateWritingWithAiAction(input: {
     const result = await callGemini<WritingFeedbackResult>({
       templateKey: "learner_writing_grading_v1",
       variables: {
-        prompt: `${input.prompt}\n${contextParts}`,
+          prompt: `${input.prompt}\n${contextParts}\n${simpleLearnerFeedbackInstruction}`,
         submission: input.submissionText,
         level: evaluationContext.level
       },
@@ -405,13 +410,13 @@ export async function evaluateWritingWithAiAction(input: {
         userRole: evaluationContext.role,
         featureKey: "learner_writing_grading_v1",
         cefrLevel: evaluationContext.level,
-        promptVersion: "writing-grading-v1",
+        promptVersion: "writing-grading-v2-simple-feedback",
         assessmentCritical: true,
         cache: { ttlSeconds: 365 * 24 * 60 * 60 },
       },
     });
 
-    const overall = Number(result.scores?.overall);
+    const overall = Number(result.score);
     if (!Number.isFinite(overall)) {
       throw new Error("AI evaluation did not return a valid overall score.");
     }
@@ -420,12 +425,10 @@ export async function evaluateWritingWithAiAction(input: {
       success: true as const,
       data: {
         score: normalizeAiScore(overall),
-        feedbackSummary: String(result.feedback ?? ""),
-        grammarFeedback: `Grammar range: ${normalizeAiScore(result.scores?.grammar_range)}/100`,
-        vocabularyFeedback: `Lexical resource: ${normalizeAiScore(result.scores?.lexical_resource)}/100`,
-        suggestions: Array.isArray(result.corrections)
-          ? result.corrections.map((c) => `"${c.original}" → "${c.corrected}" — ${c.explanation}`)
-          : []
+        summary: String(result.summary ?? ""),
+        strengths: Array.isArray(result.strengths) ? result.strengths : [],
+        improvements: Array.isArray(result.improvements) ? result.improvements : [],
+        exampleCorrection: result.example_correction ?? null,
       }
     };
   } catch (error) {
@@ -440,49 +443,30 @@ export async function evaluateWritingWithAiAction(input: {
 const dialogueFeedbackSchema = {
   type: "object",
   properties: {
-    scores: {
+    score: { type: "number" },
+    summary: { type: "string" },
+    strengths: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 3 },
+    improvements: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 3 },
+    example_correction: {
       type: "object",
+      nullable: true,
       properties: {
-        turn_taking_flow: { type: "number" },
-        grammar_accuracy: { type: "number" },
-        pragmatic_tone: { type: "number" },
-        target_phrase_usage: { type: "number" },
-        overall: { type: "number" }
+        original: { type: "string" },
+        corrected: { type: "string" },
+        explanation: { type: "string" }
       },
-      required: ["turn_taking_flow", "grammar_accuracy", "pragmatic_tone", "target_phrase_usage", "overall"]
-    },
-    feedback: { type: "string" },
-    target_phrases_found: {
-      type: "array",
-      items: { type: "string" }
-    },
-    corrections: {
-      type: "array",
-      items: {
-        type: "object",
-        properties: {
-          original: { type: "string" },
-          corrected: { type: "string" },
-          explanation: { type: "string" }
-        },
-        required: ["original", "corrected", "explanation"]
-      }
+      required: ["original", "corrected", "explanation"]
     }
   },
-  required: ["scores", "feedback", "target_phrases_found", "corrections"]
+  required: ["score", "summary", "strengths", "improvements", "example_correction"]
 };
 
 type DialogueFeedbackResult = {
-  scores: {
-    turn_taking_flow: number;
-    grammar_accuracy: number;
-    pragmatic_tone: number;
-    target_phrase_usage: number;
-    overall: number;
-  };
-  feedback: string;
-  target_phrases_found: string[];
-  corrections: { original: string; corrected: string; explanation: string }[];
+  score: number;
+  summary: string;
+  strengths: string[];
+  improvements: string[];
+  example_correction: { original: string; corrected: string; explanation: string } | null;
 };
 
 export async function evaluateDialogueWritingWithAiAction(input: {
@@ -513,7 +497,7 @@ export async function evaluateDialogueWritingWithAiAction(input: {
     const result = await callGemini<DialogueFeedbackResult>({
       templateKey: "learner_dialogue_grading_v1",
       variables: {
-        prompt: `Dialogue Writing Evaluation Task:\nTask Instruction: ${input.prompt}\n${contextParts}\nEvaluate the student's written multi-turn dialogue. Analyze natural turn-taking flow between the characters, grammatical accuracy, appropriateness of tone for the situation, and correct usage of target phrases.`,
+        prompt: `Dialogue Writing Evaluation Task:\nTask Instruction: ${input.prompt}\n${contextParts}\nEvaluate the student's written multi-turn dialogue. Analyze natural turn-taking flow between the characters, grammatical accuracy, appropriateness of tone for the situation, and correct usage of target phrases.\n${simpleLearnerFeedbackInstruction}`,
         submission: input.submissionText,
         level: resolved.level
       },
@@ -523,13 +507,13 @@ export async function evaluateDialogueWritingWithAiAction(input: {
         userRole: resolved.role,
         featureKey: "learner_dialogue_grading_v1",
         cefrLevel: resolved.level,
-        promptVersion: "dialogue-grading-v1",
+        promptVersion: "dialogue-grading-v2-simple-feedback",
         assessmentCritical: true,
         cache: { ttlSeconds: 365 * 24 * 60 * 60 },
       },
     });
 
-    const overall = Number(result.scores?.overall);
+    const overall = Number(result.score);
     if (!Number.isFinite(overall)) {
       throw new Error("AI evaluation did not return a valid overall score.");
     }
@@ -538,16 +522,10 @@ export async function evaluateDialogueWritingWithAiAction(input: {
       success: true as const,
       data: {
         score: normalizeAiScore(overall),
-        feedbackSummary: String(result.feedback ?? ""),
-        grammarFeedback: `Grammar & Accuracy: ${normalizeAiScore(result.scores?.grammar_accuracy)}/100`,
-        vocabularyFeedback: `Target Phrases: ${normalizeAiScore(result.scores?.target_phrase_usage)}/100 | Flow: ${normalizeAiScore(result.scores?.turn_taking_flow)}/100`,
-        flowFeedback: `Conversational Flow: ${normalizeAiScore(result.scores?.turn_taking_flow)}/100`,
-        toneFeedback: `Pragmatics & Tone: ${normalizeAiScore(result.scores?.pragmatic_tone)}/100`,
-        phraseFeedback: `Target Phrases: ${normalizeAiScore(result.scores?.target_phrase_usage)}/100`,
-        targetPhrasesFound: result.target_phrases_found ?? [],
-        suggestions: Array.isArray(result.corrections)
-          ? result.corrections.map((c) => `"${c.original}" → "${c.corrected}" — ${c.explanation}`)
-          : []
+        summary: String(result.summary ?? ""),
+        strengths: Array.isArray(result.strengths) ? result.strengths : [],
+        improvements: Array.isArray(result.improvements) ? result.improvements : [],
+        exampleCorrection: result.example_correction ?? null,
       }
     };
   } catch (error) {

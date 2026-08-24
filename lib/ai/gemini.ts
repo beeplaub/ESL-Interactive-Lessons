@@ -267,6 +267,8 @@ Target CEFR level: {level}.
 
 Assess task response, coherence, lexical resource, and grammar range against the target CEFR level. Give concise, actionable feedback. Do not use IELTS band assumptions unless the task explicitly asks for IELTS.
 
+Return a score from 0 to 100 and learner-friendly feedback with exactly 1-3 strengths, 1-3 improvements, and either one useful example correction or null. Keep the summary concise and do not repeat the rubric scores in the learner-facing text.
+
 Return only the JSON shape requested by the response schema.`
   },
 
@@ -278,6 +280,8 @@ Target CEFR level: {level}.
 
 Judge communicative fluency signals, vocabulary, spoken clarity signals visible in the transcript, sentence structure, and task achievement. Ignore punctuation, capitalization, formatting, and likely speech-recognition spelling or homophone errors. Never claim to have heard pronunciation or audio because only a transcript is available.
 
+Return a score from 0 to 100 and learner-friendly feedback with exactly 1-3 strengths, 1-3 improvements, and either one useful example correction or null. Keep the summary concise and do not claim to evaluate audio pronunciation.
+
 Return only the JSON shape requested by the response schema.`
   },
 
@@ -288,6 +292,8 @@ Learner dialogue: "{submission}"
 Target CEFR level: {level}.
 
 Assess turn-taking flow, grammar accuracy, pragmatic tone, task achievement, and appropriate use of any stated target phrases.
+
+Return a score from 0 to 100 and learner-friendly feedback with exactly 1-3 strengths, 1-3 improvements, and either one useful example correction or null. Keep the summary concise and do not repeat the rubric scores in the learner-facing text.
 
 Return only the JSON shape requested by the response schema.`
   },
