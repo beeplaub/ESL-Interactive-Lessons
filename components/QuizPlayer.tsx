@@ -2182,6 +2182,7 @@ function OralResponse({
   const sessionTranscriptRef = useRef("");
   const startedAtRef = useRef(0);
   const mobileSilenceTimerRef = useRef<number | null>(null);
+  const mobileRestartDelayRef = useRef(750);
 
   useEffect(() => {
     setSupported(getSpeechRecognitionConstructor() !== null);
@@ -2203,6 +2204,7 @@ function OralResponse({
     transcriptRef.current = "";
     committedTranscriptRef.current = "";
     sessionTranscriptRef.current = "";
+    mobileRestartDelayRef.current = 750;
     startedAtRef.current = Date.now();
     setSeconds(0);
     setRecording(true);
@@ -2228,6 +2230,7 @@ function OralResponse({
           .map((result) => result.item(0).transcript)
           .join(" ");
         sessionTranscriptRef.current = sessionFinal.replace(/\s+/g, " ").trim();
+        if (sessionTranscriptRef.current || interim.trim()) mobileRestartDelayRef.current = 750;
         const transcript = [committedTranscriptRef.current, sessionTranscriptRef.current, interim]
           .join(" ").replace(/\s+/g, " ").trim();
         transcriptRef.current = transcript;
@@ -2256,12 +2259,15 @@ function OralResponse({
         transcriptRef.current = committedTranscriptRef.current;
 
         if (mobileSilenceTimerRef.current !== null) window.clearTimeout(mobileSilenceTimerRef.current);
-        // A short pause prevents rapid start/stop loops on mobile while keeping
-        // the learner's recording session alive through long pauses.
+        // Mobile browsers can end recognition without warning. Backing off when
+        // no speech is detected prevents a rapid start/stop/beep loop, while a
+        // new speech result resets the delay so normal pauses remain responsive.
+        const restartDelay = mobile ? mobileRestartDelayRef.current : 0;
+        mobileRestartDelayRef.current = Math.min(restartDelay * 2, 8_000);
         mobileSilenceTimerRef.current = window.setTimeout(() => {
           mobileSilenceTimerRef.current = null;
           startRecognitionSession();
-        }, mobile ? 750 : 0);
+        }, restartDelay);
       };
 
       try {
@@ -2271,7 +2277,7 @@ function OralResponse({
           mobileSilenceTimerRef.current = window.setTimeout(() => {
             mobileSilenceTimerRef.current = null;
             startRecognitionSession();
-          }, mobile ? 750 : 250);
+          }, mobile ? mobileRestartDelayRef.current : 250);
         }
       }
     };
