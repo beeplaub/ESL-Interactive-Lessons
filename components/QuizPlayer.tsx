@@ -2178,6 +2178,8 @@ function OralResponse({
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const recordingRef = useRef(false);
   const transcriptRef = useRef(value?.transcript ?? "");
+  const committedTranscriptRef = useRef("");
+  const sessionTranscriptRef = useRef("");
   const startedAtRef = useRef(0);
   const mobileSilenceTimerRef = useRef<number | null>(null);
 
@@ -2197,46 +2199,84 @@ function OralResponse({
     const Recognition = getSpeechRecognitionConstructor();
     if (!Recognition || disabled) return;
     const mobile = isMobileBrowser();
-    const recognition = new Recognition();
-    recognition.lang = "en-US";
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.maxAlternatives = 1;
-    recognitionRef.current = recognition;
     recordingRef.current = true;
     transcriptRef.current = "";
+    committedTranscriptRef.current = "";
+    sessionTranscriptRef.current = "";
     startedAtRef.current = Date.now();
     setSeconds(0);
     setRecording(true);
-    recognition.onresult = (event) => {
-      const transcript = Array.from({ length: event.results.length }, (_, index) => event.results.item(index).item(0).transcript)
-        .join(" ").replace(/\s+/g, " ").trim();
-      transcriptRef.current = transcript;
-      onChange({ transcript, duration_seconds: Math.floor((Date.now() - startedAtRef.current) / 1000) });
-    };
-    recognition.onerror = () => {
-      recordingRef.current = false;
-      setRecording(false);
-    };
-    recognition.onend = () => {
-      if (recordingRef.current) {
-        if (mobile) {
-          // Mobile browsers may end Speech Recognition after a short silence even
-          // with continuous=true. Keep the learner's recording session alive and
-          // reopen recognition after a 10-second grace period.
-          mobileSilenceTimerRef.current = window.setTimeout(() => {
-            mobileSilenceTimerRef.current = null;
-            if (!recordingRef.current) return;
-            try { recognition.start(); } catch { /* the learner can still finish the session */ }
-          }, 10_000);
+
+    const startRecognitionSession = () => {
+      if (!recordingRef.current) return;
+
+      const recognition = new Recognition();
+      recognition.lang = "en-US";
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.maxAlternatives = 1;
+      recognitionRef.current = recognition;
+      sessionTranscriptRef.current = "";
+
+      recognition.onresult = (event) => {
+        const sessionFinal = Array.from({ length: event.results.length }, (_, index) => event.results.item(index))
+          .filter((result) => result.isFinal)
+          .map((result) => result.item(0).transcript)
+          .join(" ");
+        const interim = Array.from({ length: event.results.length }, (_, index) => event.results.item(index))
+          .filter((result) => !result.isFinal)
+          .map((result) => result.item(0).transcript)
+          .join(" ");
+        sessionTranscriptRef.current = sessionFinal.replace(/\s+/g, " ").trim();
+        const transcript = [committedTranscriptRef.current, sessionTranscriptRef.current, interim]
+          .join(" ").replace(/\s+/g, " ").trim();
+        transcriptRef.current = transcript;
+        onChange({ transcript, duration_seconds: Math.floor((Date.now() - startedAtRef.current) / 1000) });
+      };
+
+      recognition.onerror = (event) => {
+        if (!recordingRef.current) return;
+        if (event.error === "not-allowed" || event.error === "service-not-allowed" || event.error === "permission-denied") {
+          recordingRef.current = false;
+          setRecording(false);
+        }
+        // Mobile Chrome/Safari can report `no-speech`, `network`, or `aborted`
+        // while the learner is still speaking. onend will safely start a fresh
+        // session without discarding the transcript already collected.
+      };
+
+      recognition.onend = () => {
+        if (!recordingRef.current) {
+          setRecording(false);
           return;
         }
-        try { recognition.start(); } catch { /* browser may already be restarting */ }
-        return;
+
+        committedTranscriptRef.current = [committedTranscriptRef.current, sessionTranscriptRef.current]
+          .join(" ").replace(/\s+/g, " ").trim();
+        transcriptRef.current = committedTranscriptRef.current;
+
+        if (mobileSilenceTimerRef.current !== null) window.clearTimeout(mobileSilenceTimerRef.current);
+        // A short pause prevents rapid start/stop loops on mobile while keeping
+        // the learner's recording session alive through long pauses.
+        mobileSilenceTimerRef.current = window.setTimeout(() => {
+          mobileSilenceTimerRef.current = null;
+          startRecognitionSession();
+        }, mobile ? 750 : 0);
+      };
+
+      try {
+        recognition.start();
+      } catch {
+        if (recordingRef.current) {
+          mobileSilenceTimerRef.current = window.setTimeout(() => {
+            mobileSilenceTimerRef.current = null;
+            startRecognitionSession();
+          }, mobile ? 750 : 250);
+        }
       }
-      setRecording(false);
     };
-    recognition.start();
+
+    startRecognitionSession();
   }
 
   const stopRecording = useCallback(() => {
