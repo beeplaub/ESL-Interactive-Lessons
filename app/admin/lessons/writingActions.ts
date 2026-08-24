@@ -271,6 +271,15 @@ type OralResponseFeedbackResult = {
   suggestions: string[];
 };
 
+/** Models occasionally answer rubric dimensions as 4/5 instead of 80/100.
+ * Normalize that representation before it reaches learner scoring. */
+function normalizeAiScore(value: unknown) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return 0;
+  const scaled = numeric >= 0 && numeric <= 5 ? numeric * 20 : numeric;
+  return Math.max(0, Math.min(100, Math.round(scaled)));
+}
+
 async function resolveEvaluationContext(input: {
   activityId?: string | null;
   lessonId?: string | null;
@@ -360,11 +369,11 @@ export async function evaluateWritingWithAiAction(input: {
       return {
         success: true as const,
         data: {
-          score: Math.max(0, Math.min(100, Math.round(overall))),
+          score: normalizeAiScore(overall),
           feedbackSummary: String(result.feedback ?? ""),
-          grammarFeedback: `Sentence structure: ${result.scores?.sentence_structure ?? "-"}/100`,
-          vocabularyFeedback: `Vocabulary: ${result.scores?.vocabulary ?? "-"}/100 · Spoken clarity signals: ${result.scores?.spoken_clarity ?? "-"}/100`,
-          fluencyFeedback: `Fluency: ${result.scores?.fluency ?? "-"}/100`,
+          grammarFeedback: `Sentence structure: ${normalizeAiScore(result.scores?.sentence_structure)}/100`,
+          vocabularyFeedback: `Vocabulary: ${normalizeAiScore(result.scores?.vocabulary)}/100 · Spoken clarity signals: ${normalizeAiScore(result.scores?.spoken_clarity)}/100`,
+          fluencyFeedback: `Fluency: ${normalizeAiScore(result.scores?.fluency)}/100`,
           suggestions: Array.isArray(result.suggestions) ? result.suggestions : []
         }
       };
@@ -410,10 +419,10 @@ export async function evaluateWritingWithAiAction(input: {
     return {
       success: true as const,
       data: {
-        score: Math.max(0, Math.min(100, Math.round(overall))),
+        score: normalizeAiScore(overall),
         feedbackSummary: String(result.feedback ?? ""),
-        grammarFeedback: `Grammar range: ${result.scores?.grammar_range ?? "-"}/100`,
-        vocabularyFeedback: `Lexical resource: ${result.scores?.lexical_resource ?? "-"}/100`,
+        grammarFeedback: `Grammar range: ${normalizeAiScore(result.scores?.grammar_range)}/100`,
+        vocabularyFeedback: `Lexical resource: ${normalizeAiScore(result.scores?.lexical_resource)}/100`,
         suggestions: Array.isArray(result.corrections)
           ? result.corrections.map((c) => `"${c.original}" → "${c.corrected}" — ${c.explanation}`)
           : []
@@ -528,13 +537,13 @@ export async function evaluateDialogueWritingWithAiAction(input: {
     return {
       success: true as const,
       data: {
-        score: Math.max(0, Math.min(100, Math.round(overall))),
+        score: normalizeAiScore(overall),
         feedbackSummary: String(result.feedback ?? ""),
-        grammarFeedback: `Grammar & Accuracy: ${result.scores?.grammar_accuracy ?? "-"}/100`,
-        vocabularyFeedback: `Target Phrases: ${result.scores?.target_phrase_usage ?? "-"}/100 | Flow: ${result.scores?.turn_taking_flow ?? "-"}/100`,
-        flowFeedback: `Conversational Flow: ${result.scores?.turn_taking_flow ?? "-"}/100`,
-        toneFeedback: `Pragmatics & Tone: ${result.scores?.pragmatic_tone ?? "-"}/100`,
-        phraseFeedback: `Target Phrases: ${result.scores?.target_phrase_usage ?? "-"}/100`,
+        grammarFeedback: `Grammar & Accuracy: ${normalizeAiScore(result.scores?.grammar_accuracy)}/100`,
+        vocabularyFeedback: `Target Phrases: ${normalizeAiScore(result.scores?.target_phrase_usage)}/100 | Flow: ${normalizeAiScore(result.scores?.turn_taking_flow)}/100`,
+        flowFeedback: `Conversational Flow: ${normalizeAiScore(result.scores?.turn_taking_flow)}/100`,
+        toneFeedback: `Pragmatics & Tone: ${normalizeAiScore(result.scores?.pragmatic_tone)}/100`,
+        phraseFeedback: `Target Phrases: ${normalizeAiScore(result.scores?.target_phrase_usage)}/100`,
         targetPhrasesFound: result.target_phrases_found ?? [],
         suggestions: Array.isArray(result.corrections)
           ? result.corrections.map((c) => `"${c.original}" → "${c.corrected}" — ${c.explanation}`)
