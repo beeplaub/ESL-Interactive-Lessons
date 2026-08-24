@@ -2176,11 +2176,13 @@ function OralResponse({
   const [supported, setSupported] = useState(true);
   const [recording, setRecording] = useState(false);
   const [processingAudio, setProcessingAudio] = useState(false);
+  const [audioError, setAudioError] = useState<string | null>(null);
   const [seconds, setSeconds] = useState(0);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const mediaChunksRef = useRef<Blob[]>([]);
+  const mobileTranscriptRef = useRef("");
   const recordingRef = useRef(false);
   const transcriptRef = useRef(value?.transcript ?? "");
   const startedAtRef = useRef(0);
@@ -2220,9 +2222,31 @@ function OralResponse({
       mediaStreamRef.current = stream;
       mediaRecorderRef.current = recorder;
       mediaChunksRef.current = [];
+      mobileTranscriptRef.current = "";
+      setAudioError(null);
       startedAtRef.current = Date.now();
       setSeconds(0);
       setRecording(true);
+      // Keep a quiet, best-effort browser transcript as a fallback. It is never
+      // restarted after a mobile pause, so it cannot cause the repeated beeps
+      // that caused the original problem. The complete MediaRecorder audio is
+      // still sent for the primary transcription path.
+      const Recognition = getSpeechRecognitionConstructor();
+      if (Recognition) {
+        const fallbackRecognition = new Recognition();
+        fallbackRecognition.lang = "en-US";
+        fallbackRecognition.continuous = true;
+        fallbackRecognition.interimResults = true;
+        fallbackRecognition.maxAlternatives = 1;
+        recognitionRef.current = fallbackRecognition;
+        fallbackRecognition.onresult = (event) => {
+          mobileTranscriptRef.current = Array.from({ length: event.results.length }, (_, index) => event.results.item(index).item(0).transcript)
+            .join(" ").replace(/\s+/g, " ").trim();
+        };
+        fallbackRecognition.onerror = () => { /* MediaRecorder remains the source of truth. */ };
+        fallbackRecognition.onend = () => { /* Do not restart on mobile pauses. */ };
+        try { fallbackRecognition.start(); } catch { /* Recording can continue without the fallback. */ }
+      }
       recorder.ondataavailable = (event) => {
         if (event.data.size > 0) mediaChunksRef.current.push(event.data);
       };
@@ -2230,6 +2254,8 @@ function OralResponse({
         const audioBlob = new Blob(mediaChunksRef.current, { type: recorder.mimeType || mimeType || "audio/webm" });
         mediaChunksRef.current = [];
         mediaRecorderRef.current = null;
+        recognitionRef.current?.abort();
+        recognitionRef.current = null;
         mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
         mediaStreamRef.current = null;
         setRecording(false);
@@ -2238,19 +2264,34 @@ function OralResponse({
         try {
           const result = await transcribeOralResponseAudioAction({
             audioBase64: await blobToBase64(audioBlob),
-            mimeType: audioBlob.type,
+            mimeType: audioBlob.type.split(";", 1)[0] || "audio/webm",
             activityId: question.source_activity_id ?? question.id,
             lessonId,
             quizId,
             prompt: question.question_text,
           });
-          if (result.success && result.transcript) {
-            transcriptRef.current = result.transcript;
+          const transcript = result.success && result.transcript ? result.transcript : mobileTranscriptRef.current.trim();
+          if (transcript) {
+            transcriptRef.current = transcript;
             onChange({
-              transcript: result.transcript,
+              transcript,
               duration_seconds: Math.floor((Date.now() - startedAtRef.current) / 1000),
               self_rating: value?.self_rating,
             });
+          } else {
+            setAudioError(result.success ? "We couldn’t hear a clear response. Please try recording again." : result.error);
+          }
+        } catch {
+          const fallbackTranscript = mobileTranscriptRef.current.trim();
+          if (fallbackTranscript) {
+            transcriptRef.current = fallbackTranscript;
+            onChange({
+              transcript: fallbackTranscript,
+              duration_seconds: Math.floor((Date.now() - startedAtRef.current) / 1000),
+              self_rating: value?.self_rating,
+            });
+          } else {
+            setAudioError("We couldn’t process your recording. Please try again.");
           }
         } finally {
           setProcessingAudio(false);
@@ -2261,6 +2302,7 @@ function OralResponse({
       mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
       mediaStreamRef.current = null;
       setRecording(false);
+      setAudioError("Microphone access was unavailable. Please check your browser permission and try again.");
     }
   }
 
@@ -2370,6 +2412,8 @@ function OralResponse({
         </div>
       ) : processingAudio ? (
         <p className="relative z-10 rounded-full bg-amber-100 px-3 py-1.5 text-xs font-bold text-amber-800">Processing your response…</p>
+      ) : audioError ? (
+        <p className="relative z-10 rounded-xl bg-rose-100 px-3 py-2 text-xs font-bold text-rose-700">{audioError}</p>
       ) : hasRecordedResponse ? (
         <p className="relative z-10 rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-bold text-emerald-700">{submitted ? "Response recorded" : "Response recorded · Tap the green button to record again"}</p>
       ) : (
