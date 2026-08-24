@@ -4,12 +4,13 @@ import { ChevronLeft, ChevronRight, Send, MessageCircle, Award, RefreshCw, Loade
 import { useState, useTransition, useRef, useCallback, useEffect, useLayoutEffect } from "react";
 import { recordQuizAttempt } from "@/app/quizzes/actions";
 import { QuestionCard, hasAnswer, type QuizQuestion } from "@/components/QuizPlayer";
+import { ActivityEvaluationModeContext, EvaluationMethodPicker } from "@/components/WritingEvaluationInterface";
 import { isCorrect, questionScore, questionTotal } from "@/lib/quizScoring";
 import { startRoleplaySessionAction, submitRoleplayTurnAction, completeRoleplaySessionAction, saveRoleplayVoiceTranscriptAction, getRoleplayHistoryAction } from "@/app/admin/lessons/aiActions";
 import type { Json } from "@/types/database.types";
 import { SoundToggle } from "@/components/gamification/SoundToggle";
 import { CELEBRATION_SCORE_THRESHOLD, fireCompletionConfetti } from "@/lib/gamification/confetti";
-import { asWritingValue, isAwaitingResolution, isWritingQuestionType } from "@/lib/writingGrading";
+import { asWritingValue, isAwaitingResolution, isWritingQuestionType, resolveWritingOutcome, type EvaluationMode } from "@/lib/writingGrading";
 import { playCelebration, playCorrect, playPartial, playWrong } from "@/lib/gamification/sounds";
 import { ResultsOverview } from "@/components/gamification/ResultsOverview";
 import { computeBestStreak, NOTABLE_STREAK_THRESHOLD } from "@/lib/gamification/resultsOverview";
@@ -1493,7 +1494,8 @@ export function LessonActivityPanel({
   courseItemId?: string | null;
   lessonId?: string | null;
 }) {
-  const questions = questionsFromData(activity.activity_data, activity.activity_type, activity.id);
+  const questions = questionsFromData(activity.activity_data, activity.activity_type, activity.id)
+    .map((question) => ({ ...question, source_activity_id: activity.id }));
   const initialAnswers = asRecord(initialAttempt?.answers);
   const draftKey = `brenup:lesson-activity-draft:${activity.id}`;
   const [answers, setAnswers] = useState<Record<string, unknown>>(() => {
@@ -1501,6 +1503,7 @@ export function LessonActivityPanel({
     try { return { ...initialAnswers, ...(JSON.parse(window.sessionStorage.getItem(draftKey) ?? "{}") as Record<string, unknown>) }; } catch { return initialAnswers; }
   });
   const [submitted, setSubmitted] = useState(Boolean(initialAttempt));
+  const [evaluationMode, setEvaluationMode] = useState<EvaluationMode | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [localAttempts, setLocalAttempts] = useState<SavedAttempt[]>(attempts);
   const [isPending, startTransition] = useTransition();
@@ -1558,6 +1561,19 @@ export function LessonActivityPanel({
     }
   }, [submitted, answers, questions, hasPendingWritingGrading, isSelfGradedOnly]);
 
+  useEffect(() => {
+    if (!submitted || !evaluationMode || evaluationMode === "SELF_GRADED") return;
+    const nextIndex = questions.findIndex((question) =>
+      isWritingQuestionType(question.question_type) && !resolveWritingOutcome(answers[question.id]).hasChosenMode
+    );
+    if (nextIndex >= 0) {
+      setReviewMode("detail");
+      setQIndex(nextIndex);
+    } else {
+      setReviewMode("overview");
+    }
+  }, [answers, evaluationMode, questions, submitted]);
+
   // ── AI Roleplay: full chat UI instead of quiz carousel ──
   if (activity.activity_type === "AI_ROLEPLAY" || activity.activity_type === "AI_INTERVIEW") {
     return (
@@ -1581,6 +1597,12 @@ export function LessonActivityPanel({
 
   const currentQuestion = questions[qIndex] ?? null;
   const allAnswered = questions.length > 0 && questions.every((q) => hasAnswer(q, answers[q.id]));
+  const hasSubjectiveQuestions = questions.some((question) => isWritingQuestionType(question.question_type));
+  const availableEvaluationModes = ([
+    ["AI_FEEDBACK", "allow_ai_feedback"],
+    ["SELF_GRADED", "allow_self_graded"],
+    ["TEACHER_REVIEW", "allow_teacher_review"],
+  ] as Array<[EvaluationMode, string]>).filter(([, key]) => questions.filter((question) => isWritingQuestionType(question.question_type)).every((question) => asRecord(question.options)[key] !== false)).map(([mode]) => mode);
   const score = questions.reduce((sum, q) => sum + questionScore(q, answers[q.id]), 0);
   const total = questions.reduce((sum, q) => sum + questionTotal(q), 0);
   const bestStreak = submitted ? computeBestStreak(questions, answers) : 0;
@@ -1599,6 +1621,10 @@ export function LessonActivityPanel({
   }
 
   function submit() {
+    if (hasSubjectiveQuestions && !evaluationMode) {
+      setMessage("Choose one grading method for this attempt first.");
+      return;
+    }
     const finalScore = questions.reduce((sum, q) => sum + questionScore(q, answers[q.id]), 0);
     setSubmitted(true);
 
@@ -1617,7 +1643,7 @@ export function LessonActivityPanel({
     startTransition(async () => {
       try {
         if (!submissionKeyRef.current) submissionKeyRef.current = crypto.randomUUID();
-        await recordQuizAttempt({
+        const saved = await recordQuizAttempt({
           lessonSlideActivityId: activity.id,
           score: finalScore,
           total,
@@ -1632,10 +1658,14 @@ export function LessonActivityPanel({
             isCorrect: isCorrect(question, answers[question.id]),
           })),
         });
-        const savedAttempt = { score: finalScore, total, answers: answers as Json, completed_at: new Date().toISOString() };
-        setLocalAttempts((current) => [savedAttempt, ...current]);
-        onSavedAttempt?.(savedAttempt);
-        setMessage("Activity saved.");
+        if (saved.status === "FINALIZED") {
+          const savedAttempt = { score: finalScore, total, answers: answers as Json, completed_at: new Date().toISOString() };
+          setLocalAttempts((current) => [savedAttempt, ...current]);
+          onSavedAttempt?.(savedAttempt);
+          setMessage("Activity saved.");
+        } else {
+          setMessage("Responses saved. Your final result will appear when grading is complete.");
+        }
       } catch (error) {
         setMessage(error instanceof Error ? error.message : "Could not save.");
       }
@@ -1648,6 +1678,7 @@ export function LessonActivityPanel({
     setMessage(null);
     setQIndex(0);
     setReviewMode("overview");
+    setEvaluationMode(null);
     setStreakPopupDismissed(false);
     celebratedRef.current = false;
     submissionKeyRef.current = null;
@@ -1748,15 +1779,17 @@ export function LessonActivityPanel({
 
           {/* Current question */}
           <div className="min-h-[120px]">
-            <QuestionCard
-              key={currentQuestion.id}
-              question={currentQuestion}
-              value={answers[currentQuestion.id]}
-              submitted={submitted}
-              onChange={(value) => setAnswers((prev) => ({ ...prev, [currentQuestion.id]: value }))}
-              onResult={handleQuestionResult}
-              lessonId={lessonId}
-            />
+            <ActivityEvaluationModeContext.Provider value={evaluationMode}>
+              <QuestionCard
+                key={currentQuestion.id}
+                question={currentQuestion}
+                value={answers[currentQuestion.id]}
+                submitted={submitted}
+                onChange={(value) => setAnswers((prev) => ({ ...prev, [currentQuestion.id]: value }))}
+                onResult={handleQuestionResult}
+                lessonId={lessonId}
+              />
+            </ActivityEvaluationModeContext.Provider>
           </div>
 
           {/* Auto-advance to next question on answer (if not submitted) */}
@@ -1771,6 +1804,10 @@ export function LessonActivityPanel({
           )}
         </div>
       )}
+
+      {!submitted && allAnswered && hasSubjectiveQuestions ? (
+        <div className="mt-4"><EvaluationMethodPicker value={evaluationMode} allowedModes={availableEvaluationModes} onChange={(mode) => { setEvaluationMode(mode); setMessage(null); }} /></div>
+      ) : null}
 
       {/* Footer */}
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--br-border)] pt-3">
@@ -1797,10 +1834,10 @@ export function LessonActivityPanel({
             <button
               type="button"
               onClick={submit}
-              disabled={!allAnswered || isPending}
+              disabled={!allAnswered || isPending || (hasSubjectiveQuestions && !evaluationMode)}
               className="rounded-md bg-moss px-4 py-2 text-sm font-semibold text-on-dark disabled:opacity-40"
             >
-              {isPending ? "Saving…" : isWritingQuestionType(activity.activity_type) ? "Submit for grading" : "Check answers"}
+              {isPending ? "Saving…" : hasSubjectiveQuestions ? "Submit for grading" : "Check answers"}
             </button>
           )}
         </div>

@@ -3,9 +3,10 @@
 import { requireUser } from "@/lib/auth";
 import { completeCourseItemsForContent } from "@/lib/courseProgress";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { isCorrect, questionScore, questionTotal } from "@/lib/quizScoring";
+import { asRecord, isCorrect, questionScore, questionTotal } from "@/lib/quizScoring";
 import { assessmentItemVersionSnapshots, clampPoints, scorePercent } from "@/lib/assessmentContract";
 import { lessonScoredQuestions } from "@/lib/lessonActivityScoring";
+import { isWritingQuestionType, resolveWritingOutcome } from "@/lib/writingGrading";
 import { recalculateCourseAssessmentsForContent } from "@/lib/courseAssessmentService";
 import { getQuizBadge } from "@/lib/quizBadges";
 import { notifyUser } from "@/lib/notifications";
@@ -31,33 +32,50 @@ export async function recordQuizAttempt(input: {
   const { user } = await requireUser();
   const admin = createAdminClient();
   if (input.submissionKey) {
-    const { data: existingAttempt, error: existingAttemptError } = await admin
+    const { data: existingAttempt, error: existingAttemptError } = await (admin
       .from("assessment_attempts")
-      .select("id")
+      .select("id,status,legacy_quiz_attempt_id")
       .eq("user_id", user.id)
       .eq("submission_key", input.submissionKey)
-      .maybeSingle();
+      .maybeSingle() as any);
     if (existingAttemptError) throw new Error(existingAttemptError.message);
-    if (existingAttempt) return { success: true, attemptId: existingAttempt.id, duplicate: true };
+    if (existingAttempt) return {
+      success: true,
+      attemptId: existingAttempt.legacy_quiz_attempt_id ?? existingAttempt.id,
+      assessmentAttemptId: existingAttempt.id,
+      status: existingAttempt.status ?? "FINALIZED",
+      duplicate: true,
+    };
   }
-  const { data: legacyAttempt, error } = await admin.from("quiz_attempts").insert({
+  const { data: legacyAttempt, error } = await (admin.from("quiz_attempts") as any).insert({
     user_id: user.id,
     quiz_id: input.quizId ?? null,
     lesson_slide_activity_id: input.lessonSlideActivityId ?? null,
     score: input.score,
     total: input.total,
     answers: input.answers as Json,
-    time_taken_seconds: input.timeTakenSeconds ?? null
+    time_taken_seconds: input.timeTakenSeconds ?? null,
+    status: "SUBMITTED",
+    grading_source: "AUTO",
   }).select("id").single();
   if (error || !legacyAttempt) throw new Error(error?.message ?? "Could not save attempt.");
 
   try {
-    await recordDetailedAssessmentEvidence({
+    const detailed = await recordDetailedAssessmentEvidence({
       admin,
       userId: user.id,
       legacyAttemptId: legacyAttempt.id,
       ...input,
     });
+    if (detailed) {
+      await (admin.from("quiz_attempts") as any).update({
+        score: detailed.score,
+        total: detailed.total,
+        status: detailed.status,
+        grading_source: detailed.gradingSource,
+        assessment_attempt_id: detailed.attemptId,
+      }).eq("id", legacyAttempt.id);
+    }
   } catch (evidenceError) {
     console.error("Detailed assessment evidence could not be saved", evidenceError);
     await admin.from("assessment_attempts").delete().eq("legacy_quiz_attempt_id", legacyAttempt.id);
@@ -65,7 +83,13 @@ export async function recordQuizAttempt(input: {
     throw new Error("Could not finalize this assessment attempt. Please try again.");
   }
 
-  if (input.quizId) {
+  const { data: detailedAttempt } = await (admin.from("assessment_attempts") as any)
+    .select("id,status,score,maximum_score")
+    .eq("legacy_quiz_attempt_id", legacyAttempt.id)
+    .maybeSingle();
+  const finalized = detailedAttempt?.status === "FINALIZED";
+
+  if (input.quizId && finalized) {
     const percent = input.total > 0 ? input.score / input.total : 0;
     const points = Math.max(1, Math.round(input.score * 10 + percent * 25));
     const { data: priorPointRows } = await admin.from("quiz_leaderboard_points").select("points").eq("user_id", user.id);
@@ -91,12 +115,18 @@ export async function recordQuizAttempt(input: {
     }
     await completeCourseItemsForContent(user.id, { kind: "QUIZ", id: input.quizId });
   }
-  if (input.quizId) {
+  if (input.quizId && finalized) {
     await recalculateCourseAssessmentsForContent(user.id, "QUIZ", input.quizId);
-  } else if (input.lessonSlideActivityId) {
+  } else if (input.lessonSlideActivityId && finalized) {
     await recalculateCourseAssessmentsForContent(user.id, "LESSON_ACTIVITY", input.lessonSlideActivityId);
   }
-  return { success: true, attemptId: legacyAttempt.id, duplicate: false };
+  return {
+    success: true,
+    attemptId: legacyAttempt.id,
+    assessmentAttemptId: detailedAttempt?.id ?? null,
+    status: detailedAttempt?.status ?? "FINALIZED",
+    duplicate: false,
+  };
 }
 
 async function recordDetailedAssessmentEvidence({
@@ -133,6 +163,9 @@ async function recordDetailedAssessmentEvidence({
     maximumPoints: number;
     isCorrect: boolean;
     itemVersionId?: string;
+    sourceItemKey: string;
+    gradingStatus: "FINALIZED" | "PENDING_REVIEW";
+    gradingSource: "AUTO" | "AI" | "TEACHER" | "SELF";
   }> = [];
 
   if (quizId) {
@@ -157,12 +190,20 @@ async function recordDetailedAssessmentEvidence({
       if (itemError || !item) throw itemError ?? new Error("Could not register quiz question evidence.");
       const configuredQuestion = { ...question, max_points: Number(item.max_points) };
       const answer = answers[question.id];
+      const writingOutcome = isWritingQuestionType(question.question_type) ? resolveWritingOutcome(answer) : null;
+      const gradingStatus = writingOutcome && !writingOutcome.isTerminal ? "PENDING_REVIEW" : "FINALIZED";
+      const gradingSource = writingOutcome?.hasChosenMode
+        ? writingOutcome.isPendingTeacher ? "TEACHER" : (asRecord(answer as Json).mode === "AI_FEEDBACK" ? "AI" : asRecord(answer as Json).mode === "SELF_GRADED" ? "SELF" : "TEACHER")
+        : "AUTO";
       normalizedResponses.push({
         assessmentItemId: item.id,
         answer,
-        earnedPoints: questionScore(configuredQuestion, answer),
+        earnedPoints: gradingStatus === "FINALIZED" ? questionScore(configuredQuestion, answer) : 0,
         maximumPoints: questionTotal(configuredQuestion),
-        isCorrect: isCorrect(configuredQuestion, answer),
+        isCorrect: gradingStatus === "FINALIZED" ? isCorrect(configuredQuestion, answer) : false,
+        sourceItemKey: question.id,
+        gradingStatus,
+        gradingSource,
       });
       const snapshots = assessmentItemVersionSnapshots({
         sourceType: "QUIZ_QUESTION",
@@ -220,12 +261,21 @@ async function recordDetailedAssessmentEvidence({
       const configuredMaximum = Number(item.max_points);
       const earnedPoints = serverQuestion ? questionScore(serverQuestion, response.answer) : response.earnedPoints;
       const serverCorrect = serverQuestion ? isCorrect(serverQuestion, response.answer) : response.isCorrect;
+      const writingOutcome = serverQuestion && isWritingQuestionType(serverQuestion.question_type) ? resolveWritingOutcome(response.answer) : null;
+      const gradingStatus = writingOutcome && !writingOutcome.isTerminal ? "PENDING_REVIEW" : "FINALIZED";
+      const answerMode = asRecord(response.answer as Json).mode;
+      const gradingSource = writingOutcome?.hasChosenMode
+        ? writingOutcome.isPendingTeacher ? "TEACHER" : answerMode === "AI_FEEDBACK" ? "AI" : answerMode === "SELF_GRADED" ? "SELF" : "TEACHER"
+        : "AUTO";
       normalizedResponses.push({
         assessmentItemId: item.id,
         answer: response.answer,
-        earnedPoints: clampPoints(serverQuestion ? earnedPoints * (configuredMaximum / Math.max(0.01, questionTotal(serverQuestion))) : earnedPoints, configuredMaximum),
+        earnedPoints: gradingStatus === "FINALIZED" ? clampPoints(serverQuestion ? earnedPoints * (configuredMaximum / Math.max(0.01, questionTotal(serverQuestion))) : earnedPoints, configuredMaximum) : 0,
         maximumPoints: configuredMaximum,
-        isCorrect: serverCorrect,
+        isCorrect: gradingStatus === "FINALIZED" ? serverCorrect : false,
+        sourceItemKey: response.itemKey,
+        gradingStatus,
+        gradingSource,
       });
       const snapshots = assessmentItemVersionSnapshots({
         sourceType: "LESSON_ACTIVITY_QUESTION",
@@ -277,6 +327,11 @@ async function recordDetailedAssessmentEvidence({
     .eq(sourceType === "QUIZ" ? "quiz_id" : "lesson_activity_id", sourceId);
   const score = normalizedResponses.reduce((sum, response) => sum + response.earnedPoints, 0);
   const maximumScore = normalizedResponses.reduce((sum, response) => sum + response.maximumPoints, 0);
+  const pending = normalizedResponses.some((response) => response.gradingStatus === "PENDING_REVIEW");
+  const sources = new Set(normalizedResponses.map((response) => response.gradingSource));
+  const gradingSource = sources.size === 1 ? [...sources][0] : "AUTO";
+  const status = pending ? "PENDING_REVIEW" : "FINALIZED";
+  const finalizedAt = pending ? null : new Date().toISOString();
   const { data: attempt, error: attemptError } = await admin.from("assessment_attempts").insert({
     user_id: userId,
     source_type: sourceType,
@@ -287,30 +342,43 @@ async function recordDetailedAssessmentEvidence({
     attempt_number: (count ?? 0) + 1,
     score,
     maximum_score: maximumScore,
-    score_percent: scorePercent(score, maximumScore),
-    status: "FINALIZED",
-    grading_source: "AUTO",
+    score_percent: pending ? null : scorePercent(score, maximumScore),
+    status,
+    grading_source: gradingSource,
     submission_key: submissionKey ?? null,
     grading_version: 1,
     submitted_at: new Date().toISOString(),
-    finalized_at: new Date().toISOString(),
+    finalized_at: finalizedAt,
     time_taken_seconds: timeTakenSeconds ?? null,
   }).select("id").single();
   if (attemptError || !attempt) throw attemptError ?? new Error("Could not save detailed attempt.");
 
-  const { error: responseError } = await admin.from("assessment_responses").insert(
+  const { data: savedResponses, error: responseError } = await (admin.from("assessment_responses") as any).insert(
     normalizedResponses.map((response) => ({
       attempt_id: attempt.id,
       assessment_item_id: response.assessmentItemId,
       response_data: response.answer as Json,
       earned_points: response.earnedPoints,
       maximum_points: response.maximumPoints,
-      is_correct: response.isCorrect,
+      is_correct: response.gradingStatus === "FINALIZED" ? response.isCorrect : null,
       assessment_item_version_id: response.itemVersionId ?? null,
-      grading_status: "FINALIZED",
-      grading_source: "AUTO",
-      finalized_at: new Date().toISOString(),
+      grading_status: response.gradingStatus,
+      grading_source: response.gradingSource,
+      finalized_at: response.gradingStatus === "FINALIZED" ? new Date().toISOString() : null,
     })),
-  );
+  ).select("id,assessment_item_id");
   if (responseError) throw responseError;
+  const responseIdByItem = new Map(
+    (savedResponses ?? []).map((row: { id: string; assessment_item_id: string }) => [row.assessment_item_id, row.id])
+  );
+  for (const response of normalizedResponses) {
+    const responseId = responseIdByItem.get(response.assessmentItemId);
+    if (!responseId) continue;
+    await (admin.from("writing_submissions") as any)
+      .update({ assessment_attempt_id: attempt.id, assessment_response_id: responseId })
+      .eq("learner_id", userId)
+      .eq("activity_id", sourceType === "LESSON_ACTIVITY" ? sourceId : response.sourceItemKey)
+      .eq("question_key", response.sourceItemKey);
+  }
+  return { attemptId: attempt.id, status, score, total: maximumScore, gradingSource };
 }

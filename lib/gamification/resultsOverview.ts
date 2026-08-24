@@ -1,5 +1,6 @@
 import type { Json } from "@/types/database.types";
 import { asRecord, isCorrect, partialCreditStats, type ScoredQuestion } from "@/lib/quizScoring";
+import { isWritingQuestionType, resolveWritingOutcome } from "@/lib/writingGrading";
 
 export type OverviewStatus = "correct" | "incorrect" | "pending";
 
@@ -20,7 +21,13 @@ const PARTIAL_CREDIT_TYPES = new Set(["DRAG_DROP", "CATEGORIZATION", "FILL", "PR
  * discouraging for an answer nobody has judged, so it gets its own neutral treatment instead.
  */
 export function overviewStatus(question: ScoredQuestion, value: unknown): OverviewStatus {
-  if (question.question_type === "SHORT_ANSWER" || question.question_type === "SUMMARIZATION") {
+  if (isWritingQuestionType(question.question_type)) {
+    const outcome = resolveWritingOutcome(value);
+    if (!outcome.isTerminal) return "pending";
+    return outcome.passed ? "correct" : "incorrect";
+  }
+
+  if (question.question_type === "SUMMARIZATION") {
     const selfMarked = asRecord(value as Json).selfMarked;
     if (selfMarked === true) return "correct";
     if (selfMarked === false) return "incorrect";

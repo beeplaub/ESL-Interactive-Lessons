@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { createContext, useContext, useEffect, useRef, useState, useTransition } from "react";
 import { CheckCircle2, Sparkles, Send, FileText, UserCheck, RotateCcw, RefreshCw } from "lucide-react";
 import {
   evaluateWritingWithAiAction,
@@ -12,6 +12,29 @@ import type { EvaluationMode, WritingAnswerValue } from "@/lib/writingGrading";
 import type { Json } from "@/types/database.types";
 
 export type { EvaluationMode };
+export const ActivityEvaluationModeContext = createContext<EvaluationMode | null>(null);
+
+export function EvaluationMethodPicker({ value, onChange, allowedModes = ["AI_FEEDBACK", "SELF_GRADED", "TEACHER_REVIEW"] }: { value: EvaluationMode | null; onChange: (mode: EvaluationMode) => void; allowedModes?: EvaluationMode[] }) {
+  const choices: Array<{ mode: EvaluationMode; title: string; detail: string }> = [
+    { mode: "AI_FEEDBACK", title: "AI feedback", detail: "Instant score and practical feedback" },
+    { mode: "SELF_GRADED", title: "Self-check", detail: "Compare with the model response" },
+    { mode: "TEACHER_REVIEW", title: "Teacher review", detail: "Send all responses to your teacher" },
+  ];
+  return (
+    <div className="rounded-[18px] border border-[var(--br-chart-primary)]/20 bg-[var(--br-chart-primary)]/5 p-4">
+      <p className="text-sm font-extrabold text-ink">How should this attempt be graded?</p>
+      <p className="mt-1 text-sm text-[var(--br-text-muted)]">Choose once. The same method will apply to every written or spoken response.</p>
+      <div className="mt-3 grid gap-2 sm:grid-cols-3">
+        {choices.filter((choice) => allowedModes.includes(choice.mode)).map((choice) => (
+          <button key={choice.mode} type="button" onClick={() => onChange(choice.mode)} className={`rounded-xl border p-3 text-left transition ${value === choice.mode ? "border-[var(--br-chart-primary)] bg-surface ring-2 ring-[var(--br-chart-primary)]/15" : "border-[var(--br-border)] bg-surface hover:border-[var(--br-chart-primary)]/50"}`}>
+            <span className="block text-sm font-bold text-ink">{choice.title}</span>
+            <span className="mt-1 block text-xs leading-5 text-[var(--br-text-muted)]">{choice.detail}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 type AiResultShape = {
   score: number;
@@ -73,11 +96,13 @@ export function WritingEvaluationInterface({
    * its answers state (and, for AI/self, it's also independently saved server-side for the record). */
   onGraded?: (outcome: WritingAnswerValue) => void;
 }) {
+  const activityMode = useContext(ActivityEvaluationModeContext);
   // Chosen evaluation mode — once set (and resolved), it is locked for the remainder of this attempt.
   // The only way to pick a different method is to retake the whole activity (see the parent's Retake
   // button), not an in-place reset here — otherwise a learner could see a weak AI/teacher score and
   // simply switch to self-marking themselves as correct.
-  const [chosenMode, setChosenMode] = useState<EvaluationMode | null>(initialValue?.mode ?? null);
+  const [chosenMode, setChosenMode] = useState<EvaluationMode | null>(initialValue?.mode ?? activityMode ?? null);
+  const autoStartedRef = useRef(false);
 
   const [aiResult, setAiResult] = useState<AiResultShape | null>(
     initialValue?.mode === "AI_FEEDBACK" && initialValue.aiFeedback
@@ -214,6 +239,16 @@ export function WritingEvaluationInterface({
     });
   }
 
+  useEffect(() => {
+    if (!activityMode || initialValue?.mode || autoStartedRef.current) return;
+    autoStartedRef.current = true;
+    if (activityMode === "AI_FEEDBACK") handleRunAiFeedback();
+    else if (activityMode === "TEACHER_REVIEW") handleSubmitToTeacher();
+    else setChosenMode("SELF_GRADED");
+    // The handlers intentionally run once when the activity-wide choice reaches this question.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activityMode]);
+
   return (
     <div className="mt-6 space-y-5 border-t border-[var(--br-chart-primary)]/10 pt-6">
       {error && (
@@ -309,26 +344,26 @@ export function WritingEvaluationInterface({
 
                 <div className="rounded-2xl bg-surface p-4 border border-[var(--br-chart-primary)]/10 shadow-xs space-y-1">
                   <p className="text-xs font-black text-[var(--br-chart-primary)] uppercase tracking-wider">Summary</p>
-                  <p className="text-xs font-medium text-ink leading-relaxed">{aiResult.summary}</p>
+                  <p className="text-sm font-medium text-ink leading-relaxed">{aiResult.summary}</p>
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="rounded-2xl bg-surface p-4 border border-[var(--br-border)] shadow-xs space-y-2">
                     <p className="text-xs font-bold text-[var(--br-text-muted)]">Strengths</p>
-                    <ul className="grid gap-1.5 text-xs text-[var(--br-text-muted)] font-medium">
+                    <ul className="grid gap-1.5 text-sm text-[var(--br-text-muted)] font-medium">
                       {aiResult.strengths.map((item, index) => <li key={index}>• {item}</li>)}
                     </ul>
                   </div>
                   <div className="rounded-2xl bg-surface p-4 border border-[var(--br-border)] shadow-xs space-y-2">
                     <p className="text-xs font-bold text-[var(--br-text-muted)]">Improvements</p>
-                    <ul className="grid gap-1.5 text-xs text-[var(--br-text-muted)] font-medium">
+                    <ul className="grid gap-1.5 text-sm text-[var(--br-text-muted)] font-medium">
                       {aiResult.improvements.map((item, index) => <li key={index}>• {item}</li>)}
                     </ul>
                   </div>
                 </div>
 
                 {aiResult.exampleCorrection ? (
-                  <div className="rounded-2xl bg-surface p-4 border border-[var(--br-border)] shadow-xs space-y-2 text-xs text-[var(--br-text-muted)]">
+                  <div className="rounded-2xl bg-surface p-4 border border-[var(--br-border)] shadow-xs space-y-2 text-sm text-[var(--br-text-muted)]">
                     <p className="font-bold">Example correction</p>
                     <p><span className="font-semibold">Original:</span> {aiResult.exampleCorrection.original}</p>
                     <p><span className="font-semibold">Corrected:</span> {aiResult.exampleCorrection.corrected}</p>

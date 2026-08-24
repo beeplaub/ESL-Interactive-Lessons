@@ -81,11 +81,11 @@ export function questionTotal(question: ScoredQuestion): number {
 }
 
 function baseQuestionScore(question: ScoredQuestion, answer: unknown): number {
-  if (question.question_type === "ORAL_RESPONSE") {
-    const oral = asRecord(answer as Json);
-    if (oral.mode === "SELF_GRADED") return oral.selfMarked === true ? 1 : 0;
-    if (typeof oral.score === "number") return Math.max(0, Math.min(1, oral.score / 100));
-    return 0;
+  if (isWritingQuestionType(question.question_type)) {
+    const outcome = resolveWritingOutcome(answer);
+    return outcome.isTerminal && outcome.scorePercent !== null
+      ? Math.max(0, Math.min(1, outcome.scorePercent / 100))
+      : 0;
   }
   if (question.question_type === "DRAG_DROP" || question.question_type === "CATEGORIZATION" || question.question_type === "HEADINGS_MATCHING" || question.question_type === "SKIM_CHALLENGE") {
     const correct = asRecord(question.correct_answer);

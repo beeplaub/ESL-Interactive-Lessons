@@ -6,6 +6,9 @@ import type { Json } from "@/types/database.types";
 import { revalidatePath } from "next/cache";
 import { callGemini } from "@/lib/ai/gemini";
 import { notifyUser } from "@/lib/notifications";
+import { requireStaff } from "@/lib/auth";
+import { recalculateCourseAssessmentsForContent } from "@/lib/courseAssessmentService";
+import { completeCourseItemsForContent } from "@/lib/courseProgress";
 
 function asRecord(value: Json | null | undefined): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
@@ -21,6 +24,105 @@ export type WritingSubmissionInput = {
 };
 
 export type EvaluationMode = "SELF_GRADED" | "AI_FEEDBACK" | "TEACHER_REVIEW";
+
+type AssessmentLink = { attemptId: string; responseId: string };
+
+async function findPendingAssessmentLink(admin: ReturnType<typeof createAdminClient>, userId: string, input: WritingSubmissionInput & { questionKey: string }): Promise<AssessmentLink | null> {
+  const itemQuery = (admin.from("assessment_items") as any).select("id").eq("source_item_key", input.questionKey);
+  const { data: item } = input.lessonId
+    ? await itemQuery.eq("lesson_activity_id", input.activityId).maybeSingle()
+    : await itemQuery.eq("quiz_question_id", input.activityId).maybeSingle();
+  if (!item?.id) return null;
+
+  let attemptQuery = (admin.from("assessment_attempts") as any)
+    .select("id")
+    .eq("user_id", userId)
+    .in("status", ["SUBMITTED", "PENDING_REVIEW"])
+    .order("submitted_at", { ascending: false })
+    .limit(1);
+  attemptQuery = input.lessonId
+    ? attemptQuery.eq("lesson_activity_id", input.activityId)
+    : attemptQuery.eq("quiz_id", input.quizId);
+  const { data: attempt } = await attemptQuery.maybeSingle();
+  if (!attempt?.id) return null;
+
+  const { data: response } = await (admin.from("assessment_responses") as any)
+    .select("id")
+    .eq("attempt_id", attempt.id)
+    .eq("assessment_item_id", item.id)
+    .maybeSingle();
+  return response?.id ? { attemptId: attempt.id, responseId: response.id } : null;
+}
+
+async function finalizeAssessmentResponse(admin: ReturnType<typeof createAdminClient>, input: {
+  attemptId: string;
+  responseId: string;
+  questionKey: string;
+  mode: EvaluationMode;
+  scorePercent: number;
+  outcome: Json;
+  feedback?: string | null;
+}) {
+  const source = input.mode === "AI_FEEDBACK" ? "AI" : input.mode === "SELF_GRADED" ? "SELF" : "TEACHER";
+  const { data: response } = await (admin.from("assessment_responses") as any)
+    .select("maximum_points")
+    .eq("id", input.responseId)
+    .eq("attempt_id", input.attemptId)
+    .maybeSingle();
+  if (!response) return;
+  const maximum = Number(response.maximum_points ?? 1);
+  const earned = Math.max(0, Math.min(maximum, maximum * input.scorePercent / 100));
+  const finalizedAt = new Date().toISOString();
+  await (admin.from("assessment_responses") as any).update({
+    response_data: input.outcome,
+    earned_points: earned,
+    is_correct: input.scorePercent >= 60,
+    grading_status: "FINALIZED",
+    grading_source: source,
+    feedback: input.feedback ?? null,
+    rubric_data: input.mode === "AI_FEEDBACK" ? input.outcome : null,
+    finalized_at: finalizedAt,
+  }).eq("id", input.responseId).eq("attempt_id", input.attemptId);
+
+  const { data: responses } = await (admin.from("assessment_responses") as any)
+    .select("earned_points,maximum_points,grading_status,grading_source")
+    .eq("attempt_id", input.attemptId)
+    .neq("grading_status", "VOID");
+  const rows = responses ?? [];
+  const score = rows.reduce((sum: number, row: any) => sum + Number(row.earned_points ?? 0), 0);
+  const total = rows.reduce((sum: number, row: any) => sum + Number(row.maximum_points ?? 0), 0);
+  const pending = rows.some((row: any) => row.grading_status === "PENDING_REVIEW");
+  const sources = new Set(rows.map((row: any) => String(row.grading_source)));
+  const attemptSource = sources.size === 1 ? String(rows[0]?.grading_source ?? source) : source;
+  const { data: attempt } = await (admin.from("assessment_attempts") as any).update({
+    score,
+    maximum_score: total,
+    score_percent: pending ? null : (total > 0 ? Math.round(score / total * 10000) / 100 : 0),
+    status: pending ? "PENDING_REVIEW" : "FINALIZED",
+    grading_source: attemptSource,
+    finalized_at: pending ? null : finalizedAt,
+  }).eq("id", input.attemptId).select("legacy_quiz_attempt_id,source_type,quiz_id,lesson_activity_id,user_id").maybeSingle();
+
+  if (attempt?.legacy_quiz_attempt_id) {
+    const { data: legacy } = await (admin.from("quiz_attempts") as any).select("answers").eq("id", attempt.legacy_quiz_attempt_id).maybeSingle();
+    const answers = asRecord(legacy?.answers as Json | null | undefined);
+    await (admin.from("quiz_attempts") as any).update({
+      score,
+      total,
+      answers: { ...answers, [input.questionKey]: input.outcome },
+      status: pending ? "PENDING_REVIEW" : "FINALIZED",
+      grading_source: sources.size === 1 ? source : "MIXED",
+    }).eq("id", attempt.legacy_quiz_attempt_id);
+  }
+  if (!pending && attempt?.user_id) {
+    if (attempt.source_type === "QUIZ" && attempt.quiz_id) {
+      await recalculateCourseAssessmentsForContent(attempt.user_id, "QUIZ", attempt.quiz_id);
+      await completeCourseItemsForContent(attempt.user_id, { kind: "QUIZ", id: attempt.quiz_id });
+    } else if (attempt.lesson_activity_id) {
+      await recalculateCourseAssessmentsForContent(attempt.user_id, "LESSON_ACTIVITY", attempt.lesson_activity_id);
+    }
+  }
+}
 
 /**
  * Single upsert path for ALL 3 grading modes against the real writing_submissions table —
@@ -52,6 +154,7 @@ export async function saveWritingGradingOutcomeAction(input: WritingSubmissionIn
 
     const adminSupabase = createAdminClient();
     const questionKey = input.questionKey ?? "1";
+    const assessmentLink = await findPendingAssessmentLink(adminSupabase, user.id, { ...input, questionKey });
 
     const { data: upserted, error } = await adminSupabase
       .from("writing_submissions")
@@ -72,6 +175,8 @@ export async function saveWritingGradingOutcomeAction(input: WritingSubmissionIn
           ai_feedback: input.aiFeedback ?? null,
           teacher_score: input.teacherScore ?? null,
           teacher_feedback: input.teacherFeedback ?? null,
+          assessment_attempt_id: assessmentLink?.attemptId ?? null,
+          assessment_response_id: assessmentLink?.responseId ?? null,
           updated_at: new Date().toISOString()
         },
         { onConflict: "learner_id,activity_id,question_key" }
@@ -80,6 +185,32 @@ export async function saveWritingGradingOutcomeAction(input: WritingSubmissionIn
       .single();
 
     if (error || !upserted) throw error || new Error("Failed to save grading outcome.");
+
+    if (input.status === "GRADED" && assessmentLink) {
+      const score = input.mode === "SELF_GRADED"
+        ? (input.selfMarked ? 100 : 0)
+        : Number(input.mode === "AI_FEEDBACK" ? input.aiScore : input.teacherScore);
+      if (Number.isFinite(score)) {
+        const outcome = {
+          text: input.submissionText.trim(),
+          mode: input.mode,
+          gradingState: "GRADED",
+          score,
+          selfMarked: input.selfMarked ?? null,
+          aiFeedback: input.aiFeedback ?? null,
+          teacherFeedback: input.teacherFeedback ?? null,
+          submissionId: upserted.id,
+        } as Json;
+        await finalizeAssessmentResponse(adminSupabase, {
+          ...assessmentLink,
+          questionKey,
+          mode: input.mode,
+          scorePercent: score,
+          outcome,
+          feedback: input.teacherFeedback ?? (input.aiFeedback ? String(asRecord(input.aiFeedback).summary ?? "") : null),
+        });
+      }
+    }
 
     if (input.mode === "TEACHER_REVIEW") revalidatePath("/admin/submissions");
 
@@ -123,6 +254,7 @@ export async function getWritingSubmissionStatusAction(activityId: string, quest
 
 export async function getPendingTeacherSubmissionsAction() {
   try {
+    await requireStaff();
     const adminSupabase = createAdminClient();
     const { data, error } = await adminSupabase
       .from("writing_submissions")
@@ -163,6 +295,10 @@ export async function gradeWritingSubmissionAction(input: {
   feedback: string;
 }) {
   try {
+    await requireStaff();
+    if (!Number.isFinite(input.score) || input.score < 0 || input.score > 100) {
+      return { success: false, error: "Score must be between 0 and 100." };
+    }
     const adminSupabase = createAdminClient();
     const { data: gradedSubmission, error } = await adminSupabase
       .from("writing_submissions")
@@ -173,10 +309,28 @@ export async function gradeWritingSubmissionAction(input: {
         updated_at: new Date().toISOString()
       })
       .eq("id", input.submissionId)
-      .select("learner_id,lesson_id,activity_id")
+      .select("learner_id,lesson_id,activity_id,question_key,assessment_attempt_id,assessment_response_id,submission_text")
       .maybeSingle();
 
     if (error) throw error;
+    if (gradedSubmission?.assessment_attempt_id && gradedSubmission?.assessment_response_id) {
+      await finalizeAssessmentResponse(adminSupabase, {
+        attemptId: gradedSubmission.assessment_attempt_id,
+        responseId: gradedSubmission.assessment_response_id,
+        questionKey: gradedSubmission.question_key ?? "1",
+        mode: "TEACHER_REVIEW",
+        scorePercent: input.score,
+        outcome: {
+          text: gradedSubmission.submission_text,
+          mode: "TEACHER_REVIEW",
+          gradingState: "GRADED",
+          score: input.score,
+          teacherFeedback: input.feedback,
+          submissionId: input.submissionId,
+        } as Json,
+        feedback: input.feedback,
+      });
+    }
     if (gradedSubmission?.learner_id) {
       let href = "/account";
       if (gradedSubmission.lesson_id && gradedSubmission.activity_id) {
@@ -211,7 +365,16 @@ export async function gradeWritingSubmissionAction(input: {
 const writingFeedbackSchema = {
   type: "object",
   properties: {
-    score: { type: "number" },
+    dimension_scores: {
+      type: "object",
+      properties: {
+        task_fulfilment: { type: "number" },
+        clarity_and_organisation: { type: "number" },
+        language_control: { type: "number" },
+        vocabulary_and_appropriacy: { type: "number" }
+      },
+      required: ["task_fulfilment", "clarity_and_organisation", "language_control", "vocabulary_and_appropriacy"]
+    },
     summary: { type: "string" },
     strengths: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 3 },
     improvements: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 3 },
@@ -226,11 +389,11 @@ const writingFeedbackSchema = {
       required: ["original", "corrected", "explanation"]
     },
   },
-  required: ["score", "summary", "strengths", "improvements", "example_correction"]
+  required: ["dimension_scores", "summary", "strengths", "improvements", "example_correction"]
 };
 
 type WritingFeedbackResult = {
-  score: number;
+  dimension_scores: Record<string, number>;
   summary: string;
   strengths: string[];
   improvements: string[];
@@ -240,7 +403,7 @@ type WritingFeedbackResult = {
 const oralResponseFeedbackSchema = {
   type: "object",
   properties: {
-    score: { type: "number" },
+    dimension_scores: writingFeedbackSchema.properties.dimension_scores,
     summary: { type: "string" },
     strengths: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 3 },
     improvements: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 3 },
@@ -255,11 +418,11 @@ const oralResponseFeedbackSchema = {
       required: ["original", "corrected", "explanation"]
     }
   },
-  required: ["score", "summary", "strengths", "improvements", "example_correction"]
+  required: ["dimension_scores", "summary", "strengths", "improvements", "example_correction"]
 };
 
 type OralResponseFeedbackResult = {
-  score: number;
+  dimension_scores: Record<string, number>;
   summary: string;
   strengths: string[];
   improvements: string[];
@@ -268,22 +431,29 @@ type OralResponseFeedbackResult = {
 
 /** Models occasionally answer rubric dimensions as 4/5 instead of 80/100.
  * Normalize that representation before it reaches learner scoring. */
-function normalizeAiScore(value: unknown) {
-  const numeric = Number(value);
-  if (!Number.isFinite(numeric)) return 0;
-  const scaled = numeric >= 0 && numeric <= 5 ? numeric * 20 : numeric;
-  return Math.max(0, Math.min(100, Math.round(scaled)));
+function scoreFromDimensions(value: unknown) {
+  const dimensions = asRecord(value as Json | null | undefined);
+  const scores = ["task_fulfilment", "clarity_and_organisation", "language_control", "vocabulary_and_appropriacy"]
+    .map((key) => Number(dimensions[key]));
+  if (scores.some((score) => !Number.isFinite(score))) throw new Error("AI evaluation returned incomplete rubric scores.");
+  const bounded = scores.map((score) => Math.max(0, Math.min(5, score)));
+  return Math.round((bounded.reduce((sum, score) => sum + score, 0) / 20) * 100);
 }
 
 const simpleLearnerFeedbackInstruction = `Return learner-facing feedback in this exact structure:
 {
-  "score": 78,
+  "dimension_scores": {
+    "task_fulfilment": 4,
+    "clarity_and_organisation": 4,
+    "language_control": 3,
+    "vocabulary_and_appropriacy": 4
+  },
   "summary": "One concise overall review.",
   "strengths": ["Strength 1", "Strength 2"],
   "improvements": ["Improvement 1", "Improvement 2"],
   "example_correction": null
 }
-Use 1-3 short strengths and 1-3 short improvements. Use one example_correction object only when a correction is useful; otherwise return null. Return every score on a 0-100 scale.`;
+Score every dimension from 0 to 5 only: 0=no meaningful evidence, 1=very limited, 2=partly meets the task, 3=generally effective with noticeable problems, 4=effective with minor problems, 5=fully effective for the stated learner level. Use 1-3 short strengths and 1-3 short improvements. Use one example_correction object only when a correction is useful; otherwise return null. Do not return an overall score; the server calculates it.`;
 
 async function resolveEvaluationContext(input: {
   activityId?: string | null;
@@ -370,12 +540,12 @@ export async function evaluateWritingWithAiAction(input: {
           cache: { ttlSeconds: 365 * 24 * 60 * 60 },
         },
       });
-      const overall = Number(result.score);
-      if (!Number.isFinite(overall)) throw new Error("AI oral evaluation did not return a valid score.");
+      const overall = scoreFromDimensions(result.dimension_scores);
       return {
         success: true as const,
         data: {
-          score: normalizeAiScore(overall),
+          score: overall,
+          rubric: result.dimension_scores,
           summary: String(result.summary ?? ""),
           strengths: Array.isArray(result.strengths) ? result.strengths : [],
           improvements: Array.isArray(result.improvements) ? result.improvements : [],
@@ -416,15 +586,13 @@ export async function evaluateWritingWithAiAction(input: {
       },
     });
 
-    const overall = Number(result.score);
-    if (!Number.isFinite(overall)) {
-      throw new Error("AI evaluation did not return a valid overall score.");
-    }
+    const overall = scoreFromDimensions(result.dimension_scores);
 
     return {
       success: true as const,
       data: {
-        score: normalizeAiScore(overall),
+        score: overall,
+        rubric: result.dimension_scores,
         summary: String(result.summary ?? ""),
         strengths: Array.isArray(result.strengths) ? result.strengths : [],
         improvements: Array.isArray(result.improvements) ? result.improvements : [],
@@ -443,7 +611,7 @@ export async function evaluateWritingWithAiAction(input: {
 const dialogueFeedbackSchema = {
   type: "object",
   properties: {
-    score: { type: "number" },
+    dimension_scores: writingFeedbackSchema.properties.dimension_scores,
     summary: { type: "string" },
     strengths: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 3 },
     improvements: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 3 },
@@ -458,11 +626,11 @@ const dialogueFeedbackSchema = {
       required: ["original", "corrected", "explanation"]
     }
   },
-  required: ["score", "summary", "strengths", "improvements", "example_correction"]
+  required: ["dimension_scores", "summary", "strengths", "improvements", "example_correction"]
 };
 
 type DialogueFeedbackResult = {
-  score: number;
+  dimension_scores: Record<string, number>;
   summary: string;
   strengths: string[];
   improvements: string[];
@@ -513,15 +681,13 @@ export async function evaluateDialogueWritingWithAiAction(input: {
       },
     });
 
-    const overall = Number(result.score);
-    if (!Number.isFinite(overall)) {
-      throw new Error("AI evaluation did not return a valid overall score.");
-    }
+    const overall = scoreFromDimensions(result.dimension_scores);
 
     return {
       success: true as const,
       data: {
-        score: normalizeAiScore(overall),
+        score: overall,
+        rubric: result.dimension_scores,
         summary: String(result.summary ?? ""),
         strengths: Array.isArray(result.strengths) ? result.strengths : [],
         improvements: Array.isArray(result.improvements) ? result.improvements : [],

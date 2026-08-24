@@ -100,6 +100,9 @@ export function resolveWritingOutcome(rawValue: unknown): WritingOutcome {
   }
 
   if (mode === "SELF_GRADED") {
+    if (typeof value.selfMarked !== "boolean") {
+      return { hasText, hasChosenMode: true, isTerminal: false, isPendingTeacher: false, scorePercent: null, passed: false };
+    }
     const passed = value.selfMarked === true;
     return { hasText, hasChosenMode: true, isTerminal: true, isPendingTeacher: false, scorePercent: passed ? 100 : 0, passed };
   }
@@ -113,7 +116,7 @@ export function resolveWritingOutcome(rawValue: unknown): WritingOutcome {
 /** Does this question still need a mode chosen, or a teacher grade, before the activity's overall score is final? */
 export function isAwaitingResolution(rawValue: unknown): boolean {
   const outcome = resolveWritingOutcome(rawValue);
-  return outcome.hasText && (!outcome.hasChosenMode || outcome.isPendingTeacher);
+  return outcome.hasText && !outcome.isTerminal;
 }
 
 export function optionsToGradingOptions(opts: Record<string, unknown>): WritingGradingOptions {

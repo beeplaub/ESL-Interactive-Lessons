@@ -15,11 +15,13 @@ import { playCelebration, playCorrect, playPartial, playWrong } from "@/lib/gami
 import { ResultsOverview } from "@/components/gamification/ResultsOverview";
 import { StreakPopup } from "@/components/gamification/StreakPopup";
 import { computeBestStreak, NOTABLE_STREAK_THRESHOLD } from "@/lib/gamification/resultsOverview";
-import { WritingEvaluationInterface } from "@/components/WritingEvaluationInterface";
-import { asWritingValue, isAwaitingResolution, isWritingQuestionType, resolveWritingOutcome, type WritingAnswerValue } from "@/lib/writingGrading";
+import { ActivityEvaluationModeContext, EvaluationMethodPicker, WritingEvaluationInterface } from "@/components/WritingEvaluationInterface";
+import { asWritingValue, isAwaitingResolution, isWritingQuestionType, resolveWritingOutcome, type EvaluationMode, type WritingAnswerValue } from "@/lib/writingGrading";
 
 export type QuizQuestion = {
   id: string;
+  /** Parent lesson activity UUID. Quiz questions leave this unset and use their own id. */
+  source_activity_id?: string;
   question_number: number;
   question_type: "MCQ" | "TRUE_FALSE" | "FILL" | "MATCHING" | "ERROR_CORRECTION" | "REORDERING" | "MULTIPLE_SELECT" | "SHORT_ANSWER" | "DRAG_DROP" | "CATEGORIZATION" | "PRONUNCIATION" | "ORAL_RESPONSE" | "SUMMARIZATION" | "INFERENCE_DETECTION" | "HEADINGS_MATCHING" | "SKIM_CHALLENGE" | "PARAPHRASE_ID" | "DICTATION" | "LISTEN_AND_SELECT" | "SHADOWING" | "NOTE_TAKING_CHALLENGE" | "SOUND_DISCRIMINATION" | "LISTEN_AND_GAP_FILL" | "SENTENCE_COMPLETION" | "ESSAY_WRITING" | "EMAIL_LETTER_WRITING" | "TRANSLATION" | "PARAPHRASE_PRACTICE" | "SENTENCE_COMBINING" | "CREATIVE_WRITING" | "PEER_REVIEW_EDITING" | "DIALOGUE_WRITING";
   question_text: string;
@@ -51,6 +53,16 @@ export type OralResponseValue = {
   aiFeedback?: Record<string, unknown> | null;
   teacherFeedback?: string | null;
 };
+
+function allowedEvaluationModes(questions: QuizQuestion[]): EvaluationMode[] {
+  const subjective = questions.filter((question) => isWritingQuestionType(question.question_type));
+  const rules: Array<[EvaluationMode, string]> = [
+    ["AI_FEEDBACK", "allow_ai_feedback"],
+    ["SELF_GRADED", "allow_self_graded"],
+    ["TEACHER_REVIEW", "allow_teacher_review"],
+  ];
+  return rules.filter(([, key]) => subjective.every((question) => asRecord(question.options)[key] !== false)).map(([mode]) => mode);
+}
 
 export function hasAnswer(question: QuizQuestion, value: unknown): boolean {
   if (value === undefined || value === null) return false;
@@ -346,6 +358,7 @@ export function QuizPlayer({
   const [guestAttempt, setGuestAttempt] = useState<PendingAttempt | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [reviewMode, setReviewMode] = useState<"overview" | "detail">("overview");
+  const [evaluationMode, setEvaluationMode] = useState<EvaluationMode | null>(null);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const [remainingSeconds, setRemainingSeconds] = useState(() => timerMinutes ? timerMinutes * 60 : null);
   const attemptStartRef = useRef(Date.now());
@@ -359,6 +372,8 @@ export function QuizPlayer({
     else playWrong();
   }, []);
   const answered = questions.every((question) => hasAnswer(question, answers[question.id]));
+  const hasSubjectiveQuestions = questions.some((question) => isWritingQuestionType(question.question_type));
+  const availableEvaluationModes = allowedEvaluationModes(questions);
   const totalPoints = questions.reduce((sum, question) => sum + questionTotal(question), 0);
   const currentScore = questions.reduce((sum, question) => sum + questionScore(question, answers[question.id]), 0);
   const score = submitted ? currentScore : 0;
@@ -422,6 +437,7 @@ export function QuizPlayer({
     setGuestAttempt(null);
     setCurrentIndex(0);
     setReviewMode("overview");
+    setEvaluationMode(null);
     setRemainingSeconds(timerMinutes ? timerMinutes * 60 : null);
     attemptStartRef.current = Date.now();
     submissionKeyRef.current = null;
@@ -483,6 +499,10 @@ export function QuizPlayer({
 
   const submit = useCallback(() => {
     if (submitted) return;
+    if (hasSubjectiveQuestions && !evaluationMode) {
+      setMessage("Choose one grading method for this attempt first.");
+      return;
+    }
     const finalScore = questions.reduce((sum, question) => sum + questionScore(question, answers[question.id]), 0);
     const finalTotal = questions.reduce((sum, question) => sum + questionTotal(question), 0);
     const finalTimeTakenSeconds = Math.max(0, Math.round((Date.now() - attemptStartRef.current) / 1000));
@@ -508,17 +528,34 @@ export function QuizPlayer({
     startTransition(async () => {
       try {
         if (!submissionKeyRef.current) submissionKeyRef.current = crypto.randomUUID();
-        await recordQuizAttempt({ quizId, score: finalScore, total: finalTotal, answers, timeTakenSeconds: finalTimeTakenSeconds, courseItemId, submissionKey: submissionKeyRef.current });
-        setAllAttempts((prev) => [
-          ...prev,
-          { score: finalScore, total: finalTotal, completedAt: new Date().toISOString() }
-        ]);
-        setMessage("Quiz attempt saved.");
+        const saved = await recordQuizAttempt({ quizId, score: finalScore, total: finalTotal, answers, timeTakenSeconds: finalTimeTakenSeconds, courseItemId, submissionKey: submissionKeyRef.current });
+        if (saved.status === "FINALIZED") {
+          setAllAttempts((prev) => [
+            ...prev,
+            { score: finalScore, total: finalTotal, completedAt: new Date().toISOString() }
+          ]);
+          setMessage("Quiz attempt saved.");
+        } else {
+          setMessage("Responses saved. Your final result will appear when grading is complete.");
+        }
       } catch (error) {
         setMessage(error instanceof Error ? error.message : "Could not save quiz attempt.");
       }
     });
-  }, [answers, courseItemId, isGuest, questions, quizId, submitted]);
+  }, [answers, courseItemId, evaluationMode, hasSubjectiveQuestions, isGuest, questions, quizId, submitted]);
+
+  useEffect(() => {
+    if (!submitted || !evaluationMode || evaluationMode === "SELF_GRADED") return;
+    const nextIndex = questions.findIndex((question) =>
+      isWritingQuestionType(question.question_type) && !resolveWritingOutcome(answers[question.id]).hasChosenMode
+    );
+    if (nextIndex >= 0) {
+      setReviewMode("detail");
+      setCurrentIndex(nextIndex);
+    } else {
+      setReviewMode("overview");
+    }
+  }, [answers, evaluationMode, questions, submitted]);
 
   useEffect(() => {
     if (!timerMinutes || submitted) return;
@@ -640,15 +677,17 @@ export function QuizPlayer({
         onTouchCancel={() => { touchStartRef.current = null; }}
       >
         {currentQuestion ? (
-          <QuestionCard
-            key={currentQuestion.id}
-            question={currentQuestion}
-            value={answers[currentQuestion.id]}
-            submitted={submitted}
-            onChange={(value) => setAnswers((current) => ({ ...current, [currentQuestion.id]: value }))}
-            onResult={handleQuestionResult}
-            quizId={quizId}
-          />
+          <ActivityEvaluationModeContext.Provider value={evaluationMode}>
+            <QuestionCard
+              key={currentQuestion.id}
+              question={currentQuestion}
+              value={answers[currentQuestion.id]}
+              submitted={submitted}
+              onChange={(value) => setAnswers((current) => ({ ...current, [currentQuestion.id]: value }))}
+              onResult={handleQuestionResult}
+              quizId={quizId}
+            />
+          </ActivityEvaluationModeContext.Provider>
         ) : null}
       </div>
 
@@ -694,6 +733,8 @@ export function QuizPlayer({
       </>
       ) : null}
 
+      {!submitted && answered && hasSubjectiveQuestions ? <EvaluationMethodPicker value={evaluationMode} allowedModes={availableEvaluationModes} onChange={(mode) => { setEvaluationMode(mode); setMessage(null); }} /> : null}
+
       {!submitted || reviewMode === "detail" ? (
         (() => {
           return (
@@ -714,7 +755,7 @@ export function QuizPlayer({
                 {!submitted && (
                   <button
                     type="button"
-                    disabled={!answered || submitted}
+                    disabled={!answered || submitted || (hasSubjectiveQuestions && !evaluationMode)}
                     onClick={submit}
                     className="inline-flex items-center gap-2 rounded-[14px] bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] px-4 py-2 text-sm font-extrabold text-on-dark shadow-[var(--br-shadow)] disabled:opacity-45"
                   >
@@ -1762,7 +1803,7 @@ function ShortAnswer({
         ) : null}
 
         <WritingEvaluationInterface
-          activityId={question.id}
+          activityId={question.source_activity_id ?? question.id}
           activityType="SHORT_ANSWER"
           prompt={question.question_text}
           submissionText={text}
@@ -1772,7 +1813,7 @@ function ShortAnswer({
           allowTeacherReview={allowTeacherReview}
           onGraded={(outcome) => onChange(outcome)}
           initialValue={value}
-          questionKey="1"
+          questionKey={question.id}
           quizId={quizId}
           lessonId={lessonId}
         />
@@ -2157,7 +2198,7 @@ function OralResponse({
             {value.transcript}
           </div>
           <WritingEvaluationInterface
-            activityId={question.id}
+            activityId={question.source_activity_id ?? question.id}
             activityType="ORAL_RESPONSE"
             prompt={question.question_text}
             submissionText={value.transcript}
@@ -2166,6 +2207,7 @@ function OralResponse({
             allowSelfGraded={allowSelfGraded}
             allowAiFeedback={opts.allow_ai_feedback !== false}
             allowTeacherReview={opts.allow_teacher_review !== false}
+            questionKey={question.id}
             quizId={quizId}
             lessonId={lessonId}
             initialValue={{ ...value, text: value.transcript } as unknown as WritingAnswerValue}
@@ -3044,7 +3086,7 @@ function SentenceCompletionPlayer({
 
       {submitted && (
         <WritingEvaluationInterface
-          activityId={question.id}
+          activityId={question.source_activity_id ?? question.id}
           activityType="SENTENCE_COMPLETION"
           prompt={question.question_text || stem}
           submissionText={text}
@@ -3055,7 +3097,7 @@ function SentenceCompletionPlayer({
           allowTeacherReview={allowTeacherReview}
           onGraded={(outcome) => onChange(outcome)}
           initialValue={value}
-          questionKey="1"
+          questionKey={question.id}
           quizId={quizId}
           lessonId={lessonId}
         />
@@ -3120,7 +3162,7 @@ function EssayWritingPlayer({
 
       {submitted && (
         <WritingEvaluationInterface
-          activityId={question.id}
+          activityId={question.source_activity_id ?? question.id}
           activityType="ESSAY_WRITING"
           prompt={question.question_text}
           submissionText={text}
@@ -3132,7 +3174,7 @@ function EssayWritingPlayer({
           allowTeacherReview={allowTeacherReview}
           onGraded={(outcome) => onChange(outcome)}
           initialValue={value}
-          questionKey="1"
+          questionKey={question.id}
           quizId={quizId}
           lessonId={lessonId}
         />
@@ -3200,7 +3242,7 @@ function EmailLetterWritingPlayer({
 
       {submitted && (
         <WritingEvaluationInterface
-          activityId={question.id}
+          activityId={question.source_activity_id ?? question.id}
           activityType="EMAIL_LETTER_WRITING"
           prompt={question.question_text}
           submissionText={text}
@@ -3211,7 +3253,7 @@ function EmailLetterWritingPlayer({
           allowTeacherReview={allowTeacherReview}
           onGraded={(outcome) => onChange(outcome)}
           initialValue={value}
-          questionKey="1"
+          questionKey={question.id}
           quizId={quizId}
           lessonId={lessonId}
         />
@@ -3268,7 +3310,7 @@ function TranslationPlayer({
 
       {submitted && (
         <WritingEvaluationInterface
-          activityId={question.id}
+          activityId={question.source_activity_id ?? question.id}
           activityType="TRANSLATION"
           prompt={question.question_text || sourceText}
           submissionText={text}
@@ -3279,7 +3321,7 @@ function TranslationPlayer({
           allowTeacherReview={allowTeacherReview}
           onGraded={(outcome) => onChange(outcome)}
           initialValue={value}
-          questionKey="1"
+          questionKey={question.id}
           quizId={quizId}
           lessonId={lessonId}
         />
@@ -3344,7 +3386,7 @@ function ParaphrasePracticePlayer({
 
       {submitted && (
         <WritingEvaluationInterface
-          activityId={question.id}
+          activityId={question.source_activity_id ?? question.id}
           activityType="PARAPHRASE_PRACTICE"
           prompt={question.question_text || originalText}
           submissionText={text}
@@ -3355,7 +3397,7 @@ function ParaphrasePracticePlayer({
           allowTeacherReview={allowTeacherReview}
           onGraded={(outcome) => onChange(outcome)}
           initialValue={value}
-          questionKey="1"
+          questionKey={question.id}
           quizId={quizId}
           lessonId={lessonId}
         />
@@ -3411,7 +3453,7 @@ function SentenceCombiningPlayer({
 
       {submitted && (
         <WritingEvaluationInterface
-          activityId={question.id}
+          activityId={question.source_activity_id ?? question.id}
           activityType="SENTENCE_COMBINING"
           prompt={question.question_text}
           submissionText={text}
@@ -3422,7 +3464,7 @@ function SentenceCombiningPlayer({
           allowTeacherReview={allowTeacherReview}
           onGraded={(outcome) => onChange(outcome)}
           initialValue={value}
-          questionKey="1"
+          questionKey={question.id}
           quizId={quizId}
           lessonId={lessonId}
         />
@@ -3505,7 +3547,7 @@ function CreativeWritingPlayer({
 
       {submitted && (
         <WritingEvaluationInterface
-          activityId={question.id}
+          activityId={question.source_activity_id ?? question.id}
           activityType="CREATIVE_WRITING"
           prompt={question.question_text || storyStarter}
           submissionText={text}
@@ -3516,7 +3558,7 @@ function CreativeWritingPlayer({
           allowTeacherReview={allowTeacherReview}
           onGraded={(outcome) => onChange(outcome)}
           initialValue={value}
-          questionKey="1"
+          questionKey={question.id}
           quizId={quizId}
           lessonId={lessonId}
         />
@@ -3583,7 +3625,7 @@ function PeerReviewEditingPlayer({
 
       {submitted && (
         <WritingEvaluationInterface
-          activityId={question.id}
+          activityId={question.source_activity_id ?? question.id}
           activityType="PEER_REVIEW_EDITING"
           prompt={question.question_text}
           submissionText={text}
@@ -3594,7 +3636,7 @@ function PeerReviewEditingPlayer({
           allowTeacherReview={allowTeacherReview}
           onGraded={(outcome) => onChange(outcome)}
           initialValue={value}
-          questionKey="1"
+          questionKey={question.id}
           quizId={quizId}
           lessonId={lessonId}
         />
@@ -3938,7 +3980,7 @@ function DialogueWritingPlayer({
 
       {submitted && (
         <WritingEvaluationInterface
-          activityId={question.id}
+          activityId={question.source_activity_id ?? question.id}
           activityType="DIALOGUE_WRITING"
           prompt={question.question_text}
           submissionText={turns.map((t) => `${t.speaker}: ${t.text}`).join("\n")}
@@ -3950,7 +3992,7 @@ function DialogueWritingPlayer({
           allowTeacherReview={allowTeacherReview}
           onGraded={(outcome) => onChange(outcome)}
           initialValue={value}
-          questionKey="1"
+          questionKey={question.id}
           quizId={quizId}
           lessonId={lessonId}
         />
