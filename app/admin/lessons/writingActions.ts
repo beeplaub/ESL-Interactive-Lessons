@@ -28,30 +28,39 @@ export type EvaluationMode = "SELF_GRADED" | "AI_FEEDBACK" | "TEACHER_REVIEW";
 type AssessmentLink = { attemptId: string; responseId: string };
 
 async function findPendingAssessmentLink(admin: ReturnType<typeof createAdminClient>, userId: string, input: WritingSubmissionInput & { questionKey: string }): Promise<AssessmentLink | null> {
-  const itemQuery = (admin.from("assessment_items") as any).select("id").eq("source_item_key", input.questionKey);
-  const { data: item } = input.lessonId
-    ? await itemQuery.eq("lesson_activity_id", input.activityId).maybeSingle()
-    : await itemQuery.eq("quiz_question_id", input.activityId).maybeSingle();
-  if (!item?.id) return null;
+  // The attempt and its detailed responses are written in sequence when a learner submits.
+  // Grading can be selected immediately after the submit transition completes, so allow a
+  // short settling window instead of exposing an internal "still being prepared" error.
+  const retryDelays = [0, 250, 750, 1500];
+  for (const delay of retryDelays) {
+    if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
 
-  let attemptQuery = (admin.from("assessment_attempts") as any)
-    .select("id")
-    .eq("user_id", userId)
-    .in("status", ["SUBMITTED", "PENDING_REVIEW"])
-    .order("submitted_at", { ascending: false })
-    .limit(1);
-  attemptQuery = input.lessonId
-    ? attemptQuery.eq("lesson_activity_id", input.activityId)
-    : attemptQuery.eq("quiz_id", input.quizId);
-  const { data: attempt } = await attemptQuery.maybeSingle();
-  if (!attempt?.id) return null;
+    const itemQuery = (admin.from("assessment_items") as any).select("id").eq("source_item_key", input.questionKey);
+    const { data: item } = input.lessonId
+      ? await itemQuery.eq("lesson_activity_id", input.activityId).maybeSingle()
+      : await itemQuery.eq("quiz_question_id", input.activityId).maybeSingle();
+    if (!item?.id) continue;
 
-  const { data: response } = await (admin.from("assessment_responses") as any)
-    .select("id")
-    .eq("attempt_id", attempt.id)
-    .eq("assessment_item_id", item.id)
-    .maybeSingle();
-  return response?.id ? { attemptId: attempt.id, responseId: response.id } : null;
+    let attemptQuery = (admin.from("assessment_attempts") as any)
+      .select("id")
+      .eq("user_id", userId)
+      .neq("status", "VOID")
+      .order("submitted_at", { ascending: false })
+      .limit(1);
+    attemptQuery = input.lessonId
+      ? attemptQuery.eq("lesson_activity_id", input.activityId)
+      : attemptQuery.eq("quiz_id", input.quizId);
+    const { data: attempt } = await attemptQuery.maybeSingle();
+    if (!attempt?.id) continue;
+
+    const { data: response } = await (admin.from("assessment_responses") as any)
+      .select("id")
+      .eq("attempt_id", attempt.id)
+      .eq("assessment_item_id", item.id)
+      .maybeSingle();
+    if (response?.id) return { attemptId: attempt.id, responseId: response.id };
+  }
+  return null;
 }
 
 async function finalizeAssessmentResponse(admin: ReturnType<typeof createAdminClient>, input: {
