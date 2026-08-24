@@ -303,15 +303,6 @@ Return a score from 0 to 100 and learner-friendly feedback with exactly 1-3 stre
 Return only the JSON shape requested by the response schema.`
   },
 
-  learner_oral_response_transcription_v1: {
-    role_description: "You are an accurate English speech transcription assistant.",
-    prompt_text: `Transcribe the attached learner recording exactly as spoken.
-Return only the words that were spoken in English. Do not summarize, translate, correct grammar, add punctuation that changes meaning, or describe the audio.
-If the recording contains silence, ignore the silence. If a word is unclear, use the most likely word from the audio.
-
-Return only the JSON shape requested by the response schema.`
-  },
-
   learner_dialogue_grading_v1: {
     role_description: "You are a careful CEFR dialogue assessor. Judge interactional language without inventing context.",
     prompt_text: `Dialogue task and context: "{prompt}"
@@ -360,14 +351,12 @@ export async function callGemini<T>({
   responseSchema,
   fallbackModel,
   context,
-  media,
 }: {
   templateKey: string;
   variables: Record<string, string>;
   responseSchema?: unknown;
   fallbackModel?: string;
   context?: AiCallContext;
-  media?: { mimeType: string; data: string };
 }): Promise<T> {
   const primaryModel = fallbackModel || process.env.GEMINI_DEFAULT_MODEL || "gemini-3.5-flash";
   const modelCandidates = [primaryModel, "gemini-2.5-flash"]
@@ -418,7 +407,6 @@ export async function callGemini<T>({
     roleDescription,
     finalPrompt,
     responseSchema,
-    media: media ? { mimeType: media.mimeType, dataHash: stableHash(media.data) } : null,
   });
   const cacheKey = stableHash({ featureKey, inputHash, primaryModel, promptVersion });
   const startedAt = Date.now();
@@ -521,16 +509,9 @@ export async function callGemini<T>({
   try {
   for (const modelName of modelCandidates) {
     const generateCall = async (promptOverride?: string): Promise<{ text: string; usage: AiUsage }> => {
-      const contentText = promptOverride || finalPrompt;
-      const contents = media
-        ? [
-            { text: contentText },
-            { inlineData: { mimeType: media.mimeType, data: media.data } },
-          ]
-        : contentText;
       const response = await withTimeout(ai.models.generateContent({
         model: modelName,
-        contents,
+        contents: promptOverride || finalPrompt,
         config: {
           systemInstruction: roleDescription,
           responseMimeType: "application/json",

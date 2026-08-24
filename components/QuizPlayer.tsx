@@ -16,7 +16,6 @@ import { ResultsOverview } from "@/components/gamification/ResultsOverview";
 import { StreakPopup } from "@/components/gamification/StreakPopup";
 import { computeBestStreak, NOTABLE_STREAK_THRESHOLD } from "@/lib/gamification/resultsOverview";
 import { ActivityEvaluationModeContext, AiUnavailableDialog, EvaluationMethodDialog, WritingEvaluationInterface } from "@/components/WritingEvaluationInterface";
-import { transcribeOralResponseAudioAction } from "@/app/admin/lessons/writingActions";
 import { asWritingValue, isAwaitingResolution, isWritingQuestionType, resolveWritingOutcome, type EvaluationMode, type WritingAnswerValue } from "@/lib/writingGrading";
 import { normalizeDisplayScore } from "@/lib/assessmentContract";
 
@@ -2175,14 +2174,8 @@ function OralResponse({
   const hasRecordedResponse = Boolean(value?.transcript?.trim());
   const [supported, setSupported] = useState(true);
   const [recording, setRecording] = useState(false);
-  const [processingAudio, setProcessingAudio] = useState(false);
-  const [audioError, setAudioError] = useState<string | null>(null);
   const [seconds, setSeconds] = useState(0);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const mediaStreamRef = useRef<MediaStream | null>(null);
-  const mediaChunksRef = useRef<Blob[]>([]);
-  const mobileTranscriptRef = useRef("");
   const recordingRef = useRef(false);
   const transcriptRef = useRef(value?.transcript ?? "");
   const startedAtRef = useRef(0);
@@ -2190,133 +2183,22 @@ function OralResponse({
   useEffect(() => {
     const mobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
       || (navigator.maxTouchPoints > 1 && /Macintosh/i.test(navigator.userAgent));
-    setSupported(mobile ? Boolean(navigator.mediaDevices && typeof navigator.mediaDevices.getUserMedia === "function" && typeof MediaRecorder !== "undefined") : getSpeechRecognitionConstructor() !== null);
+    setSupported(getSpeechRecognitionConstructor() !== null);
     return () => {
       recordingRef.current = false;
       recognitionRef.current?.abort();
-      if (mediaRecorderRef.current?.state === "recording") mediaRecorderRef.current.stop();
-      mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
     };
   }, []);
 
   const isMobileBrowser = () => /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
     || (navigator.maxTouchPoints > 1 && /Macintosh/i.test(navigator.userAgent));
 
-  async function blobToBase64(blob: Blob) {
-    const bytes = new Uint8Array(await blob.arrayBuffer());
-    let binary = "";
-    const chunkSize = 0x8000;
-    for (let index = 0; index < bytes.length; index += chunkSize) {
-      binary += String.fromCharCode(...bytes.subarray(index, index + chunkSize));
-    }
-    return btoa(binary);
-  }
-
-  async function startMobileRecording() {
-    if (disabled || !navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== "function" || typeof MediaRecorder === "undefined") return;
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mimeType = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"]
-        .find((candidate) => MediaRecorder.isTypeSupported(candidate)) ?? "";
-      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
-      mediaStreamRef.current = stream;
-      mediaRecorderRef.current = recorder;
-      mediaChunksRef.current = [];
-      mobileTranscriptRef.current = "";
-      setAudioError(null);
-      startedAtRef.current = Date.now();
-      setSeconds(0);
-      setRecording(true);
-      // Keep a quiet, best-effort browser transcript as a fallback. It is never
-      // restarted after a mobile pause, so it cannot cause the repeated beeps
-      // that caused the original problem. The complete MediaRecorder audio is
-      // still sent for the primary transcription path.
-      const Recognition = getSpeechRecognitionConstructor();
-      if (Recognition) {
-        const fallbackRecognition = new Recognition();
-        fallbackRecognition.lang = "en-US";
-        fallbackRecognition.continuous = true;
-        fallbackRecognition.interimResults = true;
-        fallbackRecognition.maxAlternatives = 1;
-        recognitionRef.current = fallbackRecognition;
-        fallbackRecognition.onresult = (event) => {
-          mobileTranscriptRef.current = Array.from({ length: event.results.length }, (_, index) => event.results.item(index).item(0).transcript)
-            .join(" ").replace(/\s+/g, " ").trim();
-        };
-        fallbackRecognition.onerror = () => { /* MediaRecorder remains the source of truth. */ };
-        fallbackRecognition.onend = () => { /* Do not restart on mobile pauses. */ };
-        try { fallbackRecognition.start(); } catch { /* Recording can continue without the fallback. */ }
-      }
-      recorder.ondataavailable = (event) => {
-        if (event.data.size > 0) mediaChunksRef.current.push(event.data);
-      };
-      recorder.onstop = async () => {
-        const audioBlob = new Blob(mediaChunksRef.current, { type: recorder.mimeType || mimeType || "audio/webm" });
-        mediaChunksRef.current = [];
-        mediaRecorderRef.current = null;
-        recognitionRef.current?.abort();
-        recognitionRef.current = null;
-        mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
-        mediaStreamRef.current = null;
-        setRecording(false);
-        if (!audioBlob.size) return;
-        setProcessingAudio(true);
-        try {
-          const result = await transcribeOralResponseAudioAction({
-            audioBase64: await blobToBase64(audioBlob),
-            mimeType: audioBlob.type.split(";", 1)[0] || "audio/webm",
-            activityId: question.source_activity_id ?? question.id,
-            lessonId,
-            quizId,
-            prompt: question.question_text,
-          });
-          const transcript = result.success && result.transcript ? result.transcript : mobileTranscriptRef.current.trim();
-          if (transcript) {
-            transcriptRef.current = transcript;
-            onChange({
-              transcript,
-              duration_seconds: Math.floor((Date.now() - startedAtRef.current) / 1000),
-              self_rating: value?.self_rating,
-            });
-          } else {
-            setAudioError(result.success ? "We couldn’t hear a clear response. Please try recording again." : result.error);
-          }
-        } catch {
-          const fallbackTranscript = mobileTranscriptRef.current.trim();
-          if (fallbackTranscript) {
-            transcriptRef.current = fallbackTranscript;
-            onChange({
-              transcript: fallbackTranscript,
-              duration_seconds: Math.floor((Date.now() - startedAtRef.current) / 1000),
-              self_rating: value?.self_rating,
-            });
-          } else {
-            setAudioError("We couldn’t process your recording. Please try again.");
-          }
-        } finally {
-          setProcessingAudio(false);
-        }
-      };
-      recorder.start();
-    } catch {
-      mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
-      mediaStreamRef.current = null;
-      setRecording(false);
-      setAudioError("Microphone access was unavailable. Please check your browser permission and try again.");
-    }
-  }
-
   function startRecording() {
-    if (isMobileBrowser()) {
-      void startMobileRecording();
-      return;
-    }
     const Recognition = getSpeechRecognitionConstructor();
     if (!Recognition || disabled) return;
+    const mobile = isMobileBrowser();
     const recognition = new Recognition();
     recognition.lang = "en-US";
-    // Desktop keeps the existing live transcript experience. Mobile uses MediaRecorder above
-    // because mobile Web Speech sessions can end during ordinary pauses.
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.maxAlternatives = 1;
@@ -2338,6 +2220,16 @@ function OralResponse({
     };
     recognition.onend = () => {
       if (recordingRef.current) {
+        if (mobile) {
+          recordingRef.current = false;
+          setRecording(false);
+          onChange({
+            transcript: transcriptRef.current,
+            duration_seconds: Math.floor((Date.now() - startedAtRef.current) / 1000),
+            self_rating: value?.self_rating,
+          });
+          return;
+        }
         try { recognition.start(); } catch { /* browser may already be restarting */ }
         return;
       }
@@ -2347,10 +2239,6 @@ function OralResponse({
   }
 
   const stopRecording = useCallback(() => {
-    if (mediaRecorderRef.current?.state === "recording") {
-      mediaRecorderRef.current.stop();
-      return;
-    }
     recordingRef.current = false;
     recognitionRef.current?.stop();
     setRecording(false);
@@ -2393,7 +2281,7 @@ function OralResponse({
         )}
         <motion.button
           type="button"
-          disabled={disabled || processingAudio}
+          disabled={disabled}
           onClick={recording ? stopRecording : startRecording}
           aria-label={recording ? "Tap to finish speaking" : hasRecordedResponse ? "Record again" : "Start speaking"}
           whileHover={disabled ? undefined : { scale: 1.06 }}
@@ -2410,10 +2298,6 @@ function OralResponse({
           </div>
           <p className="text-sm font-bold text-[var(--br-chart-primary)]">I&apos;m listening · Tap to finish · {Math.max(0, maxSeconds - seconds)}s</p>
         </div>
-      ) : processingAudio ? (
-        <p className="relative z-10 rounded-full bg-amber-100 px-3 py-1.5 text-xs font-bold text-amber-800">Processing your response…</p>
-      ) : audioError ? (
-        <p className="relative z-10 rounded-xl bg-rose-100 px-3 py-2 text-xs font-bold text-rose-700">{audioError}</p>
       ) : hasRecordedResponse ? (
         <p className="relative z-10 rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-bold text-emerald-700">{submitted ? "Response recorded" : "Response recorded · Tap the green button to record again"}</p>
       ) : (

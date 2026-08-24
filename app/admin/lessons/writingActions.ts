@@ -28,14 +28,6 @@ export type EvaluationMode = "SELF_GRADED" | "AI_FEEDBACK" | "TEACHER_REVIEW";
 
 type AssessmentLink = { attemptId: string; responseId: string };
 
-const oralTranscriptionSchema = {
-  type: "object",
-  properties: { transcript: { type: "string" } },
-  required: ["transcript"],
-};
-
-type OralTranscriptionResult = { transcript: string };
-
 async function findPendingAssessmentLink(admin: ReturnType<typeof createAdminClient>, userId: string, input: WritingSubmissionInput & { questionKey: string }): Promise<AssessmentLink | null> {
   // The attempt and its detailed responses are written in sequence when a learner submits.
   // Grading can be selected immediately after the submit transition completes, so allow a
@@ -517,43 +509,6 @@ async function resolveEvaluationContext(input: {
   const validLevel = (value: string) => /^(A1|A2|B1|B2|C1|C2|A1-A2|B1-B2|C1-C2|ALL LEVELS)$/.test(value);
   const level = [requested, contentLevel, profileLevel].find(validLevel) || "B1";
   return { user, role: String(profileResult.data?.role || "LEARNER"), level };
-}
-
-/** Transcribes a complete mobile recording after the learner explicitly finishes speaking. */
-export async function transcribeOralResponseAudioAction(input: {
-  audioBase64: string;
-  mimeType: string;
-  activityId?: string | null;
-  lessonId?: string | null;
-  quizId?: string | null;
-  prompt?: string | null;
-}) {
-  try {
-    const evaluationContext = await resolveEvaluationContext(input);
-    const result = await callGemini<OralTranscriptionResult>({
-      templateKey: "learner_oral_response_transcription_v1",
-      variables: {
-        prompt: input.prompt ? `Speaking task: ${input.prompt}` : "Transcribe the learner's complete spoken response.",
-        submission: "Attached audio recording",
-        level: evaluationContext.level,
-      },
-      responseSchema: oralTranscriptionSchema,
-      media: { mimeType: input.mimeType, data: input.audioBase64 },
-      context: {
-        userId: evaluationContext.user.id,
-        userRole: evaluationContext.role,
-        featureKey: "learner_oral_response_transcription_v1",
-        cefrLevel: evaluationContext.level,
-        promptVersion: "oral-response-transcription-v1",
-        assessmentCritical: true,
-        cache: { ttlSeconds: 30 * 24 * 60 * 60 },
-      },
-    });
-    return { success: true as const, transcript: String(result.transcript ?? "").trim() };
-  } catch (error) {
-    console.error("transcribeOralResponseAudioAction failed:", error);
-    return { success: false as const, error: "We couldn't process your recording right now. Please try again." };
-  }
 }
 
 /**
