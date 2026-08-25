@@ -61,6 +61,8 @@ export interface WritingAnswerValue {
   aiFeedback?: Record<string, unknown> | null;
   teacherFeedback?: string | null;
   submissionId?: string | null;
+  modelAnswerSnapshot?: string | null;
+  modelDescriptionSnapshot?: string | null;
 }
 
 export function asWritingValue(value: unknown): WritingAnswerValue {

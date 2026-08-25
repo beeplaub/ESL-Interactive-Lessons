@@ -23,7 +23,18 @@ type LessonSlideActivity = {
   id: string; activity_type: string; activity_data: Json | null;
 };
 
-type SavedAttempt = { score: number; total: number; answers: Json | null; completed_at?: string };
+type SavedAttempt = { id?: string; score: number; total: number; answers: Json | null; completed_at?: string; status?: string | null; grading_source?: string | null };
+
+function savedAttemptMethod(attempt: SavedAttempt) {
+  const values = Object.values(asRecord(attempt.answers));
+  const modes = new Set(values.map((value) => asWritingValue(value).mode).filter(Boolean));
+  if (modes.size > 1) return "Mixed grading";
+  const mode = [...modes][0];
+  if (mode === "AI_FEEDBACK") return "AI feedback";
+  if (mode === "SELF_GRADED") return "Self-check";
+  if (mode === "TEACHER_REVIEW") return attempt.status === "PENDING_REVIEW" ? "Teacher review pending" : "Teacher feedback";
+  return "Auto graded";
+}
 
 function asRecord(value: Json | null | undefined): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -1517,7 +1528,10 @@ export function LessonActivityPanel({
   });
   const [isPending, startTransition] = useTransition();
   const submissionKeyRef = useRef<string | null>(null);
+  const currentAttemptIdRef = useRef<string | null>(initialAttempt?.id ?? null);
+  const currentAttemptDateRef = useRef<string | null>(initialAttempt?.completed_at ?? null);
   const finalizedAttemptListedRef = useRef(Boolean(initialAttempt));
+  const [selectedAttemptId, setSelectedAttemptId] = useState<string | null>(initialAttempt?.id ?? null);
   const [streakPopupDismissed, setStreakPopupDismissed] = useState(false);
   const celebratedRef = useRef(false);
   const handleQuestionResult = useCallback((result: "correct" | "wrong" | "partial") => {
@@ -1598,7 +1612,7 @@ export function LessonActivityPanel({
   useEffect(() => {
     if (previewOnly || !submitted || !hasSubjectiveQuestions || hasPendingWritingGrading || autoGradingActive || finalizedAttemptListedRef.current) return;
     finalizedAttemptListedRef.current = true;
-    const savedAttempt = { score, total, answers: answers as Json, completed_at: new Date().toISOString() };
+    const savedAttempt = { id: currentAttemptIdRef.current ?? undefined, score, total, answers: answers as Json, completed_at: currentAttemptDateRef.current ?? new Date().toISOString() };
     setLocalAttempts((current) => [savedAttempt, ...current]);
     onSavedAttempt?.(savedAttempt);
     setMessage("Activity saved.");
@@ -1707,10 +1721,13 @@ export function LessonActivityPanel({
             isCorrect: isCorrect(question, answers[question.id]),
           })),
         });
+        currentAttemptIdRef.current = saved.attemptId;
+        currentAttemptDateRef.current = new Date().toISOString();
+        setSelectedAttemptId(saved.attemptId);
         beginSubmittedView();
         if (saved.status === "FINALIZED") {
           finalizedAttemptListedRef.current = true;
-          const savedAttempt = { score: finalScore, total, answers: answers as Json, completed_at: new Date().toISOString() };
+          const savedAttempt = { id: saved.attemptId, score: finalScore, total, answers: answers as Json, completed_at: currentAttemptDateRef.current ?? new Date().toISOString() };
           setLocalAttempts((current) => [savedAttempt, ...current]);
           onSavedAttempt?.(savedAttempt);
           setMessage("Activity saved.");
@@ -1739,7 +1756,26 @@ export function LessonActivityPanel({
     setStreakPopupDismissed(false);
     celebratedRef.current = false;
     submissionKeyRef.current = null;
+    currentAttemptIdRef.current = null;
+    currentAttemptDateRef.current = null;
+    setSelectedAttemptId(null);
     finalizedAttemptListedRef.current = false;
+  }
+
+  function reviewSavedAttempt(attempt: SavedAttempt) {
+    setAnswers(asRecord(attempt.answers));
+    setSubmitted(true);
+    setMessage(attempt.completed_at ? `Viewing attempt from ${new Date(attempt.completed_at).toLocaleString()}.` : "Viewing saved attempt.");
+    setQIndex(0);
+    setReviewMode("overview");
+    setEvaluationMode(null);
+    setShowEvaluationDialog(false);
+    setAutoGradingActive(false);
+    setShowAiUnavailableDialog(false);
+    setSelectedAttemptId(attempt.id ?? null);
+    currentAttemptIdRef.current = attempt.id ?? null;
+    currentAttemptDateRef.current = attempt.completed_at ?? null;
+    finalizedAttemptListedRef.current = true;
   }
 
   return (
@@ -1857,7 +1893,7 @@ export function LessonActivityPanel({
           <div className="min-h-[120px]">
             <ActivityEvaluationModeContext.Provider value={evaluationMode ? { mode: evaluationMode, onAiUnavailable: handleAiUnavailable } : null}>
               <QuestionCard
-                key={currentQuestion.id}
+                key={`${currentQuestion.id}:${selectedAttemptId ?? "new"}`}
                 question={currentQuestion}
                 value={answers[currentQuestion.id]}
                 submitted={submitted}
@@ -1917,12 +1953,15 @@ export function LessonActivityPanel({
       {localAttempts.length ? (
         <div className="mt-4 rounded-md bg-surface-muted p-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-[var(--br-text-muted)]">Attempts</p>
-          <div className="mt-2 space-y-1.5">
-            {localAttempts.slice(0, 5).map((attempt, attemptIndex) => (
-              <div key={`${attempt.completed_at ?? "attempt"}-${attemptIndex}`} className="flex items-center justify-between gap-3 text-xs text-[var(--br-text-muted)]">
-                <span>{attempt.completed_at ? new Date(attempt.completed_at).toLocaleString() : "Saved attempt"}</span>
-                <strong className="text-ink">{attempt.score}/{attempt.total}</strong>
-              </div>
+          <div className="mt-2 grid max-h-72 gap-2 overflow-y-auto pr-1">
+            {localAttempts.map((attempt, attemptIndex) => (
+              <button type="button" onClick={() => reviewSavedAttempt(attempt)} key={attempt.id ?? `${attempt.completed_at ?? "attempt"}-${attemptIndex}`} className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-left transition hover:border-violet-300 hover:bg-white ${selectedAttemptId && attempt.id === selectedAttemptId ? "border-violet-300 bg-violet-50" : "border-transparent bg-white/70"}`}>
+                <span className="min-w-0">
+                  <span className="block truncate text-xs font-semibold text-slate-700">{attempt.completed_at ? new Date(attempt.completed_at).toLocaleString() : "Saved attempt"}</span>
+                  <span className="mt-0.5 block text-[11px] text-slate-500">{savedAttemptMethod(attempt)} · View response and feedback</span>
+                </span>
+                <strong className="shrink-0 text-xs text-ink">{attempt.score}/{attempt.total}</strong>
+              </button>
             ))}
           </div>
         </div>

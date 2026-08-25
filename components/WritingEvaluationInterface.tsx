@@ -1,7 +1,8 @@
 "use client";
 
 import { createContext, useContext, useEffect, useRef, useState, useTransition } from "react";
-import { CheckCircle2, Sparkles, Send, FileText, UserCheck, RotateCcw, RefreshCw, X } from "lucide-react";
+import { createPortal } from "react-dom";
+import { CheckCircle2, Sparkles, Send, FileText, UserCheck, RefreshCw, X, Eye } from "lucide-react";
 import {
   evaluateWritingWithAiAction,
   saveWritingGradingOutcomeAction,
@@ -102,6 +103,66 @@ type AiResultShape = {
   exampleCorrection: { original: string; corrected: string; explanation: string } | null;
 };
 
+function comparableSentence(value: string) {
+  return value
+    .toLocaleLowerCase()
+    .replace(/[\p{P}\p{S}]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isRealCorrection(correction: { original: string; corrected: string; explanation: string }) {
+  if (!correction.original.trim() || !correction.corrected.trim()) return false;
+  if (comparableSentence(correction.original) === comparableSentence(correction.corrected)) return false;
+  return !/(sentence|phrase|response)\s+is\s+(already\s+)?correct|no\s+(correction|change|error)\s+(is\s+)?needed|already\s+correct/i.test(correction.explanation);
+}
+
+function cleanCorrections(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  return value
+    .filter((item): item is { original: string; corrected: string; explanation: string } => Boolean(item && typeof item === "object" && typeof (item as Record<string, unknown>).original === "string" && typeof (item as Record<string, unknown>).corrected === "string" && typeof (item as Record<string, unknown>).explanation === "string"))
+    .filter(isRealCorrection)
+    .filter((item) => {
+      const key = `${comparableSentence(item.original)}=>${comparableSentence(item.corrected)}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+type DiffPart = { kind: "same" | "removed" | "added"; text: string };
+
+function sentenceDiff(original: string, corrected: string): DiffPart[] {
+  const before = original.trim().split(/\s+/).filter(Boolean);
+  const after = corrected.trim().split(/\s+/).filter(Boolean);
+  const matrix = Array.from({ length: before.length + 1 }, () => Array(after.length + 1).fill(0));
+  for (let left = before.length - 1; left >= 0; left -= 1) {
+    for (let right = after.length - 1; right >= 0; right -= 1) {
+      matrix[left][right] = comparableSentence(before[left]) === comparableSentence(after[right])
+        ? matrix[left + 1][right + 1] + 1
+        : Math.max(matrix[left + 1][right], matrix[left][right + 1]);
+    }
+  }
+  const parts: DiffPart[] = [];
+  let left = 0;
+  let right = 0;
+  while (left < before.length || right < after.length) {
+    if (left < before.length && right < after.length && comparableSentence(before[left]) === comparableSentence(after[right])) {
+      parts.push({ kind: "same", text: after[right] });
+      left += 1;
+      right += 1;
+    } else if (right < after.length && (left === before.length || matrix[left][right + 1] >= matrix[left + 1][right])) {
+      parts.push({ kind: "added", text: after[right] });
+      right += 1;
+    } else {
+      parts.push({ kind: "removed", text: before[left] });
+      left += 1;
+    }
+  }
+  return parts;
+}
+
 function normalizeAiResult(value: Record<string, unknown>, fallbackScore = 0): AiResultShape {
   const legacySuggestions = Array.isArray(value.suggestions) ? value.suggestions.filter((item): item is string => typeof item === "string") : [];
   return {
@@ -112,14 +173,74 @@ function normalizeAiResult(value: Record<string, unknown>, fallbackScore = 0): A
     improvements: Array.isArray(value.improvements)
       ? value.improvements.filter((item): item is string => typeof item === "string")
       : legacySuggestions,
-    corrections: Array.isArray(value.corrections)
-      ? value.corrections.filter((item): item is { original: string; corrected: string; explanation: string } => Boolean(item && typeof item === "object" && typeof (item as Record<string, unknown>).original === "string" && typeof (item as Record<string, unknown>).corrected === "string" && typeof (item as Record<string, unknown>).explanation === "string"))
-      : [],
+    corrections: cleanCorrections(value.corrections),
     improvedResponse: typeof value.improvedResponse === "string" ? value.improvedResponse : String(value.improved_response ?? ""),
     exampleCorrection: value.exampleCorrection && typeof value.exampleCorrection === "object"
       ? value.exampleCorrection as AiResultShape["exampleCorrection"]
       : null,
   };
+}
+
+function OralFeedbackDialog({ result, response, onClose }: { result: AiResultShape; response: string; onClose: () => void }) {
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [onClose]);
+
+  return createPortal(
+    <div className="fixed inset-0 z-[140] flex items-end bg-slate-950/55 backdrop-blur-sm sm:items-center sm:justify-center sm:p-6" role="dialog" aria-modal="true" aria-labelledby="oral-feedback-title" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <div className="flex h-[100dvh] w-full flex-col overflow-hidden bg-white shadow-2xl sm:h-auto sm:max-h-[90dvh] sm:max-w-3xl sm:rounded-[28px]">
+        <div className="flex shrink-0 items-center justify-between gap-4 border-b border-slate-200 bg-white px-4 py-3 sm:px-6 sm:py-4">
+          <div className="min-w-0">
+            <p className="text-[11px] font-extrabold uppercase tracking-[.16em] text-[var(--br-chart-primary)]">Oral response</p>
+            <h2 id="oral-feedback-title" className="truncate text-lg font-extrabold text-ink sm:text-xl">Your feedback</h2>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <span className="rounded-full bg-violet-100 px-3 py-1.5 text-sm font-extrabold text-violet-700">{result.score}%</span>
+            <button type="button" onClick={onClose} aria-label="Close feedback" className="grid size-10 place-items-center rounded-full border border-slate-200 text-slate-600 hover:bg-slate-50"><X size={19} /></button>
+          </div>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-7 sm:py-6">
+          <section>
+            <h3 className="text-xs font-extrabold uppercase tracking-[.14em] text-violet-700">Feedback summary</h3>
+            <p className="mt-2 text-[15px] leading-7 text-slate-800">{result.summary}</p>
+          </section>
+
+          <section className="mt-7 border-t border-slate-200 pt-6">
+            <h3 className="text-xs font-extrabold uppercase tracking-[.14em] text-violet-700">Corrections</h3>
+            {result.corrections?.length ? (
+              <div className="mt-3 divide-y divide-slate-200">
+                {result.corrections.map((correction, index) => (
+                  <div key={`${correction.original}-${index}`} className="py-4 first:pt-1">
+                    <p className="flex flex-wrap gap-x-1.5 gap-y-1 text-[15px] leading-7">
+                      {sentenceDiff(correction.original, correction.corrected).map((part, partIndex) => (
+                        <span key={`${part.kind}-${partIndex}`} className={part.kind === "removed" ? "rounded bg-rose-50 px-1 text-rose-700 line-through decoration-2" : part.kind === "added" ? "rounded bg-emerald-50 px-1 font-semibold text-emerald-700" : "text-slate-800"}>{part.text}</span>
+                      ))}
+                    </p>
+                    <p className="mt-1.5 text-sm leading-6 text-slate-600">{correction.explanation}</p>
+                  </div>
+                ))}
+              </div>
+            ) : <p className="mt-2 text-sm leading-6 text-slate-600">No sentence-level corrections were needed.</p>}
+          </section>
+
+          <section className="mt-3 border-t border-slate-200 pt-6">
+            <h3 className="text-xs font-extrabold uppercase tracking-[.14em] text-emerald-700">Improved response</h3>
+            <p className="mt-2 whitespace-pre-wrap text-[15px] leading-7 text-slate-800">{result.improvedResponse || response}</p>
+          </section>
+
+          <p className="mt-7 border-t border-slate-200 pt-4 text-xs text-slate-500">Graded by {result.provider === "google" ? "Gemini" : result.provider === "ollama" ? "BrenUp AI" : "Groq"} · Saved with this attempt</p>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
 }
 
 export function WritingEvaluationInterface({
@@ -189,6 +310,7 @@ export function WritingEvaluationInterface({
   const [isPending, startTransition] = useTransition();
   const [isChecking, startCheckTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
 
   function handleRunAiFeedback() {
     setError(null);
@@ -239,7 +361,8 @@ export function WritingEvaluationInterface({
           return;
         }
         setChosenMode("AI_FEEDBACK");
-        setAiResult(res.data);
+        setAiResult(normalizeAiResult(res.data as unknown as Record<string, unknown>, res.data.score));
+        if (activityType === "ORAL_RESPONSE") setFeedbackDialogOpen(true);
         onGraded?.({ ...outcome, submissionId: saved.submissionId });
       } else {
         const failure = res as { error?: string; reason?: string };
@@ -285,7 +408,7 @@ export function WritingEvaluationInterface({
   function handleCheckTeacherStatus() {
     setError(null);
     startCheckTransition(async () => {
-      const res = await getWritingSubmissionStatusAction(activityId, questionKey);
+      const res = await getWritingSubmissionStatusAction(activityId, questionKey, initialValue?.submissionId);
       if (res.success && res.submission?.status === "GRADED") {
         const score = Number(res.submission.teacher_score ?? 0);
         setTeacherState("GRADED");
@@ -296,7 +419,8 @@ export function WritingEvaluationInterface({
           mode: "TEACHER_REVIEW",
           gradingState: "GRADED",
           score,
-          teacherFeedback: res.submission.teacher_feedback ?? null
+          teacherFeedback: res.submission.teacher_feedback ?? null,
+          submissionId: res.submission.id,
         });
       } else if (!res.success) {
         setError(res.error || "Couldn't check grading status.");
@@ -317,7 +441,9 @@ export function WritingEvaluationInterface({
         submissionText,
         mode: "SELF_GRADED",
         status: "GRADED",
-        selfMarked: passed
+        selfMarked: passed,
+        modelAnswerSnapshot: modelAnswer ?? null,
+        modelDescriptionSnapshot: modelDescription ?? null,
       });
       if (!saved.success) {
         setError(saved.error || "Your self-check could not be saved. Please try again.");
@@ -325,7 +451,7 @@ export function WritingEvaluationInterface({
       }
       setChosenMode("SELF_GRADED");
       setSelfGradedChoice(passed);
-      onGraded?.({ text: submissionText, mode: "SELF_GRADED", gradingState: "GRADED", selfMarked: passed, score: passed ? 100 : 0, submissionId: saved.submissionId });
+      onGraded?.({ text: submissionText, mode: "SELF_GRADED", gradingState: "GRADED", selfMarked: passed, score: passed ? 100 : 0, submissionId: saved.submissionId, modelAnswerSnapshot: modelAnswer ?? null, modelDescriptionSnapshot: modelDescription ?? null });
     });
   }
 
@@ -419,38 +545,28 @@ export function WritingEvaluationInterface({
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="w-full min-w-0 rounded-2xl border border-[var(--br-chart-primary)]/20 bg-[var(--br-chart-primary)]/5 p-3 space-y-3 shadow-xs sm:rounded-3xl sm:p-5 sm:space-y-4"
+            className={activityType === "ORAL_RESPONSE" ? "w-full min-w-0" : "w-full min-w-0 rounded-2xl border border-[var(--br-chart-primary)]/20 bg-[var(--br-chart-primary)]/5 p-3 space-y-3 shadow-xs sm:rounded-3xl sm:p-5 sm:space-y-4"}
           >
             {aiResult ? (
               <div className="min-w-0 space-y-3 sm:space-y-4">
-                <div className="flex items-center justify-between border-b border-[var(--br-chart-primary)]/10 pb-4">
+                {activityType !== "ORAL_RESPONSE" ? <div className="flex items-center justify-between border-b border-[var(--br-chart-primary)]/10 pb-4">
                   <span className="text-xs font-black text-[var(--br-chart-primary)] uppercase tracking-wider flex items-center gap-1.5">
                     <Sparkles size={14} /> AI Evaluation Report
                   </span>
                   <span className="rounded-2xl bg-gradient-to-r from-[var(--br-chart-primary)] to-[var(--br-chart-primary)] px-4 py-1.5 text-sm font-black text-on-dark shadow-sm">
                     Score: {aiResult.score}%
                   </span>
-                </div>
+                </div> : null}
 
                 {activityType === "ORAL_RESPONSE" ? (
-                  <div className="space-y-3 sm:space-y-4">
-                    <div className="w-full rounded-2xl bg-surface p-4 border border-[var(--br-chart-primary)]/10 shadow-xs space-y-1 sm:p-5">
-                      <p className="text-xs font-black text-[var(--br-chart-primary)] uppercase tracking-wider">Feedback Summary</p>
-                      <p className="text-sm font-medium text-ink leading-relaxed">{aiResult.summary}</p>
+                  <div className="flex flex-col gap-3 rounded-2xl border border-violet-200 bg-violet-50/70 p-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
+                      <p className="flex items-center gap-2 text-sm font-extrabold text-ink"><CheckCircle2 size={17} className="text-emerald-600" /> AI feedback is ready</p>
+                      <p className="mt-1 text-xs leading-5 text-slate-600">Score: {aiResult.score}% · Graded by {aiResult.provider === "google" ? "Gemini" : aiResult.provider === "ollama" ? "BrenUp AI" : "Groq"} · Saved with this attempt</p>
                     </div>
-                    <div className="w-full rounded-2xl bg-surface p-4 border border-[var(--br-border)] shadow-xs space-y-3 sm:p-5">
-                      <p className="text-xs font-black text-[var(--br-chart-primary)] uppercase tracking-wider">Corrections</p>
-                      {aiResult.corrections?.length ? aiResult.corrections.map((correction, index) => (
-                        <div key={`${correction.original}-${index}`} className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm leading-6 text-amber-900">
-                          <p><span className="text-red-600 line-through">{correction.original}</span><span className="px-2 text-amber-700">→</span><strong className="text-emerald-700">{correction.corrected}</strong></p>
-                          <p className="mt-1 text-xs text-amber-700">{correction.explanation}</p>
-                        </div>
-                      )) : <p className="text-sm text-[var(--br-text-muted)]">No sentence-level corrections were needed.</p>}
-                    </div>
-                    <div className="w-full rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-xs sm:p-5">
-                      <p className="text-xs font-black uppercase tracking-wider text-emerald-700">Improved Response</p>
-                      <p className="mt-2 text-sm font-medium leading-7 text-emerald-950">{aiResult.improvedResponse || submissionText}</p>
-                    </div>
+                    <button type="button" onClick={() => setFeedbackDialogOpen(true)} className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-[var(--br-action)] px-4 py-2.5 text-sm font-extrabold text-white shadow-sm hover:bg-[var(--br-action-strong)]">
+                      <Eye size={17} /> View feedback
+                    </button>
                   </div>
                 ) : <>
                 <div className="w-full rounded-2xl bg-surface p-4 border border-[var(--br-chart-primary)]/10 shadow-xs space-y-1 sm:p-5">
@@ -485,9 +601,9 @@ export function WritingEvaluationInterface({
                 )}
                 </>}
 
-                <div className="pt-2 border-t border-[var(--br-chart-primary)]/10">
+                {activityType !== "ORAL_RESPONSE" ? <div className="pt-2 border-t border-[var(--br-chart-primary)]/10">
                   <span className="text-[11px] text-[var(--br-text-muted)] font-medium">Graded by {aiResult.provider === "google" ? "Gemini" : aiResult.provider === "ollama" ? "BrenUp AI" : "Groq"} · AI Evaluation (locked for this attempt)</span>
-                </div>
+                </div> : null}
               </div>
             ) : null}
           </motion.div>
@@ -506,14 +622,14 @@ export function WritingEvaluationInterface({
                 <FileText size={14} /> Instructor Model Answer
               </p>
               <div className="rounded-2xl bg-surface p-4 border border-amber-200/60 shadow-xs text-xs font-medium text-ink leading-relaxed whitespace-pre-wrap">
-                {modelAnswer || "Model answer template provided by instructor."}
+                {initialValue?.modelAnswerSnapshot || modelAnswer || "Model answer template provided by instructor."}
               </div>
             </div>
 
-            {modelDescription && (
+            {(initialValue?.modelDescriptionSnapshot || modelDescription) && (
               <div className="space-y-1.5 rounded-2xl bg-white/50 p-4 border border-amber-200/40">
                 <p className="text-xs font-bold text-amber-900">Key Features of Model Response:</p>
-                <p className="text-xs text-[var(--br-text-muted)] leading-relaxed font-medium">{modelDescription}</p>
+                <p className="text-xs text-[var(--br-text-muted)] leading-relaxed font-medium">{initialValue?.modelDescriptionSnapshot || modelDescription}</p>
               </div>
             )}
 
@@ -605,6 +721,7 @@ export function WritingEvaluationInterface({
           </motion.div>
         )}
       </AnimatePresence>
+      {feedbackDialogOpen && activityType === "ORAL_RESPONSE" && aiResult ? <OralFeedbackDialog result={aiResult} response={submissionText} onClose={() => setFeedbackDialogOpen(false)} /> : null}
     </div>
   );
 }

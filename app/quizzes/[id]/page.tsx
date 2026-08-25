@@ -127,7 +127,7 @@ export default async function QuizPage({
     admin.from("quizzes").select("*").eq("id", id).eq("status", "PUBLISHED").is("deleted_at", null).single(),
     admin.from("quiz_questions").select("*").eq("quiz_id", id).order("question_number", { ascending: true }),
     user
-      ? admin.from("quiz_attempts").select("score, total, completed_at").eq("quiz_id", id).eq("user_id", user.id).order("completed_at", { ascending: true }).limit(10)
+      ? admin.from("quiz_attempts").select("id,score,total,answers,completed_at,status,grading_source").eq("quiz_id", id).eq("user_id", user.id).order("completed_at", { ascending: true })
       : Promise.resolve({ data: [] }),
   ]);
 
@@ -147,7 +147,7 @@ export default async function QuizPage({
       quiz={quiz}
       questionCount={(questions ?? []).length}
       scoredQuestions={scoredQuestions as Parameters<typeof QuizPlayerScreen>[0]["scoredQuestions"]}
-      pastAttempts={(attempts ?? []).map((a) => ({ score: a.score, total: a.total, completedAt: a.completed_at }))}
+      pastAttempts={(attempts ?? []).map((a) => ({ id: a.id, score: a.score, total: a.total, answers: a.answers, completedAt: a.completed_at, status: a.status, gradingSource: a.grading_source }))}
       isGuest={!user}
       courseItemId={courseItem}
       breadcrumbs={[

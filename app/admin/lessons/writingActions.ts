@@ -142,6 +142,46 @@ async function finalizeAssessmentResponse(admin: ReturnType<typeof createAdminCl
   return { status: pending ? "PENDING_REVIEW" as const : "FINALIZED" as const, score, total };
 }
 
+async function savePendingAssessmentResponse(admin: ReturnType<typeof createAdminClient>, input: {
+  attemptId: string;
+  responseId: string;
+  questionKey: string;
+  outcome: Json;
+}) {
+  const { error: responseError } = await (admin.from("assessment_responses") as any).update({
+    response_data: input.outcome,
+    earned_points: 0,
+    is_correct: null,
+    grading_status: "PENDING_REVIEW",
+    grading_source: "TEACHER",
+    feedback: null,
+    finalized_at: null,
+  }).eq("id", input.responseId).eq("attempt_id", input.attemptId);
+  if (responseError) throw responseError;
+
+  const { data: attempt, error: attemptError } = await (admin.from("assessment_attempts") as any).update({
+    status: "PENDING_REVIEW",
+    grading_source: "TEACHER",
+    score_percent: null,
+    finalized_at: null,
+  }).eq("id", input.attemptId).select("legacy_quiz_attempt_id").maybeSingle();
+  if (attemptError) throw attemptError;
+  if (!attempt?.legacy_quiz_attempt_id) return;
+
+  const { data: legacy, error: legacyError } = await (admin.from("quiz_attempts") as any)
+    .select("answers")
+    .eq("id", attempt.legacy_quiz_attempt_id)
+    .maybeSingle();
+  if (legacyError) throw legacyError;
+  const answers = asRecord(legacy?.answers as Json | null | undefined);
+  const { error: legacyUpdateError } = await (admin.from("quiz_attempts") as any).update({
+    answers: { ...answers, [input.questionKey]: input.outcome },
+    status: "PENDING_REVIEW",
+    grading_source: "TEACHER",
+  }).eq("id", attempt.legacy_quiz_attempt_id);
+  if (legacyUpdateError) throw legacyUpdateError;
+}
+
 /**
  * Single upsert path for ALL 3 grading modes against the real writing_submissions table —
  * previously only TEACHER_REVIEW was persisted at all (in a fragile quiz_attempts fallback
@@ -159,6 +199,8 @@ export async function saveWritingGradingOutcomeAction(input: WritingSubmissionIn
   aiFeedback?: Json;
   teacherScore?: number;
   teacherFeedback?: string;
+  modelAnswerSnapshot?: string | null;
+  modelDescriptionSnapshot?: string | null;
 }) {
   try {
     const supabase = await createClient();
@@ -173,7 +215,7 @@ export async function saveWritingGradingOutcomeAction(input: WritingSubmissionIn
     const adminSupabase = createAdminClient();
     const questionKey = input.questionKey ?? "1";
     const assessmentLink = await findPendingAssessmentLink(adminSupabase, user.id, { ...input, questionKey });
-    if (input.status === "GRADED" && !assessmentLink) {
+    if (!assessmentLink) {
       throw new Error("Your attempt is still being prepared. Please try grading again.");
     }
 
@@ -196,11 +238,11 @@ export async function saveWritingGradingOutcomeAction(input: WritingSubmissionIn
           ai_feedback: input.aiFeedback ?? null,
           teacher_score: input.teacherScore ?? null,
           teacher_feedback: input.teacherFeedback ?? null,
-          assessment_attempt_id: assessmentLink?.attemptId ?? null,
-          assessment_response_id: assessmentLink?.responseId ?? null,
+          assessment_attempt_id: assessmentLink.attemptId,
+          assessment_response_id: assessmentLink.responseId,
           updated_at: new Date().toISOString()
         },
-        { onConflict: "learner_id,activity_id,question_key" }
+        { onConflict: "assessment_response_id" }
       )
       .select("id")
       .single();
@@ -222,6 +264,8 @@ export async function saveWritingGradingOutcomeAction(input: WritingSubmissionIn
         selfMarked: input.selfMarked ?? null,
         aiFeedback: input.aiFeedback ?? null,
         teacherFeedback: input.teacherFeedback ?? null,
+        modelAnswerSnapshot: input.modelAnswerSnapshot ?? null,
+        modelDescriptionSnapshot: input.modelDescriptionSnapshot ?? null,
         submissionId: upserted.id,
       } as Json;
       assessmentResult = await finalizeAssessmentResponse(adminSupabase, {
@@ -231,6 +275,17 @@ export async function saveWritingGradingOutcomeAction(input: WritingSubmissionIn
         scorePercent: score,
         outcome,
         feedback: input.teacherFeedback ?? (input.aiFeedback ? String(asRecord(input.aiFeedback).summary ?? "") : null),
+      });
+    } else {
+      await savePendingAssessmentResponse(adminSupabase, {
+        ...assessmentLink,
+        questionKey,
+        outcome: {
+          text: input.submissionText.trim(),
+          mode: input.mode,
+          gradingState: "PENDING",
+          submissionId: upserted.id,
+        } as Json,
       });
     }
 
@@ -251,20 +306,23 @@ export async function submitWritingForTeacherReviewAction(
 }
 
 /** Lets the learner poll their own pending submission to see if a teacher has graded it yet. */
-export async function getWritingSubmissionStatusAction(activityId: string, questionKey = "1") {
+export async function getWritingSubmissionStatusAction(activityId: string, questionKey = "1", submissionId?: string | null) {
   try {
     const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) return { success: false as const, error: "Not logged in." };
 
     const adminSupabase = createAdminClient();
-    const { data, error } = await adminSupabase
+    let query = adminSupabase
       .from("writing_submissions")
       .select("id, status, mode, self_marked, ai_score, ai_feedback, teacher_score, teacher_feedback")
       .eq("learner_id", user.id)
       .eq("activity_id", activityId)
-      .eq("question_key", questionKey)
-      .maybeSingle();
+      .eq("question_key", questionKey);
+    query = submissionId
+      ? query.eq("id", submissionId)
+      : query.order("created_at", { ascending: false }).limit(1);
+    const { data, error } = await query.maybeSingle();
 
     if (error) throw error;
     return { success: true as const, submission: data };
@@ -455,6 +513,28 @@ type OralResponseFeedbackResult = {
   improved_response: string;
 };
 
+function comparableOralSentence(value: string) {
+  return value.toLocaleLowerCase().replace(/[\p{P}\p{S}]/gu, " ").replace(/\s+/g, " ").trim();
+}
+
+function validOralCorrections(value: unknown): OralCorrection[] {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  return value.filter((item): item is OralCorrection => {
+    if (!item || typeof item !== "object") return false;
+    const correction = item as Record<string, unknown>;
+    if (typeof correction.original !== "string" || typeof correction.corrected !== "string" || typeof correction.explanation !== "string") return false;
+    const original = comparableOralSentence(correction.original);
+    const corrected = comparableOralSentence(correction.corrected);
+    if (!original || !corrected || original === corrected) return false;
+    if (/(sentence|phrase|response)\s+is\s+(already\s+)?correct|no\s+(correction|change|error)\s+(is\s+)?needed|already\s+correct/i.test(correction.explanation)) return false;
+    const key = `${original}=>${corrected}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 function isAiTemporarilyUnavailable(error: unknown) {
   const message = error instanceof Error ? error.message : String(error ?? "");
   return /credit limit|resource_exhausted|quota|rate limit|\b429\b|capacity|overloaded|\b503\b|unavailable/i.test(message);
@@ -590,6 +670,7 @@ export async function evaluateWritingWithAiAction(input: {
         onProviderUsed: ({ provider }) => { gradingProvider = provider; },
       });
       const overall = scoreFromDimensions(result.dimension_scores);
+      const corrections = validOralCorrections(result.corrections);
       return {
         success: true as const,
         data: {
@@ -598,9 +679,9 @@ export async function evaluateWritingWithAiAction(input: {
           summary: String(result.summary ?? ""),
           strengths: [],
           improvements: [],
-          corrections: result.corrections,
+          corrections,
           improvedResponse: result.improved_response,
-          exampleCorrection: result.corrections[0] ?? null,
+          exampleCorrection: corrections[0] ?? null,
           provider: gradingProvider,
         }
       };

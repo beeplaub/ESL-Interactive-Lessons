@@ -367,17 +367,5 @@ async function recordDetailedAssessmentEvidence({
     })),
   ).select("id,assessment_item_id");
   if (responseError) throw responseError;
-  const responseIdByItem = new Map(
-    (savedResponses ?? []).map((row: { id: string; assessment_item_id: string }) => [row.assessment_item_id, row.id])
-  );
-  for (const response of normalizedResponses) {
-    const responseId = responseIdByItem.get(response.assessmentItemId);
-    if (!responseId) continue;
-    await (admin.from("writing_submissions") as any)
-      .update({ assessment_attempt_id: attempt.id, assessment_response_id: responseId })
-      .eq("learner_id", userId)
-      .eq("activity_id", sourceType === "LESSON_ACTIVITY" ? sourceId : response.sourceItemKey)
-      .eq("question_key", response.sourceItemKey);
-  }
   return { attemptId: attempt.id, status, score, total: maximumScore, gradingSource };
 }

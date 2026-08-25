@@ -33,9 +33,13 @@ export type QuizQuestion = {
 };
 
 type PastAttempt = {
+  id?: string;
   score: number;
   total: number;
   completedAt: string;
+  answers?: Json | null;
+  status?: string | null;
+  gradingSource?: string | null;
 };
 
 type PronunciationValue = {
@@ -265,7 +269,7 @@ function answerText(question: QuizQuestion): string {
 }
 
 // ── Score history chart ──
-function ScoreHistory({ attempts, total }: { attempts: PastAttempt[]; total: number }) {
+function ScoreHistory({ attempts, total, onSelectAttempt, selectedAttemptId }: { attempts: PastAttempt[]; total: number; onSelectAttempt?: (attempt: PastAttempt) => void; selectedAttemptId?: string | null }) {
   if (!attempts.length) return null;
   const last5 = attempts.slice(-5).map((attempt) => {
     const normalized = normalizeDisplayScore(attempt.score, attempt.total, total);
@@ -331,6 +335,19 @@ function ScoreHistory({ attempts, total }: { attempts: PastAttempt[]; total: num
           </>
         )}
       </div>
+      {onSelectAttempt ? (
+        <div className="mt-4 grid max-h-72 gap-2 overflow-y-auto border-t border-[var(--br-surface-strong)] pt-3 pr-1">
+          {[...attempts].reverse().map((attempt, index) => (
+            <button type="button" key={attempt.id ?? `${attempt.completedAt}-${index}`} onClick={() => onSelectAttempt(attempt)} className={`flex items-center justify-between gap-3 rounded-xl border px-3 py-2.5 text-left transition hover:border-violet-300 hover:bg-violet-50 ${selectedAttemptId && attempt.id === selectedAttemptId ? "border-violet-300 bg-violet-50" : "border-slate-200 bg-white"}`}>
+              <span className="min-w-0">
+                <span className="block truncate text-xs font-semibold text-slate-700">{new Date(attempt.completedAt).toLocaleString()}</span>
+                <span className="mt-0.5 block text-[11px] text-slate-500">View answers and saved feedback</span>
+              </span>
+              <strong className="shrink-0 text-xs text-ink">{normalizeDisplayScore(attempt.score, attempt.total, total).score}/{total}</strong>
+            </button>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -357,6 +374,7 @@ export function QuizPlayer({
   });
   const [submitted, setSubmitted] = useState(false);
   const [allAttempts, setAllAttempts] = useState<PastAttempt[]>(pastAttempts);
+  const [selectedAttemptId, setSelectedAttemptId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [showPopup, setShowPopup] = useState(false);
   const [guestAttempt, setGuestAttempt] = useState<PendingAttempt | null>(null);
@@ -371,6 +389,8 @@ export function QuizPlayer({
   const [remainingSeconds, setRemainingSeconds] = useState(() => timerMinutes ? timerMinutes * 60 : null);
   const attemptStartRef = useRef(Date.now());
   const submissionKeyRef = useRef<string | null>(null);
+  const currentAttemptIdRef = useRef<string | null>(null);
+  const currentAttemptDateRef = useRef<string | null>(null);
   const finalizedAttemptListedRef = useRef(false);
   const [isPending, startTransition] = useTransition();
   const [streakPopupDismissed, setStreakPopupDismissed] = useState(false);
@@ -465,9 +485,29 @@ export function QuizPlayer({
     setRemainingSeconds(timerMinutes ? timerMinutes * 60 : null);
     attemptStartRef.current = Date.now();
     submissionKeyRef.current = null;
+    currentAttemptIdRef.current = null;
+    currentAttemptDateRef.current = null;
+    setSelectedAttemptId(null);
     finalizedAttemptListedRef.current = false;
     setStreakPopupDismissed(false);
     celebratedRef.current = false;
+  }
+
+  function reviewPastAttempt(attempt: PastAttempt) {
+    if (!attempt.answers || typeof attempt.answers !== "object" || Array.isArray(attempt.answers)) return;
+    setAnswers(attempt.answers as Record<string, unknown>);
+    setSubmitted(true);
+    setCurrentIndex(0);
+    setReviewMode("overview");
+    setEvaluationMode(null);
+    setShowEvaluationDialog(false);
+    setAutoGradingActive(false);
+    setShowAiUnavailableDialog(false);
+    setSelectedAttemptId(attempt.id ?? null);
+    currentAttemptIdRef.current = attempt.id ?? null;
+    currentAttemptDateRef.current = attempt.completedAt;
+    finalizedAttemptListedRef.current = true;
+    setMessage(`Viewing attempt from ${new Date(attempt.completedAt).toLocaleString()}.`);
   }
 
   // Fire a one-time confetti + chime celebration once the final score is revealed and it's a strong
@@ -499,10 +539,10 @@ export function QuizPlayer({
     finalizedAttemptListedRef.current = true;
     setAllAttempts((current) => [
       ...current,
-      { score, total: totalPoints, completedAt: new Date().toISOString() },
+      { id: currentAttemptIdRef.current ?? undefined, score, total: totalPoints, completedAt: currentAttemptDateRef.current ?? new Date().toISOString(), answers: answers as Json },
     ]);
     setMessage("Quiz attempt saved.");
-  }, [autoGradingActive, hasPendingWritingGrading, hasSubjectiveQuestions, score, submitted, totalPoints]);
+  }, [answers, autoGradingActive, hasPendingWritingGrading, hasSubjectiveQuestions, score, submitted, totalPoints]);
 
   function goToQuestion(nextIndex: number) {
     setCurrentIndex(Math.max(0, Math.min(questions.length - 1, nextIndex)));
@@ -581,12 +621,15 @@ export function QuizPlayer({
       try {
         if (!submissionKeyRef.current) submissionKeyRef.current = crypto.randomUUID();
         const saved = await recordQuizAttempt({ quizId, score: finalScore, total: finalTotal, answers, timeTakenSeconds: finalTimeTakenSeconds, courseItemId, submissionKey: submissionKeyRef.current });
+        currentAttemptIdRef.current = saved.attemptId;
+        currentAttemptDateRef.current = new Date().toISOString();
+        setSelectedAttemptId(saved.attemptId);
         beginSubmittedView();
         if (saved.status === "FINALIZED") {
           finalizedAttemptListedRef.current = true;
           setAllAttempts((prev) => [
             ...prev,
-            { score: finalScore, total: finalTotal, completedAt: new Date().toISOString() }
+            { id: saved.attemptId, score: finalScore, total: finalTotal, completedAt: currentAttemptDateRef.current ?? new Date().toISOString(), answers: answers as Json }
           ]);
           setMessage("Quiz attempt saved.");
         } else {
@@ -635,7 +678,7 @@ export function QuizPlayer({
     <div className="space-y-4">
       {/* Score history — shown before starting if they have attempts */}
       {allAttempts.length > 0 && !submitted && (
-        <ScoreHistory attempts={allAttempts} total={totalPoints} />
+        <ScoreHistory attempts={allAttempts} total={totalPoints} onSelectAttempt={reviewPastAttempt} selectedAttemptId={selectedAttemptId} />
       )}
 
       <div className="rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-4 shadow-[var(--br-shadow)] sm:p-5">
@@ -717,7 +760,7 @@ export function QuizPlayer({
 
       {/* Score history — also shown after submitting, now including the new attempt */}
       {submitted && allAttempts.length > 0 && (
-        <ScoreHistory attempts={allAttempts} total={totalPoints} />
+        <ScoreHistory attempts={allAttempts} total={totalPoints} onSelectAttempt={reviewPastAttempt} selectedAttemptId={selectedAttemptId} />
       )}
 
       {autoGradingActive ? (
@@ -747,7 +790,7 @@ export function QuizPlayer({
         {currentQuestion ? (
           <ActivityEvaluationModeContext.Provider value={evaluationMode ? { mode: evaluationMode, onAiUnavailable: handleAiUnavailable } : null}>
             <QuestionCard
-              key={currentQuestion.id}
+              key={`${currentQuestion.id}:${selectedAttemptId ?? "new"}`}
               question={currentQuestion}
               value={answers[currentQuestion.id]}
               submitted={submitted}

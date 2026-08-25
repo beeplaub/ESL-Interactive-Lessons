@@ -23,7 +23,7 @@ type Slide = {
 type Block = { id: string; slide_id: string; position: number; block_type: string; content: Json };
 type Activity = { id: string; slide_id: string | null; slide_number: number; activity_type: string; activity_data: Json | null };
 type Progress = { current_slide_number: number; completed: boolean } | null;
-type ActivityAttempt = { lesson_slide_activity_id: string | null; score: number; total: number; answers: Json | null; completed_at: string };
+type ActivityAttempt = { id?: string; lesson_slide_activity_id: string | null; score: number; total: number; answers: Json | null; completed_at: string; status?: string | null; grading_source?: string | null };
 type LiveSessionMode = { sessionId: string; role: "TEACHER" | "STUDENT"; initialSlideNumber: number; navigationLocked: boolean };
 
 function activityQuestionCount(activity: Activity) {
@@ -842,11 +842,14 @@ export function BuilderLessonPlayer({
                       const expectedTotal = lessonActivityTotalPoints({ id: activity.id, activity_type: activity.activity_type, activity_data: activity.activity_data });
                       const normalized = normalizeDisplayScore(attempt.score, attempt.total, expectedTotal);
                       setSavedActivityAttempts((current) => [{
+                        id: attempt.id,
                         lesson_slide_activity_id: activity.id,
                         score: normalized.score,
                         total: normalized.total,
                         answers: attempt.answers,
-                        completed_at: attempt.completed_at ?? new Date().toISOString()
+                        completed_at: attempt.completed_at ?? new Date().toISOString(),
+                        status: attempt.status,
+                        grading_source: attempt.grading_source,
                       }, ...current]);
                       if (liveSession) {
                         void fetch(`/api/live/${liveSession.sessionId}/evidence`, {
