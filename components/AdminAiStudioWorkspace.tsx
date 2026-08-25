@@ -121,6 +121,17 @@ function formatCost(value: number) {
   return `$${value.toFixed(2)}`;
 }
 
+function providerForLog(log: Pick<GenerationLog, "provider" | "model_used">) {
+  const explicit = log.provider?.trim().toLowerCase();
+  if (explicit) return explicit;
+
+  const model = log.model_used.trim().toLowerCase();
+  if (model.startsWith("openrouter/") || model.startsWith("openrouter-")) return "openrouter";
+  if (model.startsWith("openai/") || model.startsWith("groq/") || model.includes("whisper")) return "groq";
+  if (model.includes("kokoro")) return "kokoro";
+  return "google";
+}
+
 function formatBdtTimestamp(value: string) {
   return `${new Intl.DateTimeFormat("en-GB", {
     timeZone: "Asia/Dhaka",
@@ -291,7 +302,13 @@ export function AdminAiStudioWorkspace({
 
   const models = useMemo(() => Array.from(new Set(initialLogs.map((log) => log.model_used).filter(Boolean))).sort(), [initialLogs]);
   const features = useMemo(() => Array.from(new Set(initialLogs.map((log) => log.feature_key).filter(Boolean))).sort(), [initialLogs]);
-  const providers = useMemo(() => Array.from(new Set(initialLogs.map((log) => log.provider || (log.model_used.startsWith("openrouter") ? "openrouter" : "google")))).sort(), [initialLogs]);
+  const providers = useMemo(() => Array.from(new Set([
+    "google",
+    "groq",
+    "openrouter",
+    "kokoro",
+    ...initialLogs.map((log) => providerForLog(log)),
+  ])).sort(), [initialLogs]);
   const todayKey = dhakaDateKey(Date.now());
   const rollingDays = dateRange === "TODAY" ? 1 : dateRange;
   const cutoff = Date.now() - rollingDays * DAY_MS;
@@ -300,11 +317,11 @@ export function AdminAiStudioWorkspace({
     if (dateRange === "TODAY" ? dhakaDateKey(log.created_at) !== todayKey : new Date(log.created_at).getTime() < cutoff) return false;
     if (model !== "ALL" && log.model_used !== model) return false;
     if (feature !== "ALL" && log.feature_key !== feature) return false;
-    const actualProvider = log.provider || (log.model_used.startsWith("openrouter") ? "openrouter" : "google");
+    const actualProvider = providerForLog(log);
     if (provider !== "ALL" && actualProvider !== provider) return false;
     if (status !== "ALL" && logStatus(log) !== status) return false;
     if (search) {
-      const haystack = `${log.feature_key} ${log.model_used} ${log.user_role} ${log.response_preview || ""} ${log.error_message || ""}`.toLowerCase();
+      const haystack = `${log.feature_key} ${log.model_used} ${providerForLog(log)} ${log.user_role} ${log.response_preview || ""} ${log.error_message || ""}`.toLowerCase();
       if (!haystack.includes(search.toLowerCase())) return false;
     }
     return true;
@@ -361,19 +378,20 @@ export function AdminAiStudioWorkspace({
   }, [dateRange, filteredLogs, trendMetric]);
 
   const modelBreakdown = useMemo(() => {
-    const rows = new Map<string, { requests: number; success: number; cache: number; tokens: number; cost: number; latency: number[] }>();
+    const rows = new Map<string, { name: string; provider: string; requests: number; success: number; cache: number; tokens: number; cost: number; latency: number[] }>();
     filteredLogs.forEach((log) => {
-      const row = rows.get(log.model_used) || { requests: 0, success: 0, cache: 0, tokens: 0, cost: 0, latency: [] };
+      const provider = providerForLog(log);
+      const key = `${provider}:${log.model_used}`;
+      const row = rows.get(key) || { name: log.model_used, provider, requests: 0, success: 0, cache: 0, tokens: 0, cost: 0, latency: [] };
       row.requests += 1;
       if (logStatus(log) !== "FAILED") row.success += 1;
       if (logStatus(log) === "CACHED") row.cache += 1;
       row.tokens += logTokens(log);
       row.cost += num(log.estimated_cost_usd);
       if (num(log.latency_ms) > 0) row.latency.push(num(log.latency_ms));
-      rows.set(log.model_used, row);
+      rows.set(key, row);
     });
-    return Array.from(rows.entries()).map(([name, row]) => ({
-      name,
+    return Array.from(rows.values()).map((row) => ({
       ...row,
       successRate: row.requests ? (row.success / row.requests) * 100 : 0,
       averageLatency: row.latency.length ? row.latency.reduce((sum, value) => sum + value, 0) / row.latency.length : 0,
@@ -511,7 +529,7 @@ export function AdminAiStudioWorkspace({
           <div className="flex flex-wrap gap-2">
             <FilterSelect label="Model" value={model} onChange={setModel}><option value="ALL">All models</option>{models.map((item) => <option key={item}>{item}</option>)}</FilterSelect>
             <FilterSelect label="Feature" value={feature} onChange={setFeature}><option value="ALL">All features</option>{features.map((item) => <option key={item}>{readable(item)}</option>)}</FilterSelect>
-            <FilterSelect label="Provider" value={provider} onChange={setProvider}><option value="ALL">All providers</option>{providers.map((item) => <option key={item}>{readable(item)}</option>)}</FilterSelect>
+            <FilterSelect label="Provider" value={provider} onChange={setProvider}><option value="ALL">All providers</option>{providers.map((item) => <option key={item} value={item}>{readable(item)}</option>)}</FilterSelect>
             <FilterSelect label="Status" value={status} onChange={setStatus}><option value="ALL">All statuses</option><option value="COMPLETED">Completed</option><option value="CACHED">Cached</option><option value="FAILED">Failed</option><option value="STARTED">Started</option></FilterSelect>
           </div>
         </section>
@@ -551,7 +569,7 @@ export function AdminAiStudioWorkspace({
               <div className="mt-4 space-y-3">
                 {modelBreakdown.map((row) => (
                   <button key={row.name} onClick={() => setModel(row.name)} className="block w-full rounded-xl border border-[var(--br-border)] p-3 text-left transition hover:border-[var(--br-brand)]/35 hover:bg-[var(--br-surface-muted)]/60">
-                    <div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate text-sm font-black text-ink">{row.name}</p><p className="mt-0.5 text-[11px] text-[var(--br-text-muted)]">{row.requests} requests · {row.cache} cached</p></div><span className={`rounded-full px-2 py-1 text-[10px] font-black ${row.successRate >= 95 ? "bg-[var(--br-success)]/10 text-[var(--br-success)]" : "bg-[var(--br-achievement)]/12 text-amber-700"}`}>{row.successRate.toFixed(1)}% success</span></div>
+                    <div className="flex items-start justify-between gap-3"><div className="min-w-0"><div className="flex min-w-0 items-center gap-2"><p className="truncate text-sm font-black text-ink">{row.name}</p><span className="shrink-0 rounded-full bg-[var(--br-brand)]/10 px-2 py-0.5 text-[9px] font-black uppercase tracking-wide text-[var(--br-brand)]">{readable(row.provider)}</span></div><p className="mt-0.5 text-[11px] text-[var(--br-text-muted)]">{row.requests} requests · {row.cache} cached</p></div><span className={`rounded-full px-2 py-1 text-[10px] font-black ${row.successRate >= 95 ? "bg-[var(--br-success)]/10 text-[var(--br-success)]" : "bg-[var(--br-achievement)]/12 text-amber-700"}`}>{row.successRate.toFixed(1)}% success</span></div>
                     <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[var(--br-surface-muted)]"><div className="h-full rounded-full bg-[var(--br-brand)]" style={{ width: `${Math.min(100, (row.requests / Math.max(1, modelBreakdown[0]?.requests || 1)) * 100)}%` }} /></div>
                     <div className="mt-2 grid grid-cols-3 gap-2 text-[10px] text-[var(--br-text-muted)]"><span>{formatCompact(row.tokens)} tokens</span><span>{row.averageLatency ? `${Math.round(row.averageLatency)}ms avg` : "No latency"}</span><span className="text-right">{formatCost(row.cost)}</span></div>
                   </button>
@@ -600,7 +618,7 @@ export function AdminAiStudioWorkspace({
       {view === "logs" ? (
         <section className="rounded-xl border border-[var(--br-border)] bg-surface p-4 shadow-sm sm:p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="font-black text-ink">Generation log</h2><p className="mt-0.5 text-xs text-[var(--br-text-muted)]">{filteredLogs.length} events match the active filters.</p></div><label className="relative block sm:w-80"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-[var(--br-text-muted)]" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search feature, model, role or error" className="h-10 w-full rounded-lg border border-[var(--br-border)] bg-surface pl-9 pr-3 text-xs outline-none focus:border-[var(--br-brand)]" /></label></div>
-          <div className="mt-4 overflow-x-auto"><table className="w-full min-w-[980px] text-left text-xs"><thead><tr className="border-b border-[var(--br-border)] text-[10px] uppercase tracking-wide text-[var(--br-text-muted)]"><th className="pb-2">Time</th><th className="pb-2">Feature</th><th className="pb-2">Model</th><th className="pb-2">Status</th><th className="pb-2 text-right">Tokens</th><th className="pb-2 text-right">Latency</th><th className="pb-2 text-right">Cost</th><th className="pb-2">Response / error</th></tr></thead><tbody className="divide-y divide-[var(--br-border)]">{filteredLogs.map((log) => { const state = logStatus(log); return <tr key={log.id} className="align-top hover:bg-[var(--br-surface-muted)]/60"><td className="whitespace-nowrap py-3 pr-4 text-[var(--br-text-muted)]">{new Date(log.created_at).toLocaleString()}</td><td className="max-w-[190px] py-3 pr-4"><p className="truncate font-bold text-ink">{readable(log.feature_key)}</p><p className="text-[10px] text-[var(--br-text-muted)]">{log.user_role}{log.cefr_level ? ` · ${log.cefr_level}` : ""}</p></td><td className="max-w-[180px] py-3 pr-4"><p className="truncate font-mono text-[10px]">{log.model_used}</p><p className="text-[10px] text-[var(--br-text-muted)]">{log.provider || "google"}</p></td><td className="py-3 pr-4"><span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[9px] font-black ${state === "FAILED" ? "bg-[var(--br-danger)]/10 text-[var(--br-danger)]" : state === "CACHED" ? "bg-[var(--br-chart-secondary)]/10 text-[var(--br-chart-secondary)]" : "bg-[var(--br-success)]/10 text-[var(--br-success)]"}`}>{state === "FAILED" ? <XCircle size={10} /> : <CheckCircle2 size={10} />}{state}</span></td><td className="py-3 text-right font-mono">{formatCompact(logTokens(log))}</td><td className="py-3 text-right">{log.latency_ms ? `${log.latency_ms}ms` : "—"}</td><td className="py-3 text-right">{formatCost(num(log.estimated_cost_usd))}</td><td className="max-w-[300px] py-3 pl-4"><p className={`line-clamp-2 font-mono text-[10px] leading-4 ${log.error_message ? "text-[var(--br-danger)]" : "text-[var(--br-text-muted)]"}`}>{log.error_message || log.response_preview || "No response preview"}</p>{num(log.retry_count) ? <p className="mt-1 text-[9px] font-bold text-amber-700">{log.retry_count} retries</p> : null}</td></tr>; })}</tbody></table>{!filteredLogs.length ? <p className="py-12 text-center text-sm text-[var(--br-text-muted)]">No generation events match these filters.</p> : null}</div>
+          <div className="mt-4 overflow-x-auto"><table className="w-full min-w-[980px] text-left text-xs"><thead><tr className="border-b border-[var(--br-border)] text-[10px] uppercase tracking-wide text-[var(--br-text-muted)]"><th className="pb-2">Time</th><th className="pb-2">Feature</th><th className="pb-2">Model / provider</th><th className="pb-2">Status</th><th className="pb-2 text-right">Tokens</th><th className="pb-2 text-right">Latency</th><th className="pb-2 text-right">Cost</th><th className="pb-2">Response / error</th></tr></thead><tbody className="divide-y divide-[var(--br-border)]">{filteredLogs.map((log) => { const state = logStatus(log); return <tr key={log.id} className="align-top hover:bg-[var(--br-surface-muted)]/60"><td className="whitespace-nowrap py-3 pr-4 text-[var(--br-text-muted)]">{new Date(log.created_at).toLocaleString()}</td><td className="max-w-[190px] py-3 pr-4"><p className="truncate font-bold text-ink">{readable(log.feature_key)}</p><p className="text-[10px] text-[var(--br-text-muted)]">{log.user_role}{log.cefr_level ? ` · ${log.cefr_level}` : ""}</p></td><td className="max-w-[180px] py-3 pr-4"><p className="truncate font-mono text-[10px]">{log.model_used}</p><p className="text-[10px] text-[var(--br-text-muted)]">{readable(providerForLog(log))}</p></td><td className="py-3 pr-4"><span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[9px] font-black ${state === "FAILED" ? "bg-[var(--br-danger)]/10 text-[var(--br-danger)]" : state === "CACHED" ? "bg-[var(--br-chart-secondary)]/10 text-[var(--br-chart-secondary)]" : "bg-[var(--br-success)]/10 text-[var(--br-success)]"}`}>{state === "FAILED" ? <XCircle size={10} /> : <CheckCircle2 size={10} />}{state}</span></td><td className="py-3 text-right font-mono">{formatCompact(logTokens(log))}</td><td className="py-3 text-right">{log.latency_ms ? `${log.latency_ms}ms` : "—"}</td><td className="py-3 text-right">{formatCost(num(log.estimated_cost_usd))}</td><td className="max-w-[300px] py-3 pl-4"><p className={`line-clamp-2 font-mono text-[10px] leading-4 ${log.error_message ? "text-[var(--br-danger)]" : "text-[var(--br-text-muted)]"}`}>{log.error_message || log.response_preview || "No response preview"}</p>{num(log.retry_count) ? <p className="mt-1 text-[9px] font-bold text-amber-700">{log.retry_count} retries</p> : null}</td></tr>; })}</tbody></table>{!filteredLogs.length ? <p className="py-12 text-center text-sm text-[var(--br-text-muted)]">No generation events match these filters.</p> : null}</div>
         </section>
       ) : null}
     </main>
