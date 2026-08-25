@@ -358,11 +358,14 @@ export async function callGemini<T>({
   fallbackModel?: string;
   context?: AiCallContext;
 }): Promise<T> {
-  const primaryModel = fallbackModel || process.env.GEMINI_DEFAULT_MODEL || "gemini-3.5-flash";
-  const modelCandidates = [primaryModel, "gemini-2.5-flash"]
+  const provider = context?.provider || "google";
+  const primaryModel = provider === "groq"
+    ? fallbackModel || process.env.GROQ_TEXT_MODEL || "openai/gpt-oss-20b"
+    : fallbackModel || process.env.GEMINI_DEFAULT_MODEL || "gemini-3.5-flash";
+  const modelCandidates = (provider === "groq" ? [primaryModel] : [primaryModel, "gemini-2.5-flash"])
     .filter((val, index, self) => self.indexOf(val) === index);
 
-  const ai = getGeminiClient();
+  const ai = provider === "google" ? getGeminiClient() : null;
   const supabase = createAdminClient();
 
   // A. Fetch template from DB, fallback to code default if not present
@@ -509,7 +512,52 @@ export async function callGemini<T>({
   try {
   for (const modelName of modelCandidates) {
     const generateCall = async (promptOverride?: string): Promise<{ text: string; usage: AiUsage }> => {
-      const response = await withTimeout(ai.models.generateContent({
+      if (provider === "groq") {
+        const apiKey = process.env.GROQ_API_KEY;
+        if (!apiKey) throw new Error("GROQ_API_KEY is not configured.");
+        const response = await withTimeout(fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: modelName,
+            messages: [
+              { role: "system", content: roleDescription },
+              { role: "user", content: promptOverride || finalPrompt },
+            ],
+            temperature: 0.2,
+            max_tokens: 700,
+            response_format: responseSchema ? { type: "json_object" } : undefined,
+          }),
+          signal: AbortSignal.timeout(AI_GENERATION_TIMEOUT_MS),
+          cache: "no-store",
+        }), AI_GENERATION_TIMEOUT_MS + 1_000, "AI feedback timed out while waiting for a response.");
+
+        const body = await response.json().catch(() => ({})) as {
+          choices?: Array<{ message?: { content?: unknown } }>;
+          usage?: { prompt_tokens?: number; completion_tokens?: number };
+          error?: { message?: string };
+        };
+        if (!response.ok) {
+          const error = new Error(body.error?.message || `Groq request failed with status ${response.status}`) as Error & { status?: number };
+          error.status = response.status;
+          throw error;
+        }
+        const text = typeof body.choices?.[0]?.message?.content === "string" ? body.choices[0].message.content : "";
+        if (!text) throw new Error("Groq returned an empty response.");
+        return {
+          text,
+          usage: {
+            inputTokens: Number(body.usage?.prompt_tokens ?? 0),
+            outputTokens: Number(body.usage?.completion_tokens ?? 0),
+            cachedTokens: 0,
+          },
+        };
+      }
+
+      const response = await withTimeout(ai!.models.generateContent({
         model: modelName,
         contents: promptOverride || finalPrompt,
         config: {
@@ -546,7 +594,7 @@ export async function callGemini<T>({
         successfulModel = modelName;
         if (cacheTtl > 0) await saveAiResponseCache({ cacheKey, featureKey, model: modelName, promptVersion, inputHash, response: parsed, ttlSeconds: cacheTtl });
         if (context?.userId && creditReserved) await settleAiCredits({ userId: context.userId, featureKey, reservedCredits, usage: successfulUsage });
-        await audit({ model: modelName, provider: "google", status: "COMPLETED", usage: successfulUsage, responsePreview: rawText });
+        await audit({ model: modelName, provider, status: "COMPLETED", usage: successfulUsage, responsePreview: rawText });
         return parsed as T;
       } catch (error: unknown) {
         lastError = error;
@@ -578,7 +626,7 @@ export async function callGemini<T>({
             retryCount += 1;
             if (cacheTtl > 0) await saveAiResponseCache({ cacheKey, featureKey, model: modelName, promptVersion, inputHash, response: parsed, ttlSeconds: cacheTtl });
             if (context?.userId && creditReserved) await settleAiCredits({ userId: context.userId, featureKey, reservedCredits, usage: successfulUsage });
-            await audit({ model: modelName, provider: "google", status: "COMPLETED", usage: successfulUsage, responsePreview: rawText });
+            await audit({ model: modelName, provider, status: "COMPLETED", usage: successfulUsage, responsePreview: rawText });
             return parsed as T;
           } catch (repairError) {
             lastError = repairError;
@@ -589,7 +637,7 @@ export async function callGemini<T>({
   }
 
   // F. Final fallback: OpenRouter (if API key is present)
-  if (process.env.OPENROUTER_API_KEY && !context?.assessmentCritical) {
+  if (provider === "google" && process.env.OPENROUTER_API_KEY && !context?.assessmentCritical) {
     try {
       console.log("Gemini models exhausted. Attempting fallback via OpenRouter...");
       const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -637,10 +685,10 @@ export async function callGemini<T>({
   }
 
   if (context?.userId && creditReserved) await releaseAiCredits(context.userId, reservedCredits);
-  await audit({ model: successfulModel || primaryModel, provider: "google", status: "FAILED", usage: successfulUsage, responsePreview: rawText, error: lastError });
+  await audit({ model: successfulModel || primaryModel, provider, status: "FAILED", usage: successfulUsage, responsePreview: rawText, error: lastError });
 
   throw new Error(
-    `Failed to get a valid response from Gemini after retries. Error: ${
+    `Failed to get a valid response from ${provider === "groq" ? "Groq" : "Gemini"} after retries. Error: ${
       lastError instanceof Error ? lastError.message : String(lastError)
     }`
   );

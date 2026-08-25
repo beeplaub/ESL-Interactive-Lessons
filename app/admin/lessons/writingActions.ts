@@ -560,6 +560,7 @@ export async function evaluateWritingWithAiAction(input: {
         context: {
           userId: evaluationContext.user.id,
           userRole: evaluationContext.role,
+          provider: "groq",
           featureKey: "learner_oral_response_grading_v1",
           cefrLevel: evaluationContext.level,
           promptVersion: "oral-response-v2-simple-feedback",
@@ -608,6 +609,7 @@ export async function evaluateWritingWithAiAction(input: {
       context: {
         userId: evaluationContext.user.id,
         userRole: evaluationContext.role,
+        provider: "groq",
         featureKey: "learner_writing_grading_v1",
         cefrLevel: evaluationContext.level,
         promptVersion: "writing-grading-v2-simple-feedback",
@@ -706,6 +708,7 @@ export async function evaluateDialogueWritingWithAiAction(input: {
       context: {
         userId: resolved.user.id,
         userRole: resolved.role,
+        provider: "groq",
         featureKey: "learner_dialogue_grading_v1",
         cefrLevel: resolved.level,
         promptVersion: "dialogue-grading-v2-simple-feedback",
