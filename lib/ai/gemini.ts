@@ -299,14 +299,13 @@ Return only the JSON shape requested by the response schema.`
   },
 
   learner_oral_response_grading_v1: {
-    role_description: "You are a fair CEFR speaking assessor evaluating an automatic speech-recognition transcript.",
+    role_description: "You are a careful and encouraging speaking assessor evaluating an automatic speech-recognition transcript.",
     prompt_text: `Speaking task: "{prompt}"
 Automatic transcript of the learner's spoken response: "{submission}"
-Target CEFR level: {level}.
 
-Judge communicative fluency signals, vocabulary, spoken clarity signals visible in the transcript, sentence structure, and task achievement. Ignore punctuation, capitalization, formatting, and likely speech-recognition spelling or homophone errors. Never claim to have heard pronunciation or audio because only a transcript is available.
+Judge only the task and the actual transcript. Check what the learner communicated, which task details they included or missed, how clear and connected the ideas are, and any real grammar or vocabulary problems visible in the transcript. Ignore punctuation, capitalization, formatting, and likely speech-recognition spelling or homophone errors. Never claim to have heard pronunciation or audio because only a transcript is available.
 
-Return a score from 0 to 100 and learner-friendly feedback with exactly 1-3 strengths, 1-3 improvements, and either one useful example correction or null. Keep the summary concise and do not claim to evaluate audio pronunciation.
+Make the feedback specific to this learner. At least one strength or improvement must refer to a concrete idea or phrase from the transcript. If the transcript contains a clear grammar or vocabulary issue, provide that exact phrase in example_correction; return null only when no useful correction is visible. Never use generic advice that could apply to any response. Keep the summary concise and do not mention CEFR, B1, or any other level.
 
 Return only the JSON shape requested by the response schema.`
   },

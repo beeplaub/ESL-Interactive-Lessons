@@ -480,7 +480,7 @@ const simpleLearnerFeedbackInstruction = `Return learner-facing feedback in this
   "improvements": ["Improvement 1", "Improvement 2"],
   "example_correction": null
 }
-Score every dimension from 0 to 5 only: 0=no meaningful evidence, 1=very limited, 2=partly meets the task, 3=generally effective with noticeable problems, 4=effective with minor problems, 5=fully effective for the stated learner level. Use 1-3 short strengths and 1-3 short improvements. Use one example_correction object only when a correction is useful; otherwise return null. Do not return an overall score; the server calculates it.`;
+Score every dimension from 0 to 5 only: 0=no meaningful evidence, 1=very limited, 2=partly meets the task, 3=generally effective with noticeable problems, 4=effective with minor problems, 5=fully effective for the task. Make strengths and improvements specific to the submitted response; refer to a concrete idea or phrase whenever possible. Do not use generic advice that could apply to every learner. Use one example_correction object when a real correction is visible; otherwise return null. Do not return an overall score; the server calculates it.`;
 
 async function resolveEvaluationContext(input: {
   activityId?: string | null;
@@ -555,7 +555,6 @@ export async function evaluateWritingWithAiAction(input: {
             simpleLearnerFeedbackInstruction
           ].filter(Boolean).join("\n"),
           submission: input.submissionText,
-          level: evaluationContext.level
         },
         responseSchema: oralResponseFeedbackSchema,
         context: {
@@ -563,8 +562,7 @@ export async function evaluateWritingWithAiAction(input: {
           userRole: evaluationContext.role,
           provider: "ollama",
           featureKey: "learner_oral_response_grading_v1",
-          cefrLevel: evaluationContext.level,
-          promptVersion: "oral-response-v2-simple-feedback",
+          promptVersion: "oral-response-v3-evidence-feedback-no-level",
           assessmentCritical: true,
           cache: { ttlSeconds: 365 * 24 * 60 * 60 },
         },
