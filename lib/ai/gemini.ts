@@ -367,6 +367,7 @@ export async function callGemini<T>({
         { provider: "groq" as const, model: primaryModel },
         { provider: "groq" as const, model: process.env.GROQ_TEXT_FALLBACK_MODEL || "llama-3.3-70b-versatile" },
         { provider: "google" as const, model: process.env.GEMINI_DEFAULT_MODEL || "gemini-3.5-flash" },
+        { provider: "google" as const, model: "gemini-2.5-flash" },
       ]
     : [
         { provider: "google" as const, model: primaryModel },
