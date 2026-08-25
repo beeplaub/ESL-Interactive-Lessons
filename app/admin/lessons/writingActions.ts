@@ -539,6 +539,7 @@ export async function evaluateWritingWithAiAction(input: {
   }
   if (input.activityType === "ORAL_RESPONSE") {
     try {
+      let gradingProvider: "groq" | "google" = "groq";
       const result = await callGemini<OralResponseFeedbackResult>({
         templateKey: "learner_oral_response_grading_v1",
         variables: {
@@ -567,6 +568,7 @@ export async function evaluateWritingWithAiAction(input: {
           assessmentCritical: true,
           cache: { ttlSeconds: 365 * 24 * 60 * 60 },
         },
+        onProviderUsed: ({ provider }) => { if (provider === "groq" || provider === "google") gradingProvider = provider; },
       });
       const overall = scoreFromDimensions(result.dimension_scores);
       return {
@@ -578,6 +580,7 @@ export async function evaluateWritingWithAiAction(input: {
           strengths: Array.isArray(result.strengths) ? result.strengths : [],
           improvements: Array.isArray(result.improvements) ? result.improvements : [],
           exampleCorrection: result.example_correction ?? null,
+          provider: gradingProvider,
         }
       };
     } catch (error) {
@@ -592,6 +595,7 @@ export async function evaluateWritingWithAiAction(input: {
     }
   }
   try {
+    let gradingProvider: "groq" | "google" = "groq";
     const contextParts = [
       input.modelAnswer ? `Model/reference answer: "${input.modelAnswer}"` : "",
       input.rubricGuidance ? `Rubric guidelines: ${input.rubricGuidance}` : "",
@@ -616,6 +620,7 @@ export async function evaluateWritingWithAiAction(input: {
         assessmentCritical: true,
         cache: { ttlSeconds: 365 * 24 * 60 * 60 },
       },
+      onProviderUsed: ({ provider }) => { if (provider === "groq" || provider === "google") gradingProvider = provider; },
     });
 
     const overall = scoreFromDimensions(result.dimension_scores);
@@ -629,6 +634,7 @@ export async function evaluateWritingWithAiAction(input: {
         strengths: Array.isArray(result.strengths) ? result.strengths : [],
         improvements: Array.isArray(result.improvements) ? result.improvements : [],
         exampleCorrection: result.example_correction ?? null,
+        provider: gradingProvider,
       }
     };
   } catch (error) {
@@ -688,6 +694,7 @@ export async function evaluateDialogueWritingWithAiAction(input: {
 }, evaluationContext?: Awaited<ReturnType<typeof resolveEvaluationContext>>) {
   try {
     const resolved = evaluationContext ?? await resolveEvaluationContext(input);
+    let gradingProvider: "groq" | "google" = "groq";
     const targetPhrasesList = (input.targetPhrases ?? []).filter(Boolean);
     const contextParts = [
       input.scenario ? `Scenario / Context: "${input.scenario}"` : "",
@@ -715,6 +722,7 @@ export async function evaluateDialogueWritingWithAiAction(input: {
         assessmentCritical: true,
         cache: { ttlSeconds: 365 * 24 * 60 * 60 },
       },
+      onProviderUsed: ({ provider }) => { if (provider === "groq" || provider === "google") gradingProvider = provider; },
     });
 
     const overall = scoreFromDimensions(result.dimension_scores);
@@ -728,6 +736,7 @@ export async function evaluateDialogueWritingWithAiAction(input: {
         strengths: Array.isArray(result.strengths) ? result.strengths : [],
         improvements: Array.isArray(result.improvements) ? result.improvements : [],
         exampleCorrection: result.example_correction ?? null,
+        provider: gradingProvider,
       }
     };
   } catch (error) {

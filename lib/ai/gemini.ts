@@ -351,12 +351,14 @@ export async function callGemini<T>({
   responseSchema,
   fallbackModel,
   context,
+  onProviderUsed,
 }: {
   templateKey: string;
   variables: Record<string, string>;
   responseSchema?: unknown;
   fallbackModel?: string;
   context?: AiCallContext;
+  onProviderUsed?: (result: { provider: "google" | "groq" | "cache"; model: string }) => void;
 }): Promise<T> {
   const provider = context?.provider || "google";
   const primaryModel = provider === "groq"
@@ -478,6 +480,7 @@ export async function callGemini<T>({
   if (cacheTtl > 0) {
     const cached = await getCachedAiResponse<T>(cacheKey);
     if (cached) {
+      onProviderUsed?.({ provider: "cache", model: primaryModel });
       await Promise.all([
         markAiCacheHit(cacheKey),
         context?.userId ? settleAiCredits({ userId: context.userId, featureKey, reservedCredits: 0, actualCredits: 0, cacheHit: true }) : Promise.resolve(),
@@ -492,6 +495,7 @@ export async function callGemini<T>({
     } else {
       const shared = await waitForCachedAiResponse<T>(cacheKey, 20_000);
       if (shared) {
+        onProviderUsed?.({ provider: "cache", model: primaryModel });
         await Promise.all([
           markAiCacheHit(cacheKey),
           context?.userId ? settleAiCredits({ userId: context.userId, featureKey, reservedCredits: 0, actualCredits: 0, cacheHit: true }) : Promise.resolve(),
@@ -607,6 +611,7 @@ export async function callGemini<T>({
         // Basic JSON validation before returning
         const parsed = JSON.parse(rawText);
         successfulModel = modelName;
+        onProviderUsed?.({ provider: requestProvider, model: modelName });
         if (cacheTtl > 0) await saveAiResponseCache({ cacheKey, featureKey, model: modelName, promptVersion, inputHash, response: parsed, ttlSeconds: cacheTtl });
         if (context?.userId && creditReserved) await settleAiCredits({ userId: context.userId, featureKey, reservedCredits, usage: successfulUsage });
         await audit({ model: modelName, provider: requestProvider, status: "COMPLETED", usage: successfulUsage, responsePreview: rawText });
@@ -638,6 +643,7 @@ export async function callGemini<T>({
             successfulUsage = repaired.usage;
             const parsed = JSON.parse(rawText);
             successfulModel = modelName;
+            onProviderUsed?.({ provider: requestProvider, model: modelName });
             retryCount += 1;
             if (cacheTtl > 0) await saveAiResponseCache({ cacheKey, featureKey, model: modelName, promptVersion, inputHash, response: parsed, ttlSeconds: cacheTtl });
             if (context?.userId && creditReserved) await settleAiCredits({ userId: context.userId, featureKey, reservedCredits, usage: successfulUsage });
@@ -679,6 +685,7 @@ export async function callGemini<T>({
         if (content) {
           const parsed = JSON.parse(content.trim());
           successfulModel = "openrouter/google/gemini-2.5-flash:free";
+          onProviderUsed?.({ provider: "google", model: successfulModel });
           const usage: AiUsage = {
             inputTokens: Number(data.usage?.prompt_tokens ?? 0),
             outputTokens: Number(data.usage?.completion_tokens ?? 0),
