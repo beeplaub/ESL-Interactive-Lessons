@@ -427,28 +427,32 @@ const oralResponseFeedbackSchema = {
   properties: {
     dimension_scores: writingFeedbackSchema.properties.dimension_scores,
     summary: { type: "string" },
-    strengths: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 3 },
-    improvements: { type: "array", items: { type: "string" }, minItems: 1, maxItems: 3 },
-    example_correction: {
-      type: "object",
-      nullable: true,
-      properties: {
-        original: { type: "string" },
-        corrected: { type: "string" },
-        explanation: { type: "string" }
-      },
-      required: ["original", "corrected", "explanation"]
-    }
+    corrections: {
+      type: "array",
+      minItems: 0,
+      maxItems: 8,
+      items: {
+        type: "object",
+        properties: {
+          original: { type: "string" },
+          corrected: { type: "string" },
+          explanation: { type: "string" }
+        },
+        required: ["original", "corrected", "explanation"]
+      }
+    },
+    improved_response: { type: "string" }
   },
-  required: ["dimension_scores", "summary", "strengths", "improvements", "example_correction"]
+  required: ["dimension_scores", "summary", "corrections", "improved_response"]
 };
+
+type OralCorrection = { original: string; corrected: string; explanation: string };
 
 type OralResponseFeedbackResult = {
   dimension_scores: Record<string, number>;
   summary: string;
-  strengths: string[];
-  improvements: string[];
-  example_correction: { original: string; corrected: string; explanation: string } | null;
+  corrections: OralCorrection[];
+  improved_response: string;
 };
 
 function isAiTemporarilyUnavailable(error: unknown) {
@@ -481,6 +485,23 @@ const simpleLearnerFeedbackInstruction = `Return learner-facing feedback in this
   "example_correction": null
 }
 Score every dimension from 0 to 5 only: 0=no meaningful evidence, 1=very limited, 2=partly meets the task, 3=generally effective with noticeable problems, 4=effective with minor problems, 5=fully effective for the task. Make strengths and improvements specific to the submitted response; refer to a concrete idea or phrase whenever possible. Do not use generic advice that could apply to every learner. Use one example_correction object when a real correction is visible; otherwise return null. Do not return an overall score; the server calculates it.`;
+
+const oralFeedbackInstruction = `Return learner-facing feedback in this exact structure:
+{
+  "dimension_scores": {
+    "task_fulfilment": 4,
+    "clarity_and_organisation": 4,
+    "language_control": 3,
+    "vocabulary_and_appropriacy": 4
+  },
+  "summary": "A concise summary of the learner's actual response.",
+  "corrections": [
+    { "original": "My name Ohid.", "corrected": "My name is Ohid.", "explanation": "Use 'is' to complete this sentence." }
+  ],
+  "improved_response": "A complete corrected version of the learner's response."
+}
+
+Score every dimension from 0 to 5 only. Create one correction for every sentence or phrase that needs correction, up to 8 corrections. Preserve the learner's meaning and do not invent personal details. Use the learner's exact original wording in each correction. Include grammar, missing articles, missing verbs, incorrect word forms, and unnatural phrases when genuinely present. If a sentence is already correct, do not add a correction for it. Always rewrite the complete response in improved_response. Do not mention CEFR, B1, or any other level. Do not claim to evaluate pronunciation because only a transcript is available.`;
 
 async function resolveEvaluationContext(input: {
   activityId?: string | null;
@@ -552,7 +573,7 @@ export async function evaluateWritingWithAiAction(input: {
             "Ignore punctuation, capitalization, spelling artifacts, missing commas, and other transcription formatting errors.",
             "Judge only communicative fluency, vocabulary, spoken clarity signals visible in the transcript, sentence structure, and how clearly the learner expresses the intended meaning.",
             "Do not penalize the learner for the transcript being unpunctuated or for homophone/spelling errors caused by speech recognition. Do not pretend the transcript is a written assignment.",
-            simpleLearnerFeedbackInstruction
+            oralFeedbackInstruction
           ].filter(Boolean).join("\n"),
           submission: input.submissionText,
         },
@@ -562,7 +583,7 @@ export async function evaluateWritingWithAiAction(input: {
           userRole: evaluationContext.role,
           provider: "ollama",
           featureKey: "learner_oral_response_grading_v1",
-          promptVersion: "oral-response-v3-evidence-feedback-no-level",
+          promptVersion: "oral-response-v4-corrections-improved-response",
           assessmentCritical: true,
           cache: { ttlSeconds: 365 * 24 * 60 * 60 },
         },
@@ -575,9 +596,11 @@ export async function evaluateWritingWithAiAction(input: {
           score: overall,
           rubric: result.dimension_scores,
           summary: String(result.summary ?? ""),
-          strengths: Array.isArray(result.strengths) ? result.strengths : [],
-          improvements: Array.isArray(result.improvements) ? result.improvements : [],
-          exampleCorrection: result.example_correction ?? null,
+          strengths: [],
+          improvements: [],
+          corrections: result.corrections,
+          improvedResponse: result.improved_response,
+          exampleCorrection: result.corrections[0] ?? null,
           provider: gradingProvider,
         }
       };

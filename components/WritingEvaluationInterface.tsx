@@ -97,6 +97,8 @@ type AiResultShape = {
   summary: string;
   strengths: string[];
   improvements: string[];
+  corrections?: { original: string; corrected: string; explanation: string }[];
+  improvedResponse?: string;
   exampleCorrection: { original: string; corrected: string; explanation: string } | null;
 };
 
@@ -110,6 +112,10 @@ function normalizeAiResult(value: Record<string, unknown>, fallbackScore = 0): A
     improvements: Array.isArray(value.improvements)
       ? value.improvements.filter((item): item is string => typeof item === "string")
       : legacySuggestions,
+    corrections: Array.isArray(value.corrections)
+      ? value.corrections.filter((item): item is { original: string; corrected: string; explanation: string } => Boolean(item && typeof item === "object" && typeof (item as Record<string, unknown>).original === "string" && typeof (item as Record<string, unknown>).corrected === "string" && typeof (item as Record<string, unknown>).explanation === "string"))
+      : [],
+    improvedResponse: typeof value.improvedResponse === "string" ? value.improvedResponse : String(value.improved_response ?? ""),
     exampleCorrection: value.exampleCorrection && typeof value.exampleCorrection === "object"
       ? value.exampleCorrection as AiResultShape["exampleCorrection"]
       : null,
@@ -426,6 +432,27 @@ export function WritingEvaluationInterface({
                   </span>
                 </div>
 
+                {activityType === "ORAL_RESPONSE" ? (
+                  <div className="space-y-3 sm:space-y-4">
+                    <div className="w-full rounded-2xl bg-surface p-4 border border-[var(--br-chart-primary)]/10 shadow-xs space-y-1 sm:p-5">
+                      <p className="text-xs font-black text-[var(--br-chart-primary)] uppercase tracking-wider">Feedback Summary</p>
+                      <p className="text-sm font-medium text-ink leading-relaxed">{aiResult.summary}</p>
+                    </div>
+                    <div className="w-full rounded-2xl bg-surface p-4 border border-[var(--br-border)] shadow-xs space-y-3 sm:p-5">
+                      <p className="text-xs font-black text-[var(--br-chart-primary)] uppercase tracking-wider">Corrections</p>
+                      {aiResult.corrections?.length ? aiResult.corrections.map((correction, index) => (
+                        <div key={`${correction.original}-${index}`} className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-sm leading-6 text-amber-900">
+                          <p><span className="text-red-600 line-through">{correction.original}</span><span className="px-2 text-amber-700">→</span><strong className="text-emerald-700">{correction.corrected}</strong></p>
+                          <p className="mt-1 text-xs text-amber-700">{correction.explanation}</p>
+                        </div>
+                      )) : <p className="text-sm text-[var(--br-text-muted)]">No sentence-level corrections were needed.</p>}
+                    </div>
+                    <div className="w-full rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-xs sm:p-5">
+                      <p className="text-xs font-black uppercase tracking-wider text-emerald-700">Improved Response</p>
+                      <p className="mt-2 text-sm font-medium leading-7 text-emerald-950">{aiResult.improvedResponse || submissionText}</p>
+                    </div>
+                  </div>
+                ) : <>
                 <div className="w-full rounded-2xl bg-surface p-4 border border-[var(--br-chart-primary)]/10 shadow-xs space-y-1 sm:p-5">
                   <p className="text-xs font-black text-[var(--br-chart-primary)] uppercase tracking-wider">Summary</p>
                   <p className="text-sm font-medium text-ink leading-relaxed">{aiResult.summary}</p>
@@ -456,6 +483,7 @@ export function WritingEvaluationInterface({
                 ) : (
                   <p className="text-xs font-medium text-[var(--br-text-muted)]">No example correction is needed for this response.</p>
                 )}
+                </>}
 
                 <div className="pt-2 border-t border-[var(--br-chart-primary)]/10">
                   <span className="text-[11px] text-[var(--br-text-muted)] font-medium">Graded by {aiResult.provider === "google" ? "Gemini" : aiResult.provider === "ollama" ? "BrenUp AI" : "Groq"} · AI Evaluation (locked for this attempt)</span>

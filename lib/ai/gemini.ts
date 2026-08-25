@@ -305,7 +305,7 @@ Automatic transcript of the learner's spoken response: "{submission}"
 
 Judge only the task and the actual transcript. Check what the learner communicated, which task details they included or missed, how clear and connected the ideas are, and any real grammar or vocabulary problems visible in the transcript. Ignore punctuation, capitalization, formatting, and likely speech-recognition spelling or homophone errors. Never claim to have heard pronunciation or audio because only a transcript is available.
 
-Make the feedback specific to this learner. At least one strength or improvement must refer to a concrete idea or phrase from the transcript. If the transcript contains a clear grammar or vocabulary issue, provide that exact phrase in example_correction; return null only when no useful correction is visible. Never use generic advice that could apply to any response. Keep the summary concise and do not mention CEFR, B1, or any other level.
+Make the feedback specific to this learner. Create one correction for every sentence or phrase that needs correction, using the learner's exact wording, and rewrite the complete response in improved_response. Preserve the learner's meaning and do not invent personal details. Never use generic advice that could apply to any response. Keep the summary concise and do not mention CEFR, B1, or any other level.
 
 Return only the JSON shape requested by the response schema.`
   },
