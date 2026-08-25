@@ -2175,198 +2175,97 @@ function OralResponse({
   const [supported, setSupported] = useState(true);
   const [recording, setRecording] = useState(false);
   const [processing, setProcessing] = useState(false);
-  const [mobileError, setMobileError] = useState<string | null>(null);
+  const [transcriptionError, setTranscriptionError] = useState<string | null>(null);
   const [seconds, setSeconds] = useState(0);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
   const recordingRef = useRef(false);
-  const transcriptRef = useRef(value?.transcript ?? "");
-  const committedTranscriptRef = useRef("");
-  const sessionTranscriptRef = useRef("");
   const startedAtRef = useRef(0);
-  const mobileSilenceTimerRef = useRef<number | null>(null);
-  const mobileRestartDelayRef = useRef(750);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
-  const mobileAudioChunksRef = useRef<Blob[]>([]);
+  const audioChunksRef = useRef<Blob[]>([]);
 
   useEffect(() => {
-    setSupported(getSpeechRecognitionConstructor() !== null);
+    setSupported(Boolean(navigator.mediaDevices?.getUserMedia) && typeof MediaRecorder !== "undefined");
     return () => {
       recordingRef.current = false;
-      recognitionRef.current?.abort();
       mediaRecorderRef.current?.stop();
       mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
-      if (mobileSilenceTimerRef.current !== null) window.clearTimeout(mobileSilenceTimerRef.current);
     };
   }, []);
 
-  const isMobileBrowser = () => /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
-    || (navigator.maxTouchPoints > 1 && /Macintosh/i.test(navigator.userAgent));
-
   async function startRecording() {
-    const mobile = isMobileBrowser();
-    if (mobile) {
-      if (disabled || !navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") return;
-      setMobileError(null);
-      setProcessing(false);
-      recordingRef.current = true;
-      startedAtRef.current = Date.now();
-      setSeconds(0);
-      setRecording(true);
-      mobileAudioChunksRef.current = [];
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        if (!recordingRef.current) {
-          stream.getTracks().forEach((track) => track.stop());
-          return;
-        }
-        mediaStreamRef.current = stream;
-        const mimeType = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"]
-          .find((candidate) => MediaRecorder.isTypeSupported(candidate));
-        const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
-        mediaRecorderRef.current = recorder;
-        recorder.ondataavailable = (event) => {
-          if (event.data.size > 0) mobileAudioChunksRef.current.push(event.data);
-        };
-        recorder.onerror = () => {
-          setMobileError("The microphone stopped unexpectedly. Please try again.");
-          setRecording(false);
-          setProcessing(false);
-        };
-        recorder.onstop = async () => {
-          mediaRecorderRef.current = null;
-          mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
-          mediaStreamRef.current = null;
-          const audio = new Blob(mobileAudioChunksRef.current, { type: recorder.mimeType || "audio/webm" });
-          mobileAudioChunksRef.current = [];
-          if (!audio.size) {
-            setProcessing(false);
-            setMobileError("No audio was recorded. Please try again.");
-            return;
-          }
-          setProcessing(true);
-          const form = new FormData();
-          form.append("file", audio, `oral-response.${audio.type.includes("mp4") ? "mp4" : "webm"}`);
-          form.append("durationSeconds", String(Math.floor((Date.now() - startedAtRef.current) / 1000)));
-          try {
-            const response = await fetch("/api/speech/transcribe", { method: "POST", body: form });
-            const result = await response.json().catch(() => ({})) as { transcript?: string; error?: string };
-            if (!response.ok || !result.transcript) {
-              setMobileError(result.error || "Transcription is temporarily unavailable. Please try again later.");
-              return;
-            }
-            onChange({
-              transcript: result.transcript,
-              duration_seconds: Math.floor((Date.now() - startedAtRef.current) / 1000),
-              self_rating: value?.self_rating,
-            });
-          } catch {
-            setMobileError("Transcription is temporarily unavailable. Please try again later.");
-          } finally {
-            setProcessing(false);
-          }
-        };
-        recorder.start(1000);
-        playRecordingStart();
-      } catch {
-        recordingRef.current = false;
-        setRecording(false);
-        setProcessing(false);
-        setMobileError("Microphone access was blocked. Please allow microphone access and try again.");
-      }
-      return;
-    }
-
-    const Recognition = getSpeechRecognitionConstructor();
-    if (!Recognition || disabled) return;
+    if (disabled || !navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") return;
+    setTranscriptionError(null);
+    setProcessing(false);
     recordingRef.current = true;
-    transcriptRef.current = "";
-    committedTranscriptRef.current = "";
-    sessionTranscriptRef.current = "";
-    mobileRestartDelayRef.current = 750;
     startedAtRef.current = Date.now();
     setSeconds(0);
     setRecording(true);
-
-    const startRecognitionSession = () => {
-      if (!recordingRef.current) return;
-
-      const recognition = new Recognition();
-      recognition.lang = "en-US";
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.maxAlternatives = 1;
-      recognitionRef.current = recognition;
-      sessionTranscriptRef.current = "";
-
-      recognition.onresult = (event) => {
-        const sessionFinal = Array.from({ length: event.results.length }, (_, index) => event.results.item(index))
-          .filter((result) => result.isFinal)
-          .map((result) => result.item(0).transcript)
-          .join(" ");
-        const interim = Array.from({ length: event.results.length }, (_, index) => event.results.item(index))
-          .filter((result) => !result.isFinal)
-          .map((result) => result.item(0).transcript)
-          .join(" ");
-        sessionTranscriptRef.current = sessionFinal.replace(/\s+/g, " ").trim();
-        if (sessionTranscriptRef.current || interim.trim()) mobileRestartDelayRef.current = 750;
-        const transcript = [committedTranscriptRef.current, sessionTranscriptRef.current, interim]
-          .join(" ").replace(/\s+/g, " ").trim();
-        transcriptRef.current = transcript;
-        onChange({ transcript, duration_seconds: Math.floor((Date.now() - startedAtRef.current) / 1000) });
+    audioChunksRef.current = [];
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (!recordingRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+      mediaStreamRef.current = stream;
+      const mimeType = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"]
+        .find((candidate) => MediaRecorder.isTypeSupported(candidate));
+      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+      mediaRecorderRef.current = recorder;
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) audioChunksRef.current.push(event.data);
       };
-
-      recognition.onerror = (event) => {
-        if (!recordingRef.current) return;
-        if (event.error === "not-allowed" || event.error === "service-not-allowed" || event.error === "permission-denied") {
-          recordingRef.current = false;
-          setRecording(false);
-        }
-        // Mobile Chrome/Safari can report `no-speech`, `network`, or `aborted`
-        // while the learner is still speaking. onend will safely start a fresh
-        // session without discarding the transcript already collected.
+      recorder.onerror = () => {
+        setTranscriptionError("The microphone stopped unexpectedly. Please try again.");
+        recordingRef.current = false;
+        setRecording(false);
+        setProcessing(false);
       };
-
-      recognition.onend = () => {
-        if (!recordingRef.current) {
-          setRecording(false);
+      recorder.onstop = async () => {
+        mediaRecorderRef.current = null;
+        mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+        mediaStreamRef.current = null;
+        const audio = new Blob(audioChunksRef.current, { type: recorder.mimeType || "audio/webm" });
+        audioChunksRef.current = [];
+        if (!audio.size) {
+          setProcessing(false);
+          setTranscriptionError("No audio was recorded. Please try again.");
           return;
         }
-
-        committedTranscriptRef.current = [committedTranscriptRef.current, sessionTranscriptRef.current]
-          .join(" ").replace(/\s+/g, " ").trim();
-        transcriptRef.current = committedTranscriptRef.current;
-
-        if (mobileSilenceTimerRef.current !== null) window.clearTimeout(mobileSilenceTimerRef.current);
-        // Mobile browsers can end recognition without warning. Backing off when
-        // no speech is detected prevents a rapid start/stop/beep loop, while a
-        // new speech result resets the delay so normal pauses remain responsive.
-        const restartDelay = mobile ? mobileRestartDelayRef.current : 0;
-        mobileRestartDelayRef.current = Math.min(restartDelay * 2, 8_000);
-        mobileSilenceTimerRef.current = window.setTimeout(() => {
-          mobileSilenceTimerRef.current = null;
-          startRecognitionSession();
-        }, restartDelay);
-      };
-
-      try {
-        recognition.start();
-      } catch {
-        if (recordingRef.current) {
-          mobileSilenceTimerRef.current = window.setTimeout(() => {
-            mobileSilenceTimerRef.current = null;
-            startRecognitionSession();
-          }, mobile ? mobileRestartDelayRef.current : 250);
+        setProcessing(true);
+        const form = new FormData();
+        form.append("file", audio, `oral-response.${audio.type.includes("mp4") ? "mp4" : "webm"}`);
+        form.append("durationSeconds", String(Math.floor((Date.now() - startedAtRef.current) / 1000)));
+        try {
+          const response = await fetch("/api/speech/transcribe", { method: "POST", body: form });
+          const result = await response.json().catch(() => ({})) as { transcript?: string; error?: string };
+          if (!response.ok || !result.transcript) {
+            setTranscriptionError(result.error || "Transcription is temporarily unavailable. Please try again later.");
+            return;
+          }
+          onChange({
+            transcript: result.transcript,
+            duration_seconds: Math.floor((Date.now() - startedAtRef.current) / 1000),
+            self_rating: value?.self_rating,
+          });
+        } catch {
+          setTranscriptionError("Transcription is temporarily unavailable. Please try again later.");
+        } finally {
+          setProcessing(false);
         }
-      }
-    };
-
-    startRecognitionSession();
-    playRecordingStart();
+      };
+      recorder.start(1000);
+      playRecordingStart();
+    } catch {
+      recordingRef.current = false;
+      setRecording(false);
+      setProcessing(false);
+      setTranscriptionError("Microphone access was blocked. Please allow microphone access and try again.");
+    }
   }
 
   const stopRecording = useCallback(() => {
-    if (isMobileBrowser() && mediaRecorderRef.current?.state === "recording") {
+    if (mediaRecorderRef.current?.state === "recording") {
       recordingRef.current = false;
       setRecording(false);
       setProcessing(true);
@@ -2374,20 +2273,12 @@ function OralResponse({
       mediaRecorderRef.current.stop();
       return;
     }
-    recordingRef.current = false;
-    if (mobileSilenceTimerRef.current !== null) {
-      window.clearTimeout(mobileSilenceTimerRef.current);
-      mobileSilenceTimerRef.current = null;
+    if (recordingRef.current) {
+      recordingRef.current = false;
+      setRecording(false);
+      setProcessing(false);
     }
-    recognitionRef.current?.stop();
-    setRecording(false);
-    playRecordingEnd();
-    onChange({
-      transcript: transcriptRef.current,
-      duration_seconds: Math.floor((Date.now() - startedAtRef.current) / 1000),
-      self_rating: value?.self_rating,
-    });
-  }, [onChange, value?.self_rating]);
+  }, []);
 
   useEffect(() => {
     if (!recording) return;
@@ -2399,8 +2290,8 @@ function OralResponse({
     return () => window.clearInterval(timer);
   }, [recording, maxSeconds, stopRecording]);
 
-  if (!supported && !submitted && !isMobileBrowser()) {
-    return <p className="rounded-[14px] border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Speech recognition is unavailable in this browser. Try Chrome or Edge.</p>;
+  if (!supported && !submitted) {
+    return <p className="rounded-[14px] border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Audio recording is unavailable in this browser. Try a current version of Chrome, Edge, or Safari.</p>;
   }
 
   return (
@@ -2445,7 +2336,7 @@ function OralResponse({
       ) : (
         <p className="relative z-10 text-sm font-bold text-[var(--br-action-strong)]">Tap the microphone and start speaking</p>
       )}
-      {mobileError ? <p className="relative z-10 w-full rounded-[14px] border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-900">{mobileError}</p> : null}
+      {transcriptionError ? <p className="relative z-10 w-full rounded-[14px] border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-900">{transcriptionError}</p> : null}
       {targetPhrases.length > 0 && !submitted && !hasRecordedResponse ? <p className="relative z-10 text-xs text-[var(--br-text-muted)]">Speak naturally and try to use the target language.</p> : null}
       </> : null}
       {submitted && value?.transcript ? (
