@@ -1110,6 +1110,7 @@ function ActivityPickerModal({ lessonId, slide, onClose, onOpenBank, onOpenAi }:
   const [search, setSearch] = useState("");
   const [selectedType, setSelectedType] = useState("MCQ");
   const filtered = LESSON_ACTIVITY_CATALOG.filter((activity) => {
+    if (activity.type === "DRAG_DROP") return false;
     if (skill !== "ALL" && !activity.skills.includes(skill)) return false;
     const query = search.trim().toLowerCase();
     return !query || `${activity.label} ${activity.description} ${activity.skills.join(" ")}`.toLowerCase().includes(query);

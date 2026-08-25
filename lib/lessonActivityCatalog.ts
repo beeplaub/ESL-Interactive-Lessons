@@ -23,7 +23,7 @@ export const LESSON_ACTIVITY_CATALOG: LessonActivityDefinition[] = [
   { type: "GAP_FILL", label: "Gap Fill", description: "Complete missing words or phrases.", skills: ["CORE", "READING", "WRITING"] },
   { type: "MATCHING", label: "Matching", description: "Connect related items efficiently.", skills: ["CORE", "READING"] },
   { type: "MULTIPLE_SELECT", label: "Multiple Select", description: "Choose every answer that applies.", skills: ["CORE", "READING", "LISTENING"] },
-  { type: "DRAG_DROP", label: "Drag and Drop", description: "Place items into the correct targets.", skills: ["CORE"] },
+  { type: "DRAG_DROP", label: "Categorization", description: "Sort items into meaningful groups.", skills: ["CORE", "READING"] },
   { type: "CATEGORIZATION", label: "Categorization", description: "Sort items into meaningful groups.", skills: ["CORE", "READING"] },
   { type: "REORDERING", label: "Reordering", description: "Put words, sentences, or steps in order.", skills: ["CORE", "READING", "WRITING"] },
   { type: "ERROR_CORRECTION", label: "Error Correction", description: "Find and correct language errors.", skills: ["CORE", "WRITING"] },

@@ -2141,7 +2141,11 @@ function defaultActivityData(activityType: string, prompt: string): Json {
     };
   }
   if (activityType === "CATEGORIZATION") {
-    return { prompt, categories: [{ name: "Category A", items: ["Item"] }, { name: "Category B", items: [] }] };
+    return {
+      prompt,
+      targets: ["Category A", "Category B"],
+      items: [{ id: "1", text: "Item", target: "Category A" }]
+    };
   }
   if (activityType === "SHORT_ANSWER") {
     return { prompt, questions: [{ id: 1, text: "", sample_answer: "", min_words: null, required_words: [], show_required_words: true }] };

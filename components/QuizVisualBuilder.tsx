@@ -50,7 +50,7 @@ type QuestionBankItem = {
 
 const questionTypes: BuilderQuestion["questionType"][] = [
   "MCQ", "TRUE_FALSE", "FILL", "MATCHING", "MULTIPLE_SELECT",
-  "SHORT_ANSWER", "ERROR_CORRECTION", "REORDERING", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "ORAL_RESPONSE", "SUMMARIZATION", "INFERENCE_DETECTION",
+  "SHORT_ANSWER", "ERROR_CORRECTION", "REORDERING", "CATEGORIZATION", "PRONUNCIATION", "ORAL_RESPONSE", "SUMMARIZATION", "INFERENCE_DETECTION",
   "HEADINGS_MATCHING", "SKIM_CHALLENGE", "PARAPHRASE_ID",
   "DICTATION", "LISTEN_AND_SELECT", "SHADOWING", "NOTE_TAKING_CHALLENGE", "SOUND_DISCRIMINATION", "LISTEN_AND_GAP_FILL",
   "SENTENCE_COMPLETION", "ESSAY_WRITING", "EMAIL_LETTER_WRITING", "TRANSLATION", "PARAPHRASE_PRACTICE", "SENTENCE_COMBINING", "CREATIVE_WRITING", "PEER_REVIEW_EDITING", "DIALOGUE_WRITING"
@@ -65,7 +65,7 @@ const typeLabels: Record<string, string> = {
   SHORT_ANSWER: "Short Answer",
   ERROR_CORRECTION: "Error Correction",
   REORDERING: "Reordering",
-  DRAG_DROP: "Drag & Drop",
+  DRAG_DROP: "Categorization",
   CATEGORIZATION: "Categorization",
   PRONUNCIATION: "Pronunciation",
   ORAL_RESPONSE: "Oral Response",
@@ -144,24 +144,20 @@ ANSWER: 1, 2, 3
 ITEMS: She | has | been | waiting | for | an hour
 ANSWER: 1, 2, 3, 4, 5, 6
 
-11. Move each phrase to the correct group. (DRAG_DROP)
-TARGETS: Formal | Informal
-ITEMS: Could you hold on? -> Formal | Hang on! -> Informal | Please bear with me. -> Formal
-
-12. Sort each phrase into the correct category. (CATEGORIZATION)
+11. Sort each phrase into the correct category. (CATEGORIZATION)
 TARGETS: Patient | Impatient
 ITEMS: Take your time. -> Patient | What is taking so long? -> Impatient | There is no rush. -> Patient
 
-13. Practise these words. (PRONUNCIATION_WORD)
+12. Practise these words. (PRONUNCIATION_WORD)
 WORDS: comfortable | queue | punctual
 ATTEMPTS: 3
 
-14. Read the sentence and pronounce the target words clearly. (PRONUNCIATION_SENTENCE)
+13. Read the sentence and pronounce the target words clearly. (PRONUNCIATION_SENTENCE)
 TEXT: The punctual student waited patiently in the queue.
 TARGETS: punctual | patiently | queue
 ATTEMPTS: 3
 
-15. Tell us about a memorable waiting experience. (ORAL_RESPONSE)
+14. Tell us about a memorable waiting experience. (ORAL_RESPONSE)
 MODEL ANSWER: I once waited for a delayed flight, so I used the time to read.
 TARGET PHRASES: I once | I had been | In my opinion
 TIME LIMIT: 60
@@ -629,7 +625,7 @@ export function QuizVisualBuilder({
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-xl font-semibold">Parse quiz text</h2>
-                <p className="mt-1 text-sm text-[var(--br-text-muted)]">Optional import. Text parsing supports MCQ, T/F, FILL, and MATCH. The visual builder supports every quiz activity type: Multiple Choice, True/False, Fill, Matching, Multiple Select, Short Answer, Error Correction, Reordering, Drag & Drop, and Pronunciation.</p>
+                <p className="mt-1 text-sm text-[var(--br-text-muted)]">Optional import. Text parsing supports MCQ, T/F, FILL, and MATCH. The visual builder supports every quiz activity type, including Categorization, Reordering, Short Answer, and Pronunciation.</p>
               </div>
               <button type="button" onClick={() => setParseOpen(false)} className="rounded-md border border-[var(--br-border)] p-2 hover:bg-black/5"><X size={16} /></button>
             </div>
@@ -763,6 +759,7 @@ function QuestionEditorModal({
               const next = defaultQuestion(event.target.value as BuilderQuestion["questionType"]);
               onChange({ ...next, id: question.id });
             }} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 font-normal">
+              {question.questionType === "DRAG_DROP" ? <option value="DRAG_DROP">Categorization (legacy format)</option> : null}
               {questionTypes.map((type) => <option key={type} value={type}>{typeLabels[type]}</option>)}
             </select>
           </label>

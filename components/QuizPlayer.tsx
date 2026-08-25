@@ -2040,6 +2040,16 @@ function Summarization({
   );
 }
 
+const DRAG_TARGET_COLORS = [
+  "var(--br-brand)",
+  "var(--br-info)",
+  "var(--br-success)",
+  "var(--br-warning)",
+  "var(--br-action)",
+  "var(--br-chart-primary)",
+  "var(--br-chart-secondary)",
+];
+
 function DragDrop({
   question,
   value,
@@ -2054,8 +2064,32 @@ function DragDrop({
   const opts = asRecord(question.options) as { items?: unknown[]; targets?: unknown[] };
   const items = Array.isArray(opts.items) ? opts.items.map((item) => asRecord(item as Json)) : [];
   const targets = Array.isArray(opts.targets) ? opts.targets.map(String) : [];
+  const correct = asRecord(question.correct_answer);
   const [picked, setPicked] = useState<string | null>(null);
   const dragItemId = useRef<string | null>(null);
+
+  function normalizedTarget(target: unknown) {
+    return String(target ?? "").trim().toLocaleLowerCase();
+  }
+  function targetTone(target: string) {
+    const index = targets.findIndex((candidate) => normalizedTarget(candidate) === normalizedTarget(target));
+    return DRAG_TARGET_COLORS[(index >= 0 ? index : 0) % DRAG_TARGET_COLORS.length];
+  }
+  function targetBoxStyle(target: string) {
+    const color = targetTone(target);
+    return {
+      borderColor: `color-mix(in srgb, ${color} 58%, var(--br-border))`,
+      backgroundColor: `color-mix(in srgb, ${color} 7%, var(--br-surface))`,
+    };
+  }
+  function itemStyle(target: string, isIncorrect = false) {
+    const color = targetTone(target);
+    return {
+      borderColor: `color-mix(in srgb, ${color} 68%, var(--br-border))`,
+      backgroundColor: `color-mix(in srgb, ${color} 13%, var(--br-surface))`,
+      boxShadow: isIncorrect ? "inset 0 0 0 1px var(--br-danger)" : undefined,
+    };
+  }
 
   function place(itemId: string, target: string) {
     onChange({ ...value, [itemId]: target });
@@ -2071,12 +2105,18 @@ function DragDrop({
 
   return (
     <div className="grid gap-4">
-      <motion.div layout className="flex flex-wrap gap-2 rounded-[14px] bg-[var(--br-canvas-elevated)] p-3 min-h-[3rem]">
+      {disabled ? (
+        <p className="rounded-[12px] bg-[var(--br-info-soft)] px-3 py-2 text-xs font-semibold text-[var(--br-text-muted)]">
+          Item colours show the correct box. <span className="text-[var(--br-success)]">✓ Correct</span> · <span className="text-[var(--br-danger)]">× Incorrect</span>
+        </p>
+      ) : null}
+      <motion.div layout className="flex min-h-[3rem] flex-wrap gap-2 rounded-[14px] bg-[var(--br-canvas-elevated)] p-3">
         {unplacedItems.length === 0 ? (
           <span className="text-xs text-[var(--br-text-muted)]">All items placed.</span>
         ) : (
           unplacedItems.map((item) => {
             const id = String(item.id);
+            const expectedTarget = String(correct[id] ?? "");
             return (
               <motion.button
                 key={id}
@@ -2089,11 +2129,17 @@ function DragDrop({
                 onDragStart={() => { dragItemId.current = id; }}
                 onClick={() => setPicked(picked === id ? null : id)}
                 transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                className={`rounded-[14px] border px-3 py-1.5 text-sm shadow-sm transition-colors ${
+                style={disabled && expectedTarget ? itemStyle(expectedTarget, true) : undefined}
+                className={`rounded-[14px] border px-3 py-1.5 text-left text-sm shadow-sm transition-colors ${
                   picked === id ? "border-[var(--br-success)] bg-[var(--br-success)]/10 text-[var(--br-chart-secondary)]" : "border-[var(--br-surface-strong)] bg-surface hover:bg-surface"
                 }`}
               >
-                {String(item.text ?? "")}
+                <span className="block font-semibold">{String(item.text ?? "")}</span>
+                {disabled ? (
+                  <span className="mt-0.5 flex items-center gap-1 text-[10px] font-black text-[var(--br-danger)]">
+                    <XCircle size={11} /> Not placed{expectedTarget ? ` · belongs in ${expectedTarget}` : ""}
+                  </span>
+                ) : null}
               </motion.button>
             );
           })
@@ -2102,7 +2148,8 @@ function DragDrop({
       {picked ? <p className="text-xs text-[var(--br-text-muted)]">Now tap a box below to place it there.</p> : null}
       <div className="grid gap-2 sm:grid-cols-2">
         {targets.map((target) => {
-          const placedItems = items.filter((item) => value[String(item.id)] === target);
+          const placedItems = items.filter((item) => normalizedTarget(value[String(item.id)]) === normalizedTarget(target));
+          const tone = targetTone(target);
           return (
             <motion.div
               key={target}
@@ -2112,29 +2159,53 @@ function DragDrop({
               onDragOver={(e) => e.preventDefault()}
               onDrop={() => { if (dragItemId.current) { place(dragItemId.current, target); dragItemId.current = null; } }}
               onClick={() => { if (picked) place(picked, target); }}
-              className={`rounded-[14px] border-2 border-dashed p-3 text-sm transition-colors ${
-                picked ? "cursor-pointer border-[var(--br-success)]/40 bg-[var(--br-success)]/5 hover:border-[var(--br-success)]" : "border-[var(--br-surface-strong)]"
-              }`}
+              onKeyDown={(event) => {
+                if (picked && (event.key === "Enter" || event.key === " ")) {
+                  event.preventDefault();
+                  place(picked, target);
+                }
+              }}
+              role={!disabled && picked ? "button" : undefined}
+              tabIndex={!disabled && picked ? 0 : undefined}
+              aria-label={!disabled && picked ? `Place selected item in ${target}` : undefined}
+              style={targetBoxStyle(target)}
+              className={`rounded-[14px] border-2 border-dotted p-3 text-sm transition-all ${picked ? "cursor-pointer brightness-[0.98] hover:brightness-[0.95]" : ""}`}
             >
-              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[var(--br-text-muted)]">{target}</p>
+              <p className="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-wide text-[var(--br-text-muted)]">
+                <span className="size-2.5 rounded-full" style={{ backgroundColor: tone }} />
+                {target}
+              </p>
               {placedItems.length > 0 ? (
                 <motion.div layout className="flex flex-wrap gap-1.5">
-                  {placedItems.map((placedItem) => (
-                    <motion.button
-                      key={String(placedItem.id)}
-                      layoutId={`dragdrop-${question.id}-${String(placedItem.id)}`}
-                      layout
-                      initial={{ scale: 0.7, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                      type="button"
-                      disabled={disabled}
-                      onClick={(e) => { e.stopPropagation(); unplace(String(placedItem.id)); }}
-                      className="rounded-[14px] border border-[var(--br-success)]/30 bg-[var(--br-success)]/10 px-3 py-1.5 text-sm text-[var(--br-dark-card)]"
-                    >
-                      {String(placedItem.text ?? "")} <span className="text-[var(--br-text-muted)]">×</span>
-                    </motion.button>
-                  ))}
+                  {placedItems.map((placedItem) => {
+                    const itemId = String(placedItem.id);
+                    const expectedTarget = String(correct[itemId] ?? "");
+                    const isCorrectPlacement = normalizedTarget(target) === normalizedTarget(expectedTarget);
+                    const displayToneTarget = disabled && expectedTarget ? expectedTarget : target;
+                    return (
+                      <motion.button
+                        key={itemId}
+                        layoutId={`dragdrop-${question.id}-${itemId}`}
+                        layout
+                        initial={{ scale: 0.7, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                        type="button"
+                        disabled={disabled}
+                        onClick={(e) => { e.stopPropagation(); unplace(itemId); }}
+                        style={itemStyle(displayToneTarget, disabled && !isCorrectPlacement)}
+                        className="rounded-[14px] border px-3 py-1.5 text-left text-sm text-[var(--br-dark-card)] shadow-sm"
+                      >
+                        <span className="block font-semibold">{String(placedItem.text ?? "")}{!disabled ? <span className="ml-1 text-[var(--br-text-muted)]">×</span> : null}</span>
+                        {disabled ? (
+                          <span className={`mt-0.5 flex items-center gap-1 text-[10px] font-black ${isCorrectPlacement ? "text-[var(--br-success)]" : "text-[var(--br-danger)]"}`}>
+                            {isCorrectPlacement ? <CheckCircle2 size={11} /> : <XCircle size={11} />}
+                            {isCorrectPlacement ? "Correct" : `Incorrect · belongs in ${expectedTarget || "another box"}`}
+                          </span>
+                        ) : null}
+                      </motion.button>
+                    );
+                  })}
                 </motion.div>
               ) : (
                 <span className="text-xs text-[var(--br-text-muted)]">Empty</span>

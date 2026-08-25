@@ -343,18 +343,33 @@ function normalizeParaphraseId(data: Json | null) {
   };
 }
 
-function normalizeDragDrop(data: Json | null): { prompt: string; targets: string[]; items: DragDropItem[] } {
+function normalizeDragDrop(data: Json | null, activityType: string): { prompt: string; targets: string[]; items: DragDropItem[] } {
   const record = asRecord(data);
   const rawItems: unknown[] = Array.isArray(record.items) ? record.items : [];
-  const items = rawItems.map((item, index) => {
+  const directItems = rawItems.map((item, index) => {
     const row = asRecord(item);
     return { id: String(row.id ?? index + 1), text: String(row.text ?? ""), target: String(row.target ?? "") };
   });
+  const categories = (Array.isArray(record.categories) ? record.categories : []).map((category, categoryIndex) => {
+    const row = asRecord(category);
+    return {
+      name: String(row.name ?? `Category ${categoryIndex + 1}`),
+      items: Array.isArray(row.items) ? row.items.map(String) : []
+    };
+  });
+  const categoryItems = categories.flatMap((category, categoryIndex) => category.items.map((text, itemIndex) => ({
+    id: `${categoryIndex + 1}-${itemIndex + 1}`,
+    text,
+    target: category.name
+  })));
+  const items = directItems.length ? directItems : categoryItems;
   const targets = Array.isArray(record.targets) && record.targets.length > 0
     ? record.targets.map(String)
-    : Array.from(new Set(items.map((item) => item.target).filter(Boolean)));
+    : categories.length
+      ? categories.map((category) => category.name)
+      : Array.from(new Set(items.map((item) => item.target).filter(Boolean)));
   return {
-    prompt: String(record.prompt ?? "Move each item to the correct place."),
+    prompt: String(record.prompt ?? (activityType === "CATEGORIZATION" ? "Sort the items into the correct categories." : "Move each item to the correct place.")),
     targets: targets.length ? targets : [""],
     items: items.length ? items : [{ id: "1", text: "", target: targets[0] ?? "" }]
   };
@@ -1983,7 +1998,7 @@ function SummarizationEditor({ activity, onSave }: { activity: Activity; onSave:
 }
 
 function DragDropEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
-  const initial = useMemo(() => normalizeDragDrop(activity.activity_data), [activity.activity_data]);
+  const initial = useMemo(() => normalizeDragDrop(activity.activity_data, activity.activity_type), [activity.activity_data, activity.activity_type]);
   const [prompt, setPrompt] = useState(initial.prompt);
   const [targets, setTargets] = useState<string[]>(initial.targets);
   const [items, setItems] = useState<DragDropItem[]>(initial.items);
