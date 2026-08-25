@@ -124,6 +124,7 @@ export async function updateCourseMetadata(courseId: string, formData: FormData)
       price_bdt: priceVal && priceVal !== "" ? Number(priceVal) : null,
       original_price_bdt: origPriceVal && origPriceVal !== "" ? Number(origPriceVal) : null,
       payment_instructions: String(formData.get("paymentInstructions") || "").trim() || null,
+      visibility: String(formData.get("visibility") || "PUBLIC") === "PRIVATE" ? "PRIVATE" : "PUBLIC",
       updated_at: new Date().toISOString(),
     })
     .eq("id", courseId);

@@ -52,9 +52,11 @@ export default async function CoursesPage({
   const rawTopic = params.topic;
   const selectedTopics = Array.isArray(rawTopic) ? rawTopic.filter(Boolean) : rawTopic ? [rawTopic] : [];
 
-  const allCourses = courses ?? [];
-  const instructorMap = await getCourseInstructorMap(allCourses.map((course) => course.id));
   const enrolled = new Map((enrollments ?? []).map((item) => [item.course_id, item.status]));
+  // Public courses are discoverable; private courses are discoverable only by
+  // learners who already have an active/completed enrollment.
+  const allCourses = (courses ?? []).filter((course) => course.visibility !== "PRIVATE" || ["ACTIVE", "COMPLETED"].includes(enrolled.get(course.id) ?? ""));
+  const instructorMap = await getCourseInstructorMap(allCourses.map((course) => course.id));
   const progressByCourse = new Map((progressRows ?? []).map((item) => [item.course_id, item]));
   const popularityByCourse = new Map<string, number>();
   for (const row of popularityRows ?? []) {

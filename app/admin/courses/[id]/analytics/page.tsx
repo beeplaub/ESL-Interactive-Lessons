@@ -18,7 +18,7 @@ export default async function CourseAnalyticsPage({ params }: { params: Promise<
     { data: profiles },
     usersResult,
   ] = await Promise.all([
-    admin.from("courses").select("id,title,status,formative_weight,summative_weight,mastery_threshold,minimum_evidence_coverage").eq("id", id).maybeSingle(),
+    admin.from("courses").select("id,title,status,visibility,formative_weight,summative_weight,mastery_threshold,minimum_evidence_coverage").eq("id", id).maybeSingle(),
     admin.from("course_enrollments").select("*").eq("course_id", id).order("enrolled_at", { ascending: false }),
     admin.from("course_progress").select("*").eq("course_id", id),
     admin.from("course_assessment_results").select("id,user_id,score_percent,coverage_percent,completion_percent,status,updated_at").eq("course_id", id),
@@ -94,7 +94,7 @@ export default async function CourseAnalyticsPage({ params }: { params: Promise<
         <p className="mt-4 text-xs text-on-dark/60">Mastery target {Number(course.mastery_threshold ?? 70)}% · minimum evidence coverage {Number(course.minimum_evidence_coverage ?? 70)}%</p>
       </section>
 
-      <section className="mt-5 rounded-xl border border-[var(--br-border)] bg-surface p-4 shadow-sm">
+      <section id="learner-access" className="mt-5 rounded-xl border border-[var(--br-border)] bg-surface p-4 shadow-sm">
         <form action={async (formData: FormData) => { "use server"; await enrollStudentByEmail(id, formData); }} className="flex flex-wrap items-end gap-3">
           <label className="flex-1 min-w-[220px]">
             <span className="block text-xs font-semibold uppercase tracking-wide text-[var(--br-text-muted)]">Enroll a student</span>

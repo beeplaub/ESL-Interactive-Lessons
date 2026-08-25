@@ -13,7 +13,7 @@ export async function enrollInCourse(courseId: string) {
 
   const { data: course } = await admin
     .from("courses")
-    .select("id,status,price_bdt")
+    .select("id,status,price_bdt,visibility")
     .eq("id", courseId)
     .eq("status", "PUBLISHED")
     .is("deleted_at", null)
@@ -21,6 +21,10 @@ export async function enrollInCourse(courseId: string) {
 
   if (!course) {
     throw new Error("This course is not available for enrollment.");
+  }
+
+  if (course.visibility === "PRIVATE") {
+    throw new Error("This private course is available by invitation only.");
   }
 
   if (course.price_bdt !== null && course.price_bdt > 0) {

@@ -316,6 +316,9 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
             <Link href={`/admin/courses/${course.id}/outcomes`} className="inline-flex items-center gap-2 rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm font-semibold">
               <BarChart3 size={15} /> Outcomes
             </Link>
+            <Link href={`/admin/courses/${course.id}/analytics#learner-access`} className="inline-flex items-center gap-2 rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm font-semibold">
+              Learner access
+            </Link>
             {canPublish && course.status === "PUBLISHED" ? (
               <form action={setCourseStatus.bind(null, course.id, "DRAFT")}>
                 <button className="rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm font-semibold">Unpublish</button>
@@ -411,6 +414,13 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
                 </select>
               </label>
               <label className="text-sm font-medium">
+                Visibility
+                <select name="visibility" defaultValue={course.visibility ?? "PUBLIC"} className="mt-1 w-full rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm">
+                  <option value="PUBLIC">Public — discoverable and self-enrollable</option>
+                  <option value="PRIVATE">Private — invited learners only</option>
+                </select>
+              </label>
+              <label className="text-sm font-medium">
                 Estimated completion (minutes)
                 <input name="estimatedCompletionMinutes" type="number" min="0" defaultValue={course.estimated_completion_minutes ?? ""} className="mt-1 w-full rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm" />
               </label>
@@ -423,6 +433,7 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
                 <textarea name="description" defaultValue={course.description ?? ""} rows={5} className="mt-1 w-full rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm" />
               </label>
             </div>
+            <p className="rounded-xl border border-[var(--br-border)] bg-surface-muted p-3 text-xs leading-5 text-[var(--br-text-muted)]">Private courses remain published, but they are hidden from public lists and direct links. Add learners from <strong>Course analytics → Learner access</strong>.</p>
             <div className="rounded-xl border border-[var(--br-border)] bg-surface-muted p-4">
               <div className="mb-3 flex items-center gap-2 text-sm font-semibold"><ImageIcon size={16} /> Course images</div>
               <div className="grid gap-3">

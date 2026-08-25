@@ -11,6 +11,7 @@ type CourseRow = {
   category: string | null;
   level: string;
   status: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+  visibility: "PUBLIC" | "PRIVATE";
   thumbnail_path: string | null;
   cover_image_path: string | null;
   description: string | null;
@@ -38,7 +39,7 @@ export default async function AdminCoursesPage() {
 
   let coursesQuery = admin
     .from("courses")
-    .select("id,title,subtitle,topic,category,level,status,thumbnail_path,cover_image_path,description,price_bdt,payment_instructions,organization_id,owner_id,created_by,updated_at")
+    .select("id,title,subtitle,topic,category,level,status,visibility,thumbnail_path,cover_image_path,description,price_bdt,payment_instructions,organization_id,owner_id,created_by,updated_at")
     .is("deleted_at", null)
     .order("updated_at", { ascending: false });
   let trashedQuery = admin.from("courses").select("id", { count: "exact", head: true }).not("deleted_at", "is", null);
@@ -120,6 +121,7 @@ export default async function AdminCoursesPage() {
       category: course.category,
       level: course.level,
       status: course.status,
+      visibility: course.visibility ?? "PUBLIC",
       thumbnailPath: course.thumbnail_path,
       coverImagePath: course.cover_image_path,
       organizationId: course.organization_id,

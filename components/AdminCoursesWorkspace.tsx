@@ -35,6 +35,7 @@ export type AdminCourseSummary = {
   category: string | null;
   level: string;
   status: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+  visibility: "PUBLIC" | "PRIVATE";
   thumbnailPath: string | null;
   coverImagePath: string | null;
   organizationId: string | null;
@@ -272,12 +273,12 @@ function CourseRow({ course, openActionsUpward, onStatusChange, onTrash }: { cou
         </div>
         <div className="min-w-0">
           <Link href={`/admin/courses/${course.id}/builder`} className="block truncate font-bold text-ink hover:text-[var(--br-brand)]">{course.title}</Link>
-          <p className="mt-1 truncate text-xs text-[var(--br-text-muted)]">{course.level} · {course.topic || course.category || "Topic not set"}</p>
+          <p className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-[var(--br-text-muted)]"><span>{course.level} · {course.topic || course.category || "Topic not set"}</span><CourseVisibility visibility={course.visibility} /></p>
           <p className="mt-1 truncate text-[11px] text-[var(--br-text-muted)]">{course.organizationName || "Platform"} · {course.creatorName}</p>
         </div>
       </div>
 
-      <LabeledMobileField label="Status"><CourseStatus status={course.status} /></LabeledMobileField>
+      <LabeledMobileField label="Status"><div className="flex flex-wrap gap-1.5"><CourseStatus status={course.status} /><CourseVisibility visibility={course.visibility} /></div></LabeledMobileField>
       <LabeledMobileField label="Curriculum">
         <div>
           <p className="text-sm font-bold text-ink">{course.itemCount} {course.itemCount === 1 ? "item" : "items"}</p>
@@ -382,6 +383,10 @@ function CourseStatus({ status }: { status: AdminCourseSummary["status"] }) {
       ? "bg-[var(--br-surface-strong)] text-[var(--br-text-muted)]"
       : "bg-[var(--br-warning)]/10 text-[var(--br-warning)]";
   return <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold capitalize ${className}`}>{status.toLowerCase()}</span>;
+}
+
+function CourseVisibility({ visibility }: { visibility: AdminCourseSummary["visibility"] }) {
+  return <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold ${visibility === "PRIVATE" ? "bg-[var(--br-brand)]/10 text-[var(--br-brand)]" : "bg-[var(--br-surface-muted)] text-[var(--br-text-muted)]"}`}>{visibility === "PRIVATE" ? "private" : "public"}</span>;
 }
 
 function EmptyCourses({ hasCourses, onClear }: { hasCourses: boolean; onClear: () => void }) {

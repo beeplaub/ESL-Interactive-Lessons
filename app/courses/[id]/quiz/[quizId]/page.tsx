@@ -26,15 +26,16 @@ export default async function CourseQuizPage({
 
   const [{ data: quiz }, { data: course }, { data: courseItem }, { data: enrollment }] = await Promise.all([
     admin.from("quizzes").select("*").eq("id", quizId).eq("status", "PUBLISHED").is("deleted_at", null).maybeSingle(),
-    admin.from("courses").select("title,status").eq("id", courseId).is("deleted_at", null).maybeSingle(),
+    admin.from("courses").select("title,status,visibility").eq("id", courseId).is("deleted_at", null).maybeSingle(),
     admin.from("course_items").select("*").eq("course_id", courseId).eq("quiz_id", quizId).maybeSingle(),
     admin.from("course_enrollments").select("status").eq("course_id", courseId).eq("user_id", user.id).maybeSingle(),
   ]);
 
+  const isEnrolled = enrollment?.status === "ACTIVE" || enrollment?.status === "COMPLETED";
   // A course-native quiz only belongs to the one course it was picked/created
   // into - guard against a mismatched courseId in the URL.
   if (!quiz || quiz.course_id !== courseId || !course || course.status !== "PUBLISHED" || !courseItem) notFound();
-  const isEnrolled = enrollment?.status === "ACTIVE" || enrollment?.status === "COMPLETED";
+  if (course.visibility === "PRIVATE" && !isEnrolled) notFound();
 
   // Opening it marks it "in progress" app-wide, same as lessons and
   // standalone-path quizzes - regardless of how the learner navigated here.

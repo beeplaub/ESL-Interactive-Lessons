@@ -20,7 +20,7 @@ import { LearnerAppShell } from "@/components/LearnerAppShell";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { enrollInCourse, markCourseItemComplete } from "@/app/courses/actions";
-import { getFreshProfile } from "@/lib/auth";
+import { getFreshProfile, isStaff } from "@/lib/auth";
 import { CourseInstructorByline } from "@/components/CourseInstructorByline";
 import { getCourseInstructorMap } from "@/lib/courseInstructors";
 
@@ -117,6 +117,10 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
 
   const courseItems = orderedCourseItems;
   const isEnrolled = enrollment?.status === "ACTIVE" || enrollment?.status === "COMPLETED";
+  const isCourseManager = Boolean(user && isStaff(profile?.role) && (
+    course.owner_id === user.id || course.created_by === user.id || profile?.role === "ADMIN"
+  ));
+  if (course.visibility === "PRIVATE" && !isEnrolled && !isCourseManager) notFound();
   const completedIds = new Set((itemProgress ?? []).filter((item) => item.completed).map((item) => item.course_item_id));
 
   const continueItem = isEnrolled ? (courseItems.find((item) => !completedIds.has(item.id)) ?? courseItems[0] ?? null) : null;

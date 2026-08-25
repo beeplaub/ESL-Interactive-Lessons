@@ -40,6 +40,7 @@ export default async function HomePage() {
     .from("courses")
     .select("id,title,level,thumbnail_path,cover_image_path,duration_minutes,estimated_completion_minutes,created_at")
     .eq("status", "PUBLISHED")
+    .eq("visibility", "PUBLIC")
     .is("deleted_at", null)
     .order("created_at", { ascending: false })
     .limit(9);

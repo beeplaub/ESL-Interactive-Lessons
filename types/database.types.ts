@@ -565,6 +565,7 @@ export type Database = {
           price_bdt: number | null;
           original_price_bdt: number | null;
           payment_instructions: string | null;
+          visibility: "PUBLIC" | "PRIVATE";
         };
         Insert: {
           id?: string;
@@ -590,6 +591,7 @@ export type Database = {
           price_bdt?: number | null;
           original_price_bdt?: number | null;
           payment_instructions?: string | null;
+          visibility?: "PUBLIC" | "PRIVATE";
         };
         Update: {
           id?: string;
@@ -615,6 +617,7 @@ export type Database = {
           price_bdt?: number | null;
           original_price_bdt?: number | null;
           payment_instructions?: string | null;
+          visibility?: "PUBLIC" | "PRIVATE";
         };
         Relationships: [];
       };

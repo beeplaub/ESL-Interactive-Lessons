@@ -62,11 +62,12 @@ export default async function LessonPage({
         .eq("user_id", user.id)
         .eq("course_id", courseId)
         .maybeSingle(),
-      admin.from("courses").select("title,status").eq("id", courseId).is("deleted_at", null).maybeSingle(),
+      admin.from("courses").select("title,status,visibility").eq("id", courseId).is("deleted_at", null).maybeSingle(),
     ]);
     if (!course || course.status !== "PUBLISHED") notFound();
     courseTitle = course.title;
     isEnrolledInCourse = enrollment?.status === "ACTIVE" || enrollment?.status === "COMPLETED";
+    if (course.visibility === "PRIVATE" && !isEnrolledInCourse) notFound();
     if (!isEnrolledInCourse && !isFreePreview) redirect(`/courses/${courseId}`);
   }
 
