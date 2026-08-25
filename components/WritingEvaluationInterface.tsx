@@ -33,7 +33,8 @@ function withClientTimeout<T>(promise: Promise<T>, timeoutMs: number, message: s
 }
 
 type ActivityEvaluationSelection = {
-  mode: EvaluationMode;
+  mode?: EvaluationMode | null;
+  reviewOnly?: boolean;
   onAiUnavailable?: () => void;
 };
 export const ActivityEvaluationModeContext = createContext<ActivityEvaluationSelection | null>(null);
@@ -282,6 +283,7 @@ export function WritingEvaluationInterface({
 }) {
   const activitySelection = useContext(ActivityEvaluationModeContext);
   const activityMode = activitySelection?.mode ?? null;
+  const reviewOnly = activitySelection?.reviewOnly === true;
   // Chosen evaluation mode — once set (and resolved), it is locked for the remainder of this attempt.
   // The only way to pick a different method is to retake the whole activity (see the parent's Retake
   // button), not an in-place reset here — otherwise a learner could see a weak AI/teacher score and
@@ -474,7 +476,11 @@ export function WritingEvaluationInterface({
       )}
 
       {/* Step A: Selection Cards (Visible only before a mode is chosen) */}
-      {!chosenMode && (
+      {!chosenMode && reviewOnly ? (
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-600">
+          No grading feedback was saved for this earlier attempt. The recorded response is still available above.
+        </div>
+      ) : !chosenMode ? (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
@@ -535,7 +541,7 @@ export function WritingEvaluationInterface({
             )}
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* Step B: Display ONLY the Chosen Evaluation Mode (other options are hidden and cannot be reopened) */}
       <AnimatePresence mode="wait">

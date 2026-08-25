@@ -1651,6 +1651,9 @@ export function LessonActivityPanel({
   const availableEvaluationModes = aiTemporarilyUnavailable
     ? configuredEvaluationModes.filter((mode) => mode !== "AI_FEEDBACK")
     : configuredEvaluationModes;
+  const historicalReviewOnly = Boolean(
+    selectedAttemptId && localAttempts[0]?.id && selectedAttemptId !== localAttempts[0].id
+  );
   const bestStreak = submitted ? computeBestStreak(questions, answers) : 0;
 
   if (questions.length === 0) {
@@ -1891,7 +1894,7 @@ export function LessonActivityPanel({
 
           {/* Current question */}
           <div className="min-h-[120px]">
-            <ActivityEvaluationModeContext.Provider value={evaluationMode ? { mode: evaluationMode, onAiUnavailable: handleAiUnavailable } : null}>
+            <ActivityEvaluationModeContext.Provider value={evaluationMode || historicalReviewOnly ? { mode: evaluationMode, reviewOnly: historicalReviewOnly, onAiUnavailable: handleAiUnavailable } : null}>
               <QuestionCard
                 key={`${currentQuestion.id}:${selectedAttemptId ?? "new"}`}
                 question={currentQuestion}

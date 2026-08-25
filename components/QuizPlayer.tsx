@@ -412,6 +412,9 @@ export function QuizPlayer({
   const availableEvaluationModes = aiTemporarilyUnavailable
     ? configuredEvaluationModes.filter((mode) => mode !== "AI_FEEDBACK")
     : configuredEvaluationModes;
+  const historicalReviewOnly = Boolean(
+    selectedAttemptId && allAttempts.some((attempt) => attempt.id === selectedAttemptId) && selectedAttemptId !== allAttempts.at(-1)?.id
+  );
   const subjectiveQuestions = questions.filter((question) => isWritingQuestionType(question.question_type));
   const gradingCompletedCount = subjectiveQuestions.filter((question) => resolveWritingOutcome(answers[question.id]).hasChosenMode).length;
   const totalPoints = questions.reduce((sum, question) => sum + questionTotal(question), 0);
@@ -788,7 +791,7 @@ export function QuizPlayer({
         onTouchCancel={() => { touchStartRef.current = null; }}
       >
         {currentQuestion ? (
-          <ActivityEvaluationModeContext.Provider value={evaluationMode ? { mode: evaluationMode, onAiUnavailable: handleAiUnavailable } : null}>
+          <ActivityEvaluationModeContext.Provider value={evaluationMode || historicalReviewOnly ? { mode: evaluationMode, reviewOnly: historicalReviewOnly, onAiUnavailable: handleAiUnavailable } : null}>
             <QuestionCard
               key={`${currentQuestion.id}:${selectedAttemptId ?? "new"}`}
               question={currentQuestion}
