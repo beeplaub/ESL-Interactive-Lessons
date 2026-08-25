@@ -105,6 +105,12 @@ type TrendMetric = "requests" | "tokens" | "cost" | "cache";
 type DateRange = "TODAY" | 7 | 30 | 90;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const KNOWN_MODELS = [
+  "openai/gpt-oss-20b",
+  "llama-3.3-70b-versatile",
+  "gemini-3.5-flash",
+  "gemini-2.5-flash",
+];
 
 function num(value: unknown) {
   const parsed = Number(value ?? 0);
@@ -300,7 +306,10 @@ export function AdminAiStudioWorkspace({
     return () => window.clearInterval(timer);
   }, [autoRefresh, router]);
 
-  const models = useMemo(() => Array.from(new Set(initialLogs.map((log) => log.model_used).filter(Boolean))).sort(), [initialLogs]);
+  const models = useMemo(() => Array.from(new Set([
+    ...KNOWN_MODELS,
+    ...initialLogs.map((log) => log.model_used).filter(Boolean),
+  ])).sort(), [initialLogs]);
   const features = useMemo(() => Array.from(new Set(initialLogs.map((log) => log.feature_key).filter(Boolean))).sort(), [initialLogs]);
   const providers = useMemo(() => Array.from(new Set([
     "google",

@@ -365,6 +365,7 @@ export async function callGemini<T>({
   const providerCandidates = provider === "groq"
     ? [
         { provider: "groq" as const, model: primaryModel },
+        { provider: "groq" as const, model: process.env.GROQ_TEXT_FALLBACK_MODEL || "llama-3.3-70b-versatile" },
         { provider: "google" as const, model: process.env.GEMINI_DEFAULT_MODEL || "gemini-3.5-flash" },
       ]
     : [
@@ -514,12 +515,16 @@ export async function callGemini<T>({
   let lastError: unknown = null;
   let rawText = "";
   let successfulModel = "";
+  let lastAttemptModel = primaryModel;
+  let lastAttemptProvider = provider;
   let successfulUsage: AiUsage = { inputTokens: 0, outputTokens: 0, cachedTokens: 0 };
 
   try {
   for (const candidate of modelCandidates) {
     const modelName = candidate.model;
     const requestProvider = candidate.provider;
+    lastAttemptModel = modelName;
+    lastAttemptProvider = requestProvider;
     const generateCall = async (promptOverride?: string): Promise<{ text: string; usage: AiUsage }> => {
       if (requestProvider === "groq") {
         const apiKey = process.env.GROQ_API_KEY;
@@ -694,7 +699,7 @@ export async function callGemini<T>({
   }
 
   if (context?.userId && creditReserved) await releaseAiCredits(context.userId, reservedCredits);
-  await audit({ model: successfulModel || primaryModel, provider, status: "FAILED", usage: successfulUsage, responsePreview: rawText, error: lastError });
+  await audit({ model: successfulModel || lastAttemptModel, provider: lastAttemptProvider, status: "FAILED", usage: successfulUsage, responsePreview: rawText, error: lastError });
 
   throw new Error(
     `Failed to get a valid response from ${provider === "groq" ? "Groq" : "Gemini"} after retries. Error: ${
