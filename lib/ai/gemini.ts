@@ -362,10 +362,17 @@ export async function callGemini<T>({
   const primaryModel = provider === "groq"
     ? fallbackModel || process.env.GROQ_TEXT_MODEL || "openai/gpt-oss-20b"
     : fallbackModel || process.env.GEMINI_DEFAULT_MODEL || "gemini-3.5-flash";
-  const modelCandidates = (provider === "groq" ? [primaryModel] : [primaryModel, "gemini-2.5-flash"])
-    .filter((val, index, self) => self.indexOf(val) === index);
+  const providerCandidates = provider === "groq"
+    ? [
+        { provider: "groq" as const, model: primaryModel },
+        { provider: "google" as const, model: process.env.GEMINI_DEFAULT_MODEL || "gemini-3.5-flash" },
+      ]
+    : [
+        { provider: "google" as const, model: primaryModel },
+        { provider: "google" as const, model: "gemini-2.5-flash" },
+      ];
+  const modelCandidates = providerCandidates.filter((candidate, index, self) => self.findIndex((item) => item.provider === candidate.provider && item.model === candidate.model) === index);
 
-  const ai = provider === "google" ? getGeminiClient() : null;
   const supabase = createAdminClient();
 
   // A. Fetch template from DB, fallback to code default if not present
@@ -510,9 +517,11 @@ export async function callGemini<T>({
   let successfulUsage: AiUsage = { inputTokens: 0, outputTokens: 0, cachedTokens: 0 };
 
   try {
-  for (const modelName of modelCandidates) {
+  for (const candidate of modelCandidates) {
+    const modelName = candidate.model;
+    const requestProvider = candidate.provider;
     const generateCall = async (promptOverride?: string): Promise<{ text: string; usage: AiUsage }> => {
-      if (provider === "groq") {
+      if (requestProvider === "groq") {
         const apiKey = process.env.GROQ_API_KEY;
         if (!apiKey) throw new Error("GROQ_API_KEY is not configured.");
         const response = await withTimeout(fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -557,7 +566,7 @@ export async function callGemini<T>({
         };
       }
 
-      const response = await withTimeout(ai!.models.generateContent({
+      const response = await withTimeout(getGeminiClient().models.generateContent({
         model: modelName,
         contents: promptOverride || finalPrompt,
         config: {
@@ -594,7 +603,7 @@ export async function callGemini<T>({
         successfulModel = modelName;
         if (cacheTtl > 0) await saveAiResponseCache({ cacheKey, featureKey, model: modelName, promptVersion, inputHash, response: parsed, ttlSeconds: cacheTtl });
         if (context?.userId && creditReserved) await settleAiCredits({ userId: context.userId, featureKey, reservedCredits, usage: successfulUsage });
-        await audit({ model: modelName, provider, status: "COMPLETED", usage: successfulUsage, responsePreview: rawText });
+        await audit({ model: modelName, provider: requestProvider, status: "COMPLETED", usage: successfulUsage, responsePreview: rawText });
         return parsed as T;
       } catch (error: unknown) {
         lastError = error;
@@ -626,7 +635,7 @@ export async function callGemini<T>({
             retryCount += 1;
             if (cacheTtl > 0) await saveAiResponseCache({ cacheKey, featureKey, model: modelName, promptVersion, inputHash, response: parsed, ttlSeconds: cacheTtl });
             if (context?.userId && creditReserved) await settleAiCredits({ userId: context.userId, featureKey, reservedCredits, usage: successfulUsage });
-            await audit({ model: modelName, provider, status: "COMPLETED", usage: successfulUsage, responsePreview: rawText });
+            await audit({ model: modelName, provider: requestProvider, status: "COMPLETED", usage: successfulUsage, responsePreview: rawText });
             return parsed as T;
           } catch (repairError) {
             lastError = repairError;
