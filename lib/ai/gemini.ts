@@ -541,6 +541,7 @@ export async function callGemini<T>({
     const requestProvider = candidate.provider;
     lastAttemptModel = modelName;
     lastAttemptProvider = requestProvider;
+    let candidateError: unknown = null;
     const generateCall = async (promptOverride?: string): Promise<{ text: string; usage: AiUsage }> => {
       if (requestProvider === "groq") {
         const apiKey = process.env.GROQ_API_KEY;
@@ -608,7 +609,23 @@ export async function callGemini<T>({
         const body = await response.json().catch(() => ({})) as Record<string, unknown>;
         if (!response.ok) throw new Error(typeof body.error === "string" ? body.error : `Local BrenUp AI request failed with status ${response.status}`);
         const message = body.message && typeof body.message === "object" ? (body.message as Record<string, unknown>).content : body.message;
-        const text = [body.text, body.response, body.content, message].find((value): value is string => typeof value === "string" && value.trim().length > 0);
+        const data = body.data && typeof body.data === "object" ? body.data as Record<string, unknown> : null;
+        const text = [
+          body.text,
+          body.answer,
+          body.response,
+          body.reply,
+          body.output,
+          body.result,
+          body.content,
+          message,
+          data?.text,
+          data?.answer,
+          data?.response,
+          data?.reply,
+          data?.output,
+          data?.content,
+        ].find((value): value is string => typeof value === "string" && value.trim().length > 0);
         if (!text) throw new Error("Local BrenUp AI returned an empty response.");
         return { text, usage: { inputTokens: 0, outputTokens: 0, cachedTokens: 0 } };
       }
@@ -655,6 +672,7 @@ export async function callGemini<T>({
         return parsed as T;
       } catch (error: unknown) {
         lastError = error;
+        candidateError = error;
         const apiError = error as { status?: number; message?: string };
 
         // Handle Free Tier 429 Rate Limit (RPM/RPD)
@@ -688,9 +706,23 @@ export async function callGemini<T>({
             return parsed as T;
           } catch (repairError) {
             lastError = repairError;
+            candidateError = repairError;
           }
         }
       }
+    }
+
+    // Record every exhausted candidate, not only the final provider. This makes
+    // local BrenUp AI failures visible when a cloud fallback eventually succeeds.
+    if (candidateError) {
+      await audit({
+        model: modelName,
+        provider: requestProvider,
+        status: "FAILED",
+        usage: successfulUsage,
+        responsePreview: rawText,
+        error: candidateError,
+      });
     }
   }
 
@@ -747,7 +779,7 @@ export async function callGemini<T>({
   await audit({ model: successfulModel || lastAttemptModel, provider: lastAttemptProvider, status: "FAILED", usage: successfulUsage, responsePreview: rawText, error: lastError });
 
   throw new Error(
-    `Failed to get a valid response from ${provider === "groq" ? "Groq" : "Gemini"} after retries. Error: ${
+    `Failed to get a valid response from ${provider === "ollama" ? "BrenUp AI" : provider === "groq" ? "Groq" : "Gemini"} after retries. Error: ${
       lastError instanceof Error ? lastError.message : String(lastError)
     }`
   );
