@@ -358,7 +358,7 @@ export async function callGemini<T>({
   responseSchema?: unknown;
   fallbackModel?: string;
   context?: AiCallContext;
-  onProviderUsed?: (result: { provider: "google" | "groq" | "cache"; model: string }) => void;
+  onProviderUsed?: (result: { provider: "google" | "groq"; model: string }) => void;
 }): Promise<T> {
   const provider = context?.provider || "google";
   const primaryModel = provider === "groq"
@@ -480,7 +480,7 @@ export async function callGemini<T>({
   if (cacheTtl > 0) {
     const cached = await getCachedAiResponse<T>(cacheKey);
     if (cached) {
-      onProviderUsed?.({ provider: "cache", model: primaryModel });
+      onProviderUsed?.({ provider: primaryModel.startsWith("openai/") || primaryModel.startsWith("llama") ? "groq" : "google", model: primaryModel });
       await Promise.all([
         markAiCacheHit(cacheKey),
         context?.userId ? settleAiCredits({ userId: context.userId, featureKey, reservedCredits: 0, actualCredits: 0, cacheHit: true }) : Promise.resolve(),
@@ -495,7 +495,7 @@ export async function callGemini<T>({
     } else {
       const shared = await waitForCachedAiResponse<T>(cacheKey, 20_000);
       if (shared) {
-        onProviderUsed?.({ provider: "cache", model: primaryModel });
+        onProviderUsed?.({ provider: primaryModel.startsWith("openai/") || primaryModel.startsWith("llama") ? "groq" : "google", model: primaryModel });
         await Promise.all([
           markAiCacheHit(cacheKey),
           context?.userId ? settleAiCredits({ userId: context.userId, featureKey, reservedCredits: 0, actualCredits: 0, cacheHit: true }) : Promise.resolve(),
