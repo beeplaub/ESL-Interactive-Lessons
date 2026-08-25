@@ -6,7 +6,7 @@ export type AiUserRole = "ADMIN" | "LEARNER" | "TEACHER" | "SCHOOL_ADMIN" | "SYS
 export type AiCallContext = {
   userId?: string | null;
   userRole?: AiUserRole | string | null;
-  provider?: "google" | "groq";
+  provider?: "google" | "groq" | "ollama";
   featureKey?: string;
   cefrLevel?: string | null;
   promptVersion?: string;

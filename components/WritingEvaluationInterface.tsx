@@ -93,7 +93,7 @@ export function AiUnavailableDialog({ onClose }: { onClose: () => void }) {
 
 type AiResultShape = {
   score: number;
-  provider?: "groq" | "google";
+  provider?: "ollama" | "groq" | "google";
   summary: string;
   strengths: string[];
   improvements: string[];
@@ -104,7 +104,7 @@ function normalizeAiResult(value: Record<string, unknown>, fallbackScore = 0): A
   const legacySuggestions = Array.isArray(value.suggestions) ? value.suggestions.filter((item): item is string => typeof item === "string") : [];
   return {
     score: typeof value.score === "number" ? value.score : fallbackScore,
-    provider: value.provider === "groq" || value.provider === "google" ? value.provider : undefined,
+    provider: value.provider === "ollama" || value.provider === "groq" || value.provider === "google" ? value.provider : undefined,
     summary: String(value.summary ?? value.feedbackSummary ?? ""),
     strengths: Array.isArray(value.strengths) ? value.strengths.filter((item): item is string => typeof item === "string") : [],
     improvements: Array.isArray(value.improvements)
@@ -458,7 +458,7 @@ export function WritingEvaluationInterface({
                 )}
 
                 <div className="pt-2 border-t border-[var(--br-chart-primary)]/10">
-                  <span className="text-[11px] text-[var(--br-text-muted)] font-medium">Graded by {aiResult.provider === "google" ? "Gemini" : "Groq"} · AI Evaluation (locked for this attempt)</span>
+                  <span className="text-[11px] text-[var(--br-text-muted)] font-medium">Graded by {aiResult.provider === "google" ? "Gemini" : aiResult.provider === "ollama" ? "BrenUp AI" : "Groq"} · AI Evaluation (locked for this attempt)</span>
                 </div>
               </div>
             ) : null}

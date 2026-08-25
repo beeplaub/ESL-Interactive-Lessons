@@ -22,6 +22,7 @@ import {
 let aiClient: GoogleGenAI | null = null;
 
 const AI_GENERATION_TIMEOUT_MS = 45_000;
+const OLLAMA_GENERATION_TIMEOUT_MS = 18_000;
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
@@ -358,13 +359,23 @@ export async function callGemini<T>({
   responseSchema?: unknown;
   fallbackModel?: string;
   context?: AiCallContext;
-  onProviderUsed?: (result: { provider: "google" | "groq"; model: string }) => void;
+  onProviderUsed?: (result: { provider: "google" | "groq" | "ollama"; model: string }) => void;
 }): Promise<T> {
   const provider = context?.provider || "google";
-  const primaryModel = provider === "groq"
+  const primaryModel = provider === "ollama"
+    ? fallbackModel || process.env.OLLAMA_TEXT_MODEL || "qwen2.5:7b"
+    : provider === "groq"
     ? fallbackModel || process.env.GROQ_TEXT_MODEL || "openai/gpt-oss-20b"
     : fallbackModel || process.env.GEMINI_DEFAULT_MODEL || "gemini-3.5-flash";
-  const providerCandidates = provider === "groq"
+  const providerCandidates = provider === "ollama"
+    ? [
+        { provider: "ollama" as const, model: primaryModel },
+        { provider: "google" as const, model: process.env.GEMINI_DEFAULT_MODEL || "gemini-3.5-flash" },
+        { provider: "google" as const, model: "gemini-2.5-flash" },
+        { provider: "groq" as const, model: process.env.GROQ_TEXT_MODEL_120B || "openai/gpt-oss-120b" },
+        { provider: "groq" as const, model: process.env.GROQ_TEXT_MODEL || "openai/gpt-oss-20b" },
+      ]
+    : provider === "groq"
     ? [
         { provider: "groq" as const, model: primaryModel },
         { provider: "groq" as const, model: process.env.GROQ_TEXT_FALLBACK_MODEL || "llama-3.3-70b-versatile" },
@@ -480,7 +491,7 @@ export async function callGemini<T>({
   if (cacheTtl > 0) {
     const cached = await getCachedAiResponse<T>(cacheKey);
     if (cached) {
-      onProviderUsed?.({ provider: primaryModel.startsWith("openai/") || primaryModel.startsWith("llama") ? "groq" : "google", model: primaryModel });
+      onProviderUsed?.({ provider: primaryModel.startsWith("openai/") || primaryModel.startsWith("llama") ? "groq" : primaryModel.startsWith("qwen") ? "ollama" : "google", model: primaryModel });
       await Promise.all([
         markAiCacheHit(cacheKey),
         context?.userId ? settleAiCredits({ userId: context.userId, featureKey, reservedCredits: 0, actualCredits: 0, cacheHit: true }) : Promise.resolve(),
@@ -495,7 +506,7 @@ export async function callGemini<T>({
     } else {
       const shared = await waitForCachedAiResponse<T>(cacheKey, 20_000);
       if (shared) {
-        onProviderUsed?.({ provider: primaryModel.startsWith("openai/") || primaryModel.startsWith("llama") ? "groq" : "google", model: primaryModel });
+        onProviderUsed?.({ provider: primaryModel.startsWith("openai/") || primaryModel.startsWith("llama") ? "groq" : primaryModel.startsWith("qwen") ? "ollama" : "google", model: primaryModel });
         await Promise.all([
           markAiCacheHit(cacheKey),
           context?.userId ? settleAiCredits({ userId: context.userId, featureKey, reservedCredits: 0, actualCredits: 0, cacheHit: true }) : Promise.resolve(),
@@ -576,6 +587,32 @@ export async function callGemini<T>({
         };
       }
 
+      if (requestProvider === "ollama") {
+        const gatewayUrl = process.env.BRENUP_AI_GATEWAY_URL?.replace(/\/$/, "");
+        if (!gatewayUrl) throw new Error("BRENUP_AI_GATEWAY_URL is not configured.");
+        const response = await withTimeout(fetch(`${gatewayUrl}/chat`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(process.env.BRENUP_AI_GATEWAY_SECRET ? { Authorization: `Bearer ${process.env.BRENUP_AI_GATEWAY_SECRET}` } : {}),
+          },
+          body: JSON.stringify({
+            provider: "ollama",
+            model: modelName,
+            mode: "research",
+            message: `${roleDescription}\n\n${promptOverride || finalPrompt}\n\nReturn only valid JSON. Do not wrap it in markdown code fences.`,
+          }),
+          signal: AbortSignal.timeout(OLLAMA_GENERATION_TIMEOUT_MS),
+          cache: "no-store",
+        }), OLLAMA_GENERATION_TIMEOUT_MS + 1_000, "Local BrenUp AI timed out while waiting for a response.");
+        const body = await response.json().catch(() => ({})) as Record<string, unknown>;
+        if (!response.ok) throw new Error(typeof body.error === "string" ? body.error : `Local BrenUp AI request failed with status ${response.status}`);
+        const message = body.message && typeof body.message === "object" ? (body.message as Record<string, unknown>).content : body.message;
+        const text = [body.text, body.response, body.content, message].find((value): value is string => typeof value === "string" && value.trim().length > 0);
+        if (!text) throw new Error("Local BrenUp AI returned an empty response.");
+        return { text, usage: { inputTokens: 0, outputTokens: 0, cachedTokens: 0 } };
+      }
+
       const response = await withTimeout(getGeminiClient().models.generateContent({
         model: modelName,
         contents: promptOverride || finalPrompt,
@@ -611,7 +648,7 @@ export async function callGemini<T>({
         // Basic JSON validation before returning
         const parsed = JSON.parse(rawText);
         successfulModel = modelName;
-        onProviderUsed?.({ provider: requestProvider, model: modelName });
+          onProviderUsed?.({ provider: requestProvider, model: modelName });
         if (cacheTtl > 0) await saveAiResponseCache({ cacheKey, featureKey, model: modelName, promptVersion, inputHash, response: parsed, ttlSeconds: cacheTtl });
         if (context?.userId && creditReserved) await settleAiCredits({ userId: context.userId, featureKey, reservedCredits, usage: successfulUsage });
         await audit({ model: modelName, provider: requestProvider, status: "COMPLETED", usage: successfulUsage, responsePreview: rawText });

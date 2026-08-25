@@ -343,7 +343,7 @@ export async function explainQuizAnswerAction(
         learnerAnswer,
         level: profile.cefr_level || "B1"
       },
-      context: { userId: user.id, userRole: profile.role, provider: "groq", cefrLevel: profile.cefr_level || "B1", cache: true }
+      context: { userId: user.id, userRole: profile.role, provider: "ollama", cefrLevel: profile.cefr_level || "B1", cache: true }
     });
     return { explanation: response.explanation };
   } catch (error: any) {
@@ -503,7 +503,7 @@ export async function submitRoleplayTurnAction(sessionId: string, learnerText: s
         history: historyStr
       },
       responseSchema: roleplayTurnSchema,
-      context: { userId: user.id, userRole: profile.role, provider: "groq", cefrLevel: session.cefr_level, cache: false }
+      context: { userId: user.id, userRole: profile.role, provider: "ollama", cefrLevel: session.cefr_level, cache: false }
     });
 
     // C. Insert learner turn with corrections metadata
@@ -573,7 +573,7 @@ export async function completeRoleplaySessionAction(sessionId: string) {
       context: {
         userId: user.id,
         userRole: profile.role,
-        provider: "groq",
+        provider: "ollama",
         cefrLevel: session.cefr_level,
         assessmentCritical: true,
         cache: true,
@@ -838,7 +838,7 @@ export async function getShortAnswerAiFeedbackAction(prompt: string, submission:
       context: {
         userId: user.id,
         userRole: profile.role,
-        provider: "groq",
+        provider: "ollama",
         cefrLevel: profile.cefr_level || "B1",
         assessmentCritical: true,
         cache: true,

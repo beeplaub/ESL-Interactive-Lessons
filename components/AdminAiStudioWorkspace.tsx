@@ -106,6 +106,7 @@ type DateRange = "TODAY" | 7 | 30 | 90;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const KNOWN_MODELS = [
+  "qwen2.5:7b",
   "openai/gpt-oss-20b",
   "llama-3.3-70b-versatile",
   "gemini-3.5-flash",
@@ -134,6 +135,7 @@ function providerForLog(log: Pick<GenerationLog, "provider" | "model_used">) {
   const model = log.model_used.trim().toLowerCase();
   if (model.startsWith("openrouter/") || model.startsWith("openrouter-")) return "openrouter";
   if (model.startsWith("openai/") || model.startsWith("groq/") || model.includes("whisper")) return "groq";
+  if (model.startsWith("qwen") || model.startsWith("ollama/")) return "ollama";
   if (model.includes("kokoro")) return "kokoro";
   return "google";
 }
@@ -313,6 +315,7 @@ export function AdminAiStudioWorkspace({
   const features = useMemo(() => Array.from(new Set(initialLogs.map((log) => log.feature_key).filter(Boolean))).sort(), [initialLogs]);
   const providers = useMemo(() => Array.from(new Set([
     "google",
+    "ollama",
     "groq",
     "openrouter",
     "kokoro",
