@@ -278,6 +278,13 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
     );
   }
 
+  if (block.block_type === "IMAGE_PAIR") {
+    const images = (["left", "right"] as const).map((side) => ({
+      path: asString(content[`${side}_path`]), alt: asString(content[`${side}_alt`]), caption: asString(content[`${side}_caption`])
+    }));
+    return <div className="grid gap-4 sm:grid-cols-2">{images.map((image, index) => <figure key={index} className="overflow-hidden rounded-xl border border-[var(--br-border)] bg-surface-muted shadow-sm">{image.path && isImageUrl(image.path) ? <ZoomableImage src={mediaUrl(image.path, "image")} alt={image.alt} className="max-h-[520px] w-full object-contain" /> : <div className="grid aspect-video place-items-center p-4 text-center text-sm text-[var(--br-text-muted)]">{image.path || "Add an image URL or storage path."}</div>}{image.caption ? <figcaption className="border-t border-[var(--br-border)] bg-surface px-3 py-2 text-sm text-[var(--br-text-muted)]">{image.caption}</figcaption> : null}</figure>)}</div>;
+  }
+
   if (block.block_type === "IMAGE_TEXT") {
     const imagePath = asString(content.image_path);
     const src = imagePath ? mediaUrl(imagePath, "image") : "";

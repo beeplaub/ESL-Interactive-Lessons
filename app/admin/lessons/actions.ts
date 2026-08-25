@@ -69,7 +69,8 @@ const lessonBlockTypes = [
   "FLASHCARD",
   "TABLE",
   "COMMON_MISTAKE",
-  "CONTRAST_PAIR"
+  "CONTRAST_PAIR",
+  "IMAGE_PAIR"
 ] as const;
 
 const lessonBlockSchema = z.object({
@@ -191,6 +192,12 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
       path: String(formData.get("path") || "").trim(),
       alt: nullableText(formData.get("alt")),
       caption: nullableText(formData.get("caption"))
+    };
+  }
+  if (blockType === "IMAGE_PAIR") {
+    return {
+      left_path: String(formData.get("left_path") || "").trim(), left_alt: nullableText(formData.get("left_alt")), left_caption: nullableText(formData.get("left_caption")),
+      right_path: String(formData.get("right_path") || "").trim(), right_alt: nullableText(formData.get("right_alt")), right_caption: nullableText(formData.get("right_caption"))
     };
   }
   if (blockType === "IMAGE_TEXT") {
@@ -405,6 +412,7 @@ function defaultBlockContent(blockType: string): Json {
   if (blockType === "QUOTE") return { body: "Add a quote.", attribution: null };
   if (blockType === "CALLOUT") return { title: "Note", body: "Add a short note for learners.", reveal_hidden: false };
   if (blockType === "IMAGE") return { path: "", alt: "", caption: "" };
+  if (blockType === "IMAGE_PAIR") return { left_path: "", left_alt: "", left_caption: "", right_path: "", right_alt: "", right_caption: "" };
   if (blockType === "IMAGE_TEXT") return {
     image_position: "left",
     image_path: "",
@@ -498,6 +506,11 @@ function extractMediaFromBlock(blockType: string, content: Record<string, unknow
   if (blockType === "IMAGE") {
     const url = str(content.path);
     if (url) out.push({ type: "IMAGE", url, alt: str(content.alt) || null, caption: str(content.caption) || null });
+  } else if (blockType === "IMAGE_PAIR") {
+    for (const side of ["left", "right"]) {
+      const url = str(content[`${side}_path`]);
+      if (url) out.push({ type: "IMAGE", url, alt: str(content[`${side}_alt`]) || null, caption: str(content[`${side}_caption`]) || null });
+    }
   } else if (blockType === "IMAGE_TEXT") {
     const url = str(content.image_path);
     if (url) out.push({ type: "IMAGE", url, alt: str(content.alt) || null, caption: str(content.caption) || null });

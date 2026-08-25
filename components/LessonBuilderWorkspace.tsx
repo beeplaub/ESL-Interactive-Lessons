@@ -50,7 +50,7 @@ const blockTypes = [
   "HEADING", "TEXT", "BULLETS", "QUOTE", "CALLOUT",
   "IMAGE", "IMAGE_TEXT", "IMAGE_ANNOTATION", "AUDIO", "VIDEO", "DIVIDER",
   "VOCABULARY", "GRAMMAR", "READING", "DIALOGUE",
-  "FLASHCARD", "TABLE", "COMMON_MISTAKE", "CONTRAST_PAIR"
+  "FLASHCARD", "TABLE", "COMMON_MISTAKE", "CONTRAST_PAIR", "IMAGE_PAIR"
 ] as const;
 
 const levelOptions = CONTENT_LEVELS;
@@ -1511,6 +1511,7 @@ function AlignmentGroup({ label, name, value, options }: {
 // ── BlockFields ────────────────────────────────────────────────────────────────
 function BlockFields({ blockType, content, lessonId, blockId }: { blockType: string; content: Json; lessonId: string; blockId: string }) {
   const data = asRecord(content);
+  const [imagePairPaths, setImagePairPaths] = useState(() => [asString(data.left_path), asString(data.right_path)]);
   const [imagePath, setImagePath] = useState(
     blockType === "FLASHCARD" ? asString(data.image_path) :
     blockType === "IMAGE_TEXT" ? asString(data.image_path) :
@@ -1616,6 +1617,9 @@ function BlockFields({ blockType, content, lessonId, blockId }: { blockType: str
         </div>
       </div>
     );
+  }
+  if (blockType === "IMAGE_PAIR") {
+    return <div className="grid gap-4">{(["left", "right"] as const).map((side, index) => <div key={side} className="rounded-xl border border-[var(--br-brand)]/20 bg-[var(--br-brand-soft)]/20 p-3 sm:p-4"><p className="mb-3 text-sm font-black text-[var(--br-brand)]">Image {index + 1}</p><label className="text-sm">Image URL<input name={`${side}_path`} value={imagePairPaths[index]} onChange={(event) => setImagePairPaths((current) => current.map((value, pathIndex) => pathIndex === index ? event.target.value : value))} placeholder="https://… or upload below" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label><BlockMediaUploader type="image" lessonId={lessonId} currentSrc={imagePairPaths[index]} onUploaded={(url) => setImagePairPaths((current) => current.map((value, pathIndex) => pathIndex === index ? url : value))} /><div className="mt-3 grid gap-3 sm:grid-cols-2"><label className="text-sm">Alt text<input name={`${side}_alt`} defaultValue={asString(data[`${side}_alt`])} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label><label className="text-sm">Caption<input name={`${side}_caption`} defaultValue={asString(data[`${side}_caption`])} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label></div></div>)}</div>;
   }
   if (blockType === "IMAGE_TEXT") {
     return (
