@@ -22,7 +22,7 @@ import {
 let aiClient: GoogleGenAI | null = null;
 
 const AI_GENERATION_TIMEOUT_MS = 45_000;
-const OLLAMA_GENERATION_TIMEOUT_MS = 18_000;
+const OLLAMA_GENERATION_TIMEOUT_MS = 30_000;
 
 function providerForModel(model: string | null | undefined): "google" | "groq" | "ollama" {
   const normalized = (model || "").toLowerCase();
@@ -600,17 +600,17 @@ export async function callGemini<T>({
       if (requestProvider === "ollama") {
         const gatewayUrl = process.env.BRENUP_AI_GATEWAY_URL?.replace(/\/$/, "");
         if (!gatewayUrl) throw new Error("BRENUP_AI_GATEWAY_URL is not configured.");
-        const response = await withTimeout(fetch(`${gatewayUrl}/chat`, {
+        const response = await withTimeout(fetch(`${gatewayUrl}/learner-evaluate`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             ...(process.env.BRENUP_AI_GATEWAY_SECRET ? { Authorization: `Bearer ${process.env.BRENUP_AI_GATEWAY_SECRET}` } : {}),
           },
           body: JSON.stringify({
-            provider: "ollama",
             model: modelName,
-            mode: "research",
-            message: `${roleDescription}\n\n${promptOverride || finalPrompt}\n\nReturn only valid JSON. Do not wrap it in markdown code fences.`,
+            role: roleDescription,
+            message: `${promptOverride || finalPrompt}\n\nReturn only valid JSON. Do not wrap it in markdown code fences.`,
+            json: Boolean(responseSchema),
           }),
           signal: AbortSignal.timeout(OLLAMA_GENERATION_TIMEOUT_MS),
           cache: "no-store",
@@ -665,7 +665,8 @@ export async function callGemini<T>({
     };
 
     // D. Execution with retry/repair loop for Free Tier limits
-    for (let attempt = 1; attempt <= 2; attempt++) {
+    const maxAttempts = requestProvider === "ollama" ? 1 : 2;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
         const generated = await generateCall();
         rawText = generated.text;

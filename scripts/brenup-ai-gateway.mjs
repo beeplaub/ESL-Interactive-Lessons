@@ -130,9 +130,42 @@ async function proxyChat(request, response) {
   } catch (error) { return json(response, 503, { error: error?.name === "AbortError" ? "Local model request timed out." : "Ollama is offline." }); } finally { clearTimeout(timer); }
 }
 
+async function proxyLearnerEvaluate(request, response) {
+  if (request.headers.authorization !== `Bearer ${secret}`) return json(response, 401, { error: "Unauthorized" });
+  let body; try { body = await readBody(request); } catch { return json(response, 400, { error: "Invalid request body." }); }
+  const role = typeof body?.role === "string" ? body.role.trim().slice(0, 12000) : "You are a helpful ESL evaluator.";
+  const message = typeof body?.message === "string" ? body.message.trim() : "";
+  if (!message || message.length > 12000) return json(response, 400, { error: "A learner evaluation prompt is required." });
+  const config = providerConfig("ollama", typeof body?.model === "string" ? body.model : "");
+  const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), 30000);
+  try {
+    const upstream = await fetch(`${config.baseUrl}/chat/completions`, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${config.apiKey}` },
+      body: JSON.stringify({
+        model: config.model,
+        messages: [{ role: "system", content: role }, { role: "user", content: message }],
+        temperature: 0.2,
+        max_tokens: 600,
+        response_format: body?.json === true ? { type: "json_object" } : undefined,
+        stream: false,
+      }),
+      signal: controller.signal,
+    });
+    if (!upstream.ok) return json(response, upstream.status, { error: await upstream.text() });
+    const result = await upstream.json();
+    const text = result?.choices?.[0]?.message?.content;
+    if (typeof text !== "string" || !text.trim()) return json(response, 502, { error: "The local model returned an empty evaluation." });
+    return json(response, 200, { text, provider: "ollama", model: config.model });
+  } catch (error) {
+    return json(response, error?.name === "AbortError" ? 504 : 503, { error: error?.name === "AbortError" ? "Local learner evaluation timed out." : "Ollama is offline." });
+  } finally { clearTimeout(timer); }
+}
+
 const server = http.createServer(async (request, response) => {
   if (request.method === "GET" && request.url === "/health") { const ollamaConnected = await fetch(`${ollamaUrl}/models`, { signal: AbortSignal.timeout(1500) }).then((result) => result.ok).catch(() => false); return json(response, 200, { status: "ok", connected: ollamaConnected || Boolean(deepseekKey), provider: defaultProvider, model: defaultModel, providers: { ollama: { configured: true, connected: ollamaConnected, models: ["qwen2.5:7b", "gemma3:4b"] }, deepseek: { configured: Boolean(deepseekKey), models: ["deepseek-v4-flash", "deepseek-v4-pro"] } }, repository: repositoryRoot, startedAt }); }
   if (request.method === "POST" && request.url === "/chat") return proxyChat(request, response);
+  if (request.method === "POST" && request.url === "/learner-evaluate") return proxyLearnerEvaluate(request, response);
   return json(response, 404, { error: "Not found" });
 });
 
