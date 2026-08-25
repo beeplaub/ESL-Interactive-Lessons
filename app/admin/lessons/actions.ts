@@ -70,7 +70,8 @@ const lessonBlockTypes = [
   "TABLE",
   "COMMON_MISTAKE",
   "CONTRAST_PAIR",
-  "IMAGE_PAIR"
+  "IMAGE_PAIR",
+  "TONGUE_TWISTER"
 ] as const;
 
 const lessonBlockSchema = z.object({
@@ -199,6 +200,14 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
       left_path: String(formData.get("left_path") || "").trim(), left_alt: nullableText(formData.get("left_alt")), left_caption: nullableText(formData.get("left_caption")),
       right_path: String(formData.get("right_path") || "").trim(), right_alt: nullableText(formData.get("right_alt")), right_caption: nullableText(formData.get("right_caption"))
     };
+  }
+  if (blockType === "TONGUE_TWISTER") {
+    let items: Json[] = [];
+    try {
+      const parsed = JSON.parse(String(formData.get("items_json") || "[]"));
+      items = Array.isArray(parsed) ? parsed as Json[] : [];
+    } catch { items = []; }
+    return { title: nullableText(formData.get("title")), instruction: nullableText(formData.get("instruction")), items };
   }
   if (blockType === "IMAGE_TEXT") {
     return {
@@ -413,6 +422,7 @@ function defaultBlockContent(blockType: string): Json {
   if (blockType === "CALLOUT") return { title: "Note", body: "Add a short note for learners.", reveal_hidden: false };
   if (blockType === "IMAGE") return { path: "", alt: "", caption: "" };
   if (blockType === "IMAGE_PAIR") return { left_path: "", left_alt: "", left_caption: "", right_path: "", right_alt: "", right_caption: "" };
+  if (blockType === "TONGUE_TWISTER") return { title: "Tongue Twister Challenge", instruction: "Start slowly, then build up your speed.", items: [{ title: "Sea Shells", context: "Practise /s/ and /sh/.", text: "She sells sea shells by the sea shore.", target_sound: "/s/ and /ʃ/", highlights: ["s", "sh"], chunks: ["She sells", "sea shells", "by the sea shore"], pronunciation_note: "Keep the target sounds clear.", difficult_words: [], audio_path: "", hide_reveal_enabled: false }] };
   if (blockType === "IMAGE_TEXT") return {
     image_position: "left",
     image_path: "",
@@ -541,6 +551,13 @@ function extractMediaFromBlock(blockType: string, content: Record<string, unknow
     for (const turn of turns) {
       const audio = str(turn.audio_url ?? turn.audio);
       if (audio) out.push({ type: "AUDIO", url: audio, caption: str(turn.speaker) || "Dialogue line" });
+    }
+  }
+  else if (blockType === "TONGUE_TWISTER") {
+    const items = Array.isArray(content.items) ? content.items as Array<Record<string, unknown>> : [];
+    for (const item of items) {
+      const audio = str(item.audio_path);
+      if (audio) out.push({ type: "AUDIO", url: audio, caption: str(item.title) || "Tongue twister" });
     }
   }
   return out;
