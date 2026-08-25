@@ -333,7 +333,7 @@ export function AdminAiStudioWorkspace({
 
   const filteredLogs = useMemo(() => initialLogs.filter((log) => {
     if (dateRange === "TODAY" ? dhakaDateKey(log.created_at) !== todayKey : new Date(log.created_at).getTime() < cutoff) return false;
-    if (model !== "ALL" && log.model_used !== model) return false;
+    if (model !== "ALL" && (model === "BrenUp AI" ? providerForLog(log) !== "brenup_ai" : log.model_used !== model)) return false;
     if (feature !== "ALL" && log.feature_key !== feature) return false;
     const actualProvider = providerForLog(log);
     if (provider !== "ALL" && actualProvider !== provider) return false;

@@ -7,7 +7,6 @@ import {
   defaultCacheTtl,
   estimateModelCost,
   featureCredits,
-  getCachedAiResponse,
   markAiCacheHit,
   releaseAiCredits,
   releaseAiGeneration,
@@ -15,7 +14,8 @@ import {
   saveAiResponseCache,
   settleAiCredits,
   stableHash,
-  waitForCachedAiResponse,
+  getCachedAiResponseEntry,
+  waitForCachedAiResponseEntry,
 } from "@/lib/ai/efficiency";
 
 // Initialize Gemini client lazily when first called
@@ -23,6 +23,13 @@ let aiClient: GoogleGenAI | null = null;
 
 const AI_GENERATION_TIMEOUT_MS = 45_000;
 const OLLAMA_GENERATION_TIMEOUT_MS = 18_000;
+
+function providerForModel(model: string | null | undefined): "google" | "groq" | "ollama" {
+  const normalized = (model || "").toLowerCase();
+  if (normalized.startsWith("openai/") || normalized.startsWith("groq/") || normalized.startsWith("llama")) return "groq";
+  if (normalized.startsWith("qwen") || normalized.startsWith("ollama/")) return "ollama";
+  return "google";
+}
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
@@ -489,30 +496,32 @@ export async function callGemini<T>({
   };
 
   if (cacheTtl > 0) {
-    const cached = await getCachedAiResponse<T>(cacheKey);
+    const cached = await getCachedAiResponseEntry<T>(cacheKey);
     if (cached) {
-      onProviderUsed?.({ provider: primaryModel.startsWith("openai/") || primaryModel.startsWith("llama") ? "groq" : primaryModel.startsWith("qwen") ? "ollama" : "google", model: primaryModel });
+      const cachedProvider = providerForModel(cached.model || primaryModel);
+      onProviderUsed?.({ provider: cachedProvider, model: cached.model || primaryModel });
       await Promise.all([
         markAiCacheHit(cacheKey),
         context?.userId ? settleAiCredits({ userId: context.userId, featureKey, reservedCredits: 0, actualCredits: 0, cacheHit: true }) : Promise.resolve(),
-        audit({ model: primaryModel, provider: "cache", status: "CACHED", responsePreview: JSON.stringify(cached), cacheHit: true }),
+        audit({ model: cached.model || primaryModel, provider: cachedProvider, status: "CACHED", responsePreview: JSON.stringify(cached.response), cacheHit: true }),
       ]);
-      return cached;
+      return cached.response;
     }
 
     const lock = await claimAiGeneration(cacheKey);
     if (lock.claimed) {
       lockOwner = lock.ownerToken;
     } else {
-      const shared = await waitForCachedAiResponse<T>(cacheKey, 20_000);
+      const shared = await waitForCachedAiResponseEntry<T>(cacheKey, 20_000);
       if (shared) {
-        onProviderUsed?.({ provider: primaryModel.startsWith("openai/") || primaryModel.startsWith("llama") ? "groq" : primaryModel.startsWith("qwen") ? "ollama" : "google", model: primaryModel });
+        const sharedProvider = providerForModel(shared.model || primaryModel);
+        onProviderUsed?.({ provider: sharedProvider, model: shared.model || primaryModel });
         await Promise.all([
           markAiCacheHit(cacheKey),
           context?.userId ? settleAiCredits({ userId: context.userId, featureKey, reservedCredits: 0, actualCredits: 0, cacheHit: true }) : Promise.resolve(),
-          audit({ model: primaryModel, provider: "cache", status: "CACHED", responsePreview: JSON.stringify(shared), cacheHit: true }),
+          audit({ model: shared.model || primaryModel, provider: sharedProvider, status: "CACHED", responsePreview: JSON.stringify(shared.response), cacheHit: true }),
         ]);
-        return shared;
+        return shared.response;
       }
       throw new Error("An identical AI request is still being generated. Please try again in a moment.");
     }

@@ -69,15 +69,20 @@ export function dailyCreditLimit(role?: string | null) {
 }
 
 export async function getCachedAiResponse<T>(cacheKey: string): Promise<T | null> {
+  const entry = await getCachedAiResponseEntry<T>(cacheKey);
+  return entry?.response ?? null;
+}
+
+export async function getCachedAiResponseEntry<T>(cacheKey: string): Promise<{ response: T; model: string | null } | null> {
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("ai_response_cache")
-    .select("response_json,expires_at")
+    .select("response_json,expires_at,model")
     .eq("cache_key", cacheKey)
     .maybeSingle();
   if (error || !data) return null;
   if (data.expires_at && new Date(data.expires_at) <= new Date()) return null;
-  return data.response_json as T;
+  return { response: data.response_json as T, model: data.model || null };
 }
 
 export async function markAiCacheHit(cacheKey: string) {
@@ -133,10 +138,15 @@ export async function releaseAiGeneration(cacheKey: string, ownerToken: string) 
 }
 
 export async function waitForCachedAiResponse<T>(cacheKey: string, timeoutMs = 4_000) {
+  const entry = await waitForCachedAiResponseEntry<T>(cacheKey, timeoutMs);
+  return entry?.response ?? null;
+}
+
+export async function waitForCachedAiResponseEntry<T>(cacheKey: string, timeoutMs = 4_000) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     await new Promise((resolve) => setTimeout(resolve, 250));
-    const cached = await getCachedAiResponse<T>(cacheKey);
+    const cached = await getCachedAiResponseEntry<T>(cacheKey);
     if (cached) return cached;
   }
   return null;
