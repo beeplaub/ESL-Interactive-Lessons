@@ -20,6 +20,7 @@ import {
   reorderLessonBlocks,
   reorderBuilderSlides,
   restoreBuilderSlide,
+  seedAllActivitiesReferenceLesson,
   updateBuilderSlide,
   updateLessonBlock,
   updateLessonBuilderDetails,
@@ -728,6 +729,7 @@ export function LessonBuilderWorkspace({ lesson, slides, trashedSlides = [], blo
   const [duplicateSlide, setDuplicateSlide] = useState<Slide | null>(null);
   const [isSlideTrashOpen, setIsSlideTrashOpen] = useState(false);
   const [isReordering, startReorderTransition] = useTransition();
+  const [isSeedingReference, startSeedReferenceTransition] = useTransition();
   const { confirmDelete } = useDeleteConfirm();
   const timelineRef = useRef<HTMLDivElement>(null);
   const selectedTimelineItemRef = useRef<HTMLDivElement>(null);
@@ -746,6 +748,18 @@ export function LessonBuilderWorkspace({ lesson, slides, trashedSlides = [], blo
 
   const selectedBlocks = selectedSlide ? blocksBySlide.get(selectedSlide.id) ?? [] : [];
   const selectedActivities = selectedSlide ? activities.filter((a) => a.slide_id === selectedSlide.id) : [];
+
+  function seedReferenceLesson() {
+    setBusyMessage("Adding activity reference slides...");
+    startSeedReferenceTransition(async () => {
+      try {
+        await seedAllActivitiesReferenceLesson(lesson.id);
+        window.location.reload();
+      } catch (error) {
+        setBusyMessage(error instanceof Error ? error.message : "Could not add the activity reference slides.");
+      }
+    });
+  }
 
   function selectRelative(direction: -1 | 1) {
     if (selectedIndex < 0) return;
@@ -934,6 +948,11 @@ export function LessonBuilderWorkspace({ lesson, slides, trashedSlides = [], blo
           <button type="button" onClick={() => setIsMetadataOpen(true)} className="grid size-9 place-items-center rounded-lg border border-white/15 text-white/80 hover:bg-white/10" title="Lesson settings">
             <Settings size={16} />
           </button>
+          {isAdmin && lesson.title === "All Activities (Admin Only)" ? (
+            <button type="button" onClick={seedReferenceLesson} disabled={isSeedingReference} className="inline-flex h-9 items-center gap-2 rounded-lg border border-white/15 px-3 text-xs font-black text-white/85 hover:bg-white/10 disabled:opacity-50" title="Add one sample slide for every activity type">
+              <Sparkles size={15} /> <span className="hidden lg:inline">Seed activity reference</span>
+            </button>
+          ) : null}
           <Link href="/admin/content-library?type=LESSON_BLOCK" className="grid size-9 place-items-center rounded-lg border border-white/15 text-white/80 hover:bg-white/10" title="Content library"><Library size={16} /></Link>
         </div>
         </div>

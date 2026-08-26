@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { requireStaff, requireLessonAccess } from "@/lib/auth";
+import { requireStaff, requireLessonAccess, isPlatformAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isR2PublicUrl, pathFromR2PublicUrl } from "@/lib/storage/mediaStorage";
 import { assertCreatorWithinLimit } from "@/lib/entitlements";
@@ -13,6 +13,7 @@ import { parseLessonSlideActivities } from "@/lib/lessonTextParser";
 import { classifyAndExtractLesson } from "@/lib/slideClassifier";
 import { CONTENT_LEVELS } from "@/lib/levels";
 import type { Json, SlideType } from "@/types/database.types";
+import { ALL_ACTIVITIES_REFERENCE } from "@/lib/allActivitiesReference";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 
@@ -1818,6 +1819,67 @@ export async function addLessonSlideActivity(lessonId: string, slideId: string, 
     console.error("addLessonSlideActivity failed", error);
     throw new Error(getErrorMessage(error));
   }
+}
+
+export async function seedAllActivitiesReferenceLesson(lessonId: string) {
+  const { profile } = await requireLessonAccess(lessonId);
+  if (!isPlatformAdmin(profile?.role)) throw new Error("Only a platform admin can seed the activity reference lesson.");
+
+  const supabase = createAdminClient();
+  const { data: lesson, error: lessonError } = await supabase
+    .from("lessons")
+    .select("id, title, status")
+    .eq("id", lessonId)
+    .is("deleted_at", null)
+    .single();
+  if (lessonError) throw lessonError;
+  if (lesson.title !== "All Activities (Admin Only)") throw new Error("This protected action only works for the All Activities (Admin Only) lesson.");
+  if (lesson.status !== "DRAFT") throw new Error("Keep the activity reference lesson in draft status before seeding it.");
+
+  const [{ data: slides, error: slidesError }, { data: activities, error: activitiesError }] = await Promise.all([
+    supabase.from("slides").select("id, slide_number, title, section_label").eq("lesson_id", lessonId).is("deleted_at", null).order("slide_number", { ascending: true }),
+    supabase.from("lesson_slide_activities").select("id, slide_id, slide_number, activity_type").eq("lesson_id", lessonId).is("deleted_at", null),
+  ]);
+  if (slidesError) throw slidesError;
+  if (activitiesError) throw activitiesError;
+
+  const referenceByType = new Map(ALL_ACTIVITIES_REFERENCE.map((item) => [item.type, item]));
+  const existingByType = new Map((activities ?? []).map((activity) => [activity.activity_type, activity]));
+  let nextSlideNumber = Math.max(0, ...(slides ?? []).map((slide) => slide.slide_number)) + 1;
+  let added = 0;
+
+  // Repair the original two-placeholder layout so every reference activity has its own slide.
+  const originalSlide = (slides ?? []).find((slide) => slide.slide_number === 1);
+  const oralActivity = existingByType.get("ORAL_RESPONSE");
+  const dialogueActivity = existingByType.get("DIALOGUE_WRITING");
+  if (originalSlide && oralActivity && oralActivity.slide_id === originalSlide.id) {
+    const oralReference = referenceByType.get("ORAL_RESPONSE");
+    await supabase.from("slides").update({ title: "ORAL_RESPONSE", section_label: "Speaking", raw_text: "ORAL_RESPONSE" }).eq("id", originalSlide.id).eq("lesson_id", lessonId);
+    if (oralReference) await supabase.from("lesson_slide_activities").update({ activity_data: oralReference.data, raw_text: oralReference.prompt, updated_at: new Date().toISOString() }).eq("id", oralActivity.id).eq("lesson_id", lessonId);
+  }
+  if (originalSlide && dialogueActivity && dialogueActivity.slide_id === originalSlide.id) {
+    const dialogueReference = referenceByType.get("DIALOGUE_WRITING");
+    const { data: newSlide, error: newSlideError } = await supabase.from("slides").insert({ lesson_id: lessonId, slide_number: nextSlideNumber, title: "DIALOGUE_WRITING", section_label: "Writing", raw_text: "DIALOGUE_WRITING", type: "INFO" }).select("id, slide_number").single();
+    if (newSlideError) throw newSlideError;
+    if (dialogueReference) {
+      const { error: moveError } = await supabase.from("lesson_slide_activities").update({ slide_id: newSlide.id, slide_number: newSlide.slide_number, activity_data: dialogueReference.data, raw_text: dialogueReference.prompt, updated_at: new Date().toISOString() }).eq("id", dialogueActivity.id).eq("lesson_id", lessonId);
+      if (moveError) throw moveError;
+    }
+    nextSlideNumber += 1;
+  }
+
+  for (const reference of ALL_ACTIVITIES_REFERENCE) {
+    if (existingByType.has(reference.type)) continue;
+    const { data: slide, error: slideError } = await supabase.from("slides").insert({ lesson_id: lessonId, slide_number: nextSlideNumber, title: reference.type, section_label: reference.category, raw_text: reference.type, type: "INFO" }).select("id, slide_number").single();
+    if (slideError) throw slideError;
+    const { error: activityError } = await supabase.from("lesson_slide_activities").insert({ lesson_id: lessonId, slide_id: slide.id, slide_number: slide.slide_number, activity_type: reference.type, activity_data: reference.data, needs_review: false, raw_text: reference.prompt });
+    if (activityError) throw activityError;
+    added += 1;
+    nextSlideNumber += 1;
+  }
+
+  revalidateLessonBuilder(lessonId);
+  return { added, total: ALL_ACTIVITIES_REFERENCE.length };
 }
 
 export async function rerunParser(lessonId: string) {
