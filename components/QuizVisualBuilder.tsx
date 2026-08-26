@@ -177,7 +177,7 @@ function defaultQuestion(type: BuilderQuestion["questionType"]): BuilderQuestion
   if (type === "DRAG_DROP") return { id, questionType: type, questionText: "Place each item in the correct group.", description: "", options: { targets: ["Group A", "Group B"], items: [{ id: "1", text: "Item 1" }, { id: "2", text: "Item 2" }] }, correctAnswer: { "1": "Group A", "2": "Group B" }, assessment };
   if (type === "CATEGORIZATION") return { id, questionType: type, questionText: "Sort each item into the correct category.", description: "", options: { targets: ["Category A", "Category B"], items: [{ id: "1", text: "Item 1" }, { id: "2", text: "Item 2" }] }, correctAnswer: { "1": "Category A", "2": "Category B" }, assessment };
   if (type === "PRONUNCIATION") return { id, questionType: type, questionText: "Practise the pronunciation.", description: "", options: { level: "word", passage: "", targets: [{ id: "1", text: "comfortable", color: "var(--br-achievement)" }], max_attempts: 3 }, correctAnswer: ["1"], assessment };
-  if (type === "ORAL_RESPONSE") return { id, questionType: type, questionText: "Speak about the topic in your own words.", description: "", options: { model_answer: "", target_phrases: [], max_seconds: 60, allow_self_graded: true, allow_ai_feedback: true, allow_teacher_review: true }, correctAnswer: true, assessment };
+  if (type === "ORAL_RESPONSE") return { id, questionType: type, questionText: "Speak about the topic in your own words.", description: "", options: { model_answer: "", target_phrases: [], max_seconds: 60, max_attempts: 0, evaluation_quotas: { AI_FEEDBACK: 0, SELF_GRADED: 0, TEACHER_REVIEW: 0 }, allow_self_graded: true, allow_ai_feedback: true, allow_teacher_review: true }, correctAnswer: true, assessment };
   if (type === "SUMMARIZATION") return { id, questionType: type, questionText: "Summarize the passage in your own words.", description: "", options: { passage: "Enter the source passage here.", max_words: 30, sample_answer: "A concise summary." }, correctAnswer: true, assessment };
   if (type === "INFERENCE_DETECTION") return { id, questionType: type, questionText: "What can we infer from the passage?", description: "", options: { instruction: "Read the passage. What can we infer?", passage: "Enter the source passage here.", A: "Option A", B: "Option B", C: "Option C", D: "Option D" }, correctAnswer: "A", assessment };
   if (type === "HEADINGS_MATCHING") return { id, questionType: type, questionText: "Match the paragraphs to the correct headings.", description: "", options: { paragraphs: [{ id: "A", text: "Paragraph A text" }, { id: "B", text: "Paragraph B text" }], headings: [{ id: "1", text: "Heading 1" }, { id: "2", text: "Heading 2" }, { id: "3", text: "Distractor heading" }] }, correctAnswer: { A: "1", B: "2" }, assessment };
@@ -921,6 +921,8 @@ function questionToPreviewActivity(question: BuilderQuestion) {
           model_answer: String(options.model_answer ?? ""),
           target_phrases: Array.isArray(options.target_phrases) ? options.target_phrases : [],
           max_seconds: Number(options.max_seconds ?? 60),
+          max_attempts: Number(options.max_attempts ?? 0),
+          evaluation_quotas: options.evaluation_quotas ?? { AI_FEEDBACK: 0, SELF_GRADED: 0, TEACHER_REVIEW: 0 },
           allow_self_graded: options.allow_self_graded !== false,
           allow_ai_feedback: options.allow_ai_feedback !== false,
           allow_teacher_review: options.allow_teacher_review !== false
@@ -1069,6 +1071,21 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
           Speaking time limit (seconds)
           <input type="number" min={5} max={600} value={Number(options.max_seconds ?? 60)} onChange={(event) => onChange({ options: { ...options, max_seconds: Math.max(5, Number(event.target.value) || 60) } as Json })} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" />
         </label>
+        <label className="text-sm">
+          Attempts per learner (0 = unlimited)
+          <input type="number" min={0} max={1000} value={Number(options.max_attempts ?? 0)} onChange={(event) => onChange({ options: { ...options, max_attempts: Math.max(0, Math.min(1000, Number(event.target.value) || 0)) } as Json })} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" />
+        </label>
+        <div className="rounded-xl border border-[var(--br-border)] bg-surface-muted p-3">
+          <p className="text-xs font-bold uppercase tracking-wide text-[var(--br-text-muted)]">Per-learner grading quotas (0 = unlimited)</p>
+          <div className="mt-2 grid gap-3 sm:grid-cols-3">
+            {([["AI_FEEDBACK", "AI feedback"], ["SELF_GRADED", "Self-check"], ["TEACHER_REVIEW", "Teacher review"]] as const).map(([mode, label]) => {
+              const quotas = asRecord(options.evaluation_quotas as Json);
+              return <label key={mode} className="text-sm">{label}
+                <input type="number" min={0} max={1000} value={Number(quotas[mode] ?? 0)} onChange={(event) => onChange({ options: { ...options, evaluation_quotas: { ...quotas, [mode]: Math.max(0, Math.min(1000, Number(event.target.value) || 0)) } } as Json })} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" />
+              </label>;
+            })}
+          </div>
+        </div>
         <WritingGradingSettings options={options} onChange={(opts) => onChange({ options: opts })} />
       </div>
     );

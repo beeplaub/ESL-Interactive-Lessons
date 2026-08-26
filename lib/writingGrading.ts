@@ -34,6 +34,23 @@ export function isWritingQuestionType(type: string): type is WritingQuestionType
 
 export type EvaluationMode = "SELF_GRADED" | "AI_FEEDBACK" | "TEACHER_REVIEW";
 
+export type EvaluationQuotaConfig = Record<EvaluationMode, number>;
+
+export function evaluationQuota(options: Record<string, unknown>, mode: EvaluationMode): number {
+  const quotas = options.evaluation_quotas;
+  if (!quotas || typeof quotas !== "object" || Array.isArray(quotas)) return 0;
+  const value = Number((quotas as Record<string, unknown>)[mode] ?? 0);
+  return Number.isFinite(value) ? Math.max(0, Math.min(1000, Math.floor(value))) : 0;
+}
+
+export function modeUsesFromAttempts(attempts: Array<{ answers?: Json | null }>, mode: EvaluationMode): number {
+  return attempts.filter((attempt) => Object.values(asRecord(attempt.answers)).some((answer) => asWritingValue(answer).mode === mode)).length;
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
 /** The pass threshold used for "isCorrect" (question-nav dot, streaks) once a writing question is graded. */
 export const WRITING_PASS_THRESHOLD = 60;
 

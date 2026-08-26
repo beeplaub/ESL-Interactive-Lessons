@@ -12,6 +12,35 @@ import { getQuizBadge } from "@/lib/quizBadges";
 import { notifyUser } from "@/lib/notifications";
 import type { Json } from "@/types/database.types";
 
+function normalizedActivityLimit(value: unknown) {
+  const number = Number(value ?? 0);
+  return Number.isFinite(number) ? Math.max(0, Math.min(1000, Math.floor(number))) : 0;
+}
+
+async function assertOralAttemptLimit(admin: ReturnType<typeof createAdminClient>, userId: string, input: { quizId?: string; lessonSlideActivityId?: string }) {
+  const sourceColumn = input.quizId ? "quiz_id" : "lesson_activity_id";
+  const sourceId = input.quizId ?? input.lessonSlideActivityId;
+  if (!sourceId) return;
+  let activityType = "";
+  let maxAttempts = 0;
+  if (input.quizId) {
+    const { data } = await admin.from("quiz_questions").select("question_type,options").eq("quiz_id", input.quizId);
+    const oral = (data ?? []).find((question) => question.question_type === "ORAL_RESPONSE");
+    if (!oral) return;
+    activityType = oral.question_type;
+    maxAttempts = normalizedActivityLimit(asRecord(oral.options as Json).max_attempts);
+  } else {
+    const { data } = await admin.from("lesson_slide_activities").select("activity_type,activity_data").eq("id", input.lessonSlideActivityId).maybeSingle();
+    if (!data || data.activity_type !== "ORAL_RESPONSE") return;
+    activityType = data.activity_type;
+    maxAttempts = normalizedActivityLimit(asRecord(data.activity_data).max_attempts);
+  }
+  if (!activityType || maxAttempts <= 0) return;
+  const { count, error } = await admin.from("assessment_attempts").select("id", { count: "exact", head: true }).eq("user_id", userId).eq(sourceColumn, sourceId).neq("status", "VOID");
+  if (error) throw error;
+  if ((count ?? 0) >= maxAttempts) throw new Error(`You have used all ${maxAttempts} attempts for this activity.`);
+}
+
 export async function recordQuizAttempt(input: {
   quizId?: string;
   lessonSlideActivityId?: string;
@@ -47,6 +76,7 @@ export async function recordQuizAttempt(input: {
       duplicate: true,
     };
   }
+  await assertOralAttemptLimit(admin, user.id, input);
   const { data: legacyAttempt, error } = await (admin.from("quiz_attempts") as any).insert({
     user_id: user.id,
     quiz_id: input.quizId ?? null,

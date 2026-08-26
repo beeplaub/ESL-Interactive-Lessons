@@ -16,7 +16,7 @@ import { ResultsOverview } from "@/components/gamification/ResultsOverview";
 import { StreakPopup } from "@/components/gamification/StreakPopup";
 import { computeBestStreak, NOTABLE_STREAK_THRESHOLD } from "@/lib/gamification/resultsOverview";
 import { ActivityEvaluationModeContext, AiUnavailableDialog, EvaluationMethodDialog, WritingEvaluationInterface } from "@/components/WritingEvaluationInterface";
-import { asWritingValue, isAwaitingResolution, isWritingQuestionType, resolveWritingOutcome, type EvaluationMode, type WritingAnswerValue } from "@/lib/writingGrading";
+import { asWritingValue, evaluationQuota, isAwaitingResolution, isWritingQuestionType, modeUsesFromAttempts, resolveWritingOutcome, type EvaluationMode, type WritingAnswerValue } from "@/lib/writingGrading";
 import { normalizeDisplayScore } from "@/lib/assessmentContract";
 
 export type QuizQuestion = {
@@ -412,6 +412,10 @@ export function QuizPlayer({
   const availableEvaluationModes = aiTemporarilyUnavailable
     ? configuredEvaluationModes.filter((mode) => mode !== "AI_FEEDBACK")
     : configuredEvaluationModes;
+  const oralQuestion = questions.find((question) => question.question_type === "ORAL_RESPONSE");
+  const oralOptions = oralQuestion ? asRecord(oralQuestion.options) : {};
+  const oralMaxAttempts = Math.max(0, Number(oralOptions.max_attempts ?? 0) || 0);
+  const modeLimits = (Object.fromEntries(((["AI_FEEDBACK", "SELF_GRADED", "TEACHER_REVIEW"] as EvaluationMode[]).map((mode) => [mode, { limit: evaluationQuota(oralOptions, mode), used: modeUsesFromAttempts(allAttempts, mode) }]))) as Partial<Record<EvaluationMode, { limit: number; used: number }>>);
   const historicalReviewOnly = Boolean(
     selectedAttemptId && allAttempts.some((attempt) => attempt.id === selectedAttemptId) && selectedAttemptId !== allAttempts.at(-1)?.id
   );
@@ -590,6 +594,10 @@ export function QuizPlayer({
 
   const submit = useCallback((modeOverride?: EvaluationMode) => {
     if (submitted) return;
+    if (oralMaxAttempts > 0 && allAttempts.length >= oralMaxAttempts) {
+      setMessage(`You have used all ${oralMaxAttempts} attempts for this activity.`);
+      return;
+    }
     const selectedMode = modeOverride ?? evaluationMode;
     if (hasSubjectiveQuestions && !selectedMode) {
       setShowEvaluationDialog(true);
@@ -644,7 +652,7 @@ export function QuizPlayer({
         setMessage(error instanceof Error ? error.message : "Could not save quiz attempt.");
       }
     });
-  }, [answers, courseItemId, evaluationMode, hasSubjectiveQuestions, isGuest, questions, quizId, submitted]);
+  }, [allAttempts.length, answers, courseItemId, evaluationMode, hasSubjectiveQuestions, isGuest, oralMaxAttempts, questions, quizId, submitted]);
 
   useEffect(() => {
     if (!submitted || !autoGradingActive || !evaluationMode || evaluationMode === "SELF_GRADED") return;
@@ -867,7 +875,7 @@ export function QuizPlayer({
                 {!submitted && (
                   <button
                     type="button"
-                    disabled={!answered || submitted}
+                    disabled={!answered || submitted || (oralMaxAttempts > 0 && allAttempts.length >= oralMaxAttempts)}
                     onClick={() => submit()}
                     className="inline-flex items-center gap-2 rounded-[14px] bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] px-4 py-2 text-sm font-extrabold text-on-dark shadow-[var(--br-shadow)] disabled:opacity-45"
                   >
@@ -884,7 +892,7 @@ export function QuizPlayer({
     {showPopup && guestAttempt ? (
       <GuestScorePopup score={score} total={totalPoints} attempt={guestAttempt} onDismiss={() => setShowPopup(false)} />
     ) : null}
-    {showEvaluationDialog ? <EvaluationMethodDialog allowedModes={availableEvaluationModes} onClose={() => setShowEvaluationDialog(false)} onChoose={(mode) => { setMessage(null); if (submitted) resumeSavedAttemptGrading(mode); else submit(mode); }} /> : null}
+    {showEvaluationDialog ? <EvaluationMethodDialog allowedModes={availableEvaluationModes} modeLimits={modeLimits} onClose={() => setShowEvaluationDialog(false)} onChoose={(mode) => { setMessage(null); if (submitted) resumeSavedAttemptGrading(mode); else submit(mode); }} /> : null}
     {showAiUnavailableDialog ? <AiUnavailableDialog onClose={() => { setShowAiUnavailableDialog(false); setShowEvaluationDialog(true); }} /> : null}
     </>
   );

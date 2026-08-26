@@ -10,7 +10,7 @@ import { startRoleplaySessionAction, submitRoleplayTurnAction, completeRoleplayS
 import type { Json } from "@/types/database.types";
 import { SoundToggle } from "@/components/gamification/SoundToggle";
 import { CELEBRATION_SCORE_THRESHOLD, fireCompletionConfetti } from "@/lib/gamification/confetti";
-import { asWritingValue, isAwaitingResolution, isWritingQuestionType, resolveWritingOutcome, type EvaluationMode } from "@/lib/writingGrading";
+import { asWritingValue, evaluationQuota, isAwaitingResolution, isWritingQuestionType, modeUsesFromAttempts, resolveWritingOutcome, type EvaluationMode } from "@/lib/writingGrading";
 import { playCelebration, playCorrect, playPartial, playWrong } from "@/lib/gamification/sounds";
 import { ResultsOverview } from "@/components/gamification/ResultsOverview";
 import { computeBestStreak, NOTABLE_STREAK_THRESHOLD } from "@/lib/gamification/resultsOverview";
@@ -523,6 +523,8 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
           model_answer: String(question.model_answer ?? data.model_answer ?? ""),
           target_phrases: Array.isArray(question.target_phrases) ? question.target_phrases.map(String) : [],
           max_seconds: Math.max(5, Number(question.max_seconds ?? data.max_seconds ?? 60)),
+          max_attempts: Math.max(0, Number(question.max_attempts ?? data.max_attempts ?? 0)),
+          evaluation_quotas: asRecord((question.evaluation_quotas ?? data.evaluation_quotas) as Json),
           allow_self_graded: (question.allow_self_graded ?? data.allow_self_graded) !== false,
           allow_ai_feedback: (question.allow_ai_feedback ?? data.allow_ai_feedback) !== false,
           allow_teacher_review: (question.allow_teacher_review ?? data.allow_teacher_review) !== false
@@ -1651,6 +1653,10 @@ export function LessonActivityPanel({
   const availableEvaluationModes = aiTemporarilyUnavailable
     ? configuredEvaluationModes.filter((mode) => mode !== "AI_FEEDBACK")
     : configuredEvaluationModes;
+  const oralQuestion = questions.find((question) => question.question_type === "ORAL_RESPONSE");
+  const oralOptions = oralQuestion ? asRecord(oralQuestion.options) : {};
+  const oralMaxAttempts = Math.max(0, Number(oralOptions.max_attempts ?? 0) || 0);
+  const modeLimits = (Object.fromEntries(((["AI_FEEDBACK", "SELF_GRADED", "TEACHER_REVIEW"] as EvaluationMode[]).map((mode) => [mode, { limit: evaluationQuota(oralOptions, mode), used: modeUsesFromAttempts(localAttempts, mode) }]))) as Partial<Record<EvaluationMode, { limit: number; used: number }>>);
   const historicalReviewOnly = Boolean(
     selectedAttemptId && localAttempts[0]?.id && selectedAttemptId !== localAttempts[0].id
   );
@@ -1683,6 +1689,10 @@ export function LessonActivityPanel({
   }
 
   function submit(modeOverride?: EvaluationMode) {
+    if (!submitted && oralMaxAttempts > 0 && localAttempts.length >= oralMaxAttempts) {
+      setMessage(`You have used all ${oralMaxAttempts} attempts for this activity.`);
+      return;
+    }
     const selectedMode = modeOverride ?? evaluationMode;
     if (hasSubjectiveQuestions && !selectedMode) {
       setShowEvaluationDialog(true);
@@ -1945,7 +1955,7 @@ export function LessonActivityPanel({
             <button
               type="button"
               onClick={() => submit()}
-              disabled={!allAnswered || isPending}
+              disabled={!allAnswered || isPending || (oralMaxAttempts > 0 && localAttempts.length >= oralMaxAttempts)}
               className="rounded-md bg-moss px-4 py-2 text-sm font-semibold text-on-dark disabled:opacity-40"
             >
               {isPending ? "Saving…" : hasSubjectiveQuestions ? "Continue to grading" : "Check answers"}
@@ -1969,7 +1979,7 @@ export function LessonActivityPanel({
           </div>
         </div>
       ) : null}
-      {showEvaluationDialog ? <EvaluationMethodDialog allowedModes={availableEvaluationModes} onClose={() => setShowEvaluationDialog(false)} onChoose={(mode) => { setMessage(null); if (submitted) resumeSavedAttemptGrading(mode); else submit(mode); }} /> : null}
+      {showEvaluationDialog ? <EvaluationMethodDialog allowedModes={availableEvaluationModes} modeLimits={modeLimits} onClose={() => setShowEvaluationDialog(false)} onChoose={(mode) => { setMessage(null); if (submitted) resumeSavedAttemptGrading(mode); else submit(mode); }} /> : null}
       {showAiUnavailableDialog ? <AiUnavailableDialog onClose={() => { setShowAiUnavailableDialog(false); setShowEvaluationDialog(true); }} /> : null}
     </section>
   );

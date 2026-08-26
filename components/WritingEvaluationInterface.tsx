@@ -39,7 +39,9 @@ type ActivityEvaluationSelection = {
 };
 export const ActivityEvaluationModeContext = createContext<ActivityEvaluationSelection | null>(null);
 
-export function EvaluationMethodPicker({ value, onChange, allowedModes = ["AI_FEEDBACK", "SELF_GRADED", "TEACHER_REVIEW"] }: { value: EvaluationMode | null; onChange: (mode: EvaluationMode) => void; allowedModes?: EvaluationMode[] }) {
+export type EvaluationModeLimit = { limit: number; used: number };
+
+export function EvaluationMethodPicker({ value, onChange, allowedModes = ["AI_FEEDBACK", "SELF_GRADED", "TEACHER_REVIEW"], modeLimits = {} }: { value: EvaluationMode | null; onChange: (mode: EvaluationMode) => void; allowedModes?: EvaluationMode[]; modeLimits?: Partial<Record<EvaluationMode, EvaluationModeLimit>> }) {
   const choices: Array<{ mode: EvaluationMode; title: string; detail: string; className: string }> = [
     { mode: "AI_FEEDBACK", title: "AI feedback", detail: "Instant score and practical feedback", className: "border-violet-200 bg-violet-50 hover:border-violet-400 hover:bg-violet-100/70" },
     { mode: "SELF_GRADED", title: "Self-check", detail: "Compare with the model response", className: "border-amber-200 bg-amber-50 hover:border-amber-400 hover:bg-amber-100/70" },
@@ -48,7 +50,9 @@ export function EvaluationMethodPicker({ value, onChange, allowedModes = ["AI_FE
   return (
     <div className="grid gap-3 sm:grid-cols-3">
       {choices.map((choice) => {
-        const available = allowedModes.includes(choice.mode);
+        const limit = modeLimits[choice.mode];
+        const quotaReached = Boolean(limit && limit.limit > 0 && limit.used >= limit.limit);
+        const available = allowedModes.includes(choice.mode) && !quotaReached;
         return (
           <button
             key={choice.mode}
@@ -59,7 +63,7 @@ export function EvaluationMethodPicker({ value, onChange, allowedModes = ["AI_FE
           >
             <span className={`block text-sm font-bold ${available ? "text-ink" : "text-slate-500"}`}>{choice.title}</span>
             <span className="mt-1 block text-xs leading-5 text-[var(--br-text-muted)]">{choice.detail}</span>
-            {!available ? <span className="mt-3 inline-flex rounded-full bg-slate-200 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-600">Unavailable</span> : null}
+            {quotaReached ? <span className="mt-3 inline-flex rounded-full bg-slate-200 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-600">Quota finished</span> : !allowedModes.includes(choice.mode) ? <span className="mt-3 inline-flex rounded-full bg-slate-200 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-slate-600">Unavailable</span> : limit?.limit ? <span className="mt-3 inline-flex rounded-full bg-white/70 px-2 py-1 text-[10px] font-bold tracking-wide text-slate-600">{Math.max(0, limit.limit - limit.used)} left</span> : null}
           </button>
         );
       })}
@@ -67,13 +71,13 @@ export function EvaluationMethodPicker({ value, onChange, allowedModes = ["AI_FE
   );
 }
 
-export function EvaluationMethodDialog({ allowedModes, onChoose, onClose }: { allowedModes: EvaluationMode[]; onChoose: (mode: EvaluationMode) => void; onClose: () => void }) {
+export function EvaluationMethodDialog({ allowedModes, modeLimits, onChoose, onClose }: { allowedModes: EvaluationMode[]; modeLimits?: Partial<Record<EvaluationMode, EvaluationModeLimit>>; onChoose: (mode: EvaluationMode) => void; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="evaluation-method-title" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <div className="relative w-full max-w-3xl rounded-[24px] border border-white/20 bg-surface p-5 shadow-2xl sm:p-7">
         <button type="button" onClick={onClose} aria-label="Close grading options" className="absolute right-4 top-4 grid size-10 place-items-center rounded-full border border-[var(--br-border)] text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"><X size={18} /></button>
         <h2 id="evaluation-method-title" className="mb-5 pr-12 text-xl font-extrabold text-ink">Choose a grading method</h2>
-        <EvaluationMethodPicker value={null} allowedModes={allowedModes} onChange={onChoose} />
+        <EvaluationMethodPicker value={null} allowedModes={allowedModes} modeLimits={modeLimits} onChange={onChoose} />
       </div>
     </div>
   );

@@ -221,12 +221,19 @@ function normalizeShortAnswer(data: Json | null): { prompt: string; enableAiFeed
   };
 }
 
-function normalizeOralResponse(data: Json | null): { prompt: string; allowSelfGraded: boolean; allowAiFeedback: boolean; allowTeacherReview: boolean; questions: OralResponseQuestion[] } {
+function normalizeOralResponse(data: Json | null): { prompt: string; maxAttempts: number; evaluationQuotas: { AI_FEEDBACK: number; SELF_GRADED: number; TEACHER_REVIEW: number }; allowSelfGraded: boolean; allowAiFeedback: boolean; allowTeacherReview: boolean; questions: OralResponseQuestion[] } {
   const record = asRecord(data);
   const questions = Array.isArray(record.questions) ? record.questions : [];
   const fallback = questions.length ? questions : [record];
+  const rawQuotas = asRecord(record.evaluation_quotas as Json);
   return {
     prompt: String(record.prompt ?? "Speak your answer aloud."),
+    maxAttempts: Math.max(0, Math.min(1000, Number(record.max_attempts ?? 0) || 0)),
+    evaluationQuotas: {
+      AI_FEEDBACK: Math.max(0, Math.min(1000, Number(rawQuotas.AI_FEEDBACK ?? 0) || 0)),
+      SELF_GRADED: Math.max(0, Math.min(1000, Number(rawQuotas.SELF_GRADED ?? 0) || 0)),
+      TEACHER_REVIEW: Math.max(0, Math.min(1000, Number(rawQuotas.TEACHER_REVIEW ?? 0) || 0)),
+    },
     allowSelfGraded: record.allow_self_graded !== false,
     allowAiFeedback: record.allow_ai_feedback !== false,
     allowTeacherReview: record.allow_teacher_review !== false,
@@ -1869,6 +1876,8 @@ function OralResponseEditor({ activity, onSave }: { activity: Activity; onSave: 
   const [allowSelfGraded, setAllowSelfGraded] = useState(initial.allowSelfGraded);
   const [allowAiFeedback, setAllowAiFeedback] = useState(initial.allowAiFeedback);
   const [allowTeacherReview, setAllowTeacherReview] = useState(initial.allowTeacherReview);
+  const [maxAttempts, setMaxAttempts] = useState(initial.maxAttempts);
+  const [evaluationQuotas, setEvaluationQuotas] = useState(initial.evaluationQuotas);
   const [questions, setQuestions] = useState<OralResponseQuestion[]>(initial.questions.length ? initial.questions : [{
     id: 1,
     text: "",
@@ -1895,6 +1904,21 @@ function OralResponseEditor({ activity, onSave }: { activity: Activity; onSave: 
           <label className="flex items-center gap-2 text-xs font-semibold"><input type="checkbox" checked={allowAiFeedback} onChange={(event) => setAllowAiFeedback(event.target.checked)} /> AI feedback</label>
           <label className="flex items-center gap-2 text-xs font-semibold"><input type="checkbox" checked={allowTeacherReview} onChange={(event) => setAllowTeacherReview(event.target.checked)} /> Teacher review</label>
         </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <label className="text-sm font-medium">Attempts per learner
+            <input type="number" min={0} max={1000} value={maxAttempts} onChange={(event) => setMaxAttempts(Math.max(0, Math.min(1000, Number(event.target.value) || 0)))} className="mt-1 w-full rounded-md border border-[var(--br-border)] bg-surface px-3 py-2" />
+            <span className="mt-1 block text-xs font-normal text-[var(--br-text-muted)]">0 means unlimited.</span>
+          </label>
+          {([
+            ["AI_FEEDBACK", "AI feedback"],
+            ["SELF_GRADED", "Self-check"],
+            ["TEACHER_REVIEW", "Teacher review"],
+          ] as const).map(([mode, label]) => <label key={mode} className="text-sm font-medium">{label} quota
+            <input type="number" min={0} max={1000} value={evaluationQuotas[mode]} onChange={(event) => setEvaluationQuotas((current) => ({ ...current, [mode]: Math.max(0, Math.min(1000, Number(event.target.value) || 0)) }))} className="mt-1 w-full rounded-md border border-[var(--br-border)] bg-surface px-3 py-2" />
+            <span className="mt-1 block text-xs font-normal text-[var(--br-text-muted)]">0 means unlimited.</span>
+          </label>)}
+        </div>
+        <p className="mt-3 text-xs text-[var(--br-text-muted)]">Quotas are counted per learner for this activity. A learner can still review previous attempts after a quota is reached.</p>
       </div>
       {questions.map((question, index) => (
         <div key={String(question.id)} className="rounded-md border border-[var(--br-border)] p-4">
@@ -1917,6 +1941,8 @@ function OralResponseEditor({ activity, onSave }: { activity: Activity; onSave: 
           allow_self_graded: allowSelfGraded,
           allow_ai_feedback: allowAiFeedback,
           allow_teacher_review: allowTeacherReview,
+          max_attempts: maxAttempts,
+          evaluation_quotas: evaluationQuotas,
           questions: questions.map((question, index) => ({
             id: index + 1,
             text: question.text,

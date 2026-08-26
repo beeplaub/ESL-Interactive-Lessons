@@ -26,6 +26,63 @@ export type WritingSubmissionInput = {
 
 export type EvaluationMode = "SELF_GRADED" | "AI_FEEDBACK" | "TEACHER_REVIEW";
 
+type EvaluationControls = {
+  maxAttempts: number;
+  allowed: Record<EvaluationMode, boolean>;
+  quotas: Record<EvaluationMode, number>;
+};
+
+function normalizeLimit(value: unknown) {
+  const number = Number(value ?? 0);
+  return Number.isFinite(number) ? Math.max(0, Math.min(1000, Math.floor(number))) : 0;
+}
+
+async function getEvaluationControls(admin: ReturnType<typeof createAdminClient>, input: WritingSubmissionInput): Promise<EvaluationControls> {
+  let raw: Json | null = null;
+  if (input.lessonId) {
+    const { data } = await admin.from("lesson_slide_activities").select("activity_data").eq("id", input.activityId).maybeSingle();
+    raw = data?.activity_data ?? null;
+  } else if (input.quizId) {
+    const { data } = await admin.from("quiz_questions").select("options").eq("id", input.activityId).eq("quiz_id", input.quizId).maybeSingle();
+    raw = data?.options ?? null;
+  }
+  const data = asRecord(raw);
+  const quotas = asRecord(data.evaluation_quotas as Json);
+  return {
+    maxAttempts: normalizeLimit(data.max_attempts),
+    allowed: {
+      AI_FEEDBACK: data.allow_ai_feedback !== false,
+      SELF_GRADED: data.allow_self_graded !== false,
+      TEACHER_REVIEW: data.allow_teacher_review !== false,
+    },
+    quotas: {
+      AI_FEEDBACK: normalizeLimit(quotas.AI_FEEDBACK),
+      SELF_GRADED: normalizeLimit(quotas.SELF_GRADED),
+      TEACHER_REVIEW: normalizeLimit(quotas.TEACHER_REVIEW),
+    },
+  };
+}
+
+async function assertEvaluationQuota(admin: ReturnType<typeof createAdminClient>, userId: string, input: WritingSubmissionInput, mode: EvaluationMode, currentAttemptId: string) {
+  const controls = await getEvaluationControls(admin, input);
+  if (!controls.allowed[mode]) throw new Error("This grading method is not available for this activity.");
+  const sourceColumn = input.quizId ? "quiz_id" : "lesson_activity_id";
+  const sourceId = input.quizId ?? input.activityId;
+  if (controls.maxAttempts > 0) {
+    const { count, error } = await admin.from("assessment_attempts").select("id", { count: "exact", head: true }).eq("user_id", userId).eq(sourceColumn, sourceId).neq("status", "VOID");
+    if (error) throw error;
+    if ((count ?? 0) > controls.maxAttempts) throw new Error(`You have used all ${controls.maxAttempts} attempts for this activity.`);
+  }
+  const limit = controls.quotas[mode];
+  if (limit <= 0) return;
+  let query = admin.from("writing_submissions").select("assessment_attempt_id").eq("learner_id", userId).eq("mode", mode).in("status", ["PENDING", "GRADED"]);
+  query = input.quizId ? query.eq("quiz_id", input.quizId) : query.eq("activity_id", input.activityId);
+  const { data, error } = await query;
+  if (error) throw error;
+  const usedAttempts = new Set((data ?? []).map((row) => row.assessment_attempt_id).filter((id): id is string => Boolean(id) && id !== currentAttemptId));
+  if (usedAttempts.size >= limit) throw new Error(`You have used all ${limit} ${mode === "AI_FEEDBACK" ? "AI feedback" : mode === "SELF_GRADED" ? "self-check" : "teacher review"} choices for this activity.`);
+}
+
 type AssessmentLink = { attemptId: string; responseId: string };
 
 async function findPendingAssessmentLink(admin: ReturnType<typeof createAdminClient>, userId: string, input: WritingSubmissionInput & { questionKey: string }): Promise<AssessmentLink | null> {
@@ -218,6 +275,7 @@ export async function saveWritingGradingOutcomeAction(input: WritingSubmissionIn
     if (!assessmentLink) {
       throw new Error("Your attempt is still being prepared. Please try grading again.");
     }
+    await assertEvaluationQuota(adminSupabase, user.id, input, input.mode, assessmentLink.attemptId);
 
     const { data: upserted, error } = await adminSupabase
       .from("writing_submissions")
