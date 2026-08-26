@@ -13,7 +13,7 @@ import { parseLessonSlideActivities } from "@/lib/lessonTextParser";
 import { classifyAndExtractLesson } from "@/lib/slideClassifier";
 import { CONTENT_LEVELS } from "@/lib/levels";
 import type { Json, SlideType } from "@/types/database.types";
-import { ALL_ACTIVITIES_REFERENCE } from "@/lib/allActivitiesReference";
+import { ALL_ACTIVITIES_REFERENCE, ALL_CONTENT_BLOCK_REFERENCE } from "@/lib/allActivitiesReference";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 
@@ -1876,6 +1876,48 @@ export async function seedAllActivitiesReferenceLesson(lessonId: string) {
     if (activityError) throw activityError;
     added += 1;
     nextSlideNumber += 1;
+  }
+
+  const blockTypeByActivity: Record<string, string> = {
+    ORAL_RESPONSE: "HEADING", MCQ: "TEXT", TRUE_FALSE: "BULLETS", GAP_FILL: "GRAMMAR",
+    MATCHING: "CALLOUT", MULTIPLE_SELECT: "IMAGE", DRAG_DROP: "IMAGE_TEXT", CATEGORIZATION: "IMAGE_ANNOTATION",
+    REORDERING: "DIVIDER", ERROR_CORRECTION: "VOCABULARY", SHORT_ANSWER: "QUOTE", SUMMARIZATION: "READING",
+    INFERENCE_DETECTION: "FLASHCARD", HEADINGS_MATCHING: "TEXT", SKIM_CHALLENGE: "TABLE", PARAPHRASE_ID: "FLASHCARD",
+    SENTENCE_COMPLETION: "COMMON_MISTAKE", ESSAY_WRITING: "TABLE", EMAIL_LETTER_WRITING: "TEXT", TRANSLATION: "CONTRAST_PAIR",
+    PARAPHRASE_PRACTICE: "TEXT", SENTENCE_COMBINING: "QUOTE", CREATIVE_WRITING: "IMAGE_TEXT", PEER_REVIEW_EDITING: "COMMON_MISTAKE",
+    DIALOGUE_WRITING: "DIALOGUE", DICTATION: "AUDIO", LISTEN_AND_SELECT: "VIDEO", SHADOWING: "AUDIO",
+    NOTE_TAKING_CHALLENGE: "TABLE", SOUND_DISCRIMINATION: "AUDIO", LISTEN_AND_GAP_FILL: "AUDIO", PRONUNCIATION: "TEXT",
+    AI_ROLEPLAY: "DIALOGUE", AI_INTERVIEW: "TEXT", LIVE_SPEAK_TRANSLATE: "TEXT",
+  };
+  const referenceBlockByType = new Map(ALL_CONTENT_BLOCK_REFERENCE.map((item) => [item.blockType, item]));
+  const { data: currentSlides, error: currentSlidesError } = await supabase
+    .from("slides")
+    .select("id, slide_number, title")
+    .eq("lesson_id", lessonId)
+    .is("deleted_at", null)
+    .order("slide_number", { ascending: true });
+  if (currentSlidesError) throw currentSlidesError;
+  const { data: currentBlocks, error: currentBlocksError } = await supabase
+    .from("lesson_blocks")
+    .select("slide_id, block_type, position")
+    .eq("lesson_id", lessonId);
+  if (currentBlocksError) throw currentBlocksError;
+
+  for (const slide of currentSlides ?? []) {
+    const desiredType = blockTypeByActivity[slide.title] ?? "TEXT";
+    const existingOnSlide = (currentBlocks ?? []).filter((block) => block.slide_id === slide.id);
+    if (existingOnSlide.some((block) => block.block_type === desiredType)) continue;
+    const referenceBlock = referenceBlockByType.get(desiredType) ?? referenceBlockByType.get("TEXT");
+    if (!referenceBlock) continue;
+    const nextPosition = Math.max(0, ...existingOnSlide.map((block) => block.position)) + 1;
+    const { error: blockError } = await supabase.from("lesson_blocks").insert({
+      lesson_id: lessonId,
+      slide_id: slide.id,
+      position: nextPosition,
+      block_type: referenceBlock.blockType,
+      content: referenceBlock.content,
+    });
+    if (blockError) throw blockError;
   }
 
   revalidateLessonBuilder(lessonId);

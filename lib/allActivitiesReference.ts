@@ -57,3 +57,27 @@ export const ALL_ACTIVITIES_REFERENCE: ActivityReference[] = [
   { type: "AI_INTERVIEW", category: "Speaking", prompt: "Answer the interview questions one at a time.", data: { prompt: "Conduct a spoken interview based only on the hidden context.", interview_context: "The learner is practising personal introductions and daily routines.", exact_questions: ["What is your name?", "Where do you live?", "What do you do every day?"], level: "B1", question_count: 3, answer_seconds: 45, character: "AI interviewer", first_turn: "Welcome. I will ask you a few questions. Take your time.", voice_enabled: true, show_transcript: true, save_recordings: false, allow_download: false, attempt_quota: 0, max_seconds_per_attempt: 195 } },
   { type: "LIVE_SPEAK_TRANSLATE", category: "Speaking", prompt: "Speak in Bangla and listen to the English translation.", data: { prompt: "Speak in Bangla and listen to the English translation.", max_seconds_per_attempt: 30, total_seconds_per_learner: 120, show_transcript: true } },
 ];
+
+export type ContentBlockReference = { blockType: string; content: Json };
+
+export const ALL_CONTENT_BLOCK_REFERENCE: ContentBlockReference[] = [
+  { blockType: "HEADING", content: { level: "H2", text: "Speaking focus: clear introductions" } },
+  { blockType: "TEXT", content: { body: "Read the question carefully, then choose the answer that completes the sentence." } },
+  { blockType: "BULLETS", content: { title: "True or false tips", items: ["Look for key facts.", "Notice words such as always and never.", "Read the full statement before deciding."] } },
+  { blockType: "QUOTE", content: { body: "Small steps every day lead to lasting progress.", attribution: "BrenUp practice note" } },
+  { blockType: "CALLOUT", content: { title: "Matching tip", body: "Look for meaning, not only for words that look similar.", reveal_hidden: false } },
+  { blockType: "IMAGE", content: { path: "", alt: "A visual prompt for healthy habits", caption: "Creator reference: add an image related to the question." } },
+  { blockType: "IMAGE_TEXT", content: { image_path: "", image_position: "left", heading: "Sort by meaning", body: "Use the picture and the short explanation to introduce the groups before the learner sorts the items.", alt: "Categorization visual" } },
+  { blockType: "IMAGE_ANNOTATION", content: { path: "", alt: "Annotated scene", markers: [{ id: "1", x: 50, y: 45, label: "Example", note: "Add a short annotation." }] } },
+  { blockType: "AUDIO", content: { path: "", label: "Listening model" } },
+  { blockType: "VIDEO", content: { url: "", title: "Listening video reference" } },
+  { blockType: "DIVIDER", content: {} },
+  { blockType: "VOCABULARY", content: { entries: [{ word: "accurate", pronunciation: "/ˈækjərət/", meaning: "correct and exact", example: "Her answer was accurate." }, { word: "improve", pronunciation: "/ɪmˈpruːv/", meaning: "to become better", example: "Practice helps you improve." }] } },
+  { blockType: "GRAMMAR", content: { title: "Past simple reminder", explanation: "Use the past simple for a finished action in the past.", examples: ["I visited my aunt yesterday.", "They studied last night."], notes: "Check the verb form and time expression." } },
+  { blockType: "READING", content: { title: "Read before you answer", passage: "Good readers identify the main idea first, then return to the text to find supporting details.", questions: ["What is the main idea?", "Which detail supports it?"] } },
+  { blockType: "DIALOGUE", content: { title: "Model conversation", people: [{ id: "a", name: "Waiter", color: "var(--br-brand)" }, { id: "b", name: "Customer", color: "var(--br-success)" }], turns: [{ speaker_id: "a", line: "Welcome. What would you like?" }, { speaker_id: "b", line: "I would like the vegetable soup, please." }] } },
+  { blockType: "FLASHCARD", content: { front: "paraphrase", back: "The same meaning expressed with different words." } },
+  { blockType: "COMMON_MISTAKE", content: { mistake: "She go to school every day.", correction: "She goes to school every day.", explanation: "Use goes with he, she, and it in the present simple." } },
+  { blockType: "CONTRAST_PAIR", content: { title: "Translation contrast", left_label: "Source", left_text: "Ella estudia inglés.", right_label: "Target", right_text: "She studies English." } },
+  { blockType: "TABLE", content: { title: "Essay planning", headers: ["Part", "Purpose"], rows: [["Introduction", "Present the topic"], ["Body", "Give reasons and examples"], ["Conclusion", "Summarize the main idea"]] } },
+];
