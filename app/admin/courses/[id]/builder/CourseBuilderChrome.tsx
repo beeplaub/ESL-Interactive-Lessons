@@ -50,7 +50,7 @@ export function BuilderDialog({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="group flex min-w-0 items-center gap-3 rounded-xl border border-[var(--br-border)] bg-surface px-3 py-2.5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-violet-300 hover:shadow-md sm:px-4"
+        className="group flex h-full w-full min-w-0 items-center gap-3 rounded-xl border border-[var(--br-border)] bg-surface px-3 py-2.5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-violet-300 hover:shadow-md sm:px-4"
       >
         <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-violet-50 text-violet-700">
           <Icon size={17} />
@@ -145,7 +145,7 @@ export function DraggableBuilderGrid({ children, storageKey }: { children: React
             onDragEnd={() => setDraggingId(null)}
             onDragOver={(event) => event.preventDefault()}
             onDrop={() => dropOn(id)}
-            className={`group relative min-w-0 cursor-grab rounded-xl transition active:cursor-grabbing ${draggingId === id ? "opacity-45" : ""}`}
+            className={`group relative h-full min-w-0 cursor-grab rounded-xl transition active:cursor-grabbing ${draggingId === id ? "opacity-45" : ""}`}
             aria-label={`Reorder ${id}`}
           >
             <span className="pointer-events-none absolute right-2 top-2 z-10 text-sm leading-none text-[var(--br-text-muted)] opacity-0 transition group-hover:opacity-100" aria-hidden="true">⠿</span>
