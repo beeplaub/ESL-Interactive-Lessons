@@ -7,6 +7,7 @@ import { useDeleteConfirm } from "@/components/DeleteConfirmModal";
 import { MediaRecorderInput } from "@/components/MediaRecorderInput";
 import { lessonActivityDefinition } from "@/lib/lessonActivityCatalog";
 import { BuilderModalLayer } from "@/components/BuilderModalLayer";
+import { isWritingQuestionType, type EvaluationMode } from "@/lib/writingGrading";
 
 type Activity = {
   id: string;
@@ -102,6 +103,17 @@ type ReorderData = {
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+}
+
+function GradingLimitsEditor({ maxAttempts, quotas, onMaxAttemptsChange, onQuotaChange }: { maxAttempts: number; quotas: Record<EvaluationMode, number>; onMaxAttemptsChange: (value: number) => void; onQuotaChange: (mode: EvaluationMode, value: number) => void }) {
+  return <div className="rounded-xl border border-[var(--br-border)] bg-surface-muted p-3">
+    <p className="text-xs font-bold uppercase tracking-wide text-[var(--br-text-muted)]">Learner limits (0 = unlimited)</p>
+    <div className="mt-2 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <label className="text-sm">Attempts per learner<input type="number" min={0} max={1000} value={maxAttempts} onChange={(event) => onMaxAttemptsChange(Math.max(0, Math.min(1000, Number(event.target.value) || 0)))} className="mt-1 w-full rounded-md border border-[var(--br-border)] bg-surface px-3 py-2" /></label>
+      {(["AI_FEEDBACK", "SELF_GRADED", "TEACHER_REVIEW"] as EvaluationMode[]).map((mode) => <label key={mode} className="text-sm">{mode === "AI_FEEDBACK" ? "AI feedback" : mode === "SELF_GRADED" ? "Self-check" : "Teacher review"}<input type="number" min={0} max={1000} value={quotas[mode]} onChange={(event) => onQuotaChange(mode, Math.max(0, Math.min(1000, Number(event.target.value) || 0)))} className="mt-1 w-full rounded-md border border-[var(--br-border)] bg-surface px-3 py-2" /></label>)}
+    </div>
+    <p className="mt-2 text-xs text-[var(--br-text-muted)]">Each quota is counted per learner for this activity. Previous attempts remain available for review.</p>
+  </div>;
 }
 
 function labelFor(type: string) {
@@ -731,10 +743,21 @@ function ActivityPanel({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const { confirmDelete } = useDeleteConfirm();
+  const initialActivityData = asRecord(activity.activity_data);
+  const initialQuotaData = asRecord(initialActivityData.evaluation_quotas as Json);
+  const [maxAttempts, setMaxAttempts] = useState(Math.max(0, Math.min(1000, Number(initialActivityData.max_attempts ?? 0) || 0)));
+  const [evaluationQuotas, setEvaluationQuotas] = useState<Record<EvaluationMode, number>>({
+    AI_FEEDBACK: Math.max(0, Math.min(1000, Number(initialQuotaData.AI_FEEDBACK ?? 0) || 0)),
+    SELF_GRADED: Math.max(0, Math.min(1000, Number(initialQuotaData.SELF_GRADED ?? 0) || 0)),
+    TEACHER_REVIEW: Math.max(0, Math.min(1000, Number(initialQuotaData.TEACHER_REVIEW ?? 0) || 0)),
+  });
   const title = activity.slides?.title || `Slide ${activity.slide_number}`;
   const displaySlideNumber = activity.slides?.slide_number ?? activity.slide_number;
 
   function save(activityData: Json, needsReview = false) {
+    const savedActivityData = isWritingQuestionType(activity.activity_type)
+      ? { ...asRecord(activityData), max_attempts: maxAttempts, evaluation_quotas: evaluationQuotas } as Json
+      : activityData;
     setStatus("saving");
     setError(null);
     startTransition(async () => {
@@ -742,7 +765,7 @@ function ActivityPanel({
         activityId: activity.id,
         lessonId,
         activityType: activity.activity_type,
-        activityData,
+        activityData: savedActivityData,
         needsReview
       });
       if (!result.success) {
@@ -750,7 +773,7 @@ function ActivityPanel({
         setError(result.error ?? "Could not save activity.");
         return;
       }
-      onSaved({ ...activity, activity_data: activityData, needs_review: needsReview });
+      onSaved({ ...activity, activity_data: savedActivityData, needs_review: needsReview });
       setStatus("saved");
       window.setTimeout(() => setStatus("idle"), 2000);
     });
@@ -811,6 +834,7 @@ function ActivityPanel({
                   This activity has missing answers. Please fill them in before publishing.
                 </p>
               ) : null}
+              {isWritingQuestionType(activity.activity_type) ? <GradingLimitsEditor maxAttempts={maxAttempts} quotas={evaluationQuotas} onMaxAttemptsChange={setMaxAttempts} onQuotaChange={(mode, value) => setEvaluationQuotas((current) => ({ ...current, [mode]: value }))} /> : null}
               {activity.activity_type === "MCQ" ? <McqEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "GAP_FILL" ? <GapFillEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "TRUE_FALSE" ? <TrueFalseEditor activity={activity} onSave={save} /> : null}
@@ -1876,8 +1900,6 @@ function OralResponseEditor({ activity, onSave }: { activity: Activity; onSave: 
   const [allowSelfGraded, setAllowSelfGraded] = useState(initial.allowSelfGraded);
   const [allowAiFeedback, setAllowAiFeedback] = useState(initial.allowAiFeedback);
   const [allowTeacherReview, setAllowTeacherReview] = useState(initial.allowTeacherReview);
-  const [maxAttempts, setMaxAttempts] = useState(initial.maxAttempts);
-  const [evaluationQuotas, setEvaluationQuotas] = useState(initial.evaluationQuotas);
   const [questions, setQuestions] = useState<OralResponseQuestion[]>(initial.questions.length ? initial.questions : [{
     id: 1,
     text: "",
@@ -1904,21 +1926,6 @@ function OralResponseEditor({ activity, onSave }: { activity: Activity; onSave: 
           <label className="flex items-center gap-2 text-xs font-semibold"><input type="checkbox" checked={allowAiFeedback} onChange={(event) => setAllowAiFeedback(event.target.checked)} /> AI feedback</label>
           <label className="flex items-center gap-2 text-xs font-semibold"><input type="checkbox" checked={allowTeacherReview} onChange={(event) => setAllowTeacherReview(event.target.checked)} /> Teacher review</label>
         </div>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <label className="text-sm font-medium">Attempts per learner
-            <input type="number" min={0} max={1000} value={maxAttempts} onChange={(event) => setMaxAttempts(Math.max(0, Math.min(1000, Number(event.target.value) || 0)))} className="mt-1 w-full rounded-md border border-[var(--br-border)] bg-surface px-3 py-2" />
-            <span className="mt-1 block text-xs font-normal text-[var(--br-text-muted)]">0 means unlimited.</span>
-          </label>
-          {([
-            ["AI_FEEDBACK", "AI feedback"],
-            ["SELF_GRADED", "Self-check"],
-            ["TEACHER_REVIEW", "Teacher review"],
-          ] as const).map(([mode, label]) => <label key={mode} className="text-sm font-medium">{label} quota
-            <input type="number" min={0} max={1000} value={evaluationQuotas[mode]} onChange={(event) => setEvaluationQuotas((current) => ({ ...current, [mode]: Math.max(0, Math.min(1000, Number(event.target.value) || 0)) }))} className="mt-1 w-full rounded-md border border-[var(--br-border)] bg-surface px-3 py-2" />
-            <span className="mt-1 block text-xs font-normal text-[var(--br-text-muted)]">0 means unlimited.</span>
-          </label>)}
-        </div>
-        <p className="mt-3 text-xs text-[var(--br-text-muted)]">Quotas are counted per learner for this activity. A learner can still review previous attempts after a quota is reached.</p>
       </div>
       {questions.map((question, index) => (
         <div key={String(question.id)} className="rounded-md border border-[var(--br-border)] p-4">
@@ -1941,8 +1948,6 @@ function OralResponseEditor({ activity, onSave }: { activity: Activity; onSave: 
           allow_self_graded: allowSelfGraded,
           allow_ai_feedback: allowAiFeedback,
           allow_teacher_review: allowTeacherReview,
-          max_attempts: maxAttempts,
-          evaluation_quotas: evaluationQuotas,
           questions: questions.map((question, index) => ({
             id: index + 1,
             text: question.text,

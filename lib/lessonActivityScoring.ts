@@ -41,6 +41,8 @@ function writingRows(data: Record<string, unknown>, type: LessonScoredQuestion["
       allow_self_graded: (row.allow_self_graded ?? data.allow_self_graded) !== false,
       allow_ai_feedback: (row.allow_ai_feedback ?? data.allow_ai_feedback) !== false,
       allow_teacher_review: (row.allow_teacher_review ?? data.allow_teacher_review) !== false,
+      max_attempts: Number(row.max_attempts ?? data.max_attempts ?? 0),
+      evaluation_quotas: (row.evaluation_quotas ?? data.evaluation_quotas ?? {}) as Json,
       instruction,
     } as Json);
   });
@@ -71,6 +73,8 @@ export function lessonScoredQuestions(activityType: string, value: Json | null):
       allow_self_graded: (row.allow_self_graded ?? data.allow_self_graded) !== false,
       allow_ai_feedback: (row.allow_ai_feedback ?? data.allow_ai_feedback) !== false,
       allow_teacher_review: (row.allow_teacher_review ?? data.allow_teacher_review) !== false,
+      max_attempts: Number(row.max_attempts ?? data.max_attempts ?? 0),
+      evaluation_quotas: (row.evaluation_quotas ?? data.evaluation_quotas ?? {}) as Json,
     } as Json));
   }
 
@@ -165,6 +169,8 @@ export function lessonScoredQuestions(activityType: string, value: Json | null):
       allow_self_graded: (row.allow_self_graded ?? data.allow_self_graded) !== false,
       allow_ai_feedback: (row.allow_ai_feedback ?? data.allow_ai_feedback) !== false,
       allow_teacher_review: (row.allow_teacher_review ?? data.allow_teacher_review) !== false,
+      max_attempts: Number(row.max_attempts ?? data.max_attempts ?? 0),
+      evaluation_quotas: (row.evaluation_quotas ?? data.evaluation_quotas ?? {}) as Json,
     } as Json));
   }
 

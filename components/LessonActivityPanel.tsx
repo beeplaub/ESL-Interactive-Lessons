@@ -92,6 +92,8 @@ function writingQuestionsFromData(
         allow_self_graded: (item.allow_self_graded ?? data.allow_self_graded) !== false,
         allow_ai_feedback: (item.allow_ai_feedback ?? data.allow_ai_feedback) !== false,
         allow_teacher_review: (item.allow_teacher_review ?? data.allow_teacher_review) !== false,
+        max_attempts: Number(item.max_attempts ?? data.max_attempts ?? 0),
+        evaluation_quotas: (item.evaluation_quotas ?? data.evaluation_quotas ?? {}) as Json,
       } as Json,
       correct_answer: correctAnswer as Json,
     };
@@ -1653,10 +1655,10 @@ export function LessonActivityPanel({
   const availableEvaluationModes = aiTemporarilyUnavailable
     ? configuredEvaluationModes.filter((mode) => mode !== "AI_FEEDBACK")
     : configuredEvaluationModes;
-  const oralQuestion = questions.find((question) => question.question_type === "ORAL_RESPONSE");
-  const oralOptions = oralQuestion ? asRecord(oralQuestion.options) : {};
-  const oralMaxAttempts = Math.max(0, Number(oralOptions.max_attempts ?? 0) || 0);
-  const modeLimits = (Object.fromEntries(((["AI_FEEDBACK", "SELF_GRADED", "TEACHER_REVIEW"] as EvaluationMode[]).map((mode) => [mode, { limit: evaluationQuota(oralOptions, mode), used: modeUsesFromAttempts(localAttempts, mode) }]))) as Partial<Record<EvaluationMode, { limit: number; used: number }>>);
+  const subjectiveQuestion = questions.find((question) => isWritingQuestionType(question.question_type));
+  const gradingOptions = subjectiveQuestion ? asRecord(subjectiveQuestion.options) : {};
+  const maxAttempts = Math.max(0, Number(gradingOptions.max_attempts ?? 0) || 0);
+  const modeLimits = (Object.fromEntries(((["AI_FEEDBACK", "SELF_GRADED", "TEACHER_REVIEW"] as EvaluationMode[]).map((mode) => [mode, { limit: evaluationQuota(gradingOptions, mode), used: modeUsesFromAttempts(localAttempts, mode) }]))) as Partial<Record<EvaluationMode, { limit: number; used: number }>>);
   const historicalReviewOnly = Boolean(
     selectedAttemptId && localAttempts[0]?.id && selectedAttemptId !== localAttempts[0].id
   );
@@ -1689,8 +1691,8 @@ export function LessonActivityPanel({
   }
 
   function submit(modeOverride?: EvaluationMode) {
-    if (!submitted && oralMaxAttempts > 0 && localAttempts.length >= oralMaxAttempts) {
-      setMessage(`You have used all ${oralMaxAttempts} attempts for this activity.`);
+    if (!submitted && maxAttempts > 0 && localAttempts.length >= maxAttempts) {
+      setMessage(`You have used all ${maxAttempts} attempts for this activity.`);
       return;
     }
     const selectedMode = modeOverride ?? evaluationMode;
@@ -1955,7 +1957,7 @@ export function LessonActivityPanel({
             <button
               type="button"
               onClick={() => submit()}
-              disabled={!allAnswered || isPending || (oralMaxAttempts > 0 && localAttempts.length >= oralMaxAttempts)}
+              disabled={!allAnswered || isPending || (maxAttempts > 0 && localAttempts.length >= maxAttempts)}
               className="rounded-md bg-moss px-4 py-2 text-sm font-semibold text-on-dark disabled:opacity-40"
             >
               {isPending ? "Saving…" : hasSubjectiveQuestions ? "Continue to grading" : "Check answers"}

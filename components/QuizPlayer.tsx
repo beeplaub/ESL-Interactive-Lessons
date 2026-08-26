@@ -412,10 +412,10 @@ export function QuizPlayer({
   const availableEvaluationModes = aiTemporarilyUnavailable
     ? configuredEvaluationModes.filter((mode) => mode !== "AI_FEEDBACK")
     : configuredEvaluationModes;
-  const oralQuestion = questions.find((question) => question.question_type === "ORAL_RESPONSE");
-  const oralOptions = oralQuestion ? asRecord(oralQuestion.options) : {};
-  const oralMaxAttempts = Math.max(0, Number(oralOptions.max_attempts ?? 0) || 0);
-  const modeLimits = (Object.fromEntries(((["AI_FEEDBACK", "SELF_GRADED", "TEACHER_REVIEW"] as EvaluationMode[]).map((mode) => [mode, { limit: evaluationQuota(oralOptions, mode), used: modeUsesFromAttempts(allAttempts, mode) }]))) as Partial<Record<EvaluationMode, { limit: number; used: number }>>);
+  const subjectiveQuestion = questions.find((question) => isWritingQuestionType(question.question_type));
+  const gradingOptions = subjectiveQuestion ? asRecord(subjectiveQuestion.options) : {};
+  const maxAttempts = Math.max(0, Number(gradingOptions.max_attempts ?? 0) || 0);
+  const modeLimits = (Object.fromEntries(((["AI_FEEDBACK", "SELF_GRADED", "TEACHER_REVIEW"] as EvaluationMode[]).map((mode) => [mode, { limit: evaluationQuota(gradingOptions, mode), used: modeUsesFromAttempts(allAttempts, mode) }]))) as Partial<Record<EvaluationMode, { limit: number; used: number }>>);
   const historicalReviewOnly = Boolean(
     selectedAttemptId && allAttempts.some((attempt) => attempt.id === selectedAttemptId) && selectedAttemptId !== allAttempts.at(-1)?.id
   );
@@ -594,8 +594,8 @@ export function QuizPlayer({
 
   const submit = useCallback((modeOverride?: EvaluationMode) => {
     if (submitted) return;
-    if (oralMaxAttempts > 0 && allAttempts.length >= oralMaxAttempts) {
-      setMessage(`You have used all ${oralMaxAttempts} attempts for this activity.`);
+    if (maxAttempts > 0 && allAttempts.length >= maxAttempts) {
+      setMessage(`You have used all ${maxAttempts} attempts for this activity.`);
       return;
     }
     const selectedMode = modeOverride ?? evaluationMode;
@@ -652,7 +652,7 @@ export function QuizPlayer({
         setMessage(error instanceof Error ? error.message : "Could not save quiz attempt.");
       }
     });
-  }, [allAttempts.length, answers, courseItemId, evaluationMode, hasSubjectiveQuestions, isGuest, oralMaxAttempts, questions, quizId, submitted]);
+  }, [allAttempts.length, answers, courseItemId, evaluationMode, hasSubjectiveQuestions, isGuest, maxAttempts, questions, quizId, submitted]);
 
   useEffect(() => {
     if (!submitted || !autoGradingActive || !evaluationMode || evaluationMode === "SELF_GRADED") return;
@@ -875,7 +875,7 @@ export function QuizPlayer({
                 {!submitted && (
                   <button
                     type="button"
-                    disabled={!answered || submitted || (oralMaxAttempts > 0 && allAttempts.length >= oralMaxAttempts)}
+                    disabled={!answered || submitted || (maxAttempts > 0 && allAttempts.length >= maxAttempts)}
                     onClick={() => submit()}
                     className="inline-flex items-center gap-2 rounded-[14px] bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] px-4 py-2 text-sm font-extrabold text-on-dark shadow-[var(--br-shadow)] disabled:opacity-45"
                   >
