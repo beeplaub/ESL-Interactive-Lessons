@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useEffect, useState, useTransition } from "react";
+import { Children, isValidElement, type ReactNode, useEffect, useMemo, useState, useTransition } from "react";
 import { BookOpen, CheckCircle2, ChevronRight, HelpCircle, Plus, Settings2, X, Coins, Users } from "lucide-react";
 
 type BuilderDialogProps = {
@@ -94,6 +94,66 @@ export function BuilderDialog({
         </div>
       ) : null}
     </>
+  );
+}
+
+export function DraggableBuilderGrid({ children, storageKey }: { children: ReactNode; storageKey: string }) {
+  const cards = useMemo(() => Children.toArray(children).filter(isValidElement), [children]);
+  const cardIds = useMemo(() => cards.map((card, index) => String((card.props as { triggerLabel?: string }).triggerLabel ?? `card-${index}`)), [cards]);
+  const [orderedIds, setOrderedIds] = useState(cardIds);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let saved: string[] = [];
+    try {
+      const parsed = JSON.parse(window.localStorage.getItem(storageKey) ?? "[]");
+      if (Array.isArray(parsed)) saved = parsed.map(String);
+    } catch {
+      saved = [];
+    }
+    setOrderedIds([...saved.filter((id) => cardIds.includes(id)), ...cardIds.filter((id) => !saved.includes(id))]);
+  }, [cardIds, storageKey]);
+
+  const cardById = new Map(cards.map((card, index) => [cardIds[index], card]));
+  const persist = (next: string[]) => {
+    setOrderedIds(next);
+    window.localStorage.setItem(storageKey, JSON.stringify(next));
+  };
+
+  function dropOn(targetId: string) {
+    if (!draggingId || draggingId === targetId) return;
+    const next = [...orderedIds];
+    const from = next.indexOf(draggingId);
+    const to = next.indexOf(targetId);
+    if (from < 0 || to < 0) return;
+    next.splice(from, 1);
+    next.splice(to, 0, draggingId);
+    persist(next);
+    setDraggingId(null);
+  }
+
+  return (
+    <section className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4" aria-label="Course builder settings">
+      {orderedIds.map((id) => {
+        const card = cardById.get(id);
+        if (!card) return null;
+        return (
+          <div
+            key={id}
+            draggable
+            onDragStart={() => setDraggingId(id)}
+            onDragEnd={() => setDraggingId(null)}
+            onDragOver={(event) => event.preventDefault()}
+            onDrop={() => dropOn(id)}
+            className={`group relative min-w-0 cursor-grab rounded-xl transition active:cursor-grabbing ${draggingId === id ? "opacity-45" : ""}`}
+            aria-label={`Reorder ${id}`}
+          >
+            <span className="pointer-events-none absolute right-2 top-2 z-10 text-sm leading-none text-[var(--br-text-muted)] opacity-0 transition group-hover:opacity-100" aria-hidden="true">⠿</span>
+            {card}
+          </div>
+        );
+      })}
+    </section>
   );
 }
 

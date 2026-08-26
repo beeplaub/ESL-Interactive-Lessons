@@ -15,7 +15,7 @@ import { requireCourseAccess, isPlatformAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { CONTENT_LEVELS } from "@/lib/levels";
 import { AddItemModal } from "@/app/admin/courses/[id]/builder/AddItemModal";
-import { BuilderDialog, CurriculumWorkspace } from "@/app/admin/courses/[id]/builder/CourseBuilderChrome";
+import { BuilderDialog, CurriculumWorkspace, DraggableBuilderGrid } from "@/app/admin/courses/[id]/builder/CourseBuilderChrome";
 import { CreateItemModal } from "@/app/admin/courses/[id]/builder/CreateItemModal";
 import { EditItemModal } from "@/app/admin/courses/[id]/builder/EditItemModal";
 import { CourseQuizOutcomeMapper } from "@/components/CourseQuizOutcomeMapper";
@@ -340,7 +340,7 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
         </div>
       </section>
 
-      <section className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+      <DraggableBuilderGrid storageKey={`brenup-course-builder-cards:${course.id}`}>
         <BuilderDialog
           icon="outcomes"
           triggerLabel="Assessment map"
@@ -622,7 +622,7 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
             mappings={quizOutcomeMappings ?? []}
           />
         </BuilderDialog>
-      </section>
+      </DraggableBuilderGrid>
 
       <CurriculumWorkspace
         sections={curriculumSections}
