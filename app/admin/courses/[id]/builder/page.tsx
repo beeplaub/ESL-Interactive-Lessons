@@ -340,25 +340,30 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
         </div>
       </section>
 
-      <section className="rounded-2xl border border-[var(--br-border)] bg-surface p-4 shadow-sm sm:p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-moss">Assessment map</p>
-            <h2 className="mt-1 text-lg font-semibold text-ink">A clear path from activity evidence to the course grade</h2>
-          </div>
-          <Link href={`/admin/courses/${course.id}/analytics`} className="rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm font-semibold hover:bg-surface-muted">View report</Link>
-        </div>
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
-          <AssessmentCategory label="Formative" courseWeight={Number(course.formative_weight ?? 40)} itemCount={formativeItems.length} itemWeight={formativeItemWeight} />
-          <AssessmentCategory label="Summative" courseWeight={Number(course.summative_weight ?? 60)} itemCount={summativeItems.length} itemWeight={summativeItemWeight} />
-        </div>
-        {Math.abs(formativeItemWeight - 100) > 0.001 || (summativeItems.length > 0 && Math.abs(summativeItemWeight - 100) > 0.001) ? (
-          <p className="mt-3 rounded-lg border border-amber-400/40 bg-amber-50 px-3 py-2 text-xs text-amber-900">Item weights should total 100% inside each active category. You can keep building; this is a readiness warning, not a block.</p>
-        ) : null}
-        {coverageWarnings.total ? <div className="mt-3 rounded-xl border border-[var(--br-border)] bg-surface-muted p-3"><div className="flex flex-wrap items-center justify-between gap-2"><p className="text-xs font-bold text-ink">Question coverage</p><Link href={`/admin/courses/${course.id}/outcomes`} className="text-xs font-bold text-moss hover:underline">Open outcome report</Link></div><p className="mt-1 text-xs text-[var(--br-text-muted)]">{coverageWarnings.total} scored questions detected · {coverageWarnings.missingSkill} need a skill · {coverageWarnings.missingOutcome} need a lesson outcome · {coverageWarnings.targetTagged} have learning targets.</p>{coverageWarnings.missingSkill || coverageWarnings.missingOutcome ? <p className="mt-2 text-xs font-semibold text-amber-800">Complete these mappings in the lesson or quiz question editors to strengthen OBE evidence.</p> : <p className="mt-2 text-xs font-semibold text-moss">Core question mapping is covered.</p>}</div> : null}
-      </section>
-
       <section className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        <BuilderDialog
+          icon="outcomes"
+          triggerLabel="Assessment map"
+          countLabel={`${formativeItems.length + summativeItems.length} assessed items · ${course.formative_weight ?? 40}/${course.summative_weight ?? 60} split`}
+          title="Assessment map"
+          description="See how activity evidence contributes to the course grade and where mapping still needs attention."
+        >
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-moss">Assessment map</p>
+              <h2 className="mt-1 text-lg font-semibold text-ink">A clear path from activity evidence to the course grade</h2>
+            </div>
+            <Link href={`/admin/courses/${course.id}/analytics`} className="rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm font-semibold hover:bg-surface-muted">View report</Link>
+          </div>
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <AssessmentCategory label="Formative" courseWeight={Number(course.formative_weight ?? 40)} itemCount={formativeItems.length} itemWeight={formativeItemWeight} />
+            <AssessmentCategory label="Summative" courseWeight={Number(course.summative_weight ?? 60)} itemCount={summativeItems.length} itemWeight={summativeItemWeight} />
+          </div>
+          {Math.abs(formativeItemWeight - 100) > 0.001 || (summativeItems.length > 0 && Math.abs(summativeItemWeight - 100) > 0.001) ? (
+            <p className="mt-3 rounded-lg border border-amber-400/40 bg-amber-50 px-3 py-2 text-xs text-amber-900">Item weights should total 100% inside each active category. You can keep building; this is a readiness warning, not a block.</p>
+          ) : null}
+          {coverageWarnings.total ? <div className="mt-3 rounded-xl border border-[var(--br-border)] bg-surface-muted p-3"><div className="flex flex-wrap items-center justify-between gap-2"><p className="text-xs font-bold text-ink">Question coverage</p><Link href={`/admin/courses/${course.id}/outcomes`} className="text-xs font-bold text-moss hover:underline">Open outcome report</Link></div><p className="mt-1 text-xs text-[var(--br-text-muted)]">{coverageWarnings.total} scored questions detected · {coverageWarnings.missingSkill} need a skill · {coverageWarnings.missingOutcome} need a lesson outcome · {coverageWarnings.targetTagged} have learning targets.</p>{coverageWarnings.missingSkill || coverageWarnings.missingOutcome ? <p className="mt-2 text-xs font-semibold text-amber-800">Complete these mappings in the lesson or quiz question editors to strengthen OBE evidence.</p> : <p className="mt-2 text-xs font-semibold text-moss">Core question mapping is covered.</p>}</div> : null}
+        </BuilderDialog>
         {canManageTeam ? (
           <BuilderDialog
             icon="team"
