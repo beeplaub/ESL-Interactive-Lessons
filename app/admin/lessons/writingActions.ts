@@ -316,6 +316,7 @@ export async function saveWritingGradingOutcomeAction(input: WritingSubmissionIn
       if (!Number.isFinite(score)) throw new Error("The grading result did not include a valid score.");
       const outcome = {
         text: input.submissionText.trim(),
+        ...(input.activityType === "ORAL_RESPONSE" ? { transcript: input.submissionText.trim() } : {}),
         mode: input.mode,
         gradingState: "GRADED",
         score,
@@ -340,6 +341,7 @@ export async function saveWritingGradingOutcomeAction(input: WritingSubmissionIn
         questionKey,
         outcome: {
           text: input.submissionText.trim(),
+          ...(input.activityType === "ORAL_RESPONSE" ? { transcript: input.submissionText.trim() } : {}),
           mode: input.mode,
           gradingState: "PENDING",
           submissionId: upserted.id,

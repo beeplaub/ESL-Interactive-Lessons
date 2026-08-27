@@ -2296,7 +2296,12 @@ function OralResponse({
   const allowSelfGraded = opts.allow_self_graded !== false;
   const modelAnswer = String(opts.model_answer ?? "").trim();
   const targetPhrases = Array.isArray(opts.target_phrases) ? opts.target_phrases.map(String).filter(Boolean) : [];
-  const hasRecordedResponse = Boolean(value?.transcript?.trim());
+  // Historical finalized attempts use the shared writing shape (`text`) while
+  // live oral answers use the oral-specific `transcript` key. Read both so an
+  // older response remains reviewable after later attempts are created.
+  const persistedText = (value as (OralResponseValue & { text?: string }) | undefined)?.text;
+  const recordedResponse = String(value?.transcript ?? persistedText ?? "").trim();
+  const hasRecordedResponse = Boolean(recordedResponse);
   const [supported, setSupported] = useState(true);
   const [recording, setRecording] = useState(false);
   const [processing, setProcessing] = useState(false);
@@ -2464,17 +2469,17 @@ function OralResponse({
       {transcriptionError ? <p className="relative z-10 w-full rounded-[14px] border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-900">{transcriptionError}</p> : null}
       {targetPhrases.length > 0 && !submitted && !hasRecordedResponse ? <p className="relative z-10 text-xs text-[var(--br-text-muted)]">Speak naturally and try to use the target language.</p> : null}
       </> : null}
-      {submitted && value?.transcript ? (
+      {submitted && recordedResponse ? (
         <>
           <div className="w-full rounded-[14px] bg-[var(--br-canvas-elevated)] p-3 text-left text-sm leading-6 whitespace-pre-wrap">
             <p className="mb-1 text-xs font-bold uppercase tracking-wide text-[var(--br-text-muted)]">Your spoken response</p>
-            {value.transcript}
+            {recordedResponse}
           </div>
           <WritingEvaluationInterface
             activityId={question.source_activity_id ?? question.id}
             activityType="ORAL_RESPONSE"
             prompt={question.question_text}
-            submissionText={value.transcript}
+            submissionText={recordedResponse}
             modelAnswer={modelAnswer}
             rubricGuidance={targetPhrases.length ? `Target phrases to consider for meaningful spoken use: ${targetPhrases.join(", ")}` : undefined}
             allowSelfGraded={allowSelfGraded}
@@ -2483,8 +2488,8 @@ function OralResponse({
             questionKey={question.id}
             quizId={quizId}
             lessonId={lessonId}
-            initialValue={{ ...value, text: value.transcript } as unknown as WritingAnswerValue}
-            onGraded={(outcome) => onChange({ ...value, ...outcome, transcript: value.transcript } as OralResponseValue)}
+            initialValue={{ ...value, text: recordedResponse, transcript: recordedResponse } as unknown as WritingAnswerValue}
+            onGraded={(outcome) => onChange({ ...value, ...outcome, text: recordedResponse, transcript: recordedResponse } as OralResponseValue)}
           />
         </>
       ) : submitted ? <p className="w-full rounded-[14px] bg-[var(--br-canvas-elevated)] p-4 text-sm text-[var(--br-text-muted)]">Your recorded response is unavailable for review.</p> : null}
