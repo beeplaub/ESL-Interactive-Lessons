@@ -186,7 +186,13 @@ export function isCorrect(question: ScoredQuestion, value: unknown): boolean {
 
   if (question.question_type === "SHADOWING") {
     const rec = asRecord(value as Json);
-    return rec.passed === true || Number(rec.accuracy ?? 0) >= 70;
+    const options = asRecord(question.options);
+    const requiredRepeats = Math.max(1, Math.min(20, Number(options.repeat_count ?? 1) || 1));
+    const repetitions = Array.isArray(rec.repetitions) ? rec.repetitions.map((item) => asRecord(item as Json)) : [];
+    return repetitions.length >= requiredRepeats && repetitions.slice(0, requiredRepeats).every((item) => {
+      const match = asRecord(item.match as Json);
+      return options.require_all_green === false || match.allGreen === true;
+    });
   }
 
   if (question.question_type === "NOTE_TAKING_CHALLENGE") {

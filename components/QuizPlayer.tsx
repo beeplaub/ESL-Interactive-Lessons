@@ -18,6 +18,7 @@ import { computeBestStreak, NOTABLE_STREAK_THRESHOLD } from "@/lib/gamification/
 import { ActivityEvaluationModeContext, AiUnavailableDialog, EvaluationMethodDialog, WritingEvaluationInterface } from "@/components/WritingEvaluationInterface";
 import { asWritingValue, evaluationQuota, isAwaitingResolution, isWritingQuestionType, modeUsesFromAttempts, resolveWritingOutcome, type EvaluationMode, type WritingAnswerValue } from "@/lib/writingGrading";
 import { normalizeDisplayScore } from "@/lib/assessmentContract";
+import { matchShadowingPhrase, type ShadowingMatchResult } from "@/lib/shadowingMatching";
 
 export type QuizQuestion = {
   id: string;
@@ -57,6 +58,13 @@ export type OralResponseValue = {
   selfMarked?: boolean;
   aiFeedback?: Record<string, unknown> | null;
   teacherFeedback?: string | null;
+};
+
+type ShadowingValue = {
+  transcript?: string;
+  accuracy?: number;
+  passed?: boolean;
+  repetitions?: Array<{ transcript: string; match: ShadowingMatchResult }>;
 };
 
 function allowedEvaluationModes(questions: QuizQuestion[]): EvaluationMode[] {
@@ -136,7 +144,13 @@ export function hasAnswer(question: QuizQuestion, value: unknown): boolean {
   }
   if (question.question_type === "SHADOWING") {
     const rec = asRecord(value as Json);
-    return rec.passed === true || String(rec.transcript ?? "").trim().length > 0 || Number(rec.accuracy ?? 0) > 0;
+    const options = asRecord(question.options);
+    const requiredRepeats = Math.max(1, Math.min(20, Number(options.repeat_count ?? 1) || 1));
+    const repetitions = Array.isArray(rec.repetitions) ? rec.repetitions.map((item) => asRecord(item as Json)) : [];
+    return repetitions.length >= requiredRepeats && repetitions.slice(0, requiredRepeats).every((item) => {
+      const match = asRecord(item.match as Json);
+      return options.require_all_green === false || match.allGreen === true;
+    });
   }
   if (question.question_type === "PRONUNCIATION") {
     const opts = asRecord(question.options) as { level?: string; targets?: unknown[]; max_attempts?: number };
@@ -1017,7 +1031,7 @@ export function QuestionCard({
         {question.question_type === "PARAPHRASE_ID" ? <ParaphraseId question={question} value={value as string | undefined} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "DICTATION" ? <DictationPlayer question={question} value={value as string | undefined} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "LISTEN_AND_SELECT" ? <ListenSelectPlayer question={question} value={value as string | undefined} disabled={submitted} onChange={onChange} /> : null}
-        {question.question_type === "SHADOWING" ? <ShadowingPlayer question={question} value={value as { transcript?: string; accuracy?: number; passed?: boolean } | undefined} disabled={submitted} onChange={onChange} /> : null}
+        {question.question_type === "SHADOWING" ? <ShadowingPlayer question={question} value={value as ShadowingValue | undefined} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "NOTE_TAKING_CHALLENGE" ? <NoteTakingChallengePlayer question={question} value={(value as Record<string, string>) ?? {}} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "SOUND_DISCRIMINATION" ? <SoundDiscriminationPlayer question={question} value={value as string | undefined} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "LISTEN_AND_GAP_FILL" ? <ListenGapFillPlayer question={question} value={value as string[] | undefined} disabled={submitted} onChange={onChange} /> : null}
@@ -2894,119 +2908,161 @@ function ShadowingPlayer({
   onChange,
 }: {
   question: QuizQuestion;
-  value?: { transcript?: string; accuracy?: number; passed?: boolean };
+  value?: ShadowingValue;
   disabled: boolean;
-  onChange: (val: { transcript?: string; accuracy?: number; passed?: boolean }) => void;
+  onChange: (val: ShadowingValue) => void;
 }) {
   const opts = asRecord(question.options);
   const audioUrl = String(opts.audio_url ?? "");
   const targetText = String(opts.target_text ?? question.correct_answer ?? "");
+  const requiredRepeats = Math.max(1, Math.min(20, Number(opts.repeat_count ?? 1) || 1));
+  const requireAllGreen = opts.require_all_green !== false;
+  const showLiveMatch = opts.show_live_match !== false;
 
   const [recording, setRecording] = useState(false);
-  const [transcript, setTranscript] = useState(value?.transcript ?? "");
+  const [processing, setProcessing] = useState(false);
+  const [previewTranscript, setPreviewTranscript] = useState(value?.transcript ?? "");
+  const [error, setError] = useState<string | null>(null);
   const recognitionRef = useRef<any>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const startedAtRef = useRef(0);
 
   function playNativeAudio() {
     if (!audioUrl) return;
     const a = new Audio(audioUrl);
-    a.play();
+    void a.play().catch(() => setError("Tap Listen again to play the native audio."));
   }
 
-  function startSpeechRecognition() {
+  function startPreviewRecognition() {
     const SpeechConstructor = getSpeechRecognitionConstructor();
-    if (!SpeechConstructor) {
-      alert("Speech recognition is not supported in this browser. Please try Chrome or Edge.");
-      return;
-    }
-
+    if (!SpeechConstructor) return;
     const rec = new SpeechConstructor();
-    rec.continuous = false;
+    rec.continuous = true;
     rec.interimResults = true;
     rec.lang = "en-US";
-
-    rec.onresult = (e: any) => {
-      let finalStr = "";
-      for (let i = 0; i < e.results.length; i++) {
-        finalStr += e.results[i][0].transcript;
-      }
-      setTranscript(finalStr);
+    rec.onresult = (event: any) => {
+      let text = "";
+      for (let index = 0; index < event.results.length; index += 1) text += `${event.results[index][0].transcript} `;
+      setPreviewTranscript(text.trim());
     };
-
-    rec.onend = () => {
-      setRecording(false);
-      const targetWords = targetText.toLowerCase().replace(/[^a-z0-9 ]/g, "").split(/\s+/).filter(Boolean);
-      const spokenWords = transcript.toLowerCase().replace(/[^a-z0-9 ]/g, "").split(/\s+/).filter(Boolean);
-      const matches = targetWords.filter((w) => spokenWords.includes(w)).length;
-      const acc = targetWords.length > 0 ? Math.round((matches / targetWords.length) * 100) : 100;
-
-      onChange({
-        transcript,
-        accuracy: acc,
-        passed: acc >= 70,
-      });
-    };
-
-    rec.start();
+    rec.onerror = () => { /* Groq remains the source of truth when preview recognition is unavailable. */ };
+    rec.onend = () => { recognitionRef.current = null; };
+    try { rec.start(); } catch { return; }
     recognitionRef.current = rec;
-    setRecording(true);
   }
 
-  function stopSpeechRecognition() {
+  async function finishRecording(mimeType: string) {
     recognitionRef.current?.stop();
-    setRecording(false);
+    recognitionRef.current = null;
+    mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+    mediaStreamRef.current = null;
+    const audio = new Blob(chunksRef.current, { type: mimeType });
+    chunksRef.current = [];
+    if (!audio.size) { setProcessing(false); setError("No audio was recorded. Please try again."); return; }
+    const form = new FormData();
+    form.append("file", audio, `shadowing.${mimeType.includes("mp4") ? "mp4" : "webm"}`);
+    form.append("durationSeconds", String(Math.max(1, Math.floor((Date.now() - startedAtRef.current) / 1000))));
+    try {
+      const response = await fetch("/api/speech/transcribe", { method: "POST", body: form });
+      const result = await response.json().catch(() => ({})) as { transcript?: string; error?: string };
+      if (!response.ok || !result.transcript) throw new Error(result.error || "Transcription is temporarily unavailable. Please try again later.");
+      const match = matchShadowingPhrase(targetText, result.transcript);
+      const repetitions = [...(value?.repetitions ?? []), { transcript: result.transcript, match }];
+      onChange({ transcript: result.transcript, accuracy: match.accuracy, passed: !requireAllGreen || match.allGreen, repetitions });
+      setPreviewTranscript(result.transcript);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Transcription is temporarily unavailable. Please try again later.");
+    } finally { setProcessing(false); }
   }
+
+  async function startRecording() {
+    if (disabled || processing || !navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") return;
+    setError(null);
+    setPreviewTranscript("");
+    chunksRef.current = [];
+    startedAtRef.current = Date.now();
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"].find((candidate) => MediaRecorder.isTypeSupported(candidate));
+      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+      mediaStreamRef.current = stream;
+      mediaRecorderRef.current = recorder;
+      recorder.ondataavailable = (event) => { if (event.data.size > 0) chunksRef.current.push(event.data); };
+      recorder.onerror = () => { setRecording(false); setProcessing(false); setError("The microphone stopped unexpectedly. Please try again."); };
+      recorder.onstop = () => { void finishRecording(recorder.mimeType || "audio/webm"); };
+      recorder.start(500);
+      setRecording(true);
+      startPreviewRecognition();
+      playRecordingStart();
+    } catch { setError("Microphone access was blocked. Please allow microphone access and try again."); }
+  }
+
+  function stopRecording() {
+    if (mediaRecorderRef.current?.state !== "recording") return;
+    setRecording(false);
+    setProcessing(true);
+    playRecordingEnd();
+    mediaRecorderRef.current.stop();
+    mediaRecorderRef.current = null;
+  }
+
+  useEffect(() => () => {
+    recognitionRef.current?.stop();
+    mediaRecorderRef.current?.stop();
+    mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+  }, []);
+
+  const repetitions = value?.repetitions ?? [];
+  const greenRepeats = repetitions.filter((item) => item.match?.allGreen).length;
+  const displayMatch = showLiveMatch && previewTranscript ? matchShadowingPhrase(targetText, previewTranscript) : repetitions.at(-1)?.match ?? null;
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-[var(--br-border)] bg-black/5 p-4 space-y-2">
-        <p className="text-xs font-bold text-[var(--br-text-muted)] uppercase tracking-wider">Target Phrase to Shadow:</p>
-        <p className="text-base font-bold text-ink">{targetText}</p>
+      <div className="rounded-2xl border border-violet-200 bg-violet-50/60 p-4 space-y-3">
+        <div className="flex items-center justify-between gap-3"><p className="text-xs font-bold uppercase tracking-wider text-[var(--br-text-muted)]">Target phrase</p><span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-[var(--br-chart-primary)]">Repeat {Math.min(greenRepeats + 1, requiredRepeats)} of {requiredRepeats}</span></div>
+        <div className="flex flex-wrap gap-1.5 text-base font-bold text-ink">{(displayMatch?.words ?? matchShadowingPhrase(targetText, "").words).map((word, index) => <span key={`${word.target}-${index}`} className={`rounded-md px-1.5 py-0.5 ${word.strength === "strong" ? "bg-emerald-100 text-emerald-700" : word.strength === "medium" ? "bg-amber-100 text-amber-800" : "bg-rose-100 text-rose-700"}`}>{word.target}</span>)}</div>
         {audioUrl && (
           <button
             type="button"
             onClick={playNativeAudio}
-            className="inline-flex items-center gap-2 rounded-lg bg-moss px-3 py-1.5 text-xs font-semibold text-on-dark hover:bg-moss/90"
+            className="inline-flex items-center gap-2 rounded-xl bg-[var(--br-chart-primary)] px-3 py-2 text-xs font-semibold text-on-dark hover:opacity-90"
           >
-            <Volume2 size={14} /> Listen to Native Pronunciation
+            <Volume2 size={14} /> Listen
           </button>
         )}
+        <div className="flex flex-wrap gap-3 text-xs font-semibold text-[var(--br-text-muted)]"><span className="text-emerald-700">● Strong</span><span className="text-amber-700">● Developing</span><span className="text-rose-700">● Needs practice</span></div>
       </div>
 
-      <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-[var(--br-border)] p-5 text-center">
-        {!recording ? (
+      <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-violet-200 bg-gradient-to-br from-white to-orange-50 p-5 text-center">
+        {!recording && !processing ? (
           <button
             type="button"
             disabled={disabled}
-            onClick={startSpeechRecognition}
-            className="inline-flex items-center gap-2 rounded-xl bg-coral px-5 py-2.5 text-sm font-semibold text-on-dark shadow-xs hover:bg-coral/90 disabled:opacity-50"
+            onClick={() => void startRecording()}
+            className="inline-flex items-center gap-2 rounded-full bg-[var(--br-action)] px-6 py-3 text-sm font-semibold text-on-dark shadow-lg transition hover:scale-[1.02] disabled:opacity-50"
           >
-            <Mic size={18} /> Repeat After Me (Record)
+            <Mic size={18} /> Repeat after me
           </button>
-        ) : (
+        ) : recording ? (
           <div className="space-y-2">
             <button
               type="button"
-              onClick={stopSpeechRecognition}
-              className="inline-flex items-center gap-2 rounded-xl bg-coral px-5 py-2.5 text-sm font-semibold text-on-dark animate-pulse"
+              onClick={stopRecording}
+              className="inline-flex items-center gap-2 rounded-full bg-[var(--br-action-strong)] px-6 py-3 text-sm font-semibold text-on-dark shadow-lg animate-pulse"
             >
-              <MicOff size={18} /> Recording... Tap to Finish
+              <MicOff size={18} /> Listening… tap to finish
             </button>
-            <p className="text-xs text-coral font-medium">Listening to your voice...</p>
+            <p className="text-xs font-medium text-[var(--br-action-strong)]">{showLiveMatch ? "Your live match is updating as you speak." : "Keep speaking naturally, then tap to finish."}</p>
           </div>
-        )}
-
-        {transcript && (
-          <div className="w-full space-y-1 rounded-lg bg-surface p-3 border border-[var(--br-border)] text-left">
-            <p className="text-xs font-semibold text-[var(--br-text-muted)]">Your Spoken Speech:</p>
-            <p className="text-sm font-medium text-ink">&quot;{transcript}&quot;</p>
-            {value?.accuracy !== undefined && (
-              <p className={`text-xs font-bold ${value.accuracy >= 70 ? "text-moss" : "text-coral"}`}>
-                Pronunciation Match Score: {value.accuracy}% {value.accuracy >= 70 ? "✓ Great Job!" : "Try again for 70%+"}
-              </p>
-            )}
-          </div>
-        )}
+        ) : <p className="flex items-center gap-2 text-sm font-bold text-[var(--br-chart-primary)]"><Loader2 size={16} className="animate-spin" /> Checking your repeat…</p>}
+        {displayMatch ? <div className="w-full space-y-2 rounded-xl bg-white p-3 text-left shadow-sm"><div className="flex flex-wrap gap-1.5">{displayMatch.words.map((word, index) => <span key={`${word.target}-${index}`} className={`rounded-md px-1.5 py-0.5 text-sm font-bold ${word.strength === "strong" ? "bg-emerald-100 text-emerald-700" : word.strength === "medium" ? "bg-amber-100 text-amber-800" : "bg-rose-100 text-rose-700"}`}>{word.spoken || "…"}</span>)}</div><p className="text-xs font-semibold text-[var(--br-text-muted)]">{displayMatch.allGreen ? "All words matched strongly — repeat completed." : `${displayMatch.strongCount} strong · ${displayMatch.mediumCount} developing · ${displayMatch.weakCount} needs practice`}</p></div> : null}
+        {error ? <p className="w-full rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-semibold text-rose-700">{error}</p> : null}
+        {greenRepeats < requiredRepeats && !recording && !processing ? <p className="text-xs font-semibold text-[var(--br-text-muted)]">{requireAllGreen ? "Make every word green to complete this repeat." : "Repeat until you are happy with your match."}</p> : null}
+        {greenRepeats >= requiredRepeats ? <p className="rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-bold text-emerald-700">Practice complete — {requiredRepeats} repeat{requiredRepeats === 1 ? "" : "s"} finished.</p> : null}
       </div>
+      {repetitions.length > 0 ? <div className="space-y-2"><p className="text-xs font-bold uppercase tracking-wide text-[var(--br-text-muted)]">Saved repeats</p>{repetitions.map((repeat, index) => <div key={`${index}-${repeat.transcript}`} className="rounded-xl border border-[var(--br-border)] bg-surface p-3 text-sm"><div className="flex items-center justify-between gap-2"><span className="font-bold text-ink">Repeat {index + 1}</span><span className={repeat.match.allGreen ? "font-bold text-emerald-700" : "font-bold text-rose-700"}>{repeat.match.allGreen ? "All green" : "Try again"}</span></div><p className="mt-1 text-[var(--br-text-muted)]">“{repeat.transcript}”</p></div>)}</div> : null}
     </div>
   );
 }

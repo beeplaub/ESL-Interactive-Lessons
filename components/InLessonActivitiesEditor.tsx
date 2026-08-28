@@ -2498,6 +2498,9 @@ function ShadowingEditor({ activity, onSave }: { activity: Activity; onSave: (da
   const [prompt, setPrompt] = useState(String(data.prompt ?? "Listen to the native speaker and repeat the phrase into your microphone."));
   const [audioUrl, setAudioUrl] = useState(String(data.audio_url ?? ""));
   const [targetText, setTargetText] = useState(String(data.target_text ?? data.correct_answer ?? ""));
+  const [repeatCount, setRepeatCount] = useState(Math.max(1, Math.min(20, Number(data.repeat_count ?? 3) || 3)));
+  const [showLiveMatch, setShowLiveMatch] = useState(data.show_live_match !== false);
+  const [requireAllGreen, setRequireAllGreen] = useState(data.require_all_green !== false);
 
   const needsReview = !targetText.trim();
 
@@ -2507,6 +2510,12 @@ function ShadowingEditor({ activity, onSave }: { activity: Activity; onSave: (da
         Instruction Prompt
         <input value={prompt} onChange={(e) => setPrompt(e.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" />
       </label>
+
+      <div className="grid gap-3 rounded-2xl border border-violet-200 bg-violet-50/60 p-4 sm:grid-cols-2">
+        <label className="text-sm font-semibold">Repeat count<select value={repeatCount} onChange={(e) => setRepeatCount(Number(e.target.value))} className="mt-1 w-full rounded-xl border border-[var(--br-border)] bg-surface px-3 py-2"><option value={1}>1 repetition</option><option value={2}>2 repetitions</option><option value={3}>3 repetitions</option><option value={5}>5 repetitions</option><option value={10}>10 repetitions</option></select></label>
+        <div className="grid gap-2 text-sm font-semibold"><label className="flex items-center gap-2"><input type="checkbox" checked={showLiveMatch} onChange={(e) => setShowLiveMatch(e.target.checked)} /> Show live phrase match</label><label className="flex items-center gap-2"><input type="checkbox" checked={requireAllGreen} onChange={(e) => setRequireAllGreen(e.target.checked)} /> Require all words green</label></div>
+        <p className="text-xs text-[var(--br-text-muted)] sm:col-span-2">Green means strong match, yellow means developing, and red means needs practice. A repeat counts only when every word is green.</p>
+      </div>
 
       <MediaRecorderInput
         label="Native Pronunciation Audio (Record live voice, upload file, or paste URL)"
@@ -2534,6 +2543,9 @@ function ShadowingEditor({ activity, onSave }: { activity: Activity; onSave: (da
                 audio_url: audioUrl,
                 target_text: targetText,
                 correct_answer: targetText,
+                repeat_count: repeatCount,
+                show_live_match: showLiveMatch,
+                require_all_green: requireAllGreen,
               } as Json,
               needsReview
             )

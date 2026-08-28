@@ -272,7 +272,13 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
       question_number: 1,
       question_type: "SHADOWING",
       question_text: String(data.prompt ?? "Listen to the native speaker and repeat the phrase into your microphone."),
-      options: { audio_url: audioUrl, target_text: targetText } as Json,
+      options: {
+        audio_url: audioUrl,
+        target_text: targetText,
+        repeat_count: Math.max(1, Math.min(20, Number(data.repeat_count ?? 1) || 1)),
+        require_all_green: data.require_all_green !== false,
+        show_live_match: data.show_live_match !== false,
+      } as Json,
       correct_answer: targetText as Json,
     }];
   }
