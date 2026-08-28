@@ -14,13 +14,24 @@ export default async function GuardianPage() {
     admin.from("class_members").select("class_id").eq("user_id", link.learner_id).eq("role", "STUDENT"),
   ]);
   const classIds = (classMembers ?? []).map((row) => row.class_id);
-  const [{ data: classes }, { data: assignments }, { data: courseProgress }, { data: lessonProgress }, { data: quizAttempts }] = await Promise.all([
+  const [{ data: classes }, { data: assignments }, { data: courseProgress }, { data: lessonProgress }, { data: legacyQuizAttempts }, { data: assessmentQuizAttempts }] = await Promise.all([
     classIds.length ? admin.from("classes").select("id,name,level").in("id", classIds) : Promise.resolve({ data: [] }),
     classIds.length ? admin.from("class_assignments").select("id,class_id,item_type,course_id,lesson_id,quiz_id,title,due_at,required_score").in("class_id", classIds).order("due_at", { ascending: true, nullsFirst: false }) : Promise.resolve({ data: [] }),
     admin.from("course_progress").select("course_id,progress_percent,updated_at").eq("user_id", link.learner_id).order("updated_at", { ascending: false }),
     admin.from("lesson_progress").select("lesson_id,completed,updated_at").eq("user_id", link.learner_id).order("updated_at", { ascending: false }),
-    admin.from("quiz_attempts").select("quiz_id,score,total,completed_at").eq("user_id", link.learner_id).order("completed_at", { ascending: false }).limit(8),
+    admin.from("quiz_attempts").select("id,quiz_id,score,total,completed_at").eq("user_id", link.learner_id).order("completed_at", { ascending: false }).limit(8),
+    admin.from("assessment_attempts").select("id,quiz_id,legacy_quiz_attempt_id,score,maximum_score,completed_at,submitted_at,created_at").eq("user_id", link.learner_id).eq("source_type", "QUIZ").order("completed_at", { ascending: false }).limit(8),
   ]);
+  const linkedLegacyIds = new Set((assessmentQuizAttempts ?? []).map((attempt) => attempt.legacy_quiz_attempt_id).filter((id): id is string => Boolean(id)));
+  const quizAttempts = [
+    ...(legacyQuizAttempts ?? []).filter((attempt) => !linkedLegacyIds.has(attempt.id)),
+    ...(assessmentQuizAttempts ?? []).map((attempt) => ({
+      quiz_id: attempt.quiz_id,
+      score: Number(attempt.score ?? 0),
+      total: Number(attempt.maximum_score ?? 0),
+      completed_at: attempt.completed_at ?? attempt.submitted_at ?? attempt.created_at,
+    })),
+  ].sort((a, b) => new Date(b.completed_at).getTime() - new Date(a.completed_at).getTime()).slice(0, 8);
   const assignmentsRows = assignments ?? [];
   const courseIds = [...new Set(assignmentsRows.map((row) => row.course_id).filter((id): id is string => Boolean(id)))];
   const lessonIds = [...new Set(assignmentsRows.map((row) => row.lesson_id).filter((id): id is string => Boolean(id)))];
