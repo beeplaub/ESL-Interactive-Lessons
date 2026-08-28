@@ -5,7 +5,7 @@ import { requireAdmin, requireLessonAccess, getFreshProfile } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { callGemini } from "@/lib/ai/gemini";
-import { legacyQuizPoints } from "@/lib/assessmentContract";
+import { recordQuizAttempt } from "@/app/quizzes/actions";
 
 // 1. Zod schemas for structured responses from Gemini
 import { z } from "zod";
@@ -589,20 +589,34 @@ export async function completeRoleplaySessionAction(sessionId: string) {
       })
       .eq("id", sessionId);
 
-    // Save attempt to quiz_attempts table so standard components fetch it
+    // Save the legacy compatibility row and the canonical detailed assessment
+    // evidence through the shared submission path. Historical roleplay rows
+    // remain untouched, while new completions are available in both systems.
     const overallScore = scorecard.scores?.overall ?? 0;
-    const legacyPoints = legacyQuizPoints(overallScore, 100);
-    await supabase
-      .from("quiz_attempts")
-      .insert({
-        user_id: user.id,
-        lesson_slide_activity_id: session.lesson_activity_id,
-        ...legacyPoints,
-        answers: {
-          sessionId: sessionId,
-          scorecard: scorecard
-        }
-      });
+    const attempt = await recordQuizAttempt({
+      lessonSlideActivityId: session.lesson_activity_id,
+      score: overallScore,
+      total: 100,
+      answers: {
+        sessionId,
+        scorecard,
+      },
+      submissionKey: sessionId,
+      responseScores: [{
+        itemKey: `roleplay:${sessionId}`,
+        answer: { sessionId, scorecard },
+        earnedPoints: overallScore,
+        maximumPoints: 100,
+        isCorrect: overallScore >= 60,
+      }],
+    });
+
+    // Roleplay is AI-graded even though the generic assessment writer treats
+    // an activity without answer-key scoring as automatic by default.
+    await Promise.all([
+      supabase.from("assessment_attempts").update({ grading_source: "AI" }).eq("id", attempt.assessmentAttemptId),
+      supabase.from("quiz_attempts").update({ grading_source: "AI" }).eq("id", attempt.attemptId),
+    ]);
 
     return { scorecard };
   } catch (error: any) {
