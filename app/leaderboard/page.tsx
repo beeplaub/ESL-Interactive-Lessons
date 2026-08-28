@@ -97,14 +97,19 @@ export default async function LeaderboardPage({ searchParams }: { searchParams?:
   let nextBadge = getNextQuizBadge(0);
 
   if (user) {
-    const [{ data: quizAttempts }, { data: userPoints }, { data: enrollments }, { data: courseProgress }] = await Promise.all([
-      admin.from("quiz_attempts").select("completed_at").eq("user_id", user.id).not("quiz_id", "is", null).order("completed_at", { ascending: false }).limit(120),
+    const [{ data: legacyQuizAttempts }, { data: assessmentQuizAttempts }, { data: userPoints }, { data: enrollments }, { data: courseProgress }] = await Promise.all([
+      admin.from("quiz_attempts").select("id,completed_at").eq("user_id", user.id).not("quiz_id", "is", null).order("completed_at", { ascending: false }).limit(120),
+      admin.from("assessment_attempts").select("id,legacy_quiz_attempt_id,completed_at,submitted_at,created_at").eq("user_id", user.id).eq("source_type", "QUIZ").order("completed_at", { ascending: false }).limit(120),
       admin.from("quiz_leaderboard_points").select("points").eq("user_id", user.id),
       admin.from("course_enrollments").select("course_id,status").eq("user_id", user.id),
       admin.from("course_progress").select("course_id,progress_percent").eq("user_id", user.id),
     ]);
 
-    const activityDates = (quizAttempts ?? []).filter((attempt) => attempt.completed_at).map((attempt) => toDateKey(new Date(attempt.completed_at)));
+    const linkedLegacyIds = new Set((assessmentQuizAttempts ?? []).map((attempt) => attempt.legacy_quiz_attempt_id).filter((id): id is string => Boolean(id)));
+    const activityDates = [
+      ...(legacyQuizAttempts ?? []).filter((attempt) => !linkedLegacyIds.has(attempt.id)).map((attempt) => attempt.completed_at),
+      ...(assessmentQuizAttempts ?? []).map((attempt) => attempt.completed_at ?? attempt.submitted_at ?? attempt.created_at),
+    ].filter((value): value is string => Boolean(value)).map((value) => toDateKey(new Date(value)));
     userStreak = calcStreak(activityDates);
     weekActivity = buildWeekActivity(activityDates);
     currentUserPoints = (userPoints ?? []).reduce((sum, r) => sum + Number(r.points ?? 0), 0);

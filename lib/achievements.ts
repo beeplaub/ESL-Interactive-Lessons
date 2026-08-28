@@ -46,11 +46,17 @@ function milestone(id: string, title: string, description: string, icon: string,
 }
 
 export async function getLearnerAchievements(admin: ReturnType<typeof createAdminClient>, userId: string): Promise<LearnerAchievements> {
-  const [{ data: pointRows }, { data: allAttempts }, { data: courseEvidence }] = await Promise.all([
+  const [{ data: pointRows }, { data: legacyAttempts }, { data: assessmentAttempts }, { data: courseEvidence }] = await Promise.all([
     admin.from("quiz_leaderboard_points").select("points").eq("user_id", userId),
-    admin.from("quiz_attempts").select("completed_at").eq("user_id", userId).order("completed_at", { ascending: false }).limit(2000),
+    admin.from("quiz_attempts").select("id,completed_at").eq("user_id", userId).order("completed_at", { ascending: false }).limit(2000),
+    admin.from("assessment_attempts").select("id,legacy_quiz_attempt_id,completed_at,submitted_at,created_at").eq("user_id", userId).order("completed_at", { ascending: false }).limit(2000),
     admin.from("assessment_attempts").select("score,maximum_score,completed_at").eq("user_id", userId).not("course_item_id", "is", null).order("completed_at", { ascending: false }).limit(2000),
   ]);
+  const linkedLegacyIds = new Set((assessmentAttempts ?? []).map((attempt) => attempt.legacy_quiz_attempt_id).filter((id): id is string => Boolean(id)));
+  const allAttempts = [
+    ...(legacyAttempts ?? []).filter((attempt) => !linkedLegacyIds.has(attempt.id)),
+    ...(assessmentAttempts ?? []),
+  ];
   const points = (pointRows ?? []).reduce((sum, row) => sum + Number(row.points ?? 0), 0);
   const totalAttempts = allAttempts?.length ?? 0;
   const streak = calculateStreak((allAttempts ?? []).filter((row) => row.completed_at).map((row) => row.completed_at));
