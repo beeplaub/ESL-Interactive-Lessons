@@ -5,6 +5,8 @@ import type { ChangeEvent, RefObject } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Json } from "@/types/database.types";
+import { AudioTrackPlayer } from "@/components/AudioTrackPlayer";
+import { parseAudioTracks } from "@/lib/audioTracks";
 
 export type PreviewLessonBlock = {
   id: string;
@@ -337,8 +339,9 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
 
   if (block.block_type === "AUDIO") {
     const path = asString(content.path);
-    const src = mediaUrl(path, "audio");
-    const youtubeId = getYouTubeId(path);
+    const audioConfig = parseAudioTracks(path);
+    const firstPath = audioConfig.tracks[0]?.url || path;
+    const youtubeId = audioConfig.tracks.length === 1 ? getYouTubeId(firstPath) : null;
     return (
       <div className="rounded-2xl border border-[var(--br-border)] bg-[var(--br-surface-muted)] p-3 shadow-sm sm:p-4">
         <div className="mb-3 flex items-center gap-3 px-1 text-sm font-semibold text-ink">
@@ -347,8 +350,8 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
         </div>
         {youtubeId ? (
           <YouTubeAudioPlayer videoId={youtubeId} />
-        ) : path && /^https?:\/\//i.test(path) ? (
-          <CustomAudioPlayer src={src} />
+        ) : audioConfig.tracks.length > 0 ? (
+          <AudioTrackPlayer value={path} resolveUrl={(url) => mediaUrl(url, "audio")} />
         ) : (
           <p className="text-sm text-white/65">{path || "Add an audio URL or storage path."}</p>
         )}

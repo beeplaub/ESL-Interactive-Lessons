@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { Mic, MicOff, Play, Pause, Square, Upload, Link as LinkIcon, Loader2, X, Volume2, Image as ImageIcon } from "lucide-react";
+import { parseAudioTracks, serializeAudioTracks } from "@/lib/audioTracks";
 
 type Props = {
   value: string;
@@ -11,7 +12,7 @@ type Props = {
   lessonId?: string;
 };
 
-export function MediaRecorderInput({ value, onChange, type = "audio", label, lessonId = "quiz" }: Props) {
+export function SingleMediaRecorderInput({ value, onChange, type = "audio", label, lessonId = "quiz" }: Props) {
   const [activeTab, setActiveTab] = useState<"url" | "upload" | "record">(value ? "url" : "url");
   const [recordingState, setRecordingState] = useState<"idle" | "recording" | "recorded" | "uploading">("idle");
   const [recordingTime, setRecordingTime] = useState(0);
@@ -281,4 +282,50 @@ export function MediaRecorderInput({ value, onChange, type = "audio", label, les
       )}
     </div>
   );
+}
+
+export function MediaRecorderInput(props: Props) {
+  if (props.type !== "audio") return <SingleMediaRecorderInput {...props} />;
+  return <MultiAudioRecorderInput {...props} />;
+}
+
+function MultiAudioRecorderInput({ value, onChange, label, lessonId = "quiz" }: Props) {
+  const initial = parseAudioTracks(value);
+  const [config, setConfig] = useState(() => initial.tracks.length ? initial : { ...initial, tracks: [{ id: "track-1", url: "", label: "Audio 1" }] });
+
+  function commit(next: typeof config) {
+    setConfig(next);
+    onChange(serializeAudioTracks(next));
+  }
+
+  function updateTrack(index: number, url: string) {
+    commit({ ...config, tracks: config.tracks.map((track, trackIndex) => trackIndex === index ? { ...track, url } : track) });
+  }
+
+  function addTrack() {
+    commit({ ...config, tracks: [...config.tracks, { id: "track-" + Date.now(), url: "", label: "Audio " + (config.tracks.length + 1) }] });
+  }
+
+  function removeTrack(index: number) {
+    const tracks = config.tracks.filter((_, trackIndex) => trackIndex !== index);
+    commit({ ...config, tracks });
+  }
+
+  return <div className="space-y-3">
+    {label ? <p className="text-xs font-semibold text-[var(--br-text-muted)]">{label}</p> : null}
+    <div className="rounded-xl border border-[var(--br-border)] bg-[var(--br-canvas-elevated)] p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div><p className="text-sm font-bold text-ink">Audio clips</p><p className="text-xs text-[var(--br-text-muted)]">Add clips by link, upload, or recording.</p></div>
+        <button type="button" onClick={addTrack} className="rounded-lg bg-moss px-3 py-1.5 text-xs font-bold text-on-dark">+ Add audio</button>
+      </div>
+      <div className="mt-3 grid gap-3">
+        {config.tracks.map((track, index) => <div key={track.id} className="rounded-xl border border-[var(--br-border)] bg-surface p-2">
+          <div className="mb-2 flex items-center justify-between gap-2"><p className="text-xs font-bold text-[var(--br-brand)]">Audio {index + 1}</p>{config.tracks.length > 1 ? <button type="button" onClick={() => removeTrack(index)} className="text-xs font-semibold text-coral">Remove</button> : null}</div>
+          <SingleMediaRecorderInput value={track.url} onChange={(url) => updateTrack(index, url)} type="audio" lessonId={lessonId} />
+        </div>)}
+        {config.tracks.length === 0 ? <button type="button" onClick={addTrack} className="rounded-lg border border-dashed border-[var(--br-border)] p-3 text-left text-xs font-semibold text-[var(--br-text-muted)]">No audio yet. Add the first clip.</button> : null}
+      </div>
+      {config.tracks.length > 1 ? <div className="mt-3 grid gap-2 border-t border-[var(--br-border)] pt-3 sm:grid-cols-[1fr_150px]"><label className="text-xs font-semibold text-[var(--br-text-muted)]">Playback arrangement<select value={config.mode} onChange={(event) => commit({ ...config, mode: event.target.value as typeof config.mode })} className="mt-1 w-full rounded-lg border border-[var(--br-border)] bg-surface px-2.5 py-2 text-xs font-semibold text-ink"><option value="SEPARATE">Show each audio separately</option><option value="SEQUENTIAL">Play sequentially in one player</option></select></label>{config.mode === "SEQUENTIAL" ? <label className="text-xs font-semibold text-[var(--br-text-muted)]">Pause between clips (seconds)<input type="number" min={0} max={30} step={0.5} value={config.pauseSeconds} onChange={(event) => commit({ ...config, pauseSeconds: Math.max(0, Math.min(30, Number(event.target.value) || 0)) })} className="mt-1 w-full rounded-lg border border-[var(--br-border)] bg-surface px-2.5 py-2 text-xs font-semibold text-ink" /></label> : null}</div> : null}
+    </div>
+  </div>;
 }

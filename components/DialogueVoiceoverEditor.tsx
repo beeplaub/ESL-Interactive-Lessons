@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, AudioLines, Check, ChevronDown, ChevronUp, Loader2, Pause, Play, RefreshCw, Sparkles, Volume2, X } from "lucide-react";
-import { BlockMediaUploader } from "@/components/BlockMediaUploader";
+import { MediaRecorderInput } from "@/components/MediaRecorderInput";
 import { BuilderModalLayer } from "@/components/BuilderModalLayer";
 import { DIALOGUE_KOKORO_VOICES, VOICEOVER_PACES } from "@/lib/ai/voiceoverCatalog";
 
@@ -380,7 +380,7 @@ export function DialogueVoiceoverEditor({ data, lessonId, blockId }: { data: Rec
         })}</div>
       </section>
 
-      {audioIndex !== null && turns[audioIndex] ? <BuilderModalLayer label="Turn audio"><div className="w-full max-w-md rounded-xl bg-surface p-5 shadow-2xl"><div className="flex items-center justify-between gap-3"><div><b>Turn audio</b><p className="text-xs text-[var(--br-text-muted)]">Paste, upload, or record this line manually.</p></div><button type="button" onClick={() => setAudioIndex(null)} className="grid size-8 place-items-center rounded-full border border-[var(--br-border)]" aria-label="Close turn audio"><X size={16} /></button></div><input value={turns[audioIndex].audio} onChange={(event) => updateTurn(audioIndex, { audio: event.target.value, voiceover: null })} placeholder="Paste audio link" className="mt-4 w-full rounded-md border border-[var(--br-border)] px-3 py-2 text-sm" /><div className="mt-3"><BlockMediaUploader type="audio" lessonId={lessonId} currentSrc={turns[audioIndex].audio} onUploaded={(url) => updateTurn(audioIndex, { audio: url, voiceover: null })} /></div></div></BuilderModalLayer> : null}
+      {audioIndex !== null && turns[audioIndex] ? <BuilderModalLayer label="Turn audio"><div className="w-full max-w-md rounded-xl bg-surface p-5 shadow-2xl"><div className="flex items-center justify-between gap-3"><div><b>Turn audio</b><p className="text-xs text-[var(--br-text-muted)]">Paste, upload, or record this line manually.</p></div><button type="button" onClick={() => setAudioIndex(null)} className="grid size-8 place-items-center rounded-full border border-[var(--br-border)]" aria-label="Close turn audio"><X size={16} /></button></div><div className="mt-4"><MediaRecorderInput type="audio" lessonId={lessonId} value={turns[audioIndex].audio} onChange={(url) => updateTurn(audioIndex, { audio: url, voiceover: null })} label="Audio clips" /></div></div></BuilderModalLayer> : null}
     </div>
   );
 }

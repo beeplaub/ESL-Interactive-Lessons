@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { ImageIcon, Music, Loader2, X, Mic, Square, RotateCcw, Check, Video } from "lucide-react";
+import { MediaRecorderInput } from "@/components/MediaRecorderInput";
 
 type Props = {
   type: "image" | "audio" | "video";
@@ -35,7 +36,7 @@ function extensionForMimeType(mimeType: string): string {
   return "webm";
 }
 
-export function BlockMediaUploader({ type, lessonId, currentSrc, onUploaded }: Props) {
+function SingleBlockMediaUploader({ type, lessonId, currentSrc, onUploaded }: Props) {
   const [uploading, setUploading] = useState(false);
   const [preview, setPreview] = useState<string | null>(
     currentSrc && /^https?:\/\//i.test(currentSrc) ? currentSrc : null
@@ -319,4 +320,11 @@ export function BlockMediaUploader({ type, lessonId, currentSrc, onUploaded }: P
       {error && <p className="text-xs text-coral">{error}</p>}
     </div>
   );
+}
+
+export function BlockMediaUploader(props: Props) {
+  if (props.type === "audio") {
+    return <MediaRecorderInput type="audio" lessonId={props.lessonId} value={props.currentSrc} onChange={props.onUploaded} label="Audio clips" />;
+  }
+  return <SingleBlockMediaUploader {...props} />;
 }

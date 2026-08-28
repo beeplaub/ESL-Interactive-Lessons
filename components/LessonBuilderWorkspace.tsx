@@ -36,6 +36,7 @@ import { LessonAssessmentMetadataEditor } from "@/components/AssessmentMetadataE
 import { LessonOutcomeManager } from "@/components/LessonOutcomeManager";
 import { SlideNarrationRecorder } from "@/components/SlideNarrationRecorder";
 import { BlockMediaUploader } from "@/components/BlockMediaUploader";
+import { MediaRecorderInput } from "@/components/MediaRecorderInput";
 import { ReadingPassageAudioControls } from "@/components/ReadingPassageAudioControls";
 import { CONTENT_LEVELS } from "@/lib/levels";
 import type { LessonOutcome } from "@/types/obe.types";
@@ -1712,8 +1713,8 @@ function BlockFields({ blockType, content, lessonId, blockId }: { blockType: str
     return (
       <div className="grid gap-3">
         <label className="text-sm">Label<input name="label" defaultValue={asString(data.label)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
-        <label className="text-sm">Audio URL<input name="path" value={audioPath} onChange={(e) => setAudioPath(e.target.value)} placeholder="https://\u2026 or upload below" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
-        <BlockMediaUploader type="audio" lessonId={lessonId} currentSrc={audioPath} onUploaded={(url) => setAudioPath(url)} />
+        <input type="hidden" name="path" value={audioPath} />
+        <MediaRecorderInput type="audio" lessonId={lessonId} value={audioPath} onChange={setAudioPath} label="Audio clips" />
       </div>
     );
   }
@@ -1822,7 +1823,7 @@ function BlockFields({ blockType, content, lessonId, blockId }: { blockType: str
                 <label className="text-sm">Image URL<input name="flashcard_image_path" value={card.imagePath} onChange={(e) => setFlashcards((c) => c.map((item, i) => i === index ? { ...item, imagePath: e.target.value } : item))} placeholder="https://..." className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <BlockMediaUploader type="image" lessonId={lessonId} currentSrc={card.imagePath} onUploaded={(url) => setFlashcards((c) => c.map((item, i) => i === index ? { ...item, imagePath: url } : item))} />
-                  <BlockMediaUploader type="audio" lessonId={lessonId} currentSrc={card.audioPath} onUploaded={(url) => setFlashcards((c) => c.map((item, i) => i === index ? { ...item, audioPath: url } : item))} />
+                  <MediaRecorderInput type="audio" lessonId={lessonId} value={card.audioPath} onChange={(url) => setFlashcards((c) => c.map((item, i) => i === index ? { ...item, audioPath: url } : item))} label="Audio clips" />
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="text-sm">Word or phrase<input name="flashcard_word" value={card.word} onChange={(e) => setFlashcards((c) => c.map((item, i) => i === index ? { ...item, word: e.target.value } : item))} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
@@ -2004,7 +2005,7 @@ function ImageAnnotationFields({
               <label className="mt-2 block text-xs">Information<textarea value={marker.detail} onChange={(event) => update(marker.id, "detail", event.target.value)} rows={2} placeholder="What should the learner discover?" className="mt-1 w-full rounded border border-[var(--br-border)] px-2 py-2 text-sm" /></label>
               <label className="mt-2 block text-xs">Example <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><input value={marker.example} onChange={(event) => update(marker.id, "example", event.target.value)} placeholder="An example sentence" className="mt-1 w-full rounded border border-[var(--br-border)] px-2 py-2 text-sm" /></label>
               <label className="mt-2 block text-xs">Audio URL <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><input value={marker.audioUrl} onChange={(event) => update(marker.id, "audioUrl", event.target.value)} placeholder="https://..." className="mt-1 w-full rounded border border-[var(--br-border)] px-2 py-2 text-sm" /></label>
-              <BlockMediaUploader type="audio" lessonId={lessonId} currentSrc={marker.audioUrl} onUploaded={(url) => update(marker.id, "audioUrl", url)} />
+              <MediaRecorderInput type="audio" lessonId={lessonId} value={marker.audioUrl} onChange={(url) => update(marker.id, "audioUrl", url)} label="Audio clips" />
             </div>
           ))}
           {!markers.length ? <p className="rounded-lg border border-dashed border-[var(--br-border)] p-4 text-center text-xs text-[var(--br-text-muted)]">No markers yet. Add one to begin.</p> : null}
