@@ -10,15 +10,22 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: P
   const { q = "" } = await searchParams;
   const query = q.toLowerCase();
   const admin = createAdminClient();
-  const [{ data: profiles }, { data: attempts }, usersResult] = await Promise.all([
+  const [{ data: profiles }, { data: attempts }, { data: assessmentAttempts }, usersResult] = await Promise.all([
     admin.from("profiles").select("*").order("created_at", { ascending: false }),
-    admin.from("quiz_attempts").select("user_id"),
+    admin.from("quiz_attempts").select("id,user_id"),
+    admin.from("assessment_attempts").select("user_id,legacy_quiz_attempt_id").eq("source_type", "QUIZ"),
     admin.auth.admin.listUsers()
   ]);
 
   const emailMap = new Map(usersResult.data.users.map((user) => [user.id, user.email ?? ""]));
   const attemptCounts = new Map<string, number>();
-  for (const attempt of attempts ?? []) attemptCounts.set(attempt.user_id, (attemptCounts.get(attempt.user_id) ?? 0) + 1);
+  const linkedLegacyIds = new Set((assessmentAttempts ?? []).map((attempt) => attempt.legacy_quiz_attempt_id).filter((id): id is string => Boolean(id)));
+  for (const attempt of (attempts ?? []).filter((row) => !linkedLegacyIds.has(row.id))) {
+    attemptCounts.set(attempt.user_id, (attemptCounts.get(attempt.user_id) ?? 0) + 1);
+  }
+  for (const attempt of assessmentAttempts ?? []) {
+    attemptCounts.set(attempt.user_id, (attemptCounts.get(attempt.user_id) ?? 0) + 1);
+  }
   const filtered = (profiles ?? []).filter((profile) => {
     const email = emailMap.get(profile.id) ?? "";
     return !query || `${profile.full_name ?? ""} ${email}`.toLowerCase().includes(query);

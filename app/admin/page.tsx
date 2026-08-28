@@ -27,10 +27,13 @@ export default async function AdminPage() {
 
     // Scoped the same way requireCourseAccess/requireQuizAccess scope reads:
     // only rows tied to content this teacher actually owns, never platform-wide.
-    const [{ data: attemptRows }, { data: enrollmentRows }, { count: pendingSubmissionCount }, { count: libraryCount }, { count: mediaCount }, entitlements] = await Promise.all([
+    const [{ data: attemptRows }, { data: assessmentAttemptRows }, { data: enrollmentRows }, { count: pendingSubmissionCount }, { count: libraryCount }, { count: mediaCount }, entitlements] = await Promise.all([
       quizIds.length
         ? admin.from("quiz_attempts").select("id, quiz_id, user_id, score, completed_at").in("quiz_id", quizIds).order("completed_at", { ascending: false }).limit(8)
         : Promise.resolve({ data: [] as Array<{ id: string; quiz_id: string; user_id: string; score: number | null; completed_at: string | null }> }),
+      quizIds.length
+        ? admin.from("assessment_attempts").select("id, quiz_id, user_id, score_percent, completed_at, submitted_at, created_at, legacy_quiz_attempt_id").eq("source_type", "QUIZ").in("quiz_id", quizIds).order("created_at", { ascending: false }).limit(8)
+        : Promise.resolve({ data: [] as Array<{ id: string; quiz_id: string; user_id: string; score_percent: number | null; completed_at: string | null; submitted_at: string | null; created_at: string; legacy_quiz_attempt_id: string | null }> }),
       courseIds.length
         ? admin.from("course_enrollments").select("id, course_id, user_id, status, enrolled_at").in("course_id", courseIds).order("enrolled_at", { ascending: false }).limit(8)
         : Promise.resolve({ data: [] as Array<{ id: string; course_id: string; user_id: string; status: string; enrolled_at: string | null }> }),
@@ -47,7 +50,19 @@ export default async function AdminPage() {
       getCreatorEntitlements(user.id, profile?.role)
     ]);
 
-    const learnerIds = Array.from(new Set([...(attemptRows ?? []).map((row) => row.user_id), ...(enrollmentRows ?? []).map((row) => row.user_id)]));
+    const linkedLegacyAttemptIds = new Set((assessmentAttemptRows ?? []).map((row) => row.legacy_quiz_attempt_id).filter((id): id is string => Boolean(id)));
+    const recentAttempts = [
+      ...(attemptRows ?? []).filter((row) => !linkedLegacyAttemptIds.has(row.id)).map((row) => ({ ...row, at: row.completed_at, displayScore: row.score })),
+      ...(assessmentAttemptRows ?? []).map((row) => ({
+        id: row.id,
+        quiz_id: row.quiz_id,
+        user_id: row.user_id,
+        at: row.completed_at ?? row.submitted_at ?? row.created_at,
+        displayScore: row.score_percent,
+      })),
+    ].sort((a, b) => new Date(b.at ?? 0).getTime() - new Date(a.at ?? 0).getTime()).slice(0, 8);
+
+    const learnerIds = Array.from(new Set([...recentAttempts.map((row) => row.user_id), ...(enrollmentRows ?? []).map((row) => row.user_id)]));
     const { data: learnerProfileRows } = learnerIds.length
       ? await admin.from("profiles").select("id, first_name, last_name, full_name").in("id", learnerIds)
       : { data: [] as LearnerProfileRow[] };
@@ -62,15 +77,15 @@ export default async function AdminPage() {
     const courseTitle = (id: string) => courseRows.find((row) => row.id === id)?.title ?? "a course";
 
     const activity: ActivityEvent[] = [
-      ...(attemptRows ?? [])
-        .filter((row) => row.completed_at)
+      ...recentAttempts
+        .filter((row) => row.at)
         .map((row) => ({
           id: `attempt-${row.id}`,
-          at: row.completed_at as string,
+          at: row.at as string,
           node: (
             <>
               <strong className="font-bold text-ink">{learnerName(row.user_id)}</strong> scored{" "}
-              <strong className="font-bold text-ink">{row.score ?? "--"}%</strong> on <em className="not-italic font-semibold">{quizTitle(row.quiz_id)}</em>
+              <strong className="font-bold text-ink">{row.displayScore ?? "--"}%</strong> on <em className="not-italic font-semibold">{quizTitle(row.quiz_id)}</em>
             </>
           )
         })),
@@ -184,15 +199,19 @@ export default async function AdminPage() {
     );
   }
 
-  const [{ data: courses }, { data: organizations }, { data: lessons }, { data: quizzes }, { data: profiles }, { data: attempts }, { data: levelResults }] = await Promise.all([
+  const [{ data: courses }, { data: organizations }, { data: lessons }, { data: quizzes }, { data: profiles }, { data: attempts }, { data: assessmentAttempts }, { data: levelResults }] = await Promise.all([
     admin.from("courses").select("status").is("deleted_at", null),
     admin.from("organizations").select("id"),
     admin.from("lessons").select("status").is("deleted_at", null),
     admin.from("quizzes").select("status").is("deleted_at", null),
     admin.from("profiles").select("id"),
     admin.from("quiz_attempts").select("id"),
+    admin.from("assessment_attempts").select("id,legacy_quiz_attempt_id").eq("source_type", "QUIZ"),
     admin.from("level_test_results").select("id")
   ]);
+
+  const linkedLegacyQuizIds = new Set((assessmentAttempts ?? []).map((row) => row.legacy_quiz_attempt_id).filter((id): id is string => Boolean(id)));
+  const totalQuizAttempts = (attempts ?? []).filter((row) => !linkedLegacyQuizIds.has(row.id)).length + (assessmentAttempts?.length ?? 0);
 
   return (
     <main className="min-w-0 overflow-hidden">
@@ -203,9 +222,9 @@ export default async function AdminPage() {
       <section className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-3">
         <AdminCard href="/admin/courses" icon={GraduationCap} label="Courses" value={courses?.length ?? 0} detail={`${countStatus(courses, "PUBLISHED")} published · ${countStatus(courses, "DRAFT")} draft`} />
         <AdminCard href="/admin/organizations" icon={Building2} label="Organizations" value={organizations?.length ?? 0} detail="Schools and class shells" />
-        <AdminCard href="/admin/analytics" icon={BarChart3} label="Analytics" value={attempts?.length ?? 0} detail="Courses, lessons and quizzes" />
+        <AdminCard href="/admin/analytics" icon={BarChart3} label="Analytics" value={totalQuizAttempts} detail="Courses, lessons and quizzes" />
         <AdminCard href="/admin/users" icon={UsersRound} label="Users" value={profiles?.length ?? 0} detail="Registered users" />
-        <AdminCard href="/admin/quiz-attempts" icon={ClipboardList} label="Quiz attempts" value={attempts?.length ?? 0} detail="All learners" />
+        <AdminCard href="/admin/quiz-attempts" icon={ClipboardList} label="Quiz attempts" value={totalQuizAttempts} detail="All learners" />
         <AdminCard href="/admin/level-test/results" icon={FlaskConical} label="Level tests" value={levelResults?.length ?? 0} detail="Results taken" />
       </section>
     </main>

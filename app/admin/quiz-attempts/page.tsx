@@ -10,13 +10,14 @@ export default async function AdminQuizAttemptsPage({ searchParams }: { searchPa
   const search = (params.search ?? "").trim().toLowerCase();
   const admin = createAdminClient();
 
-  const [{ data: attempts }, { data: quizzes }, { data: profiles }, { data: usersData }] = await Promise.all([
+  const [{ data: attempts }, { data: assessmentAttempts }, { data: quizzes }, { data: profiles }, { data: usersData }] = await Promise.all([
     admin
       .from("quiz_attempts")
       .select("*, quizzes(id, title, level)")
       .not("quiz_id", "is", null)
       .order("completed_at", { ascending: false })
       .limit(500),
+    admin.from("assessment_attempts").select("id,user_id,quiz_id,score,maximum_score,score_percent,completed_at,submitted_at,created_at,legacy_quiz_attempt_id").eq("source_type", "QUIZ").not("quiz_id", "is", null).order("created_at", { ascending: false }).limit(500),
     admin.from("quizzes").select("id, title").is("deleted_at", null).order("title", { ascending: true }),
     admin.from("profiles").select("id, full_name, first_name, last_name"),
     admin.auth.admin.listUsers()
@@ -24,7 +25,22 @@ export default async function AdminQuizAttemptsPage({ searchParams }: { searchPa
 
   const profileMap = new Map((profiles ?? []).map((profile) => [profile.id, profile]));
   const userMap = new Map((usersData?.users ?? []).map((user) => [user.id, user]));
-  const filteredAttempts = (attempts ?? []).filter((attempt) => {
+  const quizMap = new Map((quizzes ?? []).map((quiz) => [quiz.id, quiz]));
+  const linkedLegacyIds = new Set((assessmentAttempts ?? []).map((attempt) => attempt.legacy_quiz_attempt_id).filter((id): id is string => Boolean(id)));
+  const mergedAttempts = [
+    ...(attempts ?? []).filter((attempt) => !linkedLegacyIds.has(attempt.id)),
+    ...(assessmentAttempts ?? []).map((attempt) => ({
+      id: attempt.id,
+      user_id: attempt.user_id,
+      quiz_id: attempt.quiz_id,
+      score: Number(attempt.score ?? 0),
+      total: Number(attempt.maximum_score ?? 0),
+      time_taken_seconds: null,
+      completed_at: attempt.completed_at ?? attempt.submitted_at ?? attempt.created_at,
+      quizzes: quizMap.get(attempt.quiz_id) ?? null,
+    })),
+  ].sort((a, b) => String(b.completed_at ?? "").localeCompare(String(a.completed_at ?? "")));
+  const filteredAttempts = mergedAttempts.filter((attempt) => {
     const quiz = attempt.quizzes as { id?: string; title?: string } | null;
     const profile = profileMap.get(attempt.user_id);
     const user = userMap.get(attempt.user_id);

@@ -19,16 +19,19 @@ export default async function AdminQuizzesPage() {
     trashedQuery = trashedQuery.eq("created_by", user.id);
   }
 
-  const [{ data: quizzes }, { data: questions }, { data: attempts }, { count: trashedCount }] = await Promise.all([
+  const [{ data: quizzes }, { data: questions }, { data: attempts }, { data: assessmentAttempts }, { count: trashedCount }] = await Promise.all([
     quizzesQuery,
     admin.from("quiz_questions").select("quiz_id").limit(10000),
-    admin.from("quiz_attempts").select("quiz_id").limit(10000),
+    admin.from("quiz_attempts").select("id,quiz_id").limit(10000),
+    admin.from("assessment_attempts").select("quiz_id,legacy_quiz_attempt_id").eq("source_type", "QUIZ").not("quiz_id", "is", null).limit(10000),
     trashedQuery
   ]);
   const counts = new Map<string, number>();
   for (const question of questions ?? []) counts.set(question.quiz_id, (counts.get(question.quiz_id) ?? 0) + 1);
   const attemptCounts = new Map<string, number>();
-  for (const attempt of attempts ?? []) attemptCounts.set(attempt.quiz_id, (attemptCounts.get(attempt.quiz_id) ?? 0) + 1);
+  const linkedLegacyIds = new Set((assessmentAttempts ?? []).map((attempt) => attempt.legacy_quiz_attempt_id).filter((id): id is string => Boolean(id)));
+  for (const attempt of (attempts ?? []).filter((row) => !linkedLegacyIds.has(row.id))) attemptCounts.set(attempt.quiz_id, (attemptCounts.get(attempt.quiz_id) ?? 0) + 1);
+  for (const attempt of assessmentAttempts ?? []) if (attempt.quiz_id) attemptCounts.set(attempt.quiz_id, (attemptCounts.get(attempt.quiz_id) ?? 0) + 1);
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
