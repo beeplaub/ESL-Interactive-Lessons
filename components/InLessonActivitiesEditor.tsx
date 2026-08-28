@@ -5,6 +5,7 @@ import { deleteSlideActivity, updateSlideActivity } from "@/app/admin/lessons/ac
 import type { Json } from "@/types/database.types";
 import { useDeleteConfirm } from "@/components/DeleteConfirmModal";
 import { MediaRecorderInput } from "@/components/MediaRecorderInput";
+import { shadowingPhaseData, shadowingPhases, type ShadowingPhase } from "@/lib/shadowing";
 import { lessonActivityDefinition } from "@/lib/lessonActivityCatalog";
 import { BuilderModalLayer } from "@/components/BuilderModalLayer";
 import { isWritingQuestionType, type EvaluationMode } from "@/lib/writingGrading";
@@ -2496,13 +2497,13 @@ function ListenSelectEditor({ activity, onSave }: { activity: Activity; onSave: 
 function ShadowingEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
   const data = asRecord(activity.activity_data);
   const [prompt, setPrompt] = useState(String(data.prompt ?? "Listen to the native speaker and repeat the phrase into your microphone."));
-  const [audioUrl, setAudioUrl] = useState(String(data.audio_url ?? ""));
-  const [targetText, setTargetText] = useState(String(data.target_text ?? data.correct_answer ?? ""));
+  const [phases, setPhases] = useState<ShadowingPhase[]>(() => shadowingPhases(data));
   const [repeatCount, setRepeatCount] = useState(Math.max(1, Math.min(20, Number(data.repeat_count ?? 3) || 3)));
   const [showLiveMatch, setShowLiveMatch] = useState(data.show_live_match !== false);
   const [requireAllGreen, setRequireAllGreen] = useState(data.require_all_green !== false);
 
-  const needsReview = !targetText.trim();
+  const needsReview = phases.some((phase) => !phase.targetText.trim());
+  const updatePhase = (index: number, patch: Partial<ShadowingPhase>) => setPhases((current) => current.map((phase, phaseIndex) => phaseIndex === index ? { ...phase, ...patch } : phase));
 
   return (
     <div className="grid gap-4">
@@ -2517,22 +2518,10 @@ function ShadowingEditor({ activity, onSave }: { activity: Activity; onSave: (da
         <p className="text-xs text-[var(--br-text-muted)] sm:col-span-2">Green means strong match, yellow means developing, and red means needs practice. A repeat counts only when every word is green.</p>
       </div>
 
-      <MediaRecorderInput
-        label="Native Pronunciation Audio (Record live voice, upload file, or paste URL)"
-        value={audioUrl}
-        onChange={setAudioUrl}
-      />
-
-      <label className="text-sm font-medium">
-        Target Phrase to Shadow & Repeat
-        <textarea
-          rows={3}
-          value={targetText}
-          onChange={(e) => setTargetText(e.target.value)}
-          placeholder="e.g. Could I have a glass of water, please?"
-          className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 text-sm font-medium"
-        />
-      </label>
+      <div className="grid gap-3">
+        <div className="flex items-center justify-between gap-3"><div><p className="text-sm font-bold">Target phases</p><p className="text-xs text-[var(--br-text-muted)]">Each phase has its own phrase and audio. Repeat count applies to the whole activity.</p></div><button type="button" onClick={() => setPhases((current) => [...current, { id: `phase-${current.length + 1}-${Date.now()}`, targetText: "", audioUrl: "" }])} className="rounded-lg bg-[var(--br-brand)] px-3 py-1.5 text-xs font-bold text-on-dark">+ Add phase</button></div>
+        {phases.map((phase, index) => <div key={phase.id} className="grid gap-3 rounded-2xl border border-violet-200 bg-violet-50/40 p-3 sm:p-4"><div className="flex items-center justify-between gap-3"><p className="text-xs font-black uppercase tracking-wide text-[var(--br-chart-primary)]">Phase {index + 1}</p>{phases.length > 1 ? <button type="button" onClick={() => setPhases((current) => current.filter((_, phaseIndex) => phaseIndex !== index))} className="text-xs font-semibold text-coral">Remove</button> : null}</div><MediaRecorderInput label="Target audio" value={phase.audioUrl} onChange={(url) => updatePhase(index, { audioUrl: url })} /><label className="text-sm font-medium">Target phrase<textarea rows={3} value={phase.targetText} onChange={(event) => updatePhase(index, { targetText: event.target.value })} placeholder="e.g. Could I have a glass of water, please?" className="mt-1 w-full rounded-md border border-[var(--br-border)] bg-surface px-3 py-2 text-sm font-medium" /></label></div>)}
+      </div>
 
       <div className="flex flex-wrap gap-3">
         <SaveButton
@@ -2540,9 +2529,10 @@ function ShadowingEditor({ activity, onSave }: { activity: Activity; onSave: (da
             onSave(
               {
                 prompt,
-                audio_url: audioUrl,
-                target_text: targetText,
-                correct_answer: targetText,
+                phases: shadowingPhaseData(phases),
+                audio_url: phases[0]?.audioUrl ?? "",
+                target_text: phases[0]?.targetText ?? "",
+                correct_answer: phases[0]?.targetText ?? "",
                 repeat_count: repeatCount,
                 show_live_match: showLiveMatch,
                 require_all_green: requireAllGreen,

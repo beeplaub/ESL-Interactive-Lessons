@@ -20,6 +20,7 @@ import { asWritingValue, evaluationQuota, isAwaitingResolution, isWritingQuestio
 import { normalizeDisplayScore } from "@/lib/assessmentContract";
 import { AudioTrackPlayer } from "@/components/AudioTrackPlayer";
 import { matchShadowingPhrase, type ShadowingMatchResult } from "@/lib/shadowingMatching";
+import { shadowingPhases } from "@/lib/shadowing";
 
 export type QuizQuestion = {
   id: string;
@@ -63,9 +64,10 @@ export type OralResponseValue = {
 
 type ShadowingValue = {
   transcript?: string;
+  phaseId?: string;
   accuracy?: number;
   passed?: boolean;
-  repetitions?: Array<{ transcript: string; match: ShadowingMatchResult }>;
+  repetitions?: Array<{ phaseId?: string; transcript: string; match: ShadowingMatchResult }>;
 };
 
 function allowedEvaluationModes(questions: QuizQuestion[]): EvaluationMode[] {
@@ -147,10 +149,11 @@ export function hasAnswer(question: QuizQuestion, value: unknown): boolean {
     const rec = asRecord(value as Json);
     const options = asRecord(question.options);
     const requiredRepeats = Math.max(1, Math.min(20, Number(options.repeat_count ?? 1) || 1));
+    const phases = shadowingPhases(options);
     const repetitions = Array.isArray(rec.repetitions) ? rec.repetitions.map((item) => asRecord(item as Json)) : [];
-    return repetitions.length >= requiredRepeats && repetitions.slice(0, requiredRepeats).every((item) => {
-      const match = asRecord(item.match as Json);
-      return options.require_all_green === false || match.allGreen === true;
+    return phases.every((phase) => {
+      const phaseRepetitions = repetitions.filter((item) => String(item.phaseId ?? (phases.length === 1 ? phase.id : "phase-1")) === phase.id);
+      return phaseRepetitions.length >= requiredRepeats && phaseRepetitions.slice(0, requiredRepeats).every((item) => options.require_all_green === false || asRecord(item.match as Json).allGreen === true);
     });
   }
   if (question.question_type === "PRONUNCIATION") {
@@ -2914,8 +2917,7 @@ function ShadowingPlayer({
   onChange: (val: ShadowingValue) => void;
 }) {
   const opts = asRecord(question.options);
-  const audioUrl = String(opts.audio_url ?? "");
-  const targetText = String(opts.target_text ?? question.correct_answer ?? "");
+  const phases = shadowingPhases(opts);
   const requiredRepeats = Math.max(1, Math.min(20, Number(opts.repeat_count ?? 1) || 1));
   const requireAllGreen = opts.require_all_green !== false;
   const showLiveMatch = opts.show_live_match !== false;
@@ -2923,6 +2925,7 @@ function ShadowingPlayer({
   const [recording, setRecording] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [previewTranscript, setPreviewTranscript] = useState(value?.transcript ?? "");
+  const [phaseIndex, setPhaseIndex] = useState(() => Math.min(phases.length - 1, Math.max(0, phases.findIndex((phase) => (value?.repetitions ?? []).filter((item) => item.phaseId === phase.id).length < requiredRepeats))));
   const [error, setError] = useState<string | null>(null);
   const recognitionRef = useRef<any>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -2969,9 +2972,12 @@ function ShadowingPlayer({
       const response = await fetch("/api/speech/transcribe", { method: "POST", body: form });
       const result = await response.json().catch(() => ({})) as { transcript?: string; error?: string };
       if (!response.ok || !result.transcript) throw new Error(result.error || "Transcription is temporarily unavailable. Please try again later.");
-      const match = matchShadowingPhrase(targetText, result.transcript);
-      const repetitions = [...(value?.repetitions ?? []), { transcript: result.transcript, match }];
-      onChange({ transcript: result.transcript, accuracy: match.accuracy, passed: !requireAllGreen || match.allGreen, repetitions });
+      const phase = phases[phaseIndex] ?? phases[0];
+      const match = matchShadowingPhrase(phase.targetText, result.transcript);
+      const repetitions = [...(value?.repetitions ?? []), { phaseId: phase.id, transcript: result.transcript, match }];
+      const validRepeats = repetitions.filter((item) => item.phaseId === phase.id && (!requireAllGreen || item.match.allGreen)).length;
+      onChange({ phaseId: phase.id, transcript: result.transcript, accuracy: match.accuracy, passed: !requireAllGreen || match.allGreen, repetitions });
+      if (validRepeats >= requiredRepeats && phaseIndex < phases.length - 1) setPhaseIndex((current) => current + 1);
       setPreviewTranscript(result.transcript);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Transcription is temporarily unavailable. Please try again later.");
@@ -3015,14 +3021,17 @@ function ShadowingPlayer({
     mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
   }, []);
 
-  const repetitions = value?.repetitions ?? [];
-  const greenRepeats = repetitions.filter((item) => item.match?.allGreen).length;
+  const phase = phases[phaseIndex] ?? phases[0];
+  const targetText = phase?.targetText ?? "";
+  const audioUrl = phase?.audioUrl ?? "";
+  const repetitions = (value?.repetitions ?? []).filter((item) => !item.phaseId || item.phaseId === phase?.id);
+  const greenRepeats = repetitions.filter((item) => !requireAllGreen || item.match?.allGreen).length;
   const displayMatch = showLiveMatch && previewTranscript ? matchShadowingPhrase(targetText, previewTranscript) : repetitions.at(-1)?.match ?? null;
 
   return (
     <div className="space-y-4">
       <div className="rounded-2xl border border-violet-200 bg-violet-50/60 p-4 space-y-3">
-        <div className="flex items-center justify-between gap-3"><p className="text-xs font-bold uppercase tracking-wider text-[var(--br-text-muted)]">Target phrase</p><span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-[var(--br-chart-primary)]">Repeat {Math.min(greenRepeats + 1, requiredRepeats)} of {requiredRepeats}</span></div>
+        <div className="flex items-center justify-between gap-3"><p className="text-xs font-bold uppercase tracking-wider text-[var(--br-text-muted)]">Phase {phaseIndex + 1} of {phases.length}</p><span className="rounded-full bg-white px-3 py-1 text-xs font-bold text-[var(--br-chart-primary)]">Repeat {Math.min(greenRepeats + 1, requiredRepeats)} of {requiredRepeats} · activity</span></div>
         <div className="flex flex-wrap gap-1.5 text-base font-bold text-ink">{(displayMatch?.words ?? matchShadowingPhrase(targetText, "").words).map((word, index) => <span key={`${word.target}-${index}`} className={`rounded-md px-1.5 py-0.5 ${word.strength === "strong" ? "bg-emerald-100 text-emerald-700" : word.strength === "medium" ? "bg-amber-100 text-amber-800" : "bg-rose-100 text-rose-700"}`}>{word.target}</span>)}</div>
         {audioUrl && (
           <button

@@ -194,7 +194,17 @@ export function lessonScoredQuestions(activityType: string, value: Json | null):
 
   if (activityType === "DICTATION") return [common(data, 0, "DICTATION", text(data.correct_answer), { ignore_punctuation: data.ignore_punctuation !== false } as Json)];
   if (activityType === "LISTEN_AND_SELECT" || activityType === "SOUND_DISCRIMINATION") return [common(data, 0, activityType, text(data.correct_answer ?? "0"), { choices: data.choices ?? data.pairs ?? [] } as unknown as Json)];
-  if (activityType === "SHADOWING") return [common(data, 0, "SHADOWING", text(data.target_text || data.correct_answer), { target_text: data.target_text ?? data.correct_answer } as Json)];
+  if (activityType === "SHADOWING") {
+    const targetText = text(data.target_text || data.correct_answer);
+    const audioUrl = text(data.audio_url);
+    return [common(data, 0, "SHADOWING", targetText, {
+      audio_url: audioUrl,
+      target_text: targetText,
+      phases: Array.isArray(data.phases) ? data.phases : Array.isArray(data.targets) ? data.targets : [{ id: "phase-1", target_text: targetText, audio_url: audioUrl }],
+      repeat_count: Math.max(1, Math.min(20, Number(data.repeat_count ?? 1) || 1)),
+      require_all_green: data.require_all_green !== false,
+    } as Json)];
+  }
   if (activityType === "NOTE_TAKING_CHALLENGE") return [common(data, 0, "NOTE_TAKING_CHALLENGE", asRecord(data.correct_answer as Json), { questions: data.questions ?? [] } as unknown as Json)];
   if (activityType === "SUMMARIZATION") return [common(data, 0, "SUMMARIZATION", true, { max_words: data.max_words ?? 0, sample_answer: data.sample_answer ?? "" } as unknown as Json)];
 

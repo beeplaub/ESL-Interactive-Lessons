@@ -1,5 +1,6 @@
 import type { Json } from "@/types/database.types";
 import { isWritingQuestionType, resolveWritingOutcome } from "@/lib/writingGrading";
+import { shadowingPhases } from "@/lib/shadowing";
 
 export type ScoredQuestion = {
   id?: string;
@@ -188,10 +189,14 @@ export function isCorrect(question: ScoredQuestion, value: unknown): boolean {
     const rec = asRecord(value as Json);
     const options = asRecord(question.options);
     const requiredRepeats = Math.max(1, Math.min(20, Number(options.repeat_count ?? 1) || 1));
+    const phases = shadowingPhases(options);
     const repetitions = Array.isArray(rec.repetitions) ? rec.repetitions.map((item) => asRecord(item as Json)) : [];
-    return repetitions.length >= requiredRepeats && repetitions.slice(0, requiredRepeats).every((item) => {
-      const match = asRecord(item.match as Json);
-      return options.require_all_green === false || match.allGreen === true;
+    return phases.every((phase) => {
+      const phaseRepetitions = repetitions.filter((item) => String(item.phaseId ?? (phases.length === 1 ? phase.id : "phase-1")) === phase.id);
+      return phaseRepetitions.length >= requiredRepeats && phaseRepetitions.slice(0, requiredRepeats).every((item) => {
+        const match = asRecord(item.match as Json);
+        return options.require_all_green === false || match.allGreen === true;
+      });
     });
   }
 

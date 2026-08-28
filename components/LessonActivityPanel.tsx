@@ -18,6 +18,7 @@ import { StreakPopup } from "@/components/gamification/StreakPopup";
 import { startSpeakTranslation, startLiveConversation } from "@/components/GeminiLiveTranslation";
 import { lessonActivityDefinition } from "@/lib/lessonActivityCatalog";
 import { normalizeDisplayScore } from "@/lib/assessmentContract";
+import { shadowingPhases } from "@/lib/shadowing";
 
 type LessonSlideActivity = {
   id: string; activity_type: string; activity_data: Json | null;
@@ -275,6 +276,7 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
       options: {
         audio_url: audioUrl,
         target_text: targetText,
+        phases: shadowingPhases(data).map((phase) => ({ id: phase.id, target_text: phase.targetText, audio_url: phase.audioUrl })),
         repeat_count: Math.max(1, Math.min(20, Number(data.repeat_count ?? 1) || 1)),
         require_all_green: data.require_all_green !== false,
         show_live_match: data.show_live_match !== false,

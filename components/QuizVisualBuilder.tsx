@@ -11,6 +11,7 @@ import type { QuizQuestion } from "@/components/QuizPlayer";
 import type { Json } from "@/types/database.types";
 import { useDeleteConfirm } from "@/components/DeleteConfirmModal";
 import { MediaRecorderInput } from "@/components/MediaRecorderInput";
+import { shadowingPhaseData, shadowingPhases, type ShadowingPhase } from "@/lib/shadowing";
 
 type BuilderQuestion = {
   id: string;
@@ -1662,28 +1663,15 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
   }
 
   if (question.questionType === "SHADOWING") {
+    const phases = shadowingPhases(options);
+    const updatePhase = (index: number, patch: Partial<ShadowingPhase>) => {
+      const next = phases.map((phase, phaseIndex) => phaseIndex === index ? { ...phase, ...patch } : phase);
+      onChange({ options: { ...options, phases: shadowingPhaseData(next), audio_url: next[0]?.audioUrl ?? "", target_text: next[0]?.targetText ?? "" } as Json, correctAnswer: next[0]?.targetText ?? "" });
+    };
     return (
       <div className="grid gap-3">
-        <MediaRecorderInput
-          label="Native Pronunciation Audio (Record live, upload, or paste URL)"
-          value={String(options.audio_url ?? "")}
-          onChange={(url) => onChange({ options: { ...options, audio_url: url } as Json })}
-        />
-        <label className="text-sm font-medium">
-          Target Sentence to Shadow & Repeat
-          <textarea
-            rows={3}
-            value={String(question.correctAnswer ?? options.target_text ?? "")}
-            onChange={(e) =>
-              onChange({
-                correctAnswer: e.target.value,
-                options: { ...options, target_text: e.target.value } as Json,
-              })
-            }
-            placeholder="e.g. Excuse me, could you tell me how to get to the station?"
-            className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 text-sm"
-          />
-        </label>
+        <div className="flex items-center justify-between gap-3"><div><p className="text-sm font-bold">Target phases</p><p className="text-xs text-[var(--br-text-muted)]">Each phase has its own phrase and audio.</p></div><button type="button" onClick={() => { const next = [...phases, { id: `phase-${phases.length + 1}-${Date.now()}`, targetText: "", audioUrl: "" }]; onChange({ options: { ...options, phases: shadowingPhaseData(next) } as Json }); }} className="rounded-lg bg-[var(--br-brand)] px-3 py-1.5 text-xs font-bold text-on-dark">+ Add phase</button></div>
+        {phases.map((phase, index) => <div key={phase.id} className="grid gap-3 rounded-2xl border border-violet-200 bg-violet-50/40 p-3 sm:p-4"><div className="flex items-center justify-between gap-3"><p className="text-xs font-black uppercase tracking-wide text-[var(--br-chart-primary)]">Phase {index + 1}</p>{phases.length > 1 ? <button type="button" onClick={() => { const next = phases.filter((_, phaseIndex) => phaseIndex !== index); onChange({ options: { ...options, phases: shadowingPhaseData(next), audio_url: next[0]?.audioUrl ?? "", target_text: next[0]?.targetText ?? "" } as Json, correctAnswer: next[0]?.targetText ?? "" }); }} className="text-xs font-semibold text-coral">Remove</button> : null}</div><MediaRecorderInput label="Target audio" value={phase.audioUrl} onChange={(url) => updatePhase(index, { audioUrl: url })} /><label className="text-sm font-medium">Target phrase<textarea rows={3} value={phase.targetText} onChange={(event) => updatePhase(index, { targetText: event.target.value })} placeholder="e.g. Excuse me, could you tell me how to get to the station?" className="mt-1 w-full rounded-md border border-[var(--br-border)] bg-surface px-3 py-2 text-sm" /></label></div>)}
         <div className="grid gap-3 rounded-2xl border border-violet-200 bg-violet-50/60 p-4 sm:grid-cols-2">
           <label className="text-sm font-semibold">Repeat count<select value={Number(options.repeat_count ?? 3)} onChange={(e) => onChange({ options: { ...options, repeat_count: Math.max(1, Math.min(20, Number(e.target.value) || 1)) } as Json })} className="mt-1 w-full rounded-xl border border-[var(--br-border)] bg-surface px-3 py-2"><option value={1}>1 repetition</option><option value={2}>2 repetitions</option><option value={3}>3 repetitions</option><option value={5}>5 repetitions</option><option value={10}>10 repetitions</option></select></label>
           <div className="grid gap-2 text-sm font-semibold"><label className="flex items-center gap-2"><input type="checkbox" checked={options.show_live_match !== false} onChange={(e) => onChange({ options: { ...options, show_live_match: e.target.checked } as Json })} /> Show live phrase match</label><label className="flex items-center gap-2"><input type="checkbox" checked={options.require_all_green !== false} onChange={(e) => onChange({ options: { ...options, require_all_green: e.target.checked } as Json })} /> Require all words green</label></div>
