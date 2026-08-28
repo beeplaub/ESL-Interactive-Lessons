@@ -7,6 +7,7 @@ import { RecentQuizAttemptsClient, type QuizAttemptGroup, type QuizAttemptsSumma
 type AttemptRow = {
   id: string;
   quiz_id: string | null;
+  legacy_quiz_attempt_id?: string | null;
   score: number;
   total: number;
   completed_at: string;
@@ -15,7 +16,11 @@ type AttemptRow = {
     title?: string | null;
     topic?: string | null;
     level?: string | null;
-  } | null;
+  } | Array<{
+    title?: string | null;
+    topic?: string | null;
+    level?: string | null;
+  }> | null;
 };
 
 type PlatformAttemptRow = {
@@ -65,17 +70,39 @@ export default async function QuizAttemptsPage() {
   const { user } = await requireUser();
   const admin = createAdminClient();
 
-  const [{ data: attempts }, { data: points }] = await Promise.all([
+  const [{ data: legacyAttempts }, { data: assessmentAttempts }, { data: points }] = await Promise.all([
     admin
       .from("quiz_attempts")
       .select("id,quiz_id,score,total,completed_at,time_taken_seconds,quizzes(title,topic,level)")
       .eq("user_id", user.id)
       .not("quiz_id", "is", null)
       .order("completed_at", { ascending: false }),
+    admin
+      .from("assessment_attempts")
+      .select("id,quiz_id,legacy_quiz_attempt_id,score,maximum_score,completed_at,submitted_at,created_at,time_taken_seconds")
+      .eq("user_id", user.id)
+      .eq("source_type", "QUIZ")
+      .not("quiz_id", "is", null)
+      .order("completed_at", { ascending: false }),
     admin.from("quiz_leaderboard_points").select("user_id,points").limit(10000),
   ]);
 
-  const quizIds = Array.from(new Set((attempts ?? []).map((attempt) => attempt.quiz_id).filter((id): id is string => Boolean(id))));
+  const linkedLegacyIds = new Set((assessmentAttempts ?? []).map((attempt) => attempt.legacy_quiz_attempt_id).filter((id): id is string => Boolean(id)));
+  const legacyById = new Map((legacyAttempts ?? []).map((attempt) => [attempt.id, attempt]));
+  const canonicalAttempts: AttemptRow[] = (assessmentAttempts ?? []).map((attempt) => ({
+    id: attempt.legacy_quiz_attempt_id ?? attempt.id,
+    quiz_id: attempt.quiz_id,
+    score: Number(attempt.score ?? 0),
+    total: Number(attempt.maximum_score ?? 0),
+    completed_at: attempt.completed_at ?? attempt.submitted_at ?? attempt.created_at,
+    time_taken_seconds: attempt.time_taken_seconds,
+    quizzes: attempt.legacy_quiz_attempt_id ? legacyById.get(attempt.legacy_quiz_attempt_id)?.quizzes : null,
+  }));
+  const attempts: AttemptRow[] = [
+    ...(legacyAttempts ?? []).filter((attempt) => !linkedLegacyIds.has(attempt.id)),
+    ...canonicalAttempts,
+  ].sort((a, b) => new Date(b.completed_at).getTime() - new Date(a.completed_at).getTime());
+  const quizIds = Array.from(new Set(attempts.map((attempt) => attempt.quiz_id).filter((id): id is string => Boolean(id))));
   const [{ data: questionCounts }, { data: platformAttempts }] = await Promise.all([
     quizIds.length ? admin.from("quiz_questions").select("quiz_id").in("quiz_id", quizIds) : Promise.resolve({ data: [] as { quiz_id: string }[] }),
     quizIds.length
@@ -89,7 +116,7 @@ export default async function QuizAttemptsPage() {
   }
 
   const grouped = new Map<string, QuizAttemptGroup>();
-  for (const attempt of (attempts ?? []) as AttemptRow[]) {
+  for (const attempt of attempts) {
     if (!attempt.quiz_id) continue;
     const quiz = Array.isArray(attempt.quizzes) ? attempt.quizzes[0] : attempt.quizzes;
     const current: QuizAttemptGroup = grouped.get(attempt.quiz_id) ?? {
@@ -133,7 +160,7 @@ export default async function QuizAttemptsPage() {
     };
   });
 
-  const allAttempts = (attempts ?? []) as AttemptRow[];
+  const allAttempts = attempts;
   const allPercents = allAttempts.map((attempt) => percent(attempt.score, attempt.total));
   const totalTimeSeconds = allAttempts.reduce((sum, attempt) => sum + Number(attempt.time_taken_seconds ?? 0), 0);
   const summary: QuizAttemptsSummary = {
