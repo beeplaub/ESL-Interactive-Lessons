@@ -843,13 +843,14 @@ export function BuilderLessonPlayer({
                   {liveSession && !isLiveTeacher && (activityState(activePracticeActivity.id).state === "CLOSED" || liveActivitySeconds(activePracticeActivity.id) === 0) ? <div className="rounded-lg border border-dashed border-[var(--br-chart-primary)]/25 bg-[var(--br-surface-muted)] p-5 text-center text-sm font-semibold text-[var(--br-text-muted)]">{liveActivitySeconds(activePracticeActivity.id) === 0 ? "Time is up. Your teacher may extend or reveal this activity." : "Your teacher will open this activity when the class is ready."}</div> :
                     <div id={`lesson-activity-${activePracticeActivity.id}`}>
                       {liveSession && liveActivitySeconds(activePracticeActivity.id) !== null ? <p className="mb-2 text-xs font-extrabold text-[var(--br-chart-primary)]">Activity time: {formatTime(liveActivitySeconds(activePracticeActivity.id) ?? 0)}</p> : null}
-                      <LessonActivityPanel
+                    <LessonActivityPanel
                       activity={{
                         id: activePracticeActivity.id,
                         activity_type: activePracticeActivity.activity_type,
                         activity_data: activePracticeActivity.activity_data,
                       }}
-                      onNext={handleActivityNext}
+                    onNext={handleActivityNext}
+                    nextLabel={practiceActivityIndex < slideActivities.length - 1 ? "Next activity" : "Next slide"}
                       lessonId={lesson.id}
                       courseItemId={courseItemId}
                       initialAttempt={latestAttemptByActivity.get(activePracticeActivity.id) ?? null}

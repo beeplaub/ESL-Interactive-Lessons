@@ -1522,9 +1522,9 @@ function TextRoleplayPanel({
 /* ─── Main Activity Panel ────────────────────────────────────────── */
 
 export function LessonActivityPanel({
-  activity, onNext, previewOnly = false, initialAttempt = null, attempts = [], onSavedAttempt, courseItemId = null, lessonId = null, preserveDraft = true,
+  activity, onNext, nextLabel = "Next", previewOnly = false, initialAttempt = null, attempts = [], onSavedAttempt, courseItemId = null, lessonId = null, preserveDraft = true,
 }: {
-  activity: LessonSlideActivity; onNext: () => void;
+  activity: LessonSlideActivity; onNext: () => void; nextLabel?: string;
   previewOnly?: boolean; initialAttempt?: SavedAttempt | null; attempts?: SavedAttempt[]; onSavedAttempt?: (attempt: SavedAttempt) => void; preserveDraft?: boolean;
   courseItemId?: string | null;
   lessonId?: string | null;
@@ -1969,7 +1969,7 @@ export function LessonActivityPanel({
                 <RotateCcw size={14} /> Retake
               </button>
               <button type="button" onClick={onNext} className="inline-flex items-center gap-2 rounded-md bg-dark px-4 py-2 text-sm font-semibold text-on-dark">
-                Next <ChevronRight size={15} />
+                {nextLabel} <ChevronRight size={15} />
               </button>
             </>
           ) : (

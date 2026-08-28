@@ -1130,7 +1130,7 @@ function PreviewActivitySequence({ activities, onNextSlide }: { activities: Acti
     }
     onNextSlide();
   }
-  return <div className="space-y-3"><div className="flex items-center justify-between gap-3 rounded-xl bg-[var(--br-canvas-elevated)] px-3 py-2 text-xs font-extrabold text-[var(--br-text-muted)]"><span>Practice activity {activityIndex + 1} of {activities.length}</span><div className="flex gap-1" aria-label="Practice activity progress">{activities.map((item, index) => <span key={item.id} className={`h-1.5 w-8 rounded-full sm:w-12 ${index <= activityIndex ? "bg-[var(--br-chart-secondary)]" : "bg-[var(--br-surface-strong)]"}`} />)}</div></div><LessonActivityPanel key={activity.id} activity={{ id: activity.id, activity_type: activity.activity_type, activity_data: activity.activity_data }} onNext={handleNext} previewOnly /></div>;
+  return <div className="space-y-3"><div className="flex items-center justify-between gap-3 rounded-xl bg-[var(--br-canvas-elevated)] px-3 py-2 text-xs font-extrabold text-[var(--br-text-muted)]"><span>Practice activity {activityIndex + 1} of {activities.length}</span><div className="flex gap-1" aria-label="Practice activity progress">{activities.map((item, index) => <span key={item.id} className={`h-1.5 w-8 rounded-full sm:w-12 ${index <= activityIndex ? "bg-[var(--br-chart-secondary)]" : "bg-[var(--br-surface-strong)]"}`} />)}</div></div><LessonActivityPanel key={activity.id} activity={{ id: activity.id, activity_type: activity.activity_type, activity_data: activity.activity_data }} onNext={handleNext} nextLabel={activityIndex < activities.length - 1 ? "Next activity" : "Next slide"} previewOnly /></div>;
 }
 
 function ActivityPickerModal({ lessonId, slide, onClose, onOpenBank, onOpenAi }: {
