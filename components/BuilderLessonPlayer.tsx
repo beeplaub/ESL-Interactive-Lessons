@@ -311,6 +311,7 @@ export function BuilderLessonPlayer({
   const [isPending, startTransition] = useTransition();
   const [savedActivityAttempts, setSavedActivityAttempts] = useState<ActivityAttempt[]>(activityAttempts);
   const [jumpOpen, setJumpOpen] = useState(false);
+  const [practiceActivityIndex, setPracticeActivityIndex] = useState(0);
 
   const [notesMap, setNotesMap] = useState<Record<string, string>>(
     typeof initialNotes === "object" && !Array.isArray(initialNotes) ? initialNotes : {}
@@ -406,9 +407,10 @@ export function BuilderLessonPlayer({
   }, [blocks]);
 
   const slideBlocks = slide ? blocksBySlide.get(slide.id) ?? [] : [];
-  const slideActivities = slide
-    ? activities.filter((a) => a.slide_id === slide.id)
-    : [];
+  const slideActivities = useMemo(
+    () => slide ? activities.filter((activity) => activity.slide_id === slide.id) : [],
+    [activities, slide?.id]
+  );
   const learnAvailable = slideBlocks.length > 0;
   const practiceAvailable = slideActivities.length > 0;
   const practiceFirst = slide?.content_order === "PRACTICE_FIRST";
@@ -456,6 +458,11 @@ export function BuilderLessonPlayer({
     }
     return map;
   }, [activities, savedActivityAttempts]);
+  const slideActivityIds = slideActivities.map((activity) => activity.id).join(",");
+  useEffect(() => {
+    const firstIncomplete = slideActivities.findIndex((activity) => !latestAttemptByActivity.has(activity.id));
+    setPracticeActivityIndex(firstIncomplete >= 0 ? firstIncomplete : 0);
+  }, [latestAttemptByActivity, slide?.id, slideActivityIds]);
   const totalLessonMarks = useMemo(
     () => activities.reduce((sum, activity) => sum + lessonActivityTotalPoints({
       id: activity.id,
@@ -474,6 +481,15 @@ export function BuilderLessonPlayer({
   // and only while the learner hasn't yet submitted every activity on it.
   const practiceSubmitted = slideActivities.length > 0 && slideActivities.every((a) => latestAttemptByActivity.has(a.id));
   const learnLocked = practiceFirst && Boolean(slide?.require_practice_before_learn) && practiceAvailable && !practiceSubmitted;
+  const activePracticeActivity = slideActivities[practiceActivityIndex] ?? slideActivities[0] ?? null;
+
+  function handleActivityNext() {
+    if (practiceActivityIndex < slideActivities.length - 1) {
+      setPracticeActivityIndex((current) => current + 1);
+      return;
+    }
+    move(1);
+  }
 
   function selectTab(tab: "learn" | "practice") {
     if (tab === "learn" && (!learnAvailable || learnLocked)) return;
@@ -822,45 +838,46 @@ export function BuilderLessonPlayer({
               )
             ) : slideActivities.length ? (
               <div className="space-y-4">
-                {slideActivities.map((activity) => (
-                  liveSession && !isLiveTeacher && (activityState(activity.id).state === "CLOSED" || liveActivitySeconds(activity.id) === 0) ? <div key={activity.id} className="rounded-lg border border-dashed border-[var(--br-chart-primary)]/25 bg-[var(--br-surface-muted)] p-5 text-center text-sm font-semibold text-[var(--br-text-muted)]">{liveActivitySeconds(activity.id) === 0 ? "Time is up. Your teacher may extend or reveal this activity." : "Your teacher will open this activity when the class is ready."}</div> :
-                  <div key={activity.id} id={`lesson-activity-${activity.id}`}>
-                    {liveSession && liveActivitySeconds(activity.id) !== null ? <p className="mb-2 text-xs font-extrabold text-[var(--br-chart-primary)]">Activity time: {formatTime(liveActivitySeconds(activity.id) ?? 0)}</p> : null}
-                    <LessonActivityPanel
-                    activity={{
-                      id: activity.id,
-                      activity_type: activity.activity_type,
-                      activity_data: activity.activity_data,
-                    }}
-                    onNext={() => move(1)}
-                    lessonId={lesson.id}
-                    courseItemId={courseItemId}
-                    initialAttempt={latestAttemptByActivity.get(activity.id) ?? null}
-                    preserveDraft={!lesson.timer_minutes}
-                    attempts={savedActivityAttempts.filter((attempt) => attempt.lesson_slide_activity_id === activity.id)}
-                    onSavedAttempt={(attempt) => {
-                      const expectedTotal = lessonActivityTotalPoints({ id: activity.id, activity_type: activity.activity_type, activity_data: activity.activity_data });
-                      const normalized = normalizeDisplayScore(attempt.score, attempt.total, expectedTotal);
-                      setSavedActivityAttempts((current) => [{
-                        id: attempt.id,
-                        lesson_slide_activity_id: activity.id,
-                        score: normalized.score,
-                        total: normalized.total,
-                        answers: attempt.answers,
-                        completed_at: attempt.completed_at ?? new Date().toISOString(),
-                        status: attempt.status,
-                        grading_source: attempt.grading_source,
-                      }, ...current]);
-                      if (liveSession) {
-                        void fetch(`/api/live/${liveSession.sessionId}/evidence`, {
-                          method: "POST", headers: { "content-type": "application/json" },
-                          body: JSON.stringify({ activityId: activity.id, score: attempt.score, total: attempt.total, answers: attempt.answers }),
-                        });
-                      }
-                    }}
-                    />
-                  </div>
-                ))}
+                {activePracticeActivity ? <>
+                  <div className="flex items-center justify-between gap-3 rounded-xl bg-[var(--br-canvas-elevated)] px-3 py-2 text-xs font-extrabold text-[var(--br-text-muted)]"><span>Practice activity {practiceActivityIndex + 1} of {slideActivities.length}</span><div className="flex gap-1" aria-label="Practice activity progress">{slideActivities.map((activity, activityIndex) => <span key={activity.id} className={`h-1.5 w-8 rounded-full sm:w-12 ${activityIndex <= practiceActivityIndex ? "bg-[var(--br-chart-secondary)]" : "bg-[var(--br-surface-strong)]"}`} />)}</div></div>
+                  {liveSession && !isLiveTeacher && (activityState(activePracticeActivity.id).state === "CLOSED" || liveActivitySeconds(activePracticeActivity.id) === 0) ? <div className="rounded-lg border border-dashed border-[var(--br-chart-primary)]/25 bg-[var(--br-surface-muted)] p-5 text-center text-sm font-semibold text-[var(--br-text-muted)]">{liveActivitySeconds(activePracticeActivity.id) === 0 ? "Time is up. Your teacher may extend or reveal this activity." : "Your teacher will open this activity when the class is ready."}</div> :
+                    <div id={`lesson-activity-${activePracticeActivity.id}`}>
+                      {liveSession && liveActivitySeconds(activePracticeActivity.id) !== null ? <p className="mb-2 text-xs font-extrabold text-[var(--br-chart-primary)]">Activity time: {formatTime(liveActivitySeconds(activePracticeActivity.id) ?? 0)}</p> : null}
+                      <LessonActivityPanel
+                      activity={{
+                        id: activePracticeActivity.id,
+                        activity_type: activePracticeActivity.activity_type,
+                        activity_data: activePracticeActivity.activity_data,
+                      }}
+                      onNext={handleActivityNext}
+                      lessonId={lesson.id}
+                      courseItemId={courseItemId}
+                      initialAttempt={latestAttemptByActivity.get(activePracticeActivity.id) ?? null}
+                      preserveDraft={!lesson.timer_minutes}
+                      attempts={savedActivityAttempts.filter((attempt) => attempt.lesson_slide_activity_id === activePracticeActivity.id)}
+                      onSavedAttempt={(attempt) => {
+                        const expectedTotal = lessonActivityTotalPoints({ id: activePracticeActivity.id, activity_type: activePracticeActivity.activity_type, activity_data: activePracticeActivity.activity_data });
+                        const normalized = normalizeDisplayScore(attempt.score, attempt.total, expectedTotal);
+                        setSavedActivityAttempts((current) => [{
+                          id: attempt.id,
+                          lesson_slide_activity_id: activePracticeActivity.id,
+                          score: normalized.score,
+                          total: normalized.total,
+                          answers: attempt.answers,
+                          completed_at: attempt.completed_at ?? new Date().toISOString(),
+                          status: attempt.status,
+                          grading_source: attempt.grading_source,
+                        }, ...current]);
+                        if (liveSession) {
+                          void fetch(`/api/live/${liveSession.sessionId}/evidence`, {
+                            method: "POST", headers: { "content-type": "application/json" },
+                            body: JSON.stringify({ activityId: activePracticeActivity.id, score: attempt.score, total: attempt.total, answers: attempt.answers }),
+                          });
+                        }
+                      }}
+                      />
+                    </div>}
+                </> : null}
               </div>
             ) : (
               <div className="rounded-[22px] border border-[var(--br-surface-strong)] bg-surface p-5 text-sm font-semibold text-[var(--br-text-muted)] shadow-[var(--br-shadow)]">
