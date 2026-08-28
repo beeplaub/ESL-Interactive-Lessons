@@ -340,9 +340,10 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
     const src = mediaUrl(path, "audio");
     const youtubeId = getYouTubeId(path);
     return (
-      <div className="rounded-lg border border-[var(--br-border)] bg-dark p-3 text-on-dark sm:p-4">
-        <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
-          <Headphones size={18} /> {asString(content.label) || "Audio"}
+      <div className="rounded-2xl border border-[var(--br-border)] bg-[var(--br-surface-muted)] p-3 shadow-sm sm:p-4">
+        <div className="mb-3 flex items-center gap-3 px-1 text-sm font-semibold text-ink">
+          <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-[var(--br-brand)]/10 text-[var(--br-brand)]"><Headphones size={18} /></span>
+          <span className="truncate">{asString(content.label) || "Audio"}</span>
         </div>
         {youtubeId ? (
           <YouTubeAudioPlayer videoId={youtubeId} />
@@ -818,22 +819,19 @@ function CustomAudioPlayer({ src }: { src: string }) {
   const [volume, setVolume] = useState(0.9);
   const [speed, setSpeed] = useState(1);
   const [openSettings, setOpenSettings] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
   function toggle() { const audio = audioRef.current; if (!audio) return; if (audio.paused) { void audio.play(); } else { audio.pause(); } }
   function seek(seconds: number) { const audio = audioRef.current; if (!audio) return; audio.currentTime = Math.max(0, audio.currentTime + seconds); }
+  function formatTime(seconds: number) { if (!Number.isFinite(seconds)) return "0:00"; return `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`; }
   return (
-    <div className="rounded-lg bg-white/10 p-3">
-      <audio ref={audioRef} src={src} preload="metadata" onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} onEnded={() => setPlaying(false)} />
-      <div className="flex flex-wrap items-center gap-2">
-        <button type="button" onClick={() => seek(-10)} className="rounded-md bg-white/10 px-3 py-2 text-xs font-semibold hover:bg-white/20">-10s</button>
-        <button type="button" onClick={toggle} className="inline-flex items-center gap-2 rounded-md bg-surface px-4 py-2 text-sm font-semibold text-ink">{playing ? <Pause size={16} /> : <Play size={16} />} {playing ? "Pause" : "Play"}</button>
-        <button type="button" onClick={() => seek(10)} className="rounded-md bg-white/10 px-3 py-2 text-xs font-semibold hover:bg-white/20">+10s</button>
-        <label className="ml-auto flex items-center gap-2 text-xs text-white/70"><Volume2 size={15} /><input type="range" min="0" max="1" step="0.05" value={volume} onChange={(event) => { const next = Number(event.target.value); setVolume(next); if (audioRef.current) audioRef.current.volume = next; }} /></label>
-        <button type="button" onClick={() => setOpenSettings((current) => !current)} className="rounded-md bg-white/10 p-2 hover:bg-white/20" aria-label="Audio settings"><Settings size={16} /></button>
-      </div>
+    <div className="overflow-hidden rounded-2xl bg-dark p-3 text-on-dark shadow-lg sm:p-4">
+      <audio ref={audioRef} src={src} preload="metadata" onLoadedMetadata={(event) => setDuration(event.currentTarget.duration)} onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)} onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} onEnded={() => { setPlaying(false); setCurrentTime(0); }} />
+      <div className="flex items-center gap-3"><button type="button" onClick={toggle} className="grid size-12 shrink-0 place-items-center rounded-full bg-[var(--br-action)] text-on-dark shadow-md transition hover:scale-105" aria-label={playing ? "Pause audio" : "Play audio"}>{playing ? <Pause size={19} fill="currentColor" /> : <Play size={19} fill="currentColor" />}</button><div className="min-w-0 flex-1"><div className="flex items-center justify-between gap-3 text-xs font-semibold text-white/70"><span>{playing ? "Now playing" : "Ready to play"}</span><span className="tabular-nums">{formatTime(currentTime)} / {formatTime(duration)}</span></div><input type="range" min="0" max={duration || 1} step="0.1" value={Math.min(currentTime, duration || 1)} onChange={(event) => { const next = Number(event.target.value); setCurrentTime(next); if (audioRef.current) audioRef.current.currentTime = next; }} className="mt-2 h-2 w-full cursor-pointer accent-[var(--br-action)]" aria-label="Audio progress" /></div><button type="button" onClick={() => setOpenSettings((current) => !current)} className={`grid size-10 shrink-0 place-items-center rounded-xl border transition ${openSettings ? "border-[var(--br-action)]/60 bg-[var(--br-action)]/15 text-[var(--br-action)]" : "border-white/15 bg-white/10 text-white/75 hover:bg-white/15"}`} aria-label="Audio settings" aria-expanded={openSettings}><Settings size={17} /></button></div>
+      <div className="mt-3 flex items-center justify-between gap-2"><div className="flex gap-2"><button type="button" onClick={() => seek(-10)} className="rounded-lg border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/75 transition hover:bg-white/15">−10 sec</button><button type="button" onClick={() => seek(10)} className="rounded-lg border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/75 transition hover:bg-white/15">+10 sec</button></div><label className="flex min-w-0 items-center gap-2 text-xs text-white/65"><Volume2 size={15} className="shrink-0" /><input type="range" min="0" max="1" step="0.05" value={volume} onChange={(event) => { const next = Number(event.target.value); setVolume(next); if (audioRef.current) audioRef.current.volume = next; }} className="w-20 accent-[var(--br-action)] sm:w-28" aria-label="Audio volume" /></label></div>
       {openSettings ? (
-        <div className="mt-3 rounded-md bg-white/10 p-3 text-sm">
-          <label className="flex items-center justify-between gap-3">Speed<select value={speed} onChange={(event) => { const next = Number(event.target.value); setSpeed(next); if (audioRef.current) audioRef.current.playbackRate = next; }} className="rounded-md border border-white/20 bg-dark px-2 py-1 text-on-dark">{[0.75, 1, 1.25, 1.5, 2].map((value) => <option key={value} value={value}>{value}x</option>)}</select></label>
-          <p className="mt-2 text-xs text-white/55">Audio quality depends on the source link.</p>
+        <div className="mt-3 rounded-xl border border-white/10 bg-white/10 p-3 text-sm"><label className="flex items-center justify-between gap-3 text-white/80">Playback speed<select value={speed} onChange={(event) => { const next = Number(event.target.value); setSpeed(next); if (audioRef.current) audioRef.current.playbackRate = next; }} className="rounded-lg border border-white/20 bg-dark px-2.5 py-1.5 text-on-dark">{[0.75, 1, 1.25, 1.5, 2].map((value) => <option key={value} value={value}>{value}x</option>)}</select></label>
+          <p className="mt-2 text-xs text-white/55">Adjust playback without changing the original audio.</p>
         </div>
       ) : null}
     </div>
@@ -852,15 +850,11 @@ function YouTubeAudioPlayer({ videoId }: { videoId: string }) {
   function toggle() { if (playing) { command("pauseVideo"); setPlaying(false); } else { command("playVideo"); setPlaying(true); } }
   function seek(seconds: number) { command("seekTo", [seconds, true]); }
   return (
-    <div className="relative rounded-lg bg-white/10 p-3">
+    <div className="relative overflow-hidden rounded-2xl bg-dark p-3 text-on-dark shadow-lg sm:p-4">
       <iframe ref={iframeRef} src={src} title="Audio source" className="pointer-events-none absolute size-px opacity-0" allow="autoplay; encrypted-media" />
-      <div className="flex flex-wrap items-center gap-2">
-        <button type="button" onClick={() => seek(0)} className="rounded-md bg-white/10 px-3 py-2 text-xs font-semibold hover:bg-white/20">Start</button>
-        <button type="button" onClick={toggle} className="inline-flex items-center gap-2 rounded-md bg-surface px-4 py-2 text-sm font-semibold text-ink">{playing ? <Pause size={16} /> : <Play size={16} />} {playing ? "Pause" : "Play"}</button>
-        <label className="ml-auto flex items-center gap-2 text-xs text-white/70"><Volume2 size={15} /><input type="range" min="0" max="100" step="5" value={volume} onChange={(event) => setVolume(Number(event.target.value))} /></label>
-        <button type="button" onClick={() => setOpenSettings((current) => !current)} className="rounded-md bg-white/10 p-2 hover:bg-white/20" aria-label="Audio settings"><Settings size={16} /></button>
-      </div>
-      {openSettings ? (<div className="mt-3 rounded-md bg-white/10 p-3 text-sm"><label className="flex items-center justify-between gap-3">Speed<select value={speed} onChange={(event) => setSpeed(Number(event.target.value))} className="rounded-md border border-white/20 bg-dark px-2 py-1 text-on-dark">{[0.75, 1, 1.25, 1.5, 2].map((value) => <option key={value} value={value}>{value}x</option>)}</select></label></div>) : null}
+      <div className="flex items-center gap-3"><button type="button" onClick={toggle} className="grid size-12 shrink-0 place-items-center rounded-full bg-[var(--br-action)] text-on-dark shadow-md transition hover:scale-105" aria-label={playing ? "Pause audio" : "Play audio"}>{playing ? <Pause size={19} fill="currentColor" /> : <Play size={19} fill="currentColor" />}</button><div className="min-w-0 flex-1"><div className="flex items-center justify-between gap-3 text-xs font-semibold text-white/70"><span>{playing ? "Now playing" : "Ready to play"}</span><span>Audio source</span></div><div className="mt-2 h-2 overflow-hidden rounded-full bg-white/15"><div className="h-full w-1/3 rounded-full bg-[var(--br-action)]" /></div></div><button type="button" onClick={() => setOpenSettings((current) => !current)} className={`grid size-10 shrink-0 place-items-center rounded-xl border transition ${openSettings ? "border-[var(--br-action)]/60 bg-[var(--br-action)]/15 text-[var(--br-action)]" : "border-white/15 bg-white/10 text-white/75 hover:bg-white/15"}`} aria-label="Audio settings" aria-expanded={openSettings}><Settings size={17} /></button></div>
+      <div className="mt-3 flex justify-end"><label className="flex items-center gap-2 text-xs text-white/65"><Volume2 size={15} /><input type="range" min="0" max="100" step="5" value={volume} onChange={(event) => setVolume(Number(event.target.value))} className="w-28 accent-[var(--br-action)]" aria-label="Audio volume" /></label></div>
+      {openSettings ? (<div className="mt-3 rounded-xl border border-white/10 bg-white/10 p-3 text-sm"><label className="flex items-center justify-between gap-3 text-white/80">Playback speed<select value={speed} onChange={(event) => setSpeed(Number(event.target.value))} className="rounded-lg border border-white/20 bg-dark px-2.5 py-1.5 text-on-dark">{[0.75, 1, 1.25, 1.5, 2].map((value) => <option key={value} value={value}>{value}x</option>)}</select></label></div>) : null}
     </div>
   );
 }
