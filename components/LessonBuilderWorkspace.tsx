@@ -1003,7 +1003,7 @@ export function LessonBuilderWorkspace({ lesson, slides, trashedSlides = [], blo
                     {selectedSlide.section_label && <p className="mt-1 text-sm text-white/60">{selectedSlide.section_label}</p>}
                   </div>
                   <div className="mb-3 grid grid-cols-2 gap-2" role="tablist" aria-label="Preview Learn or Practice"><button type="button" onClick={() => setBuilderMode("LEARN")} className={`inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-black ${builderMode !== "PRACTICE" ? "bg-[var(--br-brand)] text-on-dark shadow-sm" : "bg-[var(--br-surface-muted)] text-[var(--br-brand)]"}`}><BookOpen size={15} /> Learn</button><button type="button" onClick={() => setBuilderMode("PRACTICE")} className={`inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-black ${builderMode === "PRACTICE" ? "bg-[var(--br-chart-secondary)] text-on-dark shadow-sm" : "bg-[var(--br-success-soft)] text-[var(--br-chart-secondary)]"}`}><PenLine size={15} /> Practice</button></div>
-                  {builderMode === "PRACTICE" ? selectedActivities.length ? <div className="space-y-3">{selectedActivities.map((activity) => <LessonActivityPanel key={activity.id} activity={{ id: activity.id, activity_type: activity.activity_type, activity_data: activity.activity_data }} onNext={() => selectRelative(1)} previewOnly />)}</div> : <button type="button" onClick={() => setBuilderMode("PRACTICE")} className="grid min-h-56 w-full place-items-center rounded-xl border border-dashed border-[var(--br-border)] p-6 text-center text-sm text-[var(--br-text-muted)]">No Practice activity on this slide yet.</button> : selectedBlocks.length ? <div className="lesson-builder-content"><LessonBlockPreview blocks={selectedBlocks} /></div> : <button type="button" onClick={() => setBuilderMode("LEARN")} className="grid min-h-56 w-full place-items-center rounded-xl border border-dashed border-[var(--br-border)] p-6 text-center text-sm text-[var(--br-text-muted)]">No Learn content on this slide yet.</button>}
+                  {builderMode === "PRACTICE" ? selectedActivities.length ? <PreviewActivitySequence key={selectedSlide.id} activities={selectedActivities} onNextSlide={() => selectRelative(1)} /> : <button type="button" onClick={() => setBuilderMode("PRACTICE")} className="grid min-h-56 w-full place-items-center rounded-xl border border-dashed border-[var(--br-border)] p-6 text-center text-sm text-[var(--br-text-muted)]">No Practice activity on this slide yet.</button> : selectedBlocks.length ? <div className="lesson-builder-content"><LessonBlockPreview blocks={selectedBlocks} /></div> : <button type="button" onClick={() => setBuilderMode("LEARN")} className="grid min-h-56 w-full place-items-center rounded-xl border border-dashed border-[var(--br-border)] p-6 text-center text-sm text-[var(--br-text-muted)]">No Learn content on this slide yet.</button>}
                 </>
               ) : (
                 <div className="grid min-h-[360px] place-items-center text-center text-sm text-[var(--br-text-muted)]">Add your first slide below.</div>
@@ -1109,7 +1109,7 @@ function LessonPreviewModal({ lesson, slides, blocks, activities, initialSlideId
         {slide ? <section className="mx-auto max-w-5xl rounded-[18px] border border-[var(--br-border)] bg-surface p-2 shadow-sm sm:p-4">
           <div className="rounded-[14px] bg-[var(--br-dark-card)] px-4 py-3 text-on-dark"><p className="text-[10px] font-black uppercase tracking-[0.12em] text-white/50">Slide {index + 1}{slide.section_label ? ` · ${slide.section_label}` : ""}</p><h3 className="mt-1 text-xl font-black sm:text-2xl">{slide.title}</h3></div>
           <div className="my-3 grid grid-cols-2 gap-2"><button type="button" onClick={() => setTab("LEARN")} className={`inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-black ${tab === "LEARN" ? "bg-[var(--br-brand)] text-on-dark" : "bg-[var(--br-surface-muted)] text-[var(--br-brand)]"}`}><BookOpen size={15} /> Learn</button><button type="button" onClick={() => setTab("PRACTICE")} className={`inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-black ${tab === "PRACTICE" ? "bg-[var(--br-chart-secondary)] text-on-dark" : "bg-[var(--br-success-soft)] text-[var(--br-chart-secondary)]"}`}><PenLine size={15} /> Practice</button></div>
-          {tab === "LEARN" ? slideBlocks.length ? <div className="lesson-builder-content"><LessonBlockPreview blocks={slideBlocks} /></div> : <div className="grid min-h-56 place-items-center rounded-xl border border-dashed border-[var(--br-border)] text-sm text-[var(--br-text-muted)]">No Learn content on this slide.</div> : slideActivities.length ? <div className="space-y-3">{slideActivities.map((activity) => <LessonActivityPanel key={activity.id} activity={{ id: activity.id, activity_type: activity.activity_type, activity_data: activity.activity_data }} onNext={() => go(index + 1)} previewOnly />)}</div> : <div className="grid min-h-56 place-items-center rounded-xl border border-dashed border-[var(--br-border)] text-sm text-[var(--br-text-muted)]">No Practice activity on this slide.</div>}
+          {tab === "LEARN" ? slideBlocks.length ? <div className="lesson-builder-content"><LessonBlockPreview blocks={slideBlocks} /></div> : <div className="grid min-h-56 place-items-center rounded-xl border border-dashed border-[var(--br-border)] text-sm text-[var(--br-text-muted)]">No Learn content on this slide.</div> : slideActivities.length ? <PreviewActivitySequence key={slide.id} activities={slideActivities} onNextSlide={() => go(index + 1)} /> : <div className="grid min-h-56 place-items-center rounded-xl border border-dashed border-[var(--br-border)] text-sm text-[var(--br-text-muted)]">No Practice activity on this slide.</div>}
         </section> : <div className="grid flex-1 place-items-center text-sm text-[var(--br-text-muted)]">This lesson has no slides yet.</div>}
         </BuilderDevicePreviewFrame>
       </main>
@@ -1117,6 +1117,20 @@ function LessonPreviewModal({ lesson, slides, blocks, activities, initialSlideId
     </div>
     </BuilderModalLayer>
   );
+}
+
+function PreviewActivitySequence({ activities, onNextSlide }: { activities: Activity[]; onNextSlide: () => void }) {
+  const [activityIndex, setActivityIndex] = useState(0);
+  const activity = activities[activityIndex] ?? activities[0];
+  if (!activity) return null;
+  function handleNext() {
+    if (activityIndex < activities.length - 1) {
+      setActivityIndex((current) => current + 1);
+      return;
+    }
+    onNextSlide();
+  }
+  return <div className="space-y-3"><div className="flex items-center justify-between gap-3 rounded-xl bg-[var(--br-canvas-elevated)] px-3 py-2 text-xs font-extrabold text-[var(--br-text-muted)]"><span>Practice activity {activityIndex + 1} of {activities.length}</span><div className="flex gap-1" aria-label="Practice activity progress">{activities.map((item, index) => <span key={item.id} className={`h-1.5 w-8 rounded-full sm:w-12 ${index <= activityIndex ? "bg-[var(--br-chart-secondary)]" : "bg-[var(--br-surface-strong)]"}`} />)}</div></div><LessonActivityPanel key={activity.id} activity={{ id: activity.id, activity_type: activity.activity_type, activity_data: activity.activity_data }} onNext={handleNext} previewOnly /></div>;
 }
 
 function ActivityPickerModal({ lessonId, slide, onClose, onOpenBank, onOpenAi }: {
