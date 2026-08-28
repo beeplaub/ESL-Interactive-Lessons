@@ -262,9 +262,9 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
     const path = asString(content.path);
     const src = mediaUrl(path, "image");
     return (
-      <figure className="relative overflow-hidden rounded-lg border border-[var(--br-border)] bg-surface-muted">
+      <figure className="relative mx-auto w-fit max-w-full overflow-hidden rounded-lg border border-[var(--br-border)] bg-surface-muted">
         {path && isImageUrl(path) ? (
-          <ZoomableImage src={src} alt={asString(content.alt) || ""} className="max-h-[520px] w-full object-contain" />
+          <ZoomableImage src={src} alt={asString(content.alt) || ""} className="mx-auto block h-auto max-h-[520px] max-w-full object-contain" />
         ) : (
           <div className="grid aspect-video place-items-center text-sm text-[var(--br-text-muted)]">
             <div className="text-center">
