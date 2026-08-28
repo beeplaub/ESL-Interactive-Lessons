@@ -24,6 +24,8 @@ type AttemptRow = {
 };
 
 type PlatformAttemptRow = {
+  id?: string;
+  legacy_quiz_attempt_id?: string | null;
   quiz_id: string | null;
   score: number;
   total: number;
@@ -103,12 +105,26 @@ export default async function QuizAttemptsPage() {
     ...canonicalAttempts,
   ].sort((a, b) => new Date(b.completed_at).getTime() - new Date(a.completed_at).getTime());
   const quizIds = Array.from(new Set(attempts.map((attempt) => attempt.quiz_id).filter((id): id is string => Boolean(id))));
-  const [{ data: questionCounts }, { data: platformAttempts }] = await Promise.all([
+  const [{ data: questionCounts }, { data: platformAttempts }, { data: platformAssessmentAttempts }] = await Promise.all([
     quizIds.length ? admin.from("quiz_questions").select("quiz_id").in("quiz_id", quizIds) : Promise.resolve({ data: [] as { quiz_id: string }[] }),
     quizIds.length
-      ? admin.from("quiz_attempts").select("quiz_id,score,total,completed_at").in("quiz_id", quizIds).not("quiz_id", "is", null).order("completed_at", { ascending: false }).limit(5000)
+      ? admin.from("quiz_attempts").select("id,quiz_id,score,total,completed_at").in("quiz_id", quizIds).not("quiz_id", "is", null).order("completed_at", { ascending: false }).limit(5000)
       : Promise.resolve({ data: [] as PlatformAttemptRow[] }),
+    quizIds.length
+      ? admin.from("assessment_attempts").select("id,quiz_id,score,maximum_score,completed_at,submitted_at,created_at,legacy_quiz_attempt_id").eq("source_type", "QUIZ").in("quiz_id", quizIds).not("user_id", "is", null).order("created_at", { ascending: false }).limit(5000)
+      : Promise.resolve({ data: [] }),
   ]);
+
+  const platformLinkedLegacyIds = new Set((platformAssessmentAttempts ?? []).map((attempt) => attempt.legacy_quiz_attempt_id).filter((id): id is string => Boolean(id)));
+  const mergedPlatformAttempts: PlatformAttemptRow[] = [
+    ...(platformAttempts ?? []).filter((attempt) => !platformLinkedLegacyIds.has(attempt.id ?? "")),
+    ...(platformAssessmentAttempts ?? []).map((attempt) => ({
+      quiz_id: attempt.quiz_id,
+      score: Number(attempt.score ?? 0),
+      total: Number(attempt.maximum_score ?? 0),
+      completed_at: attempt.completed_at ?? attempt.submitted_at ?? attempt.created_at,
+    })),
+  ];
 
   const questionCountByQuiz = new Map<string, number>();
   for (const row of questionCounts ?? []) {
@@ -169,7 +185,7 @@ export default async function QuizAttemptsPage() {
     bestPercent: allPercents.length ? Math.max(...allPercents) : 0,
     totalTimeSeconds,
     rank: buildRank((points ?? []) as PointsRow[], user.id),
-    trend: buildTrend(allAttempts, (platformAttempts ?? []) as PlatformAttemptRow[]),
+    trend: buildTrend(allAttempts, mergedPlatformAttempts),
     topics: Array.from(new Set(groups.map((group) => group.topic).filter((topic): topic is string => Boolean(topic)))).sort(),
     levels: Array.from(new Set(groups.map((group) => group.level).filter((level): level is string => Boolean(level)))).sort(),
   };
