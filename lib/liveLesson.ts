@@ -21,13 +21,30 @@ export async function getLiveLessonPlayerData(lessonId: string, userId: string) 
   const activityIds = new Set((activitiesResult.data ?? []).map((activity) => activity.id));
   const canonicalAttempts = (assessmentAttemptsResult.data ?? []).filter((attempt) => attempt.lesson_activity_id && activityIds.has(attempt.lesson_activity_id));
   const linkedLegacyIds = new Set(canonicalAttempts.map((attempt) => attempt.legacy_quiz_attempt_id).filter((id): id is string => Boolean(id)));
+  const canonicalAttemptIds = canonicalAttempts.map((attempt) => attempt.id);
+  const { data: assessmentResponses } = canonicalAttemptIds.length
+    ? await admin.from("assessment_responses").select("attempt_id,assessment_item_id,response_data").in("attempt_id", canonicalAttemptIds)
+    : { data: [] };
+  const assessmentItemIds = Array.from(new Set((assessmentResponses ?? []).map((response) => response.assessment_item_id)));
+  const { data: assessmentItems } = assessmentItemIds.length
+    ? await admin.from("assessment_items").select("id,source_item_key,lesson_activity_id").in("id", assessmentItemIds)
+    : { data: [] };
+  const itemKeys = new Map((assessmentItems ?? []).map((item) => [item.id, item.source_item_key]));
+  const answersByAttempt = new Map<string, Record<string, Json>>();
+  for (const response of assessmentResponses ?? []) {
+    const key = itemKeys.get(response.assessment_item_id);
+    if (!response.attempt_id || !key) continue;
+    const answers = answersByAttempt.get(response.attempt_id) ?? {};
+    answers[key] = response.response_data as Json;
+    answersByAttempt.set(response.attempt_id, answers);
+  }
   const attempts = [
     ...(legacyAttemptsResult.data ?? []).filter((attempt) => !linkedLegacyIds.has(attempt.id)),
     ...(canonicalAttempts.map((attempt) => ({
       lesson_slide_activity_id: attempt.lesson_activity_id,
       score: Number(attempt.score ?? 0),
       total: Number(attempt.maximum_score ?? 0),
-      answers: null as Json | null,
+      answers: (answersByAttempt.get(attempt.id) ?? null) as Json | null,
       completed_at: attempt.completed_at ?? attempt.submitted_at ?? attempt.created_at,
       status: attempt.status,
       grading_source: attempt.grading_source,
