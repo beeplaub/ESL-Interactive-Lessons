@@ -44,13 +44,14 @@ export default async function AssignmentsPage() {
   const courseIds = [...new Set(assignments.map((assignment) => assignment.course_id).filter((id): id is string => Boolean(id)))];
   const lessonIds = [...new Set(assignments.map((assignment) => assignment.lesson_id).filter((id): id is string => Boolean(id)))];
   const quizIds = [...new Set(assignments.map((assignment) => assignment.quiz_id).filter((id): id is string => Boolean(id)))];
-  const [courseRows, lessonRows, quizRows, courseProgressRows, lessonProgressRows, quizAttemptRows, levelResult] = await Promise.all([
+  const [courseRows, lessonRows, quizRows, courseProgressRows, lessonProgressRows, legacyQuizAttemptRows, assessmentQuizAttemptRows, levelResult] = await Promise.all([
     courseIds.length ? admin.from("courses").select("id,title,level,status,deleted_at").in("id", courseIds) : Promise.resolve({ data: [] }),
     lessonIds.length ? admin.from("lessons").select("id,title,level,status,deleted_at").in("id", lessonIds) : Promise.resolve({ data: [] }),
     quizIds.length ? admin.from("quizzes").select("id,title,level,status,deleted_at,course_id").in("id", quizIds) : Promise.resolve({ data: [] }),
     courseIds.length ? admin.from("course_progress").select("course_id,progress_percent").eq("user_id", user.id).in("course_id", courseIds) : Promise.resolve({ data: [] }),
     lessonIds.length ? admin.from("lesson_progress").select("lesson_id,completed").eq("user_id", user.id).in("lesson_id", lessonIds) : Promise.resolve({ data: [] }),
-    quizIds.length ? admin.from("quiz_attempts").select("quiz_id,score,total,completed_at").eq("user_id", user.id).in("quiz_id", quizIds).order("completed_at", { ascending: false }) : Promise.resolve({ data: [] }),
+    quizIds.length ? admin.from("quiz_attempts").select("id,quiz_id,score,total,completed_at").eq("user_id", user.id).in("quiz_id", quizIds).order("completed_at", { ascending: false }) : Promise.resolve({ data: [] }),
+    quizIds.length ? admin.from("assessment_attempts").select("id,quiz_id,legacy_quiz_attempt_id,score,maximum_score,completed_at,submitted_at,created_at").eq("user_id", user.id).eq("source_type", "QUIZ").in("quiz_id", quizIds).order("completed_at", { ascending: false }) : Promise.resolve({ data: [] }),
     admin.from("level_test_results").select("cefr_level,weighted_score,completed_at").eq("user_id", user.id).order("completed_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
 
@@ -59,8 +60,18 @@ export default async function AssignmentsPage() {
   const quizzes = new Map((quizRows.data ?? []).map((row) => [row.id, row]));
   const courseProgress = new Map((courseProgressRows.data ?? []).map((row) => [row.course_id, Number(row.progress_percent ?? 0)]));
   const lessonProgress = new Map((lessonProgressRows.data ?? []).map((row) => [row.lesson_id, Boolean(row.completed)]));
+  const linkedLegacyIds = new Set((assessmentQuizAttemptRows.data ?? []).map((attempt) => attempt.legacy_quiz_attempt_id).filter((id): id is string => Boolean(id)));
+  const quizAttemptRows = [
+    ...(legacyQuizAttemptRows.data ?? []).filter((attempt) => !linkedLegacyIds.has(attempt.id)),
+    ...(assessmentQuizAttemptRows.data ?? []).map((attempt) => ({
+      quiz_id: attempt.quiz_id,
+      score: Number(attempt.score ?? 0),
+      total: Number(attempt.maximum_score ?? 0),
+      completed_at: attempt.completed_at ?? attempt.submitted_at ?? attempt.created_at,
+    })),
+  ].sort((a, b) => new Date(b.completed_at).getTime() - new Date(a.completed_at).getTime());
   const latestQuizAttempt = new Map<string, { score: number; total: number; completed_at: string }>();
-  for (const attempt of quizAttemptRows.data ?? []) {
+  for (const attempt of quizAttemptRows) {
     if (attempt.quiz_id && !latestQuizAttempt.has(attempt.quiz_id)) latestQuizAttempt.set(attempt.quiz_id, attempt);
   }
 
