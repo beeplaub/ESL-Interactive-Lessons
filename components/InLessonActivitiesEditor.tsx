@@ -2273,9 +2273,9 @@ function normalizeTableCompletion(value: Json | null): { prompt: string; source_
     safeColumns.forEach((column) => {
       const cell = asRecord(rawCells[column.id] as Json);
       const accepted = Array.isArray(cell.accepted_answers) ? cell.accepted_answers.map(String).filter(Boolean) : [];
-      const options = Array.isArray(cell.options) ? cell.options.map(String).filter(Boolean) : [];
+      const options = Array.isArray(cell.options) ? cell.options.map(String).filter(Boolean) : Array.isArray(cell.select_options) ? cell.select_options.map(String).filter(Boolean) : [];
       cells[column.id] = {
-        value: String(cell.value ?? ""), blank: cell.blank === true, mode: cell.mode === "SELECT" ? "SELECT" : "WRITE",
+        value: String(cell.value ?? ""), blank: cell.blank === true, mode: String(cell.mode ?? cell.input_type ?? "").toUpperCase() === "SELECT" || String(cell.input_type ?? "").toUpperCase() === "DROPDOWN" ? "SELECT" : "WRITE",
         answer: String(cell.answer ?? cell.correct_answer ?? accepted[0] ?? options[0] ?? ""), accepted_answers: accepted, options,
       };
     });
