@@ -21,6 +21,7 @@ export const LESSON_ACTIVITY_CATALOG: LessonActivityDefinition[] = [
   { type: "MCQ", label: "Multiple Choice", description: "Choose one correct answer.", skills: ["CORE", "READING", "LISTENING"] },
   { type: "TRUE_FALSE", label: "True or False", description: "Judge statements as true or false.", skills: ["CORE", "READING", "LISTENING"] },
   { type: "GAP_FILL", label: "Gap Fill", description: "Complete missing words or phrases.", skills: ["CORE", "READING", "WRITING"] },
+  { type: "TABLE_COMPLETION", label: "Table Completion", description: "Complete missing table information by typing or selecting answers.", skills: ["CORE", "READING", "LISTENING", "WRITING"] },
   { type: "MATCHING", label: "Matching", description: "Connect related items efficiently.", skills: ["CORE", "READING"] },
   { type: "MULTIPLE_SELECT", label: "Multiple Select", description: "Choose every answer that applies.", skills: ["CORE", "READING", "LISTENING"] },
   { type: "DRAG_DROP", label: "Categorization", description: "Sort items into meaningful groups.", skills: ["CORE", "READING"] },

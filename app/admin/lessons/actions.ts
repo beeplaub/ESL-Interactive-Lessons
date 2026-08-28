@@ -1879,7 +1879,7 @@ export async function seedAllActivitiesReferenceLesson(lessonId: string) {
   }
 
   const blockTypeByActivity: Record<string, string> = {
-    ORAL_RESPONSE: "HEADING", MCQ: "TEXT", TRUE_FALSE: "BULLETS", GAP_FILL: "GRAMMAR",
+    ORAL_RESPONSE: "HEADING", MCQ: "TEXT", TRUE_FALSE: "BULLETS", GAP_FILL: "GRAMMAR", TABLE_COMPLETION: "TABLE",
     MATCHING: "CALLOUT", MULTIPLE_SELECT: "IMAGE", DRAG_DROP: "IMAGE_TEXT", CATEGORIZATION: "IMAGE_ANNOTATION",
     REORDERING: "DIVIDER", ERROR_CORRECTION: "VOCABULARY", SHORT_ANSWER: "QUOTE", SUMMARIZATION: "READING",
     INFERENCE_DETECTION: "FLASHCARD", HEADINGS_MATCHING: "TEXT", SKIM_CHALLENGE: "TABLE", PARAPHRASE_ID: "FLASHCARD",
@@ -2061,6 +2061,7 @@ function revalidateLessonBuilder(lessonId: string) {
 function defaultActivityPrompt(activityType: string) {
   if (activityType === "MULTIPLE_SELECT") return "Choose all correct answers.";
   if (activityType === "GAP_FILL") return "Complete the sentences.";
+  if (activityType === "TABLE_COMPLETION") return "Complete the missing information in the table.";
   if (activityType === "TRUE_FALSE") return "True or False?";
   if (activityType === "MATCHING") return "Match the items.";
   if (activityType === "DRAG_DROP") return "Move each item to the correct place.";
@@ -2098,6 +2099,19 @@ function defaultActivityData(activityType: string, prompt: string): Json {
   }
   if (activityType === "GAP_FILL") {
     return { prompt, items: [{ level: "sentence", sentence: "", answer: "" }] };
+  }
+  if (activityType === "TABLE_COMPLETION") {
+    return {
+      prompt,
+      source_type: "NONE",
+      source_url: "",
+      source_caption: "",
+      columns: [{ id: "item", label: "Item" }, { id: "detail", label: "Detail" }],
+      rows: [{ id: "row-1", label: "Example", cells: {
+        item: { value: "Example", blank: false },
+        detail: { value: "Answer", blank: true, mode: "WRITE", accepted_answers: ["Answer"], options: [], answer: "Answer" },
+      } }],
+    };
   }
   if (activityType === "TRUE_FALSE") {
     return { prompt, items: [{ statement: "", answer: true }] };

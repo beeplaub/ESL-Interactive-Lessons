@@ -557,6 +557,19 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
       };
     });
   }
+  if (activityType === "TABLE_COMPLETION") {
+    const rows = Array.isArray(data.rows) ? data.rows.map((item) => asRecord(item as Json)) : [];
+    const correctAnswer: Record<string, string> = {};
+    rows.forEach((row, rowIndex) => {
+      const rowId = String(row.id ?? `row-${rowIndex + 1}`);
+      const cells = asRecord(row.cells as Json);
+      Object.entries(cells).forEach(([columnId, cellValue]) => {
+        const cell = asRecord(cellValue as Json);
+        if (cell.blank === true) correctAnswer[`${rowId}:${columnId}`] = String(cell.answer ?? cell.correct_answer ?? "");
+      });
+    });
+    return [{ id: "1", question_number: 1, question_type: "TABLE_COMPLETION", question_text: String(data.prompt ?? "Complete the missing information in the table."), options: { source_type: String(data.source_type ?? "NONE"), source_url: String(data.source_url ?? data.media_url ?? ""), source_caption: String(data.source_caption ?? ""), columns: Array.isArray(data.columns) ? data.columns : [], rows } as Json, correct_answer: correctAnswer as Json }];
+  }
   if (activityType === "TRUE_FALSE") {
     const items = Array.isArray(data.items) ? data.items : Array.isArray(data.questions) ? data.questions : [];
     return items.map((item, index) => {

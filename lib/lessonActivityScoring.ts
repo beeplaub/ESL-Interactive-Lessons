@@ -93,6 +93,24 @@ export function lessonScoredQuestions(activityType: string, value: Json | null):
     });
   }
 
+  if (activityType === "TABLE_COMPLETION") {
+    const tableRows = Array.isArray(data.rows) ? data.rows.map((item) => asRecord(item as Json)) : [];
+    const correct: Record<string, string> = {};
+    tableRows.forEach((row, rowIndex) => {
+      const rowId = text(row.id || `row-${rowIndex + 1}`);
+      const cells = asRecord(row.cells as Json);
+      Object.entries(cells).forEach(([columnId, cellValue]) => {
+        const cell = asRecord(cellValue as Json);
+        const accepted = Array.isArray(cell.accepted_answers) ? cell.accepted_answers : [];
+        if (cell.blank === true) correct[`${rowId}:${columnId}`] = text(cell.answer ?? cell.correct_answer ?? accepted[0] ?? "");
+      });
+    });
+    return [common(data, 0, "TABLE_COMPLETION", correct, {
+      source_type: text(data.source_type || "NONE"), source_url: text(data.source_url), source_caption: text(data.source_caption),
+      columns: Array.isArray(data.columns) ? data.columns : [], rows: tableRows,
+    } as unknown as Json)];
+  }
+
   if (activityType === "TRUE_FALSE") {
     const sourceRows = rows(data, "items").length ? rows(data, "items") : rows(data, "questions");
     return sourceRows.map((row, index) => common(row, index, "TRUE_FALSE", Boolean(row.correct_answer ?? row.answer), null));

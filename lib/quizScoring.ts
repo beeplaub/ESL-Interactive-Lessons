@@ -8,6 +8,7 @@ export type ScoredQuestion = {
     | "MCQ"
     | "TRUE_FALSE"
     | "FILL"
+    | "TABLE_COMPLETION"
     | "MATCHING"
     | "ERROR_CORRECTION"
     | "REORDERING"
@@ -50,8 +51,17 @@ export function normalizeAnswer(value: unknown) {
   return String(value ?? "").trim().toLowerCase();
 }
 
+function tableAcceptedAnswers(question: ScoredQuestion, cellId: string, fallback: unknown): string[] {
+  const rows = Array.isArray(asRecord(question.options).rows) ? asRecord(question.options).rows as Json[] : [];
+  const [rowId, columnId] = cellId.split(":");
+  const row = rows.map((item) => asRecord(item as Json)).find((item) => String(item.id ?? "") === rowId);
+  const cell = row ? asRecord(asRecord(row.cells as Json)[columnId] as Json) : {};
+  const accepted = Array.isArray(cell.accepted_answers) ? cell.accepted_answers.map(String) : [];
+  return [String(cell.answer ?? fallback), ...accepted].flatMap((answer) => answer.split("/")).map((answer) => answer.trim()).filter(Boolean);
+}
+
 function baseQuestionTotal(question: ScoredQuestion): number {
-  if (question.question_type === "DRAG_DROP" || question.question_type === "CATEGORIZATION" || question.question_type === "HEADINGS_MATCHING" || question.question_type === "SKIM_CHALLENGE") {
+  if (question.question_type === "DRAG_DROP" || question.question_type === "CATEGORIZATION" || question.question_type === "TABLE_COMPLETION" || question.question_type === "HEADINGS_MATCHING" || question.question_type === "SKIM_CHALLENGE") {
     return Object.keys(asRecord(question.correct_answer)).length || 1;
   }
 
@@ -97,6 +107,12 @@ function baseQuestionScore(question: ScoredQuestion, answer: unknown): number {
     const correct = Array.isArray(question.correct_answer) ? question.correct_answer : [question.correct_answer];
     const given = Array.isArray(answer) ? answer : [answer];
     return correct.filter((c, i) => normalizeAnswer(given[i]) === normalizeAnswer(c)).length;
+  }
+
+  if (question.question_type === "TABLE_COMPLETION") {
+    const correct = asRecord(question.correct_answer);
+    const given = asRecord(answer as Json);
+    return Object.keys(correct).filter((cellId) => tableAcceptedAnswers(question, cellId, correct[cellId]).some((expected) => normalizeAnswer(given[cellId]) === normalizeAnswer(expected))).length;
   }
 
   if (question.question_type === "PRONUNCIATION") {
@@ -198,6 +214,13 @@ export function isCorrect(question: ScoredQuestion, value: unknown): boolean {
     return correct.every((c, i) => normalizeAnswer(given[i]) === normalizeAnswer(c));
   }
 
+  if (question.question_type === "TABLE_COMPLETION") {
+    const correct = asRecord(question.correct_answer);
+    const given = asRecord(value as Json);
+    const keys = Object.keys(correct);
+    return keys.length > 0 && keys.every((cellId) => tableAcceptedAnswers(question, cellId, correct[cellId]).some((expected) => normalizeAnswer(given[cellId]) === normalizeAnswer(expected)));
+  }
+
   if (question.question_type === "MATCHING") {
     if (Array.isArray(question.correct_answer)) {
       const pairs = question.correct_answer as Array<{ a: number; b: string }>;
@@ -273,7 +296,7 @@ export function isCorrect(question: ScoredQuestion, value: unknown): boolean {
 }
 
 export function partialCreditStats(question: ScoredQuestion, value: unknown): { correctCount: number; total: number } | null {
-  if (!["DRAG_DROP", "CATEGORIZATION", "FILL", "PRONUNCIATION", "HEADINGS_MATCHING", "SKIM_CHALLENGE"].includes(question.question_type)) return null;
+  if (!["DRAG_DROP", "CATEGORIZATION", "FILL", "TABLE_COMPLETION", "PRONUNCIATION", "HEADINGS_MATCHING", "SKIM_CHALLENGE"].includes(question.question_type)) return null;
   return {
     correctCount: questionScore(question, value),
     total: questionTotal(question),

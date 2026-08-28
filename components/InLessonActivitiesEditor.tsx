@@ -837,6 +837,7 @@ function ActivityPanel({
               {isWritingQuestionType(activity.activity_type) ? <GradingLimitsEditor maxAttempts={maxAttempts} quotas={evaluationQuotas} onMaxAttemptsChange={setMaxAttempts} onQuotaChange={(mode, value) => setEvaluationQuotas((current) => ({ ...current, [mode]: value }))} /> : null}
               {activity.activity_type === "MCQ" ? <McqEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "GAP_FILL" ? <GapFillEditor activity={activity} onSave={save} /> : null}
+              {activity.activity_type === "TABLE_COMPLETION" ? <TableCompletionEditor activity={activity} onSave={save} lessonId={lessonId} /> : null}
               {activity.activity_type === "TRUE_FALSE" ? <TrueFalseEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "MATCHING" ? <MatchingEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "ERROR_CORRECTION" ? <ErrorCorrectionEditor activity={activity} onSave={save} /> : null}
@@ -869,7 +870,7 @@ function ActivityPanel({
               {activity.activity_type === "AI_ROLEPLAY" ? <AiRoleplayEditor activity={activity} lessonId={lessonId} onSave={save} /> : null}
               {activity.activity_type === "AI_INTERVIEW" ? <AiInterviewEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "LIVE_SPEAK_TRANSLATE" ? <LiveSpeakTranslateEditor activity={activity} onSave={save} /> : null}
-              {!["MCQ", "GAP_FILL", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "ORAL_RESPONSE", "SUMMARIZATION", "INFERENCE_DETECTION", "HEADINGS_MATCHING", "SKIM_CHALLENGE", "PARAPHRASE_ID", "DICTATION", "LISTEN_AND_SELECT", "SHADOWING", "NOTE_TAKING_CHALLENGE", "SOUND_DISCRIMINATION", "LISTEN_AND_GAP_FILL", "SENTENCE_COMPLETION", "ESSAY_WRITING", "EMAIL_LETTER_WRITING", "TRANSLATION", "PARAPHRASE_PRACTICE", "SENTENCE_COMBINING", "CREATIVE_WRITING", "PEER_REVIEW_EDITING", "DIALOGUE_WRITING", "AI_ROLEPLAY", "AI_INTERVIEW"].includes(activity.activity_type) ? (
+              {!["MCQ", "GAP_FILL", "TABLE_COMPLETION", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "ORAL_RESPONSE", "SUMMARIZATION", "INFERENCE_DETECTION", "HEADINGS_MATCHING", "SKIM_CHALLENGE", "PARAPHRASE_ID", "DICTATION", "LISTEN_AND_SELECT", "SHADOWING", "NOTE_TAKING_CHALLENGE", "SOUND_DISCRIMINATION", "LISTEN_AND_GAP_FILL", "SENTENCE_COMPLETION", "ESSAY_WRITING", "EMAIL_LETTER_WRITING", "TRANSLATION", "PARAPHRASE_PRACTICE", "SENTENCE_COMBINING", "CREATIVE_WRITING", "PEER_REVIEW_EDITING", "DIALOGUE_WRITING", "AI_ROLEPLAY", "AI_INTERVIEW"].includes(activity.activity_type) ? (
                 <p className="rounded-md bg-surface-muted p-3 text-sm text-[var(--br-text-muted)]">
                   This activity type has starter data and preview support. A detailed visual editor for it will be added in the next activity-builder pass.
                 </p>
@@ -2252,6 +2253,57 @@ function PronunciationEditor({ activity, onSave }: { activity: Activity; onSave:
       </div>
     </div>
   );
+}
+
+type TableColumn = { id: string; label: string };
+type TableCell = { value: string; blank: boolean; mode: "WRITE" | "SELECT"; answer: string; accepted_answers: string[]; options: string[] };
+type TableRow = { id: string; label: string; cells: Record<string, TableCell> };
+
+function normalizeTableCompletion(value: Json | null): { prompt: string; source_type: "NONE" | "IMAGE" | "AUDIO" | "VIDEO"; source_url: string; source_caption: string; columns: TableColumn[]; rows: TableRow[] } {
+  const data = asRecord(value);
+  const columns = (Array.isArray(data.columns) ? data.columns : []).map((item, index) => {
+    const column = asRecord(item as Json);
+    return { id: String(column.id || `column-${index + 1}`), label: String(column.label || `Column ${index + 1}`) };
+  });
+  const safeColumns = columns.length ? columns : [{ id: "item", label: "Item" }, { id: "detail", label: "Detail" }];
+  const rows = (Array.isArray(data.rows) ? data.rows : []).map((item, index) => {
+    const row = asRecord(item as Json);
+    const rawCells = asRecord(row.cells as Json);
+    const cells: Record<string, TableCell> = {};
+    safeColumns.forEach((column) => {
+      const cell = asRecord(rawCells[column.id] as Json);
+      const accepted = Array.isArray(cell.accepted_answers) ? cell.accepted_answers.map(String).filter(Boolean) : [];
+      const options = Array.isArray(cell.options) ? cell.options.map(String).filter(Boolean) : [];
+      cells[column.id] = {
+        value: String(cell.value ?? ""), blank: cell.blank === true, mode: cell.mode === "SELECT" ? "SELECT" : "WRITE",
+        answer: String(cell.answer ?? cell.correct_answer ?? accepted[0] ?? options[0] ?? ""), accepted_answers: accepted, options,
+      };
+    });
+    return { id: String(row.id || `row-${index + 1}`), label: String(row.label || `Row ${index + 1}`), cells };
+  });
+  return { prompt: String(data.prompt || "Complete the missing information in the table."), source_type: data.source_type === "IMAGE" || data.source_type === "AUDIO" || data.source_type === "VIDEO" ? data.source_type : "NONE", source_url: String(data.source_url || data.media_url || ""), source_caption: String(data.source_caption || ""), columns: safeColumns, rows: rows.length ? rows : [{ id: "row-1", label: "Row 1", cells: Object.fromEntries(safeColumns.map((column) => [column.id, { value: "", blank: false, mode: "WRITE", answer: "", accepted_answers: [], options: [] }])) } as TableRow] };
+}
+
+function TableCompletionEditor({ activity, onSave, lessonId }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void; lessonId: string }) {
+  const initial = useMemo(() => normalizeTableCompletion(activity.activity_data), [activity.activity_data]);
+  const [data, setData] = useState(initial);
+  const update = (next: Partial<typeof data>) => setData((current) => ({ ...current, ...next }));
+  const updateColumn = (columnId: string, label: string) => update({ columns: data.columns.map((column) => column.id === columnId ? { ...column, label } : column) });
+  const updateRow = (rowId: string, patch: Partial<TableRow>) => update({ rows: data.rows.map((row) => row.id === rowId ? { ...row, ...patch } : row) });
+  const updateCell = (rowId: string, columnId: string, patch: Partial<TableCell>) => update({ rows: data.rows.map((row) => row.id === rowId ? { ...row, cells: { ...row.cells, [columnId]: { ...row.cells[columnId], ...patch } } } : row) });
+  const addColumn = () => { const id = `column-${Date.now()}`; update({ columns: [...data.columns, { id, label: "New column" }], rows: data.rows.map((row) => ({ ...row, cells: { ...row.cells, [id]: { value: "", blank: false, mode: "WRITE", answer: "", accepted_answers: [], options: [] } } })) }); };
+  const addRow = () => update({ rows: [...data.rows, { id: `row-${Date.now()}`, label: "New row", cells: Object.fromEntries(data.columns.map((column) => [column.id, { value: "", blank: false, mode: "WRITE", answer: "", accepted_answers: [], options: [] }])) }] });
+  const removeColumn = (columnId: string) => { if (data.columns.length <= 1) return; update({ columns: data.columns.filter((column) => column.id !== columnId), rows: data.rows.map((row) => { const cells = { ...row.cells }; delete cells[columnId]; return { ...row, cells }; }) }); };
+  const removeRow = (rowId: string) => { if (data.rows.length <= 1) return; update({ rows: data.rows.filter((row) => row.id !== rowId) }); };
+  const needsReview = !data.prompt.trim() || data.columns.some((column) => !column.label.trim()) || data.rows.length === 0 || data.rows.some((row) => !row.label.trim() || data.columns.some((column) => { const cell = row.cells[column.id]; return cell.blank && (!cell.answer.trim() || (cell.mode === "SELECT" && cell.options.length < 2)); }));
+  const save = () => onSave({ prompt: data.prompt, source_type: data.source_type, source_url: data.source_url, source_caption: data.source_caption, columns: data.columns, rows: data.rows }, needsReview);
+  return <div className="grid gap-4">
+    <label className="text-sm font-semibold">Instruction<input value={data.prompt} onChange={(event) => update({ prompt: event.target.value })} className="mt-1 w-full rounded-xl border border-[var(--br-border)] px-3 py-2" /></label>
+    <div className="rounded-2xl border border-[var(--br-border)] bg-[var(--br-canvas-elevated)] p-4"><div className="flex flex-wrap items-end gap-3"><label className="text-sm font-semibold">Learning source<select value={data.source_type} onChange={(event) => update({ source_type: event.target.value as typeof data.source_type })} className="mt-1 block rounded-xl border border-[var(--br-border)] bg-surface px-3 py-2"><option value="NONE">No source</option><option value="IMAGE">Image</option><option value="AUDIO">Audio</option><option value="VIDEO">Video</option></select></label><label className="min-w-[220px] flex-1 text-sm font-semibold">Caption (optional)<input value={data.source_caption} onChange={(event) => update({ source_caption: event.target.value })} className="mt-1 w-full rounded-xl border border-[var(--br-border)] bg-surface px-3 py-2" /></label></div>{data.source_type !== "NONE" ? <div className="mt-3"><MediaRecorderInput value={data.source_url} onChange={(source_url) => update({ source_url })} type={data.source_type.toLowerCase() as "audio" | "image" | "video"} label="Source media" lessonId={lessonId} /></div> : null}</div>
+    <div className="rounded-2xl border border-[var(--br-border)] p-4"><div className="flex flex-wrap items-center justify-between gap-2"><div><h4 className="font-bold">Table structure</h4><p className="text-xs text-[var(--br-text-muted)]">Mark only the cells learners must complete. Use Write for free text or Select for a dropdown.</p></div><button type="button" onClick={addColumn} className="rounded-xl border border-[var(--br-border)] px-3 py-2 text-xs font-bold">+ Column</button></div><div className="mt-4 grid gap-3">{data.columns.map((column) => <div key={column.id} className="flex items-center gap-2"><input value={column.label} onChange={(event) => updateColumn(column.id, event.target.value)} className="min-w-0 flex-1 rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm font-semibold" /><button type="button" onClick={() => removeColumn(column.id)} disabled={data.columns.length <= 1} className="rounded-lg px-2 py-2 text-xs text-[var(--br-text-muted)] disabled:opacity-30">Remove</button></div>)}</div></div>
+    <div className="overflow-x-auto rounded-2xl border border-[var(--br-border)]"><div className="min-w-[720px] divide-y divide-[var(--br-border)]">{data.rows.map((row) => <div key={row.id} className="grid grid-cols-[150px_repeat(auto-fit,minmax(180px,1fr))] gap-3 p-3"><div><input value={row.label} onChange={(event) => updateRow(row.id, { label: event.target.value })} className="w-full rounded-lg border border-[var(--br-border)] px-2 py-2 text-sm font-bold" /><button type="button" onClick={() => removeRow(row.id)} disabled={data.rows.length <= 1} className="mt-1 text-xs text-[var(--br-text-muted)] disabled:opacity-30">Remove row</button></div>{data.columns.map((column) => { const cell = row.cells[column.id]; return <div key={column.id} className={`rounded-xl border p-3 ${cell.blank ? "border-[var(--br-chart-primary)]/40 bg-[var(--br-chart-primary)]/5" : "border-[var(--br-border)] bg-surface"}`}><p className="mb-2 truncate text-xs font-bold text-[var(--br-text-muted)]">{column.label}</p><input value={cell.value} onChange={(event) => updateCell(row.id, column.id, { value: event.target.value })} placeholder="Visible text" className="w-full rounded-lg border border-[var(--br-border)] px-2 py-2 text-sm" /><label className="mt-2 flex items-center gap-2 text-xs font-semibold"><input type="checkbox" checked={cell.blank} onChange={(event) => updateCell(row.id, column.id, { blank: event.target.checked })} /> Learner completes this</label>{cell.blank ? <><select value={cell.mode} onChange={(event) => updateCell(row.id, column.id, { mode: event.target.value as TableCell["mode"] })} className="mt-2 w-full rounded-lg border border-[var(--br-border)] px-2 py-2 text-xs"><option value="WRITE">Write an answer</option><option value="SELECT">Choose from dropdown</option></select><input value={cell.answer} onChange={(event) => updateCell(row.id, column.id, { answer: event.target.value, accepted_answers: event.target.value.split("/").map((item) => item.trim()).filter(Boolean) })} placeholder="Correct answer(s), use / between alternatives" className="mt-2 w-full rounded-lg border border-[var(--br-border)] px-2 py-2 text-xs" />{cell.mode === "SELECT" ? <textarea value={cell.options.join("\n")} onChange={(event) => updateCell(row.id, column.id, { options: event.target.value.split("\n").map((item) => item.trim()).filter(Boolean) })} placeholder="Dropdown options, one per line" className="mt-2 min-h-16 w-full rounded-lg border border-[var(--br-border)] px-2 py-2 text-xs" /> : null}</> : null}</div>; })}</div>)}</div><button type="button" onClick={addRow} className="m-3 rounded-xl border border-[var(--br-border)] px-3 py-2 text-xs font-bold">+ Row</button></div>
+    <div className="flex items-center justify-between gap-3"><p className={`text-xs font-semibold ${needsReview ? "text-amber-700" : "text-moss"}`}>{needsReview ? "Add a prompt, labels, and answers for every blank cell." : "Ready to save and preview."}</p><SaveButton onClick={save} /></div>
+  </div>;
 }
 
 function DictationEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {

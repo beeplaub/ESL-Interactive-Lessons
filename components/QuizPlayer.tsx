@@ -24,7 +24,7 @@ export type QuizQuestion = {
   /** Parent lesson activity UUID. Quiz questions leave this unset and use their own id. */
   source_activity_id?: string;
   question_number: number;
-  question_type: "MCQ" | "TRUE_FALSE" | "FILL" | "MATCHING" | "ERROR_CORRECTION" | "REORDERING" | "MULTIPLE_SELECT" | "SHORT_ANSWER" | "DRAG_DROP" | "CATEGORIZATION" | "PRONUNCIATION" | "ORAL_RESPONSE" | "SUMMARIZATION" | "INFERENCE_DETECTION" | "HEADINGS_MATCHING" | "SKIM_CHALLENGE" | "PARAPHRASE_ID" | "DICTATION" | "LISTEN_AND_SELECT" | "SHADOWING" | "NOTE_TAKING_CHALLENGE" | "SOUND_DISCRIMINATION" | "LISTEN_AND_GAP_FILL" | "SENTENCE_COMPLETION" | "ESSAY_WRITING" | "EMAIL_LETTER_WRITING" | "TRANSLATION" | "PARAPHRASE_PRACTICE" | "SENTENCE_COMBINING" | "CREATIVE_WRITING" | "PEER_REVIEW_EDITING" | "DIALOGUE_WRITING";
+  question_type: "MCQ" | "TRUE_FALSE" | "FILL" | "TABLE_COMPLETION" | "MATCHING" | "ERROR_CORRECTION" | "REORDERING" | "MULTIPLE_SELECT" | "SHORT_ANSWER" | "DRAG_DROP" | "CATEGORIZATION" | "PRONUNCIATION" | "ORAL_RESPONSE" | "SUMMARIZATION" | "INFERENCE_DETECTION" | "HEADINGS_MATCHING" | "SKIM_CHALLENGE" | "PARAPHRASE_ID" | "DICTATION" | "LISTEN_AND_SELECT" | "SHADOWING" | "NOTE_TAKING_CHALLENGE" | "SOUND_DISCRIMINATION" | "LISTEN_AND_GAP_FILL" | "SENTENCE_COMPLETION" | "ESSAY_WRITING" | "EMAIL_LETTER_WRITING" | "TRANSLATION" | "PARAPHRASE_PRACTICE" | "SENTENCE_COMBINING" | "CREATIVE_WRITING" | "PEER_REVIEW_EDITING" | "DIALOGUE_WRITING";
   question_text: string;
   description?: string | null;
   options: Json | null;
@@ -72,6 +72,11 @@ function allowedEvaluationModes(questions: QuizQuestion[]): EvaluationMode[] {
 export function hasAnswer(question: QuizQuestion, value: unknown): boolean {
   if (value === undefined || value === null) return false;
   if (question.question_type === "FILL") return Array.isArray(value) && value.some((v) => String(v).trim() !== "");
+  if (question.question_type === "TABLE_COMPLETION") {
+    const correct = asRecord(question.correct_answer);
+    const given = asRecord(value as Json);
+    return Object.keys(correct).length > 0 && Object.keys(correct).every((key) => String(given[key] ?? "").trim() !== "");
+  }
   if (question.question_type === "MATCHING") {
     const given = asRecord(value as Json);
     if (Array.isArray(question.correct_answer)) {
@@ -928,7 +933,7 @@ export function QuestionCard({
     question.question_type === "PEER_REVIEW_EDITING" ||
     question.question_type === "DIALOGUE_WRITING" ||
     question.question_type === "ORAL_RESPONSE";
-  const isPartialCredit = question.question_type === "DRAG_DROP" || question.question_type === "CATEGORIZATION" || question.question_type === "FILL" || question.question_type === "PRONUNCIATION" || question.question_type === "LISTEN_AND_GAP_FILL";
+  const isPartialCredit = question.question_type === "DRAG_DROP" || question.question_type === "CATEGORIZATION" || question.question_type === "FILL" || question.question_type === "TABLE_COMPLETION" || question.question_type === "PRONUNCIATION" || question.question_type === "LISTEN_AND_GAP_FILL";
   const stats = isPartialCredit && submitted ? partialCreditStats(question, value) : null;
   const correct = submitted && !isSelfChecked && !isPartialCredit ? isCorrect(question, value) : false;
   const wrong = submitted && !isSelfChecked && !isPartialCredit && !correct;
@@ -996,6 +1001,7 @@ export function QuestionCard({
         {question.question_type === "MCQ" ? <Mcq question={question} value={value as string | undefined} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "TRUE_FALSE" ? <TrueFalse value={value as boolean | undefined} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "FILL" ? <Fill question={question} value={value as string[] | undefined} disabled={submitted} onChange={onChange} /> : null}
+        {question.question_type === "TABLE_COMPLETION" ? <TableCompletionPlayer question={question} value={(value as Record<string, string>) ?? {}} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "MATCHING" ? <Matching question={question} value={(value as Record<string, string>) ?? {}} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "ERROR_CORRECTION" ? <ErrorCorrection question={question} value={(value as { selected_span?: string; correction?: string }) ?? {}} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "REORDERING" ? <Reordering question={question} value={value as string[] | undefined} disabled={submitted} onChange={onChange} /> : null}
@@ -1037,6 +1043,21 @@ export function QuestionCard({
       ) : null}
     </motion.fieldset>
   );
+}
+
+function TableCompletionPlayer({ question, value, disabled, onChange }: { question: QuizQuestion; value: Record<string, string>; disabled: boolean; onChange: (value: Record<string, string>) => void }) {
+  const options = asRecord(question.options);
+  const columns = Array.isArray(options.columns) ? options.columns.map((item) => asRecord(item as Json)) : [];
+  const rows = Array.isArray(options.rows) ? options.rows.map((item) => asRecord(item as Json)) : [];
+  const sourceType = String(options.source_type ?? "NONE");
+  const sourceUrl = String(options.source_url ?? "");
+  return <div className="grid gap-4">
+    {sourceUrl && sourceType === "IMAGE" ? <figure className="overflow-hidden rounded-2xl border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)]"><img src={sourceUrl} alt={String(options.source_caption || "Learning source")} className="max-h-80 w-full object-contain" />{options.source_caption ? <figcaption className="px-4 py-2 text-xs font-semibold text-[var(--br-text-muted)]">{String(options.source_caption)}</figcaption> : null}</figure> : null}
+    {sourceUrl && sourceType === "AUDIO" ? <div className="rounded-2xl border border-[var(--br-surface-strong)] bg-[var(--br-canvas-elevated)] p-4"><p className="mb-2 text-xs font-bold uppercase tracking-wide text-[var(--br-text-muted)]">Listen for the information</p><audio controls className="w-full" src={sourceUrl}>Your browser does not support audio.</audio></div> : null}
+    {sourceUrl && sourceType === "VIDEO" ? <div className="overflow-hidden rounded-2xl border border-[var(--br-surface-strong)] bg-black"><video controls playsInline className="max-h-[420px] w-full" src={sourceUrl}>Your browser does not support video.</video></div> : null}
+    <div className="overflow-x-auto rounded-2xl border border-[var(--br-surface-strong)]"><table className="w-full min-w-[620px] border-collapse text-left text-sm"><thead><tr className="bg-[var(--br-dark-card)] text-on-dark"><th className="px-4 py-3 font-extrabold">Details</th>{columns.map((column) => <th key={String(column.id)} className="px-4 py-3 font-extrabold">{String(column.label ?? "")}</th>)}</tr></thead><tbody>{rows.map((row, rowIndex) => { const rowId = String(row.id ?? `row-${rowIndex + 1}`); const cells = asRecord(row.cells as Json); return <tr key={rowId} className="border-t border-[var(--br-surface-strong)] align-top odd:bg-[var(--br-canvas-elevated)]"><th className="w-36 px-4 py-3 font-bold text-[var(--br-dark-card)]">{String(row.label ?? "")}</th>{columns.map((column) => { const columnId = String(column.id); const cell = asRecord(cells[columnId] as Json); const key = `${rowId}:${columnId}`; const blank = cell.blank === true; if (!blank) return <td key={columnId} className="px-4 py-3 font-semibold text-[var(--br-dark-card)]">{String(cell.value ?? "")}</td>; const mode = String(cell.mode ?? "WRITE"); const cellOptions = Array.isArray(cell.options) ? cell.options.map(String) : []; return <td key={columnId} className="px-3 py-3">{mode === "SELECT" ? <select aria-label={`${row.label ?? "Row"} ${column.label ?? "cell"}`} disabled={disabled} value={value[key] ?? ""} onChange={(event) => onChange({ ...value, [key]: event.target.value })} className="w-full rounded-xl border border-[var(--br-chart-primary)]/40 bg-surface px-3 py-2 font-semibold text-[var(--br-dark-card)]"><option value="">Choose…</option>{cellOptions.map((option) => <option key={option} value={option}>{option}</option>)}</select> : <input aria-label={`${row.label ?? "Row"} ${column.label ?? "cell"}`} disabled={disabled} value={value[key] ?? ""} onChange={(event) => onChange({ ...value, [key]: event.target.value })} placeholder="Type answer" className="w-full rounded-xl border border-[var(--br-chart-primary)]/40 bg-surface px-3 py-2 font-semibold text-[var(--br-dark-card)] placeholder:text-[var(--br-text-muted)]" />}</td>; })}</tr>; })}</tbody></table></div>
+    <p className="text-xs font-semibold text-[var(--br-text-muted)]">Fill every highlighted cell. You can review your answers before checking them.</p>
+  </div>;
 }
 
 function Mcq({ question, value, disabled, onChange }: { question: QuizQuestion; value?: string; disabled: boolean; onChange: (value: string) => void }) {
