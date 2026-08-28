@@ -12,14 +12,17 @@ export default async function QuizzesPage() {
     data: { user }
   } = await supabase.auth.getUser();
 
-  const [{ data: quizzes }, { data: questionCounts }, { data: wishlist }, { data: attempts }] = await Promise.all([
+  const [{ data: quizzes }, { data: questionCounts }, { data: wishlist }, { data: legacyAttempts }, { data: assessmentAttempts }] = await Promise.all([
     admin.from("quizzes").select("*").eq("status", "PUBLISHED").is("deleted_at", null).is("course_id", null).order("created_at", { ascending: false }),
     admin.rpc("get_quiz_question_counts"),
     user
       ? admin.from("wishlist_items").select("quiz_id").eq("user_id", user.id).not("quiz_id", "is", null)
       : Promise.resolve({ data: [] }),
     user
-      ? admin.from("quiz_attempts").select("quiz_id, score, total, completed_at").eq("user_id", user.id).not("quiz_id", "is", null)
+      ? admin.from("quiz_attempts").select("id, quiz_id, score, total, completed_at").eq("user_id", user.id).not("quiz_id", "is", null)
+      : Promise.resolve({ data: [] }),
+    user
+      ? admin.from("assessment_attempts").select("quiz_id, score, maximum_score, completed_at, submitted_at, created_at, legacy_quiz_attempt_id").eq("user_id", user.id).eq("source_type", "QUIZ").not("quiz_id", "is", null)
       : Promise.resolve({ data: [] })
   ]);
 
@@ -29,7 +32,17 @@ export default async function QuizzesPage() {
   }
 
   const bestAttempts: Record<string, { score: number; total: number; completedAt: string }> = {};
-  for (const a of attempts ?? []) {
+  const linkedLegacyIds = new Set((assessmentAttempts ?? []).map((attempt) => attempt.legacy_quiz_attempt_id).filter((id): id is string => Boolean(id)));
+  const mergedAttempts = [
+    ...(legacyAttempts ?? []).filter((attempt) => !linkedLegacyIds.has(attempt.id)),
+    ...(assessmentAttempts ?? []).map((attempt) => ({
+      quiz_id: attempt.quiz_id,
+      score: Number(attempt.score ?? 0),
+      total: Number(attempt.maximum_score ?? 0),
+      completed_at: attempt.completed_at ?? attempt.submitted_at ?? attempt.created_at,
+    })),
+  ];
+  for (const a of mergedAttempts) {
     if (!a.quiz_id) continue;
     const existing = bestAttempts[a.quiz_id];
     const ratio = a.total ? a.score / a.total : 0;
