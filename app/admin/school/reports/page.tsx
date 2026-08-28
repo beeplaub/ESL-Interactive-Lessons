@@ -50,13 +50,14 @@ export default async function SchoolReportsPage({
   const quizIds = [...new Set(typedAssignments.map((row) => row.quiz_id).filter((id): id is string => Boolean(id)))];
 
   const teacherIds = [...new Set((classes ?? []).map((row) => row.teacher_id).filter((id): id is string => Boolean(id)))];
-  const [courseRows, lessonRows, quizRows, courseProgressRows, lessonProgressRows, quizAttemptRows, levelResultRows, profileRows, pendingSubmissionRows] = await Promise.all([
+  const [courseRows, lessonRows, quizRows, courseProgressRows, lessonProgressRows, quizAttemptRows, assessmentQuizAttemptRows, levelResultRows, profileRows, pendingSubmissionRows] = await Promise.all([
     courseIds.length ? admin.from("courses").select("id,title,level").in("id", courseIds) : Promise.resolve({ data: [] }),
     lessonIds.length ? admin.from("lessons").select("id,title,level").in("id", lessonIds) : Promise.resolve({ data: [] }),
     quizIds.length ? admin.from("quizzes").select("id,title,level").in("id", quizIds) : Promise.resolve({ data: [] }),
     learnerIds.length && courseIds.length ? admin.from("course_progress").select("user_id,course_id,progress_percent").in("user_id", learnerIds).in("course_id", courseIds) : Promise.resolve({ data: [] }),
     learnerIds.length && lessonIds.length ? admin.from("lesson_progress").select("user_id,lesson_id,completed").in("user_id", learnerIds).in("lesson_id", lessonIds) : Promise.resolve({ data: [] }),
-    learnerIds.length && quizIds.length ? admin.from("quiz_attempts").select("user_id,quiz_id,score,total,completed_at").in("user_id", learnerIds).in("quiz_id", quizIds).order("completed_at", { ascending: false }) : Promise.resolve({ data: [] }),
+    learnerIds.length && quizIds.length ? admin.from("quiz_attempts").select("id,user_id,quiz_id,score,total,completed_at").in("user_id", learnerIds).in("quiz_id", quizIds).order("completed_at", { ascending: false }) : Promise.resolve({ data: [] }),
+    learnerIds.length && quizIds.length ? admin.from("assessment_attempts").select("id,user_id,quiz_id,score,maximum_score,completed_at,submitted_at,created_at,legacy_quiz_attempt_id").eq("source_type", "QUIZ").in("user_id", learnerIds).in("quiz_id", quizIds).order("created_at", { ascending: false }) : Promise.resolve({ data: [] }),
     learnerIds.length ? admin.from("level_test_results").select("user_id,completed_at").in("user_id", learnerIds).order("completed_at", { ascending: false }) : Promise.resolve({ data: [] }),
     learnerIds.length || teacherIds.length ? admin.from("profiles").select("id,full_name,first_name,last_name").in("id", [...new Set([...learnerIds, ...teacherIds])]) : Promise.resolve({ data: [] }),
     learnerIds.length && (lessonIds.length || quizIds.length) ? admin.from("writing_submissions").select("id,learner_id,lesson_id,quiz_id,created_at").eq("status", "PENDING").in("learner_id", learnerIds) : Promise.resolve({ data: [] }),
@@ -69,7 +70,20 @@ export default async function SchoolReportsPage({
   const courseProgress = new Map((courseProgressRows.data ?? []).map((row) => [`${row.user_id}:${row.course_id}`, Number(row.progress_percent ?? 0)]));
   const lessonProgress = new Map((lessonProgressRows.data ?? []).map((row) => [`${row.user_id}:${row.lesson_id}`, Boolean(row.completed)]));
   const latestQuiz = new Map<string, { score: number; total: number }>();
-  for (const row of quizAttemptRows.data ?? []) {
+  const linkedLegacyQuizAttemptIds = new Set(
+    (assessmentQuizAttemptRows.data ?? []).map((attempt) => attempt.legacy_quiz_attempt_id).filter((id): id is string => Boolean(id)),
+  );
+  const mergedQuizAttempts = [
+    ...(quizAttemptRows.data ?? []).filter((attempt) => !linkedLegacyQuizAttemptIds.has(attempt.id)),
+    ...(assessmentQuizAttemptRows.data ?? []).map((attempt) => ({
+      user_id: attempt.user_id,
+      quiz_id: attempt.quiz_id,
+      score: Number(attempt.score ?? 0),
+      total: Number(attempt.maximum_score ?? 0),
+      completed_at: attempt.completed_at ?? attempt.submitted_at ?? attempt.created_at,
+    })),
+  ].sort((a, b) => String(b.completed_at ?? "").localeCompare(String(a.completed_at ?? "")));
+  for (const row of mergedQuizAttempts) {
     const key = `${row.user_id}:${row.quiz_id}`;
     if (!latestQuiz.has(key)) latestQuiz.set(key, { score: Number(row.score ?? 0), total: Number(row.total ?? 0) });
   }

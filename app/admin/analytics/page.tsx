@@ -13,16 +13,31 @@ export default async function AdminAnalyticsPage() {
     { data: enrollments },
     { data: courseProgress },
     { data: quizAttempts },
+    { data: assessmentQuizAttempts },
     { data: lessonProgress },
     { data: profiles },
   ] = await Promise.all([
     admin.from("courses").select("id,title,status").is("deleted_at", null).order("created_at", { ascending: false }),
     admin.from("course_enrollments").select("course_id,status,user_id,enrolled_at"),
     admin.from("course_progress").select("course_id,user_id,progress_percent,completed_items,total_items"),
-    admin.from("quiz_attempts").select("score,total,completed_at,quiz_id").not("quiz_id", "is", null),
+    admin.from("quiz_attempts").select("id,score,total,completed_at,quiz_id").not("quiz_id", "is", null),
+    admin.from("assessment_attempts").select("id,quiz_id,score,maximum_score,completed_at,submitted_at,created_at,legacy_quiz_attempt_id").eq("source_type", "QUIZ").not("quiz_id", "is", null),
     admin.from("lesson_progress").select("completed,lesson_id,user_id"),
     admin.from("profiles").select("id"),
   ]);
+
+  const linkedLegacyQuizAttemptIds = new Set(
+    (assessmentQuizAttempts ?? []).map((attempt) => attempt.legacy_quiz_attempt_id).filter((id): id is string => Boolean(id)),
+  );
+  const mergedQuizAttempts = [
+    ...(quizAttempts ?? []).filter((attempt) => !linkedLegacyQuizAttemptIds.has(attempt.id)),
+    ...(assessmentQuizAttempts ?? []).map((attempt) => ({
+      score: Number(attempt.score ?? 0),
+      total: Number(attempt.maximum_score ?? 0),
+      completed_at: attempt.completed_at ?? attempt.submitted_at ?? attempt.created_at,
+      quiz_id: attempt.quiz_id,
+    })),
+  ];
 
   const totalEnrollments = enrollments?.length ?? 0;
   const completedEnrollments = (enrollments ?? []).filter((item) => item.status === "COMPLETED").length;
@@ -30,8 +45,8 @@ export default async function AdminAnalyticsPage() {
   const averageCourseProgress = courseProgress?.length
     ? Math.round(courseProgress.reduce((sum, item) => sum + item.progress_percent, 0) / courseProgress.length)
     : 0;
-  const averageQuizScore = quizAttempts?.length
-    ? Math.round(quizAttempts.reduce((sum, item) => sum + (item.total ? (item.score / item.total) * 100 : 0), 0) / quizAttempts.length)
+  const averageQuizScore = mergedQuizAttempts.length
+    ? Math.round(mergedQuizAttempts.reduce((sum, item) => sum + (item.total ? (item.score / item.total) * 100 : 0), 0) / mergedQuizAttempts.length)
     : 0;
   const completedLessons = (lessonProgress ?? []).filter((item) => item.completed).length;
 
@@ -61,7 +76,7 @@ export default async function AdminAnalyticsPage() {
         <Metric icon={BarChart3} label="Average course progress" value={`${averageCourseProgress}%`} />
         <Metric icon={ClipboardList} label="Average quiz score" value={`${averageQuizScore}%`} />
         <Metric icon={BookOpen} label="Lessons completed" value={completedLessons} />
-        <Metric icon={ClipboardList} label="Quiz attempts" value={quizAttempts?.length ?? 0} />
+        <Metric icon={ClipboardList} label="Quiz attempts" value={mergedQuizAttempts.length} />
       </section>
 
       <section className="mt-6 overflow-hidden rounded-xl border border-[var(--br-border)] bg-surface shadow-sm">
