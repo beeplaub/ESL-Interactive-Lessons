@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { QuizPlayerScreen } from "@/components/QuizPlayerScreen";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import type { Json } from "@/types/database.types";
 
 export default async function QuizPage({
   params,
@@ -123,24 +124,55 @@ export default async function QuizPage({
       }
     }
   }
-  const [{ data: quiz }, { data: questions }, { data: attempts }] = await Promise.all([
+  const [{ data: quiz }, { data: questions }, { data: legacyAttempts }, { data: assessmentAttempts }] = await Promise.all([
     admin.from("quizzes").select("*").eq("id", id).eq("status", "PUBLISHED").is("deleted_at", null).single(),
     admin.from("quiz_questions").select("*").eq("quiz_id", id).order("question_number", { ascending: true }),
     user
       ? admin.from("quiz_attempts").select("id,score,total,answers,completed_at,status,grading_source").eq("quiz_id", id).eq("user_id", user.id).order("completed_at", { ascending: true })
+      : Promise.resolve({ data: [] }),
+    user
+      ? admin.from("assessment_attempts").select("id,quiz_id,legacy_quiz_attempt_id,score,maximum_score,completed_at,submitted_at,created_at,status,grading_source").eq("quiz_id", id).eq("user_id", user.id).eq("source_type", "QUIZ").order("completed_at", { ascending: true })
       : Promise.resolve({ data: [] }),
   ]);
 
   if (!quiz) notFound();
   const questionIds = (questions ?? []).map((question) => question.id);
   const { data: assessmentItems } = questionIds.length
-    ? await admin.from("assessment_items").select("quiz_question_id,max_points").in("quiz_question_id", questionIds)
+    ? await admin.from("assessment_items").select("id,quiz_question_id,source_item_key,max_points").in("quiz_question_id", questionIds)
     : { data: [] };
   const pointsByQuestion = new Map((assessmentItems ?? []).map((item) => [item.quiz_question_id, Number(item.max_points)]));
   const scoredQuestions = (questions ?? []).map((question) => ({
     ...question,
     max_points: pointsByQuestion.get(question.id) ?? null,
   }));
+
+  const canonicalIds = (assessmentAttempts ?? []).map((attempt) => attempt.id);
+  const { data: assessmentResponses } = canonicalIds.length
+    ? await admin.from("assessment_responses").select("attempt_id,assessment_item_id,response_data").in("attempt_id", canonicalIds)
+    : { data: [] };
+  const itemKeyById = new Map((assessmentItems ?? []).map((item) => [item.id, item.source_item_key ?? item.quiz_question_id]));
+  const answersByAttempt = new Map<string, Record<string, Json>>();
+  for (const response of assessmentResponses ?? []) {
+    if (!response.attempt_id) continue;
+    const itemKey = itemKeyById.get(response.assessment_item_id);
+    if (!itemKey) continue;
+    const answers = answersByAttempt.get(response.attempt_id) ?? {};
+    answers[itemKey] = response.response_data as Json;
+    answersByAttempt.set(response.attempt_id, answers);
+  }
+  const linkedLegacyIds = new Set((assessmentAttempts ?? []).map((attempt) => attempt.legacy_quiz_attempt_id).filter((id): id is string => Boolean(id)));
+  const attempts = [
+    ...(legacyAttempts ?? []).filter((attempt) => !linkedLegacyIds.has(attempt.id)),
+    ...(assessmentAttempts ?? []).map((attempt) => ({
+      id: attempt.legacy_quiz_attempt_id ?? attempt.id,
+      score: Number(attempt.score ?? 0),
+      total: Number(attempt.maximum_score ?? 0),
+      answers: (answersByAttempt.get(attempt.id) ?? null) as Json | null,
+      completed_at: attempt.completed_at ?? attempt.submitted_at ?? attempt.created_at,
+      status: attempt.status,
+      grading_source: attempt.grading_source,
+    })),
+  ].sort((a, b) => new Date(a.completed_at).getTime() - new Date(b.completed_at).getTime());
 
   return (
     <QuizPlayerScreen
