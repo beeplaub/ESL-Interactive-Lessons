@@ -44,7 +44,8 @@ export default async function AccountPage() {
   const adminSupabase = createAdminClient();
 
   const [
-    { data: quizAttempts },
+    { data: legacyQuizAttempts },
+    { data: assessmentQuizAttempts },
     { data: wishlistItems },
     { data: lessonProgress },
     { data: savedLessons },
@@ -54,6 +55,7 @@ export default async function AccountPage() {
     levelTestSummary
   ] = await Promise.all([
     adminSupabase.from("quiz_attempts").select("*, quizzes(title, level)").eq("user_id", user.id).not("quiz_id", "is", null).order("completed_at", { ascending: false }),
+    adminSupabase.from("assessment_attempts").select("id,quiz_id,legacy_quiz_attempt_id,score,maximum_score,completed_at,submitted_at,created_at").eq("user_id", user.id).eq("source_type", "QUIZ").not("quiz_id", "is", null).order("completed_at", { ascending: false }),
     adminSupabase.from("wishlist_items").select("*, quizzes(title, topic, level)").eq("user_id", user.id).not("quiz_id", "is", null).order("created_at", { ascending: false }),
     adminSupabase.from("lesson_progress").select("*, lessons(title, topic, level)").eq("user_id", user.id).order("updated_at", { ascending: false }),
     adminSupabase.from("wishlist_items").select("*, lessons(title, topic, level)").eq("user_id", user.id).not("lesson_id", "is", null).order("created_at", { ascending: false }),
@@ -62,6 +64,22 @@ export default async function AccountPage() {
     adminSupabase.from("course_certificates").select("*, courses(title, level)").eq("user_id", user.id).order("issued_at", { ascending: false }),
     getLatestLevelTestSummary(adminSupabase, user.id)
   ]);
+
+  // Prefer canonical quiz attempts while retaining legacy-only history. The
+  // linked legacy row supplies display metadata until quiz relations move fully
+  // to the assessment read model.
+  const linkedLegacyQuizIds = new Set((assessmentQuizAttempts ?? []).map((attempt) => attempt.legacy_quiz_attempt_id).filter((id): id is string => Boolean(id)));
+  const legacyQuizById = new Map((legacyQuizAttempts ?? []).map((attempt) => [attempt.id, attempt]));
+  const quizAttempts = [
+    ...(legacyQuizAttempts ?? []).filter((attempt) => !linkedLegacyQuizIds.has(attempt.id)),
+    ...(assessmentQuizAttempts ?? []).map((attempt) => ({
+      ...legacyQuizById.get(attempt.legacy_quiz_attempt_id ?? ""),
+      id: attempt.legacy_quiz_attempt_id ?? attempt.id,
+      score: Number(attempt.score ?? 0),
+      total: Number(attempt.maximum_score ?? 0),
+      completed_at: attempt.completed_at ?? attempt.submitted_at ?? attempt.created_at,
+    })),
+  ].sort((a, b) => new Date(b.completed_at).getTime() - new Date(a.completed_at).getTime());
 
   const firstName = profile?.first_name?.trim() || profile?.full_name?.split(" ")?.[0]?.trim() || "there";
   const currentLevel = profile?.cefr_level ?? "B1";
