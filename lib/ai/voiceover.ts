@@ -16,6 +16,7 @@ type VoiceoverRequest = {
   style: string;
   pace: string;
   provider?: "auto" | "kokoro" | "google";
+  outputFormat?: "opus" | "wav";
 };
 
 let client: GoogleGenAI | null = null;
@@ -132,11 +133,9 @@ async function generateGeminiVoiceover(request: VoiceoverRequest) {
   const pcm = new Uint8Array(Buffer.from(encoded, "base64"));
   const sampleRate = sampleRateFromMime(part.inlineData?.mimeType);
   const wav = pcmToWav(pcm, sampleRate);
-  const compact = await optimizeAudioForStorage({
-    bytes: wav,
-    mimeType: "audio/wav",
-    fileName: "gemini-voiceover.wav",
-  });
+  const compact = request.outputFormat === "wav"
+    ? { bytes: wav, mimeType: "audio/wav", extension: "wav" }
+    : await optimizeAudioForStorage({ bytes: wav, mimeType: "audio/wav", fileName: "gemini-voiceover.wav" });
   return {
     audio: compact.bytes,
     mimeType: compact.mimeType,
@@ -188,7 +187,7 @@ async function generateKokoroVoiceover(request: VoiceoverRequest) {
     });
   }
 
-  let response = await requestSpeech("opus");
+  let response = await requestSpeech(request.outputFormat === "wav" ? "wav" : "opus");
   // Keep older deployed Kokoro gateways usable during a rolling restart. The
   // newer service accepts 0.5+, while the previous schema rejected values
   // below 0.75. Once the service is upgraded, the requested slower pace is
@@ -208,7 +207,7 @@ async function generateKokoroVoiceover(request: VoiceoverRequest) {
   // During rollout an existing Mac Mini service may still be the prior
   // WAV-only release. Keep voiceover creation working until its installer has
   // been run, then switch to Opus automatically on the next request.
-  if (!response.ok && [400, 404, 415, 422].includes(response.status)) {
+  if (!response.ok && request.outputFormat !== "wav" && [400, 404, 415, 422].includes(response.status)) {
     const details = await response.clone().text().catch(() => "");
     if (/response_format|wav output|opus|unsupported/i.test(details)) response = await requestSpeech("wav");
   }

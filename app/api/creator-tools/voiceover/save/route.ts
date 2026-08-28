@@ -28,6 +28,7 @@ export async function POST(request: Request) {
 
   const finalTitle = parsed.data.title || row.title || "AI voiceover";
   const safeTitle = finalTitle.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase() || "voiceover";
+  const isConversation = row.voice_name === "MULTI";
   const mimeType = audioMimeType(row.mime_type);
   const extension = audioExtension(mimeType);
   let stored;
@@ -37,7 +38,7 @@ export async function POST(request: Request) {
       supabase: admin,
       source: { provider: row.storage_provider, bucket: row.storage_bucket, path: row.storage_path, url: row.public_url },
       supabaseBucket: "ai-recordings",
-      path: `voiceovers/${access.user.id}/saved/${Date.now()}-${safeTitle}.${extension}`,
+      path: `${isConversation ? "conversations" : "voiceovers"}/${access.user.id}/saved/${Date.now()}-${safeTitle}.${extension}`,
       contentType: mimeType,
     });
     mediaAssetId = await registerMediaAsset(admin, {
@@ -46,11 +47,11 @@ export async function POST(request: Request) {
       source: "UPLOAD",
       url: stored.url,
       title: finalTitle,
-      caption: `${row.voice_name} · ${row.style} · AI voiceover`,
+      caption: isConversation ? "Multi-speaker conversation · AI voiceover" : `${row.voice_name} · ${row.style} · AI voiceover`,
       fileName: `${safeTitle}.${extension}`,
       mimeType,
       fileSize: Number(row.file_size || 0),
-      tags: ["ai-voiceover", `voice:${row.voice_name}`, `language:${row.language_code}`],
+      tags: ["ai-voiceover", ...(isConversation ? ["ai-conversation"] : []), `voice:${row.voice_name}`, `language:${row.language_code}`],
     });
     const { error: updateError } = await admin.from("ai_voiceover_generations").update({
       status: "SAVED",

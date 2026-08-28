@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AudioLines, ArrowRight, ImageIcon, Sparkles, Subtitles } from "lucide-react";
+import { AudioLines, ArrowRight, ImageIcon, MessageCircle, Sparkles, Subtitles } from "lucide-react";
 import { requireStaff } from "@/lib/auth";
 
 export default async function CreatorToolsPage() {
@@ -28,6 +28,11 @@ export default async function CreatorToolsPage() {
           <span className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-[var(--br-brand)]">Open studio <ArrowRight size={15} className="transition group-hover:translate-x-1" /></span>
         </Link>
 
+        <Link href="/admin/creator-tools/conversation" className="group rounded-2xl border border-[var(--br-border)] bg-surface p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+          <div className="flex items-start justify-between gap-4"><span className="grid size-11 place-items-center rounded-xl bg-[var(--br-action)]/10 text-[var(--br-action)]"><MessageCircle size={22} /></span><span className="rounded-full bg-[var(--br-success)]/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-[var(--br-success)]">Available</span></div>
+          <h2 className="mt-5 text-lg font-semibold">AI Conversation Studio</h2><p className="mt-2 text-sm leading-6 text-[var(--br-text-muted)]">Give each speaker a voice, turn a script into one polished conversation, and save the compact audio to your Media Library.</p><span className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-[var(--br-action)]">Open studio <ArrowRight size={15} className="transition group-hover:translate-x-1" /></span>
+        </Link>
+
         <ToolPlaceholder icon={Subtitles} title="Transcript & captions" description="Generate accessible transcripts and timed captions from creator audio." />
         <ToolPlaceholder icon={ImageIcon} title="Visual studio" description="Create lesson thumbnails, image prompts, and accessible alt text." />
       </section>
@@ -47,4 +52,3 @@ function ToolPlaceholder({ icon: Icon, title, description }: { icon: typeof Audi
     </article>
   );
 }
-
