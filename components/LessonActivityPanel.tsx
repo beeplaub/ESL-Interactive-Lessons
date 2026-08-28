@@ -1817,7 +1817,6 @@ export function LessonActivityPanel({
       {/* Header */}
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-moss">Activity</p>
           <h2 className="text-lg font-semibold">{activityLabel(activity.activity_type)}</h2>
         </div>
         <div className="flex items-center gap-2">
