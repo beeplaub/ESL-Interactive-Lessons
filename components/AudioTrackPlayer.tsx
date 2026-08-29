@@ -12,7 +12,7 @@ export function AudioTrackPlayer({ value, className = "", resolveUrl }: { value:
 }
 
 function SeparateAudioPlayers({ config, className }: { config: AudioTrackConfig; className: string }) {
-  return <div className={"grid gap-3 " + className}>{config.tracks.map((track, index) => <TrackAudioPlayer key={track.id} src={track.url} label={config.tracks.length > 1 ? track.label || `Audio ${index + 1}` : ""} />)}</div>;
+  return <div className={"grid gap-3 " + className}>{config.tracks.map((track) => <TrackAudioPlayer key={track.id} src={track.url} />)}</div>;
 }
 
 function SequentialAudioPlayer({ config, className }: { config: AudioTrackConfig; className: string }) {
@@ -32,7 +32,7 @@ function SequentialAudioPlayer({ config, className }: { config: AudioTrackConfig
     timerRef.current = setTimeout(() => setPausePending(false), config.pauseSeconds * 1000);
   }
 
-  return <TrackAudioPlayer key={`${track.id}-${index}`} src={track.url} label={track.label || `Audio ${index + 1}`} sequenceLabel={`${index + 1} of ${config.tracks.length}${pausePending ? ` · ${config.pauseSeconds}s pause` : ""}`} autoPlayDelay={index > 0 ? config.pauseSeconds * 1000 : undefined} onEnded={advance} onNext={config.tracks.length > 1 && index < config.tracks.length - 1 ? advance : undefined} className={className} />;
+  return <TrackAudioPlayer key={`${track.id}-${index}`} src={track.url} sequenceLabel={`${index + 1} of ${config.tracks.length}${pausePending ? ` · ${config.pauseSeconds}s pause` : ""}`} autoPlayDelay={index > 0 ? config.pauseSeconds * 1000 : undefined} onEnded={advance} onNext={config.tracks.length > 1 && index < config.tracks.length - 1 ? advance : undefined} className={className} />;
 }
 
 function TrackAudioPlayer({ src, label, sequenceLabel, autoPlayDelay, onEnded, onNext, className = "" }: { src: string; label?: string; sequenceLabel?: string; autoPlayDelay?: number; onEnded?: () => void; onNext?: () => void; className?: string }) {

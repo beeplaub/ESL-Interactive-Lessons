@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, Check, CheckCircle2, FlipHorizontal2, Headphones, ImageIcon, ListChecks, Maximize, Minimize, MessageSquareQuote, Pause, Play, PlayCircle, Settings, Volume2, RotateCcw, RotateCw, SkipBack, SkipForward, MapPin } from "lucide-react";
+import { BookOpen, Check, CheckCircle2, FlipHorizontal2, ImageIcon, ListChecks, Maximize, Minimize, MessageSquareQuote, Pause, Play, PlayCircle, Settings, Volume2, RotateCcw, RotateCw, SkipBack, SkipForward, MapPin } from "lucide-react";
 import type { ChangeEvent, RefObject } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -340,11 +340,7 @@ function PreviewBlock({ block, checkedItems, onChecklistChange }: { block: Previ
     const firstPath = audioConfig.tracks[0]?.url || path;
     const youtubeId = audioConfig.tracks.length === 1 ? getYouTubeId(firstPath) : null;
     return (
-      <div className="rounded-2xl border border-[var(--br-border)] bg-[var(--br-surface-muted)] p-3 shadow-sm sm:p-4">
-        <div className="mb-3 flex items-center gap-3 px-1 text-sm font-semibold text-ink">
-          <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-[var(--br-brand)]/10 text-[var(--br-brand)]"><Headphones size={18} /></span>
-          <span className="truncate">{asString(content.label) || "Audio"}</span>
-        </div>
+      <div>
         {youtubeId ? (
           <YouTubeAudioPlayer videoId={youtubeId} />
         ) : audioConfig.tracks.length > 0 ? (
