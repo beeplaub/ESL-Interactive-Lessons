@@ -100,10 +100,11 @@ export default async function LessonPage({
   }
 
   if (courseId) {
-    const [{ data: sections }, { data: items }, { data: itemProgress }] = await Promise.all([
+    const [{ data: sections }, { data: items }, { data: itemProgress }, { data: savedLessonProgress }] = await Promise.all([
       admin.from("course_sections").select("id").eq("course_id", courseId).order("position", { ascending: true }),
       admin.from("course_items").select("*").eq("course_id", courseId),
       admin.from("course_item_progress").select("course_item_id,completed").eq("course_id", courseId).eq("user_id", user.id),
+      admin.from("lesson_progress").select("lesson_id").eq("lesson_id", lessonId).eq("user_id", user.id).maybeSingle(),
     ]);
 
     const rawItems = items ?? [];
@@ -134,6 +135,7 @@ export default async function LessonPage({
         isEnrolledInCourse && (
           globalIndex === 0 ||
           isComplete ||
+          Boolean(savedLessonProgress) ||
           Boolean(matchingItem.bypass_sequential_unlock) ||
           (globalIndex > 0 && completedIds.has(courseItems[globalIndex - 1].id))
         )

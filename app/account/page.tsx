@@ -122,9 +122,11 @@ export default async function AccountPage() {
   const learningItems = [
     ...activeLessons.map((item, index) => {
       const courseItem = courseItemByLessonId.get(item.lesson_id);
-      const href = courseItem?.id
-        ? `/lessons/${item.lesson_id}?courseItem=${courseItem.id}`
-        : `/lessons/${item.lesson_id}`;
+      const params = new URLSearchParams({
+        slide: String(Math.max(1, Number(item.current_slide_number) || 1)),
+        ...(courseItem?.id ? { courseItem: courseItem.id } : {}),
+      });
+      const href = `/lessons/${item.lesson_id}?${params.toString()}`;
       return {
         id: `lesson-${item.id}`,
         href,
