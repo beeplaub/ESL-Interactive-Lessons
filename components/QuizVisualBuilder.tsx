@@ -919,6 +919,7 @@ function questionToPreviewActivity(question: BuilderQuestion) {
         questions: [{
           id: 1,
           text: question.questionText,
+          description: question.description || undefined,
           model_answer: String(options.model_answer ?? ""),
           target_phrases: Array.isArray(options.target_phrases) ? options.target_phrases : [],
           max_seconds: Number(options.max_seconds ?? 60),
@@ -1060,6 +1061,11 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
   if (question.questionType === "ORAL_RESPONSE") {
     return (
       <div className="grid gap-3">
+        <label className="text-sm">
+          Detailed instructions <span className="font-normal text-[var(--br-text-muted)]">(optional)</span>
+          <textarea value={question.description} onChange={(event) => onChange({ description: event.target.value })} rows={3} className="mt-1 w-full rounded-md border border-[var(--br-border)] bg-[var(--br-surface)] px-3 py-2 text-sm text-ink outline-none focus:border-[var(--br-brand)]" placeholder="For example: Speak for about one minute. Include your name, where you are from, and one hobby." />
+          <span className="mt-1 block text-xs text-[var(--br-text-muted)]">Learners will see this below the main question.</span>
+        </label>
         <label className="text-sm">
           Model answer
           <textarea value={String(options.model_answer ?? "")} onChange={(event) => onChange({ options: { ...options, model_answer: event.target.value } as Json })} rows={3} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" placeholder="A natural answer learners can compare with after submitting." />

@@ -653,6 +653,7 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
       question_number: Number(q.question_number ?? index + 1),
       question_type: String(q.question_type ?? "MATCHING") as QuizQuestion["question_type"],
       question_text: String(q.question_text ?? q.text ?? ""),
+      description: q.description == null ? null : String(q.description),
       options: (q.options ?? null) as Json,
       correct_answer: (q.correct_answer ?? q.answer ?? null) as Json,
     };
