@@ -159,10 +159,6 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
           {/* eslint-disable-next-line @next/next/no-img-element -- Course creators can use arbitrary public image links. */}
           <img src={imageUrl} alt={course.title} className="h-[230px] w-full object-cover sm:h-[280px] min-[1130px]:h-full" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/5 to-transparent" />
-          <button type="button" className="absolute left-1/2 top-1/2 grid size-16 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-surface text-[var(--br-dark-card)] shadow-[var(--br-shadow)]">
-            <Play className="ml-1 size-7 fill-[var(--br-dark-card)]" />
-          </button>
-          <span className="absolute bottom-4 left-4 rounded-lg bg-black/45 px-3 py-1.5 text-xs font-bold text-on-dark backdrop-blur">Preview</span>
         </div>
 
         <div className="flex min-w-0 flex-col justify-center py-1">
