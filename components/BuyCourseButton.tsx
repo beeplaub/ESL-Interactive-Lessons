@@ -62,7 +62,7 @@ export function BuyCourseButton({
     <>
       <button
         onClick={openModal}
-        className="inline-flex items-center justify-center gap-2 rounded-[12px] bg-gradient-to-br from-[var(--br-chart-primary)] to-[var(--br-brand)] px-6 py-3 text-sm font-extrabold text-on-dark shadow-[var(--br-shadow)] hover:-translate-y-0.5 transition-transform"
+        className="br-button-primary inline-flex items-center justify-center gap-2 px-6 py-3 text-sm font-extrabold"
       >
         Buy Course ·{" "}
         {hasDiscount && (
