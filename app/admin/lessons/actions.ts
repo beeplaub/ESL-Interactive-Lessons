@@ -281,7 +281,8 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
       title: String(formData.get("title") || "").trim(),
       explanation: String(formData.get("explanation") || "").trim(),
       examples: splitLines(formData.get("examples")),
-      notes: nullableText(formData.get("notes"))
+      notes: nullableText(formData.get("notes")),
+      reveal_hidden: formData.get("reveal_hidden") === "on"
     };
   }
   if (blockType === "COMMON_MISTAKE") {
@@ -464,7 +465,7 @@ function defaultBlockContent(blockType: string): Json {
   if (blockType === "VOCABULARY") {
     return { entries: [{ word: "word", pronunciation: "", meaning: "meaning", example: "", notes: "" }] };
   }
-  if (blockType === "GRAMMAR") return { title: "", explanation: "", examples: [], notes: null };
+  if (blockType === "GRAMMAR") return { title: "", explanation: "", examples: [], notes: null, reveal_hidden: false };
   if (blockType === "READING") return { title: "", passage: "", questions: [] };
   if (blockType === "DIALOGUE") return { title: "Dialogue", turns: [{ speaker: "A", line: "" }, { speaker: "B", line: "" }] };
   if (blockType === "FLASHCARD") return {

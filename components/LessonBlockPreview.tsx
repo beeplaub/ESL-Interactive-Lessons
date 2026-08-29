@@ -440,19 +440,16 @@ function PreviewBlock({ block, checkedItems, onChecklistChange }: { block: Previ
   if (block.block_type === "GRAMMAR") {
     const title = asString(content.title) || "Grammar focus";
     const examples = asArray(content.examples).map(String).filter(Boolean);
+    const hidden = content.reveal_hidden === true;
+    const headerContent = <div className="min-w-0"><p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[var(--br-action)]">Grammar focus</p><h3 className="mt-0.5 text-base font-extrabold leading-6 tracking-tight text-[var(--br-dark-card)]">{title}</h3></div>;
+    const grammarBody = <div className="space-y-4 p-4 sm:p-5">
+      {asString(content.explanation) ? <div className="rounded-2xl border border-[var(--br-border)] bg-white/80 px-4 py-3"><FormattedText text={asString(content.explanation)} /></div> : null}
+      {examples.length ? <div><p className="mb-2 text-xs font-extrabold uppercase tracking-[0.14em] text-[var(--br-text-muted)]">Examples</p><div className="grid gap-2 sm:grid-cols-2">{examples.map((example, index) => <div key={index} className="flex items-start gap-3 rounded-2xl border border-[var(--br-success)]/20 bg-[var(--br-success-soft)]/55 px-3 py-3 text-sm font-semibold leading-6 text-[var(--br-dark-card)]"><span className="grid size-6 shrink-0 self-center place-items-center rounded-lg bg-[var(--br-action)] text-xs font-black text-on-dark">{index + 1}</span><div className="min-w-0"><FormattedText text={example} /></div></div>)}</div></div> : null}
+      {asString(content.notes) ? <div className="rounded-2xl border border-[var(--br-achievement)]/25 bg-[var(--br-achievement)]/10 px-4 py-3"><p className="mb-1 text-xs font-extrabold uppercase tracking-[0.14em] text-[var(--br-achievement)]">Remember</p><FormattedText text={asString(content.notes)} /></div> : null}
+    </div>;
     return (
       <section className="overflow-hidden rounded-[22px] border border-[var(--br-info)]/20 bg-gradient-to-br from-[var(--br-info)]/10 via-surface to-[var(--br-brand-soft)]/45 shadow-sm">
-        <div className="border-b border-[var(--br-info)]/15 px-4 py-4 sm:px-5 sm:py-5">
-          <div className="min-w-0">
-            <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[var(--br-info)]">Grammar focus</p>
-            <h3 className="mt-0.5 text-base font-extrabold leading-6 tracking-tight text-[var(--br-dark-card)]">{title}</h3>
-          </div>
-        </div>
-        <div className="space-y-4 p-4 sm:p-5">
-          {asString(content.explanation) ? <div className="rounded-2xl border border-[var(--br-border)] bg-white/80 px-4 py-3"><FormattedText text={asString(content.explanation)} /></div> : null}
-          {examples.length ? <div><p className="mb-2 text-xs font-extrabold uppercase tracking-[0.14em] text-[var(--br-text-muted)]">Examples</p><div className="grid gap-2 sm:grid-cols-2">{examples.map((example, index) => <div key={index} className="flex items-start gap-3 rounded-2xl border border-[var(--br-success)]/20 bg-[var(--br-success-soft)]/55 px-3 py-3 text-sm font-semibold leading-6 text-[var(--br-dark-card)]"><span className="grid size-6 shrink-0 self-center place-items-center rounded-lg bg-[var(--br-action)] text-xs font-black text-on-dark">{index + 1}</span><div className="min-w-0"><FormattedText text={example} /></div></div>)}</div></div> : null}
-          {asString(content.notes) ? <div className="rounded-2xl border border-[var(--br-achievement)]/25 bg-[var(--br-achievement)]/10 px-4 py-3"><p className="mb-1 text-xs font-extrabold uppercase tracking-[0.14em] text-[var(--br-achievement)]">Remember</p><FormattedText text={asString(content.notes)} /></div> : null}
-        </div>
+        {hidden ? <details><summary className="flex cursor-pointer list-none items-center justify-between gap-3 border-b border-[var(--br-info)]/15 px-4 py-4 marker:hidden sm:px-5 sm:py-5"><span>{headerContent}</span><span className="shrink-0 rounded-md border border-[var(--br-action)]/40 bg-[var(--br-action)]/10 px-2.5 py-1 text-xs font-bold text-[var(--br-action)]">Reveal</span></summary>{grammarBody}</details> : <><div className="border-b border-[var(--br-info)]/15 px-4 py-4 sm:px-5 sm:py-5">{headerContent}</div>{grammarBody}</>}
       </section>
     );
   }
