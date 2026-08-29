@@ -408,7 +408,11 @@ function PreviewBlock({ block, checkedItems, onChecklistChange }: { block: Previ
   }
 
   if (block.block_type === "DIVIDER") {
-    return <hr className="border-[var(--br-border)]" />;
+    return <div className="flex items-center gap-3 py-3 sm:py-4" role="separator" aria-label="Section break">
+      <span className="h-px flex-1 bg-gradient-to-r from-transparent via-[var(--br-brand)]/25 to-[var(--br-action)]/60" />
+      <span className="grid size-3 shrink-0 place-items-center rounded-full bg-[var(--br-action)] ring-4 ring-[var(--br-action)]/10"><span className="size-1 rounded-full bg-white" /></span>
+      <span className="h-px flex-1 bg-gradient-to-l from-transparent via-[var(--br-brand)]/25 to-[var(--br-action)]/60" />
+    </div>;
   }
 
   if (block.block_type === "VOCABULARY") {
