@@ -155,7 +155,7 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
   const headerCard = (
     <div className="br-learner-card p-4 md:p-5">
       <div className="grid grid-cols-1 gap-6 min-[1130px]:grid-cols-[560px_minmax(0,1fr)]">
-        <div className="group relative aspect-video min-w-0 overflow-hidden rounded-[18px] bg-[var(--br-dark-card)]">
+        <div className="group relative aspect-video min-w-0 overflow-hidden rounded-[18px] bg-[var(--br-dark-card)] min-[1130px]:aspect-auto min-[1130px]:h-full">
           {/* eslint-disable-next-line @next/next/no-img-element -- Course creators can use arbitrary public image links. */}
           <img src={imageUrl} alt={course.title} className="absolute inset-0 size-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-black/5 to-transparent" />
