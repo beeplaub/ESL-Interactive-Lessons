@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, Check, CheckCircle2, ClipboardPenLine, FlipHorizontal2, ImageIcon, ListChecks, Maximize, Minimize, MessageSquareQuote, Pause, Play, PlayCircle, Settings, Volume2, RotateCcw, RotateCw, SkipBack, SkipForward, MapPin } from "lucide-react";
+import { BookOpen, Check, CheckCircle2, FlipHorizontal2, ImageIcon, ListChecks, Maximize, Minimize, MessageSquareQuote, Pause, Play, PlayCircle, Settings, Volume2, RotateCcw, RotateCw, SkipBack, SkipForward, MapPin } from "lucide-react";
 import type { ChangeEvent, RefObject } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -189,11 +189,10 @@ function PreviewBlock({ block, checkedItems, onChecklistChange }: { block: Previ
   if (block.block_type === "INSTRUCTION") {
     return (
       <section className="overflow-hidden rounded-[20px] border border-[var(--br-action)]/25 bg-gradient-to-br from-[var(--br-action)]/10 via-surface to-[var(--br-brand-soft)]/45 shadow-sm">
-        <div className="flex items-start gap-3 border-l-4 border-[var(--br-action)] px-4 py-4 sm:px-5 sm:py-5">
-          <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-[var(--br-action)] text-on-dark shadow-sm"><ClipboardPenLine size={18} /></span>
-          <div className="min-w-0 flex-1">
+        <div className="border-l-4 border-[var(--br-action)] px-4 py-4 sm:px-5 sm:py-5">
+          <div className="min-w-0">
             {asString(content.title) ? <h3 className="text-base font-extrabold tracking-tight text-[var(--br-dark-card)]">{asString(content.title)}</h3> : null}
-            <div className={asString(content.title) ? "mt-1.5" : ""}><FormattedText text={asString(content.body) || "Add an instruction."} /></div>
+            <div className={`${asString(content.title) ? "mt-1.5" : ""} italic`}><FormattedText text={asString(content.body) || "Add an instruction."} /></div>
           </div>
         </div>
       </section>
