@@ -771,8 +771,9 @@ function QuestionEditorModal({
           </label>
 
           <label className="text-sm font-medium">
-            Description <span className="font-normal text-[var(--br-text-muted)]">(optional)</span>
-            <textarea value={question.description} onChange={(event) => onChange({ description: event.target.value })} rows={2} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 font-normal" placeholder="Short context shown before the answer fields." />
+            {question.questionType === "ORAL_RESPONSE" ? "Detailed instructions for the learner" : "Description"} <span className="font-normal text-[var(--br-text-muted)]">(optional)</span>
+            <textarea value={question.description} onChange={(event) => onChange({ description: event.target.value })} rows={question.questionType === "ORAL_RESPONSE" ? 3 : 2} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 font-normal" placeholder={question.questionType === "ORAL_RESPONSE" ? "For example: Speak for about one minute. Include your name, where you are from, and one hobby." : "Short context shown before the answer fields."} />
+            {question.questionType === "ORAL_RESPONSE" ? <span className="mt-1 block text-xs font-normal text-[var(--br-text-muted)]">Learners will see this directly below the main question.</span> : null}
           </label>
 
           <QuestionFields question={question} onChange={onChange} />
@@ -1061,11 +1062,6 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
   if (question.questionType === "ORAL_RESPONSE") {
     return (
       <div className="grid gap-3">
-        <label className="text-sm">
-          Detailed instructions <span className="font-normal text-[var(--br-text-muted)]">(optional)</span>
-          <textarea value={question.description} onChange={(event) => onChange({ description: event.target.value })} rows={3} className="mt-1 w-full rounded-md border border-[var(--br-border)] bg-[var(--br-surface)] px-3 py-2 text-sm text-ink outline-none focus:border-[var(--br-brand)]" placeholder="For example: Speak for about one minute. Include your name, where you are from, and one hobby." />
-          <span className="mt-1 block text-xs text-[var(--br-text-muted)]">Learners will see this below the main question.</span>
-        </label>
         <label className="text-sm">
           Model answer
           <textarea value={String(options.model_answer ?? "")} onChange={(event) => onChange({ options: { ...options, model_answer: event.target.value } as Json })} rows={3} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" placeholder="A natural answer learners can compare with after submitting." />
