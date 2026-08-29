@@ -749,6 +749,8 @@ function TableBlock({ content }: { content: Record<string, unknown> }) {
   const headers = asArray(content.headers).map((header) => asString(header));
   const rows = asArray(content.rows).map((row) => asArray(row).map((cell) => asString(cell)));
   const caption = asString(content.caption);
+  const hideReveal = content.reveal_hidden === true;
+  const [revealed, setRevealed] = useState(!hideReveal);
   const columnThemes = [
     { solid: "var(--br-chart-primary)", soft: "color-mix(in srgb, var(--br-chart-primary) 9%, var(--br-surface))" },
     { solid: "var(--br-chart-secondary)", soft: "color-mix(in srgb, var(--br-chart-secondary) 9%, var(--br-surface))" },
@@ -762,12 +764,21 @@ function TableBlock({ content }: { content: Record<string, unknown> }) {
 
   return (
     <div className="overflow-hidden rounded-[22px] border border-[var(--br-brand)]/15 bg-surface shadow-[var(--br-shadow)]">
-      {caption ? (
-        <div className="flex items-center gap-3 border-b border-[var(--br-brand)]/15 bg-[var(--br-brand-soft)]/70 px-4 py-4 sm:px-5">
-          <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-[var(--br-brand)] text-xs font-black text-on-dark">T</span>
-          <h3 className="min-w-0 break-words text-lg font-black leading-6 text-[var(--br-dark-card)]">{caption}</h3>
+      {caption || hideReveal ? (
+        <div className="flex items-center justify-between gap-3 border-b border-[var(--br-brand)]/15 bg-[var(--br-brand-soft)]/70 px-4 py-4 sm:px-5">
+          <div className="flex min-w-0 items-center gap-3">
+            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-[var(--br-brand)] text-xs font-black text-on-dark">T</span>
+            <h3 className="min-w-0 break-words text-lg font-black leading-6 text-[var(--br-dark-card)]">{caption || "Table"}</h3>
+          </div>
+          {hideReveal ? <button type="button" onClick={() => setRevealed((current) => !current)} aria-expanded={revealed} className="shrink-0 rounded-lg border border-[var(--br-brand)]/25 bg-surface px-3 py-2 text-xs font-black text-[var(--br-brand)] hover:bg-[var(--br-brand-soft)]">{revealed ? "Hide" : "Reveal"}</button> : null}
         </div>
       ) : null}
+      {!revealed ? (
+        <div className="grid gap-3 bg-[var(--br-brand-soft)]/25 px-5 py-8 text-center">
+          <p className="text-sm font-bold text-[var(--br-dark-card)]">Try to remember the information first.</p>
+          <button type="button" onClick={() => setRevealed(true)} className="mx-auto rounded-lg bg-[var(--br-action)] px-4 py-2.5 text-sm font-black text-on-dark shadow-sm hover:bg-[var(--br-action-strong)]">Reveal table</button>
+        </div>
+      ) : <>
       <div className="hidden md:block">
         <table className="w-full table-fixed border-collapse text-base">
           <thead>
@@ -816,6 +827,7 @@ function TableBlock({ content }: { content: Record<string, unknown> }) {
           </article>
         )) : <p className="rounded-xl border border-dashed border-[var(--br-border)] p-4 text-sm text-[var(--br-text-muted)]">No rows yet.</p>}
       </div>
+      </>}
     </div>
   );
 }

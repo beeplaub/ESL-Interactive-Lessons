@@ -1917,6 +1917,7 @@ function BlockFields({ blockType, content, lessonId, blockId }: { blockType: str
     return (
       <div className="grid gap-3">
         <label className="text-sm">Caption <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><input name="caption" defaultValue={asString(data.caption)} placeholder="e.g., Table 1: Irregular verbs" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+        <label className="flex items-start gap-2 text-sm"><input type="checkbox" name="reveal_hidden" defaultChecked={data.reveal_hidden === true} className="mt-0.5 size-4 rounded border-[var(--br-border)]" /><span><span className="font-semibold">Hide table until revealed</span><span className="mt-0.5 block text-xs text-[var(--br-text-muted)]">Learners will see the title and a Reveal table button first.</span></span></label>
         <p className="rounded-xl border border-[var(--br-brand)]/15 bg-[var(--br-brand-soft)]/50 px-3 py-2.5 text-xs leading-5 text-[var(--br-text-muted)]">Column colors are applied automatically in the learner view: purple, green, CTA orange, then blue.</p>
         <div className="text-sm">
           Table content
