@@ -44,14 +44,33 @@ export default async function LessonPage({
       notFound();
     }
   } else {
-    const { data: placement } = await admin
+    const { data: placements } = await admin
       .from("course_items")
-      .select("course_id")
+      .select("id,course_id,is_free_preview")
       .eq("lesson_id", lessonId)
-      .limit(1)
-      .maybeSingle();
-    if (placement?.course_id) {
-      redirect(`/courses/${placement.course_id}`);
+      .order("position", { ascending: true });
+
+    if (placements?.length) {
+      const courseIds = [...new Set(placements.map((placement) => placement.course_id))];
+      const [{ data: enrollments }, { data: courses }] = await Promise.all([
+        admin.from("course_enrollments").select("course_id,status").eq("user_id", user.id).in("course_id", courseIds),
+        admin.from("courses").select("id,status,visibility").in("id", courseIds).is("deleted_at", null),
+      ]);
+      const enrollmentByCourse = new Map((enrollments ?? []).map((enrollment) => [enrollment.course_id, enrollment.status]));
+      const courseById = new Map((courses ?? []).map((course) => [course.id, course]));
+      const accessiblePlacement = placements.find((placement) => {
+        const course = courseById.get(placement.course_id);
+        const enrolled = enrollmentByCourse.get(placement.course_id) === "ACTIVE" || enrollmentByCourse.get(placement.course_id) === "COMPLETED";
+        return course?.status === "PUBLISHED" && (enrolled || (course.visibility !== "PRIVATE" && placement.is_free_preview));
+      });
+
+      if (accessiblePlacement) {
+        courseId = accessiblePlacement.course_id;
+        resolvedCourseItemId = accessiblePlacement.id;
+        isFreePreview = Boolean(accessiblePlacement.is_free_preview);
+      } else {
+        redirect(`/courses/${placements[0].course_id}`);
+      }
     }
   }
 
