@@ -532,23 +532,25 @@ function PreviewBlock({ block, checkedItems, onChecklistChange }: { block: Previ
 
 function StepsBlock({ content }: { content: Record<string, unknown> }) {
   const steps = asArray(content.steps).map((item) => asRecord(item as Json)).filter((step) => asString(step.title) || asString(step.description));
+  const stepColors = ["#ff725c", "#8fd8ca", "#b58be8", "#78aaf2"];
+  const stepTextColors = ["#ffffff", "#087f70", "#6d3aa8", "#1e5aa8"];
   return (
-    <section className="overflow-hidden rounded-[22px] border border-[var(--br-brand)]/20 bg-gradient-to-br from-[var(--br-brand-soft)] via-surface to-[var(--br-info)]/10 shadow-sm">
-      <div className="border-b border-[var(--br-brand)]/15 bg-[var(--br-brand)]/10 px-4 py-4 sm:px-5 sm:py-5">
-        {asString(content.title) ? <h3 className="text-base font-extrabold tracking-tight text-[var(--br-dark-card)]">{asString(content.title)}</h3> : null}
-        {asString(content.instruction) ? <p className={`${asString(content.title) ? "mt-1" : ""} text-sm text-[var(--br-text-muted)]`}>{asString(content.instruction)}</p> : null}
+    <section className="overflow-hidden rounded-[22px] border border-[var(--br-border)] bg-surface shadow-sm">
+      <div className="border-b border-[var(--br-border)] px-5 py-5 sm:px-7 sm:py-6">
+        {asString(content.title) ? <h3 className="text-xl font-extrabold tracking-tight text-[var(--br-dark-card)] sm:text-2xl">{asString(content.title)}</h3> : null}
+        {asString(content.instruction) ? <p className={`${asString(content.title) ? "mt-1.5" : ""} text-sm text-[var(--br-text-muted)]`}>{asString(content.instruction)}</p> : null}
       </div>
-      <div className="relative p-4 sm:p-5">
-        {steps.length > 1 ? <div className="pointer-events-none absolute left-[12.5%] right-[12.5%] top-[55px] hidden h-px bg-[var(--br-border)] md:block" aria-hidden="true" /> : null}
+      <div className="relative px-5 py-6 sm:px-7 sm:py-7">
+        {steps.length > 1 ? <div className="pointer-events-none absolute left-[12.5%] right-[12.5%] top-[64px] hidden h-0.5 bg-[var(--br-border)] md:block" aria-hidden="true" /> : null}
         {steps.length ? (
-          <div className="grid gap-4 md:grid-cols-4 md:gap-3">
+          <div className="grid gap-5 md:grid-cols-4 md:gap-3">
             {steps.map((step, index) => (
-              <div key={index} className="relative flex min-w-0 items-start gap-3 md:block md:text-center">
-                {index < steps.length - 1 ? <div className="pointer-events-none absolute bottom-[-16px] left-[15px] top-[34px] w-px bg-[var(--br-border)] md:hidden" aria-hidden="true" /> : null}
-                <div className="relative z-10 grid size-8 shrink-0 place-items-center rounded-full border-2 border-white bg-[var(--br-action)] text-sm font-black text-on-dark shadow-sm md:mx-auto">{index + 1}</div>
-                <div className="min-w-0 pt-0.5 md:pt-3">
-                  <h4 className="text-sm font-extrabold text-[var(--br-dark-card)]">{asString(step.title) || `Step ${index + 1}`}</h4>
-                  {asString(step.description) ? <p className="mt-1 text-sm leading-6 text-[var(--br-text-muted)]">{asString(step.description)}</p> : null}
+              <div key={index} className="relative flex min-w-0 flex-col items-center text-center md:block">
+                {index < steps.length - 1 ? <div className="pointer-events-none absolute left-1/2 top-8 h-[calc(100%+1.25rem)] w-0.5 -translate-x-1/2 bg-[var(--br-border)] md:hidden" aria-hidden="true" /> : null}
+                <div className="relative z-10 grid size-11 shrink-0 place-items-center rounded-full border-2 border-white text-lg font-black shadow-sm" style={{ backgroundColor: stepColors[index % stepColors.length], color: stepTextColors[index % stepTextColors.length] }}>{index + 1}</div>
+                <div className="relative z-10 mt-3 min-w-0 md:mt-4">
+                  <h4 className="text-base font-extrabold text-[var(--br-dark-card)]">{asString(step.title) || `Step ${index + 1}`}</h4>
+                  {asString(step.description) ? <p className="mx-auto mt-1 max-w-[180px] text-sm leading-6 text-[var(--br-text-muted)]">{asString(step.description)}</p> : null}
                 </div>
               </div>
             ))}
@@ -755,14 +757,14 @@ function TableBlock({ content }: { content: Record<string, unknown> }) {
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-[var(--br-border)] shadow-sm">
+    <div className="overflow-hidden rounded-[22px] border border-[var(--br-brand)]/15 bg-surface shadow-[var(--br-shadow)]">
       {caption ? <p className="border-b border-[var(--br-border)] bg-surface-muted px-4 py-2 text-base font-medium text-[var(--br-text-muted)]">{caption}</p> : null}
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[420px] border-collapse text-base">
+      <div className="hidden md:block">
+        <table className="w-full table-fixed border-collapse text-base">
           <thead>
             <tr style={{ backgroundColor: fill }}>
               {headers.map((header, index) => (
-                <th key={index} className="whitespace-nowrap px-4 py-2.5 text-left font-semibold" style={{ color: textColor }}>
+                <th key={index} className="break-words px-4 py-3 text-left font-extrabold leading-6" style={{ color: textColor }}>
                   {header || `Column ${index + 1}`}
                 </th>
               ))}
@@ -771,9 +773,9 @@ function TableBlock({ content }: { content: Record<string, unknown> }) {
           <tbody>
             {rows.length ? (
               rows.map((row, rowIndex) => (
-                <tr key={rowIndex} className={rowIndex % 2 === 1 ? "bg-surface-muted" : "bg-surface"}>
+                <tr key={rowIndex} className="border-t border-[var(--br-border)] bg-[var(--br-brand-soft)]/35 align-top odd:bg-[var(--br-canvas-elevated)]">
                   {headers.map((_, colIndex) => (
-                    <td key={colIndex} className="border-t border-[var(--br-border)] px-4 py-2.5 align-top text-[var(--br-text-muted)]">
+                    <td key={colIndex} className="break-words whitespace-normal px-4 py-4 align-top leading-7 text-[var(--br-text-muted)]">
                       {row[colIndex] || ""}
                     </td>
                   ))}
@@ -786,6 +788,24 @@ function TableBlock({ content }: { content: Record<string, unknown> }) {
             )}
           </tbody>
         </table>
+      </div>
+      <div className="grid gap-3 p-3 md:hidden">
+        {rows.length ? rows.map((row, rowIndex) => (
+          <article key={rowIndex} className="overflow-hidden rounded-2xl border border-[var(--br-brand)]/15 bg-[var(--br-brand-soft)]/35 shadow-sm">
+            <div className="flex items-center gap-2 border-b border-[var(--br-brand)]/10 bg-[var(--br-brand)]/10 px-3 py-2.5">
+              <span className="grid size-7 shrink-0 place-items-center rounded-full bg-[var(--br-action)] text-xs font-black text-on-dark">{rowIndex + 1}</span>
+              <span className="text-sm font-extrabold text-[var(--br-dark-card)]">{row[0] || `Row ${rowIndex + 1}`}</span>
+            </div>
+            <dl className="divide-y divide-[var(--br-brand)]/10">
+              {headers.map((header, colIndex) => (
+                <div key={colIndex} className="grid gap-1 px-3 py-3">
+                  <dt className="text-[11px] font-black uppercase tracking-wide text-[var(--br-brand)]">{header || `Column ${colIndex + 1}`}</dt>
+                  <dd className="break-words whitespace-normal text-sm leading-6 text-[var(--br-text-muted)]">{row[colIndex] || "—"}</dd>
+                </div>
+              ))}
+            </dl>
+          </article>
+        )) : <p className="rounded-xl border border-dashed border-[var(--br-border)] p-4 text-sm text-[var(--br-text-muted)]">No rows yet.</p>}
       </div>
     </div>
   );
