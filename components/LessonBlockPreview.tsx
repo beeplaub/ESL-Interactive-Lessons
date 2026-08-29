@@ -812,10 +812,6 @@ function TableBlock({ content }: { content: Record<string, unknown> }) {
       <div className="grid gap-3 p-3 md:hidden">
         {rows.length ? rows.map((row, rowIndex) => (
           <article key={rowIndex} className="overflow-hidden rounded-2xl border border-[var(--br-brand)]/15 shadow-sm" style={{ backgroundColor: rowBackgrounds[rowIndex % rowBackgrounds.length] }}>
-            <div className="flex items-center gap-2 border-b border-[var(--br-brand)]/10 bg-[var(--br-brand)]/10 px-3 py-2.5">
-              <span className="grid size-7 shrink-0 place-items-center rounded-full bg-[var(--br-action)] text-xs font-black text-on-dark">{rowIndex + 1}</span>
-              <span className="text-sm font-extrabold text-[var(--br-dark-card)]">{row[0] || `Row ${rowIndex + 1}`}</span>
-            </div>
             <dl className="divide-y divide-[var(--br-brand)]/10">
               {headers.map((header, colIndex) => (
                 <div key={colIndex} className="grid gap-1 px-3 py-3">
