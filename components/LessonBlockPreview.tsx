@@ -809,19 +809,43 @@ function TableBlock({ content }: { content: Record<string, unknown> }) {
           </tbody>
         </table>
       </div>
-      <div className="grid gap-3 p-3 md:hidden">
-        {rows.length ? rows.map((row, rowIndex) => (
-          <article key={rowIndex} className="overflow-hidden rounded-2xl border border-[var(--br-brand)]/15 shadow-sm" style={{ backgroundColor: rowBackgrounds[rowIndex % rowBackgrounds.length] }}>
-            <dl className="divide-y divide-[var(--br-brand)]/10">
+      <div className="md:hidden">
+        {headers.length === 2 ? (
+          <div className="overflow-hidden rounded-b-[22px] border-t border-[var(--br-brand)]/15">
+            <div className="grid grid-cols-2 border-b border-[var(--br-brand)]/15 bg-[var(--br-brand-soft)]/55">
               {headers.map((header, colIndex) => (
-                <div key={colIndex} className="grid gap-1 px-3 py-3">
-                  <dt className="text-[11px] font-black uppercase tracking-wide" style={{ color: columnThemes[colIndex % columnThemes.length] }}>{header || `Column ${colIndex + 1}`}</dt>
-                  <dd className="break-words whitespace-normal text-sm leading-6 text-[var(--br-text-muted)]">{row[colIndex] || "—"}</dd>
+                <div key={colIndex} className={`min-w-0 px-3 py-2.5 text-[11px] font-black uppercase tracking-wide ${colIndex === 1 ? "border-l border-[var(--br-brand)]/15" : ""}`} style={{ color: columnThemes[colIndex] }}>
+                  {header || `Column ${colIndex + 1}`}
                 </div>
               ))}
-            </dl>
-          </article>
-        )) : <p className="rounded-xl border border-dashed border-[var(--br-border)] p-4 text-sm text-[var(--br-text-muted)]">No rows yet.</p>}
+            </div>
+            {rows.length ? rows.map((row, rowIndex) => (
+              <div key={rowIndex} className="grid grid-cols-2 border-b border-[var(--br-brand)]/10 last:border-b-0" style={{ backgroundColor: rowBackgrounds[rowIndex % rowBackgrounds.length] }}>
+                <div className="min-w-0 border-l-4 px-3 py-3.5 text-sm font-extrabold leading-6 text-[var(--br-dark-card)]" style={{ borderLeftColor: columnThemes[rowIndex % columnThemes.length] }}>
+                  <span className="break-words">{row[0] || "—"}</span>
+                </div>
+                <div className="min-w-0 border-l border-[var(--br-brand)]/10 px-3 py-3.5 text-sm leading-6 text-[var(--br-text-muted)]">
+                  <span className="break-words">{row[1] || "—"}</span>
+                </div>
+              </div>
+            )) : <p className="p-4 text-sm text-[var(--br-text-muted)]">No rows yet.</p>}
+          </div>
+        ) : (
+          <div className="grid gap-3 p-3">
+            {rows.length ? rows.map((row, rowIndex) => (
+              <article key={rowIndex} className="overflow-hidden rounded-2xl border border-[var(--br-brand)]/15 shadow-sm" style={{ backgroundColor: rowBackgrounds[rowIndex % rowBackgrounds.length] }}>
+                <dl className="divide-y divide-[var(--br-brand)]/10">
+                  {headers.map((header, colIndex) => (
+                    <div key={colIndex} className="grid gap-1 px-3 py-3">
+                      <dt className="text-[11px] font-black uppercase tracking-wide" style={{ color: columnThemes[colIndex % columnThemes.length] }}>{header || `Column ${colIndex + 1}`}</dt>
+                      <dd className="break-words whitespace-normal text-sm leading-6 text-[var(--br-text-muted)]">{row[colIndex] || "—"}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </article>
+            )) : <p className="rounded-xl border border-dashed border-[var(--br-border)] p-4 text-sm text-[var(--br-text-muted)]">No rows yet.</p>}
+          </div>
+        )}
       </div>
       </> : null}
     </div>
