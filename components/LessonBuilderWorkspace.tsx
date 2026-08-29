@@ -49,7 +49,7 @@ import { BuilderDevicePreviewFrame, type BuilderPreviewDevice } from "@/componen
 import { DialogueVoiceoverEditor } from "@/components/DialogueVoiceoverEditor";
 
 const blockTypes = [
-  "HEADING", "TEXT", "BULLETS", "REVIEW_CHECKLIST", "QUOTE", "CALLOUT",
+  "HEADING", "TEXT", "BULLETS", "INSTRUCTION", "REVIEW_CHECKLIST", "QUOTE", "CALLOUT",
   "IMAGE", "IMAGE_TEXT", "IMAGE_ANNOTATION", "AUDIO", "VIDEO", "DIVIDER",
   "VOCABULARY", "GRAMMAR", "READING", "DIALOGUE",
   "FLASHCARD", "TABLE", "COMMON_MISTAKE", "CONTRAST_PAIR", "IMAGE_PAIR", "TONGUE_TWISTER"
@@ -1460,7 +1460,7 @@ function ActivityBank({ lessonId, slide, slides, activities }: {
 
 function labelForBlockType(type: string) {
   const labels: Record<string, string> = {
-    HEADING: "Heading", TEXT: "Text", BULLETS: "Bullet points", REVIEW_CHECKLIST: "Review checklist", QUOTE: "Quote",
+    HEADING: "Heading", TEXT: "Text", BULLETS: "Bullet points", INSTRUCTION: "Instruction", REVIEW_CHECKLIST: "Review checklist", QUOTE: "Quote",
     CALLOUT: "Callout", IMAGE: "Image", IMAGE_TEXT: "Image + Text", IMAGE_ANNOTATION: "Image annotations",
     AUDIO: "Audio", VIDEO: "Video", DIVIDER: "Divider",
     VOCABULARY: "Vocabulary list", GRAMMAR: "Grammar",
@@ -1621,6 +1621,14 @@ function BlockFields({ blockType, content, lessonId, blockId }: { blockType: str
       <div className="grid gap-3">
         <label className="text-sm">Body text<textarea name="body" rows={4} defaultValue={asString(data.body ?? data.text)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
         <AlignmentGroup label="Text alignment" name="text_align" value={asString(data.text_align) || "left"} options={TEXT_ALIGN_OPTIONS} />
+      </div>
+    );
+  }
+  if (blockType === "INSTRUCTION") {
+    return (
+      <div className="grid gap-3">
+        <label className="text-sm">Title <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><input name="title" defaultValue={asString(data.title)} placeholder="Before you begin" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+        <label className="text-sm">Instruction text <span className="font-normal text-[var(--br-text-muted)]">(supports **bold** and _italic_)</span><textarea name="body" rows={5} defaultValue={asString(data.body)} placeholder="Read the dialogue, then choose the best response." className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
       </div>
     );
   }

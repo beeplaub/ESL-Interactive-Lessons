@@ -55,6 +55,7 @@ const lessonBlockTypes = [
   "HEADING",
   "TEXT",
   "BULLETS",
+  "INSTRUCTION",
   "REVIEW_CHECKLIST",
   "QUOTE",
   "CALLOUT",
@@ -167,6 +168,12 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
     return {
       body: String(formData.get("body") || "").trim(),
       text_align: textAlignValue(formData.get("text_align"))
+    };
+  }
+  if (blockType === "INSTRUCTION") {
+    return {
+      title: nullableText(formData.get("title")),
+      body: String(formData.get("body") || "").trim()
     };
   }
   if (blockType === "BULLETS") {
@@ -428,6 +435,7 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
 function defaultBlockContent(blockType: string): Json {
   if (blockType === "HEADING") return { text: "New heading", level: "H2" };
   if (blockType === "TEXT") return { body: "Add lesson text here." };
+  if (blockType === "INSTRUCTION") return { title: null, body: "Read the instruction carefully, then complete the task." };
   if (blockType === "BULLETS") return { title: "Key points", items: ["First point", "Second point"], reveal_hidden: false };
   if (blockType === "REVIEW_CHECKLIST") return { title: "I can now…", intro: "Check each statement you can do confidently.", items: ["I can use the target language.", "I can understand the key idea."], require_completion: false };
   if (blockType === "QUOTE") return { body: "Add a quote.", attribution: null };
