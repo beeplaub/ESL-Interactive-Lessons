@@ -88,15 +88,26 @@ type AssessmentLink = { attemptId: string; responseId: string };
 async function findPendingAssessmentLink(admin: ReturnType<typeof createAdminClient>, userId: string, input: WritingSubmissionInput & { questionKey: string }): Promise<AssessmentLink | null> {
   // The attempt and its detailed responses are written in sequence when a learner submits.
   // Grading can be selected immediately after the submit transition completes, so allow a
-  // short settling window instead of exposing an internal "still being prepared" error.
-  const retryDelays = [0, 250, 750, 1500];
+  // settling window instead of exposing an internal "still being prepared" error. Some
+  // lesson activities use a generated/default question key in the renderer while their
+  // single assessment item was registered with a content-provided key. In that safe,
+  // unambiguous single-item case, use the only item for this activity rather than making
+  // the learner retry a valid self-check choice.
+  const retryDelays = [0, 250, 750, 1500, 2500, 4000];
   for (const delay of retryDelays) {
     if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
 
-    const itemQuery = (admin.from("assessment_items") as any).select("id").eq("source_item_key", input.questionKey);
-    const { data: item } = input.lessonId
+    const itemQuery = (admin.from("assessment_items") as any).select("id,source_item_key").eq("source_item_key", input.questionKey);
+    const { data: exactItem } = input.lessonId
       ? await itemQuery.eq("lesson_activity_id", input.activityId).maybeSingle()
       : await itemQuery.eq("quiz_question_id", input.activityId).maybeSingle();
+    let item = exactItem;
+    if (!item?.id && input.lessonId) {
+      const { data: activityItems } = await (admin.from("assessment_items") as any)
+        .select("id,source_item_key")
+        .eq("lesson_activity_id", input.activityId);
+      if (activityItems?.length === 1) item = activityItems[0];
+    }
     if (!item?.id) continue;
 
     let attemptQuery = (admin.from("assessment_attempts") as any)
