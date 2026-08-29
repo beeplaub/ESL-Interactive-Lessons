@@ -1624,6 +1624,14 @@ function BlockFields({ blockType, content, lessonId, blockId }: { blockType: str
       </div>
     );
   }
+  if (blockType === "DIVIDER") {
+    return (
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="text-sm">Line style<select name="line_style" defaultValue={asString(data.line_style) || "solid"} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2"><option value="solid">Straight line</option><option value="dotted">Dotted line</option></select></label>
+        <label className="text-sm">Line width <span className="font-normal text-[var(--br-text-muted)]">(25–100%)</span><input name="line_width" type="number" min="25" max="100" step="5" defaultValue={Number(data.line_width) || 100} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+      </div>
+    );
+  }
   if (blockType === "INSTRUCTION") {
     return (
       <div className="grid gap-3">

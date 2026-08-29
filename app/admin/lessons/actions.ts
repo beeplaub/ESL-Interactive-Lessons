@@ -431,6 +431,11 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
       header_fill: hexColorValue(formData.get("header_fill"), "var(--br-info)")
     };
   }
+  if (blockType === "DIVIDER") {
+    const lineStyle = String(formData.get("line_style") || "solid") === "dotted" ? "dotted" : "solid";
+    const lineWidth = Math.min(100, Math.max(25, Number(formData.get("line_width")) || 100));
+    return { line_style: lineStyle, line_width: lineWidth };
+  }
   return {};
 }
 
@@ -442,6 +447,7 @@ function defaultBlockContent(blockType: string): Json {
   if (blockType === "REVIEW_CHECKLIST") return { title: "I can now…", intro: "Check each statement you can do confidently.", items: ["I can use the target language.", "I can understand the key idea."], require_completion: false };
   if (blockType === "QUOTE") return { body: "Add a quote.", attribution: null };
   if (blockType === "CALLOUT") return { title: "Note", body: "Add a short note for learners.", reveal_hidden: false };
+  if (blockType === "DIVIDER") return { line_style: "solid", line_width: 100 };
   if (blockType === "IMAGE") return { path: "", alt: "", caption: "" };
   if (blockType === "IMAGE_PAIR") return { left_path: "", left_alt: "", left_caption: "", right_path: "", right_alt: "", right_caption: "" };
   if (blockType === "TONGUE_TWISTER") return { title: "Tongue Twister Challenge", instruction: "Start slowly, then build up your speed.", items: [{ title: "Sea Shells", context: "Practise /s/ and /sh/.", text: "She sells sea shells by the sea shore.", target_sound: "/s/ and /ʃ/", highlights: ["s", "sh"], chunks: ["She sells", "sea shells", "by the sea shore"], pronunciation_note: "Keep the target sounds clear.", difficult_words: [], audio_path: "", hide_reveal_enabled: false }] };
