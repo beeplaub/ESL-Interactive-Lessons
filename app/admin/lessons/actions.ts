@@ -446,6 +446,7 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
       caption: nullableText(formData.get("caption")),
       headers,
       rows,
+      reveal_hidden: formData.get("reveal_hidden") === "on",
       header_fill: hexColorValue(formData.get("header_fill"), "var(--br-info)")
     };
   }
@@ -516,6 +517,7 @@ function defaultBlockContent(blockType: string): Json {
     caption: null,
     headers: ["Column 1", "Column 2"],
     rows: [["", ""], ["", ""]],
+    reveal_hidden: false,
     header_fill: "var(--br-info)"
   };
   if (blockType === "COMMON_MISTAKE") return {
