@@ -773,8 +773,7 @@ function TableBlock({ content }: { content: Record<string, unknown> }) {
       {caption || hideReveal ? (
         <div className="flex items-center justify-between gap-3 border-b border-[var(--br-brand)]/15 bg-[var(--br-brand-soft)]/70 px-4 py-4 sm:px-5">
           <div className="flex min-w-0 items-center gap-3">
-            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-[var(--br-brand)] text-xs font-black text-on-dark">T</span>
-            <h3 className="min-w-0 break-words text-lg font-black leading-6 text-[var(--br-dark-card)]">{caption || "Table"}</h3>
+            <h3 className="min-w-0 break-words text-lg font-semibold text-ink">{caption || "Table"}</h3>
           </div>
           {hideReveal ? <button type="button" onClick={() => setRevealed((current) => !current)} aria-expanded={revealed} className="shrink-0 rounded-lg bg-[var(--br-action)] px-3 py-2 text-xs font-black text-white shadow-sm hover:bg-[var(--br-action-strong)]">{revealed ? "Hide" : "Reveal"}</button> : null}
         </div>
