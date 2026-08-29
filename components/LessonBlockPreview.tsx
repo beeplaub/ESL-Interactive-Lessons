@@ -780,11 +780,11 @@ function TableBlock({ content }: { content: Record<string, unknown> }) {
       ) : null}
       {revealed ? <>
       <div className="hidden md:block">
-        <table className="w-full table-fixed border-collapse text-base">
-          <thead>
-            <tr>
-              {headers.map((header, index) => (
-                <th key={index} className="break-words px-4 py-3 text-left font-extrabold leading-6 text-on-dark" style={{ backgroundColor: columnThemes[index % columnThemes.length] }}>
+          <table className="w-full table-fixed border-collapse text-base">
+            <thead>
+              <tr>
+                {headers.map((header, index) => (
+                <th key={index} className={`break-words px-4 py-3 text-left font-extrabold leading-6 ${index > 0 ? "border-l border-[var(--br-brand)]/15" : ""}`} style={{ color: columnThemes[index % columnThemes.length], backgroundColor: "color-mix(in srgb, var(--br-brand-soft) 55%, var(--br-surface))" }}>
                   {header || `Column ${index + 1}`}
                 </th>
               ))}
@@ -795,7 +795,7 @@ function TableBlock({ content }: { content: Record<string, unknown> }) {
               rows.map((row, rowIndex) => (
                 <tr key={rowIndex} className="border-t border-[var(--br-border)] align-top" style={{ backgroundColor: rowBackgrounds[rowIndex % rowBackgrounds.length] }}>
                   {headers.map((_, colIndex) => (
-                    <td key={colIndex} className="break-words whitespace-normal border-r border-[var(--br-border)] px-4 py-4 align-top leading-7 text-[var(--br-text-muted)] last:border-r-0">
+                    <td key={colIndex} className={`break-words whitespace-normal px-4 py-4 align-top leading-7 ${colIndex === 0 ? "border-l-4 font-extrabold text-[var(--br-dark-card)]" : "border-l border-[var(--br-brand)]/10 text-[var(--br-text-muted)]"}`} style={colIndex === 0 ? { borderLeftColor: columnThemes[rowIndex % columnThemes.length] } : undefined}>
                       {row[colIndex] || ""}
                     </td>
                   ))}
