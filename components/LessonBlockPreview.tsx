@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, Check, CheckCircle2, FlipHorizontal2, ImageIcon, ListChecks, Maximize, Minimize, MessageSquareQuote, Pause, Play, PlayCircle, Settings, Volume2, RotateCcw, RotateCw, SkipBack, SkipForward, MapPin } from "lucide-react";
+import { BookOpen, Check, CheckCircle2, FlipHorizontal2, ImageIcon, Maximize, Minimize, MessageSquareQuote, Pause, Play, PlayCircle, Settings, Volume2, RotateCcw, RotateCw, SkipBack, SkipForward, MapPin } from "lucide-react";
 import type { ChangeEvent, RefObject } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -203,11 +203,13 @@ function PreviewBlock({ block, checkedItems, onChecklistChange }: { block: Previ
     const items = asArray(content.items).map(String).filter(Boolean);
     const hidden = content.reveal_hidden === true;
     const title = asString(content.title) || "Key points";
-    const list = items.length ? <ul className="space-y-2 text-base leading-6 text-[var(--br-text-muted)]">{items.map((item, index) => <li key={index} className="flex gap-2"><span className="mt-2 size-1.5 shrink-0 rounded-full bg-moss" /><span>{item}</span></li>)}</ul> : <p className="text-sm text-[var(--br-text-muted)]">Add bullet points.</p>;
+    const accents = ["bg-[var(--br-success)]", "bg-[var(--br-brand)]", "bg-[var(--br-achievement)]", "bg-[var(--br-action)]"];
+    const header = <div className="min-w-0"><p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[var(--br-action)]">Review</p><h3 className="mt-1 text-base font-extrabold leading-6 tracking-tight text-[var(--br-dark-card)]">{title}</h3></div>;
+    const list = items.length ? <div className="space-y-2">{items.map((item, index) => <div key={index} className="relative flex items-start gap-3 overflow-hidden rounded-2xl border border-[var(--br-border)] bg-white/90 px-3 py-3 text-sm font-semibold leading-6 text-[var(--br-dark-card)] shadow-sm sm:px-4"><span className={`absolute inset-y-0 left-0 w-1 ${accents[index % accents.length]}`} /><span className="grid size-7 shrink-0 self-center place-items-center rounded-full bg-[var(--br-action)] text-xs font-black text-on-dark">{index + 1}</span><div className="min-w-0"><FormattedText text={item} /></div></div>)}</div> : <p className="text-sm text-[var(--br-text-muted)]">Add bullet points.</p>;
     return (
-      <div className="rounded-lg border border-[var(--br-border)] bg-surface p-3 sm:p-4">
-        {hidden ? <details><summary className="flex cursor-pointer list-none items-center justify-between gap-3 marker:hidden"><h3 className="flex min-w-0 items-center gap-2 font-semibold text-ink"><ListChecks size={18} className="shrink-0 text-moss" />{title}</h3><span className="shrink-0 rounded-md border border-[var(--br-brand)]/30 bg-[var(--br-brand)]/5 px-2.5 py-1 text-xs font-bold text-[var(--br-brand)]">Reveal</span></summary><div className="mt-3 border-t border-[var(--br-border)] pt-3">{list}</div></details> : <><div className="mb-3 flex items-center gap-2 font-semibold text-ink"><ListChecks size={18} className="text-moss" /><h3>{title}</h3></div>{list}</>}
-      </div>
+      <section className="overflow-hidden rounded-[22px] border border-[var(--br-action)]/20 bg-gradient-to-br from-[var(--br-action)]/10 via-surface to-[var(--br-brand-soft)]/45 shadow-sm">
+        {hidden ? <details><summary className="flex cursor-pointer list-none items-center justify-between gap-3 border-b border-[var(--br-action)]/15 px-4 py-4 marker:hidden sm:px-5 sm:py-5"><span>{header}</span><span className="shrink-0 rounded-md border border-[var(--br-action)]/40 bg-[var(--br-action)]/10 px-2.5 py-1 text-xs font-bold text-[var(--br-action)]">Reveal</span></summary><div className="p-3 sm:p-4">{list}</div></details> : <><div className="border-b border-[var(--br-action)]/15 px-4 py-4 sm:px-5 sm:py-5">{header}</div><div className="p-3 sm:p-4">{list}</div></>}
+      </section>
     );
   }
 
