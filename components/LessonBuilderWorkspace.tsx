@@ -1501,16 +1501,6 @@ const VERTICAL_ALIGN_OPTIONS = [
   { value: "bottom", label: "Align bottom", icon: AlignVerticalJustifyEnd },
 ];
 
-const TABLE_FILL_PRESETS = [
-  { value: "var(--br-info)", label: "Moss blue" },
-  { value: "#111827", label: "Ink" },
-  { value: "#06152f", label: "Midnight" },
-  { value: "#7c3aed", label: "Violet glow" },
-  { value: "#12b981", label: "Mint" },
-  { value: "var(--br-action)", label: "Coral" },
-  { value: "#f59e0b", label: "Gold" },
-];
-
 const CONTRAST_COLOR_PRESETS = [
   { value: "#0f766e", label: "Moss" },
   { value: "#2563eb", label: "Blue" },
@@ -1593,7 +1583,7 @@ function BlockFields({ blockType, content, lessonId, blockId }: { blockType: str
       ? rows.map((row) => headers.map((_, index) => asString(Array.isArray(row) ? row[index] : "")))
       : [headers.map(() => ""), headers.map(() => "")];
   });
-  const [tableHeaderFill, setTableHeaderFill] = useState(() => asString(data.header_fill) || "var(--br-info)");
+  const tableHeaderFill = asString(data.header_fill) || "var(--br-info)";
   const [contrastPairs, setContrastPairs] = useState(() => {
     const pairs = Array.isArray(data.pairs) ? data.pairs as Record<string, unknown>[] : [];
     return (pairs.length ? pairs : [{}]).map((pair) => ({
@@ -1927,21 +1917,7 @@ function BlockFields({ blockType, content, lessonId, blockId }: { blockType: str
     return (
       <div className="grid gap-3">
         <label className="text-sm">Caption <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><input name="caption" defaultValue={asString(data.caption)} placeholder="e.g., Table 1: Irregular verbs" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
-        <div className="text-sm">
-          Header color
-          <div className="mt-1 flex flex-wrap items-center gap-2">
-            {TABLE_FILL_PRESETS.map((preset) => (
-              <button key={preset.value} type="button" title={preset.label} onClick={() => setTableHeaderFill(preset.value)}
-                className={`size-7 rounded-full border-2 ${tableHeaderFill.toLowerCase() === preset.value ? "border-dark" : "border-transparent"}`}
-                style={{ backgroundColor: preset.value }} />
-            ))}
-            <label className="flex cursor-pointer items-center gap-1.5 text-xs text-[var(--br-text-muted)]" title="Custom color">
-              <input type="color" value={tableHeaderFill} onChange={(event) => setTableHeaderFill(event.target.value)} className="size-7 cursor-pointer rounded border border-[var(--br-border)] p-0.5" />
-              Custom
-            </label>
-          </div>
-          <p className="mt-1 text-xs text-[var(--br-text-muted)]">Header text color is chosen automatically for readable contrast against whatever color you pick.</p>
-        </div>
+        <p className="rounded-xl border border-[var(--br-brand)]/15 bg-[var(--br-brand-soft)]/50 px-3 py-2.5 text-xs leading-5 text-[var(--br-text-muted)]">Column colors are applied automatically in the learner view: purple, green, CTA orange, then blue.</p>
         <div className="text-sm">
           Table content
           <div className="mt-1 overflow-x-auto rounded-lg border border-[var(--br-border)]">

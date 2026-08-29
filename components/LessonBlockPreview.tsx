@@ -748,9 +748,13 @@ function TongueTwisterItem({ item, index }: { item: Record<string, unknown>; ind
 function TableBlock({ content }: { content: Record<string, unknown> }) {
   const headers = asArray(content.headers).map((header) => asString(header));
   const rows = asArray(content.rows).map((row) => asArray(row).map((cell) => asString(cell)));
-  const fill = /^#[0-9a-fA-F]{6}$/.test(asString(content.header_fill)) ? asString(content.header_fill) : "var(--br-info)";
-  const textColor = readableTextColor(fill);
   const caption = asString(content.caption);
+  const columnThemes = [
+    { solid: "var(--br-chart-primary)", soft: "color-mix(in srgb, var(--br-chart-primary) 9%, var(--br-surface))" },
+    { solid: "var(--br-chart-secondary)", soft: "color-mix(in srgb, var(--br-chart-secondary) 9%, var(--br-surface))" },
+    { solid: "var(--br-action)", soft: "color-mix(in srgb, var(--br-action) 8%, var(--br-surface))" },
+    { solid: "var(--br-info)", soft: "color-mix(in srgb, var(--br-info) 8%, var(--br-surface))" },
+  ];
 
   if (!headers.length) {
     return <p className="text-sm text-[var(--br-text-muted)]">Add table columns to get started.</p>;
@@ -758,13 +762,18 @@ function TableBlock({ content }: { content: Record<string, unknown> }) {
 
   return (
     <div className="overflow-hidden rounded-[22px] border border-[var(--br-brand)]/15 bg-surface shadow-[var(--br-shadow)]">
-      {caption ? <p className="border-b border-[var(--br-border)] bg-surface-muted px-4 py-2 text-base font-medium text-[var(--br-text-muted)]">{caption}</p> : null}
+      {caption ? (
+        <div className="flex items-center gap-3 border-b border-[var(--br-brand)]/15 bg-[var(--br-brand-soft)]/70 px-4 py-4 sm:px-5">
+          <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-[var(--br-brand)] text-xs font-black text-on-dark">T</span>
+          <h3 className="min-w-0 break-words text-lg font-black leading-6 text-[var(--br-dark-card)]">{caption}</h3>
+        </div>
+      ) : null}
       <div className="hidden md:block">
         <table className="w-full table-fixed border-collapse text-base">
           <thead>
-            <tr style={{ backgroundColor: fill }}>
+            <tr>
               {headers.map((header, index) => (
-                <th key={index} className="break-words px-4 py-3 text-left font-extrabold leading-6" style={{ color: textColor }}>
+                <th key={index} className="break-words px-4 py-3 text-left font-extrabold leading-6 text-on-dark" style={{ backgroundColor: columnThemes[index % columnThemes.length].solid }}>
                   {header || `Column ${index + 1}`}
                 </th>
               ))}
@@ -773,9 +782,9 @@ function TableBlock({ content }: { content: Record<string, unknown> }) {
           <tbody>
             {rows.length ? (
               rows.map((row, rowIndex) => (
-                <tr key={rowIndex} className="border-t border-[var(--br-border)] bg-[var(--br-brand-soft)]/35 align-top odd:bg-[var(--br-canvas-elevated)]">
+                <tr key={rowIndex} className="border-t border-[var(--br-border)] align-top">
                   {headers.map((_, colIndex) => (
-                    <td key={colIndex} className="break-words whitespace-normal px-4 py-4 align-top leading-7 text-[var(--br-text-muted)]">
+                    <td key={colIndex} className="break-words whitespace-normal border-r border-[var(--br-border)] px-4 py-4 align-top leading-7 text-[var(--br-text-muted)] last:border-r-0" style={{ backgroundColor: columnThemes[colIndex % columnThemes.length].soft }}>
                       {row[colIndex] || ""}
                     </td>
                   ))}
@@ -798,8 +807,8 @@ function TableBlock({ content }: { content: Record<string, unknown> }) {
             </div>
             <dl className="divide-y divide-[var(--br-brand)]/10">
               {headers.map((header, colIndex) => (
-                <div key={colIndex} className="grid gap-1 px-3 py-3">
-                  <dt className="text-[11px] font-black uppercase tracking-wide text-[var(--br-brand)]">{header || `Column ${colIndex + 1}`}</dt>
+                <div key={colIndex} className="grid gap-1 px-3 py-3" style={{ backgroundColor: columnThemes[colIndex % columnThemes.length].soft }}>
+                  <dt className="text-[11px] font-black uppercase tracking-wide" style={{ color: columnThemes[colIndex % columnThemes.length].solid }}>{header || `Column ${colIndex + 1}`}</dt>
                   <dd className="break-words whitespace-normal text-sm leading-6 text-[var(--br-text-muted)]">{row[colIndex] || "—"}</dd>
                 </div>
               ))}
