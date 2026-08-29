@@ -1,7 +1,7 @@
 "use client";
 
 import { BookOpen, Check, CheckCircle2, FlipHorizontal2, ImageIcon, Maximize, Minimize, MessageSquareQuote, Pause, Play, PlayCircle, Settings, Volume2, RotateCcw, RotateCw, SkipBack, SkipForward, MapPin } from "lucide-react";
-import type { ChangeEvent, RefObject } from "react";
+import type { ChangeEvent, KeyboardEvent as ReactKeyboardEvent, ReactNode, RefObject } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Json } from "@/types/database.types";
@@ -25,6 +25,31 @@ function asString(value: unknown) {
 
 function asArray(value: unknown) {
   return Array.isArray(value) ? value : [];
+}
+
+function OpenCloseDetails({
+  summary,
+  children,
+  className = "",
+  summaryClassName = "",
+  labelClassName = "",
+}: {
+  summary: ReactNode;
+  children: ReactNode;
+  className?: string;
+  summaryClassName?: string;
+  labelClassName?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <details open={open} onToggle={(event) => setOpen(event.currentTarget.open)} className={className}>
+      <summary className={summaryClassName}>
+        {summary}
+        <span className={labelClassName}>{open ? "Close" : "Open"}</span>
+      </summary>
+      {children}
+    </details>
+  );
 }
 
 function textAlignClass(value: unknown) {
@@ -209,7 +234,7 @@ function PreviewBlock({ block, checkedItems, onChecklistChange }: { block: Previ
     const list = items.length ? <div className="space-y-2">{items.map((item, index) => <div key={index} className="relative flex items-start gap-3 overflow-hidden rounded-2xl border border-[var(--br-border)] bg-white/90 px-3 py-3 text-sm font-semibold leading-6 text-[var(--br-dark-card)] shadow-sm sm:px-4"><span className={`absolute inset-y-0 left-0 w-1 ${accents[index % accents.length]}`} /><span className="grid size-7 shrink-0 self-center place-items-center rounded-full bg-[var(--br-action)] text-xs font-black text-on-dark">{index + 1}</span><div className="min-w-0"><FormattedText text={item} /></div></div>)}</div> : <p className="text-sm text-[var(--br-text-muted)]">Add bullet points.</p>;
     return (
       <section className="overflow-hidden rounded-[22px] border border-[var(--br-action)]/20 bg-gradient-to-br from-[var(--br-action)]/10 via-surface to-[var(--br-brand-soft)]/45 shadow-sm">
-        {hidden ? <details><summary className="flex cursor-pointer list-none items-center justify-between gap-3 border-b border-[var(--br-action)]/15 px-4 py-4 marker:hidden sm:px-5 sm:py-5"><span>{header}</span><span className="shrink-0 rounded-md border border-[var(--br-action)]/40 bg-[var(--br-action)]/10 px-2.5 py-1 text-xs font-bold text-[var(--br-action)]">Reveal</span></summary><div className="p-3 sm:p-4">{list}</div></details> : <><div className="border-b border-[var(--br-action)]/15 px-4 py-4 sm:px-5 sm:py-5">{header}</div><div className="p-3 sm:p-4">{list}</div></>}
+        {hidden ? <OpenCloseDetails summary={header} summaryClassName="flex cursor-pointer list-none items-center justify-between gap-3 border-b border-[var(--br-action)]/15 px-4 py-4 marker:hidden sm:px-5 sm:py-5" labelClassName="shrink-0 rounded-md border border-[var(--br-action)]/40 bg-[var(--br-action)]/10 px-2.5 py-1 text-xs font-bold text-[var(--br-action)]"><div className="p-3 sm:p-4">{list}</div></OpenCloseDetails> : <><div className="border-b border-[var(--br-action)]/15 px-4 py-4 sm:px-5 sm:py-5">{header}</div><div className="p-3 sm:p-4">{list}</div></>}
       </section>
     );
   }
@@ -249,13 +274,9 @@ function PreviewBlock({ block, checkedItems, onChecklistChange }: { block: Previ
           <div className="flex items-start gap-3">
             <MessageSquareQuote className="mt-0.5 shrink-0 text-amber-700" size={18} />
             <div className={`min-w-0 flex-1 ${align}`}>
-              <details>
-                <summary className="flex cursor-pointer list-none items-start justify-between gap-3 marker:hidden">
-                  <span className="min-w-0 flex-1 font-semibold text-amber-950">{title || "Reveal note"}</span>
-                  <span className="inline-flex shrink-0 rounded-md border border-amber-300 bg-surface px-2 py-1 text-xs font-semibold text-amber-900">Reveal</span>
-                </summary>
+              <OpenCloseDetails summary={<span className="min-w-0 flex-1 font-semibold text-amber-950">{title || "Note"}</span>} summaryClassName="flex cursor-pointer list-none items-start justify-between gap-3 marker:hidden" labelClassName="inline-flex shrink-0 rounded-md border border-amber-300 bg-surface px-2 py-1 text-xs font-semibold text-amber-900">
                 <div className="mt-2 border-t border-amber-200 pt-2">{bodyContent}</div>
-              </details>
+              </OpenCloseDetails>
             </div>
           </div>
         </div>
@@ -455,7 +476,7 @@ function PreviewBlock({ block, checkedItems, onChecklistChange }: { block: Previ
     </div>;
     return (
       <section className="overflow-hidden rounded-[22px] border border-[var(--br-info)]/20 bg-gradient-to-br from-[var(--br-info)]/10 via-surface to-[var(--br-brand-soft)]/45 shadow-sm">
-        {hidden ? <details><summary className="flex cursor-pointer list-none items-center justify-between gap-3 border-b border-[var(--br-info)]/15 px-4 py-4 marker:hidden sm:px-5 sm:py-5"><span>{headerContent}</span><span className="shrink-0 rounded-md border border-[var(--br-action)]/40 bg-[var(--br-action)]/10 px-2.5 py-1 text-xs font-bold text-[var(--br-action)]">Reveal</span></summary>{grammarBody}</details> : <><div className="border-b border-[var(--br-info)]/15 px-4 py-4 sm:px-5 sm:py-5">{headerContent}</div>{grammarBody}</>}
+        {hidden ? <OpenCloseDetails summary={headerContent} summaryClassName="flex cursor-pointer list-none items-center justify-between gap-3 border-b border-[var(--br-info)]/15 px-4 py-4 marker:hidden sm:px-5 sm:py-5" labelClassName="shrink-0 rounded-md border border-[var(--br-action)]/40 bg-[var(--br-action)]/10 px-2.5 py-1 text-xs font-bold text-[var(--br-action)]">{grammarBody}</OpenCloseDetails> : <><div className="border-b border-[var(--br-info)]/15 px-4 py-4 sm:px-5 sm:py-5">{headerContent}</div>{grammarBody}</>}
       </section>
     );
   }
@@ -692,11 +713,7 @@ function ContrastPairBlock({ content }: { content: Record<string, unknown> }) {
         {asString(content.instruction) ? <p className="mt-1 text-sm text-[var(--br-text-muted)]">{asString(content.instruction)}</p> : null}
       </div>
       <div className="space-y-3 p-3 sm:p-4">
-        {pairs.length ? pairs.map((pair, index) => <details key={index} className="group rounded-xl border border-amber-200 bg-amber-50 shadow-sm transition hover:border-amber-300">
-          <summary className="flex cursor-pointer list-none items-start justify-between gap-3 rounded-xl p-3 marker:hidden group-open:rounded-b-none sm:p-4">
-            <span className="flex min-w-0 flex-1 items-center gap-3 font-semibold text-amber-950"><MessageSquareQuote className="shrink-0 text-amber-700" size={17} />{asString(pair.title) || `${asString(pair.left_term)} vs. ${asString(pair.right_term)}`}</span>
-            <span className="inline-flex shrink-0 rounded-md border border-amber-300 bg-surface px-2 py-1 text-xs font-semibold text-amber-900">Reveal</span>
-          </summary>
+        {pairs.length ? pairs.map((pair, index) => <OpenCloseDetails key={index} summary={<span className="flex min-w-0 flex-1 items-center gap-3 font-semibold text-amber-950"><MessageSquareQuote className="shrink-0 text-amber-700" size={17} />{asString(pair.title) || `${asString(pair.left_term)} vs. ${asString(pair.right_term)}`}</span>} summaryClassName="flex cursor-pointer list-none items-start justify-between gap-3 rounded-xl p-3 marker:hidden sm:p-4" labelClassName="inline-flex shrink-0 rounded-md border border-amber-300 bg-surface px-2 py-1 text-xs font-semibold text-amber-900" className="group rounded-xl border border-amber-200 bg-amber-50 shadow-sm transition hover:border-amber-300">
           <div className="border-t border-[var(--br-brand)]/15 p-3 sm:p-4">
             {asString(pair.context) ? <p className="mb-4 rounded-lg bg-[var(--br-info)]/10 px-3 py-2 text-sm leading-6 text-ink">{asString(pair.context)}</p> : null}
             <div className="grid gap-3 md:grid-cols-2">
@@ -706,7 +723,7 @@ function ContrastPairBlock({ content }: { content: Record<string, unknown> }) {
             {asString(pair.key_difference) ? <p className="mt-4 rounded-md border border-black/10 bg-white px-3 py-2 text-sm leading-6 text-ink"><span className="font-semibold">Key difference:</span> {asString(pair.key_difference)}</p> : null}
             {asString(pair.common_mistake) ? <p className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-sm leading-6 text-amber-950"><span className="font-semibold">Common mistake:</span> {asString(pair.common_mistake)}</p> : null}
           </div>
-        </details>) : <p className="text-sm text-[var(--br-text-muted)]">Add contrast pairs.</p>}
+        </OpenCloseDetails>) : <p className="text-sm text-[var(--br-text-muted)]">Add contrast pairs.</p>}
       </div>
     </section>
   );
@@ -735,14 +752,13 @@ function TongueTwisterItem({ item, index }: { item: Record<string, unknown>; ind
   const chunks = asArray(item.chunks).map(String).filter(Boolean);
   const words = asArray(item.difficult_words).map((word) => asRecord(word as Json));
   const audio = asString(item.audio_path);
-  const hidden = item.hide_reveal_enabled === true && !open;
   const highlightedText = (value: string) => {
     if (!highlights.length) return value;
     const pattern = new RegExp(`(${highlights.map((value) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`, "gi");
     return value.split(pattern).map((part, partIndex) => highlights.some((highlight) => highlight.toLowerCase() === part.toLowerCase()) ? <mark key={partIndex} className="rounded bg-[var(--br-achievement)]/45 px-0.5 text-ink">{part}</mark> : <span key={partIndex}>{part}</span>);
   };
   const setPlayback = (next: number) => { setSpeed(next); if (audioRef.current) audioRef.current.playbackRate = next; };
-  return <details open={!item.hide_reveal_enabled || open} onToggle={(event) => setOpen(event.currentTarget.open)} className="group rounded-xl border border-amber-200 bg-amber-50 shadow-sm"><summary className="flex cursor-pointer list-none items-start justify-between gap-3 rounded-xl p-3 marker:hidden group-open:rounded-b-none sm:p-4"><span className="flex min-w-0 flex-1 items-center gap-3 font-semibold text-amber-950"><span className="grid size-7 shrink-0 place-items-center rounded-full bg-[var(--br-achievement)]/40 text-xs font-black text-amber-950">{index + 1}</span>{asString(item.title) || "Tongue twister"}</span><span className="inline-flex shrink-0 rounded-md border border-amber-300 bg-surface px-2 py-1 text-xs font-semibold text-amber-900">{item.hide_reveal_enabled && !open ? "Practice" : "Open"}</span></summary><div className="border-t border-amber-200 p-3 sm:p-4">{asString(item.context) ? <p className="mb-3 text-sm leading-6 text-amber-950">{asString(item.context)}</p> : null}{asString(item.target_sound) ? <span className="inline-flex rounded-full bg-[var(--br-brand)]/10 px-2.5 py-1 text-xs font-semibold text-[var(--br-brand)]">Target: {asString(item.target_sound)}</span> : null}<div className="mt-3 rounded-xl border border-[var(--br-brand)]/20 bg-surface p-4"><div className="text-lg font-semibold leading-8 text-ink sm:text-xl">{hidden ? <span className="text-[var(--br-text-muted)]">Try saying it from memory.</span> : mode === "chunks" && chunks.length ? chunks.map((chunk, chunkIndex) => <span key={chunkIndex} className="mr-2 inline-block rounded-md bg-[var(--br-brand)]/10 px-2 py-1">{highlightedText(chunk)}</span>) : highlightedText(text)}</div>{hidden ? <button type="button" onClick={() => setOpen(true)} className="mt-3 rounded-md border border-amber-300 px-3 py-1.5 text-xs font-semibold text-amber-900">Reveal text</button> : null}</div><div className="mt-3 flex flex-wrap items-center gap-2"><button type="button" onClick={() => setMode("full")} className={`rounded-md px-2.5 py-1.5 text-xs font-semibold ${mode === "full" ? "bg-[var(--br-brand)] text-on-dark" : "bg-surface-muted text-[var(--br-brand)]"}`}>Full sentence</button><button type="button" onClick={() => setMode("chunks")} disabled={!chunks.length} className={`rounded-md px-2.5 py-1.5 text-xs font-semibold ${mode === "chunks" ? "bg-[var(--br-brand)] text-on-dark" : "bg-surface-muted text-[var(--br-brand)] disabled:opacity-40"}`}>Chunks</button>{audio ? <><audio ref={audioRef} src={mediaUrl(audio, "audio")} preload="metadata" /><button type="button" onClick={() => { if (audioRef.current) { audioRef.current.playbackRate = speed; void audioRef.current.play(); } }} className="rounded-md bg-[var(--br-info)] px-3 py-1.5 text-xs font-semibold text-on-dark">Play audio</button></> : null}<span className="ml-auto text-xs font-semibold text-[var(--br-text-muted)]">Speed</span>{[0.75, 1, 1.25].map((value) => <button key={value} type="button" onClick={() => setPlayback(value)} className={`rounded-md px-2 py-1 text-xs font-semibold ${speed === value ? "bg-[var(--br-achievement)] text-ink" : "bg-surface-muted text-[var(--br-text-muted)]"}`}>{value === 1 ? "Natural" : value === 0.75 ? "Slow" : "Fast"}</button>)}</div>{asString(item.pronunciation_note) ? <p className="mt-3 rounded-md bg-[var(--br-info)]/10 px-3 py-2 text-sm leading-6 text-ink"><span className="font-semibold">Tip:</span> {asString(item.pronunciation_note)}</p> : null}{words.length ? <div className="mt-3"><p className="text-sm font-semibold text-ink">Difficult words</p><div className="mt-2 grid gap-2 sm:grid-cols-2">{words.map((word, wordIndex) => <div key={wordIndex} className="rounded-md border border-[var(--br-border)] bg-surface px-3 py-2"><p className="font-semibold text-[var(--br-brand)]">{asString(word.word)} {asString(word.phonetic) ? <span className="font-mono text-xs text-[var(--br-text-muted)]">{asString(word.phonetic)}</span> : null}</p>{asString(word.note) ? <p className="mt-1 text-xs leading-5 text-[var(--br-text-muted)]">{asString(word.note)}</p> : null}</div>)}</div></div> : null}<div className="mt-4 border-t border-[var(--br-border)] pt-3"><p className="text-xs font-semibold uppercase tracking-wide text-[var(--br-text-muted)]">Self-check</p><div className="mt-2 grid gap-2 sm:grid-cols-3">{["I kept the target sounds clear.", "I maintained the rhythm.", "I completed it without stopping."] .map((label, checkIndex) => <label key={label} className="flex items-start gap-2 text-xs text-[var(--br-text-muted)]"><input type="checkbox" checked={checked[checkIndex]} onChange={(event) => setChecked((current) => current.map((value, index) => index === checkIndex ? event.target.checked : value))} className="mt-0.5 size-4 rounded border-[var(--br-border)]" />{label}</label>)}</div></div></div></details>;
+  return <details open={!item.hide_reveal_enabled || open} onToggle={(event) => setOpen(event.currentTarget.open)} className="group rounded-xl border border-amber-200 bg-amber-50 shadow-sm"><summary className="flex cursor-pointer list-none items-start justify-between gap-3 rounded-xl p-3 marker:hidden group-open:rounded-b-none sm:p-4"><span className="flex min-w-0 flex-1 items-center gap-3 font-semibold text-amber-950"><span className="grid size-7 shrink-0 place-items-center rounded-full bg-[var(--br-achievement)]/40 text-xs font-black text-amber-950">{index + 1}</span>{asString(item.title) || "Tongue twister"}</span><span className="inline-flex shrink-0 rounded-md border border-amber-300 bg-surface px-2 py-1 text-xs font-semibold text-amber-900">{item.hide_reveal_enabled ? (open ? "Close" : "Open") : "Open"}</span></summary><div className="border-t border-amber-200 p-3 sm:p-4">{asString(item.context) ? <p className="mb-3 text-sm leading-6 text-amber-950">{asString(item.context)}</p> : null}{asString(item.target_sound) ? <span className="inline-flex rounded-full bg-[var(--br-brand)]/10 px-2.5 py-1 text-xs font-semibold text-[var(--br-brand)]">Target: {asString(item.target_sound)}</span> : null}<div className="mt-3 rounded-xl border border-[var(--br-brand)]/20 bg-surface p-4"><div className="text-lg font-semibold leading-8 text-ink">{mode === "chunks" && chunks.length ? chunks.map((chunk, chunkIndex) => <span key={chunkIndex} className="mr-2 inline-block rounded-md bg-[var(--br-brand)]/10 px-2 py-1">{highlightedText(chunk)}</span>) : highlightedText(text)}</div></div><div className="mt-3 flex flex-wrap items-center gap-2"><button type="button" onClick={() => setMode("full")} className={`rounded-md px-2.5 py-1.5 text-xs font-semibold ${mode === "full" ? "bg-[var(--br-brand)] text-on-dark" : "bg-surface-muted text-[var(--br-brand)]"}`}>Full sentence</button><button type="button" onClick={() => setMode("chunks")} disabled={!chunks.length} className={`rounded-md px-2.5 py-1.5 text-xs font-semibold ${mode === "chunks" ? "bg-[var(--br-brand)] text-on-dark" : "bg-surface-muted text-[var(--br-brand)] disabled:opacity-40"}`}>Chunks</button>{audio ? <><audio ref={audioRef} src={mediaUrl(audio, "audio")} preload="metadata" /><button type="button" onClick={() => { if (audioRef.current) { audioRef.current.playbackRate = speed; void audioRef.current.play(); } }} className="rounded-md bg-[var(--br-info)] px-3 py-1.5 text-xs font-semibold text-on-dark">Play audio</button></> : null}<span className="ml-auto text-xs font-semibold text-[var(--br-text-muted)]">Speed</span>{[0.75, 1, 1.25].map((value) => <button key={value} type="button" onClick={() => setPlayback(value)} className={`rounded-md px-2 py-1 text-xs font-semibold ${speed === value ? "bg-[var(--br-achievement)] text-ink" : "bg-surface-muted text-[var(--br-text-muted)]"}`}>{value === 1 ? "Natural" : value === 0.75 ? "Slow" : "Fast"}</button>)}</div>{asString(item.pronunciation_note) ? <p className="mt-3 rounded-md bg-[var(--br-info)]/10 px-3 py-2 text-sm leading-6 text-ink"><span className="font-semibold">Tip:</span> {asString(item.pronunciation_note)}</p> : null}{words.length ? <div className="mt-3"><p className="text-sm font-semibold text-ink">Difficult words</p><div className="mt-2 grid gap-2 sm:grid-cols-2">{words.map((word, wordIndex) => <div key={wordIndex} className="rounded-md border border-[var(--br-border)] bg-surface px-3 py-2"><p className="font-semibold text-[var(--br-brand)]">{asString(word.word)} {asString(word.phonetic) ? <span className="font-mono text-xs text-[var(--br-text-muted)]">{asString(word.phonetic)}</span> : null}</p>{asString(word.note) ? <p className="mt-1 text-xs leading-5 text-[var(--br-text-muted)]">{asString(word.note)}</p> : null}</div>)}</div></div> : null}<div className="mt-4 border-t border-[var(--br-border)] pt-3"><p className="text-xs font-semibold uppercase tracking-wide text-[var(--br-text-muted)]">Self-check</p><div className="mt-2 grid gap-2 sm:grid-cols-3">{["I kept the target sounds clear.", "I maintained the rhythm.", "I completed it without stopping."] .map((label, checkIndex) => <label key={label} className="flex items-start gap-2 text-xs text-[var(--br-text-muted)]"><input type="checkbox" checked={checked[checkIndex]} onChange={(event) => setChecked((current) => current.map((value, index) => index === checkIndex ? event.target.checked : value))} className="mt-0.5 size-4 rounded border-[var(--br-border)]" />{label}</label>)}</div></div></div></details>;
 }
 
 function TableBlock({ content }: { content: Record<string, unknown> }) {
@@ -751,6 +767,13 @@ function TableBlock({ content }: { content: Record<string, unknown> }) {
   const caption = asString(content.caption);
   const hideReveal = content.reveal_hidden === true;
   const [revealed, setRevealed] = useState(!hideReveal);
+  const toggleReveal = () => setRevealed((current) => !current);
+  const handleRevealKeyDown = (event: ReactKeyboardEvent<HTMLElement>) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      toggleReveal();
+    }
+  };
   const columnThemes = [
     "var(--br-chart-primary)",
     "var(--br-chart-secondary)",
@@ -769,13 +792,26 @@ function TableBlock({ content }: { content: Record<string, unknown> }) {
   }
 
   return (
-    <div className="overflow-hidden rounded-[22px] border border-[var(--br-brand)]/15 bg-surface shadow-[var(--br-shadow)]">
+    <div
+      className={`overflow-hidden rounded-[22px] border border-[var(--br-brand)]/15 bg-surface shadow-[var(--br-shadow)] ${hideReveal && !revealed ? "cursor-pointer" : ""}`}
+      onClick={hideReveal && !revealed ? toggleReveal : undefined}
+      onKeyDown={hideReveal && !revealed ? handleRevealKeyDown : undefined}
+      role={hideReveal && !revealed ? "button" : undefined}
+      tabIndex={hideReveal && !revealed ? 0 : undefined}
+      aria-expanded={hideReveal ? revealed : undefined}
+    >
       {caption || hideReveal ? (
-        <div className="flex items-center justify-between gap-3 border-b border-[var(--br-brand)]/15 bg-[var(--br-brand-soft)]/70 px-4 py-4 sm:px-5">
+        <div
+          className={`flex items-center justify-between gap-3 border-b border-[var(--br-brand)]/15 bg-[var(--br-brand-soft)]/70 px-4 py-4 sm:px-5 ${hideReveal && revealed ? "cursor-pointer select-none" : ""}`}
+          onClick={hideReveal && revealed ? toggleReveal : undefined}
+          onKeyDown={hideReveal && revealed ? handleRevealKeyDown : undefined}
+          role={hideReveal && revealed ? "button" : undefined}
+          tabIndex={hideReveal && revealed ? 0 : undefined}
+        >
           <div className="flex min-w-0 items-center gap-3">
             <h3 className="min-w-0 break-words text-lg font-semibold text-ink">{caption || "Table"}</h3>
           </div>
-          {hideReveal ? <button type="button" onClick={() => setRevealed((current) => !current)} aria-expanded={revealed} className="shrink-0 rounded-lg bg-[var(--br-action)] px-3 py-2 text-xs font-black text-white shadow-sm hover:bg-[var(--br-action-strong)]">{revealed ? "Hide" : "Reveal"}</button> : null}
+          {hideReveal ? <span className="shrink-0 rounded-lg bg-[var(--br-action)] px-3 py-2 text-xs font-black text-white shadow-sm">{revealed ? "Close" : "Open"}</span> : null}
         </div>
       ) : null}
       {revealed ? <>
