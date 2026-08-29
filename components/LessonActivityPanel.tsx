@@ -529,6 +529,7 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
         question_number: index + 1,
         question_type: "ORAL_RESPONSE",
         question_text: String(question.text ?? question.question_text ?? question.prompt ?? data.prompt ?? "Speak about the topic in your own words."),
+        description: question.instruction == null ? (question.description == null ? null : String(question.description)) : String(question.instruction),
         options: {
           model_answer: String(question.model_answer ?? data.model_answer ?? ""),
           target_phrases: Array.isArray(question.target_phrases) ? question.target_phrases.map(String) : [],

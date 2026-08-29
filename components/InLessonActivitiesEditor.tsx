@@ -47,6 +47,7 @@ type ShortAnswerQuestion = {
 type OralResponseQuestion = {
   id: string | number;
   text: string;
+  instruction: string;
   modelAnswer: string;
   targetPhrasesText: string;
   maxSeconds: number;
@@ -256,6 +257,7 @@ function normalizeOralResponse(data: Json | null): { prompt: string; maxAttempts
       return {
         id: String(question.id ?? index + 1),
         text: String(question.text ?? question.question_text ?? question.prompt ?? "Speak about the topic in your own words."),
+        instruction: String(question.instruction ?? question.description ?? ""),
         modelAnswer: String(question.model_answer ?? record.model_answer ?? ""),
         targetPhrasesText: phrases.join("\n"),
         maxSeconds: Math.max(5, Number(question.max_seconds ?? record.max_seconds ?? 60))
@@ -1905,6 +1907,7 @@ function OralResponseEditor({ activity, onSave }: { activity: Activity; onSave: 
   const [questions, setQuestions] = useState<OralResponseQuestion[]>(initial.questions.length ? initial.questions : [{
     id: 1,
     text: "",
+    instruction: "",
     modelAnswer: "",
     targetPhrasesText: "",
     maxSeconds: 60
@@ -1937,6 +1940,7 @@ function OralResponseEditor({ activity, onSave }: { activity: Activity; onSave: 
           </div>
           <div className="grid gap-3">
             <label className="text-sm">Question / prompt<input value={question.text} onChange={(event) => updateQuestion(index, { text: event.target.value })} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+            <label className="text-sm">Instructions for the learner <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><textarea rows={3} value={question.instruction} onChange={(event) => updateQuestion(index, { instruction: event.target.value })} className="mt-1 w-full rounded-md border border-[var(--br-border)] bg-[var(--br-brand-soft)]/25 px-3 py-2 text-sm text-ink outline-none focus:border-[var(--br-brand)]" placeholder="Add helpful instructions for this speaking prompt." /><span className="mt-1 block text-xs text-[var(--br-text-muted)]">Learners will see this directly below the question.</span></label>
             <label className="text-sm">Model answer<textarea rows={3} value={question.modelAnswer} onChange={(event) => updateQuestion(index, { modelAnswer: event.target.value })} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" placeholder="A natural example learners can compare with after submitting." /></label>
             <label className="text-sm">Target phrases (one per line)<textarea rows={3} value={question.targetPhrasesText} onChange={(event) => updateQuestion(index, { targetPhrasesText: event.target.value })} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" placeholder={"In my opinion...\nI have been..."} /></label>
             <label className="text-sm">Speaking time limit (seconds)<input type="number" min={5} max={600} value={question.maxSeconds} onChange={(event) => updateQuestion(index, { maxSeconds: Math.max(5, Number(event.target.value) || 60) })} className="mt-1 w-32 rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
@@ -1944,7 +1948,7 @@ function OralResponseEditor({ activity, onSave }: { activity: Activity; onSave: 
         </div>
       ))}
       <div className="flex flex-wrap gap-3">
-        <button type="button" onClick={() => setQuestions((current) => [...current, { id: Date.now(), text: "", modelAnswer: "", targetPhrasesText: "", maxSeconds: 60 }])} className="rounded-md border border-[var(--br-border)] px-4 py-2 text-sm">Add speaking prompt</button>
+        <button type="button" onClick={() => setQuestions((current) => [...current, { id: Date.now(), text: "", instruction: "", modelAnswer: "", targetPhrasesText: "", maxSeconds: 60 }])} className="rounded-md border border-[var(--br-border)] px-4 py-2 text-sm">Add speaking prompt</button>
         <SaveButton onClick={() => onSave({
           prompt,
           allow_self_graded: allowSelfGraded,
@@ -1953,6 +1957,7 @@ function OralResponseEditor({ activity, onSave }: { activity: Activity; onSave: 
           questions: questions.map((question, index) => ({
             id: index + 1,
             text: question.text,
+            instruction: question.instruction,
             model_answer: question.modelAnswer,
             target_phrases: question.targetPhrasesText.split(/\r?\n/).map((item) => item.trim()).filter(Boolean),
             max_seconds: question.maxSeconds,
