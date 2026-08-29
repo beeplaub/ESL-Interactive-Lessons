@@ -52,7 +52,7 @@ const blockTypes = [
   "HEADING", "TEXT", "BULLETS", "INSTRUCTION", "REVIEW_CHECKLIST", "QUOTE", "CALLOUT",
   "IMAGE", "IMAGE_TEXT", "IMAGE_ANNOTATION", "AUDIO", "VIDEO", "DIVIDER",
   "VOCABULARY", "GRAMMAR", "READING", "DIALOGUE",
-  "FLASHCARD", "TABLE", "COMMON_MISTAKE", "CONTRAST_PAIR", "IMAGE_PAIR", "TONGUE_TWISTER"
+  "FLASHCARD", "TABLE", "COMMON_MISTAKE", "CONTRAST_PAIR", "IMAGE_PAIR", "TONGUE_TWISTER", "STEPS"
 ] as const;
 
 const levelOptions = CONTENT_LEVELS;
@@ -1465,7 +1465,7 @@ function labelForBlockType(type: string) {
     AUDIO: "Audio", VIDEO: "Video", DIVIDER: "Divider",
     VOCABULARY: "Vocabulary list", GRAMMAR: "Grammar",
     READING: "Reading passage", DIALOGUE: "Dialogue",
-    FLASHCARD: "Flashcard", TABLE: "Table", COMMON_MISTAKE: "Common mistake", CONTRAST_PAIR: "Contrast pair",
+    FLASHCARD: "Flashcard", TABLE: "Table", COMMON_MISTAKE: "Common mistake", CONTRAST_PAIR: "Contrast pair", STEPS: "Steps",
   };
   return labels[type] ?? type;
 }
@@ -1602,6 +1602,13 @@ function BlockFields({ blockType, content, lessonId, blockId }: { blockType: str
       leftColor: asString(pair.left_color) || "var(--br-brand)", rightTerm: asString(pair.right_term), rightMeaning: asString(pair.right_meaning), rightPattern: asString(pair.right_pattern), rightExamples: Array.isArray(pair.right_examples) ? pair.right_examples.map(String).join("\n") : "",
       rightColor: asString(pair.right_color) || "var(--br-info)",
       keyDifference: asString(pair.key_difference), commonMistake: asString(pair.common_mistake)
+    }));
+  });
+  const [steps, setSteps] = useState(() => {
+    const items = Array.isArray(data.steps) ? data.steps as Record<string, unknown>[] : [];
+    return (items.length ? items : [{}]).map((step) => ({
+      title: asString(step.title),
+      description: asString(step.description)
     }));
   });
 
@@ -1833,6 +1840,28 @@ function BlockFields({ blockType, content, lessonId, blockId }: { blockType: str
             </div>
           </div>)}
           <button type="button" onClick={() => setContrastPairs((current) => [...current, blankPair])} className="w-fit rounded-md border border-[var(--br-brand)]/30 px-4 py-2 text-sm font-semibold text-[var(--br-brand)] hover:bg-[var(--br-brand)]/10">+ Add contrast pair</button>
+        </div>
+      </div>
+    );
+  }
+  if (blockType === "STEPS") {
+    const updateStep = (index: number, key: "title" | "description", value: string) => setSteps((current) => current.map((step, stepIndex) => stepIndex === index ? { ...step, [key]: value } : step));
+    return (
+      <div className="grid gap-3">
+        <label className="text-sm">Block title <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><input name="title" defaultValue={asString(data.title)} placeholder="A simple process" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+        <label className="text-sm">Instruction <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><input name="instruction" defaultValue={asString(data.instruction)} placeholder="Follow these steps." className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+        <input type="hidden" name="steps_json" value={JSON.stringify(steps.map((step) => ({ title: step.title.trim(), description: step.description.trim() })).filter((step) => step.title || step.description))} />
+        <div className="grid gap-3">
+          {steps.map((step, index) => (
+            <div key={index} className="rounded-xl border border-[var(--br-brand)]/20 bg-[var(--br-brand-soft)]/25 p-3 sm:p-4">
+              <div className="mb-3 flex items-center justify-between gap-3"><p className="text-sm font-black text-[var(--br-brand)]">Step {index + 1}</p>{steps.length > 1 ? <button type="button" onClick={() => setSteps((current) => current.filter((_, stepIndex) => stepIndex !== index))} className="text-xs font-semibold text-coral">Remove</button> : null}</div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="text-sm">Step title<input value={step.title} onChange={(event) => updateStep(index, "title", event.target.value)} placeholder="Greet" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+                <label className="text-sm">Description<textarea value={step.description} onChange={(event) => updateStep(index, "description", event.target.value)} rows={2} placeholder="Say hello and be friendly." className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+              </div>
+            </div>
+          ))}
+          <button type="button" onClick={() => setSteps((current) => [...current, { title: "", description: "" }])} className="w-fit rounded-md border border-[var(--br-brand)]/30 px-4 py-2 text-sm font-semibold text-[var(--br-brand)] hover:bg-[var(--br-brand)]/10">+ Add step</button>
         </div>
       </div>
     );

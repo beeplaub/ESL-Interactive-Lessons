@@ -80,5 +80,6 @@ export const ALL_CONTENT_BLOCK_REFERENCE: ContentBlockReference[] = [
   { blockType: "FLASHCARD", content: { front: "paraphrase", back: "The same meaning expressed with different words." } },
   { blockType: "COMMON_MISTAKE", content: { mistake: "She go to school every day.", correction: "She goes to school every day.", explanation: "Use goes with he, she, and it in the present simple." } },
   { blockType: "CONTRAST_PAIR", content: { title: "Translation contrast", left_label: "Source", left_text: "Ella estudia inglés.", right_label: "Target", right_text: "She studies English." } },
+  { blockType: "STEPS", content: { title: "A simple conversation", instruction: "Follow these steps.", steps: [{ title: "Greet", description: "Say hello and be friendly." }, { title: "Ask", description: "Ask your question clearly." }, { title: "Respond", description: "Listen and respond." }, { title: "Thanks", description: "Thank the other person." }] } },
   { blockType: "TABLE", content: { title: "Essay planning", headers: ["Part", "Purpose"], rows: [["Introduction", "Present the topic"], ["Body", "Give reasons and examples"], ["Conclusion", "Summarize the main idea"]] } },
 ];

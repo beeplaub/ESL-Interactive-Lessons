@@ -74,7 +74,8 @@ const lessonBlockTypes = [
   "COMMON_MISTAKE",
   "CONTRAST_PAIR",
   "IMAGE_PAIR",
-  "TONGUE_TWISTER"
+  "TONGUE_TWISTER",
+  "STEPS"
 ] as const;
 
 const lessonBlockSchema = z.object({
@@ -227,6 +228,23 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
       items = Array.isArray(parsed) ? parsed as Json[] : [];
     } catch { items = []; }
     return { title: nullableText(formData.get("title")), instruction: nullableText(formData.get("instruction")), items };
+  }
+  if (blockType === "STEPS") {
+    let parsedSteps: unknown[] = [];
+    try {
+      const raw = JSON.parse(String(formData.get("steps_json") || "[]"));
+      if (Array.isArray(raw)) parsedSteps = raw;
+    } catch {
+      parsedSteps = [];
+    }
+    return {
+      title: nullableText(formData.get("title")),
+      instruction: nullableText(formData.get("instruction")),
+      steps: parsedSteps.filter((step): step is Record<string, unknown> => Boolean(step && typeof step === "object" && !Array.isArray(step))).map((step) => ({
+        title: nullableText(step.title),
+        description: nullableText(step.description)
+      }))
+    };
   }
   if (blockType === "IMAGE_TEXT") {
     return {
@@ -451,6 +469,7 @@ function defaultBlockContent(blockType: string): Json {
   if (blockType === "IMAGE") return { path: "", alt: "", caption: "" };
   if (blockType === "IMAGE_PAIR") return { left_path: "", left_alt: "", left_caption: "", right_path: "", right_alt: "", right_caption: "" };
   if (blockType === "TONGUE_TWISTER") return { title: "Tongue Twister Challenge", instruction: "Start slowly, then build up your speed.", items: [{ title: "Sea Shells", context: "Practise /s/ and /sh/.", text: "She sells sea shells by the sea shore.", target_sound: "/s/ and /ʃ/", highlights: ["s", "sh"], chunks: ["She sells", "sea shells", "by the sea shore"], pronunciation_note: "Keep the target sounds clear.", difficult_words: [], audio_path: "", hide_reveal_enabled: false }] };
+  if (blockType === "STEPS") return { title: "A simple process", instruction: "Follow these steps.", steps: [{ title: "Start", description: "Begin with the first action." }, { title: "Continue", description: "Move to the next action." }, { title: "Finish", description: "Complete the process." }] };
   if (blockType === "IMAGE_TEXT") return {
     image_position: "left",
     image_path: "",

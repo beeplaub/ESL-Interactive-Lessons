@@ -519,11 +519,44 @@ function PreviewBlock({ block, checkedItems, onChecklistChange }: { block: Previ
     return <ContrastPairBlock content={content} />;
   }
 
+  if (block.block_type === "STEPS") {
+    return <StepsBlock content={content} />;
+  }
+
   if (block.block_type === "TABLE") {
     return <TableBlock content={content} />;
   }
 
   return null;
+}
+
+function StepsBlock({ content }: { content: Record<string, unknown> }) {
+  const steps = asArray(content.steps).map((item) => asRecord(item as Json)).filter((step) => asString(step.title) || asString(step.description));
+  return (
+    <section className="overflow-hidden rounded-[22px] border border-[var(--br-brand)]/20 bg-gradient-to-br from-[var(--br-brand-soft)] via-surface to-[var(--br-info)]/10 shadow-sm">
+      <div className="border-b border-[var(--br-brand)]/15 bg-[var(--br-brand)]/10 px-4 py-4 sm:px-5 sm:py-5">
+        {asString(content.title) ? <h3 className="text-base font-extrabold tracking-tight text-[var(--br-dark-card)]">{asString(content.title)}</h3> : null}
+        {asString(content.instruction) ? <p className={`${asString(content.title) ? "mt-1" : ""} text-sm text-[var(--br-text-muted)]`}>{asString(content.instruction)}</p> : null}
+      </div>
+      <div className="relative p-4 sm:p-5">
+        {steps.length > 1 ? <div className="pointer-events-none absolute left-[12.5%] right-[12.5%] top-[55px] hidden h-px bg-[var(--br-border)] md:block" aria-hidden="true" /> : null}
+        {steps.length ? (
+          <div className="grid gap-4 md:grid-cols-4 md:gap-3">
+            {steps.map((step, index) => (
+              <div key={index} className="relative flex min-w-0 items-start gap-3 md:block md:text-center">
+                {index < steps.length - 1 ? <div className="pointer-events-none absolute bottom-[-16px] left-[15px] top-[34px] w-px bg-[var(--br-border)] md:hidden" aria-hidden="true" /> : null}
+                <div className="relative z-10 grid size-8 shrink-0 place-items-center rounded-full border-2 border-white bg-[var(--br-action)] text-sm font-black text-on-dark shadow-sm md:mx-auto">{index + 1}</div>
+                <div className="min-w-0 pt-0.5 md:pt-3">
+                  <h4 className="text-sm font-extrabold text-[var(--br-dark-card)]">{asString(step.title) || `Step ${index + 1}`}</h4>
+                  {asString(step.description) ? <p className="mt-1 text-sm leading-6 text-[var(--br-text-muted)]">{asString(step.description)}</p> : null}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : <p className="text-sm text-[var(--br-text-muted)]">Add steps.</p>}
+      </div>
+    </section>
+  );
 }
 
 function ImageAnnotationBlock({ content }: { content: Record<string, unknown> }) {
