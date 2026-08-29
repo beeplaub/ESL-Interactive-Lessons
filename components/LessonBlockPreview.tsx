@@ -780,11 +780,11 @@ function TableBlock({ content }: { content: Record<string, unknown> }) {
       ) : null}
       {revealed ? <>
       <div className="hidden md:block">
-          <table className="w-full table-fixed border-collapse text-base">
-            <thead>
-              <tr>
-                {headers.map((header, index) => (
-                <th key={index} className={`break-words px-4 py-3 text-left font-extrabold leading-6 ${index > 0 ? "border-l border-[var(--br-brand)]/15" : ""}`} style={{ color: columnThemes[index % columnThemes.length], backgroundColor: "color-mix(in srgb, var(--br-brand-soft) 55%, var(--br-surface))" }}>
+        <table className="w-full table-fixed border-collapse text-sm">
+          <thead>
+            <tr className="bg-[var(--br-action)]">
+              {headers.map((header, index) => (
+                <th key={index} className={`break-words px-4 py-3.5 text-left text-base font-black leading-6 text-white ${index > 0 ? "border-l border-white/25" : ""}`}>
                   {header || `Column ${index + 1}`}
                 </th>
               ))}
@@ -812,9 +812,9 @@ function TableBlock({ content }: { content: Record<string, unknown> }) {
       <div className="md:hidden">
         {headers.length === 2 ? (
           <div className="overflow-hidden rounded-b-[22px] border-t border-[var(--br-brand)]/15">
-            <div className="grid grid-cols-2 border-b border-[var(--br-brand)]/15 bg-[var(--br-brand-soft)]/55">
+            <div className="grid grid-cols-2 border-b border-[var(--br-action)]/30 bg-[var(--br-action)]">
               {headers.map((header, colIndex) => (
-                <div key={colIndex} className={`min-w-0 px-3 py-2.5 text-[11px] font-black uppercase tracking-wide ${colIndex === 1 ? "border-l border-[var(--br-brand)]/15" : ""}`} style={{ color: columnThemes[colIndex] }}>
+                <div key={colIndex} className={`min-w-0 px-3 py-3 text-base font-black leading-6 text-white ${colIndex === 1 ? "border-l border-white/25" : ""}`}>
                   {header || `Column ${colIndex + 1}`}
                 </div>
               ))}
