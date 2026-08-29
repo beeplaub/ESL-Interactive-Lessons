@@ -470,18 +470,20 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
             </section>
           </div>
 
-          {/* Desktop layout: two independent flowing columns, no row-based stretch/gap */}
-          <div className="hidden min-[1130px]:grid min-[1130px]:grid-cols-[minmax(0,1fr)_360px] min-[1130px]:items-start min-[1130px]:gap-5">
-            <div className="grid min-w-0 gap-5">
-              {headerCard}
-              {curriculumCard}
+          {/* Desktop layout: the course feature card spans the page, with the sidebar beginning below it. */}
+          <div className="hidden min-[1130px]:grid min-w-0 gap-5">
+            {headerCard}
+            <div className="grid min-w-0 items-start gap-5 min-[1130px]:grid-cols-[minmax(0,1fr)_360px]">
+              <div className="grid min-w-0 gap-5">
+                {curriculumCard}
+              </div>
+              <aside className="grid min-w-0 content-start gap-4">
+                {progressPanel}
+                {assessmentPanel}
+                {outcomesPanel}
+                {supportPanel}
+              </aside>
             </div>
-            <aside className="grid min-w-0 content-start gap-4">
-              {progressPanel}
-              {assessmentPanel}
-              {outcomesPanel}
-              {supportPanel}
-            </aside>
           </div>
         </section>
     </LearnerAppShell>
