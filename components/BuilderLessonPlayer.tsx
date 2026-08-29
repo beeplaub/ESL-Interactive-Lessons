@@ -312,6 +312,7 @@ export function BuilderLessonPlayer({
   const [savedActivityAttempts, setSavedActivityAttempts] = useState<ActivityAttempt[]>(activityAttempts);
   const [jumpOpen, setJumpOpen] = useState(false);
   const [practiceActivityIndex, setPracticeActivityIndex] = useState(0);
+  const [reviewChecklistState, setReviewChecklistState] = useState<Record<string, boolean[]>>({});
 
   const [notesMap, setNotesMap] = useState<Record<string, string>>(
     typeof initialNotes === "object" && !Array.isArray(initialNotes) ? initialNotes : {}
@@ -477,6 +478,21 @@ export function BuilderLessonPlayer({
   const totalLessonQuestions = useMemo(() => activities.reduce((sum, activity) => sum + activityQuestionCount(activity), 0), [activities]);
   const attemptedActivities = latestAttemptByActivity.size;
 
+  const requiredReviewChecklistBlocks = useMemo(
+    () => blocks.filter((block) => {
+      if (block.block_type !== "REVIEW_CHECKLIST") return false;
+      const content = block.content && typeof block.content === "object" && !Array.isArray(block.content) ? block.content as Record<string, unknown> : {};
+      return content.require_completion === true && Array.isArray(content.items) && content.items.length > 0;
+    }),
+    [blocks]
+  );
+  const reviewChecklistComplete = requiredReviewChecklistBlocks.every((block) => {
+    const content = block.content && typeof block.content === "object" && !Array.isArray(block.content) ? block.content as Record<string, unknown> : {};
+    const items = Array.isArray(content.items) ? content.items : [];
+    return items.every((_, itemIndex) => reviewChecklistState[block.id]?.[itemIndex] === true);
+  });
+  const reviewChecklistBlocked = requiredReviewChecklistBlocks.length > 0 && !reviewChecklistComplete;
+
   // Creator-controlled gate: only meaningful when Practice is set first on this slide,
   // and only while the learner hasn't yet submitted every activity on it.
   const practiceSubmitted = slideActivities.length > 0 && slideActivities.every((a) => latestAttemptByActivity.has(a.id));
@@ -598,11 +614,15 @@ export function BuilderLessonPlayer({
   }
 
   const finish = useCallback(() => {
+    if (reviewChecklistBlocked) {
+      setMessage("Check every review item before completing this lesson.");
+      return;
+    }
     setCompleted(true);
     setShowCompletion(true);
     setMessage("Lesson completed.");
     startTransition(() => saveProgress(index, true));
-  }, [index, saveProgress]);
+  }, [index, reviewChecklistBlocked, saveProgress]);
 
   function reviewLesson() {
     setIndex(0);
@@ -613,6 +633,7 @@ export function BuilderLessonPlayer({
   function retakeLesson() {
     setCompleted(false);
     setShowCompletion(false);
+    setReviewChecklistState({});
     setIndex(0);
     setRemainingSeconds(lesson.timer_minutes ? lesson.timer_minutes * 60 : null);
     setMessage("New attempt started. Your notes and past attempts are still available.");
@@ -830,7 +851,7 @@ export function BuilderLessonPlayer({
             {/* ── Active panel ── */}
             {activeTab === "learn" ? (
               slideBlocks.length ? (
-                <LessonBlockPreview blocks={slideBlocks} />
+                <LessonBlockPreview blocks={slideBlocks} checklistState={reviewChecklistState} onChecklistChange={(blockId, checkedItems) => setReviewChecklistState((current) => ({ ...current, [blockId]: checkedItems }))} />
               ) : (
                 <div className="grid min-h-40 place-items-center rounded-[16px] bg-[var(--br-canvas-elevated)] p-5 text-center text-sm font-semibold text-[var(--br-text-muted)]">
                   Take a moment to review this step, then continue when you are ready.
@@ -950,8 +971,9 @@ export function BuilderLessonPlayer({
           completed ? <div className="flex shrink-0 items-center gap-1.5"><button type="button" onClick={reviewLesson} className="rounded-full border border-[var(--br-surface-strong)] bg-surface px-2.5 py-1.5 text-xs font-extrabold text-[var(--br-brand)] hover:bg-[var(--br-canvas-elevated)] sm:px-4 sm:py-2 sm:text-sm">Review</button><button type="button" onClick={retakeLesson} className="inline-flex items-center gap-1 rounded-full bg-[var(--br-action)] px-2.5 py-1.5 text-xs font-extrabold text-on-dark shadow-[var(--br-shadow)] hover:bg-[var(--br-action)] sm:px-4 sm:py-2 sm:text-sm"><RotateCcw size={13}/> Retake</button></div> : <button
             type="button"
             onClick={finish}
-            disabled={isPending}
-            className="shrink-0 whitespace-nowrap rounded-full bg-gradient-to-br from-[var(--br-action)] to-[var(--br-action)] px-2.5 py-1.5 text-xs font-extrabold text-on-dark shadow-[var(--br-shadow)] disabled:opacity-45 sm:px-4 sm:py-2 sm:text-sm"
+            disabled={isPending || reviewChecklistBlocked}
+            title={reviewChecklistBlocked ? "Check every review item before completing the lesson" : undefined}
+            className="shrink-0 whitespace-nowrap rounded-full bg-gradient-to-br from-[var(--br-action)] to-[var(--br-action)] px-2.5 py-1.5 text-xs font-extrabold text-on-dark shadow-[var(--br-shadow)] disabled:cursor-not-allowed disabled:opacity-45 sm:px-4 sm:py-2 sm:text-sm"
           >
             Complete<span className="hidden sm:inline"> lesson</span>
           </button>

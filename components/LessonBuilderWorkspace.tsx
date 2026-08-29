@@ -49,7 +49,7 @@ import { BuilderDevicePreviewFrame, type BuilderPreviewDevice } from "@/componen
 import { DialogueVoiceoverEditor } from "@/components/DialogueVoiceoverEditor";
 
 const blockTypes = [
-  "HEADING", "TEXT", "BULLETS", "QUOTE", "CALLOUT",
+  "HEADING", "TEXT", "BULLETS", "REVIEW_CHECKLIST", "QUOTE", "CALLOUT",
   "IMAGE", "IMAGE_TEXT", "IMAGE_ANNOTATION", "AUDIO", "VIDEO", "DIVIDER",
   "VOCABULARY", "GRAMMAR", "READING", "DIALOGUE",
   "FLASHCARD", "TABLE", "COMMON_MISTAKE", "CONTRAST_PAIR", "IMAGE_PAIR", "TONGUE_TWISTER"
@@ -1460,7 +1460,7 @@ function ActivityBank({ lessonId, slide, slides, activities }: {
 
 function labelForBlockType(type: string) {
   const labels: Record<string, string> = {
-    HEADING: "Heading", TEXT: "Text", BULLETS: "Bullet points", QUOTE: "Quote",
+    HEADING: "Heading", TEXT: "Text", BULLETS: "Bullet points", REVIEW_CHECKLIST: "Review checklist", QUOTE: "Quote",
     CALLOUT: "Callout", IMAGE: "Image", IMAGE_TEXT: "Image + Text", IMAGE_ANNOTATION: "Image annotations",
     AUDIO: "Audio", VIDEO: "Video", DIVIDER: "Divider",
     VOCABULARY: "Vocabulary list", GRAMMAR: "Grammar",
@@ -1630,6 +1630,16 @@ function BlockFields({ blockType, content, lessonId, blockId }: { blockType: str
         <label className="text-sm">List title<input name="title" defaultValue={asString(data.title)} placeholder="Key points" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
         <label className="text-sm">Bullet points <span className="font-normal text-[var(--br-text-muted)]">(one per line)</span><textarea name="items" rows={5} defaultValue={lines(data.items)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
         <label className="flex items-start gap-2 text-sm"><input type="checkbox" name="reveal_hidden" defaultChecked={data.reveal_hidden === true} className="mt-0.5 size-4 rounded border-[var(--br-border)]" /><span><span className="font-semibold">Hide bullets until revealed</span><span className="mt-0.5 block text-xs text-[var(--br-text-muted)]">Learners will see the title and a Reveal button first.</span></span></label>
+      </div>
+    );
+  }
+  if (blockType === "REVIEW_CHECKLIST") {
+    return (
+      <div className="grid gap-3">
+        <label className="text-sm">Checklist title<input name="title" defaultValue={asString(data.title)} placeholder="I can now…" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+        <label className="text-sm">Introductory text <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><textarea name="intro" rows={2} defaultValue={asString(data.intro)} placeholder="Check each statement you can do confidently." className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+        <label className="text-sm">Review statements <span className="font-normal text-[var(--br-text-muted)]">(one per line)</span><textarea name="items" rows={6} defaultValue={lines(data.items)} placeholder="I can introduce myself.\nI can ask a follow-up question." className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+        <label className="flex items-start gap-2 text-sm"><input type="checkbox" name="require_completion" defaultChecked={data.require_completion === true} className="mt-0.5 size-4 rounded border-[var(--br-border)]" /><span><span className="font-semibold">Require every item before lesson completion</span><span className="mt-0.5 block text-xs text-[var(--br-text-muted)]">The Complete lesson button stays disabled until learners check all statements.</span></span></label>
       </div>
     );
   }

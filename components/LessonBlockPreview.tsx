@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, FlipHorizontal2, Headphones, ImageIcon, ListChecks, Maximize, Minimize, MessageSquareQuote, Pause, Play, PlayCircle, Settings, Volume2, RotateCcw, RotateCw, SkipBack, SkipForward, MapPin } from "lucide-react";
+import { BookOpen, Check, CheckCircle2, FlipHorizontal2, Headphones, ImageIcon, ListChecks, Maximize, Minimize, MessageSquareQuote, Pause, Play, PlayCircle, Settings, Volume2, RotateCcw, RotateCw, SkipBack, SkipForward, MapPin } from "lucide-react";
 import type { ChangeEvent, RefObject } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -143,10 +143,14 @@ function getYouTubeId(value: string) {
 
 export function LessonBlockPreview({
   blocks,
-  emptyText = "No editable blocks yet. Add content blocks to preview the future LMS lesson view."
+  emptyText = "No editable blocks yet. Add content blocks to preview the future LMS lesson view.",
+  checklistState = {},
+  onChecklistChange
 }: {
   blocks: PreviewLessonBlock[];
   emptyText?: string;
+  checklistState?: Record<string, boolean[]>;
+  onChecklistChange?: (blockId: string, checkedItems: boolean[]) => void;
 }) {
   if (!blocks.length) {
     return (
@@ -159,13 +163,13 @@ export function LessonBlockPreview({
   return (
     <div className="space-y-3 sm:space-y-4">
       {blocks.map((block) => (
-        <PreviewBlock key={block.id} block={block} />
+        <PreviewBlock key={block.id} block={block} checkedItems={checklistState[block.id]} onChecklistChange={onChecklistChange} />
       ))}
     </div>
   );
 }
 
-function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
+function PreviewBlock({ block, checkedItems, onChecklistChange }: { block: PreviewLessonBlock; checkedItems?: boolean[]; onChecklistChange?: (blockId: string, checkedItems: boolean[]) => void }) {
   const content = asRecord(block.content);
 
   if (block.block_type === "HEADING") {
@@ -192,6 +196,10 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
         {hidden ? <details><summary className="flex cursor-pointer list-none items-center justify-between gap-3 marker:hidden"><span className="flex min-w-0 items-center gap-2 font-semibold text-ink"><ListChecks size={18} className="shrink-0 text-moss" />{title}</span><span className="shrink-0 rounded-md border border-[var(--br-brand)]/30 bg-[var(--br-brand)]/5 px-2.5 py-1 text-xs font-bold text-[var(--br-brand)]">Reveal</span></summary><div className="mt-3 border-t border-[var(--br-border)] pt-3">{list}</div></details> : <><div className="mb-3 flex items-center gap-2 font-semibold text-ink"><ListChecks size={18} className="text-moss" /> {title}</div>{list}</>}
       </div>
     );
+  }
+
+  if (block.block_type === "REVIEW_CHECKLIST") {
+    return <ReviewChecklistBlock blockId={block.id} content={content} checkedItems={checkedItems} onChange={onChecklistChange} />;
   }
 
   if (block.block_type === "QUOTE") {
@@ -556,6 +564,49 @@ function ImageAnnotationBlock({ content }: { content: Record<string, unknown> })
             ) : null}
           </div>
         ) : <div className="grid aspect-video place-items-center rounded-lg bg-surface-muted text-sm text-[var(--br-text-muted)]"><ImageIcon size={24} /> Add an image URL.</div>}
+      </div>
+    </section>
+  );
+}
+
+function ReviewChecklistBlock({ blockId, content, checkedItems, onChange }: { blockId: string; content: Record<string, unknown>; checkedItems?: boolean[]; onChange?: (blockId: string, checkedItems: boolean[]) => void }) {
+  const items = useMemo(() => asArray(content.items).map(String).filter(Boolean), [content.items]);
+  const [localChecked, setLocalChecked] = useState<boolean[]>(() => items.map((_, index) => checkedItems?.[index] === true));
+  const currentChecked = checkedItems ?? localChecked;
+  const completedCount = items.reduce((count, _, index) => count + (currentChecked[index] ? 1 : 0), 0);
+  const allComplete = items.length > 0 && completedCount === items.length;
+
+  useEffect(() => {
+    setLocalChecked((current) => items.map((_, index) => checkedItems?.[index] ?? current[index] ?? false));
+  }, [checkedItems, items]);
+
+  function toggleItem(index: number) {
+    const next = items.map((_, itemIndex) => itemIndex === index ? !currentChecked[itemIndex] : Boolean(currentChecked[itemIndex]));
+    setLocalChecked(next);
+    onChange?.(blockId, next);
+  }
+
+  return (
+    <section className="overflow-hidden rounded-[22px] border border-[var(--br-brand)]/20 bg-gradient-to-br from-[var(--br-brand-soft)] via-surface to-[var(--br-success-soft)]/40 shadow-sm">
+      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[var(--br-brand)]/15 px-4 py-4 sm:px-5 sm:py-5">
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-[var(--br-brand)] text-on-dark shadow-sm"><CheckCircle2 size={21} /></span>
+          <div className="min-w-0">
+            <h3 className="text-lg font-extrabold tracking-tight text-[var(--br-dark-card)]">{asString(content.title) || "I can now…"}</h3>
+            {asString(content.intro) ? <p className="mt-1 text-sm leading-6 text-[var(--br-text-muted)]">{asString(content.intro)}</p> : null}
+          </div>
+        </div>
+        {items.length ? <span className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-extrabold ${allComplete ? "bg-[var(--br-success-soft)] text-[var(--br-chart-secondary)]" : "bg-white/75 text-[var(--br-brand)]"}`}>{completedCount}/{items.length} checked</span> : null}
+      </div>
+      <div className="space-y-2 p-3 sm:p-4">
+        {items.length ? items.map((item, index) => {
+          const isChecked = Boolean(currentChecked[index]);
+          return <label key={`${item}-${index}`} className={`flex cursor-pointer items-start gap-3 rounded-2xl border px-3 py-3 transition sm:px-4 ${isChecked ? "border-[var(--br-success)]/30 bg-[var(--br-success-soft)]/60" : "border-[var(--br-border)] bg-white/75 hover:border-[var(--br-brand)]/35 hover:bg-white"}`}>
+            <input type="checkbox" checked={isChecked} onChange={() => toggleItem(index)} className="peer sr-only" />
+            <span className={`mt-0.5 grid size-5 shrink-0 place-items-center rounded-md border transition ${isChecked ? "border-[var(--br-success)] bg-[var(--br-success)] text-on-dark" : "border-[var(--br-brand)]/40 bg-white text-transparent"}`} aria-hidden="true"><Check size={14} strokeWidth={3} /></span>
+            <span className={`min-w-0 text-sm font-semibold leading-6 ${isChecked ? "text-[var(--br-chart-secondary)] line-through decoration-[var(--br-success)]/60" : "text-[var(--br-dark-card)]"}`}>{item}</span>
+          </label>;
+        }) : <p className="text-sm text-[var(--br-text-muted)]">Add review statements.</p>}
       </div>
     </section>
   );
