@@ -184,23 +184,12 @@ function PreviewBlock({ block }: { block: PreviewLessonBlock }) {
 
   if (block.block_type === "BULLETS") {
     const items = asArray(content.items).map(String).filter(Boolean);
+    const hidden = content.reveal_hidden === true;
+    const title = asString(content.title) || "Key points";
+    const list = items.length ? <ul className="space-y-2 text-base leading-6 text-[var(--br-text-muted)]">{items.map((item, index) => <li key={index} className="flex gap-2"><span className="mt-2 size-1.5 shrink-0 rounded-full bg-moss" /><span>{item}</span></li>)}</ul> : <p className="text-sm text-[var(--br-text-muted)]">Add bullet points.</p>;
     return (
       <div className="rounded-lg border border-[var(--br-border)] bg-surface p-3 sm:p-4">
-        <div className="mb-3 flex items-center gap-2 font-semibold text-ink">
-          <ListChecks size={18} className="text-moss" /> {asString(content.title) || "Key points"}
-        </div>
-        {items.length ? (
-          <ul className="space-y-2 text-base leading-6 text-[var(--br-text-muted)]">
-            {items.map((item, index) => (
-              <li key={index} className="flex gap-2">
-                <span className="mt-2 size-1.5 shrink-0 rounded-full bg-moss" />
-                <span>{item}</span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-sm text-[var(--br-text-muted)]">Add bullet points.</p>
-        )}
+        {hidden ? <details><summary className="flex cursor-pointer list-none items-center justify-between gap-3 marker:hidden"><span className="flex min-w-0 items-center gap-2 font-semibold text-ink"><ListChecks size={18} className="shrink-0 text-moss" />{title}</span><span className="shrink-0 rounded-md border border-[var(--br-brand)]/30 bg-[var(--br-brand)]/5 px-2.5 py-1 text-xs font-bold text-[var(--br-brand)]">Reveal</span></summary><div className="mt-3 border-t border-[var(--br-border)] pt-3">{list}</div></details> : <><div className="mb-3 flex items-center gap-2 font-semibold text-ink"><ListChecks size={18} className="text-moss" /> {title}</div>{list}</>}
       </div>
     );
   }

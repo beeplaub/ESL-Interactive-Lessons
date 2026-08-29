@@ -171,7 +171,8 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
   if (blockType === "BULLETS") {
     return {
       title: nullableText(formData.get("title")),
-      items: splitLines(formData.get("items"))
+      items: splitLines(formData.get("items")),
+      reveal_hidden: formData.get("reveal_hidden") === "on"
     };
   }
   if (blockType === "QUOTE") {
@@ -418,7 +419,7 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
 function defaultBlockContent(blockType: string): Json {
   if (blockType === "HEADING") return { text: "New heading", level: "H2" };
   if (blockType === "TEXT") return { body: "Add lesson text here." };
-  if (blockType === "BULLETS") return { title: "Key points", items: ["First point", "Second point"] };
+  if (blockType === "BULLETS") return { title: "Key points", items: ["First point", "Second point"], reveal_hidden: false };
   if (blockType === "QUOTE") return { body: "Add a quote.", attribution: null };
   if (blockType === "CALLOUT") return { title: "Note", body: "Add a short note for learners.", reveal_hidden: false };
   if (blockType === "IMAGE") return { path: "", alt: "", caption: "" };
