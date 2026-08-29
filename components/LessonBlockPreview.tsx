@@ -411,7 +411,7 @@ function PreviewBlock({ block, checkedItems, onChecklistChange }: { block: Previ
     const lineStyle = asString(content.line_style) === "dotted" ? "dotted" : "solid";
     const lineWidth = Math.min(100, Math.max(25, Number(content.line_width) || 100));
     const lineAppearance = lineStyle === "dotted" ? { borderTop: "2px dotted var(--br-action)" } : { backgroundColor: "var(--br-action)" };
-    return <div className="flex justify-center py-3 sm:py-4" role="separator" aria-label="Section break"><div className="flex w-full items-center gap-3" style={{ maxWidth: `${lineWidth}%` }}><span className="h-0.5 min-w-0 flex-1 rounded-full opacity-70" style={lineAppearance} /><span className="size-1.5 shrink-0 rounded-full bg-[var(--br-action)] ring-2 ring-[var(--br-action)]/15" /><span className="h-0.5 min-w-0 flex-1 rounded-full opacity-70" style={lineAppearance} /></div></div>;
+    return <div className="flex justify-center py-3 sm:py-4" role="separator" aria-label="Section break"><div className="flex w-full items-center gap-3" style={{ maxWidth: `${lineWidth}%` }}><span className="h-0.5 min-w-0 flex-1 rounded-full opacity-70" style={lineAppearance} /><span className="size-1.5 shrink-0 rounded-full bg-[var(--br-action)] ring-2 ring-[var(--br-dark-card)]/20" /><span className="h-0.5 min-w-0 flex-1 rounded-full opacity-70" style={lineAppearance} /></div></div>;
   }
 
   if (block.block_type === "VOCABULARY") {
