@@ -179,7 +179,7 @@ function PreviewBlock({ block, checkedItems, onChecklistChange }: { block: Previ
     if (level === "H1") return <h1 className={`text-3xl font-semibold tracking-tight text-ink ${align}`}>{text}</h1>;
     if (level === "H3") return <h3 className={`text-lg font-semibold text-ink ${align}`}>{text}</h3>;
     if (level === "H4") return <h4 className={`text-base font-semibold text-ink ${align}`}>{text}</h4>;
-    return <h2 className={`text-2xl font-semibold tracking-tight text-ink ${align}`}>{text}</h2>;
+    return <h2 className={`text-xl font-semibold tracking-tight text-ink ${align}`}>{text}</h2>;
   }
 
   if (block.block_type === "TEXT") {
@@ -203,8 +203,9 @@ function PreviewBlock({ block, checkedItems, onChecklistChange }: { block: Previ
     const items = asArray(content.items).map(String).filter(Boolean);
     const hidden = content.reveal_hidden === true;
     const title = asString(content.title) || "Key points";
+    const eyebrow = asString(content.eyebrow);
     const accents = ["bg-[var(--br-success)]", "bg-[var(--br-brand)]", "bg-[var(--br-achievement)]", "bg-[var(--br-action)]"];
-    const header = <div className="min-w-0"><p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[var(--br-action)]">Review</p><h3 className="mt-1 text-base font-extrabold leading-6 tracking-tight text-[var(--br-dark-card)]">{title}</h3></div>;
+    const header = <div className="min-w-0">{eyebrow ? <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-[var(--br-action)]">{eyebrow}</p> : null}<h3 className={`${eyebrow ? "mt-1" : ""} text-base font-extrabold leading-6 tracking-tight text-[var(--br-dark-card)]`}>{title}</h3></div>;
     const list = items.length ? <div className="space-y-2">{items.map((item, index) => <div key={index} className="relative flex items-start gap-3 overflow-hidden rounded-2xl border border-[var(--br-border)] bg-white/90 px-3 py-3 text-sm font-semibold leading-6 text-[var(--br-dark-card)] shadow-sm sm:px-4"><span className={`absolute inset-y-0 left-0 w-1 ${accents[index % accents.length]}`} /><span className="grid size-7 shrink-0 self-center place-items-center rounded-full bg-[var(--br-action)] text-xs font-black text-on-dark">{index + 1}</span><div className="min-w-0"><FormattedText text={item} /></div></div>)}</div> : <p className="text-sm text-[var(--br-text-muted)]">Add bullet points.</p>;
     return (
       <section className="overflow-hidden rounded-[22px] border border-[var(--br-action)]/20 bg-gradient-to-br from-[var(--br-action)]/10 via-surface to-[var(--br-brand-soft)]/45 shadow-sm">

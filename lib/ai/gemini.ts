@@ -110,7 +110,7 @@ IMPORTANT CONTENT RULES:
 - Every slide MUST contain at least one non-empty content block in its blocks array. Never return blocks: [] or an empty content object.
 - Use the slide title as the slide header; do not repeat it as a HEADING block.
 - Use only these block_type values: TEXT, HEADING, BULLETS, INSTRUCTION, REVIEW_CHECKLIST, QUOTE, CALLOUT, IMAGE, IMAGE_TEXT, IMAGE_PAIR, AUDIO, VIDEO, VOCABULARY, GRAMMAR, READING, DIALOGUE, FLASHCARD, TABLE, COMMON_MISTAKE, CONTRAST_PAIR, TONGUE_TWISTER, DIVIDER.
-- TEXT content is {"body":"..."}; BULLETS is {"title":"...","items":["...","..."]}; GRAMMAR is {"title":"...","explanation":"...","examples":["..."],"notes":"..."}; READING is {"title":"...","passage":"...","questions":[]}; DIALOGUE is {"title":"...","speakers":["..."],"turns":[{"speaker":"...","line":"..."}]}.
+- TEXT content is {"body":"..."}; BULLETS is {"title":"...","eyebrow":"...","items":["...","..."]}; GRAMMAR is {"title":"...","explanation":"...","examples":["..."],"notes":"..."}; READING is {"title":"...","passage":"...","questions":[]}; DIALOGUE is {"title":"...","speakers":["..."],"turns":[{"speaker":"...","line":"..."}]}.
 - For a media slide, include a non-empty TEXT instruction before the AUDIO or VIDEO block. Do not invent media URLs; use an empty media URL and explain what the creator should provide.
 - Every block must contain real learner-facing content, not placeholders such as "Text here" or "Add content".
 - Activities must use the top-level key prompt, not instruction. Include complete questions, options, and answer keys when the activity is objectively gradable.
