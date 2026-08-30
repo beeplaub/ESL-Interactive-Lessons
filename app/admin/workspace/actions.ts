@@ -64,10 +64,15 @@ export async function deleteWorkspaceProject(formData: FormData) {
 export async function updateWorkspaceTask(formData: FormData) {
   const { user } = await requireStaff();
   const id = text(formData.get("id"), 60);
-  const title = text(formData.get("title"), 240);
+  let title = text(formData.get("title"), 240);
   const statusValue = text(formData.get("status"));
   const priorityValue = text(formData.get("priority"));
-  if (!id || !title) return;
+  if (!id) return;
+  if (!title) {
+    const { data } = await createAdminClient().from("creator_tasks").select("title").eq("id", id).eq("creator_id", user.id).maybeSingle();
+    title = data?.title ?? "";
+  }
+  if (!title) return;
   const status = statuses.includes(statusValue as typeof statuses[number]) ? statusValue : "TODO";
   const priority = priorities.includes(priorityValue as typeof priorities[number]) ? priorityValue : "NORMAL";
   const recurrence = recurrences.includes(text(formData.get("recurrence")) as typeof recurrences[number]) ? text(formData.get("recurrence")) : "NONE";
