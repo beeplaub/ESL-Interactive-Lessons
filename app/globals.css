@@ -34,6 +34,44 @@
   cursor: pointer;
 }
 
+/* Shared BrenUp form control. Keep all creator and learner fields readable,
+   bordered, and consistent across pages and viewport sizes. */
+.field {
+  min-height: 2.75rem;
+  width: 100%;
+  border: 1px solid var(--br-border-strong);
+  border-radius: 0.75rem;
+  background: var(--br-surface);
+  padding: 0.65rem 0.8rem;
+  color: var(--br-text);
+  outline: none;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+
+.field::placeholder {
+  color: var(--br-text-muted);
+  opacity: 0.78;
+}
+
+.field:hover {
+  border-color: color-mix(in srgb, var(--br-brand) 45%, var(--br-border-strong));
+}
+
+.field:focus {
+  border-color: var(--br-brand);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--br-brand) 15%, transparent);
+}
+
+.field:disabled {
+  cursor: not-allowed;
+  background: var(--br-surface-muted);
+  opacity: 0.7;
+}
+
+select.field {
+  cursor: pointer;
+}
+
 :root {
   color-scheme: light;
   /* Published defaults. `app/layout.tsx` injects the selected revision. */
