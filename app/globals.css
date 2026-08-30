@@ -500,6 +500,11 @@ select {
   animation: hero-float-reverse 12s ease-in-out infinite;
 }
 
+.workspace-shell details > form,
+.workspace-shell details > div {
+  max-width: calc(100vw - 3rem);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .hero-float,
   .hero-float-slow,
