@@ -543,6 +543,94 @@ select {
   max-width: calc(100vw - 3rem);
 }
 
+.workspace-shell {
+  overflow-x: clip;
+}
+
+.workspace-shell button,
+.workspace-shell summary {
+  touch-action: manipulation;
+}
+
+@media (max-width: 640px) {
+  .workspace-shell {
+    padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+  }
+
+  .workspace-header {
+    gap: 0.75rem;
+  }
+
+  .workspace-header h1 {
+    font-size: 1.5rem;
+    line-height: 1.2;
+  }
+
+  .workspace-quick-actions {
+    display: grid;
+    gap: 0.625rem;
+  }
+
+  .workspace-quick-form {
+    width: 100%;
+    flex: none;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding: 0.5rem;
+    border: 1px solid var(--br-border);
+    border-radius: 0.875rem;
+    background: var(--br-surface-muted);
+  }
+
+  .workspace-quick-form input[name="title"] {
+    min-width: 0;
+  }
+
+  .workspace-quick-form select,
+  .workspace-quick-form input[type="datetime-local"] {
+    width: 100%;
+    max-width: none;
+    grid-column: span 1;
+  }
+
+  .workspace-quick-form select[name="project_id"] {
+    grid-column: 1 / -1;
+  }
+
+  .workspace-quick-form button {
+    min-height: 2.75rem;
+  }
+
+  .workspace-tabs {
+    position: sticky;
+    top: 0.5rem;
+    z-index: 5;
+    margin-inline: -0.25rem;
+    scrollbar-width: none;
+    box-shadow: 0 8px 20px rgba(38, 37, 79, 0.08);
+  }
+
+  .workspace-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .workspace-tabs button {
+    min-height: 2.75rem;
+    padding-inline: 0.875rem;
+  }
+
+  .workspace-shell details > form,
+  .workspace-shell details > div {
+    width: min(20rem, calc(100vw - 2rem));
+    max-width: calc(100vw - 2rem);
+  }
+
+  .workspace-shell details > form,
+  .workspace-shell details > div {
+    right: 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .hero-float,
   .hero-float-slow,
