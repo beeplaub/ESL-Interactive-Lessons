@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 const statuses = ["TODO", "IN_PROGRESS", "WAITING", "COMPLETED"] as const;
 const priorities = ["LOW", "NORMAL", "HIGH", "URGENT"] as const;
+const recurrences = ["NONE", "DAILY", "WEEKLY", "MONTHLY"] as const;
 const projectStatuses = ["PLANNING", "ACTIVE", "PAUSED", "COMPLETED", "ARCHIVED"] as const;
 const projectCategories = ["COURSE", "LESSON", "WORKSHEET", "ASSESSMENT", "AUDIO", "RESEARCH", "CONTENT", "PERSONAL"] as const;
 
@@ -33,9 +34,10 @@ export async function createWorkspaceTask(formData: FormData) {
   if (!title) return;
   const status = statuses.includes(text(formData.get("status")) as typeof statuses[number]) ? text(formData.get("status")) : "TODO";
   const priority = priorities.includes(text(formData.get("priority")) as typeof priorities[number]) ? text(formData.get("priority")) : "NORMAL";
+  const recurrence = recurrences.includes(text(formData.get("recurrence")) as typeof recurrences[number]) ? text(formData.get("recurrence")) : "NONE";
   const projectId = text(formData.get("project_id"), 60);
   const admin = createAdminClient();
-  await admin.from("creator_tasks").insert({ creator_id: user.id, project_id: projectId || null, title, description: text(formData.get("description")), status, priority, label: text(formData.get("label"), 40) || null, due_at: dateOrNull(formData.get("due_at")), related_url: text(formData.get("related_url"), 1000) || null });
+  await admin.from("creator_tasks").insert({ creator_id: user.id, project_id: projectId || null, title, description: text(formData.get("description")), status, priority, recurrence, label: text(formData.get("label"), 40) || null, due_at: dateOrNull(formData.get("due_at")), related_url: text(formData.get("related_url"), 1000) || null });
   revalidatePath("/admin/workspace");
 }
 
@@ -68,7 +70,8 @@ export async function updateWorkspaceTask(formData: FormData) {
   if (!id || !title) return;
   const status = statuses.includes(statusValue as typeof statuses[number]) ? statusValue : "TODO";
   const priority = priorities.includes(priorityValue as typeof priorities[number]) ? priorityValue : "NORMAL";
-  await createAdminClient().from("creator_tasks").update({ title, description: text(formData.get("description")), status, priority, label: text(formData.get("label"), 40) || null, due_at: dateOrNull(formData.get("due_at")), related_url: text(formData.get("related_url"), 1000) || null, completed_at: status === "COMPLETED" ? new Date().toISOString() : null, updated_at: new Date().toISOString() }).eq("id", id).eq("creator_id", user.id);
+  const recurrence = recurrences.includes(text(formData.get("recurrence")) as typeof recurrences[number]) ? text(formData.get("recurrence")) : "NONE";
+  await createAdminClient().from("creator_tasks").update({ title, description: text(formData.get("description")), status, priority, recurrence, label: text(formData.get("label"), 40) || null, due_at: dateOrNull(formData.get("due_at")), related_url: text(formData.get("related_url"), 1000) || null, completed_at: status === "COMPLETED" ? new Date().toISOString() : null, updated_at: new Date().toISOString() }).eq("id", id).eq("creator_id", user.id);
   revalidatePath("/admin/workspace");
 }
 
@@ -77,7 +80,16 @@ export async function toggleWorkspaceTask(formData: FormData) {
   const id = text(formData.get("id"), 60);
   const completed = text(formData.get("completed")) === "true";
   if (!id) return;
-  await createAdminClient().from("creator_tasks").update({ status: completed ? "TODO" : "COMPLETED", completed_at: completed ? null : new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", id).eq("creator_id", user.id);
+  const admin = createAdminClient();
+  const { data: task } = await admin.from("creator_tasks").select("title,description,project_id,priority,recurrence,label,due_at,related_url").eq("id", id).eq("creator_id", user.id).maybeSingle();
+  await admin.from("creator_tasks").update({ status: completed ? "TODO" : "COMPLETED", completed_at: completed ? null : new Date().toISOString(), updated_at: new Date().toISOString() }).eq("id", id).eq("creator_id", user.id);
+  if (!completed && task?.recurrence && task.recurrence !== "NONE" && task.due_at) {
+    const nextDue = new Date(task.due_at);
+    if (task.recurrence === "DAILY") nextDue.setDate(nextDue.getDate() + 1);
+    if (task.recurrence === "WEEKLY") nextDue.setDate(nextDue.getDate() + 7);
+    if (task.recurrence === "MONTHLY") nextDue.setMonth(nextDue.getMonth() + 1);
+    await admin.from("creator_tasks").insert({ creator_id: user.id, project_id: task.project_id, title: task.title, description: task.description, priority: task.priority, recurrence: task.recurrence, label: task.label, due_at: nextDue.toISOString(), related_url: task.related_url });
+  }
   revalidatePath("/admin/workspace");
 }
 
