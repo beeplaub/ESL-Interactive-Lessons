@@ -23,6 +23,7 @@ import {
   LogOut,
   Menu,
   Newspaper,
+  NotebookTabs,
   Bell,
   Palette,
   Plus,
@@ -62,7 +63,8 @@ const groups: NavGroup[] = [
     id: "build",
     label: "Build",
     Icon: BookOpen,
-    links: [
+  links: [
+      { href: "/admin/workspace", label: "Workspace", Icon: NotebookTabs, roles: ALL_STAFF },
       { href: "/admin/courses", label: "Courses", Icon: GraduationCap, roles: ALL_STAFF },
       { href: "/admin/lessons", label: "Lessons", Icon: BookOpen, roles: ALL_STAFF },
       { href: "/admin/quizzes", label: "Quizzes", Icon: ClipboardList, roles: ALL_STAFF },
