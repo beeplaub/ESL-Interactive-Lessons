@@ -6,8 +6,8 @@ import { createWorkspaceNote, createWorkspaceProject, createWorkspaceResource, c
 
 type Project = { id: string; title: string; description: string | null; category: string; status: string; due_at: string | null };
 type Task = { id: string; project_id: string | null; title: string; description: string | null; status: string; priority: string; label: string | null; due_at: string | null; related_url: string | null; };
-type Note = { id: string; title: string; body: string; updated_at: string };
-type Resource = { id: string; title: string; value: string; resource_type: string; description: string | null; };
+type Note = { id: string; title: string; body: string; project_id: string | null; updated_at: string };
+type Resource = { id: string; title: string; value: string; resource_type: string; description: string | null; project_id: string | null; };
 
 const tabs = ["Overview", "Tasks", "Projects", "Calendar", "Notes", "Resources"] as const;
 const metricTones: Record<string, string> = { purple: "bg-[var(--br-brand)]/10 text-[var(--br-brand)]", green: "bg-[var(--br-success)]/10 text-[var(--br-success)]", orange: "bg-[var(--br-action)]/10 text-[var(--br-action)]", blue: "bg-[var(--br-info)]/10 text-[var(--br-info)]" };
