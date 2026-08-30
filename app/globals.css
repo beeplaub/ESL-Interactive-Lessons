@@ -628,6 +628,15 @@ select {
   max-width: calc(100vw - 3rem);
 }
 
+/* Keep anchored action popovers usable when they are opened near an edge. */
+details > form,
+details > div {
+  max-height: min(38rem, calc(100dvh - 2rem));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
 .workspace-shell {
   overflow-x: clip;
 }
