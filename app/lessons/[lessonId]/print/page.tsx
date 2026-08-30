@@ -6,6 +6,8 @@ import { requireUser, isStaff } from "@/lib/auth";
 import { LessonBlockPreview, type PreviewLessonBlock } from "@/components/LessonBlockPreview";
 import { BrandLogo } from "@/components/BrandLogo";
 import type { Json } from "@/types/database.types";
+import { resolveMediaUrl } from "@/lib/storage/mediaStorage";
+import QRCode from "qrcode";
 
 export const dynamic = "force-dynamic";
 
@@ -24,6 +26,14 @@ type PrintableActivity = {
   slide_number: number;
   activity_type: string;
   activity_data: Json | null;
+};
+
+type PrintableAudio = {
+  id: string;
+  slide_id: string | null;
+  label: string | null;
+  url: string;
+  qrDataUrl: string;
 };
 
 function record(value: Json | null | undefined): Record<string, unknown> {
@@ -50,6 +60,19 @@ function activityChoices(activity: PrintableActivity) {
     return Object.values(options).map(text).filter(Boolean);
   }
   return strings(data.choices ?? data.items ?? data.statements);
+}
+
+function PrintableAudio({ audio }: { audio: PrintableAudio }) {
+  return (
+    <div className="mt-4 flex items-center gap-3 rounded-[14px] border border-[var(--br-border)] bg-[var(--br-surface-muted)] p-3 print:bg-white">
+      <img src={audio.qrDataUrl} alt="Scan to play audio" className="size-20 shrink-0" />
+      <div className="min-w-0">
+        <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-[var(--br-action)]">Audio</p>
+        <p className="mt-1 text-sm font-bold text-[var(--br-dark-card)]">{audio.label || "Listen to this slide"}</p>
+        <p className="mt-1 break-all text-[10px] leading-4 text-[var(--br-text-muted)]">Scan the code to play</p>
+      </div>
+    </div>
+  );
 }
 
 function PrintableActivity({ activity, index }: { activity: PrintableActivity; index: number }) {
@@ -95,11 +118,12 @@ export default async function LessonPrintPage({ params }: { params: Promise<{ le
   const { lessonId } = await params;
   const { user, profile } = await requireUser();
   const admin = createAdminClient();
-  const [{ data: lesson }, { data: slides }, { data: blocks }, { data: activities }] = await Promise.all([
+  const [{ data: lesson }, { data: slides }, { data: blocks }, { data: activities }, { data: audioFiles }] = await Promise.all([
     admin.from("lessons").select("id,title,topic,level,status,created_by").eq("id", lessonId).is("deleted_at", null).maybeSingle(),
     admin.from("slides").select("id,slide_number,title,section_label").eq("lesson_id", lessonId).is("deleted_at", null).order("slide_number", { ascending: true }),
     admin.from("lesson_blocks").select("id,slide_id,position,block_type,content").eq("lesson_id", lessonId).order("position", { ascending: true }),
     admin.from("lesson_slide_activities").select("id,slide_id,slide_number,activity_type,activity_data").eq("lesson_id", lessonId).is("deleted_at", null).order("slide_number", { ascending: true }),
+    admin.from("lesson_audio_files").select("id,slide_id,label,storage_path,storage_provider,storage_bucket,public_url,external_url").eq("lesson_id", lessonId),
   ]);
 
   if (!lesson) notFound();
@@ -109,6 +133,16 @@ export default async function LessonPrintPage({ params }: { params: Promise<{ le
   const slideList = (slides ?? []) as PrintableSlide[];
   const blockList = (blocks ?? []) as PrintableBlock[];
   const activityList = (activities ?? []) as PrintableActivity[];
+  const audioList = (await Promise.all((audioFiles ?? []).map(async (audio) => {
+    const url = audio.external_url || await resolveMediaUrl(admin, {
+      provider: audio.storage_provider,
+      bucket: audio.storage_bucket ?? "lesson-audio",
+      path: audio.storage_path,
+      publicUrl: audio.public_url,
+    });
+    if (!url) return null;
+    return { id: audio.id, slide_id: audio.slide_id, label: audio.label, url, qrDataUrl: await QRCode.toDataURL(url, { margin: 1, width: 180 }) } satisfies PrintableAudio;
+  }))).filter((audio): audio is PrintableAudio => Boolean(audio));
 
   return (
     <div className="min-h-screen bg-[var(--br-canvas)] text-[var(--br-text)] print:bg-white">
@@ -152,7 +186,8 @@ export default async function LessonPrintPage({ params }: { params: Promise<{ le
                   </div>
                   <h2 className="mt-1 text-2xl font-extrabold tracking-tight text-[var(--br-dark-card)]">{slide.title}</h2>
                 </div>
-                {slideBlocks.length ? <div className="print-blocks"><LessonBlockPreview blocks={slideBlocks} emptyText="" /></div> : null}
+                {slideBlocks.length ? <div className="print-blocks"><LessonBlockPreview blocks={slideBlocks} emptyText="" alwaysOpen /></div> : null}
+                {audioList.filter((audio) => audio.slide_id === slide.id).map((audio) => <PrintableAudio key={audio.id} audio={audio} />)}
                 {slideActivities.length ? (
                   <div className={`${slideBlocks.length ? "mt-6 border-t border-[var(--br-border)] pt-5" : ""} space-y-3`}>
                     <h3 className="text-base font-extrabold text-[var(--br-dark-card)]">Practice</h3>

@@ -35,19 +35,21 @@ function OpenCloseDetails({
   className = "",
   summaryClassName = "",
   labelClassName = OPEN_CLOSE_CONTROL_CLASS,
+  alwaysOpen = false,
 }: {
   summary: ReactNode;
   children: ReactNode;
   className?: string;
   summaryClassName?: string;
   labelClassName?: string;
+  alwaysOpen?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(alwaysOpen);
   return (
-    <details open={open} onToggle={(event) => setOpen(event.currentTarget.open)} className={className}>
+    <details open={alwaysOpen || open} onToggle={(event) => { if (!alwaysOpen) setOpen(event.currentTarget.open); }} className={className}>
       <summary className={summaryClassName}>
         {summary}
-        <span className={labelClassName}>{open ? "Close" : "Open"}</span>
+        <span className={labelClassName}>{alwaysOpen ? "Shown" : open ? "Close" : "Open"}</span>
       </summary>
       {children}
     </details>
@@ -172,12 +174,14 @@ export function LessonBlockPreview({
   blocks,
   emptyText = "No editable blocks yet. Add content blocks to preview the future LMS lesson view.",
   checklistState = {},
-  onChecklistChange
+  onChecklistChange,
+  alwaysOpen = false,
 }: {
   blocks: PreviewLessonBlock[];
   emptyText?: string;
   checklistState?: Record<string, boolean[]>;
   onChecklistChange?: (blockId: string, checkedItems: boolean[]) => void;
+  alwaysOpen?: boolean;
 }) {
   if (!blocks.length) {
     return (
@@ -190,13 +194,13 @@ export function LessonBlockPreview({
   return (
     <div className="space-y-3 sm:space-y-4">
       {blocks.map((block) => (
-        <PreviewBlock key={block.id} block={block} checkedItems={checklistState[block.id]} onChecklistChange={onChecklistChange} />
+        <PreviewBlock key={block.id} block={block} checkedItems={checklistState[block.id]} onChecklistChange={onChecklistChange} alwaysOpen={alwaysOpen} />
       ))}
     </div>
   );
 }
 
-function PreviewBlock({ block, checkedItems, onChecklistChange }: { block: PreviewLessonBlock; checkedItems?: boolean[]; onChecklistChange?: (blockId: string, checkedItems: boolean[]) => void }) {
+function PreviewBlock({ block, checkedItems, onChecklistChange, alwaysOpen = false }: { block: PreviewLessonBlock; checkedItems?: boolean[]; onChecklistChange?: (blockId: string, checkedItems: boolean[]) => void; alwaysOpen?: boolean }) {
   const content = asRecord(block.content);
 
   if (block.block_type === "HEADING") {
@@ -236,7 +240,7 @@ function PreviewBlock({ block, checkedItems, onChecklistChange }: { block: Previ
     const list = items.length ? <div className="space-y-2">{items.map((item, index) => <div key={index} className="relative flex items-start gap-3 overflow-hidden rounded-2xl border border-[var(--br-border)] bg-white/90 px-3 py-3 text-sm font-semibold leading-6 text-[var(--br-dark-card)] shadow-sm sm:px-4"><span className={`absolute inset-y-0 left-0 w-1 ${accents[index % accents.length]}`} /><span className="grid size-7 shrink-0 self-center place-items-center rounded-full bg-[var(--br-action)] text-xs font-black text-on-dark">{index + 1}</span><div className="min-w-0"><FormattedText text={item} /></div></div>)}</div> : <p className="text-sm text-[var(--br-text-muted)]">Add bullet points.</p>;
     return (
       <section className="overflow-hidden rounded-[22px] border border-[var(--br-action)]/20 bg-gradient-to-br from-[var(--br-action)]/10 via-surface to-[var(--br-brand-soft)]/45 shadow-sm">
-        {hidden ? <OpenCloseDetails summary={header} summaryClassName="flex cursor-pointer list-none items-center justify-between gap-3 border-b border-[var(--br-action)]/15 px-4 py-4 marker:hidden sm:px-5 sm:py-5"><div className="p-3 sm:p-4">{list}</div></OpenCloseDetails> : <><div className="border-b border-[var(--br-action)]/15 px-4 py-4 sm:px-5 sm:py-5">{header}</div><div className="p-3 sm:p-4">{list}</div></>}
+        {hidden ? <OpenCloseDetails alwaysOpen={alwaysOpen} summary={header} summaryClassName="flex cursor-pointer list-none items-center justify-between gap-3 border-b border-[var(--br-action)]/15 px-4 py-4 marker:hidden sm:px-5 sm:py-5"><div className="p-3 sm:p-4">{list}</div></OpenCloseDetails> : <><div className="border-b border-[var(--br-action)]/15 px-4 py-4 sm:px-5 sm:py-5">{header}</div><div className="p-3 sm:p-4">{list}</div></>}
       </section>
     );
   }
@@ -276,7 +280,7 @@ function PreviewBlock({ block, checkedItems, onChecklistChange }: { block: Previ
           <div className="flex items-start gap-3">
             <MessageSquareQuote className="mt-0.5 shrink-0 text-amber-700" size={18} />
             <div className={`min-w-0 flex-1 ${align}`}>
-              <OpenCloseDetails summary={<span className="min-w-0 flex-1 font-semibold text-amber-950">{title || "Note"}</span>} summaryClassName="flex cursor-pointer list-none items-start justify-between gap-3 marker:hidden">
+              <OpenCloseDetails alwaysOpen={alwaysOpen} summary={<span className="min-w-0 flex-1 font-semibold text-amber-950">{title || "Note"}</span>} summaryClassName="flex cursor-pointer list-none items-start justify-between gap-3 marker:hidden">
                 <div className="mt-2 border-t border-amber-200 pt-2">{bodyContent}</div>
               </OpenCloseDetails>
             </div>
@@ -478,7 +482,7 @@ function PreviewBlock({ block, checkedItems, onChecklistChange }: { block: Previ
     </div>;
     return (
       <section className="overflow-hidden rounded-[22px] border border-[var(--br-info)]/20 bg-gradient-to-br from-[var(--br-info)]/10 via-surface to-[var(--br-brand-soft)]/45 shadow-sm">
-        {hidden ? <OpenCloseDetails summary={headerContent} summaryClassName="flex cursor-pointer list-none items-center justify-between gap-3 border-b border-[var(--br-info)]/15 px-4 py-4 marker:hidden sm:px-5 sm:py-5">{grammarBody}</OpenCloseDetails> : <><div className="border-b border-[var(--br-info)]/15 px-4 py-4 sm:px-5 sm:py-5">{headerContent}</div>{grammarBody}</>}
+        {hidden ? <OpenCloseDetails alwaysOpen={alwaysOpen} summary={headerContent} summaryClassName="flex cursor-pointer list-none items-center justify-between gap-3 border-b border-[var(--br-info)]/15 px-4 py-4 marker:hidden sm:px-5 sm:py-5">{grammarBody}</OpenCloseDetails> : <><div className="border-b border-[var(--br-info)]/15 px-4 py-4 sm:px-5 sm:py-5">{headerContent}</div>{grammarBody}</>}
       </section>
     );
   }
@@ -539,7 +543,7 @@ function PreviewBlock({ block, checkedItems, onChecklistChange }: { block: Previ
   }
 
   if (block.block_type === "CONTRAST_PAIR") {
-    return <ContrastPairBlock content={content} />;
+    return <ContrastPairBlock content={content} alwaysOpen={alwaysOpen} />;
   }
 
   if (block.block_type === "STEPS") {
@@ -706,7 +710,7 @@ function CommonMistakeBlock({ content }: { content: Record<string, unknown> }) {
   );
 }
 
-function ContrastPairBlock({ content }: { content: Record<string, unknown> }) {
+function ContrastPairBlock({ content, alwaysOpen = false }: { content: Record<string, unknown>; alwaysOpen?: boolean }) {
   const pairs = asArray(content.pairs).map((item) => asRecord(item as Json));
   return (
     <section className="overflow-hidden rounded-xl border border-[var(--br-brand)]/25 bg-gradient-to-br from-[var(--br-brand-soft)] via-surface to-[var(--br-info)]/10 shadow-sm">
@@ -715,7 +719,7 @@ function ContrastPairBlock({ content }: { content: Record<string, unknown> }) {
         {asString(content.instruction) ? <p className="mt-1 text-sm text-[var(--br-text-muted)]">{asString(content.instruction)}</p> : null}
       </div>
       <div className="space-y-3 p-3 sm:p-4">
-        {pairs.length ? pairs.map((pair, index) => <OpenCloseDetails key={index} summary={<span className="flex min-w-0 flex-1 items-center gap-3 font-semibold text-amber-950"><MessageSquareQuote className="shrink-0 text-amber-700" size={17} />{asString(pair.title) || `${asString(pair.left_term)} vs. ${asString(pair.right_term)}`}</span>} summaryClassName="flex cursor-pointer list-none items-start justify-between gap-3 rounded-xl p-3 marker:hidden sm:p-4" className="group rounded-xl border border-amber-200 bg-amber-50 shadow-sm transition hover:border-amber-300">
+        {pairs.length ? pairs.map((pair, index) => <OpenCloseDetails alwaysOpen={alwaysOpen} key={index} summary={<span className="flex min-w-0 flex-1 items-center gap-3 font-semibold text-amber-950"><MessageSquareQuote className="shrink-0 text-amber-700" size={17} />{asString(pair.title) || `${asString(pair.left_term)} vs. ${asString(pair.right_term)}`}</span>} summaryClassName="flex cursor-pointer list-none items-start justify-between gap-3 rounded-xl p-3 marker:hidden sm:p-4" className="group rounded-xl border border-amber-200 bg-amber-50 shadow-sm transition hover:border-amber-300">
           <div className="border-t border-[var(--br-brand)]/15 p-3 sm:p-4">
             {asString(pair.context) ? <p className="mb-4 rounded-lg bg-[var(--br-info)]/10 px-3 py-2 text-sm leading-6 text-ink">{asString(pair.context)}</p> : null}
             <div className="grid gap-3 md:grid-cols-2">
