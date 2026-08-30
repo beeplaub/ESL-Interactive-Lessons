@@ -6,6 +6,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 const statuses = ["TODO", "IN_PROGRESS", "WAITING", "COMPLETED"] as const;
 const priorities = ["LOW", "NORMAL", "HIGH", "URGENT"] as const;
+const projectStatuses = ["PLANNING", "ACTIVE", "PAUSED", "COMPLETED", "ARCHIVED"] as const;
+const projectCategories = ["COURSE", "LESSON", "WORKSHEET", "ASSESSMENT", "AUDIO", "RESEARCH", "CONTENT", "PERSONAL"] as const;
 
 function text(value: FormDataEntryValue | null, max = 5000) {
   return String(value ?? "").trim().slice(0, max);
@@ -34,6 +36,39 @@ export async function createWorkspaceTask(formData: FormData) {
   const projectId = text(formData.get("project_id"), 60);
   const admin = createAdminClient();
   await admin.from("creator_tasks").insert({ creator_id: user.id, project_id: projectId || null, title, description: text(formData.get("description")), status, priority, label: text(formData.get("label"), 40) || null, due_at: dateOrNull(formData.get("due_at")), related_url: text(formData.get("related_url"), 1000) || null });
+  revalidatePath("/admin/workspace");
+}
+
+export async function updateWorkspaceProject(formData: FormData) {
+  const { user } = await requireStaff();
+  const id = text(formData.get("id"), 60);
+  const title = text(formData.get("title"), 180);
+  const statusValue = text(formData.get("status"));
+  const categoryValue = text(formData.get("category"));
+  if (!id || !title) return;
+  const status = projectStatuses.includes(statusValue as typeof projectStatuses[number]) ? statusValue : "ACTIVE";
+  const category = projectCategories.includes(categoryValue as typeof projectCategories[number]) ? categoryValue : "CONTENT";
+  await createAdminClient().from("creator_projects").update({ title, description: text(formData.get("description")), status, category, due_at: dateOrNull(formData.get("due_at")), updated_at: new Date().toISOString() }).eq("id", id).eq("creator_id", user.id);
+  revalidatePath("/admin/workspace");
+}
+
+export async function deleteWorkspaceProject(formData: FormData) {
+  const { user } = await requireStaff();
+  const id = text(formData.get("id"), 60);
+  if (id) await createAdminClient().from("creator_projects").delete().eq("id", id).eq("creator_id", user.id);
+  revalidatePath("/admin/workspace");
+}
+
+export async function updateWorkspaceTask(formData: FormData) {
+  const { user } = await requireStaff();
+  const id = text(formData.get("id"), 60);
+  const title = text(formData.get("title"), 240);
+  const statusValue = text(formData.get("status"));
+  const priorityValue = text(formData.get("priority"));
+  if (!id || !title) return;
+  const status = statuses.includes(statusValue as typeof statuses[number]) ? statusValue : "TODO";
+  const priority = priorities.includes(priorityValue as typeof priorities[number]) ? priorityValue : "NORMAL";
+  await createAdminClient().from("creator_tasks").update({ title, description: text(formData.get("description")), status, priority, label: text(formData.get("label"), 40) || null, due_at: dateOrNull(formData.get("due_at")), related_url: text(formData.get("related_url"), 1000) || null, completed_at: status === "COMPLETED" ? new Date().toISOString() : null, updated_at: new Date().toISOString() }).eq("id", id).eq("creator_id", user.id);
   revalidatePath("/admin/workspace");
 }
 
