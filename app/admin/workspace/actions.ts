@@ -96,11 +96,44 @@ export async function createWorkspaceNote(formData: FormData) {
   revalidatePath("/admin/workspace");
 }
 
+export async function updateWorkspaceNote(formData: FormData) {
+  const { user } = await requireStaff();
+  const id = text(formData.get("id"), 60);
+  const title = text(formData.get("title"), 180);
+  if (!id || !title) return;
+  await createAdminClient().from("creator_notes").update({ title, body: text(formData.get("body")), project_id: text(formData.get("project_id"), 60) || null, updated_at: new Date().toISOString() }).eq("id", id).eq("creator_id", user.id);
+  revalidatePath("/admin/workspace");
+}
+
+export async function deleteWorkspaceNote(formData: FormData) {
+  const { user } = await requireStaff();
+  const id = text(formData.get("id"), 60);
+  if (id) await createAdminClient().from("creator_notes").delete().eq("id", id).eq("creator_id", user.id);
+  revalidatePath("/admin/workspace");
+}
+
 export async function createWorkspaceResource(formData: FormData) {
   const { user } = await requireStaff();
   const title = text(formData.get("title"), 180);
   const value = text(formData.get("value"), 10000);
   if (!title || !value) return;
   await createAdminClient().from("creator_resources").insert({ creator_id: user.id, title, value, resource_type: text(formData.get("resource_type"), 20) || "LINK", description: text(formData.get("description")), project_id: text(formData.get("project_id"), 60) || null, tags: text(formData.get("tags"), 500).split(",").map((tag) => tag.trim()).filter(Boolean).slice(0, 12) });
+  revalidatePath("/admin/workspace");
+}
+
+export async function updateWorkspaceResource(formData: FormData) {
+  const { user } = await requireStaff();
+  const id = text(formData.get("id"), 60);
+  const title = text(formData.get("title"), 180);
+  const value = text(formData.get("value"), 10000);
+  if (!id || !title || !value) return;
+  await createAdminClient().from("creator_resources").update({ title, value, resource_type: text(formData.get("resource_type"), 20) || "LINK", description: text(formData.get("description")), project_id: text(formData.get("project_id"), 60) || null, tags: text(formData.get("tags"), 500).split(",").map((tag) => tag.trim()).filter(Boolean).slice(0, 12), updated_at: new Date().toISOString() }).eq("id", id).eq("creator_id", user.id);
+  revalidatePath("/admin/workspace");
+}
+
+export async function deleteWorkspaceResource(formData: FormData) {
+  const { user } = await requireStaff();
+  const id = text(formData.get("id"), 60);
+  if (id) await createAdminClient().from("creator_resources").delete().eq("id", id).eq("creator_id", user.id);
   revalidatePath("/admin/workspace");
 }
