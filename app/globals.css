@@ -628,6 +628,22 @@ select {
   max-width: calc(100vw - 3rem);
 }
 
+.workspace-shell details > form,
+.workspace-shell details > div {
+  position: fixed !important;
+  top: 50% !important;
+  right: auto !important;
+  bottom: auto !important;
+  left: 50% !important;
+  z-index: 100;
+  width: min(28rem, calc(100vw - 2rem));
+  max-width: calc(100vw - 2rem);
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 24px 70px rgba(24, 23, 52, 0.24);
+}
+
 /* Keep anchored action popovers usable when they are opened near an edge. */
 details > form,
 details > div {
@@ -719,10 +735,6 @@ details > div {
     max-width: calc(100vw - 2rem);
   }
 
-  .workspace-shell details > form,
-  .workspace-shell details > div {
-    right: 0;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
