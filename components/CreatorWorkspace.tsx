@@ -9,7 +9,7 @@ type Task = { id: string; project_id: string | null; title: string; description:
 type Note = { id: string; title: string; body: string; updated_at: string };
 type Resource = { id: string; title: string; value: string; resource_type: string; description: string | null; };
 
-const tabs = ["Overview", "Tasks", "Projects", "Notes", "Resources"] as const;
+const tabs = ["Overview", "Tasks", "Projects", "Calendar", "Notes", "Resources"] as const;
 const metricTones: Record<string, string> = { purple: "bg-[var(--br-brand)]/10 text-[var(--br-brand)]", green: "bg-[var(--br-success)]/10 text-[var(--br-success)]", orange: "bg-[var(--br-action)]/10 text-[var(--br-action)]", blue: "bg-[var(--br-info)]/10 text-[var(--br-info)]" };
 function dateInputValue(value: string | null) { return value ? new Date(value).toISOString().slice(0, 16) : ""; }
 
@@ -28,9 +28,17 @@ export function CreatorWorkspace({ projects, tasks, notes, resources }: { projec
     {tab === "Overview" ? <Overview projects={projects} activeTasks={activeTasks} completedTasks={completedTasks} today={today} setTab={setTab} projectMap={projectMap} /> : null}
     {tab === "Tasks" ? <Tasks tasks={visibleTasks} projectMap={projectMap} query={query} setQuery={setQuery} /> : null}
     {tab === "Projects" ? <Projects projects={projects} /> : null}
+    {tab === "Calendar" ? <CalendarView tasks={tasks} projectMap={projectMap} /> : null}
     {tab === "Notes" ? <Notes notes={notes} projects={projects} /> : null}
     {tab === "Resources" ? <Resources resources={resources} projects={projects} /> : null}
   </main>;
+}
+
+function CalendarView({ tasks, projectMap }: { tasks: Task[]; projectMap: Map<string, string> }) {
+  const days = Array.from({ length: 14 }, (_, index) => { const date = new Date(); date.setHours(0, 0, 0, 0); date.setDate(date.getDate() + index); return date; });
+  const scheduled = tasks.filter((task) => task.due_at);
+  const withoutDate = tasks.filter((task) => !task.due_at && task.status !== "COMPLETED");
+  return <section className="rounded-2xl border border-[var(--br-border)] bg-surface p-5 shadow-sm"><div className="flex flex-wrap items-end justify-between gap-3"><div><h2 className="text-lg font-semibold">Calendar</h2><p className="mt-1 text-sm text-[var(--br-text-muted)]">Your next two weeks of creator work.</p></div><span className="inline-flex items-center gap-2 rounded-lg bg-[var(--br-surface-muted)] px-3 py-2 text-xs font-bold text-[var(--br-text-muted)]"><CalendarDays size={14} /> Agenda view</span></div><div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">{days.map((day) => { const dayTasks = scheduled.filter((task) => new Date(task.due_at as string).toDateString() === day.toDateString()); const isToday = day.toDateString() === new Date().toDateString(); return <div key={day.toISOString()} className={`min-h-28 rounded-xl border p-3 ${isToday ? "border-[var(--br-action)]/45 bg-[var(--br-action)]/5" : "border-[var(--br-border)]"}`}><div className="flex items-center justify-between gap-2"><p className={`text-xs font-extrabold uppercase tracking-wide ${isToday ? "text-[var(--br-action)]" : "text-[var(--br-text-muted)]"}`}>{isToday ? "Today" : day.toLocaleDateString(undefined, { weekday: "short" })}</p><p className="text-xs font-semibold text-[var(--br-text-muted)]">{day.toLocaleDateString(undefined, { month: "short", day: "numeric" })}</p></div><div className="mt-2 space-y-1.5">{dayTasks.map((task) => <div key={task.id} className={`rounded-lg px-2.5 py-2 text-xs ${task.status === "COMPLETED" ? "bg-[var(--br-success)]/10 text-[var(--br-success)] line-through" : "bg-[var(--br-brand)]/10 text-[var(--br-dark-card)]"}`}><p className="font-bold">{task.title}</p><p className="mt-0.5 opacity-70">{task.project_id ? projectMap.get(task.project_id) : "Personal"}</p></div>)}{!dayTasks.length ? <p className="pt-2 text-xs text-[var(--br-text-muted)]">Nothing scheduled</p> : null}</div></div>; })}</div>{withoutDate.length ? <div className="mt-5 border-t border-[var(--br-border)] pt-5"><h3 className="font-semibold">Needs a date</h3><div className="mt-3 grid gap-2 sm:grid-cols-2">{withoutDate.map((task) => <TaskRow key={task.id} task={task} projectMap={projectMap} />)}</div></div> : null}</section>;
 }
 
 function Overview({ projects, activeTasks, completedTasks, today, setTab, projectMap }: { projects: Project[]; activeTasks: Task[]; completedTasks: number; today: string; setTab: (tab: (typeof tabs)[number]) => void; projectMap: Map<string, string> }) {
