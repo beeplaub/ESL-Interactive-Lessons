@@ -434,6 +434,8 @@ function DatabaseBlocks({
         const type = block.type;
         const key = String(block.id || startIndex + index);
         const text = typeof block.text === "string" ? block.text : "";
+        const inlineContent = Array.isArray(block.content) ? block.content.filter((item): item is Record<string, unknown> => Boolean(item && typeof item === "object")) : [];
+        if (type === "paragraph" && inlineContent.length) return <p key={key}>{renderInlineContent(inlineContent)}</p>;
         if (type === "heading") {
           const Tag = (
             Number(block.level) === 2
@@ -446,12 +448,16 @@ function DatabaseBlocks({
                     ? "h5"
                     : "h6"
           ) as "h2" | "h3" | "h4" | "h5" | "h6";
-          return (
-            <Tag key={key} id={anchors.get(key)}>
-              {text}
-            </Tag>
-          );
+          return <Tag key={key} id={anchors.get(key)}>{inlineContent.length ? renderInlineContent(inlineContent) : text}</Tag>;
         }
+        if (type === "blockquote" && inlineContent.length) return <blockquote key={key}>{inlineContent.map((child, childIndex) => <p key={childIndex}>{Array.isArray(child.content) ? renderInlineContent(child.content.filter((item): item is Record<string, unknown> => Boolean(item && typeof item === "object"))) : ""}</p>)}</blockquote>;
+        if ((type === "bulletList" || type === "orderedList") && inlineContent.length) {
+          const Tag = type === "orderedList" ? "ol" : "ul";
+          return <Tag key={key}>{inlineContent.map((item, itemIndex) => <li key={itemIndex}>{Array.isArray(item.content) ? item.content.map((child) => { const childRecord = child && typeof child === "object" ? child as Record<string, unknown> : {}; return Array.isArray(childRecord.content) ? renderInlineContent(childRecord.content.filter((entry): entry is Record<string, unknown> => Boolean(entry && typeof entry === "object"))) : ""; }) : ""}</li>)}</Tag>;
+        }
+        if (type === "blogCallout") return <aside key={key} className="my-5 rounded-2xl border border-[var(--br-action)]/30 bg-[var(--br-action)]/5 p-4">{typeof block.attrs === "object" && block.attrs && typeof (block.attrs as Record<string, unknown>).text === "string" ? (block.attrs as Record<string, unknown>).text as string : null}</aside>;
+        if (type === "blogImage") { const attrs = block.attrs && typeof block.attrs === "object" ? block.attrs as Record<string, unknown> : {}; return typeof attrs.src === "string" && attrs.src ? <figure key={key}><img src={attrs.src} alt={typeof attrs.alt === "string" ? attrs.alt : ""} className="w-full rounded-2xl" />{typeof attrs.caption === "string" && attrs.caption ? <figcaption>{attrs.caption}</figcaption> : null}</figure> : null; }
+        if (type === "blogCta") { const attrs = block.attrs && typeof block.attrs === "object" ? block.attrs as Record<string, unknown> : {}; return <aside key={key} className="my-6 rounded-2xl bg-[var(--br-dark-card)] p-5 text-on-dark"><p className="text-lg font-black">{typeof attrs.label === "string" ? attrs.label : ""}</p>{typeof attrs.description === "string" ? <p className="mt-2 text-sm text-white/75">{attrs.description}</p> : null}</aside>; }
         if (type === "quote")
           return (
             <blockquote key={key}>
@@ -533,6 +539,21 @@ function DatabaseBlocks({
       })}
     </>
   );
+}
+
+function renderInlineContent(content: Array<Record<string, unknown>>): React.ReactNode {
+  return content.map((item, index) => {
+    if (typeof item.text !== "string") return null;
+    const marks = Array.isArray(item.marks) ? item.marks.map((mark) => mark && typeof mark === "object" ? String((mark as Record<string, unknown>).type || "") : "") : [];
+    let rendered: React.ReactNode = item.text;
+    const linkMark = Array.isArray(item.marks) ? item.marks.find((mark) => mark && typeof mark === "object" && (mark as Record<string, unknown>).type === "link") as Record<string, unknown> | undefined : undefined;
+    if (linkMark && typeof linkMark.attrs === "object" && linkMark.attrs && typeof (linkMark.attrs as Record<string, unknown>).href === "string") rendered = <a href={(linkMark.attrs as Record<string, unknown>).href as string}>{rendered}</a>;
+    if (marks.includes("bold")) rendered = <strong>{rendered}</strong>;
+    if (marks.includes("italic")) rendered = <em>{rendered}</em>;
+    if (marks.includes("strike")) rendered = <s>{rendered}</s>;
+    if (marks.includes("code")) rendered = <code>{rendered}</code>;
+    return <span key={index}>{rendered}</span>;
+  });
 }
 
 function RichParagraph({ text }: { text: string }) {

@@ -51,6 +51,9 @@ import {
   type BlogEditorialComment,
 } from "@/components/BlogReviewPanel";
 import { parseBlogRichText } from "@/lib/blog-rich-text";
+import { legacyBlocksToTiptap, normalizeBlogDocument, tiptapToLegacyBlocks } from "@/lib/blog-editor";
+import { BlogRichEditor } from "@/components/BlogRichEditor";
+import type { JSONContent } from "@tiptap/core";
 
 type BlogRole =
   | "PLATFORM_ADMIN"
@@ -218,6 +221,9 @@ export function BlogPostEditor({
   const [blocks, setBlocks] = useState<Block[]>(() =>
     normalizeBlocks(post.content),
   );
+  const [editorContent, setEditorContent] = useState<JSONContent>(() =>
+    normalizeBlogDocument(post.content),
+  );
   const [visibility, setVisibility] = useState(post.visibility);
   const [categoryIds, setCategoryIds] = useState<string[]>(post.categoryIds);
   const [tagIds, setTagIds] = useState<string[]>(post.tagIds);
@@ -266,7 +272,7 @@ export function BlogPostEditor({
       title,
       slug,
       excerpt,
-      content: { type: "doc" as const, content: blocks },
+      content: { ...editorContent, type: "doc" as const },
       visibility,
       categoryIds,
       tagIds,
@@ -291,7 +297,7 @@ export function BlogPostEditor({
       title,
       slug,
       excerpt,
-      blocks,
+      editorContent,
       visibility,
       categoryIds,
       tagIds,
@@ -468,9 +474,11 @@ export function BlogPostEditor({
           currentBlocks={blocks}
           canSave={canEdit}
           canShare={["PLATFORM_ADMIN", "EDITOR"].includes(role)}
-          onInsert={(incoming) =>
-            setBlocks((current) => [...current, ...(incoming as Block[])])
-          }
+            onInsert={(incoming) => {
+              const next = [...blocks, ...(incoming as Block[])];
+              setBlocks(next);
+              setEditorContent(legacyBlocksToTiptap(next));
+            }}
         />
         <button
           type="button"
@@ -532,34 +540,16 @@ export function BlogPostEditor({
           </div>
           <div className="space-y-3 p-4 xl:h-[calc(100vh-168px)] xl:overflow-y-auto xl:overscroll-contain sm:p-7">
             <p className="rounded-xl bg-[var(--br-surface-muted)] px-3 py-2 text-xs leading-5 text-[var(--br-text-muted)]">
-              Writing blocks keep pasted paragraphs and normal bullet or
-              numbered lists. Press Enter for a new paragraph; paste lists
-              directly from Google Docs or Word.
+              Write naturally on one continuous canvas. Press Enter for a new paragraph, use the floating toolbar for formatting, or use the insert menu on an empty line for quick actions.
             </p>
-            {blocks.map((block, index) => (
-              <BlockEditor
-                key={block.id}
-                block={block}
-                index={index}
-                total={blocks.length}
-                media={mediaAssets}
-                editable={canEdit}
-                onChange={(patch) => updateBlock(block.id, patch)}
-                onRemove={() =>
-                  setBlocks((current) =>
-                    current.filter((item) => item.id !== block.id),
-                  )
-                }
-                onMove={moveBlock}
-              />
-            ))}
-            {canEdit ? (
-              <AddBlock
-                onAdd={(type) =>
-                  setBlocks((current) => [...current, blankBlock(type)])
-                }
-              />
-            ) : null}
+            <BlogRichEditor
+              content={editorContent}
+              editable={canEdit}
+              onChange={(next) => {
+                setEditorContent(next);
+                setBlocks(tiptapToLegacyBlocks(next).map((block) => ({ ...block, id: block.id || uid() })) as Block[]);
+              }}
+            />
           </div>
         </section>
         <aside className="min-w-0 space-y-3 xl:sticky xl:top-[76px] xl:self-start">

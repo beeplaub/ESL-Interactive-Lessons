@@ -175,6 +175,91 @@ select {
   }
 }
 
+.blog-rich-editor {
+  min-height: 28rem;
+  padding: 0.25rem;
+  color: var(--br-text);
+  outline: none;
+}
+
+.blog-rich-editor:focus {
+  outline: none;
+}
+
+.blog-rich-editor > * + * {
+  margin-top: 1rem;
+}
+
+.blog-rich-editor p {
+  min-height: 1.75rem;
+  font-size: 1rem;
+  line-height: 1.85;
+}
+
+.blog-rich-editor h2,
+.blog-rich-editor h3,
+.blog-rich-editor h4 {
+  color: var(--br-dark-card);
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.blog-rich-editor h2 { font-size: 1.5rem; }
+.blog-rich-editor h3 { font-size: 1.25rem; }
+.blog-rich-editor h4 { font-size: 1.1rem; }
+
+.blog-rich-editor blockquote {
+  border-left: 3px solid var(--br-action);
+  padding-left: 1rem;
+  color: var(--br-text-muted);
+  font-style: italic;
+}
+
+.blog-rich-editor ul,
+.blog-rich-editor ol {
+  padding-left: 1.5rem;
+}
+
+.blog-rich-editor a {
+  color: var(--br-brand);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.blog-rich-editor .is-editor-empty:first-child::before {
+  color: var(--br-text-muted);
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+.blog-rich-editor .blog-callout,
+.blog-rich-editor .blog-cta,
+.blog-rich-editor .blog-image {
+  border-radius: 1rem;
+  border: 1px solid var(--br-border);
+  padding: 1rem;
+}
+
+.blog-rich-editor .blog-callout {
+  border-left: 4px solid var(--br-action);
+  background: color-mix(in srgb, var(--br-action) 7%, white);
+}
+
+.blog-rich-editor .blog-cta {
+  background: var(--br-dark-card);
+  color: var(--br-text-on-dark);
+}
+
+.blog-rich-editor .blog-image img {
+  display: block;
+  max-height: 28rem;
+  max-width: 100%;
+  margin-inline: auto;
+  object-fit: contain;
+}
+
 /* Creator builder controls use a slightly more comfortable reading scale.
    Lesson content remains unchanged so preview typography stays learner-accurate. */
 .lesson-builder-ui .text-\[9px\] {

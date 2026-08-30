@@ -352,7 +352,7 @@ type BlogPostInput = {
   slug?: string;
   coverAssetId?: string | null;
   excerpt?: string;
-  content: { type: "doc"; content: BlogBlock[] };
+  content: { type: "doc"; content?: unknown[] };
   visibility: "PUBLIC" | "UNLISTED" | "PRIVATE";
   categoryIds: string[];
   tagIds: string[];
@@ -373,17 +373,23 @@ type BlogPostInput = {
   tocIncludeH6?: boolean;
 };
 
-function contentTextFromBlocks(blocks: BlogBlock[]) {
-  return blocks
-    .flatMap((block) => [
-      block.text || "",
-      block.attribution || "",
-      ...(block.items || []),
-      block.alt || "",
-      block.caption || "",
-      block.label || "",
-      block.description || "",
-    ])
+function contentTextFromBlocks(blocks: unknown[]) {
+  const collect = (value: unknown): string[] => {
+    if (!value || typeof value !== "object") return [];
+    const item = value as Record<string, unknown>;
+    const values = [
+      typeof item.text === "string" ? item.text : "",
+      typeof item.attribution === "string" ? item.attribution : "",
+      typeof item.alt === "string" ? item.alt : "",
+      typeof item.caption === "string" ? item.caption : "",
+      typeof item.label === "string" ? item.label : "",
+      typeof item.description === "string" ? item.description : "",
+      ...(Array.isArray(item.items) ? item.items.filter((entry): entry is string => typeof entry === "string") : []),
+    ].filter(Boolean);
+    if (Array.isArray(item.content)) values.push(...item.content.flatMap(collect));
+    return values;
+  };
+  return blocks.flatMap(collect)
     .join("\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
@@ -391,7 +397,7 @@ function contentTextFromBlocks(blocks: BlogBlock[]) {
 
 function validContent(
   input: unknown,
-): input is { type: "doc"; content: BlogBlock[] } {
+): input is { type: "doc"; content: unknown[] } {
   if (!input || typeof input !== "object") return false;
   const document = input as { type?: string; content?: unknown };
   if (document.type !== "doc" || !Array.isArray(document.content)) return false;
@@ -406,6 +412,19 @@ function validContent(
       "list",
       "image",
       "cta",
+      "doc",
+      "text",
+      "paragraph",
+      "heading",
+      "blockquote",
+      "bulletList",
+      "orderedList",
+      "listItem",
+      "hardBreak",
+      "image",
+      "blogCallout",
+      "blogImage",
+      "blogCta",
     ].includes(type || "");
   });
 }
@@ -461,7 +480,7 @@ export async function saveBlogPost(
       new Set((input.categoryIds || []).filter(Boolean)),
     );
     const tagIds = Array.from(new Set((input.tagIds || []).filter(Boolean)));
-    const contentText = contentTextFromBlocks(input.content.content);
+    const contentText = contentTextFromBlocks(input.content.content || []);
     // Quiet autosaves keep the draft safe but do not turn every keystroke into
     // an editorial revision. Manual saves, workflow actions, and restores do.
     const nextVersion =
