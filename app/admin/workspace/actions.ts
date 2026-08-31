@@ -37,7 +37,8 @@ export async function createWorkspaceTask(formData: FormData) {
   const recurrence = recurrences.includes(text(formData.get("recurrence")) as typeof recurrences[number]) ? text(formData.get("recurrence")) : "NONE";
   const projectId = text(formData.get("project_id"), 60);
   const admin = createAdminClient();
-  await admin.from("creator_tasks").insert({ creator_id: user.id, project_id: projectId || null, title, description: text(formData.get("description")), status, priority, recurrence, label: text(formData.get("label"), 40) || null, due_at: dateOrNull(formData.get("due_at")), related_url: text(formData.get("related_url"), 1000) || null });
+  const { error } = await admin.from("creator_tasks").insert({ creator_id: user.id, project_id: projectId || null, title, description: text(formData.get("description")), status, priority, recurrence, label: text(formData.get("label"), 40) || null, due_at: dateOrNull(formData.get("due_at")), related_url: text(formData.get("related_url"), 1000) || null, position: 0 });
+  if (error) throw new Error(`Could not create task: ${error.message}`);
   revalidatePath("/admin/workspace");
 }
 
