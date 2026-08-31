@@ -34,6 +34,7 @@ interface CourseItemsListProps {
   courseId: string;
   initialItems: CourseItem[];
   slideCountByLessonId: Record<string, number>;
+  narrationCompleteByLessonId: Record<string, boolean>;
   questionCountByQuizId: Record<string, number>;
   lessonOptions: LessonOption[];
   quizOptions: QuizOption[];
@@ -47,6 +48,7 @@ export function CourseItemsList({
   courseId,
   initialItems,
   slideCountByLessonId,
+  narrationCompleteByLessonId,
   questionCountByQuizId,
   lessonOptions,
   quizOptions,
@@ -187,6 +189,7 @@ export function CourseItemsList({
                 label={label}
                 status={status}
                 count={count}
+                narrationComplete={item.item_type === "LESSON" && item.lesson_id ? narrationCompleteByLessonId[item.lesson_id] === true : undefined}
                 sections={sectionOptions}
                 lessons={lessonOptions}
                 quizzes={quizOptions}

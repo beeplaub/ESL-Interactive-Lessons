@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { BookOpen, Check, CheckCircle2, CircleDashed, Edit3, ExternalLink as ExternalLinkIcon, FileText, Hammer, HelpCircle, Search, Target, Trash2, X } from "lucide-react";
+import { BookOpen, Check, CheckCircle2, CircleDashed, Edit3, ExternalLink as ExternalLinkIcon, FileText, Hammer, HelpCircle, Mic2, Search, Target, Trash2, X } from "lucide-react";
 import { useDeleteConfirm } from "@/components/DeleteConfirmModal";
 
 type Option = { id: string; title: string; level: string | null; topic: string | null; status: string };
@@ -47,12 +47,13 @@ type Props = {
   label: string;
   status?: string | null;
   count?: number | null;
+  narrationComplete?: boolean;
   sections: SectionOption[];
   lessons: Option[];
   quizzes: Option[];
 };
 
-export function EditItemModal({ action, deleteAction, item, label, status, count, sections, lessons, quizzes }: Props) {
+export function EditItemModal({ action, deleteAction, item, label, status, count, narrationComplete, sections, lessons, quizzes }: Props) {
   const TypeIcon = itemTypeIcons[item.item_type];
   const [open, setOpen] = useState(false);
   const [itemType, setItemType] = useState<typeof itemTypes[number]>(item.item_type);
@@ -156,6 +157,11 @@ export function EditItemModal({ action, deleteAction, item, label, status, count
               <span title="Published" className="shrink-0"><CheckCircle2 size={13} className="text-emerald-600" aria-label="Published" /></span>
             ) : status === "DRAFT" ? (
               <span title="Draft" className="shrink-0"><CircleDashed size={13} className="text-amber-500" aria-label="Draft" /></span>
+            ) : null}
+            {item.item_type === "LESSON" ? (
+              <span title={narrationComplete ? "Every slide has audio narration" : "One or more slides need audio narration"} className="shrink-0">
+                <Mic2 size={13} className={narrationComplete ? "text-emerald-600" : "text-amber-500"} aria-label={narrationComplete ? "Narration complete" : "Narration incomplete"} />
+              </span>
             ) : null}
           </p>
           <p className="mt-0.5 text-xs text-[var(--br-text-muted)]">{item.item_type.replaceAll("_", " ")}{item.is_free_preview ? " \u00b7 Free preview" : ""}{item.bypass_sequential_unlock ? " \u00b7 Open access" : ""}{item.is_required ? " \u00b7 Required" : " \u00b7 Optional"}</p>

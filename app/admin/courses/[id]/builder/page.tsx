@@ -177,12 +177,31 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
   };
   const lessonItemRows = courseItems.filter((item) => item.item_type === "LESSON" && item.lesson_id);
   const courseLessonIds = lessonItemRows.map((item) => item.lesson_id).filter((value): value is string => Boolean(value));
-  const { data: courseLessonSlides } = courseLessonIds.length
-    ? await admin.from("slides").select("lesson_id").in("lesson_id", courseLessonIds)
-    : { data: [] as { lesson_id: string }[] };
+  const [{ data: courseLessonSlides }, { data: courseLessonNarrations }] = courseLessonIds.length
+    ? await Promise.all([
+        admin.from("slides").select("id,lesson_id").in("lesson_id", courseLessonIds).is("deleted_at", null),
+        admin.from("lesson_audio_files").select("lesson_id,slide_id").in("lesson_id", courseLessonIds).eq("label", "narration"),
+      ])
+    : [{ data: [] as { id: string; lesson_id: string }[] }, { data: [] as { lesson_id: string; slide_id: string | null }[] }];
   const slideCounts: Record<string, number> = {};
+  const slideIdsByLessonId: Record<string, string[]> = {};
   for (const slide of courseLessonSlides ?? []) {
     slideCounts[slide.lesson_id] = (slideCounts[slide.lesson_id] ?? 0) + 1;
+    slideIdsByLessonId[slide.lesson_id] = [...(slideIdsByLessonId[slide.lesson_id] ?? []), slide.id];
+  }
+  const narratedSlideIdsByLessonId: Record<string, Set<string>> = {};
+  for (const narration of courseLessonNarrations ?? []) {
+    if (!narration.slide_id) continue;
+    narratedSlideIdsByLessonId[narration.lesson_id] = new Set([
+      ...(narratedSlideIdsByLessonId[narration.lesson_id] ?? []),
+      narration.slide_id,
+    ]);
+  }
+  const narrationCompleteByLessonId: Record<string, boolean> = {};
+  for (const lessonId of courseLessonIds) {
+    const slideIds = slideIdsByLessonId[lessonId] ?? [];
+    const narratedIds = narratedSlideIdsByLessonId[lessonId] ?? new Set<string>();
+    narrationCompleteByLessonId[lessonId] = slideIds.length > 0 && slideIds.every((slideId) => narratedIds.has(slideId));
   }
   const questionCounts: Record<string, number> = {};
   for (const question of courseQuizQuestions ?? []) {
@@ -281,6 +300,7 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
           courseId={course.id}
           initialItems={sectionItems}
           slideCountByLessonId={slideCounts}
+          narrationCompleteByLessonId={narrationCompleteByLessonId}
           questionCountByQuizId={questionCounts}
           lessonOptions={lessonOptions}
           quizOptions={quizOptions}
