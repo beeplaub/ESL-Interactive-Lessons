@@ -177,12 +177,13 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
   };
   const lessonItemRows = courseItems.filter((item) => item.item_type === "LESSON" && item.lesson_id);
   const courseLessonIds = lessonItemRows.map((item) => item.lesson_id).filter((value): value is string => Boolean(value));
-  const [{ data: courseLessonSlides }, { data: courseLessonNarrations }] = courseLessonIds.length
+  const [{ data: courseLessonSlides }, { data: courseLessonNarrations }, { data: courseLessonBlocks }] = courseLessonIds.length
     ? await Promise.all([
         admin.from("slides").select("id,lesson_id").in("lesson_id", courseLessonIds).is("deleted_at", null),
-        admin.from("lesson_audio_files").select("lesson_id,slide_id").in("lesson_id", courseLessonIds).eq("label", "narration"),
+        admin.from("lesson_audio_files").select("lesson_id,slide_id,glossary").in("lesson_id", courseLessonIds).eq("label", "narration"),
+        admin.from("lesson_blocks").select("lesson_id,slide_id,block_type,content").in("lesson_id", courseLessonIds),
       ])
-    : [{ data: [] as { id: string; lesson_id: string }[] }, { data: [] as { lesson_id: string; slide_id: string | null }[] }];
+    : [{ data: [] as { id: string; lesson_id: string }[] }, { data: [] as { lesson_id: string; slide_id: string | null; glossary?: unknown }[] }, { data: [] as { lesson_id: string; slide_id: string; block_type: string; content: unknown }[] }];
   const slideCounts: Record<string, number> = {};
   const slideIdsByLessonId: Record<string, string[]> = {};
   for (const slide of courseLessonSlides ?? []) {
@@ -197,11 +198,40 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
       narration.slide_id,
     ]);
   }
+  const glossarySlideIdsByLessonId: Record<string, Set<string>> = {};
+  const markGlossarySlide = (lessonId: string, slideId: string | null) => {
+    if (!slideId) return;
+    glossarySlideIdsByLessonId[lessonId] = new Set([
+      ...(glossarySlideIdsByLessonId[lessonId] ?? []),
+      slideId,
+    ]);
+  };
+  const hasGlossaryEntries = (value: unknown): boolean => {
+    if (Array.isArray(value)) return value.some((entry) => {
+      if (typeof entry === "string") return entry.trim().length > 0;
+      if (!entry || typeof entry !== "object") return false;
+      const record = entry as Record<string, unknown>;
+      return Object.values(record).some((field) => typeof field === "string" && field.trim().length > 0);
+    });
+    return false;
+  };
+  for (const narration of courseLessonNarrations ?? []) {
+    if (hasGlossaryEntries(narration.glossary)) markGlossarySlide(narration.lesson_id, narration.slide_id);
+  }
+  for (const block of courseLessonBlocks ?? []) {
+    if (block.block_type !== "VOCABULARY" && block.block_type !== "GLOSSARY") continue;
+    const content = block.content && typeof block.content === "object" ? block.content as Record<string, unknown> : {};
+    const entries = content.entries ?? content.words ?? content.items ?? content.terms ?? content.cards;
+    if (hasGlossaryEntries(entries)) markGlossarySlide(block.lesson_id, block.slide_id);
+  }
   const narrationCompleteByLessonId: Record<string, boolean> = {};
+  const glossaryCompleteByLessonId: Record<string, boolean> = {};
   for (const lessonId of courseLessonIds) {
     const slideIds = slideIdsByLessonId[lessonId] ?? [];
     const narratedIds = narratedSlideIdsByLessonId[lessonId] ?? new Set<string>();
+    const glossaryIds = glossarySlideIdsByLessonId[lessonId] ?? new Set<string>();
     narrationCompleteByLessonId[lessonId] = slideIds.length > 0 && slideIds.every((slideId) => narratedIds.has(slideId));
+    glossaryCompleteByLessonId[lessonId] = slideIds.length > 0 && slideIds.every((slideId) => glossaryIds.has(slideId));
   }
   const questionCounts: Record<string, number> = {};
   for (const question of courseQuizQuestions ?? []) {
@@ -301,6 +331,7 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
           initialItems={sectionItems}
           slideCountByLessonId={slideCounts}
           narrationCompleteByLessonId={narrationCompleteByLessonId}
+          glossaryCompleteByLessonId={glossaryCompleteByLessonId}
           questionCountByQuizId={questionCounts}
           lessonOptions={lessonOptions}
           quizOptions={quizOptions}
