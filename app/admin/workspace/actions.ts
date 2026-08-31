@@ -76,7 +76,7 @@ export async function updateWorkspaceTask(formData: FormData) {
   const status = statuses.includes(statusValue as typeof statuses[number]) ? statusValue : "TODO";
   const priority = priorities.includes(priorityValue as typeof priorities[number]) ? priorityValue : "NORMAL";
   const recurrence = recurrences.includes(text(formData.get("recurrence")) as typeof recurrences[number]) ? text(formData.get("recurrence")) : "NONE";
-  await createAdminClient().from("creator_tasks").update({ title, description: text(formData.get("description")), status, priority, recurrence, label: text(formData.get("label"), 40) || null, due_at: dateOrNull(formData.get("due_at")), related_url: text(formData.get("related_url"), 1000) || null, completed_at: status === "COMPLETED" ? new Date().toISOString() : null, updated_at: new Date().toISOString() }).eq("id", id).eq("creator_id", user.id);
+  await createAdminClient().from("creator_tasks").update({ title, description: text(formData.get("description")), project_id: text(formData.get("project_id"), 60) || null, status, priority, recurrence, label: text(formData.get("label"), 40) || null, due_at: dateOrNull(formData.get("due_at")), related_url: text(formData.get("related_url"), 1000) || null, completed_at: status === "COMPLETED" ? new Date().toISOString() : null, updated_at: new Date().toISOString() }).eq("id", id).eq("creator_id", user.id);
   revalidatePath("/admin/workspace");
 }
 
