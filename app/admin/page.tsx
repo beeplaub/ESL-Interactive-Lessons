@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { ArrowRight, BarChart3, BookOpen, Building2, ClipboardList, FileCheck, FlaskConical, GraduationCap, Images, Library, PenSquare, Plus, UsersRound } from "lucide-react";
 import { requireStaff, isPlatformAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -10,6 +11,7 @@ type ActivityEvent = { id: string; at: string; node: React.ReactNode };
 
 export default async function AdminPage() {
   const { user, profile } = await requireStaff();
+  if (!isPlatformAdmin(profile?.role)) redirect("/admin/workspace");
   const admin = createAdminClient();
 
   if (!isPlatformAdmin(profile?.role)) {

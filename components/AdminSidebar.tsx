@@ -64,7 +64,6 @@ const groups: NavGroup[] = [
     label: "Build",
     Icon: BookOpen,
   links: [
-      { href: "/admin/workspace", label: "Workspace", Icon: NotebookTabs, roles: ALL_STAFF },
       { href: "/admin/courses", label: "Courses", Icon: GraduationCap, roles: ALL_STAFF },
       { href: "/admin/lessons", label: "Lessons", Icon: BookOpen, roles: ALL_STAFF },
       { href: "/admin/quizzes", label: "Quizzes", Icon: ClipboardList, roles: ALL_STAFF },
@@ -213,6 +212,14 @@ export function AdminSidebar({
 
   const navigation = (
     <>
+      <Link
+        href="/admin/workspace"
+        title={navigationCollapsed ? "Workspace" : undefined}
+        className={`flex min-w-0 items-center gap-2 rounded-lg px-2 py-2 text-sm ${pathname === "/admin/workspace" ? "bg-[var(--br-surface-muted)] font-semibold text-[var(--br-brand)]" : "text-[var(--br-text-muted)] hover:bg-[var(--br-surface-muted)]"} ${navigationCollapsed ? "justify-center" : ""}`}
+      >
+        <NotebookTabs size={17} className="shrink-0" />
+        {!navigationCollapsed ? <span>Workspace</span> : null}
+      </Link>
       <Link
         href="/admin"
         title={navigationCollapsed ? "Overview" : undefined}
