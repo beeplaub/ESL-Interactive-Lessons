@@ -644,6 +644,16 @@ select {
   box-shadow: 0 24px 70px rgba(24, 23, 52, 0.24);
 }
 
+.workspace-shell details[open]::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: rgba(15, 15, 36, 0.42);
+  backdrop-filter: blur(3px);
+  pointer-events: none;
+}
+
 .workspace-popup-close {
   position: sticky;
   top: 0;
@@ -661,6 +671,16 @@ select {
   font-size: 1.25rem;
   line-height: 1;
   cursor: pointer;
+}
+
+.workspace-new-task > form::before {
+  content: "Create a new task";
+  display: block;
+  padding: 0 0 0.5rem;
+  border-bottom: 1px solid var(--br-border);
+  color: var(--br-text);
+  font-size: 1.05rem;
+  font-weight: 700;
 }
 
 /* Keep anchored action popovers usable when they are opened near an edge. */
