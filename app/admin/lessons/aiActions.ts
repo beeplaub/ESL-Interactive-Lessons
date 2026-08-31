@@ -497,6 +497,7 @@ export async function submitRoleplayTurnAction(sessionId: string, learnerText: s
     const character = scenarioMeta[1]?.replace("Partner:", "").trim() || "";
 
     // B. Call Gemini
+    let engine: "ollama" | "google" | "groq" = "ollama";
     const response = await callGemini<any>({
       templateKey: "learner_roleplay_coach",
       variables: {
@@ -507,7 +508,8 @@ export async function submitRoleplayTurnAction(sessionId: string, learnerText: s
         history: historyStr
       },
       responseSchema: roleplayTurnSchema,
-      context: { userId: user.id, userRole: profile.role, provider: "ollama", cefrLevel: session.cefr_level, cache: false }
+      context: { userId: user.id, userRole: profile.role, provider: "ollama", cefrLevel: session.cefr_level, cache: false },
+      onProviderUsed: ({ provider }) => { engine = provider; }
     });
 
     // C. Insert learner turn with corrections metadata
@@ -527,7 +529,8 @@ export async function submitRoleplayTurnAction(sessionId: string, learnerText: s
 
     return {
       characterReply: response.character_reply,
-      corrections: response.corrections
+      corrections: response.corrections,
+      engine
     };
   } catch (error: any) {
     console.error("Error in submitRoleplayTurnAction:", error);

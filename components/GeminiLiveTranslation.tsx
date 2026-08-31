@@ -230,11 +230,12 @@ export async function startSpeakTranslation({ lessonId, activityId, onAudio, onT
  * and, when requested, recorded locally at the same time for one R2 upload at
  * the end of the attempt. No recording is uploaded by this function itself.
  */
-export async function startLiveConversation({ lessonId, activityId, onAudio, onTranscript, onReady, onError }: {
+export async function startLiveConversation({ lessonId, activityId, onAudio, onTranscript, onEngine, onReady, onError }: {
   lessonId: string;
   activityId: string;
   onAudio: (data: string) => void;
   onTranscript?: (sender: "LEARNER" | "AI", text: string) => void;
+  onEngine?: (engine: "google") => void;
   onReady: (stop: () => Promise<{ recording: Blob | null; durationSeconds: number }>, maxSeconds: number) => void;
   onError: (message: string) => void;
 }) {
@@ -272,6 +273,7 @@ export async function startLiveConversation({ lessonId, activityId, onAudio, onT
         onerror: () => onError("The AI conversation connection was interrupted."),
       },
     });
+    onEngine?.("google");
     stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
     const mimeType = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"].find((candidate) => MediaRecorder.isTypeSupported(candidate));
     recorder = new MediaRecorder(mixDestination.stream, mimeType ? { mimeType, audioBitsPerSecond: 48_000 } : { audioBitsPerSecond: 48_000 });

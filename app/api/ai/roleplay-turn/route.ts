@@ -10,7 +10,7 @@ export const maxDuration = 120;
 
 const MAX_TURN_BYTES = 4 * 1024 * 1024;
 const MAX_TURN_SECONDS = 15;
-type TurnResult = { transcript: string; reply: string; corrections: unknown; audioBase64: string; mimeType: string };
+type TurnResult = { transcript: string; reply: string; corrections: unknown; audioBase64: string; mimeType: string; engine: "ollama" | "google" | "groq" };
 const inFlight = new Map<string, Promise<TurnResult>>();
 const completed = new Map<string, { result: TurnResult; expiresAt: number }>();
 
@@ -75,6 +75,7 @@ export async function POST(request: Request) {
     let transcript = "";
     let reply: string;
     let corrections: unknown = { has_errors: false, errors: [] };
+    let engine: "ollama" | "google" | "groq" = "ollama";
     if (opening) {
       reply = String(config.first_turn || "Hello! Shall we begin?");
     } else {
@@ -91,6 +92,7 @@ export async function POST(request: Request) {
         },
         responseSchema: roleplayTurnSchema,
         context: { userId: user.id, userRole: "LEARNER", provider: "ollama", featureKey: "learner_roleplay_turn", cefrLevel: session.cefr_level, cache: false },
+        onProviderUsed: ({ provider }) => { engine = provider; },
       });
       reply = String(response.character_reply || "Thanks. Please continue.");
       corrections = response.corrections;
@@ -100,7 +102,7 @@ export async function POST(request: Request) {
     const generated = await generateVoiceoverAudio({ script: reply, voiceName, languageCode: "en-US", style: "Natural", pace: "Natural", provider: "kokoro", outputFormat: "opus" });
     const { error: aiError } = await admin.from("ai_roleplay_messages").insert({ session_id: sessionId, sender: "AI", message_text: reply });
     if (aiError) throw aiError;
-    const result = { transcript, reply, corrections, audioBase64: Buffer.from(generated.audio).toString("base64"), mimeType: generated.mimeType };
+    const result = { transcript, reply, corrections, audioBase64: Buffer.from(generated.audio).toString("base64"), mimeType: generated.mimeType, engine };
     completed.set(key, { result, expiresAt: Date.now() + 10 * 60 * 1000 });
     return result;
   })();

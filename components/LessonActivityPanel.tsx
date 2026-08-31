@@ -764,6 +764,13 @@ function LiveSpeakTranslatePanel({ activity, lessonId, previewOnly, onNext }: { 
 
 type ChatMessage = { sender: "AI" | "LEARNER"; text: string; corrections?: any };
 
+function roleplayEngineLabel(engine?: string) {
+  if (engine === "google") return "Powered by Gemini";
+  if (engine === "groq") return "Powered by Groq";
+  if (engine === "ollama") return "Powered by BrenUp AI";
+  return null;
+}
+
 function VoiceRoleplayPanel({ activity, lessonId, onNext, previewOnly, onSavedAttempt }: { activity: LessonSlideActivity; lessonId: string | null; onNext: () => void; previewOnly?: boolean; onSavedAttempt?: (attempt: SavedAttempt) => void }) {
   const data = asRecord(activity.activity_data);
   const isInterview = activity.activity_type === "AI_INTERVIEW";
@@ -783,6 +790,7 @@ function VoiceRoleplayPanel({ activity, lessonId, onNext, previewOnly, onSavedAt
   const [error, setError] = useState<string | null>(null);
   const [scorecard, setScorecard] = useState<any>(null);
   const [aiSpeaking, setAiSpeaking] = useState(false);
+  const [engineLabel, setEngineLabel] = useState<string | null>(null);
   const [hint, setHint] = useState<string | null>(null);
   const [hintLoading, setHintLoading] = useState(false);
   const [pastRecordings, setPastRecordings] = useState<Array<{ id: string; duration_seconds: number; transcript: string | null; created_at: string; expires_at: string }>>([]);
@@ -885,7 +893,7 @@ function VoiceRoleplayPanel({ activity, lessonId, onNext, previewOnly, onSavedAt
       if (session.error || !session.sessionId) throw new Error(session.error || "Could not start the conversation.");
       setSessionId(session.sessionId);
       setTranscript([]);
-      await startLiveConversation({ lessonId, activityId: activity.id, onAudio: markAiSpeaking, onTranscript: addTranscript, onReady: (stop, allowedSeconds) => { stopRef.current = stop; setSecondsLeft(Math.min(maxSeconds, allowedSeconds)); setPhase("recording"); }, onError: (message) => { setError(message); setPhase("idle"); } });
+      await startLiveConversation({ lessonId, activityId: activity.id, onAudio: markAiSpeaking, onTranscript: addTranscript, onEngine: (engine) => setEngineLabel(roleplayEngineLabel(engine)), onReady: (stop, allowedSeconds) => { stopRef.current = stop; setSecondsLeft(Math.min(maxSeconds, allowedSeconds)); setPhase("recording"); }, onError: (message) => { setError(message); setPhase("idle"); } });
       } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not start the speaking practice."); setPhase("idle");
     }
@@ -949,7 +957,7 @@ function VoiceRoleplayPanel({ activity, lessonId, onNext, previewOnly, onSavedAt
           ) : <Mic size={25} className={`relative text-[var(--br-action)] ${aiSpeaking ? "animate-pulse motion-reduce:animate-none" : ""}`} aria-hidden="true" />}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-white/10 px-2 py-1 text-[10px] font-bold uppercase tracking-wide">AI speaking partner</span>{aiSpeaking ? <span className="flex items-center gap-1.5 text-xs font-semibold text-[var(--br-action)]"><span className="size-1.5 animate-pulse rounded-full bg-[var(--br-action)]" />Speaking</span> : null}</div>
+          <div className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-white/10 px-2 py-1 text-[10px] font-bold uppercase tracking-wide">AI speaking partner</span>{engineLabel ? <span className="text-[10px] font-medium tracking-wide text-white/55">{engineLabel}</span> : null}{aiSpeaking ? <span className="flex items-center gap-1.5 text-xs font-semibold text-[var(--br-action)]"><span className="size-1.5 animate-pulse rounded-full bg-[var(--br-action)]" />Speaking</span> : null}</div>
           <h2 className="mt-2 truncate text-lg font-semibold sm:text-xl">{character}</h2>
           <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-white/75">{isInterview ? "A friendly AI interviewer will ask questions based on your study material." : scenario}</p>
         </div>
@@ -986,6 +994,7 @@ function TurnBasedVoiceRoleplayPanel({ activity, lessonId, onNext, previewOnly, 
   const [secondsLeft, setSecondsLeft] = useState(maxSeconds);
   const [error, setError] = useState<string | null>(null);
   const [scorecard, setScorecard] = useState<any>(null);
+  const [engineLabel, setEngineLabel] = useState<string | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -1007,11 +1016,12 @@ function TurnBasedVoiceRoleplayPanel({ activity, lessonId, onNext, previewOnly, 
 
   async function requestTurn(form: FormData) {
     const response = await fetch("/api/ai/roleplay-turn", { method: "POST", body: form });
-    const body = await response.json() as { transcript?: string; reply?: string; corrections?: any; audioBase64?: string; mimeType?: string; error?: string };
+    const body = await response.json() as { transcript?: string; reply?: string; corrections?: any; audioBase64?: string; mimeType?: string; engine?: string; error?: string };
     if (!response.ok || !body.reply || !body.audioBase64 || !body.mimeType) throw new Error(body.error || "The speaking reply could not be prepared.");
     const reply = body.reply;
     const audioBase64 = body.audioBase64;
     const mimeType = body.mimeType;
+    setEngineLabel(roleplayEngineLabel(body.engine));
     setMessages((current) => [...current, ...(body.transcript ? [{ sender: "LEARNER" as const, text: body.transcript }] : []), { sender: "AI", text: reply, corrections: body.corrections }]);
     setState("speaking");
     const audioUrl = URL.createObjectURL(audioBlobFromBase64(audioBase64, mimeType));
@@ -1079,7 +1089,7 @@ function TurnBasedVoiceRoleplayPanel({ activity, lessonId, onNext, previewOnly, 
   if (state === "done") return <section className="rounded-2xl border border-[var(--br-border)] bg-surface p-5 shadow-[var(--br-shadow-card)]"><p className="text-sm font-bold text-moss">Speaking practice complete</p><p className="mt-2 text-sm text-[var(--br-text-muted)]">Your conversation score: {scorecard?.scores?.overall ?? "–"}/100.</p><button type="button" onClick={onNext} className="mt-4 rounded-xl bg-dark px-4 py-2.5 text-sm font-bold text-on-dark">Continue</button></section>;
   const status = state === "starting" ? "Preparing your partner…" : state === "listening" ? `Listening… ${secondsLeft}s` : state === "transcribing" || state === "thinking" ? "Thinking…" : state === "speaking" ? "Speaking…" : state === "finishing" ? "Reviewing your conversation…" : "Ready when you are";
   const canFinish = sessionId && messages.some((message) => message.sender === "LEARNER");
-  return <section className="overflow-hidden rounded-2xl border border-[var(--br-border)] bg-surface shadow-[var(--br-shadow-card)]"><div className="bg-dark p-5 text-on-dark"><p className="text-xs font-extrabold uppercase tracking-wide text-[var(--br-action)]">Turn-based speaking practice</p><h2 className="mt-2 text-xl font-bold">{learnerInstruction}</h2><p className="mt-2 text-sm text-white/70">Speak for up to {maxSeconds} seconds, then {character} will answer.</p></div><div className="space-y-4 p-4 sm:p-5">{showTranscript ? <div className="max-h-64 space-y-2 overflow-y-auto rounded-xl bg-[var(--br-surface-muted)] p-3">{messages.length ? messages.map((message, index) => <div key={index} className={`max-w-[88%] rounded-xl px-3 py-2.5 text-sm ${message.sender === "LEARNER" ? "ml-auto bg-moss text-on-dark" : "mr-auto border border-[var(--br-border)] bg-surface text-ink"}`}><p className="mb-0.5 text-[10px] font-semibold uppercase opacity-65">{message.sender === "AI" ? character : "You"}</p><p className="whitespace-pre-wrap">{message.text}</p></div>) : <p className="py-6 text-center text-sm text-[var(--br-text-muted)]">{character} will speak first.</p>}</div> : null}{error ? <p className="text-xs font-semibold text-coral">{error}</p> : null}<div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--br-border)] pt-4"><button type="button" onClick={sessionId ? (state === "listening" ? () => recorderRef.current?.stop() : recordTurn) : start} disabled={state === "starting" || state === "transcribing" || state === "thinking" || state === "speaking" || state === "finishing"} className={`rounded-xl px-5 py-2.5 text-sm font-bold text-on-dark disabled:opacity-50 ${state === "listening" ? "bg-coral" : "bg-[var(--br-action)]"}`}>{state === "listening" ? "Finish turn" : sessionId ? "Speak" : "Start conversation"}</button>{canFinish && state === "idle" ? <button type="button" onClick={() => void finish()} className="rounded-xl border border-[var(--br-border)] px-4 py-2.5 text-sm font-bold text-ink">Finish practice</button> : null}<span className="text-xs font-semibold text-[var(--br-text-muted)]">{status}</span></div></div></section>;
+  return <section className="overflow-hidden rounded-2xl border border-[var(--br-border)] bg-surface shadow-[var(--br-shadow-card)]"><div className="bg-dark p-5 text-on-dark"><div className="flex flex-wrap items-center gap-2"><p className="text-xs font-extrabold uppercase tracking-wide text-[var(--br-action)]">Turn-based speaking practice</p>{engineLabel ? <span className="text-[10px] font-medium tracking-wide text-white/55">{engineLabel}</span> : null}</div><h2 className="mt-2 text-xl font-bold">{learnerInstruction}</h2><p className="mt-2 text-sm text-white/70">Speak for up to {maxSeconds} seconds, then {character} will answer.</p></div><div className="space-y-4 p-4 sm:p-5">{showTranscript ? <div className="max-h-64 space-y-2 overflow-y-auto rounded-xl bg-[var(--br-surface-muted)] p-3">{messages.length ? messages.map((message, index) => <div key={index} className={`max-w-[88%] rounded-xl px-3 py-2.5 text-sm ${message.sender === "LEARNER" ? "ml-auto bg-moss text-on-dark" : "mr-auto border border-[var(--br-border)] bg-surface text-ink"}`}><p className="mb-0.5 text-[10px] font-semibold uppercase opacity-65">{message.sender === "AI" ? character : "You"}</p><p className="whitespace-pre-wrap">{message.text}</p></div>) : <p className="py-6 text-center text-sm text-[var(--br-text-muted)]">{character} will speak first.</p>}</div> : null}{error ? <p className="text-xs font-semibold text-coral">{error}</p> : null}<div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--br-border)] pt-4"><button type="button" onClick={sessionId ? (state === "listening" ? () => recorderRef.current?.stop() : recordTurn) : start} disabled={state === "starting" || state === "transcribing" || state === "thinking" || state === "speaking" || state === "finishing"} className={`rounded-xl px-5 py-2.5 text-sm font-bold text-on-dark disabled:opacity-50 ${state === "listening" ? "bg-coral" : "bg-[var(--br-action)]"}`}>{state === "listening" ? "Finish turn" : sessionId ? "Speak" : "Start conversation"}</button>{canFinish && state === "idle" ? <button type="button" onClick={() => void finish()} className="rounded-xl border border-[var(--br-border)] px-4 py-2.5 text-sm font-bold text-ink">Finish practice</button> : null}<span className="text-xs font-semibold text-[var(--br-text-muted)]">{status}</span></div></div></section>;
 }
 
 function AiRoleplayPanel(props: {
@@ -1122,6 +1132,7 @@ function TextRoleplayPanel({
   const [input, setInput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [scorecard, setScorecard] = useState<any>(null);
+  const [engineLabel, setEngineLabel] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -1221,6 +1232,7 @@ function TextRoleplayPanel({
           setInput(text);
           return;
         }
+        setEngineLabel(roleplayEngineLabel((result as any).engine));
         setMessages((prev) => [
           ...prev,
           { sender: "AI", text: (result as any).characterReply, corrections: (result as any).corrections }
@@ -1548,7 +1560,7 @@ function TextRoleplayPanel({
     <section className="rounded-lg border border-[var(--br-border)] bg-surface shadow-sm overflow-hidden">
       {/* Header */}
       <div className="p-4 border-b border-[var(--br-border)] bg-gradient-to-r from-emerald-50 to-teal-50">
-        <p className="text-xs font-semibold uppercase tracking-wide text-moss">Live Conversation</p>
+        <div className="flex flex-wrap items-center gap-2"><p className="text-xs font-semibold uppercase tracking-wide text-moss">Live Conversation</p>{engineLabel ? <span className="text-[10px] font-medium tracking-wide text-[var(--br-text-muted)]">{engineLabel}</span> : null}</div>
         <p className="text-sm text-[var(--br-text-muted)] mt-0.5">Speaking with <strong className="text-[var(--br-text-muted)]">{character}</strong> · {scenario}</p>
       </div>
 
