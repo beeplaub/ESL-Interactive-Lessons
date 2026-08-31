@@ -771,6 +771,38 @@ function roleplayEngineLabel(engine?: string) {
   return null;
 }
 
+function RoleplayHeader({ character, instruction, characterImageUrl, engineLabel, status, icon: Icon = Mic }: {
+  character: string;
+  instruction: string;
+  characterImageUrl?: string;
+  engineLabel?: string | null;
+  status?: string;
+  icon?: typeof Mic;
+}) {
+  const cleanImageUrl = characterImageUrl?.trim();
+  return <div className="relative overflow-hidden bg-dark px-4 py-5 text-on-dark sm:px-5">
+    <div className="absolute -right-12 -top-12 size-36 rounded-full bg-[var(--br-action)]/15 blur-2xl" aria-hidden="true" />
+    <div className="relative flex items-center gap-4">
+      <div className="relative grid size-16 shrink-0 place-items-center rounded-full bg-[var(--br-action)]/15 ring-1 ring-white/20">
+        {status === "Speaking" ? <><span className="absolute inset-0 animate-ping rounded-full bg-[var(--br-action)]/25 motion-reduce:animate-none" /><span className="absolute -inset-1 animate-pulse rounded-full border-2 border-[var(--br-action)]/70 motion-reduce:animate-none" /></> : null}
+        {cleanImageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element -- creator media can come from R2 or an approved external URL
+          <img src={cleanImageUrl} alt="" className="relative size-16 rounded-full object-cover" />
+        ) : <Icon size={25} className={`relative text-[var(--br-action)] ${status === "Speaking" ? "animate-pulse motion-reduce:animate-none" : ""}`} aria-hidden="true" />}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="rounded-full bg-white/10 px-2 py-1 text-[10px] font-bold uppercase tracking-wide">AI speaking partner</span>
+          {engineLabel ? <span className="text-[10px] font-medium tracking-wide text-white/55">{engineLabel}</span> : null}
+          {status ? <span className={`text-xs font-semibold ${status === "Speaking" ? "flex items-center gap-1.5 text-[var(--br-action)]" : "text-white/60"}`}>{status === "Speaking" ? <span className="size-1.5 animate-pulse rounded-full bg-[var(--br-action)]" /> : null}{status}</span> : null}
+        </div>
+        <h2 className="mt-2 truncate text-lg font-semibold sm:text-xl">{character}</h2>
+        <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-white/75">{instruction}</p>
+      </div>
+    </div>
+  </div>;
+}
+
 function VoiceRoleplayPanel({ activity, lessonId, onNext, previewOnly, onSavedAttempt }: { activity: LessonSlideActivity; lessonId: string | null; onNext: () => void; previewOnly?: boolean; onSavedAttempt?: (attempt: SavedAttempt) => void }) {
   const data = asRecord(activity.activity_data);
   const isInterview = activity.activity_type === "AI_INTERVIEW";
@@ -946,23 +978,7 @@ function VoiceRoleplayPanel({ activity, lessonId, onNext, previewOnly, onSavedAt
   if (phase === "done") return <section className="rounded-xl border border-[var(--br-border)] bg-surface p-5 shadow-sm"><div className="flex items-center gap-2 text-moss"><ShieldCheck size={18} /><p className="text-sm font-semibold">Speaking practice complete</p></div><p className="mt-2 text-sm text-[var(--br-text-muted)]">{scorecard?.scores?.overall ? `Your conversation score: ${scorecard.scores.overall}/100.` : "Your conversation has been saved."}</p>{recordingUrl ? <audio controls src={recordingUrl} className="mt-4 h-9 w-full" aria-label="Your saved speaking recording" /> : null}{recordingId && allowDownload ? <button type="button" onClick={() => downloadRecording()} className="mt-4 inline-flex items-center gap-2 rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm font-semibold"><Download size={15} /> Download recording</button> : null}<button type="button" onClick={onNext} className="mt-4 ml-2 inline-flex items-center gap-2 rounded-lg bg-dark px-3 py-2 text-sm font-semibold text-on-dark">Next <ChevronRight size={15} /></button></section>;
 
   return <section className="overflow-hidden rounded-2xl border border-[var(--br-border)] bg-surface shadow-[var(--br-shadow-card)]">
-    <div className="relative overflow-hidden bg-dark px-4 py-5 text-on-dark sm:px-5">
-      <div className="absolute -right-12 -top-12 size-36 rounded-full bg-[var(--br-action)]/15 blur-2xl" aria-hidden="true" />
-      <div className="relative flex items-center gap-4">
-        <div className="relative grid size-16 shrink-0 place-items-center rounded-full bg-[var(--br-action)]/15 ring-1 ring-white/20">
-          {aiSpeaking ? <><span className="absolute inset-0 animate-ping rounded-full bg-[var(--br-action)]/25 motion-reduce:animate-none" /><span className="absolute -inset-1 animate-pulse rounded-full border-2 border-[var(--br-action)]/70 motion-reduce:animate-none" /></> : null}
-          {characterImageUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element -- creator media can come from R2 or an approved external URL
-            <img src={characterImageUrl} alt="" className="relative size-16 rounded-full object-cover" />
-          ) : <Mic size={25} className={`relative text-[var(--br-action)] ${aiSpeaking ? "animate-pulse motion-reduce:animate-none" : ""}`} aria-hidden="true" />}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-white/10 px-2 py-1 text-[10px] font-bold uppercase tracking-wide">AI speaking partner</span>{engineLabel ? <span className="text-[10px] font-medium tracking-wide text-white/55">{engineLabel}</span> : null}{aiSpeaking ? <span className="flex items-center gap-1.5 text-xs font-semibold text-[var(--br-action)]"><span className="size-1.5 animate-pulse rounded-full bg-[var(--br-action)]" />Speaking</span> : null}</div>
-          <h2 className="mt-2 truncate text-lg font-semibold sm:text-xl">{character}</h2>
-          <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-white/75">{isInterview ? "A friendly AI interviewer will ask questions based on your study material." : scenario}</p>
-        </div>
-      </div>
-    </div>
+    <RoleplayHeader character={character} instruction={isInterview ? "A friendly AI interviewer will ask questions based on your study material." : scenario} characterImageUrl={characterImageUrl} engineLabel={engineLabel} status={aiSpeaking ? "Speaking" : undefined} />
     <div className="space-y-4 p-4 sm:p-5">
       {pastSessions.length ? <div className="rounded-lg border border-[var(--br-border)] bg-[var(--br-surface-muted)] p-3"><p className="text-xs font-semibold uppercase tracking-wide text-[var(--br-text-muted)]">Previous attempts</p><div className="mt-2 grid gap-2 sm:grid-cols-2">{pastSessions.map((session) => { const card = asRecord(session.scorecard); const scores = asRecord(card.scores as Json); return <div key={session.id} className="rounded-lg bg-surface p-2.5 text-xs"><div className="flex items-center justify-between gap-2"><span className="font-semibold text-[var(--br-text-muted)]">{new Date(session.updated_at || session.created_at).toLocaleString()}</span><span className="rounded-full bg-moss/10 px-2 py-1 font-bold text-moss">{String(scores.overall ?? "–")}/100</span></div><p className="mt-1 text-[var(--br-text-muted)]">Completed conversation review</p></div>; })}</div></div> : null}
       {pastRecordings.length ? <div className="rounded-lg border border-[var(--br-border)] bg-[var(--br-surface-muted)] p-3"><p className="text-xs font-semibold uppercase tracking-wide text-[var(--br-text-muted)]">Saved recordings</p><div className="mt-2 space-y-2">{pastRecordings.map((recording) => <div key={recording.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-surface p-2.5 text-xs"><div><p className="font-semibold text-ink">{new Date(recording.created_at).toLocaleString()}</p><p className="text-[var(--br-text-muted)]">{recording.duration_seconds}s · available until {new Date(recording.expires_at).toLocaleDateString()}</p></div><div className="flex flex-wrap items-center gap-2">{pastRecordingUrls[recording.id] ? <audio controls src={pastRecordingUrls[recording.id]} className="h-8 max-w-full" aria-label="Saved speaking recording" /> : <button type="button" onClick={() => void loadPastRecording(recording.id)} className="rounded-lg border border-[var(--br-border)] px-3 py-1.5 font-semibold text-ink">Play recording</button>}{allowDownload ? <button type="button" onClick={() => downloadRecording(recording.id)} className="rounded-lg border border-[var(--br-border)] p-2 text-ink" aria-label="Download saved recording"><Download size={14} /></button> : null}</div></div>)}</div></div> : null}
@@ -1089,7 +1105,7 @@ function TurnBasedVoiceRoleplayPanel({ activity, lessonId, onNext, previewOnly, 
   if (state === "done") return <section className="rounded-2xl border border-[var(--br-border)] bg-surface p-5 shadow-[var(--br-shadow-card)]"><p className="text-sm font-bold text-moss">Speaking practice complete</p><p className="mt-2 text-sm text-[var(--br-text-muted)]">Your conversation score: {scorecard?.scores?.overall ?? "–"}/100.</p><button type="button" onClick={onNext} className="mt-4 rounded-xl bg-dark px-4 py-2.5 text-sm font-bold text-on-dark">Continue</button></section>;
   const status = state === "starting" ? "Preparing your partner…" : state === "listening" ? `Listening… ${secondsLeft}s` : state === "transcribing" || state === "thinking" ? "Thinking…" : state === "speaking" ? "Speaking…" : state === "finishing" ? "Reviewing your conversation…" : "Ready when you are";
   const canFinish = sessionId && messages.some((message) => message.sender === "LEARNER");
-  return <section className="overflow-hidden rounded-2xl border border-[var(--br-border)] bg-surface shadow-[var(--br-shadow-card)]"><div className="bg-dark p-5 text-on-dark"><div className="flex flex-wrap items-center gap-2"><p className="text-xs font-extrabold uppercase tracking-wide text-[var(--br-action)]">Turn-based speaking practice</p>{engineLabel ? <span className="text-[10px] font-medium tracking-wide text-white/55">{engineLabel}</span> : null}</div><h2 className="mt-2 text-xl font-bold">{learnerInstruction}</h2><p className="mt-2 text-sm text-white/70">Speak for up to {maxSeconds} seconds, then {character} will answer.</p></div><div className="space-y-4 p-4 sm:p-5">{showTranscript ? <div className="max-h-64 space-y-2 overflow-y-auto rounded-xl bg-[var(--br-surface-muted)] p-3">{messages.length ? messages.map((message, index) => <div key={index} className={`max-w-[88%] rounded-xl px-3 py-2.5 text-sm ${message.sender === "LEARNER" ? "ml-auto bg-moss text-on-dark" : "mr-auto border border-[var(--br-border)] bg-surface text-ink"}`}><p className="mb-0.5 text-[10px] font-semibold uppercase opacity-65">{message.sender === "AI" ? character : "You"}</p><p className="whitespace-pre-wrap">{message.text}</p></div>) : <p className="py-6 text-center text-sm text-[var(--br-text-muted)]">{character} will speak first.</p>}</div> : null}{error ? <p className="text-xs font-semibold text-coral">{error}</p> : null}<div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--br-border)] pt-4"><button type="button" onClick={sessionId ? (state === "listening" ? () => recorderRef.current?.stop() : recordTurn) : start} disabled={state === "starting" || state === "transcribing" || state === "thinking" || state === "speaking" || state === "finishing"} className={`rounded-xl px-5 py-2.5 text-sm font-bold text-on-dark disabled:opacity-50 ${state === "listening" ? "bg-coral" : "bg-[var(--br-action)]"}`}>{state === "listening" ? "Finish turn" : sessionId ? "Speak" : "Start conversation"}</button>{canFinish && state === "idle" ? <button type="button" onClick={() => void finish()} className="rounded-xl border border-[var(--br-border)] px-4 py-2.5 text-sm font-bold text-ink">Finish practice</button> : null}<span className="text-xs font-semibold text-[var(--br-text-muted)]">{status}</span></div></div></section>;
+  return <section className="overflow-hidden rounded-2xl border border-[var(--br-border)] bg-surface shadow-[var(--br-shadow-card)]"><RoleplayHeader character={character} instruction={learnerInstruction} characterImageUrl={String(data.character_image_url ?? "")} engineLabel={engineLabel} /><div className="space-y-4 p-4 sm:p-5">{showTranscript ? <div className="max-h-64 space-y-2 overflow-y-auto rounded-xl bg-[var(--br-surface-muted)] p-3">{messages.length ? messages.map((message, index) => <div key={index} className={`max-w-[88%] rounded-xl px-3 py-2.5 text-sm ${message.sender === "LEARNER" ? "ml-auto bg-moss text-on-dark" : "mr-auto border border-[var(--br-border)] bg-surface text-ink"}`}><p className="mb-0.5 text-[10px] font-semibold uppercase opacity-65">{message.sender === "AI" ? character : "You"}</p><p className="whitespace-pre-wrap">{message.text}</p></div>) : <p className="py-6 text-center text-sm text-[var(--br-text-muted)]">{character} will speak first.</p>}</div> : null}{error ? <p className="text-xs font-semibold text-coral">{error}</p> : null}<div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--br-border)] pt-4"><button type="button" onClick={sessionId ? (state === "listening" ? () => recorderRef.current?.stop() : recordTurn) : start} disabled={state === "starting" || state === "transcribing" || state === "thinking" || state === "speaking" || state === "finishing"} className={`rounded-xl px-5 py-2.5 text-sm font-bold text-on-dark disabled:opacity-50 ${state === "listening" ? "bg-coral" : "bg-[var(--br-action)]"}`}>{state === "listening" ? "Finish turn" : sessionId ? "Speak" : "Start conversation"}</button>{canFinish && state === "idle" ? <button type="button" onClick={() => void finish()} className="rounded-xl border border-[var(--br-border)] px-4 py-2.5 text-sm font-bold text-ink">Finish practice</button> : null}<span className="text-xs font-semibold text-[var(--br-text-muted)]">{status}</span></div></div></section>;
 }
 
 function AiRoleplayPanel(props: {
@@ -1404,16 +1420,10 @@ function TextRoleplayPanel({
   // ── Idle state ──
   if (phase === "idle") {
     return (
-      <section className="rounded-lg border border-[var(--br-border)] bg-surface p-5 shadow-sm">
-        <p className="text-xs font-semibold uppercase tracking-wide text-moss">Activity</p>
-        <h2 className="mt-1 text-lg font-semibold flex items-center gap-2">
-          <MessageCircle size={20} className="text-moss" /> AI Conversation Roleplay
-        </h2>
-        <div className="mt-3 rounded-md bg-gradient-to-br from-emerald-50 to-teal-50 p-4 border border-emerald-100">
-          <p className="text-sm font-medium text-emerald-800">Scenario</p>
-          <p className="mt-1 text-sm text-emerald-700">{scenario}</p>
-          <p className="mt-3 text-sm text-[var(--br-text-muted)]">You&apos;ll practice with <strong className="text-[var(--br-text-muted)]">{character}</strong></p>
-        </div>
+      <section className="overflow-hidden rounded-2xl border border-[var(--br-border)] bg-surface shadow-[var(--br-shadow-card)]">
+        <RoleplayHeader character={character} instruction={scenario} characterImageUrl={String(data.character_image_url ?? "")} icon={MessageCircle} />
+        <div className="space-y-4 p-4 sm:p-5">
+          <p className="rounded-xl border border-[var(--br-border)] bg-[var(--br-surface-muted)] p-3 text-sm text-[var(--br-text-muted)]">{character} will type first when you start the conversation.</p>
         {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
         <button
           type="button"
@@ -1446,6 +1456,7 @@ function TextRoleplayPanel({
             </div>
           </div>
         )}
+        </div>
       </section>
     );
   }
@@ -1559,10 +1570,7 @@ function TextRoleplayPanel({
   return (
     <section className="rounded-lg border border-[var(--br-border)] bg-surface shadow-sm overflow-hidden">
       {/* Header */}
-      <div className="p-4 border-b border-[var(--br-border)] bg-gradient-to-r from-emerald-50 to-teal-50">
-        <div className="flex flex-wrap items-center gap-2"><p className="text-xs font-semibold uppercase tracking-wide text-moss">Live Conversation</p>{engineLabel ? <span className="text-[10px] font-medium tracking-wide text-[var(--br-text-muted)]">{engineLabel}</span> : null}</div>
-        <p className="text-sm text-[var(--br-text-muted)] mt-0.5">Speaking with <strong className="text-[var(--br-text-muted)]">{character}</strong> · {scenario}</p>
-      </div>
+      <RoleplayHeader character={character} instruction={scenario} characterImageUrl={String(data.character_image_url ?? "")} engineLabel={engineLabel} icon={MessageCircle} />
 
       {/* Messages */}
       <div className="max-h-[340px] overflow-y-auto p-4 space-y-3">
