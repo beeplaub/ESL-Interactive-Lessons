@@ -541,6 +541,7 @@ function normalizeAiRoleplay(data: Json | null) {
     prompt: String(record.prompt ?? "Practice speaking English with me."),
     learner_instruction: String(record.learner_instruction ?? record.prompt ?? "Practice speaking English with me."),
     ai_instruction: String(record.ai_instruction ?? record.prompt ?? "Practice speaking English with me."),
+    voice_mode: record.voice_mode === "LIVE" || record.voice_enabled !== true ? (record.voice_mode === "LIVE" ? "LIVE" : "TURN_BASED") : "LIVE",
     character: String(record.character ?? "Shop Assistant"),
     character_image_url: String(record.character_image_url ?? ""),
     voice_name: String(record.voice_name ?? "Achird"),
@@ -567,6 +568,7 @@ function AiRoleplayEditor({ activity, lessonId, onSave }: { activity: Activity; 
   const [correctionStyle, setCorrectionStyle] = useState(initial.correction_style);
   const [targetPhrases, setTargetPhrases] = useState(initial.target_phrases.join("\n"));
   const [voiceEnabled, setVoiceEnabled] = useState(initial.voice_enabled);
+  const [voiceMode, setVoiceMode] = useState(initial.voice_mode);
   const [saveRecordings, setSaveRecordings] = useState(initial.save_recordings);
   const [retentionDays, setRetentionDays] = useState(initial.recording_retention_days);
   const [allowDownload, setAllowDownload] = useState(initial.allow_download);
@@ -656,6 +658,7 @@ function AiRoleplayEditor({ activity, lessonId, onSave }: { activity: Activity; 
           <button type="button" role="switch" aria-checked={voiceEnabled} onClick={() => setVoiceEnabled((value) => !value)} className={`relative h-6 w-11 rounded-full transition ${voiceEnabled ? "bg-moss" : "bg-black/20"}`}><span className={`absolute top-1 size-4 rounded-full bg-surface shadow transition ${voiceEnabled ? "left-6" : "left-1"}`} /></button>
         </div>
         {voiceEnabled ? <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <label className="text-sm font-medium sm:col-span-2">Speaking mode<select value={voiceMode} onChange={(event) => setVoiceMode(event.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] bg-surface px-3 py-2"><option value="TURN_BASED">Turn-based · lower cost, structured practice</option><option value="LIVE">Gemini Live · real-time conversation</option></select><span className="mt-1 block text-xs font-normal text-[var(--br-text-muted)]">Turn-based mode uses Groq Whisper, BrenUp AI, and Kokoro. Live mode supports natural interruptions.</span></label>
           <label className="text-sm font-medium">Speaking time per attempt (seconds)<input type="number" min={10} max={600} value={maxSeconds} onChange={(event) => setMaxSeconds(Math.max(10, Math.min(600, Number(event.target.value) || 120)))} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={showTranscript} onChange={(event) => setShowTranscript(event.target.checked)} /> Show conversation transcript</label>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={saveRecordings} onChange={(event) => setSaveRecordings(event.target.checked)} /> Allow learners to save recordings</label>
@@ -666,7 +669,7 @@ function AiRoleplayEditor({ activity, lessonId, onSave }: { activity: Activity; 
         </div> : null}
       </section>
       <div className="flex justify-end gap-3 mt-2">
-        <SaveButton onClick={() => onSave({ prompt, learner_instruction: prompt, ai_instruction: aiInstruction, character, character_image_url: characterImageUrl, voice_name: voiceName, first_turn: firstTurn, correction_style: correctionStyle, target_phrases: targetPhrases.split("\n").map((value) => value.trim()).filter(Boolean), voice_enabled: voiceEnabled, save_recordings: saveRecordings, recording_retention_days: retentionDays, allow_download: allowDownload, show_transcript: showTranscript, max_seconds_per_attempt: maxSeconds } as Json, needsReview)} />
+        <SaveButton onClick={() => onSave({ prompt, learner_instruction: prompt, ai_instruction: aiInstruction, character, character_image_url: characterImageUrl, voice_name: voiceName, first_turn: firstTurn, correction_style: correctionStyle, target_phrases: targetPhrases.split("\n").map((value) => value.trim()).filter(Boolean), voice_enabled: voiceEnabled, voice_mode: voiceMode, save_recordings: saveRecordings, recording_retention_days: retentionDays, allow_download: allowDownload, show_transcript: showTranscript, max_seconds_per_attempt: maxSeconds } as Json, needsReview)} />
       </div>
     </div>
   );

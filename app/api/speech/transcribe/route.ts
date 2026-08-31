@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { transcribeWithGroq } from "@/lib/ai/speechToText";
 
 export const runtime = "nodejs";
 
@@ -25,38 +26,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ code: "audio_too_large", error: "That response is too long. Please keep it under three minutes." }, { status: 413 });
   }
 
-  const groqForm = new FormData();
-  groqForm.append("file", file, file.name || "oral-response.webm");
-  groqForm.append("model", process.env.GROQ_STT_MODEL || "whisper-large-v3-turbo");
-  groqForm.append("language", "en");
-  groqForm.append("response_format", "json");
-  groqForm.append("temperature", "0");
-
-  let response: Response;
   try {
-    response = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${process.env.GROQ_API_KEY}` },
-      body: groqForm,
-      signal: AbortSignal.timeout(60_000),
-      cache: "no-store",
-    });
+    const transcript = await transcribeWithGroq(file);
+    return NextResponse.json({ transcript });
   } catch (error) {
     console.error("Groq transcription request failed", error);
     return NextResponse.json({ code: "provider_unavailable", error: "Transcription is temporarily unavailable. Please try again later." }, { status: 503 });
   }
-
-  if (response.status === 429) {
-    return NextResponse.json({ code: "rate_limited", error: "Transcription is busy right now. Please try again later." }, { status: 429 });
-  }
-  if (!response.ok) {
-    const detail = await response.text().catch(() => "");
-    console.error("Groq transcription failed", response.status, detail.slice(0, 500));
-    return NextResponse.json({ code: "provider_unavailable", error: "Transcription is temporarily unavailable. Please try again later." }, { status: 503 });
-  }
-
-  const result = await response.json() as { text?: unknown };
-  const transcript = typeof result.text === "string" ? result.text.trim().slice(0, 30_000) : "";
-  if (!transcript) return NextResponse.json({ code: "empty_transcript", error: "No speech was detected. Please try again." }, { status: 422 });
-  return NextResponse.json({ transcript });
 }

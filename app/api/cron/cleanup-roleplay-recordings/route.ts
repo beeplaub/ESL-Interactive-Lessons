@@ -8,6 +8,9 @@ export async function GET(request: Request) {
   if (!secret || authorization !== `Bearer ${secret}`) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const admin = createAdminClient();
+  const abandonedCutoff = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+  const { error: sessionCleanupError } = await admin.from("ai_roleplay_sessions").update({ status: "ABANDONED" }).eq("status", "IN_PROGRESS").lt("updated_at", abandonedCutoff);
+  if (sessionCleanupError) console.error("Abandoned roleplay session cleanup failed", sessionCleanupError);
   const { data: expired, error } = await admin
     .from("ai_roleplay_voice_recordings")
     .select("id,storage_provider,storage_bucket,storage_path")

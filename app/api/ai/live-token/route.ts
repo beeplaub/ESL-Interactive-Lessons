@@ -2,6 +2,7 @@ import { GoogleGenAI, Modality } from "@google/genai";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { providerFailed, providerSucceeded } from "@/lib/ai/providerHealth";
 
 // Preserve the currently deployed translation model unless the platform admin
 // explicitly sets GEMINI_LIVE_MODEL after verifying a newer Live model.
@@ -129,6 +130,7 @@ export async function POST(request: Request) {
         lockAdditionalFields: [],
       },
     });
+    providerSucceeded("google");
     const modelUsed = body.mode === "CONVERSATION" ? CONVERSATION_MODEL : TRANSLATION_MODEL;
     const featureKey = body.mode === "CONVERSATION"
       ? "learner_live_conversation"
@@ -154,6 +156,7 @@ export async function POST(request: Request) {
     }
     return NextResponse.json({ token: token.name, model: modelUsed, targetLanguageCode, maxSeconds, voiceName });
   } catch (error) {
+    providerFailed("google");
     console.error("Gemini Live token creation failed", error);
     return NextResponse.json({ error: "Live translation is temporarily unavailable." }, { status: 502 });
   }

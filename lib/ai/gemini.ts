@@ -17,6 +17,7 @@ import {
   getCachedAiResponseEntry,
   waitForCachedAiResponseEntry,
 } from "@/lib/ai/efficiency";
+import { providerAvailable, providerFailed, providerSucceeded } from "@/lib/ai/providerHealth";
 
 // Initialize Gemini client lazily when first called
 let aiClient: GoogleGenAI | null = null;
@@ -550,6 +551,7 @@ export async function callGemini<T>({
     lastAttemptModel = modelName;
     lastAttemptProvider = requestProvider;
     let candidateError: unknown = null;
+    if (!providerAvailable(requestProvider)) continue;
     const generateCall = async (promptOverride?: string): Promise<{ text: string; usage: AiUsage }> => {
       if (requestProvider === "groq") {
         const apiKey = process.env.GROQ_API_KEY;
@@ -674,6 +676,7 @@ export async function callGemini<T>({
         // Basic JSON validation before returning
         const parsed = JSON.parse(rawText);
         successfulModel = modelName;
+        providerSucceeded(requestProvider);
           onProviderUsed?.({ provider: requestProvider, model: modelName });
         if (cacheTtl > 0) await saveAiResponseCache({ cacheKey, featureKey, model: modelName, promptVersion, inputHash, response: parsed, ttlSeconds: cacheTtl });
         if (context?.userId && creditReserved) await settleAiCredits({ userId: context.userId, featureKey, reservedCredits, usage: successfulUsage });
@@ -707,6 +710,7 @@ export async function callGemini<T>({
             successfulUsage = repaired.usage;
             const parsed = JSON.parse(rawText);
             successfulModel = modelName;
+            providerSucceeded(requestProvider);
             onProviderUsed?.({ provider: requestProvider, model: modelName });
             retryCount += 1;
             if (cacheTtl > 0) await saveAiResponseCache({ cacheKey, featureKey, model: modelName, promptVersion, inputHash, response: parsed, ttlSeconds: cacheTtl });
@@ -724,6 +728,7 @@ export async function callGemini<T>({
     // Record every exhausted candidate, not only the final provider. This makes
     // local BrenUp AI failures visible when a cloud fallback eventually succeeds.
     if (candidateError) {
+      providerFailed(requestProvider);
       await audit({
         model: modelName,
         provider: requestProvider,

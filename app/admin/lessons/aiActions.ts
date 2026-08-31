@@ -376,13 +376,15 @@ export async function startRoleplaySessionAction(activityId: string, includeOpen
     if (!activity) throw new Error("AI Roleplay activity not found.");
 
     const data = activity.activity_data as any;
+    await supabase.from("ai_roleplay_sessions").update({ status: "ABANDONED" }).eq("user_id", user.id).eq("status", "IN_PROGRESS").lt("updated_at", new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString());
     const attemptQuota = Math.max(0, Math.min(1000, Number(data?.attempt_quota) || 0));
     if (attemptQuota > 0) {
       const { count, error: quotaError } = await supabase
         .from("ai_roleplay_sessions")
         .select("id", { count: "exact", head: true })
         .eq("user_id", user.id)
-        .eq("lesson_activity_id", activityId);
+        .eq("lesson_activity_id", activityId)
+        .neq("status", "ABANDONED");
       if (quotaError) throw quotaError;
       if ((count ?? 0) >= attemptQuota) {
         return { error: `You have used all ${attemptQuota} conversation attempt${attemptQuota === 1 ? "" : "s"} for this activity. You can still listen to your saved conversations.` };
@@ -474,6 +476,8 @@ export async function submitRoleplayTurnAction(sessionId: string, learnerText: s
       .from("ai_roleplay_sessions")
       .select("scenario_context, cefr_level")
       .eq("id", sessionId)
+      .eq("user_id", user.id)
+      .eq("status", "IN_PROGRESS")
       .single();
 
     if (!session) throw new Error("Conversation session not found.");
@@ -547,6 +551,8 @@ export async function completeRoleplaySessionAction(sessionId: string) {
       .from("ai_roleplay_sessions")
       .select("lesson_activity_id, scenario_context, cefr_level")
       .eq("id", sessionId)
+      .eq("user_id", user.id)
+      .eq("status", "IN_PROGRESS")
       .single();
 
     if (!session) throw new Error("Conversation session not found.");
@@ -815,7 +821,10 @@ export async function getActiveRoleplaySessionAction(activityId: string) {
  */
 export async function getRoleplaySessionMessagesAction(sessionId: string) {
   try {
+    const { user } = await getSessionUser();
     const supabase = createAdminClient();
+    const { data: ownerSession } = await supabase.from("ai_roleplay_sessions").select("id,user_id").eq("id", sessionId).eq("user_id", user.id).maybeSingle();
+    if (!ownerSession) return { messages: [] };
     const { data: messages } = await supabase
       .from("ai_roleplay_messages")
       .select("sender, message_text, corrections")

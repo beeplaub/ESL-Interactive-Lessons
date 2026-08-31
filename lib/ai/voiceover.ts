@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { GoogleGenAI, Modality } from "@google/genai";
 import { VOICEOVER_PACES, VOICEOVER_STYLES, VOICEOVER_VOICES } from "@/lib/ai/voiceoverCatalog";
 import { audioExtension, audioMimeType, optimizeAudioForStorage } from "@/lib/media/audioStorage";
+import { providerFailed, providerSucceeded } from "@/lib/ai/providerHealth";
 
 export { VOICEOVER_PACES, VOICEOVER_STYLES, VOICEOVER_VOICES } from "@/lib/ai/voiceoverCatalog";
 
@@ -237,8 +238,11 @@ export async function generateVoiceoverAudio(request: VoiceoverRequest) {
   const provider = voiceoverProviderForRequest(request);
   if (provider === "kokoro") {
     try {
-      return await generateKokoroVoiceover(request);
+      const result = await generateKokoroVoiceover(request);
+      providerSucceeded("kokoro");
+      return result;
     } catch (error) {
+      providerFailed("kokoro");
       const fallbackAllowed = process.env.KOKORO_FALLBACK_TO_GEMINI !== "false";
       const explicitlySelectedKokoro = request.provider === "kokoro";
       if (explicitlySelectedKokoro || !fallbackAllowed || (process.env.VOICEOVER_PROVIDER || "auto").toLowerCase() === "kokoro") throw error;

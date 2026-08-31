@@ -967,6 +967,121 @@ function VoiceRoleplayPanel({ activity, lessonId, onNext, previewOnly, onSavedAt
   </section>;
 }
 
+function audioBlobFromBase64(base64: string, mimeType: string) {
+  const binary = window.atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return new Blob([bytes], { type: mimeType });
+}
+
+function TurnBasedVoiceRoleplayPanel({ activity, lessonId, onNext, previewOnly, onSavedAttempt }: { activity: LessonSlideActivity; lessonId: string | null; onNext: () => void; previewOnly?: boolean; onSavedAttempt?: (attempt: SavedAttempt) => void }) {
+  const data = asRecord(activity.activity_data);
+  const character = String(data.character ?? "AI conversation partner");
+  const learnerInstruction = String(data.learner_instruction ?? data.prompt ?? "Practise speaking with your AI partner.");
+  const showTranscript = data.show_transcript !== false;
+  const maxSeconds = Math.min(15, Math.max(5, Number(data.turn_seconds) || 15));
+  const [state, setState] = useState<"idle" | "starting" | "listening" | "transcribing" | "thinking" | "speaking" | "finishing" | "done">("idle");
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [secondsLeft, setSecondsLeft] = useState(maxSeconds);
+  const [error, setError] = useState<string | null>(null);
+  const [scorecard, setScorecard] = useState<any>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const turnIdRef = useRef(crypto.randomUUID());
+  const audioUrlRef = useRef<string | null>(null);
+  const startTimeRef = useRef(0);
+
+  useEffect(() => () => { recorderRef.current?.stop(); streamRef.current?.getTracks().forEach((track) => track.stop()); if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current); }, []);
+  useEffect(() => {
+    if (previewOnly) return;
+    let active = true;
+    void import("@/app/admin/lessons/aiActions").then(({ getActiveRoleplaySessionAction }) => getActiveRoleplaySessionAction(activity.id)).then((result) => {
+      if (!active || !result.session) return;
+      setSessionId(result.session.id);
+      setMessages(result.messages);
+    }).catch(() => undefined);
+    return () => { active = false; };
+  }, [activity.id, previewOnly]);
+
+  async function requestTurn(form: FormData) {
+    const response = await fetch("/api/ai/roleplay-turn", { method: "POST", body: form });
+    const body = await response.json() as { transcript?: string; reply?: string; corrections?: any; audioBase64?: string; mimeType?: string; error?: string };
+    if (!response.ok || !body.reply || !body.audioBase64 || !body.mimeType) throw new Error(body.error || "The speaking reply could not be prepared.");
+    const reply = body.reply;
+    const audioBase64 = body.audioBase64;
+    const mimeType = body.mimeType;
+    setMessages((current) => [...current, ...(body.transcript ? [{ sender: "LEARNER" as const, text: body.transcript }] : []), { sender: "AI", text: reply, corrections: body.corrections }]);
+    setState("speaking");
+    const audioUrl = URL.createObjectURL(audioBlobFromBase64(audioBase64, mimeType));
+    if (audioUrlRef.current) URL.revokeObjectURL(audioUrlRef.current);
+    audioUrlRef.current = audioUrl;
+    await new Promise<void>((resolve, reject) => { const audio = new Audio(audioUrl); audio.onended = () => resolve(); audio.onerror = () => reject(new Error("The AI voice could not be played.")); void audio.play(); });
+    setState("idle");
+  }
+
+  async function start() {
+    if (previewOnly) { setError("Preview only. This opens for learners in a published lesson."); return; }
+    if (!lessonId) { setError("This activity needs a saved lesson first."); return; }
+    setState("starting"); setError(null); setMessages([]);
+    try {
+      const session = await startRoleplaySessionAction(activity.id, false);
+      if (session.error || !session.sessionId) throw new Error(session.error || "Could not start the conversation.");
+      setSessionId(session.sessionId);
+      const form = new FormData(); form.append("activityId", activity.id); form.append("sessionId", session.sessionId); form.append("turnId", turnIdRef.current); form.append("opening", "1");
+      await requestTurn(form);
+      turnIdRef.current = crypto.randomUUID();
+    } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not start the speaking practice."); setState("idle"); }
+  }
+
+  async function recordTurn() {
+    if (!sessionId || state !== "idle") return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+      streamRef.current = stream; chunksRef.current = [];
+      const mimeType = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"].find((candidate) => MediaRecorder.isTypeSupported(candidate));
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType, audioBitsPerSecond: 32_000 } : { audioBitsPerSecond: 32_000 });
+      recorderRef.current = recorder; startTimeRef.current = Date.now(); setSecondsLeft(maxSeconds); setState("listening");
+      recorder.ondataavailable = (event) => { if (event.data.size) chunksRef.current.push(event.data); };
+      recorder.onstop = async () => {
+        stream.getTracks().forEach((track) => track.stop()); streamRef.current = null; recorderRef.current = null;
+        const duration = Math.min(maxSeconds, Math.max(1, Math.round((Date.now() - startTimeRef.current) / 1000)));
+        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || "audio/webm" });
+        try {
+          setState("transcribing");
+          const form = new FormData(); form.append("file", blob, "roleplay-turn.webm"); form.append("activityId", activity.id); form.append("sessionId", sessionId); form.append("turnId", turnIdRef.current); form.append("durationSeconds", String(duration));
+          turnIdRef.current = crypto.randomUUID();
+          setState("thinking"); await requestTurn(form);
+        } catch (caught) { setError(caught instanceof Error ? caught.message : "The speaking turn could not be completed."); setState("idle"); }
+      };
+      recorder.start(250);
+    } catch (caught) { setError(caught instanceof Error ? caught.message : "Microphone access is required for speaking practice."); setState("idle"); }
+  }
+
+  useEffect(() => {
+    if (state !== "listening") return;
+    const timer = window.setInterval(() => setSecondsLeft((current) => { if (current <= 1) { recorderRef.current?.stop(); return 0; } return current - 1; }), 1000);
+    return () => window.clearInterval(timer);
+  }, [state]);
+
+  async function finish() {
+    if (!sessionId || state !== "idle") return;
+    setState("finishing"); setError(null);
+    try {
+      const result = await completeRoleplaySessionAction(sessionId);
+      if (result.error) throw new Error(String(result.error));
+      const card = (result as any).scorecard; setScorecard(card); setState("done");
+      onSavedAttempt?.({ score: card?.scores?.overall ?? 0, total: 100, answers: { sessionId, scorecard: card } as Json, completed_at: new Date().toISOString() });
+    } catch (caught) { setError(caught instanceof Error ? caught.message : "Could not generate your scorecard."); setState("idle"); }
+  }
+
+  if (state === "done") return <section className="rounded-2xl border border-[var(--br-border)] bg-surface p-5 shadow-[var(--br-shadow-card)]"><p className="text-sm font-bold text-moss">Speaking practice complete</p><p className="mt-2 text-sm text-[var(--br-text-muted)]">Your conversation score: {scorecard?.scores?.overall ?? "–"}/100.</p><button type="button" onClick={onNext} className="mt-4 rounded-xl bg-dark px-4 py-2.5 text-sm font-bold text-on-dark">Continue</button></section>;
+  const status = state === "starting" ? "Preparing your partner…" : state === "listening" ? `Listening… ${secondsLeft}s` : state === "transcribing" || state === "thinking" ? "Thinking…" : state === "speaking" ? "Speaking…" : state === "finishing" ? "Reviewing your conversation…" : "Ready when you are";
+  const canFinish = sessionId && messages.some((message) => message.sender === "LEARNER");
+  return <section className="overflow-hidden rounded-2xl border border-[var(--br-border)] bg-surface shadow-[var(--br-shadow-card)]"><div className="bg-dark p-5 text-on-dark"><p className="text-xs font-extrabold uppercase tracking-wide text-[var(--br-action)]">Turn-based speaking practice</p><h2 className="mt-2 text-xl font-bold">{learnerInstruction}</h2><p className="mt-2 text-sm text-white/70">Speak for up to {maxSeconds} seconds, then {character} will answer.</p></div><div className="space-y-4 p-4 sm:p-5">{showTranscript ? <div className="max-h-64 space-y-2 overflow-y-auto rounded-xl bg-[var(--br-surface-muted)] p-3">{messages.length ? messages.map((message, index) => <div key={index} className={`max-w-[88%] rounded-xl px-3 py-2.5 text-sm ${message.sender === "LEARNER" ? "ml-auto bg-moss text-on-dark" : "mr-auto border border-[var(--br-border)] bg-surface text-ink"}`}><p className="mb-0.5 text-[10px] font-semibold uppercase opacity-65">{message.sender === "AI" ? character : "You"}</p><p className="whitespace-pre-wrap">{message.text}</p></div>) : <p className="py-6 text-center text-sm text-[var(--br-text-muted)]">{character} will speak first.</p>}</div> : null}{error ? <p className="text-xs font-semibold text-coral">{error}</p> : null}<div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--br-border)] pt-4"><button type="button" onClick={sessionId ? (state === "listening" ? () => recorderRef.current?.stop() : recordTurn) : start} disabled={state === "starting" || state === "transcribing" || state === "thinking" || state === "speaking" || state === "finishing"} className={`rounded-xl px-5 py-2.5 text-sm font-bold text-on-dark disabled:opacity-50 ${state === "listening" ? "bg-coral" : "bg-[var(--br-action)]"}`}>{state === "listening" ? "Finish turn" : sessionId ? "Speak" : "Start conversation"}</button>{canFinish && state === "idle" ? <button type="button" onClick={() => void finish()} className="rounded-xl border border-[var(--br-border)] px-4 py-2.5 text-sm font-bold text-ink">Finish practice</button> : null}<span className="text-xs font-semibold text-[var(--br-text-muted)]">{status}</span></div></div></section>;
+}
+
 function AiRoleplayPanel(props: {
   activity: LessonSlideActivity;
   onNext: () => void;
@@ -976,6 +1091,7 @@ function AiRoleplayPanel(props: {
   onSavedAttempt?: (attempt: SavedAttempt) => void;
 }) {
   const data = asRecord(props.activity.activity_data);
+  if (data.voice_enabled === true && data.voice_mode === "TURN_BASED") return <TurnBasedVoiceRoleplayPanel activity={props.activity} lessonId={props.lessonId} onNext={props.onNext} previewOnly={props.previewOnly} onSavedAttempt={props.onSavedAttempt} />;
   if (data.voice_enabled === true) return <VoiceRoleplayPanel activity={props.activity} lessonId={props.lessonId} onNext={props.onNext} previewOnly={props.previewOnly} onSavedAttempt={props.onSavedAttempt} />;
   return <TextRoleplayPanel {...props} />;
 }
