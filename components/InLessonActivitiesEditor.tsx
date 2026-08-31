@@ -539,6 +539,8 @@ function normalizeAiRoleplay(data: Json | null) {
   const record = asRecord(data);
   return {
     prompt: String(record.prompt ?? "Practice speaking English with me."),
+    learner_instruction: String(record.learner_instruction ?? record.prompt ?? "Practice speaking English with me."),
+    ai_instruction: String(record.ai_instruction ?? record.prompt ?? "Practice speaking English with me."),
     character: String(record.character ?? "Shop Assistant"),
     character_image_url: String(record.character_image_url ?? ""),
     voice_name: String(record.voice_name ?? "Achird"),
@@ -557,6 +559,7 @@ function normalizeAiRoleplay(data: Json | null) {
 function AiRoleplayEditor({ activity, lessonId, onSave }: { activity: Activity; lessonId: string; onSave: (data: Json, needsReview?: boolean) => void }) {
   const initial = useMemo(() => normalizeAiRoleplay(activity.activity_data), [activity.activity_data]);
   const [prompt, setPrompt] = useState(initial.prompt);
+  const [aiInstruction, setAiInstruction] = useState(initial.ai_instruction);
   const [character, setCharacter] = useState(initial.character);
   const [characterImageUrl, setCharacterImageUrl] = useState(initial.character_image_url);
   const [voiceName, setVoiceName] = useState(initial.voice_name);
@@ -575,13 +578,24 @@ function AiRoleplayEditor({ activity, lessonId, onSave }: { activity: Activity; 
   return (
     <div className="grid gap-4">
       <label className="text-sm font-medium">
-        Scenario / Prompt Description
+        Learner instruction
         <textarea
           value={prompt}
           onChange={(event) => setPrompt(event.target.value)}
           className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2 min-h-[80px]"
-          placeholder="Describe the situation for the roleplay conversation..."
+          placeholder="Tell learners what they should practise and how to begin..."
         />
+        <span className="mt-1 block text-xs font-normal text-[var(--br-text-muted)]">This is visible to learners before they start.</span>
+      </label>
+      <label className="text-sm font-medium">
+        AI instruction <span className="font-normal text-[var(--br-text-muted)]">(creator-only)</span>
+        <textarea
+          value={aiInstruction}
+          onChange={(event) => setAiInstruction(event.target.value)}
+          className="mt-1 min-h-[110px] w-full rounded-md border border-[var(--br-border)] px-3 py-2"
+          placeholder="Privately guide the AI: role, scenario, boundaries, target behavior, and useful language..."
+        />
+        <span className="mt-1 block text-xs font-normal text-[var(--br-text-muted)]">Used by the AI partner but never displayed in the learner interface.</span>
       </label>
       <div className="grid gap-4 md:grid-cols-2">
         <label className="text-sm font-medium">
@@ -652,7 +666,7 @@ function AiRoleplayEditor({ activity, lessonId, onSave }: { activity: Activity; 
         </div> : null}
       </section>
       <div className="flex justify-end gap-3 mt-2">
-        <SaveButton onClick={() => onSave({ prompt, character, character_image_url: characterImageUrl, voice_name: voiceName, first_turn: firstTurn, correction_style: correctionStyle, target_phrases: targetPhrases.split("\n").map((value) => value.trim()).filter(Boolean), voice_enabled: voiceEnabled, save_recordings: saveRecordings, recording_retention_days: retentionDays, allow_download: allowDownload, show_transcript: showTranscript, max_seconds_per_attempt: maxSeconds } as Json, needsReview)} />
+        <SaveButton onClick={() => onSave({ prompt, learner_instruction: prompt, ai_instruction: aiInstruction, character, character_image_url: characterImageUrl, voice_name: voiceName, first_turn: firstTurn, correction_style: correctionStyle, target_phrases: targetPhrases.split("\n").map((value) => value.trim()).filter(Boolean), voice_enabled: voiceEnabled, save_recordings: saveRecordings, recording_retention_days: retentionDays, allow_download: allowDownload, show_transcript: showTranscript, max_seconds_per_attempt: maxSeconds } as Json, needsReview)} />
       </div>
     </div>
   );

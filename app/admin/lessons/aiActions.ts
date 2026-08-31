@@ -388,7 +388,7 @@ export async function startRoleplaySessionAction(activityId: string, includeOpen
         return { error: `You have used all ${attemptQuota} conversation attempt${attemptQuota === 1 ? "" : "s"} for this activity. You can still listen to your saved conversations.` };
       }
     }
-    const scenario = data?.prompt || "Standard Conversation";
+    const scenario = data?.ai_instruction || data?.prompt || "Standard Conversation";
     const character = data?.character || "Assistant";
     const firstTurn = data?.first_turn || "Hello! Shall we begin?";
     const level = (activity.lessons as any)?.level || "B1";

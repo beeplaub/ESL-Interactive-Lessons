@@ -767,7 +767,7 @@ type ChatMessage = { sender: "AI" | "LEARNER"; text: string; corrections?: any }
 function VoiceRoleplayPanel({ activity, lessonId, onNext, previewOnly, onSavedAttempt }: { activity: LessonSlideActivity; lessonId: string | null; onNext: () => void; previewOnly?: boolean; onSavedAttempt?: (attempt: SavedAttempt) => void }) {
   const data = asRecord(activity.activity_data);
   const isInterview = activity.activity_type === "AI_INTERVIEW";
-  const scenario = String(data.prompt ?? "Practise speaking English with your AI partner.");
+  const scenario = String(data.learner_instruction ?? data.prompt ?? "Practise speaking English with your AI partner.");
   const character = String(data.character ?? "AI conversation partner");
   const characterImageUrl = String(data.character_image_url ?? "");
   const maxSeconds = Math.max(10, Math.min(600, Number(data.max_seconds_per_attempt) || 120));
@@ -996,7 +996,7 @@ function TextRoleplayPanel({
   onSavedAttempt?: (attempt: SavedAttempt) => void;
 }) {
   const data = asRecord(activity.activity_data);
-  const scenario = String(data.prompt ?? "Practice speaking English with me.");
+  const scenario = String(data.learner_instruction ?? data.prompt ?? "Practice speaking English with me.");
   const character = String(data.character ?? "Assistant");
   const firstTurn = String(data.first_turn ?? "Hello! Shall we begin?");
 

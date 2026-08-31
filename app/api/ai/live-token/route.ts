@@ -87,7 +87,7 @@ export async function POST(request: Request) {
     const questionCount = exactQuestions.length || Math.max(1, Math.min(20, Number(config.question_count) || 5));
     liveInstruction = [
       `You are ${String(config.character || "a supportive English conversation partner")}.`,
-      String(config.prompt || "Practise a natural English conversation with the learner."),
+      String(config.ai_instruction || config.prompt || "Practise a natural English conversation with the learner."),
       ...(activity.activity_type === "AI_INTERVIEW" ? [
         `This is a structured interview. Ask exactly ${questionCount} questions, one at a time, and base every question only on this private source context: ${String(config.interview_context || "No source context was supplied.")}`,
         ...(exactQuestions.length ? [`STRICT QUESTION SCRIPT: Ask these exact questions in this exact order, one at a time: ${exactQuestions.map((question, index) => `${index + 1}. ${question}`).join(" | ")}. Do not paraphrase, reorder, combine, replace, or invent questions. After the learner answers one question, give brief encouragement or correction, then ask the next scripted question. Do not ask follow-up questions.`] : []),

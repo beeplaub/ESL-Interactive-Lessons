@@ -187,6 +187,15 @@ export default async function LessonPage({
 
   if (!lesson) notFound();
 
+  // Keep creator-only AI instructions out of the learner client payload. The
+  // server actions and live-token route read the private instruction directly
+  // from the activity record when they need it.
+  const learnerActivities = (activities ?? []).map((activity) => {
+    if (!activity.activity_data || typeof activity.activity_data !== "object" || Array.isArray(activity.activity_data)) return activity;
+    const { ai_instruction: _privateInstruction, ...learnerData } = activity.activity_data as Record<string, Json>;
+    return { ...activity, activity_data: learnerData as Json };
+  });
+
   // Assessment tables are canonical for new activity submissions. Build the
   // legacy-shaped payload expected by the existing player, preferring detailed
   // assessment evidence and retaining legacy-only historical attempts.
@@ -276,7 +285,7 @@ export default async function LessonPage({
         lesson={lesson}
         slides={slides ?? []}
         blocks={blocks ?? []}
-        activities={activities ?? []}
+        activities={learnerActivities}
         initialProgress={progress ?? null}
         activityAttempts={attempts ?? []}
         initialNotes={progress?.notes ?? {}}
