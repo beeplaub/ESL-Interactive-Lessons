@@ -644,6 +644,25 @@ select {
   box-shadow: 0 24px 70px rgba(24, 23, 52, 0.24);
 }
 
+.workspace-popup-close {
+  position: sticky;
+  top: 0;
+  float: right;
+  z-index: 2;
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  margin: -0.25rem -0.25rem 0.25rem auto;
+  place-items: center;
+  border: 1px solid var(--br-border);
+  border-radius: 999px;
+  background: var(--br-surface-muted);
+  color: var(--br-text-muted);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
 /* Keep anchored action popovers usable when they are opened near an edge. */
 details > form,
 details > div {

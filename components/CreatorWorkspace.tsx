@@ -32,13 +32,30 @@ export function CreatorWorkspace({ projects, tasks, notes, resources }: { projec
   }).sort((a, b) => taskSort === "DUE" ? (a.due_at ? new Date(a.due_at).getTime() : Number.MAX_SAFE_INTEGER) - (b.due_at ? new Date(b.due_at).getTime() : Number.MAX_SAFE_INTEGER) : 0);
   const today = new Date().toDateString();
   useEffect(() => {
+    const addCloseButtons = () => document.querySelectorAll<HTMLElement>(".workspace-shell details[open]").forEach((detail) => {
+      const popup = detail.querySelector<HTMLElement>(":scope > form, :scope > div");
+      if (!popup || popup.querySelector(".workspace-popup-close")) return;
+      const close = document.createElement("button");
+      close.type = "button";
+      close.className = "workspace-popup-close";
+      close.setAttribute("aria-label", "Close popup");
+      close.textContent = "×";
+      popup.appendChild(close);
+    });
     const closePopups = (event: MouseEvent) => {
       const target = event.target as Node;
+      if (target instanceof Element && target.closest(".workspace-popup-close")) {
+        target.closest("details")?.removeAttribute("open");
+        return;
+      }
       if (target instanceof Element && target.closest(".workspace-shell details")) return;
       document.querySelectorAll<HTMLElement>(".workspace-shell details[open]").forEach((detail) => detail.removeAttribute("open"));
     };
     document.addEventListener("click", closePopups);
-    return () => document.removeEventListener("click", closePopups);
+    const observer = new MutationObserver(addCloseButtons);
+    observer.observe(document.body, { attributes: true, subtree: true, attributeFilter: ["open"] });
+    addCloseButtons();
+    return () => { document.removeEventListener("click", closePopups); observer.disconnect(); };
   }, []);
 
   return <main className="workspace-shell min-w-0 space-y-5 pb-12">
@@ -76,9 +93,11 @@ function LegacyCalendarView({ tasks, projectMap }: { tasks: Task[]; projectMap: 
 function BoardView({ tasks, projectMap }: { tasks: Task[]; projectMap: Map<string, string> }) {
   const router = useRouter();
   const [dragging, setDragging] = useState<string | null>(null);
+  const [boardTasks, setBoardTasks] = useState(tasks);
+  useEffect(() => setBoardTasks(tasks), [tasks]);
   const columns = [{ status: "TODO", label: "To do", tone: "var(--br-brand)" }, { status: "IN_PROGRESS", label: "In progress", tone: "var(--br-action)" }, { status: "WAITING", label: "Waiting", tone: "var(--br-info)" }, { status: "COMPLETED", label: "Completed", tone: "var(--br-success)" }];
-  async function moveTask(id: string, status: string) { const form = new FormData(); form.set("id", id); form.set("status", status); await updateWorkspaceTask(form); router.refresh(); }
-  return <section className="rounded-2xl border border-[var(--br-border)] bg-surface p-4 shadow-sm sm:p-5"><div className="flex flex-wrap items-end justify-between gap-3"><div><h2 className="text-lg font-semibold">Task board</h2><p className="mt-1 text-sm text-[var(--br-text-muted)]">Use the grip to move a task between stages.</p></div><span className="rounded-full bg-[var(--br-surface-muted)] px-2.5 py-1.5 text-xs font-bold text-[var(--br-text-muted)]">{tasks.length} total</span></div><div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">{columns.map((column) => { const columnTasks = tasks.filter((task) => task.status === column.status); return <div key={column.status} onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = "move"; }} onDrop={(event) => { event.preventDefault(); const id = dragging || event.dataTransfer.getData("text/task-id"); if (id) void moveTask(id, column.status); setDragging(null); }} className={`min-w-0 rounded-xl border bg-[var(--br-surface-muted)]/35 p-3 transition ${dragging ? "border-dashed border-[var(--br-brand)]/50" : "border-[var(--br-border)]"}`}><div className="flex items-center justify-between gap-2"><div className="flex items-center gap-2"><span className="size-2 rounded-full" style={{ backgroundColor: column.tone }} /><h3 className="text-sm font-bold">{column.label}</h3></div><span className="text-xs font-bold text-[var(--br-text-muted)]">{columnTasks.length}</span></div><div className="mt-3 space-y-2">{columnTasks.map((task) => <div key={task.id} className="flex items-stretch gap-1"><button type="button" draggable onDragStart={(event) => { event.dataTransfer.setData("text/task-id", task.id); event.dataTransfer.effectAllowed = "move"; setDragging(task.id); }} onDragEnd={() => setDragging(null)} className="grid w-7 shrink-0 cursor-grab place-items-center rounded-lg text-[var(--br-text-muted)] hover:bg-[var(--br-brand)]/10 active:cursor-grabbing" aria-label={`Move ${task.title}`} title="Drag task"><GripVertical size={16} /></button><div className="min-w-0 flex-1"><TaskRow task={task} projectMap={projectMap} showDelete /></div></div>)}{!columnTasks.length ? <p className="rounded-lg border border-dashed border-[var(--br-border)] px-3 py-5 text-center text-xs text-[var(--br-text-muted)]">Drop tasks here</p> : null}</div></div>; })}</div></section>;
+  async function moveTask(id: string, status: string) { const previous = boardTasks; setBoardTasks((current) => current.map((task) => task.id === id ? { ...task, status } : task)); const form = new FormData(); form.set("id", id); form.set("status", status); try { await updateWorkspaceTask(form); router.refresh(); } catch { setBoardTasks(previous); } }
+  return <section className="rounded-2xl border border-[var(--br-border)] bg-surface p-4 shadow-sm sm:p-5"><div className="flex flex-wrap items-end justify-between gap-3"><div><h2 className="text-lg font-semibold">Task board</h2><p className="mt-1 text-sm text-[var(--br-text-muted)]">Use the grip to move a task between stages.</p></div><span className="rounded-full bg-[var(--br-surface-muted)] px-2.5 py-1.5 text-xs font-bold text-[var(--br-text-muted)]">{boardTasks.length} total</span></div><div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">{columns.map((column) => { const columnTasks = boardTasks.filter((task) => task.status === column.status); return <div key={column.status} onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = "move"; }} onDrop={(event) => { event.preventDefault(); const id = dragging || event.dataTransfer.getData("text/task-id"); if (id) void moveTask(id, column.status); setDragging(null); }} className={`min-w-0 rounded-xl border bg-[var(--br-surface-muted)]/35 p-3 transition ${dragging ? "border-dashed border-[var(--br-brand)]/50" : "border-[var(--br-border)]"}`}><div className="flex items-center justify-between gap-2"><div className="flex items-center gap-2"><span className="size-2 rounded-full" style={{ backgroundColor: column.tone }} /><h3 className="text-sm font-bold">{column.label}</h3></div><span className="text-xs font-bold text-[var(--br-text-muted)]">{columnTasks.length}</span></div><div className="mt-3 space-y-2">{columnTasks.map((task) => <div key={task.id} className="flex items-stretch gap-1"><button type="button" draggable onDragStart={(event) => { event.dataTransfer.setData("text/task-id", task.id); event.dataTransfer.effectAllowed = "move"; setDragging(task.id); }} onDragEnd={() => setDragging(null)} className="grid w-7 shrink-0 cursor-grab place-items-center rounded-lg text-[var(--br-text-muted)] hover:bg-[var(--br-brand)]/10 active:cursor-grabbing" aria-label={`Move ${task.title}`} title="Drag task"><GripVertical size={16} /></button><div className="min-w-0 flex-1"><TaskRow task={task} projectMap={projectMap} showDelete /></div></div>)}{!columnTasks.length ? <p className="rounded-lg border border-dashed border-[var(--br-border)] px-3 py-5 text-center text-xs text-[var(--br-text-muted)]">Drop tasks here</p> : null}</div></div>; })}</div></section>;
 }
 
 function LegacyBoardView({ tasks, projectMap }: { tasks: Task[]; projectMap: Map<string, string> }) {
