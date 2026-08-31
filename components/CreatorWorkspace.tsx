@@ -16,7 +16,9 @@ const metricTones: Record<string, string> = { purple: "bg-[var(--br-brand)]/10 t
 function dateInputValue(value: string | null) { return value ? new Date(value).toISOString().slice(0, 16) : ""; }
 
 export function CreatorWorkspace({ projects, tasks, notes, resources }: { projects: Project[]; tasks: Task[]; notes: Note[]; resources: Resource[] }) {
+  const [orderedTabs, setOrderedTabs] = useState<(typeof tabs)[number][]>([...tabs]);
   const [tab, setTab] = useState<(typeof tabs)[number]>("Overview");
+  const [draggedTab, setDraggedTab] = useState<(typeof tabs)[number] | null>(null);
   const [query, setQuery] = useState("");
   const [taskFilter, setTaskFilter] = useState<"ALL" | "OPEN" | "TODAY" | "HIGH">("ALL");
   const [taskProjectId, setTaskProjectId] = useState("ALL");
@@ -32,6 +34,14 @@ export function CreatorWorkspace({ projects, tasks, notes, resources }: { projec
     return matchesQuery && matchesFilter && matchesProject;
   }).sort((a, b) => taskSort === "DUE" ? (a.due_at ? new Date(a.due_at).getTime() : Number.MAX_SAFE_INTEGER) - (b.due_at ? new Date(b.due_at).getTime() : Number.MAX_SAFE_INTEGER) : 0);
   const today = new Date().toDateString();
+  useEffect(() => {
+    const saved = window.localStorage.getItem("brenup-workspace-tab-order");
+    if (saved) { try { const parsed = JSON.parse(saved) as string[]; const next = tabs.filter((item) => parsed.includes(item)).sort((a, b) => parsed.indexOf(a) - parsed.indexOf(b)); if (next.length === tabs.length) { setOrderedTabs(next); setTab(next[0]); } } catch { /* use default order */ } }
+  }, []);
+  function reorderTabs(target: (typeof tabs)[number]) {
+    if (!draggedTab || draggedTab === target) return;
+    const next = [...orderedTabs]; const from = next.indexOf(draggedTab); const to = next.indexOf(target); next.splice(from, 1); next.splice(to, 0, draggedTab); setOrderedTabs(next); window.localStorage.setItem("brenup-workspace-tab-order", JSON.stringify(next)); setDraggedTab(null);
+  }
   useEffect(() => {
     const addCloseButtons = () => document.querySelectorAll<HTMLElement>(".workspace-shell details[open]").forEach((detail) => {
       const popup = detail.querySelector<HTMLElement>(":scope > form, :scope > div");
@@ -61,7 +71,7 @@ export function CreatorWorkspace({ projects, tasks, notes, resources }: { projec
 
   return <main className="workspace-shell min-w-0 space-y-5 pb-12">
     <header className="workspace-header flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--br-brand)]">Creator workspace</p><h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">Your teaching desk</h1><p className="mt-2 text-sm text-[var(--br-text-muted)]">Plan, capture, and finish your BrenUp work in one focused place.</p></div><div className="workspace-quick-actions flex w-full flex-wrap gap-2 sm:w-auto"><form action={createWorkspaceProject} className="workspace-quick-form flex min-w-0 flex-1 gap-2 sm:flex-none"><input name="title" required placeholder="New project name" className="field h-10 min-w-0 flex-1 sm:w-56 sm:flex-none" /><button className="inline-flex h-10 shrink-0 items-center gap-2 rounded-lg bg-[var(--br-action)] px-3 text-sm font-bold text-on-dark"><Plus size={15} /> Project</button></form><details className="workspace-new-task relative w-full sm:w-auto"><summary className="inline-flex min-h-10 w-full cursor-pointer list-none items-center justify-center gap-2 rounded-lg bg-[var(--br-brand)] px-3 text-sm font-bold text-on-dark sm:w-auto"><Plus size={15} /> New task</summary><form action={createWorkspaceTask} className="workspace-quick-form absolute right-0 top-12 z-20 grid w-[min(24rem,calc(100vw-2rem))] gap-2 rounded-xl border border-[var(--br-border)] bg-surface p-3 shadow-xl"><input name="title" required placeholder="Task name" className="field h-10 w-full" /><select name="project_id" aria-label="Assign task to project" className="field h-10 w-full"><option value="">Personal</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.title}</option>)}</select><div className="grid grid-cols-2 gap-2"><select name="priority" aria-label="Task priority" className="field h-10"><option value="NORMAL">Normal</option><option value="HIGH">High</option><option value="URGENT">Urgent</option><option value="LOW">Low</option></select><BrenDateTimeField name="due_at" label="Due date and time" /></div><textarea name="description" rows={2} placeholder="Details (optional)" className="field w-full" /><input name="related_url" type="url" placeholder="Related link (optional)" className="field w-full" /><select name="recurrence" aria-label="Task recurrence" className="field h-10 w-full"><option value="NONE">One time</option><option value="DAILY">Daily</option><option value="WEEKLY">Weekly</option><option value="MONTHLY">Monthly</option></select><button className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[var(--br-brand)] px-3 text-sm font-bold text-on-dark"><Plus size={15} /> Add task</button></form></details></div></header>
-    <nav className="workspace-tabs flex gap-1 overflow-x-auto rounded-xl border border-[var(--br-border)] bg-surface p-1 shadow-sm">{tabs.map((item) => <button type="button" key={item} onClick={() => setTab(item)} className={`whitespace-nowrap rounded-lg px-3 py-2 text-sm font-bold transition ${tab === item ? "bg-[var(--br-brand)] text-on-dark" : "text-[var(--br-text-muted)] hover:bg-[var(--br-surface-muted)]"}`}>{item}</button>)}</nav>
+    <nav className="workspace-tabs flex gap-1 overflow-x-auto rounded-xl border border-[var(--br-border)] bg-surface p-1 shadow-sm">{orderedTabs.map((item) => <button type="button" draggable onDragStart={() => setDraggedTab(item)} onDragOver={(event) => event.preventDefault()} onDrop={() => reorderTabs(item)} onDragEnd={() => setDraggedTab(null)} key={item} onClick={() => setTab(item)} className={`whitespace-nowrap rounded-lg px-3 py-2 text-sm font-bold transition ${tab === item ? "bg-[var(--br-brand)] text-on-dark" : "text-[var(--br-text-muted)] hover:bg-[var(--br-surface-muted)]"}`}>{item}</button>)}</nav>
     {tab === "Overview" ? <Overview projects={projects} activeTasks={activeTasks} completedTasks={completedTasks} today={today} setTab={setTab} projectMap={projectMap} /> : null}
     {tab === "Tasks" ? <Tasks tasks={visibleTasks} projects={projects} projectMap={projectMap} query={query} setQuery={setQuery} filter={taskFilter} setFilter={setTaskFilter} projectId={taskProjectId} setProjectId={setTaskProjectId} sort={taskSort} setSort={setTaskSort} /> : null}
     {tab === "Board" ? <BoardView tasks={tasks} projects={projects} projectMap={projectMap} /> : null}
