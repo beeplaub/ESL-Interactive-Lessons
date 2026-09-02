@@ -49,6 +49,29 @@ function strings(value: unknown) {
   return Array.isArray(value) ? value.map(text).filter(Boolean) : [];
 }
 
+function printableAudioUrl(value: unknown) {
+  const source = text(value).trim();
+  if (!source) return null;
+  if (/^https?:\/\//i.test(source)) return source;
+
+  const base = process.env.R2_PUBLIC_BASE_URL?.replace(/\/+$/, "");
+  if (base) {
+    const normalized = source.replace(/^\/+/, "");
+    const key = /^(lessons|lesson-audio|ai-recordings)\//i.test(normalized)
+      ? normalized
+      : `lesson-audio/${normalized}`;
+    return `${base}/${encodeURI(key).replace(/%2F/g, "/")}`;
+  }
+
+  // A relative public media route is still scannable when converted to an
+  // absolute URL. R2 is preferred above for all managed media keys.
+  try {
+    return new URL(source, process.env.NEXT_PUBLIC_SITE_URL || "https://www.brenup.com").toString();
+  } catch {
+    return null;
+  }
+}
+
 function activityPrompt(activity: PrintableActivity) {
   const data = record(activity.activity_data);
   return text(data.question_text) || text(data.prompt) || text(data.instructions) || text(data.question) || "Complete the activity.";
@@ -147,14 +170,13 @@ export default async function LessonPrintPage({ params }: { params: Promise<{ le
   const audioBlockList = (await Promise.all(blockList.filter((block) => block.block_type === "AUDIO").flatMap((block) => {
     const content = record(block.content);
     const title = text(content.title) || "Audio";
-    const tracks = parseAudioTracks(content.path).tracks;
+    const source = content.path ?? content.audio_url ?? content.audioUrl ?? content.url;
+    const tracks = parseAudioTracks(source).tracks;
     return tracks.map((track, index) => ({ block, title: tracks.length > 1 ? `${title} ${index + 1}` : title, url: track.url }));
   }).map(async ({ block, title, url }, index): Promise<PrintableAudio | null> => {
-    const resolvedUrl = /^https?:\/\//i.test(url) || url.startsWith("/")
-      ? url
-      : await resolveMediaUrl(admin, { provider: "r2", bucket: "lesson-audio", path: url });
+    const resolvedUrl = printableAudioUrl(url) || await resolveMediaUrl(admin, { provider: "r2", bucket: "lesson-audio", path: url });
     if (!resolvedUrl) return null;
-    return { id: `${block.id}-${index}`, slide_id: block.slide_id, label: title, url: resolvedUrl, qrDataUrl: await QRCode.toDataURL(resolvedUrl, { margin: 1, width: 180 }) } satisfies PrintableAudio;
+    return { id: `${block.id}-${index}`, slide_id: block.slide_id, label: title, url: resolvedUrl, qrDataUrl: await QRCode.toDataURL(resolvedUrl, { margin: 2, width: 240, errorCorrectionLevel: "M" }) } satisfies PrintableAudio;
   }))).filter((audio): audio is PrintableAudio => Boolean(audio));
 
   return (
