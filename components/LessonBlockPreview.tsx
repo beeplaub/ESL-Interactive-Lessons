@@ -551,7 +551,7 @@ function PreviewBlock({ block, checkedItems, onChecklistChange, alwaysOpen = fal
   }
 
   if (block.block_type === "TABLE") {
-    return <TableBlock content={content} />;
+    return <TableBlock content={content} alwaysOpen={alwaysOpen} />;
   }
 
   return null;
@@ -742,12 +742,12 @@ function ContrastSide({ variant, color, term, meaning, pattern, examples }: { va
   return <div className="rounded-xl border p-3 text-on-dark shadow-sm sm:p-4" style={{ backgroundColor: color || fallbackColor, borderColor: color || fallbackColor }}><h4 className="text-lg font-semibold text-on-dark">{term || "Term"}</h4>{meaning ? <p className="mt-1 text-sm leading-6 text-on-dark/85">{meaning}</p> : null}{pattern ? <p className={`mt-3 rounded-md border bg-surface px-2.5 py-1.5 font-mono text-xs ${patternClass}`}>{pattern}</p> : null}{asArray(examples).length ? <div className="mt-3 space-y-1.5">{asArray(examples).map((example, index) => <p key={index} className="rounded-md bg-white/15 px-2.5 py-1.5 text-sm leading-6 text-on-dark">{String(example)}</p>)}</div> : null}</div>;
 }
 
-function TongueTwisterBlock({ content }: { content: Record<string, unknown> }) {
+function TongueTwisterBlock({ content, alwaysOpen = false }: { content: Record<string, unknown>; alwaysOpen?: boolean }) {
   const items = asArray(content.items).map((item) => asRecord(item as Json));
-  return <section className="overflow-hidden rounded-xl border border-[var(--br-brand)]/25 bg-gradient-to-br from-[var(--br-brand-soft)] via-surface to-[var(--br-achievement)]/10 shadow-sm"><div className="border-b border-[var(--br-brand)]/15 bg-[var(--br-brand)]/10 px-4 py-3 sm:px-5"><h3 className="font-semibold text-ink">{asString(content.title) || "Tongue Twister Challenge"}</h3>{asString(content.instruction) ? <p className="mt-1 text-sm text-[var(--br-text-muted)]">{asString(content.instruction)}</p> : null}</div><div className="space-y-3 p-3 sm:p-4">{items.length ? items.map((item, index) => <TongueTwisterItem key={index} item={item} index={index} />) : <p className="text-sm text-[var(--br-text-muted)]">Add a tongue twister.</p>}</div></section>;
+  return <section className="overflow-hidden rounded-xl border border-[var(--br-brand)]/25 bg-gradient-to-br from-[var(--br-brand-soft)] via-surface to-[var(--br-achievement)]/10 shadow-sm"><div className="border-b border-[var(--br-brand)]/15 bg-[var(--br-brand)]/10 px-4 py-3 sm:px-5"><h3 className="font-semibold text-ink">{asString(content.title) || "Tongue Twister Challenge"}</h3>{asString(content.instruction) ? <p className="mt-1 text-sm text-[var(--br-text-muted)]">{asString(content.instruction)}</p> : null}</div><div className="space-y-3 p-3 sm:p-4">{items.length ? items.map((item, index) => <TongueTwisterItem key={index} item={item} index={index} alwaysOpen={alwaysOpen} />) : <p className="text-sm text-[var(--br-text-muted)]">Add a tongue twister.</p>}</div></section>;
 }
 
-function TongueTwisterItem({ item, index }: { item: Record<string, unknown>; index: number }) {
+function TongueTwisterItem({ item, index, alwaysOpen = false }: { item: Record<string, unknown>; index: number; alwaysOpen?: boolean }) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"full" | "chunks">("full");
   const [speed, setSpeed] = useState(1);
@@ -764,15 +764,15 @@ function TongueTwisterItem({ item, index }: { item: Record<string, unknown>; ind
     return value.split(pattern).map((part, partIndex) => highlights.some((highlight) => highlight.toLowerCase() === part.toLowerCase()) ? <mark key={partIndex} className="rounded bg-[var(--br-achievement)]/45 px-0.5 text-ink">{part}</mark> : <span key={partIndex}>{part}</span>);
   };
   const setPlayback = (next: number) => { setSpeed(next); if (audioRef.current) audioRef.current.playbackRate = next; };
-  return <details open={!item.hide_reveal_enabled || open} onToggle={(event) => setOpen(event.currentTarget.open)} className="group rounded-xl border border-amber-200 bg-amber-50 shadow-sm"><summary className="flex cursor-pointer list-none items-start justify-between gap-3 rounded-xl p-3 marker:hidden group-open:rounded-b-none sm:p-4"><span className="flex min-w-0 flex-1 items-center gap-3 font-semibold text-amber-950"><span className="grid size-7 shrink-0 place-items-center rounded-full bg-[var(--br-achievement)]/40 text-xs font-black text-amber-950">{index + 1}</span>{asString(item.title) || "Tongue twister"}</span><span className={OPEN_CLOSE_CONTROL_CLASS}>{item.hide_reveal_enabled ? (open ? "Close" : "Open") : "Open"}</span></summary><div className="border-t border-amber-200 p-3 sm:p-4">{asString(item.context) ? <p className="mb-3 text-sm leading-6 text-amber-950">{asString(item.context)}</p> : null}{asString(item.target_sound) ? <span className="inline-flex rounded-full bg-[var(--br-brand)]/10 px-2.5 py-1 text-xs font-semibold text-[var(--br-brand)]">Target: {asString(item.target_sound)}</span> : null}<div className="mt-3 rounded-xl border border-[var(--br-brand)]/20 bg-surface p-4"><div className="text-lg font-semibold leading-8 text-ink">{mode === "chunks" && chunks.length ? chunks.map((chunk, chunkIndex) => <span key={chunkIndex} className="mr-2 inline-block rounded-md bg-[var(--br-brand)]/10 px-2 py-1">{highlightedText(chunk)}</span>) : highlightedText(text)}</div></div><div className="mt-3 flex flex-wrap items-center gap-2"><button type="button" onClick={() => setMode("full")} className={`rounded-md px-2.5 py-1.5 text-xs font-semibold ${mode === "full" ? "bg-[var(--br-brand)] text-on-dark" : "bg-surface-muted text-[var(--br-brand)]"}`}>Full sentence</button><button type="button" onClick={() => setMode("chunks")} disabled={!chunks.length} className={`rounded-md px-2.5 py-1.5 text-xs font-semibold ${mode === "chunks" ? "bg-[var(--br-brand)] text-on-dark" : "bg-surface-muted text-[var(--br-brand)] disabled:opacity-40"}`}>Chunks</button>{audio ? <><audio ref={audioRef} src={mediaUrl(audio, "audio")} preload="metadata" /><button type="button" onClick={() => { if (audioRef.current) { audioRef.current.playbackRate = speed; void audioRef.current.play(); } }} className="rounded-md bg-[var(--br-info)] px-3 py-1.5 text-xs font-semibold text-on-dark">Play audio</button></> : null}<span className="ml-auto text-xs font-semibold text-[var(--br-text-muted)]">Speed</span>{[0.75, 1, 1.25].map((value) => <button key={value} type="button" onClick={() => setPlayback(value)} className={`rounded-md px-2 py-1 text-xs font-semibold ${speed === value ? "bg-[var(--br-achievement)] text-ink" : "bg-surface-muted text-[var(--br-text-muted)]"}`}>{value === 1 ? "Natural" : value === 0.75 ? "Slow" : "Fast"}</button>)}</div>{asString(item.pronunciation_note) ? <p className="mt-3 rounded-md bg-[var(--br-info)]/10 px-3 py-2 text-sm leading-6 text-ink"><span className="font-semibold">Tip:</span> {asString(item.pronunciation_note)}</p> : null}{words.length ? <div className="mt-3"><p className="text-sm font-semibold text-ink">Difficult words</p><div className="mt-2 grid gap-2 sm:grid-cols-2">{words.map((word, wordIndex) => <div key={wordIndex} className="rounded-md border border-[var(--br-border)] bg-surface px-3 py-2"><p className="font-semibold text-[var(--br-brand)]">{asString(word.word)} {asString(word.phonetic) ? <span className="font-mono text-xs text-[var(--br-text-muted)]">{asString(word.phonetic)}</span> : null}</p>{asString(word.note) ? <p className="mt-1 text-xs leading-5 text-[var(--br-text-muted)]">{asString(word.note)}</p> : null}</div>)}</div></div> : null}<div className="mt-4 border-t border-[var(--br-border)] pt-3"><p className="text-xs font-semibold uppercase tracking-wide text-[var(--br-text-muted)]">Self-check</p><div className="mt-2 grid gap-2 sm:grid-cols-3">{["I kept the target sounds clear.", "I maintained the rhythm.", "I completed it without stopping."] .map((label, checkIndex) => <label key={label} className="flex items-start gap-2 text-xs text-[var(--br-text-muted)]"><input type="checkbox" checked={checked[checkIndex]} onChange={(event) => setChecked((current) => current.map((value, index) => index === checkIndex ? event.target.checked : value))} className="mt-0.5 size-4 rounded border-[var(--br-border)]" />{label}</label>)}</div></div></div></details>;
+  return <details open={alwaysOpen || !item.hide_reveal_enabled || open} onToggle={(event) => { if (!alwaysOpen) setOpen(event.currentTarget.open); }} className="group rounded-xl border border-amber-200 bg-amber-50 shadow-sm"><summary className={`flex list-none items-start justify-between gap-3 rounded-xl p-3 marker:hidden group-open:rounded-b-none sm:p-4 ${alwaysOpen ? "" : "cursor-pointer"}`}><span className="flex min-w-0 flex-1 items-center gap-3 font-semibold text-amber-950"><span className="grid size-7 shrink-0 place-items-center rounded-full bg-[var(--br-achievement)]/40 text-xs font-black text-amber-950">{index + 1}</span>{asString(item.title) || "Tongue twister"}</span>{!alwaysOpen ? <span className={OPEN_CLOSE_CONTROL_CLASS}>{item.hide_reveal_enabled ? (open ? "Close" : "Open") : "Open"}</span> : null}</summary><div className="border-t border-amber-200 p-3 sm:p-4">{asString(item.context) ? <p className="mb-3 text-sm leading-6 text-amber-950">{asString(item.context)}</p> : null}{asString(item.target_sound) ? <span className="inline-flex rounded-full bg-[var(--br-brand)]/10 px-2.5 py-1 text-xs font-semibold text-[var(--br-brand)]">Target: {asString(item.target_sound)}</span> : null}<div className="mt-3 rounded-xl border border-[var(--br-brand)]/20 bg-surface p-4"><div className="text-lg font-semibold leading-8 text-ink">{mode === "chunks" && chunks.length ? chunks.map((chunk, chunkIndex) => <span key={chunkIndex} className="mr-2 inline-block rounded-md bg-[var(--br-brand)]/10 px-2 py-1">{highlightedText(chunk)}</span>) : highlightedText(text)}</div></div><div className="mt-3 flex flex-wrap items-center gap-2"><button type="button" onClick={() => setMode("full")} className={`rounded-md px-2.5 py-1.5 text-xs font-semibold ${mode === "full" ? "bg-[var(--br-brand)] text-on-dark" : "bg-surface-muted text-[var(--br-brand)]"}`}>Full sentence</button><button type="button" onClick={() => setMode("chunks")} disabled={!chunks.length} className={`rounded-md px-2.5 py-1.5 text-xs font-semibold ${mode === "chunks" ? "bg-[var(--br-brand)] text-on-dark" : "bg-surface-muted text-[var(--br-text-muted)] disabled:opacity-40"}`}>Chunks</button>{audio ? <><audio ref={audioRef} src={mediaUrl(audio, "audio")} preload="metadata" /><button type="button" onClick={() => { if (audioRef.current) { audioRef.current.playbackRate = speed; void audioRef.current.play(); } }} className="rounded-md bg-[var(--br-info)] px-3 py-1.5 text-xs font-semibold text-on-dark">Play audio</button></> : null}<span className="ml-auto text-xs font-semibold text-[var(--br-text-muted)]">Speed</span>{[0.75, 1, 1.25].map((value) => <button key={value} type="button" onClick={() => setPlayback(value)} className={`rounded-md px-2 py-1 text-xs font-semibold ${speed === value ? "bg-[var(--br-achievement)] text-ink" : "bg-surface-muted text-[var(--br-text-muted)]"}`}>{value === 1 ? "Natural" : value === 0.75 ? "Slow" : "Fast"}</button>)}</div>{asString(item.pronunciation_note) ? <p className="mt-3 rounded-md bg-[var(--br-info)]/10 px-3 py-2 text-sm leading-6 text-ink"><span className="font-semibold">Tip:</span> {asString(item.pronunciation_note)}</p> : null}{words.length ? <div className="mt-3"><p className="text-sm font-semibold text-ink">Difficult words</p><div className="mt-2 grid gap-2 sm:grid-cols-2">{words.map((word, wordIndex) => <div key={wordIndex} className="rounded-md border border-[var(--br-border)] bg-surface px-3 py-2"><p className="font-semibold text-[var(--br-brand)]">{asString(word.word)} {asString(word.phonetic) ? <span className="font-mono text-xs text-[var(--br-text-muted)]">{asString(word.phonetic)}</span> : null}</p>{asString(word.note) ? <p className="mt-1 text-xs leading-5 text-[var(--br-text-muted)]">{asString(word.note)}</p> : null}</div>)}</div></div> : null}<div className="mt-4 border-t border-[var(--br-border)] pt-3"><p className="text-xs font-semibold uppercase tracking-wide text-[var(--br-text-muted)]">Self-check</p><div className="mt-2 grid gap-2 sm:grid-cols-3">{["I kept the target sounds clear.", "I maintained the rhythm.", "I completed it without stopping."] .map((label, checkIndex) => <label key={label} className="flex items-start gap-2 text-xs text-[var(--br-text-muted)]"><input type="checkbox" checked={checked[checkIndex]} onChange={(event) => setChecked((current) => current.map((value, index) => index === checkIndex ? event.target.checked : value))} className="mt-0.5 size-4 rounded border-[var(--br-border)]" />{label}</label>)}</div></div></div></details>;
 }
 
-function TableBlock({ content }: { content: Record<string, unknown> }) {
+function TableBlock({ content, alwaysOpen = false }: { content: Record<string, unknown>; alwaysOpen?: boolean }) {
   const headers = asArray(content.headers).map((header) => asString(header));
   const rows = asArray(content.rows).map((row) => asArray(row).map((cell) => asString(cell)));
   const caption = asString(content.caption);
   const hideReveal = content.reveal_hidden === true;
-  const [revealed, setRevealed] = useState(!hideReveal);
+  const [revealed, setRevealed] = useState(!hideReveal || alwaysOpen);
   const toggleReveal = () => setRevealed((current) => !current);
   const handleRevealKeyDown = (event: ReactKeyboardEvent<HTMLElement>) => {
     if (event.key === "Enter" || event.key === " ") {
@@ -799,28 +799,28 @@ function TableBlock({ content }: { content: Record<string, unknown> }) {
 
   return (
     <div
-      className={`overflow-hidden rounded-[22px] border border-[var(--br-brand)]/15 bg-surface shadow-[var(--br-shadow)] ${hideReveal && !revealed ? "cursor-pointer" : ""}`}
-      onClick={hideReveal && !revealed ? toggleReveal : undefined}
-      onKeyDown={hideReveal && !revealed ? handleRevealKeyDown : undefined}
-      role={hideReveal && !revealed ? "button" : undefined}
-      tabIndex={hideReveal && !revealed ? 0 : undefined}
-      aria-expanded={hideReveal ? revealed : undefined}
+      className={`overflow-hidden rounded-[22px] border border-[var(--br-brand)]/15 bg-surface shadow-[var(--br-shadow)] ${hideReveal && !revealed && !alwaysOpen ? "cursor-pointer" : ""}`}
+      onClick={hideReveal && !revealed && !alwaysOpen ? toggleReveal : undefined}
+      onKeyDown={hideReveal && !revealed && !alwaysOpen ? handleRevealKeyDown : undefined}
+      role={hideReveal && !revealed && !alwaysOpen ? "button" : undefined}
+      tabIndex={hideReveal && !revealed && !alwaysOpen ? 0 : undefined}
+      aria-expanded={hideReveal ? alwaysOpen || revealed : undefined}
     >
       {caption || hideReveal ? (
         <div
-          className={`flex items-center justify-between gap-3 border-b border-[var(--br-brand)]/15 bg-[var(--br-brand-soft)]/70 px-4 py-4 sm:px-5 ${hideReveal && revealed ? "cursor-pointer select-none" : ""}`}
-          onClick={hideReveal && revealed ? toggleReveal : undefined}
-          onKeyDown={hideReveal && revealed ? handleRevealKeyDown : undefined}
-          role={hideReveal && revealed ? "button" : undefined}
-          tabIndex={hideReveal && revealed ? 0 : undefined}
+          className={`flex items-center justify-between gap-3 border-b border-[var(--br-brand)]/15 bg-[var(--br-brand-soft)]/70 px-4 py-4 sm:px-5 ${hideReveal && revealed && !alwaysOpen ? "cursor-pointer select-none" : ""}`}
+          onClick={hideReveal && revealed && !alwaysOpen ? toggleReveal : undefined}
+          onKeyDown={hideReveal && revealed && !alwaysOpen ? handleRevealKeyDown : undefined}
+          role={hideReveal && revealed && !alwaysOpen ? "button" : undefined}
+          tabIndex={hideReveal && revealed && !alwaysOpen ? 0 : undefined}
         >
           <div className="flex min-w-0 items-center gap-3">
             <h3 className="min-w-0 break-words text-lg font-semibold text-ink">{caption || "Table"}</h3>
           </div>
-          {hideReveal ? <span className={OPEN_CLOSE_CONTROL_CLASS}>{revealed ? "Close" : "Open"}</span> : null}
+          {hideReveal && !alwaysOpen ? <span className={OPEN_CLOSE_CONTROL_CLASS}>{revealed ? "Close" : "Open"}</span> : null}
         </div>
       ) : null}
-      {revealed ? <>
+      {revealed || alwaysOpen ? <>
       <div className="hidden md:block">
         <table className="w-full table-fixed border-collapse text-sm">
           <thead>
