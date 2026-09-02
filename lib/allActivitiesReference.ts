@@ -73,6 +73,7 @@ export const ALL_CONTENT_BLOCK_REFERENCE: ContentBlockReference[] = [
   { blockType: "AUDIO", content: { path: "", label: "Listening model" } },
   { blockType: "VIDEO", content: { url: "", title: "Listening video reference" } },
   { blockType: "DIVIDER", content: {} },
+  { blockType: "SPACE", content: { height: 40 } },
   { blockType: "VOCABULARY", content: { entries: [{ word: "accurate", pronunciation: "/ˈækjərət/", meaning: "correct and exact", example: "Her answer was accurate." }, { word: "improve", pronunciation: "/ɪmˈpruːv/", meaning: "to become better", example: "Practice helps you improve." }] } },
   { blockType: "GRAMMAR", content: { title: "Past simple reminder", explanation: "Use the past simple for a finished action in the past.", examples: ["I visited my aunt yesterday.", "They studied last night."], notes: "Check the verb form and time expression." } },
   { blockType: "READING", content: { title: "Read before you answer", passage: "Good readers identify the main idea first, then return to the text to find supporting details.", questions: ["What is the main idea?", "Which detail supports it?"] } },

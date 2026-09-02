@@ -50,7 +50,7 @@ import { DialogueVoiceoverEditor } from "@/components/DialogueVoiceoverEditor";
 
 const blockTypes = [
   "HEADING", "TEXT", "BULLETS", "INSTRUCTION", "REVIEW_CHECKLIST", "QUOTE", "CALLOUT",
-  "IMAGE", "IMAGE_TEXT", "IMAGE_ANNOTATION", "AUDIO", "VIDEO", "DIVIDER",
+  "IMAGE", "IMAGE_TEXT", "IMAGE_ANNOTATION", "AUDIO", "VIDEO", "DIVIDER", "SPACE",
   "VOCABULARY", "GRAMMAR", "READING", "DIALOGUE",
   "FLASHCARD", "TABLE", "COMMON_MISTAKE", "CONTRAST_PAIR", "IMAGE_PAIR", "TONGUE_TWISTER", "STEPS"
 ] as const;
@@ -1465,7 +1465,7 @@ function labelForBlockType(type: string) {
   const labels: Record<string, string> = {
     HEADING: "Heading", TEXT: "Text", BULLETS: "Bullet points", INSTRUCTION: "Instruction", REVIEW_CHECKLIST: "Review checklist", QUOTE: "Quote",
     CALLOUT: "Callout", IMAGE: "Image", IMAGE_TEXT: "Image + Text", IMAGE_ANNOTATION: "Image annotations",
-    AUDIO: "Audio", VIDEO: "Video", DIVIDER: "Divider",
+    AUDIO: "Audio", VIDEO: "Video", DIVIDER: "Divider", SPACE: "Space",
     VOCABULARY: "Vocabulary list", GRAMMAR: "Grammar",
     READING: "Reading passage", DIALOGUE: "Dialogue",
     FLASHCARD: "Flashcard", TABLE: "Table", COMMON_MISTAKE: "Common mistake", CONTRAST_PAIR: "Contrast pair", STEPS: "Steps",
@@ -1629,6 +1629,15 @@ function BlockFields({ blockType, content, lessonId, blockId }: { blockType: str
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="text-sm">Line style<select name="line_style" defaultValue={asString(data.line_style) || "solid"} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2"><option value="solid">Straight line</option><option value="dotted">Dotted line</option></select></label>
         <label className="text-sm">Line width <span className="font-normal text-[var(--br-text-muted)]">(25–100%)</span><input name="line_width" type="number" min="25" max="100" step="5" defaultValue={Number(data.line_width) || 100} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+      </div>
+    );
+  }
+  if (blockType === "SPACE") {
+    const height = Math.min(100, Math.max(0, Number(data.height) || 0));
+    return (
+      <div className="grid gap-3">
+        <label className="text-sm">Space height <span className="font-normal text-[var(--br-text-muted)]">(0–100 px)</span><input name="height" type="range" min="0" max="100" step="1" defaultValue={height} className="mt-2 w-full accent-[var(--br-action)]" aria-label="Space height in pixels" /></label>
+        <div className="rounded-lg border border-dashed border-[var(--br-action)]/45 bg-[var(--br-action)]/5 px-3 py-2 text-xs text-[var(--br-text-muted)]">This block adds vertical breathing room between content blocks. The space is invisible to learners.</div>
       </div>
     );
   }
