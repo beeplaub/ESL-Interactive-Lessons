@@ -49,7 +49,7 @@ function OpenCloseDetails({
     <details open={alwaysOpen || open} onToggle={(event) => { if (!alwaysOpen) setOpen(event.currentTarget.open); }} className={className}>
       <summary className={summaryClassName}>
         {summary}
-        <span className={labelClassName}>{alwaysOpen ? "Shown" : open ? "Close" : "Open"}</span>
+        {!alwaysOpen ? <span className={labelClassName}>{open ? "Close" : "Open"}</span> : null}
       </summary>
       {children}
     </details>

@@ -7,6 +7,7 @@ import { LessonBlockPreview, type PreviewLessonBlock } from "@/components/Lesson
 import { BrandLogo } from "@/components/BrandLogo";
 import type { Json } from "@/types/database.types";
 import { resolveMediaUrl } from "@/lib/storage/mediaStorage";
+import { parseAudioTracks } from "@/lib/audioTracks";
 import QRCode from "qrcode";
 
 export const dynamic = "force-dynamic";
@@ -143,6 +144,18 @@ export default async function LessonPrintPage({ params }: { params: Promise<{ le
     if (!url) return null;
     return { id: audio.id, slide_id: audio.slide_id, label: audio.label, url, qrDataUrl: await QRCode.toDataURL(url, { margin: 1, width: 180 }) } satisfies PrintableAudio;
   }))).filter((audio): audio is PrintableAudio => Boolean(audio));
+  const audioBlockList = (await Promise.all(blockList.filter((block) => block.block_type === "AUDIO").flatMap((block) => {
+    const content = record(block.content);
+    const title = text(content.title) || "Audio";
+    const tracks = parseAudioTracks(content.path).tracks;
+    return tracks.map((track, index) => ({ block, title: tracks.length > 1 ? `${title} ${index + 1}` : title, url: track.url }));
+  }).map(async ({ block, title, url }, index): Promise<PrintableAudio | null> => {
+    const resolvedUrl = /^https?:\/\//i.test(url) || url.startsWith("/")
+      ? url
+      : await resolveMediaUrl(admin, { provider: "r2", bucket: "lesson-audio", path: url });
+    if (!resolvedUrl) return null;
+    return { id: `${block.id}-${index}`, slide_id: block.slide_id, label: title, url: resolvedUrl, qrDataUrl: await QRCode.toDataURL(resolvedUrl, { margin: 1, width: 180 }) } satisfies PrintableAudio;
+  }))).filter((audio): audio is PrintableAudio => Boolean(audio));
 
   return (
     <div className="min-h-screen bg-[var(--br-canvas)] text-[var(--br-text)] print:bg-white">
@@ -175,7 +188,7 @@ export default async function LessonPrintPage({ params }: { params: Promise<{ le
 
         <div className="print-slides mt-6 space-y-8 print:mt-0 print:space-y-0">
           {slideList.map((slide) => {
-            const slideBlocks = blockList.filter((block) => block.slide_id === slide.id).sort((a, b) => a.position - b.position);
+            const slideBlocks = blockList.filter((block) => block.slide_id === slide.id && block.block_type !== "AUDIO").sort((a, b) => a.position - b.position);
             const slideActivities = activityList.filter((activity) => activity.slide_id === slide.id || (!activity.slide_id && activity.slide_number === slide.slide_number));
             return (
               <article key={slide.id} className="print-slide rounded-[18px] border border-[var(--br-border)] bg-white p-4 shadow-sm sm:p-6 print:rounded-none print:border-0 print:p-0 print:shadow-none">
@@ -188,6 +201,7 @@ export default async function LessonPrintPage({ params }: { params: Promise<{ le
                 </div>
                 {slideBlocks.length ? <div className="print-blocks"><LessonBlockPreview blocks={slideBlocks} emptyText="" alwaysOpen /></div> : null}
                 {audioList.filter((audio) => audio.slide_id === slide.id).map((audio) => <PrintableAudio key={audio.id} audio={audio} />)}
+                {audioBlockList.filter((audio) => audio.slide_id === slide.id).map((audio) => <PrintableAudio key={audio.id} audio={audio} />)}
                 {slideActivities.length ? (
                   <div className={`${slideBlocks.length ? "mt-6 border-t border-[var(--br-border)] pt-5" : ""} space-y-3`}>
                     <h3 className="text-base font-extrabold text-[var(--br-dark-card)]">Practice</h3>
