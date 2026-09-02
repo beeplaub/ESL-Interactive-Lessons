@@ -89,7 +89,7 @@ function activityChoices(activity: PrintableActivity) {
 function PrintableAudio({ audio }: { audio: PrintableAudio }) {
   return (
     <div className="mt-4 flex items-center gap-3 rounded-[14px] border border-[var(--br-border)] bg-[var(--br-surface-muted)] p-3 print:bg-white">
-      <img src={audio.qrDataUrl} alt="Scan to play audio" className="size-20 shrink-0" />
+      <img src={audio.qrDataUrl} alt="Scan to play audio" className="size-28 shrink-0" style={{ imageRendering: "pixelated" }} />
       <div className="min-w-0">
         <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-[var(--br-action)]">Audio</p>
         <p className="mt-1 text-sm font-bold text-[var(--br-dark-card)]">{audio.label || "Listen to this slide"}</p>
@@ -158,14 +158,16 @@ export default async function LessonPrintPage({ params }: { params: Promise<{ le
   const blockList = (blocks ?? []) as PrintableBlock[];
   const activityList = (activities ?? []) as PrintableActivity[];
   const audioList = (await Promise.all((audioFiles ?? []).map(async (audio) => {
-    const url = audio.external_url || await resolveMediaUrl(admin, {
-      provider: audio.storage_provider,
-      bucket: audio.storage_bucket ?? "lesson-audio",
-      path: audio.storage_path,
-      publicUrl: audio.public_url,
-    });
+    const url = audio.external_url || (audio.storage_provider === "r2"
+      ? printableAudioUrl(audio.public_url || audio.storage_path)
+      : await resolveMediaUrl(admin, {
+          provider: audio.storage_provider,
+          bucket: audio.storage_bucket ?? "lesson-audio",
+          path: audio.storage_path,
+          publicUrl: audio.public_url,
+        }));
     if (!url) return null;
-    return { id: audio.id, slide_id: audio.slide_id, label: audio.label, url, qrDataUrl: await QRCode.toDataURL(url, { margin: 1, width: 180 }) } satisfies PrintableAudio;
+    return { id: audio.id, slide_id: audio.slide_id, label: audio.label, url, qrDataUrl: await QRCode.toDataURL(url, { margin: 2, width: 240, errorCorrectionLevel: "M" }) } satisfies PrintableAudio;
   }))).filter((audio): audio is PrintableAudio => Boolean(audio));
   const audioBlockList = (await Promise.all(blockList.filter((block) => block.block_type === "AUDIO").flatMap((block) => {
     const content = record(block.content);
