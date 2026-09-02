@@ -543,7 +543,9 @@ function normalizeAiRoleplay(data: Json | null) {
     prompt: String(record.prompt ?? "Practice speaking English with me."),
     learner_instruction: String(record.learner_instruction ?? record.prompt ?? "Practice speaking English with me."),
     ai_instruction: String(record.ai_instruction ?? record.prompt ?? "Practice speaking English with me."),
-    voice_mode: record.voice_mode === "LIVE" || record.voice_enabled !== true ? (record.voice_mode === "LIVE" ? "LIVE" : "TURN_BASED") : "LIVE",
+    // Preserve the explicitly saved mode when the editor reloads. Older
+    // activities without a mode continue to default to Gemini Live.
+    voice_mode: record.voice_mode === "TURN_BASED" ? "TURN_BASED" : "LIVE",
     character: String(record.character ?? "Shop Assistant"),
     character_image_url: String(record.character_image_url ?? ""),
     voice_name: String(record.voice_name ?? "Achird"),
