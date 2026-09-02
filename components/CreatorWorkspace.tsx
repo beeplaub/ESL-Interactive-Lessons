@@ -71,17 +71,52 @@ export function CreatorWorkspace({ projects, tasks, notes, resources }: { projec
     return () => { document.removeEventListener("click", closePopups); observer.disconnect(); };
   }, []);
   useEffect(() => {
+    const saveTimers = new WeakMap<HTMLFormElement, number>();
+    const getSaveButton = (form: HTMLFormElement) => Array.from(form.querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.trim() === "Save changes" || candidate.dataset.saveState === "saving" || candidate.dataset.saveState === "saved");
+    const restoreSaveButton = (form: HTMLFormElement) => {
+      const button = getSaveButton(form);
+      if (!button || button.dataset.saveState !== "saved") return;
+      button.dataset.saveState = "dirty";
+      button.textContent = "Save changes";
+      button.removeAttribute("aria-busy");
+    };
+    const markFormDirty = (event: Event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const form = target.closest<HTMLFormElement>(".workspace-shell form");
+      if (form) {
+        form.dataset.lastSaveChange = String(Date.now());
+        restoreSaveButton(form);
+      }
+    };
     const showSavePending = (event: SubmitEvent) => {
       const form = event.target;
       if (!(form instanceof HTMLFormElement) || !form.closest(".workspace-shell")) return;
-      const button = Array.from(form.querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.trim() === "Save changes");
+      const button = getSaveButton(form);
       if (!button) return;
-      button.dataset.originalLabel = button.textContent || "Save changes";
+      const previousTimer = saveTimers.get(form);
+      if (previousTimer) window.clearTimeout(previousTimer);
+      const submittedAt = Date.now();
+      form.dataset.lastSaveSubmit = String(submittedAt);
+      button.dataset.saveState = "saving";
       button.textContent = "Saving…";
       button.setAttribute("aria-busy", "true");
+      saveTimers.set(form, window.setTimeout(() => {
+        if (form.dataset.lastSaveSubmit !== String(submittedAt)) return;
+        if (Number(form.dataset.lastSaveChange || 0) > submittedAt) {
+          button.dataset.saveState = "dirty";
+          button.textContent = "Save changes";
+        } else {
+          button.dataset.saveState = "saved";
+          button.textContent = "Saved";
+        }
+        button.removeAttribute("aria-busy");
+      }, 800));
     };
     document.addEventListener("submit", showSavePending);
-    return () => document.removeEventListener("submit", showSavePending);
+    document.addEventListener("input", markFormDirty);
+    document.addEventListener("change", markFormDirty);
+    return () => { document.removeEventListener("submit", showSavePending); document.removeEventListener("input", markFormDirty); document.removeEventListener("change", markFormDirty); };
   }, []);
 
   return <main className="workspace-shell min-w-0 space-y-5 pb-12">
