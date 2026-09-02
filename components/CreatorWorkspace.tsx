@@ -72,7 +72,11 @@ export function CreatorWorkspace({ projects, tasks, notes, resources }: { projec
   }, []);
   useEffect(() => {
     const saveTimers = new WeakMap<HTMLFormElement, number>();
-    const getSaveButton = (form: HTMLFormElement) => Array.from(form.querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.trim() === "Save changes" || candidate.textContent?.trim() === "Add to To do" || ["saving", "saved"].includes(candidate.dataset.saveState || ""));
+    const normalizedLabel = (button: HTMLButtonElement) => button.textContent?.replace(/\s+/g, " ").trim().toLowerCase() || "";
+    const getSaveButton = (form: HTMLFormElement, submitter?: HTMLElement | null) => {
+      if (submitter instanceof HTMLButtonElement && (["save changes", "add to to do", "added to to do"].includes(normalizedLabel(submitter)) || ["saving", "saved"].includes(submitter.dataset.saveState || ""))) return submitter;
+      return Array.from(form.querySelectorAll<HTMLButtonElement>("button")).find((candidate) => ["save changes", "add to to do", "added to to do"].includes(normalizedLabel(candidate)) || ["saving", "saved"].includes(candidate.dataset.saveState || ""));
+    };
     const restoreSaveButton = (form: HTMLFormElement) => {
       const button = getSaveButton(form);
       if (!button || button.dataset.saveState !== "saved") return;
@@ -92,13 +96,13 @@ export function CreatorWorkspace({ projects, tasks, notes, resources }: { projec
     const showSavePending = (event: SubmitEvent) => {
       const form = event.target;
       if (!(form instanceof HTMLFormElement) || !form.closest(".workspace-shell")) return;
-      const button = getSaveButton(form);
+      const button = getSaveButton(form, event.submitter);
       if (!button) return;
       const previousTimer = saveTimers.get(form);
       if (previousTimer) window.clearTimeout(previousTimer);
       const submittedAt = Date.now();
       form.dataset.lastSaveSubmit = String(submittedAt);
-      const feedbackLabel = button.textContent?.trim() === "Add to To do" ? "Add to To do" : "Save changes";
+      const feedbackLabel = button.dataset.feedbackLabel || (normalizedLabel(button).includes("to to do") ? "Add to To do" : "Save changes");
       button.dataset.feedbackLabel = feedbackLabel;
       button.dataset.saveState = "saving";
       button.textContent = feedbackLabel === "Add to To do" ? "Adding…" : "Saving…";
