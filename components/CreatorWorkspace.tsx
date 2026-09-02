@@ -70,6 +70,20 @@ export function CreatorWorkspace({ projects, tasks, notes, resources }: { projec
     addCloseButtons();
     return () => { document.removeEventListener("click", closePopups); observer.disconnect(); };
   }, []);
+  useEffect(() => {
+    const showSavePending = (event: SubmitEvent) => {
+      const form = event.target;
+      if (!(form instanceof HTMLFormElement) || !form.closest(".workspace-shell")) return;
+      const button = Array.from(form.querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.trim() === "Save changes");
+      if (!button) return;
+      button.disabled = true;
+      button.dataset.originalLabel = button.textContent || "Save changes";
+      button.textContent = "Saving…";
+      button.setAttribute("aria-busy", "true");
+    };
+    document.addEventListener("submit", showSavePending);
+    return () => document.removeEventListener("submit", showSavePending);
+  }, []);
 
   return <main className="workspace-shell min-w-0 space-y-5 pb-12">
     <header className="workspace-header flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--br-brand)]">Creator workspace</p><h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">Your teaching desk</h1><p className="mt-2 text-sm text-[var(--br-text-muted)]">Plan, capture, and finish your BrenUp work in one focused place.</p></div><div className="workspace-quick-actions flex w-full flex-wrap gap-2 sm:w-auto"><form action={createWorkspaceProject} className="workspace-quick-form flex min-w-0 flex-1 gap-2 sm:flex-none"><input name="title" required placeholder="New project name" className="field h-10 min-w-0 flex-1 sm:w-56 sm:flex-none" /><button className="inline-flex h-10 shrink-0 items-center gap-2 rounded-lg bg-[var(--br-action)] px-3 text-sm font-bold text-on-dark"><Plus size={15} /> Project</button></form><details className="workspace-new-task relative w-full sm:w-auto"><summary className="inline-flex min-h-10 w-full cursor-pointer list-none items-center justify-center gap-2 rounded-lg bg-[var(--br-brand)] px-3 text-sm font-bold text-on-dark sm:w-auto"><Plus size={15} /> New task</summary><form action={createWorkspaceTask} className="workspace-quick-form absolute right-0 top-12 z-20 grid w-[min(24rem,calc(100vw-2rem))] gap-2 rounded-xl border border-[var(--br-border)] bg-surface p-3 shadow-xl"><input name="title" required placeholder="Task name" className="field h-10 w-full" /><select name="project_id" aria-label="Assign task to project" className="field h-10 w-full"><option value="">Personal</option>{projects.map((project) => <option key={project.id} value={project.id}>{project.title}</option>)}</select><div className="grid grid-cols-2 gap-2"><select name="priority" aria-label="Task priority" className="field h-10"><option value="NORMAL">Normal</option><option value="HIGH">High</option><option value="URGENT">Urgent</option><option value="LOW">Low</option></select><BrenDateTimeField name="due_at" label="Due date and time" /></div><textarea name="description" rows={2} placeholder="Details (optional)" className="field w-full" /><input name="related_url" type="url" placeholder="Related link (optional)" className="field w-full" /><select name="recurrence" aria-label="Task recurrence" className="field h-10 w-full"><option value="NONE">One time</option><option value="DAILY">Daily</option><option value="WEEKLY">Weekly</option><option value="MONTHLY">Monthly</option></select><button className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[var(--br-brand)] px-3 text-sm font-bold text-on-dark"><Plus size={15} /> Add task</button></form></details></div></header>
