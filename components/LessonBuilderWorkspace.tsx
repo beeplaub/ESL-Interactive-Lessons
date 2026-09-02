@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { FormEvent } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { Activity, AlignCenter, AlignLeft, AlignRight, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, AlignVerticalJustifyStart, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, BookOpen, Copy, Eye, GripVertical, Headphones, Library, Mic2, Monitor, PenLine, Plus, Printer, Redo2, Search, Settings, SlidersHorizontal, Smartphone, Tablet, Target, Trash2, Undo2, X, ChevronRight, RotateCcw } from "lucide-react";
+import { Activity, AlignCenter, AlignLeft, AlignRight, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd, AlignVerticalJustifyStart, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, BookOpen, CheckCircle2, Copy, Eye, GripVertical, Headphones, Library, Mic2, Monitor, PenLine, Plus, Printer, Redo2, Search, Settings, SlidersHorizontal, Smartphone, Tablet, Target, Trash2, Undo2, X, ChevronRight, RotateCcw } from "lucide-react";
 import {
   addBuilderSlideAt,
   addLessonBlock,
@@ -1661,11 +1661,14 @@ function BlockFields({ blockType, content, lessonId, blockId }: { blockType: str
   }
   if (blockType === "REVIEW_CHECKLIST") {
     return (
-      <div className="grid gap-3">
-        <label className="text-sm">Checklist title<input name="title" defaultValue={asString(data.title)} placeholder="I can now…" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
-        <label className="text-sm">Introductory text <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><textarea name="intro" rows={2} defaultValue={asString(data.intro)} placeholder="Check each statement you can do confidently." className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
-        <label className="text-sm">Review statements <span className="font-normal text-[var(--br-text-muted)]">(one per line)</span><textarea name="items" rows={6} defaultValue={lines(data.items)} placeholder="I can introduce myself.\nI can ask a follow-up question." className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
-        <label className="flex items-start gap-2 text-sm"><input type="checkbox" name="require_completion" defaultChecked={data.require_completion === true} className="mt-0.5 size-4 rounded border-[var(--br-border)]" /><span><span className="font-semibold">Require every item before lesson completion</span><span className="mt-0.5 block text-xs text-[var(--br-text-muted)]">The Complete lesson button stays disabled until learners check all statements.</span></span></label>
+      <div className="rounded-2xl border border-[var(--br-brand)]/20 bg-gradient-to-br from-[var(--br-brand)]/[0.04] via-surface to-[var(--br-success)]/[0.04] p-4 sm:p-5">
+        <div className="mb-4 flex items-center gap-3"><span className="grid size-9 place-items-center rounded-xl bg-[var(--br-brand)] text-on-dark"><CheckCircle2 size={18} /></span><div><p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--br-brand)]">Learner reflection</p><p className="mt-0.5 text-xs text-[var(--br-text-muted)]">Help learners review what they can do.</p></div></div>
+        <div className="grid gap-3">
+          <label className="text-sm font-semibold text-ink">Checklist title<input name="title" defaultValue={asString(data.title)} placeholder="I can now…" className="field mt-1 w-full" /></label>
+          <label className="text-sm font-semibold text-ink">Introductory text <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><textarea name="intro" rows={2} defaultValue={asString(data.intro)} placeholder="Check each statement you can do confidently." className="field mt-1 w-full" /></label>
+          <label className="text-sm font-semibold text-ink">Review statements <span className="font-normal text-[var(--br-text-muted)]">(one per line)</span><textarea name="items" rows={6} defaultValue={lines(data.items)} placeholder="I can introduce myself.\nI can ask a follow-up question." className="field mt-1 w-full" /></label>
+          <label className="flex items-start gap-2 rounded-xl border border-[var(--br-brand)]/15 bg-white/70 p-3 text-sm"><input type="checkbox" name="require_completion" defaultChecked={data.require_completion === true} className="mt-0.5 size-4 rounded border-[var(--br-border)] accent-[var(--br-brand)]" /><span><span className="font-semibold text-ink">Require every item before lesson completion</span><span className="mt-0.5 block text-xs leading-5 text-[var(--br-text-muted)]">The Complete lesson button stays disabled until learners check all statements.</span></span></label>
+        </div>
       </div>
     );
   }
