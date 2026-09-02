@@ -178,7 +178,7 @@ export default async function LessonPage({
     admin.from("lessons").select("id,title,topic,level,status,timer_minutes").eq("id", lessonId).eq("status", "PUBLISHED").is("deleted_at", null).maybeSingle(),
     admin.from("slides").select("id,slide_number,title,section_label,content_order,require_practice_before_learn").eq("lesson_id", lessonId).is("deleted_at", null).order("slide_number", { ascending: true }),
     admin.from("lesson_blocks").select("id,slide_id,position,block_type,content").eq("lesson_id", lessonId).order("position", { ascending: true }),
-    admin.from("lesson_slide_activities").select("id,slide_id,slide_number,activity_type,activity_data").eq("lesson_id", lessonId).is("deleted_at", null).order("slide_number", { ascending: true }),
+    admin.from("lesson_slide_activities").select("id,slide_id,slide_number,position,activity_type,activity_data").eq("lesson_id", lessonId).is("deleted_at", null).order("slide_number", { ascending: true }).order("position", { ascending: true, nullsFirst: false }).order("created_at", { ascending: true }),
     admin.from("lesson_progress").select("current_slide_number,completed,notes").eq("lesson_id", lessonId).eq("user_id", user.id).maybeSingle(),
     admin.from("quiz_attempts").select("id,lesson_slide_activity_id,score,total,answers,completed_at,status,grading_source").eq("user_id", user.id).not("lesson_slide_activity_id", "is", null).order("completed_at", { ascending: false }),
     admin.from("assessment_attempts").select("id,lesson_activity_id,legacy_quiz_attempt_id,score,maximum_score,completed_at,submitted_at,created_at,status,grading_source").eq("user_id", user.id).eq("source_type", "LESSON_ACTIVITY").not("lesson_activity_id", "is", null).order("completed_at", { ascending: false }),
