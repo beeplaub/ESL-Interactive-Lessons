@@ -54,6 +54,7 @@ export function CreatorWorkspace({ projects, tasks, notes, resources }: { projec
       popup.appendChild(close);
     });
     const closePopups = (event: MouseEvent) => {
+      if (document.body.dataset.brenDatePickerOpen === "true") return;
       const target = event.target as Node;
       if (target instanceof Element && target.closest(".workspace-popup-close")) {
         target.closest("details")?.removeAttribute("open");
