@@ -669,8 +669,8 @@ function ReviewChecklistBlock({ blockId, content, checkedItems, onChange }: { bl
   }
 
   return (
-    <section className="overflow-hidden rounded-[22px] border border-[var(--br-brand)]/20 bg-gradient-to-br from-[var(--br-brand-soft)] via-surface to-[var(--br-success-soft)]/40 shadow-sm">
-      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[var(--br-brand)]/15 px-4 py-4 sm:px-5 sm:py-5">
+    <section className="overflow-hidden rounded-2xl border border-[var(--br-brand)]/25 bg-surface shadow-[0_10px_30px_rgba(38,37,79,0.08)]">
+      <div className="flex flex-wrap items-start justify-between gap-4 bg-gradient-to-r from-[var(--br-brand)]/[0.10] via-[var(--br-brand)]/[0.04] to-[var(--br-success)]/[0.08] px-4 py-4 sm:px-5 sm:py-5">
         <div className="flex min-w-0 items-start gap-3">
           <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-[var(--br-brand)] text-on-dark shadow-sm"><CheckCircle2 size={21} /></span>
           <div className="min-w-0">
@@ -678,12 +678,12 @@ function ReviewChecklistBlock({ blockId, content, checkedItems, onChange }: { bl
             {asString(content.intro) ? <p className="mt-1 text-sm leading-6 text-[var(--br-text-muted)]">{asString(content.intro)}</p> : null}
           </div>
         </div>
-        {items.length ? <span className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-extrabold ${allComplete ? "bg-[var(--br-success-soft)] text-[var(--br-chart-secondary)]" : "bg-white/75 text-[var(--br-brand)]"}`}>{completedCount}/{items.length} checked</span> : null}
+        {items.length ? <span className={`shrink-0 rounded-full border px-3 py-1.5 text-xs font-extrabold ${allComplete ? "border-[var(--br-success)]/30 bg-[var(--br-success-soft)] text-[var(--br-chart-secondary)]" : "border-[var(--br-brand)]/20 bg-white text-[var(--br-brand)]"}`}>{completedCount}/{items.length} checked</span> : null}
       </div>
-      <div className="space-y-2 p-3 sm:p-4">
+      <div className="space-y-2.5 bg-[var(--br-surface-muted)]/35 p-3 sm:p-4">
         {items.length ? items.map((item, index) => {
           const isChecked = Boolean(currentChecked[index]);
-          return <label key={`${item}-${index}`} className={`flex cursor-pointer items-start gap-3 rounded-2xl border px-3 py-3 transition sm:px-4 ${isChecked ? "border-[var(--br-success)]/30 bg-[var(--br-success-soft)]/60" : "border-[var(--br-border)] bg-white/75 hover:border-[var(--br-brand)]/35 hover:bg-white"}`}>
+          return <label key={`${item}-${index}`} className={`flex cursor-pointer items-start gap-3 rounded-xl border px-3 py-3 transition sm:px-4 ${isChecked ? "border-[var(--br-success)]/40 bg-[var(--br-success-soft)]/70" : "border-[var(--br-border)] bg-white hover:border-[var(--br-brand)]/40 hover:shadow-sm"}`}>
             <input type="checkbox" checked={isChecked} onChange={() => toggleItem(index)} className="peer sr-only" />
             <span className={`mt-0.5 grid size-5 shrink-0 place-items-center rounded-md border transition ${isChecked ? "border-[var(--br-success)] bg-[var(--br-success)] text-on-dark" : "border-[var(--br-brand)]/40 bg-white text-transparent"}`} aria-hidden="true"><Check size={14} strokeWidth={3} /></span>
             <span className={`min-w-0 text-sm font-semibold leading-6 ${isChecked ? "text-[var(--br-chart-secondary)] line-through decoration-[var(--br-success)]/60" : "text-[var(--br-dark-card)]"}`}>{item}</span>
