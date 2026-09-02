@@ -72,12 +72,12 @@ export function CreatorWorkspace({ projects, tasks, notes, resources }: { projec
   }, []);
   useEffect(() => {
     const saveTimers = new WeakMap<HTMLFormElement, number>();
-    const getSaveButton = (form: HTMLFormElement) => Array.from(form.querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.trim() === "Save changes" || candidate.dataset.saveState === "saving" || candidate.dataset.saveState === "saved");
+    const getSaveButton = (form: HTMLFormElement) => Array.from(form.querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.trim() === "Save changes" || candidate.textContent?.trim() === "Add to To do" || ["saving", "saved"].includes(candidate.dataset.saveState || ""));
     const restoreSaveButton = (form: HTMLFormElement) => {
       const button = getSaveButton(form);
       if (!button || button.dataset.saveState !== "saved") return;
       button.dataset.saveState = "dirty";
-      button.textContent = "Save changes";
+      button.textContent = button.dataset.feedbackLabel || "Save changes";
       button.removeAttribute("aria-busy");
     };
     const markFormDirty = (event: Event) => {
@@ -98,17 +98,19 @@ export function CreatorWorkspace({ projects, tasks, notes, resources }: { projec
       if (previousTimer) window.clearTimeout(previousTimer);
       const submittedAt = Date.now();
       form.dataset.lastSaveSubmit = String(submittedAt);
+      const feedbackLabel = button.textContent?.trim() === "Add to To do" ? "Add to To do" : "Save changes";
+      button.dataset.feedbackLabel = feedbackLabel;
       button.dataset.saveState = "saving";
-      button.textContent = "Saving…";
+      button.textContent = feedbackLabel === "Add to To do" ? "Adding…" : "Saving…";
       button.setAttribute("aria-busy", "true");
       saveTimers.set(form, window.setTimeout(() => {
         if (form.dataset.lastSaveSubmit !== String(submittedAt)) return;
         if (Number(form.dataset.lastSaveChange || 0) > submittedAt) {
           button.dataset.saveState = "dirty";
-          button.textContent = "Save changes";
+          button.textContent = feedbackLabel;
         } else {
           button.dataset.saveState = "saved";
-          button.textContent = "Saved";
+          button.textContent = feedbackLabel === "Add to To do" ? "Added to To do" : "Saved";
         }
         button.removeAttribute("aria-busy");
       }, 800));
