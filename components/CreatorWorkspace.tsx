@@ -76,7 +76,6 @@ export function CreatorWorkspace({ projects, tasks, notes, resources }: { projec
       if (!(form instanceof HTMLFormElement) || !form.closest(".workspace-shell")) return;
       const button = Array.from(form.querySelectorAll<HTMLButtonElement>("button")).find((candidate) => candidate.textContent?.trim() === "Save changes");
       if (!button) return;
-      button.disabled = true;
       button.dataset.originalLabel = button.textContent || "Save changes";
       button.textContent = "Saving…";
       button.setAttribute("aria-busy", "true");
