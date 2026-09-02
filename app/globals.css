@@ -673,6 +673,17 @@ select {
   cursor: pointer;
 }
 
+/* Date pickers render in document.body, outside workspace stacking contexts.
+   Keep these declarations explicit so no workspace layer can steal clicks. */
+.bren-date-picker-portal {
+  isolation: isolate;
+  pointer-events: auto;
+}
+
+.bren-date-picker-panel {
+  pointer-events: auto;
+}
+
 .workspace-new-task > form::before {
   content: "Create a new task";
   display: block;
