@@ -2079,6 +2079,34 @@ export async function updateSlideActivity(input: {
   }
 }
 
+export async function reorderLessonSlideActivities(lessonId: string, slideId: string, orderedIds: string[]) {
+  await requireLessonAccess(lessonId);
+  const supabase = createAdminClient();
+  const { data: activities, error } = await supabase
+    .from("lesson_slide_activities")
+    .select("id")
+    .eq("lesson_id", lessonId)
+    .eq("slide_id", slideId)
+    .is("deleted_at", null)
+    .order("position", { ascending: true })
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  const currentIds = (activities ?? []).map((activity) => activity.id);
+  if (currentIds.length !== orderedIds.length || currentIds.some((id) => !orderedIds.includes(id))) {
+    throw new Error("The activities changed before the new order could be saved. Please try again.");
+  }
+  const updates = orderedIds.map((id, index) => supabase
+    .from("lesson_slide_activities")
+    .update({ position: index + 1, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .eq("lesson_id", lessonId)
+    .eq("slide_id", slideId));
+  const results = await Promise.all(updates);
+  const updateError = results.find((result) => result.error)?.error;
+  if (updateError) throw updateError;
+  revalidateLessonBuilder(lessonId);
+}
+
 export async function deleteSlideActivity(input: {
   activityId: string;
   lessonId: string;
