@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { ArrowDown, ArrowUp, GripVertical } from "lucide-react";
-import { deleteSlideActivity, reorderLessonSlideActivities, updateSlideActivity } from "@/app/admin/lessons/actions";
+import { deleteSlideActivity, updateSlideActivity } from "@/app/admin/lessons/actions";
 import type { Json } from "@/types/database.types";
 import { useDeleteConfirm } from "@/components/DeleteConfirmModal";
 import { MediaRecorderInput } from "@/components/MediaRecorderInput";
@@ -14,7 +13,6 @@ import { isWritingQuestionType, type EvaluationMode } from "@/lib/writingGrading
 type Activity = {
   id: string;
   lesson_id: string;
-  slide_id?: string | null;
   slide_number: number;
   activity_type: string;
   activity_data: Json | null;
@@ -714,45 +712,16 @@ function AiInterviewEditor({ activity, onSave }: { activity: Activity; onSave: (
 export function InLessonActivitiesEditor({
   lessonId,
   initialActivities,
-  slideId,
   embedded = false
 }: {
   lessonId: string;
   initialActivities: Activity[];
-  slideId?: string;
   embedded?: boolean;
 }) {
   const [activities, setActivities] = useState(initialActivities);
-  const [draggedActivityId, setDraggedActivityId] = useState<string | null>(null);
-  const [isReordering, startReordering] = useTransition();
-  const activeSlideId = slideId ?? initialActivities[0]?.slide_id ?? undefined;
   useEffect(() => {
     setActivities(initialActivities);
   }, [initialActivities]);
-  function reorderActivities(targetId: string, sourceId = draggedActivityId) {
-    if (!activeSlideId || !sourceId || sourceId === targetId || isReordering) return;
-    const from = activities.findIndex((activity) => activity.id === sourceId);
-    const to = activities.findIndex((activity) => activity.id === targetId);
-    if (from < 0 || to < 0) return;
-    const next = [...activities];
-    const [moved] = next.splice(from, 1);
-    next.splice(to, 0, moved);
-    setActivities(next);
-    startReordering(async () => {
-      try {
-        await reorderLessonSlideActivities(lessonId, activeSlideId, next.map((activity) => activity.id));
-      } catch {
-        setActivities(initialActivities);
-      }
-    });
-  }
-  function moveActivity(index: number, direction: -1 | 1) {
-    const target = activities[index + direction];
-    if (!target) return;
-    setDraggedActivityId(activities[index]?.id ?? null);
-    reorderActivities(target.id, activities[index]?.id ?? null);
-    setDraggedActivityId(null);
-  }
   if (!activities.length) return null;
 
   return (
@@ -764,16 +733,14 @@ export function InLessonActivitiesEditor({
         </>
       ) : null}
       <div className={embedded ? "space-y-3" : "mt-4 space-y-3"}>
-        {activities.map((activity, index) => (
-          <div key={activity.id} draggable={Boolean(activeSlideId)} onDragStart={() => setDraggedActivityId(activity.id)} onDragOver={(event) => event.preventDefault()} onDrop={() => { reorderActivities(activity.id); setDraggedActivityId(null); }} onDragEnd={() => setDraggedActivityId(null)} className={`transition ${draggedActivityId === activity.id ? "opacity-45" : ""}`}>
-            {activeSlideId ? <div className="mb-1 flex items-center justify-between gap-2 px-1 text-[10px] font-bold uppercase tracking-wide text-[var(--br-text-muted)]"><span className="inline-flex items-center gap-1"><GripVertical size={13} className="cursor-grab" /> Drag to reposition</span><span className="inline-flex items-center gap-1"><button type="button" onClick={() => moveActivity(index, -1)} disabled={index === 0 || isReordering} className="rounded p-1 hover:bg-surface disabled:opacity-30" aria-label={`Move activity ${index + 1} up`}><ArrowUp size={12} /></button><span>{index + 1} of {activities.length}</span><button type="button" onClick={() => moveActivity(index, 1)} disabled={index === activities.length - 1 || isReordering} className="rounded p-1 hover:bg-surface disabled:opacity-30" aria-label={`Move activity ${index + 1} down`}><ArrowDown size={12} /></button></span></div> : null}
-            <ActivityPanel
-              activity={activity}
-              lessonId={lessonId}
-              onDelete={() => setActivities((current) => current.filter((item) => item.id !== activity.id))}
-              onSaved={(next) => setActivities((current) => current.map((item) => (item.id === activity.id ? next : item)))}
-            />
-          </div>
+        {activities.map((activity) => (
+          <ActivityPanel
+            key={activity.id}
+            activity={activity}
+            lessonId={lessonId}
+            onDelete={() => setActivities((current) => current.filter((item) => item.id !== activity.id))}
+            onSaved={(next) => setActivities((current) => current.map((item) => (item.id === activity.id ? next : item)))}
+          />
         ))}
       </div>
     </section>
