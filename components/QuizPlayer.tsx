@@ -3789,6 +3789,7 @@ function SentenceCombiningPlayer({
 }) {
   const opts = asRecord(question.options);
   const inputSentences = Array.isArray(opts.input_sentences) ? opts.input_sentences.map(String) : [question.question_text];
+  const connectorSuggestions = Array.isArray(opts.connector_suggestions) ? opts.connector_suggestions.map(String) : Array.isArray(opts.suggested_connectors) ? opts.suggested_connectors.map(String) : [];
   const modelCombined = String(opts.model_combined_sentence ?? question.correct_answer ?? "");
   const explanation = String(opts.explanation ?? "");
   const text = value?.text ?? "";
@@ -3806,6 +3807,7 @@ function SentenceCombiningPlayer({
             <li key={i}>{s}</li>
           ))}
         </ul>
+        {connectorSuggestions.length > 0 && <div className="border-t border-[var(--br-chart-primary)]/10 pt-3"><p className="text-[11px] font-bold uppercase tracking-wide text-[var(--br-text-muted)]">Connector suggestions</p><div className="mt-2 flex flex-wrap gap-1.5">{connectorSuggestions.map((connector) => <span key={connector} className="rounded-xl border border-[var(--br-chart-primary)]/20 bg-[var(--br-chart-primary)]/10 px-2.5 py-1 text-xs font-bold text-[var(--br-chart-primary)]">{connector}</span>)}</div></div>}
       </div>
 
       <textarea
@@ -3821,7 +3823,7 @@ function SentenceCombiningPlayer({
         <WritingEvaluationInterface
           activityId={question.source_activity_id ?? question.id}
           activityType="SENTENCE_COMBINING"
-          prompt={question.question_text}
+          prompt={`${question.question_text}${inputSentences.length ? `\nSentences to combine: ${inputSentences.join(" | ")}` : ""}${connectorSuggestions.length ? `\nSuggested connectors: ${connectorSuggestions.join(", ")}` : ""}`}
           submissionText={text}
           modelAnswer={modelCombined}
           modelDescription={explanation}

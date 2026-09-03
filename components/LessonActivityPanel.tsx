@@ -383,6 +383,7 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
     return writingQuestionsFromData(data, "SENTENCE_COMBINING", "Combine the simple sentences into a complex sentence.", (item) => ({
       options: {
         input_sentences: item.input_sentences,
+        connector_suggestions: item.connector_suggestions ?? item.suggested_connectors,
         model_combined_sentence: item.model_combined_sentence,
         explanation: item.explanation,
       },

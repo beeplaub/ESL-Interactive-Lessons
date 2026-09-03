@@ -3414,6 +3414,18 @@ function ParaphrasePracticeEditor({
   );
 }
 
+type SentenceCombiningQuestionDraft = { id: string; inputSentences: string[]; connectors: string; modelCombined: string };
+
+function sentenceCombiningDraft(value: Json | null | undefined, fallbackId: string): SentenceCombiningQuestionDraft {
+  const item = asRecord(value);
+  return {
+    id: String(item.id || fallbackId),
+    inputSentences: Array.isArray(item.input_sentences) ? item.input_sentences.map(String) : ["Sentence 1", "Sentence 2"],
+    connectors: Array.isArray(item.connector_suggestions) ? item.connector_suggestions.join(", ") : Array.isArray(item.suggested_connectors) ? item.suggested_connectors.join(", ") : "",
+    modelCombined: String(item.model_combined_sentence || ""),
+  };
+}
+
 function SentenceCombiningEditor({
   activity,
   onSave,
@@ -3422,58 +3434,59 @@ function SentenceCombiningEditor({
   onSave: (options: Json, needsReview: boolean) => void;
 }) {
   const currentOptions = asRecord(activity.activity_data);
+  const initialQuestions = Array.isArray(currentOptions.questions) && currentOptions.questions.length > 0
+    ? currentOptions.questions.map((item, index) => sentenceCombiningDraft(item as Json, String(index + 1)))
+    : [sentenceCombiningDraft(activity.activity_data, "1")];
   const [prompt, setPrompt] = useState<string>(String(currentOptions.prompt || "Combine the simple sentences below into a complex sentence."));
-  const [inputSentences, setInputSentences] = useState<string[]>(
-    Array.isArray(currentOptions.input_sentences) ? currentOptions.input_sentences.map(String) : ["Sentence 1", "Sentence 2"]
-  );
-  const [modelCombined, setModelCombined] = useState<string>(String(currentOptions.model_combined_sentence || ""));
+  const [questions, setQuestions] = useState<SentenceCombiningQuestionDraft[]>(initialQuestions);
+
+  function updateQuestion(id: string, patch: Partial<SentenceCombiningQuestionDraft>) {
+    setQuestions((current) => current.map((question) => question.id === id ? { ...question, ...patch } : question));
+  }
+
+  function updateSentence(id: string, index: number, value: string) {
+    setQuestions((current) => current.map((question) => {
+      if (question.id !== id) return question;
+      const inputSentences = [...question.inputSentences];
+      inputSentences[index] = value;
+      return { ...question, inputSentences };
+    }));
+  }
+
+  function addQuestion() {
+    setQuestions((current) => [...current, { id: crypto.randomUUID(), inputSentences: ["", ""], connectors: "", modelCombined: "" }]);
+  }
+
+  function removeQuestion(id: string) {
+    setQuestions((current) => current.length > 1 ? current.filter((question) => question.id !== id) : current);
+  }
+
+  function saveQuestions() {
+    const serialized = questions.map((question, index) => ({
+      id: question.id,
+      question_number: index + 1,
+      input_sentences: question.inputSentences,
+      connector_suggestions: question.connectors.split(",").map((item) => item.trim()).filter(Boolean),
+      model_combined_sentence: question.modelCombined,
+      correct_answer: question.modelCombined,
+    }));
+    const first = serialized[0];
+    const base = { prompt, input_sentences: first?.input_sentences || [], connector_suggestions: first?.connector_suggestions || [], model_combined_sentence: first?.model_combined_sentence || "", correct_answer: first?.correct_answer || "" };
+    onSave(questions.length > 1 ? { ...base, questions: serialized } as Json : base as Json, questions.some((question) => question.inputSentences.filter((sentence) => sentence.trim()).length < 2));
+  }
 
   return (
     <div className="grid gap-4">
-      <div className="rounded-md border border-[var(--br-border)] p-3 space-y-2 bg-surface-muted/50">
-        <p className="font-semibold text-xs text-[var(--br-text-muted)]">Simple Sentences to Combine</p>
-        {inputSentences.map((s, idx) => (
-          <div key={idx} className="flex items-center gap-2">
-            <span className="text-xs font-bold text-[var(--br-text-muted)]">({idx + 1}):</span>
-            <input
-              type="text"
-              value={s}
-              onChange={(e) => {
-                const next = [...inputSentences];
-                next[idx] = e.target.value;
-                setInputSentences(next);
-              }}
-              className="flex-1 rounded border border-[var(--br-border)] px-2 py-1 text-xs bg-surface"
-            />
-            {inputSentences.length > 2 && (
-              <button type="button" onClick={() => setInputSentences((curr) => curr.filter((_, i) => i !== idx))} className="text-xs text-coral hover:underline">
-                Remove
-              </button>
-            )}
-          </div>
-        ))}
-        <button type="button" onClick={() => setInputSentences((curr) => [...curr, ""])} className="rounded border border-dashed border-[var(--br-border)] px-2.5 py-1 text-xs font-semibold text-[var(--br-text-muted)] hover:bg-black/5">
-          + Add Sentence
-        </button>
-      </div>
-
-      <label className="text-sm font-medium">
-        Model Combined Sentence
-        <textarea rows={3} value={modelCombined} onChange={(e) => setModelCombined(e.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] p-2 text-sm font-mono" />
-      </label>
+      <div className="flex flex-wrap items-center justify-between gap-2"><div><p className="text-sm font-semibold text-ink">Combining questions</p><p className="text-xs text-[var(--br-text-muted)]">Add several sentence sets for a fuller practice activity.</p></div><button type="button" onClick={addQuestion} className="rounded-lg bg-[var(--br-brand)]/10 px-3 py-2 text-xs font-bold text-[var(--br-brand)]">+ Add question</button></div>
+      {questions.map((question, questionIndex) => <div key={question.id} className="grid gap-3 rounded-2xl border border-[var(--br-border)] bg-[var(--br-surface-muted)]/35 p-4">
+        <div className="flex items-center justify-between gap-2"><p className="text-xs font-black uppercase tracking-wider text-[var(--br-brand)]">Question {questionIndex + 1}</p>{questions.length > 1 ? <button type="button" onClick={() => removeQuestion(question.id)} className="text-xs font-bold text-[var(--br-danger)]">Remove</button> : null}</div>
+        <div className="grid gap-2"><p className="text-sm font-medium">Simple Sentences to Combine</p>{question.inputSentences.map((sentence, sentenceIndex) => <div key={`${question.id}-${sentenceIndex}`} className="flex items-center gap-2"><span className="text-xs font-bold text-[var(--br-text-muted)]">({sentenceIndex + 1}):</span><input value={sentence} onChange={(event) => updateSentence(question.id, sentenceIndex, event.target.value)} className="min-w-0 flex-1 rounded border border-[var(--br-border)] bg-surface px-2 py-1 text-xs" />{question.inputSentences.length > 2 ? <button type="button" onClick={() => updateQuestion(question.id, { inputSentences: question.inputSentences.filter((_, index) => index !== sentenceIndex) })} className="text-xs text-coral hover:underline">Remove</button> : null}</div>)}<button type="button" onClick={() => updateQuestion(question.id, { inputSentences: [...question.inputSentences, ""] })} className="w-fit rounded border border-dashed border-[var(--br-border)] px-2.5 py-1 text-xs font-semibold text-[var(--br-text-muted)] hover:bg-black/5">+ Add Sentence</button></div>
+        <label className="text-sm font-medium">Connector Suggestions (comma-separated)<input value={question.connectors} onChange={(event) => updateQuestion(question.id, { connectors: event.target.value })} placeholder="e.g. although, because, while" className="mt-1 w-full rounded-md border border-[var(--br-border)] bg-surface p-2 text-sm" /></label>
+        <label className="text-sm font-medium">Model Combined Sentence<textarea rows={3} value={question.modelCombined} onChange={(event) => updateQuestion(question.id, { modelCombined: event.target.value })} className="mt-1 w-full rounded-md border border-[var(--br-border)] bg-surface p-2 text-sm font-mono" /></label>
+      </div>)}
 
       <SaveButton
-        onClick={() =>
-          onSave(
-            {
-              prompt,
-              input_sentences: inputSentences,
-              model_combined_sentence: modelCombined,
-              correct_answer: modelCombined,
-            } as Json,
-            inputSentences.length < 2
-          )
-        }
+        onClick={saveQuestions}
       />
     </div>
   );
