@@ -1,18 +1,20 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { ArrowRight, BarChart3, BookOpen, Building2, ClipboardList, FileCheck, FlaskConical, GraduationCap, Images, Library, PenSquare, Plus, UsersRound } from "lucide-react";
 import { requireStaff, isPlatformAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCreatorEntitlements, type ResolvedEntitlement } from "@/lib/entitlements";
+import { getCreatorRecentAccess, type CreatorAccessType, type CreatorRecentAccessRow } from "@/lib/recentCreatorAccess";
 
 type OwnedContentRow = { id: string; status: string; title: string | null; updated_at: string | null; course_id?: string | null };
 type LearnerProfileRow = { id: string; first_name: string | null; last_name: string | null; full_name: string | null };
 type ActivityEvent = { id: string; at: string; node: React.ReactNode };
+type RecentContentRow = { id: string; title: string | null; level?: string | null; topic?: string | null; status?: string | null; course_id?: string | null };
+type QuickAccessItem = { type: CreatorAccessType; title: string; meta: string; visitedAt: string; href: string; icon: typeof ClipboardList; tone: "violet" | "blue" | "green" };
 
 export default async function AdminPage() {
   const { user, profile } = await requireStaff();
-  if (!isPlatformAdmin(profile?.role)) redirect("/admin/workspace");
   const admin = createAdminClient();
+  const recentAccess = await getCreatorRecentAccess(user.id);
 
   if (!isPlatformAdmin(profile?.role)) {
     const [{ data: courses }, { data: lessons }, { data: quizzes }] = await Promise.all([
@@ -118,13 +120,16 @@ export default async function AdminPage() {
     const savedContentCount = libraryCount ?? 0;
     const mediaAssetCount = mediaCount ?? 0;
     const standaloneQuizCount = quizRows.filter((row) => !row.course_id).length;
+    const quickAccess = buildQuickAccess(recentAccess, courseRows, lessonRows, quizRows);
 
     return (
       <main className="min-w-0 overflow-hidden">
         <div className="mb-6">
-          <h1 className="text-2xl font-semibold sm:text-3xl">My teaching overview</h1>
+          <h1 className="text-2xl font-semibold sm:text-3xl">Good morning, {profile?.first_name || profile?.full_name?.split(" ")[0] || "creator"}</h1>
           <p className="mt-2 text-sm text-[var(--br-text-muted)]">Your own courses, lessons, and quizzes.</p>
         </div>
+
+        <QuickAccessSection items={quickAccess} />
 
         <section className="grid min-w-0 gap-3 sm:grid-cols-2 md:grid-cols-3">
           <AdminCard href="/admin/courses" icon={GraduationCap} label="My courses" value={courseRows.length} detail={`${countStatus(courseRows, "PUBLISHED")} published · ${countStatus(courseRows, "DRAFT")} draft`} />
@@ -202,10 +207,10 @@ export default async function AdminPage() {
   }
 
   const [{ data: courses }, { data: organizations }, { data: lessons }, { data: quizzes }, { data: profiles }, { data: attempts }, { data: assessmentAttempts }, { data: levelResults }] = await Promise.all([
-    admin.from("courses").select("status").is("deleted_at", null),
+    admin.from("courses").select("id,title,level,status").is("deleted_at", null),
     admin.from("organizations").select("id"),
-    admin.from("lessons").select("status").is("deleted_at", null),
-    admin.from("quizzes").select("status").is("deleted_at", null),
+    admin.from("lessons").select("id,title,level,status").is("deleted_at", null),
+    admin.from("quizzes").select("id,title,level,status").is("deleted_at", null),
     admin.from("profiles").select("id"),
     admin.from("quiz_attempts").select("id"),
     admin.from("assessment_attempts").select("id,legacy_quiz_attempt_id").eq("source_type", "QUIZ"),
@@ -214,13 +219,15 @@ export default async function AdminPage() {
 
   const linkedLegacyQuizIds = new Set((assessmentAttempts ?? []).map((row) => row.legacy_quiz_attempt_id).filter((id): id is string => Boolean(id)));
   const totalQuizAttempts = (attempts ?? []).filter((row) => !linkedLegacyQuizIds.has(row.id)).length + (assessmentAttempts?.length ?? 0);
+  const quickAccess = buildQuickAccess(recentAccess, courses ?? [], lessons ?? [], quizzes ?? []);
 
   return (
     <main className="min-w-0 overflow-hidden">
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold sm:text-3xl">Admin overview</h1>
+        <h1 className="text-2xl font-semibold sm:text-3xl">Good morning, {profile?.first_name || profile?.full_name?.split(" ")[0] || "admin"}</h1>
         <p className="mt-2 text-sm text-[var(--br-text-muted)]">A central hub for managing BrenUp.</p>
       </div>
+      <QuickAccessSection items={quickAccess} />
       <section className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-3">
         <AdminCard href="/admin/courses" icon={GraduationCap} label="Courses" value={courses?.length ?? 0} detail={`${countStatus(courses, "PUBLISHED")} published · ${countStatus(courses, "DRAFT")} draft`} />
         <AdminCard href="/admin/organizations" icon={Building2} label="Organizations" value={organizations?.length ?? 0} detail="Schools and class shells" />
@@ -231,6 +238,60 @@ export default async function AdminPage() {
       </section>
     </main>
   );
+}
+
+function buildQuickAccess(recentAccess: CreatorRecentAccessRow[], courses: RecentContentRow[], lessons: RecentContentRow[], quizzes: RecentContentRow[]) {
+  const rowsByType: Record<CreatorAccessType, RecentContentRow[]> = { COURSE: courses, LESSON: lessons, QUIZ: quizzes };
+  const details: Record<CreatorAccessType, { href: (id: string) => string; icon: typeof ClipboardList; tone: QuickAccessItem["tone"]; meta: (row: RecentContentRow) => string }> = {
+    COURSE: { href: (id) => `/admin/courses/${id}/builder`, icon: GraduationCap, tone: "violet", meta: (row) => row.level || "Course workspace" },
+    LESSON: { href: (id) => `/admin/lessons/${id}/builder`, icon: BookOpen, tone: "blue", meta: (row) => row.level || "Lesson workspace" },
+    QUIZ: { href: (id) => `/admin/quizzes/${id}/edit`, icon: ClipboardList, tone: "green", meta: (row) => row.level || "Quiz workspace" },
+  };
+
+  return recentAccess.flatMap((recent) => {
+    const row = rowsByType[recent.content_type].find((item) => item.id === recent.content_id);
+    if (!row) return [];
+    const detail = details[recent.content_type];
+    return [{ type: recent.content_type, title: row.title || "Untitled", meta: detail.meta(row), visitedAt: recent.visited_at, href: detail.href(row.id), icon: detail.icon, tone: detail.tone } satisfies QuickAccessItem];
+  });
+}
+
+function QuickAccessSection({ items }: { items: QuickAccessItem[] }) {
+  const byType = new Map(items.map((item) => [item.type, item]));
+  const cards: Array<{ type: CreatorAccessType; label: string; empty: string }> = [
+    { type: "COURSE", label: "Last course", empty: "Open a course to see it here." },
+    { type: "LESSON", label: "Last lesson", empty: "Open a lesson to see it here." },
+    { type: "QUIZ", label: "Last quiz", empty: "Open a quiz to see it here." },
+  ];
+
+  return (
+    <section className="rounded-20 border border-violetglow/15 bg-gradient-to-br from-violetglow/10 via-white to-sky-50 p-4 sm:p-5">
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <div><p className="text-xs font-bold uppercase tracking-[0.14em] text-violetglow">Pick up where you left off</p><h2 className="mt-1 text-lg font-extrabold text-ink">Quick access</h2></div>
+        <p className="text-xs font-medium text-slate-500">Updates automatically when you open content</p>
+      </div>
+      <div className="mt-4 grid min-w-0 gap-3 md:grid-cols-3">
+        {cards.map((card) => {
+          const item = byType.get(card.type);
+          if (!item) return <div key={card.type} className="min-w-0 rounded-2xl border border-dashed border-violetglow/20 bg-white/60 p-4"><p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-400">{card.label}</p><p className="mt-5 text-sm font-bold text-ink">No recent {card.type.toLowerCase()}</p><p className="mt-1 text-xs leading-5 text-slate-500">{card.empty}</p></div>;
+          const Icon = item.icon;
+          const tone = item.tone === "violet" ? "bg-violetglow/10 text-violetglow" : item.tone === "blue" ? "bg-sky-100 text-sky-700" : "bg-emerald-100 text-emerald-700";
+          return <Link key={item.type} href={item.href} className="group min-w-0 rounded-2xl border border-white/80 bg-white/90 p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"><div className="flex items-start gap-3"><span className={`grid size-10 shrink-0 place-items-center rounded-xl ${tone}`}><Icon size={20} /></span><div className="min-w-0 flex-1"><p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-500">{card.label}</p><h3 className="mt-1 line-clamp-2 text-sm font-extrabold leading-5 text-ink">{item.title}</h3><p className="mt-1 truncate text-xs text-slate-500">{item.meta}</p></div><ArrowRight size={16} className="mt-1 shrink-0 text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-violetglow" /></div><p className="mt-4 border-t border-slate-100 pt-3 text-[11px] font-semibold text-slate-500">Visited {relativeTime(item.visitedAt)}</p></Link>;
+        })}
+      </div>
+    </section>
+  );
+}
+
+function relativeTime(value: string) {
+  const elapsed = Math.max(0, Date.now() - new Date(value).getTime());
+  const minutes = Math.floor(elapsed / 60000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hr${hours === 1 ? "" : "s"} ago`;
+  const days = Math.floor(hours / 24);
+  return `${days} day${days === 1 ? "" : "s"} ago`;
 }
 
 function countStatus(rows: Array<{ status: string }> | null, status: string) {

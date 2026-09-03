@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { requireCourseAccess, isPlatformAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { recordCreatorRecentAccess } from "@/lib/recentCreatorAccess";
 import { CONTENT_LEVELS } from "@/lib/levels";
 import { AddItemModal } from "@/app/admin/courses/[id]/builder/AddItemModal";
 import { BuilderDialog, CurriculumWorkspace, DraggableBuilderGrid } from "@/app/admin/courses/[id]/builder/CourseBuilderChrome";
@@ -108,6 +109,7 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
   ]);
 
   if (!course) notFound();
+  await recordCreatorRecentAccess(user.id, "COURSE", id);
 
   const [{ data: staffRows }, { data: staffProfiles }] = await Promise.all([
     admin.from("course_staff").select("*").eq("course_id", id).order("display_order", { ascending: true }),

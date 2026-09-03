@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Printer } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { requireUser, isStaff } from "@/lib/auth";
+import { requireLessonAccess } from "@/lib/auth";
 import { LessonBlockPreview, type PreviewLessonBlock } from "@/components/LessonBlockPreview";
 import { BrandLogo } from "@/components/BrandLogo";
 import type { Json } from "@/types/database.types";
@@ -138,9 +138,8 @@ function PrintableActivity({ activity, index }: { activity: PrintableActivity; i
   );
 }
 
-export default async function LessonPrintPage({ params }: { params: Promise<{ lessonId: string }> }) {
-  const { lessonId } = await params;
-  const { user, profile } = await requireUser();
+export async function LessonPrintDocument({ lessonId, backHref = `/admin/lessons/${lessonId}/builder` }: { lessonId: string; backHref?: string }) {
+  await requireLessonAccess(lessonId);
   const admin = createAdminClient();
   const [{ data: lesson }, { data: slides }, { data: blocks }, { data: activities }, { data: audioFiles }] = await Promise.all([
     admin.from("lessons").select("id,title,topic,level,status,created_by").eq("id", lessonId).is("deleted_at", null).maybeSingle(),
@@ -151,9 +150,6 @@ export default async function LessonPrintPage({ params }: { params: Promise<{ le
   ]);
 
   if (!lesson) notFound();
-  const canPrint = isStaff(profile?.role) || lesson.status === "PUBLISHED";
-  if (!canPrint) notFound();
-
   const slideList = (slides ?? []) as PrintableSlide[];
   const blockList = (blocks ?? []) as PrintableBlock[];
   const activityList = (activities ?? []) as PrintableActivity[];
@@ -185,7 +181,7 @@ export default async function LessonPrintPage({ params }: { params: Promise<{ le
     <div className="min-h-screen bg-[var(--br-canvas)] text-[var(--br-text)] print:bg-white">
       <div className="print-toolbar border-b border-[var(--br-border)] bg-white px-4 py-3 shadow-sm print:hidden">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
-          <Link href={`/lessons/${lessonId}`} className="inline-flex items-center gap-2 rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm font-bold text-[var(--br-text)] hover:bg-[var(--br-surface-muted)]"><ArrowLeft size={16} /> Back to lesson</Link>
+          <Link href={backHref} className="inline-flex items-center gap-2 rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm font-bold text-[var(--br-text)] hover:bg-[var(--br-surface-muted)]"><ArrowLeft size={16} /> Back to lesson</Link>
           <button type="button" data-trigger-print="true" className="inline-flex items-center gap-2 rounded-lg bg-[var(--br-action)] px-4 py-2 text-sm font-extrabold text-white shadow-sm hover:opacity-90"><Printer size={16} /> Print / Save PDF</button>
         </div>
       </div>
@@ -258,4 +254,8 @@ export default async function LessonPrintPage({ params }: { params: Promise<{ le
       <script dangerouslySetInnerHTML={{ __html: `document.querySelector('[data-trigger-print="true"]')?.addEventListener('click', () => window.print());` }} />
     </div>
   );
+}
+
+export default async function LessonPrintPage() {
+  notFound();
 }

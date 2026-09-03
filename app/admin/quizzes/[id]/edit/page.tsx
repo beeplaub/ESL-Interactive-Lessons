@@ -4,10 +4,11 @@ import { ArrowLeft, ChevronRight } from "lucide-react";
 import { QuizVisualBuilder } from "@/components/QuizVisualBuilder";
 import { requireQuizAccess } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { recordCreatorRecentAccess } from "@/lib/recentCreatorAccess";
 
 export default async function EditQuizPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  await requireQuizAccess(id);
+  const { user } = await requireQuizAccess(id);
   const admin = createAdminClient();
   const [{ data: quiz }, { data: questions }, { data: bankQuestions }, { data: skills }, { data: targets }, { data: placements }] = await Promise.all([
     admin.from("quizzes").select("*").eq("id", id).single(),
@@ -23,6 +24,7 @@ export default async function EditQuizPage({ params }: { params: Promise<{ id: s
   ]);
 
   if (!quiz) notFound();
+  await recordCreatorRecentAccess(user.id, "QUIZ", id);
 
   const placement = placements?.[0];
   const courseId = placement?.course_id;

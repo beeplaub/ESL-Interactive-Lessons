@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { requireLessonAccess, isPlatformAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { recordCreatorRecentAccess } from "@/lib/recentCreatorAccess";
 import { LessonBuilderWorkspace } from "@/components/LessonBuilderWorkspace";
 
 export default async function LessonBuilderPage({ params }: { params: Promise<{ id: string }> }) {
@@ -31,6 +32,7 @@ export default async function LessonBuilderPage({ params }: { params: Promise<{ 
   ]);
 
   if (!lesson) notFound();
+  await recordCreatorRecentAccess(user.id, "LESSON", id);
 
   const activityIds = (activities ?? []).map((activity) => activity.id);
   let coursesQuery = supabase.from("courses").select("id,title,status").is("deleted_at", null).order("created_at", { ascending: false });

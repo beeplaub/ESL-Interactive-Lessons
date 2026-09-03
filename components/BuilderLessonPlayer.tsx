@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { TouchEvent } from "react";
-import { ArrowLeft, ArrowRight, Award, BookOpen, BookOpenText, CheckCircle2, ChevronLeft, Languages, List, Lock, Music2, NotebookPen, Pause, Play, PenLine, Printer, RotateCcw, Sparkles, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Award, BookOpen, BookOpenText, CheckCircle2, ChevronLeft, Languages, List, Lock, Music2, NotebookPen, Pause, Play, PenLine, RotateCcw, Sparkles, X } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { LessonActivityPanel, lessonActivityTotalPoints } from "@/components/LessonActivityPanel";
@@ -693,9 +693,6 @@ export function BuilderLessonPlayer({
           <Link href={backHref} className="inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-[var(--br-surface-strong)] text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)] hover:text-[var(--br-chart-primary)]" aria-label="Back to courses">
             <ArrowLeft size={15} />
           </Link>
-          <a href={`/lessons/${lesson.id}/print`} target="_blank" rel="noopener noreferrer" className="inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-[var(--br-surface-strong)] text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)] hover:text-[var(--br-chart-primary)]" aria-label="Print lesson" title="Print lesson">
-            <Printer size={15} />
-          </a>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="min-w-0 truncate text-base font-extrabold tracking-tight sm:text-lg">{lesson.title}</h1>
