@@ -3439,6 +3439,9 @@ function SentenceCombiningEditor({
     : [sentenceCombiningDraft(activity.activity_data, "1")];
   const [prompt, setPrompt] = useState<string>(String(currentOptions.prompt || "Combine the simple sentences below into a complex sentence."));
   const [questions, setQuestions] = useState<SentenceCombiningQuestionDraft[]>(initialQuestions);
+  const [allowSelfGraded, setAllowSelfGraded] = useState<boolean>(currentOptions.allow_self_graded !== false);
+  const [allowAiFeedback, setAllowAiFeedback] = useState<boolean>(currentOptions.allow_ai_feedback !== false);
+  const [allowTeacherReview, setAllowTeacherReview] = useState<boolean>(currentOptions.allow_teacher_review !== false);
 
   function updateQuestion(id: string, patch: Partial<SentenceCombiningQuestionDraft>) {
     setQuestions((current) => current.map((question) => question.id === id ? { ...question, ...patch } : question));
@@ -3471,7 +3474,7 @@ function SentenceCombiningEditor({
       correct_answer: question.modelCombined,
     }));
     const first = serialized[0];
-    const base = { prompt, input_sentences: first?.input_sentences || [], connector_suggestions: first?.connector_suggestions || [], model_combined_sentence: first?.model_combined_sentence || "", correct_answer: first?.correct_answer || "" };
+    const base = { prompt, input_sentences: first?.input_sentences || [], connector_suggestions: first?.connector_suggestions || [], model_combined_sentence: first?.model_combined_sentence || "", correct_answer: first?.correct_answer || "", allow_self_graded: allowSelfGraded, allow_ai_feedback: allowAiFeedback, allow_teacher_review: allowTeacherReview };
     onSave(questions.length > 1 ? { ...base, questions: serialized } as Json : base as Json, questions.some((question) => question.inputSentences.filter((sentence) => sentence.trim()).length < 2));
   }
 
@@ -3484,6 +3487,15 @@ function SentenceCombiningEditor({
         <label className="text-sm font-medium">Connector Suggestions (comma-separated)<input value={question.connectors} onChange={(event) => updateQuestion(question.id, { connectors: event.target.value })} placeholder="e.g. although, because, while" className="mt-1 w-full rounded-md border border-[var(--br-border)] bg-surface p-2 text-sm" /></label>
         <label className="text-sm font-medium">Model Combined Sentence<textarea rows={3} value={question.modelCombined} onChange={(event) => updateQuestion(question.id, { modelCombined: event.target.value })} className="mt-1 w-full rounded-md border border-[var(--br-border)] bg-surface p-2 text-sm font-mono" /></label>
       </div>)}
+
+      <div className="space-y-2 rounded-2xl border border-[var(--br-chart-primary)]/20 bg-[var(--br-chart-primary)]/5 p-4">
+        <p className="text-xs font-black uppercase tracking-wider text-[var(--br-chart-primary)]">Evaluation Options Allowed for Learner</p>
+        <div className="grid gap-2 sm:grid-cols-3">
+          <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-ink"><input type="checkbox" checked={allowAiFeedback} onChange={(event) => setAllowAiFeedback(event.target.checked)} className="rounded border-[var(--br-border)] text-[var(--br-chart-primary)]" /> AI Instant Feedback</label>
+          <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-ink"><input type="checkbox" checked={allowSelfGraded} onChange={(event) => setAllowSelfGraded(event.target.checked)} className="rounded border-[var(--br-border)] text-[var(--br-chart-primary)]" /> Model Answer / Self Check</label>
+          <label className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-ink"><input type="checkbox" checked={allowTeacherReview} onChange={(event) => setAllowTeacherReview(event.target.checked)} className="rounded border-[var(--br-border)] text-[var(--br-chart-primary)]" /> Teacher Review Queue</label>
+        </div>
+      </div>
 
       <SaveButton
         onClick={saveQuestions}
