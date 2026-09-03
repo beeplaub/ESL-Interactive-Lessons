@@ -9,7 +9,7 @@ export default async function CreatorWorkspacePage() {
   const admin = createAdminClient();
   const [{ data: projects }, { data: tasks }, { data: notes }, { data: resources }] = await Promise.all([
     admin.from("creator_projects").select("id,title,description,category,status,due_at").eq("creator_id", user.id).neq("status", "ARCHIVED").order("updated_at", { ascending: false }).limit(100),
-    admin.from("creator_tasks").select("id,project_id,title,description,status,priority,label,due_at,recurrence,related_url").eq("creator_id", user.id).order("status", { ascending: true }).order("due_at", { ascending: true, nullsFirst: false }).limit(300),
+    admin.from("creator_tasks").select("id,project_id,title,description,status,priority,label,due_at,recurrence,related_url,position").eq("creator_id", user.id).order("status", { ascending: true }).order("position", { ascending: true }).order("created_at", { ascending: true }).limit(300),
     admin.from("creator_notes").select("id,title,body,project_id,updated_at").eq("creator_id", user.id).order("updated_at", { ascending: false }).limit(100),
     admin.from("creator_resources").select("id,title,value,resource_type,description,project_id").eq("creator_id", user.id).order("updated_at", { ascending: false }).limit(100),
   ]);

@@ -81,6 +81,24 @@ export async function updateWorkspaceTask(formData: FormData) {
   revalidatePath("/admin/workspace");
 }
 
+export async function reorderWorkspaceTasks(formData: FormData) {
+  const { user } = await requireStaff();
+  const status = text(formData.get("status"));
+  const taskIds = formData.getAll("task_ids").map((value) => text(value, 60));
+  if (!statuses.includes(status as typeof statuses[number]) || taskIds.length < 2 || new Set(taskIds).size !== taskIds.length) return;
+
+  const admin = createAdminClient();
+  const { data, error } = await admin.from("creator_tasks").select("id,status").eq("creator_id", user.id).eq("status", status).in("id", taskIds);
+  if (error) throw new Error(`Could not verify task order: ${error.message}`);
+  if ((data ?? []).length !== taskIds.length) throw new Error("Could not verify task order");
+
+  for (const [index, id] of taskIds.entries()) {
+    const { error: updateError } = await admin.from("creator_tasks").update({ position: index + 1, updated_at: new Date().toISOString() }).eq("id", id).eq("creator_id", user.id).eq("status", status);
+    if (updateError) throw new Error(`Could not save task order: ${updateError.message}`);
+  }
+  revalidatePath("/admin/workspace");
+}
+
 export async function toggleWorkspaceTask(formData: FormData) {
   const { user } = await requireStaff();
   const id = text(formData.get("id"), 60);
