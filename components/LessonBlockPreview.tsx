@@ -192,7 +192,7 @@ export function LessonBlockPreview({
   }
 
   return (
-    <div className="space-y-3 sm:space-y-4">
+    <div className="lesson-block-preview space-y-3 sm:space-y-4">
       {blocks.map((block) => (
         <PreviewBlock key={block.id} block={block} checkedItems={checklistState[block.id]} onChecklistChange={onChecklistChange} alwaysOpen={alwaysOpen} />
       ))}

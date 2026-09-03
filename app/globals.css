@@ -703,6 +703,15 @@ details > div {
   scrollbar-gutter: stable;
 }
 
+/* Lesson accordions should grow with their content and use the page scroll.
+   The generic details rule above is reserved for anchored action popovers. */
+.lesson-block-preview details > div {
+  max-height: none;
+  overflow-y: visible;
+  overscroll-behavior: auto;
+  scrollbar-gutter: auto;
+}
+
 .workspace-shell {
   overflow-x: clip;
 }
