@@ -1,15 +1,16 @@
 import Link from "next/link";
-import { ArrowRight, BarChart3, BookOpen, Building2, ClipboardList, FileCheck, FlaskConical, GraduationCap, Images, Library, PenSquare, Plus, UsersRound } from "lucide-react";
+import { ArrowRight, BookOpen, ClipboardList, Clock3, FileCheck, GraduationCap, Images, Info, Library, PenSquare, Plus, TrendingUp, UsersRound } from "lucide-react";
 import { requireStaff, isPlatformAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCreatorEntitlements, type ResolvedEntitlement } from "@/lib/entitlements";
 import { getCreatorRecentAccess, type CreatorAccessType, type CreatorRecentAccessRow } from "@/lib/recentCreatorAccess";
 
-type OwnedContentRow = { id: string; status: string; title: string | null; updated_at: string | null; course_id?: string | null };
+type OwnedContentRow = { id: string; status: string; title: string | null; updated_at: string | null; created_at?: string | null; course_id?: string | null };
 type LearnerProfileRow = { id: string; first_name: string | null; last_name: string | null; full_name: string | null };
-type ActivityEvent = { id: string; at: string; node: React.ReactNode };
+type ActivityEvent = { id: string; at: string; node: React.ReactNode; icon: typeof ClipboardList; tone: "violet" | "blue" | "green" | "purple"; badge?: string };
 type RecentContentRow = { id: string; title: string | null; level?: string | null; topic?: string | null; status?: string | null; course_id?: string | null };
 type QuickAccessItem = { type: CreatorAccessType; title: string; meta: string; visitedAt: string; href: string; icon: typeof ClipboardList; tone: "violet" | "blue" | "green" };
+type OverviewMetric = { href: string; icon: typeof ClipboardList; label: string; value: string | number; detail: string; delta: string; tone: "violet" | "blue" | "green" | "purple" };
 
 export default async function AdminPage() {
   const { user, profile } = await requireStaff();
@@ -18,9 +19,9 @@ export default async function AdminPage() {
 
   if (!isPlatformAdmin(profile?.role)) {
     const [{ data: courses }, { data: lessons }, { data: quizzes }] = await Promise.all([
-      admin.from("courses").select("id, status, title, updated_at").is("deleted_at", null).or(`owner_id.eq.${user.id},created_by.eq.${user.id}`),
-      admin.from("lessons").select("id, status, title, updated_at").is("deleted_at", null).eq("created_by", user.id),
-      admin.from("quizzes").select("id, status, title, updated_at, course_id").is("deleted_at", null).eq("created_by", user.id)
+      admin.from("courses").select("id, status, title, updated_at, created_at").is("deleted_at", null).or(`owner_id.eq.${user.id},created_by.eq.${user.id}`),
+      admin.from("lessons").select("id, status, title, updated_at, created_at").is("deleted_at", null).eq("created_by", user.id),
+      admin.from("quizzes").select("id, status, title, updated_at, created_at, course_id").is("deleted_at", null).eq("created_by", user.id)
     ]);
 
     const courseRows = (courses ?? []) as OwnedContentRow[];
@@ -31,7 +32,7 @@ export default async function AdminPage() {
 
     // Scoped the same way requireCourseAccess/requireQuizAccess scope reads:
     // only rows tied to content this teacher actually owns, never platform-wide.
-    const [{ data: attemptRows }, { data: assessmentAttemptRows }, { data: enrollmentRows }, { count: pendingSubmissionCount }, { count: libraryCount }, { count: mediaCount }, entitlements] = await Promise.all([
+    const [{ data: attemptRows }, { data: assessmentAttemptRows }, { data: enrollmentRows }, { data: enrollmentStatsRows }, { count: pendingSubmissionCount }, { count: libraryCount }, { count: mediaCount }, entitlements] = await Promise.all([
       quizIds.length
         ? admin.from("quiz_attempts").select("id, quiz_id, user_id, score, completed_at").in("quiz_id", quizIds).order("completed_at", { ascending: false }).limit(8)
         : Promise.resolve({ data: [] as Array<{ id: string; quiz_id: string; user_id: string; score: number | null; completed_at: string | null }> }),
@@ -41,6 +42,9 @@ export default async function AdminPage() {
       courseIds.length
         ? admin.from("course_enrollments").select("id, course_id, user_id, status, enrolled_at").in("course_id", courseIds).order("enrolled_at", { ascending: false }).limit(8)
         : Promise.resolve({ data: [] as Array<{ id: string; course_id: string; user_id: string; status: string; enrolled_at: string | null }> }),
+      courseIds.length
+        ? admin.from("course_enrollments").select("course_id, user_id, status, enrolled_at").in("course_id", courseIds)
+        : Promise.resolve({ data: [] as Array<{ course_id: string; user_id: string; status: string; enrolled_at: string | null }> }),
       (() => {
         if (!lessonRows.length && !quizRows.length) return Promise.resolve({ count: 0 });
         const filters = [
@@ -80,12 +84,14 @@ export default async function AdminPage() {
     const quizTitle = (id: string) => quizRows.find((row) => row.id === id)?.title ?? "a quiz";
     const courseTitle = (id: string) => courseRows.find((row) => row.id === id)?.title ?? "a course";
 
-    const activity: ActivityEvent[] = [
+    const learnerActivity: ActivityEvent[] = [
       ...recentAttempts
         .filter((row) => row.at)
         .map((row) => ({
           id: `attempt-${row.id}`,
           at: row.at as string,
+          icon: ClipboardList,
+          tone: "green" as const,
           node: (
             <>
               <strong className="font-bold text-ink">{learnerName(row.user_id)}</strong> scored{" "}
@@ -98,6 +104,8 @@ export default async function AdminPage() {
         .map((row) => ({
           id: `enrollment-${row.id}`,
           at: row.enrolled_at as string,
+          icon: UsersRound,
+          tone: "purple" as const,
           node: (
             <>
               <strong className="font-bold text-ink">{learnerName(row.user_id)}</strong> enrolled in{" "}
@@ -105,7 +113,8 @@ export default async function AdminPage() {
             </>
           )
         }))
-    ]
+    ];
+    const activity = [...buildContentActivity(courseRows, "course"), ...buildContentActivity(lessonRows, "lesson"), ...buildContentActivity(quizRows, "quiz"), ...learnerActivity]
       .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
       .slice(0, 6);
 
@@ -121,21 +130,20 @@ export default async function AdminPage() {
     const mediaAssetCount = mediaCount ?? 0;
     const standaloneQuizCount = quizRows.filter((row) => !row.course_id).length;
     const quickAccess = buildQuickAccess(recentAccess, courseRows, lessonRows, quizRows);
+    const activeStudents = new Set((enrollmentStatsRows ?? []).filter((row) => row.status === "ACTIVE").map((row) => row.user_id)).size;
+    const metrics: OverviewMetric[] = [
+      { href: "/admin/courses", icon: GraduationCap, label: "My courses", value: courseRows.length, detail: `${countStatus(courseRows, "PUBLISHED")} published`, delta: `+${recentCount(courseRows)} last 7 days`, tone: "violet" },
+      { href: "/admin/lessons", icon: BookOpen, label: "My lessons", value: lessonRows.length, detail: `${recentCount(lessonRows)} updated`, delta: `+${recentCount(lessonRows)} last 7 days`, tone: "blue" },
+      { href: "/admin/quizzes", icon: ClipboardList, label: "My quizzes", value: quizRows.length, detail: `${countStatus(quizRows, "PUBLISHED")} published`, delta: `+${recentCount(quizRows)} last 7 days`, tone: "green" },
+      { href: "/admin/school/learners", icon: UsersRound, label: "Active students", value: activeStudents, detail: `${activeStudents ? "Currently learning" : "No active enrollments"}`, delta: `+${recentCount(enrollmentStatsRows ?? [], "enrolled_at")} last 7 days`, tone: "purple" },
+    ];
 
     return (
       <main className="min-w-0 overflow-hidden">
-        <div className="mb-6">
-          <h1 className="text-2xl font-semibold sm:text-3xl">Good morning, {profile?.first_name || profile?.full_name?.split(" ")[0] || "creator"}</h1>
-          <p className="mt-2 text-sm text-[var(--br-text-muted)]">Your own courses, lessons, and quizzes.</p>
-        </div>
-
+        <OverviewHeader name={profile?.first_name || profile?.full_name?.split(" ")[0] || "creator"} />
         <QuickAccessSection items={quickAccess} />
-
-        <section className="grid min-w-0 gap-3 sm:grid-cols-2 md:grid-cols-3">
-          <AdminCard href="/admin/courses" icon={GraduationCap} label="My courses" value={courseRows.length} detail={`${countStatus(courseRows, "PUBLISHED")} published · ${countStatus(courseRows, "DRAFT")} draft`} />
-          <AdminCard href="/admin/lessons" icon={BookOpen} label="My lessons" value={lessonRows.length} detail={`${countStatus(lessonRows, "PUBLISHED")} published · ${countStatus(lessonRows, "DRAFT")} draft`} />
-          <AdminCard href="/admin/quizzes" icon={ClipboardList} label="My quizzes" value={quizRows.length} detail={`${countStatus(quizRows, "PUBLISHED")} published · ${countStatus(quizRows, "DRAFT")} draft`} />
-        </section>
+        <OverviewMetrics metrics={metrics} />
+        <RecentActivitySection events={activity} />
 
         <section className="mt-4 rounded-20 border border-violetglow/15 bg-gradient-to-br from-violetglow/10 via-white to-sky-50 p-4 sm:p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
@@ -206,36 +214,32 @@ export default async function AdminPage() {
     );
   }
 
-  const [{ data: courses }, { data: organizations }, { data: lessons }, { data: quizzes }, { data: profiles }, { data: attempts }, { data: assessmentAttempts }, { data: levelResults }] = await Promise.all([
-    admin.from("courses").select("id,title,level,status").is("deleted_at", null),
-    admin.from("organizations").select("id"),
-    admin.from("lessons").select("id,title,level,status").is("deleted_at", null),
-    admin.from("quizzes").select("id,title,level,status").is("deleted_at", null),
+  const [{ data: courses }, { data: lessons }, { data: quizzes }, { data: profiles }, { data: enrollments }] = await Promise.all([
+    admin.from("courses").select("id,title,level,status,updated_at,created_at").is("deleted_at", null),
+    admin.from("lessons").select("id,title,level,status,updated_at,created_at").is("deleted_at", null),
+    admin.from("quizzes").select("id,title,level,status,updated_at,created_at").is("deleted_at", null),
     admin.from("profiles").select("id"),
-    admin.from("quiz_attempts").select("id"),
-    admin.from("assessment_attempts").select("id,legacy_quiz_attempt_id").eq("source_type", "QUIZ"),
-    admin.from("level_test_results").select("id")
+    admin.from("course_enrollments").select("user_id,status,enrolled_at")
   ]);
 
-  const linkedLegacyQuizIds = new Set((assessmentAttempts ?? []).map((row) => row.legacy_quiz_attempt_id).filter((id): id is string => Boolean(id)));
-  const totalQuizAttempts = (attempts ?? []).filter((row) => !linkedLegacyQuizIds.has(row.id)).length + (assessmentAttempts?.length ?? 0);
   const quickAccess = buildQuickAccess(recentAccess, courses ?? [], lessons ?? [], quizzes ?? []);
+  const activeStudents = new Set((enrollments ?? []).filter((row) => row.status === "ACTIVE").map((row) => row.user_id)).size;
+  const metrics: OverviewMetric[] = [
+    { href: "/admin/courses", icon: GraduationCap, label: "All courses", value: courses?.length ?? 0, detail: `${countStatus(courses, "PUBLISHED")} published`, delta: `+${recentCount(courses ?? [])} last 7 days`, tone: "violet" },
+    { href: "/admin/lessons", icon: BookOpen, label: "All lessons", value: lessons?.length ?? 0, detail: `${countStatus(lessons, "PUBLISHED")} published`, delta: `+${recentCount(lessons ?? [])} last 7 days`, tone: "blue" },
+    { href: "/admin/quizzes", icon: ClipboardList, label: "All quizzes", value: quizzes?.length ?? 0, detail: `${countStatus(quizzes, "PUBLISHED")} published`, delta: `+${recentCount(quizzes ?? [])} last 7 days`, tone: "green" },
+    { href: "/admin/users", icon: UsersRound, label: "Active students", value: activeStudents, detail: `${profiles?.length ?? 0} registered users`, delta: `+${recentCount(enrollments ?? [], "enrolled_at")} last 7 days`, tone: "purple" },
+  ];
+  const activity = [...buildContentActivity((courses ?? []) as RecentContentRow[], "course"), ...buildContentActivity((lessons ?? []) as RecentContentRow[], "lesson"), ...buildContentActivity((quizzes ?? []) as RecentContentRow[], "quiz")]
+    .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
+    .slice(0, 6);
 
   return (
     <main className="min-w-0 overflow-hidden">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold sm:text-3xl">Good morning, {profile?.first_name || profile?.full_name?.split(" ")[0] || "admin"}</h1>
-        <p className="mt-2 text-sm text-[var(--br-text-muted)]">A central hub for managing BrenUp.</p>
-      </div>
+      <OverviewHeader name={profile?.first_name || profile?.full_name?.split(" ")[0] || "admin"} />
       <QuickAccessSection items={quickAccess} />
-      <section className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        <AdminCard href="/admin/courses" icon={GraduationCap} label="Courses" value={courses?.length ?? 0} detail={`${countStatus(courses, "PUBLISHED")} published · ${countStatus(courses, "DRAFT")} draft`} />
-        <AdminCard href="/admin/organizations" icon={Building2} label="Organizations" value={organizations?.length ?? 0} detail="Schools and class shells" />
-        <AdminCard href="/admin/analytics" icon={BarChart3} label="Analytics" value={totalQuizAttempts} detail="Courses, lessons and quizzes" />
-        <AdminCard href="/admin/users" icon={UsersRound} label="Users" value={profiles?.length ?? 0} detail="Registered users" />
-        <AdminCard href="/admin/quiz-attempts" icon={ClipboardList} label="Quiz attempts" value={totalQuizAttempts} detail="All learners" />
-        <AdminCard href="/admin/level-test/results" icon={FlaskConical} label="Level tests" value={levelResults?.length ?? 0} detail="Results taken" />
-      </section>
+      <OverviewMetrics metrics={metrics} />
+      <RecentActivitySection events={activity} />
     </main>
   );
 }
@@ -256,6 +260,15 @@ function buildQuickAccess(recentAccess: CreatorRecentAccessRow[], courses: Recen
   });
 }
 
+function OverviewHeader({ name }: { name: string }) {
+  return (
+    <header className="mb-7 px-1 sm:mb-8">
+      <h1 className="text-3xl font-extrabold tracking-[-0.04em] text-ink sm:text-5xl">Good morning, {name}</h1>
+      <p className="mt-2 text-base text-slate-500 sm:text-xl">Pick up where you left off</p>
+    </header>
+  );
+}
+
 function QuickAccessSection({ items }: { items: QuickAccessItem[] }) {
   const byType = new Map(items.map((item) => [item.type, item]));
   const cards: Array<{ type: CreatorAccessType; label: string; empty: string }> = [
@@ -265,20 +278,41 @@ function QuickAccessSection({ items }: { items: QuickAccessItem[] }) {
   ];
 
   return (
-    <section className="rounded-20 border border-violetglow/15 bg-gradient-to-br from-violetglow/10 via-white to-sky-50 p-4 sm:p-5">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div><p className="text-xs font-bold uppercase tracking-[0.14em] text-violetglow">Pick up where you left off</p><h2 className="mt-1 text-lg font-extrabold text-ink">Quick access</h2></div>
-        <p className="text-xs font-medium text-slate-500">Updates automatically when you open content</p>
+    <section className="rounded-2xl border border-slate-200/80 bg-white/90 p-4 shadow-[0_14px_40px_rgba(38,38,92,0.08)] sm:p-5">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-xl font-extrabold tracking-[-0.02em] text-ink">Quick access</h2>
       </div>
-      <div className="mt-4 grid min-w-0 gap-3 md:grid-cols-3">
+      <div className="mt-4 grid min-w-0 gap-4 md:grid-cols-3">
         {cards.map((card) => {
           const item = byType.get(card.type);
-          if (!item) return <div key={card.type} className="min-w-0 rounded-2xl border border-dashed border-violetglow/20 bg-white/60 p-4"><p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-400">{card.label}</p><p className="mt-5 text-sm font-bold text-ink">No recent {card.type.toLowerCase()}</p><p className="mt-1 text-xs leading-5 text-slate-500">{card.empty}</p></div>;
+          if (!item) return <div key={card.type} className="min-w-0 rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 p-5"><p className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-slate-400">{card.label}</p><p className="mt-7 text-sm font-bold text-ink">No recent {card.type.toLowerCase()}</p><p className="mt-1 text-xs leading-5 text-slate-500">{card.empty}</p></div>;
           const Icon = item.icon;
-          const tone = item.tone === "violet" ? "bg-violetglow/10 text-violetglow" : item.tone === "blue" ? "bg-sky-100 text-sky-700" : "bg-emerald-100 text-emerald-700";
-          return <Link key={item.type} href={item.href} className="group min-w-0 rounded-2xl border border-white/80 bg-white/90 p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"><div className="flex items-start gap-3"><span className={`grid size-10 shrink-0 place-items-center rounded-xl ${tone}`}><Icon size={20} /></span><div className="min-w-0 flex-1"><p className="text-[10px] font-extrabold uppercase tracking-[0.12em] text-slate-500">{card.label}</p><h3 className="mt-1 line-clamp-2 text-sm font-extrabold leading-5 text-ink">{item.title}</h3><p className="mt-1 truncate text-xs text-slate-500">{item.meta}</p></div><ArrowRight size={16} className="mt-1 shrink-0 text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-violetglow" /></div><p className="mt-4 border-t border-slate-100 pt-3 text-[11px] font-semibold text-slate-500">Visited {relativeTime(item.visitedAt)}</p></Link>;
+          const tone = item.tone === "violet" ? "bg-violet-100 text-violet-700" : item.tone === "blue" ? "bg-blue-100 text-blue-700" : "bg-emerald-100 text-emerald-700";
+          const action = item.type === "COURSE" ? "Continue course" : item.type === "LESSON" ? "Continue lesson" : "Review quiz";
+          return <Link key={item.type} href={item.href} className="group min-w-0 rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_5px_16px_rgba(38,38,92,0.07)] transition hover:-translate-y-0.5 hover:border-violetglow/30 hover:shadow-md"><div className="flex min-h-[112px] items-start gap-4"><span className={`grid size-[60px] shrink-0 place-items-center rounded-xl ${tone}`}><Icon size={29} /></span><div className="min-w-0 flex-1"><p className={`text-[11px] font-extrabold uppercase tracking-[0.12em] ${item.tone === "violet" ? "text-violet-700" : item.tone === "blue" ? "text-blue-700" : "text-emerald-700"}`}>{card.label}</p><h3 className="mt-2 line-clamp-2 text-base font-extrabold leading-6 text-ink">{item.title}</h3><p className="mt-1 truncate text-xs text-slate-500">{item.meta}</p></div></div><div className="mt-4 flex items-center justify-between gap-2 border-t border-slate-200 pt-3"><span className="flex items-center gap-1.5 text-xs text-slate-500"><Clock3 size={14} /> Visited {relativeTime(item.visitedAt)}</span><span className={`flex items-center gap-1 text-xs font-extrabold ${item.tone === "green" ? "text-emerald-700" : "text-violet-700"}`}>{action}<ArrowRight size={15} className="transition group-hover:translate-x-0.5" /></span></div></Link>;
         })}
       </div>
+      <div className="mt-5 flex items-center gap-3 rounded-xl bg-violet-50 px-4 py-3 text-sm text-slate-700"><Info size={20} className="shrink-0 text-violet-700" /><span>Every card updates automatically when you visit new content.</span></div>
+    </section>
+  );
+}
+
+function OverviewMetrics({ metrics }: { metrics: OverviewMetric[] }) {
+  return (
+    <section className="mt-5 grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      {metrics.map(({ href, icon: Icon, label, value, detail, delta, tone }) => {
+        const iconTone = tone === "violet" ? "bg-violet-100 text-violet-700" : tone === "blue" ? "bg-blue-100 text-blue-700" : tone === "green" ? "bg-emerald-100 text-emerald-700" : "bg-purple-100 text-purple-700";
+        return <Link key={label} href={href} className="group min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_5px_16px_rgba(38,38,92,0.06)] transition hover:-translate-y-0.5 hover:shadow-md"><div className="flex items-start justify-between gap-3"><span className={`grid size-12 shrink-0 place-items-center rounded-xl ${iconTone}`}><Icon size={25} /></span><span className="flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-1 text-xs font-extrabold text-emerald-700"><TrendingUp size={13} />{delta}</span></div><p className="mt-4 text-xs font-bold text-slate-500">{label}</p><p className="mt-1 text-3xl font-extrabold tracking-[-0.03em] text-ink">{value}</p><p className="mt-1 text-xs text-slate-500">{detail}</p></Link>;
+      })}
+    </section>
+  );
+}
+
+function RecentActivitySection({ events }: { events: ActivityEvent[] }) {
+  return (
+    <section className="mt-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_8px_24px_rgba(38,38,92,0.06)] sm:p-5">
+      <div className="flex items-center justify-between gap-3"><div><h2 className="text-xl font-extrabold tracking-[-0.02em] text-ink">Recent activity</h2><p className="mt-1 text-xs text-slate-500">A snapshot of what changed across your workspace.</p></div><Link href="/admin/analytics" className="flex shrink-0 items-center gap-1 text-xs font-extrabold text-violet-700 hover:underline">View all activity <ArrowRight size={15} /></Link></div>
+      {events.length === 0 ? <p className="mt-5 rounded-xl bg-slate-50 p-4 text-sm text-slate-500">No recent activity yet.</p> : <ul className="mt-4 divide-y divide-slate-200 overflow-hidden rounded-xl border border-slate-200">{events.map((event) => { const Icon = event.icon; const tone = event.tone === "violet" ? "bg-violet-100 text-violet-700" : event.tone === "blue" ? "bg-blue-100 text-blue-700" : event.tone === "green" ? "bg-emerald-100 text-emerald-700" : "bg-purple-100 text-purple-700"; return <li key={event.id} className="flex items-center gap-3 px-3 py-3 sm:px-4"><span className={`grid size-9 shrink-0 place-items-center rounded-lg ${tone}`}><Icon size={18} /></span><div className="min-w-0 flex-1 text-xs text-slate-500 sm:text-sm">{event.node}</div><time className="hidden shrink-0 text-xs text-slate-500 sm:block">{formatActivityTime(event.at)}</time>{event.badge ? <span className="hidden shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700 sm:block">{event.badge}</span> : null}</li>; })}</ul>}
     </section>
   );
 }
@@ -292,6 +326,30 @@ function relativeTime(value: string) {
   if (hours < 24) return `${hours} hr${hours === 1 ? "" : "s"} ago`;
   const days = Math.floor(hours / 24);
   return `${days} day${days === 1 ? "" : "s"} ago`;
+}
+
+function recentCount(rows: Array<{ updated_at?: string | null; enrolled_at?: string | null }>, field: "updated_at" | "enrolled_at" = "updated_at") {
+  const cutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  return rows.filter((row) => {
+    const value = row[field];
+    return value ? new Date(value).getTime() >= cutoff : false;
+  }).length;
+}
+
+function buildContentActivity(rows: Array<{ id: string; title: string | null; status?: string | null; updated_at?: string | null }>, kind: "course" | "lesson" | "quiz"): ActivityEvent[] {
+  const detail = kind === "course" ? { icon: GraduationCap, tone: "violet" as const, article: "course" } : kind === "lesson" ? { icon: BookOpen, tone: "blue" as const, article: "lesson" } : { icon: ClipboardList, tone: "green" as const, article: "quiz" };
+  return rows.filter((row) => row.updated_at).map((row) => ({
+    id: `${kind}-${row.id}`,
+    at: row.updated_at as string,
+    icon: detail.icon,
+    tone: detail.tone,
+    badge: row.status === "PUBLISHED" ? "Published" : "Updated",
+    node: <>{row.status === "PUBLISHED" ? "You published a" : "You updated a"} {detail.article} <strong className="font-bold text-ink">{row.title || "Untitled"}</strong></>,
+  }));
+}
+
+function formatActivityTime(value: string) {
+  return new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
 }
 
 function countStatus(rows: Array<{ status: string }> | null, status: string) {
