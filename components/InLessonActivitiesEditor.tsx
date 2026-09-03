@@ -3014,6 +3014,19 @@ function ListenGapFillEditor({ activity, onSave }: { activity: Activity; onSave:
 
 /* ─── 8 Writing Activity Editors ───────────────────────────────────────── */
 
+type SentenceCompletionQuestionDraft = { id: string; stem: string; connectors: string; modelAnswer: string; modelDescription: string };
+
+function sentenceCompletionDraft(value: Json | null | undefined, fallbackId: string): SentenceCompletionQuestionDraft {
+  const item = asRecord(value);
+  return {
+    id: String(item.id || fallbackId),
+    stem: String(item.sentence_stem || ""),
+    connectors: Array.isArray(item.suggested_connectors) ? item.suggested_connectors.join(", ") : "",
+    modelAnswer: String(item.model_answer || ""),
+    modelDescription: String(item.model_description || ""),
+  };
+}
+
 function SentenceCompletionEditor({
   activity,
   onSave,
@@ -3022,18 +3035,53 @@ function SentenceCompletionEditor({
   onSave: (options: Json, needsReview: boolean) => void;
 }) {
   const currentOptions = asRecord(activity.activity_data);
+  const initialQuestions = Array.isArray(currentOptions.questions) && currentOptions.questions.length > 0
+    ? currentOptions.questions.map((item, index) => sentenceCompletionDraft(item as Json, String(index + 1)))
+    : [sentenceCompletionDraft(activity.activity_data, "1")];
   const [prompt, setPrompt] = useState<string>(String(currentOptions.prompt || "Complete the sentence stem below."));
   const [description, setDescription] = useState<string>(String(currentOptions.description || ""));
-  const [stem, setStem] = useState<string>(String(currentOptions.sentence_stem || ""));
-  const [connectors, setConnectors] = useState<string>(
-    Array.isArray(currentOptions.suggested_connectors) ? currentOptions.suggested_connectors.join(", ") : ""
-  );
-  const [modelAnswer, setModelAnswer] = useState<string>(String(currentOptions.model_answer || ""));
-  const [modelDescription, setModelDescription] = useState<string>(String(currentOptions.model_description || ""));
+  const [questions, setQuestions] = useState<SentenceCompletionQuestionDraft[]>(initialQuestions);
 
   const [allowSelfGraded, setAllowSelfGraded] = useState<boolean>(currentOptions.allow_self_graded !== false);
   const [allowAiFeedback, setAllowAiFeedback] = useState<boolean>(currentOptions.allow_ai_feedback !== false);
   const [allowTeacherReview, setAllowTeacherReview] = useState<boolean>(currentOptions.allow_teacher_review !== false);
+
+  function updateQuestion(id: string, patch: Partial<SentenceCompletionQuestionDraft>) {
+    setQuestions((current) => current.map((question) => question.id === id ? { ...question, ...patch } : question));
+  }
+
+  function addQuestion() {
+    setQuestions((current) => [...current, { id: crypto.randomUUID(), stem: "", connectors: "", modelAnswer: "", modelDescription: "" }]);
+  }
+
+  function removeQuestion(id: string) {
+    setQuestions((current) => current.length > 1 ? current.filter((question) => question.id !== id) : current);
+  }
+
+  function saveQuestions() {
+    const serialized = questions.map((question, index) => ({
+      id: question.id,
+      question_number: index + 1,
+      sentence_stem: question.stem,
+      suggested_connectors: question.connectors.split(",").map((item) => item.trim()).filter(Boolean),
+      model_answer: question.modelAnswer,
+      model_description: question.modelDescription,
+    }));
+    const first = serialized[0];
+    const base = {
+      prompt,
+      description,
+      sentence_stem: first?.sentence_stem || "",
+      suggested_connectors: first?.suggested_connectors || [],
+      model_answer: first?.model_answer || "",
+      correct_answer: first?.model_answer || "",
+      model_description: first?.model_description || "",
+      allow_self_graded: allowSelfGraded,
+      allow_ai_feedback: allowAiFeedback,
+      allow_teacher_review: allowTeacherReview,
+    };
+    onSave(questions.length > 1 ? { ...base, questions: serialized } as Json : base as Json, questions.some((question) => !question.stem.trim()));
+  }
 
   return (
     <div className="grid gap-4">
@@ -3047,25 +3095,19 @@ function SentenceCompletionEditor({
         <textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Additional context or grammatical rules to guide the learner..." className="mt-1 w-full rounded-md border border-[var(--br-border)] p-2 text-xs" />
       </label>
 
-      <label className="text-sm font-medium">
-        Sentence Stem
-        <input value={stem} onChange={(e) => setStem(e.target.value)} placeholder="e.g. Although it was raining," className="mt-1 w-full rounded-md border border-[var(--br-border)] p-2 text-sm" />
-      </label>
-
-      <label className="text-sm font-medium">
-        Suggested Connectors (comma-separated)
-        <input value={connectors} onChange={(e) => setConnectors(e.target.value)} placeholder="e.g. nevertheless, furthermore" className="mt-1 w-full rounded-md border border-[var(--br-border)] p-2 text-sm" />
-      </label>
-
-      <label className="text-sm font-medium">
-        Model Answer Response
-        <textarea rows={3} value={modelAnswer} onChange={(e) => setModelAnswer(e.target.value)} placeholder="High-quality sample answer..." className="mt-1 w-full rounded-md border border-[var(--br-border)] p-2 text-sm font-mono" />
-      </label>
-
-      <label className="text-sm font-medium">
-        Model Description / Explanation
-        <textarea rows={2} value={modelDescription} onChange={(e) => setModelDescription(e.target.value)} placeholder="Explanation of model answer..." className="mt-1 w-full rounded-md border border-[var(--br-border)] p-2 text-xs" />
-      </label>
+      <div className="grid gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div><p className="text-sm font-semibold text-ink">Sentence questions</p><p className="text-xs text-[var(--br-text-muted)]">Add several stems so the activity gives learners enough practice.</p></div>
+          <button type="button" onClick={addQuestion} className="rounded-lg bg-[var(--br-brand)]/10 px-3 py-2 text-xs font-bold text-[var(--br-brand)]">+ Add question</button>
+        </div>
+        {questions.map((question, index) => <div key={question.id} className="grid gap-3 rounded-2xl border border-[var(--br-border)] bg-[var(--br-surface-muted)]/35 p-4">
+          <div className="flex items-center justify-between gap-2"><p className="text-xs font-black uppercase tracking-wider text-[var(--br-brand)]">Question {index + 1}</p>{questions.length > 1 ? <button type="button" onClick={() => removeQuestion(question.id)} className="text-xs font-bold text-[var(--br-danger)]">Remove</button> : null}</div>
+          <label className="text-sm font-medium">Sentence Stem<input value={question.stem} onChange={(e) => updateQuestion(question.id, { stem: e.target.value })} placeholder="e.g. Although it was raining," className="mt-1 w-full rounded-md border border-[var(--br-border)] bg-surface p-2 text-sm" /></label>
+          <label className="text-sm font-medium">Suggested Connectors (comma-separated)<input value={question.connectors} onChange={(e) => updateQuestion(question.id, { connectors: e.target.value })} placeholder="e.g. nevertheless, furthermore" className="mt-1 w-full rounded-md border border-[var(--br-border)] bg-surface p-2 text-sm" /></label>
+          <label className="text-sm font-medium">Model Answer Response<textarea rows={3} value={question.modelAnswer} onChange={(e) => updateQuestion(question.id, { modelAnswer: e.target.value })} placeholder="High-quality sample answer..." className="mt-1 w-full rounded-md border border-[var(--br-border)] bg-surface p-2 text-sm font-mono" /></label>
+          <label className="text-sm font-medium">Model Description / Explanation<textarea rows={2} value={question.modelDescription} onChange={(e) => updateQuestion(question.id, { modelDescription: e.target.value })} placeholder="Explanation of model answer..." className="mt-1 w-full rounded-md border border-[var(--br-border)] bg-surface p-2 text-xs" /></label>
+        </div>)}
+      </div>
 
       <div className="rounded-2xl border border-[var(--br-chart-primary)]/20 bg-[var(--br-chart-primary)]/5 p-4 space-y-2">
         <p className="text-xs font-black text-[var(--br-chart-primary)] uppercase tracking-wider">Evaluation Options Allowed for Learner</p>
@@ -3101,23 +3143,7 @@ function SentenceCompletionEditor({
       </div>
 
       <SaveButton
-        onClick={() =>
-          onSave(
-            {
-              prompt,
-              description,
-              sentence_stem: stem,
-              suggested_connectors: connectors.split(",").map((s) => s.trim()).filter(Boolean),
-              model_answer: modelAnswer,
-              correct_answer: modelAnswer,
-              model_description: modelDescription,
-              allow_self_graded: allowSelfGraded,
-              allow_ai_feedback: allowAiFeedback,
-              allow_teacher_review: allowTeacherReview,
-            } as Json,
-            !stem.trim()
-          )
-        }
+        onClick={saveQuestions}
       />
     </div>
   );
