@@ -288,6 +288,11 @@ function SolarSystemV2({ word, relationships, topic, progress }: { word: Wordver
   const satellites = [
     ["MEANING", word.definition, "#5ee7ff"], ["PRONUNCIATION", word.pronunciation ?? "Audio not available yet", "#b28cff"], ["WORD CLASS", word.word_class ?? "Word class not available", "#7ce38a"], ["SYNONYMS", word.synonyms.join(" · "), "#ffc857"], ["ANTONYMS", word.antonyms.join(" · "), "#ff8f9c"], ["WORD FAMILY", word.word_family.join(" · "), "#7ce38a"], ["EXAMPLES", word.examples[0] ?? "", "#5ee7ff"], ["COLLOCATIONS", word.collocations.join(" · "), "#b28cff"], ["ORIGIN", word.origin ?? "", "#ffc857"], ["GRAMMAR", word.grammar_patterns[0] ?? "", "#5ee7ff"],
   ].filter(([, detail]) => Boolean(detail)) as unknown as Array<readonly [string, string, string]>;
+  if (word.translation) satellites.push(["TRANSLATION", word.translation, "#5ee7ff"]);
+  if (word.register) satellites.push(["REGISTER", word.register, "#b28cff"]);
+  if (word.common_mistakes.length) satellites.push(["COMMON MISTAKES", word.common_mistakes.join(" · "), "#ff8f9c"]);
+  satellites.push(["FREQUENCY", `${word.frequency_score}% usage signal`, "#ffc857"]);
+  if (relationships.length) satellites.push(["RELATIONSHIPS", `${relationships.length} validated connections`, "#7ce38a"]);
   const active = satellites.find(([label]) => label === activeLabel);
   useEffect(() => {
     const closeButton = document.querySelector<HTMLButtonElement>('[aria-label="Close knowledge detail"]');
