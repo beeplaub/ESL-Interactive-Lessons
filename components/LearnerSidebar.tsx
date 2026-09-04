@@ -12,7 +12,7 @@ import {
   ClipboardList,
   Zap,
   Award, CalendarDays, Newspaper,
-  Radio, Target, Orbit
+  Radio, Target
 } from "lucide-react";
 import type { ActiveItem } from "@/components/LearnerAppShell";
 import { BrandLogo } from "@/components/BrandLogo";
@@ -55,7 +55,6 @@ export function LearnerSidebar({
       { href: "/quizzes", label: "Quizzes", icon: HelpCircle, key: "quizzes" },
       { href: "/courses", label: "Courses", icon: GraduationCap, key: "courses" },
       { href: "/blog", label: "Journal", icon: Newspaper, key: "journal" },
-      { href: "/wordverse", label: "Wordverse", icon: Orbit, key: "wordverse" },
     ]},
     { label: "Practice", items: [
       { href: "/live-classes", label: "Live Classes", icon: Radio, key: "live-classes" },
