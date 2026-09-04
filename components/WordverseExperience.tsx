@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import {
-  ArrowLeft, Bookmark, Check, ChevronRight, Compass, Filter, Gauge, Globe2, Headphones,
-  Info, LocateFixed, Orbit, RotateCcw, Search, Settings2, Sparkles, Star, Volume2, X, Zap,
+  ArrowLeft, Bookmark, Check, ChevronRight, Compass, Gauge, Globe2, Headphones,
+  Info, LocateFixed, Orbit, RotateCcw, Search, Settings2, Sparkles, Star, Volume2, X,
 } from "lucide-react";
 import { updateWordverseProgress } from "@/app/wordverse/actions";
 import type { WordverseProgress, WordverseRelationship, WordverseTopic, WordverseWord } from "@/lib/wordverse";
@@ -14,10 +14,6 @@ type FilterState = "ALL" | "MY" | "RECOMMENDED";
 
 const stateLabels: Record<string, string> = { DISCOVERED: "Discovered", LEARNING: "Learning", FAMILIAR: "Familiar", MASTERED: "Mastered", REVIEW_DUE: "Review due" };
 const stateColors: Record<string, string> = { DISCOVERED: "#71809a", LEARNING: "#9b7cff", FAMILIAR: "#5ee7ff", MASTERED: "#7ce38a", REVIEW_DUE: "#ffc857" };
-const nodePositions = [
-  [22, 25], [42, 16], [64, 24], [79, 42], [63, 51], [42, 44], [20, 59], [32, 77], [55, 78], [76, 70], [89, 22], [10, 38], [52, 27], [72, 12], [87, 58], [14, 78], [39, 61], [58, 63], [28, 43], [68, 84], [94, 78], [7, 16], [84, 88], [50, 91],
-] as const;
-
 function normalizedProgress(progress: WordverseProgress[]) { return new Map(progress.map((item) => [item.word_id, item])); }
 
 export function WordverseExperience({ topics, words, relationships, progress }: Props) {
@@ -28,6 +24,7 @@ export function WordverseExperience({ topics, words, relationships, progress }: 
   const [topic, setTopic] = useState("ALL");
   const [level, setLevel] = useState("ALL");
   const [showFilters, setShowFilters] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [, setPlaying] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -134,9 +131,9 @@ export function WordverseExperience({ topics, words, relationships, progress }: 
         </aside>
         <div className="relative flex min-w-0 flex-1 flex-col">
           <div className="pointer-events-none absolute inset-0 opacity-60 [background-image:radial-gradient(circle_at_15%_20%,rgba(255,255,255,.55)_0_1px,transparent_1px),radial-gradient(circle_at_74%_12%,rgba(94,231,255,.5)_0_1px,transparent_1px),radial-gradient(circle_at_84%_72%,rgba(178,140,255,.45)_0_1px,transparent_1px),radial-gradient(circle_at_32%_83%,rgba(255,255,255,.4)_0_1px,transparent_1px)] [background-size:260px_220px,330px_280px,290px_240px,360px_300px]" />
-          <header className="relative z-10 flex flex-wrap items-center justify-between gap-4 border-b border-white/10 bg-[#071020]/75 px-4 py-4 backdrop-blur-xl sm:px-9"><div><h1 className="text-2xl font-black tracking-tight">Vocabulary Neural Map</h1><div className="mt-2 flex flex-wrap gap-4 text-xs font-bold text-white/55"><span className="flex items-center gap-2"><i className="size-2 rounded-full bg-[#7ce38a]" />Mastered</span><span className="flex items-center gap-2"><i className="size-2 rounded-full bg-[#ffc857]" />Review</span><span className="flex items-center gap-2"><i className="size-2 rounded-full bg-[#9b7cff]" />Learning</span></div></div><div className="flex min-w-[260px] flex-1 items-center justify-end gap-2 sm:max-w-xl"><label className="flex flex-1 items-center gap-2 rounded-xl border border-white/10 bg-white/[.05] px-3 py-2.5 text-sm text-white/60 focus-within:border-cyan-300/60"><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search the universe…" className="min-w-0 flex-1 bg-transparent text-white outline-none placeholder:text-white/35" aria-label="Search vocabulary" /></label><button type="button" onClick={() => setShowFilters((open) => !open)} aria-expanded={showFilters} className="grid size-11 place-items-center rounded-xl border border-white/10 bg-white/[.05] text-white/60 transition hover:border-cyan-300/50 hover:text-cyan-200"><Filter size={18} /></button><span className="hidden items-center gap-2 rounded-xl border border-cyan-300/20 bg-cyan-300/[.07] px-3 py-2 text-xs font-bold text-cyan-100 xl:flex"><Zap size={15} /> {words.length} mapped</span></div></header>
+          <header className="relative z-10 flex flex-wrap items-center justify-between gap-4 bg-[#071020]/55 px-4 pb-3 pt-7 backdrop-blur-sm sm:px-9"><div><h1 className="text-[28px] font-semibold tracking-[-.035em]">Vocabulary Neural Map</h1><div className="mt-3 flex flex-wrap gap-6 text-sm text-white/65"><span className="flex items-center gap-2.5"><i className="size-2.5 rounded-full bg-[#58d27a] shadow-[0_0_12px_#58d27a]" />Mastered</span><span className="flex items-center gap-2.5"><i className="size-2.5 rounded-full bg-[#ffd12f] shadow-[0_0_12px_#ffd12f]" />Review</span><span className="flex items-center gap-2.5"><i className="size-2.5 rounded-full bg-[#9b6ff5] shadow-[0_0_12px_#9b6ff5]" />Learning</span></div></div><div className="flex items-center justify-end gap-3">{showSearch || query ? <label className="flex h-11 w-[210px] items-center gap-2 rounded-xl border border-white/15 bg-[#091523]/85 px-3 text-sm text-white/70 focus-within:border-cyan-300/60"><Search size={17} /><input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} onBlur={() => !query && setShowSearch(false)} placeholder="Search words…" className="min-w-0 flex-1 bg-transparent text-white outline-none placeholder:text-white/35" aria-label="Search vocabulary" /></label> : <select value={topic} onChange={(event) => setTopic(event.target.value)} aria-label="Vocabulary cluster" className="h-11 rounded-xl border border-white/15 bg-[#091523]/85 px-4 text-sm text-white outline-none"><option value="ALL">All clusters</option>{topics.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>}<button type="button" onClick={() => setShowSearch((open) => !open)} aria-label="Search vocabulary" className="grid size-11 place-items-center rounded-xl border border-white/15 bg-[#091523]/85 text-white/80 transition hover:border-cyan-300/50 hover:text-cyan-200"><Search size={20} /></button><button type="button" onClick={() => setShowFilters((open) => !open)} aria-label="Map filters" aria-expanded={showFilters} className="grid size-11 place-items-center rounded-xl border border-white/15 bg-[#091523]/85 text-white/80 transition hover:border-cyan-300/50 hover:text-cyan-200"><Settings2 size={19} /></button></div></header>
           {showFilters ? <div className="relative z-20 flex flex-wrap gap-2 border-b border-white/10 bg-[#081322]/95 px-4 py-3 backdrop-blur-xl sm:px-9"><FilterSelect label="Mode" value={filter} options={["ALL", "MY", "RECOMMENDED"]} onChange={(value) => setFilter(value as FilterState)} /><FilterSelect label="Topic" value={topic} options={["ALL", ...topics.map((item) => item.id)]} labels={Object.fromEntries(topics.map((item) => [item.id, item.name]))} onChange={setTopic} /><FilterSelect label="Level" value={level} options={["ALL", "A1", "A2", "B1", "B2", "C1", "C2"]} onChange={setLevel} /></div> : null}
-          <section className="relative z-10 min-h-[calc(100vh-82px)] flex-1 overflow-hidden p-4 sm:p-7 lg:min-h-0 lg:p-9"><div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div><p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[.2em] text-cyan-200/65"><Compass size={14} /> Universe of Vocabulary</p><p className="mt-1 max-w-xl text-sm text-white/50">Travel through meaning, memory, and mastery.</p></div><div className="flex rounded-xl border border-white/10 bg-white/[.04] p-1 text-xs font-bold"><button type="button" onClick={() => setView("universe")} className={`rounded-lg px-3 py-2 ${view === "universe" ? "bg-cyan-300/15 text-cyan-100" : "text-white/50"}`}>Universe</button><button type="button" onClick={openSolarSystem} className={`rounded-lg px-3 py-2 ${view === "solar" ? "bg-violet-300/15 text-violet-100" : "text-white/50"}`}>Solar System</button></div></div>{view === "universe" ? <UniverseMap words={filteredWords} allWords={words} relationships={relationships} selectedId={selected.id} progressMap={progressMap} topicMap={topicMap} onSelect={openWord} onLaunch={openSolarSystem} /> : <SolarSystem word={selected} words={words} relationships={selectedRelationships} topic={topicMap.get(selected.topic_id ?? "")} progress={progressMap.get(selected.id)} onSelect={openSolarWord} />}</section>
+          <section className="relative z-10 min-h-[calc(100vh-96px)] flex-1 overflow-hidden">{view === "universe" ? <UniverseMap words={filteredWords} allWords={words} relationships={relationships} selectedId={selected.id} progressMap={progressMap} onSelect={openWord} onLaunch={openSolarSystem} /> : <div className="p-4 sm:p-7"><SolarSystem word={selected} words={words} relationships={selectedRelationships} topic={topicMap.get(selected.topic_id ?? "")} progress={progressMap.get(selected.id)} onSelect={openSolarWord} /></div>}</section>
         </div>
         {sidebarOpen ? <WordPanel word={selected} words={words} topic={topicMap.get(selected.topic_id ?? "")} progress={progressMap.get(selected.id)} isPending={isPending} onClose={() => setSidebarOpen(false)} onBack={() => setView("universe")} onAction={progressAction} onOpenWord={openWord} onPlay={playWord} /> : <button type="button" onClick={() => setSidebarOpen(true)} className="fixed bottom-5 right-5 z-40 inline-flex items-center gap-2 rounded-xl border border-cyan-300/30 bg-[#081322]/95 px-4 py-3 text-xs font-black text-cyan-100 shadow-2xl shadow-cyan-950/40 backdrop-blur-xl"><Info size={15} /> Show word details</button>}
       </div>
@@ -149,22 +146,129 @@ function wordAudio(word: WordverseWord | undefined) {
   return new Audio(word.audio_url);
 }
 
-function UniverseMap({ words, allWords, relationships, selectedId, progressMap, topicMap, onSelect, onLaunch }: { words: WordverseWord[]; allWords: WordverseWord[]; relationships: WordverseRelationship[]; selectedId: string; progressMap: Map<string, WordverseProgress>; topicMap: Map<string, WordverseTopic>; onSelect: (id: string) => void; onLaunch: () => void }) {
-  const positions = new Map<string, readonly [number, number]>();
-  positions.set(selectedId, [50, 52]);
-  let positionIndex = 0;
-  for (const word of allWords) {
-    if (word.id === selectedId) continue;
-    positions.set(word.id, nodePositions[positionIndex % nodePositions.length]);
-    positionIndex += 1;
-  }
+type ConstellationSlot = { x: number; y: number; color: string };
+type SatelliteSlot = { x: number; y: number; align: "left" | "right" | "top" };
+
+const constellationSlots: ConstellationSlot[] = [
+  { x: 50, y: 12, color: "#55f2ff" },
+  { x: 27, y: 23, color: "#ac7cff" },
+  { x: 74, y: 22, color: "#ffc870" },
+  { x: 22, y: 46, color: "#84ed91" },
+  { x: 79, y: 46, color: "#b781ff" },
+  { x: 34, y: 69, color: "#ffc870" },
+  { x: 66, y: 69, color: "#8af2a0" },
+];
+
+const satelliteSlots: SatelliteSlot[][] = [
+  [{ x: 49, y: 1, align: "top" }, { x: 41, y: 6, align: "left" }, { x: 60, y: 5, align: "right" }],
+  [{ x: 16, y: 19, align: "left" }, { x: 15, y: 27, align: "left" }],
+  [{ x: 83, y: 14, align: "right" }, { x: 85, y: 22, align: "right" }, { x: 84, y: 29, align: "right" }],
+  [{ x: 14, y: 39, align: "left" }, { x: 13, y: 47, align: "left" }, { x: 14, y: 54, align: "left" }],
+  [{ x: 86, y: 39, align: "right" }, { x: 87, y: 46, align: "right" }, { x: 86, y: 53, align: "right" }],
+  [{ x: 24, y: 64, align: "left" }, { x: 24, y: 72, align: "left" }, { x: 27, y: 79, align: "left" }],
+  [{ x: 78, y: 64, align: "right" }, { x: 78, y: 72, align: "right" }, { x: 74, y: 79, align: "right" }],
+];
+
+const preferredNegotiateWords = ["price", "deal", "contract", "terms", "bargain", "discount", "agreement"];
+const curatedSatellites: Record<string, string[]> = {
+  price: ["cost", "value", "rate"],
+  deal: ["transaction", "offer"],
+  contract: ["legal", "document", "obligation"],
+  terms: ["conditions", "stipulations", "clauses"],
+  bargain: ["haggle", "trade-off", "negotiate down"],
+  discount: ["reduction", "rebate", "markdown"],
+  agreement: ["accord", "consensus", "settlement"],
+};
+
+const neuralNodes = Array.from({ length: 72 }, (_, index) => ({
+  x: 5 + ((index * 37 + (index % 5) * 11) % 91),
+  y: 5 + ((index * 53 + (index % 7) * 8) % 91),
+  radius: index % 9 === 0 ? 0.55 : index % 4 === 0 ? 0.38 : 0.25,
+  color: index % 5 === 0 ? "#7d63db" : index % 3 === 0 ? "#326ba7" : "#214d79",
+}));
+
+function satelliteLabels(word: WordverseWord) {
+  if (curatedSatellites[word.slug]) return curatedSatellites[word.slug];
+  return [...new Set([...word.synonyms, ...word.collocations, ...word.word_family])].slice(0, 3);
+}
+
+function UniverseMap({ words, allWords, relationships, selectedId, progressMap, onSelect, onLaunch }: { words: WordverseWord[]; allWords: WordverseWord[]; relationships: WordverseRelationship[]; selectedId: string; progressMap: Map<string, WordverseProgress>; onSelect: (id: string) => void; onLaunch: () => void }) {
+  const selectedWord = allWords.find((word) => word.id === selectedId) ?? allWords[0];
   const visibleIds = new Set(words.map((word) => word.id));
-  return <div className="relative h-[560px] overflow-hidden rounded-[28px] border border-cyan-200/15 bg-[#06101e]/70 shadow-[inset_0_0_100px_rgba(20,65,120,.17),0_25px_90px_rgba(0,0,0,.25)] sm:h-[calc(100vh-235px)] sm:min-h-[600px]">
-    <div className="pointer-events-none absolute left-1/2 top-1/2 size-[min(68vw,620px)] -translate-x-1/2 -translate-y-1/2 rounded-full border border-cyan-300/10 motion-safe:animate-[spin_55s_linear_infinite]" /><div className="pointer-events-none absolute left-1/2 top-1/2 size-[min(46vw,430px)] -translate-x-1/2 -translate-y-1/2 rounded-full border border-violet-300/10 motion-safe:animate-[spin_38s_linear_infinite_reverse]" /><div className="pointer-events-none absolute left-1/2 top-1/2 size-3/4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-300/[.03] blur-3xl" />
-    <svg className="absolute inset-0 size-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">{relationships.filter((edge) => visibleIds.has(edge.source_word_id) && visibleIds.has(edge.target_word_id)).map((edge) => { const source = positions.get(edge.source_word_id); const target = positions.get(edge.target_word_id); if (!source || !target) return null; return <line key={edge.id} x1={source[0]} y1={source[1]} x2={target[0]} y2={target[1]} stroke="rgba(94,231,255,.24)" strokeWidth=".12" strokeDasharray=".5 1.4" className="motion-safe:animate-[dash_8s_linear_infinite]" />; })}</svg>
-    {words.map((word, index) => { const position = positions.get(word.id) ?? nodePositions[index % nodePositions.length]; const item = progressMap.get(word.id); const color = stateColors[item?.state ?? "DISCOVERED"]; const topic = topicMap.get(word.topic_id ?? ""); const isSelected = word.id === selectedId; return <div key={word.id} className={`absolute -translate-x-1/2 -translate-y-1/2 text-center transition duration-500 hover:scale-110 ${isSelected ? "z-10 scale-125" : ""}`} style={{ left: `${position[0]}%`, top: `${position[1]}%`, color }}><button type="button" onClick={() => onSelect(word.id)} aria-label={`Open ${word.word}, ${word.definition}`} className="relative block rounded-full text-center focus:outline-none focus:ring-2 focus:ring-cyan-200"><span className="absolute inset-[-10px] rounded-full border opacity-60 motion-safe:animate-[pulse_4s_ease-in-out_infinite]" style={{ borderColor: color, boxShadow: `0 0 28px ${color}66` }} /><span className={`grid size-14 place-items-center rounded-full border bg-[#091828]/95 text-sm font-black shadow-[0_0_26px_rgba(94,231,255,.15)] sm:size-[68px] sm:text-base ${isSelected ? "border-cyan-100 shadow-[0_0_38px_rgba(94,231,255,.7)]" : "border-white/20"}`} style={{ borderColor: isSelected ? "#d8fbff" : `${color}99` }}><span className="grid size-8 place-items-center rounded-full border border-current/60 text-white/80 sm:size-10">{word.word.slice(0, 1).toUpperCase()}</span></span><span className="mt-2 block max-w-28 truncate text-xs font-black text-white/90 sm:text-sm">{word.word}</span>{topic ? <span className="mt-0.5 block text-[8px] text-white/40 sm:text-[9px]">{topic.name}</span> : null}</button>{isSelected ? <button type="button" onClick={onLaunch} aria-label={`Open ${word.word} Solar System`} className="absolute -right-5 -top-4 grid size-7 place-items-center rounded-full border border-cyan-100/70 bg-[#0b2032] text-cyan-100 shadow-[0_0_18px_rgba(94,231,255,.65)] transition hover:scale-110"><Orbit size={13} /></button> : null}</div>; })}
-    <div className="absolute bottom-4 left-4 flex flex-wrap gap-2 rounded-2xl border border-white/10 bg-[#081322]/80 px-3 py-2 text-[10px] font-bold text-white/55 backdrop-blur-xl"><span className="flex items-center gap-1.5"><i className="size-2 rounded-full bg-[#71809a]" />Unexplored</span><span className="flex items-center gap-1.5"><i className="size-2 rounded-full bg-[#9b7cff]" />Learning</span><span className="flex items-center gap-1.5"><i className="size-2 rounded-full bg-[#ffc857]" />Review</span><span className="flex items-center gap-1.5"><i className="size-2 rounded-full bg-[#7ce38a]" />Mastered</span></div><div className="absolute right-4 top-4 rounded-xl border border-white/10 bg-[#081322]/75 px-3 py-2 text-[10px] font-bold text-white/45 backdrop-blur-xl">{words.length} visible nodes · {allWords.length} indexed</div>
-  </div>;
+  const wordById = new Map(allWords.map((word) => [word.id, word]));
+  const wordBySlug = new Map(allWords.map((word) => [word.slug, word]));
+  const orderedIds: string[] = [];
+  const addWord = (word: WordverseWord | undefined) => {
+    if (!word || word.id === selectedId || !visibleIds.has(word.id) || orderedIds.includes(word.id)) return;
+    orderedIds.push(word.id);
+  };
+
+  if (selectedWord?.slug === "negotiate") preferredNegotiateWords.forEach((slug) => addWord(wordBySlug.get(slug)));
+  relationships
+    .filter((edge) => edge.source_word_id === selectedId || edge.target_word_id === selectedId)
+    .toSorted((a, b) => b.strength - a.strength)
+    .forEach((edge) => addWord(wordById.get(edge.source_word_id === selectedId ? edge.target_word_id : edge.source_word_id)));
+  words.toSorted((a, b) => b.frequency_score - a.frequency_score).forEach(addWord);
+
+  const primaryWords = orderedIds.slice(0, 7).map((id) => wordById.get(id)).filter((word): word is WordverseWord => Boolean(word));
+
+  return (
+    <div className="relative h-full min-h-[620px] overflow-hidden bg-[radial-gradient(circle_at_50%_54%,rgba(0,111,255,.14),transparent_24%),radial-gradient(circle_at_33%_40%,rgba(83,51,180,.07),transparent_30%),linear-gradient(180deg,rgba(4,14,28,.25),rgba(2,8,18,.7))] lg:min-h-[calc(100vh-96px)]">
+      <div className="pointer-events-none absolute inset-0 opacity-70 [background-image:radial-gradient(circle,rgba(101,196,255,.7)_0_1px,transparent_1.2px)] [background-size:83px_79px]" />
+      <svg className="pointer-events-none absolute inset-0 size-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+        <defs>
+          <filter id="wordverse-glow" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="0.75" result="blur" /><feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
+          <radialGradient id="wordverse-core" cx="50%" cy="50%" r="50%"><stop offset="0%" stopColor="#168cff" stopOpacity=".48" /><stop offset="72%" stopColor="#0751bb" stopOpacity=".18" /><stop offset="100%" stopColor="#021127" stopOpacity="0" /></radialGradient>
+        </defs>
+        <ellipse cx="50" cy="43" rx="22" ry="27" fill="none" stroke="#2d66a2" strokeOpacity=".15" strokeWidth=".16" strokeDasharray=".6 1.25" />
+        <ellipse cx="50" cy="43" rx="35" ry="39" fill="none" stroke="#4268b1" strokeOpacity=".13" strokeWidth=".13" strokeDasharray=".45 1.2" />
+        <ellipse cx="50" cy="43" rx="47" ry="48" fill="none" stroke="#275b91" strokeOpacity=".11" strokeWidth=".12" strokeDasharray=".35 1.4" />
+        {neuralNodes.map((node, index) => {
+          const next = neuralNodes[(index * 5 + 13) % neuralNodes.length];
+          const secondary = neuralNodes[(index + 9) % neuralNodes.length];
+          return <g key={`mesh-${index}`}><line x1={node.x} y1={node.y} x2={next.x} y2={next.y} stroke={node.color} strokeOpacity=".17" strokeWidth=".09" /><line x1={node.x} y1={node.y} x2={secondary.x} y2={secondary.y} stroke="#2567a0" strokeOpacity=".08" strokeWidth=".07" /><circle cx={node.x} cy={node.y} r={node.radius} fill={node.color} fillOpacity=".52" /></g>;
+        })}
+        {primaryWords.map((word, index) => {
+          const slot = constellationSlots[index];
+          const color = slot.color;
+          return <g key={`spoke-${word.id}`} filter="url(#wordverse-glow)"><line x1="50" y1="43" x2={slot.x} y2={slot.y} stroke="white" strokeOpacity=".88" strokeWidth=".22" /><line x1="50" y1="43" x2={slot.x} y2={slot.y} stroke={color} strokeOpacity=".8" strokeWidth=".11" /><circle cx={slot.x} cy={slot.y} r=".65" fill="white" fillOpacity=".9" /></g>;
+        })}
+        {primaryWords.flatMap((word, index) => {
+          const slot = constellationSlots[index];
+          const labels = satelliteLabels(word);
+          return satelliteSlots[index].slice(0, labels.length).map((satellite, satelliteIndex) => <g key={`satellite-line-${word.id}-${satelliteIndex}`}><line x1={slot.x} y1={slot.y} x2={satellite.x} y2={satellite.y} stroke={slot.color} strokeOpacity=".72" strokeWidth=".13" /><circle cx={satellite.x} cy={satellite.y} r=".58" fill="#04101d" stroke={slot.color} strokeWidth=".16" /><circle cx={satellite.x} cy={satellite.y} r=".25" fill={slot.color} fillOpacity=".5" /></g>);
+        })}
+      </svg>
+
+      {primaryWords.flatMap((word, index) => {
+        const labels = satelliteLabels(word);
+        return satelliteSlots[index].slice(0, labels.length).map((satellite, satelliteIndex) => {
+          const label = labels[satelliteIndex];
+          const linkedWord = allWords.find((candidate) => candidate.word.toLowerCase() === label.toLowerCase());
+          const alignment = satellite.align === "left" ? "right-4 top-1/2 -translate-y-1/2 text-right" : satellite.align === "right" ? "left-4 top-1/2 -translate-y-1/2 text-left" : "bottom-4 left-1/2 -translate-x-1/2 text-center";
+          return <div key={`satellite-label-${word.id}-${label}`} className="absolute z-[3] hidden size-1.5 md:block" style={{ left: `${satellite.x}%`, top: `${satellite.y}%`, color: constellationSlots[index].color }}><button type="button" disabled={!linkedWord} onClick={() => linkedWord && onSelect(linkedWord.id)} className={`absolute w-max max-w-24 text-[12px] font-medium leading-4 text-current opacity-90 transition hover:opacity-100 disabled:cursor-default ${alignment}`}>{label}</button></div>;
+        });
+      })}
+
+      {primaryWords.map((word, index) => {
+        const slot = constellationSlots[index];
+        const learningState = stateLabels[progressMap.get(word.id)?.state ?? "DISCOVERED"];
+        return <button key={word.id} type="button" onClick={() => onSelect(word.id)} aria-label={`Open ${word.word}. ${learningState}. ${word.definition}`} className="group absolute z-[5] -translate-x-1/2 -translate-y-1/2 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-white" style={{ left: `${slot.x}%`, top: `${slot.y}%`, color: slot.color }}><span className="absolute -inset-3 rounded-full border opacity-40 blur-[1px] motion-safe:animate-[pulse_5s_ease-in-out_infinite]" style={{ borderColor: slot.color, boxShadow: `0 0 28px ${slot.color}66` }} /><span className="relative grid size-[92px] place-items-center overflow-hidden rounded-full border bg-[#061421]/90 px-2 text-[17px] font-medium text-white shadow-[inset_0_0_28px_rgba(255,255,255,.035)] transition duration-300 group-hover:scale-105 sm:size-[112px] sm:text-[20px]" style={{ borderColor: slot.color, boxShadow: `0 0 18px ${slot.color}55, inset 0 0 24px ${slot.color}1f` }}><span className="absolute inset-[5px] rounded-full border opacity-30" style={{ borderColor: slot.color }} /><span className="absolute inset-0 opacity-40 [background-image:radial-gradient(circle,rgba(255,255,255,.85)_0_0.7px,transparent_1px)] [background-size:8px_9px]" /><span className="relative">{word.word}</span></span></button>;
+      })}
+
+      <div className="absolute left-1/2 top-[43%] z-10 -translate-x-1/2 -translate-y-1/2">
+        <button type="button" onClick={() => onSelect(selectedWord.id)} aria-label={`Selected word ${selectedWord.word}. ${selectedWord.definition}`} className="group relative grid size-[148px] place-items-center rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-100 sm:size-[190px]">
+          <span className="absolute -inset-6 rounded-full bg-[#087dff]/20 blur-2xl motion-safe:animate-[pulse_4.5s_ease-in-out_infinite]" />
+          <span className="absolute -inset-2 rounded-full border border-[#4edcff]/60 shadow-[0_0_28px_rgba(0,132,255,.88)]" />
+          <span className="absolute inset-0 rounded-full border-2 border-[#9df5ff] bg-[#03152c] shadow-[0_0_18px_#0b8fff,inset_0_0_34px_rgba(0,119,255,.34)]" />
+          <span className="absolute inset-[7px] rounded-full border border-[#1396ff]/75 bg-[radial-gradient(circle_at_45%_42%,rgba(12,112,214,.34),rgba(1,14,34,.94)_68%)]" />
+          <span className="absolute inset-[10px] rounded-full opacity-65 [background-image:radial-gradient(circle,rgba(76,181,255,.95)_0_0.8px,transparent_1.1px)] [background-size:8px_8px]" />
+          <span className="relative px-3 text-center text-[24px] font-medium tracking-[-.03em] text-white sm:text-[31px]">{selectedWord.word}</span>
+        </button>
+        <button type="button" onClick={onLaunch} aria-label={`Open ${selectedWord.word} Solar System`} className="absolute -right-2 top-3 grid size-9 place-items-center rounded-full border border-cyan-100/80 bg-[#061b31] text-cyan-100 shadow-[0_0_20px_rgba(78,220,255,.75)] transition hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"><Orbit size={16} /></button>
+      </div>
+    </div>
+  );
 }
 
 function SolarSystem({ word, words, relationships, topic, progress, onSelect }: { word: WordverseWord; words: WordverseWord[]; relationships: WordverseRelationship[]; topic?: WordverseTopic; progress?: WordverseProgress; onSelect: (id: string) => void }) {
