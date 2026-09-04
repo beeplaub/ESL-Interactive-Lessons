@@ -30,7 +30,6 @@ export async function updateWordverseProgress(wordId: string, intent: ProgressIn
     base.saved = !base.saved;
   } else if (intent === "familiar") {
     base.state = "FAMILIAR";
-    base.practice_count += 1;
   } else if (intent === "review") {
     base.state = "REVIEW_DUE";
     base.next_review_at = new Date().toISOString();

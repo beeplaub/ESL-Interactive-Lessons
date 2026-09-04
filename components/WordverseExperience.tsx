@@ -98,7 +98,7 @@ export function WordverseExperience({ topics, words, relationships, progress }: 
         correct_count: item?.correct_count ?? 0,
       };
       if (intent === "toggle_saved") nextItem.saved = !nextItem.saved;
-      if (intent === "familiar") { nextItem.state = "FAMILIAR"; nextItem.practice_count += 1; }
+      if (intent === "familiar") nextItem.state = "FAMILIAR";
       if (intent === "review") nextItem.state = "REVIEW_DUE";
       if (intent === "practice_correct") { nextItem.practice_count += 1; nextItem.correct_count += 1; nextItem.state = nextItem.correct_count >= 2 ? "MASTERED" : "LEARNING"; }
       if (intent === "practice_incorrect") { nextItem.practice_count += 1; nextItem.state = "REVIEW_DUE"; }
