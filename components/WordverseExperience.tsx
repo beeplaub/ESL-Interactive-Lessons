@@ -131,7 +131,7 @@ export function WordverseExperience({ topics, words, relationships, progress }: 
   }
 
   if (!selected) return <main className="min-h-screen bg-[#050a16] p-6 text-white"><EmptyUniverse /></main>;
-  const WordPanel = WordPanelV2;
+  const WordPanel = (props: React.ComponentProps<typeof WordPanelV2>) => <div className="fixed inset-x-0 bottom-0 z-40 max-h-[72dvh] lg:relative lg:inset-auto lg:h-full lg:max-h-none lg:w-[370px] xl:w-[420px]"><WordPanelV2 {...props} /></div>;
   const SolarSystem = SolarSystemV2;
 
   return (
