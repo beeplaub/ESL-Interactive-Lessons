@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-type ProgressIntent = "view" | "toggle_saved" | "familiar" | "review" | "confidence";
+type ProgressIntent = "view" | "toggle_saved" | "familiar" | "review" | "confidence" | "practice_correct" | "practice_incorrect";
 
 export async function updateWordverseProgress(wordId: string, intent: ProgressIntent, confidence?: number) {
   const { user } = await requireUser();
@@ -32,6 +32,15 @@ export async function updateWordverseProgress(wordId: string, intent: ProgressIn
     base.state = "FAMILIAR";
     base.practice_count += 1;
   } else if (intent === "review") {
+    base.state = "REVIEW_DUE";
+    base.next_review_at = new Date().toISOString();
+  } else if (intent === "practice_correct") {
+    base.practice_count += 1;
+    base.correct_count += 1;
+    base.state = base.correct_count >= 2 ? "MASTERED" : "LEARNING";
+    base.next_review_at = null;
+  } else if (intent === "practice_incorrect") {
+    base.practice_count += 1;
     base.state = "REVIEW_DUE";
     base.next_review_at = new Date().toISOString();
   } else if (intent === "confidence") {

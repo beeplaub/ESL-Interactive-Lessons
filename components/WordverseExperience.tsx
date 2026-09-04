@@ -26,6 +26,7 @@ export function WordverseExperience({ topics, words, relationships, progress }: 
   const [showFilters, setShowFilters] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [practiceOpen, setPracticeOpen] = useState(false);
   const [, setPlaying] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [progressMap, setProgressMap] = useState(() => normalizedProgress(progress));
@@ -37,9 +38,10 @@ export function WordverseExperience({ topics, words, relationships, progress }: 
     const matchesQuery = !query.trim() || `${word.word} ${word.definition}`.toLowerCase().includes(query.trim().toLowerCase());
     const matchesTopic = topic === "ALL" || word.topic_id === topic;
     const matchesLevel = level === "ALL" || word.cefr_level === level;
-    const matchesFilter = filter === "ALL" || (filter === "MY" && item) || (filter === "RECOMMENDED" && (!item || item.state === "REVIEW_DUE"));
+    const matchesFilter = filter === "ALL" || (filter === "MY" && Boolean(item && (item.saved || item.state !== "DISCOVERED"))) || (filter === "RECOMMENDED" && (!item || item.state === "REVIEW_DUE"));
     return matchesQuery && matchesTopic && matchesLevel && matchesFilter;
   }), [filter, level, progressMap, query, topic, words]);
+  const searchResults = useMemo(() => query.trim() ? filteredWords.slice(0, 6) : [], [filteredWords, query]);
 
   const selectedRelationships = useMemo(() => relationships.filter((edge) => edge.source_word_id === selected?.id || edge.target_word_id === selected?.id), [relationships, selected?.id]);
 
@@ -66,6 +68,8 @@ export function WordverseExperience({ topics, words, relationships, progress }: 
     setSelectedId(wordId);
     setView("universe");
     setSidebarOpen(true);
+    setShowSearch(false);
+    setQuery("");
   }
 
   function openSolarSystem() {
@@ -79,7 +83,7 @@ export function WordverseExperience({ topics, words, relationships, progress }: 
     setSidebarOpen(true);
   }
 
-  function progressAction(intent: "toggle_saved" | "familiar" | "review" | "confidence", confidence?: number) {
+  function progressAction(intent: "toggle_saved" | "familiar" | "review" | "confidence" | "practice_correct" | "practice_incorrect", confidence?: number) {
     if (!selected) return;
     setProgressMap((current) => {
       const next = new Map(current);
@@ -96,11 +100,18 @@ export function WordverseExperience({ topics, words, relationships, progress }: 
       if (intent === "toggle_saved") nextItem.saved = !nextItem.saved;
       if (intent === "familiar") { nextItem.state = "FAMILIAR"; nextItem.practice_count += 1; }
       if (intent === "review") nextItem.state = "REVIEW_DUE";
+      if (intent === "practice_correct") { nextItem.practice_count += 1; nextItem.correct_count += 1; nextItem.state = nextItem.correct_count >= 2 ? "MASTERED" : "LEARNING"; }
+      if (intent === "practice_incorrect") { nextItem.practice_count += 1; nextItem.state = "REVIEW_DUE"; }
       if (intent === "confidence" && confidence) nextItem.confidence = confidence;
       next.set(selected.id, nextItem);
       return next;
     });
     startTransition(() => { updateWordverseProgress(selected.id, intent, confidence).catch(() => undefined); });
+  }
+
+  function startPractice() {
+    setSidebarOpen(true);
+    setPracticeOpen(true);
   }
 
   function playWord() {
@@ -120,22 +131,26 @@ export function WordverseExperience({ topics, words, relationships, progress }: 
   }
 
   if (!selected) return <main className="min-h-screen bg-[#050a16] p-6 text-white"><EmptyUniverse /></main>;
+  const WordPanel = WordPanelV2;
+  const SolarSystem = SolarSystemV2;
 
   return (
-    <main className="min-h-screen overflow-hidden bg-[#030811] text-white">
-      <div className="relative mx-auto flex min-h-screen max-w-[1700px] overflow-hidden border-x border-white/10 bg-[radial-gradient(circle_at_48%_42%,rgba(30,74,137,.24),transparent_34%),radial-gradient(circle_at_20%_82%,rgba(91,62,220,.12),transparent_27%),#030811]">
+    <main className="h-dvh overflow-hidden bg-[#030811] text-white">
+      <div className="relative mx-auto flex h-dvh min-h-0 max-w-[1700px] overflow-hidden border-x border-white/10 bg-[radial-gradient(circle_at_48%_42%,rgba(30,74,137,.24),transparent_34%),radial-gradient(circle_at_20%_82%,rgba(91,62,220,.12),transparent_27%),#030811]">
         <aside className="relative z-30 hidden w-[118px] shrink-0 flex-col border-r border-white/10 bg-[#07111f]/90 px-3 py-5 backdrop-blur-xl lg:flex">
           <div className="grid place-items-center border-b border-white/10 pb-5"><div className="grid size-10 place-items-center rounded-xl border border-cyan-300/40 bg-cyan-300/10 text-cyan-200 shadow-[0_0_28px_rgba(94,231,255,.2)]"><Globe2 size={20} /></div></div>
           <div className="mt-5 grid gap-3">{([[Compass, "Neural Map", true], [Globe2, "Dictionary", false], [Star, "My Words", false], [Gauge, "Progress", false], [RotateCcw, "Review", false]] as Array<[React.ElementType, string, boolean]>).map(([Icon, label, active]) => <button key={label} type="button" onClick={() => label === "Neural Map" && setView("universe")} className={`flex flex-col items-center gap-2 rounded-xl px-2 py-3 text-center text-[10px] font-bold transition ${active ? "border border-cyan-300/60 bg-cyan-300/10 text-cyan-100 shadow-[0_0_18px_rgba(94,231,255,.12)]" : "text-white/45 hover:bg-white/[.05] hover:text-white/80"}`}><Icon size={20} /><span>{label}</span></button>)}</div>
           <div className="mt-auto grid place-items-center border-t border-white/10 pt-5 text-white/40"><Settings2 size={19} /></div>
         </aside>
-        <div className="relative flex min-w-0 flex-1 flex-col">
+        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
           <div className="pointer-events-none absolute inset-0 opacity-60 [background-image:radial-gradient(circle_at_15%_20%,rgba(255,255,255,.55)_0_1px,transparent_1px),radial-gradient(circle_at_74%_12%,rgba(94,231,255,.5)_0_1px,transparent_1px),radial-gradient(circle_at_84%_72%,rgba(178,140,255,.45)_0_1px,transparent_1px),radial-gradient(circle_at_32%_83%,rgba(255,255,255,.4)_0_1px,transparent_1px)] [background-size:260px_220px,330px_280px,290px_240px,360px_300px]" />
           <header className="relative z-10 flex flex-wrap items-center justify-between gap-4 bg-[#071020]/55 px-4 pb-3 pt-7 backdrop-blur-sm sm:px-9"><div><h1 className="text-[28px] font-semibold tracking-[-.035em]">Vocabulary Neural Map</h1><div className="mt-3 flex flex-wrap gap-6 text-sm text-white/65"><span className="flex items-center gap-2.5"><i className="size-2.5 rounded-full bg-[#58d27a] shadow-[0_0_12px_#58d27a]" />Mastered</span><span className="flex items-center gap-2.5"><i className="size-2.5 rounded-full bg-[#ffd12f] shadow-[0_0_12px_#ffd12f]" />Review</span><span className="flex items-center gap-2.5"><i className="size-2.5 rounded-full bg-[#9b6ff5] shadow-[0_0_12px_#9b6ff5]" />Learning</span></div></div><div className="flex items-center justify-end gap-3">{showSearch || query ? <label className="flex h-11 w-[210px] items-center gap-2 rounded-xl border border-white/15 bg-[#091523]/85 px-3 text-sm text-white/70 focus-within:border-cyan-300/60"><Search size={17} /><input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} onBlur={() => !query && setShowSearch(false)} placeholder="Search words…" className="min-w-0 flex-1 bg-transparent text-white outline-none placeholder:text-white/35" aria-label="Search vocabulary" /></label> : <select value={topic} onChange={(event) => setTopic(event.target.value)} aria-label="Vocabulary cluster" className="h-11 rounded-xl border border-white/15 bg-[#091523]/85 px-4 text-sm text-white outline-none"><option value="ALL">All clusters</option>{topics.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>}<button type="button" onClick={() => setShowSearch((open) => !open)} aria-label="Search vocabulary" className="grid size-11 place-items-center rounded-xl border border-white/15 bg-[#091523]/85 text-white/80 transition hover:border-cyan-300/50 hover:text-cyan-200"><Search size={20} /></button><button type="button" onClick={() => setShowFilters((open) => !open)} aria-label="Map filters" aria-expanded={showFilters} className="grid size-11 place-items-center rounded-xl border border-white/15 bg-[#091523]/85 text-white/80 transition hover:border-cyan-300/50 hover:text-cyan-200"><Settings2 size={19} /></button></div></header>
+          {showSearch && query ? <div className="relative z-30 border-b border-white/10 bg-[#081322]/95 px-4 py-3 backdrop-blur-xl sm:px-9"><p className="mb-2 text-[10px] font-black uppercase tracking-[.18em] text-white/40">Search results · {filteredWords.length}</p><div className="grid gap-1 sm:grid-cols-2 lg:grid-cols-3">{searchResults.map((word) => <button key={word.id} type="button" onClick={() => openWord(word.id)} className="flex items-center justify-between rounded-xl border border-white/5 px-3 py-2 text-left transition hover:border-cyan-300/40 hover:bg-cyan-300/[.06]"><span><span className="block text-sm font-bold text-white">{word.word}</span><span className="block truncate text-xs text-white/45">{word.definition}</span></span><ChevronRight size={15} className="shrink-0 text-cyan-200/60" /></button>)}</div>{!searchResults.length ? <p className="text-sm text-white/50">No words match those filters.</p> : null}</div> : null}
           {showFilters ? <div className="relative z-20 flex flex-wrap gap-2 border-b border-white/10 bg-[#081322]/95 px-4 py-3 backdrop-blur-xl sm:px-9"><FilterSelect label="Mode" value={filter} options={["ALL", "MY", "RECOMMENDED"]} onChange={(value) => setFilter(value as FilterState)} /><FilterSelect label="Topic" value={topic} options={["ALL", ...topics.map((item) => item.id)]} labels={Object.fromEntries(topics.map((item) => [item.id, item.name]))} onChange={setTopic} /><FilterSelect label="Level" value={level} options={["ALL", "A1", "A2", "B1", "B2", "C1", "C2"]} onChange={setLevel} /></div> : null}
-          <section className="relative z-10 min-h-[calc(100vh-96px)] flex-1 overflow-hidden">{view === "universe" ? <UniverseMap words={filteredWords} allWords={words} relationships={relationships} selectedId={selected.id} progressMap={progressMap} onSelect={openWord} onLaunch={openSolarSystem} /> : <div className="p-4 sm:p-7"><SolarSystem word={selected} words={words} relationships={selectedRelationships} topic={topicMap.get(selected.topic_id ?? "")} progress={progressMap.get(selected.id)} onSelect={openSolarWord} /></div>}</section>
+          <section className="relative z-10 min-h-0 flex-1 overflow-y-auto overflow-x-hidden">{view === "universe" ? <UniverseMap words={filteredWords} allWords={words} relationships={relationships} selectedId={selected.id} progressMap={progressMap} onSelect={openWord} onLaunch={openSolarSystem} /> : <div className="p-4 sm:p-7"><SolarSystem word={selected} words={words} relationships={selectedRelationships} topic={topicMap.get(selected.topic_id ?? "")} progress={progressMap.get(selected.id)} onSelect={openSolarWord} /></div>}</section>
         </div>
-        {sidebarOpen ? <WordPanel word={selected} words={words} topic={topicMap.get(selected.topic_id ?? "")} progress={progressMap.get(selected.id)} isPending={isPending} onClose={() => setSidebarOpen(false)} onBack={() => setView("universe")} onAction={progressAction} onOpenWord={openWord} onPlay={playWord} /> : <button type="button" onClick={() => setSidebarOpen(true)} className="fixed bottom-5 right-5 z-40 inline-flex items-center gap-2 rounded-xl border border-cyan-300/30 bg-[#081322]/95 px-4 py-3 text-xs font-black text-cyan-100 shadow-2xl shadow-cyan-950/40 backdrop-blur-xl"><Info size={15} /> Show word details</button>}
+        {sidebarOpen ? <WordPanel word={selected} words={words} topic={topicMap.get(selected.topic_id ?? "")} progress={progressMap.get(selected.id)} isPending={isPending} onClose={() => setSidebarOpen(false)} onBack={() => setView("universe")} onAction={progressAction} onPractice={startPractice} onOpenWord={openWord} onPlay={playWord} /> : <button type="button" onClick={() => setSidebarOpen(true)} className="fixed bottom-5 right-5 z-40 inline-flex items-center gap-2 rounded-xl border border-cyan-300/30 bg-[#081322]/95 px-4 py-3 text-xs font-black text-cyan-100 shadow-2xl shadow-cyan-950/40 backdrop-blur-xl"><Info size={15} /> Show word details</button>}
+        {practiceOpen ? <PracticeCard word={selected} isPending={isPending} onAnswer={(intent) => { setPracticeOpen(false); progressAction(intent); }} onClose={() => setPracticeOpen(false)} /> : null}
       </div>
     </main>
   );
@@ -169,17 +184,6 @@ const satelliteSlots: SatelliteSlot[][] = [
   [{ x: 78, y: 64, align: "right" }, { x: 78, y: 72, align: "right" }, { x: 74, y: 79, align: "right" }],
 ];
 
-const preferredNegotiateWords = ["price", "deal", "contract", "terms", "bargain", "discount", "agreement"];
-const curatedSatellites: Record<string, string[]> = {
-  price: ["cost", "value", "rate"],
-  deal: ["transaction", "offer"],
-  contract: ["legal", "document", "obligation"],
-  terms: ["conditions", "stipulations", "clauses"],
-  bargain: ["haggle", "trade-off", "negotiate down"],
-  discount: ["reduction", "rebate", "markdown"],
-  agreement: ["accord", "consensus", "settlement"],
-};
-
 const neuralNodes = Array.from({ length: 72 }, (_, index) => ({
   x: 5 + ((index * 37 + (index % 5) * 11) % 91),
   y: 5 + ((index * 53 + (index % 7) * 8) % 91),
@@ -187,30 +191,36 @@ const neuralNodes = Array.from({ length: 72 }, (_, index) => ({
   color: index % 5 === 0 ? "#7d63db" : index % 3 === 0 ? "#326ba7" : "#214d79",
 }));
 
-function satelliteLabels(word: WordverseWord) {
-  if (curatedSatellites[word.slug]) return curatedSatellites[word.slug];
-  return [...new Set([...word.synonyms, ...word.collocations, ...word.word_family])].slice(0, 3);
+function satelliteLabels(word: WordverseWord, allWords: WordverseWord[], relationships: WordverseRelationship[]) {
+  const wordIds = new Set(allWords.map((candidate) => candidate.id));
+  return relationships
+    .filter((edge) => edge.source_word_id === word.id || edge.target_word_id === word.id)
+    .toSorted((a, b) => b.strength - a.strength)
+    .map((edge) => allWords.find((candidate) => candidate.id === (edge.source_word_id === word.id ? edge.target_word_id : edge.source_word_id)))
+    .filter((candidate): candidate is WordverseWord => Boolean(candidate && wordIds.has(candidate.id)))
+    .map((candidate) => candidate.word)
+    .slice(0, 3);
 }
 
 function UniverseMap({ words, allWords, relationships, selectedId, progressMap, onSelect, onLaunch }: { words: WordverseWord[]; allWords: WordverseWord[]; relationships: WordverseRelationship[]; selectedId: string; progressMap: Map<string, WordverseProgress>; onSelect: (id: string) => void; onLaunch: () => void }) {
   const selectedWord = allWords.find((word) => word.id === selectedId) ?? allWords[0];
   const visibleIds = new Set(words.map((word) => word.id));
   const wordById = new Map(allWords.map((word) => [word.id, word]));
-  const wordBySlug = new Map(allWords.map((word) => [word.slug, word]));
   const orderedIds: string[] = [];
   const addWord = (word: WordverseWord | undefined) => {
     if (!word || word.id === selectedId || !visibleIds.has(word.id) || orderedIds.includes(word.id)) return;
     orderedIds.push(word.id);
   };
 
-  if (selectedWord?.slug === "negotiate") preferredNegotiateWords.forEach((slug) => addWord(wordBySlug.get(slug)));
   relationships
     .filter((edge) => edge.source_word_id === selectedId || edge.target_word_id === selectedId)
     .toSorted((a, b) => b.strength - a.strength)
     .forEach((edge) => addWord(wordById.get(edge.source_word_id === selectedId ? edge.target_word_id : edge.source_word_id)));
-  words.toSorted((a, b) => b.frequency_score - a.frequency_score).forEach(addWord);
-
   const primaryWords = orderedIds.slice(0, 7).map((id) => wordById.get(id)).filter((word): word is WordverseWord => Boolean(word));
+  const primaryEdges = new Map(primaryWords.map((word) => {
+    const edge = relationships.filter((candidate) => (candidate.source_word_id === selectedId && candidate.target_word_id === word.id) || (candidate.target_word_id === selectedId && candidate.source_word_id === word.id)).toSorted((a, b) => b.strength - a.strength)[0];
+    return [word.id, edge];
+  }));
 
   return (
     <div className="relative h-full min-h-[620px] overflow-hidden bg-[radial-gradient(circle_at_50%_54%,rgba(0,111,255,.14),transparent_24%),radial-gradient(circle_at_33%_40%,rgba(83,51,180,.07),transparent_30%),linear-gradient(180deg,rgba(4,14,28,.25),rgba(2,8,18,.7))] lg:min-h-[calc(100vh-96px)]">
@@ -231,17 +241,19 @@ function UniverseMap({ words, allWords, relationships, selectedId, progressMap, 
         {primaryWords.map((word, index) => {
           const slot = constellationSlots[index];
           const color = slot.color;
-          return <g key={`spoke-${word.id}`} filter="url(#wordverse-glow)"><line x1="50" y1="43" x2={slot.x} y2={slot.y} stroke="white" strokeOpacity=".88" strokeWidth=".22" /><line x1="50" y1="43" x2={slot.x} y2={slot.y} stroke={color} strokeOpacity=".8" strokeWidth=".11" /><circle cx={slot.x} cy={slot.y} r=".65" fill="white" fillOpacity=".9" /></g>;
+          const edge = primaryEdges.get(word.id);
+          const dash = edge?.relationship_type === "COLLOCATION" ? ".7 .45" : edge?.relationship_type === "ANTONYM" ? ".2 .6" : undefined;
+          return <g key={`spoke-${word.id}`} filter="url(#wordverse-glow)"><line x1="50" y1="43" x2={slot.x} y2={slot.y} stroke="white" strokeOpacity=".88" strokeWidth=".22" strokeDasharray={dash} /><line x1="50" y1="43" x2={slot.x} y2={slot.y} stroke={color} strokeOpacity=".8" strokeWidth=".11" strokeDasharray={dash} /><circle cx={slot.x} cy={slot.y} r=".65" fill="white" fillOpacity=".9" /></g>;
         })}
         {primaryWords.flatMap((word, index) => {
           const slot = constellationSlots[index];
-          const labels = satelliteLabels(word);
+          const labels = satelliteLabels(word, allWords, relationships);
           return satelliteSlots[index].slice(0, labels.length).map((satellite, satelliteIndex) => <g key={`satellite-line-${word.id}-${satelliteIndex}`}><line x1={slot.x} y1={slot.y} x2={satellite.x} y2={satellite.y} stroke={slot.color} strokeOpacity=".72" strokeWidth=".13" /><circle cx={satellite.x} cy={satellite.y} r=".58" fill="#04101d" stroke={slot.color} strokeWidth=".16" /><circle cx={satellite.x} cy={satellite.y} r=".25" fill={slot.color} fillOpacity=".5" /></g>);
         })}
       </svg>
 
       {primaryWords.flatMap((word, index) => {
-        const labels = satelliteLabels(word);
+        const labels = satelliteLabels(word, allWords, relationships);
         return satelliteSlots[index].slice(0, labels.length).map((satellite, satelliteIndex) => {
           const label = labels[satelliteIndex];
           const linkedWord = allWords.find((candidate) => candidate.word.toLowerCase() === label.toLowerCase());
@@ -271,11 +283,29 @@ function UniverseMap({ words, allWords, relationships, selectedId, progressMap, 
   );
 }
 
+function SolarSystemV2({ word, relationships, topic, progress }: { word: WordverseWord; relationships: WordverseRelationship[]; topic?: WordverseTopic; progress?: WordverseProgress; words?: WordverseWord[]; onSelect?: (id: string) => void }) {
+  const [activeLabel, setActiveLabel] = useState<string | null>(null);
+  const satellites = [
+    ["MEANING", word.definition, "#5ee7ff"], ["PRONUNCIATION", word.pronunciation ?? "Audio not available yet", "#b28cff"], ["WORD CLASS", word.word_class ?? "Word class not available", "#7ce38a"], ["SYNONYMS", word.synonyms.join(" · "), "#ffc857"], ["ANTONYMS", word.antonyms.join(" · "), "#ff8f9c"], ["WORD FAMILY", word.word_family.join(" · "), "#7ce38a"], ["EXAMPLES", word.examples[0] ?? "", "#5ee7ff"], ["COLLOCATIONS", word.collocations.join(" · "), "#b28cff"], ["ORIGIN", word.origin ?? "", "#ffc857"], ["GRAMMAR", word.grammar_patterns[0] ?? "", "#5ee7ff"],
+  ].filter(([, detail]) => Boolean(detail)) as unknown as Array<readonly [string, string, string]>;
+  const active = satellites.find(([label]) => label === activeLabel);
+  return <div className="relative h-[720px] overflow-hidden rounded-[28px] border border-violet-200/15 bg-[#06101e]/70 shadow-[inset_0_0_100px_rgba(74,42,130,.19)] sm:h-[calc(100dvh-220px)] sm:min-h-[640px]"><div className="absolute left-1/2 top-1/2 size-[65%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-cyan-200/10 motion-safe:animate-[spin_42s_linear_infinite]" /><div className="absolute left-1/2 top-1/2 size-[42%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-violet-200/15 motion-safe:animate-[spin_28s_linear_infinite_reverse]" /><div className="absolute left-1/2 top-1/2 size-[22%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-300/10 blur-3xl" /><div className="absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 text-center"><div className="grid size-32 place-items-center rounded-full border-2 border-cyan-100 bg-[#091a2b] px-3 shadow-[0_0_28px_rgba(94,231,255,.75),inset_0_0_30px_rgba(94,231,255,.12)] sm:size-44"><div><p className="text-xl font-black sm:text-3xl">{word.word}</p><p className="mt-1 text-[10px] text-cyan-100/75 sm:text-xs">{word.pronunciation}</p><p className="mt-2 text-[9px] font-bold uppercase tracking-wider text-white/45">{stateLabels[progress?.state ?? "DISCOVERED"]}</p></div></div></div>{satellites.map(([label, detail, color], index) => { const angle = (Math.PI * 2 * index) / satellites.length - Math.PI / 2; const radius = index % 2 ? 34 : 41; const left = 50 + Math.cos(angle) * radius; const top = 50 + Math.sin(angle) * radius; const isActive = activeLabel === label; return <button key={label} type="button" onClick={() => setActiveLabel(isActive ? null : label)} aria-pressed={isActive} className="group absolute z-20 w-28 -translate-x-1/2 -translate-y-1/2 text-center transition hover:scale-110 focus:outline-none sm:w-36" style={{ left: `${left}%`, top: `${top}%` }}><span className="mx-auto grid size-11 place-items-center rounded-full border bg-[#091828]/90 shadow-[0_0_22px_rgba(94,231,255,.16)] group-focus-visible:ring-2 group-focus-visible:ring-cyan-100/80 group-focus-visible:ring-offset-4 group-focus-visible:ring-offset-[#06101e] sm:size-14" style={{ borderColor: `${color}${isActive ? "ff" : "aa"}`, boxShadow: `0 0 ${isActive ? 34 : 22}px ${color}66` }}><span className="size-2 rounded-full" style={{ backgroundColor: color }} /></span><span className="mt-2 block text-[9px] font-black uppercase tracking-[.12em]" style={{ color }}>{label}</span><span className="mt-1 block line-clamp-2 text-[10px] leading-4 text-white/60">{detail}</span></button>; })}{active ? <div className="absolute bottom-5 left-1/2 z-30 w-[min(90%,460px)] -translate-x-1/2 rounded-2xl border border-cyan-200/25 bg-[#081a2b]/95 p-4 text-left shadow-2xl shadow-cyan-950/40 backdrop-blur-xl"><div className="flex items-center justify-between gap-3"><p className="text-xs font-black uppercase tracking-[.18em]" style={{ color: active[2] }}>{active[0]}</p><button type="button" onClick={() => setActiveLabel(null)} aria-label="Close knowledge detail" className="text-white/45 transition hover:text-white"><X size={16} /></button></div><p className="mt-2 text-sm leading-6 text-white/80">{active[1]}</p></div> : null}<div className="absolute bottom-4 left-4 rounded-xl border border-white/10 bg-[#081322]/80 px-3 py-2 text-[10px] text-white/50 backdrop-blur-xl"><span className="font-bold text-white/75">{topic?.name ?? "Vocabulary"}</span> · {word.cefr_level ?? "Open level"} · frequency {word.frequency_score}%</div><div className="absolute right-4 top-4 flex items-center gap-2 rounded-xl border border-white/10 bg-[#081322]/80 px-3 py-2 text-[10px] font-bold text-white/45 backdrop-blur-xl"><RotateCcw size={13} /> {relationships.length} connected dimensions</div></div>;
+}
+
 function SolarSystem({ word, words, relationships, topic, progress, onSelect }: { word: WordverseWord; words: WordverseWord[]; relationships: WordverseRelationship[]; topic?: WordverseTopic; progress?: WordverseProgress; onSelect: (id: string) => void }) {
   const satellites = [
     ["MEANING", word.definition, "#5ee7ff"], ["PRONUNCIATION", word.pronunciation ?? "Audio available", "#b28cff"], ["WORD CLASS", word.word_class ?? "Word", "#7ce38a"], ["SYNONYMS", word.synonyms.join(" · ") || "Explore related words", "#ffc857"], ["ANTONYMS", word.antonyms.join(" · ") || "No direct antonym", "#ff8f9c"], ["WORD FAMILY", word.word_family.join(" · ") || "Explore word family", "#7ce38a"], ["EXAMPLES", word.examples[0] ?? "Add an example", "#5ee7ff"], ["COLLOCATIONS", word.collocations.join(" · ") || "Explore collocations", "#b28cff"], ["ORIGIN", word.origin ?? "Origin not yet available", "#ffc857"], ["GRAMMAR", word.grammar_patterns[0] ?? "Usage patterns", "#5ee7ff"],
   ] as const;
   return <div className="relative h-[560px] overflow-hidden rounded-[28px] border border-violet-200/15 bg-[#06101e]/70 shadow-[inset_0_0_100px_rgba(74,42,130,.19)] sm:h-[calc(100vh-235px)] sm:min-h-[600px]"><div className="absolute left-1/2 top-1/2 size-[65%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-cyan-200/10 motion-safe:animate-[spin_42s_linear_infinite]" /><div className="absolute left-1/2 top-1/2 size-[42%] -translate-x-1/2 -translate-y-1/2 rounded-full border border-violet-200/15 motion-safe:animate-[spin_28s_linear_infinite_reverse]" /><div className="absolute left-1/2 top-1/2 size-[22%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-cyan-300/10 blur-3xl" /><div className="absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 text-center"><div className="grid size-32 place-items-center rounded-full border-2 border-cyan-100 bg-[#091a2b] px-3 shadow-[0_0_28px_rgba(94,231,255,.75),inset_0_0_30px_rgba(94,231,255,.12)] sm:size-44"><div><p className="text-xl font-black sm:text-3xl">{word.word}</p><p className="mt-1 text-[10px] text-cyan-100/75 sm:text-xs">{word.pronunciation}</p><p className="mt-2 text-[9px] font-bold uppercase tracking-wider text-white/45">{stateLabels[progress?.state ?? "DISCOVERED"]}</p></div></div></div>{satellites.map(([label, detail, color], index) => { const angle = (Math.PI * 2 * index) / satellites.length - Math.PI / 2; const radius = index % 2 ? 36 : 44; const left = 50 + Math.cos(angle) * radius; const top = 50 + Math.sin(angle) * radius; const relatedWord = words.find((candidate) => candidate.word.toLowerCase() === detail.toLowerCase().split(" · ")[0]); return <button key={label} type="button" onClick={() => relatedWord && onSelect(relatedWord.id)} className="group absolute z-20 w-28 -translate-x-1/2 -translate-y-1/2 text-center transition hover:scale-110 focus:outline-none sm:w-36" style={{ left: `${left}%`, top: `${top}%` }}><span className="mx-auto grid size-11 place-items-center rounded-full border bg-[#091828]/90 shadow-[0_0_22px_rgba(94,231,255,.16)] group-focus-visible:ring-2 group-focus-visible:ring-cyan-100/80 group-focus-visible:ring-offset-4 group-focus-visible:ring-offset-[#06101e] sm:size-14" style={{ borderColor: `${color}aa`, boxShadow: `0 0 22px ${color}44` }}><span className="size-2 rounded-full" style={{ backgroundColor: color }} /></span><span className="mt-2 block text-[9px] font-black uppercase tracking-[.12em]" style={{ color }}>{label}</span><span className="mt-1 block line-clamp-2 text-[10px] leading-4 text-white/60">{detail}</span></button>; })}<div className="absolute bottom-4 left-4 rounded-xl border border-white/10 bg-[#081322]/80 px-3 py-2 text-[10px] text-white/50 backdrop-blur-xl"><span className="font-bold text-white/75">{topic?.name ?? "Vocabulary"}</span> · {word.cefr_level ?? "Open level"} · frequency {word.frequency_score}%</div><div className="absolute right-4 top-4 flex items-center gap-2 rounded-xl border border-white/10 bg-[#081322]/80 px-3 py-2 text-[10px] font-bold text-white/45 backdrop-blur-xl"><RotateCcw size={13} /> {relationships.length} connected dimensions</div></div>;
+}
+
+function WordPanelV2({ word, topic, progress, isPending, words, onClose, onBack, onAction, onPractice, onOpenWord, onPlay }: { word: WordverseWord; topic?: WordverseTopic; progress?: WordverseProgress; isPending: boolean; words: WordverseWord[]; onClose: () => void; onBack: () => void; onAction: (intent: "toggle_saved" | "familiar" | "review" | "confidence" | "practice_correct" | "practice_incorrect", confidence?: number) => void; onPractice: () => void; onOpenWord: (id: string) => void; onPlay: () => void }) {
+  const connectedWords = [...word.synonyms, ...word.antonyms, ...word.word_family].slice(0, 6).map((label) => ({ label, word: words.find((candidate) => candidate.word.toLowerCase() === label.toLowerCase()) })).filter((item) => item.word);
+  return <aside className="relative z-20 max-h-[min(72dvh,680px)] w-full shrink-0 overflow-y-auto border-t border-white/10 bg-[#081322]/95 p-5 backdrop-blur-xl lg:h-full lg:max-h-none lg:w-[370px] lg:border-l lg:border-t-0 lg:p-7 xl:w-[420px]"><button type="button" onClick={onBack} className="mb-5 inline-flex items-center gap-2 text-xs font-bold text-white/50 transition hover:text-cyan-100 lg:hidden"><ArrowLeft size={15} /> Back to universe</button><div className="flex items-start justify-between gap-3"><div><p className="text-[10px] font-black uppercase tracking-[.22em] text-cyan-200/65">Word signal</p><h2 className="mt-2 text-4xl font-black tracking-tight">{word.word}</h2><p className="mt-2 text-sm text-cyan-100/70">{word.word_class ?? "word"} · {word.cefr_level ?? "open level"} {topic ? `· ${topic.name}` : ""}</p></div><div className="flex items-center gap-2"><button type="button" onClick={() => onAction("toggle_saved")} aria-label={progress?.saved ? "Remove saved word" : "Save word"} className={`grid size-11 place-items-center rounded-2xl border transition ${progress?.saved ? "border-amber-300/60 bg-amber-300/15 text-amber-200" : "border-white/10 bg-white/[.04] text-white/50 hover:text-cyan-100"}`}><Bookmark size={18} fill={progress?.saved ? "currentColor" : "none"} /></button><button type="button" onClick={onClose} aria-label="Dismiss word details" className="grid size-11 place-items-center rounded-2xl border border-white/10 bg-white/[.04] text-white/50 transition hover:text-white"><X size={18} /></button></div></div><div className="mt-5 flex items-center gap-2"><button type="button" onClick={onPlay} className="inline-flex items-center gap-2 rounded-xl border border-cyan-200/25 bg-cyan-200/10 px-3 py-2 text-xs font-bold text-cyan-100"><Volume2 size={14} /> Listen</button><button type="button" onClick={() => onAction("review")} className="inline-flex items-center gap-2 rounded-xl border border-amber-200/20 bg-amber-200/10 px-3 py-2 text-xs font-bold text-amber-100"><Star size={14} /> Review</button></div><div className="mt-7 border-t border-white/10 pt-5"><Label icon={Info} text="Meaning" /><p className="mt-2 text-sm leading-6 text-white/75">{word.definition}</p>{word.translation ? <p className="mt-2 text-xs text-white/40">Translation: {word.translation}</p> : null}</div><div className="mt-5 border-t border-white/10 pt-5"><Label icon={Headphones} text="Pronunciation" /><p className="mt-2 font-mono text-sm text-cyan-100">{word.pronunciation ?? "Not available yet"}</p></div><div className="mt-5 border-t border-white/10 pt-5"><Label icon={Sparkles} text="Learning state" /><div className="mt-3 flex items-center justify-between gap-3"><span className="flex items-center gap-2 text-sm font-bold" style={{ color: stateColors[progress?.state ?? "DISCOVERED"] }}><i className="size-2 rounded-full" style={{ backgroundColor: stateColors[progress?.state ?? "DISCOVERED"] }} />{stateLabels[progress?.state ?? "DISCOVERED"]}</span><span className="text-xs text-white/40">{progress?.view_count ?? 0} visits</span></div><div className="mt-3 flex gap-2"><button type="button" disabled={isPending} onClick={() => onAction("familiar")} className="flex-1 rounded-xl bg-cyan-300/15 px-3 py-2.5 text-xs font-black text-cyan-100 transition hover:bg-cyan-300/25"><Check size={14} className="mr-1 inline" /> I know this</button><button type="button" disabled={isPending} onClick={onPractice} className="rounded-xl border border-white/10 px-3 py-2.5 text-xs font-bold text-white/55 transition hover:text-white">Practice</button></div></div><div className="mt-5 border-t border-white/10 pt-5"><Label icon={Gauge} text="Confidence" /><div className="mt-3 flex gap-2">{[1, 2, 3, 4, 5].map((value) => <button key={value} type="button" onClick={() => onAction("confidence", value)} aria-label={`Confidence ${value} of 5`} className={`grid size-8 place-items-center rounded-full border text-xs font-bold ${progress?.confidence === value ? "border-cyan-200 bg-cyan-300/20 text-cyan-100" : "border-white/15 text-white/45"}`}>{value}</button>)}</div></div>{connectedWords.length ? <div className="mt-5 border-t border-white/10 pt-5"><Label icon={ChevronRight} text="Connected words" /><div className="mt-3 flex flex-wrap gap-2">{connectedWords.map((related) => <button key={related.label} type="button" onClick={() => onOpenWord(related.word!.id)} className="rounded-lg border border-violet-200/20 bg-violet-200/[.07] px-2.5 py-1.5 text-xs text-violet-100 transition hover:border-violet-200/50">{related.label}</button>)}</div></div> : null}<div className="mt-6 rounded-2xl border border-cyan-200/10 bg-cyan-200/[.05] p-4 text-xs leading-5 text-white/50"><p className="flex items-center gap-2 font-bold text-cyan-100"><LocateFixed size={14} /> Explore with intention</p><p className="mt-1">Discovering opens the door. Recall and real usage build mastery.</p></div></aside>;
+}
+
+function PracticeCard({ word, isPending, onAnswer, onClose }: { word: WordverseWord; isPending: boolean; onAnswer: (intent: "practice_correct" | "practice_incorrect") => void; onClose: () => void }) {
+  return <div className="fixed inset-0 z-50 grid place-items-center bg-[#020711]/75 p-5 backdrop-blur-sm"><section role="dialog" aria-modal="true" aria-labelledby="wordverse-practice-title" className="w-full max-w-lg rounded-3xl border border-cyan-200/20 bg-[#08182a] p-6 shadow-2xl shadow-cyan-950/50"><div className="flex items-start justify-between gap-4"><div><p className="text-[10px] font-black uppercase tracking-[.2em] text-cyan-200/60">Quick recall</p><h2 id="wordverse-practice-title" className="mt-2 text-2xl font-black">What does “{word.word}” mean?</h2></div><button type="button" onClick={onClose} aria-label="Close practice" className="text-white/45 transition hover:text-white"><X size={18} /></button></div><p className="mt-6 rounded-2xl border border-white/10 bg-white/[.04] p-4 text-sm leading-6 text-white/70">Think of the meaning before revealing the answer.</p><details className="mt-4 rounded-2xl border border-cyan-200/15 bg-cyan-200/[.04] p-4"><summary className="cursor-pointer text-sm font-bold text-cyan-100">Reveal meaning</summary><p className="mt-3 text-sm leading-6 text-white/80">{word.definition}</p></details><div className="mt-6 grid grid-cols-2 gap-3"><button type="button" disabled={isPending} onClick={() => onAnswer("practice_incorrect")} className="rounded-xl border border-amber-200/25 px-4 py-3 text-sm font-bold text-amber-100 transition hover:bg-amber-200/10">Need more practice</button><button type="button" disabled={isPending} onClick={() => onAnswer("practice_correct")} className="rounded-xl bg-cyan-300/15 px-4 py-3 text-sm font-black text-cyan-100 transition hover:bg-cyan-300/25">I recalled it</button></div></section></div>;
 }
 
 function WordPanel({ word, topic, progress, isPending, words, onClose, onBack, onAction, onOpenWord, onPlay }: { word: WordverseWord; topic?: WordverseTopic; progress?: WordverseProgress; isPending: boolean; words: WordverseWord[]; onClose: () => void; onBack: () => void; onAction: (intent: "toggle_saved" | "familiar" | "review" | "confidence", confidence?: number) => void; onOpenWord: (id: string) => void; onPlay: () => void }) {
