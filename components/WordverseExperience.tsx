@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
   ArrowLeft, Bookmark, Check, ChevronRight, Compass, Gauge, Globe2, Headphones,
   Info, LocateFixed, Orbit, RotateCcw, Search, Settings2, Sparkles, Star, Volume2, X,
@@ -155,7 +155,7 @@ export function WordverseExperience({ topics, words, relationships, progress }: 
           <header className="relative z-10 flex flex-wrap items-center justify-between gap-4 bg-[#071020]/55 px-4 pb-3 pt-7 backdrop-blur-sm sm:px-9"><div><h1 className="text-[28px] font-semibold tracking-[-.035em]">Vocabulary Neural Map</h1><div className="mt-3 flex flex-wrap gap-6 text-sm text-white/65"><span className="flex items-center gap-2.5"><i className="size-2.5 rounded-full bg-[#58d27a] shadow-[0_0_12px_#58d27a]" />Mastered</span><span className="flex items-center gap-2.5"><i className="size-2.5 rounded-full bg-[#ffd12f] shadow-[0_0_12px_#ffd12f]" />Review</span><span className="flex items-center gap-2.5"><i className="size-2.5 rounded-full bg-[#9b6ff5] shadow-[0_0_12px_#9b6ff5]" />Learning</span></div></div><div className="flex items-center justify-end gap-3">{showSearch || query ? <label className="flex h-11 w-[210px] items-center gap-2 rounded-xl border border-white/15 bg-[#091523]/85 px-3 text-sm text-white/70 focus-within:border-cyan-300/60"><Search size={17} /><input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} onBlur={() => !query && setShowSearch(false)} placeholder="Search words…" className="min-w-0 flex-1 bg-transparent text-white outline-none placeholder:text-white/35" aria-label="Search vocabulary" /></label> : <select value={topic} onChange={(event) => setTopic(event.target.value)} aria-label="Vocabulary cluster" className="h-11 rounded-xl border border-white/15 bg-[#091523]/85 px-4 text-sm text-white outline-none"><option value="ALL">All clusters</option>{topics.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>}<button type="button" onClick={() => setShowSearch((open) => !open)} aria-label="Search vocabulary" className="grid size-11 place-items-center rounded-xl border border-white/15 bg-[#091523]/85 text-white/80 transition hover:border-cyan-300/50 hover:text-cyan-200"><Search size={20} /></button><button type="button" onClick={() => setShowFilters((open) => !open)} aria-label="Map filters" aria-expanded={showFilters} className="grid size-11 place-items-center rounded-xl border border-white/15 bg-[#091523]/85 text-white/80 transition hover:border-cyan-300/50 hover:text-cyan-200"><Settings2 size={19} /></button></div></header>
           {showSearch && query ? <div className="relative z-30 border-b border-white/10 bg-[#081322]/95 px-4 py-3 backdrop-blur-xl sm:px-9"><p className="mb-2 text-[10px] font-black uppercase tracking-[.18em] text-white/40">Search results · {searchResults.length}</p><div className="grid gap-1 sm:grid-cols-2 lg:grid-cols-3">{searchResults.map((word) => <button key={word.id} type="button" onClick={() => openWord(word.id)} className="flex items-center justify-between rounded-xl border border-white/5 px-3 py-2 text-left transition hover:border-cyan-300/40 hover:bg-cyan-300/[.06]"><span><span className="block text-sm font-bold text-white">{word.word}</span><span className="block truncate text-xs text-white/45">{word.definition}</span></span><ChevronRight size={15} className="shrink-0 text-cyan-200/60" /></button>)}</div>{!searchResults.length ? <p className="text-sm text-white/50">No words match those filters.</p> : null}</div> : null}
           {showFilters ? <div className="relative z-20 flex flex-wrap gap-2 border-b border-white/10 bg-[#081322]/95 px-4 py-3 backdrop-blur-xl sm:px-9"><FilterSelect label="Mode" value={filter} options={["ALL", "MY", "RECOMMENDED"]} onChange={(value) => setFilter(value as FilterState)} /><FilterSelect label="Topic" value={topic} options={["ALL", ...topics.map((item) => item.id)]} labels={Object.fromEntries(topics.map((item) => [item.id, item.name]))} onChange={setTopic} /><FilterSelect label="Level" value={level} options={["ALL", "A1", "A2", "B1", "B2", "C1", "C2"]} onChange={setLevel} /></div> : null}
-          <section className="relative z-10 min-h-0 flex-1 overflow-y-auto overflow-x-hidden">{view === "universe" ? <UniverseMap words={filteredWords} allWords={words} relationships={relationships} selectedId={selected.id} progressMap={progressMap} onSelect={openWord} onLaunch={openSolarSystem} /> : <div className="p-4 sm:p-7"><SolarSystem word={selected} words={words} relationships={selectedRelationships} topic={topicMap.get(selected.topic_id ?? "")} progress={progressMap.get(selected.id)} onSelect={openSolarWord} /></div>}</section>
+          <section className="relative z-10 min-h-0 flex-1 overflow-y-auto overflow-x-hidden">{view === "universe" ? <CanvasUniverseMap words={filteredWords} allWords={words} relationships={relationships} selectedId={selected.id} progressMap={progressMap} onSelect={openWord} onLaunch={openSolarSystem} /> : <div className="p-4 sm:p-7"><SolarSystem word={selected} words={words} relationships={selectedRelationships} topic={topicMap.get(selected.topic_id ?? "")} progress={progressMap.get(selected.id)} onSelect={openSolarWord} /></div>}</section>
         </div>
         {sidebarOpen ? <WordPanel word={selected} words={words} topic={topicMap.get(selected.topic_id ?? "")} progress={progressMap.get(selected.id)} isPending={isPending} onClose={() => setSidebarOpen(false)} onBack={() => setView("universe")} onAction={progressAction} onPractice={startPractice} onOpenWord={openWord} onPlay={playWord} /> : <button type="button" onClick={() => setSidebarOpen(true)} className="fixed bottom-5 right-5 z-40 inline-flex items-center gap-2 rounded-xl border border-cyan-300/30 bg-[#081322]/95 px-4 py-3 text-xs font-black text-cyan-100 shadow-2xl shadow-cyan-950/40 backdrop-blur-xl"><Info size={15} /> Show word details</button>}
         {practiceOpen ? <PracticeCard word={selected} isPending={isPending} onAnswer={(intent) => { setPracticeOpen(false); progressAction(intent); }} onClose={() => setPracticeOpen(false)} /> : null}
@@ -210,7 +210,88 @@ function satelliteLabels(word: WordverseWord, allWords: WordverseWord[], relatio
     .slice(0, 3);
 }
 
-function UniverseMap({ words, allWords, relationships, selectedId, progressMap, onSelect, onLaunch }: { words: WordverseWord[]; allWords: WordverseWord[]; relationships: WordverseRelationship[]; selectedId: string; progressMap: Map<string, WordverseProgress>; onSelect: (id: string) => void; onLaunch: () => void }) {
+type UniverseCanvasProps = { words: WordverseWord[]; allWords: WordverseWord[]; relationships: WordverseRelationship[]; selectedId: string; progressMap: Map<string, WordverseProgress>; onSelect: (id: string) => void; onLaunch: () => void };
+type UniversePoint = { word: WordverseWord; x: number; y: number; radius: number; color: string };
+
+function CanvasUniverseMap({ words, allWords, relationships, selectedId, progressMap, onSelect, onLaunch }: UniverseCanvasProps) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const frameRef = useRef<number | null>(null);
+  const cameraRef = useRef({ x: 0, y: 0, scale: 1 });
+  const dragRef = useRef({ active: false, moved: false, x: 0, y: 0 });
+  const hitTargetsRef = useRef<Array<{ id: string; x: number; y: number; radius: number }>>([]);
+  const [loadedCount, setLoadedCount] = useState(() => Math.min(words.length, 24));
+  const [zoom, setZoom] = useState(1);
+  const wordById = useMemo(() => new Map(allWords.map((word) => [word.id, word])), [allWords]);
+  const points = useMemo(() => allWords.map((word, index) => {
+    const hash = hashWord(word.id || word.slug || word.word);
+    const cluster = hashWord(word.topic_id || "vocabulary") % 6;
+    const angle = (cluster / 6) * Math.PI * 2;
+    const distance = 260 + (hash % 260);
+    return { word, x: Math.cos(angle) * distance + ((hash >> 3) % 330) - 165, y: Math.sin(angle) * distance + ((hash >> 8) % 250) - 125, radius: 7 + Math.min(7, word.frequency_score / 20), color: stateColors[progressMap.get(word.id)?.state ?? "DISCOVERED"] };
+  }), [allWords, progressMap]);
+  const pointById = useMemo(() => new Map(points.map((point) => [point.word.id, point])), [points]);
+
+  useEffect(() => {
+    setLoadedCount(Math.min(words.length, 24));
+    const timer = window.setInterval(() => setLoadedCount((count) => Math.min(words.length, count + 24)), 90);
+    return () => window.clearInterval(timer);
+  }, [words.length]);
+
+  useEffect(() => {
+    const selectedPoint = pointById.get(selectedId);
+    if (selectedPoint) cameraRef.current = { ...cameraRef.current, x: selectedPoint.x, y: selectedPoint.y };
+  }, [pointById, selectedId]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const context = canvas.getContext("2d");
+    if (!context) return;
+    const resize = () => { const rect = canvas.getBoundingClientRect(); const ratio = window.devicePixelRatio || 1; canvas.width = Math.max(1, Math.floor(rect.width * ratio)); canvas.height = Math.max(1, Math.floor(rect.height * ratio)); context.setTransform(ratio, 0, 0, ratio, 0, 0); };
+    const draw = () => {
+      const rect = canvas.getBoundingClientRect();
+      const { x: cameraX, y: cameraY, scale } = cameraRef.current;
+      context.clearRect(0, 0, rect.width, rect.height);
+      const worldToScreen = (x: number, y: number) => ({ x: rect.width / 2 + (x - cameraX) * scale, y: rect.height / 2 + (y - cameraY) * scale });
+      const visible = points.slice(0, loadedCount).filter((point) => { const screen = worldToScreen(point.x, point.y); return screen.x > -100 && screen.x < rect.width + 100 && screen.y > -100 && screen.y < rect.height + 100; });
+      hitTargetsRef.current = [];
+      context.save();
+      context.globalAlpha = scale < 0.62 ? 0.2 : 0.35;
+      context.strokeStyle = "#3178b8";
+      context.lineWidth = 1;
+      for (let index = 0; index < visible.length; index += 1) { const from = worldToScreen(visible[index].x, visible[index].y); const to = worldToScreen(visible[(index * 5 + 7) % visible.length].x, visible[(index * 5 + 7) % visible.length].y); context.beginPath(); context.moveTo(from.x, from.y); context.lineTo(to.x, to.y); context.stroke(); }
+      context.restore();
+      if (scale < 0.72) {
+        const clusters = new Map<string, { x: number; y: number; count: number }>();
+        visible.forEach((point) => { const key = point.word.topic_id || "vocabulary"; const current = clusters.get(key) ?? { x: 0, y: 0, count: 0 }; current.x += point.x; current.y += point.y; current.count += 1; clusters.set(key, current); });
+        clusters.forEach((cluster) => { const center = worldToScreen(cluster.x / cluster.count, cluster.y / cluster.count); context.beginPath(); context.arc(center.x, center.y, Math.min(rect.width, rect.height) * 0.16, 0, Math.PI * 2); context.strokeStyle = "rgba(70,181,255,.15)"; context.lineWidth = 1; context.stroke(); });
+      }
+      context.save();
+      relationships.forEach((edge) => { const source = pointById.get(edge.source_word_id); const target = pointById.get(edge.target_word_id); if (!source || !target || !visible.includes(source) || !visible.includes(target)) return; const from = worldToScreen(source.x, source.y); const to = worldToScreen(target.x, target.y); context.beginPath(); context.moveTo(from.x, from.y); context.lineTo(to.x, to.y); context.strokeStyle = edge.relationship_type === "ANTONYM" ? "rgba(255,143,156,.55)" : edge.relationship_type === "COLLOCATION" ? "rgba(178,140,255,.55)" : "rgba(94,231,255,.5)"; context.lineWidth = Math.max(0.7, edge.strength / 90) * scale; context.stroke(); });
+      context.restore();
+      visible.forEach((point) => { const screen = worldToScreen(point.x, point.y); const selected = point.word.id === selectedId; const radius = (selected ? 19 : point.radius) * scale; hitTargetsRef.current.push({ id: point.word.id, x: screen.x, y: screen.y, radius: Math.max(16, radius) }); context.beginPath(); context.arc(screen.x, screen.y, radius + (selected ? 9 : 4), 0, Math.PI * 2); context.fillStyle = `${point.color}22`; context.fill(); context.beginPath(); context.arc(screen.x, screen.y, Math.max(3, radius), 0, Math.PI * 2); context.fillStyle = "#071524"; context.fill(); context.strokeStyle = point.color; context.lineWidth = selected ? 2.5 : 1.2; context.shadowColor = point.color; context.shadowBlur = selected ? 22 : 10; context.stroke(); context.shadowBlur = 0; if (scale > 0.68 || selected) { context.fillStyle = selected ? "#ffffff" : "rgba(230,245,255,.82)"; context.font = `${selected ? 700 : 500} ${Math.max(10, Math.min(18, 12 * scale))}px Plus Jakarta Sans, sans-serif`; context.textAlign = "center"; context.fillText(point.word.word, screen.x, screen.y + radius + 17); } });
+      frameRef.current = window.requestAnimationFrame(draw);
+    };
+    resize();
+    window.addEventListener("resize", resize);
+    frameRef.current = window.requestAnimationFrame(draw);
+    return () => { window.removeEventListener("resize", resize); if (frameRef.current) window.cancelAnimationFrame(frameRef.current); };
+  }, [loadedCount, pointById, points, relationships, selectedId]);
+
+  function focusSelected() { const point = pointById.get(selectedId); if (!point) return; cameraRef.current = { ...cameraRef.current, x: point.x, y: point.y, scale: 1 }; setZoom(1); }
+  function changeZoom(delta: number) { const next = Math.max(0.35, Math.min(2.4, cameraRef.current.scale + delta)); cameraRef.current.scale = next; setZoom(next); }
+  function handlePointerDown(event: React.PointerEvent<HTMLCanvasElement>) { canvasRef.current?.setPointerCapture(event.pointerId); dragRef.current = { active: true, moved: false, x: event.clientX, y: event.clientY }; }
+  function handlePointerMove(event: React.PointerEvent<HTMLCanvasElement>) { if (!dragRef.current.active) return; const dx = event.clientX - dragRef.current.x; const dy = event.clientY - dragRef.current.y; if (Math.abs(dx) + Math.abs(dy) > 3) dragRef.current.moved = true; cameraRef.current.x -= dx / cameraRef.current.scale; cameraRef.current.y -= dy / cameraRef.current.scale; dragRef.current.x = event.clientX; dragRef.current.y = event.clientY; }
+  function handlePointerUp(event: React.PointerEvent<HTMLCanvasElement>) { if (!dragRef.current.active) return; dragRef.current.active = false; if (dragRef.current.moved) return; const rect = canvasRef.current?.getBoundingClientRect(); if (!rect) return; const x = event.clientX - rect.left; const y = event.clientY - rect.top; const hit = hitTargetsRef.current.find((target) => Math.hypot(target.x - x, target.y - y) <= target.radius); if (hit) onSelect(hit.id); }
+  function handleKeyDown(event: React.KeyboardEvent<HTMLCanvasElement>) { const current = pointById.get(selectedId); if (!current || !["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)) return; event.preventDefault(); const direction = event.key === "ArrowUp" ? { x: 0, y: -1 } : event.key === "ArrowDown" ? { x: 0, y: 1 } : event.key === "ArrowLeft" ? { x: -1, y: 0 } : { x: 1, y: 0 }; const next = points.filter((point) => point.word.id !== selectedId).map((point) => ({ point, dx: point.x - current.x, dy: point.y - current.y })).filter(({ dx, dy }) => dx * direction.x + dy * direction.y > 0).sort((a, b) => Math.hypot(a.dx, a.dy) - Math.hypot(b.dx, b.dy))[0]; if (next) onSelect(next.point.word.id); }
+
+  return <div className="relative h-full min-h-[620px] overflow-hidden bg-[radial-gradient(circle_at_50%_54%,rgba(0,111,255,.14),transparent_24%),radial-gradient(circle_at_33%_40%,rgba(83,51,180,.07),transparent_30%),linear-gradient(180deg,rgba(4,14,28,.25),rgba(2,8,18,.7))] lg:min-h-[calc(100vh-96px)]"><canvas ref={canvasRef} role="application" aria-label="Interactive vocabulary universe. Drag to pan, use the wheel or controls to zoom, and use arrow keys to move between words." tabIndex={0} onPointerDown={handlePointerDown} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onWheel={(event) => { event.preventDefault(); changeZoom(event.deltaY > 0 ? -0.1 : 0.1); }} className="absolute inset-0 size-full cursor-grab touch-none active:cursor-grabbing" /><div className="pointer-events-none absolute left-4 top-4 text-[10px] font-bold uppercase tracking-[.18em] text-cyan-100/55">Universe · {Math.min(loadedCount, words.length)} / {words.length} nodes loaded</div><div className="absolute right-4 top-4 flex gap-2"><button type="button" onClick={focusSelected} className="rounded-lg border border-white/10 bg-[#081322]/80 px-3 py-2 text-[10px] font-bold text-white/65 backdrop-blur-xl">Re-center</button><button type="button" onClick={() => changeZoom(0.15)} aria-label="Zoom in" className="grid size-8 place-items-center rounded-lg border border-white/10 bg-[#081322]/80 text-white/70 backdrop-blur-xl">+</button><button type="button" onClick={() => changeZoom(-0.15)} aria-label="Zoom out" className="grid size-8 place-items-center rounded-lg border border-white/10 bg-[#081322]/80 text-white/70 backdrop-blur-xl">−</button></div><div className="pointer-events-none absolute bottom-4 left-4 rounded-lg border border-white/10 bg-[#081322]/75 px-3 py-2 text-[10px] text-white/55 backdrop-blur-xl">{zoom < 0.72 ? "Cluster view" : `${Math.min(loadedCount, words.length)} words in view`} · drag to travel · arrow keys to navigate</div><button type="button" onClick={onLaunch} aria-label={`Open ${selectedWordLabel(allWords, selectedId)} Solar System`} className="absolute left-1/2 top-1/2 z-20 ml-24 grid size-9 -translate-y-1/2 place-items-center rounded-full border border-cyan-100/80 bg-[#061b31] text-cyan-100 shadow-[0_0_20px_rgba(78,220,255,.75)] transition hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"><Orbit size={16} /></button></div>;
+}
+
+function hashWord(value: string) { let hash = 0; for (let index = 0; index < value.length; index += 1) hash = ((hash << 5) - hash + value.charCodeAt(index)) | 0; return Math.abs(hash); }
+function selectedWordLabel(words: WordverseWord[], selectedId: string) { return words.find((word) => word.id === selectedId)?.word ?? "selected word"; }
+
+function UniverseMap({ words, allWords, relationships, selectedId, progressMap, onSelect, onLaunch }: UniverseCanvasProps) {
   const selectedWord = allWords.find((word) => word.id === selectedId) ?? allWords[0];
   const visibleIds = new Set(words.map((word) => word.id));
   const wordById = new Map(allWords.map((word) => [word.id, word]));
