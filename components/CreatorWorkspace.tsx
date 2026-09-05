@@ -4,6 +4,7 @@ import { CalendarDays, Check, CheckCircle2, ChevronDown, ExternalLink, FolderKan
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BrenDateTimeField } from "@/components/BrenDateTimeField";
+import popupStyles from "@/components/CreatorWorkspacePopups.module.css";
 import { createWorkspaceNote, createWorkspaceProject, createWorkspaceResource, createWorkspaceTask, deleteWorkspaceNote, deleteWorkspaceProject, deleteWorkspaceResource, deleteWorkspaceTask, reorderWorkspaceTasks, toggleWorkspaceTask, updateWorkspaceNote, updateWorkspaceProject, updateWorkspaceResource, updateWorkspaceTask } from "@/app/admin/workspace/actions";
 
 type Project = { id: string; title: string; description: string | null; category: string; status: string; due_at: string | null };
@@ -134,7 +135,7 @@ export function CreatorWorkspace({ projects, tasks, notes, resources }: { projec
     {tab === "Projects" ? <Projects projects={projects} tasks={tasks} onOpenProject={setFocusedProjectId} /> : null}
     {tab === "Projects" ? <ProjectFocus projects={projects} tasks={tasks} notes={notes} resources={resources} selectedProjectId={focusedProjectId} onSelectProject={setFocusedProjectId} /> : null}
     {tab === "Calendar" ? <CalendarView tasks={tasks} projectMap={projectMap} /> : null}
-    {tab === "Notes" ? <StickyNotesPolished notes={notes} projects={projects} /> : null}
+    {tab === "Notes" ? <div className={popupStyles.notesGalleryLayer}><StickyNotesPolished notes={notes} projects={projects} /></div> : null}
     {tab === "Resources" ? <Resources resources={resources} projects={projects} /> : null}
   </main>;
 }

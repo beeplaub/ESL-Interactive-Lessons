@@ -1,0 +1,9 @@
+.notesGalleryLayer article:has(details[open]) {
+  position: relative;
+  z-index: 50;
+}
+
+.notesGalleryLayer article:has(details[open]) details[open] {
+  position: relative;
+  z-index: 100;
+}
