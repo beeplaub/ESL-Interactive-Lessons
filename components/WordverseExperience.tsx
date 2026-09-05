@@ -74,7 +74,7 @@ export function WordverseExperience({ topics, words, relationships, progress }: 
 
   function openSolarSystem() {
     setView("solar");
-    setSidebarOpen(true);
+    setSidebarOpen(false);
   }
 
   function openSolarWord(wordId: string) {
@@ -131,7 +131,7 @@ export function WordverseExperience({ topics, words, relationships, progress }: 
   }
 
   if (!selected) return <main className="min-h-screen bg-[#050a16] p-6 text-white"><EmptyUniverse /></main>;
-  const WordPanel = (props: React.ComponentProps<typeof WordPanelV2>) => <div className="fixed inset-x-0 top-[68px] z-40 max-h-[72dvh] overflow-hidden rounded-b-3xl lg:relative lg:inset-auto lg:h-full lg:max-h-none lg:w-[370px] lg:rounded-none xl:w-[420px]"><WordPanelV2 {...props} /></div>;
+  const WordPanel = (props: React.ComponentProps<typeof WordPanelV2>) => <div className="wordverse-modal fixed inset-0 z-50 flex w-full items-center justify-center bg-black/55 p-4 backdrop-blur-sm lg:relative lg:inset-auto lg:block lg:h-full lg:w-[370px] lg:bg-transparent lg:p-0 lg:backdrop-blur-none xl:w-[420px]"><div className="w-full max-w-[430px] overflow-hidden rounded-3xl lg:h-full lg:max-w-none lg:rounded-none"><WordPanelV2 {...props} /></div></div>;
   const SolarSystem = (props: React.ComponentProps<typeof SolarSystemV2>) => <div className="solar-system-host relative"><button type="button" onClick={() => setView("universe")} aria-label="Back to Universe" className="absolute left-2 top-2 z-40 inline-flex items-center gap-2 rounded-full border border-cyan-200/20 bg-[#081322]/75 px-3 py-2 text-xs font-bold text-cyan-100/80 backdrop-blur-xl transition hover:border-cyan-200/50 hover:text-cyan-100"><ArrowLeft size={14} /> Universe</button><SolarSystemV2 {...props} /></div>;
 
   return (
@@ -298,7 +298,8 @@ function SolarSystemV2({ word, relationships, topic, progress }: { word: Wordver
     const closeButton = document.querySelector<HTMLButtonElement>('[aria-label="Close knowledge detail"]');
     const card = closeButton?.parentElement?.parentElement;
     if (!card || !window.matchMedia("(max-width: 639px)").matches) return;
-    card.style.bottom = "6rem";
+    card.style.top = "4rem";
+    card.style.bottom = "auto";
     card.style.maxHeight = "34%";
     card.style.overflowY = "auto";
   }, [activeLabel]);

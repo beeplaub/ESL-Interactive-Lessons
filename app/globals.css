@@ -183,6 +183,12 @@ select {
   box-shadow: none;
 }
 
+@media (max-width: 1023px) {
+  .wordverse-modal aside > button:first-child {
+    display: none;
+  }
+}
+
 .blog-rich-editor {
   min-height: 28rem;
   padding: 0.25rem;
