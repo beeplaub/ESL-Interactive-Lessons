@@ -43,8 +43,13 @@ export function WordverseExperience({ topics, words, relationships, progress }: 
   const searchResults = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
     if (!normalizedQuery) return [];
-    return filteredWords.filter((word) => `${word.word} ${word.definition}`.toLowerCase().includes(normalizedQuery)).slice(0, 8);
-  }, [filteredWords, query]);
+    return words.filter((word) => {
+      const matchesText = `${word.word} ${word.slug} ${word.definition}`.toLowerCase().includes(normalizedQuery);
+      const matchesTopic = topic === "ALL" || word.topic_id === topic;
+      const matchesLevel = level === "ALL" || word.cefr_level === level;
+      return matchesText && matchesTopic && matchesLevel;
+    }).slice(0, 8);
+  }, [level, query, topic, words]);
 
   const selectedRelationships = useMemo(() => relationships.filter((edge) => edge.source_word_id === selected?.id || edge.target_word_id === selected?.id), [relationships, selected?.id]);
 
