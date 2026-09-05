@@ -175,6 +175,14 @@ select {
   }
 }
 
+/* Wordverse's Solar System is an open canvas, not a nested card. */
+.solar-system-host > div:first-child {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
 .blog-rich-editor {
   min-height: 28rem;
   padding: 0.25rem;

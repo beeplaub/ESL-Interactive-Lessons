@@ -131,8 +131,8 @@ export function WordverseExperience({ topics, words, relationships, progress }: 
   }
 
   if (!selected) return <main className="min-h-screen bg-[#050a16] p-6 text-white"><EmptyUniverse /></main>;
-  const WordPanel = (props: React.ComponentProps<typeof WordPanelV2>) => <div className="fixed inset-x-0 bottom-0 z-40 max-h-[72dvh] lg:relative lg:inset-auto lg:h-full lg:max-h-none lg:w-[370px] xl:w-[420px]"><WordPanelV2 {...props} /></div>;
-  const SolarSystem = SolarSystemV2;
+  const WordPanel = (props: React.ComponentProps<typeof WordPanelV2>) => <div className="fixed inset-x-0 top-[68px] z-40 max-h-[72dvh] overflow-hidden rounded-b-3xl lg:relative lg:inset-auto lg:h-full lg:max-h-none lg:w-[370px] lg:rounded-none xl:w-[420px]"><WordPanelV2 {...props} /></div>;
+  const SolarSystem = (props: React.ComponentProps<typeof SolarSystemV2>) => <div className="solar-system-host relative"><button type="button" onClick={() => setView("universe")} aria-label="Back to Universe" className="absolute left-2 top-2 z-40 inline-flex items-center gap-2 rounded-full border border-cyan-200/20 bg-[#081322]/75 px-3 py-2 text-xs font-bold text-cyan-100/80 backdrop-blur-xl transition hover:border-cyan-200/50 hover:text-cyan-100"><ArrowLeft size={14} /> Universe</button><SolarSystemV2 {...props} /></div>;
 
   return (
     <main className="h-dvh overflow-hidden bg-[#030811] text-white">
