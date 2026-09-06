@@ -129,7 +129,7 @@ function NavItem({
 }: {
   href: string;
   label: string;
-  icon: React.ElementType;
+  icon: import("lucide-react").LucideIcon;
   active?: boolean;
   disabled?: boolean;
   badge?: string;

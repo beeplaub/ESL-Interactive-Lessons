@@ -362,7 +362,7 @@ function LearningCard({ href, title, meta, level, progress, tone }: { href: stri
   );
 }
 
-function PracticeTile({ href, icon: Icon, label, sub, tone, disabled }: { href: string; icon: React.ElementType; label: string; sub: string; tone: "pink" | "blue" | "orange" | "green" | "purple" | "gray"; disabled?: boolean }) {
+function PracticeTile({ href, icon: Icon, label, sub, tone, disabled }: { href: string; icon: import("lucide-react").LucideIcon; label: string; sub: string; tone: "pink" | "blue" | "orange" | "green" | "purple" | "gray"; disabled?: boolean }) {
   const tones = {
     pink: "from-[var(--br-action)] to-[var(--br-action)]",
     blue: "from-[var(--br-info)] to-[var(--br-info)]",
@@ -423,7 +423,7 @@ function WishlistRow({ title, type, tone }: { title: string; type: string; tone:
   );
 }
 
-function FooterStat({ icon: Icon, title, sub }: { icon: React.ElementType; title: string; sub: string }) {
+function FooterStat({ icon: Icon, title, sub }: { icon: import("lucide-react").LucideIcon; title: string; sub: string }) {
   return <div className="flex items-center gap-2.5"><div className="grid size-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-[var(--br-chart-primary)]/10 to-[var(--br-info)]/10"><Icon className="size-5 text-[var(--br-chart-primary)]" /></div><div><div className="text-xs font-bold">{title}</div><div className="text-[10px] text-[var(--br-text-muted)]">{sub}</div></div></div>;
 }
 

@@ -574,7 +574,7 @@ function AssessmentMetric({ label, value }: { label: string; value: number }) {
   );
 }
 
-function Meta({ icon: Icon, label, star }: { icon: React.ElementType; label: string; star?: boolean }) {
+function Meta({ icon: Icon, label, star }: { icon: import("lucide-react").LucideIcon; label: string; star?: boolean }) {
   return <span className="inline-flex items-center gap-1.5"><Icon className={`size-4 ${star ? "fill-[var(--br-achievement)] text-[var(--br-achievement)]" : "text-[var(--br-text-muted)]"}`} /> {label}</span>;
 }
 

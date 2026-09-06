@@ -212,7 +212,7 @@ function ProfileMetric({
   value,
   label,
 }: {
-  icon: React.ElementType;
+  icon: import("lucide-react").LucideIcon;
   value: string;
   label: string;
 }) {

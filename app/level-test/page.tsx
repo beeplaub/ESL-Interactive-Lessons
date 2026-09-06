@@ -75,9 +75,9 @@ export default async function LevelTestPage() {
   );
 }
 
-function InfoPill({ icon: Icon, text }: { icon: React.ElementType; text: string }) {
+function InfoPill({ icon: Icon, text }: { icon: import("lucide-react").LucideIcon; text: string }) {
   return <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-2 text-xs font-bold text-white/85"><Icon className="size-4 text-[var(--br-info)]" />{text}</span>;
 }
-function Benefit({ icon: Icon, title, text }: { icon: React.ElementType; title: string; text: string }) {
+function Benefit({ icon: Icon, title, text }: { icon: import("lucide-react").LucideIcon; title: string; text: string }) {
   return <div className="flex gap-3 rounded-[14px] bg-[var(--br-surface)] p-4"><span className="grid size-9 shrink-0 place-items-center rounded-[11px] bg-surface text-[var(--br-chart-primary)] shadow-sm"><Icon className="size-4" /></span><div><h3 className="text-sm font-extrabold">{title}</h3><p className="mt-0.5 text-xs font-semibold leading-5 text-[var(--br-text-muted)]">{text}</p></div></div>;
 }

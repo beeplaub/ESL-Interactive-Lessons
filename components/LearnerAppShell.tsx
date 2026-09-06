@@ -560,7 +560,7 @@ function MobileTopbar({
   );
 }
 
-function MobileDrawerLink({ href, label, icon: Icon, active }: { href: string; label: string; icon: React.ElementType; active?: boolean }) {
+function MobileDrawerLink({ href, label, icon: Icon, active }: { href: string; label: string; icon: import("lucide-react").LucideIcon; active?: boolean }) {
   return <Link href={href} prefetch className={`flex h-11 items-center gap-3 rounded-[14px] px-3.5 text-sm font-semibold ${active ? "bg-[var(--br-brand)] text-on-dark" : "text-[color-mix(in_srgb,var(--br-text-on-dark)_75%,transparent)]"}`}><Icon className="size-[18px]" /> {label}</Link>;
 }
 

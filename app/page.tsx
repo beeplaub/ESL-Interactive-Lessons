@@ -150,7 +150,7 @@ function TrustItem({ text }: { text: string }) {
   return <div className="flex items-center gap-2"><CheckCircle2 className="size-4 text-[var(--br-success)]" /><span>{text}</span></div>;
 }
 
-function ValueCard({ icon: Icon, title, text, tone }: { icon: React.ElementType; title: string; text: string; tone: "coral" | "indigo" | "green" }) {
+function ValueCard({ icon: Icon, title, text, tone }: { icon: import("lucide-react").LucideIcon; title: string; text: string; tone: "coral" | "indigo" | "green" }) {
   const tones = { coral: "bg-[var(--br-action)]/10 text-[var(--br-action)] group-hover:bg-[var(--br-action)]", indigo: "bg-[var(--br-brand-strong)]/10 text-[var(--br-brand-strong)] group-hover:bg-[var(--br-brand-strong)]", green: "bg-[var(--br-success)]/10 text-[var(--br-success)] group-hover:bg-[var(--br-success)]" };
   return (
     <article className="group rounded-[20px] border border-[var(--br-border)] bg-surface p-8 transition duration-300 hover:-translate-y-1 hover:shadow-xl"><span className={`grid size-16 place-items-center rounded-xl transition-colors duration-300 group-hover:text-on-dark ${tones[tone]}`}><Icon className="size-8" /></span><h3 className="mt-6 text-2xl font-bold text-[var(--br-text)]">{title}</h3><p className="mt-3 leading-6 text-[var(--br-text-muted)]">{text}</p></article>

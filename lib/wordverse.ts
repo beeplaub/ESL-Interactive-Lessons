@@ -47,6 +47,7 @@ export type WordverseProgress = {
   view_count: number;
   practice_count: number;
   correct_count: number;
+  next_review_at?: string | null;
 };
 
 function stringArray(value: unknown) {
@@ -59,7 +60,7 @@ export async function getWordverseData(userId: string) {
     admin.from("wordverse_topics").select("id,slug,name,color,position").order("position"),
     admin.from("wordverse_words").select("*").eq("status", "PUBLISHED").order("frequency_score", { ascending: false }),
     admin.from("wordverse_relationships").select("id,source_word_id,target_word_id,relationship_type,strength"),
-    admin.from("wordverse_progress").select("word_id,state,saved,confidence,view_count,practice_count,correct_count").eq("user_id", userId),
+    admin.from("wordverse_progress").select("word_id,state,saved,confidence,view_count,practice_count,correct_count,next_review_at").eq("user_id", userId),
   ]);
 
   return {
