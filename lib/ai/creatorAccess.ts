@@ -8,8 +8,8 @@ export type CreatorAccess = {
   profile: { role: "ADMIN" | "TEACHER" | "SCHOOL_ADMIN"; full_name?: string | null };
 };
 
-/** API-safe creator gate. It never redirects or trusts JWT metadata for roles. */
-export async function getCreatorAiAccess(featureKey = "creator_voiceover"): Promise<CreatorAccess> {
+/** API-safe staff gate for free creator utilities; always reads the current role. */
+export async function getCreatorStaffAccess(): Promise<CreatorAccess> {
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
   const claims = data?.claims;
@@ -24,6 +24,17 @@ export async function getCreatorAiAccess(featureKey = "creator_voiceover"): Prom
   if (!profile || !isStaff(profile.role)) throw new Error("CREATOR_REQUIRED");
 
   const role = profile.role as CreatorAccess["profile"]["role"];
+  return {
+    user: { id: claims.sub, email: typeof claims.email === "string" ? claims.email : undefined },
+    profile: { role, full_name: profile.full_name },
+  };
+}
+
+/** Paid/cloud AI features retain their feature flag and entitlement checks. */
+export async function getCreatorAiAccess(featureKey = "creator_voiceover"): Promise<CreatorAccess> {
+  const access = await getCreatorStaffAccess();
+  const role = access.profile.role;
+  const admin = createAdminClient();
   const { data: flag } = await admin
     .from("ai_feature_flags")
     .select("enabled,allowed_roles")
@@ -36,13 +47,10 @@ export async function getCreatorAiAccess(featureKey = "creator_voiceover"): Prom
   const allowedRoles = flag?.allowed_roles ?? ["ADMIN"];
   if (!enabled || !allowedRoles.includes(role)) throw new Error("FEATURE_UNAVAILABLE");
 
-  const entitlements = await getCreatorEntitlements(claims.sub, role);
+  const entitlements = await getCreatorEntitlements(access.user.id, role);
   if (!entitlements.values.AI_CREATOR.enabled) throw new Error("AI_PLAN_REQUIRED");
 
-  return {
-    user: { id: claims.sub, email: typeof claims.email === "string" ? claims.email : undefined },
-    profile: { role, full_name: profile.full_name },
-  };
+  return access;
 }
 
 export function creatorAccessError(error: unknown) {
@@ -53,4 +61,3 @@ export function creatorAccessError(error: unknown) {
   if (code === "AI_PLAN_REQUIRED") return { status: 403, message: "Your current plan does not include AI Creator Tools." };
   return null;
 }
-

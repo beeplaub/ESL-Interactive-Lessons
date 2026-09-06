@@ -64,6 +64,13 @@ function getGeminiClient(): GoogleGenAI {
 
 // 1. Default fallback prompt templates in case DB isn't seeded yet
 export const DEFAULT_PROMPTS: Record<string, { role_description: string; prompt_text: string }> = {
+  creator_reel_script: {
+    role_description: "You write original short-video drafts. Fiction must be clearly fictional. Reflections are gentle invitations, not medical advice or factual promises. Never invent quotes from real people.",
+    prompt_text: `Write a {genre} reel about: {topic}.
+Return JSON with title and exactly four scenes. Each scene has narration (12–22 spoken words, minimum 8, maximum 35), caption (3–9 words, maximum 90 characters), and image_prompt (visual description without text).
+Use simple natural English, an engaging opening and a satisfying ending. No emojis, hashtags, brands or copyrighted characters.
+Schema: {"title":"short title","scenes":[{"narration":"spoken words","caption":"short headline","image_prompt":"visual description"}]}`,
+  },
   creator_course_architect: {
     role_description: "You are an expert ESL Curriculum Architect.",
     prompt_text: `Create a structured ESL course path on the topic: "{topic}" at CEFR level: {level}.
@@ -360,6 +367,8 @@ export async function callGemini<T>({
   fallbackModel,
   context,
   onProviderUsed,
+  localReelOnly = false,
+  validateResponse,
 }: {
   templateKey: string;
   variables: Record<string, string>;
@@ -367,7 +376,13 @@ export async function callGemini<T>({
   fallbackModel?: string;
   context?: AiCallContext;
   onProviderUsed?: (result: { provider: "google" | "groq" | "ollama"; model: string }) => void;
+  /** Explicit opt-in for the self-hosted reel studio. Never changes production defaults. */
+  localReelOnly?: boolean;
+  validateResponse?: (value: unknown) => T;
 }): Promise<T> {
+  if (localReelOnly && (process.env.VERCEL || context?.provider !== "ollama" || templateKey !== "creator_reel_script")) {
+    throw new Error("Local reel generation is available only in the self-hosted reel studio.");
+  }
   const provider = context?.provider || "google";
   const primaryModel = provider === "ollama"
     ? fallbackModel || process.env.OLLAMA_TEXT_MODEL || "qwen2.5:7b"
@@ -393,7 +408,7 @@ export async function callGemini<T>({
         { provider: "google" as const, model: primaryModel },
         { provider: "google" as const, model: "gemini-2.5-flash" },
       ];
-  const modelCandidates = providerCandidates.filter((candidate, index, self) => self.findIndex((item) => item.provider === candidate.provider && item.model === candidate.model) === index);
+  const modelCandidates = providerCandidates.filter((candidate, index, self) => (!localReelOnly || candidate.provider === "ollama") && self.findIndex((item) => item.provider === candidate.provider && item.model === candidate.model) === index);
 
   const supabase = createAdminClient();
 
@@ -440,9 +455,9 @@ export async function callGemini<T>({
     finalPrompt,
     responseSchema,
   });
-  const cacheKey = stableHash({ featureKey, inputHash, primaryModel, promptVersion });
+  const cacheKey = stableHash({ featureKey, inputHash, primaryModel, promptVersion, ...(localReelOnly ? { localReelOnly: true, userId: context?.userId } : {}) });
   const startedAt = Date.now();
-  const reservedCredits = featureCredits(featureKey);
+  const reservedCredits = localReelOnly ? 0 : featureCredits(featureKey);
   let creditReserved = false;
   let lockOwner: string | null = null;
   let retryCount = 0;
@@ -505,7 +520,7 @@ export async function callGemini<T>({
         context?.userId ? settleAiCredits({ userId: context.userId, featureKey, reservedCredits: 0, actualCredits: 0, cacheHit: true }) : Promise.resolve(),
         audit({ model: cached.model || primaryModel, provider: cachedProvider, status: "CACHED", responsePreview: JSON.stringify(cached.response), cacheHit: true }),
       ]);
-      return cached.response;
+      return validateResponse ? validateResponse(cached.response) : cached.response;
     }
 
     const lock = await claimAiGeneration(cacheKey);
@@ -521,13 +536,13 @@ export async function callGemini<T>({
           context?.userId ? settleAiCredits({ userId: context.userId, featureKey, reservedCredits: 0, actualCredits: 0, cacheHit: true }) : Promise.resolve(),
           audit({ model: shared.model || primaryModel, provider: sharedProvider, status: "CACHED", responsePreview: JSON.stringify(shared.response), cacheHit: true }),
         ]);
-        return shared.response;
+        return validateResponse ? validateResponse(shared.response) : shared.response;
       }
       throw new Error("An identical AI request is still being generated. Please try again in a moment.");
     }
   }
 
-  if (context?.userId) {
+  if (context?.userId && !localReelOnly) {
     const reservation = await reserveAiCredits(context.userId, context.userRole, reservedCredits);
     if (!reservation.allowed) {
       if (lockOwner) await releaseAiGeneration(cacheKey, lockOwner);
@@ -551,7 +566,9 @@ export async function callGemini<T>({
     lastAttemptModel = modelName;
     lastAttemptProvider = requestProvider;
     let candidateError: unknown = null;
-    if (!providerAvailable(requestProvider)) continue;
+    // The local reel studio has already checked the loopback service directly;
+    // do not let a stale provider-health record disable a self-hosted batch.
+    if (!localReelOnly && !providerAvailable(requestProvider)) continue;
     const generateCall = async (promptOverride?: string): Promise<{ text: string; usage: AiUsage }> => {
       if (requestProvider === "groq") {
         const apiKey = process.env.GROQ_API_KEY;
@@ -599,6 +616,19 @@ export async function callGemini<T>({
       }
 
       if (requestProvider === "ollama") {
+        if (localReelOnly) {
+          const response = await fetch("http://127.0.0.1:11434/api/generate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ model: modelName, prompt: `${roleDescription}\n\n${promptOverride || finalPrompt}`, format: "json", stream: false, keep_alive: 0, options: { temperature: 0.7, num_predict: 1000 } }),
+            signal: AbortSignal.timeout(180_000),
+            cache: "no-store",
+          });
+          if (!response.ok) throw new Error("Local Ollama could not generate this script. Check that qwen2.5:7b is installed.");
+          const body = await response.json() as { response?: string; prompt_eval_count?: number; eval_count?: number };
+          if (!body.response) throw new Error("Local Ollama returned an empty script.");
+          return { text: body.response, usage: { inputTokens: body.prompt_eval_count ?? 0, outputTokens: body.eval_count ?? 0, cachedTokens: 0 } };
+        }
         const gatewayUrl = process.env.BRENUP_AI_GATEWAY_URL?.replace(/\/$/, "");
         if (!gatewayUrl) throw new Error("BRENUP_AI_GATEWAY_URL is not configured.");
         const response = await withTimeout(fetch(`${gatewayUrl}/learner-evaluate`, {
@@ -668,13 +698,17 @@ export async function callGemini<T>({
     // D. Execution with retry/repair loop for Free Tier limits
     const maxAttempts = requestProvider === "ollama" ? 1 : 2;
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      let validatingResponse = false;
       try {
         const generated = await generateCall();
         rawText = generated.text;
         successfulUsage = generated.usage;
         
         // Basic JSON validation before returning
-        const parsed = JSON.parse(rawText);
+        validatingResponse = true;
+        const json = JSON.parse(rawText);
+        const parsed = validateResponse ? validateResponse(json) : json;
+        validatingResponse = false;
         successfulModel = modelName;
         providerSucceeded(requestProvider);
           onProviderUsed?.({ provider: requestProvider, model: modelName });
@@ -702,13 +736,14 @@ export async function callGemini<T>({
         }
 
         // If it was a JSON parse error, trigger a repair instruction for attempt 2
-        if (error instanceof SyntaxError && attempt < 2) {
-          const repairPrompt = `${finalPrompt}\n\nCRITICAL ERROR: Your previous response was not valid JSON: "${rawText}".\nPlease fix any missing brackets, trailing commas, or escape characters. Output ONLY valid JSON.`;
+        if (validatingResponse && attempt < 2) {
+          const repairPrompt = `${finalPrompt}\n\nYour previous response failed validation: ${error instanceof Error ? error.message : String(error)}.\nPrevious response: ${rawText}\nCorrect it to match every schema and length requirement. Output ONLY valid JSON.`;
           try {
             const repaired = await generateCall(repairPrompt);
             rawText = repaired.text;
             successfulUsage = repaired.usage;
-            const parsed = JSON.parse(rawText);
+            const json = JSON.parse(rawText);
+            const parsed = validateResponse ? validateResponse(json) : json;
             successfulModel = modelName;
             providerSucceeded(requestProvider);
             onProviderUsed?.({ provider: requestProvider, model: modelName });
