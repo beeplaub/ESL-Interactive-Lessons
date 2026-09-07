@@ -446,7 +446,7 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
         { label: course.title },
       ]}
     >
-        <section className="flex min-w-0 flex-col gap-5 overflow-x-hidden">
+        <section className="course-landing flex min-w-0 flex-col gap-5 overflow-x-hidden">
           {isAdminPreview && course.status !== "PUBLISHED" ? (
             <div className="flex items-center gap-2 rounded-[14px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
               <Eye className="size-4 shrink-0" /> Draft preview — this course is unpublished and only visible to you as an admin.
