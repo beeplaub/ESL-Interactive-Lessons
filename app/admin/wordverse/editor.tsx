@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { WordverseContent } from "@/lib/wordverse-content";
-import { importWordverseDrafts, publishWordverseDrafts, saveWordverseDraft } from "./actions";
+import { enrichWordverseDraftMetadata, importWordverseDrafts, publishWordverseDrafts, saveWordverseDraft } from "./actions";
 
 type Entry = { content: WordverseContent; id: string | null; status: string };
 const arrayFields = ["examples", "collocations", "word_family", "grammar_patterns", "synonyms", "antonyms", "common_mistakes"] as const;
@@ -52,6 +52,7 @@ export function WordverseEditor({ entries, topics }: { entries: Entry[]; topics:
         setEdits(prev => Object.fromEntries(Object.entries(prev).filter(([slug]) => !missing.some(e => e.content.slug === slug))));
         return result;
       })}>Save pack as drafts{missing.length ? ` (${missing.length} new)` : " / repair links"}</button>
+      <button className="rounded-lg border border-[var(--br-border)] bg-surface px-4 py-2 text-sm font-semibold disabled:opacity-40" disabled={pending || !drafts.length} onClick={() => run(enrichWordverseDraftMetadata)}>Add Bengali meanings + metadata</button>
       <span className="text-sm text-muted">{drafts.length} saved drafts · {entries.filter(e => e.status === "PUBLISHED").length} published from this pack</span>
     </div>
     <p role="status" className="min-h-5 text-sm">{pending ? "Saving…" : message}</p>

@@ -14,6 +14,8 @@ test('balanced pack contains 240 unique verified additions, with 80 per smaller 
   for (const word of words) assert.ok(!baseline.includes(word.slug), `${word.slug} already exists`);
   assert.equal(new Set(words.map(w => w.definition)).size, 240);
   assert.equal(new Set(words.flatMap(w => w.examples)).size, 240);
+  assert.equal(words.filter(w => w.translation && /[\u0980-\u09ff]/.test(w.translation)).length, 240);
+  assert.equal(words.filter(w => w.register && w.common_mistakes.length).length, 240);
 });
 
 test('every new planet connects through real word references to the existing network', () => {

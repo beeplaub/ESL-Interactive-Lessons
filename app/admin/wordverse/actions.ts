@@ -67,6 +67,42 @@ export async function saveWordverseDraft(id: string, input: unknown) {
   return { message: `Saved ${word.word}.` };
 }
 
+export async function enrichWordverseDraftMetadata() {
+  await requireAdmin();
+  const words = validateWordversePack(pack, membership);
+  const admin = createAdminClient();
+  const metadata = words.map(word => ({
+    slug: word.slug,
+    translation: word.translation,
+    register: word.register,
+    synonyms: word.synonyms,
+    antonyms: word.antonyms,
+    word_family: word.word_family,
+    common_mistakes: word.common_mistakes,
+    pronunciation: word.pronunciation,
+    origin: word.origin,
+  }));
+  let updated = 0;
+  for (const item of metadata) {
+    const { data, error } = await admin.from("wordverse_words").update({
+      translation: item.translation,
+      register: item.register,
+      synonyms: item.synonyms,
+      antonyms: item.antonyms,
+      word_family: item.word_family,
+      common_mistakes: item.common_mistakes,
+      pronunciation: item.pronunciation,
+      origin: item.origin,
+      updated_at: new Date().toISOString(),
+    }).eq("slug", item.slug).eq("status", "DRAFT").select("id");
+    if (error) throw new Error(`Could not enrich ${item.slug}. No draft was published.`);
+    updated += data?.length ?? 0;
+  }
+  revalidatePath("/admin/wordverse");
+  revalidatePath("/wordverse");
+  return { message: `Enriched ${updated} saved drafts with Bengali meanings and reviewed learner metadata.` };
+}
+
 export async function publishWordverseDrafts(input: unknown) {
   await requireAdmin();
   const ids = [...new Set(z.array(z.string().uuid()).min(1).max(500).parse(input))];
