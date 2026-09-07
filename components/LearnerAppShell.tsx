@@ -576,7 +576,6 @@ function MobileBottomNav({ active }: { active: ActiveItem }) {
     { href: "/courses", label: "Courses", icon: BookOpen, key: "courses" },
     { href: "/wordverse", label: "Wordverse", icon: Orbit, key: "wordverse" },
     { href: "/tasks", label: "Tasks", icon: ClipboardList, key: "tasks" },
-    { href: "/leaderboard", label: "Ranks", icon: Trophy, key: "leaderboard" },
     { href: "/profile", label: "Profile", icon: User, key: "profile" }
   ];
   return (
