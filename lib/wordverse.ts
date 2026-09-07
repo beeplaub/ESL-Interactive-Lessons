@@ -1,3 +1,4 @@
+import { wordversePages } from "./wordverse-pages";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type WordverseTopic = {
@@ -56,10 +57,10 @@ function stringArray(value: unknown) {
 
 export async function getWordverseData(userId: string) {
   const admin = createAdminClient();
-  const [{ data: topics }, { data: words }, { data: relationships }, { data: progress }] = await Promise.all([
+  const [{ data: topics }, words, relationships, { data: progress }] = await Promise.all([
     admin.from("wordverse_topics").select("id,slug,name,color,position").order("position"),
-    admin.from("wordverse_words").select("*").eq("status", "PUBLISHED").order("frequency_score", { ascending: false }),
-    admin.from("wordverse_relationships").select("id,source_word_id,target_word_id,relationship_type,strength"),
+    wordversePages((from,to) => admin.from("wordverse_words").select("*").eq("status", "PUBLISHED").order("frequency_score", { ascending: false }).order("id").range(from,to)),
+    wordversePages((from,to) => admin.from("wordverse_relationships").select("id,source_word_id,target_word_id,relationship_type,strength").order("id").range(from,to)),
     admin.from("wordverse_progress").select("word_id,state,saved,confidence,view_count,practice_count,correct_count,next_review_at").eq("user_id", userId),
   ]);
 

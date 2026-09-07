@@ -8,7 +8,10 @@ import JourneyCamera, { type CameraBookmark, type CameraBookmarks } from "./Jour
 import type { Journey, SceneLocation } from "./navigation";
 import { ArrowLeft, List, Minus, Orbit, Pause, Play, Plus, RotateCcw, X } from "lucide-react";
 import type { WordverseProgress, WordverseRelationship, WordverseWord, WordverseTopic } from "@/lib/wordverse";
-import { buildNeighborhood, buildTopicClusters, clusterWordPosition, knowledgeFor, palette, type Neighbor, type Position, type TopicCluster } from "./graph";
+import { buildNeighborhood, buildTopicClusters, knowledgeFor, palette, type Neighbor, type Position, type TopicCluster } from "./graph";
+
+import TopicPlanets from "./TopicPlanets";
+import { topicLayout } from "./topicLayout";
 
 export type SceneProps = {
   topics: WordverseTopic[]; words: WordverseWord[]; allWords: WordverseWord[]; relationships: WordverseRelationship[];
@@ -104,39 +107,16 @@ function WordNode({ word, position, color, root = false, motion, state, onClick,
   </group>;
 }
 
-function TopicCloud({ cluster, focused, otherFocused, motion, onCluster, onSelect }: {
-  cluster: TopicCluster; focused: boolean; otherFocused: boolean; motion: boolean;
+function TopicCloud({ cluster, focused, layout, relationships, onCluster, onSelect }: {
+  cluster: TopicCluster; focused: boolean; layout: ReturnType<typeof topicLayout>; relationships: WordverseRelationship[];
   onCluster: (id: string) => void; onSelect: SceneProps["onSelect"];
 }) {
-  const size = useThree(state => state.size);
-  const [near, setNear] = useState(false);
-  const nearRef = useRef(false);
-  const projected = useMemo(() => new Vector3(...cluster.position), [cluster.position]);
   const cloud = useMemo(() => particles(Math.min(300, 70 + cluster.words.length * 3), 312 + cluster.name.length, 125, false), [cluster.name, cluster.words.length]);
-  const nebula = useMemo(() => ({ tint: { value: new Color(cluster.color) }, fade: { value: otherFocused ? .15 : 1 } }), [cluster.color, otherFocused]);
-  const expanded = focused || (!otherFocused && near);
-  const count = Math.min(size.width < 650 ? 8 : 12, cluster.words.length);
-  useFrame(({ camera }) => {
-    if (focused || otherFocused) return;
-    projected.set(...cluster.position).project(camera);
-    const close = camera.zoom * 125 > Math.min(size.width, size.height) * .31 && Math.abs(projected.x) < .65 && Math.abs(projected.y) < .65;
-    if (close !== nearRef.current) { nearRef.current = close; setNear(close); }
-  });
+  const nebula = useMemo(() => ({ tint: { value: new Color(cluster.color) }, fade: { value: 1 } }), [cluster.color]);
   return <group position={cluster.position}>
-    <Billboard><mesh scale={[1.2, .8, 1]}><planeGeometry args={[350, 350]} /><shaderMaterial uniforms={nebula} vertexShader={haloVertex} fragmentShader={nebulaFragment} transparent depthWrite={false} blending={AdditiveBlending} /></mesh></Billboard>
-    <points scale={[1, .75, .35]}><bufferGeometry><bufferAttribute attach="attributes-position" args={[cloud, 3]} /></bufferGeometry><pointsMaterial size={1.5} sizeAttenuation={false} color={cluster.color} transparent opacity={otherFocused ? .18 : .65} depthWrite={false} /></points>
-    {!expanded ? !otherFocused ? <Html center position={[0, -5, 140]} zIndexRange={[10, 1]}><button onClick={() => onCluster(cluster.id)} aria-label={`Explore ${cluster.name}`} className="w-36 rounded-2xl border border-transparent bg-[#04101d]/30 px-3 py-4 text-center shadow-xl outline-none transition hover:border-cyan-200/40 focus-visible:ring-2 focus-visible:ring-cyan-100" style={{ opacity: otherFocused ? .3 : 1 }}><span className="block text-sm font-medium" style={{ color: cluster.color }}>{cluster.name}</span><span className="mt-1 block text-[10px] text-white/45">{cluster.words.length} words</span></button></Html> : null : cluster.words.slice(0, count).map((word, index) => {
-      const p = clusterWordPosition(index, count);
-      const world = p.map((v, axis) => v + cluster.position[axis]) as Position;
-      return <group key={word.id} position={p}><Orb radius={7} color={cluster.color} motion={motion} /><Html center position={[0, -14, 12]} zIndexRange={[10, 1]}><button onClick={() => onSelect(word.id, world, .08)} aria-label={`Open ${word.word}`} className="max-w-[90px] rounded-md bg-[#04101d]/80 px-2 py-1 text-center text-xs leading-tight text-white/90 outline-none hover:text-cyan-100 focus-visible:ring-2 focus-visible:ring-cyan-100">{word.word}</button></Html></group>;
-    })}
+    <Billboard><mesh scale={focused ? [layout.bounds[0]/350, layout.bounds[1]/350, 1] : [1.2,.8,1]} position={[0,0,-20]}><planeGeometry args={[350,350]} /><shaderMaterial uniforms={nebula} vertexShader={haloVertex} fragmentShader={nebulaFragment} transparent depthWrite={false} blending={AdditiveBlending} /></mesh></Billboard>
+    {!focused ? <><points scale={[1,.75,.35]}><bufferGeometry><bufferAttribute attach="attributes-position" args={[cloud,3]} /></bufferGeometry><pointsMaterial size={1.5} sizeAttenuation={false} color={cluster.color} transparent opacity={.65} depthWrite={false} /></points><Html center position={[0,-5,140]} zIndexRange={[10,1]}><button onClick={() => onCluster(cluster.id)} aria-label={`Explore ${cluster.name}`} className="w-36 rounded-2xl border border-transparent bg-[#04101d]/30 px-3 py-4 text-center shadow-xl outline-none transition hover:border-cyan-200/40 focus-visible:ring-2 focus-visible:ring-cyan-100"><span className="block text-sm font-medium" style={{color:cluster.color}}>{cluster.name}</span><span className="mt-1 block text-[10px] text-white/45">{cluster.words.length} words</span></button></Html></> : <TopicPlanets cluster={cluster} positions={layout.positions} relationships={relationships} onSelect={onSelect} />}
   </group>;
-}
-
-function TopicUniverse({ clusters, focusedId, motion, onCluster, onSelect }: {
-  clusters: TopicCluster[]; focusedId?: string; motion: boolean; onCluster: (id: string) => void; onSelect: SceneProps["onSelect"];
-}) {
-  return <>{clusters.map(cluster => <TopicCloud key={cluster.id} cluster={cluster} focused={cluster.id === focusedId} otherFocused={Boolean(focusedId && focusedId !== cluster.id)} motion={motion} onCluster={onCluster} onSelect={onSelect} />)}</>;
 }
 
 function World({ props, neighbors, motion, reset, zoomStep, onKnowledge, clusters, bookmarks }: { props: SceneProps; neighbors: Neighbor[]; motion: boolean; reset: number; zoomStep: number; clusters: TopicCluster[]; bookmarks: CameraBookmarks; onKnowledge: (id: string) => void }) {
@@ -146,13 +126,14 @@ function World({ props, neighbors, motion, reset, zoomStep, onKnowledge, cluster
   const knowledge = useMemo(() => knowledgeFor(root), [root]);
   const entry = props.journey.entries[props.journey.entries.length - 1];
   const cluster = entry.location.mode === "cluster" ? clusters.find(c => c.id === (entry.location as Extract<SceneLocation, { mode: "cluster" }>).topicId) : undefined;
+  const layout = useMemo(() => topicLayout(cluster?.words.length ?? 0, size.width / size.height), [cluster?.words.length, size.width, size.height]);
   const wide = props.view === "universe" || props.view === "cluster";
-  const bounds: [number, number] = cluster ? [340, 370] : wide ? [Math.max(850, ...clusters.map(c => Math.abs(c.position[0]) * 2 + 310)), Math.max(730, ...clusters.map(c => Math.abs(c.position[1]) * 2 + 320))] : [size.width < 650 ? 760 : 1020, 870];
+  const bounds: [number, number] = cluster ? [layout.bounds[0]*1.1, layout.bounds[1]*1.1] : wide ? [Math.max(850, ...clusters.map(c => Math.abs(c.position[0]) * 2 + 310)), Math.max(730, ...clusters.map(c => Math.abs(c.position[1]) * 2 + 320))] : [size.width < 650 ? 760 : 1020, 870];
   const origin = bookmarks.current.has(entry.id) ? undefined : entry.origin;
   return <>
-    <JourneyCamera entry={entry} center={cluster?.position ?? [0, 0, 0]} bounds={bounds} bookmarks={bookmarks} reset={reset} zoomStep={zoomStep} motion={motion} />
-    <Ambient motion={motion} />
-    {wide ? <TopicUniverse clusters={clusters} focusedId={cluster?.id} motion={motion} onCluster={id => props.onVisit({ mode: "cluster", topicId: id, wordId: root.id })} onSelect={props.onSelect} /> : <>
+    <JourneyCamera maxRatio={cluster ? Math.max(4, Math.sqrt(cluster.words.length)*1.3) : 2.5} entry={entry} center={cluster?.position ?? [0, 0, 0]} bounds={bounds} bookmarks={bookmarks} reset={reset} zoomStep={zoomStep} motion={motion} />
+    {!cluster ? <Ambient motion={motion} /> : null}
+    {wide ? <>{(cluster ? [cluster] : clusters).map(item => <TopicCloud key={item.id} cluster={item} focused={item.id === cluster?.id} layout={layout} relationships={props.relationships} onCluster={id => props.onVisit({ mode: "cluster", topicId: id, wordId: root.id })} onSelect={props.onSelect} />)}</> : <>
     <WordNode key={root.id} arrivalId={entry.id} origin={origin} originScale={entry.originScale} word={root} position={[0, 0, 0]} color="#189dff" root motion={motion} state={props.progressMap.get(root.id)?.state} onClick={props.onLaunch} onLaunch={solar ? undefined : props.onLaunch} />
     {!solar ? neighbors.map(neighbor => <group key={neighbor.word.id}>
       <Connection to={neighbor.position} color={neighbor.color} type={neighbor.type} />
@@ -249,7 +230,7 @@ export default function WordverseScene(props: SceneProps) {
   return <div ref={sceneHost} tabIndex={-1} aria-label="Wordverse scene" style={{ outline: "none" }} className="relative h-full min-h-[420px] overflow-hidden bg-[#020b14] outline-none" onKeyDown={event => {
     if (event.key === "Escape") { if (detail) { setActive(null); sceneHost.current?.focus(); } else props.onBack(); }
   }}>
-    {!list && !lost ? <SceneBoundary fallback={fallback}><div className="absolute inset-x-0 bottom-7 top-24"><Canvas orthographic camera={cameraOptions} dpr={[1, 1.5]} gl={{ antialias: true, alpha: false, powerPreference: "low-power" }} fallback={<p>Choose list view to explore without 3D.</p>} onCreated={({ gl }) => gl.setClearColor("#020b14")}>
+    {!list && !lost ? <SceneBoundary fallback={fallback}><div className="absolute inset-x-0 top-24" style={{bottom:cluster ? 64 : 28}}><Canvas orthographic camera={cameraOptions} dpr={[1, 1.5]} gl={{ antialias: true, alpha: false, powerPreference: "low-power" }} fallback={<p>Choose list view to explore without 3D.</p>} onCreated={({ gl }) => gl.setClearColor("#020b14")}>
       <GraphicsLifecycle onLost={() => setLost(true)} /><Suspense fallback={null}><World props={props} neighbors={neighbors} clusters={clusters} bookmarks={bookmarks} motion={!paused && !reduced} reset={reset} zoomStep={zoomStep} onKnowledge={id => setActive({ wordId: root.id, id })} /></Suspense>
     </Canvas></div></SceneBoundary> : fallback}
 

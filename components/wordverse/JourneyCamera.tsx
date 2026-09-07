@@ -9,8 +9,8 @@ import type { Position } from "./graph";
 
 export type CameraBookmark = { position: Vector3; target: Vector3; ratio: number };
 export type CameraBookmarks = MutableRefObject<Map<number, CameraBookmark>>;
-export default function JourneyCamera({ entry, center, bounds, bookmarks, reset, zoomStep, motion }: {
-  entry: JourneyEntry; center: Position; bounds: [number, number]; bookmarks: CameraBookmarks; reset: number; zoomStep: number; motion: boolean;
+export default function JourneyCamera({ entry, center, bounds, bookmarks, reset, zoomStep, motion, maxRatio = 2.5 }: {
+  maxRatio?: number; entry: JourneyEntry; center: Position; bounds: [number, number]; bookmarks: CameraBookmarks; reset: number; zoomStep: number; motion: boolean;
 }) {
   const { camera, size } = useThree();
   const controls = useRef<Controls>(null);
@@ -48,9 +48,9 @@ export default function JourneyCamera({ entry, center, bounds, bookmarks, reset,
   useEffect(() => {
     if (previousStep.current === zoomStep) return;
     const cam = camera as OrthographicCamera;
-    transition.current = { position: cam.position.clone(), target: controls.current?.target.clone() ?? new Vector3(), ratio: MathUtils.clamp(cam.zoom / fitRef.current * Math.pow(1.2, zoomStep - previousStep.current), .65, 2.5) };
+    transition.current = { position: cam.position.clone(), target: controls.current?.target.clone() ?? new Vector3(), ratio: MathUtils.clamp(cam.zoom / fitRef.current * Math.pow(1.2, zoomStep - previousStep.current), .65, maxRatio) };
     previousStep.current = zoomStep;
-  }, [camera, zoomStep]);
+  }, [camera, zoomStep, maxRatio]);
 
   useFrame((_, dt) => {
     const destination = transition.current;
@@ -67,5 +67,5 @@ export default function JourneyCamera({ entry, center, bounds, bookmarks, reset,
       transition.current = null; controller.enabled = true;
     }
   }, -1);
-  return <OrbitControls ref={controls} enableDamping={motion} dampingFactor={.08} minZoom={fit * .65} maxZoom={fit * 2.5} minPolarAngle={Math.PI / 2 - .22} maxPolarAngle={Math.PI / 2 + .22} minAzimuthAngle={-.28} maxAzimuthAngle={.28} enablePan panSpeed={.65} rotateSpeed={.4} />;
+  return <OrbitControls ref={controls} enableDamping={motion} dampingFactor={.08} minZoom={fit * .65} maxZoom={fit * maxRatio} minPolarAngle={Math.PI / 2 - .22} maxPolarAngle={Math.PI / 2 + .22} minAzimuthAngle={-.28} maxAzimuthAngle={.28} enablePan panSpeed={.65} rotateSpeed={.4} />;
 }
