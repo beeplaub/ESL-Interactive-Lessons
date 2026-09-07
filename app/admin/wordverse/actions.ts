@@ -50,7 +50,7 @@ export async function importWordverseDrafts(input: unknown) {
     const { error: linkError } = await admin.from("wordverse_relationships").upsert(links, { onConflict: "source_word_id,target_word_id,relationship_type", ignoreDuplicates: true });
     if (linkError) throw new Error("Drafts were saved, but connections failed. Import again to retry before publishing.");
   }
-  revalidatePath("/admin/wordverse");
+  revalidatePath("/admin/wordverse", "layout");
   return { message: "Drafts and real word connections saved. Existing entries were preserved." };
 }
 
@@ -63,7 +63,7 @@ export async function saveWordverseDraft(id: string, input: unknown) {
   if (topicError || !topic) throw new Error("Unknown vocabulary topic.");
   const { data, error } = await admin.from("wordverse_words").update({ ...fields(word, topic.id), updated_at: new Date().toISOString() }).eq("id", id).eq("slug", word.slug).eq("status", "DRAFT").select("id");
   if (error || data?.length !== 1) throw new Error("This draft could not be saved. Refresh to check whether it was published elsewhere.");
-  revalidatePath("/admin/wordverse");
+  revalidatePath("/admin/wordverse", "layout");
   return { message: `Saved ${word.word}.` };
 }
 
@@ -98,7 +98,7 @@ export async function enrichWordverseDraftMetadata() {
     if (error) throw new Error(`Could not enrich ${item.slug}. No draft was published.`);
     updated += data?.length ?? 0;
   }
-  revalidatePath("/admin/wordverse");
+  revalidatePath("/admin/wordverse", "layout");
   revalidatePath("/wordverse");
   return { message: `Enriched ${updated} saved drafts with Bengali meanings and reviewed learner metadata.` };
 }
@@ -133,6 +133,6 @@ export async function publishWordverseDrafts(input: unknown) {
   const { data: saved, error: publishError } = await admin.from("wordverse_words").update({ status: "PUBLISHED", updated_at: new Date().toISOString() }).in("id", ids).eq("status", "DRAFT").select("id");
   if (publishError || saved?.length !== ids.length) throw new Error("Publication was not fully confirmed. Refresh to check the saved state.");
   revalidatePath("/wordverse");
-  revalidatePath("/admin/wordverse");
+  revalidatePath("/admin/wordverse", "layout");
   return { message: `Published ${saved.length} real words with their semantic connections.` };
 }

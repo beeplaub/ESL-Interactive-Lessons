@@ -16,15 +16,15 @@ import type { WordverseProgress, WordverseRelationship, WordverseTopic, Wordvers
 
 const WordverseScene = dynamic(() => import("./wordverse/WordverseScene"), { ssr: false, loading: () => <div className="grid h-full place-items-center text-sm text-cyan-100/50">Opening your universe…</div> });
 
-type Props = { topics: WordverseTopic[]; words: WordverseWord[]; relationships: WordverseRelationship[]; progress: WordverseProgress[]; persistProgress?: typeof updateWordverseProgress };
+type Props = { initialWordId?: string; topics: WordverseTopic[]; words: WordverseWord[]; relationships: WordverseRelationship[]; progress: WordverseProgress[]; persistProgress?: typeof updateWordverseProgress };
 type FilterState = "ALL" | "MY" | "RECOMMENDED";
 
 const stateLabels: Record<string, string> = { DISCOVERED: "Discovered", LEARNING: "Learning", FAMILIAR: "Familiar", MASTERED: "Mastered", REVIEW_DUE: "Review due" };
 const stateColors: Record<string, string> = { DISCOVERED: "#71809a", LEARNING: "#9b7cff", FAMILIAR: "#5ee7ff", MASTERED: "#7ce38a", REVIEW_DUE: "#ffc857" };
 function normalizedProgress(progress: WordverseProgress[]) { return new Map(progress.map((item) => [item.word_id, item])); }
 
-export function WordverseExperience({ topics, words, relationships, progress, persistProgress = updateWordverseProgress }: Props) {
-  const navigation = useWordverseJourney(words.find(word => word.slug === "negotiate")?.id ?? words[0]?.id ?? "");
+export function WordverseExperience({ initialWordId, topics, words, relationships, progress, persistProgress = updateWordverseProgress }: Props) {
+  const navigation = useWordverseJourney(initialWordId ?? words.find(word => word.slug === "negotiate")?.id ?? words[0]?.id ?? "", Boolean(initialWordId));
   const entryId = navigation.current.id;
   const view = navigation.current.location.mode;
   const selectedId = navigation.current.location.wordId;

@@ -58,15 +58,18 @@ function stringArray(value: unknown) {
 export async function getWordverseData(userId: string) {
   const admin = createAdminClient();
   const [{ data: topics }, words, relationships, { data: progress }] = await Promise.all([
-    admin.from("wordverse_topics").select("id,slug,name,color,position").order("position"),
+    admin.from("wordverse_topics").select("id,slug,name,color,position").eq("status", "PUBLISHED").order("position"),
     wordversePages((from,to) => admin.from("wordverse_words").select("*").eq("status", "PUBLISHED").order("frequency_score", { ascending: false }).order("id").range(from,to)),
     wordversePages((from,to) => admin.from("wordverse_relationships").select("id,source_word_id,target_word_id,relationship_type,strength").order("id").range(from,to)),
     admin.from("wordverse_progress").select("word_id,state,saved,confidence,view_count,practice_count,correct_count,next_review_at").eq("user_id", userId),
   ]);
 
+  const topicIds = new Set((topics ?? []).map(topic => topic.id));
+  const visibleWords = words.filter(word => topicIds.has(word.topic_id));
+  const wordIds = new Set(visibleWords.map(word => word.id));
   return {
     topics: (topics ?? []) as WordverseTopic[],
-    words: (words ?? []).map((word) => ({
+    words: visibleWords.map((word) => ({
       ...word,
       examples: stringArray(word.examples),
       collocations: stringArray(word.collocations),
@@ -76,7 +79,7 @@ export async function getWordverseData(userId: string) {
       grammar_patterns: stringArray(word.grammar_patterns),
       common_mistakes: stringArray(word.common_mistakes),
     })) as WordverseWord[],
-    relationships: (relationships ?? []) as WordverseRelationship[],
+    relationships: relationships.filter(edge => wordIds.has(edge.source_word_id) && wordIds.has(edge.target_word_id)) as WordverseRelationship[],
     progress: (progress ?? []) as WordverseProgress[],
   };
 }
