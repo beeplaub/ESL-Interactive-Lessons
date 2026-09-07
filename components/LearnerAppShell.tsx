@@ -16,7 +16,8 @@ import {
   Trophy,
   User,
   Radio,
-  Newspaper
+  Newspaper,
+  Orbit
 } from "lucide-react";
 import { signOut, switchToAdminView } from "@/app/auth/actions";
 import { isStaff } from "@/lib/auth";
@@ -30,6 +31,7 @@ import { LearnerNavigationPreloader } from "@/components/LearnerNavigationPreloa
 import { NotificationSoundWatcher } from "@/components/NotificationSoundWatcher";
 import { getLearnerAchievements, type LearnerAchievements } from "@/lib/achievements";
 import { BrandLogo } from "@/components/BrandLogo";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export type ActiveItem = "home" | "quizzes" | "courses" | "journal" | "wordverse" | "live-classes" | "assignments" | "tasks" | "calendar" | "achievements" | "certificates" | "level-test" | "leaderboard" | "language-profile" | "profile" | "notifications";
 
@@ -343,6 +345,7 @@ function DesktopLearnerChrome({
             </button>
           </form>
         ) : null}
+        <ThemeToggle />
         <Link href="/level-test" className="hidden items-center gap-1.5 rounded-[14px] border border-[var(--br-surface-strong)] bg-surface px-3 py-2 text-xs font-bold text-[var(--br-text-muted)] shadow-[var(--br-shadow)] transition hover:text-[var(--br-chart-primary)] min-[1120px]:inline-flex">
           <Target className="size-4 text-[var(--br-chart-primary)]" /> {currentLevel ? `${currentLevel} level` : "Find your level"}
         </Link>
@@ -518,6 +521,7 @@ function MobileTopbar({
             </button>
           </form>
         ) : null}
+        <ThemeToggle />
         <Link
           href="/level-test"
           aria-label={currentLevel ? `Your level: ${currentLevel}` : "Take level test"}
@@ -538,6 +542,7 @@ function MobileTopbar({
               <MobileDrawerLink href="/quizzes" label="Quizzes" icon={HelpCircle} active={active === "quizzes"} />
               <MobileDrawerLink href="/courses" label="Courses" icon={GraduationCap} active={active === "courses"} />
               <MobileDrawerLink href="/blog" label="Journal" icon={Newspaper} active={active === "journal"} />
+              <MobileDrawerLink href="/wordverse" label="Wordverse" icon={Orbit} active={active === "wordverse"} />
               <MobileDrawerLink href="/live-classes" label="Live Classes" icon={Radio} active={active === "live-classes"} />
               <MobileDrawerLink href="/assignments" label="Assignments" icon={ClipboardList} active={active === "assignments"} />
               <MobileDrawerLink href="/certificates" label="Certificates" icon={Award} active={active === "certificates"} />
@@ -569,6 +574,7 @@ function MobileBottomNav({ active }: { active: ActiveItem }) {
     { href: "/account", label: "Home", icon: Home, key: "home" },
     { href: "/quizzes", label: "Quizzes", icon: HelpCircle, key: "quizzes" },
     { href: "/courses", label: "Courses", icon: BookOpen, key: "courses" },
+    { href: "/wordverse", label: "Wordverse", icon: Orbit, key: "wordverse" },
     { href: "/tasks", label: "Tasks", icon: ClipboardList, key: "tasks" },
     { href: "/leaderboard", label: "Ranks", icon: Trophy, key: "leaderboard" },
     { href: "/profile", label: "Profile", icon: User, key: "profile" }
