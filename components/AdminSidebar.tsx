@@ -38,6 +38,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { signOut, switchToLearnerView } from "@/app/auth/actions";
 import { BrandLogo } from "@/components/BrandLogo";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 type StaffRole = "ADMIN" | "TEACHER" | "SCHOOL_ADMIN";
 type NavLink = {
@@ -68,6 +69,7 @@ const groups: NavGroup[] = [
       { href: "/admin/lessons", label: "Lessons", Icon: BookOpen, roles: ALL_STAFF },
       { href: "/admin/quizzes", label: "Quizzes", Icon: ClipboardList, roles: ALL_STAFF },
       { href: "/admin/level-test", label: "Level Test", Icon: FlaskConical, roles: PLATFORM_ADMIN },
+      { href: "/admin/wordverse", label: "Wordverse", Icon: Sparkles, roles: PLATFORM_ADMIN },
       { href: "/admin/content-library", label: "Content Library", Icon: Library, roles: ALL_STAFF },
       { href: "/admin/media", label: "Media Library", Icon: Images, roles: ALL_STAFF },
       { href: "/admin/creator-tools", label: "Creator Tools", Icon: AudioLines, roles: ALL_STAFF },
@@ -261,6 +263,7 @@ export function AdminSidebar({
             <p className="truncate text-[9px] font-black uppercase tracking-[0.14em] text-white/45">{role.replace("_", " ")}</p>
             <p className="truncate text-xs font-black text-white/90">{activeLabel}</p>
           </div>
+          <ThemeToggle />
           <details className="relative shrink-0">
             <summary className="grid size-9 cursor-pointer list-none place-items-center rounded-xl bg-[var(--br-brand)] text-on-dark shadow-sm [&::-webkit-details-marker]:hidden" title="Create" aria-label="Create content"><Plus size={17} /></summary>
             <div className="absolute right-0 top-full z-[60] mt-2 w-48 rounded-xl border border-[var(--br-border)] bg-surface p-2 text-ink shadow-2xl">{createLinks.map((item) => <Link key={item.label} href={item.href} className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold hover:bg-[var(--br-surface-muted)]"><Plus size={14} className="text-[var(--br-brand)]" /> New {item.label}</Link>)}</div>
@@ -289,7 +292,7 @@ export function AdminSidebar({
   return (
     <aside className={`relative flex flex-col overflow-visible br-card rounded-[24px] md:sticky md:top-20 md:h-[calc(100vh-96px)] ${transitionClass} ${collapsed ? "w-[52px] min-w-[52px]" : "w-[220px] min-w-[220px]"}`}>
       <button type="button" onClick={toggleSidebar} aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"} className={`absolute -right-3 top-5 z-20 flex size-6 items-center justify-center rounded-full border border-[var(--br-border)] bg-[var(--br-surface)] shadow-sm hover:bg-[var(--br-surface-muted)] ${transitionClass}`}><ChevronLeft size={14} className={`text-[var(--br-text-muted)] transition-transform duration-300 ${collapsed ? "rotate-180" : ""}`} /></button>
-      <div className={`border-b border-[var(--br-border)] p-3 ${collapsed ? "px-2" : ""}`}>{collapsed ? <div className="flex justify-center py-1"><BrandLogo variant="icon" className="size-8" /></div> : <><BrandLogo variant="light" className="h-8 w-[112px]" /><p className="mt-3 text-xs uppercase tracking-wide text-[var(--br-text-muted)]">{role.replace("_", " ")}</p><p className="mt-1 truncate font-semibold">{name ?? "BrenUp"}</p></>}</div>
+      <div className={`border-b border-[var(--br-border)] p-3 ${collapsed ? "px-2" : ""}`}><div className="flex items-start justify-between gap-2">{collapsed ? <div className="flex justify-center py-1"><BrandLogo variant="icon" className="size-8" /></div> : <div className="min-w-0"><BrandLogo variant="light" className="h-8 w-[112px]" /><p className="mt-3 text-xs uppercase tracking-wide text-[var(--br-text-muted)]">{role.replace("_", " ")}</p><p className="mt-1 truncate font-semibold">{name ?? "BrenUp"}</p></div>}<ThemeToggle /></div></div>
       {!collapsed ? <details className="relative mx-2 mt-3"><summary className="flex cursor-pointer list-none items-center justify-center gap-2 rounded-lg bg-[var(--br-brand)] px-3 py-2 text-sm font-bold text-on-dark [&::-webkit-details-marker]:hidden"><Plus size={16} /> Create</summary><div className="absolute inset-x-0 z-30 mt-2 rounded-xl border border-[var(--br-border)] bg-surface p-2 shadow-xl">{createLinks.map((item) => <Link key={item.label} href={item.href} className="block rounded-lg px-3 py-2 text-sm font-semibold hover:bg-[var(--br-surface-muted)]">New {item.label}</Link>)}</div></details> : null}
       <nav className={`mt-3 min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain pb-3 ${collapsed ? "px-1" : "px-2"}`}>{navigation}</nav>
       <div className={`border-t border-[var(--br-border)] pt-2 ${collapsed ? "px-1 pb-3" : "px-2 pb-3"}`}>

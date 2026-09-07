@@ -1,0 +1,7455 @@
+[
+  {
+    "slug": "abolish",
+    "word": "abolish",
+    "topic_slug": "society",
+    "word_class": "verb",
+    "cefr_level": "C1",
+    "definition": "to officially end a law, practice, or institution",
+    "examples": [
+      "The council voted to abolish the outdated rule."
+    ],
+    "collocations": [
+      "abolish a law"
+    ],
+    "word_family": [
+      "abolition"
+    ],
+    "grammar_patterns": [
+      "abolish something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "law"
+    ]
+  },
+  {
+    "slug": "accountability",
+    "word": "accountability",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "the duty to explain and accept responsibility for decisions",
+    "examples": [
+      "The new policy aims to improve public accountability."
+    ],
+    "collocations": [
+      "public accountability"
+    ],
+    "word_family": [
+      "accountable"
+    ],
+    "grammar_patterns": [
+      "accountability for something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "responsibility"
+    ]
+  },
+  {
+    "slug": "activist",
+    "word": "activist",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "someone who works publicly to bring about social or political change",
+    "examples": [
+      "The activist organized a campaign for cleaner water."
+    ],
+    "collocations": [
+      "environmental activist"
+    ],
+    "word_family": [
+      "activism"
+    ],
+    "grammar_patterns": [
+      "an activist campaigning for something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "environment"
+    ]
+  },
+  {
+    "slug": "adoption",
+    "word": "adoption",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "the act of beginning to use a plan, method, or system",
+    "examples": [
+      "The adoption of the policy took several months."
+    ],
+    "collocations": [
+      "widespread adoption"
+    ],
+    "word_family": [
+      "adopt"
+    ],
+    "grammar_patterns": [
+      "adoption of something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "policy"
+    ]
+  },
+  {
+    "slug": "advocate",
+    "word": "advocate",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "a person who publicly supports an idea or cause",
+    "examples": [
+      "She is an advocate for equal access to education."
+    ],
+    "collocations": [
+      "strong advocate"
+    ],
+    "word_family": [
+      "advocacy"
+    ],
+    "grammar_patterns": [
+      "an advocate for something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "equality"
+    ]
+  },
+  {
+    "slug": "alliance",
+    "word": "alliance",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "an agreement between groups to support each other",
+    "examples": [
+      "Several organizations formed an alliance to protect the river."
+    ],
+    "collocations": [
+      "political alliance"
+    ],
+    "word_family": [
+      "ally"
+    ],
+    "grammar_patterns": [
+      "an alliance between groups"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "agreement"
+    ]
+  },
+  {
+    "slug": "amend",
+    "word": "amend",
+    "topic_slug": "society",
+    "word_class": "verb",
+    "cefr_level": "C1",
+    "definition": "to change a law or document to improve or correct it",
+    "examples": [
+      "Parliament plans to amend the law next month."
+    ],
+    "collocations": [
+      "amend legislation"
+    ],
+    "word_family": [
+      "amendment"
+    ],
+    "grammar_patterns": [
+      "amend something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "law"
+    ]
+  },
+  {
+    "slug": "amendment",
+    "word": "amendment",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "a change made to a law, proposal, or document",
+    "examples": [
+      "The committee approved an amendment to the proposal."
+    ],
+    "collocations": [
+      "constitutional amendment"
+    ],
+    "word_family": [
+      "amend"
+    ],
+    "grammar_patterns": [
+      "an amendment to something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "amend"
+    ]
+  },
+  {
+    "slug": "ancestor",
+    "word": "ancestor",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "a person in your family who lived before you",
+    "examples": [
+      "Her ancestors settled in the region centuries ago."
+    ],
+    "collocations": [
+      "distant ancestor"
+    ],
+    "word_family": [
+      "ancestral",
+      "ancestry"
+    ],
+    "grammar_patterns": [
+      "an ancestor of someone"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "heritage"
+    ]
+  },
+  {
+    "slug": "asylum",
+    "word": "asylum",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "protection offered by a country to someone fleeing danger elsewhere",
+    "examples": [
+      "The family applied for asylum after leaving the conflict."
+    ],
+    "collocations": [
+      "seek asylum"
+    ],
+    "word_family": [],
+    "grammar_patterns": [
+      "asylum in a country"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "refugee"
+    ]
+  },
+  {
+    "slug": "autonomy",
+    "word": "autonomy",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "the freedom to make decisions without outside control",
+    "examples": [
+      "The region gained greater autonomy over education."
+    ],
+    "collocations": [
+      "regional autonomy"
+    ],
+    "word_family": [
+      "autonomous"
+    ],
+    "grammar_patterns": [
+      "autonomy over something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "independence"
+    ]
+  },
+  {
+    "slug": "ballot",
+    "word": "ballot",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "a voting process in which choices are usually recorded privately",
+    "examples": [
+      "Members chose their representative by secret ballot."
+    ],
+    "collocations": [
+      "secret ballot"
+    ],
+    "word_family": [
+      "ballots"
+    ],
+    "grammar_patterns": [
+      "a ballot on something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "democracy"
+    ]
+  },
+  {
+    "slug": "beneficiary",
+    "word": "beneficiary",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "someone who receives an advantage, payment, or other benefit",
+    "examples": [
+      "Local families are the main beneficiaries of the scheme."
+    ],
+    "collocations": [
+      "main beneficiary"
+    ],
+    "word_family": [
+      "benefit"
+    ],
+    "grammar_patterns": [
+      "a beneficiary of something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "welfare"
+    ]
+  },
+  {
+    "slug": "bias",
+    "word": "bias",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "an unfair preference that affects judgment",
+    "examples": [
+      "The researchers checked the survey for gender bias."
+    ],
+    "collocations": [
+      "unconscious bias"
+    ],
+    "word_family": [
+      "biased"
+    ],
+    "grammar_patterns": [
+      "bias against someone"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "equality"
+    ]
+  },
+  {
+    "slug": "bureaucracy",
+    "word": "bureaucracy",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "a system of administration involving official rules and procedures",
+    "examples": [
+      "Excessive bureaucracy slowed the project."
+    ],
+    "collocations": [
+      "government bureaucracy"
+    ],
+    "word_family": [
+      "bureaucratic"
+    ],
+    "grammar_patterns": [
+      "bureaucracy within an organization"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "governance"
+    ]
+  },
+  {
+    "slug": "charter",
+    "word": "charter",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "an official document stating principles, rights, or duties",
+    "examples": [
+      "The charter sets out the rights of residents."
+    ],
+    "collocations": [
+      "human rights charter"
+    ],
+    "word_family": [
+      "charters"
+    ],
+    "grammar_patterns": [
+      "a charter for something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "rights"
+    ]
+  },
+  {
+    "slug": "citizenship",
+    "word": "citizenship",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "the legal status of belonging to a country",
+    "examples": [
+      "She applied for citizenship after living there for many years."
+    ],
+    "collocations": [
+      "dual citizenship"
+    ],
+    "word_family": [
+      "citizen"
+    ],
+    "grammar_patterns": [
+      "citizenship of a country"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "rights"
+    ]
+  },
+  {
+    "slug": "civic",
+    "word": "civic",
+    "topic_slug": "society",
+    "word_class": "adjective",
+    "cefr_level": "C1",
+    "definition": "connected with a town or city and its citizens",
+    "examples": [
+      "Volunteers take part in many civic activities."
+    ],
+    "collocations": [
+      "civic responsibility"
+    ],
+    "word_family": [
+      "civics"
+    ],
+    "grammar_patterns": [
+      "civic duties"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "community"
+    ]
+  },
+  {
+    "slug": "civilian",
+    "word": "civilian",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "a person who is not a member of the armed forces",
+    "examples": [
+      "The organization provided food for civilians affected by the conflict."
+    ],
+    "collocations": [
+      "civilian population"
+    ],
+    "word_family": [
+      "civilians"
+    ],
+    "grammar_patterns": [
+      "a civilian living somewhere"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "community"
+    ]
+  },
+  {
+    "slug": "civilization",
+    "word": "civilization",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "a society with developed systems of organization and culture",
+    "examples": [
+      "The exhibition explores an ancient civilization."
+    ],
+    "collocations": [
+      "ancient civilization"
+    ],
+    "word_family": [
+      "civilize"
+    ],
+    "grammar_patterns": [
+      "the development of a civilization"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "culture"
+    ]
+  },
+  {
+    "slug": "coalition",
+    "word": "coalition",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "a group of organizations or parties working together",
+    "examples": [
+      "A coalition of charities launched the campaign."
+    ],
+    "collocations": [
+      "coalition government"
+    ],
+    "word_family": [
+      "coalitions"
+    ],
+    "grammar_patterns": [
+      "a coalition of groups"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "alliance"
+    ]
+  },
+  {
+    "slug": "collective",
+    "word": "collective",
+    "topic_slug": "society",
+    "word_class": "adjective",
+    "cefr_level": "C1",
+    "definition": "shared by or involving all members of a group",
+    "examples": [
+      "The decision reflects our collective responsibility."
+    ],
+    "collocations": [
+      "collective action"
+    ],
+    "word_family": [
+      "collectively"
+    ],
+    "grammar_patterns": [
+      "a collective decision"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "community"
+    ]
+  },
+  {
+    "slug": "colonial",
+    "word": "colonial",
+    "topic_slug": "society",
+    "word_class": "adjective",
+    "cefr_level": "C1",
+    "definition": "connected with control of a territory by another country",
+    "examples": [
+      "The museum examines the region's colonial history."
+    ],
+    "collocations": [
+      "colonial rule"
+    ],
+    "word_family": [
+      "colony"
+    ],
+    "grammar_patterns": [
+      "a colonial period"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "territory"
+    ]
+  },
+  {
+    "slug": "compassion",
+    "word": "compassion",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "concern for people who are suffering and a wish to help them",
+    "examples": [
+      "The volunteers treated every visitor with compassion."
+    ],
+    "collocations": [
+      "show compassion"
+    ],
+    "word_family": [
+      "compassionate"
+    ],
+    "grammar_patterns": [
+      "compassion for someone"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "welfare"
+    ]
+  },
+  {
+    "slug": "constitution",
+    "word": "constitution",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "the basic rules governing a country or organization",
+    "examples": [
+      "The constitution protects freedom of expression."
+    ],
+    "collocations": [
+      "written constitution"
+    ],
+    "word_family": [
+      "constitutional"
+    ],
+    "grammar_patterns": [
+      "the constitution of a country"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "law"
+    ]
+  },
+  {
+    "slug": "constitutional",
+    "word": "constitutional",
+    "topic_slug": "society",
+    "word_class": "adjective",
+    "cefr_level": "C1",
+    "definition": "allowed by or connected with a constitution",
+    "examples": [
+      "Citizens challenged the decision on constitutional grounds."
+    ],
+    "collocations": [
+      "constitutional rights"
+    ],
+    "word_family": [
+      "constitution"
+    ],
+    "grammar_patterns": [
+      "constitutional protection"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "constitution"
+    ]
+  },
+  {
+    "slug": "controversy",
+    "word": "controversy",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "strong public disagreement about an issue",
+    "examples": [
+      "The proposal caused controversy among residents."
+    ],
+    "collocations": [
+      "public controversy"
+    ],
+    "word_family": [
+      "controversial"
+    ],
+    "grammar_patterns": [
+      "controversy over something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "debate"
+    ]
+  },
+  {
+    "slug": "corruption",
+    "word": "corruption",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "dishonest or illegal behaviour by people in positions of power",
+    "examples": [
+      "The agency investigates corruption in public contracts."
+    ],
+    "collocations": [
+      "political corruption"
+    ],
+    "word_family": [
+      "corrupt"
+    ],
+    "grammar_patterns": [
+      "corruption within an institution"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "justice"
+    ]
+  },
+  {
+    "slug": "democracy",
+    "word": "democracy",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "a system in which people have a say in government, especially through elections",
+    "examples": [
+      "Free elections are an essential part of democracy."
+    ],
+    "collocations": [
+      "parliamentary democracy"
+    ],
+    "word_family": [
+      "democratic"
+    ],
+    "grammar_patterns": [
+      "a system of democracy"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "ballot",
+      "rights"
+    ]
+  },
+  {
+    "slug": "democratic",
+    "word": "democratic",
+    "topic_slug": "society",
+    "word_class": "adjective",
+    "cefr_level": "B2",
+    "definition": "based on participation, representation, or fair voting",
+    "examples": [
+      "The association uses a democratic process to choose its leaders."
+    ],
+    "collocations": [
+      "democratic election"
+    ],
+    "word_family": [
+      "democracy"
+    ],
+    "grammar_patterns": [
+      "a democratic system"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "democracy"
+    ]
+  },
+  {
+    "slug": "dignity",
+    "word": "dignity",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "the value of a person that deserves respect",
+    "examples": [
+      "Everyone should be treated with dignity."
+    ],
+    "collocations": [
+      "human dignity"
+    ],
+    "word_family": [
+      "dignified"
+    ],
+    "grammar_patterns": [
+      "the dignity of someone"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "rights"
+    ]
+  },
+  {
+    "slug": "disability",
+    "word": "disability",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "a condition that can limit activities or participation, often together with social barriers",
+    "examples": [
+      "The centre improves access for people with a disability."
+    ],
+    "collocations": [
+      "disability rights"
+    ],
+    "word_family": [
+      "disabled"
+    ],
+    "grammar_patterns": [
+      "a person with a disability"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "equality"
+    ]
+  },
+  {
+    "slug": "discrimination",
+    "word": "discrimination",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "unfair treatment based on a person's identity or characteristics",
+    "examples": [
+      "The policy prohibits discrimination against older applicants."
+    ],
+    "collocations": [
+      "racial discrimination"
+    ],
+    "word_family": [
+      "discriminate"
+    ],
+    "grammar_patterns": [
+      "discrimination against someone"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "bias"
+    ]
+  },
+  {
+    "slug": "diversity",
+    "word": "diversity",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "the presence of different backgrounds, kinds, or characteristics",
+    "examples": [
+      "The festival celebrates the city's cultural diversity."
+    ],
+    "collocations": [
+      "cultural diversity"
+    ],
+    "word_family": [
+      "diverse"
+    ],
+    "grammar_patterns": [
+      "diversity within a community"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "culture"
+    ]
+  },
+  {
+    "slug": "donation",
+    "word": "donation",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "money or goods given to help a person or organization",
+    "examples": [
+      "The library bought new books with a private donation."
+    ],
+    "collocations": [
+      "charitable donation"
+    ],
+    "word_family": [
+      "donate"
+    ],
+    "grammar_patterns": [
+      "a donation to something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "welfare"
+    ]
+  },
+  {
+    "slug": "donor",
+    "word": "donor",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "a person or organization that gives money, goods, or biological material",
+    "examples": [
+      "A local donor paid for the new equipment."
+    ],
+    "collocations": [
+      "regular donor"
+    ],
+    "word_family": [
+      "donate"
+    ],
+    "grammar_patterns": [
+      "a donor to an organization"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "donation"
+    ]
+  },
+  {
+    "slug": "electoral",
+    "word": "electoral",
+    "topic_slug": "society",
+    "word_class": "adjective",
+    "cefr_level": "C1",
+    "definition": "connected with elections",
+    "examples": [
+      "The commission proposed changes to the electoral system."
+    ],
+    "collocations": [
+      "electoral reform"
+    ],
+    "word_family": [
+      "election"
+    ],
+    "grammar_patterns": [
+      "an electoral system"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "ballot"
+    ]
+  },
+  {
+    "slug": "empower",
+    "word": "empower",
+    "topic_slug": "society",
+    "word_class": "verb",
+    "cefr_level": "C1",
+    "definition": "to give someone the authority or confidence to act",
+    "examples": [
+      "The programme aims to empower young people to make decisions."
+    ],
+    "collocations": [
+      "empower communities"
+    ],
+    "word_family": [
+      "empowerment"
+    ],
+    "grammar_patterns": [
+      "empower someone to do something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "autonomy"
+    ]
+  },
+  {
+    "slug": "enact",
+    "word": "enact",
+    "topic_slug": "society",
+    "word_class": "verb",
+    "cefr_level": "C1",
+    "definition": "to make a proposal into law",
+    "examples": [
+      "The government plans to enact new safety rules."
+    ],
+    "collocations": [
+      "enact legislation"
+    ],
+    "word_family": [
+      "enactment"
+    ],
+    "grammar_patterns": [
+      "enact a law"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "law"
+    ]
+  },
+  {
+    "slug": "enforce",
+    "word": "enforce",
+    "topic_slug": "society",
+    "word_class": "verb",
+    "cefr_level": "C1",
+    "definition": "to ensure that people obey a rule or law",
+    "examples": [
+      "Inspectors enforce the building regulations."
+    ],
+    "collocations": [
+      "enforce a law"
+    ],
+    "word_family": [
+      "enforcement"
+    ],
+    "grammar_patterns": [
+      "enforce something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "law"
+    ]
+  },
+  {
+    "slug": "ethnic",
+    "word": "ethnic",
+    "topic_slug": "society",
+    "word_class": "adjective",
+    "cefr_level": "B2",
+    "definition": "connected with a group sharing cultural traditions or ancestry",
+    "examples": [
+      "The city is home to many ethnic communities."
+    ],
+    "collocations": [
+      "ethnic diversity"
+    ],
+    "word_family": [
+      "ethnicity"
+    ],
+    "grammar_patterns": [
+      "an ethnic group"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "culture"
+    ]
+  },
+  {
+    "slug": "globalization",
+    "word": "globalization",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "the growing connection of economies and societies across the world",
+    "examples": [
+      "The course examines how globalization affects local businesses."
+    ],
+    "collocations": [
+      "economic globalization"
+    ],
+    "word_family": [
+      "globalize",
+      "global"
+    ],
+    "grammar_patterns": [
+      "the effects of globalization"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "economy"
+    ]
+  },
+  {
+    "slug": "governance",
+    "word": "governance",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "the way an organization or country is directed and controlled",
+    "examples": [
+      "The report recommends better governance of public services."
+    ],
+    "collocations": [
+      "good governance"
+    ],
+    "word_family": [
+      "govern"
+    ],
+    "grammar_patterns": [
+      "governance of an institution"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "policy"
+    ]
+  },
+  {
+    "slug": "heritage",
+    "word": "heritage",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "traditions, buildings, or values passed down from earlier generations",
+    "examples": [
+      "The town works to protect its cultural heritage."
+    ],
+    "collocations": [
+      "cultural heritage"
+    ],
+    "word_family": [],
+    "grammar_patterns": [
+      "the heritage of a community"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "culture"
+    ]
+  },
+  {
+    "slug": "humanitarian",
+    "word": "humanitarian",
+    "topic_slug": "society",
+    "word_class": "adjective",
+    "cefr_level": "C1",
+    "definition": "intended to reduce suffering and protect people's lives",
+    "examples": [
+      "The charity delivers humanitarian aid after disasters."
+    ],
+    "collocations": [
+      "humanitarian assistance"
+    ],
+    "word_family": [
+      "humanitarianism"
+    ],
+    "grammar_patterns": [
+      "a humanitarian response"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "welfare"
+    ]
+  },
+  {
+    "slug": "humanity",
+    "word": "humanity",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "all human beings, or the quality of caring for others",
+    "examples": [
+      "The discovery could benefit humanity as a whole."
+    ],
+    "collocations": [
+      "all humanity"
+    ],
+    "word_family": [
+      "human"
+    ],
+    "grammar_patterns": [
+      "a benefit to humanity"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "community"
+    ]
+  },
+  {
+    "slug": "ideology",
+    "word": "ideology",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "a set of beliefs about how society should be organized",
+    "examples": [
+      "Their policies are shaped by a shared ideology."
+    ],
+    "collocations": [
+      "political ideology"
+    ],
+    "word_family": [
+      "ideological"
+    ],
+    "grammar_patterns": [
+      "an ideology based on something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "policy"
+    ]
+  },
+  {
+    "slug": "immigration",
+    "word": "immigration",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "the process of moving to another country to live there",
+    "examples": [
+      "Immigration has contributed to the city's diversity."
+    ],
+    "collocations": [
+      "immigration policy"
+    ],
+    "word_family": [
+      "immigrant",
+      "immigrate"
+    ],
+    "grammar_patterns": [
+      "immigration to a country"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "migration"
+    ]
+  },
+  {
+    "slug": "inclusion",
+    "word": "inclusion",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "the act of ensuring that people can participate and belong",
+    "examples": [
+      "The school promotes inclusion in every activity."
+    ],
+    "collocations": [
+      "social inclusion"
+    ],
+    "word_family": [
+      "include",
+      "inclusive"
+    ],
+    "grammar_patterns": [
+      "inclusion of someone"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "community"
+    ]
+  },
+  {
+    "slug": "independence",
+    "word": "independence",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "freedom from control by another person or country",
+    "examples": [
+      "The country celebrated fifty years of independence."
+    ],
+    "collocations": [
+      "national independence"
+    ],
+    "word_family": [
+      "independent"
+    ],
+    "grammar_patterns": [
+      "independence from someone"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "autonomy",
+      "rights"
+    ]
+  },
+  {
+    "slug": "indigenous",
+    "word": "indigenous",
+    "topic_slug": "society",
+    "word_class": "adjective",
+    "cefr_level": "C1",
+    "definition": "belonging originally to a particular place",
+    "examples": [
+      "The project supports indigenous communities and their languages."
+    ],
+    "collocations": [
+      "indigenous people"
+    ],
+    "word_family": [],
+    "grammar_patterns": [
+      "indigenous to a place"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "heritage"
+    ]
+  },
+  {
+    "slug": "inequality",
+    "word": "inequality",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "an unfair difference in opportunities, treatment, or resources",
+    "examples": [
+      "The study examines income inequality."
+    ],
+    "collocations": [
+      "social inequality"
+    ],
+    "word_family": [
+      "unequal"
+    ],
+    "grammar_patterns": [
+      "inequality between groups"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "equality"
+    ]
+  },
+  {
+    "slug": "injustice",
+    "word": "injustice",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "a situation in which someone is treated unfairly",
+    "examples": [
+      "The campaign draws attention to injustice in the legal system."
+    ],
+    "collocations": [
+      "social injustice"
+    ],
+    "word_family": [
+      "unjust"
+    ],
+    "grammar_patterns": [
+      "an injustice against someone"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "justice"
+    ]
+  },
+  {
+    "slug": "integration",
+    "word": "integration",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "the process of becoming part of a connected whole",
+    "examples": [
+      "Language classes can support social integration."
+    ],
+    "collocations": [
+      "social integration"
+    ],
+    "word_family": [
+      "integrate"
+    ],
+    "grammar_patterns": [
+      "integration into a community"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "inclusion"
+    ]
+  },
+  {
+    "slug": "integrity",
+    "word": "integrity",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "the quality of being honest and acting according to principles",
+    "examples": [
+      "Voters expect public officials to act with integrity."
+    ],
+    "collocations": [
+      "professional integrity"
+    ],
+    "word_family": [],
+    "grammar_patterns": [
+      "a person of integrity"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "accountability"
+    ]
+  },
+  {
+    "slug": "judicial",
+    "word": "judicial",
+    "topic_slug": "society",
+    "word_class": "adjective",
+    "cefr_level": "C1",
+    "definition": "connected with courts and the administration of justice",
+    "examples": [
+      "The decision is subject to judicial review."
+    ],
+    "collocations": [
+      "judicial system"
+    ],
+    "word_family": [
+      "judiciary"
+    ],
+    "grammar_patterns": [
+      "a judicial decision"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "justice"
+    ]
+  },
+  {
+    "slug": "jurisdiction",
+    "word": "jurisdiction",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "the legal power to make decisions over an area or matter",
+    "examples": [
+      "The dispute falls within the court's jurisdiction."
+    ],
+    "collocations": [
+      "legal jurisdiction"
+    ],
+    "word_family": [
+      "jurisdictional"
+    ],
+    "grammar_patterns": [
+      "jurisdiction over something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "law"
+    ]
+  },
+  {
+    "slug": "jury",
+    "word": "jury",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "a group of people chosen to decide facts in a legal case",
+    "examples": [
+      "The jury listened carefully to the evidence."
+    ],
+    "collocations": [
+      "jury member"
+    ],
+    "word_family": [
+      "juror"
+    ],
+    "grammar_patterns": [
+      "a jury in a trial"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "evidence"
+    ]
+  },
+  {
+    "slug": "legislation",
+    "word": "legislation",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "laws considered together, or the process of making them",
+    "examples": [
+      "New legislation will protect coastal habitats."
+    ],
+    "collocations": [
+      "environmental legislation"
+    ],
+    "word_family": [
+      "legislate",
+      "legislative"
+    ],
+    "grammar_patterns": [
+      "legislation on something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "law"
+    ]
+  },
+  {
+    "slug": "liberty",
+    "word": "liberty",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "freedom to live or act without unnecessary restriction",
+    "examples": [
+      "The charter protects individual liberty."
+    ],
+    "collocations": [
+      "civil liberties"
+    ],
+    "word_family": [
+      "liberate"
+    ],
+    "grammar_patterns": [
+      "liberty to do something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "rights"
+    ]
+  },
+  {
+    "slug": "morality",
+    "word": "morality",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "beliefs about which actions are right or wrong",
+    "examples": [
+      "The class discussed the relationship between law and morality."
+    ],
+    "collocations": [
+      "public morality"
+    ],
+    "word_family": [
+      "moral"
+    ],
+    "grammar_patterns": [
+      "the morality of an action"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "justice"
+    ]
+  },
+  {
+    "slug": "municipal",
+    "word": "municipal",
+    "topic_slug": "society",
+    "word_class": "adjective",
+    "cefr_level": "C1",
+    "definition": "connected with the government of a town or city",
+    "examples": [
+      "The municipal library is open on Sundays."
+    ],
+    "collocations": [
+      "municipal services"
+    ],
+    "word_family": [
+      "municipality"
+    ],
+    "grammar_patterns": [
+      "a municipal authority"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "community"
+    ]
+  },
+  {
+    "slug": "norm",
+    "word": "norm",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "a usual or accepted standard of behaviour",
+    "examples": [
+      "Social norms can change over time."
+    ],
+    "collocations": [
+      "social norm"
+    ],
+    "word_family": [
+      "normal"
+    ],
+    "grammar_patterns": [
+      "the norm in a society"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "culture"
+    ]
+  },
+  {
+    "slug": "petition",
+    "word": "petition",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "a formal written request supported by many people",
+    "examples": [
+      "Residents signed a petition to save the park."
+    ],
+    "collocations": [
+      "sign a petition"
+    ],
+    "word_family": [
+      "petitioner"
+    ],
+    "grammar_patterns": [
+      "a petition against something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "policy"
+    ]
+  },
+  {
+    "slug": "prejudice",
+    "word": "prejudice",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "an unfair opinion formed without enough knowledge",
+    "examples": [
+      "The project challenges prejudice against migrants."
+    ],
+    "collocations": [
+      "racial prejudice"
+    ],
+    "word_family": [
+      "prejudiced"
+    ],
+    "grammar_patterns": [
+      "prejudice against someone"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "bias"
+    ]
+  },
+  {
+    "slug": "privilege",
+    "word": "privilege",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "an advantage or right enjoyed by a particular person or group",
+    "examples": [
+      "The debate focused on how privilege affects opportunity."
+    ],
+    "collocations": [
+      "social privilege"
+    ],
+    "word_family": [
+      "privileged"
+    ],
+    "grammar_patterns": [
+      "the privilege of doing something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "equality"
+    ]
+  },
+  {
+    "slug": "prosperity",
+    "word": "prosperity",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "a condition of having economic success and enough resources",
+    "examples": [
+      "The strategy aims to bring lasting prosperity to the region."
+    ],
+    "collocations": [
+      "economic prosperity"
+    ],
+    "word_family": [
+      "prosper",
+      "prosperous"
+    ],
+    "grammar_patterns": [
+      "prosperity for a community"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "wealth"
+    ]
+  },
+  {
+    "slug": "referendum",
+    "word": "referendum",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "a direct public vote on a particular question",
+    "examples": [
+      "The country held a referendum on the proposal."
+    ],
+    "collocations": [
+      "national referendum"
+    ],
+    "word_family": [
+      "referendums"
+    ],
+    "grammar_patterns": [
+      "a referendum on something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "ballot"
+    ]
+  },
+  {
+    "slug": "reform",
+    "word": "reform",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "a change intended to improve a system or institution",
+    "examples": [
+      "The committee recommended reform of the voting system."
+    ],
+    "collocations": [
+      "political reform"
+    ],
+    "word_family": [
+      "reformer"
+    ],
+    "grammar_patterns": [
+      "reform of something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "policy"
+    ]
+  },
+  {
+    "slug": "refugee",
+    "word": "refugee",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "a person forced to leave their country because of danger or persecution",
+    "examples": [
+      "The community welcomed refugees from the conflict."
+    ],
+    "collocations": [
+      "refugee protection"
+    ],
+    "word_family": [
+      "refuge"
+    ],
+    "grammar_patterns": [
+      "a refugee from a country"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "asylum",
+      "migration"
+    ]
+  },
+  {
+    "slug": "representation",
+    "word": "representation",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "the act of speaking or acting on behalf of others",
+    "examples": [
+      "The council wants better representation of young residents."
+    ],
+    "collocations": [
+      "political representation"
+    ],
+    "word_family": [
+      "represent",
+      "representative"
+    ],
+    "grammar_patterns": [
+      "representation of a group"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "democracy"
+    ]
+  },
+  {
+    "slug": "ritual",
+    "word": "ritual",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "a set of actions carried out regularly or as part of a tradition",
+    "examples": [
+      "Sharing a meal is an important family ritual."
+    ],
+    "collocations": [
+      "traditional ritual"
+    ],
+    "word_family": [
+      "ritualistic"
+    ],
+    "grammar_patterns": [
+      "a ritual associated with something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "culture"
+    ]
+  },
+  {
+    "slug": "solidarity",
+    "word": "solidarity",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "support and unity among people with shared concerns",
+    "examples": [
+      "Workers marched in solidarity with their colleagues."
+    ],
+    "collocations": [
+      "show solidarity"
+    ],
+    "word_family": [],
+    "grammar_patterns": [
+      "solidarity with someone"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "community"
+    ]
+  },
+  {
+    "slug": "sovereignty",
+    "word": "sovereignty",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "a country's authority to govern itself",
+    "examples": [
+      "The treaty recognizes the country's sovereignty."
+    ],
+    "collocations": [
+      "national sovereignty"
+    ],
+    "word_family": [
+      "sovereign"
+    ],
+    "grammar_patterns": [
+      "sovereignty over territory"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "independence"
+    ]
+  },
+  {
+    "slug": "stereotype",
+    "word": "stereotype",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "a fixed and oversimplified idea about a group",
+    "examples": [
+      "The film challenges a common stereotype about older people."
+    ],
+    "collocations": [
+      "gender stereotype"
+    ],
+    "word_family": [
+      "stereotypical"
+    ],
+    "grammar_patterns": [
+      "a stereotype about someone"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "prejudice"
+    ]
+  },
+  {
+    "slug": "tolerance",
+    "word": "tolerance",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "willingness to accept differences in beliefs or behaviour",
+    "examples": [
+      "The school encourages tolerance of different views."
+    ],
+    "collocations": [
+      "religious tolerance"
+    ],
+    "word_family": [
+      "tolerant",
+      "tolerate"
+    ],
+    "grammar_patterns": [
+      "tolerance of something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "diversity"
+    ]
+  },
+  {
+    "slug": "transparency",
+    "word": "transparency",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "openness that allows people to understand decisions and actions",
+    "examples": [
+      "Publishing the accounts increased transparency."
+    ],
+    "collocations": [
+      "financial transparency"
+    ],
+    "word_family": [
+      "transparent"
+    ],
+    "grammar_patterns": [
+      "transparency in something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "accountability"
+    ]
+  },
+  {
+    "slug": "treaty",
+    "word": "treaty",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "a formal agreement between countries",
+    "examples": [
+      "The countries signed a treaty to protect the river."
+    ],
+    "collocations": [
+      "peace treaty"
+    ],
+    "word_family": [
+      "treaties"
+    ],
+    "grammar_patterns": [
+      "a treaty between countries"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "agreement"
+    ]
+  },
+  {
+    "slug": "unity",
+    "word": "unity",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "a state of being joined together or sharing a purpose",
+    "examples": [
+      "The crisis strengthened unity within the community."
+    ],
+    "collocations": [
+      "national unity"
+    ],
+    "word_family": [
+      "unite",
+      "unified"
+    ],
+    "grammar_patterns": [
+      "unity among people"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "solidarity"
+    ]
+  },
+  {
+    "slug": "welfare",
+    "word": "welfare",
+    "topic_slug": "society",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "people's health, happiness, and living conditions",
+    "examples": [
+      "The policy places children's welfare first."
+    ],
+    "collocations": [
+      "social welfare"
+    ],
+    "word_family": [],
+    "grammar_patterns": [
+      "the welfare of someone"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "community"
+    ]
+  },
+  {
+    "slug": "accommodate",
+    "word": "accommodate",
+    "topic_slug": "travel",
+    "word_class": "verb",
+    "cefr_level": "B2",
+    "definition": "to provide somewhere for people to stay",
+    "examples": [
+      "The guesthouse can accommodate twelve visitors."
+    ],
+    "collocations": [
+      "accommodate guests"
+    ],
+    "word_family": [
+      "accommodation"
+    ],
+    "grammar_patterns": [
+      "accommodate someone"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "reservation"
+    ]
+  },
+  {
+    "slug": "adjacent",
+    "word": "adjacent",
+    "topic_slug": "travel",
+    "word_class": "adjective",
+    "cefr_level": "C1",
+    "definition": "next to or very near something",
+    "examples": [
+      "Our room is adjacent to the courtyard."
+    ],
+    "collocations": [
+      "adjacent buildings"
+    ],
+    "word_family": [
+      "adjacency"
+    ],
+    "grammar_patterns": [
+      "adjacent to something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "nearby"
+    ]
+  },
+  {
+    "slug": "anchor",
+    "word": "anchor",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "a heavy object that holds a boat in place underwater",
+    "examples": [
+      "The crew lowered the anchor near the island."
+    ],
+    "collocations": [
+      "drop anchor"
+    ],
+    "word_family": [
+      "anchorage"
+    ],
+    "grammar_patterns": [
+      "at anchor"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "vessel"
+    ]
+  },
+  {
+    "slug": "infrastructure",
+    "word": "infrastructure",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "the basic systems and facilities needed for a place to function",
+    "examples": [
+      "The city is investing in transport infrastructure."
+    ],
+    "collocations": [
+      "transport infrastructure"
+    ],
+    "word_family": [
+      "infrastructural"
+    ],
+    "grammar_patterns": [
+      "infrastructure for something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "transportation"
+    ]
+  },
+  {
+    "slug": "bay",
+    "word": "bay",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "an area of sea partly surrounded by land",
+    "examples": [
+      "Small boats sheltered in the bay."
+    ],
+    "collocations": [
+      "sheltered bay"
+    ],
+    "word_family": [
+      "bays"
+    ],
+    "grammar_patterns": [
+      "a bay on a coast"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "shore"
+    ]
+  },
+  {
+    "slug": "booking",
+    "word": "booking",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "an arrangement made in advance for travel or accommodation",
+    "examples": [
+      "Please confirm your booking before Friday."
+    ],
+    "collocations": [
+      "hotel booking"
+    ],
+    "word_family": [
+      "book"
+    ],
+    "grammar_patterns": [
+      "a booking for something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "reservation"
+    ]
+  },
+  {
+    "slug": "cabin",
+    "word": "cabin",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "a small room on a ship or a small simple building",
+    "examples": [
+      "Our cabin had a view of the lake."
+    ],
+    "collocations": [
+      "log cabin"
+    ],
+    "word_family": [
+      "cabins"
+    ],
+    "grammar_patterns": [
+      "a cabin on a ship"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "accommodate"
+    ]
+  },
+  {
+    "slug": "canal",
+    "word": "canal",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "an artificial waterway used by boats or for carrying water",
+    "examples": [
+      "The boat travelled slowly along the canal."
+    ],
+    "collocations": [
+      "canal boat"
+    ],
+    "word_family": [
+      "canals"
+    ],
+    "grammar_patterns": [
+      "along a canal"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "vessel"
+    ]
+  },
+  {
+    "slug": "cargo",
+    "word": "cargo",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "goods carried by a ship, aircraft, or other vehicle",
+    "examples": [
+      "The ship unloaded its cargo at the port."
+    ],
+    "collocations": [
+      "cargo ship"
+    ],
+    "word_family": [
+      "cargoes"
+    ],
+    "grammar_patterns": [
+      "a cargo of goods"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "shipping"
+    ]
+  },
+  {
+    "slug": "carriage",
+    "word": "carriage",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "one of the connected passenger sections of a train",
+    "examples": [
+      "We found seats in the last carriage."
+    ],
+    "collocations": [
+      "railway carriage"
+    ],
+    "word_family": [
+      "carriages"
+    ],
+    "grammar_patterns": [
+      "a carriage on a train"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "rail"
+    ]
+  },
+  {
+    "slug": "cave",
+    "word": "cave",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "a natural space inside rock or underground",
+    "examples": [
+      "A guide led us into the cave."
+    ],
+    "collocations": [
+      "limestone cave"
+    ],
+    "word_family": [
+      "caving"
+    ],
+    "grammar_patterns": [
+      "the entrance to a cave"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "terrain"
+    ]
+  },
+  {
+    "slug": "cliff",
+    "word": "cliff",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "a high, steep surface of rock",
+    "examples": [
+      "The path runs along the top of the cliff."
+    ],
+    "collocations": [
+      "steep cliff"
+    ],
+    "word_family": [
+      "cliffs"
+    ],
+    "grammar_patterns": [
+      "the edge of a cliff"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "coastal"
+    ]
+  },
+  {
+    "slug": "coastal",
+    "word": "coastal",
+    "topic_slug": "travel",
+    "word_class": "adjective",
+    "cefr_level": "C1",
+    "definition": "situated near or connected with the sea's edge",
+    "examples": [
+      "The bus links several coastal towns."
+    ],
+    "collocations": [
+      "coastal path"
+    ],
+    "word_family": [
+      "coast"
+    ],
+    "grammar_patterns": [
+      "a coastal region"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "shore"
+    ]
+  },
+  {
+    "slug": "collision",
+    "word": "collision",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "an accident in which moving objects hit each other",
+    "examples": [
+      "Fog contributed to a collision between two cars."
+    ],
+    "collocations": [
+      "head-on collision"
+    ],
+    "word_family": [
+      "collide"
+    ],
+    "grammar_patterns": [
+      "a collision between things"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "motorist"
+    ]
+  },
+  {
+    "slug": "convenience",
+    "word": "convenience",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "the quality of being easy or practical to use",
+    "examples": [
+      "We chose the hotel for the convenience of its location."
+    ],
+    "collocations": [
+      "for convenience"
+    ],
+    "word_family": [
+      "convenient"
+    ],
+    "grammar_patterns": [
+      "the convenience of something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "accommodate"
+    ]
+  },
+  {
+    "slug": "corridor",
+    "word": "corridor",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "a long passage inside a building",
+    "examples": [
+      "Follow the corridor to the departure lounge."
+    ],
+    "collocations": [
+      "narrow corridor"
+    ],
+    "word_family": [
+      "corridors"
+    ],
+    "grammar_patterns": [
+      "a corridor leading somewhere"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "terminal"
+    ]
+  },
+  {
+    "slug": "crawl",
+    "word": "crawl",
+    "topic_slug": "travel",
+    "word_class": "verb",
+    "cefr_level": "C1",
+    "definition": "to move very slowly or on hands and knees",
+    "examples": [
+      "Traffic began to crawl as we approached the bridge."
+    ],
+    "collocations": [
+      "crawl along"
+    ],
+    "word_family": [
+      "crawling"
+    ],
+    "grammar_patterns": [
+      "crawl through something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "route"
+    ]
+  },
+  {
+    "slug": "cruise",
+    "word": "cruise",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "a holiday journey on a ship that visits several places",
+    "examples": [
+      "They booked a cruise around the islands."
+    ],
+    "collocations": [
+      "river cruise"
+    ],
+    "word_family": [
+      "cruising"
+    ],
+    "grammar_patterns": [
+      "a cruise to somewhere"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "journey"
+    ]
+  },
+  {
+    "slug": "deck",
+    "word": "deck",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "an outdoor floor on a ship",
+    "examples": [
+      "Passengers watched the sunset from the deck."
+    ],
+    "collocations": [
+      "upper deck"
+    ],
+    "word_family": [
+      "decks"
+    ],
+    "grammar_patterns": [
+      "on deck"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "vessel"
+    ]
+  },
+  {
+    "slug": "depart",
+    "word": "depart",
+    "topic_slug": "travel",
+    "word_class": "verb",
+    "cefr_level": "B2",
+    "definition": "to leave a place, especially at a scheduled time",
+    "examples": [
+      "The train will depart from platform six."
+    ],
+    "collocations": [
+      "depart on time"
+    ],
+    "word_family": [
+      "departure"
+    ],
+    "grammar_patterns": [
+      "depart from somewhere"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "departure"
+    ]
+  },
+  {
+    "slug": "descend",
+    "word": "descend",
+    "topic_slug": "travel",
+    "word_class": "verb",
+    "cefr_level": "C1",
+    "definition": "to move from a higher place to a lower one",
+    "examples": [
+      "The path begins to descend after the ridge."
+    ],
+    "collocations": [
+      "descend slowly"
+    ],
+    "word_family": [
+      "descent"
+    ],
+    "grammar_patterns": [
+      "descend into somewhere"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "terrain"
+    ]
+  },
+  {
+    "slug": "descent",
+    "word": "descent",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "a movement from a higher place to a lower one",
+    "examples": [
+      "The aircraft began its descent towards the airport."
+    ],
+    "collocations": [
+      "steep descent"
+    ],
+    "word_family": [
+      "descend"
+    ],
+    "grammar_patterns": [
+      "a descent into somewhere"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "landing"
+    ]
+  },
+  {
+    "slug": "distant",
+    "word": "distant",
+    "topic_slug": "travel",
+    "word_class": "adjective",
+    "cefr_level": "B2",
+    "definition": "far away in space or time",
+    "examples": [
+      "We could see distant mountains from the train."
+    ],
+    "collocations": [
+      "distant shore"
+    ],
+    "word_family": [
+      "distance"
+    ],
+    "grammar_patterns": [
+      "distant from somewhere"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "horizon"
+    ]
+  },
+  {
+    "slug": "dive",
+    "word": "dive",
+    "topic_slug": "travel",
+    "word_class": "verb",
+    "cefr_level": "B2",
+    "definition": "to enter water head first or swim below its surface",
+    "examples": [
+      "Visitors can dive near the reef with a guide."
+    ],
+    "collocations": [
+      "dive into water"
+    ],
+    "word_family": [
+      "diver",
+      "diving"
+    ],
+    "grammar_patterns": [
+      "dive into something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "bay"
+    ]
+  },
+  {
+    "slug": "downtown",
+    "word": "downtown",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "the central business area of a city",
+    "examples": [
+      "We took a bus to downtown."
+    ],
+    "collocations": [
+      "downtown traffic"
+    ],
+    "word_family": [],
+    "grammar_patterns": [
+      "go downtown"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "destination"
+    ]
+  },
+  {
+    "slug": "drift",
+    "word": "drift",
+    "topic_slug": "travel",
+    "word_class": "verb",
+    "cefr_level": "C1",
+    "definition": "to move slowly under the influence of water or air",
+    "examples": [
+      "The boat began to drift towards the shore."
+    ],
+    "collocations": [
+      "drift away"
+    ],
+    "word_family": [
+      "drifting"
+    ],
+    "grammar_patterns": [
+      "drift towards somewhere"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "shore"
+    ]
+  },
+  {
+    "slug": "duration",
+    "word": "duration",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "the length of time something lasts",
+    "examples": [
+      "The duration of the flight is three hours."
+    ],
+    "collocations": [
+      "flight duration"
+    ],
+    "word_family": [
+      "durations"
+    ],
+    "grammar_patterns": [
+      "the duration of something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "journey"
+    ]
+  },
+  {
+    "slug": "embark",
+    "word": "embark",
+    "topic_slug": "travel",
+    "word_class": "verb",
+    "cefr_level": "C1",
+    "definition": "to get onto a ship or aircraft for a journey",
+    "examples": [
+      "Passengers will embark after the safety checks."
+    ],
+    "collocations": [
+      "embark on a ship"
+    ],
+    "word_family": [
+      "embarkation"
+    ],
+    "grammar_patterns": [
+      "embark at a port"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "departure"
+    ]
+  },
+  {
+    "slug": "embassy",
+    "word": "embassy",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "the office representing a country in another country",
+    "examples": [
+      "She contacted the embassy after losing her passport."
+    ],
+    "collocations": [
+      "foreign embassy"
+    ],
+    "word_family": [
+      "embassies"
+    ],
+    "grammar_patterns": [
+      "an embassy in a country"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "visa"
+    ]
+  },
+  {
+    "slug": "evacuate",
+    "word": "evacuate",
+    "topic_slug": "travel",
+    "word_class": "verb",
+    "cefr_level": "C1",
+    "definition": "to move people away from a dangerous place",
+    "examples": [
+      "Officials decided to evacuate the coastal village."
+    ],
+    "collocations": [
+      "evacuate residents"
+    ],
+    "word_family": [
+      "evacuation"
+    ],
+    "grammar_patterns": [
+      "evacuate someone from somewhere"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "departure"
+    ]
+  },
+  {
+    "slug": "exit",
+    "word": "exit",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "a way out of a building or enclosed space",
+    "examples": [
+      "The nearest exit is behind the ticket desk."
+    ],
+    "collocations": [
+      "emergency exit"
+    ],
+    "word_family": [
+      "exits"
+    ],
+    "grammar_patterns": [
+      "an exit from somewhere"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "terminal"
+    ]
+  },
+  {
+    "slug": "exotic",
+    "word": "exotic",
+    "topic_slug": "travel",
+    "word_class": "adjective",
+    "cefr_level": "B2",
+    "definition": "unusual and interesting because it comes from a distant place",
+    "examples": [
+      "The market sells exotic fruit from warmer regions."
+    ],
+    "collocations": [
+      "exotic fruit"
+    ],
+    "word_family": [
+      "exotically"
+    ],
+    "grammar_patterns": [
+      "exotic to someone"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "overseas"
+    ]
+  },
+  {
+    "slug": "vessel",
+    "word": "vessel",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "a large boat or ship",
+    "examples": [
+      "The vessel carries passengers between the islands."
+    ],
+    "collocations": [
+      "passenger vessel"
+    ],
+    "word_family": [
+      "vessels"
+    ],
+    "grammar_patterns": [
+      "a vessel carrying something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "shipping"
+    ]
+  },
+  {
+    "slug": "fleet",
+    "word": "fleet",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "a group of vehicles or ships operated together",
+    "examples": [
+      "The company added electric buses to its fleet."
+    ],
+    "collocations": [
+      "bus fleet"
+    ],
+    "word_family": [
+      "fleets"
+    ],
+    "grammar_patterns": [
+      "a fleet of vehicles"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "transportation"
+    ]
+  },
+  {
+    "slug": "globe",
+    "word": "globe",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "the Earth, considered as a whole",
+    "examples": [
+      "Their journey took them around the globe."
+    ],
+    "collocations": [
+      "around the globe"
+    ],
+    "word_family": [
+      "global"
+    ],
+    "grammar_patterns": [
+      "across the globe"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "journey"
+    ]
+  },
+  {
+    "slug": "harbour",
+    "word": "harbour",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "a sheltered area of water where ships can stop safely",
+    "examples": [
+      "The fishing boats returned to the harbour."
+    ],
+    "collocations": [
+      "natural harbour"
+    ],
+    "word_family": [
+      "harbours"
+    ],
+    "grammar_patterns": [
+      "in a harbour"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "anchor"
+    ]
+  },
+  {
+    "slug": "helmet",
+    "word": "helmet",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "a hard protective covering worn on the head",
+    "examples": [
+      "Every cyclist must wear a helmet on the tour."
+    ],
+    "collocations": [
+      "safety helmet"
+    ],
+    "word_family": [
+      "helmets"
+    ],
+    "grammar_patterns": [
+      "wear a helmet"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "motorist"
+    ]
+  },
+  {
+    "slug": "highway",
+    "word": "highway",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "a main road used for travelling between places",
+    "examples": [
+      "The highway was closed after the storm."
+    ],
+    "collocations": [
+      "major highway"
+    ],
+    "word_family": [
+      "highways"
+    ],
+    "grammar_patterns": [
+      "along a highway"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "route"
+    ]
+  },
+  {
+    "slug": "horizon",
+    "word": "horizon",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "the line where the land or sea appears to meet the sky",
+    "examples": [
+      "A small island appeared on the horizon."
+    ],
+    "collocations": [
+      "distant horizon"
+    ],
+    "word_family": [
+      "horizons"
+    ],
+    "grammar_patterns": [
+      "on the horizon"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "distant",
+      "destination"
+    ]
+  },
+  {
+    "slug": "jet",
+    "word": "jet",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "an aircraft powered by jet engines",
+    "examples": [
+      "A passenger jet landed just before midnight."
+    ],
+    "collocations": [
+      "passenger jet"
+    ],
+    "word_family": [
+      "jets"
+    ],
+    "grammar_patterns": [
+      "travel by jet"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "landing"
+    ]
+  },
+  {
+    "slug": "junction",
+    "word": "junction",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "a place where roads or railway lines meet",
+    "examples": [
+      "Turn left at the next junction."
+    ],
+    "collocations": [
+      "road junction"
+    ],
+    "word_family": [
+      "junctions"
+    ],
+    "grammar_patterns": [
+      "at a junction"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "route"
+    ]
+  },
+  {
+    "slug": "landing",
+    "word": "landing",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "the act of coming down onto the ground or another surface",
+    "examples": [
+      "Strong winds made the landing difficult."
+    ],
+    "collocations": [
+      "emergency landing"
+    ],
+    "word_family": [
+      "land"
+    ],
+    "grammar_patterns": [
+      "a landing at an airport"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "descent",
+      "arrival"
+    ]
+  },
+  {
+    "slug": "landmark",
+    "word": "landmark",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "a noticeable building or feature that helps identify a place",
+    "examples": [
+      "The clock tower is a familiar landmark."
+    ],
+    "collocations": [
+      "historic landmark"
+    ],
+    "word_family": [
+      "landmarks"
+    ],
+    "grammar_patterns": [
+      "a landmark in a city"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "destination"
+    ]
+  },
+  {
+    "slug": "lane",
+    "word": "lane",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "one of the marked strips of a road carrying a line of traffic",
+    "examples": [
+      "Stay in the left lane until the next junction."
+    ],
+    "collocations": [
+      "traffic lane"
+    ],
+    "word_family": [
+      "lanes"
+    ],
+    "grammar_patterns": [
+      "in a lane"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "highway"
+    ]
+  },
+  {
+    "slug": "mainland",
+    "word": "mainland",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "the main area of land rather than its nearby islands",
+    "examples": [
+      "A bridge connects the island to the mainland."
+    ],
+    "collocations": [
+      "mainland coast"
+    ],
+    "word_family": [],
+    "grammar_patterns": [
+      "on the mainland"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "vessel"
+    ]
+  },
+  {
+    "slug": "marine",
+    "word": "marine",
+    "topic_slug": "travel",
+    "word_class": "adjective",
+    "cefr_level": "C1",
+    "definition": "connected with the sea and the life in it",
+    "examples": [
+      "The park protects the region's marine wildlife."
+    ],
+    "collocations": [
+      "marine environment"
+    ],
+    "word_family": [],
+    "grammar_patterns": [
+      "marine life"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "bay"
+    ]
+  },
+  {
+    "slug": "migration",
+    "word": "migration",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "movement from one region to another, often to live there",
+    "examples": [
+      "The museum documents migration across the region."
+    ],
+    "collocations": [
+      "seasonal migration"
+    ],
+    "word_family": [
+      "migrate",
+      "migrant"
+    ],
+    "grammar_patterns": [
+      "migration to a place"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "journey"
+    ]
+  },
+  {
+    "slug": "mobility",
+    "word": "mobility",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "the ability to move freely or easily",
+    "examples": [
+      "The station has improved access for people with limited mobility."
+    ],
+    "collocations": [
+      "reduced mobility"
+    ],
+    "word_family": [
+      "mobile"
+    ],
+    "grammar_patterns": [
+      "mobility within an area"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "transportation"
+    ]
+  },
+  {
+    "slug": "motorist",
+    "word": "motorist",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "a person who drives a car",
+    "examples": [
+      "Motorists should expect delays near the tunnel."
+    ],
+    "collocations": [
+      "passing motorist"
+    ],
+    "word_family": [
+      "motor"
+    ],
+    "grammar_patterns": [
+      "a motorist travelling somewhere"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "highway"
+    ]
+  },
+  {
+    "slug": "navigation",
+    "word": "navigation",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "the process of finding and following a route",
+    "examples": [
+      "The guide taught us basic navigation."
+    ],
+    "collocations": [
+      "satellite navigation"
+    ],
+    "word_family": [
+      "navigate"
+    ],
+    "grammar_patterns": [
+      "navigation through an area"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "route"
+    ]
+  },
+  {
+    "slug": "nearby",
+    "word": "nearby",
+    "topic_slug": "travel",
+    "word_class": "adjective",
+    "cefr_level": "B2",
+    "definition": "located a short distance away",
+    "examples": [
+      "We walked to a nearby café."
+    ],
+    "collocations": [
+      "nearby hotel"
+    ],
+    "word_family": [
+      "near"
+    ],
+    "grammar_patterns": [
+      "nearby places"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "adjacent",
+      "destination"
+    ]
+  },
+  {
+    "slug": "neighbouring",
+    "word": "neighbouring",
+    "topic_slug": "travel",
+    "word_class": "adjective",
+    "cefr_level": "C1",
+    "definition": "next to or near another place",
+    "examples": [
+      "We visited a neighbouring village."
+    ],
+    "collocations": [
+      "neighbouring country"
+    ],
+    "word_family": [
+      "neighbour",
+      "neighbourhood"
+    ],
+    "grammar_patterns": [
+      "neighbouring towns"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "nearby"
+    ]
+  },
+  {
+    "slug": "outing",
+    "word": "outing",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "a short trip made for pleasure",
+    "examples": [
+      "The school organized an outing to the coast."
+    ],
+    "collocations": [
+      "family outing"
+    ],
+    "word_family": [
+      "outings"
+    ],
+    "grammar_patterns": [
+      "an outing to somewhere"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "journey"
+    ]
+  },
+  {
+    "slug": "overnight",
+    "word": "overnight",
+    "topic_slug": "travel",
+    "word_class": "adverb",
+    "cefr_level": "B2",
+    "definition": "during or for the night",
+    "examples": [
+      "We stayed overnight near the airport."
+    ],
+    "collocations": [
+      "stay overnight"
+    ],
+    "word_family": [],
+    "grammar_patterns": [
+      "travel overnight"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "accommodate"
+    ]
+  },
+  {
+    "slug": "overseas",
+    "word": "overseas",
+    "topic_slug": "travel",
+    "word_class": "adverb",
+    "cefr_level": "B2",
+    "definition": "in or to a country across the sea",
+    "examples": [
+      "She travels overseas several times a year."
+    ],
+    "collocations": [
+      "travel overseas"
+    ],
+    "word_family": [],
+    "grammar_patterns": [
+      "work overseas"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "journey"
+    ]
+  },
+  {
+    "slug": "pathway",
+    "word": "pathway",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "a path along which people can walk",
+    "examples": [
+      "A narrow pathway leads to the beach."
+    ],
+    "collocations": [
+      "woodland pathway"
+    ],
+    "word_family": [
+      "pathways"
+    ],
+    "grammar_patterns": [
+      "a pathway through somewhere"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "route"
+    ]
+  },
+  {
+    "slug": "peak",
+    "word": "peak",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "the highest point of a mountain",
+    "examples": [
+      "Snow covered the peak throughout the year."
+    ],
+    "collocations": [
+      "mountain peak"
+    ],
+    "word_family": [
+      "peaks"
+    ],
+    "grammar_patterns": [
+      "the peak of a mountain"
+    ],
+    "synonyms": [
+      "summit"
+    ],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "summit",
+      "terrain"
+    ]
+  },
+  {
+    "slug": "rail",
+    "word": "rail",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "one of the long metal bars on which trains run",
+    "examples": [
+      "Workers replaced a damaged rail overnight."
+    ],
+    "collocations": [
+      "rail network"
+    ],
+    "word_family": [
+      "railway"
+    ],
+    "grammar_patterns": [
+      "travel by rail"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "carriage",
+      "platform"
+    ]
+  },
+  {
+    "slug": "rental",
+    "word": "rental",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "an arrangement in which something is used for payment temporarily",
+    "examples": [
+      "The rental includes a bicycle and a helmet."
+    ],
+    "collocations": [
+      "car rental"
+    ],
+    "word_family": [
+      "rent"
+    ],
+    "grammar_patterns": [
+      "rental of something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "reservation"
+    ]
+  },
+  {
+    "slug": "residential",
+    "word": "residential",
+    "topic_slug": "travel",
+    "word_class": "adjective",
+    "cefr_level": "C1",
+    "definition": "containing homes or intended for people to live in",
+    "examples": [
+      "The hotel is in a quiet residential area."
+    ],
+    "collocations": [
+      "residential district"
+    ],
+    "word_family": [
+      "residence",
+      "resident"
+    ],
+    "grammar_patterns": [
+      "a residential neighbourhood"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "destination"
+    ]
+  },
+  {
+    "slug": "retreat",
+    "word": "retreat",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "a move away from a difficult or dangerous position",
+    "examples": [
+      "The sudden storm forced a retreat to the shelter."
+    ],
+    "collocations": [
+      "rapid retreat"
+    ],
+    "word_family": [
+      "retreats"
+    ],
+    "grammar_patterns": [
+      "a retreat from somewhere"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "departure"
+    ]
+  },
+  {
+    "slug": "reverse",
+    "word": "reverse",
+    "topic_slug": "travel",
+    "word_class": "verb",
+    "cefr_level": "C1",
+    "definition": "to move a vehicle backwards",
+    "examples": [
+      "Please reverse slowly out of the parking space."
+    ],
+    "collocations": [
+      "reverse a car"
+    ],
+    "word_family": [
+      "reversal"
+    ],
+    "grammar_patterns": [
+      "reverse into somewhere"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "motorist"
+    ]
+  },
+  {
+    "slug": "shore",
+    "word": "shore",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "the land beside a sea or lake",
+    "examples": [
+      "We walked along the shore before breakfast."
+    ],
+    "collocations": [
+      "rocky shore"
+    ],
+    "word_family": [
+      "shores"
+    ],
+    "grammar_patterns": [
+      "on the shore"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "coastal",
+      "destination"
+    ]
+  },
+  {
+    "slug": "shipping",
+    "word": "shipping",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "the transport of goods, especially by sea",
+    "examples": [
+      "Bad weather disrupted shipping in the channel."
+    ],
+    "collocations": [
+      "shipping route"
+    ],
+    "word_family": [
+      "ship"
+    ],
+    "grammar_patterns": [
+      "shipping between ports"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "cargo",
+      "transportation"
+    ]
+  },
+  {
+    "slug": "situated",
+    "word": "situated",
+    "topic_slug": "travel",
+    "word_class": "adjective",
+    "cefr_level": "C1",
+    "definition": "located in a particular place",
+    "examples": [
+      "The station is situated beside the river."
+    ],
+    "collocations": [
+      "centrally situated"
+    ],
+    "word_family": [
+      "situation"
+    ],
+    "grammar_patterns": [
+      "situated in a place"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "destination"
+    ]
+  },
+  {
+    "slug": "steer",
+    "word": "steer",
+    "topic_slug": "travel",
+    "word_class": "verb",
+    "cefr_level": "C1",
+    "definition": "to control the direction of a vehicle or boat",
+    "examples": [
+      "He used the wheel to steer the boat away from the rocks."
+    ],
+    "collocations": [
+      "steer a boat"
+    ],
+    "word_family": [
+      "steering"
+    ],
+    "grammar_patterns": [
+      "steer something towards somewhere"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "vessel"
+    ]
+  },
+  {
+    "slug": "suburb",
+    "word": "suburb",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "an area of homes outside the centre of a city",
+    "examples": [
+      "They live in a suburb with good rail connections."
+    ],
+    "collocations": [
+      "residential suburb"
+    ],
+    "word_family": [
+      "suburban"
+    ],
+    "grammar_patterns": [
+      "a suburb of a city"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "residential"
+    ]
+  },
+  {
+    "slug": "suburban",
+    "word": "suburban",
+    "topic_slug": "travel",
+    "word_class": "adjective",
+    "cefr_level": "C1",
+    "definition": "connected with areas outside a city's centre",
+    "examples": [
+      "The bus serves several suburban neighbourhoods."
+    ],
+    "collocations": [
+      "suburban railway"
+    ],
+    "word_family": [
+      "suburb"
+    ],
+    "grammar_patterns": [
+      "a suburban area"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "suburb"
+    ]
+  },
+  {
+    "slug": "suite",
+    "word": "suite",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "a connected set of rooms, especially in a hotel",
+    "examples": [
+      "The family booked a suite with two bedrooms."
+    ],
+    "collocations": [
+      "hotel suite"
+    ],
+    "word_family": [
+      "suites"
+    ],
+    "grammar_patterns": [
+      "a suite of rooms"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "reservation"
+    ]
+  },
+  {
+    "slug": "summit",
+    "word": "summit",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "the top of a mountain, reached by climbing or walking upwards",
+    "examples": [
+      "The climbers reached the summit at sunrise."
+    ],
+    "collocations": [
+      "reach the summit"
+    ],
+    "word_family": [
+      "summits"
+    ],
+    "grammar_patterns": [
+      "the summit of a mountain"
+    ],
+    "synonyms": [
+      "peak"
+    ],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "peak"
+    ]
+  },
+  {
+    "slug": "terminal",
+    "word": "terminal",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "a building where passengers begin or end a transport journey",
+    "examples": [
+      "The airport shuttle stops outside the terminal."
+    ],
+    "collocations": [
+      "airport terminal"
+    ],
+    "word_family": [
+      "terminals"
+    ],
+    "grammar_patterns": [
+      "a terminal at an airport"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "departure"
+    ]
+  },
+  {
+    "slug": "terrain",
+    "word": "terrain",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "the physical shape and features of an area of land",
+    "examples": [
+      "The vehicle can cross rough terrain."
+    ],
+    "collocations": [
+      "mountainous terrain"
+    ],
+    "word_family": [
+      "terrains"
+    ],
+    "grammar_patterns": [
+      "over rough terrain"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "route"
+    ]
+  },
+  {
+    "slug": "territory",
+    "word": "territory",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "an area of land controlled by a country or group",
+    "examples": [
+      "The river forms the boundary of the territory."
+    ],
+    "collocations": [
+      "national territory"
+    ],
+    "word_family": [
+      "territorial"
+    ],
+    "grammar_patterns": [
+      "territory belonging to someone"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "landmark"
+    ]
+  },
+  {
+    "slug": "tide",
+    "word": "tide",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "the regular rise and fall of the sea",
+    "examples": [
+      "The beach disappears when the tide comes in."
+    ],
+    "collocations": [
+      "high tide"
+    ],
+    "word_family": [
+      "tidal"
+    ],
+    "grammar_patterns": [
+      "at low tide"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "shore"
+    ]
+  },
+  {
+    "slug": "toll",
+    "word": "toll",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "a payment required to use a road or bridge",
+    "examples": [
+      "Drivers pay a toll before crossing the bridge."
+    ],
+    "collocations": [
+      "road toll"
+    ],
+    "word_family": [
+      "tolls"
+    ],
+    "grammar_patterns": [
+      "a toll for using something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "charge"
+    ]
+  },
+  {
+    "slug": "trail",
+    "word": "trail",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "a path through countryside or wild land",
+    "examples": [
+      "The trail climbs through the forest."
+    ],
+    "collocations": [
+      "walking trail"
+    ],
+    "word_family": [
+      "trails"
+    ],
+    "grammar_patterns": [
+      "a trail through somewhere"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "pathway"
+    ]
+  },
+  {
+    "slug": "transit",
+    "word": "transit",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "the process of being transported from one place to another",
+    "examples": [
+      "The package was damaged in transit."
+    ],
+    "collocations": [
+      "in transit"
+    ],
+    "word_family": [],
+    "grammar_patterns": [
+      "goods in transit"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "shipping"
+    ]
+  },
+  {
+    "slug": "transportation",
+    "word": "transportation",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "the movement of people or goods between places",
+    "examples": [
+      "The city is improving public transportation."
+    ],
+    "collocations": [
+      "public transportation"
+    ],
+    "word_family": [
+      "transport"
+    ],
+    "grammar_patterns": [
+      "transportation of goods"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "route"
+    ]
+  },
+  {
+    "slug": "visa",
+    "word": "visa",
+    "topic_slug": "travel",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "an official document allowing entry to or residence in a country",
+    "examples": [
+      "Apply for your visa before booking the flight."
+    ],
+    "collocations": [
+      "tourist visa"
+    ],
+    "word_family": [
+      "visas"
+    ],
+    "grammar_patterns": [
+      "a visa for a country"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "embassy",
+      "permission"
+    ]
+  },
+  {
+    "slug": "wander",
+    "word": "wander",
+    "topic_slug": "travel",
+    "word_class": "verb",
+    "cefr_level": "B2",
+    "definition": "to walk without a fixed route or destination",
+    "examples": [
+      "We decided to wander through the old town."
+    ],
+    "collocations": [
+      "wander around"
+    ],
+    "word_family": [
+      "wanderer"
+    ],
+    "grammar_patterns": [
+      "wander through somewhere"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "outing"
+    ]
+  },
+  {
+    "slug": "accountant",
+    "word": "accountant",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "a professional who prepares and checks financial records",
+    "examples": [
+      "Our accountant checked the annual accounts."
+    ],
+    "collocations": [
+      "qualified accountant"
+    ],
+    "word_family": [
+      "accountancy"
+    ],
+    "grammar_patterns": [
+      "an accountant for a company"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "expense"
+    ]
+  },
+  {
+    "slug": "allocate",
+    "word": "allocate",
+    "topic_slug": "work",
+    "word_class": "verb",
+    "cefr_level": "C1",
+    "definition": "to assign resources to a particular purpose",
+    "examples": [
+      "We allocate part of the budget to training."
+    ],
+    "collocations": [
+      "allocate funds"
+    ],
+    "word_family": [
+      "allocation"
+    ],
+    "grammar_patterns": [
+      "allocate something to someone"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "value"
+    ]
+  },
+  {
+    "slug": "allocation",
+    "word": "allocation",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "the process or amount of assigning resources",
+    "examples": [
+      "The team agreed on an allocation of funds."
+    ],
+    "collocations": [
+      "budget allocation"
+    ],
+    "word_family": [
+      "allocate"
+    ],
+    "grammar_patterns": [
+      "allocation of something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "allocate"
+    ]
+  },
+  {
+    "slug": "applicant",
+    "word": "applicant",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "someone who formally asks to be considered for a position",
+    "examples": [
+      "Each applicant must provide two references."
+    ],
+    "collocations": [
+      "successful applicant"
+    ],
+    "word_family": [
+      "apply",
+      "application"
+    ],
+    "grammar_patterns": [
+      "an applicant for a job"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "interview"
+    ]
+  },
+  {
+    "slug": "appoint",
+    "word": "appoint",
+    "topic_slug": "work",
+    "word_class": "verb",
+    "cefr_level": "C1",
+    "definition": "to choose someone officially for a role",
+    "examples": [
+      "The board will appoint a new director."
+    ],
+    "collocations": [
+      "appoint a manager"
+    ],
+    "word_family": [
+      "appointment"
+    ],
+    "grammar_patterns": [
+      "appoint someone as something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "applicant"
+    ]
+  },
+  {
+    "slug": "asset",
+    "word": "asset",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "something valuable owned by a person or organization",
+    "examples": [
+      "The building is the company's largest asset."
+    ],
+    "collocations": [
+      "valuable asset"
+    ],
+    "word_family": [
+      "assets"
+    ],
+    "grammar_patterns": [
+      "an asset to someone"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "value"
+    ]
+  },
+  {
+    "slug": "auction",
+    "word": "auction",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "a sale in which buyers compete by offering higher prices",
+    "examples": [
+      "The painting was sold at auction."
+    ],
+    "collocations": [
+      "public auction"
+    ],
+    "word_family": [
+      "auctioneer"
+    ],
+    "grammar_patterns": [
+      "at auction"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "sale"
+    ]
+  },
+  {
+    "slug": "audit",
+    "word": "audit",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "an official examination of accounts or procedures",
+    "examples": [
+      "The audit found no missing payments."
+    ],
+    "collocations": [
+      "financial audit"
+    ],
+    "word_family": [
+      "auditor"
+    ],
+    "grammar_patterns": [
+      "an audit of something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "accountant"
+    ]
+  },
+  {
+    "slug": "authorize",
+    "word": "authorize",
+    "topic_slug": "work",
+    "word_class": "verb",
+    "cefr_level": "C1",
+    "definition": "to give official permission for something",
+    "examples": [
+      "Only the director can authorize this payment."
+    ],
+    "collocations": [
+      "authorize payment"
+    ],
+    "word_family": [
+      "authorization"
+    ],
+    "grammar_patterns": [
+      "authorize someone to do something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "permission"
+    ]
+  },
+  {
+    "slug": "benchmark",
+    "word": "benchmark",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "a standard used to judge performance",
+    "examples": [
+      "Last year's sales provide a useful benchmark."
+    ],
+    "collocations": [
+      "industry benchmark"
+    ],
+    "word_family": [
+      "benchmarking"
+    ],
+    "grammar_patterns": [
+      "a benchmark for something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "value"
+    ]
+  },
+  {
+    "slug": "bid",
+    "word": "bid",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "an offer of money for something being sold",
+    "examples": [
+      "The buyer submitted a bid for the property."
+    ],
+    "collocations": [
+      "competitive bid"
+    ],
+    "word_family": [
+      "bidder"
+    ],
+    "grammar_patterns": [
+      "a bid for something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "auction"
+    ]
+  },
+  {
+    "slug": "bonus",
+    "word": "bonus",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "extra money paid in addition to normal earnings",
+    "examples": [
+      "Staff received a bonus after a successful year."
+    ],
+    "collocations": [
+      "annual bonus"
+    ],
+    "word_family": [
+      "bonuses"
+    ],
+    "grammar_patterns": [
+      "a bonus for something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "income"
+    ]
+  },
+  {
+    "slug": "breach",
+    "word": "breach",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "a failure to follow a law or agreement",
+    "examples": [
+      "Sharing the document was a breach of contract."
+    ],
+    "collocations": [
+      "breach of contract"
+    ],
+    "word_family": [
+      "breaches"
+    ],
+    "grammar_patterns": [
+      "a breach of something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "contract"
+    ]
+  },
+  {
+    "slug": "capability",
+    "word": "capability",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "the ability to perform a particular task",
+    "examples": [
+      "The new system improves our production capability."
+    ],
+    "collocations": [
+      "technical capability"
+    ],
+    "word_family": [
+      "capable"
+    ],
+    "grammar_patterns": [
+      "the capability to do something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "workforce",
+      "expertise"
+    ]
+  },
+  {
+    "slug": "commerce",
+    "word": "commerce",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "the activity of buying and selling goods or services",
+    "examples": [
+      "Online commerce has changed how people shop."
+    ],
+    "collocations": [
+      "international commerce"
+    ],
+    "word_family": [
+      "commercial"
+    ],
+    "grammar_patterns": [
+      "commerce between countries"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "trade"
+    ]
+  },
+  {
+    "slug": "commodity",
+    "word": "commodity",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "a basic product traded in large quantities",
+    "examples": [
+      "Coffee is an important export commodity."
+    ],
+    "collocations": [
+      "agricultural commodity"
+    ],
+    "word_family": [
+      "commodities"
+    ],
+    "grammar_patterns": [
+      "a commodity market"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "trade"
+    ]
+  },
+  {
+    "slug": "compensate",
+    "word": "compensate",
+    "topic_slug": "work",
+    "word_class": "verb",
+    "cefr_level": "C1",
+    "definition": "to provide money or another benefit for a loss",
+    "examples": [
+      "The airline agreed to compensate passengers for the delay."
+    ],
+    "collocations": [
+      "compensate for a loss"
+    ],
+    "word_family": [
+      "compensation"
+    ],
+    "grammar_patterns": [
+      "compensate someone for something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "cost"
+    ]
+  },
+  {
+    "slug": "compensation",
+    "word": "compensation",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "money or another benefit given for a loss or injury",
+    "examples": [
+      "She received compensation for the damaged equipment."
+    ],
+    "collocations": [
+      "claim compensation"
+    ],
+    "word_family": [
+      "compensate"
+    ],
+    "grammar_patterns": [
+      "compensation for something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "compensate"
+    ]
+  },
+  {
+    "slug": "competence",
+    "word": "competence",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "the ability to do a task to an acceptable standard",
+    "examples": [
+      "The assessment checks professional competence."
+    ],
+    "collocations": [
+      "professional competence"
+    ],
+    "word_family": [
+      "competent"
+    ],
+    "grammar_patterns": [
+      "competence in something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "capability"
+    ]
+  },
+  {
+    "slug": "competent",
+    "word": "competent",
+    "topic_slug": "work",
+    "word_class": "adjective",
+    "cefr_level": "C1",
+    "definition": "having enough skill to do something properly",
+    "examples": [
+      "We need a competent person to manage the project."
+    ],
+    "collocations": [
+      "competent manager"
+    ],
+    "word_family": [
+      "competence"
+    ],
+    "grammar_patterns": [
+      "competent to do something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "capability"
+    ]
+  },
+  {
+    "slug": "compliance",
+    "word": "compliance",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "the act of following rules or requirements",
+    "examples": [
+      "The review checks compliance with safety rules."
+    ],
+    "collocations": [
+      "regulatory compliance"
+    ],
+    "word_family": [
+      "comply"
+    ],
+    "grammar_patterns": [
+      "compliance with something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "conditions"
+    ]
+  },
+  {
+    "slug": "comply",
+    "word": "comply",
+    "topic_slug": "work",
+    "word_class": "verb",
+    "cefr_level": "C1",
+    "definition": "to act according to a rule or request",
+    "examples": [
+      "All suppliers must comply with the new rules."
+    ],
+    "collocations": [
+      "comply with regulations"
+    ],
+    "word_family": [
+      "compliance"
+    ],
+    "grammar_patterns": [
+      "comply with something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "obligation"
+    ]
+  },
+  {
+    "slug": "consultant",
+    "word": "consultant",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "a specialist paid to give professional advice",
+    "examples": [
+      "We hired a consultant to review our costs."
+    ],
+    "collocations": [
+      "independent consultant"
+    ],
+    "word_family": [
+      "consult",
+      "consultancy"
+    ],
+    "grammar_patterns": [
+      "a consultant on something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "advice"
+    ]
+  },
+  {
+    "slug": "contractor",
+    "word": "contractor",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "a person or company hired to complete particular work",
+    "examples": [
+      "The contractor will repair the roof next week."
+    ],
+    "collocations": [
+      "building contractor"
+    ],
+    "word_family": [
+      "contract"
+    ],
+    "grammar_patterns": [
+      "a contractor for a project"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "contract"
+    ]
+  },
+  {
+    "slug": "corporation",
+    "word": "corporation",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "a large business that has its own legal identity",
+    "examples": [
+      "The corporation operates in several countries."
+    ],
+    "collocations": [
+      "multinational corporation"
+    ],
+    "word_family": [
+      "corporate"
+    ],
+    "grammar_patterns": [
+      "a corporation with subsidiaries"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "trade"
+    ]
+  },
+  {
+    "slug": "deadline",
+    "word": "deadline",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "the latest time by which something must be completed",
+    "examples": [
+      "We finished the report before the deadline."
+    ],
+    "collocations": [
+      "meet a deadline"
+    ],
+    "word_family": [
+      "deadlines"
+    ],
+    "grammar_patterns": [
+      "a deadline for something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "schedule"
+    ]
+  },
+  {
+    "slug": "deficit",
+    "word": "deficit",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "the amount by which spending exceeds income",
+    "examples": [
+      "The organization must reduce its budget deficit."
+    ],
+    "collocations": [
+      "budget deficit"
+    ],
+    "word_family": [
+      "deficits"
+    ],
+    "grammar_patterns": [
+      "a deficit of an amount"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "expense"
+    ]
+  },
+  {
+    "slug": "deposit",
+    "word": "deposit",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "money paid in advance to reserve or secure something",
+    "examples": [
+      "We paid a deposit before renting the office."
+    ],
+    "collocations": [
+      "refundable deposit"
+    ],
+    "word_family": [
+      "deposits"
+    ],
+    "grammar_patterns": [
+      "a deposit on something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "cost"
+    ]
+  },
+  {
+    "slug": "enterprise",
+    "word": "enterprise",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "a business or an ambitious organized project",
+    "examples": [
+      "The small enterprise now employs thirty people."
+    ],
+    "collocations": [
+      "commercial enterprise"
+    ],
+    "word_family": [
+      "enterprising"
+    ],
+    "grammar_patterns": [
+      "an enterprise that does something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "trade"
+    ]
+  },
+  {
+    "slug": "entrepreneur",
+    "word": "entrepreneur",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "someone who starts and runs a business while accepting its risks",
+    "examples": [
+      "The entrepreneur launched a delivery service."
+    ],
+    "collocations": [
+      "successful entrepreneur"
+    ],
+    "word_family": [
+      "entrepreneurship"
+    ],
+    "grammar_patterns": [
+      "an entrepreneur in an industry"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "enterprise"
+    ]
+  },
+  {
+    "slug": "expenditure",
+    "word": "expenditure",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "money spent on a particular activity or purpose",
+    "examples": [
+      "Travel accounts for much of our annual expenditure."
+    ],
+    "collocations": [
+      "capital expenditure"
+    ],
+    "word_family": [
+      "expend"
+    ],
+    "grammar_patterns": [
+      "expenditure on something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "expense"
+    ]
+  },
+  {
+    "slug": "expertise",
+    "word": "expertise",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "specialist knowledge and practical skill",
+    "examples": [
+      "We need her expertise in contract law."
+    ],
+    "collocations": [
+      "technical expertise"
+    ],
+    "word_family": [
+      "expert"
+    ],
+    "grammar_patterns": [
+      "expertise in something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "knowledge"
+    ]
+  },
+  {
+    "slug": "incentive",
+    "word": "incentive",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "something that encourages a person to act",
+    "examples": [
+      "The company offers an incentive to reduce waste."
+    ],
+    "collocations": [
+      "financial incentive"
+    ],
+    "word_family": [
+      "incentivize"
+    ],
+    "grammar_patterns": [
+      "an incentive to do something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "bonus"
+    ]
+  },
+  {
+    "slug": "incur",
+    "word": "incur",
+    "topic_slug": "work",
+    "word_class": "verb",
+    "cefr_level": "C1",
+    "definition": "to become responsible for a cost or experience a loss",
+    "examples": [
+      "Late payment may incur an additional charge."
+    ],
+    "collocations": [
+      "incur costs"
+    ],
+    "word_family": [
+      "incurred"
+    ],
+    "grammar_patterns": [
+      "incur a charge"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "charge"
+    ]
+  },
+  {
+    "slug": "inflation",
+    "word": "inflation",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "a general rise in prices over time",
+    "examples": [
+      "Inflation reduced the value of their savings."
+    ],
+    "collocations": [
+      "rising inflation"
+    ],
+    "word_family": [
+      "inflationary"
+    ],
+    "grammar_patterns": [
+      "a rate of inflation"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "price"
+    ]
+  },
+  {
+    "slug": "investor",
+    "word": "investor",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "someone who provides money expecting a financial return",
+    "examples": [
+      "The investor supported the new business."
+    ],
+    "collocations": [
+      "private investor"
+    ],
+    "word_family": [
+      "invest",
+      "investment"
+    ],
+    "grammar_patterns": [
+      "an investor in something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "enterprise"
+    ]
+  },
+  {
+    "slug": "machinery",
+    "word": "machinery",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "machines considered together as a group",
+    "examples": [
+      "The factory replaced its old machinery."
+    ],
+    "collocations": [
+      "industrial machinery"
+    ],
+    "word_family": [
+      "machine"
+    ],
+    "grammar_patterns": [
+      "machinery for doing something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "manufacture"
+    ]
+  },
+  {
+    "slug": "maintenance",
+    "word": "maintenance",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "work that keeps equipment or buildings in good condition",
+    "examples": [
+      "The lift is closed for maintenance."
+    ],
+    "collocations": [
+      "routine maintenance"
+    ],
+    "word_family": [
+      "maintain"
+    ],
+    "grammar_patterns": [
+      "maintenance of something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "cost"
+    ]
+  },
+  {
+    "slug": "manufacture",
+    "word": "manufacture",
+    "topic_slug": "work",
+    "word_class": "verb",
+    "cefr_level": "B2",
+    "definition": "to produce goods, usually using machines",
+    "examples": [
+      "The factory will manufacture electric motors."
+    ],
+    "collocations": [
+      "manufacture goods"
+    ],
+    "word_family": [
+      "manufacturer",
+      "manufacturing"
+    ],
+    "grammar_patterns": [
+      "manufacture something from something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "machinery",
+      "commodity"
+    ]
+  },
+  {
+    "slug": "manufacturing",
+    "word": "manufacturing",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "the business or process of producing goods",
+    "examples": [
+      "Manufacturing provides many jobs in the region."
+    ],
+    "collocations": [
+      "manufacturing industry"
+    ],
+    "word_family": [
+      "manufacture"
+    ],
+    "grammar_patterns": [
+      "a manufacturing process"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "manufacture"
+    ]
+  },
+  {
+    "slug": "margin",
+    "word": "margin",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "the difference between the cost of a product and its selling price",
+    "examples": [
+      "Higher material costs reduced our profit margin."
+    ],
+    "collocations": [
+      "profit margin"
+    ],
+    "word_family": [
+      "marginal"
+    ],
+    "grammar_patterns": [
+      "a margin on something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "price"
+    ]
+  },
+  {
+    "slug": "maximize",
+    "word": "maximize",
+    "topic_slug": "work",
+    "word_class": "verb",
+    "cefr_level": "C1",
+    "definition": "to increase something to the greatest practical amount",
+    "examples": [
+      "The team changed the design to maximize space."
+    ],
+    "collocations": [
+      "maximize efficiency"
+    ],
+    "word_family": [
+      "maximization"
+    ],
+    "grammar_patterns": [
+      "maximize something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "value"
+    ]
+  },
+  {
+    "slug": "merchant",
+    "word": "merchant",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "a person or business that trades in goods",
+    "examples": [
+      "The merchant imports tea from several countries."
+    ],
+    "collocations": [
+      "wine merchant"
+    ],
+    "word_family": [
+      "merchandise"
+    ],
+    "grammar_patterns": [
+      "a merchant selling something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "trade"
+    ]
+  },
+  {
+    "slug": "merge",
+    "word": "merge",
+    "topic_slug": "work",
+    "word_class": "verb",
+    "cefr_level": "C1",
+    "definition": "to combine separate organizations or things into one",
+    "examples": [
+      "The two companies plan to merge next year."
+    ],
+    "collocations": [
+      "merge businesses"
+    ],
+    "word_family": [
+      "merger"
+    ],
+    "grammar_patterns": [
+      "merge with something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "corporation"
+    ]
+  },
+  {
+    "slug": "merger",
+    "word": "merger",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "the joining of two or more companies into one",
+    "examples": [
+      "The merger created a larger regional bank."
+    ],
+    "collocations": [
+      "proposed merger"
+    ],
+    "word_family": [
+      "merge"
+    ],
+    "grammar_patterns": [
+      "a merger between companies"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "merge"
+    ]
+  },
+  {
+    "slug": "monopoly",
+    "word": "monopoly",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "control of a market by a single supplier",
+    "examples": [
+      "The company once had a monopoly on local transport."
+    ],
+    "collocations": [
+      "market monopoly"
+    ],
+    "word_family": [
+      "monopolize"
+    ],
+    "grammar_patterns": [
+      "a monopoly on something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "trade"
+    ]
+  },
+  {
+    "slug": "mortgage",
+    "word": "mortgage",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "a loan used to buy property, secured against that property",
+    "examples": [
+      "They took out a mortgage to buy their first office."
+    ],
+    "collocations": [
+      "repay a mortgage"
+    ],
+    "word_family": [
+      "mortgagee"
+    ],
+    "grammar_patterns": [
+      "a mortgage on a property"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "rate"
+    ]
+  },
+  {
+    "slug": "occupation",
+    "word": "occupation",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "a person's regular job or profession",
+    "examples": [
+      "Please state your occupation on the form."
+    ],
+    "collocations": [
+      "current occupation"
+    ],
+    "word_family": [
+      "occupational"
+    ],
+    "grammar_patterns": [
+      "an occupation requiring training"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "recruitment"
+    ]
+  },
+  {
+    "slug": "output",
+    "word": "output",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "the amount produced by a person, machine, or organization",
+    "examples": [
+      "The new equipment increased daily output."
+    ],
+    "collocations": [
+      "industrial output"
+    ],
+    "word_family": [
+      "outputs"
+    ],
+    "grammar_patterns": [
+      "output from a factory"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "manufacturing"
+    ]
+  },
+  {
+    "slug": "oversee",
+    "word": "oversee",
+    "topic_slug": "work",
+    "word_class": "verb",
+    "cefr_level": "C1",
+    "definition": "to supervise work and ensure it is done properly",
+    "examples": [
+      "She will oversee the installation of the equipment."
+    ],
+    "collocations": [
+      "oversee a project"
+    ],
+    "word_family": [
+      "oversight"
+    ],
+    "grammar_patterns": [
+      "oversee something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "supervise",
+      "responsibility"
+    ]
+  },
+  {
+    "slug": "ownership",
+    "word": "ownership",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "the legal right to possess something",
+    "examples": [
+      "The contract transfers ownership of the building."
+    ],
+    "collocations": [
+      "joint ownership"
+    ],
+    "word_family": [
+      "owner",
+      "own"
+    ],
+    "grammar_patterns": [
+      "ownership of something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "contract"
+    ]
+  },
+  {
+    "slug": "partnership",
+    "word": "partnership",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "an arrangement in which people or organizations work together",
+    "examples": [
+      "The schools formed a partnership to share resources."
+    ],
+    "collocations": [
+      "business partnership"
+    ],
+    "word_family": [
+      "partner"
+    ],
+    "grammar_patterns": [
+      "a partnership with someone"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "agreement"
+    ]
+  },
+  {
+    "slug": "patent",
+    "word": "patent",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "an official right to control the making or sale of an invention",
+    "examples": [
+      "The engineer applied for a patent for the device."
+    ],
+    "collocations": [
+      "patent application"
+    ],
+    "word_family": [
+      "patented"
+    ],
+    "grammar_patterns": [
+      "a patent for something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "innovation"
+    ]
+  },
+  {
+    "slug": "personnel",
+    "word": "personnel",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "the people employed by an organization",
+    "examples": [
+      "All personnel must wear identification badges."
+    ],
+    "collocations": [
+      "trained personnel"
+    ],
+    "word_family": [],
+    "grammar_patterns": [
+      "personnel responsible for something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "workforce"
+    ]
+  },
+  {
+    "slug": "portfolio",
+    "word": "portfolio",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "a collection of investments or examples of someone's work",
+    "examples": [
+      "The designer showed us her portfolio."
+    ],
+    "collocations": [
+      "design portfolio"
+    ],
+    "word_family": [
+      "portfolios"
+    ],
+    "grammar_patterns": [
+      "a portfolio of work"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "asset"
+    ]
+  },
+  {
+    "slug": "productive",
+    "word": "productive",
+    "topic_slug": "work",
+    "word_class": "adjective",
+    "cefr_level": "C1",
+    "definition": "producing useful work or results",
+    "examples": [
+      "We had a productive meeting with the supplier."
+    ],
+    "collocations": [
+      "productive discussion"
+    ],
+    "word_family": [
+      "productivity"
+    ],
+    "grammar_patterns": [
+      "productive work"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "output"
+    ]
+  },
+  {
+    "slug": "productivity",
+    "word": "productivity",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "how much is produced compared with the resources used",
+    "examples": [
+      "Better tools can improve worker productivity."
+    ],
+    "collocations": [
+      "increase productivity"
+    ],
+    "word_family": [
+      "productive"
+    ],
+    "grammar_patterns": [
+      "productivity in an industry"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "output"
+    ]
+  },
+  {
+    "slug": "profitable",
+    "word": "profitable",
+    "topic_slug": "work",
+    "word_class": "adjective",
+    "cefr_level": "C1",
+    "definition": "earning more money than it costs to operate",
+    "examples": [
+      "The new service became profitable within a year."
+    ],
+    "collocations": [
+      "profitable business"
+    ],
+    "word_family": [
+      "profit"
+    ],
+    "grammar_patterns": [
+      "profitable for someone"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "margin"
+    ]
+  },
+  {
+    "slug": "promotion",
+    "word": "promotion",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "a move to a job with greater responsibility or higher status",
+    "examples": [
+      "She earned a promotion after leading the project."
+    ],
+    "collocations": [
+      "gain promotion"
+    ],
+    "word_family": [
+      "promote"
+    ],
+    "grammar_patterns": [
+      "promotion to a position"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "occupation"
+    ]
+  },
+  {
+    "slug": "quota",
+    "word": "quota",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "a fixed amount that must be reached or must not be exceeded",
+    "examples": [
+      "The factory has a monthly production quota."
+    ],
+    "collocations": [
+      "sales quota"
+    ],
+    "word_family": [
+      "quotas"
+    ],
+    "grammar_patterns": [
+      "a quota for something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "output"
+    ]
+  },
+  {
+    "slug": "recruit",
+    "word": "recruit",
+    "topic_slug": "work",
+    "word_class": "verb",
+    "cefr_level": "B2",
+    "definition": "to find and employ new people for an organization",
+    "examples": [
+      "We plan to recruit five engineers."
+    ],
+    "collocations": [
+      "recruit staff"
+    ],
+    "word_family": [
+      "recruitment",
+      "recruiter"
+    ],
+    "grammar_patterns": [
+      "recruit someone for a role"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "applicant"
+    ]
+  },
+  {
+    "slug": "recruitment",
+    "word": "recruitment",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "the process of finding and employing people",
+    "examples": [
+      "The company has started its annual recruitment programme."
+    ],
+    "collocations": [
+      "staff recruitment"
+    ],
+    "word_family": [
+      "recruit"
+    ],
+    "grammar_patterns": [
+      "recruitment of staff"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "recruit"
+    ]
+  },
+  {
+    "slug": "resign",
+    "word": "resign",
+    "topic_slug": "work",
+    "word_class": "verb",
+    "cefr_level": "B2",
+    "definition": "to leave a job or position formally",
+    "examples": [
+      "The director decided to resign at the end of the month."
+    ],
+    "collocations": [
+      "resign from office"
+    ],
+    "word_family": [
+      "resignation"
+    ],
+    "grammar_patterns": [
+      "resign from a position"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "occupation"
+    ]
+  },
+  {
+    "slug": "resignation",
+    "word": "resignation",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "a formal decision or notice to leave a position",
+    "examples": [
+      "She submitted her resignation in writing."
+    ],
+    "collocations": [
+      "submit a resignation"
+    ],
+    "word_family": [
+      "resign"
+    ],
+    "grammar_patterns": [
+      "a letter of resignation"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "resign"
+    ]
+  },
+  {
+    "slug": "retail",
+    "word": "retail",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "the sale of goods directly to the people who use them",
+    "examples": [
+      "She has ten years of experience in retail."
+    ],
+    "collocations": [
+      "retail sales"
+    ],
+    "word_family": [
+      "retailer"
+    ],
+    "grammar_patterns": [
+      "work in retail"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "sale"
+    ]
+  },
+  {
+    "slug": "retirement",
+    "word": "retirement",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "the period or act of stopping work, usually because of age",
+    "examples": [
+      "He plans to travel after retirement."
+    ],
+    "collocations": [
+      "early retirement"
+    ],
+    "word_family": [
+      "retire",
+      "retired"
+    ],
+    "grammar_patterns": [
+      "retirement from a job"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "occupation"
+    ]
+  },
+  {
+    "slug": "revenue",
+    "word": "revenue",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "money received by a business or government",
+    "examples": [
+      "Ticket sales provide most of the museum's revenue."
+    ],
+    "collocations": [
+      "annual revenue"
+    ],
+    "word_family": [
+      "revenues"
+    ],
+    "grammar_patterns": [
+      "revenue from something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "income"
+    ]
+  },
+  {
+    "slug": "shareholder",
+    "word": "shareholder",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "a person or organization that owns shares in a company",
+    "examples": [
+      "Each shareholder received the annual report."
+    ],
+    "collocations": [
+      "major shareholder"
+    ],
+    "word_family": [
+      "shareholding"
+    ],
+    "grammar_patterns": [
+      "a shareholder in a company"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "ownership"
+    ]
+  },
+  {
+    "slug": "shortage",
+    "word": "shortage",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "a situation in which there is not enough of something",
+    "examples": [
+      "A shortage of materials delayed production."
+    ],
+    "collocations": [
+      "labour shortage"
+    ],
+    "word_family": [
+      "short"
+    ],
+    "grammar_patterns": [
+      "a shortage of something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "manufacturing"
+    ]
+  },
+  {
+    "slug": "skilled",
+    "word": "skilled",
+    "topic_slug": "work",
+    "word_class": "adjective",
+    "cefr_level": "B2",
+    "definition": "having abilities developed through training or experience",
+    "examples": [
+      "The repair requires a skilled technician."
+    ],
+    "collocations": [
+      "skilled worker"
+    ],
+    "word_family": [
+      "skill"
+    ],
+    "grammar_patterns": [
+      "skilled at doing something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "competent"
+    ]
+  },
+  {
+    "slug": "strategic",
+    "word": "strategic",
+    "topic_slug": "work",
+    "word_class": "adjective",
+    "cefr_level": "C1",
+    "definition": "connected with a long-term plan for achieving an aim",
+    "examples": [
+      "The company made a strategic investment in training."
+    ],
+    "collocations": [
+      "strategic planning"
+    ],
+    "word_family": [
+      "strategy"
+    ],
+    "grammar_patterns": [
+      "strategic importance"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "value"
+    ]
+  },
+  {
+    "slug": "subsidy",
+    "word": "subsidy",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "money given by a government to support an activity",
+    "examples": [
+      "The farm receives a subsidy for protecting wildlife."
+    ],
+    "collocations": [
+      "government subsidy"
+    ],
+    "word_family": [
+      "subsidize"
+    ],
+    "grammar_patterns": [
+      "a subsidy for something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "income"
+    ]
+  },
+  {
+    "slug": "supervise",
+    "word": "supervise",
+    "topic_slug": "work",
+    "word_class": "verb",
+    "cefr_level": "C1",
+    "definition": "to watch and direct work or people",
+    "examples": [
+      "An experienced engineer will supervise the repairs."
+    ],
+    "collocations": [
+      "supervise staff"
+    ],
+    "word_family": [
+      "supervision",
+      "supervisor"
+    ],
+    "grammar_patterns": [
+      "supervise someone doing something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "oversee"
+    ]
+  },
+  {
+    "slug": "supervisor",
+    "word": "supervisor",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "a person responsible for directing other people's work",
+    "examples": [
+      "Ask your supervisor before changing the schedule."
+    ],
+    "collocations": [
+      "shift supervisor"
+    ],
+    "word_family": [
+      "supervise"
+    ],
+    "grammar_patterns": [
+      "a supervisor of a team"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "supervise"
+    ]
+  },
+  {
+    "slug": "surplus",
+    "word": "surplus",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "an amount left after needs or expenses have been met",
+    "examples": [
+      "The organization used its surplus to improve services."
+    ],
+    "collocations": [
+      "budget surplus"
+    ],
+    "word_family": [
+      "surpluses"
+    ],
+    "grammar_patterns": [
+      "a surplus of something"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "deficit"
+    ]
+  },
+  {
+    "slug": "trademark",
+    "word": "trademark",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "a legally protected name or symbol identifying a product",
+    "examples": [
+      "The logo is a registered trademark."
+    ],
+    "collocations": [
+      "registered trademark"
+    ],
+    "word_family": [
+      "trademarks"
+    ],
+    "grammar_patterns": [
+      "a trademark of a company"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "patent"
+    ]
+  },
+  {
+    "slug": "turnover",
+    "word": "turnover",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "the total value of a business's sales during a period",
+    "examples": [
+      "Annual turnover increased despite fewer customers."
+    ],
+    "collocations": [
+      "annual turnover"
+    ],
+    "word_family": [
+      "turnovers"
+    ],
+    "grammar_patterns": [
+      "turnover of an amount"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "revenue"
+    ]
+  },
+  {
+    "slug": "venture",
+    "word": "venture",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "a business activity that involves uncertainty or risk",
+    "examples": [
+      "Their first joint venture supplied food to schools."
+    ],
+    "collocations": [
+      "business venture"
+    ],
+    "word_family": [
+      "ventures"
+    ],
+    "grammar_patterns": [
+      "a venture into a market"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "enterprise"
+    ]
+  },
+  {
+    "slug": "warehouse",
+    "word": "warehouse",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "C1",
+    "definition": "a large building used to store goods",
+    "examples": [
+      "Orders are packed at the central warehouse."
+    ],
+    "collocations": [
+      "storage warehouse"
+    ],
+    "word_family": [
+      "warehousing"
+    ],
+    "grammar_patterns": [
+      "a warehouse for goods"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "commodity"
+    ]
+  },
+  {
+    "slug": "workforce",
+    "word": "workforce",
+    "topic_slug": "work",
+    "word_class": "noun",
+    "cefr_level": "B2",
+    "definition": "all the people working for an organization or country",
+    "examples": [
+      "The company is training its workforce to use new tools."
+    ],
+    "collocations": [
+      "skilled workforce"
+    ],
+    "word_family": [
+      "worker"
+    ],
+    "grammar_patterns": [
+      "a workforce of people"
+    ],
+    "synonyms": [],
+    "antonyms": [],
+    "common_mistakes": [],
+    "pronunciation": null,
+    "translation": null,
+    "register": null,
+    "origin": null,
+    "audio_url": null,
+    "related_slugs": [
+      "personnel"
+    ]
+  }
+]

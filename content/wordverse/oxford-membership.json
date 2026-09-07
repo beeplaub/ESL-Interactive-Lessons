@@ -1,0 +1,962 @@
+{
+  "abolish": {
+    "word_class": "verb",
+    "cefr_level": "C1"
+  },
+  "accountability": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "activist": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "adoption": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "advocate": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "alliance": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "amend": {
+    "word_class": "verb",
+    "cefr_level": "C1"
+  },
+  "amendment": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "ancestor": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "asylum": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "autonomy": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "ballot": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "beneficiary": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "bias": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "bureaucracy": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "charter": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "citizenship": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "civic": {
+    "word_class": "adjective",
+    "cefr_level": "C1"
+  },
+  "civilian": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "civilization": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "coalition": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "collective": {
+    "word_class": "adjective",
+    "cefr_level": "C1"
+  },
+  "colonial": {
+    "word_class": "adjective",
+    "cefr_level": "C1"
+  },
+  "compassion": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "constitution": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "constitutional": {
+    "word_class": "adjective",
+    "cefr_level": "C1"
+  },
+  "controversy": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "corruption": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "democracy": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "democratic": {
+    "word_class": "adjective",
+    "cefr_level": "B2"
+  },
+  "dignity": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "disability": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "discrimination": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "diversity": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "donation": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "donor": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "electoral": {
+    "word_class": "adjective",
+    "cefr_level": "C1"
+  },
+  "empower": {
+    "word_class": "verb",
+    "cefr_level": "C1"
+  },
+  "enact": {
+    "word_class": "verb",
+    "cefr_level": "C1"
+  },
+  "enforce": {
+    "word_class": "verb",
+    "cefr_level": "C1"
+  },
+  "ethnic": {
+    "word_class": "adjective",
+    "cefr_level": "B2"
+  },
+  "globalization": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "governance": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "heritage": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "humanitarian": {
+    "word_class": "adjective",
+    "cefr_level": "C1"
+  },
+  "humanity": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "ideology": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "immigration": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "inclusion": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "independence": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "indigenous": {
+    "word_class": "adjective",
+    "cefr_level": "C1"
+  },
+  "inequality": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "injustice": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "integration": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "integrity": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "judicial": {
+    "word_class": "adjective",
+    "cefr_level": "C1"
+  },
+  "jurisdiction": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "jury": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "legislation": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "liberty": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "morality": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "municipal": {
+    "word_class": "adjective",
+    "cefr_level": "C1"
+  },
+  "norm": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "petition": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "prejudice": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "privilege": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "prosperity": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "referendum": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "reform": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "refugee": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "representation": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "ritual": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "solidarity": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "sovereignty": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "stereotype": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "tolerance": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "transparency": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "treaty": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "unity": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "welfare": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "accommodate": {
+    "word_class": "verb",
+    "cefr_level": "B2"
+  },
+  "adjacent": {
+    "word_class": "adjective",
+    "cefr_level": "C1"
+  },
+  "anchor": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "infrastructure": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "bay": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "booking": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "cabin": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "canal": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "cargo": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "carriage": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "cave": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "cliff": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "coastal": {
+    "word_class": "adjective",
+    "cefr_level": "C1"
+  },
+  "collision": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "convenience": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "corridor": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "crawl": {
+    "word_class": "verb",
+    "cefr_level": "C1"
+  },
+  "cruise": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "deck": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "depart": {
+    "word_class": "verb",
+    "cefr_level": "B2"
+  },
+  "descend": {
+    "word_class": "verb",
+    "cefr_level": "C1"
+  },
+  "descent": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "distant": {
+    "word_class": "adjective",
+    "cefr_level": "B2"
+  },
+  "dive": {
+    "word_class": "verb",
+    "cefr_level": "B2"
+  },
+  "downtown": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "drift": {
+    "word_class": "verb",
+    "cefr_level": "C1"
+  },
+  "duration": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "embark": {
+    "word_class": "verb",
+    "cefr_level": "C1"
+  },
+  "embassy": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "evacuate": {
+    "word_class": "verb",
+    "cefr_level": "C1"
+  },
+  "exit": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "exotic": {
+    "word_class": "adjective",
+    "cefr_level": "B2"
+  },
+  "vessel": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "fleet": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "globe": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "harbour": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "helmet": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "highway": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "horizon": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "jet": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "junction": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "landing": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "landmark": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "lane": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "mainland": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "marine": {
+    "word_class": "adjective",
+    "cefr_level": "C1"
+  },
+  "migration": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "mobility": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "motorist": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "navigation": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "nearby": {
+    "word_class": "adjective",
+    "cefr_level": "B2"
+  },
+  "neighbouring": {
+    "word_class": "adjective",
+    "cefr_level": "C1"
+  },
+  "outing": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "overnight": {
+    "word_class": "adverb",
+    "cefr_level": "B2"
+  },
+  "overseas": {
+    "word_class": "adverb",
+    "cefr_level": "B2"
+  },
+  "pathway": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "peak": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "rail": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "rental": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "residential": {
+    "word_class": "adjective",
+    "cefr_level": "C1"
+  },
+  "retreat": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "reverse": {
+    "word_class": "verb",
+    "cefr_level": "C1"
+  },
+  "shore": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "shipping": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "situated": {
+    "word_class": "adjective",
+    "cefr_level": "C1"
+  },
+  "steer": {
+    "word_class": "verb",
+    "cefr_level": "C1"
+  },
+  "suburb": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "suburban": {
+    "word_class": "adjective",
+    "cefr_level": "C1"
+  },
+  "suite": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "summit": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "terminal": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "terrain": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "territory": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "tide": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "toll": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "trail": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "transit": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "transportation": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "visa": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "wander": {
+    "word_class": "verb",
+    "cefr_level": "B2"
+  },
+  "accountant": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "allocate": {
+    "word_class": "verb",
+    "cefr_level": "C1"
+  },
+  "allocation": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "applicant": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "appoint": {
+    "word_class": "verb",
+    "cefr_level": "C1"
+  },
+  "asset": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "auction": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "audit": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "authorize": {
+    "word_class": "verb",
+    "cefr_level": "C1"
+  },
+  "benchmark": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "bid": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "bonus": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "breach": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "capability": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "commerce": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "commodity": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "compensate": {
+    "word_class": "verb",
+    "cefr_level": "C1"
+  },
+  "compensation": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "competence": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "competent": {
+    "word_class": "adjective",
+    "cefr_level": "C1"
+  },
+  "compliance": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "comply": {
+    "word_class": "verb",
+    "cefr_level": "C1"
+  },
+  "consultant": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "contractor": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "corporation": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "deadline": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "deficit": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "deposit": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "enterprise": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "entrepreneur": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "expenditure": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "expertise": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "incentive": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "incur": {
+    "word_class": "verb",
+    "cefr_level": "C1"
+  },
+  "inflation": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "investor": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "machinery": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "maintenance": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "manufacture": {
+    "word_class": "verb",
+    "cefr_level": "B2"
+  },
+  "manufacturing": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "margin": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "maximize": {
+    "word_class": "verb",
+    "cefr_level": "C1"
+  },
+  "merchant": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "merge": {
+    "word_class": "verb",
+    "cefr_level": "C1"
+  },
+  "merger": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "monopoly": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "mortgage": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "occupation": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "output": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "oversee": {
+    "word_class": "verb",
+    "cefr_level": "C1"
+  },
+  "ownership": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "partnership": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "patent": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "personnel": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "portfolio": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "productive": {
+    "word_class": "adjective",
+    "cefr_level": "C1"
+  },
+  "productivity": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "profitable": {
+    "word_class": "adjective",
+    "cefr_level": "C1"
+  },
+  "promotion": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "quota": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "recruit": {
+    "word_class": "verb",
+    "cefr_level": "B2"
+  },
+  "recruitment": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "resign": {
+    "word_class": "verb",
+    "cefr_level": "B2"
+  },
+  "resignation": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "retail": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "retirement": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "revenue": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "shareholder": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "shortage": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  },
+  "skilled": {
+    "word_class": "adjective",
+    "cefr_level": "B2"
+  },
+  "strategic": {
+    "word_class": "adjective",
+    "cefr_level": "C1"
+  },
+  "subsidy": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "supervise": {
+    "word_class": "verb",
+    "cefr_level": "C1"
+  },
+  "supervisor": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "surplus": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "trademark": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "turnover": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "venture": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "warehouse": {
+    "word_class": "noun",
+    "cefr_level": "C1"
+  },
+  "workforce": {
+    "word_class": "noun",
+    "cefr_level": "B2"
+  }
+}
