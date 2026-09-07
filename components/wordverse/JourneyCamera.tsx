@@ -2,15 +2,15 @@
 import { useEffect, useRef, type MutableRefObject } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
-import { MathUtils, OrthographicCamera, Vector3 } from "three";
+import { MOUSE, TOUCH, MathUtils, OrthographicCamera, Vector3 } from "three";
 import type { OrbitControls as Controls } from "three-stdlib";
 import type { JourneyEntry } from "./navigation";
 import type { Position } from "./graph";
 
 export type CameraBookmark = { position: Vector3; target: Vector3; ratio: number };
 export type CameraBookmarks = MutableRefObject<Map<number, CameraBookmark>>;
-export default function JourneyCamera({ entry, center, bounds, bookmarks, reset, zoomStep, motion, maxRatio = 2.5 }: {
-  maxRatio?: number; entry: JourneyEntry; center: Position; bounds: [number, number]; bookmarks: CameraBookmarks; reset: number; zoomStep: number; motion: boolean;
+export default function JourneyCamera({ entry, center, bounds, bookmarks, reset, zoomStep, motion, panMode, maxRatio = 2.5 }: {
+  panMode: boolean; maxRatio?: number; entry: JourneyEntry; center: Position; bounds: [number, number]; bookmarks: CameraBookmarks; reset: number; zoomStep: number; motion: boolean;
 }) {
   const { camera, size } = useThree();
   const controls = useRef<Controls>(null);
@@ -67,5 +67,5 @@ export default function JourneyCamera({ entry, center, bounds, bookmarks, reset,
       transition.current = null; controller.enabled = true;
     }
   }, -1);
-  return <OrbitControls ref={controls} enableDamping={motion} dampingFactor={.08} minZoom={fit * .65} maxZoom={fit * maxRatio} minPolarAngle={Math.PI / 2 - .22} maxPolarAngle={Math.PI / 2 + .22} minAzimuthAngle={-.28} maxAzimuthAngle={.28} enablePan panSpeed={.65} rotateSpeed={.4} />;
+  return <OrbitControls ref={controls} zoomToCursor screenSpacePanning mouseButtons={{ LEFT: panMode ? MOUSE.PAN : MOUSE.ROTATE, MIDDLE: MOUSE.DOLLY, RIGHT: panMode ? MOUSE.ROTATE : MOUSE.PAN }} touches={{ ONE: panMode ? TOUCH.PAN : TOUCH.ROTATE, TWO: TOUCH.DOLLY_PAN }} enableDamping={motion} dampingFactor={.08} minZoom={fit * .65} maxZoom={fit * maxRatio} minPolarAngle={Math.PI / 2 - .22} maxPolarAngle={Math.PI / 2 + .22} minAzimuthAngle={-.28} maxAzimuthAngle={.28} enablePan panSpeed={.65} rotateSpeed={.4} />;
 }

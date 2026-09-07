@@ -6,7 +6,7 @@ import { Billboard, Html, Line } from "@react-three/drei";
 import { AdditiveBlending, Color, Group, Points, Vector3 } from "three";
 import JourneyCamera, { type CameraBookmark, type CameraBookmarks } from "./JourneyCamera";
 import type { Journey, SceneLocation } from "./navigation";
-import { ArrowLeft, List, Minus, Orbit, Pause, Play, Plus, RotateCcw, X } from "lucide-react";
+import { ArrowLeft, Move, List, Minus, Orbit, Pause, Play, Plus, RotateCcw, X } from "lucide-react";
 import type { WordverseProgress, WordverseRelationship, WordverseWord, WordverseTopic } from "@/lib/wordverse";
 import { buildNeighborhood, buildTopicClusters, knowledgeFor, palette, type Neighbor, type Position, type TopicCluster } from "./graph";
 
@@ -107,19 +107,27 @@ function WordNode({ word, position, color, root = false, motion, state, onClick,
   </group>;
 }
 
-function TopicCloud({ cluster, focused, layout, relationships, onCluster, onSelect }: {
-  cluster: TopicCluster; focused: boolean; layout: ReturnType<typeof topicLayout>; relationships: WordverseRelationship[];
+function TopicCloud({ cluster, motion, focused, layout, relationships, onCluster, onSelect }: {
+  cluster: TopicCluster; motion: boolean; focused: boolean; layout: ReturnType<typeof topicLayout>; relationships: WordverseRelationship[];
   onCluster: (id: string) => void; onSelect: SceneProps["onSelect"];
 }) {
   const cloud = useMemo(() => particles(Math.min(300, 70 + cluster.words.length * 3), 312 + cluster.name.length, 125, false), [cluster.name, cluster.words.length]);
   const nebula = useMemo(() => ({ tint: { value: new Color(cluster.color) }, fade: { value: 1 } }), [cluster.color]);
+  const dust = useRef<Points>(null);
+  const elapsed = useRef(0);
+  useFrame((_, dt) => {
+    if (!motion) return;
+    elapsed.current += Math.min(dt, .05);
+    if (dust.current) dust.current.rotation.z += Math.min(dt, .05) * .025;
+    nebula.fade.value = .85 + Math.sin(elapsed.current * .55) * .15;
+  });
   return <group position={cluster.position}>
     <Billboard><mesh scale={focused ? [layout.bounds[0]/350, layout.bounds[1]/350, 1] : [1.2,.8,1]} position={[0,0,-20]}><planeGeometry args={[350,350]} /><shaderMaterial uniforms={nebula} vertexShader={haloVertex} fragmentShader={nebulaFragment} transparent depthWrite={false} blending={AdditiveBlending} /></mesh></Billboard>
-    {!focused ? <><points scale={[1,.75,.35]}><bufferGeometry><bufferAttribute attach="attributes-position" args={[cloud,3]} /></bufferGeometry><pointsMaterial size={1.5} sizeAttenuation={false} color={cluster.color} transparent opacity={.65} depthWrite={false} /></points><Html center position={[0,-5,140]} zIndexRange={[10,1]}><button onClick={() => onCluster(cluster.id)} aria-label={`Explore ${cluster.name}`} className="w-36 rounded-2xl border border-transparent bg-[#04101d]/30 px-3 py-4 text-center shadow-xl outline-none transition hover:border-cyan-200/40 focus-visible:ring-2 focus-visible:ring-cyan-100"><span className="block text-sm font-medium" style={{color:cluster.color}}>{cluster.name}</span><span className="mt-1 block text-[10px] text-white/45">{cluster.words.length} words</span></button></Html></> : <TopicPlanets cluster={cluster} positions={layout.positions} relationships={relationships} onSelect={onSelect} />}
+    {!focused ? <><points ref={dust} scale={[1,.75,.35]}><bufferGeometry><bufferAttribute attach="attributes-position" args={[cloud,3]} /></bufferGeometry><pointsMaterial size={1.5} sizeAttenuation={false} color={cluster.color} transparent opacity={.65} depthWrite={false} /></points><Html center position={[0,-5,140]} zIndexRange={[10,1]}><button onClick={() => onCluster(cluster.id)} aria-label={`Explore ${cluster.name}`} className="w-36 rounded-2xl border border-transparent bg-[#04101d]/30 px-3 py-4 text-center shadow-xl outline-none transition hover:border-cyan-200/40 focus-visible:ring-2 focus-visible:ring-cyan-100"><span className="block text-sm font-medium" style={{color:cluster.color}}>{cluster.name}</span><span className="mt-1 block text-[10px] text-white/45">{cluster.words.length} words</span></button></Html></> : <TopicPlanets cluster={cluster} positions={layout.positions} relationships={relationships} onSelect={onSelect} />}
   </group>;
 }
 
-function World({ props, neighbors, motion, reset, zoomStep, onKnowledge, clusters, bookmarks }: { props: SceneProps; neighbors: Neighbor[]; motion: boolean; reset: number; zoomStep: number; clusters: TopicCluster[]; bookmarks: CameraBookmarks; onKnowledge: (id: string) => void }) {
+function World({ props, neighbors, motion, panMode, reset, zoomStep, onKnowledge, clusters, bookmarks }: { props: SceneProps; neighbors: Neighbor[]; motion: boolean; panMode: boolean; reset: number; zoomStep: number; clusters: TopicCluster[]; bookmarks: CameraBookmarks; onKnowledge: (id: string) => void }) {
   const root = props.allWords.find(w => w.id === props.selectedId)!;
   const size = useThree(s => s.size);
   const solar = props.view === "solar";
@@ -131,9 +139,9 @@ function World({ props, neighbors, motion, reset, zoomStep, onKnowledge, cluster
   const bounds: [number, number] = cluster ? [layout.bounds[0]*1.1, layout.bounds[1]*1.1] : wide ? [Math.max(850, ...clusters.map(c => Math.abs(c.position[0]) * 2 + 310)), Math.max(730, ...clusters.map(c => Math.abs(c.position[1]) * 2 + 320))] : [size.width < 650 ? 760 : 1020, 870];
   const origin = bookmarks.current.has(entry.id) ? undefined : entry.origin;
   return <>
-    <JourneyCamera maxRatio={cluster ? Math.max(4, Math.sqrt(cluster.words.length)*1.3) : 2.5} entry={entry} center={cluster?.position ?? [0, 0, 0]} bounds={bounds} bookmarks={bookmarks} reset={reset} zoomStep={zoomStep} motion={motion} />
+    <JourneyCamera panMode={panMode} maxRatio={cluster ? Math.max(4, Math.sqrt(cluster.words.length)*1.3) : 2.5} entry={entry} center={cluster?.position ?? [0, 0, 0]} bounds={bounds} bookmarks={bookmarks} reset={reset} zoomStep={zoomStep} motion={motion} />
     {!cluster ? <Ambient motion={motion} /> : null}
-    {wide ? <>{(cluster ? [cluster] : clusters).map(item => <TopicCloud key={item.id} cluster={item} focused={item.id === cluster?.id} layout={layout} relationships={props.relationships} onCluster={id => props.onVisit({ mode: "cluster", topicId: id, wordId: root.id })} onSelect={props.onSelect} />)}</> : <>
+    {wide ? <>{(cluster ? [cluster] : clusters).map(item => <TopicCloud motion={motion} key={item.id} cluster={item} focused={item.id === cluster?.id} layout={layout} relationships={props.relationships} onCluster={id => props.onVisit({ mode: "cluster", topicId: id, wordId: root.id })} onSelect={props.onSelect} />)}</> : <>
     <WordNode key={root.id} arrivalId={entry.id} origin={origin} originScale={entry.originScale} word={root} position={[0, 0, 0]} color="#189dff" root motion={motion} state={props.progressMap.get(root.id)?.state} onClick={props.onLaunch} onLaunch={solar ? undefined : props.onLaunch} />
     {!solar ? neighbors.map(neighbor => <group key={neighbor.word.id}>
       <Connection to={neighbor.position} color={neighbor.color} type={neighbor.type} />
@@ -181,6 +189,7 @@ export default function WordverseScene(props: SceneProps) {
   const [listQuery, setListQuery] = useState("");
   const [lost, setLost] = useState(false);
   const [reset, setReset] = useState(0);
+  const [panMode, setPanMode] = useState(true);
   const [zoomStep, setZoomStep] = useState(0);
   const [active, setActive] = useState<{ wordId: string; id: string } | null>(null);
   const bookmarks = useRef(new Map<number, CameraBookmark>());
@@ -227,11 +236,11 @@ export default function WordverseScene(props: SceneProps) {
       {!matches.length ? <p role="status" className="mt-5 text-sm text-white/50">No words match. Try another search or change your filters.</p> : null}
     </>}
   </div>;
-  return <div ref={sceneHost} tabIndex={-1} aria-label="Wordverse scene" style={{ outline: "none" }} className="relative h-full min-h-[420px] overflow-hidden bg-[#020b14] outline-none" onKeyDown={event => {
+  return <div ref={sceneHost} tabIndex={-1} aria-label="Wordverse scene" style={{ outline: "none" }} className="relative h-full min-h-0 overflow-hidden bg-[#020b14] outline-none" onKeyDown={event => {
     if (event.key === "Escape") { if (detail) { setActive(null); sceneHost.current?.focus(); } else props.onBack(); }
   }}>
-    {!list && !lost ? <SceneBoundary fallback={fallback}><div className="absolute inset-x-0 top-24" style={{bottom:cluster ? 64 : 28}}><Canvas orthographic camera={cameraOptions} dpr={[1, 1.5]} gl={{ antialias: true, alpha: false, powerPreference: "low-power" }} fallback={<p>Choose list view to explore without 3D.</p>} onCreated={({ gl }) => gl.setClearColor("#020b14")}>
-      <GraphicsLifecycle onLost={() => setLost(true)} /><Suspense fallback={null}><World props={props} neighbors={neighbors} clusters={clusters} bookmarks={bookmarks} motion={!paused && !reduced} reset={reset} zoomStep={zoomStep} onKnowledge={id => setActive({ wordId: root.id, id })} /></Suspense>
+    {!list && !lost ? <SceneBoundary fallback={fallback}><div className="absolute inset-x-0 top-11" style={{bottom:cluster ? 64 : 28}}><Canvas orthographic camera={cameraOptions} dpr={[1, 1.5]} gl={{ antialias: true, alpha: false, powerPreference: "low-power" }} fallback={<p>Choose list view to explore without 3D.</p>} onCreated={({ gl }) => gl.setClearColor("#020b14")}>
+      <GraphicsLifecycle onLost={() => setLost(true)} /><Suspense fallback={null}><World panMode={panMode} props={props} neighbors={neighbors} clusters={clusters} bookmarks={bookmarks} motion={!paused && !reduced} reset={reset} zoomStep={zoomStep} onKnowledge={id => setActive({ wordId: root.id, id })} /></Suspense>
     </Canvas></div></SceneBoundary> : fallback}
 
     <nav aria-label="Exploration trail" className="absolute inset-x-0 top-0 z-20 flex h-11 items-center gap-2 overflow-x-auto border-b border-white/5 bg-[#04101b]/95 px-4 text-xs text-white/50">
@@ -243,9 +252,9 @@ export default function WordverseScene(props: SceneProps) {
     </div>
     <div className="absolute right-3 top-[51px] z-20 flex gap-1.5">
       <button type="button" onClick={() => setList(v => !v)} aria-label={list ? "Show 3D view" : "Show list view"} aria-pressed={list} className={controlClass}><List size={15} /></button>
-      {!list && !lost ? <><button type="button" onClick={() => setPaused(v => !v)} aria-label={paused ? "Resume motion" : "Pause motion"} aria-pressed={paused || reduced} disabled={reduced} className={`${controlClass} disabled:opacity-40`}>{paused || reduced ? <Play size={15} /> : <Pause size={15} />}</button><button type="button" onClick={() => setReset(v => v + 1)} aria-label="Re-center universe" className={controlClass}><RotateCcw size={15} /></button><button type="button" onClick={() => setZoomStep(v => v + 1)} aria-label="Zoom in" className={controlClass}><Plus size={15} /></button><button type="button" onClick={() => setZoomStep(v => v - 1)} aria-label="Zoom out" className={controlClass}><Minus size={15} /></button></> : null}
+      {!list && !lost ? <><button type="button" onClick={() => setPanMode(v => !v)} aria-label={panMode ? "Switch to 3D rotation" : "Switch to free pan"} aria-pressed={panMode} className={controlClass}>{panMode ? <Move size={15} /> : <Orbit size={15} />}</button><button type="button" onClick={() => setPaused(v => !v)} aria-label={paused ? "Resume motion" : "Pause motion"} aria-pressed={paused || reduced} disabled={reduced} className={`${controlClass} disabled:opacity-40`}>{paused || reduced ? <Play size={15} /> : <Pause size={15} />}</button><button type="button" onClick={() => setReset(v => v + 1)} aria-label="Re-center universe" className={controlClass}><RotateCcw size={15} /></button><button type="button" onClick={() => setZoomStep(v => v + 1)} aria-label="Zoom in" className={controlClass}><Plus size={15} /></button><button type="button" onClick={() => setZoomStep(v => v - 1)} aria-label="Zoom out" className={controlClass}><Minus size={15} /></button></> : null}
     </div>
-    {!list && !lost ? <div className="absolute inset-x-4 bottom-3 z-20 text-center text-[10px] text-white/40">{cluster ? <button onClick={() => setList(true)} className="rounded-lg border border-white/15 bg-[#07121e]/90 px-4 py-2 text-xs text-cyan-100">Browse all {cluster.words.length} words in {cluster.name}</button> : <span className="pointer-events-none">Drag to look around · <span className="sm:hidden">pinch to zoom</span><span className="hidden sm:inline">scroll to zoom · right-drag to pan</span></span>}</div> : null}
+    {!list && !lost ? <div className="absolute inset-x-4 bottom-3 z-20 text-center text-[10px] text-white/40">{cluster ? <button onClick={() => setList(true)} className="rounded-lg border border-white/15 bg-[#07121e]/90 px-4 py-2 text-xs text-cyan-100">Browse all {cluster.words.length} words in {cluster.name}</button> : <span className="pointer-events-none">{panMode ? "Drag to pan" : "Drag to rotate"} · <span className="sm:hidden">pinch to zoom</span><span className="hidden sm:inline">scroll to zoom at pointer · right-drag for alternate mode</span></span>}</div> : null}
     {(props.view === "universe" && !clusters.length) || (props.view === "cluster" && !cluster) || (props.view === "neighborhood" && !neighbors.length && !list) ? <p role="status" className="absolute bottom-14 left-1/2 w-64 -translate-x-1/2 rounded-xl bg-[#04101b]/90 p-4 text-center text-sm text-white/60">No connections match these filters. Try another cluster or change your filters.</p> : null}
     <p role="status" className="sr-only">{title}{cluster ? `, ${cluster.words.length} words` : ""}</p>
     {detail ? <section role="dialog" aria-label={`${root.word}: ${detail.label}`} className="absolute bottom-12 left-1/2 z-30 max-h-[45%] w-[min(92%,440px)] -translate-x-1/2 overflow-y-auto rounded-2xl border border-cyan-200/25 bg-[#071522]/95 p-5 shadow-2xl backdrop-blur-xl"><div className="flex items-center justify-between"><h2 className="text-sm font-semibold text-cyan-200">{detail.label}</h2><button ref={detailClose} onClick={() => { setActive(null); sceneHost.current?.focus(); }} aria-label="Close knowledge detail" className="rounded p-2 text-white/65 focus-visible:ring-2 focus-visible:ring-cyan-100"><X size={16} /></button></div><p className="mt-2 whitespace-pre-line text-sm leading-6 text-white/80">{detail.detail}</p><div className="mt-3 flex flex-wrap gap-2">{props.allWords.filter(w => detail.terms.some(term => term.toLowerCase() === w.word.toLowerCase()) && w.id !== root.id).map(w => <button key={w.id} onClick={() => { setActive(null); props.onSelect(w.id); }} className="rounded-lg border border-cyan-200/20 px-3 py-2 text-xs text-cyan-100">Explore {w.word} →</button>)}</div></section> : null}

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
   ArrowLeft, Bookmark, Check, ChevronRight, Compass, Gauge, Globe2, Headphones,
-  Info, LocateFixed, Orbit, RotateCcw, Search, Settings2, Sparkles, Star, Volume2, X,
+  Menu, Maximize, Minimize, Info, LocateFixed, Orbit, RotateCcw, Search, Settings2, Sparkles, Star, Volume2, X,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useWordverseJourney } from "./wordverse/useWordverseJourney";
@@ -29,6 +29,16 @@ export function WordverseExperience({ initialWordId, topics, words, relationship
   const view = navigation.current.location.mode;
   const selectedId = navigation.current.location.wordId;
   const isWordView = view === "neighborhood" || view === "solar";
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  useEffect(() => {
+    if (!expanded) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") setExpanded(false); };
+    window.addEventListener("keydown", escape);
+    return () => { document.body.style.overflow = previous; window.removeEventListener("keydown", escape); };
+  }, [expanded]);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<FilterState>("ALL");
   const [topic, setTopic] = useState("ALL");
@@ -192,34 +202,35 @@ export function WordverseExperience({ initialWordId, topics, words, relationship
   if (!selected) return <main className="min-h-screen bg-[#050a16] p-6 text-white"><EmptyUniverse /></main>;
 
   return (
-    <main className="mb-[-4rem] h-dvh overflow-hidden bg-[#030811] text-white sm:mb-0">
-      <div className="relative mx-auto flex h-dvh min-h-0 max-w-[1700px] overflow-hidden border-x border-white/10 bg-[radial-gradient(circle_at_48%_42%,rgba(30,74,137,.24),transparent_34%),radial-gradient(circle_at_20%_82%,rgba(91,62,220,.12),transparent_27%),#030811]">
-        <aside className="relative z-30 hidden w-[118px] shrink-0 flex-col border-r border-white/10 bg-[#07111f]/90 px-3 py-5 backdrop-blur-xl lg:flex">
-          <div className="grid place-items-center border-b border-white/10 pb-5"><div className="grid size-10 place-items-center rounded-xl border border-cyan-300/40 bg-cyan-300/10 text-cyan-200 shadow-[0_0_28px_rgba(94,231,255,.2)]"><Globe2 size={20} /></div></div>
-          <div className="mt-5 grid gap-3">{([[Compass, "Neural Map", true], [Globe2, "Dictionary", false], [Star, "My Words", false], [Gauge, "Progress", false], [RotateCcw, "Review", false]] as Array<[import("lucide-react").LucideIcon, string, boolean]>).map(([Icon, label, active]) => <button key={label} type="button" onClick={() => {
-            if (label === "Neural Map") { setFilter("ALL"); navigation.returnTo(navigation.journey.entries[0].id); }
-            if (label === "Dictionary") setShowSearch(true);
-            if (label === "My Words") { setFilter("MY"); setShowFilters(true); navigation.returnTo(navigation.journey.entries[0].id); }
-            if (label === "Review") startReview();
-            if (label === "Progress") setSaveMessage(`${[...progressMap.values()].filter(p => p.state === "MASTERED").length} mastered · ${[...progressMap.values()].filter(p => isReviewDue(p, now)).length} due for review · ${[...progressMap.values()].filter(p => p.saved).length} saved words`);
-          }} className={`flex flex-col items-center gap-2 rounded-xl px-2 py-3 text-center text-[10px] font-bold transition ${active ? "border border-cyan-300/60 bg-cyan-300/10 text-cyan-100 shadow-[0_0_18px_rgba(94,231,255,.12)]" : "text-white/45 hover:bg-white/[.05] hover:text-white/80"}`}><Icon size={20} /><span>{label}</span></button>)}</div>
-          <div className="mt-auto grid place-items-center border-t border-white/10 pt-5 text-white/40"><Settings2 size={19} /></div>
-        </aside>
+    <div className={`${expanded ? "fixed inset-0 z-[100] h-dvh" : "relative h-[calc(100dvh-170px)] min-[1180px]:h-[calc(100dvh-140px)] rounded-2xl border border-white/10"} overflow-hidden bg-[#030811] text-white`}>
+      <div className="relative mx-auto flex h-full min-h-0 overflow-hidden border-x border-white/10 bg-[radial-gradient(circle_at_48%_42%,rgba(30,74,137,.24),transparent_34%),radial-gradient(circle_at_20%_82%,rgba(91,62,220,.12),transparent_27%),#030811]">
         <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
           <div className="pointer-events-none absolute inset-0 opacity-60 [background-image:radial-gradient(circle_at_15%_20%,rgba(255,255,255,.55)_0_1px,transparent_1px),radial-gradient(circle_at_74%_12%,rgba(94,231,255,.5)_0_1px,transparent_1px),radial-gradient(circle_at_84%_72%,rgba(178,140,255,.45)_0_1px,transparent_1px),radial-gradient(circle_at_32%_83%,rgba(255,255,255,.4)_0_1px,transparent_1px)] [background-size:260px_220px,330px_280px,290px_240px,360px_300px]" />
-          <header className="relative z-10 flex flex-wrap items-center justify-between gap-4 bg-[#071020]/55 px-4 pb-3 pt-7 backdrop-blur-sm sm:px-9"><div><h1 className="text-[28px] font-semibold tracking-[-.035em]">Vocabulary Neural Map</h1><div className="mt-3 flex flex-wrap gap-6 text-sm text-white/65"><span className="flex items-center gap-2.5"><i className="size-2.5 rounded-full bg-[#58d27a] shadow-[0_0_12px_#58d27a]" />Mastered</span><span className="flex items-center gap-2.5"><i className="size-2.5 rounded-full bg-[#ffd12f] shadow-[0_0_12px_#ffd12f]" />Review</span><span className="flex items-center gap-2.5"><i className="size-2.5 rounded-full bg-[#9b6ff5] shadow-[0_0_12px_#9b6ff5]" />Learning</span></div></div><div className="flex items-center justify-end gap-3">{showSearch || query ? <label className="flex h-11 w-[210px] items-center gap-2 rounded-xl border border-white/15 bg-[#091523]/85 px-3 text-sm text-white/70 focus-within:border-cyan-300/60"><Search size={17} /><input autoFocus value={query} onChange={(event) => setQuery(event.target.value)} onBlur={() => !query && setShowSearch(false)} placeholder="Search words…" className="min-w-0 flex-1 bg-transparent text-white outline-none placeholder:text-white/35" aria-label="Search vocabulary" /></label> : <select value={topic} onChange={(event) => setTopic(event.target.value)} aria-label="Vocabulary cluster" className="h-11 rounded-xl border border-white/15 bg-[#091523]/85 px-4 text-sm text-white outline-none"><option value="ALL">All clusters</option>{topics.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>}<button type="button" onClick={() => setShowSearch((open) => !open)} aria-label="Search vocabulary" className="grid size-11 place-items-center rounded-xl border border-white/15 bg-[#091523]/85 text-white/80 transition hover:border-cyan-300/50 hover:text-cyan-200"><Search size={20} /></button><button type="button" onClick={() => setShowFilters((open) => !open)} aria-label="Map filters" aria-expanded={showFilters} className="grid size-11 place-items-center rounded-xl border border-white/15 bg-[#091523]/85 text-white/80 transition hover:border-cyan-300/50 hover:text-cyan-200"><Settings2 size={19} /></button></div></header>
+          <header className="relative z-30 flex shrink-0 flex-wrap items-center gap-2 border-b border-white/10 bg-[#071020]/90 p-3">
+            <button type="button" aria-label="Wordverse menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(v => !v)} className="rounded-lg border border-white/15 p-2"><Menu size={18} /></button>
+            <h1 className="mr-auto text-base font-semibold">Wordverse</h1>
+            <select value={topic} onChange={event => { setTopic(event.target.value); navigation.returnTo(navigation.journey.entries[0].id); }} aria-label="Vocabulary cluster" className="h-9 max-w-36 rounded-lg border border-white/15 bg-[#091523] px-2 text-xs"><option value="ALL">All galaxies</option>{topics.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select>
+            <button type="button" onClick={() => setShowSearch(v => !v)} aria-label="Search vocabulary" aria-expanded={showSearch} className="rounded-lg border border-white/15 p-2"><Search size={18} /></button>
+            <button type="button" onClick={() => setExpanded(v => !v)} aria-label={expanded ? "Exit full screen" : "Full screen"} className="rounded-lg border border-white/15 p-2">{expanded ? <Minimize size={18} /> : <Maximize size={18} />}</button>
+            <div aria-label="Learning stages" className="flex w-full flex-wrap gap-x-4 gap-y-1 text-[10px] text-white/65">{["LEARNING", "FAMILIAR", "MASTERED", "REVIEW_DUE"].map(state => <span key={state} className="flex items-center gap-1.5"><i className="size-2 rounded-full" style={{ background: stateColors[state], boxShadow: `0 0 8px ${stateColors[state]}` }} />{stateLabels[state]}</span>)}</div>
+            {menuOpen ? <div className="absolute left-3 top-12 z-40 grid w-56 gap-1 rounded-xl border border-white/15 bg-[#081322] p-2 shadow-xl">
+              <button className="rounded-lg p-3 text-left text-sm hover:bg-white/10" onClick={() => { setFilter("ALL"); setTopic("ALL"); navigation.returnTo(navigation.journey.entries[0].id); setMenuOpen(false); }}>Explore all galaxies</button>
+              <button className="rounded-lg p-3 text-left text-sm hover:bg-white/10" onClick={() => { setFilter("MY"); navigation.returnTo(navigation.journey.entries[0].id); setMenuOpen(false); }}>My words</button>
+              <button className="rounded-lg p-3 text-left text-sm hover:bg-white/10" onClick={() => { startReview(); setMenuOpen(false); }}>Review due ({words.filter(w => isReviewDue(progressMap.get(w.id), now)).length})</button>
+              <button className="rounded-lg p-3 text-left text-sm hover:bg-white/10" onClick={() => { setShowFilters(v => !v); setMenuOpen(false); }}>Filters</button>
+              <button className="rounded-lg p-3 text-left text-sm hover:bg-white/10" onClick={() => setMenuOpen(false)}>Close menu</button>
+            </div> : null}
+          </header>
+          {showSearch ? <label className="relative z-20 flex items-center gap-2 bg-[#081322] p-3"><Search size={16} /><input autoFocus value={query} onChange={event => setQuery(event.target.value)} placeholder="Search words…" aria-label="Search vocabulary" className="min-w-0 flex-1 bg-transparent text-sm outline-none" /><button aria-label="Close search" onClick={() => { setShowSearch(false); setQuery(""); }}><X size={18} /></button></label> : null}
           {showSearch && query ? <div className="relative z-30 border-b border-white/10 bg-[#081322]/95 px-4 py-3 backdrop-blur-xl sm:px-9"><p className="mb-2 text-[10px] font-black uppercase tracking-[.18em] text-white/40">Search results · {searchResults.length}</p><div className="grid gap-1 sm:grid-cols-2 lg:grid-cols-3">{searchResults.map((word) => <button key={word.id} type="button" onClick={() => openWord(word.id)} className="flex items-center justify-between rounded-xl border border-white/5 px-3 py-2 text-left transition hover:border-cyan-300/40 hover:bg-cyan-300/[.06]"><span><span className="block text-sm font-bold text-white">{word.word}</span><span className="block truncate text-xs text-white/45">{word.definition}</span></span><ChevronRight size={15} className="shrink-0 text-cyan-200/60" /></button>)}</div>{!searchResults.length ? <p className="text-sm text-white/50">No words match those filters.</p> : null}</div> : null}
           {showFilters ? <div className="relative z-20 flex flex-wrap gap-2 border-b border-white/10 bg-[#081322]/95 px-4 py-3 backdrop-blur-xl sm:px-9"><FilterSelect label="Mode" value={filter} options={["ALL", "MY", "RECOMMENDED"]} onChange={(value) => setFilter(value as FilterState)} /><FilterSelect label="Topic" value={topic} options={["ALL", ...topics.map((item) => item.id)]} labels={Object.fromEntries(topics.map((item) => [item.id, item.name]))} onChange={setTopic} /><FilterSelect label="Level" value={level} options={["ALL", "A1", "A2", "B1", "B2", "C1", "C2"]} onChange={setLevel} /></div> : null}
-          <div className="relative z-20 flex flex-wrap items-center justify-between gap-2 px-4 py-2 text-xs text-cyan-100 sm:px-9">
-            <p role="status">{saveMessage}</p>
-            <button type="button" disabled={isPending} onClick={startReview} className="rounded-lg border border-white/15 px-3 py-2">Review due ({words.filter(w => isReviewDue(progressMap.get(w.id), now)).length})</button>
-          </div>
+          {saveMessage ? <p role="status" className="absolute bottom-14 left-3 z-30 max-w-xs rounded-lg bg-[#081322]/95 p-2 text-xs text-cyan-100">{saveMessage}</p> : null}
           <section className="relative z-10 min-h-0 flex-1 overflow-hidden"><WordverseScene topics={topics} journey={navigation.journey} onVisit={visitLocation} onReturn={navigation.returnTo} words={filteredWords} allWords={words} relationships={relationships} selectedId={selected.id} progressMap={sceneProgress} view={view} onSelect={view === "solar" ? openSolarWord : openWord} onLaunch={openSolarSystem} onBack={backToPrevious} /></section>
         </div>
-        {isWordView && sidebarOpen ? <WordPanelContainer message={saveMessage} word={selected} words={words} topic={topicMap.get(selected.topic_id ?? "")} progress={sceneProgress.get(selected.id)} isPending={isPending} onClose={() => setSidebarOpen(false)} onBack={backToPrevious} onAction={progressAction} onPractice={startPractice} onOpenWord={openWord} onPlay={playWord} /> : isWordView ? <button type="button" onClick={() => setSidebarOpen(true)} className="fixed bottom-5 right-5 z-40 inline-flex items-center gap-2 rounded-xl border border-cyan-300/30 bg-[#081322]/95 px-4 py-3 text-xs font-black text-cyan-100 shadow-2xl shadow-cyan-950/40 backdrop-blur-xl"><Info size={15} /> Show word details</button> : null}
+        {isWordView && sidebarOpen ? <WordPanelContainer message={saveMessage} word={selected} words={words} topic={topicMap.get(selected.topic_id ?? "")} progress={sceneProgress.get(selected.id)} isPending={isPending} onClose={() => setSidebarOpen(false)} onBack={backToPrevious} onAction={progressAction} onPractice={startPractice} onOpenWord={openWord} onPlay={playWord} /> : isWordView ? <button type="button" onClick={() => setSidebarOpen(true)} className="absolute bottom-14 right-3 z-40 inline-flex items-center gap-2 rounded-xl border border-cyan-300/30 bg-[#081322]/95 px-4 py-3 text-xs font-black text-cyan-100 shadow-2xl shadow-cyan-950/40 backdrop-blur-xl"><Info size={15} /> Show word details</button> : null}
         {practiceOpen ? <PracticeCard key={selected.id} remaining={reviewQueue.length} word={selected} score={score} onAnswer={submitAnswer} onNext={nextPracticeWord} onClose={() => setPracticeOpen(false)} /> : null}
       </div>
-    </main>
+    </div>
   );
 }
 
@@ -229,7 +240,7 @@ function wordAudio(word: WordverseWord | undefined) {
 }
 
 function WordPanelContainer(props: React.ComponentProps<typeof WordPanelV2>) {
-  return <div className="wordverse-modal fixed inset-0 z-50 flex w-full items-center justify-center bg-black/55 p-4 backdrop-blur-sm lg:relative lg:inset-auto lg:block lg:h-full lg:w-[370px] lg:bg-transparent lg:p-0 lg:backdrop-blur-none xl:w-[420px]"><div className="w-full max-w-[430px] overflow-hidden rounded-3xl lg:h-full lg:max-w-none lg:rounded-none"><WordPanelV2 {...props} /></div></div>;
+  return <div className="wordverse-modal absolute inset-0 z-50 flex w-full items-center justify-center bg-black/55 p-4 backdrop-blur-sm lg:relative lg:inset-auto lg:block lg:h-full lg:w-[370px] lg:bg-transparent lg:p-0 lg:backdrop-blur-none xl:w-[420px]"><div className="w-full max-w-[430px] overflow-hidden rounded-3xl lg:h-full lg:max-w-none lg:rounded-none"><WordPanelV2 {...props} /></div></div>;
 }
 
 function WordPanelV2({ message, word, topic, progress, isPending, words, onClose, onBack, onAction, onPractice, onOpenWord, onPlay }: { message: string; word: WordverseWord; topic?: WordverseTopic; progress?: WordverseProgress; isPending: boolean; words: WordverseWord[]; onClose: () => void; onBack: () => void; onAction: (intent: "toggle_saved" | "familiar" | "review" | "confidence" | "practice_correct" | "practice_incorrect", confidence?: number) => void; onPractice: () => void; onOpenWord: (id: string) => void; onPlay: () => void }) {

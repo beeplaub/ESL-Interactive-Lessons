@@ -1,3 +1,4 @@
+import { LearnerAppShell } from "@/components/LearnerAppShell";
 import type { Metadata } from "next";
 import { requireUser } from "@/lib/auth";
 import { getWordverseData } from "@/lib/wordverse";
@@ -11,5 +12,5 @@ export const metadata: Metadata = {
 export default async function WordversePage() {
   const { user } = await requireUser();
   const data = await getWordverseData(user.id);
-  return <WordverseExperience {...data} />;
+  return <LearnerAppShell active="wordverse" showRightSidebar={false}><WordverseExperience {...data} /></LearnerAppShell>;
 }
