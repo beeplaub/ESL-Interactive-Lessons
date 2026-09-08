@@ -18,6 +18,7 @@ async function sessionAccess(id: string) {
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params; const { user, session } = await sessionAccess(id);
   if (!user || !session) return NextResponse.json({ error: "Session access required" }, { status: 403 });
+  if (session.status !== "LIVE") return NextResponse.json({ error: "This class is not live." }, { status: 409 });
   const body = await request.json().catch(() => ({})); const activityId = String(body.activityId || "");
   if (!activityId) return NextResponse.json({ error: "Activity is required" }, { status: 400 });
   const admin = createAdminClient(); const { error } = await admin.from("live_activity_responses").insert({ session_id: id, user_id: user.id, activity_id: activityId, score: Number(body.score) || 0, total: Number(body.total) || 0, answers: body.answers ?? null });

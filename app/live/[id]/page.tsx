@@ -4,6 +4,10 @@ import { requireUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getLiveLessonPlayerData } from "@/lib/liveLesson";
 import { BuilderLessonPlayer } from "@/components/BuilderLessonPlayer";
+import { LiveRoomLayout } from "@/components/LiveRoomLayout";
+import { LiveSessionWatcher } from "@/components/LiveSessionWatcher";
+import { liveCallingEnabled } from "@/lib/liveCalling";
+import { liveMeetingUrl } from "@/lib/liveMeetingUrl";
 import { LiveClassTools } from "@/components/LiveClassTools";
 
 export default async function LearnerLiveSessionPage({ params }: { params: Promise<{ id: string }> }) {
@@ -44,9 +48,9 @@ export default async function LearnerLiveSessionPage({ params }: { params: Promi
         <div className="mx-auto max-w-[1440px]">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[var(--br-surface-strong)] bg-surface px-3 py-2 shadow-sm">
             <div className="min-w-0"><p className="truncate text-xs font-bold uppercase tracking-wide text-[var(--br-chart-primary)]">{klass?.name || "Live class"}</p><p className="truncate text-sm font-extrabold">{session.title}</p></div>
-            <span className="inline-flex items-center gap-1 rounded-full bg-[color-mix(in_srgb,var(--br-success)_12%,var(--br-surface))] px-2.5 py-1 text-[11px] font-extrabold text-[var(--br-chart-secondary)]"><Radio size={12} /> LIVE</span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-[color-mix(in_srgb,var(--br-success)_12%,var(--br-surface))] px-2.5 py-1 text-[11px] font-extrabold text-[var(--br-chart-secondary)]"><Radio size={12} /> {session.status === "LIVE" ? "LIVE" : "CLASS REVIEW"}</span>
           </div>
-          <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_280px]"><BuilderLessonPlayer
+          <LiveRoomLayout sessionId={id} status={session.status} meetingUrl={session.external_meeting_url} callingEnabled={liveCallingEnabled(session.class_id)} lesson={<BuilderLessonPlayer
             lesson={player.lesson}
             slides={player.slides}
             blocks={player.blocks}
@@ -57,11 +61,12 @@ export default async function LearnerLiveSessionPage({ params }: { params: Promi
             narrationMap={player.narrationMap}
             backHref="/account"
             liveSession={session.status === "LIVE" ? { sessionId: id, role: session.teacher_id === user.id ? "TEACHER" : "STUDENT", initialSlideNumber: session.current_slide_number ?? 1, navigationLocked: Boolean(session.navigation_locked) } : null}
-          /><div className="order-first xl:order-none"><LiveClassTools sessionId={id} teacher={session.teacher_id === user.id} /></div></div>
+          />} tools={<LiveClassTools sessionId={id} teacher={session.teacher_id === user.id} live={session.status === "LIVE"} />} />
         </div>
       </main>
     );
   }
 
-  return <main className="grid min-h-screen place-items-center bg-[var(--br-canvas-elevated)] px-4 text-[var(--br-dark-card)]"><section className="w-full max-w-xl rounded-[26px] border border-[var(--br-border)] bg-surface p-7 shadow-[var(--br-shadow)] sm:p-9"><div className="grid size-12 place-items-center rounded-2xl bg-violetglow/10 text-violetglow">{session.status === "LIVE" ? <Radio size={24} /> : <CalendarClock size={24} />}</div><p className="mt-5 text-xs font-bold uppercase tracking-[.16em] text-violetglow">{klass?.name || "Live class"}</p><h1 className="mt-2 text-3xl font-extrabold">{session.title}</h1><p className="mt-3 text-sm leading-7 text-slate-600">{session.description || "Your teacher will guide this live BrenUp session."}</p><div className="mt-6 rounded-xl bg-surface-muted p-4 text-sm"><p><strong>Status:</strong> {session.status}</p><p className="mt-1"><strong>Duration:</strong> {session.duration_minutes} minutes</p>{session.scheduled_at ? <p className="mt-1"><strong>Scheduled:</strong> {new Date(session.scheduled_at).toLocaleString()}</p> : null}</div>{session.status === "LIVE" && session.external_meeting_url ? <a href={session.external_meeting_url} target="_blank" rel="noreferrer" className="mt-6 inline-flex rounded-xl bg-violetglow px-4 py-3 text-sm font-bold text-on-dark">Join meeting</a> : <p className="mt-6 flex items-start gap-2 text-sm text-slate-600"><LockKeyhole className="mt-0.5 shrink-0 text-violetglow" size={16} />{session.status === "LIVE" ? "Your teacher is live. This class needs a published lesson before it can begin." : "This is the private session lobby. Your teacher will start the class when it is ready."}</p>}</section></main>;
+  const meeting = liveMeetingUrl(session.external_meeting_url);
+  return <main className="grid min-h-screen place-items-center bg-[var(--br-canvas-elevated)] px-4 text-[var(--br-dark-card)]"><LiveSessionWatcher sessionId={id} status={session.status} /><section className="w-full max-w-xl rounded-[26px] border border-[var(--br-border)] bg-surface p-7 shadow-[var(--br-shadow)] sm:p-9"><div className="grid size-12 place-items-center rounded-2xl bg-violetglow/10 text-violetglow">{session.status === "LIVE" ? <Radio size={24} /> : <CalendarClock size={24} />}</div><p className="mt-5 text-xs font-bold uppercase tracking-[.16em] text-violetglow">{klass?.name || "Live class"}</p><h1 className="mt-2 text-3xl font-extrabold">{session.title}</h1><p className="mt-3 text-sm leading-7 text-slate-600">{session.description || "Your teacher will guide this live BrenUp session."}</p><div className="mt-6 rounded-xl bg-surface-muted p-4 text-sm"><p><strong>Status:</strong> {session.status}</p><p className="mt-1"><strong>Duration:</strong> {session.duration_minutes} minutes</p>{session.scheduled_at ? <p className="mt-1"><strong>Scheduled:</strong> {new Date(session.scheduled_at).toLocaleString()}</p> : null}</div>{session.status === "LIVE" && meeting ? <a href={meeting.href} target="_blank" rel="noreferrer" className="mt-6 inline-flex rounded-xl bg-violetglow px-4 py-3 text-sm font-bold text-on-dark">Join meeting</a> : <p className="mt-6 flex items-start gap-2 text-sm text-slate-600"><LockKeyhole className="mt-0.5 shrink-0 text-violetglow" size={16} />{session.status === "LIVE" ? "Your teacher is live. This class needs a published lesson before it can begin." : "This is the private session lobby. Your teacher will start the class when it is ready."}</p>}</section></main>;
 }

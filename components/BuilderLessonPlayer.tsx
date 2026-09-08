@@ -4,10 +4,9 @@ import Link from "next/link";
 import type { TouchEvent } from "react";
 import { ArrowLeft, ArrowRight, Award, BookOpen, BookOpenText, CheckCircle2, ChevronLeft, Languages, List, Lock, Music2, NotebookPen, Pause, Play, PenLine, RotateCcw, Sparkles, X } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
-import type { RealtimeChannel } from "@supabase/supabase-js";
 import { LessonActivityPanel, lessonActivityTotalPoints } from "@/components/LessonActivityPanel";
 import { LessonBlockPreview } from "@/components/LessonBlockPreview";
-import { createClient } from "@/lib/supabase/client";
+import { liveJson, notifyLiveRoom, useLiveRefresh } from "@/lib/liveSync";
 import { LiveTeacherToolbar } from "@/components/LiveTeacherToolbar";
 import type { Json } from "@/types/database.types";
 import { playNarrationTranslation } from "@/components/GeminiLiveTranslation";
@@ -327,7 +326,7 @@ export function BuilderLessonPlayer({
   const [liveTimerEndsAt, setLiveTimerEndsAt] = useState<string | null>(null);
   const [liveNavigationLocked, setLiveNavigationLocked] = useState(Boolean(liveSession?.navigationLocked));
   const [, setLiveClock] = useState(0);
-  const liveChannelRef = useRef<RealtimeChannel | null>(null);
+  const lastTeacherSlide = useRef<number | null>(liveSession?.initialSlideNumber ?? null);
   const lessonViewportRef = useRef<HTMLElement | null>(null);
   const isLiveStudent = liveSession?.role === "STUDENT";
   const isLiveTeacher = liveSession?.role === "TEACHER";
@@ -348,58 +347,35 @@ export function BuilderLessonPlayer({
     return () => { observer.disconnect(); window.removeEventListener("resize", update); };
   }, []);
 
-  useEffect(() => {
+  useLiveRefresh(liveSession?.sessionId, "controls", async (signal) => {
     if (!liveSession) return;
-    const supabase = createClient();
-    const channel = supabase.channel(`brenup-live:${liveSession.sessionId}`)
-      .on("broadcast", { event: "slide" }, ({ payload }) => {
-        const slideNumber = Number(payload?.slideNumber);
-        if (Number.isFinite(slideNumber)) setIndex(Math.max(0, Math.min(slides.length - 1, slideNumber - 1)));
-      })
-      .subscribe();
-    liveChannelRef.current = channel;
-    const refreshState = async () => {
-      if (!isLiveStudent) return;
-      const response = await fetch(`/api/live/${liveSession.sessionId}/state`, { cache: "no-store" });
-      if (!response.ok) return;
-      const state = await response.json() as { currentSlideNumber?: number };
-      if (state.currentSlideNumber) setIndex(Math.max(0, Math.min(slides.length - 1, state.currentSlideNumber - 1)));
-    };
-    void refreshState();
-    const interval = window.setInterval(refreshState, 2500);
-    return () => { window.clearInterval(interval); liveChannelRef.current = null; void supabase.removeChannel(channel); };
-  }, [isLiveStudent, liveSession, slides.length]);
+    const data = await liveJson<{ current_slide_number?: number; timer_ends_at?: string | null; navigation_locked?: boolean; activities?: Array<{ activity_id: string; state: string; closes_at?: string | null }> }>(`/api/live/${liveSession.sessionId}/controls`, signal);
+    if (signal.aborted) return;
+    setLiveTimerEndsAt(data.timer_ends_at ?? null);
+    setLiveNavigationLocked(Boolean(data.navigation_locked));
+    setLiveActivityStates(Object.fromEntries((data.activities ?? []).filter((item) => item.activity_id).map((item) => [item.activity_id, { state: item.state, closesAt: item.closes_at ?? null }])));
+    // Free navigation stays free between teacher moves. Only a new teacher
+    // slide or an explicit navigation lock brings learners back into sync.
+    if (isLiveStudent && data.current_slide_number && (data.navigation_locked || lastTeacherSlide.current !== data.current_slide_number)) {
+      setIndex(Math.max(0, Math.min(slides.length - 1, data.current_slide_number - 1)));
+    }
+    lastTeacherSlide.current = data.current_slide_number ?? null;
+  });
 
   useEffect(() => {
     if (!liveSession) return;
-    let active = true;
-    const refreshControls = async () => {
-      const response = await fetch(`/api/live/${liveSession.sessionId}/controls`, { cache: "no-store" });
-      if (!response.ok || !active) return;
-      const data = await response.json() as { timer_ends_at?: string | null; navigation_locked?: boolean; activities?: Array<{ activity_id: string; state: string; closes_at?: string | null }> };
-      if (!active) return;
-      setLiveTimerEndsAt(data.timer_ends_at ?? null);
-      setLiveNavigationLocked(Boolean(data.navigation_locked));
-      setLiveActivityStates(Object.fromEntries((data.activities ?? []).filter((item) => item.activity_id).map((item) => [item.activity_id, { state: item.state, closesAt: item.closes_at ?? null }])));
-    };
-    void refreshControls();
-    const interval = window.setInterval(refreshControls, 2500);
-    return () => { active = false; window.clearInterval(interval); };
-  }, [liveSession]);
-
-  useEffect(() => {
-    if (!liveSession) return;
-    const heartbeat = () => { void fetch(`/api/live/${liveSession.sessionId}/presence`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ currentSlideNumber: index + 1 }) }); };
+    const heartbeat = () => { void fetch(`/api/live/${liveSession.sessionId}/presence`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ currentSlideNumber: index + 1 }) }).catch(() => {}); };
     heartbeat(); const interval = window.setInterval(heartbeat, 15_000);
     return () => window.clearInterval(interval);
   }, [index, liveSession]);
 
   useEffect(() => {
+    if (!liveSession) return;
     const hasActivityTimer = Object.values(liveActivityStates).some((activity) => Boolean(activity.closesAt));
     if (!liveTimerEndsAt && !hasActivityTimer) return;
     const interval = window.setInterval(() => setLiveClock((current) => current + 1), 1000);
     return () => window.clearInterval(interval);
-  }, [liveActivityStates, liveTimerEndsAt]);
+  }, [liveSession, liveActivityStates, liveTimerEndsAt]);
 
   const blocksBySlide = useMemo(() => {
     const map = new Map<string, Block[]>();
@@ -435,7 +411,7 @@ export function BuilderLessonPlayer({
 
   const progressPercent = slides.length ? Math.round(((index + 1) / slides.length) * 100) : 0;
   const timerUrgent = remainingSeconds !== null && remainingSeconds <= 60;
-  const liveTimerSeconds = liveTimerEndsAt ? Math.max(0, Math.ceil((new Date(liveTimerEndsAt).getTime() - Date.now()) / 1000)) : null;
+  const liveTimerSeconds = liveSession && liveTimerEndsAt ? Math.max(0, Math.ceil((new Date(liveTimerEndsAt).getTime() - Date.now()) / 1000)) : null;
   const activityState = (activityId: string) => liveActivityStates[activityId] ?? { state: "CLOSED", closesAt: null };
   const liveActivitySeconds = (activityId: string) => {
     const closesAt = activityState(activityId).closesAt;
@@ -576,8 +552,9 @@ export function BuilderLessonPlayer({
     setMessage(null);
     scheduleProgressSave(normalized);
     if (isLiveTeacher && liveSession) {
-      void fetch(`/api/live/${liveSession.sessionId}/state`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ currentSlideNumber: normalized + 1 }) });
-      void liveChannelRef.current?.send({ type: "broadcast", event: "slide", payload: { slideNumber: normalized + 1 } });
+      void fetch(`/api/live/${liveSession.sessionId}/state`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ currentSlideNumber: normalized + 1 }) })
+        .then((response) => { if (!response.ok) throw new Error(); notifyLiveRoom(liveSession.sessionId, "controls"); })
+        .catch(() => setMessage("Could not sync this slide. Check your connection and try again."));
     }
   }
 
@@ -894,7 +871,7 @@ export function BuilderLessonPlayer({
                           void fetch(`/api/live/${liveSession.sessionId}/evidence`, {
                             method: "POST", headers: { "content-type": "application/json" },
                             body: JSON.stringify({ activityId: activePracticeActivity.id, score: attempt.score, total: attempt.total, answers: attempt.answers }),
-                          });
+                          }).then((response) => { if (response.ok) notifyLiveRoom(liveSession.sessionId, "progress"); }).catch(() => {});
                         }
                       }}
                       />

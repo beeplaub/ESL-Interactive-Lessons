@@ -9,7 +9,7 @@ async function access(sessionId: string) {
   if (!user) return { user: null, session: null, teacher: false };
   const admin = createAdminClient();
   const [{ data: session }, profile] = await Promise.all([
-    admin.from("live_sessions").select("id,class_id,teacher_id").eq("id", sessionId).maybeSingle(),
+    admin.from("live_sessions").select("id,class_id,teacher_id,status").eq("id", sessionId).maybeSingle(),
     getFreshProfile(user.id),
   ]);
   if (!session) return { user, session: null, teacher: false };
@@ -28,13 +28,13 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   if (!user || !session) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const admin = createAdminClient();
   const [{ data: messages }, { data: groups }] = await Promise.all([
-    admin.from("live_voice_messages").select("id,sender_id,recipient_id,group_id,channel,storage_path,mime_type,duration_seconds,transcript,created_at").eq("session_id", id).is("deleted_at", null).order("created_at", { ascending: true }).limit(60),
+    admin.from("live_voice_messages").select("id,sender_id,recipient_id,group_id,channel,storage_path,mime_type,duration_seconds,transcript,created_at").eq("session_id", id).is("deleted_at", null).order("created_at", { ascending: false }).limit(60),
     admin.from("live_groups").select("id,name,status").eq("session_id", id).order("created_at"),
   ]);
   const groupIds = (groups ?? []).map((group) => group.id);
   const { data: groupMembers } = groupIds.length ? await admin.from("live_group_members").select("group_id,user_id").in("group_id", groupIds) : { data: [] };
   const ownGroupId = (groupMembers ?? []).find((member) => member.user_id === user.id)?.group_id ?? null;
-  const visible = (messages ?? []).filter((message) => teacher || message.channel === "EVERYONE" || message.sender_id === user.id || message.recipient_id === user.id || (message.channel === "GROUP" && message.group_id === ownGroupId));
+  const visible = [...(messages ?? [])].reverse().filter((message) => teacher || message.channel === "EVERYONE" || message.sender_id === user.id || message.recipient_id === user.id || (message.channel === "GROUP" && message.group_id === ownGroupId));
   const ids = [...new Set(visible.map((message) => message.sender_id))];
   const { data: profiles } = ids.length ? await admin.from("profiles").select("id,full_name,first_name,last_name").in("id", ids) : { data: [] };
   const names = new Map((profiles ?? []).map((profile) => [profile.id, displayName(profile)]));
@@ -49,10 +49,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const { id } = await params;
   const { user, session, teacher } = await access(id);
   if (!user || !session) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (session.status !== "LIVE") return NextResponse.json({ error: "This class is not live." }, { status: 409 });
   const formData = await request.formData();
   const file = formData.get("file");
   if (!(file instanceof File) || !file.size || !file.type.startsWith("audio/")) return NextResponse.json({ error: "Record or choose an audio file first." }, { status: 400 });
-  if (file.size > 10 * 1024 * 1024) return NextResponse.json({ error: "Voice notes must be 10 MB or smaller." }, { status: 400 });
+  if (file.size > 1024 * 1024) return NextResponse.json({ error: "Voice notes must be 1 MB or smaller." }, { status: 400 });
+  const durationValue = Number(formData.get("durationSeconds"));
+  if (!Number.isFinite(durationValue) || durationValue < 0 || durationValue > 120) return NextResponse.json({ error: "Voice notes must be two minutes or shorter." }, { status: 400 });
   const requestedChannel = String(formData.get("channel") || "EVERYONE");
   const channel = requestedChannel === "TEACHER" || requestedChannel === "GROUP" ? requestedChannel : "EVERYONE";
   const admin = createAdminClient();

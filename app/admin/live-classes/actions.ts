@@ -1,5 +1,6 @@
 "use server";
 
+import { liveMeetingUrl } from "@/lib/liveMeetingUrl";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireClassAccess } from "@/lib/classAccess";
@@ -31,9 +32,11 @@ export async function createLiveSession(formData: FormData) {
     lessonId = firstItem?.lesson_id ?? null;
   }
   if (!lessonId) throw new Error("Choose a lesson, or a course with at least one lesson.");
+  const meetingValue = String(formData.get("externalMeetingUrl") || "").trim();
+  if (meetingValue && !liveMeetingUrl(meetingValue)) throw new Error("Use a full HTTPS meeting or WhatsApp call link.");
   const scheduledValue = String(formData.get("scheduledAt") || "").trim();
   const duration = Math.max(5, Math.min(480, Number(formData.get("durationMinutes") || 60)));
-  const { data: session, error } = await admin.from("live_sessions").insert({ class_id: classId, course_id: courseId, lesson_id: lessonId, title, description: String(formData.get("description") || "").trim() || null, teacher_id: user.id, scheduled_at: scheduledValue ? new Date(scheduledValue).toISOString() : null, duration_minutes: duration, external_meeting_url: String(formData.get("externalMeetingUrl") || "").trim() || null, session_code: crypto.randomUUID().replaceAll("-", "").slice(0, 8).toUpperCase(), status: scheduledValue ? "SCHEDULED" : "DRAFT", created_by: user.id }).select("id").single();
+  const { data: session, error } = await admin.from("live_sessions").insert({ class_id: classId, course_id: courseId, lesson_id: lessonId, title, description: String(formData.get("description") || "").trim() || null, teacher_id: user.id, scheduled_at: scheduledValue ? new Date(scheduledValue).toISOString() : null, duration_minutes: duration, external_meeting_url: meetingValue || null, session_code: crypto.randomUUID().replaceAll("-", "").slice(0, 8).toUpperCase(), status: scheduledValue ? "SCHEDULED" : "DRAFT", created_by: user.id }).select("id").single();
   if (error || !session) throw new Error(error?.message || "Could not create live class.");
   const { data: learners } = await admin.from("class_members").select("user_id").eq("class_id", classId).eq("role", "STUDENT");
   await admin.from("live_session_members").upsert([{ session_id: session.id, user_id: user.id, role: "TEACHER", status: "JOINED", joined_at: new Date().toISOString() }, ...(learners ?? []).map((learner) => ({ session_id: session.id, user_id: learner.user_id, role: "STUDENT", status: "INVITED" }))], { onConflict: "session_id,user_id" });

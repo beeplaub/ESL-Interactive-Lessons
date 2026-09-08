@@ -27,7 +27,9 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params; const { user, session, profile } = await sessionForUser(id);
   if (!user || !session || (session.teacher_id !== user.id && !isPlatformAdmin(profile?.role))) return NextResponse.json({ error: "Teacher access required" }, { status: 403 });
-  const body = await request.json().catch(() => ({})); const slide = Math.max(1, Math.floor(Number(body.currentSlideNumber) || 1));
+  if (session.status !== "LIVE") return NextResponse.json({ error: "This class is not live." }, { status: 409 });
+  const body = await request.json().catch(() => null);
+  if (!body || typeof body !== "object" || Array.isArray(body)) return NextResponse.json({ error: "Invalid request." }, { status: 400 }); const slide = Math.max(1, Math.floor(Number(body.currentSlideNumber) || 1));
   const admin = createAdminClient(); const { error } = await admin.from("live_sessions").update({ current_slide_number: slide, updated_at: new Date().toISOString() }).eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
   return NextResponse.json({ currentSlideNumber: slide });
