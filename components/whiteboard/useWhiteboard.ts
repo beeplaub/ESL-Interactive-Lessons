@@ -12,13 +12,17 @@ function requestSignal(timeoutMs: number) {
   return { signal: controller.signal, clear: () => window.clearTimeout(timer) };
 }
 
-export function useWhiteboard(sessionId: string) {
+export function useWhiteboard(sessionId: string, pageId?: string | null) {
+  const scope = `${sessionId}:${pageId ?? "legacy"}`;
+  const currentScope = useRef(scope);
+  currentScope.current = scope;
   const [data, setData] = useState<BoardData | null>(null);
   const state = useRef<BoardData | null>(null);
   const [error, setError] = useState("");
   const [connected, setConnected] = useState(false);
   const [busy, setBusy] = useState(false);
   const saving = useRef(false);
+  const reading = useRef<string | null>(null);
   const failed = useRef<{ mutation: Omit<BoardMutation, "operation">; operation: string; before: BoardData; remember: boolean; afterSave?: () => void } | null>(null);
   const [hasPending, setHasPending] = useState(false);
   const mutationError = useRef(false);
@@ -29,25 +33,26 @@ export function useWhiteboard(sessionId: string) {
   const undoStack = useRef<BoardMutation["changes"][]>([]);
   const [undoCount, setUndoCount] = useState(0);
   const apply = useCallback((next: BoardData) => {
-    if (!mounted.current || (state.current && next.revision < state.current.revision)) return;
+    if (currentScope.current !== scope || !mounted.current || (state.current && next.revision < state.current.revision)) return;
     state.current = next; setData(next);
-  }, []);
+  }, [scope]);
   const refresh = useCallback(async () => {
-    if (saving.current) return;
+    if (saving.current || reading.current === scope) return;
+    reading.current = scope;
     const request = requestSignal(12000);
     try {
-      const response = await fetch(`/api/live/${sessionId}/board?revision=${state.current?.revision ?? -1}`, { cache: "no-store", signal: request.signal });
+      const response = await fetch(`/api/live/${sessionId}/board?revision=${state.current?.revision ?? -1}${pageId ? `&pageId=${pageId}` : ""}`, { cache: "no-store", signal: request.signal });
       const next = await response.json();
       if (!response.ok) throw new Error(next.error || "Could not load the board.");
-      if (saving.current) return;
+      if (saving.current || currentScope.current !== scope) return;
       if (next.unchanged) { if (state.current) apply({ ...state.current, live: next.live }); }
       else apply(next);
       if (mounted.current && !failed.current && !mutationError.current) setError("");
-    } catch (cause) { if (mounted.current) setError(cause instanceof Error ? cause.message : "Connection lost. Retry to reconnect."); }
-    finally { request.clear(); }
-  }, [apply, sessionId]);
+    } catch (cause) { if (mounted.current && currentScope.current === scope) setError(cause instanceof Error ? cause.message : "Connection lost. Retry to reconnect."); }
+    finally { request.clear(); if (reading.current === scope) reading.current = null; }
+  }, [apply, sessionId, pageId, scope]);
   useEffect(() => {
-    mounted.current = true; state.current = null; setData(null); undoStack.current = []; setUndoCount(0);
+    mounted.current = true; state.current = null; mutationError.current = false; setError(""); failed.current = null; saving.current = false; setBusy(false); setHasPending(false); setCursors({}); setData(null); undoStack.current = []; setUndoCount(0);
     void refresh();
     // Realtime broadcast is the fast path. This short, revision-aware poll is
     // only a recovery path for missed websocket events and reconnects.
@@ -74,6 +79,7 @@ export function useWhiteboard(sessionId: string) {
     channel.current = realtimeRoom;
     realtimeRoom.on("broadcast", { event: "changed" }, () => { clearTimeout(timer); timer = setTimeout(() => void refresh(), 150); });
     realtimeRoom.on("broadcast", { event: "cursor" }, ({ payload }) => {
+      if (payload?.pageId !== (pageId ?? null)) return;
       if (!payload || typeof payload.id !== "string" || payload.id.length > 80 || payload.id === userId || typeof payload.name !== "string" || !Number.isFinite(payload.x) || !Number.isFinite(payload.y)) return;
       if (payload.x < 0 || payload.x > 1100 || payload.y < 0 || payload.y > 850) return;
       setCursors((old) => ({ ...old, [payload.id]: { id: payload.id, name: payload.name.slice(0, 40), x: payload.x, y: payload.y, laser: payload.laser === true, at: Date.now() } }));
@@ -94,12 +100,12 @@ export function useWhiteboard(sessionId: string) {
     }); } catch { setConnected(false); }
     const prune = setInterval(() => setCursors((old) => Object.fromEntries(Object.entries(old).filter(([, p]) => Date.now() - p.at < 3500))), 1000);
     return () => { clearTimeout(timer); clearInterval(prune); channel.current = null; if (client && room) void client.removeChannel(room); };
-  }, [userId, name, sessionId, refresh]);
+  }, [userId, name, sessionId, pageId, refresh]);
   const lastCursor = useRef(0);
   function cursor(x: number, y: number, laser: boolean) {
-    if (!data?.live || Date.now() - lastCursor.current < 500 || !connected) return;
+    if (!data?.live || Date.now() - lastCursor.current < 125 || !connected) return;
     lastCursor.current = Date.now();
-    void channel.current?.send({ type: "broadcast", event: "cursor", payload: { id: userId, name, x, y, laser } });
+    void channel.current?.send({ type: "broadcast", event: "cursor", payload: { id: userId, name, x, y, laser, pageId: pageId ?? null } });
   }
   async function mutate(mutation: Omit<BoardMutation, "operation">, remember = true, retrying = false, afterSave?: () => void) {
     if (saving.current || !state.current?.live) return false;
@@ -122,8 +128,9 @@ export function useWhiteboard(sessionId: string) {
     let rejected = false;
     const request = requestSignal(20000);
     try {
-      const response = await fetch(`/api/live/${sessionId}/board`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...mutation, operation }), signal: request.signal });
+      const response = await fetch(`/api/live/${sessionId}/board${pageId ? `?pageId=${pageId}` : ""}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...mutation, operation }), signal: request.signal });
       const next = await response.json();
+      if (currentScope.current !== scope) return false;
       if (!response.ok) { rejected = response.status < 500; throw new Error(next.error || "Could not save. Please retry."); }
       const document = next as BoardDocument;
       apply({ ...(state.current ?? before), ...document });
@@ -137,13 +144,14 @@ export function useWhiteboard(sessionId: string) {
       afterSave?.();
       return true;
     } catch (cause) {
+      if (currentScope.current !== scope) return false;
       mutationError.current = true;
       if (!rejected) { failed.current = { mutation, operation, before, remember, afterSave }; setHasPending(true); }
       else { failed.current = null; setHasPending(false); }
       if (mounted.current) setError(cause instanceof Error ? cause.message : "Could not save. Please retry.");
-      if (rejected) void refresh(); return false;
+      if (rejected) { saving.current = false; void refresh(); } return false;
     }
-    finally { request.clear(); saving.current = false; if (mounted.current) setBusy(false); }
+    finally { request.clear(); if (currentScope.current === scope) { saving.current = false; if (mounted.current) setBusy(false); } }
   }
   function change(values: Array<{ id: string; value: BoardObject | null }>, remember = true) {
     return mutate({ changes: values.map((item) => ({ ...item, expected: item.value ? (item.value.revision > 0 || state.current?.objects[item.id] ? item.value.revision : null) : state.current?.objects[item.id]?.revision ?? null })) }, remember);

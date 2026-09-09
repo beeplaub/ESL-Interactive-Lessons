@@ -26,11 +26,19 @@ async function access(id: string) {
   return { admin, user, teacher, live: session.status === "LIVE", name: displayName };
 }
 const headers = { "Cache-Control": "private, no-store" };
+async function validPage(context: NonNullable<Awaited<ReturnType<typeof access>>>, sessionId: string, pageId: string) {
+  if (!/^[0-9a-f-]{36}$/i.test(pageId)) return false;
+  const { data } = await context.admin.from("live_session_playlist_items").select("id").eq("id", pageId).eq("session_id", sessionId).eq("item_type", "WHITEBOARD").maybeSingle();
+  return Boolean(data);
+}
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const context = await access(id);
   if (!context) return NextResponse.json({ error: "Class access required." }, { status: 403 });
-  const { data, error } = await context.admin.from("live_whiteboards").select("document,revision").eq("session_id", id).maybeSingle();
+  const pageId = new URL(request.url).searchParams.get("pageId");
+  if (pageId && !await validPage(context, id, pageId)) return NextResponse.json({ error: "This whiteboard slide is no longer available." }, { status: 404, headers });
+  const query = context.admin.from(pageId ? "live_whiteboard_pages" : "live_whiteboards").select("document,revision").eq("session_id", id);
+  const { data, error } = await (pageId ? query.eq("page_id", pageId) : query).maybeSingle();
   if (error) return NextResponse.json({ error: "The shared board is not available yet. Please retry shortly." }, { status: 503, headers });
   const revision = Number(data?.revision ?? 0);
   if (new URL(request.url).searchParams.get("revision") === String(revision)) return NextResponse.json({ unchanged: true, live: context.live }, { headers });
@@ -48,7 +56,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const parsed = boardMutationSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: "Invalid board update." }, { status: 400 });
   if (parsed.data.settings && !context.teacher) return NextResponse.json({ error: "Only your teacher can change board controls." }, { status: 403 });
-  const { data, error } = await context.admin.rpc("mutate_live_whiteboard", { p_session: id, p_teacher: context.teacher, p_mutation: parsed.data });
+  const pageId = new URL(request.url).searchParams.get("pageId");
+  if (pageId && !await validPage(context, id, pageId)) return NextResponse.json({ error: "This whiteboard slide is no longer available." }, { status: 404, headers });
+  const { data, error } = await context.admin.rpc(pageId ? "mutate_live_whiteboard_page" : "mutate_live_whiteboard", { p_session: id, p_teacher: context.teacher, p_mutation: parsed.data, ...(pageId ? { p_page: pageId } : {}) });
   if (error) {
     const conflict = error.message.includes("changed") || error.message.includes("locked");
     return NextResponse.json({ error: conflict ? "The board changed or was locked. Refresh and try again; your change has not overwritten anyone’s work." : "Could not save this change. Please retry." }, { status: conflict ? 409 : 400, headers });

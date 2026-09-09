@@ -2,7 +2,7 @@ import "server-only";
 import { createHash, sign } from "node:crypto";
 
 export function liveCallingEnabled(_classId?: string) {
-  return process.env.LIVE_CALLING_ENABLED === "true" && Boolean(process.env.JAAS_APP_ID && process.env.JAAS_KEY_ID && process.env.JAAS_PRIVATE_KEY);
+  return process.env.LIVE_CALLING_ENABLED !== "false" && Boolean(process.env.JAAS_APP_ID && process.env.JAAS_KEY_ID && process.env.JAAS_PRIVATE_KEY);
 }
 
 export function createLiveCallToken(sessionId: string, userId: string, teacher: boolean) {

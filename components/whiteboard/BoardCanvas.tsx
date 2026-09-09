@@ -3,7 +3,7 @@ import { memo, useRef, useState, type PointerEvent } from "react";
 import { BOARD_HEIGHT, BOARD_WIDTH, type BoardObject } from "@/lib/whiteboard";
 import type { BoardCursor } from "./useWhiteboard";
 
-export type BoardTool = "select" | "pen" | "highlighter" | "text" | "eraser" | "sticky" | "rect" | "ellipse" | "arrow" | "image" | "move" | "pointer" | "laser";
+export type BoardTool = "card" | "select" | "pen" | "highlighter" | "text" | "eraser" | "sticky" | "rect" | "ellipse" | "arrow" | "image" | "move" | "pointer" | "laser";
 export const cursorColor = (id: string) => ["#8548f5", "#0abca5", "#e158cb", "#ec9440", "#3c85e9"][Array.from(id).reduce((n, c) => n + c.charCodeAt(0), 0) % 5];
 function lines(text: string, width: number, size: number) {
   return text.split("\n").flatMap((line) => {
@@ -35,16 +35,14 @@ export const BoardElement = memo(function BoardElement({ item }: { item: BoardOb
     {kind === "text" || paper ? <text fill={paper ? "#241b42" : color} fontFamily="'BrenUp Hand', 'Comic Sans MS', 'Chalkboard SE', cursive" fontSize={fontSize} textAnchor={kind === "card" ? "middle" : "start"}>{textLines.map((line, i) => <tspan key={i} x={kind === "card" ? w / 2 : paper ? 16 : 0} y={(kind === "card" ? Math.max(fontSize, (h - textLines.length * fontSize * 1.2) / 2 + fontSize) : fontSize + (paper ? 13 : 0)) + i * fontSize * 1.2}>{line}</tspan>)}</text> : null}
   </g>;
 });
-export function BoardCanvas({ objects, tool, color, canEdit, busy, selected, onSelect, onChange, onCreateText, onEditText, cursors, onCursor, zoom, svgRef }: {
+export function BoardCanvas({ objects, tool, color, canEdit, busy, selected, onSelect, onChange, cursors, onCursor, zoom, svgRef }: {
   objects: Record<string, BoardObject>; tool: BoardTool; color: string; canEdit: boolean; busy: boolean; selected: string | null;
   onSelect: (id: string | null) => void; onChange: (items: Array<{ id: string; value: BoardObject | null }>) => Promise<boolean>;
-  onCreateText: (kind: "text" | "sticky", x: number, y: number) => void;
-  onEditText: (item: BoardObject) => void;
   cursors: Record<string, BoardCursor>; onCursor: (x: number, y: number, laser: boolean) => void;
   zoom: number; svgRef: React.RefObject<SVGSVGElement | null>;
 }) {
   const [draft, setDraft] = useState<BoardObject | null>(null);
-  const [editing, setEditing] = useState<{ id: string; value: string } | null>(null);
+  const [editing, setEditing] = useState<{ id: string; value: string; original?: BoardObject } | null>(null);
   const gesture = useRef<{ start: [number, number]; item: BoardObject; resize: boolean } | null>(null);
   const scroll = useRef<HTMLDivElement>(null);
   const pan = useRef<{ x: number; y: number; left: number; top: number } | null>(null);
@@ -69,11 +67,10 @@ export function BoardCanvas({ objects, tool, color, canEdit, busy, selected, onS
       if (item) { gesture.current = { start: [x, y], item, resize: (event.target as Element).getAttribute("data-resize") === "true" }; setDraft(item); pending.current = item; event.currentTarget.setPointerCapture(event.pointerId); }
       return;
     }
-    if (tool === "text") {
-      const created: BoardObject = { id: crypto.randomUUID(), kind: "text", x, y, w: 450, h: 80, color, revision: 0, size: 30, text: "" };
-      void onChange([{ id: created.id, value: created }]); onSelect(created.id); setEditing({ id: created.id, value: "" }); return;
+    if (tool === "text" || tool === "sticky" || tool === "card") {
+      const created: BoardObject = { id: crypto.randomUUID(), kind: tool, x, y, w: tool === "text" ? 450 : 220, h: tool === "sticky" ? 180 : 80, color: tool === "text" ? color : "#fff4ac", revision: 0, size: 30, text: "" };
+      setDraft(created); onSelect(created.id); setEditing({ id: created.id, value: "", original: created }); return;
     }
-    if (tool === "sticky") { onCreateText(tool, x, y); return; }
     if (!["pen", "highlighter", "rect", "ellipse", "arrow"].includes(tool)) return;
     const created: BoardObject = { id: crypto.randomUUID(), kind: tool as BoardObject["kind"], x, y, w: 1, h: 1, color, revision: 0, points: tool === "pen" || tool === "highlighter" ? [[0, 0], [.1, .1]] : undefined };
     gesture.current = { start: [x, y], item: created, resize: false }; pending.current = created; setDraft(created);
@@ -82,7 +79,7 @@ export function BoardCanvas({ objects, tool, color, canEdit, busy, selected, onS
   function move(event: PointerEvent<SVGSVGElement>) {
     if (pan.current && scroll.current) { scroll.current.scrollLeft = pan.current.left - event.clientX + pan.current.x; scroll.current.scrollTop = pan.current.top - event.clientY + pan.current.y; return; }
     const [x, y] = position(event);
-    if (gesture.current || tool === "pointer" || tool === "laser") onCursor(x, y, tool === "laser");
+    if (gesture.current || tool === "select" || tool === "pointer" || tool === "laser") onCursor(x, y, tool === "laser");
     const active = gesture.current;
     if (!active) return;
     const dx = x - active.start[0], dy = y - active.start[1];
@@ -99,6 +96,7 @@ export function BoardCanvas({ objects, tool, color, canEdit, busy, selected, onS
     pending.current = next; setDraft(next);
   }
   async function finish() {
+    if (editing) return;
     pan.current = null;
     let next = pending.current;
     const original = gesture.current?.item;
@@ -117,19 +115,20 @@ export function BoardCanvas({ objects, tool, color, canEdit, busy, selected, onS
   if (draft && !objects[draft.id]) displayed.push(draft);
   async function saveEditing() {
     if (!editing) return;
-    const item = objects[editing.id];
+    const item = objects[editing.id] ?? editing.original;
     setEditing(null);
     if (!item) return;
-    if (!editing.value.trim()) { await onChange([{ id: item.id, value: null }]); onSelect(null); return; }
+    if (!editing.value.trim()) { if (objects[item.id]) await onChange([{ id: item.id, value: null }]); setDraft(null); onSelect(null); return; }
     if (editing.value !== item.text) await onChange([{ id: item.id, value: { ...item, text: editing.value } }]);
+    setDraft(null);
   }
   return <div ref={scroll} className="wb-board-scroll">
     <svg ref={svgRef} tabIndex={0} className={`wb-canvas wb-tool-${tool}`} style={{ width: `${zoom}%` }} viewBox={`0 0 ${BOARD_WIDTH} ${BOARD_HEIGHT}`} role="img" aria-label="Collaborative whiteboard. Use Select to move objects, or choose a drawing tool." onPointerDown={start} onPointerMove={move} onPointerUp={() => void finish()} onPointerCancel={() => { gesture.current = null; pending.current = null; pan.current = null; setDraft(null); }}>
       <defs><filter id="board-paper-shadow" x="-15%" y="-15%" width="140%" height="150%"><feDropShadow dx="0" dy="3" stdDeviation="3" floodColor="#584491" floodOpacity=".13" /></filter></defs>
       <rect width={BOARD_WIDTH} height={BOARD_HEIGHT} fill="#ffffff" />
       {!displayed.length ? <g pointerEvents="none"><text x="550" y="365" textAnchor="middle" fill="#8059bb" fontSize="34" fontFamily="sans-serif">A little space for big ideas.</text><text x="550" y="415" textAnchor="middle" fill="#8e87a1" fontSize="21" fontFamily="sans-serif">{canEdit ? "Pick a tool, add a word, or start with a template." : "Your teacher is getting the board ready."}</text></g> : null}
-      {displayed.map((item) => <g key={item.id} data-object={item.id} onDoubleClick={() => { if (!canEdit || !["text", "sticky", "card"].includes(item.kind)) return; if (item.kind === "text") setEditing({ id: item.id, value: item.text ?? "" }); else onEditText(item); }}><title>{item.text || item.kind}</title><BoardElement item={item} />{editing?.id === item.id && item.kind === "text" ? <foreignObject x={item.x} y={item.y} width={Math.max(180, item.w)} height={Math.max(70, item.h)} data-export-omit="true"><textarea autoFocus value={editing.value} onChange={(event) => setEditing({ id: item.id, value: event.target.value })} onBlur={() => void saveEditing()} onPointerDown={(event) => event.stopPropagation()} style={{ width: "100%", height: "100%", resize: "both", border: "2px solid #8550f6", borderRadius: 8, padding: 8, background: "#ffffffee", color: item.color, fontFamily: "'BrenUp Hand', 'Comic Sans MS', cursive", fontSize: item.size ?? 30, lineHeight: 1.2, outline: "none" }} /></foreignObject> : null}<rect x={item.x} y={item.y} width={item.w} height={item.h} fill="transparent" pointerEvents={editing?.id === item.id ? "none" : tool === "select" || tool === "eraser" ? "all" : "none"} />{selected === item.id && tool === "select" ? <g data-export-omit="true"><rect x={item.x - 4} y={item.y - 4} width={item.w + 8} height={item.h + 8} rx="4" stroke="#8550f6" strokeWidth="2" strokeDasharray="6 4" fill="none" pointerEvents="none" />{canEdit ? <rect data-resize="true" x={item.x + item.w - 5} y={item.y + item.h - 5} width="12" height="12" fill="#8550f6" stroke="white" cursor="nwse-resize" /> : null}</g> : null}</g>)}
-      <g pointerEvents="none" data-export-omit="true">{Object.values(cursors).map((cursor) => <g key={cursor.id} transform={`translate(${cursor.x} ${cursor.y})`}>{cursor.laser ? <><circle r="12" fill="#f4546560" /><circle r="5" fill="#ff3250" /></> : <><path d="M0 0L6 24L11 15L21 13Z" fill={cursorColor(cursor.id)} stroke="white" strokeWidth="2" /><rect x="14" y="20" width={Math.max(70, cursor.name.length * 8)} height="25" rx="5" fill={cursorColor(cursor.id)} /><text x="20" y="37" fill="white" fontSize="13" fontFamily="sans-serif">{cursor.name}</text></>}</g>)}</g>
+      {displayed.map((item) => <g key={item.id} data-object={item.id} onDoubleClick={() => { if (!canEdit || !["text", "sticky", "card"].includes(item.kind)) return; setEditing({ id: item.id, value: item.text ?? "" }); }}><title>{item.text || item.kind}</title><BoardElement item={item} />{editing?.id === item.id && ["text", "sticky", "card"].includes(item.kind) ? <foreignObject x={item.x} y={item.y} width={Math.max(180, item.w)} height={Math.max(70, item.h)} data-export-omit="true"><textarea aria-label="Edit board text" maxLength={2000} autoFocus value={editing.value} onChange={(event) => setEditing((previous) => ({ ...previous, id: item.id, value: event.target.value }))} onBlur={() => void saveEditing()} onPointerDown={(event) => event.stopPropagation()} style={{ width: "100%", height: "100%", resize: "both", border: "2px solid #8550f6", borderRadius: 8, padding: 8, background: "#ffffffee", color: item.kind === "text" ? item.color : "#29215c", fontFamily: "'BrenUp Hand', 'Comic Sans MS', cursive", fontSize: item.size ?? 30, lineHeight: 1.2, outline: "none" }} /></foreignObject> : null}<rect x={item.x} y={item.y} width={item.w} height={item.h} fill="transparent" pointerEvents={editing?.id === item.id ? "none" : tool === "select" || tool === "eraser" ? "all" : "none"} />{selected === item.id && tool === "select" ? <g data-export-omit="true"><rect x={item.x - 4} y={item.y - 4} width={item.w + 8} height={item.h + 8} rx="4" stroke="#8550f6" strokeWidth="2" strokeDasharray="6 4" fill="none" pointerEvents="none" />{canEdit ? <rect data-resize="true" x={item.x + item.w - 5} y={item.y + item.h - 5} width="12" height="12" fill="#8550f6" stroke="white" cursor="nwse-resize" /> : null}</g> : null}</g>)}
+      <g pointerEvents="none" data-export-omit="true">{Object.values(cursors).map((cursor) => { const target = [...displayed].reverse().find((item) => cursor.x >= item.x && cursor.x <= item.x + item.w && cursor.y >= item.y && cursor.y <= item.y + item.h); return target ? <rect key={`focus-${cursor.id}`} x={target.x - 5} y={target.y - 5} width={target.w + 10} height={target.h + 10} rx="5" fill="none" stroke={cursorColor(cursor.id)} strokeWidth="3" strokeDasharray="7 4" /> : null; })}{Object.values(cursors).map((cursor) => <g key={cursor.id} transform={`translate(${cursor.x} ${cursor.y})`}>{cursor.laser ? <><circle r="12" fill="#f4546560" /><circle r="5" fill="#ff3250" /></> : <><path d="M0 0L6 24L11 15L21 13Z" fill={cursorColor(cursor.id)} stroke="white" strokeWidth="2" /><rect x="14" y="20" width={Math.max(70, cursor.name.length * 8)} height="25" rx="5" fill={cursorColor(cursor.id)} /><text x="20" y="37" fill="white" fontSize="13" fontFamily="sans-serif">{cursor.name}</text></>}</g>)}</g>
     </svg>
   </div>;
 }

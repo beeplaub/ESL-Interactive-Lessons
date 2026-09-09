@@ -14,8 +14,11 @@ async function access(id: string) {
   ]);
   if (!session) return null;
   const teacher = session.teacher_id === user.id || isPlatformAdmin(profile?.role);
-  const { data: member } = await admin.from("class_members").select("id").eq("class_id", session.class_id).eq("user_id", user.id).maybeSingle();
-  if (!teacher && !member) return null;
+  const [{ data: member }, { data: enrollment }] = await Promise.all([
+    admin.from("class_members").select("id").eq("class_id", session.class_id).eq("user_id", user.id).maybeSingle(),
+    session.course_id ? admin.from("course_enrollments").select("id").eq("course_id", session.course_id).eq("user_id", user.id).in("status", ["ACTIVE", "COMPLETED"]).maybeSingle() : Promise.resolve({ data: null }),
+  ]);
+  if (!teacher && !member && !enrollment) return null;
   return { admin, user, session, teacher };
 }
 
@@ -26,7 +29,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   const { data, error } = await context.admin.from("live_session_playlist_items").select("id,position,item_type,lesson_id,slide_id,slide_number,title").eq("session_id", id).order("position");
   if (error) return NextResponse.json({ error: "Could not load the class playlist." }, { status: 503 });
   let sources: Array<{ lessonId: string; lessonTitle: string; slideId: string; slideTitle: string }> = [];
-  if (context.session.course_id) {
+  if (context.teacher && context.session.course_id) {
     const { data: placements } = await context.admin.from("course_items").select("lesson_id,lessons!inner(id,title)").eq("course_id", context.session.course_id).not("lesson_id", "is", null);
     const lessonIds = (placements ?? []).map((row) => row.lesson_id).filter((value): value is string => Boolean(value));
     if (lessonIds.length) {
@@ -49,8 +52,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const body = await request.json().catch(() => null) as { type?: string; lessonId?: string; slideId?: string; title?: string; itemId?: string; position?: number } | null;
   const type = body?.type === "WHITEBOARD" ? "WHITEBOARD" : body?.type === "LESSON_SLIDE" ? "LESSON_SLIDE" : null;
   if (!type) return NextResponse.json({ error: "Choose a whiteboard or lesson slide." }, { status: 400 });
-  const { count } = await context.admin.from("live_session_playlist_items").select("id", { count: "exact", head: true }).eq("session_id", id);
-  const position = Number.isFinite(body?.position) ? Math.max(0, Math.floor(Number(body?.position))) : (count ?? 0);
+  const { data: last } = await context.admin.from("live_session_playlist_items").select("position").eq("session_id", id).order("position", { ascending: false }).limit(1).maybeSingle();
+  const position = (last?.position ?? -1) + 1;
   if (type === "WHITEBOARD") {
     const { data, error } = await context.admin.from("live_session_playlist_items").insert({ session_id: id, position, item_type: type, title: String(body?.title || "Whiteboard").slice(0, 160), created_by: context.user.id }).select("id,position,item_type,lesson_id,slide_id,slide_number,title").single();
     if (error) return NextResponse.json({ error: "Could not add the whiteboard page." }, { status: 400 });
@@ -73,17 +76,15 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   if (context.session.status !== "LIVE") return NextResponse.json({ error: "Start the class before editing its playlist." }, { status: 409 });
   const body = await request.json().catch(() => null) as { order?: string[]; activeItemId?: string } | null;
   if (body?.activeItemId) {
-    const { data: active } = await context.admin.from("live_session_playlist_items").select("id").eq("id", body.activeItemId).eq("session_id", id).maybeSingle();
+    const { data: active } = await context.admin.from("live_session_playlist_items").select("id,slide_number").eq("id", body.activeItemId).eq("session_id", id).maybeSingle();
     if (!active) return NextResponse.json({ error: "Choose a slide from this class." }, { status: 400 });
-    const { error } = await context.admin.from("live_sessions").update({ active_playlist_item_id: active.id, updated_at: new Date().toISOString() }).eq("id", id);
+    const { error } = await context.admin.from("live_sessions").update({ active_playlist_item_id: active.id, ...(active.slide_number ? { current_slide_number: active.slide_number } : {}), updated_at: new Date().toISOString() }).eq("id", id);
     if (error) return NextResponse.json({ error: "Could not show that slide." }, { status: 400 });
   }
   if (!body?.order) return NextResponse.json({ ok: true });
   if (!Array.isArray(body?.order) || body.order.length > 250 || body.order.some((item) => typeof item !== "string")) return NextResponse.json({ error: "Invalid playlist order." }, { status: 400 });
-  for (const [position, itemId] of body.order.entries()) {
-    const { error } = await context.admin.from("live_session_playlist_items").update({ position, updated_at: new Date().toISOString() }).eq("id", itemId).eq("session_id", id);
-    if (error) return NextResponse.json({ error: "Could not reorder the playlist." }, { status: 400 });
-  }
+  const { error } = await context.admin.rpc("reorder_live_slides", { p_session: id, p_order: body.order });
+  if (error) return NextResponse.json({ error: "The slide list changed. Refresh and try again." }, { status: 409 });
   return NextResponse.json({ ok: true });
 }
 
@@ -99,9 +100,9 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
   const { error } = await context.admin.from("live_session_playlist_items").delete().eq("id", body.itemId).eq("session_id", id);
   if (error) return NextResponse.json({ error: "Could not remove the playlist item." }, { status: 400 });
   const { data: session } = await context.admin.from("live_sessions").select("active_playlist_item_id").eq("id", id).maybeSingle();
-  if (session?.active_playlist_item_id === body.itemId) {
-    const { data: next } = await context.admin.from("live_session_playlist_items").select("id").eq("session_id", id).order("position").limit(1).maybeSingle();
-    await context.admin.from("live_sessions").update({ active_playlist_item_id: next?.id ?? null, updated_at: new Date().toISOString() }).eq("id", id);
+  if (context.session.active_playlist_item_id === body.itemId && !session?.active_playlist_item_id) {
+    const { data: next } = await context.admin.from("live_session_playlist_items").select("id,slide_number").eq("session_id", id).order("position").limit(1).maybeSingle();
+    await context.admin.from("live_sessions").update({ active_playlist_item_id: next?.id ?? null, ...(next?.slide_number ? { current_slide_number: next.slide_number } : {}), updated_at: new Date().toISOString() }).eq("id", id);
   }
   return NextResponse.json({ ok: true });
 }

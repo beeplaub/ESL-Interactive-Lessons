@@ -27,7 +27,7 @@ export const boardMutationSchema = z.object({
   expectedRevision: z.number().int().nonnegative().optional(),
 }).strict().refine((v) => Boolean(v.changes?.length || v.settings), "No changes supplied").refine((v) => !v.changes?.some((c) => c.value && c.id !== c.value.id), "Object ID mismatch");
 export type BoardMutation = z.infer<typeof boardMutationSchema>;
-export const EMPTY_BOARD: BoardDocument = { objects: {}, revision: 0, settings: { editing: false, prompt: "Use the picture to make a sentence. Try to use ‘every day’!", timerEnd: null, timerSeconds: 300, view: "board", slide: 1 } };
+export const EMPTY_BOARD: BoardDocument = { objects: {}, revision: 0, settings: { editing: false, prompt: "", timerEnd: null, timerSeconds: 300, view: "board", slide: 1 } };
 
 /** An editable teaching template, never published lesson content. */
 export function routineTemplate(): BoardObject[] {
