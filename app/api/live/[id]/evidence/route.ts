@@ -1,3 +1,4 @@
+import { isLiveClassMember, liveClassActivity } from "@/lib/liveAccess";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -7,11 +8,11 @@ async function sessionAccess(id: string) {
   const supabase = await createClient(); const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { user: null, session: null, teacher: false };
   const admin = createAdminClient(); const [{ data: session }, profile] = await Promise.all([
-    admin.from("live_sessions").select("id,class_id,teacher_id,status").eq("id", id).maybeSingle(), getFreshProfile(user.id),
+    admin.from("live_sessions").select("id,class_id,course_id,teacher_id,lesson_id,status").eq("id", id).maybeSingle(), getFreshProfile(user.id),
   ]);
   if (!session) return { user, session: null, teacher: false };
   const teacher = session.teacher_id === user.id || isPlatformAdmin(profile?.role);
-  const { data: member } = await admin.from("class_members").select("id").eq("class_id", session.class_id).eq("user_id", user.id).maybeSingle();
+  const member = await isLiveClassMember(admin, session, user.id);
   return { user, session: teacher || member ? session : null, teacher };
 }
 
@@ -21,7 +22,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (session.status !== "LIVE") return NextResponse.json({ error: "This class is not live." }, { status: 409 });
   const body = await request.json().catch(() => ({})); const activityId = String(body.activityId || "");
   if (!activityId) return NextResponse.json({ error: "Activity is required" }, { status: 400 });
-  const admin = createAdminClient(); const { error } = await admin.from("live_activity_responses").insert({ session_id: id, user_id: user.id, activity_id: activityId, score: Number(body.score) || 0, total: Number(body.total) || 0, answers: body.answers ?? null });
+  const admin = createAdminClient();
+  if (!await liveClassActivity(admin, session, activityId)) return NextResponse.json({ error: "This activity is not part of the classroom." }, { status: 403 });
+  const { error } = await admin.from("live_activity_responses").insert({ session_id: id, user_id: user.id, activity_id: activityId, score: Number(body.score) || 0, total: Number(body.total) || 0, answers: body.answers ?? null });
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
   await admin.from("live_events").insert({ session_id: id, actor_id: user.id, event_type: "ACTIVITY_SUBMITTED", payload: { activityId, score: Number(body.score) || 0, total: Number(body.total) || 0 } });
   return NextResponse.json({ ok: true });

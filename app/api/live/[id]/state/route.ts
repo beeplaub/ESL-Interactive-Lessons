@@ -1,3 +1,4 @@
+import { isLiveClassMember } from "@/lib/liveAccess";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -9,11 +10,11 @@ async function sessionForUser(sessionId: string) {
   if (!user) return { user: null, session: null, profile: null };
   const admin = createAdminClient();
   const [{ data: session }, profile] = await Promise.all([
-    admin.from("live_sessions").select("id,class_id,teacher_id,current_slide_number,navigation_locked,status").eq("id", sessionId).maybeSingle(),
+    admin.from("live_sessions").select("id,class_id,course_id,teacher_id,current_slide_number,navigation_locked,status").eq("id", sessionId).maybeSingle(),
     getFreshProfile(user.id),
   ]);
   if (!session) return { user, session: null, profile };
-  const { data: membership } = await admin.from("class_members").select("id").eq("class_id", session.class_id).eq("user_id", user.id).maybeSingle();
+  const membership = await isLiveClassMember(admin, session, user.id);
   if (!membership && session.teacher_id !== user.id && !isPlatformAdmin(profile?.role)) return { user, session: null, profile };
   return { user, session, profile };
 }
