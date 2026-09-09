@@ -279,7 +279,7 @@ function NarrationPill({ src, lessonId, slideId, sourceType = "RECORDED", transl
 }
 
 export function BuilderLessonPlayer({
-  lesson, slides, blocks, activities, initialProgress, activityAttempts = [], initialNotes = {}, narrationMap = {}, narrationConfigMap = {}, courseItemId = null, backHref = "/courses", liveSession = null, startInReviewMode = false, initialSlideNumber, initialTab, focusActivityId = null,
+  lesson, slides, blocks, activities, initialProgress, activityAttempts = [], initialNotes = {}, narrationMap = {}, narrationConfigMap = {}, courseItemId = null, backHref = "/courses", liveSession = null, startInReviewMode = false, initialSlideNumber, initialTab, focusActivityId = null, classroomId,
 }: {
   lesson: Lesson; slides: Slide[]; blocks: Block[]; activities: Activity[];
   initialProgress: Progress; activityAttempts?: ActivityAttempt[];
@@ -293,6 +293,7 @@ export function BuilderLessonPlayer({
   initialSlideNumber?: number;
   initialTab?: "learn" | "practice";
   focusActivityId?: string | null;
+  classroomId?: string;
 }) {
   const resolvedInitialSlideNumber = startInReviewMode ? 1 : initialSlideNumber ?? liveSession?.initialSlideNumber ?? initialProgress?.current_slide_number ?? 1;
   const initialIndex = Math.max(0, Math.min(slides.length - 1, resolvedInitialSlideNumber - 1));
@@ -330,6 +331,19 @@ export function BuilderLessonPlayer({
   const lessonViewportRef = useRef<HTMLElement | null>(null);
   const isLiveStudent = liveSession?.role === "STUDENT";
   const isLiveTeacher = liveSession?.role === "TEACHER";
+  const classroomSessionId = classroomId ?? liveSession?.sessionId;
+  useEffect(() => {
+    if (classroomSessionId) window.dispatchEvent(new CustomEvent("brenup-classroom-position", { detail: { sessionId: classroomSessionId, slide: slides[index]?.slide_number ?? index + 1 } }));
+  }, [classroomSessionId, index, slides]);
+  useEffect(() => {
+    const navigate = (event: Event) => {
+      const detail = (event as CustomEvent<{ sessionId: string; slide: number }>).detail;
+      if (!classroomSessionId || detail?.sessionId !== classroomSessionId || !Number.isInteger(detail.slide)) return;
+      setIndex(Math.max(0, Math.min(slides.length - 1, detail.slide - 1)));
+    };
+    window.addEventListener("brenup-classroom-slide", navigate);
+    return () => window.removeEventListener("brenup-classroom-slide", navigate);
+  }, [classroomSessionId, slides.length]);
 
   const slide = slides[index] ?? null;
 

@@ -16,7 +16,7 @@ export default async function LearnerLiveSessionPage({ params }: { params: Promi
   const admin = createAdminClient();
   const { data: session } = await admin
     .from("live_sessions")
-    .select("id,class_id,title,description,status,scheduled_at,duration_minutes,external_meeting_url,session_code,teacher_id,lesson_id,current_slide_number,navigation_locked,classes(name)")
+    .select("id,class_id,title,description,status,started_at,scheduled_at,duration_minutes,external_meeting_url,session_code,teacher_id,lesson_id,current_slide_number,navigation_locked,classes(name)")
     .eq("id", id)
     .maybeSingle();
   if (!session) notFound();
@@ -42,7 +42,7 @@ export default async function LearnerLiveSessionPage({ params }: { params: Promi
     ? await getLiveLessonPlayerData(session.lesson_id, user.id)
     : null;
 
-  if (player) {
+  if (player || session.status === "LIVE" || session.status === "COMPLETED") {
     return (
       <main className="min-h-screen bg-[var(--br-canvas-elevated)] px-2 py-3 text-[var(--br-dark-card)] sm:px-4 sm:py-5">
         <div className="mx-auto max-w-[1440px]">
@@ -50,7 +50,7 @@ export default async function LearnerLiveSessionPage({ params }: { params: Promi
             <div className="min-w-0"><p className="truncate text-xs font-bold uppercase tracking-wide text-[var(--br-chart-primary)]">{klass?.name || "Live class"}</p><p className="truncate text-sm font-extrabold">{session.title}</p></div>
             <span className="inline-flex items-center gap-1 rounded-full bg-[color-mix(in_srgb,var(--br-success)_12%,var(--br-surface))] px-2.5 py-1 text-[11px] font-extrabold text-[var(--br-chart-secondary)]"><Radio size={12} /> {session.status === "LIVE" ? "LIVE" : "CLASS REVIEW"}</span>
           </div>
-          <LiveRoomLayout sessionId={id} status={session.status} meetingUrl={session.external_meeting_url} callingEnabled={liveCallingEnabled(session.class_id)} lesson={<BuilderLessonPlayer
+          <LiveRoomLayout slides={player?.slides} title={player?.lesson.title ?? session.title} level={player?.lesson.level} startedAt={session.started_at} sessionId={id} status={session.status} meetingUrl={session.external_meeting_url} callingEnabled={liveCallingEnabled(session.class_id)} lesson={player ? <BuilderLessonPlayer classroomId={id}
             lesson={player.lesson}
             slides={player.slides}
             blocks={player.blocks}
@@ -61,7 +61,7 @@ export default async function LearnerLiveSessionPage({ params }: { params: Promi
             narrationMap={player.narrationMap}
             backHref="/account"
             liveSession={session.status === "LIVE" ? { sessionId: id, role: session.teacher_id === user.id ? "TEACHER" : "STUDENT", initialSlideNumber: session.current_slide_number ?? 1, navigationLocked: Boolean(session.navigation_locked) } : null}
-          />} tools={<LiveClassTools sessionId={id} teacher={session.teacher_id === user.id} live={session.status === "LIVE"} />} />
+          /> : <p className="p-6 text-sm">Your teacher can use the whiteboard for this class. No lesson slides are attached.</p>} tools={<LiveClassTools sessionId={id} teacher={session.teacher_id === user.id} live={session.status === "LIVE"} />} />
         </div>
       </main>
     );

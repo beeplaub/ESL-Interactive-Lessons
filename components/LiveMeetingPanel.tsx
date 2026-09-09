@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { liveMeetingUrl } from "@/lib/liveMeetingUrl";
 
-type CallApi = { dispose: () => void; addListener: (event: string, callback: () => void) => void };
+type CallApi = { dispose: () => void; addListener: (event: string, callback: () => void) => void; executeCommand: (command: string, ...args: unknown[]) => void };
 type CallConstructor = new (domain: string, options: Record<string, unknown>) => CallApi;
 declare global { interface Window { JitsiMeetExternalAPI?: CallConstructor } }
 let scriptPromise: Promise<void> | null = null;
@@ -30,6 +30,7 @@ export function LiveMeetingPanel({ sessionId, meetingUrl, callingEnabled }: { se
   const [joined, setJoined] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [checking, setChecking] = useState(false);
+  const [callView, setCallView] = useState("speaker");
   const mounted = useRef(true);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; attempt.current += 1; api.current?.dispose(); api.current = null; }; }, []);
 
@@ -51,9 +52,11 @@ export function LiveMeetingPanel({ sessionId, meetingUrl, callingEnabled }: { se
       if (!window.JitsiMeetExternalAPI) { scriptPromise = null; throw new Error("Calling did not initialize. Please retry."); }
       api.current = new window.JitsiMeetExternalAPI("8x8.vc", {
         roomName: data.roomName, jwt: data.jwt, parentNode: parent.current, width: "100%", height: 360,
+        interfaceConfigOverwrite: { TILE_VIEW_MAX_COLUMNS: 2 },
         configOverwrite: { startWithAudioMuted: true, startWithVideoMuted: true, prejoinConfig: { enabled: true }, toolbarButtons: ["microphone", "camera", "desktop", "raisehand", "tileview", "participants-pane", "settings", "hangup"] },
       });
       api.current.addListener("readyToClose", leave);
+      api.current.addListener("videoConferenceJoined", () => api.current?.executeCommand("setTileView", callView === "grid"));
       setJoined(true);
     } catch (error) { if (current === attempt.current) setNotice(error instanceof Error ? error.message : "Calling is unavailable. Please retry."); }
     finally { if (current === attempt.current) setJoining(false); }
@@ -74,6 +77,7 @@ export function LiveMeetingPanel({ sessionId, meetingUrl, callingEnabled }: { se
       <button type="button" disabled={checking || joined || joining} onClick={() => void checkMicrophone()} className="min-h-11 px-3 text-xs font-bold disabled:opacity-50">{checking ? "Checking…" : "Check microphone"}</button>
     </div>
     {notice ? <p role="status" className="mt-2 text-sm text-[var(--br-text-muted)]">{notice}</p> : null}
+    {joined ? <label className="mt-2 flex items-center justify-between gap-2 text-xs">View options<select aria-label="Call view" value={callView} onChange={(event) => { setCallView(event.target.value); api.current?.executeCommand("setTileView", event.target.value === "grid"); }} className="rounded-lg border border-[var(--br-border)] bg-[var(--br-dark-card)] px-2 py-1 text-white"><option value="speaker">Active speaker</option><option value="grid">Everyone · grid</option></select></label> : null}
     <div ref={parent} className={joined ? "mt-3 overflow-hidden rounded-lg" : "hidden"} />
   </section>;
 }
