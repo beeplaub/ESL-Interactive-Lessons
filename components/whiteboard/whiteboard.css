@@ -22,9 +22,14 @@
 .wb-playlist-items{gap:10px}.wb-playlist-items li{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;background:var(--br-surface,#fff);border:1px solid var(--wb-line);padding:10px;border-radius:12px;box-shadow:0 2px 6px #00000006}
 .wb-playlist-items li .wb-playlist-open{grid-column:1/-1;min-height:70px;color:var(--wb-ink);padding:6px;gap:10px;align-items:flex-start}
 .wb-playlist-items b,.wb-playlist-items small{white-space:normal;overflow:visible;overflow-wrap:anywhere}.wb-playlist-items b{font-size:13px;line-height:1.5}.wb-playlist-items small{font-size:11px;margin-top:6px;color:var(--wb-muted)}
-.wb-playlist-items li.wb-playlist-active{border:2px solid var(--wb-purple);background:color-mix(in srgb,var(--wb-purple) 9%,white)}.wb-playlist-items li button{color:var(--wb-muted)}
+.wb-playlist-items li.wb-playlist-active{border:2px solid var(--wb-purple);background:color-mix(in srgb,var(--wb-purple) 9%,var(--br-surface,#fff))}.wb-playlist-items li button{color:var(--wb-muted)}
 .wb-playlist-choice b,.wb-playlist-choice small{white-space:normal}.wb-help{color:var(--wb-muted);font-size:12px!important}
 .wb-call{background:var(--br-surface,#fff);border:1px solid var(--wb-line);padding:0}.wb-call>section{background:transparent;color:var(--wb-ink)}.wb-call p{color:var(--wb-muted)!important;font-size:12px}.wb-call section button{min-height:40px;font-size:12px}.wb-call h2{font-size:15px}
 @media(max-width:1250px){.wb-layout,.wb-expanded .wb-layout{grid-template-columns:210px minmax(0,1fr) 270px}}
 @media(max-width:950px){.wb-layout,.wb-expanded .wb-layout{grid-template-columns:minmax(0,1fr) 270px}.wb-playlist-items{display:flex;overflow-x:auto;padding-bottom:8px}.wb-playlist-items li{min-width:200px;max-width:240px;flex-shrink:0}}
 @media(max-width:680px){.wb-layout,.wb-expanded .wb-layout{display:flex}.wb-playlist-heading{padding-bottom:4px}}
+
+.wb-tool-grid button,.wb-dialog,.wb-playlist-modal,.wb-playlist-choice,.wb-playlist-heading button:hover{background:var(--br-surface,#fff);color:var(--wb-ink)}
+.wb-dialog textarea,.wb-dialog input,.wb-playlist-lesson-picker select{background:var(--br-surface,#fff);color:var(--wb-ink);border-color:var(--wb-line)}
+.wb-prompt,.wb-tool-grid button[aria-pressed=true]{background:color-mix(in srgb,var(--wb-purple) 8%,var(--br-surface,#fff));border-color:var(--wb-line)}
+.wb-playlist-modal-head h3,.wb-playlist-lesson-picker{color:var(--wb-ink)}

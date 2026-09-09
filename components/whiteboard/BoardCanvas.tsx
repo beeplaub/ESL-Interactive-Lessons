@@ -119,7 +119,7 @@ export function BoardCanvas({ objects, tool, color, canEdit, busy, selected, onS
     setEditing(null);
     if (!item) return;
     if (!editing.value.trim()) { if (objects[item.id]) await onChange([{ id: item.id, value: null }]); setDraft(null); onSelect(null); return; }
-    if (editing.value !== item.text) await onChange([{ id: item.id, value: { ...item, text: editing.value } }]);
+    if (editing.value !== item.text) { const updated = { ...item, text: editing.value }; setDraft(updated); await onChange([{ id: item.id, value: updated }]); }
     setDraft(null);
   }
   return <div ref={scroll} className="wb-board-scroll">
