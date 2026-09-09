@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronUp, GripVertical, Plus, Trash2 } from "lucide-react";
 
 type Item = { id: string; position: number; item_type: "WHITEBOARD" | "LESSON_SLIDE"; lesson_id: string | null; slide_id: string | null; title: string };
@@ -11,14 +11,15 @@ export function LivePlaylistPanel({ sessionId, teacher, live }: { sessionId: str
   const [selected, setSelected] = useState("");
   const [message, setMessage] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
+  const announcedActive = useRef<string | null>(null);
   async function load() {
     const response = await fetch(`/api/live/${sessionId}/playlist`, { cache: "no-store" });
     if (!response.ok) return;
     const payload = await response.json() as { items?: Item[]; sources?: Source[]; activeItemId?: string | null };
     setItems(payload.items ?? []); setSources(payload.sources ?? []);
-    if (payload.activeItemId) setActiveItemId(payload.activeItemId);
+    if (payload.activeItemId) { setActiveItemId(payload.activeItemId); const active = (payload.items ?? []).find((item) => item.id === payload.activeItemId); if (active && announcedActive.current !== active.id) { announcedActive.current = active.id; window.dispatchEvent(new CustomEvent("brenup-live-slide", { detail: { sessionId, item: active } })); } }
   }
-  useEffect(() => { void load(); }, [sessionId]);
+  useEffect(() => { void load(); const interval = window.setInterval(() => void load(), 5000); return () => window.clearInterval(interval); }, [sessionId]);
   async function add(body: Record<string, string>) {
     setMessage(""); const response = await fetch(`/api/live/${sessionId}/playlist`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
     const payload = await response.json().catch(() => ({}));
