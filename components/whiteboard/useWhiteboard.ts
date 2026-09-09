@@ -5,6 +5,13 @@ import { createClient } from "@/lib/supabase/client";
 import { EMPTY_BOARD, type BoardData, type BoardDocument, type BoardMutation, type BoardObject, type BoardSettings } from "@/lib/whiteboard";
 
 export type BoardCursor = { id: string; name: string; x: number; y: number; laser: boolean; at: number };
+
+function requestSignal(timeoutMs: number) {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+  return { signal: controller.signal, clear: () => window.clearTimeout(timer) };
+}
+
 export function useWhiteboard(sessionId: string) {
   const [data, setData] = useState<BoardData | null>(null);
   const state = useRef<BoardData | null>(null);
@@ -26,14 +33,16 @@ export function useWhiteboard(sessionId: string) {
     state.current = next; setData(next);
   }, []);
   const refresh = useCallback(async () => {
+    const request = requestSignal(12000);
     try {
-      const response = await fetch(`/api/live/${sessionId}/board?revision=${state.current?.revision ?? -1}`, { cache: "no-store", signal: AbortSignal.timeout(12000) });
+      const response = await fetch(`/api/live/${sessionId}/board?revision=${state.current?.revision ?? -1}`, { cache: "no-store", signal: request.signal });
       const next = await response.json();
       if (!response.ok) throw new Error(next.error || "Could not load the board.");
       if (next.unchanged) { if (state.current) apply({ ...state.current, live: next.live }); }
       else apply(next);
       if (mounted.current && !failed.current && !mutationError.current) setError("");
     } catch (cause) { if (mounted.current) setError(cause instanceof Error ? cause.message : "Connection lost. Retry to reconnect."); }
+    finally { request.clear(); }
   }, [apply, sessionId]);
   useEffect(() => {
     mounted.current = true; state.current = null; setData(null); undoStack.current = []; setUndoCount(0);
@@ -47,26 +56,39 @@ export function useWhiteboard(sessionId: string) {
   const name = data?.name;
   useEffect(() => {
     if (!userId || !name) return;
-    const client = createClient();
+    let client: ReturnType<typeof createClient> | null = null;
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const room = client.channel(`whiteboard:${sessionId}`, { config: { private: true, presence: { key: userId } } });
-    channel.current = room;
-    room.on("broadcast", { event: "changed" }, () => { clearTimeout(timer); timer = setTimeout(() => void refresh(), 150); });
-    room.on("broadcast", { event: "cursor" }, ({ payload }) => {
+    let room: RealtimeChannel | null = null;
+    try {
+      client = createClient();
+      room = client.channel(`whiteboard:${sessionId}`, { config: { private: true, presence: { key: userId } } });
+    } catch {
+      setConnected(false);
+      return;
+    }
+    const realtimeRoom = room;
+    channel.current = realtimeRoom;
+    realtimeRoom.on("broadcast", { event: "changed" }, () => { clearTimeout(timer); timer = setTimeout(() => void refresh(), 150); });
+    realtimeRoom.on("broadcast", { event: "cursor" }, ({ payload }) => {
       if (!payload || typeof payload.id !== "string" || payload.id.length > 80 || payload.id === userId || typeof payload.name !== "string" || !Number.isFinite(payload.x) || !Number.isFinite(payload.y)) return;
       if (payload.x < 0 || payload.x > 1100 || payload.y < 0 || payload.y > 850) return;
       setCursors((old) => ({ ...old, [payload.id]: { id: payload.id, name: payload.name.slice(0, 40), x: payload.x, y: payload.y, laser: payload.laser === true, at: Date.now() } }));
     });
-    room.on("presence", { event: "sync" }, () => {
-      const members = Object.values(room.presenceState<{ id: string; name: string }>()).flat();
-      setPeople(Array.from(new Map(members.filter((p) => typeof p.id === "string" && typeof p.name === "string").map((p) => [p.id, { id: p.id, name: p.name.slice(0, 40) }])).values()).slice(0, 100));
+    realtimeRoom.on("presence", { event: "sync" }, () => {
+      try {
+        const members = Object.values(realtimeRoom.presenceState<{ id: string; name: string }>() ?? {}).flat();
+        setPeople(Array.from(new Map(members.filter((p) => typeof p.id === "string" && typeof p.name === "string").map((p) => [p.id, { id: p.id, name: p.name.slice(0, 40) }])).values()).slice(0, 100));
+      } catch { setPeople([]); }
     });
-    room.subscribe((status) => {
+    try { realtimeRoom.subscribe((status) => {
       setConnected(status === "SUBSCRIBED");
-      if (status === "SUBSCRIBED") { void room.track({ id: userId, name }); void refresh(); }
-    });
+      if (status === "SUBSCRIBED") {
+        try { void realtimeRoom.track({ id: userId, name }).catch(() => undefined); } catch { /* realtime is optional */ }
+        void refresh();
+      }
+    }); } catch { setConnected(false); }
     const prune = setInterval(() => setCursors((old) => Object.fromEntries(Object.entries(old).filter(([, p]) => Date.now() - p.at < 3500))), 1000);
-    return () => { clearTimeout(timer); clearInterval(prune); channel.current = null; void client.removeChannel(room); };
+    return () => { clearTimeout(timer); clearInterval(prune); channel.current = null; if (client && room) void client.removeChannel(room); };
   }, [userId, name, sessionId, refresh]);
   const lastCursor = useRef(0);
   function cursor(x: number, y: number, laser: boolean) {
@@ -81,8 +103,9 @@ export function useWhiteboard(sessionId: string) {
     const before = retrying && failed.current ? failed.current.before : state.current;
     const operation = retrying && failed.current ? failed.current.operation : crypto.randomUUID();
     let rejected = false;
+    const request = requestSignal(20000);
     try {
-      const response = await fetch(`/api/live/${sessionId}/board`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...mutation, operation }), signal: AbortSignal.timeout(20000) });
+      const response = await fetch(`/api/live/${sessionId}/board`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...mutation, operation }), signal: request.signal });
       const next = await response.json();
       if (!response.ok) { rejected = response.status < 500; throw new Error(next.error || "Could not save. Please retry."); }
       const document = next as BoardDocument;
@@ -103,7 +126,7 @@ export function useWhiteboard(sessionId: string) {
       if (mounted.current) setError(cause instanceof Error ? cause.message : "Could not save. Please retry.");
       if (rejected) void refresh(); return false;
     }
-    finally { saving.current = false; if (mounted.current) setBusy(false); }
+    finally { request.clear(); saving.current = false; if (mounted.current) setBusy(false); }
   }
   function change(values: Array<{ id: string; value: BoardObject | null }>, remember = true) {
     return mutate({ changes: values.map((item) => ({ ...item, expected: item.value ? (item.value.revision > 0 || state.current?.objects[item.id] ? item.value.revision : null) : state.current?.objects[item.id]?.revision ?? null })) }, remember);
