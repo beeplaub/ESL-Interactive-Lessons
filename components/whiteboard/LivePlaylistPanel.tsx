@@ -19,7 +19,8 @@ export function LivePlaylistPanel({ sessionId, teacher, live }: { sessionId: str
     if (!response.ok) return;
     const payload = await response.json() as { items?: Item[]; sources?: Source[]; activeItemId?: string | null };
     setItems(payload.items ?? []); setSources(payload.sources ?? []);
-    if (payload.activeItemId) { setActiveItemId(payload.activeItemId); const active = (payload.items ?? []).find((item) => item.id === payload.activeItemId); if (active && announcedActive.current !== active.id) { announcedActive.current = active.id; window.dispatchEvent(new CustomEvent("brenup-live-slide", { detail: { sessionId, item: active } })); } }
+    setActiveItemId(payload.activeItemId ?? null);
+    if (payload.activeItemId) { const active = (payload.items ?? []).find((item) => item.id === payload.activeItemId); if (active && announcedActive.current !== active.id) { announcedActive.current = active.id; window.dispatchEvent(new CustomEvent("brenup-live-slide", { detail: { sessionId, item: active } })); } }
   }
   useEffect(() => { void load(); const interval = window.setInterval(() => void load(), 5000); return () => window.clearInterval(interval); }, [sessionId]);
   async function add(body: Record<string, string>) {

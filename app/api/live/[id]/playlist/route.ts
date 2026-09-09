@@ -94,7 +94,14 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
   if (context.session.status !== "LIVE") return NextResponse.json({ error: "Start the class before editing its playlist." }, { status: 409 });
   const body = await request.json().catch(() => null) as { itemId?: string } | null;
   if (!body?.itemId) return NextResponse.json({ error: "Playlist item is required." }, { status: 400 });
+  const { data: removed } = await context.admin.from("live_session_playlist_items").select("id").eq("id", body.itemId).eq("session_id", id).maybeSingle();
+  if (!removed) return NextResponse.json({ error: "That slide is no longer in this class." }, { status: 404 });
   const { error } = await context.admin.from("live_session_playlist_items").delete().eq("id", body.itemId).eq("session_id", id);
   if (error) return NextResponse.json({ error: "Could not remove the playlist item." }, { status: 400 });
+  const { data: session } = await context.admin.from("live_sessions").select("active_playlist_item_id").eq("id", id).maybeSingle();
+  if (session?.active_playlist_item_id === body.itemId) {
+    const { data: next } = await context.admin.from("live_session_playlist_items").select("id").eq("session_id", id).order("position").limit(1).maybeSingle();
+    await context.admin.from("live_sessions").update({ active_playlist_item_id: next?.id ?? null, updated_at: new Date().toISOString() }).eq("id", id);
+  }
   return NextResponse.json({ ok: true });
 }
