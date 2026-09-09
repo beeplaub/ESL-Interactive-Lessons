@@ -9,7 +9,7 @@ async function access(id: string) {
   if (!user) return null;
   const admin = createAdminClient();
   const [{ data: session }, profile] = await Promise.all([
-    admin.from("live_sessions").select("id,class_id,course_id,teacher_id,status").eq("id", id).maybeSingle(),
+    admin.from("live_sessions").select("id,class_id,course_id,teacher_id,status,active_playlist_item_id").eq("id", id).maybeSingle(),
     getFreshProfile(user.id),
   ]);
   if (!session) return null;
@@ -38,7 +38,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
       sources = (slides ?? []).map((slide) => ({ lessonId: slide.lesson_id, lessonTitle: titles.get(slide.lesson_id) || "Lesson", slideId: slide.id, slideTitle: slide.title || "Slide" }));
     }
   }
-  return NextResponse.json({ items: data ?? [], courseId: context.session.course_id, sources });
+  return NextResponse.json({ items: data ?? [], courseId: context.session.course_id, activeItemId: (context.session as { active_playlist_item_id?: string | null }).active_playlist_item_id ?? null, sources });
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -71,7 +71,14 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const context = await access(id);
   if (!context || !context.teacher) return NextResponse.json({ error: "Teacher access required." }, { status: 403 });
   if (context.session.status !== "LIVE") return NextResponse.json({ error: "Start the class before editing its playlist." }, { status: 409 });
-  const body = await request.json().catch(() => null) as { order?: string[] } | null;
+  const body = await request.json().catch(() => null) as { order?: string[]; activeItemId?: string } | null;
+  if (body?.activeItemId) {
+    const { data: active } = await context.admin.from("live_session_playlist_items").select("id").eq("id", body.activeItemId).eq("session_id", id).maybeSingle();
+    if (!active) return NextResponse.json({ error: "Choose a slide from this class." }, { status: 400 });
+    const { error } = await context.admin.from("live_sessions").update({ active_playlist_item_id: active.id, updated_at: new Date().toISOString() }).eq("id", id);
+    if (error) return NextResponse.json({ error: "Could not show that slide." }, { status: 400 });
+  }
+  if (!body?.order) return NextResponse.json({ ok: true });
   if (!Array.isArray(body?.order) || body.order.length > 250 || body.order.some((item) => typeof item !== "string")) return NextResponse.json({ error: "Invalid playlist order." }, { status: 400 });
   for (const [position, itemId] of body.order.entries()) {
     const { error } = await context.admin.from("live_session_playlist_items").update({ position, updated_at: new Date().toISOString() }).eq("id", itemId).eq("session_id", id);

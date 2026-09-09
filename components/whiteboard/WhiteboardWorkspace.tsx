@@ -69,6 +69,15 @@ export function WhiteboardWorkspace({ sessionId, status, lesson, overview, meeti
     window.addEventListener("brenup-classroom-position", position);
     return () => window.removeEventListener("brenup-classroom-position", position);
   }, [sessionId]);
+  useEffect(() => {
+    const onSlide = (event: Event) => {
+      const detail = (event as CustomEvent<{ sessionId: string; item?: { item_type: string } }>).detail;
+      if (detail?.sessionId !== sessionId || !detail.item) return;
+      setLocalView(detail.item.item_type === "WHITEBOARD" ? "board" : "lesson");
+    };
+    window.addEventListener("brenup-live-slide", onSlide);
+    return () => window.removeEventListener("brenup-live-slide", onSlide);
+  }, [sessionId]);
   useEffect(() => { if (selected && !objects[selected]) setSelected(null); }, [objects, selected]);
   useEffect(() => {
     if (!dialog) return;
