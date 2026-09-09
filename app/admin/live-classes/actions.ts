@@ -46,6 +46,20 @@ export async function endLiveSession(sessionId: string) {
   if (error) throw new Error(error.message); await admin.from("live_events").insert({ session_id: sessionId, actor_id: user.id, event_type: "SESSION_ENDED" }); refresh(); revalidatePath(`/admin/live-classes/${sessionId}`); revalidatePath(`/live/${sessionId}`);
 }
 
+export async function detachLiveSessionLesson(sessionId: string) {
+  const admin = createAdminClient();
+  const { data: session } = await admin.from("live_sessions").select("class_id,teacher_id").eq("id", sessionId).maybeSingle();
+  if (!session) throw new Error("Live class not found.");
+  const { user } = await requireClassAccess(session.class_id);
+  if (session.teacher_id !== user.id) throw new Error("Only the class teacher can remove the attached lesson.");
+  const { error } = await admin.from("live_sessions").update({ lesson_id: null, current_slide_number: null, updated_at: new Date().toISOString() }).eq("id", sessionId).eq("teacher_id", user.id);
+  if (error) throw new Error(error.message);
+  await admin.from("live_events").insert({ session_id: sessionId, actor_id: user.id, event_type: "LESSON_DETACHED" });
+  revalidatePath(`/admin/live-classes/${sessionId}`);
+  revalidatePath(`/live/${sessionId}`);
+  redirect(`/admin/live-classes/${sessionId}`);
+}
+
 export async function cancelLiveSession(sessionId: string) {
   const admin = createAdminClient(); const { data: session } = await admin.from("live_sessions").select("class_id,title").eq("id", sessionId).maybeSingle();
   if (!session) throw new Error("Live class not found."); const { user } = await requireClassAccess(session.class_id);
