@@ -18,8 +18,11 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   ]);
   if (!session) return NextResponse.json({ error: "Class not found." }, { status: 404 });
   const teacher = session.teacher_id === user.id || isPlatformAdmin(profile?.role);
-  const { data: member } = await admin.from("class_members").select("id").eq("class_id", session.class_id).eq("user_id", user.id).maybeSingle();
-  if (!teacher && !member) return NextResponse.json({ error: "Class access required." }, { status: 403 });
+  const [{ data: member }, { data: enrollment }] = await Promise.all([
+    admin.from("class_members").select("id").eq("class_id", session.class_id).eq("user_id", user.id).maybeSingle(),
+    session.course_id ? admin.from("course_enrollments").select("id").eq("course_id", session.course_id).eq("user_id", user.id).in("status", ["ACTIVE", "COMPLETED"]).maybeSingle() : Promise.resolve({ data: null }),
+  ]);
+  if (!teacher && !member && !enrollment) return NextResponse.json({ error: "Class access required." }, { status: 403 });
   if (session.course_id) {
     const { data: placement } = await admin.from("course_items").select("id").eq("course_id", session.course_id).eq("lesson_id", lessonId).maybeSingle();
     if (!placement) return NextResponse.json({ error: "That lesson is not part of this class course." }, { status: 403 });

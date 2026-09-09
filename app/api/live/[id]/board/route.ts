@@ -11,13 +11,16 @@ async function access(id: string) {
   if (!user) return null;
   const admin = createAdminClient();
   const [{ data: session }, profile] = await Promise.all([
-    admin.from("live_sessions").select("class_id,teacher_id,status").eq("id", id).maybeSingle(), getFreshProfile(user.id),
+    admin.from("live_sessions").select("class_id,course_id,teacher_id,status").eq("id", id).maybeSingle(), getFreshProfile(user.id),
   ]);
   if (!session) return null;
   const teacher = session.teacher_id === user.id || isPlatformAdmin(profile?.role);
   if (!teacher) {
-    const { data: member } = await admin.from("class_members").select("id").eq("class_id", session.class_id).eq("user_id", user.id).maybeSingle();
-    if (!member) return null;
+    const [{ data: member }, { data: enrollment }] = await Promise.all([
+      admin.from("class_members").select("id").eq("class_id", session.class_id).eq("user_id", user.id).maybeSingle(),
+      session.course_id ? admin.from("course_enrollments").select("id").eq("course_id", session.course_id).eq("user_id", user.id).in("status", ["ACTIVE", "COMPLETED"]).maybeSingle() : Promise.resolve({ data: null }),
+    ]);
+    if (!member && !enrollment) return null;
   }
   const displayName = String(profile?.first_name || profile?.full_name || (teacher ? "Teacher" : `Learner ${user.id.slice(0, 4)}`)).trim().slice(0, 40);
   return { admin, user, teacher, live: session.status === "LIVE", name: displayName };
