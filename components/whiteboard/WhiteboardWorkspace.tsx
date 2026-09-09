@@ -80,7 +80,13 @@ export function WhiteboardWorkspace({ sessionId, status, lesson, overview, meeti
     window.addEventListener("keydown", escape); return () => window.removeEventListener("keydown", escape);
   }, []);
   const remaining = settings.timerEnd ? Math.max(0, Math.ceil((settings.timerEnd - now) / 1000)) : settings.timerSeconds;
-  const clock = (n: number) => `${Math.floor(n / 60).toString().padStart(2, "0")}:${Math.floor(n % 60).toString().padStart(2, "0")}`;
+  const clock = (n: number) => {
+    const total = Math.max(0, Math.floor(n));
+    const hours = Math.floor(total / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    const seconds = total % 60;
+    return hours ? `${hours}:${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}` : `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+  };
   const elapsed = startedAt && now ? Math.max(0, (now - new Date(startedAt).getTime()) / 1000) : null;
   function keyboard(event: ReactKeyboardEvent<HTMLDivElement>) {
     if (dialog) {

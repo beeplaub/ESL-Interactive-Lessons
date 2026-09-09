@@ -17,7 +17,6 @@ export async function createLiveSession(formData: FormData) {
   if (!title) throw new Error("Give the live class a title.");
   let lessonId = String(formData.get("lessonId") || "").trim() || null;
   const courseId = String(formData.get("courseId") || "").trim() || null;
-  if (!lessonId && !courseId) throw new Error("Choose a course or lesson to teach.");
   const admin = createAdminClient();
   // A course-led class still needs one concrete lesson for the shared player.
   if (!lessonId && courseId) {
@@ -31,7 +30,6 @@ export async function createLiveSession(formData: FormData) {
       .maybeSingle();
     lessonId = firstItem?.lesson_id ?? null;
   }
-  if (!lessonId) throw new Error("Choose a lesson, or a course with at least one lesson.");
   const meetingValue = String(formData.get("externalMeetingUrl") || "").trim();
   if (meetingValue && !liveMeetingUrl(meetingValue)) throw new Error("Use a full HTTPS meeting or WhatsApp call link.");
   const scheduledValue = String(formData.get("scheduledAt") || "").trim();
