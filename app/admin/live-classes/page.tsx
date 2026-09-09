@@ -18,7 +18,7 @@ export default async function LiveClassesPage() {
   if (!isPlatformAdmin(profile?.role)) { const schoolIds = profile?.role === "SCHOOL_ADMIN" ? await getSchoolAdminOrganizationIds(user.id) : []; classQuery = schoolIds.length ? classQuery.or(`teacher_id.eq.${user.id},created_by.eq.${user.id},organization_id.in.(${schoolIds.join(",")})`) : classQuery.or(`teacher_id.eq.${user.id},created_by.eq.${user.id}`); }
   const { data: classes } = await classQuery; const classIds = (classes ?? []).map((item) => item.id);
   const [{ data: sessions }, { data: courses }, { data: lessons }] = await Promise.all([
-    classIds.length ? admin.from("live_sessions").select("id,class_id,title,status,scheduled_at,duration_minutes,session_code,lesson_id,course_id,created_at").in("class_id", classIds).order("scheduled_at", { ascending: true, nullsFirst: false }).order("created_at", { ascending: false }) : Promise.resolve({ data: [] }),
+    classIds.length ? admin.from("live_sessions").select("id,class_id,title,status,scheduled_at,duration_minutes,session_code,lesson_id,course_id,created_at").in("class_id", classIds).neq("status", "ARCHIVED").order("scheduled_at", { ascending: true, nullsFirst: false }).order("created_at", { ascending: false }) : Promise.resolve({ data: [] }),
     admin.from("courses").select("id,title").eq("status", "PUBLISHED").is("deleted_at", null).order("title"),
     admin.from("lessons").select("id,title").eq("status", "PUBLISHED").is("deleted_at", null).order("title"),
   ]);

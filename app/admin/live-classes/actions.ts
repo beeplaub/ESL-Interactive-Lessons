@@ -67,6 +67,44 @@ export async function cancelLiveSession(sessionId: string) {
   if (error) throw new Error(error.message); await admin.from("live_events").insert({ session_id: sessionId, actor_id: user.id, event_type: "SESSION_CANCELLED" }); const { data: learners } = await admin.from("class_members").select("user_id").eq("class_id", session.class_id).eq("role", "STUDENT"); await notifyUsers((learners ?? []).map((learner) => learner.user_id), { type: "LIVE_CLASS_CANCELLED", title: "Live class cancelled", detail: `${session.title || "Your class"} will not run as scheduled.`, href: "/live-classes", tone: "orange", dedupeKeyPrefix: `live-cancelled:${sessionId}` }); refresh(); revalidatePath(`/admin/live-classes/${sessionId}`); revalidatePath(`/live/${sessionId}`);
 }
 
+export async function archiveLiveSession(sessionId: string) {
+  const admin = createAdminClient();
+  const { data: session } = await admin.from("live_sessions").select("class_id,status").eq("id", sessionId).maybeSingle();
+  if (!session) throw new Error("Live class not found.");
+  const { user } = await requireClassAccess(session.class_id);
+  if (session.status === "LIVE") throw new Error("End the live class before archiving it.");
+  const { error } = await admin.from("live_sessions").update({ status: "ARCHIVED", updated_at: new Date().toISOString() }).eq("id", sessionId);
+  if (error) throw new Error(error.message);
+  await admin.from("live_events").insert({ session_id: sessionId, actor_id: user.id, event_type: "SESSION_ARCHIVED" });
+  refresh();
+  redirect("/admin/live-classes");
+}
+
+export async function restoreLiveSession(sessionId: string) {
+  const admin = createAdminClient();
+  const { data: session } = await admin.from("live_sessions").select("class_id,status").eq("id", sessionId).maybeSingle();
+  if (!session) throw new Error("Live class not found.");
+  const { user } = await requireClassAccess(session.class_id);
+  if (session.status !== "ARCHIVED") throw new Error("This live class is not archived.");
+  const { error } = await admin.from("live_sessions").update({ status: "COMPLETED", updated_at: new Date().toISOString() }).eq("id", sessionId);
+  if (error) throw new Error(error.message);
+  await admin.from("live_events").insert({ session_id: sessionId, actor_id: user.id, event_type: "SESSION_RESTORED" });
+  refresh();
+  redirect(`/admin/live-classes/${sessionId}`);
+}
+
+export async function deleteLiveSession(sessionId: string) {
+  const admin = createAdminClient();
+  const { data: session } = await admin.from("live_sessions").select("class_id,status").eq("id", sessionId).maybeSingle();
+  if (!session) throw new Error("Live class not found.");
+  await requireClassAccess(session.class_id);
+  if (!["DRAFT", "CANCELLED"].includes(session.status)) throw new Error("Only draft or cancelled test classes can be permanently deleted. Archive completed classes instead.");
+  const { error } = await admin.from("live_sessions").delete().eq("id", sessionId);
+  if (error) throw new Error(error.message);
+  refresh();
+  redirect("/admin/live-classes");
+}
+
 export async function duplicateLiveSession(sessionId: string) {
   const admin = createAdminClient(); const { data: source } = await admin.from("live_sessions").select("class_id,course_id,lesson_id,title,description,duration_minutes,external_meeting_url").eq("id", sessionId).maybeSingle();
   if (!source) throw new Error("Live class not found."); const { user } = await requireClassAccess(source.class_id);
