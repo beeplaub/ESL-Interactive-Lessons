@@ -7,6 +7,7 @@ import { routineTemplate, type BoardObject } from "@/lib/whiteboard";
 import { notifyLiveRoom } from "@/lib/liveSync";
 import { BoardCanvas, cursorColor, exportBoard, type BoardTool } from "./BoardCanvas";
 import { useWhiteboard } from "./useWhiteboard";
+import { LivePlaylistPanel } from "./LivePlaylistPanel";
 import "./whiteboard.css";
 
 export type ClassroomSlide = { id: string; slide_number: number; title: string; section_label?: string | null };
@@ -178,7 +179,7 @@ export function WhiteboardWorkspace({ sessionId, status, lesson, overview, meeti
             <h2>Activity Prompt {teacher ? <button aria-label="Edit activity prompt" onClick={() => { setDraftText(settings.prompt); setDialog("prompt"); }} disabled={!canEdit}><Pencil size={13} /></button> : null}</h2><div className="wb-prompt"><Lightbulb size={26} color="#daa523" /><p>{settings.prompt || "What can we discover together?"}</p></div>
             <label className="wb-editing"><b>Open student editing</b><input type="checkbox" role="switch" checked={settings.editing} disabled={!teacher || !board.data?.live || board.busy} onChange={(event) => void board.settings({ editing: event.target.checked })} /></label><p className="wb-help">{settings.editing ? "Students can add, move and edit on this board." : "Only the teacher can change the board. Students can use the pointer."}</p>
           </div>
-          <div className="wb-tools" data-panel={tab.toLowerCase()} hidden={tab === "Board"}><LiveClassTools sessionId={sessionId} teacher={teacher} live={status === "LIVE"} />{tab === "People" ? <><div className="wb-people">{board.people.map((person) => <span key={person.id}><MousePointer2 size={16} color={cursorColor(person.id)} />{person.name}</span>)}</div>{overview}</> : null}</div>
+          <div className="wb-tools" data-panel={tab.toLowerCase()} hidden={tab === "Board"}><LiveClassTools sessionId={sessionId} teacher={teacher} live={status === "LIVE"} /><LivePlaylistPanel sessionId={sessionId} teacher={teacher} live={status === "LIVE"} />{tab === "People" ? <><div className="wb-people">{board.people.map((person) => <span key={person.id}><MousePointer2 size={16} color={cursorColor(person.id)} />{person.name}</span>)}</div>{overview}</> : null}</div>
         </section>
       </aside>
     </div>
