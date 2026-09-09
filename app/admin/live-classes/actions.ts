@@ -32,6 +32,29 @@ export async function createLiveSession(formData: FormData) {
   redirect(`/admin/live-classes/${session.id}`);
 }
 
+export async function startInstantLiveSession(formData: FormData) {
+  const classId = String(formData.get("classId") || "").trim();
+  if (!classId) throw new Error("Choose a class.");
+  const { user } = await requireClassAccess(classId);
+  const title = String(formData.get("title") || "").trim();
+  if (!title) throw new Error("Give the live class a title.");
+  const lessonId = String(formData.get("lessonId") || "").trim() || null;
+  const courseId = String(formData.get("courseId") || "").trim() || null;
+  const admin = createAdminClient();
+  const meetingValue = String(formData.get("externalMeetingUrl") || "").trim();
+  if (meetingValue && !liveMeetingUrl(meetingValue)) throw new Error("Use a full HTTPS meeting or WhatsApp call link.");
+  const duration = Math.max(5, Math.min(480, Number(formData.get("durationMinutes") || 60)));
+  const now = new Date().toISOString();
+  const { data: session, error } = await admin.from("live_sessions").insert({ class_id: classId, course_id: courseId, lesson_id: lessonId, title, description: String(formData.get("description") || "").trim() || null, teacher_id: user.id, started_at: now, duration_minutes: duration, external_meeting_url: meetingValue || null, session_code: crypto.randomUUID().replaceAll("-", "").slice(0, 8).toUpperCase(), status: "LIVE", created_by: user.id }).select("id").single();
+  if (error || !session) throw new Error(error?.message || "Could not start live class.");
+  const { data: learners } = await admin.from("class_members").select("user_id").eq("class_id", classId).eq("role", "STUDENT");
+  await admin.from("live_session_members").upsert([{ session_id: session.id, user_id: user.id, role: "TEACHER", status: "JOINED", joined_at: now }, ...(learners ?? []).map((learner) => ({ session_id: session.id, user_id: learner.user_id, role: "STUDENT", status: "INVITED" }))], { onConflict: "session_id,user_id" });
+  await admin.from("live_events").insert({ session_id: session.id, actor_id: user.id, event_type: "SESSION_CREATED", payload: { classId, lessonId, courseId, instant: true } });
+  await notifyUsers((learners ?? []).map((learner) => learner.user_id), { type: "LIVE_CLASS_STARTED", title: "Your live class is ready", detail: `${title} has started.`, href: `/live/${session.id}`, tone: "green", dedupeKeyPrefix: `live-started:${session.id}` });
+  refresh();
+  redirect(`/admin/live-classes/${session.id}`);
+}
+
 export async function startLiveSession(sessionId: string) {
   const admin = createAdminClient(); const { data: session } = await admin.from("live_sessions").select("class_id,title").eq("id", sessionId).maybeSingle();
   if (!session) throw new Error("Live class not found."); const { user } = await requireClassAccess(session.class_id);
