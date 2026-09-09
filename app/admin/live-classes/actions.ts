@@ -15,21 +15,9 @@ export async function createLiveSession(formData: FormData) {
   const { user } = await requireClassAccess(classId);
   const title = String(formData.get("title") || "").trim();
   if (!title) throw new Error("Give the live class a title.");
-  let lessonId = String(formData.get("lessonId") || "").trim() || null;
+  const lessonId = String(formData.get("lessonId") || "").trim() || null;
   const courseId = String(formData.get("courseId") || "").trim() || null;
   const admin = createAdminClient();
-  // A course-led class still needs one concrete lesson for the shared player.
-  if (!lessonId && courseId) {
-    const { data: firstItem } = await admin
-      .from("course_items")
-      .select("lesson_id,position")
-      .eq("course_id", courseId)
-      .not("lesson_id", "is", null)
-      .order("position")
-      .limit(1)
-      .maybeSingle();
-    lessonId = firstItem?.lesson_id ?? null;
-  }
   const meetingValue = String(formData.get("externalMeetingUrl") || "").trim();
   if (meetingValue && !liveMeetingUrl(meetingValue)) throw new Error("Use a full HTTPS meeting or WhatsApp call link.");
   const scheduledValue = String(formData.get("scheduledAt") || "").trim();
