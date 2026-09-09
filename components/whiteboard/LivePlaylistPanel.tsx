@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronUp, GripVertical, Plus, Trash2 } from "lucide-react";
 
-type Item = { id: string; position: number; item_type: "WHITEBOARD" | "LESSON_SLIDE"; lesson_id: string | null; slide_id: string | null; title: string };
+type Item = { id: string; position: number; item_type: "WHITEBOARD" | "LESSON_SLIDE"; lesson_id: string | null; slide_id: string | null; slide_number?: number | null; title: string };
 type Source = { lessonId: string; lessonTitle: string; slideId: string; slideTitle: string };
 
 export function LivePlaylistPanel({ sessionId, teacher, live }: { sessionId: string; teacher: boolean; live: boolean }) {

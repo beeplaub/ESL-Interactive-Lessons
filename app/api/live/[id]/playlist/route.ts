@@ -23,7 +23,7 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   const { id } = await params;
   const context = await access(id);
   if (!context) return NextResponse.json({ error: "Session access required." }, { status: 403 });
-  const { data, error } = await context.admin.from("live_session_playlist_items").select("id,position,item_type,lesson_id,slide_id,title").eq("session_id", id).order("position");
+  const { data, error } = await context.admin.from("live_session_playlist_items").select("id,position,item_type,lesson_id,slide_id,slide_number,title").eq("session_id", id).order("position");
   if (error) return NextResponse.json({ error: "Could not load the class playlist." }, { status: 503 });
   let sources: Array<{ lessonId: string; lessonTitle: string; slideId: string; slideTitle: string }> = [];
   if (context.session.course_id) {
@@ -52,16 +52,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const { count } = await context.admin.from("live_session_playlist_items").select("id", { count: "exact", head: true }).eq("session_id", id);
   const position = Number.isFinite(body?.position) ? Math.max(0, Math.floor(Number(body?.position))) : (count ?? 0);
   if (type === "WHITEBOARD") {
-    const { data, error } = await context.admin.from("live_session_playlist_items").insert({ session_id: id, position, item_type: type, title: String(body?.title || "Whiteboard").slice(0, 160), created_by: context.user.id }).select("id,position,item_type,lesson_id,slide_id,title").single();
+    const { data, error } = await context.admin.from("live_session_playlist_items").insert({ session_id: id, position, item_type: type, title: String(body?.title || "Whiteboard").slice(0, 160), created_by: context.user.id }).select("id,position,item_type,lesson_id,slide_id,slide_number,title").single();
     if (error) return NextResponse.json({ error: "Could not add the whiteboard page." }, { status: 400 });
     return NextResponse.json(data);
   }
   if (!context.session.course_id || typeof body?.lessonId !== "string" || typeof body?.slideId !== "string") return NextResponse.json({ error: "Choose a lesson slide from this class's course." }, { status: 400 });
-  const { data: source } = await context.admin.from("slides").select("id,lesson_id,title,lessons!inner(id,title)").eq("id", body.slideId).eq("lesson_id", body.lessonId).is("deleted_at", null).maybeSingle();
+  const { data: source } = await context.admin.from("slides").select("id,lesson_id,slide_number,title,lessons!inner(id,title)").eq("id", body.slideId).eq("lesson_id", body.lessonId).is("deleted_at", null).maybeSingle();
   if (!source) return NextResponse.json({ error: "That lesson slide is unavailable." }, { status: 404 });
   const { data: placement } = await context.admin.from("course_items").select("id").eq("course_id", context.session.course_id).eq("lesson_id", source.lesson_id).maybeSingle();
   if (!placement) return NextResponse.json({ error: "That lesson is not part of this class course." }, { status: 403 });
-  const { data, error } = await context.admin.from("live_session_playlist_items").insert({ session_id: id, position, item_type: type, lesson_id: source.lesson_id, slide_id: source.id, title: String(body.title || source.title || "Lesson slide").slice(0, 160), created_by: context.user.id }).select("id,position,item_type,lesson_id,slide_id,title").single();
+  const { data, error } = await context.admin.from("live_session_playlist_items").insert({ session_id: id, position, item_type: type, lesson_id: source.lesson_id, slide_id: source.id, slide_number: source.slide_number, title: String(body.title || source.title || "Lesson slide").slice(0, 160), created_by: context.user.id }).select("id,position,item_type,lesson_id,slide_id,slide_number,title").single();
   if (error) return NextResponse.json({ error: "Could not add that slide." }, { status: 400 });
   return NextResponse.json(data);
 }
