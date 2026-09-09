@@ -5,8 +5,8 @@ import { getFreshProfile, isPlatformAdmin } from "@/lib/auth";
 
 async function access(id: string) {
   const supabase = await createClient(); const { data: { user } } = await supabase.auth.getUser(); if (!user) return { user: null, session: null, teacher: false };
-  const admin = createAdminClient(); const [{ data: session }, profile] = await Promise.all([admin.from("live_sessions").select("id,class_id,teacher_id,status").eq("id", id).maybeSingle(), getFreshProfile(user.id)]);
-  if (!session) return { user, session: null, teacher: false }; const teacher = session.teacher_id === user.id || isPlatformAdmin(profile?.role); const { data: member } = await admin.from("class_members").select("id").eq("class_id", session.class_id).eq("user_id", user.id).maybeSingle(); return { user, session: member || teacher ? session : null, teacher };
+  const admin = createAdminClient(); const [{ data: session }, profile] = await Promise.all([admin.from("live_sessions").select("id,class_id,course_id,teacher_id,status").eq("id", id).maybeSingle(), getFreshProfile(user.id)]);
+  if (!session) return { user, session: null, teacher: false }; const teacher = session.teacher_id === user.id || isPlatformAdmin(profile?.role); const [{ data: member }, { data: enrollment }] = await Promise.all([admin.from("class_members").select("id").eq("class_id", session.class_id).eq("user_id", user.id).maybeSingle(), session.course_id ? admin.from("course_enrollments").select("id").eq("course_id", session.course_id).eq("user_id", user.id).in("status", ["ACTIVE", "COMPLETED"]).maybeSingle() : Promise.resolve({ data: null })]); return { user, session: member || enrollment || teacher ? session : null, teacher };
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {

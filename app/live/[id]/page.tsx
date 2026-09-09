@@ -16,16 +16,17 @@ export default async function LearnerLiveSessionPage({ params }: { params: Promi
   const admin = createAdminClient();
   const { data: session } = await admin
     .from("live_sessions")
-    .select("id,class_id,title,description,status,started_at,scheduled_at,duration_minutes,external_meeting_url,session_code,teacher_id,lesson_id,current_slide_number,navigation_locked,classes(name)")
+    .select("id,class_id,course_id,title,description,status,started_at,scheduled_at,duration_minutes,external_meeting_url,session_code,teacher_id,lesson_id,current_slide_number,navigation_locked,classes(name)")
     .eq("id", id)
     .maybeSingle();
   if (!session) notFound();
 
-  const [{ data: roster }, { data: classMember }] = await Promise.all([
+  const [{ data: roster }, { data: classMember }, { data: courseEnrollment }] = await Promise.all([
     admin.from("live_session_members").select("id,role").eq("session_id", id).eq("user_id", user.id).maybeSingle(),
     admin.from("class_members").select("id").eq("class_id", session.class_id).eq("user_id", user.id).maybeSingle(),
+    session.course_id ? admin.from("course_enrollments").select("id").eq("course_id", session.course_id).eq("user_id", user.id).in("status", ["ACTIVE", "COMPLETED"]).maybeSingle() : Promise.resolve({ data: null }),
   ]);
-  if (!roster && !classMember && session.teacher_id !== user.id) redirect("/account");
+  if (!roster && !classMember && !courseEnrollment && session.teacher_id !== user.id) redirect("/account");
 
   if (session.status === "LIVE") {
     const role = session.teacher_id === user.id ? "TEACHER" : "STUDENT";
