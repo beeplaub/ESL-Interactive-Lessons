@@ -33,11 +33,13 @@ export function useWhiteboard(sessionId: string) {
     state.current = next; setData(next);
   }, []);
   const refresh = useCallback(async () => {
+    if (saving.current) return;
     const request = requestSignal(12000);
     try {
       const response = await fetch(`/api/live/${sessionId}/board?revision=${state.current?.revision ?? -1}`, { cache: "no-store", signal: request.signal });
       const next = await response.json();
       if (!response.ok) throw new Error(next.error || "Could not load the board.");
+      if (saving.current) return;
       if (next.unchanged) { if (state.current) apply({ ...state.current, live: next.live }); }
       else apply(next);
       if (mounted.current && !failed.current && !mutationError.current) setError("");
@@ -47,7 +49,9 @@ export function useWhiteboard(sessionId: string) {
   useEffect(() => {
     mounted.current = true; state.current = null; setData(null); undoStack.current = []; setUndoCount(0);
     void refresh();
-    const interval = window.setInterval(() => { if (!document.hidden && !saving.current) void refresh(); }, 15000);
+    // Realtime broadcast is the fast path. This short, revision-aware poll is
+    // only a recovery path for missed websocket events and reconnects.
+    const interval = window.setInterval(() => { if (!document.hidden && !saving.current) void refresh(); }, 1000);
     const online = () => void refresh();
     window.addEventListener("online", online);
     return () => { mounted.current = false; window.clearInterval(interval); window.removeEventListener("online", online); };
@@ -86,6 +90,7 @@ export function useWhiteboard(sessionId: string) {
         try { void realtimeRoom.track({ id: userId, name }).catch(() => undefined); } catch { /* realtime is optional */ }
         void refresh();
       }
+      if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") void refresh();
     }); } catch { setConnected(false); }
     const prune = setInterval(() => setCursors((old) => Object.fromEntries(Object.entries(old).filter(([, p]) => Date.now() - p.at < 3500))), 1000);
     return () => { clearTimeout(timer); clearInterval(prune); channel.current = null; if (client && room) void client.removeChannel(room); };
@@ -101,7 +106,19 @@ export function useWhiteboard(sessionId: string) {
     if (failed.current && !retrying) { setError("An earlier edit is waiting to save. Retry it or discard it first."); return false; }
     saving.current = true; setBusy(true); setError(""); mutationError.current = false;
     const before = retrying && failed.current ? failed.current.before : state.current;
+    if (!before) { saving.current = false; setBusy(false); return false; }
     const operation = retrying && failed.current ? failed.current.operation : crypto.randomUUID();
+    const optimisticObjects = { ...before.objects };
+    for (const change of mutation.changes ?? []) {
+      if (change.value === null) delete optimisticObjects[change.id];
+      else optimisticObjects[change.id] = change.value;
+    }
+    const optimistic: BoardData = {
+      ...before,
+      objects: optimisticObjects,
+      settings: mutation.settings ? { ...before.settings, ...mutation.settings } : before.settings,
+    };
+    apply(optimistic);
     let rejected = false;
     const request = requestSignal(20000);
     try {
@@ -109,7 +126,7 @@ export function useWhiteboard(sessionId: string) {
       const next = await response.json();
       if (!response.ok) { rejected = response.status < 500; throw new Error(next.error || "Could not save. Please retry."); }
       const document = next as BoardDocument;
-      apply({ ...before, ...document });
+      apply({ ...(state.current ?? before), ...document });
       failed.current = null; setHasPending(false);
       if (remember && mutation.changes?.length) {
         undoStack.current.push(mutation.changes.map((change) => ({ id: change.id, expected: document.objects[change.id]?.revision ?? null, value: before.objects[change.id] ?? null })));
