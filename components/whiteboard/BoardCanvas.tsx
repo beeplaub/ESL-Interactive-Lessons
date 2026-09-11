@@ -43,6 +43,7 @@ export function BoardCanvas({ objects, tool, color, canEdit, busy, selected, onS
 }) {
   const [draft, setDraft] = useState<BoardObject | null>(null);
   const [editing, setEditing] = useState<{ id: string; value: string; original?: BoardObject } | null>(null);
+  const creatingText = useRef(false);
   const gesture = useRef<{ start: [number, number]; item: BoardObject; resize: boolean } | null>(null);
   const scroll = useRef<HTMLDivElement>(null);
   const pan = useRef<{ x: number; y: number; left: number; top: number } | null>(null);
@@ -69,6 +70,7 @@ export function BoardCanvas({ objects, tool, color, canEdit, busy, selected, onS
     }
     if (tool === "text" || tool === "sticky" || tool === "card") {
       const created: BoardObject = { id: crypto.randomUUID(), kind: tool, x, y, w: tool === "text" ? 450 : 220, h: tool === "sticky" ? 180 : 80, color: tool === "text" ? color : "#fff4ac", revision: 0, size: 30, text: "" };
+      creatingText.current = true;
       setDraft(created); onSelect(created.id); setEditing({ id: created.id, value: "", original: created }); return;
     }
     if (!["pen", "highlighter", "rect", "ellipse", "arrow"].includes(tool)) return;
@@ -96,7 +98,7 @@ export function BoardCanvas({ objects, tool, color, canEdit, busy, selected, onS
     pending.current = next; setDraft(next);
   }
   async function finish() {
-    if (editing) return;
+    if (editing || creatingText.current) return;
     pan.current = null;
     let next = pending.current;
     const original = gesture.current?.item;
@@ -117,13 +119,14 @@ export function BoardCanvas({ objects, tool, color, canEdit, busy, selected, onS
     if (!editing) return;
     const item = objects[editing.id] ?? editing.original;
     setEditing(null);
+    creatingText.current = false;
     if (!item) return;
     if (!editing.value.trim()) { if (objects[item.id]) await onChange([{ id: item.id, value: null }]); setDraft(null); onSelect(null); return; }
     if (editing.value !== item.text) { const updated = { ...item, text: editing.value }; setDraft(updated); await onChange([{ id: item.id, value: updated }]); }
     setDraft(null);
   }
   return <div ref={scroll} className="wb-board-scroll">
-    <svg ref={svgRef} tabIndex={0} className={`wb-canvas wb-tool-${tool}`} style={{ width: `${zoom}%` }} viewBox={`0 0 ${BOARD_WIDTH} ${BOARD_HEIGHT}`} role="img" aria-label="Collaborative whiteboard. Use Select to move objects, or choose a drawing tool." onPointerDown={start} onPointerMove={move} onPointerUp={() => void finish()} onPointerCancel={() => { gesture.current = null; pending.current = null; pan.current = null; setDraft(null); }}>
+    <svg ref={svgRef} tabIndex={0} className={`wb-canvas wb-tool-${tool}`} style={{ width: `${zoom}%` }} viewBox={`0 0 ${BOARD_WIDTH} ${BOARD_HEIGHT}`} role="img" aria-label="Collaborative whiteboard. Use Select to move objects, or choose a drawing tool." onPointerDown={start} onPointerMove={move} onPointerUp={() => void finish()} onPointerCancel={() => { gesture.current = null; pending.current = null; pan.current = null; creatingText.current = false; setDraft(null); setEditing(null); }}>
       <defs><filter id="board-paper-shadow" x="-15%" y="-15%" width="140%" height="150%"><feDropShadow dx="0" dy="3" stdDeviation="3" floodColor="#584491" floodOpacity=".13" /></filter></defs>
       <rect width={BOARD_WIDTH} height={BOARD_HEIGHT} fill="#ffffff" />
       {!displayed.length ? <g pointerEvents="none"><text x="550" y="365" textAnchor="middle" fill="#8059bb" fontSize="34" fontFamily="sans-serif">A little space for big ideas.</text><text x="550" y="415" textAnchor="middle" fill="#8e87a1" fontSize="21" fontFamily="sans-serif">{canEdit ? "Pick a tool, add a word, or start with a template." : "Your teacher is getting the board ready."}</text></g> : null}
