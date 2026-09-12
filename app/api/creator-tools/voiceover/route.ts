@@ -76,6 +76,12 @@ function jsonError(message: string, status: number) {
   return NextResponse.json({ error: message }, { status });
 }
 
+function creditAllowanceError(requestedCredits: number, remainingCredits: number) {
+  const requestedLabel = requestedCredits === 1 ? "1 credit" : `${requestedCredits} credits`;
+  const remainingLabel = remainingCredits === 1 ? "1 credit" : `${remainingCredits} credits`;
+  return `This voiceover needs about ${requestedLabel}, but only ${remainingLabel} remain in today's allowance. Voiceovers use one credit per 30 seconds of audio. Saved voiceovers remain available; try a shorter script or try again tomorrow.`;
+}
+
 async function withinVoiceoverBudget<T>(work: Promise<T>, budgetMs: number) {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
@@ -226,7 +232,7 @@ export async function POST(request: Request) {
   if (creditReservation.supported) {
     if (!creditReservation.allowed) {
       await releaseAiGeneration(`voiceover:${access.user.id}:${requestHash}`, generationLock.ownerToken);
-      return jsonError("Your daily AI credit allowance has been reached. Saved voiceovers remain available.", 429);
+      return jsonError(creditAllowanceError(reservedCredits, creditReservation.remaining), 429);
     }
   } else if (usesCloudCredits) {
     quota = await checkUsageQuota(access.user.id, access.profile.role);

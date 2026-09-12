@@ -30,6 +30,12 @@ function errorResponse(error: unknown) {
   return NextResponse.json({ error: known?.message ?? "Could not verify Creator Tools access." }, { status: known?.status ?? 500 });
 }
 
+function creditAllowanceError(requestedCredits: number, remainingCredits: number) {
+  const requestedLabel = requestedCredits === 1 ? "1 credit" : `${requestedCredits} credits`;
+  const remainingLabel = remainingCredits === 1 ? "1 credit" : `${remainingCredits} credits`;
+  return `This conversation voiceover needs about ${requestedLabel}, but only ${remainingLabel} remain in today's allowance. Voiceovers use one credit per 30 seconds of audio. Saved voiceovers remain available; try a shorter conversation or try again tomorrow.`;
+}
+
 function stable(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(stable).join(",")}]`;
   if (value && typeof value === "object") return `{${Object.entries(value as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b)).map(([key, item]) => `${JSON.stringify(key)}:${stable(item)}`).join(",")}}`;
@@ -56,7 +62,7 @@ export async function POST(request: Request) {
   const reservedCredits = Math.max(1, Math.ceil(estimatedSeconds / 30));
   const usesCloud = input.people.some((person) => person.provider !== "kokoro");
   const reservation = usesCloud ? await reserveAiCredits(access.user.id, access.profile.role, reservedCredits) : { supported: false, allowed: true, remaining: 0 };
-  if (reservation.supported && !reservation.allowed) { await releaseAiGeneration(`conversation:${access.user.id}:${requestHash}`, lock.ownerToken); return NextResponse.json({ error: "Your daily AI credit allowance has been reached." }, { status: 429 }); }
+  if (reservation.supported && !reservation.allowed) { await releaseAiGeneration(`conversation:${access.user.id}:${requestHash}`, lock.ownerToken); return NextResponse.json({ error: creditAllowanceError(reservedCredits, reservation.remaining) }, { status: 429 }); }
   if (!reservation.supported && usesCloud) { const quota = await checkUsageQuota(access.user.id, access.profile.role); if (!quota.allowed) { await releaseAiGeneration(`conversation:${access.user.id}:${requestHash}`, lock.ownerToken); return NextResponse.json({ error: quota.message || "Your daily AI allowance has been reached." }, { status: 429 }); } }
 
   try {
