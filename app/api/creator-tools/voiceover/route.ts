@@ -1,12 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { checkUsageQuota, recordUsageEvent } from "@/lib/ai/usage";
 import {
   claimAiGeneration,
-  releaseAiCredits,
   releaseAiGeneration,
-  reserveAiCredits,
   settleAiCredits,
 } from "@/lib/ai/efficiency";
 import { creatorAccessError, getCreatorAiAccess } from "@/lib/ai/creatorAccess";
@@ -76,12 +73,6 @@ function jsonError(message: string, status: number) {
   return NextResponse.json({ error: message }, { status });
 }
 
-function creditAllowanceError(requestedCredits: number, remainingCredits: number) {
-  const requestedLabel = requestedCredits === 1 ? "1 credit" : `${requestedCredits} credits`;
-  const remainingLabel = remainingCredits === 1 ? "1 credit" : `${remainingCredits} credits`;
-  return `This voiceover needs about ${requestedLabel}, but only ${remainingLabel} remain in today's allowance. Voiceovers use one credit per 30 seconds of audio. Saved voiceovers remain available; try a shorter script or try again tomorrow.`;
-}
-
 async function withinVoiceoverBudget<T>(work: Promise<T>, budgetMs: number) {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
@@ -112,7 +103,6 @@ export async function POST(request: Request) {
   const input = parsed.data;
   const title = input.title || await automaticNarrationTitle(admin, input.lessonId, input.slideId);
   const preferredProvider = voiceoverProviderForRequest(input);
-  const usesCloudCredits = preferredProvider !== "kokoro";
   const requestHash = voiceoverRequestHash(input);
 
   const { data: reusable } = await admin
@@ -217,30 +207,8 @@ export async function POST(request: Request) {
     return jsonError("This same voiceover is already being generated. Please try again in a moment.", 409);
   }
 
-  const estimatedSeconds = Math.max(1, input.script.trim().split(/\s+/).length / 2.4);
-  const reservedCredits = Math.max(1, Math.ceil(estimatedSeconds / 30));
-  // Kokoro runs through BrenUp's local/self-hosted voice service. It does not
-  // consume Gemini/BrenUp cloud AI credits, so only cloud voice generation
-  // participates in the daily credit allowance.
-  const creditReservation = usesCloudCredits
-    ? await reserveAiCredits(access.user.id, access.profile.role, reservedCredits)
-    : { supported: false, allowed: true, remaining: 0 };
-  let quota: { allowed: boolean; remaining: number; message?: string } = {
-    allowed: true,
-    remaining: creditReservation.remaining,
-  };
-  if (creditReservation.supported) {
-    if (!creditReservation.allowed) {
-      await releaseAiGeneration(`voiceover:${access.user.id}:${requestHash}`, generationLock.ownerToken);
-      return jsonError(creditAllowanceError(reservedCredits, creditReservation.remaining), 429);
-    }
-  } else if (usesCloudCredits) {
-    quota = await checkUsageQuota(access.user.id, access.profile.role);
-    if (!quota.allowed) {
-      await releaseAiGeneration(`voiceover:${access.user.id}:${requestHash}`, generationLock.ownerToken);
-      return jsonError(quota.message || "Your daily AI allowance has been reached.", 429);
-    }
-  }
+  // Creator voiceover is unlimited within BrenUp; provider-side limits still
+  // apply during generation.
 
   const generationId = crypto.randomUUID();
   try {
@@ -285,20 +253,8 @@ export async function POST(request: Request) {
       throw new Error(insertError.message);
     }
 
-    const actualCredits = Math.max(1, Math.ceil(generated.durationSeconds / 30));
     await Promise.all([
-      creditReservation.supported
-        ? settleAiCredits({
-            userId: access.user.id,
-            featureKey: "creator_voiceover",
-            reservedCredits,
-            actualCredits,
-            audioSeconds: generated.durationSeconds,
-            usage: { inputTokens: generated.inputTokens, outputTokens: generated.outputTokens, cachedTokens: 0 },
-          })
-        : usesCloudCredits
-          ? recordUsageEvent(access.user.id, "creator_voiceover", generated.tokenEstimate)
-          : Promise.resolve(),
+        Promise.resolve(),
       admin.from("ai_generations").insert({
         user_id: access.user.id,
         user_role: access.profile.role,
@@ -325,10 +281,9 @@ export async function POST(request: Request) {
       url: stored.url,
       saved: false,
       durationSeconds: generated.durationSeconds,
-      remaining: Math.max(0, quota.remaining),
+      remaining: null,
     });
   } catch (error) {
-    if (creditReservation.supported) await releaseAiCredits(access.user.id, reservedCredits);
     console.error("AI voiceover generation failed", error);
     const { error: logError } = await admin.from("ai_generations").insert({
       user_id: access.user.id,

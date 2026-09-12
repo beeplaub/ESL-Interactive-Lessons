@@ -6,8 +6,7 @@ import { uploadMediaObject, deleteMediaObject } from "@/lib/storage/mediaStorage
 import { createAdminClient } from "@/lib/supabase/admin";
 import { creatorAccessError, getCreatorAiAccess } from "@/lib/ai/creatorAccess";
 import { generateVoiceoverAudio } from "@/lib/ai/voiceover";
-import { checkUsageQuota, recordUsageEvent } from "@/lib/ai/usage";
-import { claimAiGeneration, releaseAiCredits, releaseAiGeneration, reserveAiCredits, settleAiCredits } from "@/lib/ai/efficiency";
+import { claimAiGeneration, releaseAiGeneration } from "@/lib/ai/efficiency";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -28,12 +27,6 @@ const schema = z.object({
 function errorResponse(error: unknown) {
   const known = creatorAccessError(error);
   return NextResponse.json({ error: known?.message ?? "Could not verify Creator Tools access." }, { status: known?.status ?? 500 });
-}
-
-function creditAllowanceError(requestedCredits: number, remainingCredits: number) {
-  const requestedLabel = requestedCredits === 1 ? "1 credit" : `${requestedCredits} credits`;
-  const remainingLabel = remainingCredits === 1 ? "1 credit" : `${remainingCredits} credits`;
-  return `This conversation voiceover needs about ${requestedLabel}, but only ${remainingLabel} remain in today's allowance. Voiceovers use one credit per 30 seconds of audio. Saved voiceovers remain available; try a shorter conversation or try again tomorrow.`;
 }
 
 function stable(value: unknown): string {
@@ -58,13 +51,8 @@ export async function POST(request: Request) {
 
   const lock = await claimAiGeneration(`conversation:${access.user.id}:${requestHash}`, 120);
   if (!lock.claimed) return NextResponse.json({ error: "This conversation is already being generated. Please try again shortly." }, { status: 409 });
-  const estimatedSeconds = Math.max(1, input.turns.reduce((sum, turn) => sum + turn.line.split(/\s+/).length / 2.4, 0));
-  const reservedCredits = Math.max(1, Math.ceil(estimatedSeconds / 30));
-  const usesCloud = input.people.some((person) => person.provider !== "kokoro");
-  const reservation = usesCloud ? await reserveAiCredits(access.user.id, access.profile.role, reservedCredits) : { supported: false, allowed: true, remaining: 0 };
-  if (reservation.supported && !reservation.allowed) { await releaseAiGeneration(`conversation:${access.user.id}:${requestHash}`, lock.ownerToken); return NextResponse.json({ error: creditAllowanceError(reservedCredits, reservation.remaining) }, { status: 429 }); }
-  if (!reservation.supported && usesCloud) { const quota = await checkUsageQuota(access.user.id, access.profile.role); if (!quota.allowed) { await releaseAiGeneration(`conversation:${access.user.id}:${requestHash}`, lock.ownerToken); return NextResponse.json({ error: quota.message || "Your daily AI allowance has been reached." }, { status: 429 }); } }
-
+  // Creator conversation voiceover is intentionally not constrained by
+  // BrenUp's daily credit ledger. Provider-side limits still apply.
   try {
     const turns = [] as Array<{ audio: Uint8Array; durationSeconds: number; inputTokens: number; outputTokens: number; tokenEstimate: number; provider: string; model: string }>;
     for (const turn of input.turns) {
@@ -79,12 +67,10 @@ export async function POST(request: Request) {
     const title = input.title || "Conversation audio";
     const { error: insertError } = await admin.from("ai_voiceover_generations").insert({ id: generationId, creator_id: access.user.id, status: "PREVIEW", title, script: transcript, request_hash: completedHash, language_code: input.languageCode, voice_name: "MULTI", style: "Conversation", pace: "Natural", model_used: turns.map((turn) => turn.model).join(", ").slice(0, 120), storage_provider: stored.provider, storage_bucket: stored.bucket, storage_path: stored.path, public_url: stored.url, mime_type: composed.mimeType, file_size: composed.bytes.byteLength, duration_seconds: composed.durationSeconds, expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() });
     if (insertError) { await deleteMediaObject(admin, stored).catch(() => undefined); throw new Error(insertError.message); }
-    const actualCredits = Math.max(1, Math.ceil(composed.durationSeconds / 30));
     const inputTokens = turns.reduce((sum, turn) => sum + turn.inputTokens, 0); const outputTokens = turns.reduce((sum, turn) => sum + turn.outputTokens, 0); const tokenEstimate = turns.reduce((sum, turn) => sum + turn.tokenEstimate, 0);
-    await Promise.all([reservation.supported ? settleAiCredits({ userId: access.user.id, featureKey: "creator_voiceover", reservedCredits, actualCredits, audioSeconds: composed.durationSeconds, usage: { inputTokens, outputTokens, cachedTokens: 0 } }) : usesCloud ? recordUsageEvent(access.user.id, "creator_voiceover", tokenEstimate) : Promise.resolve(), admin.from("ai_generations").insert({ user_id: access.user.id, user_role: access.profile.role, feature_key: "creator_voiceover", model_used: turns.map((turn) => turn.model).join(", ").slice(0, 120), prompt_raw: transcript.slice(0, 2000), response_preview: `multi-speaker · ${Math.round(composed.durationSeconds)}s · ${composed.bytes.byteLength} bytes`, token_estimate: tokenEstimate, provider: turns.some((turn) => turn.provider === "google") ? "mixed" : "kokoro", status: "COMPLETED", input_tokens: inputTokens, output_tokens: outputTokens, latency_ms: 0, cache_hit: false, cache_key: completedHash, prompt_version: "conversation-voiceover-v1", completed_at: new Date().toISOString() })]);
+    await Promise.all([admin.from("ai_generations").insert({ user_id: access.user.id, user_role: access.profile.role, feature_key: "creator_voiceover", model_used: turns.map((turn) => turn.model).join(", ").slice(0, 120), prompt_raw: transcript.slice(0, 2000), response_preview: `multi-speaker · ${Math.round(composed.durationSeconds)}s · ${composed.bytes.byteLength} bytes`, token_estimate: tokenEstimate, provider: turns.some((turn) => turn.provider === "google") ? "mixed" : "kokoro", status: "COMPLETED", input_tokens: inputTokens, output_tokens: outputTokens, latency_ms: 0, cache_hit: false, cache_key: completedHash, prompt_version: "conversation-voiceover-v1", completed_at: new Date().toISOString() })]);
     return NextResponse.json({ generationId, title, url: stored.url, saved: false, durationSeconds: composed.durationSeconds, fileSize: composed.bytes.byteLength });
   } catch (error) {
-    if (reservation.supported) await releaseAiCredits(access.user.id, reservedCredits);
     console.error("AI conversation generation failed", error);
     return NextResponse.json({ error: error instanceof Error ? error.message : "Conversation audio generation failed." }, { status: 500 });
   } finally { await releaseAiGeneration(`conversation:${access.user.id}:${requestHash}`, lock.ownerToken); }
