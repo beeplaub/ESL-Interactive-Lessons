@@ -2335,7 +2335,11 @@ function OralResponse({
   const maxSeconds = Math.max(5, Number(opts.max_seconds ?? 60));
   const allowSelfGraded = opts.allow_self_graded !== false;
   const modelAnswer = String(opts.model_answer ?? "").trim();
-  const targetPhrases = Array.isArray(opts.target_phrases) ? opts.target_phrases.map(String).filter(Boolean) : [];
+  const targetPhrases = Array.isArray(opts.target_phrases)
+    ? opts.target_phrases.map(String).map((phrase) => phrase.trim()).filter(Boolean)
+    : typeof opts.target_phrases === "string"
+      ? opts.target_phrases.split(/\r?\n/).map((phrase) => phrase.trim()).filter(Boolean)
+      : [];
   // Historical finalized attempts use the shared writing shape (`text`) while
   // live oral answers use the oral-specific `transcript` key. Read both so an
   // older response remains reviewable after later attempts are created.
@@ -2468,6 +2472,18 @@ function OralResponse({
     <div className="relative grid justify-items-center gap-4 overflow-hidden rounded-[24px] border border-violet-200/80 bg-gradient-to-br from-violet-50 via-white to-orange-50 p-6 text-center shadow-sm">
       <div className="pointer-events-none absolute -left-12 -top-14 size-36 rounded-full bg-[var(--br-chart-primary)]/10 blur-2xl" />
       <div className="pointer-events-none absolute -bottom-16 -right-10 size-40 rounded-full bg-[var(--br-action)]/15 blur-2xl" />
+      {targetPhrases.length > 0 ? (
+        <div className="relative z-10 w-full rounded-[16px] border border-violet-200 bg-white/75 p-4 text-left">
+          <p className="mb-2 text-xs font-black uppercase tracking-wider text-[var(--br-chart-primary)]">Target phrases</p>
+          <div className="flex flex-wrap gap-2">
+            {targetPhrases.map((phrase, index) => (
+              <span key={`${phrase}-${index}`} className="rounded-full bg-violet-100 px-3 py-1.5 text-sm font-semibold text-violet-800">
+                {phrase}
+              </span>
+            ))}
+          </div>
+        </div>
+      ) : null}
       {!submitted ? <>
       <div className="relative grid place-items-center">
         {recording ? (
