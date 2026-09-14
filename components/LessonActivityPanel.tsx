@@ -606,7 +606,7 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
         id: String(row.id ?? index + 1),
         question_number: Number(row.question_number ?? index + 1),
         question_type: "ERROR_CORRECTION",
-        question_text: "Find and correct the mistake.",
+        question_text: String(data.prompt ?? "Find and correct the mistake."),
         options: { mode, text, note: row.note ?? null } as Json,
         correct_answer: { error_span: errorSpan, correction } as Json,
       };
