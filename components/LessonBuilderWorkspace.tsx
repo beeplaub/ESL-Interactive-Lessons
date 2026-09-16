@@ -89,6 +89,7 @@ type ReadingGlossaryEntry = {
 };
 
 type ReadingSentencePair = { id: string; original: string; translation: string };
+type ReadingPairingMode = "sentence" | "line";
 
 type Activity = {
   id: string; lesson_id: string; slide_id: string | null;
@@ -1530,11 +1531,15 @@ function splitReadingSentences(value: string) {
   return matches.map((sentence) => sentence.replace(/\u0001/g, ".").trim()).filter(Boolean);
 }
 
-function buildReadingSentencePairs(original: string, translation: string): ReadingSentencePair[] {
-  const originals = splitReadingSentences(original);
-  const translations = splitReadingSentences(translation);
-  const count = Math.max(originals.length, translations.length);
-  return Array.from({ length: count }, (_, index) => ({ id: `sentence-${index + 1}`, original: originals[index] ?? "", translation: translations[index] ?? "" }));
+function readingUnits(value: string, mode: ReadingPairingMode) {
+  return mode === "line" ? value.replace(/\r\n/g, "\n").split("\n").map((line) => line.trim()).filter(Boolean) : splitReadingSentences(value);
+}
+
+function buildReadingPairs(original: string, translation: string, mode: ReadingPairingMode) {
+  const originals = readingUnits(original, mode);
+  const translations = readingUnits(translation, mode);
+  if (mode === "line" && originals.length !== translations.length) return null;
+  return Array.from({ length: Math.max(originals.length, translations.length) }, (_, index) => ({ id: `sentence-${index + 1}`, original: originals[index] ?? "", translation: translations[index] ?? "" }));
 }
 
 const CONTRAST_COLOR_PRESETS = [
@@ -1646,10 +1651,11 @@ function BlockFields({ blockType, content, lessonId, blockId }: { blockType: str
   });
   const [readingPassage, setReadingPassage] = useState(() => asString(data.passage ?? data.text));
   const [readingTranslation, setReadingTranslation] = useState(() => asString(data.translation));
+  const [readingPairingMode, setReadingPairingMode] = useState<ReadingPairingMode>(() => data.pairing_mode === "line" ? "line" : "sentence");
   const [readingSentencePairs, setReadingSentencePairs] = useState<ReadingSentencePair[]>(() => {
     const pairs = Array.isArray(data.sentence_pairs) ? data.sentence_pairs as Record<string, unknown>[] : [];
     const savedPairs = pairs.map((pair, index) => ({ id: asString(pair.id) || `sentence-${index + 1}`, original: asString(pair.original), translation: asString(pair.translation) })).filter((pair) => pair.original || pair.translation);
-    return savedPairs.length ? savedPairs : (asString(data.translation) ? buildReadingSentencePairs(asString(data.passage ?? data.text), asString(data.translation)) : []);
+    return savedPairs.length ? savedPairs : (asString(data.translation) ? (buildReadingPairs(asString(data.passage ?? data.text), asString(data.translation), data.pairing_mode === "line" ? "line" : "sentence") ?? []) : []);
   });
   const [editingGlossaryIndex, setEditingGlossaryIndex] = useState<number | null>(null);
 
@@ -1929,13 +1935,14 @@ function BlockFields({ blockType, content, lessonId, blockId }: { blockType: str
         <input type="hidden" name="questions" value={Array.isArray(data.questions) ? data.questions.map(String).join("\n") : ""} />
         <input type="hidden" name="glossary_json" value={JSON.stringify(readingGlossary.map((entry) => ({ word: entry.word.trim(), meaning: entry.meaning.trim(), bengali_meaning: entry.bengaliMeaning.trim(), ipa: entry.ipa.trim(), word_class: entry.wordClass.trim(), example: entry.example.trim(), note: entry.note.trim() })).filter((entry) => entry.word))} />
         <input type="hidden" name="translation" value={readingTranslation} />
+        <input type="hidden" name="pairing_mode" value={readingPairingMode} />
         <input type="hidden" name="sentence_pairs_json" value={JSON.stringify(readingSentencePairs.filter((pair) => pair.original.trim() || pair.translation.trim()))} />
         <section className="rounded-xl border border-[var(--br-brand)]/20 bg-[var(--br-brand-soft)]/25 p-3 sm:p-4">
           <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-sm font-black text-[var(--br-brand)]">Click glossary</p><p className="mt-1 text-xs text-[var(--br-text-muted)]">Add words from this passage. Learners can click them for dictionary-style help.</p></div><button type="button" onClick={() => { setReadingGlossary((current) => [...current, { word: "", meaning: "", bengaliMeaning: "", ipa: "", wordClass: "", example: "", note: "" }]); setEditingGlossaryIndex(readingGlossary.length); }} className="rounded-lg bg-[var(--br-brand)] px-3 py-2 text-xs font-bold text-on-dark">+ Add word</button></div>
           {readingGlossary.length ? <div className="mt-3 grid gap-2">{readingGlossary.map((entry, index) => { const found = entry.word.trim() && glossaryWordFound(readingPassage, entry.word); return <div key={index} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--br-border)] bg-surface px-3 py-2"><div className="min-w-0"><p className="truncate text-sm font-bold text-[var(--br-dark-card)]">{entry.word || "New glossary word"}</p><p className={`text-[11px] font-semibold ${found ? "text-[var(--br-success)]" : entry.word ? "text-coral" : "text-[var(--br-text-muted)]"}`}>{entry.word ? (found ? "Found in passage" : "Not found in passage") : "Add a word to connect it"}</p></div><div className="flex items-center gap-2"><button type="button" onClick={() => setEditingGlossaryIndex(index)} className="rounded-md border border-[var(--br-border)] px-2.5 py-1.5 text-xs font-bold text-[var(--br-brand)] hover:bg-[var(--br-brand)]/10">Details</button><button type="button" onClick={() => setReadingGlossary((current) => current.filter((_, entryIndex) => entryIndex !== index))} className="rounded-md px-2 py-1.5 text-xs font-semibold text-coral hover:bg-coral/10">Remove</button></div></div>; })}</div> : <p className="mt-3 rounded-lg border border-dashed border-[var(--br-border)] bg-surface/60 px-3 py-3 text-xs text-[var(--br-text-muted)]">No glossary words yet.</p>}
           {editingGlossaryIndex !== null && readingGlossary[editingGlossaryIndex] ? <div className="fixed inset-0 z-[120] grid place-items-center bg-[var(--br-brand)]/30 p-4 backdrop-blur-sm" role="presentation" onClick={() => setEditingGlossaryIndex(null)}><div role="dialog" aria-modal="true" aria-labelledby="glossary-editor-title" className="max-h-[min(42rem,calc(100dvh-2rem))] w-full max-w-xl overflow-y-auto rounded-2xl border border-[var(--br-border)] bg-surface p-4 shadow-2xl sm:p-5" onClick={(event) => event.stopPropagation()}><div className="flex items-start justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--br-action)]">Glossary details</p><h4 id="glossary-editor-title" className="mt-1 text-lg font-extrabold text-[var(--br-dark-card)]">Help learners understand this word</h4></div><button type="button" onClick={() => setEditingGlossaryIndex(null)} className="rounded-full border border-[var(--br-border)] px-2.5 py-1 text-lg leading-none text-[var(--br-text-muted)]" aria-label="Close glossary details">×</button></div><div className="mt-4 grid gap-3 sm:grid-cols-2"><label className="text-sm sm:col-span-2">Word or phrase<input autoFocus value={readingGlossary[editingGlossaryIndex].word} onChange={(event) => updateGlossaryEntry(editingGlossaryIndex, "word", event.target.value)} placeholder="e.g. sustainable" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label><label className="text-sm">Simple English meaning<textarea rows={3} value={readingGlossary[editingGlossaryIndex].meaning} onChange={(event) => updateGlossaryEntry(editingGlossaryIndex, "meaning", event.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label><label className="text-sm">Bengali meaning<textarea rows={3} value={readingGlossary[editingGlossaryIndex].bengaliMeaning} onChange={(event) => updateGlossaryEntry(editingGlossaryIndex, "bengaliMeaning", event.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label><label className="text-sm">IPA pronunciation<input value={readingGlossary[editingGlossaryIndex].ipa} onChange={(event) => updateGlossaryEntry(editingGlossaryIndex, "ipa", event.target.value)} placeholder="/səˈsteɪnəbəl/" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label><label className="text-sm">Word class<input value={readingGlossary[editingGlossaryIndex].wordClass} onChange={(event) => updateGlossaryEntry(editingGlossaryIndex, "wordClass", event.target.value)} placeholder="adjective" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label><label className="text-sm sm:col-span-2">Example sentence<textarea rows={2} value={readingGlossary[editingGlossaryIndex].example} onChange={(event) => updateGlossaryEntry(editingGlossaryIndex, "example", event.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label><label className="text-sm sm:col-span-2">Learner note <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><textarea rows={2} value={readingGlossary[editingGlossaryIndex].note} onChange={(event) => updateGlossaryEntry(editingGlossaryIndex, "note", event.target.value)} placeholder="A helpful usage tip" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label></div><div className="mt-4 flex justify-end"><button type="button" onClick={() => setEditingGlossaryIndex(null)} className="rounded-lg bg-[var(--br-brand)] px-4 py-2 text-sm font-bold text-on-dark">Done</button></div></div></div> : null}
         </section>
-        <ReadingSentencePairEditor passage={readingPassage} translation={readingTranslation} pairs={readingSentencePairs} onTranslationChange={setReadingTranslation} onPairsChange={setReadingSentencePairs} />
+        <ReadingSentencePairEditor passage={readingPassage} translation={readingTranslation} mode={readingPairingMode} pairs={readingSentencePairs} onModeChange={setReadingPairingMode} onTranslationChange={setReadingTranslation} onPairsChange={setReadingSentencePairs} />
         <ReadingPassageAudioControls lessonId={lessonId} passage={readingPassage} value={audioPath} onChange={setAudioPath} />
       </div>
     );
@@ -2055,16 +2062,25 @@ function BlockFields({ blockType, content, lessonId, blockId }: { blockType: str
 
 type AnnotationMarkerDraft = { id: string; x: number; y: number; label: string; detail: string; example: string; audioUrl: string };
 
-function ReadingSentencePairEditor({ passage, translation, pairs, onTranslationChange, onPairsChange }: {
+function ReadingSentencePairEditor({ passage, translation, mode, pairs, onModeChange, onTranslationChange, onPairsChange }: {
   passage: string;
   translation: string;
+  mode: ReadingPairingMode;
   pairs: ReadingSentencePair[];
+  onModeChange: (value: ReadingPairingMode) => void;
   onTranslationChange: (value: string) => void;
   onPairsChange: (value: ReadingSentencePair[]) => void;
 }) {
   const [showPairs, setShowPairs] = useState(pairs.length > 0);
+  const [alignmentError, setAlignmentError] = useState<string | null>(null);
   function align() {
-    onPairsChange(buildReadingSentencePairs(passage, translation));
+    const nextPairs = buildReadingPairs(passage, translation, mode);
+    if (!nextPairs) {
+      setAlignmentError(`Line pairing needs the same number of non-empty lines on both sides. Original: ${readingUnits(passage, mode).length}; translation: ${readingUnits(translation, mode).length}.`);
+      return;
+    }
+    setAlignmentError(null);
+    onPairsChange(nextPairs);
     setShowPairs(true);
   }
   function update(index: number, key: "original" | "translation", value: string) {
@@ -2082,8 +2098,10 @@ function ReadingSentencePairEditor({ passage, translation, pairs, onTranslationC
   }
   return (
     <section className="rounded-xl border border-[var(--br-info)]/25 bg-[var(--br-info)]/5 p-3 sm:p-4">
-      <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-sm font-black text-[var(--br-brand)]">Sentence-by-sentence translation</p><p className="mt-1 text-xs leading-5 text-[var(--br-text-muted)]">Paste the full Bengali translation. BrenUp will split both texts, then you can correct any abbreviation or alignment issue.</p></div><button type="button" onClick={align} disabled={!passage.trim() || !translation.trim()} className="rounded-lg bg-[var(--br-brand)] px-3 py-2 text-xs font-bold text-on-dark disabled:cursor-not-allowed disabled:opacity-45">{pairs.length ? "Rebuild sentence pairs" : "Create sentence pairs"}</button></div>
+      <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-sm font-black text-[var(--br-brand)]">Synchronized translation</p><p className="mt-1 text-xs leading-5 text-[var(--br-text-muted)]">Choose how the original and Bengali text should pair.</p></div><button type="button" onClick={align} disabled={!passage.trim() || !translation.trim()} className="rounded-lg bg-[var(--br-brand)] px-3 py-2 text-xs font-bold text-on-dark disabled:cursor-not-allowed disabled:opacity-45">{pairs.length ? "Rebuild pairs" : "Create pairs"}</button></div>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2"><label className={`flex cursor-pointer items-start gap-2 rounded-lg border px-3 py-2.5 text-sm ${mode === "sentence" ? "border-[var(--br-brand)] bg-[var(--br-brand)]/10" : "border-[var(--br-border)] bg-surface"}`}><input type="radio" name="reading_pairing_mode_ui" checked={mode === "sentence"} onChange={() => { onModeChange("sentence"); setAlignmentError(null); }} className="mt-0.5" /><span><span className="font-bold">Sentence by sentence</span><span className="mt-0.5 block text-xs text-[var(--br-text-muted)]">Pairs at sentence-ending punctuation.</span></span></label><label className={`flex cursor-pointer items-start gap-2 rounded-lg border px-3 py-2.5 text-sm ${mode === "line" ? "border-[var(--br-action)] bg-[var(--br-action)]/10" : "border-[var(--br-border)] bg-surface"}`}><input type="radio" name="reading_pairing_mode_ui" checked={mode === "line"} onChange={() => { onModeChange("line"); setAlignmentError(null); }} className="mt-0.5" /><span><span className="font-bold">Line by line</span><span className="mt-0.5 block text-xs text-[var(--br-text-muted)]">Best for poems; every non-empty line must match.</span></span></label></div>
       <label className="mt-3 block text-sm">Full Bengali translation<textarea rows={5} value={translation} onChange={(event) => { onTranslationChange(event.target.value); setShowPairs(false); }} placeholder="Paste the complete Bengali translation here…" className="mt-1 w-full rounded-md border border-[var(--br-border)] bg-surface px-3 py-2" /></label>
+      {alignmentError ? <p role="alert" className="mt-2 rounded-lg border border-coral/25 bg-coral/10 px-3 py-2 text-xs font-semibold leading-5 text-coral">{alignmentError}</p> : null}
       {pairs.length ? <div className="mt-4"><div className="mb-2 flex items-center justify-between gap-2"><p className="text-xs font-black uppercase tracking-wide text-[var(--br-text-muted)]">Review alignment</p><button type="button" onClick={() => setShowPairs((current) => !current)} className="text-xs font-bold text-[var(--br-brand)]">{showPairs ? "Hide review" : "Show review"}</button></div>{showPairs ? <div className="grid gap-2">{pairs.map((pair, index) => <div key={pair.id} className="rounded-lg border border-[var(--br-border)] bg-surface p-3"><div className="mb-2 flex items-center justify-between gap-2"><span className="rounded-full bg-[var(--br-brand)]/10 px-2 py-0.5 text-[10px] font-black text-[var(--br-brand)]">Sentence {index + 1}</span>{pairs[index + 1] ? <button type="button" onClick={() => joinNext(index)} className="text-[11px] font-bold text-[var(--br-text-muted)] hover:text-[var(--br-brand)]">Join with next</button> : null}</div><div className="grid gap-2 md:grid-cols-2"><label className="text-xs font-semibold text-[var(--br-text-muted)]">Original<textarea rows={2} value={pair.original} onChange={(event) => update(index, "original", event.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-2.5 py-2 text-sm text-[var(--br-dark-card)]" /></label><label className="text-xs font-semibold text-[var(--br-text-muted)]">Bengali translation<textarea rows={2} value={pair.translation} onChange={(event) => update(index, "translation", event.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-2.5 py-2 text-sm text-[var(--br-dark-card)]" /></label></div></div>)}<button type="button" onClick={addPair} className="w-fit rounded-md border border-[var(--br-brand)]/30 px-3 py-1.5 text-xs font-bold text-[var(--br-brand)] hover:bg-[var(--br-brand)]/10">+ Add sentence pair</button></div> : null}</div> : null}
     </section>
   );

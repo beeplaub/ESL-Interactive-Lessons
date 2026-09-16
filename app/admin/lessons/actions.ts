@@ -368,6 +368,12 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
       const parsed = JSON.parse(String(formData.get("sentence_pairs_json") || "[]"));
       sentencePairs = Array.isArray(parsed) ? parsed as Json[] : [];
     } catch { sentencePairs = []; }
+    const pairingMode = formData.get("pairing_mode") === "line" ? "line" : "sentence";
+    if (pairingMode === "line") {
+      const originalLines = String(formData.get("passage") || "").split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+      const translatedLines = String(formData.get("translation") || "").split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+      if (translatedLines.length > 0 && originalLines.length !== translatedLines.length) throw new Error(`Line pairing needs the same number of non-empty lines on both sides. Original: ${originalLines.length}; translation: ${translatedLines.length}.`);
+    }
     return {
       title: String(formData.get("title") || "").trim(),
       passage: String(formData.get("passage") || "").trim(),
@@ -376,6 +382,7 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
       glossary,
       translation: nullableText(formData.get("translation")),
       translation_language: "bn",
+      pairing_mode: pairingMode,
       sentence_pairs: sentencePairs
     };
   }
