@@ -506,7 +506,7 @@ function PreviewBlock({ block, checkedItems, onChecklistChange, alwaysOpen = fal
         {(() => {
           const glossary = asArray(content.glossary).map((item) => asRecord(item as Json)).map((entry) => ({ word: asString(entry.word), meaning: asString(entry.meaning), bengaliMeaning: asString(entry.bengali_meaning ?? entry.bengaliMeaning), ipa: asString(entry.ipa), wordClass: asString(entry.word_class ?? entry.wordClass), example: asString(entry.example), note: asString(entry.note) })).filter((entry) => entry.word.trim());
           const sentencePairs = asArray(content.sentence_pairs).map((item, index) => { const pair = asRecord(item as Json); return { id: asString(pair.id) || `sentence-${index + 1}`, original: asString(pair.original), translation: asString(pair.translation) }; }).filter((pair) => pair.original || pair.translation);
-          return sentencePairs.length ? <ReadingPassageComparison pairs={sentencePairs} entries={glossary} /> : <ReadingPassageGlossaryText text={asString(content.passage) || "Add a reading passage."} entries={glossary} />;
+          return sentencePairs.length ? <ReadingPassageComparison pairs={sentencePairs} entries={glossary} mode={content.pairing_mode === "line" ? "line" : "sentence"} /> : <ReadingPassageGlossaryText text={asString(content.passage) || "Add a reading passage."} entries={glossary} />;
         })()}
         {asArray(content.questions).length ? (
           <div className="mt-4 rounded-md bg-surface-muted p-3">
@@ -1045,7 +1045,7 @@ function ReadingPassageGlossaryText({ text, entries }: { text: string; entries: 
 
 type ReadingSentencePair = { id: string; original: string; translation: string };
 
-function ReadingPassageComparison({ pairs, entries }: { pairs: ReadingSentencePair[]; entries: ReadingGlossaryEntry[] }) {
+function ReadingPassageComparison({ pairs, entries, mode }: { pairs: ReadingSentencePair[]; entries: ReadingGlossaryEntry[]; mode: "sentence" | "line" }) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [activeEntry, setActiveEntry] = useState<ReadingGlossaryEntry | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -1068,10 +1068,17 @@ function ReadingPassageComparison({ pairs, entries }: { pairs: ReadingSentencePa
       </div>
     </div>, document.body
   ) : null;
+  const pairClass = (index: number) => `cursor-pointer rounded-lg px-2 py-1 text-base leading-7 transition focus:outline-none focus:ring-2 focus:ring-[var(--br-action)]/40 ${selectedIndex === index ? "bg-[var(--br-action)]/15 text-[var(--br-dark-card)] ring-1 ring-[var(--br-action)]/35" : "hover:bg-[var(--br-brand)]/5"}`;
+  const originalPair = (pair: ReadingSentencePair, index: number) => mode === "line"
+    ? <p key={pair.id} tabIndex={0} onClick={() => setSelectedIndex(index)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedIndex(index); } }} className={pairClass(index)}>{renderOriginal(pair.original, index)}</p>
+    : <span key={pair.id} role="button" tabIndex={0} onClick={() => setSelectedIndex(index)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedIndex(index); } }} className={`inline ${pairClass(index)}`}>{renderOriginal(pair.original, index)} </span>;
+  const translationPair = (pair: ReadingSentencePair, index: number) => mode === "line"
+    ? <p key={pair.id} tabIndex={0} onClick={() => setSelectedIndex(index)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedIndex(index); } }} className={pairClass(index)}>{pair.translation || "Translation not added yet."}</p>
+    : <span key={pair.id} role="button" tabIndex={0} onClick={() => setSelectedIndex(index)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedIndex(index); } }} className={`inline ${pairClass(index)}`}>{pair.translation || "Translation not added yet."} </span>;
   return <>
     <div className="grid gap-4 lg:grid-cols-2">
-      <section className="rounded-2xl border border-[var(--br-border)] bg-surface p-4 shadow-sm sm:p-5"><div className="mb-3 flex items-center gap-2"><BookOpen size={16} className="text-[var(--br-brand)]" /><h4 className="text-sm font-extrabold uppercase tracking-[0.12em] text-[var(--br-brand)]">Original</h4></div><div className="space-y-1">{pairs.map((pair, index) => <p key={pair.id} tabIndex={0} onClick={() => setSelectedIndex(index)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedIndex(index); } }} className={`cursor-pointer rounded-lg px-2 py-1 text-base leading-7 transition focus:outline-none focus:ring-2 focus:ring-[var(--br-action)]/40 ${selectedIndex === index ? "bg-[var(--br-action)]/15 text-[var(--br-dark-card)] ring-1 ring-[var(--br-action)]/35" : "hover:bg-[var(--br-brand)]/5"}`}>{renderOriginal(pair.original, index)}</p>)}</div></section>
-      <section className="rounded-2xl border border-[var(--br-border)] bg-[var(--br-brand-soft)]/20 p-4 shadow-sm sm:p-5"><div className="mb-3 flex items-center gap-2"><span className="grid size-4 place-items-center rounded-full bg-[var(--br-action)] text-[9px] font-black text-on-dark">বাংলা</span><h4 className="text-sm font-extrabold uppercase tracking-[0.12em] text-[var(--br-brand)]">বাংলা অনুবাদ</h4></div><div className="space-y-1">{pairs.map((pair, index) => <p key={pair.id} tabIndex={0} onClick={() => setSelectedIndex(index)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedIndex(index); } }} className={`cursor-pointer rounded-lg px-2 py-1 text-base leading-7 transition focus:outline-none focus:ring-2 focus:ring-[var(--br-action)]/40 ${selectedIndex === index ? "bg-[var(--br-action)]/15 text-[var(--br-dark-card)] ring-1 ring-[var(--br-action)]/35" : "hover:bg-[var(--br-brand)]/5"}`}>{pair.translation || "Translation not added yet."}</p>)}</div></section>
+      <section className="rounded-2xl border border-[var(--br-border)] bg-surface p-4 shadow-sm sm:p-5"><div className="mb-3 flex items-center gap-2"><BookOpen size={16} className="text-[var(--br-brand)]" /><h4 className="text-sm font-extrabold uppercase tracking-[0.12em] text-[var(--br-brand)]">Original</h4></div><div className={`${mode === "line" ? "space-y-1" : "leading-7"}`}>{pairs.map(originalPair)}</div></section>
+      <section className="rounded-2xl border border-[var(--br-border)] bg-[var(--br-brand-soft)]/20 p-4 shadow-sm sm:p-5"><div className="mb-3 flex items-center gap-2"><span className="grid size-4 place-items-center rounded-full bg-[var(--br-action)] text-[9px] font-black text-on-dark">বাংলা</span><h4 className="text-sm font-extrabold uppercase tracking-[0.12em] text-[var(--br-brand)]">বাংলা অনুবাদ</h4></div><div className={`${mode === "line" ? "space-y-1" : "leading-7"}`}>{pairs.map(translationPair)}</div></section>
     </div>
     <p className="mt-3 text-xs text-[var(--br-text-muted)]">Click a sentence to compare it with its translation.</p>
     {dictionaryCard}
