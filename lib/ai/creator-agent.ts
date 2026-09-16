@@ -127,6 +127,22 @@ async function deterministicLookup(userId: string, current: AgentSession, goal: 
   return true;
 }
 
+async function browseCourse(current: AgentSession, goal: string): Promise<boolean> {
+  const match = goal.match(/(?:browse|open|go to)\s+(?:the\s+)?course\s+["“']?([^"”']+?)["”']?(?:\s+and\s+|$)/i);
+  if (!match) return false;
+  const name = match[1].trim().replace(/[?.!,]+$/, "");
+  const admin = createAdminClient();
+  const { data: courses, error } = await admin.from("courses").select("id,title").is("deleted_at", null).ilike("title", `%${name}%`).limit(5);
+  if (error) throw new Error("Could not search courses.");
+  if (!courses?.length) { current.state.running=false; current.state.messages.push({role:"assistant",content:`I could not find a course titled **${name}**.`}); return true; }
+  if (courses.length>1) { current.state.running=false; current.state.messages.push({role:"assistant",content:`I found multiple courses matching **${name}**. Please tell me which one to open.`}); return true; }
+  const { data: lessons, error: lessonError } = await admin.from("course_items").select("lesson_id,position,lessons(id,title,level,status)").eq("course_id", courses[0].id).not("lesson_id", "is", null).order("position", {ascending:true});
+  if (lessonError) throw new Error("Could not read the course lessons.");
+  current.state.running=false; current.state.feedback={course:courses[0],lessons};
+  current.state.messages.push({role:"assistant",content:`**${courses[0].title}** has ${lessons?.length??0} lessons:\n${lessons?.map((x:any,i:number)=>`${i+1}. ${x.lessons?.title ?? "Untitled"} (${x.lessons?.level ?? ""}) — ${x.lesson_id}`).join("\n")||"No lessons found."}`});
+  return true;
+}
+
 export async function agentRequest(userId: string, input: unknown) {
   const request = z.object({ sessionId: z.string().uuid(), requestId: z.string().uuid(), command: z.enum(["message", "step", "confirm", "cancel", "undo", "source", "media", "copy_draft"]), message: z.string().max(20000).optional(), source: z.object({ id: z.string().uuid().optional(), title: z.string().min(1).max(200), text: z.string().max(60000), enabled: z.boolean() }).optional(), media: z.object({ title: z.string().max(200), url: z.string().url(), type: z.enum(["IMAGE","AUDIO","VIDEO"]) }).optional() }).strict().parse(input);
   const current = await session(userId, request.sessionId);
@@ -193,6 +209,11 @@ export async function agentRequest(userId: string, input: unknown) {
         await persist(userId,current,lease);
         return current;
       }
+      if (state.goal && await browseCourse(current, state.goal)) {
+        state.lastRequest=request.requestId;
+        await persist(userId,current,lease);
+        return current;
+      }
       const compactLesson = selected ? { ...selected, document: { lesson: selected.document.lesson, slides: selected.document.slides.map((s,i)=>({number:i+1,title:s.title,blocks:s.blocks.map((b,j)=>({index:j+1,type:b.block_type,content:JSON.stringify(b.content).slice(0,600)})),activities:s.activities.map((a,j)=>({index:j+1,type:a.activity_type,content:JSON.stringify(a.activity_data).slice(0,600)}))})) } } : null;
       const context = {
         instructions: AGENT_INSTRUCTIONS,
@@ -212,7 +233,7 @@ export async function agentRequest(userId: string, input: unknown) {
       if (decision.action === "search_lessons" || decision.action === "resolve_lesson") {
         const query = z.string().min(1).max(200).parse(args.query ?? args.title).replace(/[%_]/g," ");
         const { data,error } = await createAdminClient().from("lessons").select("id,title,level,status").ilike("title",`%${query}%`).is("deleted_at",null).limit(10);
-        if(error) throw new Error("Lesson search failed."); state.feedback={results:data};
+        if(error) throw new Error("Lesson search failed."); state.feedback={results:data}; state.running=false;
         if (decision.action === "resolve_lesson" && data?.length === 1) { current.lesson_id = data[0].id; state.feedback={resolvedLesson:data[0]}; state.messages.push({role:"assistant",content:`I found **${data[0].title}** and selected it.`}); }
         else state.messages.push({role:"assistant",content:`Found ${data?.length??0} lesson(s):\n${data?.map(x=>`- ${x.title} (${x.level}, ${x.status})`).join("\n")||"No matches."}`});
       } else if (decision.action === "open_lesson") {
@@ -220,9 +241,10 @@ export async function agentRequest(userId: string, input: unknown) {
         selected = await snapshot(current.lesson_id);
         const slide = args.slide ? selected.document.slides[z.number().int().positive().parse(args.slide)-1] : undefined;
         state.feedback={selectedLesson:current.lesson_id,status:selected.status,...(slide?{fullSlide:slide}:{})};
+        state.running=false;
         state.messages.push({role:"assistant",content:`Selected ${selected.document.lesson.title}. ${selected.status==='PUBLISHED'?'Create a draft copy before editing.':''}`});
       } else if (decision.action === "schema") {
-        state.references=schemaReference(z.array(z.string()).max(8).parse(args.types)); state.feedback={schemasLoaded:args.types};
+        state.references=schemaReference(z.array(z.string()).max(8).parse(args.types)); state.feedback={schemasLoaded:args.types}; state.running=false;
       } else if (decision.action === "create_lesson") {
         if(state.createdThisTurn) throw new Error("This task already created its lesson. Use edit_lesson to add the content.");
         const document = newLesson(args);
