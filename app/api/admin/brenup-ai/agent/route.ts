@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { agentAdmin, agentRequest, createSession, session, sessions } from "@/lib/ai/creator-agent";
+import { agentAdmin, agentRequest, createSession, session, sessions, projects, createProject, renameProject, projectFiles, saveProjectFile } from "@/lib/ai/creator-agent";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -13,7 +13,9 @@ export async function GET(request: Request) {
   try {
     const userId = await agentAdmin();
     const id = new URL(request.url).searchParams.get("sessionId");
-    return NextResponse.json(id ? { session: await session(userId,id) } : { sessions: await sessions(userId) }, { headers: { "Cache-Control": "no-store" } });
+    if (id) return NextResponse.json({ session: await session(userId,id) }, { headers: { "Cache-Control": "no-store" } });
+    const projectId=new URL(request.url).searchParams.get("projectId");
+    return NextResponse.json({ sessions: await sessions(userId), projects: await projects(userId), ...(projectId?{files:await projectFiles(userId,projectId)}:{}) }, { headers: { "Cache-Control": "no-store" } });
   } catch(error) { return failure(error); }
 }
 export async function POST(request: Request) {
@@ -24,6 +26,10 @@ export async function POST(request: Request) {
     const text = await request.text();
     if (text.length>150000) throw new Error("Request is too large.");
     const body = JSON.parse(text);
-    return NextResponse.json({ session: body.command === "create" ? await createSession(userId) : await agentRequest(userId,body) });
+    if(body.command === "create") return NextResponse.json({ session: await createSession(userId) });
+    if(body.command === "create_project") return NextResponse.json({ project: await createProject(userId,body.name) });
+    if(body.command === "rename_project") return NextResponse.json({ project: await renameProject(userId,body.id,body.name) });
+    if(body.command === "save_project_file") return NextResponse.json({ file: await saveProjectFile(userId,body.projectId,body.file) });
+    return NextResponse.json({ session: await agentRequest(userId,body) });
   } catch(error) { return failure(error); }
 }

@@ -15,6 +15,7 @@ export function CreatorAgentWorkspace() {
   const [error,setError] = useState("");
   const [source,setSource] = useState<Partial<AgentSource>|null>(null);
   const stop = useRef(false);
+  const abort = useRef<AbortController | null>(null);
   const end = useRef<HTMLDivElement>(null);
   async function refreshList() {
     const response = await fetch(endpoint); const data = await response.json();
@@ -24,7 +25,8 @@ export function CreatorAgentWorkspace() {
   useEffect(()=>{void refreshList().catch(e=>setError(e.message));},[]);
   useEffect(()=>{end.current?.scrollIntoView({behavior:"smooth"});},[current?.state.messages.length,busy]);
   async function post(payload: Record<string,unknown>) {
-    const response=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+    abort.current = new AbortController();
+    const response=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload),signal:abort.current.signal});
     const data=await response.json(); if(!response.ok) throw new Error(data.error || "Agent request failed.");
     setCurrent(data.session); return data.session as AgentSession;
   }
@@ -41,7 +43,7 @@ export function CreatorAgentWorkspace() {
       if(stop.current && active.state.running) await post({sessionId:active.id,requestId:crypto.randomUUID(),command:"cancel"});
       await refreshList();
     } catch(e) {setError(e instanceof Error?e.message:"Request failed. Reopen this conversation to resume.");}
-    finally {setBusy(false);}
+    finally {abort.current=null;setBusy(false);}
   }
   async function open(id:string) {
     setError("");setBusy(true);
@@ -85,7 +87,7 @@ export function CreatorAgentWorkspace() {
         <div ref={end}/>
       </div>
       <footer className="border-t border-[var(--br-border)] p-4">
-        <div className="mb-3 flex flex-wrap gap-2"><button className={button} disabled={busy||!current?.lesson_id||!!state?.pending} onClick={()=>void run("undo")}><Undo2 className="mr-1 inline size-4"/>Undo last save</button><button className={button} disabled={busy||!current?.lesson_id||!!state?.pending} onClick={()=>void run("copy_draft")}>Make draft copy</button>{current&&!state?.pending&&<button className={button} disabled={busy} onClick={()=>void run("step")}>Continue</button>}<label className={`${button} cursor-pointer`}><Paperclip className="mr-1 inline size-4"/>Attach<input type="file" className="sr-only" disabled={busy} accept="image/png,image/jpeg,image/webp,image/gif,audio/*,video/*,.txt,.md,.csv" onChange={e=>{const file=e.target.files?.[0];if(file)void upload(file);e.target.value="";}}/></label>{busy&&<button className={button} onClick={()=>{stop.current=true;}}><Square className="mr-1 inline size-3"/>Stop after current step</button>}</div>
+        <div className="mb-3 flex flex-wrap gap-2"><button className={button} disabled={busy||!current?.lesson_id||!!state?.pending} onClick={()=>void run("undo")}><Undo2 className="mr-1 inline size-4"/>Undo last save</button><button className={button} disabled={busy||!current?.lesson_id||!!state?.pending} onClick={()=>void run("copy_draft")}>Make draft copy</button>{current&&!state?.pending&&<button className={button} disabled={busy} onClick={()=>void run("step")}>Continue</button>}<label className={`${button} cursor-pointer`}><Paperclip className="mr-1 inline size-4"/>Attach<input type="file" className="sr-only" disabled={busy} accept="image/png,image/jpeg,image/webp,image/gif,audio/*,video/*,.txt,.md,.csv" onChange={e=>{const file=e.target.files?.[0];if(file)void upload(file);e.target.value="";}}/></label>{busy&&<button className={`${button} border-red-300 text-red-700`} onClick={()=>{stop.current=true;abort.current?.abort();}}><Square className="mr-1 inline size-3"/>Stop</button>}</div>
         <form onSubmit={e=>{e.preventDefault();void run("message",{message:input});}} className="flex gap-2"><textarea aria-label="Message the creator agent" disabled={busy||!!state?.pending} className="min-h-24 flex-1 rounded-xl border border-[var(--br-border)] bg-surface p-3 text-sm" value={input} onChange={e=>setInput(e.target.value)} placeholder="Create a lesson, add an activity, or describe an edit…"/><button aria-label="Send instruction" disabled={busy||!input.trim()||!!state?.pending} className={button}><Send className="size-5"/></button></form>
       </footer>
     </section>
