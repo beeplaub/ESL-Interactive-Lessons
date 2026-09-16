@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { callGemini } from "@/lib/ai/gemini";
 import { relevantCreatorTools } from "@/lib/ai/creator-tools";
+import { LESSON_MASTER_GUIDE } from "@/lib/ai/lesson-master-guide";
 import { applyOperations, newLesson, decisionSchema, decisionFormat, schemaReference, BLOCK_REFERENCES, ACTIVITY_REFERENCES, type Data, type LessonDocument } from "@/lib/ai/agent-contract";
 
 export type AgentMessage = { role: "user" | "assistant"; content: string };
@@ -236,6 +237,7 @@ export async function agentRequest(userId: string, input: unknown) {
       const compactLesson = selected ? { ...selected, document: { lesson: selected.document.lesson, slides: selected.document.slides.map((s,i)=>({number:i+1,title:s.title,blocks:s.blocks.map((b,j)=>({index:j+1,type:b.block_type,content:JSON.stringify(b.content).slice(0,600)})),activities:s.activities.map((a,j)=>({index:j+1,type:a.activity_type,content:JSON.stringify(a.activity_data).slice(0,600)}))})) } } : null;
       const context = {
         instructions: AGENT_INSTRUCTIONS,
+        masterGuide: LESSON_MASTER_GUIDE,
         currentTask: state.goal,
         nextStep: state.createdThisTurn ? "The lesson already exists. DO NOT create another lesson. Use edit_lesson to add the requested slides, blocks and activities to the selected lesson. Finish only when the entire requested lesson is complete." : "Execute the current task, using existing server results.",
         blockTypes: BLOCK_REFERENCES.map(x=>x.blockType), activityTypes: ACTIVITY_REFERENCES.map(x=>x.type),
