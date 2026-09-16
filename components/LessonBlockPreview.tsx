@@ -1068,7 +1068,7 @@ function ReadingPassageComparison({ pairs, entries, mode }: { pairs: ReadingSent
       </div>
     </div>, document.body
   ) : null;
-  const pairClass = (index: number) => `cursor-pointer rounded-lg px-2 py-1 text-base leading-7 transition focus:outline-none focus:ring-2 focus:ring-[var(--br-action)]/40 ${selectedIndex === index ? "bg-[var(--br-action)]/15 text-[var(--br-dark-card)] ring-1 ring-[var(--br-action)]/35" : "hover:bg-[var(--br-brand)]/5"}`;
+  const pairClass = (index: number) => `cursor-pointer rounded-md px-0.5 text-base leading-7 transition focus:outline-none focus-visible:bg-[var(--br-action)]/20 ${selectedIndex === index ? "bg-[var(--br-action)]/15 text-[var(--br-dark-card)]" : "hover:bg-[var(--br-brand)]/5"}`;
   const originalPair = (pair: ReadingSentencePair, index: number) => mode === "line"
     ? <p key={pair.id} tabIndex={0} onClick={() => setSelectedIndex(index)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedIndex(index); } }} className={pairClass(index)}>{renderOriginal(pair.original, index)}</p>
     : <span key={pair.id} role="button" tabIndex={0} onClick={() => setSelectedIndex(index)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedIndex(index); } }} className={`inline ${pairClass(index)}`}>{renderOriginal(pair.original, index)} </span>;
