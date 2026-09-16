@@ -270,6 +270,12 @@ export async function agentRequest(userId: string, input: unknown) {
         state.references=schemaReference(z.array(z.string()).max(8).parse(args.types)); state.feedback={schemasLoaded:args.types}; state.running=false;
       } else if (decision.action === "create_lesson") {
         if(state.createdThisTurn) throw new Error("This task already created its lesson. Use edit_lesson to add the content.");
+        if (!/\b(create|new|build|make)\b.*\b(lesson|course)\b|(?:লেসন|কোর্স).*(?:তৈরি|বানাও|ক্রিয়েট)/i.test(state.goal ?? "")) {
+          state.running=false;
+          state.messages.push({role:"assistant",content:"I did not create anything. Please select or name the lesson you want to edit first. I will not create a new lesson unless you explicitly ask me to."});
+          await persist(userId,current,lease);
+          return current;
+        }
         const document = newLesson(args);
         state.pending={id:crypto.randomUUID(),document,expected:null,summary:["Create lesson shell"],warnings:[],sourceVersion:sourceVersion(state)};
         state.createdThisTurn=true;
