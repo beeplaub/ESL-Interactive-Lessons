@@ -98,8 +98,11 @@ async function deterministicLookup(userId: string, current: AgentSession, goal: 
     current.state.messages.push({ role: "assistant", content: data ? `The latest lesson is **${data.title}** (${data.level}).\n\nTopic: ${data.topic || "Not specified"}\nStatus: ${data.status}.\nCreated: ${new Date(data.created_at).toLocaleString()}` : "There are no lessons in BrenUp yet." });
     return true;
   }
-  const title = titleMatch![1].trim();
-  const { data, error } = await admin.from("lessons").select("id,title,topic,level,status").is("deleted_at", null).ilike("title", title).limit(5);
+  let title = titleMatch![1].trim().replace(/[?.!,]+$/, "");
+  // In “go to the lesson Lesson 2: …”, the first “lesson” is the command
+  // keyword and the second is part of the actual database title.
+  if (/^\d+\s*[:.-]/.test(title)) title = `Lesson ${title}`;
+  const { data, error } = await admin.from("lessons").select("id,title,topic,level,status").is("deleted_at", null).ilike("title", `%${title}%`).limit(5);
   if (error) throw new Error("Could not search lessons.");
   if (!data?.length) {
     current.state.running = false;
