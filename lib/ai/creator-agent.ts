@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { callGemini } from "@/lib/ai/gemini";
+import { relevantCreatorTools } from "@/lib/ai/creator-tools";
 import { applyOperations, newLesson, decisionSchema, decisionFormat, schemaReference, BLOCK_REFERENCES, ACTIVITY_REFERENCES, type Data, type LessonDocument } from "@/lib/ai/agent-contract";
 
 export type AgentMessage = { role: "user" | "assistant"; content: string };
@@ -220,7 +221,7 @@ export async function agentRequest(userId: string, input: unknown) {
         currentTask: state.goal,
         nextStep: state.createdThisTurn ? "The lesson already exists. DO NOT create another lesson. Use edit_lesson to add the requested slides, blocks and activities to the selected lesson. Finish only when the entire requested lesson is complete." : "Execute the current task, using existing server results.",
         blockTypes: BLOCK_REFERENCES.map(x=>x.blockType), activityTypes: ACTIVITY_REFERENCES.map(x=>x.type),
-        toolRegistry: ["find_latest_lesson","search_lessons","resolve_lesson","read_lesson","read_slides","create_lesson","create_slide","update_slide","delete_slide","move_slide","add_content_block","update_content_block","delete_content_block","add_activity","update_activity","delete_activity","move_activity","copy_lesson_draft"],
+        toolRegistry: relevantCreatorTools(state.goal ?? "").map(t => ({name:t.name,description:t.description,readOnly:t.readOnly,confirmation:t.confirmation})),
         references: state.references ?? schemaReference(["TEXT","BULLETS","GRAMMAR","VOCABULARY","MCQ","GAP_FILL","DIALOGUE"]),
         conversation: state.messages.slice(-12), lesson: compactLesson, feedback: state.feedback,
         sources: state.sources.filter(s=>s.enabled).map(s=>({title:s.title,version:s.version,text:s.text.slice(0,10000)})), media: state.media,
