@@ -18,7 +18,7 @@ const dataUrl = (process.env.BRENUP_AI_DATA_URL || "https://www.brenup.com/api/a
 const startedAt = new Date().toISOString();
 const allowedModes = new Set(["research", "audit", "review", "code-review", "coding", "content"]);
 const blockedPath = /(^|\/)(\.env($|\.)|node_modules|\.next|\.git|secrets?|credentials?|private)(\/|$)|service[-_ ]?role|access[-_ ]?key|secret[-_ ]?key/i;
-const maxBodyBytes = 64 * 1024;
+const maxBodyBytes = 512 * 1024;
 
 if (!secret) throw new Error("BRENUP_AI_GATEWAY_SECRET is required");
 
@@ -162,7 +162,41 @@ async function proxyLearnerEvaluate(request, response) {
   } finally { clearTimeout(timer); }
 }
 
+let creatorBusy = false;
+async function creatorGenerate(request, response) {
+  if (request.headers.authorization !== `Bearer ${secret}`) return json(response, 401, { error: "Unauthorized" });
+  if (creatorBusy) return json(response, 429, { error: "The local model is working on another request. Retry shortly; your draft is saved." });
+  let body;
+  try { body = await readBody(request); } catch { return json(response, 400, { error: "Invalid request body." }); }
+  if (typeof body.message !== "string" || body.message.length > 180000 || typeof body.role !== "string" || body.role.length > 12000) return json(response, 400, { error: "Authoring context is too large." });
+  const model = typeof body.model === "string" ? body.model : "qwen2.5:7b";
+  // Only installed local models: never pull models or use Ollama cloud tags.
+  if (/cloud|https?:|\//i.test(model)) return json(response, 400, { error: "Only installed local models are permitted." });
+  const nativeBase = ollamaUrl.replace(/\/v1$/, "");
+  const hostname = new URL(nativeBase).hostname;
+  if (!["127.0.0.1", "localhost", "[::1]"].includes(hostname)) return json(response, 400, { error: "Creator inference requires a loopback Ollama server." });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 230000);
+  response.on("close", () => { if (!response.writableEnded) controller.abort(); });
+  creatorBusy = true;
+  try {
+    const tagsResponse = await fetch(`${nativeBase}/api/tags`, { signal: controller.signal });
+    const tags = await tagsResponse.json();
+    if (!tags.models?.some(item => item.name === model)) return json(response, 400, { error: "Select an installed local model." });
+    const upstream = await fetch(`${nativeBase}/api/chat`, {
+      method: "POST", headers: { "content-type": "application/json" }, signal: controller.signal,
+      body: JSON.stringify({ model, messages: [{ role: "system", content: body.role }, { role: "user", content: body.message }], format: body.schema || "json", stream: false, keep_alive: "10m", options: { temperature: 0.1, num_ctx: 16384, num_predict: 4096 } }),
+    });
+    if (!upstream.ok) return json(response, 503, { error: "Local Ollama could not complete the request. No paid provider was used." });
+    const result = await upstream.json();
+    if (result.done_reason === "length") return json(response, 422, { error: "The response exceeded the local limit. Ask for fewer slides per step." });
+    return json(response, 200, { text: result.message?.content, inputTokens: result.prompt_eval_count, outputTokens: result.eval_count });
+  } catch (error) { return json(response, 503, { error: error?.name === "AbortError" ? "Local model timed out. Resume the task to retry." : "Local Ollama is unavailable." }); }
+  finally { creatorBusy = false; clearTimeout(timer); }
+}
+
 const server = http.createServer(async (request, response) => {
+  if (request.method === "POST" && request.url === "/creator-generate") return creatorGenerate(request, response);
   if (request.method === "GET" && request.url === "/health") { const ollamaConnected = await fetch(`${ollamaUrl}/models`, { signal: AbortSignal.timeout(1500) }).then((result) => result.ok).catch(() => false); return json(response, 200, { status: "ok", connected: ollamaConnected || Boolean(deepseekKey), provider: defaultProvider, model: defaultModel, providers: { ollama: { configured: true, connected: ollamaConnected, models: ["qwen2.5:7b", "gemma3:4b"] }, deepseek: { configured: Boolean(deepseekKey), models: ["deepseek-v4-flash", "deepseek-v4-pro"] } }, repository: repositoryRoot, startedAt }); }
   if (request.method === "POST" && request.url === "/chat") return proxyChat(request, response);
   if (request.method === "POST" && request.url === "/learner-evaluate") return proxyLearnerEvaluate(request, response);

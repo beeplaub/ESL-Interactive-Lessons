@@ -13,7 +13,7 @@ function inline(text: string): ReactNode[] {
     else if (token.startsWith("*")) parts.push(<em key={`${match.index}-em`}>{token.slice(1, -1)}</em>);
     else {
       const link = /^\[([^\]]+)\]\(([^\s)]+)\)$/.exec(token);
-      if (link && /^(https?:\/\/|mailto:)/i.test(link[2])) parts.push(<a key={`${match.index}-link`} href={link[2]} target="_blank" rel="noreferrer" className="font-bold text-[var(--br-brand)] underline decoration-[var(--br-brand)]/40 underline-offset-2">{link[1]}</a>);
+      if (link && /^(https?:\/\/|mailto:|\/(?!\/))/i.test(link[2])) parts.push(<a key={`${match.index}-link`} href={link[2]} target="_blank" rel="noreferrer" className="font-bold text-[var(--br-brand)] underline decoration-[var(--br-brand)]/40 underline-offset-2">{link[1]}</a>);
       else parts.push(token);
     }
     cursor = match.index + token.length;
