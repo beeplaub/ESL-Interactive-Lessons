@@ -1068,13 +1068,14 @@ function ReadingPassageComparison({ pairs, entries, mode }: { pairs: ReadingSent
       </div>
     </div>, document.body
   ) : null;
-  const pairClass = (index: number) => `cursor-pointer rounded-md px-0.5 text-base leading-7 transition focus:outline-none focus-visible:bg-[var(--br-action)]/20 ${selectedIndex === index ? "bg-[var(--br-action)]/15 text-[var(--br-dark-card)]" : "hover:bg-[var(--br-brand)]/5"}`;
+  const pairClass = (index: number) => `cursor-pointer rounded-md px-0.5 text-base leading-7 transition focus:outline-none ${selectedIndex === index ? "text-[var(--br-dark-card)]" : "hover:bg-[var(--br-brand)]/5"}`;
+  const pairStyle = (index: number) => selectedIndex === index ? { backgroundColor: "color-mix(in srgb, var(--br-action) 18%, transparent)" } : undefined;
   const originalPair = (pair: ReadingSentencePair, index: number) => mode === "line"
-    ? <p key={pair.id} tabIndex={0} onClick={() => setSelectedIndex(index)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedIndex(index); } }} className={pairClass(index)}>{renderOriginal(pair.original, index)}</p>
-    : <span key={pair.id} role="button" tabIndex={0} onClick={() => setSelectedIndex(index)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedIndex(index); } }} className={`inline ${pairClass(index)}`}>{renderOriginal(pair.original, index)} </span>;
+    ? <p key={pair.id} tabIndex={0} onClick={() => setSelectedIndex(index)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedIndex(index); } }} className={pairClass(index)} style={pairStyle(index)}>{renderOriginal(pair.original, index)}</p>
+    : <span key={pair.id} role="button" tabIndex={0} onClick={() => setSelectedIndex(index)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedIndex(index); } }} className={`inline ${pairClass(index)}`} style={pairStyle(index)}>{renderOriginal(pair.original, index)} </span>;
   const translationPair = (pair: ReadingSentencePair, index: number) => mode === "line"
-    ? <p key={pair.id} tabIndex={0} onClick={() => setSelectedIndex(index)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedIndex(index); } }} className={pairClass(index)}>{pair.translation || "Translation not added yet."}</p>
-    : <span key={pair.id} role="button" tabIndex={0} onClick={() => setSelectedIndex(index)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedIndex(index); } }} className={`inline ${pairClass(index)}`}>{pair.translation || "Translation not added yet."} </span>;
+    ? <p key={pair.id} tabIndex={0} onClick={() => setSelectedIndex(index)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedIndex(index); } }} className={pairClass(index)} style={pairStyle(index)}>{pair.translation || "Translation not added yet."}</p>
+    : <span key={pair.id} role="button" tabIndex={0} onClick={() => setSelectedIndex(index)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setSelectedIndex(index); } }} className={`inline ${pairClass(index)}`} style={pairStyle(index)}>{pair.translation || "Translation not added yet."} </span>;
   return <>
     <div className="grid gap-4 lg:grid-cols-2">
       <section className="rounded-2xl border border-[var(--br-border)] bg-surface p-4 shadow-sm sm:p-5"><div className="mb-3 flex items-center gap-2"><BookOpen size={16} className="text-[var(--br-brand)]" /><h4 className="text-sm font-extrabold uppercase tracking-[0.12em] text-[var(--br-brand)]">Original</h4></div><div className={`${mode === "line" ? "space-y-1" : "leading-7"}`}>{pairs.map(originalPair)}</div></section>
