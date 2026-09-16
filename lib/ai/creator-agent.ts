@@ -223,6 +223,11 @@ export async function agentRequest(userId: string, input: unknown) {
     if (request.command === "step") {
       if (state.steps >= 40) throw new Error("This task reached 40 steps. Send a new instruction to continue from the saved draft.");
       let selected = current.lesson_id ? await snapshot(current.lesson_id) : null;
+      const generalRequest = state.goal && !/(lesson|course|slide|block|activity|quiz|source|media|draft|lesson|লেসন|কোর্স|স্লাইড|ব্লক|অ্যাক্টিভিটি)/i.test(state.goal);
+      if (generalRequest) {
+        const reply = await callGemini({ templateKey:"creator_local_agent", variables:{request:JSON.stringify({task:"Answer the user naturally. Do not use database tools or claim to have changed BrenUp. If they ask for writing, provide the requested writing.", userRequest:state.goal, conversation:state.messages.slice(-8)})}, responseSchema:{type:"object",additionalProperties:false,required:["reply"],properties:{reply:{type:"string"}}}, context:{userId,userRole:"ADMIN",provider:"ollama",featureKey:"creator_local_chat",cache:false}, localAgentOnly:true, fallbackModel:"qwen2.5:7b", validateResponse:(value:unknown)=>z.object({reply:z.string().max(12000)}).parse(value) });
+        state.running=false; state.messages.push({role:"assistant",content:reply.reply}); state.lastRequest=request.requestId; await persist(userId,current,lease); return current;
+      }
       // Simple read-only questions should never depend on model interpretation.
       // This prevents fabricated course IDs and makes title/slide lookups exact.
       if (state.goal && await deterministicLookup(userId, current, state.goal)) {
