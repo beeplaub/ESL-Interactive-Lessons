@@ -503,7 +503,7 @@ function PreviewBlock({ block, checkedItems, onChecklistChange, alwaysOpen = fal
           </div>
           <ReadingPassageAudioButton src={audioPath} />
         </div> : null}
-        <FormattedText text={asString(content.passage) || "Add a reading passage."} />
+        <ReadingPassageGlossaryText text={asString(content.passage) || "Add a reading passage."} entries={asArray(content.glossary).map((item) => asRecord(item as Json)).map((entry) => ({ word: asString(entry.word), meaning: asString(entry.meaning), bengaliMeaning: asString(entry.bengali_meaning ?? entry.bengaliMeaning), ipa: asString(entry.ipa), wordClass: asString(entry.word_class ?? entry.wordClass), example: asString(entry.example), note: asString(entry.note) })).filter((entry) => entry.word.trim())} />
         {asArray(content.questions).length ? (
           <div className="mt-4 rounded-md bg-surface-muted p-3">
             <p className="text-base font-semibold">Questions</p>
@@ -1005,6 +1005,38 @@ function FormattedText({ text, align = "text-left" }: { text: string; align?: st
     if (/^(?:[-*]|\d+[.)])\s+/.test(trimmed)) return <div key={index} className="flex gap-2"><span className="mt-3 size-1.5 shrink-0 rounded-full bg-moss" /><span><InlineText text={trimmed.replace(/^(?:[-*]|\d+[.)])\s+/, "")} /></span></div>;
     return <p key={index}><InlineText text={line} /></p>;
   })}</div>;
+}
+
+type ReadingGlossaryEntry = { word: string; meaning: string; bengaliMeaning: string; ipa: string; wordClass: string; example: string; note: string };
+
+function escapeGlossaryPattern(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function ReadingPassageGlossaryText({ text, entries }: { text: string; entries: ReadingGlossaryEntry[] }) {
+  const [activeEntry, setActiveEntry] = useState<ReadingGlossaryEntry | null>(null);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const usableEntries = entries.filter((entry) => entry.word.trim());
+  const pattern = usableEntries.length ? new RegExp(`(${usableEntries.sort((a, b) => b.word.length - a.word.length).map((entry) => `(?<![\\p{L}\\p{N}])${escapeGlossaryPattern(entry.word.trim())}(?![\\p{L}\\p{N}])`).join("|")})`, "giu") : null;
+  const lines = text.replace(/\r\n/g, "\n").split("\n");
+  const findEntry = (part: string) => usableEntries.find((entry) => entry.word.trim().toLocaleLowerCase() === part.toLocaleLowerCase());
+  const dictionaryCard = activeEntry && mounted ? createPortal(
+    <div className="fixed inset-0 z-[120] grid place-items-center bg-[var(--br-brand)]/20 p-4 backdrop-blur-[2px]" role="presentation" onClick={() => setActiveEntry(null)}>
+      <div role="dialog" aria-modal="true" aria-label={`${activeEntry.word} glossary definition`} className="w-[min(23rem,100%)] rounded-2xl border border-[var(--br-border)] bg-surface p-4 text-left shadow-2xl" onClick={(event) => event.stopPropagation()}>
+        <div className="flex items-start justify-between gap-3"><div className="min-w-0"><h4 className="break-words text-xl font-extrabold text-[var(--br-brand)]">{activeEntry.word}</h4><div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-[var(--br-text-muted)]">{activeEntry.ipa ? <span className="font-mono">{activeEntry.ipa}</span> : null}{activeEntry.wordClass ? <span className="rounded-full bg-[var(--br-action)]/10 px-2 py-0.5 text-xs font-bold text-[var(--br-action)]">{activeEntry.wordClass}</span> : null}</div></div><button type="button" onClick={() => setActiveEntry(null)} className="rounded-full border border-[var(--br-border)] px-2.5 py-1 text-lg leading-none text-[var(--br-text-muted)]" aria-label="Close glossary definition">×</button></div>
+        {activeEntry.meaning ? <div className="mt-4 rounded-xl bg-[var(--br-brand-soft)]/35 px-3 py-2.5"><p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--br-brand)]">Simple meaning</p><p className="mt-1 text-sm leading-6 text-[var(--br-dark-card)]">{activeEntry.meaning}</p></div> : null}
+        {activeEntry.bengaliMeaning ? <div className="mt-3 rounded-xl bg-[var(--br-action)]/10 px-3 py-2.5"><p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--br-action)]">বাংলা অর্থ</p><p className="mt-1 text-sm leading-6 text-[var(--br-dark-card)]">{activeEntry.bengaliMeaning}</p></div> : null}
+        {activeEntry.example ? <div className="mt-3 border-l-2 border-[var(--br-action)] pl-3 text-sm italic leading-6 text-[var(--br-text-muted)]">“{activeEntry.example}”</div> : null}
+        {activeEntry.note ? <p className="mt-3 text-xs leading-5 text-[var(--br-text-muted)]">{activeEntry.note}</p> : null}
+      </div>
+    </div>, document.body
+  ) : null;
+  return <><div className="space-y-2 text-base leading-7 text-[var(--br-text-muted)]">{lines.map((line, lineIndex) => {
+    if (!line.trim()) return <div key={lineIndex} className="h-2" aria-hidden />;
+    const parts = pattern ? line.split(pattern) : [line];
+    return <p key={lineIndex}>{parts.map((part, partIndex) => { const entry = findEntry(part); return entry ? <button key={partIndex} type="button" onClick={() => setActiveEntry(entry)} className="rounded px-0.5 font-semibold text-[var(--br-brand)] underline decoration-[var(--br-action)] decoration-2 underline-offset-4 transition hover:bg-[var(--br-action)]/15" aria-label={`Open glossary definition for ${entry.word}`}>{part}</button> : <InlineText key={partIndex} text={part} />; })}</p>;
+  })}</div>{dictionaryCard}</>;
 }
 
 function DialogueAudioButton({ src, speaker }: { src: string; speaker: string }) {

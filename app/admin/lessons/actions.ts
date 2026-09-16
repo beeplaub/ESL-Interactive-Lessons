@@ -358,11 +358,17 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
     };
   }
   if (blockType === "READING") {
+    let glossary: Json[] = [];
+    try {
+      const parsed = JSON.parse(String(formData.get("glossary_json") || "[]"));
+      glossary = Array.isArray(parsed) ? parsed as Json[] : [];
+    } catch { glossary = []; }
     return {
       title: String(formData.get("title") || "").trim(),
       passage: String(formData.get("passage") || "").trim(),
       audio_path: nullableText(formData.get("audio_path")),
-      questions: splitLines(formData.get("questions"))
+      questions: splitLines(formData.get("questions")),
+      glossary
     };
   }
   if (blockType === "DIALOGUE") {
@@ -499,7 +505,7 @@ function defaultBlockContent(blockType: string): Json {
     return { entries: [{ word: "word", pronunciation: "", meaning: "meaning", example: "", notes: "" }] };
   }
   if (blockType === "GRAMMAR") return { title: "", explanation: "", examples: [], notes: null, reveal_hidden: false };
-  if (blockType === "READING") return { title: "", passage: "", questions: [] };
+  if (blockType === "READING") return { title: "", passage: "", questions: [], glossary: [] };
   if (blockType === "DIALOGUE") return { title: "Dialogue", turns: [{ speaker: "A", line: "" }, { speaker: "B", line: "" }] };
   if (blockType === "FLASHCARD") return {
     card_type: "IMAGE",

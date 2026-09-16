@@ -78,6 +78,16 @@ type LessonBlock = {
   position: number; block_type: string; content: Json;
 };
 
+type ReadingGlossaryEntry = {
+  word: string;
+  meaning: string;
+  bengaliMeaning: string;
+  ipa: string;
+  wordClass: string;
+  example: string;
+  note: string;
+};
+
 type Activity = {
   id: string; lesson_id: string; slide_id: string | null;
   slide_number: number; activity_type: string; activity_data: Json | null;
@@ -1504,6 +1514,12 @@ const VERTICAL_ALIGN_OPTIONS = [
   { value: "bottom", label: "Align bottom", icon: AlignVerticalJustifyEnd },
 ];
 
+function glossaryWordFound(passage: string, word: string) {
+  const term = word.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  if (!term) return false;
+  return new RegExp(`(?:^|[^\\p{L}\\p{N}])${term}(?=$|[^\\p{L}\\p{N}])`, "iu").test(passage);
+}
+
 const CONTRAST_COLOR_PRESETS = [
   { value: "#0f766e", label: "Moss" },
   { value: "#2563eb", label: "Blue" },
@@ -1604,6 +1620,15 @@ function BlockFields({ blockType, content, lessonId, blockId }: { blockType: str
       description: asString(step.description)
     }));
   });
+  const [readingGlossary, setReadingGlossary] = useState<ReadingGlossaryEntry[]>(() => {
+    const entries = Array.isArray(data.glossary) ? data.glossary as Record<string, unknown>[] : [];
+    return entries.map((entry) => ({
+      word: asString(entry.word), meaning: asString(entry.meaning), bengaliMeaning: asString(entry.bengali_meaning ?? entry.bengaliMeaning),
+      ipa: asString(entry.ipa), wordClass: asString(entry.word_class ?? entry.wordClass), example: asString(entry.example), note: asString(entry.note)
+    }));
+  });
+  const [readingPassage, setReadingPassage] = useState(() => asString(data.passage ?? data.text));
+  const [editingGlossaryIndex, setEditingGlossaryIndex] = useState<number | null>(null);
 
   if (blockType === "HEADING") {
     return (
@@ -1872,12 +1897,20 @@ function BlockFields({ blockType, content, lessonId, blockId }: { blockType: str
     );
   }
   if (blockType === "READING") {
+    const updateGlossaryEntry = (index: number, key: keyof ReadingGlossaryEntry, value: string) => setReadingGlossary((current) => current.map((entry, entryIndex) => entryIndex === index ? { ...entry, [key]: value } : entry));
     return (
       <div className="grid gap-3">
         <label className="text-sm">Title<input name="title" defaultValue={asString(data.title)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
-        <label className="text-sm">Passage<textarea name="passage" rows={6} defaultValue={asString(data.passage ?? data.text)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+        <label className="text-sm">Passage<textarea name="passage" rows={6} value={readingPassage} onChange={(event) => setReadingPassage(event.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
         <input type="hidden" name="audio_path" value={audioPath} />
-        <ReadingPassageAudioControls lessonId={lessonId} passage={asString(data.passage ?? data.text)} value={audioPath} onChange={setAudioPath} />
+        <input type="hidden" name="questions" value={Array.isArray(data.questions) ? data.questions.map(String).join("\n") : ""} />
+        <input type="hidden" name="glossary_json" value={JSON.stringify(readingGlossary.map((entry) => ({ word: entry.word.trim(), meaning: entry.meaning.trim(), bengali_meaning: entry.bengaliMeaning.trim(), ipa: entry.ipa.trim(), word_class: entry.wordClass.trim(), example: entry.example.trim(), note: entry.note.trim() })).filter((entry) => entry.word))} />
+        <section className="rounded-xl border border-[var(--br-brand)]/20 bg-[var(--br-brand-soft)]/25 p-3 sm:p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-sm font-black text-[var(--br-brand)]">Click glossary</p><p className="mt-1 text-xs text-[var(--br-text-muted)]">Add words from this passage. Learners can click them for dictionary-style help.</p></div><button type="button" onClick={() => { setReadingGlossary((current) => [...current, { word: "", meaning: "", bengaliMeaning: "", ipa: "", wordClass: "", example: "", note: "" }]); setEditingGlossaryIndex(readingGlossary.length); }} className="rounded-lg bg-[var(--br-brand)] px-3 py-2 text-xs font-bold text-on-dark">+ Add word</button></div>
+          {readingGlossary.length ? <div className="mt-3 grid gap-2">{readingGlossary.map((entry, index) => { const found = entry.word.trim() && glossaryWordFound(readingPassage, entry.word); return <div key={index} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[var(--br-border)] bg-surface px-3 py-2"><div className="min-w-0"><p className="truncate text-sm font-bold text-[var(--br-dark-card)]">{entry.word || "New glossary word"}</p><p className={`text-[11px] font-semibold ${found ? "text-[var(--br-success)]" : entry.word ? "text-coral" : "text-[var(--br-text-muted)]"}`}>{entry.word ? (found ? "Found in passage" : "Not found in passage") : "Add a word to connect it"}</p></div><div className="flex items-center gap-2"><button type="button" onClick={() => setEditingGlossaryIndex(index)} className="rounded-md border border-[var(--br-border)] px-2.5 py-1.5 text-xs font-bold text-[var(--br-brand)] hover:bg-[var(--br-brand)]/10">Details</button><button type="button" onClick={() => setReadingGlossary((current) => current.filter((_, entryIndex) => entryIndex !== index))} className="rounded-md px-2 py-1.5 text-xs font-semibold text-coral hover:bg-coral/10">Remove</button></div></div>; })}</div> : <p className="mt-3 rounded-lg border border-dashed border-[var(--br-border)] bg-surface/60 px-3 py-3 text-xs text-[var(--br-text-muted)]">No glossary words yet.</p>}
+          {editingGlossaryIndex !== null && readingGlossary[editingGlossaryIndex] ? <div className="fixed inset-0 z-[120] grid place-items-center bg-[var(--br-brand)]/30 p-4 backdrop-blur-sm" role="presentation" onClick={() => setEditingGlossaryIndex(null)}><div role="dialog" aria-modal="true" aria-labelledby="glossary-editor-title" className="max-h-[min(42rem,calc(100dvh-2rem))] w-full max-w-xl overflow-y-auto rounded-2xl border border-[var(--br-border)] bg-surface p-4 shadow-2xl sm:p-5" onClick={(event) => event.stopPropagation()}><div className="flex items-start justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--br-action)]">Glossary details</p><h4 id="glossary-editor-title" className="mt-1 text-lg font-extrabold text-[var(--br-dark-card)]">Help learners understand this word</h4></div><button type="button" onClick={() => setEditingGlossaryIndex(null)} className="rounded-full border border-[var(--br-border)] px-2.5 py-1 text-lg leading-none text-[var(--br-text-muted)]" aria-label="Close glossary details">×</button></div><div className="mt-4 grid gap-3 sm:grid-cols-2"><label className="text-sm sm:col-span-2">Word or phrase<input autoFocus value={readingGlossary[editingGlossaryIndex].word} onChange={(event) => updateGlossaryEntry(editingGlossaryIndex, "word", event.target.value)} placeholder="e.g. sustainable" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label><label className="text-sm">Simple English meaning<textarea rows={3} value={readingGlossary[editingGlossaryIndex].meaning} onChange={(event) => updateGlossaryEntry(editingGlossaryIndex, "meaning", event.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label><label className="text-sm">Bengali meaning<textarea rows={3} value={readingGlossary[editingGlossaryIndex].bengaliMeaning} onChange={(event) => updateGlossaryEntry(editingGlossaryIndex, "bengaliMeaning", event.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label><label className="text-sm">IPA pronunciation<input value={readingGlossary[editingGlossaryIndex].ipa} onChange={(event) => updateGlossaryEntry(editingGlossaryIndex, "ipa", event.target.value)} placeholder="/səˈsteɪnəbəl/" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label><label className="text-sm">Word class<input value={readingGlossary[editingGlossaryIndex].wordClass} onChange={(event) => updateGlossaryEntry(editingGlossaryIndex, "wordClass", event.target.value)} placeholder="adjective" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label><label className="text-sm sm:col-span-2">Example sentence<textarea rows={2} value={readingGlossary[editingGlossaryIndex].example} onChange={(event) => updateGlossaryEntry(editingGlossaryIndex, "example", event.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label><label className="text-sm sm:col-span-2">Learner note <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><textarea rows={2} value={readingGlossary[editingGlossaryIndex].note} onChange={(event) => updateGlossaryEntry(editingGlossaryIndex, "note", event.target.value)} placeholder="A helpful usage tip" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label></div><div className="mt-4 flex justify-end"><button type="button" onClick={() => setEditingGlossaryIndex(null)} className="rounded-lg bg-[var(--br-brand)] px-4 py-2 text-sm font-bold text-on-dark">Done</button></div></div></div> : null}
+        </section>
+        <ReadingPassageAudioControls lessonId={lessonId} passage={readingPassage} value={audioPath} onChange={setAudioPath} />
       </div>
     );
   }
