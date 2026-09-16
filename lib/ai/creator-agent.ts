@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { callGemini } from "@/lib/ai/gemini";
 import { relevantCreatorTools } from "@/lib/ai/creator-tools";
 import { LESSON_MASTER_GUIDE } from "@/lib/ai/lesson-master-guide";
+import { LESSON_CONTENT_GUIDE } from "@/lib/ai/lesson-content-guide";
 import { applyOperations, newLesson, decisionSchema, decisionFormat, schemaReference, BLOCK_REFERENCES, ACTIVITY_REFERENCES, type Data, type LessonDocument } from "@/lib/ai/agent-contract";
 
 export type AgentMessage = { role: "user" | "assistant"; content: string };
@@ -238,6 +239,7 @@ export async function agentRequest(userId: string, input: unknown) {
       const context = {
         instructions: AGENT_INSTRUCTIONS,
         masterGuide: LESSON_MASTER_GUIDE,
+        contentInsertionGuide: LESSON_CONTENT_GUIDE,
         currentTask: state.goal,
         nextStep: state.createdThisTurn ? "The lesson already exists. DO NOT create another lesson. Use edit_lesson to add the requested slides, blocks and activities to the selected lesson. Finish only when the entire requested lesson is complete." : "Execute the current task, using existing server results.",
         blockTypes: BLOCK_REFERENCES.map(x=>x.blockType), activityTypes: ACTIVITY_REFERENCES.map(x=>x.type),
