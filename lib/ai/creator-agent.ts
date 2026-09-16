@@ -76,6 +76,7 @@ All slide, block, activity positions are ONE-BASED. IDs only come from server re
 ACTIONS and exact arguments:
 create_lesson: {title,topic,level,description?,subtitle?,category?}. Creates an empty DRAFT only when the user explicitly asks to create a lesson. Never invent a title, topic, level, slide count, content, or activity. If a required field is missing, ask the user naturally instead of guessing. Creating a shell does not authorize adding slides or content unless the user also explicitly requests that content.
 search_lessons: {query}. Search by title. If multiple match, ask which one; do not guess.
+resolve_lesson: {title}. Resolve a natural-language lesson reference against the live database. Use this before editing or reading when the user names a lesson but does not provide an ID.
 open_lesson: {id,slide?}. Select lesson using a real search result ID. With slide, read that slide in full. Published lessons require a draft copy; tell user to request a copy.
 schema: {types:["BLOCK_OR_ACTIVITY_TYPE"]}. Get actual shapes before using an unfamiliar type. Do not copy example content; write original material matching the request.
 edit_lesson: {operations:[...]}. Works on selected lesson. Each operation:
@@ -198,6 +199,7 @@ export async function agentRequest(userId: string, input: unknown) {
         currentTask: state.goal,
         nextStep: state.createdThisTurn ? "The lesson already exists. DO NOT create another lesson. Use edit_lesson to add the requested slides, blocks and activities to the selected lesson. Finish only when the entire requested lesson is complete." : "Execute the current task, using existing server results.",
         blockTypes: BLOCK_REFERENCES.map(x=>x.blockType), activityTypes: ACTIVITY_REFERENCES.map(x=>x.type),
+        toolRegistry: ["find_latest_lesson","search_lessons","resolve_lesson","read_lesson","read_slides","create_lesson","create_slide","update_slide","delete_slide","move_slide","add_content_block","update_content_block","delete_content_block","add_activity","update_activity","delete_activity","move_activity","copy_lesson_draft"],
         references: state.references ?? schemaReference(["TEXT","BULLETS","GRAMMAR","VOCABULARY","MCQ","GAP_FILL","DIALOGUE"]),
         conversation: state.messages.slice(-12), lesson: compactLesson, feedback: state.feedback,
         sources: state.sources.filter(s=>s.enabled).map(s=>({title:s.title,version:s.version,text:s.text.slice(0,10000)})), media: state.media,
@@ -207,11 +209,12 @@ export async function agentRequest(userId: string, input: unknown) {
       state.steps++;
       const args = decision.arguments as Data;
       state.running = decision.continue;
-      if (decision.action === "search_lessons") {
-        const query = z.string().min(1).max(120).parse(args.query).replace(/[%_]/g," ");
+      if (decision.action === "search_lessons" || decision.action === "resolve_lesson") {
+        const query = z.string().min(1).max(200).parse(args.query ?? args.title).replace(/[%_]/g," ");
         const { data,error } = await createAdminClient().from("lessons").select("id,title,level,status").ilike("title",`%${query}%`).is("deleted_at",null).limit(10);
         if(error) throw new Error("Lesson search failed."); state.feedback={results:data};
-        state.messages.push({role:"assistant",content:`Found ${data?.length??0} lesson(s):\n${data?.map(x=>`- ${x.title} (${x.level}, ${x.status})`).join("\n")||"No matches."}`});
+        if (decision.action === "resolve_lesson" && data?.length === 1) { current.lesson_id = data[0].id; state.feedback={resolvedLesson:data[0]}; state.messages.push({role:"assistant",content:`I found **${data[0].title}** and selected it.`}); }
+        else state.messages.push({role:"assistant",content:`Found ${data?.length??0} lesson(s):\n${data?.map(x=>`- ${x.title} (${x.level}, ${x.status})`).join("\n")||"No matches."}`});
       } else if (decision.action === "open_lesson") {
         current.lesson_id = z.string().uuid().parse(args.id);
         selected = await snapshot(current.lesson_id);

@@ -33,7 +33,7 @@ export const operationSchema = z.object({
 export type Operation = z.infer<typeof operationSchema>;
 
 export const decisionSchema = z.object({
-  action: z.enum(["create_lesson", "search_lessons", "open_lesson", "edit_lesson", "schema", "finish"]),
+  action: z.enum(["create_lesson", "search_lessons", "resolve_lesson", "open_lesson", "edit_lesson", "schema", "finish"]),
   message: z.string().max(6000),
   arguments: object.default({}),
   continue: z.boolean().default(false),
@@ -42,14 +42,14 @@ export const decisionSchema = z.object({
 export const DECISION_JSON_SCHEMA = {
   type: "object", additionalProperties: false, required: ["action", "message", "arguments", "continue"],
   properties: {
-    action: { type: "string", enum: ["create_lesson", "search_lessons", "open_lesson", "edit_lesson", "schema", "finish"] },
+    action: { type: "string", enum: ["create_lesson", "search_lessons", "resolve_lesson", "open_lesson", "edit_lesson", "schema", "finish"] },
     message: { type: "string" }, arguments: { type: "object" }, continue: { type: "boolean" },
   },
 };
 
 export function decisionFormat(createdThisTurn: boolean) {
   if (!createdThisTurn) return DECISION_JSON_SCHEMA;
-  return { ...DECISION_JSON_SCHEMA, properties: { ...DECISION_JSON_SCHEMA.properties, action: { type: "string", enum: ["edit_lesson", "schema", "open_lesson", "finish"] } } };
+  return { ...DECISION_JSON_SCHEMA, properties: { ...DECISION_JSON_SCHEMA.properties, action: { type: "string", enum: ["resolve_lesson", "edit_lesson", "schema", "open_lesson", "finish"] } } };
 }
 
 export function schemaReference(types: string[] = []) {
