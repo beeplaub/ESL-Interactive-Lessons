@@ -359,16 +359,24 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
   }
   if (blockType === "READING") {
     let glossary: Json[] = [];
+    let sentencePairs: Json[] = [];
     try {
       const parsed = JSON.parse(String(formData.get("glossary_json") || "[]"));
       glossary = Array.isArray(parsed) ? parsed as Json[] : [];
     } catch { glossary = []; }
+    try {
+      const parsed = JSON.parse(String(formData.get("sentence_pairs_json") || "[]"));
+      sentencePairs = Array.isArray(parsed) ? parsed as Json[] : [];
+    } catch { sentencePairs = []; }
     return {
       title: String(formData.get("title") || "").trim(),
       passage: String(formData.get("passage") || "").trim(),
       audio_path: nullableText(formData.get("audio_path")),
       questions: splitLines(formData.get("questions")),
-      glossary
+      glossary,
+      translation: nullableText(formData.get("translation")),
+      translation_language: "bn",
+      sentence_pairs: sentencePairs
     };
   }
   if (blockType === "DIALOGUE") {
@@ -505,7 +513,7 @@ function defaultBlockContent(blockType: string): Json {
     return { entries: [{ word: "word", pronunciation: "", meaning: "meaning", example: "", notes: "" }] };
   }
   if (blockType === "GRAMMAR") return { title: "", explanation: "", examples: [], notes: null, reveal_hidden: false };
-  if (blockType === "READING") return { title: "", passage: "", questions: [], glossary: [] };
+  if (blockType === "READING") return { title: "", passage: "", questions: [], glossary: [], translation: null, translation_language: "bn", sentence_pairs: [] };
   if (blockType === "DIALOGUE") return { title: "Dialogue", turns: [{ speaker: "A", line: "" }, { speaker: "B", line: "" }] };
   if (blockType === "FLASHCARD") return {
     card_type: "IMAGE",
