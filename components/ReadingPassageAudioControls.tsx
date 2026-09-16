@@ -11,7 +11,7 @@ export function ReadingPassageAudioControls({ lessonId, passage, value, onChange
     if (!passage.trim()) return setError("Add passage text before generating audio.");
     setGenerating(true); setError(null);
     try {
-      const response = await fetch("/api/creator-tools/voiceover", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: "Reading passage", script: passage.trim(), voiceName: "Aoede", languageCode: "en-US", style: "Natural", pace: "Natural", provider: "auto" }) });
+      const response = await fetch("/api/creator-tools/voiceover", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: "Reading passage", script: passage.trim(), voiceName: "Aoede", languageCode: "en-US", style: "Natural", pace: "Natural", provider: "kokoro" }) });
       const generated = await response.json() as { generationId?: string; url?: string; error?: string };
       if (!response.ok || !generated.generationId) throw new Error(generated.error || "Could not generate passage audio.");
       const saved = await fetch("/api/creator-tools/voiceover/save", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ generationId: generated.generationId, title: "Reading passage" }) });
