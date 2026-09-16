@@ -87,6 +87,19 @@ For block/activity add: slide,type,content required, position optional. For edit
 finish: {}. Answer or ask an essential clarification, continue:false. Never claim a save that has not appeared in server results.
 Only perform actions explicitly requested by the user. Do not add “helpful” slides, blocks, activities, examples, introductions, reviews, or metadata. Do not turn a request for information into an edit. Do not continue building after completing the explicitly requested operation unless the user asked for a complete multi-step build. Keep replies conversational and concise. If the request is ambiguous, ask one focused clarification. Include correct answers and explanations only when the user requested an exercise or quiz. Avoid empty placeholders or unsupported types. Never repeat a successful operation listed in feedback/history. If validation fails, fix only the failed proposal. Set continue:false when done or awaiting clarification. No paid model, image generation, learner AI execution, shell, SQL or publish tool exists.`;
 
+function readableContent(value: unknown): string {
+  if (value === null || value === undefined || value === "") return "";
+  if (typeof value !== "object") return String(value);
+  if (Array.isArray(value)) return value.map(item => `- ${readableContent(item).replaceAll("\n", "\n  ")}`).join("\n");
+  return Object.entries(value as Record<string, unknown>).filter(([,v]) => v !== null && v !== undefined && v !== "").map(([key, item]) => `**${key.replaceAll("_", " ")}:** ${readableContent(item)}`).join("\n");
+}
+function readableBlock(block: { block_type: string; content: Data }): string {
+  const c = block.content;
+  if (block.block_type === "HEADING") return `### ${c.text ?? "Heading"}`;
+  if (block.block_type === "TEXT" || block.block_type === "INSTRUCTION") return String(c.body ?? c.text ?? "");
+  return readableContent(c);
+}
+
 async function deterministicLookup(userId: string, current: AgentSession, goal: string): Promise<boolean> {
   const admin = createAdminClient();
   const latest = /\b(last|latest|most recent)\s+(?:lesson|course)\b/i.test(goal);
@@ -124,7 +137,7 @@ async function deterministicLookup(userId: string, current: AgentSession, goal: 
   const slides = wanted.length ? wanted.map(n => snap.document.slides[n - 1]).filter(Boolean) : snap.document.slides;
   current.state.running = false;
   current.state.feedback = { selectedLesson: selected.id, slides };
-  current.state.messages.push({ role: "assistant", content: `**${selected.title}** (${selected.level}) has ${snap.document.slides.length} slides.\n\n${slides.map((s, i) => `**Slide ${wanted[i] ?? snap.document.slides.indexOf(s) + 1}: ${s.title}**\n${s.blocks.map(b => `- ${b.block_type}: ${JSON.stringify(b.content)}`).join("\n") || "- No content blocks"}\n${s.activities.map(a => `- Activity ${a.activity_type}: ${JSON.stringify(a.activity_data)}`).join("\n") || "- No activities"}`).join("\n\n")}` });
+  current.state.messages.push({ role: "assistant", content: `**${selected.title}** (${selected.level}) has ${snap.document.slides.length} slides.\n\n${slides.map((s, i) => `## Slide ${wanted[i] ?? snap.document.slides.indexOf(s) + 1}: ${s.title}\n${s.blocks.map(b => `**${b.block_type.replaceAll("_", " ")}**\n${readableBlock(b)}`).join("\n\n") || "No content blocks."}\n${s.activities.map(a => `**${a.activity_type.replaceAll("_", " ")}**\n${readableContent(a.activity_data)}`).join("\n\n") || "No activities."}`).join("\n\n")}` });
   return true;
 }
 
