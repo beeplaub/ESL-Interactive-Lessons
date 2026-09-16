@@ -164,7 +164,7 @@ async function browseCourse(current: AgentSession, goal: string): Promise<boolea
 }
 
 export async function agentRequest(userId: string, input: unknown) {
-  const request = z.object({ sessionId: z.string().uuid(), requestId: z.string().uuid(), command: z.enum(["message", "step", "confirm", "cancel", "undo", "source", "media", "copy_draft"]), message: z.string().max(20000).optional(), source: z.object({ id: z.string().uuid().optional(), title: z.string().min(1).max(200), text: z.string().max(60000), enabled: z.boolean() }).optional(), media: z.object({ title: z.string().max(200), url: z.string().url(), type: z.enum(["IMAGE","AUDIO","VIDEO"]) }).optional() }).strict().parse(input);
+  const request = z.object({ sessionId: z.string().uuid(), requestId: z.string().uuid(), command: z.enum(["message", "step", "confirm", "cancel", "undo", "source", "media", "copy_draft"]), message: z.string().max(100000).optional(), source: z.object({ id: z.string().uuid().optional(), title: z.string().min(1).max(200), text: z.string().max(100000), enabled: z.boolean() }).optional(), media: z.object({ title: z.string().max(200), url: z.string().url(), type: z.enum(["IMAGE","AUDIO","VIDEO"]) }).optional() }).strict().parse(input);
   const current = await session(userId, request.sessionId);
   if (current.state.lastRequest === request.requestId) return current;
   const lease = crypto.randomUUID();
