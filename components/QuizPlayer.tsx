@@ -2707,8 +2707,12 @@ function Pronunciation({
       <div className="pointer-events-none absolute -left-12 -top-14 size-36 rounded-full bg-[var(--br-chart-primary)]/10 blur-2xl" />
       <div className="pointer-events-none absolute -bottom-16 -right-10 size-40 rounded-full bg-[var(--br-action)]/15 blur-2xl" />
       <div className="relative z-10 text-left">
-        <p className="text-xs font-black uppercase tracking-wider text-[var(--br-chart-primary)]">{level === "word" ? "Say this word" : "Read this aloud"}</p>
-        <p className="mt-1 text-2xl font-black text-ink sm:text-3xl">{level === "word" ? targets.map((target) => target.text).join(" · ") : passage}</p>
+        <p className="text-xs font-black uppercase tracking-wider text-[var(--br-chart-primary)]">{level === "word" ? "Practice each target" : "Read this aloud"}</p>
+        {level === "word" ? (
+          <p className="mt-1 text-sm font-medium text-[var(--br-text-muted)]">Record each word or phrase below, one at a time.</p>
+        ) : (
+          <p className="mt-1 text-2xl font-black text-ink sm:text-3xl">{passage}</p>
+        )}
       </div>
       {level !== "word" && passage ? (
         <p className="relative z-10 rounded-[16px] bg-white/75 p-4 text-left text-base leading-8 text-ink">
@@ -2718,13 +2722,13 @@ function Pronunciation({
           })}
         </p>
       ) : null}
-      {targets.length > 0 ? <div className="relative z-10 rounded-[16px] border border-white/80 bg-white/70 p-4 text-left"><p className="mb-2 text-xs font-black uppercase tracking-wider text-[var(--br-chart-primary)]">Target sounds</p><div className="flex flex-wrap gap-2">{targets.map(renderTargetChip)}</div></div> : null}
-      <div className="relative z-10 grid justify-items-center gap-3">
-        <button type="button" disabled={disabled || micState === "transcribing" || (micState === "listening" && !activeKey)} onClick={() => (micState === "listening" ? void finishRecording() : void recordFor(level === "word" ? (targets[0]?.id ?? "word") : passageKey, level === "word" ? [targets[0]].filter(Boolean) : passageTargets))} className={`grid size-20 place-items-center rounded-full text-white shadow-lg transition ${micState === "listening" ? "bg-coral" : "bg-gradient-to-br from-[var(--br-action)] to-[var(--br-action-strong)]"} disabled:opacity-50`} aria-label={micState === "listening" ? "Finish recording" : "Start recording"}>
+      {level !== "word" && targets.length > 0 ? <div className="relative z-10 rounded-[16px] border border-white/80 bg-white/70 p-4 text-left"><p className="mb-2 text-xs font-black uppercase tracking-wider text-[var(--br-chart-primary)]">Target phrases</p><div className="flex flex-wrap gap-2">{targets.map(renderTargetChip)}</div></div> : null}
+      {level !== "word" ? <div className="relative z-10 grid justify-items-center gap-3">
+        <button type="button" disabled={disabled || micState === "transcribing" || (micState === "listening" && !activeKey)} onClick={() => (micState === "listening" ? void finishRecording() : void recordFor(passageKey, passageTargets))} className={`grid size-20 place-items-center rounded-full text-white shadow-lg transition ${micState === "listening" ? "bg-coral" : "bg-gradient-to-br from-[var(--br-action)] to-[var(--br-action-strong)]"} disabled:opacity-50`} aria-label={micState === "listening" ? "Finish recording" : "Start recording"}>
           {micState === "transcribing" ? <Loader2 size={28} className="animate-spin" /> : micState === "listening" ? <MicOff size={28} /> : <Mic size={28} />}
         </button>
-        <p className="text-sm font-bold text-[var(--br-action-strong)]">{micState === "listening" ? `I&apos;m listening · Tap to finish · ${Math.max(0, (level === "word" ? 12 : 60) - seconds)}s` : micState === "transcribing" ? "Preparing your feedback…" : "Tap the microphone and start speaking"}</p>
-      </div>
+        <p className="text-sm font-bold text-[var(--br-action-strong)]">{micState === "listening" ? `I&apos;m listening · Tap to finish · ${Math.max(0, 60 - seconds)}s` : micState === "transcribing" ? "Preparing your feedback…" : "Tap the microphone and start speaking"}</p>
+      </div> : null}
       {error ? <div className="relative z-10 flex items-start gap-2 rounded-[14px] border border-amber-200 bg-amber-50 p-3 text-left text-sm font-semibold text-amber-900"><AlertCircle size={16} className="mt-0.5 shrink-0" />{error}</div> : null}
       {level === "word" ? <div className="relative z-10 grid gap-2 text-left">{targets.map((target) => <div key={target.id} className="flex flex-wrap items-center justify-between gap-3 rounded-[14px] border border-white/80 bg-white/75 p-3"><div><p className="font-bold" style={{ color: target.color }}>{target.text}</p><p className="text-xs text-[var(--br-text-muted)]">{renderStatus(target)}{attemptsUsed[target.id] ? ` · ${attemptsUsed[target.id]} attempt${attemptsUsed[target.id] === 1 ? "" : "s"}` : ""}</p></div><button type="button" disabled={disabled || micState === "transcribing" || (attemptsUsed[target.id] ?? 0) >= maxAttempts || results[target.id] === true} onClick={() => void recordFor(target.id, [target])} className="inline-flex items-center gap-2 rounded-full border border-violet-200 bg-white px-3 py-1.5 text-xs font-bold text-violet-800 disabled:opacity-50">{results[target.id] ? <CheckCircle2 size={14} /> : <Mic size={14} />} {results[target.id] ? "Recognized" : `Record (${Math.max(0, maxAttempts - (attemptsUsed[target.id] ?? 0))} left)`}</button>{transcripts[target.id] ? <p className="w-full border-t border-slate-100 pt-2 text-xs text-[var(--br-text-muted)]">Exact transcript: <span className="font-semibold text-ink">{transcripts[target.id]}</span></p> : null}</div>)}</div> : null}
       {level !== "word" && passageTranscript ? <div className="relative z-10 rounded-[16px] border border-white/80 bg-white/75 p-4 text-left"><p className="mb-1 text-xs font-black uppercase tracking-wider text-[var(--br-chart-primary)]">Exact transcript</p><p className="text-base font-semibold leading-7 text-ink">{passageTranscript}</p></div> : null}
