@@ -83,5 +83,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ reported: true }, { status: 201 });
   }
 
+  if (input.action === "moderate_report") {
+    const reportId = typeof input.reportId === "string" ? input.reportId : "";
+    const status = typeof input.status === "string" ? input.status : "";
+    if (!reportId || !["IN_REVIEW", "RESOLVED", "DISMISSED"].includes(status)) return NextResponse.json({ error: "Choose a valid moderation status." }, { status: 400 });
+    const admin = createAdminClient();
+    const { data: profile } = await admin.from("profiles").select("role").eq("id", user.id).maybeSingle();
+    if (profile?.role !== "ADMIN") return NextResponse.json({ error: "Admin access required." }, { status: 403 });
+    const { error } = await admin.from("community_reports").update({ status, reviewed_by: user.id, reviewed_at: new Date().toISOString() }).eq("id", reportId);
+    if (error) return NextResponse.json({ error: "Could not update the report." }, { status: 400 });
+    return NextResponse.json({ updated: true });
+  }
+
   return NextResponse.json({ error: "Unknown community action." }, { status: 400 });
 }
