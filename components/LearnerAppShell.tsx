@@ -33,7 +33,7 @@ import { getLearnerAchievements, type LearnerAchievements } from "@/lib/achievem
 import { BrandLogo } from "@/components/BrandLogo";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
-export type ActiveItem = "home" | "quizzes" | "courses" | "journal" | "wordverse" | "live-classes" | "assignments" | "tasks" | "calendar" | "achievements" | "certificates" | "level-test" | "leaderboard" | "language-profile" | "profile" | "notifications";
+export type ActiveItem = "home" | "quizzes" | "courses" | "journal" | "wordverse" | "live-classes" | "community" | "assignments" | "tasks" | "calendar" | "achievements" | "certificates" | "level-test" | "leaderboard" | "language-profile" | "profile" | "notifications";
 
 type BreadcrumbItem = { label: string; href?: string };
 export type NotificationItem = { key: string; title: string; detail: string; href: string; targetHref?: string | null; actionLabel?: string | null; tone: "purple" | "orange" | "green" | "blue"; notificationId?: string; isRead?: boolean };
@@ -45,6 +45,7 @@ const defaultBreadcrumbs: Record<ActiveItem, BreadcrumbItem[]> = {
   journal: [{ label: "Home", href: "/account" }, { label: "Journal" }],
   wordverse: [{ label: "Home", href: "/account" }, { label: "Wordverse" }],
   "live-classes": [{ label: "Home", href: "/account" }, { label: "Live Classes" }],
+  community: [{ label: "Home", href: "/account" }, { label: "Community" }],
   assignments: [{ label: "Home", href: "/account" }, { label: "Assignments" }],
   tasks: [{ label: "Home", href: "/account" }, { label: "Tasks" }],
   calendar: [{ label: "Home", href: "/account" }, { label: "Calendar" }],

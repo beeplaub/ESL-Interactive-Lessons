@@ -1,0 +1,88 @@
+import { NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+
+const allowedFeedback = new Set(["CONVERSATION", "WELCOME", "CORRECT_ME"]);
+
+export async function POST(request: Request) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Sign in required." }, { status: 401 });
+  const input = await request.json().catch(() => null) as Record<string, unknown> | null;
+  if (!input || typeof input.action !== "string") return NextResponse.json({ error: "Choose a community action." }, { status: 400 });
+
+  if (input.action === "create_post") {
+    let circleId = typeof input.circleId === "string" ? input.circleId : "";
+    const title = typeof input.title === "string" ? input.title.trim() : "";
+    const body = typeof input.body === "string" ? input.body.trim() : "";
+    const postType = input.postType === "VOICE" ? "VOICE" : "DISCUSSION";
+    const feedbackMode = typeof input.feedbackMode === "string" ? input.feedbackMode : "CONVERSATION";
+    if (!title || title.length > 160) return NextResponse.json({ error: "Add a conversation title (maximum 160 characters)." }, { status: 400 });
+    if (postType !== "VOICE" && !body) return NextResponse.json({ error: "Add a message or record a voice note." }, { status: 400 });
+    if (body.length > 5000) return NextResponse.json({ error: "Keep your message under 5,000 characters." }, { status: 400 });
+    if (!allowedFeedback.has(feedbackMode)) return NextResponse.json({ error: "Choose a valid feedback preference." }, { status: 400 });
+    if (!circleId) {
+      const { data: enrollment } = await supabase.from("course_enrollments").select("course_id, courses(title)").eq("user_id", user.id).in("status", ["ACTIVE", "COMPLETED"]).limit(1).maybeSingle();
+      if (!enrollment?.course_id) return NextResponse.json({ error: "Join a course before starting a community conversation." }, { status: 403 });
+      const admin = createAdminClient();
+      const courseTitle = Array.isArray(enrollment.courses) ? enrollment.courses[0]?.title : enrollment.courses?.title;
+      const { data: circle, error: circleError } = await admin.from("community_circles").upsert({ course_id: enrollment.course_id, title: courseTitle ? `${courseTitle} Circle` : "Course community", description: "A private practice circle for enrolled learners.", status: "ACTIVE" }, { onConflict: "course_id" }).select("id").single();
+      if (circleError || !circle) return NextResponse.json({ error: "Your course community is not ready yet. Please try again shortly." }, { status: 503 });
+      circleId = circle.id;
+    }
+    const { data, error } = await supabase.from("community_posts").insert({ circle_id: circleId, author_id: user.id, post_type: postType, title, body: body || null, feedback_mode: feedbackMode }).select("id,circle_id,post_type,title,body,feedback_mode,status,created_at").single();
+    if (error) return NextResponse.json({ error: "Could not create the conversation." }, { status: 400 });
+    return NextResponse.json({ post: data }, { status: 201 });
+  }
+
+  if (input.action === "create_reply") {
+    const postId = typeof input.postId === "string" ? input.postId : "";
+    const body = typeof input.body === "string" ? input.body.trim() : "";
+    const feedbackMode = typeof input.feedbackMode === "string" ? input.feedbackMode : "CONVERSATION";
+    if (!postId || !body || body.length > 5000 || !allowedFeedback.has(feedbackMode)) return NextResponse.json({ error: "Add a reply and valid feedback preference." }, { status: 400 });
+    const { data, error } = await supabase.from("community_replies").insert({ post_id: postId, author_id: user.id, reply_type: "TEXT", body, feedback_mode: feedbackMode }).select("id,post_id,author_id,reply_type,body,feedback_mode,status,created_at").single();
+    if (error) return NextResponse.json({ error: "Could not add the reply." }, { status: 400 });
+    return NextResponse.json({ reply: data }, { status: 201 });
+  }
+
+  if (input.action === "toggle_save") {
+    const postId = typeof input.postId === "string" ? input.postId : "";
+    if (!postId) return NextResponse.json({ error: "Post is required." }, { status: 400 });
+    const existing = await supabase.from("community_saves").select("id").eq("post_id", postId).eq("user_id", user.id).maybeSingle();
+    if (existing.data?.id) {
+      const { error } = await supabase.from("community_saves").delete().eq("id", existing.data.id).eq("user_id", user.id);
+      if (error) return NextResponse.json({ error: "Could not unsave the post." }, { status: 400 });
+      return NextResponse.json({ saved: false });
+    }
+    const { error } = await supabase.from("community_saves").insert({ post_id: postId, user_id: user.id });
+    if (error) return NextResponse.json({ error: "Could not save the post." }, { status: 400 });
+    return NextResponse.json({ saved: true });
+  }
+
+  if (input.action === "react") {
+    const postId = typeof input.postId === "string" ? input.postId : "";
+    const reactionType = typeof input.reactionType === "string" ? input.reactionType : "HELPFUL";
+    if (!postId || !["HELPFUL", "ENCOURAGING"].includes(reactionType)) return NextResponse.json({ error: "Valid post and reaction are required." }, { status: 400 });
+    const existing = await supabase.from("community_reactions").select("id").eq("post_id", postId).eq("user_id", user.id).eq("reaction_type", reactionType).maybeSingle();
+    if (existing.data?.id) {
+      const { error } = await supabase.from("community_reactions").delete().eq("id", existing.data.id).eq("user_id", user.id);
+      if (error) return NextResponse.json({ error: "Could not remove the reaction." }, { status: 400 });
+      return NextResponse.json({ reacted: false });
+    }
+    const { error } = await supabase.from("community_reactions").insert({ post_id: postId, user_id: user.id, reaction_type: reactionType });
+    if (error) return NextResponse.json({ error: "Could not add the reaction." }, { status: 400 });
+    return NextResponse.json({ reacted: true });
+  }
+
+  if (input.action === "report") {
+    const postId = typeof input.postId === "string" ? input.postId : "";
+    const reason = typeof input.reason === "string" ? input.reason.trim() : "";
+    const details = typeof input.details === "string" ? input.details.trim().slice(0, 2000) : null;
+    if (!postId || !reason || reason.length > 120) return NextResponse.json({ error: "Choose a report reason." }, { status: 400 });
+    const { error } = await supabase.from("community_reports").insert({ post_id: postId, reporter_id: user.id, reason, details });
+    if (error) return NextResponse.json({ error: "Could not submit the report." }, { status: 400 });
+    return NextResponse.json({ reported: true }, { status: 201 });
+  }
+
+  return NextResponse.json({ error: "Unknown community action." }, { status: 400 });
+}
