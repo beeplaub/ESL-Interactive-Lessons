@@ -28,7 +28,7 @@ export async function POST(request: Request) {
   if (!bucket) return NextResponse.json({ error: "Private audio storage is not configured." }, { status: 503 });
   const path = `community/${user.id}/${crypto.randomUUID()}.${file.name.split(".").pop()?.toLowerCase() || "webm"}`;
   try {
-    await uploadMediaObject({ supabase: createAdminClient(), supabaseBucket: bucket, path, body: new Uint8Array(await file.arrayBuffer()), contentType: mimeType, upsert: false });
+    await uploadMediaObject({ supabase: createAdminClient(), supabaseBucket: "ai-recordings", path, body: new Uint8Array(await file.arrayBuffer()), contentType: mimeType, upsert: false });
     const { data: media, error } = await supabase.from("community_media").insert({ owner_id: user.id, post_id: postId || null, reply_id: replyId || null, provider: "r2", bucket, path, mime_type: mimeType, bytes: file.size, duration_seconds: Math.round(durationSeconds) }).select("id, bucket, path").single();
     if (error || !media) return NextResponse.json({ error: "The recording uploaded but could not be registered." }, { status: 500 });
     return NextResponse.json({ id: media.id, url: await createSignedR2MediaUrl({ bucket: media.bucket, path: media.path }) });
