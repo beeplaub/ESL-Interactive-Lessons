@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { notifyUser } from "@/lib/notifications";
 
 const allowedFeedback = new Set(["CONVERSATION", "WELCOME", "CORRECT_ME"]);
 
@@ -39,8 +40,10 @@ export async function POST(request: Request) {
     const body = typeof input.body === "string" ? input.body.trim() : "";
     const feedbackMode = typeof input.feedbackMode === "string" ? input.feedbackMode : "CONVERSATION";
     if (!postId || !body || body.length > 5000 || !allowedFeedback.has(feedbackMode)) return NextResponse.json({ error: "Add a reply and valid feedback preference." }, { status: 400 });
+    const { data: parent } = await supabase.from("community_posts").select("id,author_id,title").eq("id", postId).maybeSingle();
     const { data, error } = await supabase.from("community_replies").insert({ post_id: postId, author_id: user.id, reply_type: "TEXT", body, feedback_mode: feedbackMode }).select("id,post_id,author_id,reply_type,body,feedback_mode,status,created_at").single();
     if (error) return NextResponse.json({ error: "Could not add the reply." }, { status: 400 });
+    if (parent?.author_id && parent.author_id !== user.id) void notifyUser({ userId: parent.author_id, type: "COMMUNITY_REPLY", category: "LEARNING", title: "New reply in your conversation", detail: `Someone replied to “${parent.title}”.`, href: "/community", actionLabel: "Open community", tone: "purple", dedupeKey: `community-reply:${data.id}` });
     return NextResponse.json({ reply: data }, { status: 201 });
   }
 

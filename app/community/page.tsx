@@ -19,6 +19,7 @@ export default async function CommunityPage() {
     ? await supabase.from("community_posts").select("id,circle_id,post_type,title,body,feedback_mode,status,created_at").in("circle_id", circleIds).eq("status", "PUBLISHED").order("created_at", { ascending: false }).limit(30)
     : { data: [] };
   const postIds = (posts ?? []).map((post) => post.id);
+  const { count: unreadCommunity } = await supabase.from("user_notifications").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("href", "/community").is("read_at", null);
   const [{ data: replies }, { data: media }] = postIds.length ? await Promise.all([
     supabase.from("community_replies").select("id,post_id,author_id,reply_type,body,feedback_mode,created_at").in("post_id", postIds).eq("status", "PUBLISHED").order("created_at", { ascending: true }),
     supabase.from("community_media").select("id,post_id,reply_id,duration_seconds").or(`post_id.in.(${postIds.join(",")}),reply_id.not.is.null`),
@@ -26,7 +27,7 @@ export default async function CommunityPage() {
 
   return (
     <LearnerAppShell active="community" showRightSidebar={false} contentClassName="flex flex-col gap-5">
-      <CommunityWorkspace circles={(circles ?? []) as never[]} posts={(posts ?? []) as never[]} replies={(replies ?? []) as never[]} media={(media ?? []) as never[]} />
+      <CommunityWorkspace circles={(circles ?? []) as never[]} posts={(posts ?? []) as never[]} replies={(replies ?? []) as never[]} media={(media ?? []) as never[]} unreadCommunity={unreadCommunity ?? 0} />
     </LearnerAppShell>
   );
 }
