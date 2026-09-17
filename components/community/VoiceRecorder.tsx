@@ -13,7 +13,7 @@ export function VoiceRecorder({ onReady, disabled = false }: { onReady: (file: F
   const [previewing, setPreviewing] = useState(false);
   const audio = useRef<HTMLAudioElement | null>(null);
 
-  useEffect(() => () => recorder.current?.state === "recording" && recorder.current.stop(), []);
+  useEffect(() => () => { if (recorder.current?.state === "recording") recorder.current.stop(); }, []);
   const start = async () => {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     const mimeType = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"].find((type) => MediaRecorder.isTypeSupported(type)) || "";

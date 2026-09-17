@@ -22,11 +22,10 @@ export async function POST(request: Request) {
     if (body.length > 5000) return NextResponse.json({ error: "Keep your message under 5,000 characters." }, { status: 400 });
     if (!allowedFeedback.has(feedbackMode)) return NextResponse.json({ error: "Choose a valid feedback preference." }, { status: 400 });
     if (!circleId) {
-      const { data: enrollment } = await supabase.from("course_enrollments").select("course_id, courses(title)").eq("user_id", user.id).in("status", ["ACTIVE", "COMPLETED"]).limit(1).maybeSingle();
+      const { data: enrollment } = await supabase.from("course_enrollments").select("course_id").eq("user_id", user.id).in("status", ["ACTIVE", "COMPLETED"]).limit(1).maybeSingle();
       if (!enrollment?.course_id) return NextResponse.json({ error: "Join a course before starting a community conversation." }, { status: 403 });
       const admin = createAdminClient();
-      const courseTitle = Array.isArray(enrollment.courses) ? enrollment.courses[0]?.title : enrollment.courses?.title;
-      const { data: circle, error: circleError } = await admin.from("community_circles").upsert({ course_id: enrollment.course_id, title: courseTitle ? `${courseTitle} Circle` : "Course community", description: "A private practice circle for enrolled learners.", status: "ACTIVE" }, { onConflict: "course_id" }).select("id").single();
+      const { data: circle, error: circleError } = await admin.from("community_circles").upsert({ course_id: enrollment.course_id, title: "Course community", description: "A private practice circle for enrolled learners.", status: "ACTIVE" }, { onConflict: "course_id" }).select("id").single();
       if (circleError || !circle) return NextResponse.json({ error: "Your course community is not ready yet. Please try again shortly." }, { status: 503 });
       circleId = circle.id;
     }
