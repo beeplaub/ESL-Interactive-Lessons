@@ -48,6 +48,7 @@ type PastAttempt = {
 type PronunciationValue = {
   results: Record<string, boolean>;
   attemptsUsed: Record<string, number>;
+  transcripts?: Record<string, string>;
 };
 
 export type OralResponseValue = {
@@ -2570,204 +2571,166 @@ function Pronunciation({
     ? opts.targets.map((t) => {
         const row = asRecord(t as Json);
         return { id: String(row.id ?? ""), text: String(row.text ?? ""), color: String(row.color ?? "var(--br-achievement)") };
-      })
+      }).filter((target) => target.text.trim())
     : [];
   const maxAttempts = Math.max(1, Number(opts.max_attempts ?? 3));
   const passage = String(opts.passage ?? "");
-
   const results = value?.results ?? {};
   const attemptsUsed = value?.attemptsUsed ?? {};
-
-  const [supported, setSupported] = useState(true);
-  const [micState, setMicState] = useState<"idle" | "listening" | "denied" | "error">("idle");
+  const transcripts = value?.transcripts ?? {};
+  const [micState, setMicState] = useState<"idle" | "listening" | "transcribing" | "error">("idle");
   const [activeKey, setActiveKey] = useState<string | null>(null);
-  const [lastHeard, setLastHeard] = useState<Record<string, string>>({});
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [seconds, setSeconds] = useState(0);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
   const activeKeyRef = useRef<string | null>(null);
-  const manualStopRef = useRef(false);
-  const transcriptBufferRef = useRef("");
-  const latestResultsRef = useRef<Record<string, boolean>>({});
+  const activeTargetsRef = useRef<PronunciationTarget[]>([]);
+  const startedAtRef = useRef(0);
+  const recordingRef = useRef(false);
 
-  useEffect(() => {
-    setSupported(getSpeechRecognitionConstructor() !== null);
-    return () => { recognitionRef.current?.abort(); };
+  useEffect(() => () => {
+    recordingRef.current = false;
+    recorderRef.current?.stop();
+    streamRef.current?.getTracks().forEach((track) => track.stop());
   }, []);
 
-  function recordFor(key: string, checkTargets: PronunciationTarget[]) {
-    const Recognition = getSpeechRecognitionConstructor();
-    if (!Recognition || disabled) return;
+  useEffect(() => {
+    if (micState !== "listening") return;
+    const timer = window.setInterval(() => setSeconds(Math.floor((Date.now() - startedAtRef.current) / 1000)), 250);
+    return () => window.clearInterval(timer);
+  }, [micState]);
+
+  async function finishRecording() {
+    const key = activeKeyRef.current;
+    if (!key || !recorderRef.current || recorderRef.current.state !== "recording") return;
+    recordingRef.current = false;
+    setMicState("transcribing");
+    recorderRef.current.stop();
+  }
+
+  async function recordFor(key: string, checkTargets: PronunciationTarget[]) {
+    if (disabled || micState !== "idle") return;
     const usedSoFar = attemptsUsed[key] ?? 0;
     if (usedSoFar >= maxAttempts) return;
-    const isPassageRecording = key === "__passage__";
-
-    const recognition = new Recognition();
-    recognition.lang = "en-US";
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-    recognitionRef.current = recognition;
-    activeKeyRef.current = key;
-    manualStopRef.current = false;
-    transcriptBufferRef.current = "";
-    latestResultsRef.current = results;
-    setActiveKey(key);
-    setMicState("listening");
-
-    recognition.onresult = (event) => {
-      const transcript = Array.from({ length: event.results.length }, (_, i) => event.results.item(i).item(0).transcript)
-        .join(" ")
-        .replace(/\s+/g, " ")
-        .trim();
-      transcriptBufferRef.current = transcript;
-      setLastHeard((current) => ({ ...current, [key]: transcript }));
-      const newResults = { ...latestResultsRef.current };
-      checkTargets.forEach((target) => {
-        if (transcriptContainsTarget(transcript, target.text)) newResults[target.id] = true;
-      });
-      latestResultsRef.current = newResults;
-      onChange({
-        results: newResults,
-        attemptsUsed
-      });
-    };
-    recognition.onerror = (event) => {
-      setMicState(event.error === "not-allowed" || event.error === "permission-denied" ? "denied" : "error");
-      setActiveKey(null);
-      activeKeyRef.current = null;
-    };
-    recognition.onend = () => {
-      const heardText = transcriptBufferRef.current.trim();
-      if (heardText || manualStopRef.current || !isPassageRecording) {
-        onChange({
-          results: latestResultsRef.current,
-          attemptsUsed: { ...attemptsUsed, [key]: usedSoFar + 1 }
-        });
-      }
-      setMicState("idle");
-      setActiveKey(null);
-      activeKeyRef.current = null;
-    };
-    recognition.start();
-  }
-
-  function stopRecording() {
-    manualStopRef.current = true;
-    const key = activeKeyRef.current;
-    const usedSoFar = key ? attemptsUsed[key] ?? 0 : 0;
-    recognitionRef.current?.abort();
-    if (key) {
-      onChange({
-        results: latestResultsRef.current,
-        attemptsUsed: { ...attemptsUsed, [key]: usedSoFar + 1 }
-      });
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      setError("Audio recording is unavailable in this browser. Please try Chrome or Edge.");
+      setMicState("error");
+      return;
     }
-    setMicState("idle");
-    setActiveKey(null);
-    activeKeyRef.current = null;
+    setError(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"]
+        .find((candidate) => MediaRecorder.isTypeSupported(candidate));
+      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+      streamRef.current = stream;
+      recorderRef.current = recorder;
+      chunksRef.current = [];
+      activeKeyRef.current = key;
+      activeTargetsRef.current = checkTargets;
+      startedAtRef.current = Date.now();
+      recordingRef.current = true;
+      setSeconds(0);
+      setActiveKey(key);
+      setMicState("listening");
+      recorder.ondataavailable = (event) => { if (event.data.size > 0) chunksRef.current.push(event.data); };
+      recorder.onerror = () => {
+        setError("The microphone stopped unexpectedly. Please try again.");
+        setMicState("error");
+        recordingRef.current = false;
+      };
+      recorder.onstop = async () => {
+        const audio = new Blob(chunksRef.current, { type: recorder.mimeType || "audio/webm" });
+        const durationSeconds = Math.floor((Date.now() - startedAtRef.current) / 1000);
+        const currentKey = activeKeyRef.current;
+        const currentTargets = activeTargetsRef.current;
+        chunksRef.current = [];
+        recorderRef.current = null;
+        streamRef.current?.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+        if (!audio.size || !currentKey) {
+          setError("No audio was recorded. Please try again.");
+          setMicState("error");
+          return;
+        }
+        const form = new FormData();
+        form.append("file", audio, `pronunciation.${audio.type.includes("mp4") ? "mp4" : "webm"}`);
+        form.append("durationSeconds", String(durationSeconds));
+        try {
+          const response = await fetch("/api/speech/transcribe", { method: "POST", body: form });
+          const body = await response.json().catch(() => ({})) as { transcript?: string; error?: string };
+          if (!response.ok || !body.transcript) throw new Error(body.error || "Transcription is temporarily unavailable.");
+          const transcript = body.transcript.trim();
+          const nextResults = { ...results };
+          currentTargets.forEach((target) => {
+            if (transcriptContainsTarget(transcript, target.text)) nextResults[target.id] = true;
+          });
+          onChange({
+            results: nextResults,
+            attemptsUsed: { ...attemptsUsed, [currentKey]: usedSoFar + 1 },
+            transcripts: { ...transcripts, [currentKey]: transcript }
+          });
+          setMicState("idle");
+          setActiveKey(null);
+        } catch (transcriptionError) {
+          setError(transcriptionError instanceof Error ? transcriptionError.message : "Transcription is temporarily unavailable. Please try again.");
+          setMicState("error");
+        }
+      };
+      recorder.start(500);
+      playRecordingStart();
+      window.setTimeout(() => { if (recordingRef.current && activeKeyRef.current === key) void finishRecording(); }, (level === "word" ? 12 : 60) * 1000);
+    } catch {
+      setError("Microphone access was blocked. Please allow microphone access and try again.");
+      setMicState("error");
+      setActiveKey(null);
+      activeKeyRef.current = null;
+    }
   }
 
-  if (!supported) {
-    return (
-      <div className="flex items-start gap-2 rounded-[14px] border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-        <AlertCircle size={16} className="mt-0.5 shrink-0" />
-        <span>Speech recognition isn&apos;t supported in this browser. Try Chrome or Edge on a desktop or Android device.</span>
-      </div>
-    );
-  }
-
-  if (micState === "denied") {
-    return (
-      <div className="flex items-start gap-2 rounded-[14px] border border-[var(--br-danger)]/30 bg-[var(--br-danger)]/10 p-3 text-sm text-[var(--br-danger)]">
-        <AlertCircle size={16} className="mt-0.5 shrink-0" />
-        <span>Microphone access was denied. Check your browser&apos;s site permissions and reload the page to try again.</span>
-      </div>
-    );
-  }
-
-  if (level === "word") {
-    return (
-      <div className="grid gap-2">
-        {targets.map((target) => {
-          const recognized = results[target.id] === true;
-          const used = attemptsUsed[target.id] ?? 0;
-          const outOfAttempts = used >= maxAttempts && !recognized;
-          const isActive = activeKey === target.id && micState === "listening";
-          return (
-            <div key={target.id} className="flex items-center justify-between gap-3 rounded-[14px] border border-[var(--br-surface-strong)] p-3">
-              <div>
-                <p className="font-medium" style={{ color: target.color }}>{target.text}</p>
-                {lastHeard[target.id] ? <p className="line-clamp-2 text-xs text-[var(--br-text-muted)]">Heard: &quot;{lastHeard[target.id]}&quot;</p> : null}
-                {outOfAttempts ? <p className="text-xs text-[var(--br-danger)]">No more attempts for this word.</p> : null}
-              </div>
-              <button
-                type="button"
-                disabled={disabled || recognized || outOfAttempts || (micState === "listening" && !isActive)}
-                onClick={() => (isActive ? stopRecording() : recordFor(target.id, [target]))}
-                className={`flex shrink-0 items-center gap-2 rounded-[14px] border px-3 py-1.5 text-sm font-medium transition-colors ${
-                  recognized
-                    ? "border-[var(--br-success)]/30 bg-[var(--br-success)]/10 text-[var(--br-chart-secondary)]"
-                    : isActive
-                    ? "border-red-300 bg-red-50 text-red-500"
-                    : "border-[var(--br-surface-strong)] hover:bg-surface"
-                }`}
-              >
-                {recognized ? <CheckCircle2 size={15} /> : isActive ? <MicOff size={15} /> : <Mic size={15} />}
-                {recognized ? "Recognized" : isActive ? "Stop" : `Record (${maxAttempts - used} left)`}
-              </button>
-            </div>
-          );
-        })}
-      </div>
-    );
-  }
-
-  // sentence / paragraph level — one recording covers the whole passage, checked against every target
   const passageKey = "__passage__";
-  const used = attemptsUsed[passageKey] ?? 0;
-  const outOfAttempts = used >= maxAttempts;
-  const isActive = activeKey === passageKey && micState === "listening";
-  const allRecognized = targets.length > 0 && targets.every((t) => results[t.id] === true);
+  const passageTargets = targets;
+  const passageTranscript = transcripts[passageKey] ?? "";
   const segments = targets.length > 0
     ? passage.split(new RegExp(`(${targets.map((t) => t.text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`, "i")).filter(Boolean)
     : [passage];
+  const renderStatus = (target: PronunciationTarget) => results[target.id] === true ? "Clear match" : transcripts[target.id] ? "Needs another try" : "Not attempted";
+  const renderTargetChip = (target: PronunciationTarget) => {
+    const recognized = results[target.id] === true;
+    return <span key={target.id} className={`rounded-full px-3 py-1.5 text-sm font-semibold ${recognized ? "bg-emerald-100 text-emerald-800" : transcripts[target.id] ? "bg-orange-100 text-orange-800" : "bg-slate-100 text-slate-700"}`}>{target.text}</span>;
+  };
 
   return (
-    <div className="grid gap-3">
-      <p className="rounded-[14px] bg-[var(--br-canvas-elevated)] p-3 text-sm leading-7">
-        {segments.map((segment, i) => {
-          const target = targets.find((t) => t.text.toLowerCase() === segment.toLowerCase());
-          if (!target) return <span key={i}>{segment}</span>;
-          const recognized = results[target.id] === true;
-          return (
-            <span
-              key={i}
-              className="rounded px-1 font-semibold"
-              style={{ backgroundColor: recognized ? "var(--br-success-soft)" : `${target.color}33`, color: recognized ? "var(--br-success)" : undefined }}
-            >
-              {segment}
-            </span>
-          );
-        })}
-      </p>
-      {lastHeard[passageKey] ? <p className="line-clamp-2 text-xs text-[var(--br-text-muted)]">Heard: &quot;{lastHeard[passageKey]}&quot;</p> : null}
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          disabled={disabled || allRecognized || (outOfAttempts && !isActive) || (micState === "listening" && !isActive)}
-          onClick={() => (isActive ? stopRecording() : recordFor(passageKey, targets))}
-          className={`flex items-center gap-2 rounded-[14px] border px-4 py-2 text-sm font-medium transition-colors ${
-            allRecognized
-              ? "border-[var(--br-success)]/30 bg-[var(--br-success)]/10 text-[var(--br-chart-secondary)]"
-              : isActive
-              ? "border-red-300 bg-red-50 text-red-500"
-              : "border-[var(--br-surface-strong)] hover:bg-surface"
-          }`}
-        >
-          {allRecognized ? <CheckCircle2 size={15} /> : isActive ? <MicOff size={15} /> : <Mic size={15} />}
-          {allRecognized ? "All words recognized" : isActive ? "Stop" : `Record (${maxAttempts - used} left)`}
-        </button>
-        {outOfAttempts && !allRecognized ? <span className="text-xs text-[var(--br-danger)]">No more attempts.</span> : null}
+    <div className="relative grid gap-4 overflow-hidden rounded-[24px] border border-violet-200/80 bg-gradient-to-br from-violet-50 via-white to-orange-50 p-5 text-center shadow-sm sm:p-6">
+      <div className="pointer-events-none absolute -left-12 -top-14 size-36 rounded-full bg-[var(--br-chart-primary)]/10 blur-2xl" />
+      <div className="pointer-events-none absolute -bottom-16 -right-10 size-40 rounded-full bg-[var(--br-action)]/15 blur-2xl" />
+      <div className="relative z-10 text-left">
+        <p className="text-xs font-black uppercase tracking-wider text-[var(--br-chart-primary)]">{level === "word" ? "Say this word" : "Read this aloud"}</p>
+        <p className="mt-1 text-2xl font-black text-ink sm:text-3xl">{level === "word" ? targets.map((target) => target.text).join(" · ") : passage}</p>
       </div>
+      {level !== "word" && passage ? (
+        <p className="relative z-10 rounded-[16px] bg-white/75 p-4 text-left text-base leading-8 text-ink">
+          {segments.map((segment, index) => {
+            const target = targets.find((item) => item.text.toLowerCase() === segment.toLowerCase());
+            return target ? <span key={index} className={`rounded px-1 font-bold ${results[target.id] ? "bg-emerald-100 text-emerald-800" : "bg-violet-100 text-violet-900"}`}>{segment}</span> : <span key={index}>{segment}</span>;
+          })}
+        </p>
+      ) : null}
+      {targets.length > 0 ? <div className="relative z-10 rounded-[16px] border border-white/80 bg-white/70 p-4 text-left"><p className="mb-2 text-xs font-black uppercase tracking-wider text-[var(--br-chart-primary)]">Target sounds</p><div className="flex flex-wrap gap-2">{targets.map(renderTargetChip)}</div></div> : null}
+      <div className="relative z-10 grid justify-items-center gap-3">
+        <button type="button" disabled={disabled || micState === "transcribing" || (micState === "listening" && !activeKey)} onClick={() => (micState === "listening" ? void finishRecording() : void recordFor(level === "word" ? (targets[0]?.id ?? "word") : passageKey, level === "word" ? [targets[0]].filter(Boolean) : passageTargets))} className={`grid size-20 place-items-center rounded-full text-white shadow-lg transition ${micState === "listening" ? "bg-coral" : "bg-gradient-to-br from-[var(--br-action)] to-[var(--br-action-strong)]"} disabled:opacity-50`} aria-label={micState === "listening" ? "Finish recording" : "Start recording"}>
+          {micState === "transcribing" ? <Loader2 size={28} className="animate-spin" /> : micState === "listening" ? <MicOff size={28} /> : <Mic size={28} />}
+        </button>
+        <p className="text-sm font-bold text-[var(--br-action-strong)]">{micState === "listening" ? `I&apos;m listening · Tap to finish · ${Math.max(0, (level === "word" ? 12 : 60) - seconds)}s` : micState === "transcribing" ? "Preparing your feedback…" : "Tap the microphone and start speaking"}</p>
+      </div>
+      {error ? <div className="relative z-10 flex items-start gap-2 rounded-[14px] border border-amber-200 bg-amber-50 p-3 text-left text-sm font-semibold text-amber-900"><AlertCircle size={16} className="mt-0.5 shrink-0" />{error}</div> : null}
+      {level === "word" ? <div className="relative z-10 grid gap-2 text-left">{targets.map((target) => <div key={target.id} className="flex flex-wrap items-center justify-between gap-3 rounded-[14px] border border-white/80 bg-white/75 p-3"><div><p className="font-bold" style={{ color: target.color }}>{target.text}</p><p className="text-xs text-[var(--br-text-muted)]">{renderStatus(target)}{attemptsUsed[target.id] ? ` · ${attemptsUsed[target.id]} attempt${attemptsUsed[target.id] === 1 ? "" : "s"}` : ""}</p></div><button type="button" disabled={disabled || micState === "transcribing" || (attemptsUsed[target.id] ?? 0) >= maxAttempts || results[target.id] === true} onClick={() => void recordFor(target.id, [target])} className="inline-flex items-center gap-2 rounded-full border border-violet-200 bg-white px-3 py-1.5 text-xs font-bold text-violet-800 disabled:opacity-50">{results[target.id] ? <CheckCircle2 size={14} /> : <Mic size={14} />} {results[target.id] ? "Recognized" : `Record (${Math.max(0, maxAttempts - (attemptsUsed[target.id] ?? 0))} left)`}</button>{transcripts[target.id] ? <p className="w-full border-t border-slate-100 pt-2 text-xs text-[var(--br-text-muted)]">Exact transcript: <span className="font-semibold text-ink">{transcripts[target.id]}</span></p> : null}</div>)}</div> : null}
+      {level !== "word" && passageTranscript ? <div className="relative z-10 rounded-[16px] border border-white/80 bg-white/75 p-4 text-left"><p className="mb-1 text-xs font-black uppercase tracking-wider text-[var(--br-chart-primary)]">Exact transcript</p><p className="text-base font-semibold leading-7 text-ink">{passageTranscript}</p></div> : null}
+      {level !== "word" && passageTranscript ? <div className="relative z-10 rounded-[16px] border border-white/80 bg-white/75 p-4 text-left"><div className="mb-3 flex flex-wrap items-center justify-between gap-2"><p className="text-base font-black text-ink">Sound-by-sound feedback</p><div className="flex gap-2 text-[11px] font-bold"><span className="text-emerald-700">● Clear match</span><span className="text-orange-700">● Needs another try</span></div></div><div className="flex flex-wrap gap-2">{targets.map(renderTargetChip)}</div><p className="mt-3 text-xs leading-5 text-[var(--br-text-muted)]">Your exact transcript is shown above. Detailed phoneme feedback will be added when the pronunciation analyzer is connected.</p></div> : null}
+      <button type="button" onClick={() => { setError(null); setMicState("idle"); }} className="relative z-10 mx-auto inline-flex items-center gap-2 rounded-full bg-[var(--br-action)] px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-[var(--br-action-strong)] disabled:opacity-50" disabled={disabled || micState === "listening" || micState === "transcribing"}><RotateCcw size={16} /> Try again</button>
+      <p className="relative z-10 text-xs text-[var(--br-text-muted)]">Your recording is used to generate feedback.</p>
     </div>
   );
 }
