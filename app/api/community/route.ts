@@ -98,5 +98,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ updated: true });
   }
 
+  if (input.action === "start_attempt") {
+    const activityId = typeof input.activityId === "string" ? input.activityId : "";
+    if (!activityId) return NextResponse.json({ error: "Choose a practice activity." }, { status: 400 });
+    const { data: activity } = await supabase.from("community_practice_activities").select("id").eq("id", activityId).eq("status", "PUBLISHED").maybeSingle();
+    if (!activity) return NextResponse.json({ error: "That practice activity is unavailable." }, { status: 404 });
+    const { data, error } = await supabase.from("community_practice_attempts").insert({ activity_id: activityId, learner_id: user.id, status: "OPEN" }).select("id,activity_id,status,started_at").single();
+    if (error) return NextResponse.json({ error: "Could not start the practice activity." }, { status: 400 });
+    return NextResponse.json({ attempt: data }, { status: 201 });
+  }
+
   return NextResponse.json({ error: "Unknown community action." }, { status: 400 });
 }
