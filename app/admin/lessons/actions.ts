@@ -213,7 +213,9 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
   if (blockType === "STICKY_NOTE") {
     return {
       title: nullableText(formData.get("title")),
-      body: String(formData.get("body") || "").trim()
+      body: String(formData.get("body") || "").trim(),
+      card_width: Math.min(100, Math.max(40, Number(formData.get("card_width")) || 100)),
+      card_height: Math.min(480, Math.max(180, Number(formData.get("card_height")) || 260))
     };
   }
   if (blockType === "IMAGE") {
@@ -499,7 +501,7 @@ function defaultBlockContent(blockType: string): Json {
   if (blockType === "REVIEW_CHECKLIST") return { title: "I can now…", intro: "Check each statement you can do confidently.", items: ["I can use the target language.", "I can understand the key idea."], require_completion: false };
   if (blockType === "QUOTE") return { body: "Add a quote.", attribution: null };
   if (blockType === "CALLOUT") return { title: "Note", body: "Add a short note for learners.", reveal_hidden: false };
-  if (blockType === "STICKY_NOTE") return { title: "Remember this", body: "Use ‘could’ for polite requests." };
+  if (blockType === "STICKY_NOTE") return { title: "Remember this", body: "Use ‘could’ for polite requests.", card_width: 100, card_height: 260 };
   if (blockType === "DIVIDER") return { line_style: "solid", line_width: 100 };
   if (blockType === "SPACE") return { height: 40 };
   if (blockType === "IMAGE") return { path: "", alt: "", caption: "" };
