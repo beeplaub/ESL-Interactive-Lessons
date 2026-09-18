@@ -1752,10 +1752,7 @@ function BlockFields({ blockType, content, lessonId, blockId }: { blockType: str
         <div className="grid gap-3">
           <label className="text-sm font-semibold text-ink">Title <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><input name="title" defaultValue={asString(data.title)} placeholder="Remember this" className="field mt-1 w-full" /></label>
           <label className="text-sm font-semibold text-ink">Note text <textarea name="body" rows={5} defaultValue={asString(data.body)} placeholder="Use ‘could’ for polite requests." className="field mt-1 w-full" /></label>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="text-sm font-semibold text-ink">Card width <span className="font-normal text-[var(--br-text-muted)]">(40–100%)</span><input name="card_width" type="range" min="40" max="100" step="1" defaultValue={Number(data.card_width) || 100} className="mt-2 w-full accent-[var(--br-action)]" /></label>
-            <label className="text-sm font-semibold text-ink">Card height <span className="font-normal text-[var(--br-text-muted)]">(180–480px)</span><input name="card_height" type="range" min="180" max="480" step="10" defaultValue={Number(data.card_height) || 260} className="mt-2 w-full accent-[var(--br-action)]" /></label>
-          </div>
+          <label className="text-sm font-semibold text-ink">Card size <span className="font-normal text-[var(--br-text-muted)]">(smaller or larger square)</span><input name="card_size" type="range" min="55" max="100" step="1" defaultValue={Number(data.card_size) || 100} className="mt-2 w-full accent-[var(--br-action)]" /></label>
         </div>
       </div>
     );

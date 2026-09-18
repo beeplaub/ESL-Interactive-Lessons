@@ -301,13 +301,13 @@ function PreviewBlock({ block, checkedItems, onChecklistChange, alwaysOpen = fal
   if (block.block_type === "STICKY_NOTE") {
     const title = asString(content.title);
     const body = asString(content.body) || "Add a note for learners.";
-    const cardWidth = Math.min(100, Math.max(40, Number(content.card_width) || 100));
-    const cardHeight = Math.min(480, Math.max(180, Number(content.card_height) || 260));
+    const cardSize = Math.min(100, Math.max(55, Number(content.card_size) || 100));
+    const scale = cardSize / 100;
     return (
-      <section className="relative mx-auto w-full max-w-full rounded-[22px] border border-[#ead9a8] px-5 pb-6 pt-8 text-[var(--br-dark-card)] shadow-[0_14px_28px_rgba(38,35,78,0.15)] sm:px-9 sm:pb-8 sm:pt-10" style={{ width: `${cardWidth}%`, minHeight: `${cardHeight}px`, backgroundColor: "#fff9e8", backgroundImage: "radial-gradient(rgba(170, 133, 64, 0.08) 0.7px, transparent 0.7px), radial-gradient(rgba(255, 255, 255, 0.7) 0.8px, transparent 0.8px)", backgroundPosition: "0 0, 4px 4px", backgroundSize: "8px 8px" }}>
-        <span aria-hidden="true" className="absolute left-1/2 top-0 size-10 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#d96545] bg-gradient-to-br from-[#ff9a72] via-[var(--br-action)] to-[#c95138] shadow-[0_6px_8px_rgba(38,35,78,0.28),inset_2px_2px_3px_rgba(255,255,255,0.45)]" />
-        {title ? <><h3 className="text-center text-2xl font-extrabold tracking-tight sm:text-3xl">{title}</h3><div className="mx-auto mt-2 h-1.5 w-24 rounded-full bg-[var(--br-action)]" /></> : null}
-        <div className={`${title ? "mt-6" : "mt-2"} text-center text-lg leading-7 sm:text-xl sm:leading-8`}><FormattedText text={body} /></div>
+      <section className="relative mx-auto aspect-square w-full max-w-full rounded-[22px] border border-[#ead9a8] px-5 pb-6 pt-8 text-[var(--br-dark-card)] shadow-[0_14px_28px_rgba(38,35,78,0.15)] sm:px-9 sm:pb-8 sm:pt-10" style={{ width: `${cardSize}%`, backgroundColor: "#fff9e8", backgroundImage: "radial-gradient(rgba(170, 133, 64, 0.08) 0.7px, transparent 0.7px), radial-gradient(rgba(255, 255, 255, 0.7) 0.8px, transparent 0.8px)", backgroundPosition: "0 0, 4px 4px", backgroundSize: "8px 8px" }}>
+        <span aria-hidden="true" className="absolute left-1/2 top-0 size-10 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#d96545] bg-gradient-to-br from-[#ff9a72] via-[var(--br-action)] to-[#c95138] shadow-[0_6px_8px_rgba(38,35,78,0.28),inset_2px 2px 3px_rgba(255,255,255,0.45)]" style={{ transform: `translate(-50%, -50%) scale(${Math.max(0.72, scale)})` }} />
+        {title ? <><h3 className="text-center font-extrabold tracking-tight" style={{ fontSize: `${1.875 * scale}rem` }}>{title}</h3><div className="mx-auto mt-2 rounded-full bg-[var(--br-action)]" style={{ height: `${Math.max(2, 6 * scale)}px`, width: `${6 * scale}rem` }} /></> : null}
+        <div className={`${title ? "mt-6" : "mt-2"} text-center leading-7 sm:leading-8`} style={{ fontSize: `${1.25 * scale}rem`, lineHeight: 1.6 }}><FormattedText text={body} /></div>
       </section>
     );
   }
