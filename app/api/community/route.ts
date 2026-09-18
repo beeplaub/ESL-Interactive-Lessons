@@ -101,8 +101,9 @@ export async function POST(request: Request) {
   if (input.action === "start_attempt") {
     const activityId = typeof input.activityId === "string" ? input.activityId : "";
     if (!activityId) return NextResponse.json({ error: "Choose a practice activity." }, { status: 400 });
-    const { data: activity } = await supabase.from("community_practice_activities").select("id").eq("id", activityId).eq("status", "PUBLISHED").maybeSingle();
+    const { data: activity } = await supabase.from("community_practice_activities").select("id,circle_id,title,prompt").eq("id", activityId).eq("status", "PUBLISHED").maybeSingle();
     if (!activity) return NextResponse.json({ error: "That practice activity is unavailable." }, { status: 404 });
+    await supabase.from("community_posts").upsert({ circle_id: activity.circle_id, author_id: user.id, post_type: "PRACTICE", title: activity.title, body: activity.prompt, feedback_mode: "CONVERSATION" }, { onConflict: "id" });
     const { data, error } = await supabase.from("community_practice_attempts").insert({ activity_id: activityId, learner_id: user.id, status: "OPEN" }).select("id,activity_id,status,started_at").single();
     if (error) return NextResponse.json({ error: "Could not start the practice activity." }, { status: 400 });
     return NextResponse.json({ attempt: data }, { status: 201 });
