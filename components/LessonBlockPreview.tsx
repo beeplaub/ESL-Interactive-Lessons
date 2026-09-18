@@ -302,11 +302,10 @@ function PreviewBlock({ block, checkedItems, onChecklistChange, alwaysOpen = fal
     const title = asString(content.title);
     const body = asString(content.body) || "Add a note for learners.";
     return (
-      <section className="relative mx-auto w-full max-w-3xl rounded-[28px] border border-[#ead9a8] bg-[#fff9e8] px-6 pb-7 pt-10 text-[var(--br-dark-card)] shadow-[0_18px_36px_rgba(38,35,78,0.14)] sm:px-12 sm:pb-10 sm:pt-14">
-        <span aria-hidden="true" className="absolute left-1/2 top-0 size-14 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#dc6d4d] bg-[var(--br-action)] shadow-[0_8px_12px_rgba(38,35,78,0.22)]" />
-        {title ? <><h3 className="text-center text-3xl font-extrabold tracking-tight sm:text-4xl">{title}</h3><div className="mx-auto mt-3 h-2 w-32 rounded-full bg-[var(--br-action)]/60" /></> : null}
-        <div className={`${title ? "mt-8" : "mt-2"} text-center text-xl leading-8 sm:text-2xl sm:leading-9`}><FormattedText text={body} /></div>
-        <p className="mt-8 text-right text-base font-semibold text-[var(--br-text-muted)]">Note</p>
+      <section className="relative mx-auto w-full max-w-2xl rounded-[22px] border border-[#ead9a8] px-5 pb-6 pt-8 text-[var(--br-dark-card)] shadow-[0_14px_28px_rgba(38,35,78,0.15)] sm:px-9 sm:pb-8 sm:pt-10" style={{ backgroundColor: "#fff9e8", backgroundImage: "radial-gradient(rgba(170, 133, 64, 0.08) 0.7px, transparent 0.7px), radial-gradient(rgba(255, 255, 255, 0.7) 0.8px, transparent 0.8px)", backgroundPosition: "0 0, 4px 4px", backgroundSize: "8px 8px" }}>
+        <span aria-hidden="true" className="absolute left-1/2 top-0 size-10 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#d96545] bg-gradient-to-br from-[#ff9a72] via-[var(--br-action)] to-[#c95138] shadow-[0_6px_8px_rgba(38,35,78,0.28),inset_2px_2px_3px_rgba(255,255,255,0.45)]" />
+        {title ? <><h3 className="text-center text-2xl font-extrabold tracking-tight sm:text-3xl">{title}</h3><div className="mx-auto mt-2 h-1.5 w-24 rounded-full bg-[var(--br-action)]" /></> : null}
+        <div className={`${title ? "mt-6" : "mt-2"} text-center text-lg leading-7 sm:text-xl sm:leading-8`}><FormattedText text={body} /></div>
       </section>
     );
   }
