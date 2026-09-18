@@ -25,10 +25,14 @@ export async function PATCH(request: Request) {
   const { user } = await requireAdmin();
   const input = await request.json().catch(() => null) as Record<string, unknown> | null;
   if (!input || typeof input.id !== "string") return NextResponse.json({ error: "Activity id is required." }, { status: 400 });
+  const admin = createAdminClient();
+  const { data: existing } = await admin.from("community_practice_activities").select("circle_id,title,status").eq("id", input.id).eq("created_by", user.id).maybeSingle();
+  if (!existing) return NextResponse.json({ error: "Activity not found." }, { status: 404 });
   const updates = { title: typeof input.title === "string" ? input.title.trim() : "", description: typeof input.description === "string" ? input.description.trim() : "", prompt: typeof input.prompt === "string" ? input.prompt.trim() : "", follow_up_prompt: typeof input.followUpPrompt === "string" ? input.followUpPrompt.trim() : null, cefr_level: typeof input.cefrLevel === "string" ? input.cefrLevel : null };
   if (!updates.title || !updates.description || !updates.prompt) return NextResponse.json({ error: "Title, description, and prompt are required." }, { status: 400 });
-  const { error } = await createAdminClient().from("community_practice_activities").update(updates).eq("id", input.id).eq("created_by", user.id);
+  const { error } = await admin.from("community_practice_activities").update(updates).eq("id", input.id).eq("created_by", user.id);
   if (error) return NextResponse.json({ error: "Could not update activity." }, { status: 400 });
+  await admin.from("community_posts").update({ title: updates.title, body: updates.prompt }).eq("circle_id", existing.circle_id).eq("title", existing.title).eq("post_type", "PRACTICE").eq("author_id", user.id);
   return NextResponse.json({ ok: true });
 }
 
@@ -36,7 +40,10 @@ export async function DELETE(request: Request) {
   const { user } = await requireAdmin();
   const input = await request.json().catch(() => null) as Record<string, unknown> | null;
   if (!input || typeof input.id !== "string") return NextResponse.json({ error: "Activity id is required." }, { status: 400 });
-  const { error } = await createAdminClient().from("community_practice_activities").delete().eq("id", input.id).eq("created_by", user.id);
+  const admin = createAdminClient();
+  const { data: existing } = await admin.from("community_practice_activities").select("circle_id,title").eq("id", input.id).eq("created_by", user.id).maybeSingle();
+  if (!existing) return NextResponse.json({ error: "Activity not found." }, { status: 404 });
+  const { error } = await admin.from("community_practice_activities").delete().eq("id", input.id).eq("created_by", user.id);
   if (error) return NextResponse.json({ error: "Could not delete activity." }, { status: 400 });
   return NextResponse.json({ ok: true });
 }
