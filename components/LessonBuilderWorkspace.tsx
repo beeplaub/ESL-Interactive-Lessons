@@ -49,7 +49,7 @@ import { BuilderDevicePreviewFrame, type BuilderPreviewDevice } from "@/componen
 import { DialogueVoiceoverEditor } from "@/components/DialogueVoiceoverEditor";
 
 const blockTypes = [
-  "HEADING", "TEXT", "BULLETS", "INSTRUCTION", "REVIEW_CHECKLIST", "QUOTE", "CALLOUT",
+  "HEADING", "TEXT", "BULLETS", "INSTRUCTION", "REVIEW_CHECKLIST", "QUOTE", "CALLOUT", "STICKY_NOTE",
   "IMAGE", "IMAGE_TEXT", "IMAGE_ANNOTATION", "AUDIO", "VIDEO", "DIVIDER", "SPACE",
   "VOCABULARY", "GRAMMAR", "READING", "DIALOGUE",
   "FLASHCARD", "TABLE", "COMMON_MISTAKE", "CONTRAST_PAIR", "IMAGE_PAIR", "TONGUE_TWISTER", "STEPS"
@@ -1477,7 +1477,7 @@ function ActivityBank({ lessonId, slide, slides, activities }: {
 function labelForBlockType(type: string) {
   const labels: Record<string, string> = {
     HEADING: "Heading", TEXT: "Text", BULLETS: "Bullet points", INSTRUCTION: "Instruction", REVIEW_CHECKLIST: "Review checklist", QUOTE: "Quote",
-    CALLOUT: "Callout", IMAGE: "Image", IMAGE_TEXT: "Image + Text", IMAGE_ANNOTATION: "Image annotations",
+    CALLOUT: "Callout", STICKY_NOTE: "Sticky note", IMAGE: "Image", IMAGE_TEXT: "Image + Text", IMAGE_ANNOTATION: "Image annotations",
     AUDIO: "Audio", VIDEO: "Video", DIVIDER: "Divider", SPACE: "Space",
     VOCABULARY: "Vocabulary list", GRAMMAR: "Grammar",
     READING: "Reading passage", DIALOGUE: "Dialogue",
@@ -1742,6 +1742,17 @@ function BlockFields({ blockType, content, lessonId, blockId }: { blockType: str
         <label className="text-sm">Callout text<textarea name="body" rows={5} defaultValue={asString(data.body ?? data.text)} placeholder="Supports line breaks, **bold**, _italic_, __underline__, and lists." className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
         <label className="flex items-start gap-2 text-sm"><input type="checkbox" name="reveal_hidden" defaultChecked={data.reveal_hidden === true} className="mt-0.5 size-4 rounded border-[var(--br-border)]" /><span><span className="font-semibold">Hide text until revealed</span><span className="mt-0.5 block text-xs text-[var(--br-text-muted)]">Learners will see the callout title and a Reveal button first.</span></span></label>
         <AlignmentGroup label="Text alignment" name="text_align" value={asString(data.text_align) || "left"} options={TEXT_ALIGN_OPTIONS} />
+      </div>
+    );
+  }
+  if (blockType === "STICKY_NOTE") {
+    return (
+      <div className="rounded-2xl border border-[var(--br-action)]/20 bg-[var(--br-brand-soft)]/25 p-4 sm:p-5">
+        <p className="mb-3 text-xs font-extrabold uppercase tracking-[0.14em] text-[var(--br-action)]">Sticky note</p>
+        <div className="grid gap-3">
+          <label className="text-sm font-semibold text-ink">Title <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><input name="title" defaultValue={asString(data.title)} placeholder="Remember this" className="field mt-1 w-full" /></label>
+          <label className="text-sm font-semibold text-ink">Note text <textarea name="body" rows={5} defaultValue={asString(data.body)} placeholder="Use ‘could’ for polite requests." className="field mt-1 w-full" /></label>
+        </div>
       </div>
     );
   }

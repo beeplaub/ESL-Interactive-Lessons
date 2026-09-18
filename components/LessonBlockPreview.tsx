@@ -298,6 +298,19 @@ function PreviewBlock({ block, checkedItems, onChecklistChange, alwaysOpen = fal
     );
   }
 
+  if (block.block_type === "STICKY_NOTE") {
+    const title = asString(content.title);
+    const body = asString(content.body) || "Add a note for learners.";
+    return (
+      <section className="relative mx-auto w-full max-w-3xl rounded-[28px] border border-[#ead9a8] bg-[#fff9e8] px-6 pb-7 pt-10 text-[var(--br-dark-card)] shadow-[0_18px_36px_rgba(38,35,78,0.14)] sm:px-12 sm:pb-10 sm:pt-14">
+        <span aria-hidden="true" className="absolute left-1/2 top-0 size-14 -translate-x-1/2 -translate-y-1/2 rounded-full border border-[#dc6d4d] bg-[var(--br-action)] shadow-[0_8px_12px_rgba(38,35,78,0.22)]" />
+        {title ? <><h3 className="text-center text-3xl font-extrabold tracking-tight sm:text-4xl">{title}</h3><div className="mx-auto mt-3 h-2 w-32 rounded-full bg-[var(--br-action)]/60" /></> : null}
+        <div className={`${title ? "mt-8" : "mt-2"} text-center text-xl leading-8 sm:text-2xl sm:leading-9`}><FormattedText text={body} /></div>
+        <p className="mt-8 text-right text-base font-semibold text-[var(--br-text-muted)]">Note</p>
+      </section>
+    );
+  }
+
   if (block.block_type === "IMAGE") {
     const path = asString(content.path);
     const src = mediaUrl(path, "image");

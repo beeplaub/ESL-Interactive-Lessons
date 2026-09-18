@@ -59,6 +59,7 @@ const lessonBlockTypes = [
   "REVIEW_CHECKLIST",
   "QUOTE",
   "CALLOUT",
+  "STICKY_NOTE",
   "IMAGE",
   "IMAGE_TEXT",
   "IMAGE_ANNOTATION",
@@ -207,6 +208,12 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
       body: String(formData.get("body") || "").trim(),
       text_align: textAlignValue(formData.get("text_align")),
       reveal_hidden: formData.get("reveal_hidden") === "on"
+    };
+  }
+  if (blockType === "STICKY_NOTE") {
+    return {
+      title: nullableText(formData.get("title")),
+      body: String(formData.get("body") || "").trim()
     };
   }
   if (blockType === "IMAGE") {
@@ -492,6 +499,7 @@ function defaultBlockContent(blockType: string): Json {
   if (blockType === "REVIEW_CHECKLIST") return { title: "I can now…", intro: "Check each statement you can do confidently.", items: ["I can use the target language.", "I can understand the key idea."], require_completion: false };
   if (blockType === "QUOTE") return { body: "Add a quote.", attribution: null };
   if (blockType === "CALLOUT") return { title: "Note", body: "Add a short note for learners.", reveal_hidden: false };
+  if (blockType === "STICKY_NOTE") return { title: "Remember this", body: "Use ‘could’ for polite requests." };
   if (blockType === "DIVIDER") return { line_style: "solid", line_width: 100 };
   if (blockType === "SPACE") return { height: 40 };
   if (blockType === "IMAGE") return { path: "", alt: "", caption: "" };
