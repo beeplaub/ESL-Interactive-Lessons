@@ -22,7 +22,7 @@ export default async function CommunityPage() {
   let { data: activities } = circleIds.length ? await supabase.from("community_practice_activities").select("id,circle_id,title,description,activity_type,cefr_level,skill,prompt,follow_up_prompt").in("circle_id", circleIds).eq("status", "PUBLISHED").order("created_at", { ascending: false }).limit(20) : { data: [] };
   if (circleIds.length && !(activities ?? []).length) {
     const admin = createAdminClient();
-    await admin.from("community_practice_activities").insert(circleIds.map((circleId) => ({ circle_id: circleId, title: "Voice Relay", description: "Record 45 seconds and receive a follow-up from a classmate.", activity_type: "VOICE_RELAY", skill: "Speaking", prompt: "Tell your circle about something you learned this week.", follow_up_prompt: "Ask one thoughtful follow-up question.", status: "PUBLISHED", created_by: user.id, published_at: new Date().toISOString() })));
+    await admin.from("community_practice_activities").insert(circleIds.map((circleId) => ({ circle_id: circleId, title: "Speak & Share", description: "Practice a short speaking prompt, then share your recording with your circle.", activity_type: "VOICE_RELAY", skill: "Speaking", prompt: "Tell your circle about something you learned this week.", follow_up_prompt: "Ask one thoughtful follow-up question.", status: "PUBLISHED", created_by: user.id, published_at: new Date().toISOString() })));
     const refreshed = await supabase.from("community_practice_activities").select("id,circle_id,title,description,activity_type,cefr_level,skill,prompt,follow_up_prompt").in("circle_id", circleIds).eq("status", "PUBLISHED").limit(20);
     activities = refreshed.data;
   }
