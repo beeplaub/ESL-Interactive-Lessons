@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 export async function POST(request: Request) {
   const { user } = await requireAdmin();
   const input = await request.json().catch(() => null) as Record<string, unknown> | null;
+  if (!input) return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   const title = typeof input?.title === "string" ? input.title.trim() : "";
   const circleId = typeof input?.circleId === "string" ? input.circleId : "";
   const prompt = typeof input?.prompt === "string" ? input.prompt.trim() : "";
