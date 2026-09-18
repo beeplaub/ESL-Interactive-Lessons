@@ -108,5 +108,16 @@ export async function POST(request: Request) {
     return NextResponse.json({ attempt: data }, { status: 201 });
   }
 
+  if (input.action === "update_attempt") {
+    const attemptId = typeof input.attemptId === "string" ? input.attemptId : "";
+    const status = typeof input.status === "string" ? input.status : "";
+    const allowedStatuses = ["WAITING_FOR_PARTNER", "WAITING_FOR_RESPONSE", "SECOND_TAKE_REQUIRED", "COMPLETED", "CANCELLED"];
+    if (!attemptId || !allowedStatuses.includes(status)) return NextResponse.json({ error: "Choose a valid practice step." }, { status: 400 });
+    const update = { status, ...(status === "COMPLETED" ? { completed_at: new Date().toISOString() } : {}) };
+    const { data, error } = await supabase.from("community_practice_attempts").update(update).eq("id", attemptId).eq("learner_id", user.id).select("id,status,completed_at").single();
+    if (error) return NextResponse.json({ error: "Could not update this practice attempt." }, { status: 400 });
+    return NextResponse.json({ attempt: data });
+  }
+
   return NextResponse.json({ error: "Unknown community action." }, { status: 400 });
 }
