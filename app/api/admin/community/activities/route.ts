@@ -13,7 +13,11 @@ export async function POST(request: Request) {
   if (!title || !circleId || !prompt || !description) return NextResponse.json({ error: "Title, circle, description, and prompt are required." }, { status: 400 });
   const admin = createAdminClient();
   const { data, error } = await admin.from("community_practice_activities").insert({ circle_id: circleId, title, description, activity_type: "VOICE_RELAY", skill: "Speaking", prompt, follow_up_prompt: typeof input.followUpPrompt === "string" ? input.followUpPrompt.trim() : null, cefr_level: typeof input.cefrLevel === "string" ? input.cefrLevel : null, status: input.publish === true ? "PUBLISHED" : "DRAFT", created_by: user.id, published_at: input.publish === true ? new Date().toISOString() : null }).select("id").single();
-  if (error) return NextResponse.json({ error: "Could not save the activity." }, { status: 400 });
+  if (error || !data) return NextResponse.json({ error: "Could not save the activity." }, { status: 400 });
+  if (input.publish === true) {
+    const { error: postError } = await admin.from("community_posts").insert({ circle_id: circleId, author_id: user.id, post_type: "PRACTICE", title, body: prompt, feedback_mode: "WELCOME", status: "PUBLISHED" });
+    if (postError && !postError.message.toLowerCase().includes("duplicate")) return NextResponse.json({ error: "Activity saved, but its practice thread could not be created." }, { status: 500 });
+  }
   return NextResponse.json({ activity: data }, { status: 201 });
 }
 
