@@ -9,5 +9,8 @@ export async function GET(_: Request, context: { params: Promise<{ id: string }>
   const { id } = await context.params;
   const { data: media, error } = await supabase.from("community_media").select("bucket, path, mime_type").eq("id", id).maybeSingle();
   if (error || !media) return NextResponse.json({ error: "Recording unavailable." }, { status: 404 });
-  return NextResponse.json({ url: await createSignedR2MediaUrl({ bucket: media.bucket, path: media.path }), mimeType: media.mime_type });
+  const signedUrl = await createSignedR2MediaUrl({ bucket: media.bucket, path: media.path });
+  const object = await fetch(signedUrl, { cache: "no-store" });
+  if (!object.ok || !object.body) return NextResponse.json({ error: "Recording unavailable." }, { status: 404 });
+  return new Response(object.body, { status: 200, headers: { "Content-Type": media.mime_type || object.headers.get("content-type") || "audio/webm", "Content-Length": object.headers.get("content-length") || "", "Cache-Control": "private, max-age=300", "Accept-Ranges": "bytes" } });
 }

@@ -61,7 +61,7 @@ export function CommunityWorkspace({ circles, posts, replies, media, activities,
 function CommunityAudio({ mediaId, duration }: { mediaId: string; duration: number }) {
   const [url, setUrl] = useState<string | null>(null);
   const [error, setError] = useState(false);
-  const load = async () => { const response = await fetch(`/api/community/media/${mediaId}`); const data = await response.json().catch(() => ({})); if (!response.ok || !data.url) { setError(true); return; } setUrl(data.url); };
+  const load = async () => { setError(false); setUrl(`/api/community/media/${mediaId}`); };
   return <div className="mt-3 rounded-xl border border-[var(--br-border)] bg-[var(--br-surface-muted)] p-3"><div className="flex items-center gap-2 text-xs font-extrabold"><Mic className="size-4 text-[var(--br-action)]" /> Voice note <span className="font-normal text-[var(--br-text-muted)]">{duration}s</span></div>{url ? <audio controls preload="none" src={url} className="mt-2 h-9 w-full" aria-label="Voice note" /> : <button type="button" onClick={() => void load()} className="mt-2 rounded-lg border border-[var(--br-border)] px-3 py-2 text-xs font-extrabold">{error ? "Try again" : "Play voice note"}</button>}</div>;
 }
 
