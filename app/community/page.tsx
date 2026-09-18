@@ -19,13 +19,7 @@ export default async function CommunityPage() {
   const { data: posts } = circleIds.length
     ? await supabase.from("community_posts").select("id,circle_id,author_id,post_type,title,body,feedback_mode,status,created_at").in("circle_id", circleIds).eq("status", "PUBLISHED").order("created_at", { ascending: false }).limit(30)
     : { data: [] };
-  let { data: activities } = circleIds.length ? await supabase.from("community_practice_activities").select("id,circle_id,title,description,activity_type,cefr_level,skill,prompt,follow_up_prompt").in("circle_id", circleIds).eq("status", "PUBLISHED").order("created_at", { ascending: false }).limit(20) : { data: [] };
-  if (circleIds.length && !(activities ?? []).length) {
-    const admin = createAdminClient();
-    await admin.from("community_practice_activities").insert(circleIds.map((circleId) => ({ circle_id: circleId, title: "Speak & Share", description: "Practice a short speaking prompt, then share your recording with your circle.", activity_type: "VOICE_RELAY", skill: "Speaking", prompt: "Tell your circle about something you learned this week.", follow_up_prompt: "Ask one thoughtful follow-up question.", status: "PUBLISHED", created_by: user.id, published_at: new Date().toISOString() })));
-    const refreshed = await supabase.from("community_practice_activities").select("id,circle_id,title,description,activity_type,cefr_level,skill,prompt,follow_up_prompt").in("circle_id", circleIds).eq("status", "PUBLISHED").limit(20);
-    activities = refreshed.data;
-  }
+  const { data: activities } = circleIds.length ? await supabase.from("community_practice_activities").select("id,circle_id,title,description,activity_type,cefr_level,skill,prompt,follow_up_prompt").in("circle_id", circleIds).eq("status", "PUBLISHED").order("created_at", { ascending: false }).limit(20) : { data: [] };
   const postIds = (posts ?? []).map((post) => post.id);
   const { count: unreadCommunity } = await supabase.from("user_notifications").select("id", { count: "exact", head: true }).eq("user_id", user.id).eq("href", "/community").is("read_at", null);
   const [{ data: replies }, { data: media }] = postIds.length ? await Promise.all([
