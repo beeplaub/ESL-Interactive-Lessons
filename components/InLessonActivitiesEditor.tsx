@@ -2296,7 +2296,7 @@ function PronunciationEditor({ activity, onSave }: { activity: Activity; onSave:
         </p>
       ) : null}
       <p className="rounded-md border border-[var(--br-border)] bg-surface-muted p-3 text-xs text-[var(--br-text-muted)]">
-        This activity uses your browser&apos;s built-in speech recognition (free, no setup needed), which currently works reliably in Chrome and Edge only. It checks whether the recognizer transcribed the target word — a useful practice signal, but not a precise measure of pronunciation accuracy.
+        Learners record their voice and receive Azure Speech feedback at word, syllable, and phoneme level. Keep targets exactly as they appear in the passage so Azure can align the assessment correctly. Microphone access and a deployed Azure Speech configuration are required.
       </p>
       <div className="flex flex-wrap gap-3">
         <SaveButton onClick={() => onSave({

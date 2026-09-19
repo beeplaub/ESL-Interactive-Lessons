@@ -2545,7 +2545,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
         </button>
       </div>
       <p className="rounded-md border border-[var(--br-border)] bg-surface-muted p-3 text-xs text-[var(--br-text-muted)]">
-        This uses the learner browser&apos;s speech recognition. It works best in Chrome and Edge.
+        Learners receive Azure Speech feedback at word, syllable, and phoneme level. Keep target words exactly as they appear in the passage. The deployed app must have Azure Speech configured before learners can submit recordings.
       </p>
     </div>
   );
