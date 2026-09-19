@@ -1561,8 +1561,8 @@ function Fill({ question, value, disabled, onChange }: { question: QuizQuestion;
     </div>
   ) : null;
 
-  const inputFor = (index: number) => <span onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); placeClue(index, event.dataTransfer.getData("text/plain")); }} onClick={() => { if (selectedClue) placeClue(index, selectedClue); }} className="mx-1 inline-block rounded-lg border-2 border-dashed border-[var(--br-action)]/70 bg-surface align-middle transition hover:bg-[var(--br-action)]/10">
-    <input type="text" disabled={disabled} value={current[index] ?? ""} onChange={(e) => setAnswer(index, e.target.value)} size={Math.max(4, (String(correct[index] ?? "").length + 2))} className="w-auto min-w-14 rounded-lg border-0 bg-transparent px-2 py-1 text-sm font-semibold outline-none focus:ring-2 focus:ring-[var(--br-action)]" />
+  const inputFor = (index: number) => <span onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); placeClue(index, event.dataTransfer.getData("text/plain")); }} onClick={() => { if (selectedClue) placeClue(index, selectedClue); }} className="mx-1 inline-block h-9 min-w-14 rounded-lg border-2 border-dashed border-[var(--br-action)]/70 bg-surface align-middle transition hover:bg-[var(--br-action)]/10">
+    <input type="text" disabled={disabled} value={current[index] ?? ""} onChange={(e) => setAnswer(index, e.target.value)} size={Math.max(4, (String(correct[index] ?? "").length + 2))} className="h-full w-auto min-w-14 rounded-lg border-0 bg-transparent px-2 py-1 text-sm font-semibold leading-4 outline-none focus:ring-2 focus:ring-[var(--br-action)]" />
   </span>;
 
   // No inline text stored (older sentence-level data may only have the legend text, no options.text) —
