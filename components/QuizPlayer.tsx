@@ -1538,6 +1538,7 @@ function Fill({ question, value, disabled, onChange }: { question: QuizQuestion;
   const segments = text ? text.split("___") : [];
   const clues = opts.show_clues && Array.isArray(opts.clues) ? opts.clues.map(String).filter(Boolean) : [];
   const [selectedClue, setSelectedClue] = useState<string | null>(null);
+  const [activeBlank, setActiveBlank] = useState<number | null>(null);
 
   function setAnswer(index: number, next: string) {
     const updated = [...current];
@@ -1548,6 +1549,7 @@ function Fill({ question, value, disabled, onChange }: { question: QuizQuestion;
   function placeClue(index: number, clue: string) {
     if (disabled) return;
     setAnswer(index, clue);
+    setActiveBlank(index);
     setSelectedClue(null);
   }
 
@@ -1565,8 +1567,10 @@ function Fill({ question, value, disabled, onChange }: { question: QuizQuestion;
     const answer = current[index] ?? "";
     const fallback = String(correct[index] ?? "");
     const widthInCh = Math.max(6, answer.length + 2, fallback.length + 2);
-    return <span onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); placeClue(index, event.dataTransfer.getData("text/plain")); }} onClick={() => { if (selectedClue) placeClue(index, selectedClue); }} className="mx-1 inline-flex h-9 max-w-full min-w-14 items-center rounded-lg border-2 border-[var(--br-action)] bg-surface align-middle transition hover:bg-[var(--br-action)]/10">
-      <input type="text" disabled={disabled} value={answer} onChange={(e) => setAnswer(index, e.target.value)} className="h-full min-w-0 max-w-full rounded-lg border-0 bg-transparent px-2 text-center text-sm font-semibold leading-8 outline-none focus:outline-none focus:ring-0" style={{ width: `${widthInCh}ch` }} />
+    const isActive = activeBlank === index;
+    const hasAnswer = answer.trim().length > 0;
+    return <span onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); placeClue(index, event.dataTransfer.getData("text/plain")); }} onClick={() => { setActiveBlank(index); if (selectedClue) placeClue(index, selectedClue); }} className={`mx-1 inline-flex h-9 max-w-full min-w-14 items-center rounded-lg border-2 bg-surface align-middle transition hover:bg-[var(--br-action)]/10 ${hasAnswer || isActive ? "border-[var(--br-action)]" : "border-dashed border-[var(--br-border)]"}`}>
+      <input type="text" disabled={disabled} value={answer} onChange={(e) => { setActiveBlank(index); setAnswer(index, e.target.value); }} className="h-full min-w-0 max-w-full rounded-lg border-0 bg-transparent px-2 text-center text-sm font-semibold leading-8 outline-none focus:outline-none focus:ring-0" style={{ width: `${widthInCh}ch` }} />
     </span>;
   };
   // No inline text stored (older sentence-level data may only have the legend text, no options.text) —
