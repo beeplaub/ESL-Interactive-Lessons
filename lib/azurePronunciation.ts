@@ -1,3 +1,5 @@
+import * as sdk from "microsoft-cognitiveservices-speech-sdk";
+
 type AzurePhoneme = {
   Phoneme?: string;
   PronunciationAssessment?: {
@@ -70,30 +72,39 @@ export async function assessPronunciation(audio: ArrayBuffer, referenceText: str
   const region = process.env.AZURE_SPEECH_REGION;
   if (!key || !region) throw new Error("Azure pronunciation assessment is not configured.");
 
-  const params = Buffer.from(JSON.stringify({
-    ReferenceText: referenceText,
-    GradingSystem: "HundredMark",
-    Granularity: "Phoneme",
-    PhonemeAlphabet: "IPA",
-    NBestPhonemeCount: 3,
-    Dimension: "Comprehensive",
-    EnableMiscue: true,
-  }), "utf8").toString("base64");
-  const endpoint = `https://${region}.stt.speech.microsoft.com/speech/recognition/conversation/cognitiveservices/v1?language=${encodeURIComponent(locale)}&format=detailed`;
-  const response = await fetch(endpoint, {
-    method: "POST",
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "audio/wav; codecs=audio/pcm; samplerate=16000",
-      "Ocp-Apim-Subscription-Key": key,
-      "Pronunciation-Assessment": params,
-    },
-    body: audio,
-    cache: "no-store",
-    signal: AbortSignal.timeout(45_000),
+  const speechConfig = sdk.SpeechConfig.fromSubscription(key, region);
+  speechConfig.speechRecognitionLanguage = locale;
+  speechConfig.outputFormat = sdk.OutputFormat.Detailed;
+  const audioConfig = sdk.AudioConfig.fromWavFileInput(Buffer.from(audio), "pronunciation.wav");
+  const recognizer = new sdk.SpeechRecognizer(speechConfig, audioConfig);
+  const assessmentConfig = new sdk.PronunciationAssessmentConfig(
+    referenceText,
+    sdk.PronunciationAssessmentGradingSystem.HundredMark,
+    sdk.PronunciationAssessmentGranularity.Phoneme,
+    true,
+  );
+  assessmentConfig.phonemeAlphabet = "IPA";
+  assessmentConfig.nbestPhonemeCount = 3;
+  assessmentConfig.applyTo(recognizer);
+
+  const result = await new Promise<AzureResult>((resolve, reject) => {
+    recognizer.recognizeOnceAsync((recognitionResult) => {
+      try {
+        const detailResult = sdk.PronunciationAssessmentResult.fromResult(recognitionResult).detailResult;
+        const recognitionStatus = recognitionResult.reason === sdk.ResultReason.RecognizedSpeech ? "Success" : "NoMatch";
+        resolve({ RecognitionStatus: recognitionStatus, DisplayText: recognitionResult.text, NBest: [{ ...detailResult }] });
+      } catch (error) {
+        reject(error);
+      } finally {
+        recognizer.close();
+        audioConfig.close();
+      }
+    }, (error) => {
+      recognizer.close();
+      audioConfig.close();
+      reject(error);
+    });
   });
-  if (!response.ok) throw new Error(`Azure pronunciation assessment failed with status ${response.status}`);
-  const result = await response.json() as AzureResult;
   const best = result.NBest?.[0];
   const assessment = best?.PronunciationAssessment;
   if (result.RecognitionStatus !== "Success" || !best) {
