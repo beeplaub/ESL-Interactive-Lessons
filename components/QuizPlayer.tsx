@@ -1555,7 +1555,7 @@ function Fill({ question, value, disabled, onChange }: { question: QuizQuestion;
     <div className="mb-4 rounded-[14px] border border-[var(--br-action)]/20 bg-[var(--br-action)]/[0.03] p-3">
       <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.12em] text-[var(--br-action)]">Clues</p>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        {clues.map((clue, index) => <motion.button key={`${clue}-${index}`} type="button" draggable={!disabled} whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }} onClick={() => setSelectedClue((current) => current === clue ? null : clue)} onDragStart={(event) => { (event as unknown as DragEvent).dataTransfer?.setData("text/plain", clue); setSelectedClue(clue); }} className={`flex min-h-9 items-center justify-center rounded-lg border-2 px-2 py-1 text-center text-xs font-bold leading-4 transition sm:text-sm ${selectedClue === clue ? "border-[var(--br-brand)] bg-[var(--br-brand-soft)] text-[var(--br-dark-card)] shadow-md" : "border-[var(--br-action)] bg-surface text-[var(--br-dark-card)] shadow-sm hover:bg-[var(--br-action)]/10"}`}><span>{clue}</span></motion.button>)}
+        {clues.map((clue, index) => { const used = current.includes(clue); return <motion.button key={`${clue}-${index}`} type="button" draggable={!disabled} whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }} onClick={() => setSelectedClue((current) => current === clue ? null : clue)} onDragStart={(event) => { (event as unknown as DragEvent).dataTransfer?.setData("text/plain", clue); setSelectedClue(clue); }} className={`flex min-h-9 items-center justify-center rounded-lg border-2 px-2 py-1 text-center text-xs font-bold leading-4 transition sm:text-sm ${used ? "border-[var(--br-success)] bg-[var(--br-success)]/15 text-[var(--br-text-muted)] opacity-75" : selectedClue === clue ? "border-[var(--br-brand)] bg-[var(--br-brand-soft)] text-[var(--br-dark-card)] shadow-md" : "border-[var(--br-action)] bg-surface text-[var(--br-dark-card)] shadow-sm hover:bg-[var(--br-action)]/10"}`}><span>{clue}</span></motion.button>; })}
       </div>
       <p className="mt-2 text-[11px] font-semibold text-[var(--br-text-muted)]">Drag a clue into a blank, or tap a clue then tap a blank.</p>
     </div>
@@ -1586,7 +1586,7 @@ function Fill({ question, value, disabled, onChange }: { question: QuizQuestion;
   }
 
   return (
-    <div className={`${opts.level === "paragraph" ? "rounded-[18px] p-4 text-base leading-9 sm:p-5 sm:text-lg" : "rounded-[14px] p-3 text-sm leading-8"} bg-[var(--br-canvas-elevated)]`}>{clueGrid}
+    <div className={`${opts.level === "paragraph" ? "rounded-[18px] p-4 text-base leading-[2.15] sm:p-5 sm:text-lg sm:leading-[2.25]" : "rounded-[14px] p-3 text-sm leading-8"} bg-[var(--br-canvas-elevated)]`}>{clueGrid}
       {segments.map((segment, i) => (
         <span key={i}>
           {segment}
