@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { assessPronunciation } from "@/lib/azurePronunciation";
+import { assessPronunciation, AzurePronunciationError } from "@/lib/azurePronunciation";
 
 export const runtime = "nodejs";
 
@@ -31,6 +31,9 @@ export async function POST(request: Request) {
     return NextResponse.json(assessment);
   } catch (error) {
     console.error("Azure pronunciation assessment failed", error);
+    if (error instanceof AzurePronunciationError) {
+      return NextResponse.json({ code: error.code, error: error.message }, { status: 422 });
+    }
     return NextResponse.json({ code: "provider_unavailable", error: "Pronunciation feedback is temporarily unavailable. Please try again." }, { status: 503 });
   }
 }

@@ -2703,7 +2703,7 @@ function Pronunciation({
           form.append("locale", "en-US");
           const response = await fetch("/api/speech/pronunciation-assess", { method: "POST", body: form });
           const body = await response.json().catch(() => ({})) as { transcript?: string; error?: string; overallScore?: number; accuracyScore?: number; fluencyScore?: number; completenessScore?: number; prosodyScore?: number; words?: PronunciationAssessmentSummary["words"] };
-          if (!response.ok || typeof body.overallScore !== "number") throw new Error(body.error || "Pronunciation feedback is temporarily unavailable.");
+          if (!response.ok || typeof body.overallScore !== "number") throw new Error(body.error || (response.status === 422 ? "We could not hear clear speech. Please move closer to the microphone and try again." : "Pronunciation feedback is temporarily unavailable."));
           const transcript = String(body.transcript ?? "").trim();
           const overallScore = body.overallScore ?? 0;
           const nextResults = { ...results };

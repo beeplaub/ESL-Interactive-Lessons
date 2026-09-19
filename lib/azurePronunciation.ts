@@ -28,6 +28,18 @@ type AzureResult = {
   }>;
 };
 
+export class AzurePronunciationError extends Error {
+  readonly code: "no_match" | "missing_assessment";
+  readonly recognitionStatus?: string;
+
+  constructor(code: "no_match" | "missing_assessment", message: string, recognitionStatus?: string) {
+    super(message);
+    this.name = "AzurePronunciationError";
+    this.code = code;
+    this.recognitionStatus = recognitionStatus;
+  }
+}
+
 export type PronunciationAssessment = {
   transcript: string;
   overallScore: number;
@@ -84,7 +96,22 @@ export async function assessPronunciation(audio: ArrayBuffer, referenceText: str
   const result = await response.json() as AzureResult;
   const best = result.NBest?.[0];
   const assessment = best?.PronunciationAssessment;
-  if (!best || !assessment || result.RecognitionStatus !== "Success") throw new Error("Azure could not assess this recording.");
+  if (result.RecognitionStatus !== "Success" || !best) {
+    console.warn("Azure pronunciation returned no recognized speech", {
+      recognitionStatus: result.RecognitionStatus ?? "missing",
+      displayTextLength: String(result.DisplayText ?? "").length,
+      nBestCount: result.NBest?.length ?? 0,
+    });
+    throw new AzurePronunciationError("no_match", "Azure did not detect clear speech in this recording.", result.RecognitionStatus);
+  }
+  if (!assessment) {
+    console.error("Azure pronunciation returned speech without assessment", {
+      recognitionStatus: result.RecognitionStatus,
+      displayTextLength: String(result.DisplayText ?? "").length,
+      wordCount: best.Words?.length ?? 0,
+    });
+    throw new AzurePronunciationError("missing_assessment", "Azure recognized speech but did not return pronunciation assessment data.", result.RecognitionStatus);
+  }
 
   return {
     transcript: String(result.DisplayText ?? "").trim().slice(0, 2_000),
