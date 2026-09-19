@@ -49,7 +49,45 @@ type PronunciationValue = {
   results: Record<string, boolean>;
   attemptsUsed: Record<string, number>;
   transcripts?: Record<string, string>;
+  assessments?: Record<string, PronunciationAssessmentSummary>;
 };
+
+type PronunciationAssessmentSummary = {
+  overallScore: number;
+  accuracyScore: number;
+  fluencyScore?: number;
+  completenessScore?: number;
+  prosodyScore?: number;
+  words?: Array<{ text: string; score: number; errorType?: string; phonemes: Array<{ expected: string; spoken?: string; score: number }> }>;
+};
+
+async function recordingToWav(recording: Blob): Promise<Blob> {
+  const AudioContextConstructor = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!AudioContextConstructor) throw new Error("Audio conversion is unavailable in this browser.");
+  const context = new AudioContextConstructor();
+  try {
+    const decoded = await context.decodeAudioData(await recording.arrayBuffer());
+    const targetRate = 16_000;
+    const frameCount = Math.ceil(decoded.duration * targetRate);
+    const offline = new OfflineAudioContext(1, frameCount, targetRate);
+    const source = offline.createBufferSource();
+    source.buffer = decoded;
+    source.connect(offline.destination);
+    source.start();
+    const rendered = await offline.startRendering();
+    const samples = rendered.getChannelData(0);
+    const buffer = new ArrayBuffer(44 + samples.length * 2);
+    const view = new DataView(buffer);
+    const write = (offset: number, text: string) => [...text].forEach((char, index) => view.setUint8(offset + index, char.charCodeAt(0)));
+    write(0, "RIFF"); view.setUint32(4, 36 + samples.length * 2, true); write(8, "WAVE"); write(12, "fmt ");
+    view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true); view.setUint32(24, targetRate, true);
+    view.setUint32(28, targetRate * 2, true); view.setUint16(32, 2, true); view.setUint16(34, 16, true); write(36, "data"); view.setUint32(40, samples.length * 2, true);
+    samples.forEach((sample, index) => view.setInt16(44 + index * 2, Math.max(-1, Math.min(1, sample)) * 0x7fff, true));
+    return new Blob([buffer], { type: "audio/wav" });
+  } finally {
+    await context.close();
+  }
+}
 
 export type OralResponseValue = {
   transcript: string;
@@ -2578,6 +2616,7 @@ function Pronunciation({
   const results = value?.results ?? {};
   const attemptsUsed = value?.attemptsUsed ?? {};
   const transcripts = value?.transcripts ?? {};
+  const assessments = value?.assessments ?? {};
   const [micState, setMicState] = useState<"idle" | "listening" | "transcribing" | "error">("idle");
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -2655,22 +2694,27 @@ function Pronunciation({
           setMicState("error");
           return;
         }
-        const form = new FormData();
-        form.append("file", audio, `pronunciation.${audio.type.includes("mp4") ? "mp4" : "webm"}`);
-        form.append("durationSeconds", String(durationSeconds));
         try {
-          const response = await fetch("/api/speech/transcribe", { method: "POST", body: form });
-          const body = await response.json().catch(() => ({})) as { transcript?: string; error?: string };
-          if (!response.ok || !body.transcript) throw new Error(body.error || "Transcription is temporarily unavailable.");
-          const transcript = body.transcript.trim();
+          const wav = await recordingToWav(audio);
+          const form = new FormData();
+          form.append("file", wav, "pronunciation.wav");
+          form.append("durationSeconds", String(durationSeconds));
+          form.append("referenceText", level === "word" ? currentTargets.map((target) => target.text).join(" ") : passage);
+          form.append("locale", "en-US");
+          const response = await fetch("/api/speech/pronunciation-assess", { method: "POST", body: form });
+          const body = await response.json().catch(() => ({})) as { transcript?: string; error?: string; overallScore?: number; accuracyScore?: number; fluencyScore?: number; completenessScore?: number; prosodyScore?: number; words?: PronunciationAssessmentSummary["words"] };
+          if (!response.ok || typeof body.overallScore !== "number") throw new Error(body.error || "Pronunciation feedback is temporarily unavailable.");
+          const transcript = String(body.transcript ?? "").trim();
+          const overallScore = body.overallScore ?? 0;
           const nextResults = { ...results };
-          currentTargets.forEach((target) => {
-            if (transcriptContainsTarget(transcript, target.text)) nextResults[target.id] = true;
-          });
+          const words = body.words ?? [];
+          const assessment: PronunciationAssessmentSummary = { overallScore, accuracyScore: body.accuracyScore ?? overallScore, fluencyScore: body.fluencyScore, completenessScore: body.completenessScore, prosodyScore: body.prosodyScore, words };
+          currentTargets.forEach((target) => { const word = words.find((item) => item.text.toLowerCase() === target.text.toLowerCase()); if ((word?.score ?? overallScore) >= 70 && (level !== "word" || transcriptContainsTarget(transcript, target.text))) nextResults[target.id] = true; });
           onChange({
             results: nextResults,
             attemptsUsed: { ...attemptsUsed, [currentKey]: usedSoFar + 1 },
-            transcripts: { ...transcripts, [currentKey]: transcript }
+            transcripts: { ...transcripts, [currentKey]: transcript },
+            assessments: { ...assessments, [currentKey]: assessment },
           });
           setMicState("idle");
           setActiveKey(null);
@@ -2696,7 +2740,7 @@ function Pronunciation({
   const segments = targets.length > 0
     ? passage.split(new RegExp(`(${targets.map((t) => t.text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`, "i")).filter(Boolean)
     : [passage];
-  const renderStatus = (target: PronunciationTarget) => results[target.id] === true ? "Clear match" : transcripts[target.id] ? "Needs another try" : "Not attempted";
+  const renderStatus = (target: PronunciationTarget) => results[target.id] === true ? `Clear match · ${Math.round(assessments[target.id]?.overallScore ?? 0)}/100` : transcripts[target.id] ? `Needs another try · ${Math.round(assessments[target.id]?.overallScore ?? 0)}/100` : "Not attempted";
   const renderTargetChip = (target: PronunciationTarget) => {
     const recognized = results[target.id] === true;
     return <span key={target.id} className={`rounded-full px-3 py-1.5 text-sm font-semibold ${recognized ? "bg-emerald-100 text-emerald-800" : transcripts[target.id] ? "bg-orange-100 text-orange-800" : "bg-slate-100 text-slate-700"}`}>{target.text}</span>;
@@ -2740,10 +2784,11 @@ function Pronunciation({
             {isActive ? <MicOff size={14} /> : results[target.id] ? <CheckCircle2 size={14} /> : <Mic size={14} />} {isActive ? "Stop recording" : results[target.id] ? "Recognized" : `Record (${Math.max(0, maxAttempts - (attemptsUsed[target.id] ?? 0))} left)`}
           </button>
           {transcripts[target.id] ? <p className="w-full border-t border-slate-100 pt-2 text-xs text-[var(--br-text-muted)]">Exact transcript: <span className="font-semibold text-ink">{transcripts[target.id]}</span></p> : null}
+          {assessments[target.id]?.words?.[0]?.phonemes?.length ? <p className="w-full text-left text-xs text-[var(--br-text-muted)]">Sounds: {assessments[target.id]?.words?.[0]?.phonemes.map((phoneme, index) => <span key={`${phoneme.expected}-${index}`} className={`mr-1 inline-flex rounded px-1.5 py-0.5 font-bold ${phoneme.score >= 85 ? "bg-emerald-100 text-emerald-800" : phoneme.score >= 60 ? "bg-amber-100 text-amber-800" : "bg-rose-100 text-rose-800"}`} title={phoneme.spoken && phoneme.spoken !== phoneme.expected ? `Heard ${phoneme.spoken}` : undefined}>{phoneme.expected} · {Math.round(phoneme.score)}</span>)}</p> : null}
         </div>;
       })}</div> : null}
       {level !== "word" && passageTranscript ? <div className="relative z-10 rounded-[16px] border border-white/80 bg-white/75 p-4 text-left"><p className="mb-1 text-xs font-black uppercase tracking-wider text-[var(--br-chart-primary)]">Exact transcript</p><p className="text-base font-semibold leading-7 text-ink">{passageTranscript}</p></div> : null}
-      {level !== "word" && passageTranscript ? <div className="relative z-10 rounded-[16px] border border-white/80 bg-white/75 p-4 text-left"><div className="mb-3 flex flex-wrap items-center justify-between gap-2"><p className="text-base font-black text-ink">Sound-by-sound feedback</p><div className="flex gap-2 text-[11px] font-bold"><span className="text-emerald-700">● Clear match</span><span className="text-orange-700">● Needs another try</span></div></div><div className="flex flex-wrap gap-2">{targets.map(renderTargetChip)}</div><p className="mt-3 text-xs leading-5 text-[var(--br-text-muted)]">Your exact transcript is shown above. Detailed phoneme feedback will be added when the pronunciation analyzer is connected.</p></div> : null}
+      {level !== "word" && passageTranscript ? <div className="relative z-10 rounded-[16px] border border-white/80 bg-white/75 p-4 text-left"><div className="mb-3 flex flex-wrap items-center justify-between gap-2"><p className="text-base font-black text-ink">Sound-by-sound feedback</p><div className="flex gap-2 text-[11px] font-bold"><span className="text-emerald-700">● Clear match</span><span className="text-orange-700">● Needs another try</span></div></div><div className="flex flex-wrap gap-2">{targets.map(renderTargetChip)}</div><p className="mt-3 text-xs leading-5 text-[var(--br-text-muted)]">Scores are based on Azure phoneme-level pronunciation assessment.</p></div> : null}
       <button type="button" onClick={() => { setError(null); setMicState("idle"); }} className="relative z-10 mx-auto inline-flex items-center gap-2 rounded-full bg-[var(--br-action)] px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-[var(--br-action-strong)] disabled:opacity-50" disabled={disabled || micState === "listening" || micState === "transcribing"}><RotateCcw size={16} /> Try again</button>
       <p className="relative z-10 text-xs text-[var(--br-text-muted)]">Your recording is used to generate feedback.</p>
     </div>
