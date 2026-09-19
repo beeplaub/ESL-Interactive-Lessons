@@ -562,7 +562,7 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
           text: sentence,
           level,
           blank_count: Math.max(1, sentence.match(/___/g)?.length ?? answers.length),
-          ...(index === 0 && data.show_clues === true ? { show_clues: true, clues: Array.isArray(data.clues) ? data.clues.map(String).filter(Boolean) : [] } : {})
+          ...(data.show_clues === true ? { show_clues: true, clues: Array.isArray(data.clues) ? data.clues.map(String).filter(Boolean) : [] } : {})
         } as Json,
         correct_answer: answers as Json,
       };

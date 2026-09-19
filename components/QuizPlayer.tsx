@@ -1050,7 +1050,7 @@ export function QuestionCard({
           )}
         </motion.div>
       ) : null}
-      {question.question_type === "FILL" && question.question_number === 1 && asRecord(question.options).show_clues === true ? <ClueGrid items={(Array.isArray((asRecord(question.options) as Record<string, unknown>).clues) ? ((asRecord(question.options) as Record<string, unknown>).clues as unknown[]) : []).map(String).filter(Boolean)} /> : null}
+      {question.question_type === "FILL" && asRecord(question.options).show_clues === true ? <ClueGrid items={(Array.isArray((asRecord(question.options) as Record<string, unknown>).clues) ? ((asRecord(question.options) as Record<string, unknown>).clues as unknown[]) : []).map(String).filter(Boolean)} /> : null}
       <legend className="px-2 text-lg font-extrabold leading-snug text-[var(--br-dark-card)] sm:text-xl">
         <span className="mr-2 inline-grid size-8 place-items-center rounded-full bg-[var(--br-chart-primary)]/10 text-sm font-black text-[var(--br-chart-primary)]">{question.question_number}</span>{question.question_text}
       </legend>
