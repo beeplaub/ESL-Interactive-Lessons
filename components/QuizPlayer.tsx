@@ -1050,7 +1050,6 @@ export function QuestionCard({
           )}
         </motion.div>
       ) : null}
-      {question.question_type === "FILL" && asRecord(question.options).show_clues === true ? <ClueGrid items={(Array.isArray((asRecord(question.options) as Record<string, unknown>).clues) ? ((asRecord(question.options) as Record<string, unknown>).clues as unknown[]) : []).map(String).filter(Boolean)} /> : null}
       <legend className="px-2 text-lg font-extrabold leading-snug text-[var(--br-dark-card)] sm:text-xl">
         <span className="mr-2 inline-grid size-8 place-items-center rounded-full bg-[var(--br-chart-primary)]/10 text-sm font-black text-[var(--br-chart-primary)]">{question.question_number}</span>{question.question_text}
       </legend>
@@ -1531,23 +1530,14 @@ function TrueFalse({ value, disabled, onChange }: { value?: boolean; disabled: b
   );
 }
 
-function ClueGrid({ items }: { items: string[] }) {
-  if (!items.length) return null;
-  return (
-    <div className="mb-5 rounded-[14px] border border-[var(--br-action)]/20 bg-[var(--br-action)]/[0.03] p-3">
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        {items.map((item, index) => <div key={`${item}-${index}`} className="flex min-h-9 items-center justify-center rounded-lg border-2 border-[var(--br-action)] bg-surface px-2 py-1 text-center text-xs font-bold leading-4 text-[var(--br-dark-card)] sm:text-sm"><span>{item}</span></div>)}
-      </div>
-    </div>
-  );
-}
-
 function Fill({ question, value, disabled, onChange }: { question: QuizQuestion; value?: string[]; disabled: boolean; onChange: (value: string[]) => void }) {
   const correct = Array.isArray(question.correct_answer) ? question.correct_answer : [question.correct_answer];
   const current = value ?? correct.map(() => "");
-  const opts = asRecord(question.options) as { text?: string; level?: string };
+  const opts = asRecord(question.options) as { text?: string; level?: string; show_clues?: boolean; clues?: unknown[] };
   const text = String(opts.text ?? "");
   const segments = text ? text.split("___") : [];
+  const clues = opts.show_clues && Array.isArray(opts.clues) ? opts.clues.map(String).filter(Boolean) : [];
+  const [selectedClue, setSelectedClue] = useState<string | null>(null);
 
   function setAnswer(index: number, next: string) {
     const updated = [...current];
@@ -1555,11 +1545,31 @@ function Fill({ question, value, disabled, onChange }: { question: QuizQuestion;
     onChange(updated);
   }
 
+  function placeClue(index: number, clue: string) {
+    if (disabled) return;
+    setAnswer(index, clue);
+    setSelectedClue(null);
+  }
+
+  const clueGrid = clues.length ? (
+    <div className="mb-4 rounded-[14px] border border-[var(--br-action)]/20 bg-[var(--br-action)]/[0.03] p-3">
+      <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.12em] text-[var(--br-action)]">Clues</p>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {clues.map((clue, index) => <motion.button key={`${clue}-${index}`} type="button" draggable={!disabled} whileHover={{ y: -2 }} whileTap={{ scale: 0.97 }} onClick={() => setSelectedClue((current) => current === clue ? null : clue)} onDragStart={(event) => { (event as unknown as DragEvent).dataTransfer?.setData("text/plain", clue); setSelectedClue(clue); }} className={`flex min-h-9 items-center justify-center rounded-lg border-2 px-2 py-1 text-center text-xs font-bold leading-4 transition sm:text-sm ${selectedClue === clue ? "border-[var(--br-brand)] bg-[var(--br-brand-soft)] text-[var(--br-dark-card)] shadow-md" : "border-[var(--br-action)] bg-surface text-[var(--br-dark-card)] shadow-sm hover:bg-[var(--br-action)]/10"}`}><span>{clue}</span></motion.button>)}
+      </div>
+      <p className="mt-2 text-[11px] font-semibold text-[var(--br-text-muted)]">Drag a clue into a blank, or tap a clue then tap a blank.</p>
+    </div>
+  ) : null;
+
+  const inputFor = (index: number) => <span onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); placeClue(index, event.dataTransfer.getData("text/plain")); }} onClick={() => { if (selectedClue) placeClue(index, selectedClue); }} className="mx-1 inline-block rounded-lg border-2 border-dashed border-[var(--br-action)]/70 bg-surface align-middle transition hover:bg-[var(--br-action)]/10">
+    <input type="text" disabled={disabled} value={current[index] ?? ""} onChange={(e) => setAnswer(index, e.target.value)} size={Math.max(4, (String(correct[index] ?? "").length + 2))} className="w-auto min-w-14 rounded-lg border-0 bg-transparent px-2 py-1 text-sm font-semibold outline-none focus:ring-2 focus:ring-[var(--br-action)]" />
+  </span>;
+
   // No inline text stored (older sentence-level data may only have the legend text, no options.text) —
   // fall back to the original disconnected answer-input stack so existing activities keep working.
   if (segments.length < 2) {
     return (
-      <div className="grid gap-2">
+      <div className="grid gap-2">{clueGrid}
         {correct.map((_, i) => (
           <input
             key={i}
@@ -1576,23 +1586,14 @@ function Fill({ question, value, disabled, onChange }: { question: QuizQuestion;
   }
 
   return (
-    <p className="rounded-[14px] bg-[var(--br-canvas-elevated)] p-3 text-sm leading-8">
+    <div className={`${opts.level === "paragraph" ? "rounded-[18px] p-4 text-base leading-9 sm:p-5 sm:text-lg" : "rounded-[14px] p-3 text-sm leading-8"} bg-[var(--br-canvas-elevated)]`}>{clueGrid}
       {segments.map((segment, i) => (
         <span key={i}>
           {segment}
-          {i < segments.length - 1 ? (
-            <input
-              type="text"
-              disabled={disabled}
-              value={current[i] ?? ""}
-              onChange={(e) => setAnswer(i, e.target.value)}
-              size={Math.max(4, (String(correct[i] ?? "")).length + 2)}
-              className="mx-1 inline-block rounded border border-[var(--br-border)] bg-surface px-2 py-0.5 text-sm outline-none focus:border-[var(--br-chart-primary)]"
-            />
-          ) : null}
+          {i < segments.length - 1 ? inputFor(i) : null}
         </span>
       ))}
-    </p>
+    </div>
   );
 }
 
