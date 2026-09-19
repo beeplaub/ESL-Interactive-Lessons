@@ -419,7 +419,7 @@ function normalizePronunciation(data: Json | null): { prompt: string; level: "wo
   };
 }
 
-function normalizeGap(data: Json | null): { prompt: string; items: GapItem[] } {
+function normalizeGap(data: Json | null): { prompt: string; items: GapItem[]; showClues: boolean; clues: string[] } {
   const record = asRecord(data);
   const items = Array.isArray(record.items)
     ? record.items
@@ -428,6 +428,8 @@ function normalizeGap(data: Json | null): { prompt: string; items: GapItem[] } {
       : [];
   return {
     prompt: String(record.prompt ?? "Complete the sentences."),
+    showClues: record.show_clues === true,
+    clues: Array.isArray(record.clues) ? record.clues.map(String).filter(Boolean) : [],
     items: items.map((item) => {
       const row = asRecord(item);
       const sentence = String(row.sentence ?? row.text ?? row.question_text ?? "");
@@ -1399,6 +1401,8 @@ function ParaphraseIdEditor({ activity, onSave }: { activity: Activity; onSave: 
 function GapFillEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
   const initial = useMemo(() => normalizeGap(activity.activity_data), [activity.activity_data]);
   const [prompt, setPrompt] = useState(initial.prompt);
+  const [showClues, setShowClues] = useState(initial.showClues);
+  const [clues, setClues] = useState(initial.clues.join("\n"));
   const [items, setItems] = useState<GapItem[]>(initial.items.length ? initial.items : [{ level: "sentence", sentence: "", answers: [""] }]);
   const needsReview = items.some((item) => !item.sentence.trim() || item.answers.some((answer) => !answer.trim()));
 
@@ -1417,6 +1421,10 @@ function GapFillEditor({ activity, onSave }: { activity: Activity; onSave: (data
   return (
     <div className="grid gap-4">
       <label className="text-sm font-medium">Instruction<input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+      <div className="rounded-xl border border-[var(--br-action)]/20 bg-[var(--br-action)]/5 p-3">
+        <label className="flex items-start gap-2 text-sm font-semibold"><input type="checkbox" checked={showClues} onChange={(event) => setShowClues(event.target.checked)} className="mt-0.5 size-4 accent-[var(--br-action)]" /><span>Show clues above the questions<span className="mt-0.5 block text-xs font-normal leading-5 text-[var(--br-text-muted)]">Learners will see compact CTA-bordered clue boxes before the exercise.</span></span></label>
+        {showClues ? <label className="mt-3 block text-sm">Clue items <span className="font-normal text-[var(--br-text-muted)]">(one per line; keep within two rows)</span><textarea value={clues} onChange={(event) => setClues(event.target.value)} rows={3} placeholder="although\nhowever\nfor example" className="mt-1 w-full rounded-md border border-[var(--br-border)] bg-surface px-3 py-2" /></label> : null}
+      </div>
       {items.map((item, index) => (
         <div key={index} className="rounded-md border border-[var(--br-border)] p-4">
           <div className="mb-3 flex items-center justify-between gap-3">
@@ -1465,7 +1473,7 @@ function GapFillEditor({ activity, onSave }: { activity: Activity; onSave: (data
       ))}
       <div className="flex flex-wrap gap-3">
         <button type="button" onClick={() => setItems((current) => [...current, { level: "sentence", sentence: "", answers: [""] }])} className="rounded-md border border-[var(--br-border)] px-4 py-2 text-sm">Add sentence</button>
-        <SaveButton onClick={() => onSave({ prompt, items: items.map((item) => ({ level: item.level, sentence: item.sentence, answer: item.answers.length === 1 ? item.answers[0] : item.answers })) } as Json, needsReview)} />
+        <SaveButton onClick={() => onSave({ prompt, show_clues: showClues, clues: clues.split("\n").map((item) => item.trim()).filter(Boolean), items: items.map((item) => ({ level: item.level, sentence: item.sentence, answer: item.answers.length === 1 ? item.answers[0] : item.answers })) } as Json, needsReview)} />
       </div>
     </div>
   );

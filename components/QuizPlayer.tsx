@@ -1050,6 +1050,7 @@ export function QuestionCard({
           )}
         </motion.div>
       ) : null}
+      {question.question_type === "FILL" && question.question_number === 1 && asRecord(question.options).show_clues === true ? <ClueGrid items={(Array.isArray((asRecord(question.options) as Record<string, unknown>).clues) ? ((asRecord(question.options) as Record<string, unknown>).clues as unknown[]) : []).map(String).filter(Boolean)} /> : null}
       <legend className="px-2 text-lg font-extrabold leading-snug text-[var(--br-dark-card)] sm:text-xl">
         <span className="mr-2 inline-grid size-8 place-items-center rounded-full bg-[var(--br-chart-primary)]/10 text-sm font-black text-[var(--br-chart-primary)]">{question.question_number}</span>{question.question_text}
       </legend>
@@ -1526,6 +1527,17 @@ function TrueFalse({ value, disabled, onChange }: { value?: boolean; disabled: b
           {opt ? "True" : "False"}
         </label>
       ))}
+    </div>
+  );
+}
+
+function ClueGrid({ items }: { items: string[] }) {
+  if (!items.length) return null;
+  return (
+    <div className="mb-5 rounded-[14px] border border-[var(--br-action)]/20 bg-[var(--br-action)]/[0.03] p-3">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {items.map((item, index) => <div key={`${item}-${index}`} className="flex min-h-9 items-center justify-center rounded-lg border-2 border-[var(--br-action)] bg-surface px-2 py-1 text-center text-xs font-bold leading-4 text-[var(--br-dark-card)] sm:text-sm"><span>{item}</span></div>)}
+      </div>
     </div>
   );
 }
