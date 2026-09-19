@@ -1565,8 +1565,8 @@ function Fill({ question, value, disabled, onChange }: { question: QuizQuestion;
     const answer = current[index] ?? "";
     const fallback = String(correct[index] ?? "");
     const widthInCh = Math.max(6, answer.length + 2, fallback.length + 2);
-    return <span onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); placeClue(index, event.dataTransfer.getData("text/plain")); }} onClick={() => { if (selectedClue) placeClue(index, selectedClue); }} className="mx-1 inline-flex h-9 max-w-full min-w-14 items-center rounded-lg border-2 border-dashed border-[var(--br-action)]/70 bg-surface align-middle transition hover:bg-[var(--br-action)]/10">
-      <input type="text" disabled={disabled} value={answer} onChange={(e) => setAnswer(index, e.target.value)} className="h-full min-w-0 max-w-full rounded-lg border-0 bg-transparent px-2 text-center text-sm font-semibold leading-8 outline-none focus:ring-2 focus:ring-[var(--br-action)]" style={{ width: `${widthInCh}ch` }} />
+    return <span onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); placeClue(index, event.dataTransfer.getData("text/plain")); }} onClick={() => { if (selectedClue) placeClue(index, selectedClue); }} className="mx-1 inline-flex h-9 max-w-full min-w-14 items-center rounded-lg border-2 border-[var(--br-action)] bg-surface align-middle transition hover:bg-[var(--br-action)]/10">
+      <input type="text" disabled={disabled} value={answer} onChange={(e) => setAnswer(index, e.target.value)} className="h-full min-w-0 max-w-full rounded-lg border-0 bg-transparent px-2 text-center text-sm font-semibold leading-8 outline-none focus:outline-none focus:ring-0" style={{ width: `${widthInCh}ch` }} />
     </span>;
   };
   // No inline text stored (older sentence-level data may only have the legend text, no options.text) —
