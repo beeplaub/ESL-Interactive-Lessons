@@ -60,6 +60,7 @@ const lessonBlockTypes = [
   "QUOTE",
   "CALLOUT",
   "STICKY_NOTE",
+  "CLUES",
   "IMAGE",
   "IMAGE_TEXT",
   "IMAGE_ANNOTATION",
@@ -215,6 +216,12 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
       title: nullableText(formData.get("title")),
       body: String(formData.get("body") || "").trim(),
       card_size: Math.min(100, Math.max(55, Number(formData.get("card_size")) || 100))
+    };
+  }
+  if (blockType === "CLUES") {
+    return {
+      title: nullableText(formData.get("title")),
+      items: splitLines(formData.get("items"))
     };
   }
   if (blockType === "IMAGE") {
@@ -501,6 +508,7 @@ function defaultBlockContent(blockType: string): Json {
   if (blockType === "QUOTE") return { body: "Add a quote.", attribution: null };
   if (blockType === "CALLOUT") return { title: "Note", body: "Add a short note for learners.", reveal_hidden: false };
   if (blockType === "STICKY_NOTE") return { title: "Remember this", body: "Use ‘could’ for polite requests.", card_size: 100 };
+  if (blockType === "CLUES") return { title: "Clues", items: ["although", "however", "for example", "because"] };
   if (blockType === "DIVIDER") return { line_style: "solid", line_width: 100 };
   if (blockType === "SPACE") return { height: 40 };
   if (blockType === "IMAGE") return { path: "", alt: "", caption: "" };

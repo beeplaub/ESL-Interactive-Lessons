@@ -312,6 +312,17 @@ function PreviewBlock({ block, checkedItems, onChecklistChange, alwaysOpen = fal
     );
   }
 
+  if (block.block_type === "CLUES") {
+    const title = asString(content.title);
+    const items = asArray(content.items).map(String).filter(Boolean);
+    return (
+      <section className="rounded-[22px] border border-[var(--br-action)]/20 bg-[var(--br-action)]/[0.04] p-4 shadow-sm sm:p-5">
+        {title ? <h3 className="mb-4 text-base font-extrabold tracking-tight text-[var(--br-dark-card)] sm:text-lg">{title}</h3> : null}
+        {items.length ? <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4"><div className="contents">{items.map((item, index) => <div key={`${item}-${index}`} className="flex min-h-12 items-center justify-center rounded-xl border-2 border-[var(--br-action)] bg-surface px-3 py-2 text-center text-sm font-bold leading-5 text-[var(--br-dark-card)] shadow-sm sm:min-h-14 sm:text-base"><FormattedText text={item} /></div>)}</div></div> : <p className="text-sm text-[var(--br-text-muted)]">Add clue items.</p>}
+      </section>
+    );
+  }
+
   if (block.block_type === "IMAGE") {
     const path = asString(content.path);
     const src = mediaUrl(path, "image");

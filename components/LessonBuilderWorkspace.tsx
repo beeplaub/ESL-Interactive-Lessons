@@ -49,7 +49,7 @@ import { BuilderDevicePreviewFrame, type BuilderPreviewDevice } from "@/componen
 import { DialogueVoiceoverEditor } from "@/components/DialogueVoiceoverEditor";
 
 const blockTypes = [
-  "HEADING", "TEXT", "BULLETS", "INSTRUCTION", "REVIEW_CHECKLIST", "QUOTE", "CALLOUT", "STICKY_NOTE",
+  "HEADING", "TEXT", "BULLETS", "INSTRUCTION", "REVIEW_CHECKLIST", "QUOTE", "CALLOUT", "STICKY_NOTE", "CLUES",
   "IMAGE", "IMAGE_TEXT", "IMAGE_ANNOTATION", "AUDIO", "VIDEO", "DIVIDER", "SPACE",
   "VOCABULARY", "GRAMMAR", "READING", "DIALOGUE",
   "FLASHCARD", "TABLE", "COMMON_MISTAKE", "CONTRAST_PAIR", "IMAGE_PAIR", "TONGUE_TWISTER", "STEPS"
@@ -1477,7 +1477,7 @@ function ActivityBank({ lessonId, slide, slides, activities }: {
 function labelForBlockType(type: string) {
   const labels: Record<string, string> = {
     HEADING: "Heading", TEXT: "Text", BULLETS: "Bullet points", INSTRUCTION: "Instruction", REVIEW_CHECKLIST: "Review checklist", QUOTE: "Quote",
-    CALLOUT: "Callout", STICKY_NOTE: "Sticky note", IMAGE: "Image", IMAGE_TEXT: "Image + Text", IMAGE_ANNOTATION: "Image annotations",
+    CALLOUT: "Callout", STICKY_NOTE: "Sticky note", CLUES: "Clues", IMAGE: "Image", IMAGE_TEXT: "Image + Text", IMAGE_ANNOTATION: "Image annotations",
     AUDIO: "Audio", VIDEO: "Video", DIVIDER: "Divider", SPACE: "Space",
     VOCABULARY: "Vocabulary list", GRAMMAR: "Grammar",
     READING: "Reading passage", DIALOGUE: "Dialogue",
@@ -1754,6 +1754,15 @@ function BlockFields({ blockType, content, lessonId, blockId }: { blockType: str
           <label className="text-sm font-semibold text-ink">Note text <textarea name="body" rows={5} defaultValue={asString(data.body)} placeholder="Use ‘could’ for polite requests." className="field mt-1 w-full" /></label>
           <label className="text-sm font-semibold text-ink">Card size <span className="font-normal text-[var(--br-text-muted)]">(smaller or larger square)</span><input name="card_size" type="range" min="55" max="100" step="1" defaultValue={Number(data.card_size) || 100} className="mt-2 w-full accent-[var(--br-action)]" /></label>
         </div>
+      </div>
+    );
+  }
+  if (blockType === "CLUES") {
+    return (
+      <div className="grid gap-3">
+        <label className="text-sm">Title <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><input name="title" defaultValue={asString(data.title)} placeholder="Clues" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+        <label className="text-sm">Clue items <span className="font-normal text-[var(--br-text-muted)]">(one item per line)</span><textarea name="items" rows={6} defaultValue={lines(data.items)} placeholder="although\nfor example\nhowever" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+        <p className="rounded-lg border border-[var(--br-action)]/20 bg-[var(--br-action)]/5 px-3 py-2 text-xs leading-5 text-[var(--br-text-muted)]">Learners will see the clues as clean CTA-bordered boxes in a responsive grid.</p>
       </div>
     );
   }
