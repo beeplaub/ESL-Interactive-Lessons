@@ -6,6 +6,7 @@ import { LessonBuilderWorkspace } from "@/components/LessonBuilderWorkspace";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+export const maxDuration = 120;
 
 export default async function LessonBuilderPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

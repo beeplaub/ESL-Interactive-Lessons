@@ -24,6 +24,7 @@ let aiClient: GoogleGenAI | null = null;
 
 const AI_GENERATION_TIMEOUT_MS = 45_000;
 const OLLAMA_GENERATION_TIMEOUT_MS = 30_000;
+const OLLAMA_ASSESSMENT_TIMEOUT_MS = 90_000;
 
 function providerForModel(model: string | null | undefined): "google" | "groq" | "ollama" {
   const normalized = (model || "").toLowerCase();
@@ -652,6 +653,7 @@ export async function callGemini<T>({
         }
         const gatewayUrl = process.env.BRENUP_AI_GATEWAY_URL?.replace(/\/$/, "");
         if (!gatewayUrl) throw new Error("BRENUP_AI_GATEWAY_URL is not configured.");
+        const ollamaTimeoutMs = context?.assessmentCritical ? OLLAMA_ASSESSMENT_TIMEOUT_MS : OLLAMA_GENERATION_TIMEOUT_MS;
         const response = await withTimeout(fetch(`${gatewayUrl}/learner-evaluate`, {
           method: "POST",
           headers: {
@@ -663,10 +665,11 @@ export async function callGemini<T>({
             role: roleDescription,
             message: `${promptOverride || finalPrompt}\n\nReturn only valid JSON. Do not wrap it in markdown code fences.`,
             json: Boolean(responseSchema),
+            timeoutMs: ollamaTimeoutMs,
           }),
-          signal: AbortSignal.timeout(OLLAMA_GENERATION_TIMEOUT_MS),
+          signal: AbortSignal.timeout(ollamaTimeoutMs),
           cache: "no-store",
-        }), OLLAMA_GENERATION_TIMEOUT_MS + 1_000, "Local BrenUp AI timed out while waiting for a response.");
+        }), ollamaTimeoutMs + 1_000, "Local BrenUp AI timed out while waiting for a response.");
         const body = await response.json().catch(() => ({})) as Record<string, unknown>;
         if (!response.ok) throw new Error(typeof body.error === "string" ? body.error : `Local BrenUp AI request failed with status ${response.status}`);
         const message = body.message && typeof body.message === "object" ? (body.message as Record<string, unknown>).content : body.message;

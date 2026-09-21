@@ -137,7 +137,8 @@ async function proxyLearnerEvaluate(request, response) {
   const message = typeof body?.message === "string" ? body.message.trim() : "";
   if (!message || message.length > 12000) return json(response, 400, { error: "A learner evaluation prompt is required." });
   const config = providerConfig("ollama", typeof body?.model === "string" ? body.model : "");
-  const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), 30000);
+  const timeoutMs = Math.max(1000, Math.min(Number(body?.timeoutMs) || 30000, 90000));
+  const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const upstream = await fetch(`${config.baseUrl}/chat/completions`, {
       method: "POST",

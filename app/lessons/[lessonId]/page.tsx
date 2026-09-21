@@ -6,6 +6,9 @@ import { LearnerAppShell } from "@/components/LearnerAppShell";
 import { resolveMediaUrl } from "@/lib/storage/mediaStorage";
 import type { Json } from "@/types/database.types";
 
+// Server Actions on this page can perform local assessment-critical grading.
+export const maxDuration = 120;
+
 export default async function LessonPage({
   params,
   searchParams,

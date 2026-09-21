@@ -4,6 +4,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import type { Json } from "@/types/database.types";
 
+// Writing/oral assessment Server Actions on this page may await local grading.
+export const maxDuration = 120;
+
 export default async function QuizPage({
   params,
   searchParams,
