@@ -14,6 +14,7 @@ export const maxDuration = 300;
 const personSchema = z.object({
   id: z.string().trim().min(1).max(120), name: z.string().trim().min(1).max(100),
   role: z.string().trim().max(160).default(""), voiceName: z.string().trim().min(1).max(80),
+  accent: z.enum(["US", "UK"]).default("US"),
   style: z.string().trim().min(1).max(80), pace: z.enum(["Very slow", "Slow", "Natural", "Brisk"]),
   provider: z.enum(["auto", "kokoro", "google"]),
 });
@@ -57,7 +58,8 @@ export async function POST(request: Request) {
     const turns = [] as Array<{ audio: Uint8Array; durationSeconds: number; inputTokens: number; outputTokens: number; tokenEstimate: number; provider: string; model: string }>;
     for (const turn of input.turns) {
       const person = peopleById.get(turn.speakerId)!;
-      const generated = await generateVoiceoverAudio({ script: turn.line, voiceName: person.voiceName, languageCode: input.languageCode, style: person.style, pace: person.pace, provider: person.provider, outputFormat: "wav" });
+      const languageCode = /^en(?:-|$)/i.test(input.languageCode) ? (person.accent === "UK" ? "en-GB" : "en-US") : input.languageCode;
+      const generated = await generateVoiceoverAudio({ script: turn.line, voiceName: person.voiceName, languageCode, style: person.style, pace: person.pace, provider: person.provider, outputFormat: "wav" });
       turns.push({ audio: generated.audio, durationSeconds: generated.durationSeconds, inputTokens: generated.inputTokens, outputTokens: generated.outputTokens, tokenEstimate: generated.tokenEstimate, provider: generated.provider, model: generated.model });
     }
     const composed = await composeConversationAudio(turns, input.pauseMs);
