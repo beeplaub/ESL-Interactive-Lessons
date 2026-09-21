@@ -25,6 +25,7 @@ let aiClient: GoogleGenAI | null = null;
 const AI_GENERATION_TIMEOUT_MS = 45_000;
 const OLLAMA_GENERATION_TIMEOUT_MS = 30_000;
 const OLLAMA_ASSESSMENT_TIMEOUT_MS = 90_000;
+const ASSESSMENT_REQUEST_BUDGET_MS = 110_000;
 
 function providerForModel(model: string | null | undefined): "google" | "groq" | "ollama" {
   const normalized = (model || "").toLowerCase();
@@ -388,6 +389,7 @@ export async function callGemini<T>({
   localAgentOnly?: boolean;
   validateResponse?: (value: unknown) => T;
 }): Promise<T> {
+  const assessmentDeadline = Date.now() + ASSESSMENT_REQUEST_BUDGET_MS;
   if (localAgentOnly && (context?.provider !== "ollama" || context?.userRole !== "ADMIN" || !context?.userId || templateKey !== "creator_local_agent")) throw new Error("Local agent requests require an authenticated platform admin.");
   const localOnly = localReelOnly || localAgentOnly;
   if (localReelOnly && (process.env.VERCEL || context?.provider !== "ollama" || templateKey !== "creator_reel_script")) {
@@ -576,10 +578,14 @@ export async function callGemini<T>({
     lastAttemptModel = modelName;
     lastAttemptProvider = requestProvider;
     let candidateError: unknown = null;
+    if (context?.assessmentCritical && Date.now() >= assessmentDeadline) break;
     // The local reel studio has already checked the loopback service directly;
     // do not let a stale provider-health record disable a self-hosted batch.
     if (!localOnly && !providerAvailable(requestProvider)) continue;
     const generateCall = async (promptOverride?: string): Promise<{ text: string; usage: AiUsage }> => {
+      const requestTimeoutMs = context?.assessmentCritical && requestProvider !== "ollama"
+        ? Math.max(1_000, Math.min(AI_GENERATION_TIMEOUT_MS, assessmentDeadline - Date.now()))
+        : AI_GENERATION_TIMEOUT_MS;
       if (requestProvider === "groq") {
         const apiKey = process.env.GROQ_API_KEY;
         if (!apiKey) throw new Error("GROQ_API_KEY is not configured.");
@@ -599,9 +605,9 @@ export async function callGemini<T>({
             max_tokens: 700,
             response_format: responseSchema ? { type: "json_object" } : undefined,
           }),
-          signal: AbortSignal.timeout(AI_GENERATION_TIMEOUT_MS),
+          signal: AbortSignal.timeout(requestTimeoutMs),
           cache: "no-store",
-        }), AI_GENERATION_TIMEOUT_MS + 1_000, "AI feedback timed out while waiting for a response.");
+        }), requestTimeoutMs + (context?.assessmentCritical ? 0 : 1_000), "AI feedback timed out while waiting for a response.");
 
         const body = await response.json().catch(() => ({})) as {
           choices?: Array<{ message?: { content?: unknown } }>;
@@ -702,7 +708,7 @@ export async function callGemini<T>({
           responseMimeType: "application/json",
           responseSchema: responseSchema // Passes JSON schema constraints directly to Gemini
         }
-      }), AI_GENERATION_TIMEOUT_MS, "AI grading timed out while waiting for a response.");
+      }), requestTimeoutMs, "AI grading timed out while waiting for a response.");
 
       const text = response.text;
       if (!text) {
@@ -720,7 +726,7 @@ export async function callGemini<T>({
     };
 
     // D. Execution with retry/repair loop for Free Tier limits
-    const maxAttempts = requestProvider === "ollama" ? 1 : 2;
+    const maxAttempts = requestProvider === "ollama" || context?.assessmentCritical ? 1 : 2;
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       let validatingResponse = false;
       try {
