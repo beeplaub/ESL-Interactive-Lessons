@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   AudioLines,
+  Boxes,
   BarChart3,
   Bot,
   BookOpen,
@@ -72,6 +73,7 @@ const groups: NavGroup[] = [
       { href: "/admin/level-test", label: "Level Test", Icon: FlaskConical, roles: PLATFORM_ADMIN },
       { href: "/admin/wordverse", label: "Wordverse", Icon: Sparkles, roles: PLATFORM_ADMIN },
       { href: "/admin/content-library", label: "Content Library", Icon: Library, roles: ALL_STAFF },
+      { href: "/admin/activities", label: "Activities", Icon: Boxes, roles: ALL_STAFF },
       { href: "/admin/media", label: "Media Library", Icon: Images, roles: ALL_STAFF },
       { href: "/admin/creator-tools", label: "Creator Tools", Icon: AudioLines, roles: ALL_STAFF },
     ],
