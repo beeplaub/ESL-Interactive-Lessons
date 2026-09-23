@@ -46,7 +46,6 @@ export function SiteNav({ isLoggedIn }: { isLoggedIn: boolean }) {
       >
         {open ? <X size={17} /> : <Menu size={17} />} Menu
       </button>
-
       {open ? (
         <div className="absolute left-4 right-4 top-[68px] z-40 rounded-[var(--br-radius)] border border-[var(--br-border)] bg-[color:color-mix(in_srgb,var(--br-surface)_96%,transparent)] p-3 shadow-2xl shadow-slate-900/15 backdrop-blur md:hidden">
           <div className="grid gap-1">
