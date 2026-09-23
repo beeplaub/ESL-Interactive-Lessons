@@ -31,7 +31,6 @@ import { LearnerNavigationPreloader } from "@/components/LearnerNavigationPreloa
 import { NotificationSoundWatcher } from "@/components/NotificationSoundWatcher";
 import { getLearnerAchievements, type LearnerAchievements } from "@/lib/achievements";
 import { BrandLogo } from "@/components/BrandLogo";
-import { ThemeToggle } from "@/components/ThemeToggle";
 
 export type ActiveItem = "home" | "quizzes" | "courses" | "journal" | "wordverse" | "live-classes" | "community" | "assignments" | "tasks" | "calendar" | "achievements" | "certificates" | "level-test" | "leaderboard" | "language-profile" | "profile" | "notifications";
 
@@ -346,7 +345,6 @@ function DesktopLearnerChrome({
             </button>
           </form>
         ) : null}
-        <ThemeToggle />
         <Link href="/level-test" className="hidden items-center gap-1.5 rounded-[14px] border border-[var(--br-surface-strong)] bg-surface px-3 py-2 text-xs font-bold text-[var(--br-text-muted)] shadow-[var(--br-shadow)] transition hover:text-[var(--br-chart-primary)] min-[1120px]:inline-flex">
           <Target className="size-4 text-[var(--br-chart-primary)]" /> {currentLevel ? `${currentLevel} level` : "Find your level"}
         </Link>
@@ -522,7 +520,6 @@ function MobileTopbar({
             </button>
           </form>
         ) : null}
-        <ThemeToggle />
         <Link
           href="/level-test"
           aria-label={currentLevel ? `Your level: ${currentLevel}` : "Take level test"}
