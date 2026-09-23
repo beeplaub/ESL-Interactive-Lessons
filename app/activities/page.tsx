@@ -12,7 +12,7 @@ const skills = [
 
 export default function ActivitiesPage() {
   return (
-    <LearnerAppShell active="home">
+    <LearnerAppShell active="home" showRightSidebar={false}>
       <section className="rounded-[24px] bg-[var(--br-dark-card)] p-5 text-on-dark shadow-[var(--br-shadow)] sm:p-7">
         <div className="flex items-start gap-3">
           <div className="grid size-11 shrink-0 place-items-center rounded-2xl bg-[var(--br-action)] text-white"><Sparkles size={21} /></div>
