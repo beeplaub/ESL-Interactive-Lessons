@@ -1,8 +1,10 @@
 import { Sparkles } from "lucide-react";
 import { ActivitiesLibrary } from "@/components/ActivitiesLibrary";
 import { LearnerAppShell } from "@/components/LearnerAppShell";
+import { createAdminClient } from "@/lib/supabase/admin";
 
-export default function ActivitiesPage() {
+export default async function ActivitiesPage() {
+  const { data: modules } = await (createAdminClient() as any).from("practice_modules").select("id,title,description,category,level,access_type").eq("status", "PUBLISHED").order("updated_at", { ascending: false });
   return (
     <LearnerAppShell active="home" showRightSidebar={false}>
       <section className="rounded-[24px] bg-[var(--br-dark-card)] p-5 text-on-dark shadow-[var(--br-shadow)] sm:p-7">
@@ -18,7 +20,7 @@ export default function ActivitiesPage() {
 
       <section className="mt-6 rounded-[22px] border border-[var(--br-border)] bg-surface p-4 shadow-[var(--br-shadow)] sm:p-6">
         <div className="border-b border-[var(--br-border)] pb-4"><p className="text-xs font-extrabold uppercase tracking-[0.14em] text-[var(--br-action)]">Practice collection</p><h2 className="mt-1 text-xl font-extrabold">Choose a skill to practise</h2></div>
-        <div className="mt-5"><ActivitiesLibrary /></div>
+        <div className="mt-5"><ActivitiesLibrary modules={modules ?? []} /></div>
       </section>
     </LearnerAppShell>
   );
