@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { createSignedR2MediaUrl, deleteMediaObject, mediaStorageProvider, uploadMediaObject } from "@/lib/storage/mediaStorage";
+import { userCanOpenLesson } from "@/lib/practiceAccess";
 
 const MAX_BYTES = 25 * 1024 * 1024;
 
@@ -41,6 +42,8 @@ export async function POST(request: Request) {
     .eq("id", activityId)
     .maybeSingle();
   if (!activity || activity.activity_type !== "AI_ROLEPLAY") return NextResponse.json({ error: "This speaking activity is unavailable." }, { status: 404 });
+  const { data: lessonLink } = await admin.from("lesson_slide_activities").select("lesson_id").eq("id", activityId).maybeSingle();
+  if (!lessonLink || !(await userCanOpenLesson(user.id, lessonLink.lesson_id))) return NextResponse.json({ error: "This activity is not available." }, { status: 403 });
   const config = (activity.activity_data ?? {}) as Record<string, unknown>;
   if (config.save_recordings !== true) return NextResponse.json({ error: "Recording storage is not enabled for this activity." }, { status: 403 });
   if (mediaStorageProvider() !== "r2") return NextResponse.json({ error: "Private voice recording storage is not configured." }, { status: 503 });
@@ -95,6 +98,8 @@ export async function GET(request: Request) {
   const admin = createAdminClient();
   const activityId = new URL(request.url).searchParams.get("activityId");
   if (!id && activityId) {
+    const { data: lessonLink } = await admin.from("lesson_slide_activities").select("lesson_id").eq("id", activityId).maybeSingle();
+    if (!lessonLink || !(await userCanOpenLesson(user.id, lessonLink.lesson_id))) return NextResponse.json({ error: "This activity is not available." }, { status: 403 });
     const { data: recordings } = await admin.from("ai_roleplay_voice_recordings")
       .select("id,activity_id,session_id,duration_seconds,transcript,created_at,expires_at")
       .eq("activity_id", activityId).eq("user_id", user.id).is("deleted_at", null)
@@ -107,6 +112,8 @@ export async function GET(request: Request) {
   const { data: recording } = await admin.from("ai_roleplay_voice_recordings").select("*").eq("id", id).is("deleted_at", null).maybeSingle();
   if (!recording || recording.user_id !== user.id) return NextResponse.json({ error: "Recording not found." }, { status: 404 });
   const { data: activity } = await admin.from("lesson_slide_activities").select("activity_data").eq("id", recording.activity_id).maybeSingle();
+  const { data: lessonLink } = await admin.from("lesson_slide_activities").select("lesson_id").eq("id", recording.activity_id).maybeSingle();
+  if (!lessonLink || !(await userCanOpenLesson(user.id, lessonLink.lesson_id))) return NextResponse.json({ error: "This recording is not available." }, { status: 403 });
   const config = (activity?.activity_data ?? {}) as Record<string, unknown>;
   const wantsDownload = new URL(request.url).searchParams.get("download") === "1";
   const forceDownload = new URL(request.url).searchParams.get("force") === "1";

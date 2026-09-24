@@ -40,6 +40,7 @@ export function LessonOutcomeManager({
   placements,
   courseOutcomes,
   mappings,
+  hideCoursePlacements = false,
 }: {
   lessonId: string;
   outcomes: LessonOutcome[];
@@ -48,6 +49,7 @@ export function LessonOutcomeManager({
   placements: Placement[];
   courseOutcomes: CourseOutcome[];
   mappings: Mapping[];
+  hideCoursePlacements?: boolean;
 }) {
   return (
     <section className="mt-5 grid gap-5 border-t border-[var(--br-border)] pt-5">
@@ -91,6 +93,7 @@ export function LessonOutcomeManager({
         <button className="inline-flex items-center justify-center gap-1 rounded-lg bg-[var(--br-chart-primary)] px-3 py-2 text-sm font-bold text-on-dark"><Plus size={15} /> Add outcome</button>
       </ObeActionForm>
 
+      {!hideCoursePlacements ? <>
       <div className="border-t border-[var(--br-border)] pt-5">
         <div className="flex items-center gap-2">
           <Link2 size={17} className="text-[var(--br-chart-primary)]" />
@@ -156,7 +159,7 @@ export function LessonOutcomeManager({
         })}
         {!placements.length ? <p className="rounded-xl border border-dashed border-[var(--br-border)] p-5 text-center text-sm text-[var(--br-text-muted)]">This lesson is not placed in a course yet.</p> : null}
       </div>
+      </> : null}
     </section>
   );
 }
-

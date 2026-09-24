@@ -1,4 +1,4 @@
 import { requireStaff } from "@/lib/auth";
-import { PracticeModuleBuilder } from "@/components/PracticeModuleBuilder";
+import { PracticeModuleCreateForm } from "@/components/PracticeModuleCreateForm";
 
-export default async function NewPracticeModulePage() { await requireStaff(); return <main className="min-w-0"><PracticeModuleBuilder /></main>; }
+export default async function NewPracticeModulePage() { await requireStaff(); return <div className="min-w-0"><PracticeModuleCreateForm /></div>; }

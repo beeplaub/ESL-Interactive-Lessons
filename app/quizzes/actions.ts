@@ -10,6 +10,7 @@ import { isWritingQuestionType, resolveWritingOutcome } from "@/lib/writingGradi
 import { recalculateCourseAssessmentsForContent } from "@/lib/courseAssessmentService";
 import { getQuizBadge } from "@/lib/quizBadges";
 import { notifyUser } from "@/lib/notifications";
+import { userCanOpenLesson } from "@/lib/practiceAccess";
 import type { Json } from "@/types/database.types";
 
 function normalizedActivityLimit(value: unknown) {
@@ -60,6 +61,10 @@ export async function recordQuizAttempt(input: {
 }) {
   const { user } = await requireUser();
   const admin = createAdminClient();
+  if (input.lessonSlideActivityId) {
+    const { data: activity } = await admin.from("lesson_slide_activities").select("lesson_id").eq("id", input.lessonSlideActivityId).maybeSingle();
+    if (!activity || !(await userCanOpenLesson(user.id, activity.lesson_id))) throw new Error("You do not have access to this practice activity.");
+  }
   if (input.submissionKey) {
     const { data: existingAttempt, error: existingAttemptError } = await (admin
       .from("assessment_attempts")

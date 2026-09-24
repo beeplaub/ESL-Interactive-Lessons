@@ -5,6 +5,7 @@ import { requireStaff, isPlatformAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { summarizeSkillEvidence, summarizeTargetEvidence } from "@/lib/obeReports";
 import { getQuizBadge, getNextQuizBadge } from "@/lib/quizBadges";
+import { PracticeAccessGrants } from "@/components/PracticeAccessGrants";
 
 function pct(value: number) {
   return `${Math.round(value)}%`;
@@ -81,6 +82,9 @@ export default async function AdminStudentProfilePage({ params }: { params: Prom
   const totalPoints = (leaderboardPoints ?? []).reduce((sum, row) => sum + Number(row.points || 0), 0);
   const badge = getQuizBadge(totalPoints);
   const nextBadge = getNextQuizBadge(totalPoints);
+  const { data: practiceGrants } = isPlatformAdmin(profile?.role)
+    ? await (admin as any).from("practice_access_grants").select("id,reason,starts_at,ends_at,revoked_at").eq("user_id", userId).order("created_at", { ascending: false })
+    : { data: null };
 
   return (
     <main className="min-w-0 overflow-hidden">
@@ -102,6 +106,8 @@ export default async function AdminStudentProfilePage({ params }: { params: Prom
         <span className="font-semibold text-[var(--br-text-muted)]">{totalPoints.toLocaleString()} leaderboard points.</span>{" "}
         {nextBadge ? `${(nextBadge.minPoints - totalPoints).toLocaleString()} points to reach ${nextBadge.name}.` : "Highest badge tier reached."}
       </section>
+
+      {isPlatformAdmin(profile?.role) ? <div className="mt-5"><PracticeAccessGrants userId={userId} grants={practiceGrants ?? []} /></div> : null}
 
       <section className="mt-6 grid gap-5 xl:grid-cols-[1fr_360px]">
         <div className="rounded-xl border border-[var(--br-border)] bg-surface p-5 shadow-sm">

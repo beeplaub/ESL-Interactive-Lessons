@@ -132,7 +132,7 @@ type ObeData = {
   assessmentTargets: Array<{ assessment_item_id: string; learning_target_id: string }>;
 };
 
-type Props = { lesson: Lesson; slides: Slide[]; trashedSlides?: TrashedSlide[]; blocks: LessonBlock[]; activities: Activity[]; obe?: ObeData; isAdmin?: boolean };
+type Props = { lesson: Lesson; slides: Slide[]; trashedSlides?: TrashedSlide[]; blocks: LessonBlock[]; activities: Activity[]; obe?: ObeData; isAdmin?: boolean; practiceModuleMode?: boolean };
 type BuilderMode = "SLIDE" | "LEARN" | "PRACTICE";
 type BuilderEditable = HTMLInputElement | HTMLTextAreaElement;
 type BuilderTextSnapshot = { value: string; selectionStart: number | null; selectionEnd: number | null };
@@ -725,7 +725,7 @@ function AiGeneratorModal({
   );
 }
 
-export function LessonBuilderWorkspace({ lesson, slides, trashedSlides = [], blocks, activities, obe, isAdmin = false }: Props) {
+export function LessonBuilderWorkspace({ lesson, slides, trashedSlides = [], blocks, activities, obe, isAdmin = false, practiceModuleMode = false }: Props) {
   const textHistory = useBuilderTextHistory();
   const [localSlides, setLocalSlides] = useState(slides);
   const [selectedSlideId, setSelectedSlideId] = useState(() => {
@@ -916,7 +916,7 @@ export function LessonBuilderWorkspace({ lesson, slides, trashedSlides = [], blo
               </div>
               <button type="button" onClick={() => setIsMetadataOpen(false)} className="rounded-md border border-[var(--br-border)] p-2 hover:bg-black/5"><X size={18} /></button>
             </div>
-            <MetadataForm lesson={lesson} obe={obe} />
+            <MetadataForm lesson={lesson} obe={obe} practiceModuleMode={practiceModuleMode} />
           </div>
         </BuilderModalLayer>
       )}
@@ -926,7 +926,7 @@ export function LessonBuilderWorkspace({ lesson, slides, trashedSlides = [], blo
         <div className="flex min-w-0 flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div className="min-w-0">
           <nav className="flex min-w-0 items-center gap-1.5 overflow-hidden text-xs text-white/55">
-            <Link href="/admin/courses" className="hover:text-[var(--br-text-muted)]">Courses</Link>
+            <Link href={practiceModuleMode ? "/admin/activities" : "/admin/courses"} className="hover:text-[var(--br-text-muted)]">{practiceModuleMode ? "Practice Modules" : "Courses"}</Link>
             {(() => {
               const placement = obe?.placements?.[0];
               if (!placement) return null;
@@ -957,11 +957,11 @@ export function LessonBuilderWorkspace({ lesson, slides, trashedSlides = [], blo
           <a href={`/admin/lessons/${lesson.id}/print`} target="_blank" rel="noopener noreferrer" className="grid size-9 place-items-center rounded-lg border border-white/15 text-white/80 hover:bg-white/10" title="Print lesson" aria-label="Print lesson">
             <Printer size={16} />
           </a>
-          <form action={updateLessonStatus.bind(null, lesson.id, lesson.status === "PUBLISHED" ? "DRAFT" : "PUBLISHED")} data-busy-message={lesson.status === "PUBLISHED" ? "Unpublishing..." : "Publishing..."}>
+          {!practiceModuleMode ? <form action={updateLessonStatus.bind(null, lesson.id, lesson.status === "PUBLISHED" ? "DRAFT" : "PUBLISHED")} data-busy-message={lesson.status === "PUBLISHED" ? "Unpublishing..." : "Publishing..."}>
             <button className={`inline-flex h-9 items-center gap-2 rounded-lg px-3 text-xs font-black ${lesson.status === "PUBLISHED" ? "border border-white/15 text-white/80 hover:bg-white/10" : "bg-[var(--br-brand)] text-on-dark"}`}>
               {lesson.status === "PUBLISHED" ? "Unpublish" : "Publish lesson"}
             </button>
-          </form>
+          </form> : null}
           <button type="button" onClick={() => setIsMetadataOpen(true)} className="grid size-9 place-items-center rounded-lg border border-white/15 text-white/80 hover:bg-white/10" title="Lesson settings">
             <Settings size={16} />
           </button>
@@ -980,32 +980,32 @@ export function LessonBuilderWorkspace({ lesson, slides, trashedSlides = [], blo
           <div className="flex items-center justify-between gap-2 border-b border-[var(--br-border)] p-3">
             <div><p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--br-text-muted)]">Slides</p><p className="mt-0.5 text-xs font-bold text-ink">{localSlides.length} in lesson</p></div>
             <div className="flex items-center gap-1.5">
-              <button type="button" onClick={() => setIsSlideTrashOpen(true)} className="relative grid size-8 place-items-center rounded-lg border border-[var(--br-border)] text-[var(--br-text-muted)] hover:bg-[var(--br-surface-muted)]" aria-label="Open slide trash" title="Slide trash">
+              {!practiceModuleMode ? <button type="button" onClick={() => setIsSlideTrashOpen(true)} className="relative grid size-8 place-items-center rounded-lg border border-[var(--br-border)] text-[var(--br-text-muted)] hover:bg-[var(--br-surface-muted)]" aria-label="Open slide trash" title="Slide trash">
                 <Trash2 size={14} />
                 {trashedSlides.length ? <span className="absolute -right-1.5 -top-1.5 grid min-h-4 min-w-4 place-items-center rounded-full bg-[var(--br-danger)] px-1 text-[9px] font-black text-on-dark">{trashedSlides.length}</span> : null}
-              </button>
-              <button type="button" onClick={() => setAddAfter(selectedSlide?.slide_number ?? localSlides.length)} className="grid size-8 place-items-center rounded-lg bg-[var(--br-brand)] text-on-dark" aria-label="Add slide"><Plus size={15} /></button>
+              </button> : null}
+              {!practiceModuleMode ? <button type="button" onClick={() => setAddAfter(selectedSlide?.slide_number ?? localSlides.length)} className="grid size-8 place-items-center rounded-lg bg-[var(--br-brand)] text-on-dark" aria-label="Add slide"><Plus size={15} /></button> : null}
             </div>
           </div>
           <div ref={timelineRef} className="flex touch-pan-x gap-2 overflow-x-auto p-3 2xl:flex-1 2xl:flex-col 2xl:overflow-y-auto 2xl:overflow-x-hidden">
-            <button type="button" onClick={() => setAddAfter(0)} className="hidden w-full shrink-0 items-center justify-center gap-2 rounded-lg border border-dashed border-[var(--br-border)] px-2 py-2 text-[10px] font-black text-[var(--br-text-muted)] hover:border-[var(--br-brand)] hover:text-[var(--br-brand)] 2xl:flex"><Plus size={12} /> Add at beginning</button>
-            {localSlides.map((slide, index) => { const blockCount = blocksBySlide.get(slide.id)?.length ?? 0; const activityCount = activities.filter((activity) => activity.slide_id === slide.id).length; return <div key={slide.id} ref={slide.id === selectedSlide?.id ? selectedTimelineItemRef : null} className="flex shrink-0 items-center gap-1 2xl:w-full 2xl:flex-col"><button type="button" draggable onDragStart={() => setDraggedSlideId(slide.id)} onDragOver={(event) => event.preventDefault()} onDrop={() => reorderSlideCards(slide.id)} onDragEnd={() => setDraggedSlideId(null)} onClick={() => selectSlide(slide.id)} className={`group w-48 min-w-0 rounded-xl border p-2.5 text-left transition 2xl:w-full ${slide.id === selectedSlide?.id ? "border-[var(--br-brand)] bg-[var(--br-brand-soft)] shadow-sm" : "border-[var(--br-border)] hover:border-[var(--br-brand)]/30"}`}><div className="flex items-center gap-2"><GripVertical size={13} className="shrink-0 cursor-grab text-[var(--br-text-muted)]" /><span className={`grid size-6 shrink-0 place-items-center rounded-md text-[10px] font-black ${slide.id === selectedSlide?.id ? "bg-[var(--br-brand)] text-on-dark" : "bg-[var(--br-surface-muted)] text-[var(--br-text-muted)]"}`}>{index + 1}</span><span className="min-w-0 flex-1 truncate text-xs font-black text-ink">{slide.title}</span></div><div className="mt-2 flex items-center gap-2 pl-5 text-[9px] font-bold text-[var(--br-text-muted)]"><span className="inline-flex items-center gap-1"><span className={`size-1.5 rounded-full ${blockCount ? "bg-[var(--br-brand)]" : "bg-[var(--br-border)]"}`} /> Learn {blockCount || ""}</span><span className="inline-flex items-center gap-1"><span className={`size-1.5 rounded-full ${activityCount ? "bg-[var(--br-success)]" : "bg-[var(--br-border)]"}`} /> Practice {activityCount || ""}</span></div></button><button type="button" onClick={() => setAddAfter(slide.slide_number)} className="grid size-6 shrink-0 place-items-center rounded-full border border-dashed border-[var(--br-border)] text-[var(--br-text-muted)] hover:border-[var(--br-brand)] hover:text-[var(--br-brand)] 2xl:-my-1" aria-label={`Add slide after ${index + 1}`}><Plus size={11} /></button></div>; })}
-            {!localSlides.length ? <button type="button" onClick={() => setAddAfter(0)} className="inline-flex items-center gap-2 rounded-lg border border-dashed border-[var(--br-border)] px-4 py-3 text-sm text-[var(--br-text-muted)]"><Plus size={15} /> Add first slide</button> : null}
+            {!practiceModuleMode ? <button type="button" onClick={() => setAddAfter(0)} className="hidden w-full shrink-0 items-center justify-center gap-2 rounded-lg border border-dashed border-[var(--br-border)] px-2 py-2 text-[10px] font-black text-[var(--br-text-muted)] hover:border-[var(--br-brand)] hover:text-[var(--br-brand)] 2xl:flex"><Plus size={12} /> Add at beginning</button> : null}
+            {localSlides.map((slide, index) => { const blockCount = blocksBySlide.get(slide.id)?.length ?? 0; const activityCount = activities.filter((activity) => activity.slide_id === slide.id).length; return <div key={slide.id} ref={slide.id === selectedSlide?.id ? selectedTimelineItemRef : null} className="flex shrink-0 items-center gap-1 2xl:w-full 2xl:flex-col"><button type="button" draggable onDragStart={() => setDraggedSlideId(slide.id)} onDragOver={(event) => event.preventDefault()} onDrop={() => reorderSlideCards(slide.id)} onDragEnd={() => setDraggedSlideId(null)} onClick={() => selectSlide(slide.id)} className={`group w-48 min-w-0 rounded-xl border p-2.5 text-left transition 2xl:w-full ${slide.id === selectedSlide?.id ? "border-[var(--br-brand)] bg-[var(--br-brand-soft)] shadow-sm" : "border-[var(--br-border)] hover:border-[var(--br-brand)]/30"}`}><div className="flex items-center gap-2"><GripVertical size={13} className="shrink-0 cursor-grab text-[var(--br-text-muted)]" /><span className={`grid size-6 shrink-0 place-items-center rounded-md text-[10px] font-black ${slide.id === selectedSlide?.id ? "bg-[var(--br-brand)] text-on-dark" : "bg-[var(--br-surface-muted)] text-[var(--br-text-muted)]"}`}>{index + 1}</span><span className="min-w-0 flex-1 truncate text-xs font-black text-ink">{slide.title}</span></div><div className="mt-2 flex items-center gap-2 pl-5 text-[9px] font-bold text-[var(--br-text-muted)]"><span className="inline-flex items-center gap-1"><span className={`size-1.5 rounded-full ${blockCount ? "bg-[var(--br-brand)]" : "bg-[var(--br-border)]"}`} /> Learn {blockCount || ""}</span><span className="inline-flex items-center gap-1"><span className={`size-1.5 rounded-full ${activityCount ? "bg-[var(--br-success)]" : "bg-[var(--br-border)]"}`} /> Practice {activityCount || ""}</span></div></button>{!practiceModuleMode ? <button type="button" onClick={() => setAddAfter(slide.slide_number)} className="grid size-6 shrink-0 place-items-center rounded-full border border-dashed border-[var(--br-border)] text-[var(--br-text-muted)] hover:border-[var(--br-brand)] hover:text-[var(--br-brand)] 2xl:-my-1" aria-label={`Add slide after ${index + 1}`}><Plus size={11} /></button> : null}</div>; })}
+            {!practiceModuleMode && !localSlides.length ? <button type="button" onClick={() => setAddAfter(0)} className="inline-flex items-center gap-2 rounded-lg border border-dashed border-[var(--br-border)] px-4 py-3 text-sm text-[var(--br-text-muted)]"><Plus size={15} /> Add first slide</button> : null}
           </div>
-          <button type="button" onClick={() => setIsSlideTrashOpen(true)} className="hidden items-center justify-between border-t border-[var(--br-border)] p-3 text-xs font-bold text-[var(--br-text-muted)] hover:bg-[var(--br-surface-muted)] 2xl:flex"><span className="inline-flex items-center gap-2"><Trash2 size={14} /> Slide trash</span>{trashedSlides.length ? <span className="rounded-full bg-[var(--br-surface-muted)] px-2 py-0.5 text-[10px]">{trashedSlides.length}</span> : null}</button>
+          {!practiceModuleMode ? <button type="button" onClick={() => setIsSlideTrashOpen(true)} className="hidden items-center justify-between border-t border-[var(--br-border)] p-3 text-xs font-bold text-[var(--br-text-muted)] hover:bg-[var(--br-surface-muted)] 2xl:flex"><span className="inline-flex items-center gap-2"><Trash2 size={14} /> Slide trash</span>{trashedSlides.length ? <span className="rounded-full bg-[var(--br-surface-muted)] px-2 py-0.5 text-[10px]">{trashedSlides.length}</span> : null}</button> : null}
         </aside>
 
         <section className="min-w-0 rounded-xl border border-[var(--br-border)] bg-surface p-2.5 shadow-sm sm:p-4">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[var(--br-brand)]">Learner preview</p>
-              <h2 className="mt-1 text-sm font-black text-ink">{selectedSlide ? `Slide ${selectedIndex + 1} of ${localSlides.length}` : "No slide selected"}</h2>
+              <h2 className="mt-1 text-sm font-black text-ink">{selectedSlide ? practiceModuleMode ? "One-slide module" : `Slide ${selectedIndex + 1} of ${localSlides.length}` : "No slide selected"}</h2>
             </div>
             <div className="flex flex-wrap items-center justify-end gap-2">
               <PreviewDeviceControl value={previewDevice} onChange={setPreviewDevice} />
-              <button type="button" onClick={() => selectRelative(-1)} disabled={selectedIndex <= 0} className="rounded-md border border-[var(--br-border)] p-2 hover:bg-black/5 disabled:opacity-35"><ArrowLeft size={16} /></button>
+              {!practiceModuleMode ? <><button type="button" onClick={() => selectRelative(-1)} disabled={selectedIndex <= 0} className="rounded-md border border-[var(--br-border)] p-2 hover:bg-black/5 disabled:opacity-35"><ArrowLeft size={16} /></button>
               <span className="min-w-16 text-center text-sm text-[var(--br-text-muted)]">{selectedSlide ? `${selectedIndex + 1} / ${localSlides.length}` : "0 / 0"}</span>
-              <button type="button" onClick={() => selectRelative(1)} disabled={selectedIndex < 0 || selectedIndex >= localSlides.length - 1} className="rounded-md border border-[var(--br-border)] p-2 hover:bg-black/5 disabled:opacity-35"><ArrowRight size={16} /></button>
+              <button type="button" onClick={() => selectRelative(1)} disabled={selectedIndex < 0 || selectedIndex >= localSlides.length - 1} className="rounded-md border border-[var(--br-border)] p-2 hover:bg-black/5 disabled:opacity-35"><ArrowRight size={16} /></button></> : null}
             </div>
           </div>
           <BuilderDevicePreviewFrame device={previewDevice} title={`${previewDevice.toLowerCase()} preview of ${selectedSlide?.title ?? lesson.title}`}>
@@ -1047,6 +1047,7 @@ export function LessonBuilderWorkspace({ lesson, slides, trashedSlides = [], blo
               obe={obe}
               mode={builderMode}
               onModeChange={setBuilderMode}
+              practiceModuleMode={practiceModuleMode}
             />
           ) : (
             <div className="rounded-lg border border-dashed border-[var(--br-border)] p-8 text-center text-sm text-[var(--br-text-muted)]">Select or add a slide to edit.</div>
@@ -1057,10 +1058,10 @@ export function LessonBuilderWorkspace({ lesson, slides, trashedSlides = [], blo
   );
 }
 
-function MetadataForm({ lesson, obe }: { lesson: Lesson; obe?: ObeData }) {
+function MetadataForm({ lesson, obe, practiceModuleMode = false }: { lesson: Lesson; obe?: ObeData; practiceModuleMode?: boolean }) {
   return (
     <>
-      <form action={updateLessonBuilderDetails.bind(null, lesson.id)} data-busy-message="Saving lesson settings..." className="mt-5 grid gap-4">
+      {!practiceModuleMode ? <form action={updateLessonBuilderDetails.bind(null, lesson.id)} data-busy-message="Saving lesson settings..." className="mt-5 grid gap-4">
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="text-sm">Title<input name="title" defaultValue={lesson.title} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
           <label className="text-sm">Subtitle<input name="subtitle" defaultValue={lesson.subtitle ?? ""} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
@@ -1073,7 +1074,7 @@ function MetadataForm({ lesson, obe }: { lesson: Lesson; obe?: ObeData }) {
           <label className="text-sm">Attempt timer (minutes)<input name="timerMinutes" type="number" min="1" defaultValue={lesson.timer_minutes ?? ""} placeholder="Untimed" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
         </div>
         <SubmitButton label="Save settings" />
-      </form>
+      </form> : <p className="mt-4 text-sm text-[var(--br-text-muted)]">Set module details above. Use this panel to define learner outcomes for the module.</p>}
       {obe ? (
         <LessonOutcomeManager
           lessonId={lesson.id}
@@ -1083,6 +1084,7 @@ function MetadataForm({ lesson, obe }: { lesson: Lesson; obe?: ObeData }) {
           placements={obe.placements}
           courseOutcomes={obe.courseOutcomes}
           mappings={obe.outcomeMappings}
+          hideCoursePlacements={practiceModuleMode}
         />
       ) : null}
     </>
@@ -1223,7 +1225,7 @@ function ActivityPickerModal({ lessonId, slide, onClose, onOpenBank, onOpenAi }:
 }
 
 function SelectedSlideEditor({
-  lessonId, slide, slideIndex, slideCount, slides, blocks, activities, slideActivities, onDuplicateSlide, onMoveSlide, onDeleteSlide, obe, mode, onModeChange
+  lessonId, slide, slideIndex, slideCount, slides, blocks, activities, slideActivities, onDuplicateSlide, onMoveSlide, onDeleteSlide, obe, mode, onModeChange, practiceModuleMode = false
 }: {
   lessonId: string; slide: Slide; slideIndex: number; slideCount: number; slides: Slide[];
   blocks: LessonBlock[]; activities: Activity[]; slideActivities: Activity[];
@@ -1233,6 +1235,7 @@ function SelectedSlideEditor({
   obe?: ObeData;
   mode: BuilderMode;
   onModeChange: (mode: BuilderMode) => void;
+  practiceModuleMode?: boolean;
 }) {
   const [openBlockId, setOpenBlockId] = useState<string | null>(null);
   const [isActivityBankOpen, setIsActivityBankOpen] = useState(false);
@@ -1284,7 +1287,7 @@ function SelectedSlideEditor({
           <div className="rounded-xl border border-[var(--br-border)] p-3"><p className="text-xs font-black text-ink">Learner opens</p><div className="mt-2 grid grid-cols-2 gap-2"><label className="cursor-pointer rounded-lg border border-[var(--br-border)] px-3 py-2 text-center text-xs font-black has-[:checked]:border-[var(--br-brand)] has-[:checked]:bg-[var(--br-brand-soft)] has-[:checked]:text-[var(--br-brand)]"><input type="radio" name="contentOrder" value="LEARN_FIRST" defaultChecked={(slide.content_order ?? "LEARN_FIRST") === "LEARN_FIRST"} className="sr-only" />Learn first</label><label className="cursor-pointer rounded-lg border border-[var(--br-border)] px-3 py-2 text-center text-xs font-black has-[:checked]:border-[var(--br-chart-secondary)] has-[:checked]:bg-[var(--br-success-soft)] has-[:checked]:text-[var(--br-chart-secondary)]"><input type="radio" name="contentOrder" value="PRACTICE_FIRST" defaultChecked={slide.content_order === "PRACTICE_FIRST"} className="sr-only" />Practice first</label></div><label className="mt-3 flex cursor-pointer items-center justify-between gap-3 text-xs font-bold text-[var(--br-text-muted)]"><span>Require Practice before Learn</span><input type="checkbox" name="requirePracticeBeforeLearn" defaultChecked={Boolean(slide.require_practice_before_learn)} className="peer sr-only" /><span className="relative h-5 w-9 shrink-0 rounded-full bg-black/15 transition peer-checked:bg-[var(--br-brand)] after:absolute after:left-0.5 after:top-0.5 after:size-4 after:rounded-full after:bg-surface after:transition peer-checked:after:translate-x-4" /></label></div>
           <SubmitButton label="Save slide" />
         </form>
-        <div className="mt-4 border-t border-[var(--br-border)] pt-4"><p className="text-xs font-black text-ink">Position and actions</p><div className="mt-3 flex flex-wrap gap-2"><button type="button" onClick={() => onMoveSlide(slide.id, -1)} disabled={slideIndex === 0} className="grid size-9 place-items-center rounded-lg border border-[var(--br-border)] disabled:opacity-35" aria-label="Move slide up"><ArrowUp size={15} /></button><button type="button" onClick={() => onMoveSlide(slide.id, 1)} disabled={slideIndex === slideCount - 1} className="grid size-9 place-items-center rounded-lg border border-[var(--br-border)] disabled:opacity-35" aria-label="Move slide down"><ArrowDown size={15} /></button><form action={moveBuilderSlideToPosition.bind(null, lessonId, slide.id)} data-busy-message="Moving slide..." className="flex min-w-0 flex-1 gap-2"><select name="position" defaultValue={slideIndex + 1} className="min-w-0 flex-1 rounded-lg border border-[var(--br-border)] bg-surface px-2 text-xs">{Array.from({ length: slideCount }, (_, index) => <option key={index + 1} value={index + 1}>Move to slide {index + 1}</option>)}</select><button className="rounded-lg border border-[var(--br-border)] px-3 text-xs font-black">Go</button></form><button type="button" onClick={() => onDuplicateSlide(slide)} className="grid size-9 place-items-center rounded-lg border border-[var(--br-border)]" aria-label="Duplicate slide"><Copy size={15} /></button><button type="button" onClick={() => onDeleteSlide(slide.id)} className="grid size-9 place-items-center rounded-lg border border-[var(--br-danger)]/25 text-[var(--br-danger)]" aria-label="Delete slide"><Trash2 size={15} /></button></div></div>
+        {!practiceModuleMode ? <div className="mt-4 border-t border-[var(--br-border)] pt-4"><p className="text-xs font-black text-ink">Position and actions</p><div className="mt-3 flex flex-wrap gap-2"><button type="button" onClick={() => onMoveSlide(slide.id, -1)} disabled={slideIndex === 0} className="grid size-9 place-items-center rounded-lg border border-[var(--br-border)] disabled:opacity-35" aria-label="Move slide up"><ArrowUp size={15} /></button><button type="button" onClick={() => onMoveSlide(slide.id, 1)} disabled={slideIndex === slideCount - 1} className="grid size-9 place-items-center rounded-lg border border-[var(--br-border)] disabled:opacity-35" aria-label="Move slide down"><ArrowDown size={15} /></button><form action={moveBuilderSlideToPosition.bind(null, lessonId, slide.id)} data-busy-message="Moving slide..." className="flex min-w-0 flex-1 gap-2"><select name="position" defaultValue={slideIndex + 1} className="min-w-0 flex-1 rounded-lg border border-[var(--br-border)] bg-surface px-2 text-xs">{Array.from({ length: slideCount }, (_, index) => <option key={index + 1} value={index + 1}>Move to slide {index + 1}</option>)}</select><button className="rounded-lg border border-[var(--br-border)] px-3 text-xs font-black">Go</button></form><button type="button" onClick={() => onDuplicateSlide(slide)} className="grid size-9 place-items-center rounded-lg border border-[var(--br-border)]" aria-label="Duplicate slide"><Copy size={15} /></button><button type="button" onClick={() => onDeleteSlide(slide.id)} className="grid size-9 place-items-center rounded-lg border border-[var(--br-danger)]/25 text-[var(--br-danger)]" aria-label="Delete slide"><Trash2 size={15} /></button></div></div> : null}
       </section> : null}
 
       {mode === "LEARN" ? <section className="mt-4 min-w-0">

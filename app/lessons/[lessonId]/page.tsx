@@ -5,6 +5,7 @@ import { BuilderLessonPlayer } from "@/components/BuilderLessonPlayer";
 import { LearnerAppShell } from "@/components/LearnerAppShell";
 import { resolveMediaUrl } from "@/lib/storage/mediaStorage";
 import type { Json } from "@/types/database.types";
+import { hasPracticeLibraryAccess } from "@/lib/practiceAccess";
 
 // Server Actions on this page can perform local assessment-critical grading.
 export const maxDuration = 120;
@@ -24,6 +25,11 @@ export default async function LessonPage({
   if (!user) redirect(`/login?next=${encodeURIComponent(`/lessons/${lessonId}`)}`);
 
   const admin = createAdminClient();
+  const { data: practiceModule } = await (admin as any).from("practice_modules").select("id,title,status,access_type").eq("lesson_id", lessonId).maybeSingle();
+  if (practiceModule) {
+    if (practiceModule.status !== "PUBLISHED") notFound();
+    if (practiceModule.access_type === "PREMIUM" && !(await hasPracticeLibraryAccess(user.id))) redirect("/activities/subscribe");
+  }
 
   // Lessons that belong to a course must be opened in a verified course
   // context. This prevents a direct lesson URL from bypassing paid enrollment
@@ -270,7 +276,13 @@ export default async function LessonPage({
       showRightSidebar={false}
       showFooter={false}
       breadcrumbs={
-        courseId && courseTitle
+        practiceModule
+          ? [
+              { label: "Home", href: "/account" },
+              { label: "Practice Library", href: "/activities" },
+              { label: practiceModule.title },
+            ]
+          : courseId && courseTitle
           ? [
               { label: "Home", href: "/account" },
               { label: "Courses", href: "/courses" },
@@ -295,7 +307,8 @@ export default async function LessonPage({
         narrationMap={narrationMap}
         narrationConfigMap={narrationConfigMap}
         courseItemId={courseItem}
-        backHref={courseId ? `/courses/${courseId}` : "/courses"}
+        backHref={practiceModule ? "/activities" : courseId ? `/courses/${courseId}` : "/courses"}
+        practiceModuleMode={Boolean(practiceModule)}
         startInReviewMode={review === "1"}
         initialSlideNumber={slide ? Number(slide) : undefined}
         initialTab={tab === "practice" ? "practice" : tab === "learn" ? "learn" : undefined}

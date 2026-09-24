@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { callGemini } from "@/lib/ai/gemini";
 import { recordQuizAttempt } from "@/app/quizzes/actions";
+import { userCanOpenLesson } from "@/lib/practiceAccess";
 
 // 1. Zod schemas for structured responses from Gemini
 import { z } from "zod";
@@ -369,11 +370,12 @@ export async function startRoleplaySessionAction(activityId: string, includeOpen
     // Fetch the roleplay activity details to capture context
     const { data: activity } = await supabase
       .from("lesson_slide_activities")
-      .select("activity_data, lessons(level)")
+      .select("activity_data, lesson_id, lessons(level)")
       .eq("id", activityId)
       .single();
 
     if (!activity) throw new Error("AI Roleplay activity not found.");
+    if (!(await userCanOpenLesson(user.id, activity.lesson_id))) throw new Error("This activity is not available.");
 
     const data = activity.activity_data as any;
     await supabase.from("ai_roleplay_sessions").update({ status: "ABANDONED" }).eq("user_id", user.id).eq("status", "IN_PROGRESS").lt("updated_at", new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString());
@@ -431,8 +433,10 @@ export async function startRoleplaySessionAction(activityId: string, includeOpen
 export async function saveRoleplayVoiceTranscriptAction(sessionId: string, turns: Array<{ sender: "AI" | "LEARNER"; text: string }>) {
   const { user } = await getSessionUser();
   const supabase = createAdminClient();
-  const { data: session } = await supabase.from("ai_roleplay_sessions").select("id,user_id,status").eq("id", sessionId).eq("user_id", user.id).maybeSingle();
+  const { data: session } = await supabase.from("ai_roleplay_sessions").select("id,user_id,status,lesson_activity_id").eq("id", sessionId).eq("user_id", user.id).maybeSingle();
   if (!session) return { error: "Conversation session not found." };
+  const { data: activity } = await supabase.from("lesson_slide_activities").select("lesson_id").eq("id", session.lesson_activity_id).maybeSingle();
+  if (!activity || !(await userCanOpenLesson(user.id, activity.lesson_id))) return { error: "This activity is not available." };
   const rows = turns.map((turn) => ({ session_id: sessionId, sender: turn.sender, message_text: turn.text.trim() })).filter((turn) => turn.message_text);
   if (rows.length) {
     const { error } = await supabase.from("ai_roleplay_messages").insert(rows);
@@ -447,7 +451,8 @@ export async function saveRoleplayVoiceTranscriptAction(sessionId: string, turns
 export async function getRoleplayHistoryAction(activityId: string) {
   const { user } = await getSessionUser();
   const supabase = createAdminClient();
-  const { data: activity } = await supabase.from("lesson_slide_activities").select("activity_data").eq("id", activityId).maybeSingle();
+  const { data: activity } = await supabase.from("lesson_slide_activities").select("activity_data,lesson_id").eq("id", activityId).maybeSingle();
+  if (!activity || !(await userCanOpenLesson(user.id, activity.lesson_id))) return { sessions: [], attemptQuota: 0, attemptsUsed: 0, quotaReached: false };
   const attemptQuota = Math.max(0, Math.min(1000, Number((activity?.activity_data as any)?.attempt_quota) || 0));
   const { data, error } = await supabase.from("ai_roleplay_sessions")
     .select("id,scorecard,created_at,updated_at,status")
@@ -474,13 +479,15 @@ export async function submitRoleplayTurnAction(sessionId: string, learnerText: s
     // A. Fetch session and message history
     const { data: session } = await supabase
       .from("ai_roleplay_sessions")
-      .select("scenario_context, cefr_level")
+      .select("scenario_context, cefr_level, lesson_activity_id")
       .eq("id", sessionId)
       .eq("user_id", user.id)
       .eq("status", "IN_PROGRESS")
       .single();
 
     if (!session) throw new Error("Conversation session not found.");
+    const { data: activity } = await supabase.from("lesson_slide_activities").select("lesson_id").eq("id", session.lesson_activity_id).maybeSingle();
+    if (!activity || !(await userCanOpenLesson(user.id, activity.lesson_id))) throw new Error("This activity is not available.");
 
     const { data: history } = await supabase
       .from("ai_roleplay_messages")
@@ -559,6 +566,8 @@ export async function completeRoleplaySessionAction(sessionId: string) {
       .single();
 
     if (!session) throw new Error("Conversation session not found.");
+    const { data: activity } = await supabase.from("lesson_slide_activities").select("lesson_id").eq("id", session.lesson_activity_id).maybeSingle();
+    if (!activity || !(await userCanOpenLesson(user.id, activity.lesson_id))) throw new Error("This activity is not available.");
 
     const { data: history } = await supabase
       .from("ai_roleplay_messages")
@@ -826,8 +835,10 @@ export async function getRoleplaySessionMessagesAction(sessionId: string) {
   try {
     const { user } = await getSessionUser();
     const supabase = createAdminClient();
-    const { data: ownerSession } = await supabase.from("ai_roleplay_sessions").select("id,user_id").eq("id", sessionId).eq("user_id", user.id).maybeSingle();
+    const { data: ownerSession } = await supabase.from("ai_roleplay_sessions").select("id,user_id,lesson_activity_id").eq("id", sessionId).eq("user_id", user.id).maybeSingle();
     if (!ownerSession) return { messages: [] };
+    const { data: activity } = await supabase.from("lesson_slide_activities").select("lesson_id").eq("id", ownerSession.lesson_activity_id).maybeSingle();
+    if (!activity || !(await userCanOpenLesson(user.id, activity.lesson_id))) return { messages: [] };
     const { data: messages } = await supabase
       .from("ai_roleplay_messages")
       .select("sender, message_text, corrections")

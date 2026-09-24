@@ -200,9 +200,9 @@ export async function submitCourseOrder(
     const { user } = await requireUser();
     const admin = createAdminClient();
 
-    const { data: course } = await admin
+    const { data: course } = await (admin as any)
       .from("courses")
-      .select("id,status,price_bdt")
+      .select("id,status,price_bdt,offer_practice_addon")
       .eq("id", courseId)
       .eq("status", "PUBLISHED")
       .is("deleted_at", null)
@@ -210,6 +210,15 @@ export async function submitCourseOrder(
 
     if (!course || course.price_bdt === null || course.price_bdt <= 0) {
       return { success: false, error: "This course is not available for purchase." };
+    }
+
+    const wantsPracticeAddon = formData.get("practiceAddon") === "true";
+    let practiceAddonAmount = 0;
+    if (wantsPracticeAddon) {
+      if (!course.offer_practice_addon) return { success: false, error: "The Practice Library add-on is not offered with this course." };
+      const { data: billing } = await (admin as any).from("practice_billing_settings").select("addon_price_bdt").eq("id", true).maybeSingle();
+      if (billing?.addon_price_bdt == null || billing.addon_price_bdt <= 0) return { success: false, error: "The Practice Library add-on is not available for purchase yet." };
+      practiceAddonAmount = billing.addon_price_bdt;
     }
 
     const paymentMethod = formData.get("paymentMethod") as "BKASH" | "NAGAD" | "BANK_TRANSFER" | "OTHER";
@@ -282,7 +291,9 @@ export async function submitCourseOrder(
     const { error } = await admin.from("course_orders").insert({
       user_id: user.id,
       course_id: courseId,
-      amount_bdt: course.price_bdt,
+      amount_bdt: course.price_bdt + practiceAddonAmount,
+      practice_addon: wantsPracticeAddon,
+      practice_addon_amount_bdt: practiceAddonAmount,
       payment_method: paymentMethod,
       transaction_id: transactionId,
       sender_number: senderNumber,

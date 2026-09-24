@@ -26,24 +26,27 @@ export default async function AdminLessonsPage({
     trashedQuery = trashedQuery.eq("created_by", user.id);
   }
 
-  const [{ data: allLessons }, { count: trashedCount }] = await Promise.all([
+  const [{ data: allLessons }, { count: trashedCount }, { data: practiceModules }] = await Promise.all([
     lessonsQuery,
     trashedQuery,
+    (supabase as any).from("practice_modules").select("lesson_id"),
   ]);
+  const practiceLessonIds = new Set((practiceModules ?? []).map((module: { lesson_id: string | null }) => module.lesson_id).filter(Boolean));
+  const regularLessons = (allLessons ?? []).filter((lesson) => !practiceLessonIds.has(lesson.id));
 
   const value = (key: string) => (typeof params[key] === "string" ? (params[key] as string) : "");
   const q = value("q").trim().toLowerCase();
 
-  const lessons = (allLessons ?? []).filter((lesson) =>
+  const lessons = regularLessons.filter((lesson) =>
     (!value("status") || lesson.status === value("status"))
     && (!value("level") || lesson.level === value("level"))
     && (!value("topic") || lesson.topic === value("topic"))
     && (!q || lesson.title?.toLowerCase().includes(q))
   );
 
-  const statuses = unique((allLessons ?? []).map((lesson) => lesson.status));
-  const levels = unique((allLessons ?? []).map((lesson) => lesson.level));
-  const topics = unique((allLessons ?? []).map((lesson) => lesson.topic));
+  const statuses = unique(regularLessons.map((lesson) => lesson.status));
+  const levels = unique(regularLessons.map((lesson) => lesson.level));
+  const topics = unique(regularLessons.map((lesson) => lesson.topic));
   const hasActiveFilters = Boolean(value("status") || value("level") || value("topic") || q);
 
   return (
@@ -77,7 +80,7 @@ export default async function AdminLessonsPage({
             <Filter size={16} /> Filters
           </div>
           <span className="text-xs font-medium text-[var(--br-text-muted)]">
-            {lessons.length} of {(allLessons ?? []).length} lesson{(allLessons ?? []).length === 1 ? "" : "s"}
+            {lessons.length} of {regularLessons.length} lesson{regularLessons.length === 1 ? "" : "s"}
           </span>
         </div>
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">

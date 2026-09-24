@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { settleAiCredits } from "@/lib/ai/efficiency";
+import { userCanOpenLesson } from "@/lib/practiceAccess";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -20,6 +21,7 @@ export async function POST(request: Request) {
     .eq("lesson_id", body.lessonId)
     .maybeSingle();
   if (!activity || activity.activity_type !== "LIVE_SPEAK_TRANSLATE") return NextResponse.json({ error: "Activity is unavailable." }, { status: 404 });
+  if (!(await userCanOpenLesson(user.id, body.lessonId))) return NextResponse.json({ error: "This activity is not available." }, { status: 403 });
 
   const { error } = await admin.from("live_translation_usage").insert({
     user_id: user.id,

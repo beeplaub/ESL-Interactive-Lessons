@@ -78,7 +78,7 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
   const { user, profile, courseAccess } = await requireCourseAccess(id);
   const admin = createAdminClient();
 
-  let lessonsPickerQuery = admin.from("lessons").select("id,title,level,topic,status").is("deleted_at", null).order("created_at", { ascending: false });
+  let lessonsPickerQuery = (admin as any).from("lessons").select("id,title,level,topic,status").is("deleted_at", null).is("practice_module_id", null).order("created_at", { ascending: false });
   let quizzesPickerQuery = admin.from("quizzes").select("id,title,level,topic,status").is("deleted_at", null).is("course_id", null).order("created_at", { ascending: false });
   if (!isPlatformAdmin(profile?.role)) {
     // Teachers can only attach their own lessons — never another teacher's
@@ -530,6 +530,10 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
                 Payment Instructions (displayed to buyers)
                 <textarea name="paymentInstructions" defaultValue={course.payment_instructions ?? ""} rows={6} placeholder="Send Money to:&#10;bKash Personal: 017xxxxxxxx&#10;Nagad Personal: 019xxxxxxxx&#10;Bank Details: Account #xxxxxx" className="mt-1 w-full rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm font-mono" />
               </label>
+              <label className="flex items-start gap-3 rounded-xl border border-[var(--br-border)] p-3 text-sm sm:col-span-2">
+                <input type="checkbox" name="offerPracticeAddon" value="true" defaultChecked={Boolean((course as any).offer_practice_addon)} className="mt-0.5" />
+                <span><span className="block font-semibold">Offer the Premium Practice Library add-on</span><span className="mt-1 block text-xs text-[var(--br-text-muted)]">Course buyers can add the full library to this purchase. Its price is managed in Practice Library billing settings.</span></span>
+              </label>
             </div>
             {/* Hidden fields to preserve other metadata values when saving from this modal */}
             <input type="hidden" name="title" value={course.title} />
@@ -543,6 +547,7 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
             <input type="hidden" name="description" value={course.description ?? ""} />
             <input type="hidden" name="coverImagePath" value={course.cover_image_path ?? ""} />
             <input type="hidden" name="thumbnailPath" value={course.thumbnail_path ?? ""} />
+            <input type="hidden" name="offerPracticeAddon" value="false" />
             
             <button className="w-fit rounded-lg bg-dark px-4 py-2 text-sm font-semibold text-on-dark">Save pricing</button>
           </form>

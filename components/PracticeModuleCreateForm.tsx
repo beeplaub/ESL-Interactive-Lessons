@@ -1,0 +1,16 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import { createPracticeModule } from "@/app/admin/activities/actions";
+
+export function PracticeModuleCreateForm() {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [category, setCategory] = useState("GRAMMAR");
+  const [level, setLevel] = useState("B1");
+  const [accessType, setAccessType] = useState("FREE");
+  const [error, setError] = useState("");
+  const [pending, startTransition] = useTransition();
+  const create = () => startTransition(async () => { try { await createPracticeModule({ title, description, category, level, accessType }); } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not create the module."); } });
+  return <main className="mx-auto max-w-2xl space-y-5"><div><p className="text-xs font-extrabold uppercase tracking-[0.14em] text-[var(--br-brand)]">Practice Library</p><h1 className="mt-1 text-2xl font-extrabold">Create a module</h1><p className="mt-2 text-sm text-[var(--br-text-muted)]">A module uses the same one-slide lesson editor and activity tools as regular lessons.</p></div><section className="grid gap-4 rounded-2xl border border-[var(--br-border)] bg-surface p-5 sm:grid-cols-2"><label className="text-sm font-bold sm:col-span-2">Title<input value={title} onChange={(event) => setTitle(event.target.value)} className="mt-1 w-full rounded-xl border border-[var(--br-border)] px-3 py-2.5 font-normal" /></label><label className="text-sm font-bold sm:col-span-2">Description<textarea value={description} onChange={(event) => setDescription(event.target.value)} rows={2} className="mt-1 w-full rounded-xl border border-[var(--br-border)] px-3 py-2.5 font-normal" /></label><label className="text-sm font-bold">Category<select value={category} onChange={(event) => setCategory(event.target.value)} className="mt-1 w-full rounded-xl border border-[var(--br-border)] px-3 py-2.5 font-normal">{[["GRAMMAR", "Grammar"], ["VOCABULARY", "Vocabulary"], ["READING", "Reading"], ["WRITING", "Writing"], ["LISTENING", "Listening"], ["SPEAKING", "Speaking"]].map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label><label className="text-sm font-bold">CEFR level<select value={level} onChange={(event) => setLevel(event.target.value)} className="mt-1 w-full rounded-xl border border-[var(--br-border)] px-3 py-2.5 font-normal">{["A1", "A2", "B1", "B2", "C1"].map((item) => <option key={item}>{item}</option>)}</select></label><label className="text-sm font-bold sm:col-span-2">Access<select value={accessType} onChange={(event) => setAccessType(event.target.value)} className="mt-1 w-full rounded-xl border border-[var(--br-border)] px-3 py-2.5 font-normal"><option value="FREE">Free · account required</option><option value="PREMIUM">Premium · Practice Library access required</option></select></label>{error ? <p role="alert" className="text-sm font-bold text-rose-700 sm:col-span-2">{error}</p> : null}<button type="button" disabled={pending || !title.trim()} onClick={create} className="w-fit rounded-xl bg-[var(--br-action)] px-4 py-2.5 text-sm font-bold text-on-dark disabled:opacity-50">{pending ? "Creating…" : "Create and open editor"}</button></section></main>;
+}

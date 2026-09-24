@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { userCanOpenLesson } from "@/lib/practiceAccess";
 import { callGemini } from "@/lib/ai/gemini";
 import { generateVoiceoverAudio } from "@/lib/ai/voiceover";
 import { transcribeWithGroq } from "@/lib/ai/speechToText";
@@ -66,6 +67,8 @@ export async function POST(request: Request) {
     ]);
     if (!activity || activity.activity_type !== "AI_ROLEPLAY") throw new Error("This speaking activity is unavailable.");
     if (!session || session.status !== "IN_PROGRESS") throw new Error("This conversation session is no longer active.");
+    const { data: lessonLink } = await admin.from("lesson_slide_activities").select("lesson_id").eq("id", activityId).maybeSingle();
+    if (!lessonLink || !(await userCanOpenLesson(user.id, lessonLink.lesson_id))) throw new Error("This activity is not available.");
     const config = (activity.activity_data || {}) as Record<string, unknown>;
     if (config.voice_enabled !== true || config.voice_mode !== "TURN_BASED") throw new Error("Turn-based speaking is not enabled for this activity.");
 

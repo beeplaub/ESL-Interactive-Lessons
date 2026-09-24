@@ -107,7 +107,7 @@ export async function updateCourseMetadata(courseId: string, formData: FormData)
   const priceVal = formData.get("priceBdt");
   const origPriceVal = formData.get("originalPriceBdt");
 
-  const { error } = await admin
+  const { error } = await (admin as any)
     .from("courses")
     .update({
       title: String(formData.get("title") || "").trim(),
@@ -124,6 +124,7 @@ export async function updateCourseMetadata(courseId: string, formData: FormData)
       price_bdt: priceVal && priceVal !== "" ? Number(priceVal) : null,
       original_price_bdt: origPriceVal && origPriceVal !== "" ? Number(origPriceVal) : null,
       payment_instructions: String(formData.get("paymentInstructions") || "").trim() || null,
+      offer_practice_addon: String(formData.get("offerPracticeAddon") || "") === "true",
       visibility: String(formData.get("visibility") || "PUBLIC") === "PRIVATE" ? "PRIVATE" : "PUBLIC",
       updated_at: new Date().toISOString(),
     })

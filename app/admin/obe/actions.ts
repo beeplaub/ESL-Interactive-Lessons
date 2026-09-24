@@ -159,6 +159,8 @@ export async function placeLessonInCourse(lessonId: string, formData: FormData):
     const requestedPosition = Number(formData.get("position"));
     if (!sectionId) throw new Error("Choose a course and section.");
     const admin = createAdminClient();
+    const { data: moduleLesson } = await (admin as any).from("lessons").select("practice_module_id").eq("id", lessonId).maybeSingle();
+    if (moduleLesson?.practice_module_id) throw new Error("Practice modules cannot be added to courses.");
     const { data: section } = await admin.from("course_sections").select("id,course_id").eq("id", sectionId).maybeSingle();
     if (!section || section.course_id !== courseId) throw new Error("That section does not belong to the selected course.");
     const { data: existing } = await admin

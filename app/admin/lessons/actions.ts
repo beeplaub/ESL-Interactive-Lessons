@@ -1352,6 +1352,8 @@ export async function addBuilderSlideAt(
 ) {
   const { user, profile } = await requireLessonAccess(lessonId);
   const supabase = createAdminClient();
+  const { data: moduleLesson } = await (supabase as any).from("lessons").select("practice_module_id").eq("id", lessonId).maybeSingle();
+  if (moduleLesson?.practice_module_id) throw new Error("Practice modules are limited to one slide.");
 
   const { count: slideCount } = await supabase.from("slides").select("id", { count: "exact", head: true }).eq("lesson_id", lessonId).is("deleted_at", null);
   await assertCreatorWithinLimit(user.id, profile?.role, "SLIDES_PER_LESSON", slideCount ?? 0, "slides in this lesson");
@@ -1416,6 +1418,8 @@ export async function updateBuilderSlide(lessonId: string, slideId: string, form
 export async function duplicateBuilderSlide(lessonId: string, slideId: string, afterSlideNumber?: number) {
   await requireLessonAccess(lessonId);
   const supabase = createAdminClient();
+  const { data: moduleLesson } = await (supabase as any).from("lessons").select("practice_module_id").eq("id", lessonId).maybeSingle();
+  if (moduleLesson?.practice_module_id) throw new Error("Practice modules are limited to one slide.");
   const [{ data: source, error: sourceError }, { data: slides, error: slidesError }] = await Promise.all([
     supabase.from("slides").select("*").eq("id", slideId).eq("lesson_id", lessonId).is("deleted_at", null).single(),
     supabase.from("slides").select("id, slide_number").eq("lesson_id", lessonId).is("deleted_at", null).order("slide_number", { ascending: true })
@@ -1500,6 +1504,8 @@ export async function duplicateBuilderSlide(lessonId: string, slideId: string, a
 export async function deleteBuilderSlide(lessonId: string, slideId: string) {
   const { user } = await requireLessonAccess(lessonId);
   const supabase = createAdminClient();
+  const { data: moduleLesson } = await (supabase as any).from("lessons").select("practice_module_id").eq("id", lessonId).maybeSingle();
+  if (moduleLesson?.practice_module_id) throw new Error("A practice module must keep its one slide.");
   const { data: slide, error: slideError } = await supabase
     .from("slides")
     .select("slide_number")

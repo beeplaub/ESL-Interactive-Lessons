@@ -17,6 +17,7 @@ interface BuyCourseButtonProps {
   priceBdt: number;
   originalPriceBdt?: number | null;
   paymentInstructions?: string | null;
+  practiceAddonPriceBdt?: number | null;
   activeOrder: ActiveOrder;
 }
 
@@ -25,6 +26,7 @@ export function BuyCourseButton({
   priceBdt,
   originalPriceBdt,
   paymentInstructions,
+  practiceAddonPriceBdt = null,
   activeOrder,
 }: BuyCourseButtonProps) {
   const [open, setOpen] = useState(false);
@@ -32,6 +34,7 @@ export function BuyCourseButton({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
+  const [includePracticeAddon, setIncludePracticeAddon] = useState(false);
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   function openModal() {
@@ -57,6 +60,7 @@ export function BuyCourseButton({
   }
 
   const hasDiscount = originalPriceBdt && originalPriceBdt > priceBdt;
+  const totalPriceBdt = priceBdt + (includePracticeAddon && practiceAddonPriceBdt ? practiceAddonPriceBdt : 0);
 
   return (
     <>
@@ -105,7 +109,7 @@ export function BuyCourseButton({
               <div>
                 <p className="text-xs font-bold text-violet-500 uppercase tracking-wider">Amount to Pay</p>
                 <p className="text-xl font-extrabold text-slate-900">
-                  ৳{priceBdt}
+                  ৳{totalPriceBdt}
                   {hasDiscount && (
                     <span className="ml-2 text-sm line-through text-slate-400 font-semibold">
                       ৳{originalPriceBdt}
@@ -114,6 +118,11 @@ export function BuyCourseButton({
                 </p>
               </div>
             </div>
+            {practiceAddonPriceBdt ? <label className="mb-5 flex cursor-pointer items-start gap-3 rounded-xl border border-violet-200 bg-violet-50/60 p-4 text-sm">
+              <input type="checkbox" name="practiceAddon" value="true" checked={includePracticeAddon} onChange={(event) => setIncludePracticeAddon(event.target.checked)} className="mt-0.5" />
+              <span className="flex-1"><span className="block font-extrabold text-slate-900">Add the Premium Practice Library</span><span className="mt-1 block text-xs text-slate-600">Unlock all Premium practice modules with this course purchase.</span></span>
+              <span className="shrink-0 font-extrabold">+৳{practiceAddonPriceBdt}</span>
+            </label> : null}
 
             {/* Rejected order warning */}
             {activeOrder?.status === "REJECTED" && (
@@ -135,7 +144,7 @@ export function BuyCourseButton({
               <div className="rounded-xl border border-violet-100 bg-violet-50/50 p-4">
                 <div className="text-sm font-medium text-violet-900 leading-relaxed whitespace-pre-line bg-white/60 p-3 rounded-lg border border-violet-50">
                   {paymentInstructions ||
-                    `Send BDT ৳${priceBdt} using Send Money to our mobile banking wallets:\n\n- bKash Personal: 017xxxxxxxx\n- Nagad Personal: 019xxxxxxxx\n\nReference: Use course title as reference.`}
+                    `Send BDT ৳${totalPriceBdt} using Send Money to our mobile banking wallets:\n\n- bKash Personal: 017xxxxxxxx\n- Nagad Personal: 019xxxxxxxx\n\nReference: Use course title as reference.`}
                 </div>
               </div>
             </div>

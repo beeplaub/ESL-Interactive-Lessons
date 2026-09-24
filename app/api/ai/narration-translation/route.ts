@@ -5,6 +5,7 @@ import { deleteMediaObject, resolveMediaUrl, uploadMediaObject } from "@/lib/sto
 import { registerMediaAsset } from "@/lib/storage/mediaLibrary";
 import { claimAiGeneration, releaseAiGeneration, settleAiCredits } from "@/lib/ai/efficiency";
 import { optimizeAudioForStorage } from "@/lib/media/audioStorage";
+import { userCanOpenLesson } from "@/lib/practiceAccess";
 
 function targetFor(language: string | null) {
   return language === "bn" ? "en" : "bn";
@@ -49,6 +50,7 @@ export async function GET(request: Request) {
   const lessonId = url.searchParams.get("lessonId");
   const slideId = url.searchParams.get("slideId");
   if (!lessonId || !slideId) return NextResponse.json({ error: "Narration is required." }, { status: 400 });
+  if (!(await userCanOpenLesson(user.id, lessonId))) return NextResponse.json({ error: "This narration is not available." }, { status: 403 });
   const { admin, narration } = await narrationFor(lessonId, slideId);
   if (!narration?.translation_enabled) return NextResponse.json({ error: "Translation is not available for this narration." }, { status: 404 });
   const targetLanguageCode = targetFor(narration.narration_language);
@@ -74,6 +76,7 @@ export async function POST(request: Request) {
   const audio = form.get("audio");
   if (!lessonId || !slideId || !(audio instanceof File) || !audio.size) return NextResponse.json({ error: "Translated audio is required." }, { status: 400 });
   if (audio.size > 25 * 1024 * 1024) return NextResponse.json({ error: "Translated audio is too large." }, { status: 413 });
+  if (!(await userCanOpenLesson(user.id, lessonId))) return NextResponse.json({ error: "This narration is not available." }, { status: 403 });
 
   const { admin, narration, lesson } = await narrationFor(lessonId, slideId);
   if (!narration?.translation_enabled) return NextResponse.json({ error: "Translation is not available for this narration." }, { status: 404 });

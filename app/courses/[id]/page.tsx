@@ -98,6 +98,9 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
   ]);
 
   if (!course) notFound();
+  const practiceAddonPrice = (course as any).offer_practice_addon
+    ? (await (admin as any).from("practice_billing_settings").select("addon_price_bdt").eq("id", true).maybeSingle()).data?.addon_price_bdt ?? null
+    : null;
   const courseInstructorMap = await getCourseInstructorMap([course.id]);
   const courseInstructors = courseInstructorMap.get(course.id);
 
@@ -194,6 +197,7 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
                   priceBdt={course.price_bdt!}
                   originalPriceBdt={course.original_price_bdt}
                   paymentInstructions={course.payment_instructions}
+                  practiceAddonPriceBdt={practiceAddonPrice}
                   activeOrder={activeOrder}
                 />
               ) : (

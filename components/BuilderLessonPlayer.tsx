@@ -279,7 +279,7 @@ function NarrationPill({ src, lessonId, slideId, sourceType = "RECORDED", transl
 }
 
 export function BuilderLessonPlayer({
-  lesson, slides, blocks, activities, initialProgress, activityAttempts = [], initialNotes = {}, narrationMap = {}, narrationConfigMap = {}, courseItemId = null, backHref = "/courses", liveSession = null, startInReviewMode = false, initialSlideNumber, initialTab, focusActivityId = null, classroomId,
+  lesson, slides, blocks, activities, initialProgress, activityAttempts = [], initialNotes = {}, narrationMap = {}, narrationConfigMap = {}, courseItemId = null, backHref = "/courses", liveSession = null, startInReviewMode = false, initialSlideNumber, initialTab, focusActivityId = null, classroomId, practiceModuleMode = false,
 }: {
   lesson: Lesson; slides: Slide[]; blocks: Block[]; activities: Activity[];
   initialProgress: Progress; activityAttempts?: ActivityAttempt[];
@@ -294,6 +294,7 @@ export function BuilderLessonPlayer({
   initialTab?: "learn" | "practice";
   focusActivityId?: string | null;
   classroomId?: string;
+  practiceModuleMode?: boolean;
 }) {
   const resolvedInitialSlideNumber = startInReviewMode ? 1 : initialSlideNumber ?? liveSession?.initialSlideNumber ?? initialProgress?.current_slide_number ?? 1;
   const initialIndex = Math.max(0, Math.min(slides.length - 1, resolvedInitialSlideNumber - 1));
@@ -494,7 +495,7 @@ export function BuilderLessonPlayer({
       setPracticeActivityIndex((current) => current + 1);
       return;
     }
-    move(1);
+    if (!practiceModuleMode) move(1);
   }
 
   function selectTab(tab: "learn" | "practice") {
@@ -780,9 +781,7 @@ export function BuilderLessonPlayer({
             <div className="mb-4 rounded-[18px] bg-gradient-to-br from-[var(--br-brand-strong)] via-[var(--br-dark-card)] to-[var(--br-dark-card)] px-4 py-3 text-on-dark">
               {/* Line 1 — slide counter (left) + narration pill (right) */}
               <div className="flex items-center justify-between gap-2">
-                <p className="text-xs uppercase tracking-wide text-white/55">
-                  Slide {index + 1} of {slides.length}
-                </p>
+                {!practiceModuleMode ? <p className="text-xs uppercase tracking-wide text-white/55">Slide {index + 1} of {slides.length}</p> : <span />}
                 {narrationUrl && (
                   <NarrationPill key={slide.id} src={narrationUrl} lessonId={lesson.id} slideId={slide.id} sourceType={narrationConfig?.sourceType} translationEnabled={narrationConfig?.translationEnabled} narrationLanguage={narrationConfig?.narrationLanguage} onProgressChange={setNarrationProgress} />
                 )}
@@ -862,7 +861,7 @@ export function BuilderLessonPlayer({
                         activity_data: activePracticeActivity.activity_data,
                       }}
                     onNext={handleActivityNext}
-                    nextLabel={practiceActivityIndex < slideActivities.length - 1 ? "Next activity" : "Next slide"}
+                    nextLabel={practiceActivityIndex < slideActivities.length - 1 ? "Next activity" : practiceModuleMode ? "Finish activity" : "Next slide"}
                       lessonId={lesson.id}
                       courseItemId={courseItemId}
                       initialAttempt={latestAttemptByActivity.get(activePracticeActivity.id) ?? null}
@@ -919,15 +918,15 @@ export function BuilderLessonPlayer({
           </div> : null}
       {/* ── Bottom navigation bar ── */}
       <div className="mt-2 flex flex-nowrap items-center justify-between gap-1.5 rounded-[22px] border border-[var(--br-surface-strong)] bg-white/95 p-2 shadow-[var(--br-shadow)] backdrop-blur sm:gap-3 sm:p-3">
-        <button
+        {!practiceModuleMode ? <button
           type="button"
           onClick={() => move(-1)}
           disabled={index === 0 || (isLiveStudent && liveNavigationLocked)}
           className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[var(--br-surface-strong)] px-2.5 py-1.5 text-xs font-bold text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)] disabled:opacity-35 sm:gap-2 sm:px-4 sm:py-2 sm:text-sm"
         >
           <ChevronLeft size={14} className="shrink-0" /> Previous
-        </button>
-        <div className="relative flex min-w-0 shrink items-center gap-1 rounded-full bg-[var(--br-canvas-elevated)] px-1.5 py-1 text-xs font-bold text-[var(--br-text-muted)] sm:gap-2 sm:px-2 sm:text-sm">
+        </button> : <span />}
+        {!practiceModuleMode ? <div className="relative flex min-w-0 shrink items-center gap-1 rounded-full bg-[var(--br-canvas-elevated)] px-1.5 py-1 text-xs font-bold text-[var(--br-text-muted)] sm:gap-2 sm:px-2 sm:text-sm">
           {message ? <span className="hidden text-xs text-[var(--br-danger)] sm:inline">{message}</span> : null}
           <button
             type="button"
@@ -957,8 +956,8 @@ export function BuilderLessonPlayer({
               ))}
             </div>
           ) : null}
-        </div>
-        {index === slides.length - 1 ? (
+        </div> : null}
+        {practiceModuleMode ? completed ? <button type="button" onClick={retakeLesson} className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[var(--br-action)] px-3 py-2 text-xs font-extrabold text-on-dark"><RotateCcw size={13} />Practise again</button> : <button type="button" onClick={finish} disabled={isPending || reviewChecklistBlocked} className="shrink-0 rounded-full bg-[var(--br-action)] px-3 py-2 text-xs font-extrabold text-on-dark disabled:opacity-45">Complete module</button> : index === slides.length - 1 ? (
           completed ? <div className="flex shrink-0 items-center gap-1.5"><button type="button" onClick={reviewLesson} className="rounded-full border border-[var(--br-surface-strong)] bg-surface px-2.5 py-1.5 text-xs font-extrabold text-[var(--br-brand)] hover:bg-[var(--br-canvas-elevated)] sm:px-4 sm:py-2 sm:text-sm">Review</button><button type="button" onClick={retakeLesson} className="inline-flex items-center gap-1 rounded-full bg-[var(--br-action)] px-2.5 py-1.5 text-xs font-extrabold text-on-dark shadow-[var(--br-shadow)] hover:bg-[var(--br-action)] sm:px-4 sm:py-2 sm:text-sm"><RotateCcw size={13}/> Retake</button></div> : <button
             type="button"
             onClick={finish}

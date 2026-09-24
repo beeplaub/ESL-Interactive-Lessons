@@ -3,6 +3,7 @@ import { completeCourseItemsForContent } from "@/lib/courseProgress";
 import { recalculateCourseAssessmentsForContent } from "@/lib/courseAssessmentService";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { userCanOpenLesson } from "@/lib/practiceAccess";
 
 export const runtime = "nodejs";
 
@@ -52,6 +53,7 @@ export async function POST(
   const { data: lesson } = await admin
     .from("lessons").select("id,status").eq("id", lessonId).is("deleted_at", null).single();
   if (!lesson) return NextResponse.json({ error: "Lesson not found" }, { status: 404 });
+  if (!(await userCanOpenLesson(user.id, lessonId))) return NextResponse.json({ error: "You do not have access to this module." }, { status: 403 });
 
   const { data: existing } = await admin
     .from("lesson_progress")

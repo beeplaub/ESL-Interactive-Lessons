@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { providerFailed, providerSucceeded } from "@/lib/ai/providerHealth";
+import { userCanOpenLesson } from "@/lib/practiceAccess";
 
 // Preserve the currently deployed translation model unless the platform admin
 // explicitly sets GEMINI_LIVE_MODEL after verifying a newer Live model.
@@ -29,6 +30,7 @@ export async function POST(request: Request) {
   const admin = createAdminClient();
   const { data: lesson } = await admin.from("lessons").select("id,status").eq("id", body.lessonId).maybeSingle();
   if (!lesson || lesson.status !== "PUBLISHED") return NextResponse.json({ error: "This lesson is not available." }, { status: 404 });
+  if (!(await userCanOpenLesson(user.id, body.lessonId))) return NextResponse.json({ error: "This activity is not available." }, { status: 403 });
 
   let targetLanguageCode = "en";
   let maxSeconds: number | null = null;

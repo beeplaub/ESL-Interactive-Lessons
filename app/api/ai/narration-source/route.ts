@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { userCanOpenLesson } from "@/lib/practiceAccess";
 
 export const runtime = "nodejs";
 const MAX_AUDIO_BYTES = 25 * 1024 * 1024;
@@ -59,6 +60,7 @@ export async function GET(request: Request) {
   const lessonId = url.searchParams.get("lessonId");
   const slideId = url.searchParams.get("slideId");
   if (!lessonId || !slideId) return NextResponse.json({ error: "Narration is required." }, { status: 400 });
+  if (!(await userCanOpenLesson(user.id, lessonId))) return NextResponse.json({ error: "This narration is not available." }, { status: 403 });
 
   const admin = createAdminClient();
   const [{ data: lesson }, { data: narration }] = await Promise.all([
