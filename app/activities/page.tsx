@@ -8,7 +8,7 @@ import { hasPracticeLibraryAccess } from "@/lib/practiceAccess";
 export default async function ActivitiesPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  const { data: modules } = await (createAdminClient() as any).from("practice_modules").select("id,title,description,category,level,access_type").eq("status", "PUBLISHED").order("updated_at", { ascending: false });
+  const { data: modules } = await (createAdminClient() as any).from("practice_modules").select("id,title,description,category,level,access_type,feature_image_path").eq("status", "PUBLISHED").order("updated_at", { ascending: false });
   const hasPremiumAccess = user ? await hasPracticeLibraryAccess(user.id) : false;
   return (
     <LearnerAppShell active="home" showRightSidebar={false}>

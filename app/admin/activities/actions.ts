@@ -32,18 +32,25 @@ export async function createPracticeModule(input: { title: string; description: 
   redirect(`/admin/activities/${moduleId}`);
 }
 
-export async function updatePracticeModuleMetadata(id: string, input: { title: string; description: string; category: string; level: string; accessType: string; status: "DRAFT" | "PUBLISHED" }) {
+export async function updatePracticeModuleMetadata(id: string, input: { title: string; description: string; category: string; level: string; accessType: string; status: "DRAFT" | "PUBLISHED"; featureImagePath: string }) {
   const { user } = await requireStaff();
   const admin = createAdminClient();
   const title = input.title.trim();
   if (!title) throw new Error("Module title is required.");
   if (!["FREE", "PREMIUM"].includes(input.accessType)) throw new Error("Choose Free or Premium access.");
+  const featureImagePath = input.featureImagePath.trim();
+  if (input.status === "PUBLISHED" && !featureImagePath) throw new Error("Choose a feature image before publishing this module.");
+  if (featureImagePath) {
+    const { data: byUrl } = await admin.from("media_assets").select("id").eq("type", "IMAGE").is("deleted_at", null).eq("url", featureImagePath).maybeSingle();
+    const { data: byPublicUrl } = byUrl ? { data: null } : await admin.from("media_assets").select("id").eq("type", "IMAGE").is("deleted_at", null).eq("public_url", featureImagePath).maybeSingle();
+    if (!byUrl && !byPublicUrl) throw new Error("Choose an active image from the Media Library.");
+  }
   const { data: practiceModule, error: fetchError } = await (admin as any).from("practice_modules").select("lesson_id").eq("id", id).eq("creator_id", user.id).single();
   if (fetchError || !practiceModule?.lesson_id) throw new Error("Module not found.");
   const publishedAt = input.status === "PUBLISHED" ? new Date().toISOString() : null;
   const { error: lessonError } = await admin.from("lessons").update({ title, topic: input.category, level: input.level, description: input.description.trim() || null, subtitle: title, category: input.category, status: input.status }).eq("id", practiceModule.lesson_id).eq("practice_module_id", id);
   if (lessonError) throw new Error(lessonError.message);
-  const { error: moduleError } = await (admin as any).from("practice_modules").update({ title, description: input.description.trim() || null, category: input.category, level: input.level, access_type: input.accessType, status: input.status, updated_at: new Date().toISOString(), published_at: publishedAt }).eq("id", id).eq("creator_id", user.id);
+  const { error: moduleError } = await (admin as any).from("practice_modules").update({ title, description: input.description.trim() || null, category: input.category, level: input.level, access_type: input.accessType, feature_image_path: featureImagePath || null, status: input.status, updated_at: new Date().toISOString(), published_at: publishedAt }).eq("id", id).eq("creator_id", user.id);
   if (moduleError) throw new Error(moduleError.message);
   revalidatePath("/admin/activities");
   revalidatePath(`/admin/activities/${id}`);

@@ -12,7 +12,7 @@ export default async function EditPracticeModulePage({ params }: { params: Promi
   const { user, profile } = await requireStaff();
   const { id } = await params;
   const admin = createAdminClient();
-  let moduleQuery = (admin as any).from("practice_modules").select("id,creator_id,title,description,category,level,access_type,status,lesson_id").eq("id", id);
+  let moduleQuery = (admin as any).from("practice_modules").select("id,creator_id,title,description,category,level,access_type,status,lesson_id,feature_image_path").eq("id", id);
   if (!isPlatformAdmin(profile?.role)) moduleQuery = moduleQuery.eq("creator_id", user.id);
   const { data: module } = await moduleQuery.maybeSingle();
   if (!module?.lesson_id) notFound();
@@ -40,5 +40,6 @@ export default async function EditPracticeModulePage({ params }: { params: Promi
     assessmentIds.length ? admin.from("assessment_item_skills").select("assessment_item_id,skill_id,is_primary").in("assessment_item_id", assessmentIds) : Promise.resolve({ data: [] }),
     assessmentIds.length ? admin.from("assessment_item_targets").select("assessment_item_id,learning_target_id").in("assessment_item_id", assessmentIds) : Promise.resolve({ data: [] }),
   ]);
-  return <main className="min-w-0"><PracticeModuleSettings initial={{ id, title: module.title, description: module.description ?? "", category: module.category, level: module.level, accessType: module.access_type, status: module.status }} /><LessonBuilderWorkspace practiceModuleMode lesson={lessonResult.data} slides={slidesResult.data ?? []} trashedSlides={trashedResult.data ?? []} blocks={blocksResult.data ?? []} activities={activities} isAdmin={isPlatformAdmin(profile?.role)} obe={{ lessonOutcomes: outcomesResult.data ?? [], courses: [], courseSections: [], placements: [], courseOutcomes: [], outcomeMappings: [], skills: skillsResult.data ?? [], learningTargets: targetsResult.data ?? [], assessmentItems: assessmentItems ?? [], assessmentSkills: assessmentSkills ?? [], assessmentTargets: assessmentTargets ?? [] }} /></main>;
+  const { data: mediaImages } = await admin.from("media_assets").select("id,title,url,public_url,alt_text").eq("type", "IMAGE").is("deleted_at", null).order("created_at", { ascending: false }).limit(1000);
+  return <main className="min-w-0"><PracticeModuleSettings initial={{ id, title: module.title, description: module.description ?? "", category: module.category, level: module.level, accessType: module.access_type, status: module.status, featureImagePath: module.feature_image_path ?? "" }} mediaImages={(mediaImages ?? []).map((image) => ({ id: image.id, title: image.title, url: image.public_url || image.url, altText: image.alt_text }))} /><LessonBuilderWorkspace practiceModuleMode lesson={lessonResult.data} slides={slidesResult.data ?? []} trashedSlides={trashedResult.data ?? []} blocks={blocksResult.data ?? []} activities={activities} isAdmin={isPlatformAdmin(profile?.role)} obe={{ lessonOutcomes: outcomesResult.data ?? [], courses: [], courseSections: [], placements: [], courseOutcomes: [], outcomeMappings: [], skills: skillsResult.data ?? [], learningTargets: targetsResult.data ?? [], assessmentItems: assessmentItems ?? [], assessmentSkills: assessmentSkills ?? [], assessmentTargets: assessmentTargets ?? [] }} /></main>;
 }
