@@ -1594,7 +1594,7 @@ function Fill({ question, value, disabled, onChange }: { question: QuizQuestion;
   }
 
   return (
-    <div className={`${opts.level === "paragraph" ? "rounded-[18px] p-4 text-base leading-[2.15] sm:p-5 sm:text-lg sm:leading-[2.25]" : "rounded-[14px] p-3 text-sm leading-8"} bg-[var(--br-canvas-elevated)]`}>{clueGrid}
+    <div className={`${opts.level === "paragraph" ? "rounded-[18px] p-4 text-base leading-[2.15] sm:p-5 sm:text-lg sm:leading-[2.25]" : "rounded-[14px] p-3 text-sm leading-8"} whitespace-pre-wrap bg-[var(--br-canvas-elevated)]`}>{clueGrid}
       {segments.map((segment, i) => (
         <span key={i}>
           {segment}
