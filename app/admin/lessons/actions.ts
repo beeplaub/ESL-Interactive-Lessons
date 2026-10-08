@@ -163,7 +163,7 @@ function hexColorValue(value: unknown, fallback: string) {
 function blockContentFromForm(blockType: string, formData: FormData): Json {
   if (blockType === "HEADING") {
     return {
-      text: String(formData.get("text") || "").trim(),
+      text: String(formData.get("text") || "").trim().replace(/\r\n?/g, "\n"),
       level: String(formData.get("level") || "H2"),
       text_align: textAlignValue(formData.get("text_align"))
     };

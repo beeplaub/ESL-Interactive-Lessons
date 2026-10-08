@@ -207,10 +207,10 @@ function PreviewBlock({ block, checkedItems, onChecklistChange, alwaysOpen = fal
     const level = asString(content.level) || "H2";
     const text = asString(content.text) || "Untitled heading";
     const align = textAlignClass(content.text_align);
-    if (level === "H1") return <h1 className={`text-3xl font-semibold tracking-tight text-ink ${align}`}>{text}</h1>;
-    if (level === "H3") return <h3 className={`text-lg font-semibold text-ink ${align}`}>{text}</h3>;
-    if (level === "H4") return <h4 className={`text-base font-semibold text-ink ${align}`}>{text}</h4>;
-    return <h2 className={`text-xl font-semibold tracking-tight text-ink ${align}`}>{text}</h2>;
+    if (level === "H1") return <h1 className={`whitespace-pre-line text-3xl font-semibold tracking-tight text-ink ${align}`}>{text}</h1>;
+    if (level === "H3") return <h3 className={`whitespace-pre-line text-lg font-semibold text-ink ${align}`}>{text}</h3>;
+    if (level === "H4") return <h4 className={`whitespace-pre-line text-base font-semibold text-ink ${align}`}>{text}</h4>;
+    return <h2 className={`whitespace-pre-line text-xl font-semibold tracking-tight text-ink ${align}`}>{text}</h2>;
   }
 
   if (block.block_type === "TEXT") {
