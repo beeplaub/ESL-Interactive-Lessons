@@ -4,15 +4,21 @@ import { requireStaff, isPlatformAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ConfirmSubmitButton } from "@/components/ConfirmSubmitButton";
 import { permanentlyDeleteMediaAsset, restoreMediaAsset } from "@/app/admin/media/actions";
+import { MEDIA_PAGE_SIZE, parseMediaPage } from "@/lib/storage/mediaPages";
 
-export default async function AdminMediaTrashPage() {
+export default async function AdminMediaTrashPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const { user, profile } = await requireStaff();
   const admin = createAdminClient();
   const isAdmin = isPlatformAdmin(profile?.role);
+  const params = await searchParams;
+  const requestedPage = parseMediaPage(typeof params.page === "string" ? params.page : undefined);
 
-  let query = admin.from("media_assets").select("*").not("deleted_at", "is", null).order("deleted_at", { ascending: false });
+  let query = admin.from("media_assets").select("*", { count: "exact" }).not("deleted_at", "is", null);
   if (!isAdmin) query = query.eq("owner_id", user.id);
-  const { data: assets } = await query;
+  const from = (requestedPage - 1) * MEDIA_PAGE_SIZE;
+  const { data: assets, count } = await query.order("deleted_at", { ascending: false }).order("id", { ascending: true }).range(from, from + MEDIA_PAGE_SIZE - 1);
+  const pageCount = Math.max(1, Math.ceil((count ?? 0) / MEDIA_PAGE_SIZE));
+  const page = Math.min(requestedPage, pageCount);
 
   return (
     <main className="mx-auto max-w-6xl px-4 py-8">
@@ -69,6 +75,13 @@ export default async function AdminMediaTrashPage() {
           ) : null}
         </div>
       </section>
+      {pageCount > 1 ? (
+        <nav className="mt-4 flex items-center justify-center gap-3 text-sm" aria-label="Trash pages">
+          <Link aria-disabled={page <= 1} className={`rounded-md border border-[var(--br-border)] px-3 py-2 ${page <= 1 ? "pointer-events-none opacity-40" : ""}`} href={page > 2 ? `/admin/media/trash?page=${page - 1}` : "/admin/media/trash"}>Previous</Link>
+          <span className="text-[var(--br-text-muted)]">Page {page} of {pageCount} · {count ?? 0} items</span>
+          <Link aria-disabled={page >= pageCount} className={`rounded-md border border-[var(--br-border)] px-3 py-2 ${page >= pageCount ? "pointer-events-none opacity-40" : ""}`} href={`/admin/media/trash?page=${Math.min(pageCount, page + 1)}`}>Next</Link>
+        </nav>
+      ) : null}
     </main>
   );
 }

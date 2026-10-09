@@ -4,6 +4,7 @@ import { requireStaff, isPlatformAdmin } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { MediaLibraryUploader } from "@/components/MediaLibraryUploader";
 import { MediaAssetCard, type MediaAssetRow } from "@/components/MediaAssetCard";
+import { MEDIA_PAGE_SIZE, mediaSearchExpression, parseMediaPage } from "@/lib/storage/mediaPages";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -17,58 +18,57 @@ export default async function AdminMediaLibraryPage({
   const params = await searchParams;
   const value = (key: string) => (typeof params[key] === "string" ? (params[key] as string) : "");
   const isAdmin = isPlatformAdmin(profile?.role);
+  const typeFilter = value("type");
+  const sourceFilter = value("source");
+  const creatorFilter = value("creator");
+  const search = value("q").trim();
+  const sort = value("sort") || "newest";
+  const page = parseMediaPage(value("page"));
 
-  let query = admin.from("media_assets").select("*").is("deleted_at", null);
+  let query = admin.from("media_assets").select("*", { count: "exact" }).is("deleted_at", null);
   if (!isAdmin) query = query.eq("owner_id", user.id);
-  const { data: rows } = await query.order("created_at", { ascending: false });
+  if (sourceFilter) query = query.eq("source", sourceFilter);
+  if (isAdmin && creatorFilter) query = query.eq("owner_id", creatorFilter);
+  if (search) query = query.or(mediaSearchExpression(search));
+  if (typeFilter) query = query.eq("type", typeFilter);
+  const order = sort === "oldest"
+    ? { column: "created_at", ascending: true }
+    : sort === "most_used"
+      ? { column: "use_count", ascending: false }
+      : sort === "name"
+        ? { column: "title", ascending: true }
+        : { column: "created_at", ascending: false };
+  const from = (page - 1) * MEDIA_PAGE_SIZE;
+  const { data: rows, count } = await query.order(order.column, { ascending: order.ascending }).order("id", { ascending: true }).range(from, from + MEDIA_PAGE_SIZE - 1);
   const assets = (rows ?? []) as MediaAssetRow[];
+  const pageCount = Math.max(1, Math.ceil((count ?? 0) / MEDIA_PAGE_SIZE));
+  const boundedPage = Math.min(page, pageCount);
 
   // Only ADMIN needs a creator filter/attribution — a TEACHER's query is
   // already scoped to their own media, so there's nothing else to show.
   let creatorNames = new Map<string, string>();
   if (isAdmin) {
-    const ownerIds = Array.from(new Set(assets.map((asset) => asset.owner_id)));
-    const { data: profiles } = ownerIds.length
-      ? await admin.from("profiles").select("id, full_name, first_name, last_name").in("id", ownerIds)
-      : { data: [] };
+    const { data: profiles } = await admin.from("profiles").select("id, full_name, first_name, last_name").in("role", ["ADMIN", "TEACHER", "SCHOOL_ADMIN"]);
     creatorNames = new Map((profiles ?? []).map((p) => [
       p.id,
       p.full_name || [p.first_name, p.last_name].filter(Boolean).join(" ") || "Creator",
     ]));
   }
 
-  const typeFilter = value("type");
-  const sourceFilter = value("source");
-  const creatorFilter = value("creator");
-  const search = value("q").toLowerCase();
-  const sort = value("sort") || "newest";
-
-  const filtered = assets.filter((asset) => {
-    if (typeFilter && asset.type !== typeFilter) return false;
-    if (sourceFilter && asset.source !== sourceFilter) return false;
-    if (isAdmin && creatorFilter && asset.owner_id !== creatorFilter) return false;
-    if (search) {
-      const haystack = [asset.title, asset.caption, asset.alt_text, asset.file_name, asset.lesson_title, asset.url]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-      if (!haystack.includes(search)) return false;
-    }
-    return true;
-  });
-
-  const sorted = [...filtered].sort((a, b) => {
-    if (sort === "oldest") return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
-    if (sort === "most_used") return b.use_count - a.use_count;
-    if (sort === "name") return (a.title || a.file_name || "").localeCompare(b.title || b.file_name || "");
-    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-  });
-
+  const countQuery = (type?: string) => {
+    let scoped = admin.from("media_assets").select("id", { count: "exact", head: true }).is("deleted_at", null);
+    if (!isAdmin) scoped = scoped.eq("owner_id", user.id);
+    if (type) scoped = scoped.eq("type", type);
+    return scoped;
+  };
+  const [allCountResult, imageCountResult, audioCountResult, videoCountResult] = await Promise.all([
+    countQuery(), countQuery("IMAGE"), countQuery("AUDIO"), countQuery("VIDEO"),
+  ]);
   const counts = {
-    all: assets.length,
-    IMAGE: assets.filter((a) => a.type === "IMAGE").length,
-    AUDIO: assets.filter((a) => a.type === "AUDIO").length,
-    VIDEO: assets.filter((a) => a.type === "VIDEO").length,
+    all: allCountResult.count ?? 0,
+    IMAGE: imageCountResult.count ?? 0,
+    AUDIO: audioCountResult.count ?? 0,
+    VIDEO: videoCountResult.count ?? 0,
   };
 
   function withParam(name: string, val: string) {
@@ -77,6 +77,13 @@ export default async function AdminMediaLibraryPage({
       const v = key === name ? val : value(key);
       if (v) next.set(key, v);
     }
+    const qs = next.toString();
+    return qs ? `/admin/media?${qs}` : "/admin/media";
+  }
+  function pageHref(nextPage: number) {
+    const next = new URLSearchParams();
+    for (const key of ["type", "source", "creator", "q", "sort"]) if (value(key)) next.set(key, value(key));
+    if (nextPage > 1) next.set("page", String(nextPage));
     const qs = next.toString();
     return qs ? `/admin/media?${qs}` : "/admin/media";
   }
@@ -157,7 +164,7 @@ export default async function AdminMediaLibraryPage({
       </form>
 
       <section className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {sorted.map((asset) => (
+        {assets.map((asset) => (
           <div key={asset.id} className="min-w-0">
             {isAdmin ? (
               <p className="mb-1 truncate text-[11px] font-medium text-[var(--br-text-muted)]">{creatorNames.get(asset.owner_id) ?? "Creator"}</p>
@@ -165,12 +172,19 @@ export default async function AdminMediaLibraryPage({
             <MediaAssetCard asset={asset} canManage />
           </div>
         ))}
-        {!sorted.length ? (
+        {!assets.length ? (
           <div className="col-span-full rounded-2xl border border-dashed border-[var(--br-border)] p-10 text-center text-sm text-[var(--br-text-muted)]">
             No media matches these filters yet. Upload a file or add a link to get started.
           </div>
         ) : null}
       </section>
+      {pageCount > 1 ? (
+        <nav className="flex items-center justify-center gap-3 text-sm" aria-label="Media pages">
+          <Link aria-disabled={boundedPage <= 1} className={`rounded-md border border-[var(--br-border)] px-3 py-2 ${boundedPage <= 1 ? "pointer-events-none opacity-40" : ""}`} href={pageHref(Math.max(1, boundedPage - 1))}>Previous</Link>
+          <span className="text-[var(--br-text-muted)]">Page {boundedPage} of {pageCount} · {count ?? 0} items</span>
+          <Link aria-disabled={boundedPage >= pageCount} className={`rounded-md border border-[var(--br-border)] px-3 py-2 ${boundedPage >= pageCount ? "pointer-events-none opacity-40" : ""}`} href={pageHref(Math.min(pageCount, boundedPage + 1))}>Next</Link>
+        </nav>
+      ) : null}
     </main>
   );
 }
