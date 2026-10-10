@@ -11,6 +11,7 @@ import {
   ChevronDown,
   CircleAlert,
   Clock3,
+  Copy,
   Ellipsis,
   Eye,
   Filter,
@@ -23,7 +24,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { deleteCourse, setCourseStatus } from "@/app/admin/courses/actions";
+import { deleteCourse, duplicateCourse, setCourseStatus } from "@/app/admin/courses/actions";
 import { DeleteButton } from "@/components/DeleteButton";
 import { NewCourseModal } from "@/components/NewCourseModal";
 
@@ -303,8 +304,12 @@ function CourseRow({ course, openActionsUpward, onStatusChange, onTrash }: { cou
 }
 
 function CourseActions({ course, openUpward, onStatusChange, onTrash }: { course: AdminCourseSummary; openUpward: boolean; onStatusChange: (course: AdminCourseSummary, status: AdminCourseSummary["status"]) => Promise<void>; onTrash: (course: AdminCourseSummary) => Promise<void> }) {
+  const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [duplicateOpen, setDuplicateOpen] = useState(false);
+  const [duplicateTitle, setDuplicateTitle] = useState(`${course.title} Copy`);
+  const [duplicateOptions, setDuplicateOptions] = useState({ copyDetails: true, copyCurriculum: true, copyContent: true, copyOutcomes: true, copyFaqs: true });
 
   const runStatus = (status: AdminCourseSummary["status"]) => {
     setError(null);
@@ -326,6 +331,20 @@ function CourseActions({ course, openUpward, onStatusChange, onTrash }: { course
     }
   };
 
+  const runDuplicate = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError(null);
+    startTransition(async () => {
+      try {
+        const result = await duplicateCourse(course.id, { ...duplicateOptions, title: duplicateTitle });
+        router.push(`/admin/courses/${result.id}/builder`);
+        router.refresh();
+      } catch (caught) {
+        setError(caught instanceof Error ? caught.message : "Could not duplicate this course.");
+      }
+    });
+  };
+
   return (
     <details data-exclusive-popup className="group relative">
       <summary aria-label={`More actions for ${course.title}`} className="grid size-9 cursor-pointer list-none place-items-center rounded-lg border border-[var(--br-border)] text-ink transition hover:bg-surface [&::-webkit-details-marker]:hidden">
@@ -336,6 +355,7 @@ function CourseActions({ course, openUpward, onStatusChange, onTrash }: { course
         <MenuLink href={`/admin/courses/${course.id}/analytics`} icon={BarChart3}>Course analytics</MenuLink>
         <MenuLink href="/admin/content-library?type=COURSE_TEMPLATE" icon={Library}>Course templates</MenuLink>
         <div className="my-1 border-t border-[var(--br-border)]" />
+        <MenuButton icon={Copy} disabled={pending} onClick={() => { setDuplicateTitle(`${course.title} Copy`); setError(null); setDuplicateOpen(true); }}>Duplicate course</MenuButton>
         {course.status === "PUBLISHED" ? (
           <MenuButton icon={Archive} disabled={pending} onClick={() => runStatus("DRAFT")}>Unpublish</MenuButton>
         ) : (
@@ -357,6 +377,41 @@ function CourseActions({ course, openUpward, onStatusChange, onTrash }: { course
         </DeleteButton>
         {error ? <p role="alert" className="px-2.5 py-2 text-[11px] font-semibold text-[var(--br-danger)]">{error}</p> : null}
       </div>
+      {duplicateOpen ? (
+        <div className="fixed inset-0 z-[100] grid place-items-center bg-black/45 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget && !pending) setDuplicateOpen(false); }}>
+          <section role="dialog" aria-modal="true" aria-labelledby={`duplicate-course-title-${course.id}`} className="w-full max-w-lg rounded-2xl border border-[var(--br-border)] bg-surface p-5 shadow-2xl">
+            <div className="flex items-start justify-between gap-3">
+              <div><h2 id={`duplicate-course-title-${course.id}`} className="text-xl font-bold text-ink">Duplicate course</h2><p className="mt-1 text-sm text-[var(--br-text-muted)]">Choose which parts to copy. The new course will be saved as a draft.</p></div>
+              <button type="button" disabled={pending} onClick={() => setDuplicateOpen(false)} aria-label="Close" className="grid size-8 place-items-center rounded-full border border-[var(--br-border)] disabled:opacity-50"><X size={16} /></button>
+            </div>
+            <form onSubmit={runDuplicate} className="mt-4 space-y-4">
+              <label className="block text-sm font-semibold text-ink">New course title<input required maxLength={180} value={duplicateTitle} onChange={(event) => setDuplicateTitle(event.target.value)} className="mt-1 w-full rounded-lg border border-[var(--br-border)] px-3 py-2" /></label>
+              <fieldset className="space-y-2 rounded-xl border border-[var(--br-border)] p-3">
+                <legend className="px-1 text-xs font-bold uppercase tracking-wide text-[var(--br-text-muted)]">Copy these parts</legend>
+                {([
+                  ["copyDetails", "Course details and settings"],
+                  ["copyCurriculum", "Sections and curriculum placements"],
+                  ["copyContent", "Duplicate lesson and quiz content"],
+                  ["copyOutcomes", "Learning outcomes and assessment mappings"],
+                  ["copyFaqs", "FAQs"],
+                ] as const).map(([key, label]) => (
+                  <label key={key} className="flex items-start gap-2 text-sm text-ink">
+                    <input type="checkbox" checked={duplicateOptions[key]} disabled={pending || (key === "copyContent" && !duplicateOptions.copyCurriculum)} onChange={(event) => setDuplicateOptions((current) => ({ ...current, [key]: event.target.checked, ...(key === "copyCurriculum" && !event.target.checked ? { copyContent: false } : {}) }))} className="mt-0.5 accent-[var(--br-brand)]" />
+                    <span>{label}</span>
+                  </label>
+                ))}
+              </fieldset>
+              {duplicateOptions.copyContent && duplicateOptions.copyCurriculum ? <p className="text-xs text-[var(--br-text-muted)]">Copied lessons and quizzes get new IDs and can be edited independently. Media files are reused by reference. Learner records are never copied.</p> : null}
+              {!duplicateOptions.copyContent && duplicateOptions.copyCurriculum ? <p className="text-xs text-[var(--br-text-muted)]">Curriculum placements will refer to the existing lesson and quiz records.</p> : null}
+              {error ? <p role="alert" className="rounded-lg bg-[var(--br-danger)]/10 px-3 py-2 text-sm font-semibold text-[var(--br-danger)]">{error}</p> : null}
+              <div className="flex justify-end gap-2 border-t border-[var(--br-border)] pt-3">
+                <button type="button" disabled={pending} onClick={() => setDuplicateOpen(false)} className="rounded-lg border border-[var(--br-border)] px-4 py-2 text-sm font-semibold disabled:opacity-50">Cancel</button>
+                <button type="submit" disabled={pending || !duplicateTitle.trim()} className="inline-flex items-center gap-2 rounded-lg bg-[var(--br-brand)] px-4 py-2 text-sm font-bold text-on-dark disabled:opacity-50">{pending ? <span className="size-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> : <Copy size={15} />} Duplicate</button>
+              </div>
+            </form>
+          </section>
+        </div>
+      ) : null}
     </details>
   );
 }

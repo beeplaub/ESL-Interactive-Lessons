@@ -81,6 +81,361 @@ export async function createCourse(formData: FormData) {
   redirect(`/admin/courses/${data.id}/builder`);
 }
 
+type DuplicateCourseOptions = {
+  copyDetails: boolean;
+  copyCurriculum: boolean;
+  copyContent: boolean;
+  copyOutcomes: boolean;
+  copyFaqs: boolean;
+  title: string;
+};
+
+function without<T extends Record<string, unknown>>(row: T, keys: string[]) {
+  return Object.fromEntries(Object.entries(row).filter(([key]) => !keys.includes(key)));
+}
+
+async function cloneLessonContent(
+  admin: ReturnType<typeof createAdminClient>,
+  sourceLessonId: string,
+  userId: string,
+  lessonIds: string[],
+  lessonOutcomeIds: Map<string, string>,
+  assessmentItemIds: Map<string, string>,
+) {
+  const { data: sourceLesson, error: lessonReadError } = await admin.from("lessons").select("*").eq("id", sourceLessonId).single();
+  if (lessonReadError || !sourceLesson) throw new Error(lessonReadError?.message ?? "A lesson in this course could not be found.");
+  const { data: newLesson, error: lessonError } = await admin.from("lessons").insert({
+    ...without(sourceLesson, ["id", "created_at", "updated_at", "created_by", "practice_module_id", "deleted_at", "deleted_by"]),
+    title: `${sourceLesson.title} Copy`,
+    slug: `${slugify(sourceLesson.slug || sourceLesson.title)}-${crypto.randomUUID().slice(0, 8)}`,
+    status: "DRAFT",
+    created_by: userId,
+    practice_module_id: null,
+    deleted_at: null,
+    deleted_by: null,
+  }).select("id").single();
+  if (lessonError || !newLesson) throw new Error(lessonError?.message ?? "Could not duplicate lesson content.");
+  const newLessonId = newLesson.id as string;
+  lessonIds.push(newLessonId);
+
+  const [{ data: slides, error: slidesError }, { data: oldOutcomes, error: outcomesError }] = await Promise.all([
+    admin.from("slides").select("*").eq("lesson_id", sourceLessonId).is("deleted_at", null).order("slide_number"),
+    admin.from("lesson_outcomes").select("*").eq("lesson_id", sourceLessonId).order("position"),
+  ]);
+  if (slidesError) throw new Error(slidesError.message);
+  if (outcomesError) throw new Error(outcomesError.message);
+
+  const slideIds = new Map<string, string>();
+  for (const slide of slides ?? []) {
+    const { data: newSlide, error } = await admin.from("slides").insert({
+      ...without(slide, ["id", "lesson_id", "created_at", "updated_at", "linked_answer_slide_id", "deleted_at", "deleted_by"]),
+      lesson_id: newLessonId,
+      linked_answer_slide_id: null,
+      deleted_at: null,
+      deleted_by: null,
+    }).select("id").single();
+    if (error || !newSlide) throw new Error(error?.message ?? "Could not duplicate a lesson slide.");
+    slideIds.set(slide.id, newSlide.id);
+  }
+  for (const slide of slides ?? []) {
+    if (!slide.linked_answer_slide_id) continue;
+    const linkedId = slideIds.get(slide.linked_answer_slide_id);
+    if (linkedId) {
+      const { error } = await admin.from("slides").update({ linked_answer_slide_id: linkedId }).eq("id", slideIds.get(slide.id)!);
+      if (error) throw new Error(error.message);
+    }
+  }
+
+  const [{ data: blocks, error: blocksError }, { data: legacyActivities, error: legacyError }, { data: activities, error: activitiesError }, { data: audio, error: audioError }] = await Promise.all([
+    admin.from("lesson_blocks").select("*").eq("lesson_id", sourceLessonId).order("position"),
+    admin.from("slide_activities").select("*").eq("lesson_id", sourceLessonId),
+    admin.from("lesson_slide_activities").select("*").eq("lesson_id", sourceLessonId).is("deleted_at", null).order("slide_number"),
+    admin.from("lesson_audio_files").select("*").eq("lesson_id", sourceLessonId),
+  ]);
+  for (const error of [blocksError, legacyError, activitiesError, audioError]) if (error) throw new Error(error.message);
+
+  const newBlocks = (blocks ?? []).filter((row) => slideIds.has(row.slide_id)).map((row) => ({
+    ...without(row, ["id", "lesson_id", "slide_id", "created_at", "updated_at"]),
+    lesson_id: newLessonId,
+    slide_id: slideIds.get(row.slide_id),
+  }));
+  if (newBlocks.length) {
+    const { error } = await admin.from("lesson_blocks").insert(newBlocks);
+    if (error) throw new Error(error.message);
+  }
+
+  const newLegacyActivities = (legacyActivities ?? []).filter((row) => slideIds.has(row.slide_id)).map((row) => ({
+    ...without(row, ["id", "lesson_id", "slide_id", "created_at", "updated_at"]),
+    lesson_id: newLessonId,
+    slide_id: slideIds.get(row.slide_id),
+  }));
+  if (newLegacyActivities.length) {
+    const { error } = await admin.from("slide_activities").insert(newLegacyActivities);
+    if (error) throw new Error(error.message);
+  }
+
+  const activityIds = new Map<string, string>();
+  for (const activity of activities ?? []) {
+    const newSlideId = activity.slide_id ? slideIds.get(activity.slide_id) ?? null : null;
+    const { data: newActivity, error } = await admin.from("lesson_slide_activities").insert({
+      ...without(activity, ["id", "lesson_id", "slide_id", "created_at", "updated_at"]),
+      lesson_id: newLessonId,
+      slide_id: newSlideId,
+    }).select("id").single();
+    if (error || !newActivity) throw new Error(error?.message ?? "Could not duplicate a lesson activity.");
+    activityIds.set(activity.id, newActivity.id);
+  }
+
+  const newAudio = (audio ?? []).filter((row) => !row.slide_id || slideIds.has(row.slide_id)).map((row) => ({
+    ...without(row, ["id", "lesson_id", "slide_id", "created_at", "updated_at"]),
+    lesson_id: newLessonId,
+    slide_id: row.slide_id ? slideIds.get(row.slide_id) ?? null : null,
+  }));
+  if (newAudio.length) {
+    const { error } = await admin.from("lesson_audio_files").insert(newAudio);
+    if (error) throw new Error(error.message);
+  }
+
+  for (const outcome of oldOutcomes ?? []) {
+    const { data: newOutcome, error } = await admin.from("lesson_outcomes").insert({
+      ...without(outcome, ["id", "lesson_id", "created_at", "updated_at"]),
+      lesson_id: newLessonId,
+    }).select("id").single();
+    if (error || !newOutcome) throw new Error(error?.message ?? "Could not duplicate lesson outcomes.");
+    lessonOutcomeIds.set(outcome.id, newOutcome.id);
+  }
+
+  if (activityIds.size) {
+    const { data: oldItems, error } = await admin.from("assessment_items").select("*").in("lesson_activity_id", Array.from(activityIds.keys()));
+    if (error) throw new Error(error.message);
+    for (const item of oldItems ?? []) {
+      const { data: newItem, error: insertError } = await admin.from("assessment_items").insert({
+        ...without(item, ["id", "lesson_activity_id", "lesson_outcome_id", "created_at", "updated_at"]),
+        lesson_activity_id: activityIds.get(item.lesson_activity_id),
+        lesson_outcome_id: item.lesson_outcome_id ? lessonOutcomeIds.get(item.lesson_outcome_id) ?? null : null,
+      }).select("id").single();
+      if (insertError || !newItem) throw new Error(insertError?.message ?? "Could not duplicate lesson assessment mapping.");
+      assessmentItemIds.set(item.id, newItem.id);
+    }
+    if (oldItems?.length) {
+      const oldIds = oldItems.map((item) => item.id);
+      const [{ data: skills, error: skillError }, { data: targets, error: targetError }] = await Promise.all([
+        admin.from("assessment_item_skills").select("*").in("assessment_item_id", oldIds),
+        admin.from("assessment_item_targets").select("*").in("assessment_item_id", oldIds),
+      ]);
+      if (skillError) throw new Error(skillError.message);
+      if (targetError) throw new Error(targetError.message);
+      if (skills?.length) {
+        const { error: copyError } = await admin.from("assessment_item_skills").insert(skills.map((row) => ({ ...without(row, ["created_at"]), assessment_item_id: assessmentItemIds.get(row.assessment_item_id) })));
+        if (copyError) throw new Error(copyError.message);
+      }
+      if (targets?.length) {
+        const { error: copyError } = await admin.from("assessment_item_targets").insert(targets.map((row) => ({ ...without(row, ["created_at"]), assessment_item_id: assessmentItemIds.get(row.assessment_item_id) })));
+        if (copyError) throw new Error(copyError.message);
+      }
+    }
+  }
+
+  return { lessonId: newLessonId, slideIds, activityIds };
+}
+
+export async function duplicateCourse(courseId: string, options: DuplicateCourseOptions) {
+  const { user, profile } = await requireCourseAccess(courseId, "manage_curriculum");
+  await assertCreatorCanCreate(user.id, profile?.role, "COURSES");
+  if (!options || typeof options.title !== "string" || ![options.copyDetails, options.copyCurriculum, options.copyContent, options.copyOutcomes, options.copyFaqs].every((value) => typeof value === "boolean")) {
+    throw new Error("Choose valid course copy options.");
+  }
+  const admin = createAdminClient();
+  const { data: source, error: sourceError } = await admin.from("courses").select("*").eq("id", courseId).is("deleted_at", null).single();
+  if (sourceError || !source) throw new Error(sourceError?.message ?? "Course not found.");
+  const title = options.title.trim().slice(0, 180);
+  if (!title) throw new Error("Enter a title for the duplicate course.");
+
+  let organizationId: string | null = null;
+  if (profile?.role === "SCHOOL_ADMIN" && source.organization_id) {
+    const organizationIds = await getSchoolAdminOrganizationIds(user.id);
+    if (!organizationIds.includes(source.organization_id)) throw new Error("You no longer have access to this school's course.");
+    organizationId = source.organization_id;
+  } else if (profile?.role === "ADMIN") {
+    organizationId = source.organization_id ?? null;
+  }
+
+  const [{ data: sourceSections, error: sectionsError }, { data: sourceItems, error: itemsError }, { data: sourceOutcomes, error: outcomesError }, { data: sourceFaqs, error: faqsError }] = await Promise.all([
+    admin.from("course_sections").select("*").eq("course_id", courseId).order("position"),
+    admin.from("course_items").select("*").eq("course_id", courseId).order("position"),
+    admin.from("course_outcomes").select("*").eq("course_id", courseId).order("position"),
+    admin.from("course_faqs").select("*").eq("course_id", courseId).order("position"),
+  ]);
+  for (const error of [sectionsError, itemsError, outcomesError, faqsError]) if (error) throw new Error(error.message);
+
+  const newSlug = `${slugify(title) || "course"}-${crypto.randomUUID().slice(0, 8)}`;
+  const detailFields = [
+    "subtitle", "description", "topic", "category", "level", "thumbnail_path", "cover_image_path",
+    "duration_minutes", "estimated_completion_minutes", "price_bdt", "original_price_bdt", "payment_instructions",
+    "offer_practice_addon", "visibility", "mastery_threshold", "minimum_evidence_coverage", "evidence_selection",
+    "formative_weight", "summative_weight",
+  ];
+  const newCourseData: Record<string, unknown> = {
+    title,
+    slug: newSlug,
+    status: "DRAFT",
+    created_by: user.id,
+    owner_id: user.id,
+    organization_id: organizationId,
+    visibility: "PRIVATE",
+  };
+  if (options.copyDetails) {
+    for (const field of detailFields) if (field !== "visibility") newCourseData[field] = source[field] ?? null;
+    newCourseData.visibility = source.visibility ?? "PUBLIC";
+  }
+
+  const { data: newCourse, error: courseError } = await admin.from("courses").insert(newCourseData).select("id").single();
+  if (courseError || !newCourse) throw new Error(courseError?.message ?? "Could not create duplicate course.");
+
+  const createdLessons: string[] = [];
+  const createdQuizzes: string[] = [];
+  const lessonMap = new Map<string, string>();
+  const quizMap = new Map<string, string>();
+  const lessonOutcomeMap = new Map<string, string>();
+  const assessmentItemMap = new Map<string, string>();
+  try {
+    const sectionMap = new Map<string, string>();
+    if (options.copyCurriculum) {
+      for (const section of sourceSections ?? []) {
+        const { data, error } = await admin.from("course_sections").insert({
+          ...without(section, ["id", "course_id", "created_at", "updated_at"]),
+          course_id: newCourse.id,
+        }).select("id").single();
+        if (error || !data) throw new Error(error?.message ?? "Could not duplicate course sections.");
+        sectionMap.set(section.id, data.id);
+      }
+    }
+
+    const outcomeMap = new Map<string, string>();
+    if (options.copyOutcomes) {
+      for (const outcome of sourceOutcomes ?? []) {
+        const { data, error } = await admin.from("course_outcomes").insert({
+          ...without(outcome, ["id", "course_id", "created_at", "updated_at"]),
+          course_id: newCourse.id,
+        }).select("id").single();
+        if (error || !data) throw new Error(error?.message ?? "Could not duplicate course outcomes.");
+        outcomeMap.set(outcome.id, data.id);
+      }
+    }
+
+    const itemMap = new Map<string, string>();
+    if (options.copyCurriculum) {
+      for (const item of sourceItems ?? []) {
+        let lessonId = item.lesson_id as string | null;
+        let quizId = item.quiz_id as string | null;
+        if (options.copyContent && item.item_type === "LESSON" && lessonId) {
+          if (!lessonMap.has(lessonId)) {
+            const cloned = await cloneLessonContent(admin, lessonId, user.id, createdLessons, lessonOutcomeMap, assessmentItemMap);
+            lessonMap.set(lessonId, cloned.lessonId);
+          }
+          lessonId = lessonMap.get(lessonId)!;
+        } else if (options.copyContent && item.item_type === "QUIZ" && quizId) {
+          const sourceQuizId = quizId;
+          if (!quizMap.has(sourceQuizId)) {
+            const copiedQuizId = await forkQuizForCourse(admin, sourceQuizId, newCourse.id, user.id, { lessonOutcomeIds: lessonOutcomeMap, assessmentItemIds: assessmentItemMap });
+            createdQuizzes.push(copiedQuizId);
+            quizMap.set(sourceQuizId, copiedQuizId);
+          }
+          quizId = quizMap.get(sourceQuizId)!;
+        }
+        const { data, error } = await admin.from("course_items").insert({
+          ...without(item, ["id", "course_id", "section_id", "lesson_id", "quiz_id", "created_at", "updated_at"]),
+          course_id: newCourse.id,
+          section_id: item.section_id ? sectionMap.get(item.section_id) ?? null : null,
+          lesson_id: lessonId,
+          quiz_id: quizId,
+        }).select("id").single();
+        if (error || !data) throw new Error(error?.message ?? "Could not duplicate a curriculum item.");
+        itemMap.set(item.id, data.id);
+      }
+    }
+
+    if (options.copyFaqs && sourceFaqs?.length) {
+      const { error } = await admin.from("course_faqs").insert(sourceFaqs.map((faq) => ({
+        ...without(faq, ["id", "course_id", "created_at", "updated_at"]),
+        course_id: newCourse.id,
+      })));
+      if (error) throw new Error(error.message);
+    }
+
+    if (options.copyOutcomes && options.copyCurriculum && itemMap.size) {
+      const sourceCourseItemIds = Array.from(itemMap.keys());
+      const [{ data: lessonMappings, error: lessonMapError }, { data: assessmentMappings, error: assessmentMapError }] = await Promise.all([
+        admin.from("course_lesson_outcome_mappings").select("*").in("course_item_id", sourceCourseItemIds),
+        admin.from("assessment_item_course_outcomes").select("*").in("course_item_id", sourceCourseItemIds),
+      ]);
+      if (lessonMapError) throw new Error(lessonMapError.message);
+      if (assessmentMapError) throw new Error(assessmentMapError.message);
+      const clonedLessonMappings = (lessonMappings ?? []).flatMap((row) => {
+        const lessonOutcomeId = options.copyContent ? lessonOutcomeMap.get(row.lesson_outcome_id) : row.lesson_outcome_id;
+        const courseOutcomeId = outcomeMap.get(row.course_outcome_id);
+        const courseItemId = itemMap.get(row.course_item_id);
+        return lessonOutcomeId && courseOutcomeId && courseItemId ? [{
+          ...without(row, ["id", "course_item_id", "lesson_outcome_id", "course_outcome_id", "created_at", "updated_at"]),
+          course_item_id: courseItemId,
+          lesson_outcome_id: lessonOutcomeId,
+          course_outcome_id: courseOutcomeId,
+        }] : [];
+      });
+      if (clonedLessonMappings.length) {
+        const { error } = await admin.from("course_lesson_outcome_mappings").insert(clonedLessonMappings);
+        if (error) throw new Error(error.message);
+      }
+      const clonedAssessmentMappings = (assessmentMappings ?? []).flatMap((row) => {
+        const courseItemId = itemMap.get(row.course_item_id);
+        const courseOutcomeId = outcomeMap.get(row.course_outcome_id);
+        const assessmentItemId = options.copyContent ? assessmentItemMap.get(row.assessment_item_id) : row.assessment_item_id;
+        return courseItemId && courseOutcomeId && assessmentItemId ? [{
+          ...without(row, ["course_item_id", "course_outcome_id", "assessment_item_id", "created_at"]),
+          course_item_id: courseItemId,
+          course_outcome_id: courseOutcomeId,
+          assessment_item_id: assessmentItemId,
+        }] : [];
+      });
+      if (clonedAssessmentMappings.length) {
+        const { error } = await admin.from("assessment_item_course_outcomes").insert(clonedAssessmentMappings);
+        if (error) throw new Error(error.message);
+      }
+    }
+
+    const { error: staffError } = await admin.from("course_staff").upsert({
+      course_id: newCourse.id,
+      user_id: user.id,
+      staff_role: "COURSE_ADMIN",
+      is_primary: false,
+      show_to_learners: false,
+      edit_course_details: true,
+      manage_curriculum: true,
+      create_content: true,
+      edit_assigned_content: true,
+      publish_content: true,
+      manage_enrollments: true,
+      grade_submissions: true,
+      view_analytics: true,
+      run_live_classes: true,
+      manage_course_staff: true,
+      created_by: user.id,
+    }, { onConflict: "course_id,user_id" });
+    if (staffError) throw new Error(staffError.message);
+  } catch (error) {
+    const { data: attachedQuizzes } = await admin.from("quizzes").select("id").eq("course_id", newCourse.id);
+    const cleanupQuizIds = Array.from(new Set([...createdQuizzes, ...(attachedQuizzes ?? []).map((quiz) => quiz.id)]));
+    await admin.from("courses").delete().eq("id", newCourse.id);
+    if (cleanupQuizIds.length) await admin.from("quizzes").delete().in("id", cleanupQuizIds);
+    if (createdLessons.length) await admin.from("lessons").delete().in("id", createdLessons);
+    throw error;
+  }
+
+  revalidatePath("/admin/courses");
+  revalidatePath("/admin");
+  return { id: newCourse.id as string };
+}
+
 export async function setCourseStatus(courseId: string, status: "DRAFT" | "PUBLISHED" | "ARCHIVED") {
   await requireCourseAccess(courseId, "publish_content");
   const admin = createAdminClient();

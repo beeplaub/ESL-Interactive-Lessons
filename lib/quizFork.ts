@@ -1,5 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+function omitFields(row: Record<string, unknown>, fields: string[]) {
+  return Object.fromEntries(Object.entries(row).filter(([key]) => !fields.includes(key)));
+}
+
 /**
  * Deep-copies a quiz - its metadata, questions, and OBE skill/learning-target
  * mapping (never learner attempt/response data) - into a brand-new, fully
@@ -23,11 +27,12 @@ export async function forkQuizForCourse(
   admin: SupabaseClient,
   sourceQuizId: string,
   courseId: string,
-  createdBy?: string
+  createdBy?: string,
+  mappingOptions?: { lessonOutcomeIds?: Map<string, string>; assessmentItemIds?: Map<string, string> },
 ): Promise<string> {
   const { data: sourceQuiz, error: sourceError } = await admin
     .from("quizzes")
-    .select("title, topic, level, status, time_limit_seconds, timer_minutes")
+    .select("*")
     .eq("id", sourceQuizId)
     .single();
   if (sourceError || !sourceQuiz) throw new Error(sourceError?.message ?? "Quiz not found.");
@@ -35,15 +40,13 @@ export async function forkQuizForCourse(
   const { data: newQuiz, error: newQuizError } = await admin
     .from("quizzes")
     .insert({
-      title: sourceQuiz.title,
-      topic: sourceQuiz.topic,
-      level: sourceQuiz.level,
-      status: sourceQuiz.status,
-      time_limit_seconds: sourceQuiz.time_limit_seconds,
-      timer_minutes: sourceQuiz.timer_minutes,
+      ...omitFields(sourceQuiz, ["id", "created_at", "created_by", "course_id", "source_quiz_id", "deleted_at", "deleted_by"]),
+      status: "DRAFT",
       course_id: courseId,
       source_quiz_id: sourceQuizId,
       created_by: createdBy ?? null,
+      deleted_at: null,
+      deleted_by: null,
     })
     .select("id")
     .single();
@@ -52,7 +55,7 @@ export async function forkQuizForCourse(
 
   const { data: sourceQuestions } = await admin
     .from("quiz_questions")
-    .select("id, question_number, question_type, question_text, options, correct_answer, description")
+    .select("*")
     .eq("quiz_id", sourceQuizId)
     .order("question_number", { ascending: true });
 
@@ -62,13 +65,8 @@ export async function forkQuizForCourse(
     .from("quiz_questions")
     .insert(
       sourceQuestions.map((question) => ({
+        ...omitFields(question, ["id", "quiz_id", "created_at", "updated_at"]),
         quiz_id: newQuizId,
-        question_number: question.question_number,
-        question_type: question.question_type,
-        question_text: question.question_text,
-        options: question.options,
-        correct_answer: question.correct_answer,
-        description: question.description,
       }))
     )
     .select("id");
@@ -80,7 +78,7 @@ export async function forkQuizForCourse(
 
   const { data: sourceAssessmentItems } = await admin
     .from("assessment_items")
-    .select("id, quiz_question_id, source_type, source_item_key, lesson_outcome_id, prompt_snapshot, max_points, analytical_weight, status")
+    .select("*")
     .in("quiz_question_id", Array.from(questionIdMap.keys()));
 
   if (!sourceAssessmentItems?.length) return newQuizId;
@@ -89,14 +87,11 @@ export async function forkQuizForCourse(
     .from("assessment_items")
     .insert(
       sourceAssessmentItems.map((item) => ({
-        source_type: item.source_type,
+        ...omitFields(item, ["id", "quiz_question_id", "lesson_activity_id", "lesson_outcome_id", "created_at", "updated_at"]),
         quiz_question_id: questionIdMap.get(item.quiz_question_id),
-        source_item_key: item.source_item_key,
-        lesson_outcome_id: item.lesson_outcome_id,
-        prompt_snapshot: item.prompt_snapshot,
-        max_points: item.max_points,
-        analytical_weight: item.analytical_weight,
-        status: item.status,
+        lesson_outcome_id: item.lesson_outcome_id
+          ? mappingOptions?.lessonOutcomeIds?.get(item.lesson_outcome_id) ?? item.lesson_outcome_id
+          : null,
       }))
     )
     .select("id");
@@ -105,6 +100,7 @@ export async function forkQuizForCourse(
   const assessmentItemIdMap = new Map(
     sourceAssessmentItems.map((item, index) => [item.id, newAssessmentItems[index].id as string])
   );
+  for (const [sourceId, copyId] of assessmentItemIdMap) mappingOptions?.assessmentItemIds?.set(sourceId, copyId);
   const oldAssessmentItemIds = Array.from(assessmentItemIdMap.keys());
 
   const { data: sourceSkills } = await admin
