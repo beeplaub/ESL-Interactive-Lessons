@@ -1030,7 +1030,7 @@ export function QuestionCard({
           : { scale: 1, x: 0 }
       }
       transition={{ duration: 0.4, ease: "easeOut" }}
-      className={`relative rounded-[20px] border bg-surface p-5 shadow-[var(--br-shadow)] sm:p-6 ${borderClass}`}
+      className={`relative min-w-0 max-w-full overflow-hidden rounded-[20px] border bg-surface p-5 shadow-[var(--br-shadow)] sm:p-6 ${borderClass}`}
     >
       {isResolved ? (
         <motion.div
@@ -1570,7 +1570,7 @@ function Fill({ question, value, disabled, onChange }: { question: QuizQuestion;
     const isActive = activeBlank === index;
     const hasAnswer = answer.trim().length > 0;
     return <span onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); placeClue(index, event.dataTransfer.getData("text/plain")); }} onClick={() => { setActiveBlank(index); if (selectedClue) placeClue(index, selectedClue); }} className={`mx-1 inline-flex h-9 max-w-full min-w-14 items-center rounded-lg border-2 bg-surface align-middle transition hover:bg-[var(--br-action)]/10 ${hasAnswer || isActive ? "border-[var(--br-action)]" : "border-dashed border-[var(--br-border)]"}`}>
-      <input type="text" disabled={disabled} value={answer} onChange={(e) => { setActiveBlank(index); setAnswer(index, e.target.value); }} className="h-full min-w-0 max-w-full rounded-lg border-0 bg-transparent px-2 text-center text-sm font-semibold leading-8 outline-none focus:outline-none focus:ring-0" style={{ width: `${widthInCh}ch` }} />
+      <input type="text" disabled={disabled} value={answer} onChange={(e) => { setActiveBlank(index); setAnswer(index, e.target.value); }} className="h-full min-w-0 max-w-full flex-1 rounded-lg border-0 bg-transparent px-2 text-center text-sm font-semibold leading-8 outline-none focus:outline-none focus:ring-0" style={{ width: `min(${widthInCh}ch, 100%)` }} />
     </span>;
   };
   // No inline text stored (older sentence-level data may only have the legend text, no options.text) —
@@ -1594,9 +1594,9 @@ function Fill({ question, value, disabled, onChange }: { question: QuizQuestion;
   }
 
   return (
-    <div className={`${opts.level === "paragraph" ? "rounded-[18px] p-4 text-base leading-[2.15] sm:p-5 sm:text-lg sm:leading-[2.25]" : "rounded-[14px] p-3 text-sm leading-8"} bg-[var(--br-canvas-elevated)]`}>{clueGrid}
+    <div className={`${opts.level === "paragraph" ? "rounded-[18px] p-4 text-base leading-[2.15] sm:p-5 sm:text-lg sm:leading-[2.25]" : "rounded-[14px] p-3 text-sm leading-8"} min-w-0 max-w-full overflow-hidden bg-[var(--br-canvas-elevated)] [overflow-wrap:anywhere]`}>{clueGrid}
       {segments.map((segment, i) => (
-        <span key={i}>
+        <span key={i} className="[overflow-wrap:anywhere]">
           {segment}
           {i < segments.length - 1 ? inputFor(i) : null}
         </span>
