@@ -1698,7 +1698,11 @@ export async function updateLessonBlock(lessonId: string, blockId: string, formD
   await requireLessonAccess(lessonId);
   const supabase = createAdminClient();
   const parsed = lessonBlockSchema.parse({ blockType: formData.get("blockType") });
-  const content = blockContentFromForm(parsed.blockType, formData);
+  const blockContent = blockContentFromForm(parsed.blockType, formData);
+  const content = {
+    ...(blockContent && typeof blockContent === "object" && !Array.isArray(blockContent) ? blockContent : {}),
+    hidden_from_learners: formData.get("hiddenFromLearners") === "on"
+  } as Json;
 
   const { error } = await supabase
     .from("lesson_blocks")

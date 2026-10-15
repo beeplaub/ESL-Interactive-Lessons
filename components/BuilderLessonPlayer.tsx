@@ -841,7 +841,7 @@ export function BuilderLessonPlayer({
             {/* ── Active panel ── */}
             {activeTab === "learn" ? (
               slideBlocks.length ? (
-                <LessonBlockPreview blocks={slideBlocks} checklistState={reviewChecklistState} onChecklistChange={(blockId, checkedItems) => setReviewChecklistState((current) => ({ ...current, [blockId]: checkedItems }))} />
+                <LessonBlockPreview blocks={slideBlocks} emptyText="No learner-visible content on this slide." checklistState={reviewChecklistState} onChecklistChange={(blockId, checkedItems) => setReviewChecklistState((current) => ({ ...current, [blockId]: checkedItems }))} />
               ) : (
                 <div className="grid min-h-40 place-items-center rounded-[16px] bg-[var(--br-canvas-elevated)] p-5 text-center text-sm font-semibold text-[var(--br-text-muted)]">
                   Take a moment to review this step, then continue when you are ready.

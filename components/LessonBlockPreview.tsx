@@ -183,7 +183,9 @@ export function LessonBlockPreview({
   onChecklistChange?: (blockId: string, checkedItems: boolean[]) => void;
   alwaysOpen?: boolean;
 }) {
-  if (!blocks.length) {
+  const visibleBlocks = blocks.filter((block) => asRecord(block.content).hidden_from_learners !== true);
+
+  if (!visibleBlocks.length) {
     return (
       <div className="rounded-lg border border-dashed border-[var(--br-border)] bg-surface p-6 text-center text-sm text-[var(--br-text-muted)]">
         {emptyText}
@@ -193,7 +195,7 @@ export function LessonBlockPreview({
 
   return (
     <div className="lesson-block-preview space-y-3 sm:space-y-4">
-      {blocks.map((block) => (
+      {visibleBlocks.map((block) => (
         <PreviewBlock key={block.id} block={block} checkedItems={checklistState[block.id]} onChecklistChange={onChecklistChange} alwaysOpen={alwaysOpen} />
       ))}
     </div>
