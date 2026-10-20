@@ -57,6 +57,31 @@ function isCourseItemPublished(item: CourseItemView) {
   return true;
 }
 
+function CourseDescription({ text }: { text: string }) {
+  const paragraphs = text.split(/\n\s*\n/);
+  return <div className="space-y-3 text-sm leading-6 text-[var(--br-text-muted)]">
+    {paragraphs.map((paragraph, paragraphIndex) => {
+      const parts: React.ReactNode[] = [];
+      const linkPattern = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s<>]+)/g;
+      let lastIndex = 0;
+      let match: RegExpExecArray | null;
+      while ((match = linkPattern.exec(paragraph))) {
+        if (match.index > lastIndex) parts.push(paragraph.slice(lastIndex, match.index));
+        const href = match[2] ?? match[3];
+        const label = match[1] ?? match[3];
+        // Keep punctuation following a pasted URL outside the link.
+        const trailing = label.match(/[.,!?;:]+$/)?.[0] ?? "";
+        const cleanLabel = trailing ? label.slice(0, -trailing.length) : label;
+        parts.push(<a key={`link-${paragraphIndex}-${match.index}`} href={href.replace(/[.,!?;:]+$/, "")} target="_blank" rel="noreferrer" className="font-semibold text-[var(--br-action)] underline underline-offset-2 hover:opacity-80">{cleanLabel}</a>);
+        if (trailing) parts.push(trailing);
+        lastIndex = linkPattern.lastIndex;
+      }
+      if (lastIndex < paragraph.length) parts.push(paragraph.slice(lastIndex));
+      return <p key={paragraphIndex} className="whitespace-pre-line">{parts.length ? parts : paragraph}</p>;
+    })}
+  </div>;
+}
+
 export default async function CourseLandingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
@@ -418,7 +443,7 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
 
 
   const overviewContent = course.description ? (
-    <p className="whitespace-pre-line text-sm leading-6 text-[var(--br-text-muted)]">{course.description}</p>
+    <CourseDescription text={course.description} />
   ) : null;
 
   const questionsContent = (faqs ?? []).length ? (

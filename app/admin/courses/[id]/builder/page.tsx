@@ -489,6 +489,7 @@ export default async function CourseBuilderPage({ params }: { params: Promise<{ 
               <label className="text-sm font-medium sm:col-span-2">
                 Description
                 <textarea name="description" defaultValue={course.description ?? ""} rows={5} className="mt-1 w-full rounded-lg border border-[var(--br-border)] px-3 py-2 text-sm" />
+                <span className="mt-1 block text-xs font-normal text-[var(--br-text-muted)]">Paste a URL to make it clickable, or add link text with Markdown: [Visit our site](https://example.com).</span>
               </label>
             </div>
             <p className="rounded-xl border border-[var(--br-border)] bg-surface-muted p-3 text-xs leading-5 text-[var(--br-text-muted)]">Private courses remain published, but they are hidden from public lists and direct links. Add learners from <strong>Course analytics → Learner access</strong>.</p>
