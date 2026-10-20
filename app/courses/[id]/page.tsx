@@ -546,7 +546,7 @@ function FaqAccordionItem({ question, answer, defaultOpen }: { question: string;
         <p className="min-w-0 break-words text-sm font-extrabold leading-5 text-[var(--br-dark-card)]">{question}</p>
         <ChevronDown className="mt-0.5 size-4 shrink-0 text-[var(--br-text-muted)] transition group-open:rotate-180" />
       </summary>
-      <p className="mt-2.5 break-words text-sm leading-6 text-[var(--br-text-muted)]">{answer}</p>
+      <p className="mt-2.5 whitespace-pre-wrap break-words text-sm leading-6 text-[var(--br-text-muted)]">{answer}</p>
     </details>
   );
 }
