@@ -62,9 +62,22 @@ export async function createAvatarUploadTarget(contentType: string) {
   const { user } = await requireUser();
   if (!Object.hasOwn(AVATAR_TYPES, contentType)) return { error: "Choose a JPG, PNG, or WebP image." };
   const mimeType = contentType as AvatarContentType;
-  const path = `avatars/${user.id}/${crypto.randomUUID()}.${AVATAR_TYPES[mimeType]}`;
-  const target = await createSignedR2UploadUrl({ path, contentType: mimeType });
-  return { uploadUrl: target.uploadUrl, url: target.url, path, contentType: mimeType };
+  const id = crypto.randomUUID();
+  const extension = AVATAR_TYPES[mimeType];
+  const path = `avatars/${user.id}/${id}.${extension}`;
+  const sourcePath = `avatars/${user.id}/${id}-source.${extension}`;
+  const [target, sourceTarget] = await Promise.all([
+    createSignedR2UploadUrl({ path, contentType: mimeType }),
+    createSignedR2UploadUrl({ path: sourcePath, contentType: mimeType }),
+  ]);
+  return {
+    uploadUrl: target.uploadUrl,
+    sourceUploadUrl: sourceTarget.uploadUrl,
+    sourcePath,
+    sourceUrl: sourceTarget.url,
+    path,
+    contentType: mimeType,
+  };
 }
 
 export async function completeAvatarUpload(path: string) {
