@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { createPortal } from "react-dom";
 import type { TouchEvent } from "react";
 import { ArrowLeft, ArrowRight, Award, BookOpen, BookOpenText, CheckCircle2, ChevronLeft, Languages, List, Lock, Music2, NotebookPen, Pause, Play, PenLine, RotateCcw, Sparkles, X } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
@@ -312,6 +313,8 @@ export function BuilderLessonPlayer({
   const [isPending, startTransition] = useTransition();
   const [savedActivityAttempts, setSavedActivityAttempts] = useState<ActivityAttempt[]>(activityAttempts);
   const [jumpOpen, setJumpOpen] = useState(false);
+  const [jumpMenuPosition, setJumpMenuPosition] = useState<{ left: number; bottom: number } | null>(null);
+  const jumpButtonRef = useRef<HTMLButtonElement>(null);
   const [practiceActivityIndex, setPracticeActivityIndex] = useState(0);
   const [reviewChecklistState, setReviewChecklistState] = useState<Record<string, boolean[]>>({});
 
@@ -929,8 +932,17 @@ export function BuilderLessonPlayer({
         {!practiceModuleMode ? <div className="relative flex min-w-0 shrink items-center gap-1 rounded-full bg-[var(--br-canvas-elevated)] px-1.5 py-1 text-xs font-bold text-[var(--br-text-muted)] sm:gap-2 sm:px-2 sm:text-sm">
           {message ? <span className="hidden text-xs text-[var(--br-danger)] sm:inline">{message}</span> : null}
           <button
+            ref={jumpButtonRef}
             type="button"
-            onClick={() => setJumpOpen((open) => !open)}
+            onClick={() => {
+              if (jumpOpen) {
+                setJumpOpen(false);
+                return;
+              }
+              const rect = jumpButtonRef.current?.getBoundingClientRect();
+              if (rect) setJumpMenuPosition({ left: rect.left + rect.width / 2, bottom: window.innerHeight - rect.top + 8 });
+              setJumpOpen(true);
+            }}
                   disabled={isLiveStudent && liveNavigationLocked}
             aria-expanded={jumpOpen}
             aria-label="Jump to slide"
@@ -939,12 +951,13 @@ export function BuilderLessonPlayer({
             Slide {index + 1}
           </button>
           <span className="shrink-0 whitespace-nowrap text-[10px] text-[var(--br-text-muted)] sm:text-xs">of {slides.length}</span>
-          {jumpOpen ? (
-            <div className="absolute bottom-full left-1/2 z-30 mb-2 max-h-72 w-72 max-w-[calc(100vw-2rem)] -translate-x-1/2 overflow-auto rounded-[18px] border border-[var(--br-surface-strong)] bg-surface p-1.5 text-left shadow-2xl">
+          {jumpOpen && jumpMenuPosition && typeof document !== "undefined" ? createPortal(
+            <div role="group" aria-label="Choose a slide" style={{ left: jumpMenuPosition.left, bottom: jumpMenuPosition.bottom }} className="fixed z-[10000] max-h-[min(18rem,calc(100dvh-1.5rem))] w-72 max-w-[calc(100vw-2rem)] -translate-x-1/2 overflow-auto rounded-[18px] border border-[var(--br-surface-strong)] bg-surface p-1.5 text-left shadow-2xl">
               {slides.map((item, slideIndex) => (
                 <button
                   key={item.id}
                   type="button"
+                  aria-current={slideIndex === index ? "true" : undefined}
                   onClick={() => jumpTo(slideIndex)}
                   className={`block w-full rounded-lg px-3 py-2 text-left text-sm transition ${
                     slideIndex === index ? "bg-[var(--br-chart-primary)]/10 font-extrabold text-[var(--br-chart-primary)]" : "font-semibold text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"
@@ -954,7 +967,7 @@ export function BuilderLessonPlayer({
                   {item.title}
                 </button>
               ))}
-            </div>
+            </div>, document.body
           ) : null}
         </div> : null}
         {practiceModuleMode ? completed ? <button type="button" onClick={retakeLesson} className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[var(--br-action)] px-3 py-2 text-xs font-extrabold text-on-dark"><RotateCcw size={13} />Practise again</button> : <button type="button" onClick={finish} disabled={isPending || reviewChecklistBlocked} className="shrink-0 rounded-full bg-[var(--br-action)] px-3 py-2 text-xs font-extrabold text-on-dark disabled:opacity-45">Complete module</button> : index === slides.length - 1 ? (
