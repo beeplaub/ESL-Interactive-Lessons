@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { createPortal } from "react-dom";
 import type { TouchEvent } from "react";
-import { ArrowLeft, ArrowRight, Award, BookOpen, BookOpenText, CheckCircle2, ChevronLeft, Languages, List, Lock, Music2, NotebookPen, Pause, Play, PenLine, RotateCcw, Sparkles, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Award, BookOpen, BookOpenText, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Languages, List, Lock, Music2, NotebookPen, Pause, Play, PenLine, RotateCcw, Sparkles, X } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
 import { LessonActivityPanel, lessonActivityTotalPoints } from "@/components/LessonActivityPanel";
 import { LessonBlockPreview } from "@/components/LessonBlockPreview";
@@ -316,6 +316,7 @@ export function BuilderLessonPlayer({
   const [jumpMenuPosition, setJumpMenuPosition] = useState<{ left: number; bottom: number } | null>(null);
   const jumpButtonRef = useRef<HTMLButtonElement>(null);
   const mobileSlideMapRef = useRef<HTMLDivElement>(null);
+  const desktopSlideRailRef = useRef<HTMLDivElement>(null);
   const [practiceActivityIndex, setPracticeActivityIndex] = useState(0);
   const [reviewChecklistState, setReviewChecklistState] = useState<Record<string, boolean[]>>({});
 
@@ -578,7 +579,24 @@ export function BuilderLessonPlayer({
   }
 
   useEffect(() => {
-    mobileSlideMapRef.current?.querySelector<HTMLElement>(`[data-slide-index="${index}"]`)?.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
+    const mobileTrack = mobileSlideMapRef.current;
+    const mobileActive = mobileTrack?.querySelector<HTMLElement>(`[data-slide-index="${index}"]`);
+    if (mobileTrack && mobileActive) {
+      const left = mobileActive.offsetLeft - mobileTrack.offsetLeft;
+      if (left < mobileTrack.scrollLeft) mobileTrack.scrollTo({ left, behavior: "smooth" });
+      else if (left + mobileActive.offsetWidth > mobileTrack.scrollLeft + mobileTrack.clientWidth) {
+        mobileTrack.scrollTo({ left: left + mobileActive.offsetWidth - mobileTrack.clientWidth, behavior: "smooth" });
+      }
+    }
+    const desktopTrack = desktopSlideRailRef.current;
+    const desktopActive = desktopTrack?.querySelector<HTMLElement>(`[data-slide-index="${index}"]`);
+    if (desktopTrack && desktopActive) {
+      const top = desktopActive.offsetTop - desktopTrack.offsetTop;
+      if (top < desktopTrack.scrollTop) desktopTrack.scrollTo({ top, behavior: "smooth" });
+      else if (top + desktopActive.offsetHeight > desktopTrack.scrollTop + desktopTrack.clientHeight) {
+        desktopTrack.scrollTo({ top: top + desktopActive.offsetHeight - desktopTrack.clientHeight, behavior: "smooth" });
+      }
+    }
   }, [index]);
 
   function handleLessonTouchMove(event: TouchEvent<HTMLElement>) {
@@ -733,19 +751,14 @@ export function BuilderLessonPlayer({
       </div>
       {isLiveTeacher && liveSession ? <LiveTeacherToolbar sessionId={liveSession.sessionId} activities={slideActivities.map((activity) => ({ id: activity.id, activity_type: activity.activity_type }))} navigationLocked={liveNavigationLocked} /> : null}
 
-      <div className="grid min-w-0 grid-cols-1 gap-4 min-[1180px]:grid-cols-[190px_minmax(0,1fr)]">
+      <div className="grid min-w-0 grid-cols-1 gap-2 min-[1180px]:grid-cols-[44px_minmax(0,1fr)] min-[1180px]:gap-3">
       {!practiceModuleMode ? <aside className="hidden min-[1180px]:block">
-        <div className="sticky top-4 rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-3 shadow-[var(--br-shadow)]">
-          <div className="mb-3 flex items-center justify-between gap-2 px-1">
-            <div><p className="text-xs font-extrabold text-[var(--br-dark-card)]">Slides</p><p className="mt-0.5 text-[10px] font-semibold text-[var(--br-text-muted)]">Choose a step</p></div>
-            <span className="rounded-full bg-[var(--br-canvas-elevated)] px-2 py-1 text-[10px] font-extrabold text-[var(--br-text-muted)]">{index + 1}/{slides.length}</span>
-          </div>
-          <nav aria-label="Lesson slides" className="max-h-[min(68vh,620px)] space-y-1 overflow-y-auto pr-1">
-            {slides.map((item, slideIndex) => <button key={item.id} type="button" disabled={isLiveStudent && liveNavigationLocked} aria-current={slideIndex === index ? "step" : undefined} onClick={() => jumpTo(slideIndex)} className={`flex w-full min-w-0 items-start gap-2 rounded-xl px-2 py-2 text-left transition ${slideIndex === index ? "bg-[var(--br-chart-primary)]/10 text-[var(--br-chart-primary)] ring-1 ring-[var(--br-chart-primary)]/20" : "text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"} disabled:cursor-not-allowed disabled:opacity-45`}>
-              <span className={`grid size-6 shrink-0 place-items-center rounded-lg text-[10px] font-black ${slideIndex === index ? "bg-[var(--br-chart-primary)] text-on-dark" : slideIndex < index ? "bg-[var(--br-success)]/15 text-[var(--br-chart-secondary)]" : "bg-[var(--br-canvas-elevated)] text-[var(--br-text-muted)]"}`}>{slideIndex + 1}</span>
-              <span className="min-w-0 flex-1 truncate pt-1 text-xs font-bold">{item.title}</span>
-            </button>)}
+        <div className="sticky top-4 flex max-h-[calc(100dvh-2rem)] w-11 flex-col items-center gap-1 rounded-full border border-[var(--br-surface-strong)] bg-surface px-1 py-1.5 shadow-[var(--br-shadow)]">
+          <button type="button" onClick={() => desktopSlideRailRef.current?.scrollBy({ top: -180, behavior: "smooth" })} aria-label="Scroll to earlier slides" className="grid size-7 shrink-0 place-items-center rounded-full text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"><ChevronUp size={15} /></button>
+          <nav ref={desktopSlideRailRef} aria-label="Lesson slides" className="max-h-[min(68vh,620px)] space-y-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {slides.map((item, slideIndex) => <button key={item.id} type="button" data-slide-index={slideIndex} disabled={isLiveStudent && liveNavigationLocked} aria-current={slideIndex === index ? "step" : undefined} aria-label={`Go to slide ${slideIndex + 1}: ${item.title}`} title={item.title} onClick={() => jumpTo(slideIndex)} className={`grid size-7 shrink-0 place-items-center rounded-full text-[10px] font-extrabold transition ${slideIndex === index ? "bg-[var(--br-chart-primary)] text-on-dark shadow-sm" : "bg-[var(--br-canvas-elevated)] text-[var(--br-text-muted)] hover:bg-[var(--br-border)]"} disabled:cursor-not-allowed disabled:opacity-45`}>{slideIndex + 1}</button>)}
           </nav>
+          <button type="button" onClick={() => desktopSlideRailRef.current?.scrollBy({ top: 180, behavior: "smooth" })} aria-label="Scroll to later slides" className="grid size-7 shrink-0 place-items-center rounded-full text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"><ChevronDown size={15} /></button>
         </div>
       </aside> : null}
       <div
@@ -861,10 +874,12 @@ export function BuilderLessonPlayer({
               </div>
             )}
 
-            {!practiceModuleMode ? <div ref={mobileSlideMapRef} aria-label="Slide map" className="mb-4 flex gap-2 overflow-x-auto overscroll-x-contain pb-1 [scrollbar-width:thin] min-[1180px]:hidden">
-              {slides.map((item, slideIndex) => <button key={item.id} type="button" data-slide-index={slideIndex} disabled={isLiveStudent && liveNavigationLocked} aria-current={slideIndex === index ? "step" : undefined} aria-label={`Go to slide ${slideIndex + 1}: ${item.title}`} onClick={() => jumpTo(slideIndex)} className={`flex min-h-10 shrink-0 items-center gap-2 rounded-xl border px-3 text-xs font-extrabold transition disabled:cursor-not-allowed disabled:opacity-45 ${slideIndex === index ? "border-[var(--br-chart-primary)] bg-[var(--br-chart-primary)] text-on-dark shadow-sm" : slideIndex < index ? "border-[var(--br-success)]/25 bg-[var(--br-success)]/10 text-[var(--br-chart-secondary)]" : "border-[var(--br-surface-strong)] bg-surface text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"}`}>
-                <span>{slideIndex + 1}</span><span className="max-w-36 truncate font-semibold">{item.title}</span>
-              </button>)}
+            {!practiceModuleMode ? <div className="mb-4 flex w-full items-center gap-1 rounded-full border border-[var(--br-surface-strong)] bg-white p-1 shadow-[var(--br-shadow)] min-[1180px]:hidden">
+              <button type="button" onClick={() => mobileSlideMapRef.current?.scrollBy({ left: -180, behavior: "smooth" })} aria-label="Scroll to earlier slides" className="grid size-8 shrink-0 place-items-center rounded-full text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"><ChevronLeft size={15} /></button>
+              <div ref={mobileSlideMapRef} aria-label="Slide map" className="flex min-w-0 flex-1 gap-2 overflow-x-auto overscroll-x-contain px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                {slides.map((item, slideIndex) => <button key={item.id} type="button" data-slide-index={slideIndex} disabled={isLiveStudent && liveNavigationLocked} aria-current={slideIndex === index ? "step" : undefined} aria-label={`Go to slide ${slideIndex + 1}: ${item.title}`} title={item.title} onClick={() => jumpTo(slideIndex)} className={`grid size-8 shrink-0 place-items-center rounded-full border text-[11px] font-extrabold transition disabled:cursor-not-allowed disabled:opacity-45 ${slideIndex === index ? "border-[var(--br-chart-primary)] bg-[var(--br-chart-primary)] text-on-dark shadow-sm" : "border-[var(--br-surface-strong)] bg-surface text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"}`}>{slideIndex + 1}</button>)}
+              </div>
+              <button type="button" onClick={() => mobileSlideMapRef.current?.scrollBy({ left: 180, behavior: "smooth" })} aria-label="Scroll to later slides" className="grid size-8 shrink-0 place-items-center rounded-full text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"><ChevronRight size={15} /></button>
             </div> : null}
 
             {/* ── Active panel ── */}
