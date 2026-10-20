@@ -6,6 +6,7 @@ import { completeAvatarUpload, createAvatarUploadTarget } from "@/app/profile/ac
 
 const MAX_AVATAR_BYTES = 8 * 1024 * 1024;
 const ACCEPTED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const AVATAR_TYPES: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
 const CROP_SIZE = 288;
 const OUTPUT_SIZE = 512;
 
@@ -65,7 +66,9 @@ export function AvatarUploader({ initialUrl, initials }: { initialUrl: string | 
     setMessage(null);
     try {
       const sourceUrl = getOriginalAvatarUrl(url);
-      let response = await fetch(sourceUrl, { mode: "cors" });
+      const sourcePath = decodeURIComponent(new URL(sourceUrl).pathname.replace(/^\/+/, ""));
+      let response = await fetch(`/api/profile/avatar?path=${encodeURIComponent(sourcePath)}`);
+      if (!response.ok) response = await fetch(sourceUrl, { mode: "cors" });
       if (!response.ok && sourceUrl !== url) response = await fetch(url, { mode: "cors" });
       if (!response.ok) throw new Error("Image unavailable");
       const blob = await response.blob();
@@ -113,21 +116,34 @@ export function AvatarUploader({ initialUrl, initials }: { initialUrl: string | 
         if (target.error || !target.uploadUrl || !target.sourceUploadUrl || !target.path || !target.sourcePath) {
           throw new Error(target.error ?? "Could not start the upload. Please try again.");
         }
-        const [originalUpload, croppedUpload] = await Promise.all([
-          fetch(target.sourceUploadUrl, {
-            method: "PUT",
-            headers: { "Content-Type": target.contentType },
-            body: cropImage.file,
-          }),
-          fetch(target.uploadUrl, {
-            method: "PUT",
-            headers: { "Content-Type": target.contentType },
-            body: cropped,
-          }),
-        ]);
-        if (!originalUpload.ok || !croppedUpload.ok) throw new Error("The image could not be uploaded. Please try again.");
+        let savedPath = target.path;
+        try {
+          const [originalUpload, croppedUpload] = await Promise.all([
+            fetch(target.sourceUploadUrl, {
+              method: "PUT",
+              headers: { "Content-Type": target.contentType },
+              body: cropImage.file,
+            }),
+            fetch(target.uploadUrl, {
+              method: "PUT",
+              headers: { "Content-Type": target.contentType },
+              body: cropped,
+            }),
+          ]);
+          if (!originalUpload.ok || !croppedUpload.ok) throw new Error("R2 rejected the direct upload.");
+        } catch {
+          const fallbackForm = new FormData();
+          fallbackForm.append("original", cropImage.file);
+          fallbackForm.append("cropped", cropped, `avatar.${AVATAR_TYPES[cropImage.file.type]}`);
+          const fallbackResponse = await fetch("/api/profile/avatar", { method: "POST", body: fallbackForm });
+          const fallbackResult = await fallbackResponse.json().catch(() => ({})) as { path?: string; error?: string };
+          if (!fallbackResponse.ok || !fallbackResult.path) {
+            throw new Error(fallbackResult.error ?? "R2 upload failed. Check the bucket CORS settings and try again.");
+          }
+          savedPath = fallbackResult.path;
+        }
 
-        const result = await completeAvatarUpload(target.path);
+        const result = await completeAvatarUpload(savedPath);
         if (result.error || !result.url) throw new Error(result.error ?? "Could not save the profile photo.");
         setUrl(result.url);
         setCropImage(null);

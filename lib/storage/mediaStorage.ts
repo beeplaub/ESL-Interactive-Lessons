@@ -187,10 +187,30 @@ export async function createSignedR2UploadUrl(input: { path: string; contentType
   return { bucket, uploadUrl, url };
 }
 
+/** Uploads a small app-owned object through the server when browser CORS blocks R2. */
+export async function uploadR2Object(input: { path: string; body: Uint8Array; contentType: string }) {
+  const bucket = r2Bucket();
+  await getR2Client().send(new PutObjectCommand({
+    Bucket: bucket,
+    Key: input.path,
+    Body: input.body,
+    ContentType: input.contentType,
+    CacheControl: "public, max-age=31536000, immutable",
+  }));
+  return `${r2PublicBaseUrl()}/${encodeURI(input.path).replace(/%2F/g, "/")}`;
+}
+
 /** Verifies an uploaded R2 object before its URL is saved as a profile avatar. */
 export async function getR2ObjectMetadata(input: { bucket: string; path: string }) {
   const result = await getR2Client().send(new HeadObjectCommand({ Bucket: input.bucket, Key: input.path }));
   return { contentLength: result.ContentLength ?? 0, contentType: result.ContentType ?? "" };
+}
+
+/** Reads one app-owned R2 object for same-origin avatar editing when CORS is unavailable. */
+export async function readR2Object(input: { path: string }) {
+  const result = await getR2Client().send(new GetObjectCommand({ Bucket: r2Bucket(), Key: input.path }));
+  if (!result.Body) throw new Error("R2 object is empty.");
+  return { body: await result.Body.transformToByteArray(), contentType: result.ContentType ?? "application/octet-stream" };
 }
 
 export async function resolveMediaUrl(admin: AdminClient, object: {
