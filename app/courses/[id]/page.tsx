@@ -371,7 +371,7 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
             <div className="border-t border-[var(--br-border)] pt-3">
               <p className="mb-2 text-xs font-extrabold uppercase tracking-wide text-[var(--br-text-muted)]">Outcome progress</p>
               <div className="grid gap-2">
-                {assessmentOutcomes.slice(0, 3).map((outcome) => {
+                {assessmentOutcomes.map((outcome) => {
                   const label = (outcomes ?? []).find((candidate) => candidate.id === outcome.course_outcome_id)?.outcome ?? "Course outcome";
                   return <AssessmentMetric key={outcome.course_outcome_id} label={label} value={Number(outcome.attainment_percent ?? 0)} />;
                 })}
