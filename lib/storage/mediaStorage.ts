@@ -1,4 +1,4 @@
-import { CopyObjectCommand, DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { CopyObjectCommand, DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import type { createAdminClient } from "@/lib/supabase/admin";
 
@@ -173,6 +173,24 @@ export async function deleteMediaObject(admin: AdminClient, object: { provider?:
 export async function createSignedR2MediaUrl(object: { bucket: string; path: string }, expiresIn = 600) {
   const url = await getSignedUrl(getR2Client(), new GetObjectCommand({ Bucket: object.bucket, Key: object.path }), { expiresIn });
   return url;
+}
+
+/** Creates a short-lived upload URL for an app-owned R2 object. */
+export async function createSignedR2UploadUrl(input: { path: string; contentType: string }, expiresIn = 300) {
+  const bucket = r2Bucket();
+  const uploadUrl = await getSignedUrl(
+    getR2Client(),
+    new PutObjectCommand({ Bucket: bucket, Key: input.path, ContentType: input.contentType }),
+    { expiresIn },
+  );
+  const url = `${r2PublicBaseUrl()}/${encodeURI(input.path).replace(/%2F/g, "/")}`;
+  return { bucket, uploadUrl, url };
+}
+
+/** Verifies an uploaded R2 object before its URL is saved as a profile avatar. */
+export async function getR2ObjectMetadata(input: { bucket: string; path: string }) {
+  const result = await getR2Client().send(new HeadObjectCommand({ Bucket: input.bucket, Key: input.path }));
+  return { contentLength: result.ContentLength ?? 0, contentType: result.ContentType ?? "" };
 }
 
 export async function resolveMediaUrl(admin: AdminClient, object: {

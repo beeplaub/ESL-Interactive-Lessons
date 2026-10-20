@@ -3,6 +3,15 @@
 import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createSignedR2UploadUrl, getR2ObjectMetadata } from "@/lib/storage/mediaStorage";
+
+const AVATAR_MAX_BYTES = 8 * 1024 * 1024;
+const AVATAR_TYPES = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+} as const;
+type AvatarContentType = keyof typeof AVATAR_TYPES;
 
 export async function updateProfile(formData: FormData) {
   const { user } = await requireUser();
@@ -49,34 +58,43 @@ export async function updateAvatarUrl(avatarUrl: string) {
   revalidatePath("/account");
 }
 
-export async function uploadAvatar(formData: FormData) {
+export async function createAvatarUploadTarget(contentType: string) {
   const { user } = await requireUser();
-  const file = formData.get("avatar");
-  if (!(file instanceof File) || file.size === 0) {
-    return { error: "Please choose an image file." };
+  if (!Object.hasOwn(AVATAR_TYPES, contentType)) return { error: "Choose a JPG, PNG, or WebP image." };
+  const mimeType = contentType as AvatarContentType;
+  const path = `avatars/${user.id}/${crypto.randomUUID()}.${AVATAR_TYPES[mimeType]}`;
+  const target = await createSignedR2UploadUrl({ path, contentType: mimeType });
+  return { uploadUrl: target.uploadUrl, url: target.url, path, contentType: mimeType };
+}
+
+export async function completeAvatarUpload(path: string) {
+  const { user } = await requireUser();
+  const allowedPath = new RegExp(`^avatars/${user.id}/[0-9a-f-]{36}\\.(jpg|png|webp)$`, "i");
+  if (!allowedPath.test(path)) return { error: "Invalid avatar upload." };
+
+  const bucket = process.env.R2_BUCKET;
+  if (!bucket) return { error: "Avatar storage is not configured." };
+  let metadata: Awaited<ReturnType<typeof getR2ObjectMetadata>>;
+  try {
+    metadata = await getR2ObjectMetadata({ bucket, path });
+  } catch {
+    return { error: "The image upload could not be verified. Please try again." };
   }
-
-  const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-  const path = `${user.id}/avatar.${ext}`;
-
-  // Convert File to ArrayBuffer for server-side upload
-  const arrayBuffer = await file.arrayBuffer();
-  const buffer = new Uint8Array(arrayBuffer);
+  if (metadata.contentLength <= 0 || metadata.contentLength > AVATAR_MAX_BYTES) {
+    return { error: "Choose an image smaller than 8 MB." };
+  }
+  if (!Object.hasOwn(AVATAR_TYPES, metadata.contentType)) {
+    return { error: "Choose a JPG, PNG, or WebP image." };
+  }
+  const publicBaseUrl = process.env.R2_PUBLIC_BASE_URL?.replace(/\/+$/, "");
+  if (!publicBaseUrl) return { error: "Avatar storage is not configured." };
+  const url = `${publicBaseUrl}/${encodeURI(path).replace(/%2F/g, "/")}`;
 
   const admin = createAdminClient();
-  const { error: uploadError } = await admin.storage
-    .from("avatars")
-    .upload(path, buffer, {
-      upsert: true,
-      contentType: file.type || "image/jpeg",
-    });
-  if (uploadError) return { error: uploadError.message };
-
-  const { data } = admin.storage.from("avatars").getPublicUrl(path);
 
   const { error: profileError } = await admin
     .from("profiles")
-    .update({ avatar_url: data.publicUrl })
+    .update({ avatar_url: url })
     .eq("id", user.id);
   if (profileError) return { error: profileError.message };
   // The blog author mirror is optional; an unavailable/stale blog schema
@@ -84,7 +102,7 @@ export async function uploadAvatar(formData: FormData) {
   await admin
     .from("blog_authors")
     .upsert(
-      { user_id: user.id, avatar_url: data.publicUrl },
+      { user_id: user.id, avatar_url: url },
       { onConflict: "user_id" },
     )
     .then(({ error }) => {
@@ -93,5 +111,5 @@ export async function uploadAvatar(formData: FormData) {
 
   revalidatePath("/profile");
   revalidatePath("/account");
-  return { url: data.publicUrl };
+  return { url };
 }
