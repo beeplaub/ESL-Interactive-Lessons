@@ -315,6 +315,7 @@ export function BuilderLessonPlayer({
   const [jumpOpen, setJumpOpen] = useState(false);
   const [jumpMenuPosition, setJumpMenuPosition] = useState<{ left: number; bottom: number } | null>(null);
   const jumpButtonRef = useRef<HTMLButtonElement>(null);
+  const mobileSlideMapRef = useRef<HTMLDivElement>(null);
   const [practiceActivityIndex, setPracticeActivityIndex] = useState(0);
   const [reviewChecklistState, setReviewChecklistState] = useState<Record<string, boolean[]>>({});
 
@@ -576,6 +577,10 @@ export function BuilderLessonPlayer({
     }
   }
 
+  useEffect(() => {
+    mobileSlideMapRef.current?.querySelector<HTMLElement>(`[data-slide-index="${index}"]`)?.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
+  }, [index]);
+
   function handleLessonTouchMove(event: TouchEvent<HTMLElement>) {
     const start = touchStartRef.current;
     if (!start) return;
@@ -728,8 +733,23 @@ export function BuilderLessonPlayer({
       </div>
       {isLiveTeacher && liveSession ? <LiveTeacherToolbar sessionId={liveSession.sessionId} activities={slideActivities.map((activity) => ({ id: activity.id, activity_type: activity.activity_type }))} navigationLocked={liveNavigationLocked} /> : null}
 
+      <div className="grid min-w-0 grid-cols-1 gap-4 min-[1180px]:grid-cols-[190px_minmax(0,1fr)]">
+      {!practiceModuleMode ? <aside className="hidden min-[1180px]:block">
+        <div className="sticky top-4 rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-3 shadow-[var(--br-shadow)]">
+          <div className="mb-3 flex items-center justify-between gap-2 px-1">
+            <div><p className="text-xs font-extrabold text-[var(--br-dark-card)]">Slides</p><p className="mt-0.5 text-[10px] font-semibold text-[var(--br-text-muted)]">Choose a step</p></div>
+            <span className="rounded-full bg-[var(--br-canvas-elevated)] px-2 py-1 text-[10px] font-extrabold text-[var(--br-text-muted)]">{index + 1}/{slides.length}</span>
+          </div>
+          <nav aria-label="Lesson slides" className="max-h-[min(68vh,620px)] space-y-1 overflow-y-auto pr-1">
+            {slides.map((item, slideIndex) => <button key={item.id} type="button" disabled={isLiveStudent && liveNavigationLocked} aria-current={slideIndex === index ? "step" : undefined} onClick={() => jumpTo(slideIndex)} className={`flex w-full min-w-0 items-start gap-2 rounded-xl px-2 py-2 text-left transition ${slideIndex === index ? "bg-[var(--br-chart-primary)]/10 text-[var(--br-chart-primary)] ring-1 ring-[var(--br-chart-primary)]/20" : "text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"} disabled:cursor-not-allowed disabled:opacity-45`}>
+              <span className={`grid size-6 shrink-0 place-items-center rounded-lg text-[10px] font-black ${slideIndex === index ? "bg-[var(--br-chart-primary)] text-on-dark" : slideIndex < index ? "bg-[var(--br-success)]/15 text-[var(--br-chart-secondary)]" : "bg-[var(--br-canvas-elevated)] text-[var(--br-text-muted)]"}`}>{slideIndex + 1}</span>
+              <span className="min-w-0 flex-1 truncate pt-1 text-xs font-bold">{item.title}</span>
+            </button>)}
+          </nav>
+        </div>
+      </aside> : null}
       <div
-        className="relative overflow-hidden"
+        className="relative min-w-0 overflow-hidden"
         style={{ touchAction: "pan-y" }}
         onTouchStart={(event) => {
           const touch = event.touches[0];
@@ -841,6 +861,12 @@ export function BuilderLessonPlayer({
               </div>
             )}
 
+            {!practiceModuleMode ? <div ref={mobileSlideMapRef} aria-label="Slide map" className="mb-4 flex gap-2 overflow-x-auto overscroll-x-contain pb-1 [scrollbar-width:thin] min-[1180px]:hidden">
+              {slides.map((item, slideIndex) => <button key={item.id} type="button" data-slide-index={slideIndex} disabled={isLiveStudent && liveNavigationLocked} aria-current={slideIndex === index ? "step" : undefined} aria-label={`Go to slide ${slideIndex + 1}: ${item.title}`} onClick={() => jumpTo(slideIndex)} className={`flex min-h-10 shrink-0 items-center gap-2 rounded-xl border px-3 text-xs font-extrabold transition disabled:cursor-not-allowed disabled:opacity-45 ${slideIndex === index ? "border-[var(--br-chart-primary)] bg-[var(--br-chart-primary)] text-on-dark shadow-sm" : slideIndex < index ? "border-[var(--br-success)]/25 bg-[var(--br-success)]/10 text-[var(--br-chart-secondary)]" : "border-[var(--br-surface-strong)] bg-surface text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"}`}>
+                <span>{slideIndex + 1}</span><span className="max-w-36 truncate font-semibold">{item.title}</span>
+              </button>)}
+            </div> : null}
+
             {/* ── Active panel ── */}
             {activeTab === "learn" ? (
               slideBlocks.length ? (
@@ -902,6 +928,7 @@ export function BuilderLessonPlayer({
           </section>
         </div>
 
+      </div>
       </div>
 
       {/* ── In-flow study dock and bottom navigation ── */}
