@@ -874,9 +874,15 @@ export function BuilderLessonPlayer({
               </div>
             )}
 
-            {!practiceModuleMode ? <div className="mb-4 flex w-full items-center gap-1 rounded-full border border-[var(--br-surface-strong)] bg-white p-1 shadow-[var(--br-shadow)] min-[1180px]:hidden">
+            {!practiceModuleMode ? <div
+              onTouchStart={(event) => { event.stopPropagation(); touchStartRef.current = null; }}
+              onTouchMove={(event) => event.stopPropagation()}
+              onTouchEnd={(event) => event.stopPropagation()}
+              onTouchCancel={(event) => event.stopPropagation()}
+              className="mb-4 flex w-full items-center gap-1 rounded-full border border-[var(--br-surface-strong)] bg-white p-1 shadow-[var(--br-shadow)] [touch-action:pan-y] min-[1180px]:hidden"
+            >
               <button type="button" onClick={() => mobileSlideMapRef.current?.scrollBy({ left: -180, behavior: "smooth" })} aria-label="Scroll to earlier slides" className="grid size-8 shrink-0 place-items-center rounded-full text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"><ChevronLeft size={15} /></button>
-              <div ref={mobileSlideMapRef} aria-label="Slide map" className="flex min-w-0 flex-1 gap-2 overflow-x-auto overscroll-x-contain px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div ref={mobileSlideMapRef} aria-label="Slide map; use the arrows to browse slides" className="flex min-w-0 flex-1 gap-2 overflow-hidden px-1">
                 {slides.map((item, slideIndex) => <button key={item.id} type="button" data-slide-index={slideIndex} disabled={isLiveStudent && liveNavigationLocked} aria-current={slideIndex === index ? "step" : undefined} aria-label={`Go to slide ${slideIndex + 1}: ${item.title}`} title={item.title} onClick={() => jumpTo(slideIndex)} className={`grid size-8 shrink-0 place-items-center rounded-full border text-[11px] font-extrabold transition disabled:cursor-not-allowed disabled:opacity-45 ${slideIndex === index ? "border-[var(--br-chart-primary)] bg-[var(--br-chart-primary)] text-on-dark shadow-sm" : "border-[var(--br-surface-strong)] bg-surface text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"}`}>{slideIndex + 1}</button>)}
               </div>
               <button type="button" onClick={() => mobileSlideMapRef.current?.scrollBy({ left: 180, behavior: "smooth" })} aria-label="Scroll to later slides" className="grid size-8 shrink-0 place-items-center rounded-full text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)]"><ChevronRight size={15} /></button>
