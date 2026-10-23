@@ -159,14 +159,6 @@ export default async function AccountPage() {
         review: "1"
       }).toString()}`
     : undefined;
-  const currentHour = Number(new Intl.DateTimeFormat("en-US", { hour: "numeric", hour12: false, timeZone: "Asia/Dhaka" }).format(new Date()));
-  let greeting = "Good morning";
-  if (currentHour >= 18) {
-    greeting = "Good evening";
-  } else if (currentHour >= 12) {
-    greeting = "Good afternoon";
-  }
-
   const { data: learnerClasses } = await adminSupabase.from("class_members").select("class_id").eq("user_id", user.id).eq("role", "STUDENT");
   const classIds = (learnerClasses ?? []).map((row) => row.class_id);
   const [{ data: assignments }, { data: liveClasses }, { data: practiceTasks }] = await Promise.all([
@@ -181,7 +173,7 @@ export default async function AccountPage() {
       showRightSidebar
       desktopChromeLeading={
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-[28px] font-bold leading-tight">{greeting}, {firstName}! 👋</h1>
+          <h1 className="truncate text-[28px] font-bold leading-tight">Hello, {firstName}! 👋</h1>
           <p className="mt-0.5 text-sm text-[var(--br-text-muted)]">Let&apos;s continue your English journey.</p>
         </div>
       }
@@ -199,7 +191,7 @@ export default async function AccountPage() {
           ) : null}
 
           <div className="min-[1180px]:hidden">
-            <h2 className="text-xl font-bold">{greeting}, {firstName}! 👋</h2>
+            <h2 className="text-xl font-bold">Hello, {firstName}! 👋</h2>
             <p className="mt-0.5 text-[13px] text-[var(--br-text-muted)]">Let&apos;s continue your English journey.</p>
           </div>
 

@@ -263,7 +263,7 @@ function buildQuickAccess(recentAccess: CreatorRecentAccessRow[], courses: Recen
 function OverviewHeader({ name }: { name: string }) {
   return (
     <header className="mb-7 px-1 sm:mb-8">
-      <h1 className="text-3xl font-extrabold tracking-[-0.04em] text-ink sm:text-5xl">Good morning, {name}</h1>
+      <h1 className="text-3xl font-extrabold tracking-[-0.04em] text-ink sm:text-5xl">Hello, {name}</h1>
       <p className="mt-2 text-base text-slate-500 sm:text-xl">Pick up where you left off</p>
     </header>
   );
