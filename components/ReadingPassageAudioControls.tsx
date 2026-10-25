@@ -1,25 +1,54 @@
 "use client";
 
-import { Loader2, Sparkles } from "lucide-react";
-import { useState } from "react";
+import { Check, Loader2, Pause, Play, RefreshCw, Save, Sparkles, Volume2 } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { MediaRecorderInput } from "@/components/MediaRecorderInput";
+import { useVoiceGenerationPreferences } from "@/components/voiceGenerationPreferences";
+import { VOICEOVER_PACES, VOICEOVER_STYLES, VOICEOVER_VOICES } from "@/lib/ai/voiceoverCatalog";
+
+type Preview = { generationId: string; url: string; saved: boolean; durationSeconds: number; reused?: boolean };
+const languages = [["en-US", "English (US)"], ["en-GB", "English (UK)"], ["bn-BD", "Bengali"], ["hi-IN", "Hindi"], ["es-ES", "Spanish"], ["fr-FR", "French"], ["de-DE", "German"]] as const;
+
+async function readJson(response: Response) {
+  const raw = await response.text(); let data: Record<string, unknown> = {};
+  try { data = raw ? JSON.parse(raw) as Record<string, unknown> : {}; } catch { /* Plain gateway error. */ }
+  if (!response.ok) throw new Error(typeof data.error === "string" ? data.error : raw.slice(0, 240) || `Voiceover request failed (${response.status}).`);
+  return data;
+}
 
 export function ReadingPassageAudioControls({ lessonId, passage, value, onChange }: { lessonId: string; passage: string; value: string; onChange: (value: string) => void }) {
-  const [generating, setGenerating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  async function generate() {
-    if (!passage.trim()) return setError("Add passage text before generating audio.");
-    setGenerating(true); setError(null);
-    try {
-      const response = await fetch("/api/creator-tools/voiceover", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: "Reading passage", script: passage.trim(), voiceName: "Aoede", languageCode: "en-US", style: "Natural", pace: "Natural", provider: "kokoro" }) });
-      const generated = await response.json() as { generationId?: string; url?: string; error?: string };
-      if (!response.ok || !generated.generationId) throw new Error(generated.error || "Could not generate passage audio.");
-      const saved = await fetch("/api/creator-tools/voiceover/save", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ generationId: generated.generationId, title: "Reading passage" }) });
-      const savedBody = await saved.json() as { url?: string; error?: string };
-      if (!saved.ok || !savedBody.url) throw new Error(savedBody.error || "Could not save generated audio.");
-      onChange(savedBody.url);
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not generate passage audio."); }
-    finally { setGenerating(false); }
+  const [voiceName, setVoiceName] = useState<string>(VOICEOVER_VOICES[0]?.name ?? "Aoede");
+  const [languageCode, setLanguageCode] = useState("en-US");
+  const [style, setStyle] = useState<(typeof VOICEOVER_STYLES)[number]>("Natural");
+  const [pace, setPace] = useState<(typeof VOICEOVER_PACES)[number]>("Natural");
+  const [provider, setProvider] = useState<"auto" | "kokoro" | "google">("auto");
+  const [preview, setPreview] = useState<Preview | null>(null); const [busy, setBusy] = useState<"generate" | "save" | null>(null);
+  const [message, setMessage] = useState<string | null>(null); const [error, setError] = useState<string | null>(null); const [samplePlaying, setSamplePlaying] = useState(false);
+  const previewRef = useRef<HTMLAudioElement>(null); const sampleRef = useRef<HTMLAudioElement>(null); const hydratedSettings = useRef(false);
+  const voiceSettings = useVoiceGenerationPreferences({ provider, languageCode, voiceName, style, pace, locked: false });
+  const selectedVoice = useMemo(() => VOICEOVER_VOICES.find((voice) => voice.name === voiceName), [voiceName]);
+  const kokoroAvailable = /^en(?:-|$)/i.test(languageCode);
+  const effectiveProvider = provider === "auto" ? (kokoroAvailable && style === "Natural" ? "kokoro" : "google") : provider;
+  const displayVoices = effectiveProvider === "kokoro" ? VOICEOVER_VOICES.filter((voice) => voice.kokoroVoice && (languageCode.toLowerCase().startsWith("en-gb") ? voice.kokoroVoice.startsWith("b") : !voice.kokoroVoice.startsWith("b"))) : VOICEOVER_VOICES;
+
+  useEffect(() => { if (!voiceSettings.ready || hydratedSettings.current) return; hydratedSettings.current = true; setProvider(voiceSettings.preferences.provider); setLanguageCode(voiceSettings.preferences.languageCode); setVoiceName(voiceSettings.preferences.voiceName); setStyle(voiceSettings.preferences.style as (typeof VOICEOVER_STYLES)[number]); setPace(voiceSettings.preferences.pace as (typeof VOICEOVER_PACES)[number]); }, [voiceSettings.preferences, voiceSettings.ready]);
+  useEffect(() => { setPreview(null); setMessage(null); }, [passage, voiceName, languageCode, style, pace, provider]);
+  useEffect(() => { if (provider === "kokoro" && !kokoroAvailable) setProvider("auto"); if (effectiveProvider === "kokoro" && style !== "Natural") setStyle("Natural"); if (effectiveProvider === "kokoro" && !displayVoices.some((voice) => voice.name === voiceName)) setVoiceName(displayVoices[0]?.name ?? "Aoede"); }, [displayVoices, effectiveProvider, kokoroAvailable, provider, style, voiceName]);
+
+  async function toggleSample() {
+    const sample = sampleRef.current; const url = selectedVoice && "sampleUrl" in selectedVoice ? selectedVoice.sampleUrl : undefined;
+    if (!sample || !url) return;
+    if (sample.paused) { try { await sample.play(); setSamplePlaying(true); } catch { setError("Your browser could not play this voice sample."); } } else { sample.pause(); setSamplePlaying(false); }
   }
-  return <div className="rounded-lg border border-[var(--br-border)] bg-[var(--br-surface-muted)] p-3"><p className="text-xs font-semibold uppercase tracking-wide text-[var(--br-text-muted)]">Passage audio</p><div className="mt-2 grid gap-2 sm:grid-cols-2"><MediaRecorderInput type="audio" lessonId={lessonId} value={value} onChange={onChange} label="Audio clips" /><div className="grid gap-2"><button type="button" disabled={generating} onClick={() => void generate()} className="inline-flex items-center justify-center gap-2 rounded-md border border-[var(--br-brand)]/30 bg-[var(--br-brand)]/5 px-3 py-2 text-xs font-semibold text-[var(--br-brand)] disabled:opacity-50">{generating ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} Generate from passage</button></div></div>{error ? <p className="mt-2 text-xs font-semibold text-coral">{error}</p> : null}</div>;
+  async function generate() {
+    if (!passage.trim()) { setError("Add passage text before generating audio."); return; }
+    setBusy("generate"); setError(null); setMessage(null);
+    try { if (preview && !preview.saved) await fetch(`/api/creator-tools/voiceover?id=${preview.generationId}`, { method: "DELETE" }); const data = await readJson(await fetch("/api/creator-tools/voiceover", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ title: "Reading passage", script: passage.trim(), voiceName, languageCode, style, pace, provider, lessonId }) })); const next = data as unknown as Preview; setPreview(next); setMessage(next.saved ? "A matching saved voiceover was reused." : next.reused ? "Reused your existing preview." : "Preview ready. Listen before saving."); window.setTimeout(() => previewRef.current?.play().catch(() => undefined), 120); } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not generate passage audio."); } finally { setBusy(null); }
+  }
+  async function save() {
+    if (!preview) return; setBusy("save"); setError(null);
+    try { const data = preview.saved ? { url: preview.url } : await readJson(await fetch("/api/creator-tools/voiceover/save", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ generationId: preview.generationId, title: "Reading passage" }) })); const url = String(data.url || preview.url || ""); if (!url) throw new Error("The audio was saved but no media URL was returned."); setPreview((current) => current ? { ...current, saved: true, url } : current); onChange(url); setMessage("Saved to the Media Library and added to this passage."); } catch (cause) { setError(cause instanceof Error ? cause.message : "Could not save passage audio."); } finally { setBusy(null); }
+  }
+
+  return <div className="rounded-lg border border-[var(--br-border)] bg-[var(--br-surface-muted)] p-3"><div className="flex flex-wrap items-start justify-between gap-2"><div><p className="text-xs font-semibold uppercase tracking-wide text-[var(--br-text-muted)]">Passage audio</p><p className="mt-1 text-xs text-[var(--br-text-muted)]">Use the same preview, voice and engine controls as Creator Tools.</p></div><MediaRecorderInput type="audio" lessonId={lessonId} value={value} onChange={onChange} label="Audio clips" /></div><div className="mt-3 grid gap-3 sm:grid-cols-2"><label className="text-xs font-semibold">Language<select value={languageCode} disabled={voiceSettings.preferences.locked} onChange={(event) => { setLanguageCode(event.target.value); voiceSettings.update({ languageCode: event.target.value }); }} className="mt-1 w-full rounded-md border border-[var(--br-border)] bg-surface px-2.5 py-2 font-normal">{languages.map(([code, label]) => <option key={code} value={code}>{label}</option>)}</select></label><div className="min-w-0"><div className="flex items-end gap-2"><label className="min-w-0 flex-1 text-xs font-semibold">Voice<select value={voiceName} disabled={voiceSettings.preferences.locked} onChange={(event) => { setVoiceName(event.target.value); voiceSettings.update({ voiceName: event.target.value }); }} className="mt-1 w-full rounded-md border border-[var(--br-border)] bg-surface px-2.5 py-2 font-normal"><optgroup label="Female voices">{displayVoices.filter((voice) => voice.presentation === "Female").map((voice) => <option key={voice.name} value={voice.name}>{voice.label}</option>)}</optgroup><optgroup label="Male voices">{displayVoices.filter((voice) => voice.presentation === "Male").map((voice) => <option key={voice.name} value={voice.name}>{voice.label}</option>)}</optgroup></select></label><button type="button" onClick={() => void toggleSample()} disabled={!selectedVoice || !("sampleUrl" in selectedVoice) || !selectedVoice.sampleUrl} className="mb-0.5 grid size-9 shrink-0 place-items-center rounded-md border border-[var(--br-brand)]/25 text-[var(--br-brand)] disabled:opacity-45" aria-label="Listen to voice sample">{samplePlaying ? <Pause size={14} /> : <Play size={14} />}</button></div><audio ref={sampleRef} key={selectedVoice?.name} src={selectedVoice && "sampleUrl" in selectedVoice ? selectedVoice.sampleUrl : undefined} className="hidden" onEnded={() => setSamplePlaying(false)} onPause={() => setSamplePlaying(false)} /></div><label className="text-xs font-semibold">Engine<select value={provider} disabled={voiceSettings.preferences.locked} onChange={(event) => { const next = event.target.value as "auto" | "kokoro" | "google"; setProvider(next); voiceSettings.update({ provider: next }); }} className="mt-1 w-full rounded-md border border-[var(--br-border)] bg-surface px-2.5 py-2 font-normal"><option value="auto">Auto · best fit</option><option value="kokoro" disabled={!kokoroAvailable}>Kokoro · English only</option><option value="google">Gemini · languages &amp; styles</option></select></label><label className="text-xs font-semibold">Delivery style<select value={style} disabled={voiceSettings.preferences.locked} onChange={(event) => { const next = event.target.value as (typeof VOICEOVER_STYLES)[number]; setStyle(next); voiceSettings.update({ style: next }); }} className="mt-1 w-full rounded-md border border-[var(--br-border)] bg-surface px-2.5 py-2 font-normal">{(effectiveProvider === "kokoro" ? VOICEOVER_STYLES.filter((item) => item === "Natural") : VOICEOVER_STYLES).map((item) => <option key={item}>{item}</option>)}</select></label><label className="text-xs font-semibold">Pace<select value={pace} disabled={voiceSettings.preferences.locked} onChange={(event) => { const next = event.target.value as (typeof VOICEOVER_PACES)[number]; setPace(next); voiceSettings.update({ pace: next }); }} className="mt-1 w-full rounded-md border border-[var(--br-border)] bg-surface px-2.5 py-2 font-normal">{VOICEOVER_PACES.map((item) => <option key={item}>{item}</option>)}</select></label></div><div className="mt-3 flex flex-wrap gap-2"><button type="button" disabled={busy !== null || !passage.trim()} onClick={() => void generate()} className="inline-flex items-center gap-2 rounded-md bg-[var(--br-brand)] px-3 py-2 text-xs font-semibold text-on-dark disabled:opacity-50">{busy === "generate" ? <Loader2 size={14} className="animate-spin" /> : preview ? <RefreshCw size={14} /> : <Sparkles size={14} />}{busy === "generate" ? "Creating preview…" : preview ? "Regenerate preview" : "Generate preview"}</button>{preview ? <button type="button" disabled={busy !== null} onClick={() => void save()} className="inline-flex items-center gap-2 rounded-md bg-[var(--br-success)] px-3 py-2 text-xs font-semibold text-on-dark disabled:opacity-50">{busy === "save" ? <Loader2 size={14} className="animate-spin" /> : preview.saved ? <Check size={14} /> : <Save size={14} />}{preview.saved ? "Saved and added" : "Save and use"}</button> : null}</div>{preview ? <div className="mt-3 rounded-md bg-[var(--br-dark-card)] p-3 text-on-dark"><div className="flex items-center gap-2 text-xs font-semibold"><Volume2 size={14} /> Preview · {voiceName} · {Math.round(preview.durationSeconds || 0)} sec</div><audio ref={previewRef} controls src={preview.url} className="mt-2 w-full" /></div> : null}{error ? <p role="alert" className="mt-2 text-xs font-semibold text-coral">{error}</p> : null}{message ? <p className="mt-2 text-xs font-semibold text-[var(--br-success)]">{message}</p> : null}</div>;
 }
