@@ -1,14 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { BookOpen, Check, Copy, Eraser, Highlighter, ImagePlus, Maximize2, MessageCircle, Mic, MicOff, MonitorUp, MoreHorizontal, MousePointer2, PenLine, Pointer, Send, Settings, UsersRound, X } from "lucide-react";
+import { BookOpen, Check, Copy, Eraser, Highlighter, ImagePlus, Maximize2, MessageCircle, Mic, MicOff, MonitorUp, MoreHorizontal, MousePointer2, PenLine, Pointer, Send, Settings, Square, Type, UsersRound, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 type Role = "CREATOR" | "LEARNER";
 type Person = { userId: string; name: string; role: Role };
 type ChatMessage = { id: string; userId: string; name: string; body: string };
-type WhiteboardTool = "select" | "pen" | "highlighter" | "eraser" | "pointer" | "laser";
-type BoardLine = { id: string; points: Array<[number, number]>; color: string; width: number; tool?: Exclude<WhiteboardTool, "select" | "eraser"> };
+type WhiteboardTool = "select" | "pen" | "highlighter" | "eraser" | "pointer" | "laser" | "text" | "shape";
+type BoardLine = { id: string; points: Array<[number, number]>; color: string; width: number; tool?: Exclude<WhiteboardTool, "select" | "eraser">; text?: string };
 type Signal = { from: string; to: string; kind: "offer" | "answer" | "candidate"; description?: RTCSessionDescriptionInit; candidate?: RTCIceCandidateInit };
 
 const iceServers: RTCIceServer[] = [{ urls: "stun:stun.cloudflare.com:3478" }];
@@ -47,6 +47,9 @@ export function InstantLiveClassroom({ roomId, title, code, startedAt, userId, u
   const stageZoomRef = useRef(1);
   const stagePanRef = useRef({ x: 0, y: 0 });
   const stageLastTap = useRef(0);
+  const [railPosition, setRailPosition] = useState({ x: 16, y: 112 });
+  const railPositionRef = useRef(railPosition);
+  const railDrag = useRef<{ offsetX: number; offsetY: number } | null>(null);
 
   useEffect(() => {
     const updateElapsed = () => setElapsedSeconds(Math.max(0, Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000)));
@@ -213,10 +216,98 @@ export function InstantLiveClassroom({ roomId, title, code, startedAt, userId, u
     viewport.querySelectorAll<HTMLElement>(":scope > *").forEach((child) => { child.style.transform = transform; child.style.transformOrigin = "center center"; child.style.transition = "transform 120ms ease-out"; });
   }, [role, stagePan, stageZoom]);
   useEffect(() => {
+    if (role !== "CREATOR" || stage !== "whiteboard") return;
+    const rail = document.querySelector<HTMLElement>('[data-role="CREATOR"] nav[aria-label="Whiteboard tools"]');
+    if (!rail) return;
+    rail.style.left = `${railPositionRef.current.x}px`;
+    rail.style.top = `${railPositionRef.current.y}px`;
+    const onPointerDown = (event: PointerEvent) => {
+      if ((event.target as HTMLElement).closest("button")) return;
+      const rect = rail.getBoundingClientRect();
+      railDrag.current = { offsetX: event.clientX - rect.left, offsetY: event.clientY - rect.top };
+      rail.setPointerCapture(event.pointerId);
+      event.preventDefault();
+    };
+    const onPointerMove = (event: PointerEvent) => {
+      if (!railDrag.current) return;
+      const next = {
+        x: Math.max(8, Math.min(window.innerWidth - rail.offsetWidth - 8, event.clientX - railDrag.current.offsetX)),
+        y: Math.max(80, Math.min(window.innerHeight - rail.offsetHeight - 8, event.clientY - railDrag.current.offsetY)),
+      };
+      railPositionRef.current = next;
+      setRailPosition(next);
+      rail.style.left = `${next.x}px`;
+      rail.style.top = `${next.y}px`;
+    };
+    const onPointerEnd = (event: PointerEvent) => {
+      railDrag.current = null;
+      if (rail.hasPointerCapture(event.pointerId)) rail.releasePointerCapture(event.pointerId);
+    };
+    rail.style.cursor = "move";
+    rail.style.touchAction = "none";
+    const addedTools: HTMLButtonElement[] = [];
+    ([["text", "T", "Text"], ["shape", "□", "Shape"]] as const).forEach(([tool, label, name]) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = label;
+      button.setAttribute("aria-label", name);
+      button.className = "grid size-10 place-items-center rounded-lg text-sm font-extrabold text-white/70 hover:bg-white/10";
+      button.addEventListener("click", () => setWhiteboardTool(tool));
+      rail.appendChild(button);
+      addedTools.push(button);
+    });
+    rail.addEventListener("pointerdown", onPointerDown);
+    rail.addEventListener("pointermove", onPointerMove);
+    rail.addEventListener("pointerup", onPointerEnd);
+    rail.addEventListener("pointercancel", onPointerEnd);
+    return () => {
+      railDrag.current = null;
+      rail.style.cursor = "";
+      rail.style.touchAction = "";
+      rail.removeEventListener("pointerdown", onPointerDown);
+      rail.removeEventListener("pointermove", onPointerMove);
+      rail.removeEventListener("pointerup", onPointerEnd);
+      rail.removeEventListener("pointercancel", onPointerEnd);
+      addedTools.forEach((button) => button.remove());
+    };
+  }, [role, stage]);
+  useEffect(() => {
     const boardCanvas = canvas.current; if (!boardCanvas) return;
     const ctx = boardCanvas.getContext("2d"); if (!ctx) return;
     ctx.clearRect(0, 0, boardCanvas.width, boardCanvas.height); ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, boardCanvas.width, boardCanvas.height);
-    for (const line of board) { ctx.strokeStyle = line.color; ctx.lineWidth = line.width; ctx.globalAlpha = line.tool === "highlighter" ? 0.38 : 1; ctx.lineCap = "round"; ctx.beginPath(); line.points.forEach(([x, y], index) => index ? ctx.lineTo(x * boardCanvas.width, y * boardCanvas.height) : ctx.moveTo(x * boardCanvas.width, y * boardCanvas.height)); ctx.stroke(); }
+    for (const line of board) {
+      const [start, end] = [line.points[0], line.points[line.points.length - 1]];
+      if (!start) continue;
+      if (line.tool === "text") {
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = line.color;
+        ctx.font = "700 28px sans-serif";
+        ctx.fillText((line as BoardLine & { text?: string }).text ?? "Text", start[0] * boardCanvas.width, start[1] * boardCanvas.height);
+        continue;
+      }
+      if (line.tool === "shape" && end) {
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = line.color;
+        ctx.lineWidth = line.width;
+        ctx.strokeRect(start[0] * boardCanvas.width, start[1] * boardCanvas.height, (end[0] - start[0]) * boardCanvas.width, (end[1] - start[1]) * boardCanvas.height);
+        continue;
+      }
+      ctx.strokeStyle = line.color;
+      ctx.lineWidth = line.width;
+      ctx.globalAlpha = line.tool === "highlighter" ? 0.38 : 1;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      line.points.forEach(([x, y], index) => index ? ctx.lineTo(x * boardCanvas.width, y * boardCanvas.height) : ctx.moveTo(x * boardCanvas.width, y * boardCanvas.height));
+      ctx.stroke();
+      if (line.tool === "pointer") {
+        const point = end ?? start;
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = line.color;
+        ctx.beginPath();
+        ctx.arc(point[0] * boardCanvas.width, point[1] * boardCanvas.height, 11, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
     ctx.globalAlpha = 1;
   }, [board]);
   useEffect(() => { if (role === "CREATOR") broadcast("stage", { stage }); }, [broadcast, role, stage]);
@@ -281,7 +372,36 @@ export function InstantLiveClassroom({ roomId, title, code, startedAt, userId, u
 
   function sendChat(event: React.FormEvent) { event.preventDefault(); const body = draft.trim(); if (!body) return; const message = { id: crypto.randomUUID(), userId, name: userName, body }; setChat((current) => [...current, message]); broadcast("chat", message); setDraft(""); }
   function setSharedStage(next: "whiteboard" | "screen" | "image") { if (role !== "CREATOR") return; setStage(next); broadcast("stage", { stage: next }); }
-  function draw(event: React.PointerEvent<HTMLCanvasElement>) { if (role !== "CREATOR" || whiteboardTool === "select") return; const rect = event.currentTarget.getBoundingClientRect(); if (!rect.width || !rect.height) return; const point: [number, number] = [(event.clientX - rect.left) / rect.width, (event.clientY - rect.top) / rect.height]; if (whiteboardTool === "eraser") { const hit = board.find((line) => line.points.some(([x, y]) => Math.hypot(x - point[0], y - point[1]) < 0.035)); if (hit) { setBoard((current) => current.filter((line) => line.id !== hit.id)); broadcast("board-remove", { id: hit.id }); } return; } if (event.type === "pointerdown") { try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* Pointer capture can fail if the browser ends the pointer before capture. */ } const style = whiteboardTool === "highlighter" ? { color: "#f5b942", width: 20 } : whiteboardTool === "laser" ? { color: "#ef4444", width: 5 } : whiteboardTool === "pointer" ? { color: "#0ea5e9", width: 7 } : { color: "#4f46e5", width: 4 }; drawing.current = { id: crypto.randomUUID(), points: [point], ...style, tool: whiteboardTool }; } else { const active = drawing.current; if (!active) return; active.points.push(point); setBoard((current) => [...current.filter((line) => line.id !== active.id), { ...active, points: [...active.points] }]); } }
+  function draw(event: React.PointerEvent<HTMLCanvasElement>) {
+    if (role !== "CREATOR" || whiteboardTool === "select") return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    const point: [number, number] = [(event.clientX - rect.left) / rect.width, (event.clientY - rect.top) / rect.height];
+    if (whiteboardTool === "eraser") {
+      const hit = board.find((line) => line.points.some(([x, y]) => Math.hypot(x - point[0], y - point[1]) < 0.035));
+      if (hit) { setBoard((current) => current.filter((line) => line.id !== hit.id)); broadcast("board-remove", { id: hit.id }); }
+      return;
+    }
+    if (whiteboardTool === "text" && event.type === "pointerdown") {
+      const text = window.prompt("Enter whiteboard text:");
+      if (text?.trim()) {
+        const item = { id: crypto.randomUUID(), points: [point], color: "#4f46e5", width: 4, tool: "text" as const, text: text.trim() };
+        setBoard((current) => [...current, item]);
+        broadcast("board", item);
+      }
+      return;
+    }
+    if (event.type === "pointerdown") {
+      try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* Pointer capture can fail if the browser ends the pointer before capture. */ }
+      const style = whiteboardTool === "highlighter" ? { color: "#f5b942", width: 20 } : whiteboardTool === "laser" ? { color: "#ef4444", width: 5 } : whiteboardTool === "pointer" ? { color: "#0ea5e9", width: 7 } : whiteboardTool === "shape" ? { color: "#14b8a6", width: 4 } : { color: "#4f46e5", width: 4 };
+      drawing.current = { id: crypto.randomUUID(), points: [point], ...style, tool: whiteboardTool };
+    } else {
+      const active = drawing.current;
+      if (!active) return;
+      active.points = active.tool === "shape" ? [active.points[0], point] : [...active.points, point];
+      setBoard((current) => [...current.filter((line) => line.id !== active.id), { ...active, points: [...active.points] }]);
+    }
+  }
   function endDraw(event?: React.PointerEvent<HTMLCanvasElement>) { const active = drawing.current; if (!active) return; if (event && event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); broadcast("board", { ...active, points: [...active.points] }); drawing.current = null; }
   async function uploadImage(event: React.ChangeEvent<HTMLInputElement>) { if (role !== "CREATOR") return; const file = event.target.files?.[0]; if (!file || file.size > 180_000 || !file.type.startsWith("image/")) { setNotice("Choose an image under 180 KB for the live stage."); return; } const reader = new FileReader(); reader.onload = () => { const src = String(reader.result); setImage(src); setSharedStage("image"); broadcast("image", { src }); }; reader.readAsDataURL(file); event.target.value = ""; }
   function clearBoard() { if (role !== "CREATOR") return; setBoard([]); broadcast("board-clear", {}); }
