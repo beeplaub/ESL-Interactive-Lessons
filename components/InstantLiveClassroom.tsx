@@ -77,7 +77,10 @@ export function InstantLiveClassroom({ roomId, title, code, startedAt, userId, u
       if (event.track.kind === "audio") {
         let audio = remoteAudio.current.get(peerId);
         if (!audio) { audio = document.createElement("audio"); audio.autoplay = true; audio.setAttribute("aria-label", `Audio from ${peerId}`); document.body.appendChild(audio); remoteAudio.current.set(peerId, audio); }
-        audio.srcObject = event.streams[0];
+        const stream = audio.srcObject instanceof MediaStream ? audio.srcObject : new MediaStream();
+        if (!stream.getAudioTracks().some((track) => track.id === event.track.id)) stream.addTrack(event.track);
+        audio.srcObject = stream;
+        event.track.addEventListener("ended", () => stream.removeTrack(event.track), { once: true });
       }
       if (event.track.kind === "video") { setStage("screen"); setRemoteScreen((current) => { const next = new MediaStream(current ? current.getTracks() : []); next.addTrack(event.streams[0]?.getVideoTracks()[0] ?? event.track); return next; }); }
     };
@@ -150,13 +153,26 @@ export function InstantLiveClassroom({ roomId, title, code, startedAt, userId, u
     } catch { setNotice("Microphone permission was not granted. Check your browser settings and try again."); }
   }
 
+  function stopScreenSharing() {
+    const stream = localScreen.current;
+    if (!stream) return;
+    const sharedTracks = new Set(stream.getTracks());
+    stream.getTracks().forEach((track) => track.stop());
+    localScreen.current = null;
+    peers.current.forEach((pc) => pc.getSenders().filter((sender) => sender.track && sharedTracks.has(sender.track)).forEach((sender) => pc.removeTrack(sender)));
+    setSharing(false);
+    setStage("whiteboard");
+    broadcast("stage", { stage: "whiteboard" });
+    peers.current.forEach((_pc, peerId) => void renegotiate(peerId, true));
+  }
+
   async function toggleScreen() {
     if (role !== "CREATOR") return;
-    if (sharing) { localScreen.current?.getTracks().forEach((track) => track.stop()); localScreen.current = null; peers.current.forEach((pc) => pc.getSenders().filter((sender) => sender.track?.kind === "video").forEach((sender) => pc.removeTrack(sender))); setSharing(false); setStage("whiteboard"); broadcast("stage", { stage: "whiteboard" }); peers.current.forEach((_pc, peerId) => void renegotiate(peerId, true)); return; }
+    if (sharing) { stopScreenSharing(); return; }
     try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false }); localScreen.current = stream; setSharing(true); setStage("screen"); broadcast("stage", { stage: "screen" }); stream.getVideoTracks()[0].onended = () => { localScreen.current = null; setSharing(false); setStage("whiteboard"); broadcast("stage", { stage: "whiteboard" }); };
+      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true }); localScreen.current = stream; setSharing(true); setStage("screen"); broadcast("stage", { stage: "screen" }); stream.getVideoTracks()[0].onended = stopScreenSharing;
       peers.current.forEach((pc) => stream.getTracks().forEach((track) => pc.addTrack(track, stream))); peers.current.forEach((_pc, peerId) => void renegotiate(peerId, true));
-    } catch { setNotice("Screen sharing was cancelled or blocked by the browser."); }
+    } catch { setNotice("Screen sharing was cancelled or blocked by the browser. If available, enable Share audio in the browser dialog."); }
   }
 
   function sendChat(event: React.FormEvent) { event.preventDefault(); const body = draft.trim(); if (!body) return; const message = { id: crypto.randomUUID(), userId, name: userName, body }; setChat((current) => [...current, message]); broadcast("chat", message); setDraft(""); }
