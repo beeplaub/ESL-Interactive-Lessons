@@ -39,7 +39,14 @@ export function InstantLiveClassroom({ roomId, title, code, startedAt, userId, u
   const [moreOpen, setMoreOpen] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(() => Math.max(0, Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000)));
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [stageZoom, setStageZoom] = useState(1);
+  const [stagePan, setStagePan] = useState({ x: 0, y: 0 });
   const drawing = useRef<BoardLine | null>(null);
+  const stagePointers = useRef(new Map<number, { x: number; y: number }>());
+  const stageGesture = useRef<{ distance: number; zoom: number } | null>(null);
+  const stageZoomRef = useRef(1);
+  const stagePanRef = useRef({ x: 0, y: 0 });
+  const stageLastTap = useRef(0);
 
   useEffect(() => {
     const updateElapsed = () => setElapsedSeconds(Math.max(0, Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000)));
@@ -108,6 +115,103 @@ export function InstantLiveClassroom({ roomId, title, code, startedAt, userId, u
 
   useEffect(() => { if (remoteScreenVideo.current) remoteScreenVideo.current.srcObject = remoteScreen; }, [remoteScreen]);
   useEffect(() => { if (localScreenVideo.current) localScreenVideo.current.srcObject = localScreen.current; }, [sharing]);
+  useEffect(() => {
+    if (role !== "LEARNER") return;
+    const viewport = document.querySelector<HTMLElement>('[data-role="LEARNER"] > div.grid > section > div > div.relative');
+    if (!viewport) return;
+    const clampZoom = (value: number) => Math.min(3.5, Math.max(1, value));
+    const applyTransform = () => {
+      const transform = `translate(${stagePanRef.current.x}px, ${stagePanRef.current.y}px) scale(${stageZoomRef.current})`;
+      viewport.querySelectorAll<HTMLElement>(":scope > *").forEach((child) => {
+        child.style.transform = transform;
+        child.style.transformOrigin = "center center";
+        child.style.transition = "transform 120ms ease-out";
+      });
+    };
+    const distance = () => {
+      const points = [...stagePointers.current.values()];
+      if (points.length < 2) return 0;
+      return Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
+    };
+    const onPointerDown = (event: PointerEvent) => {
+      event.preventDefault();
+      viewport.setPointerCapture(event.pointerId);
+      stagePointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      const now = Date.now();
+      if (now - stageLastTap.current < 280) {
+        const nextZoom = stageZoomRef.current > 1 ? 1 : 2.5;
+        stageZoomRef.current = nextZoom;
+        stagePanRef.current = { x: 0, y: 0 };
+        setStageZoom(nextZoom);
+        setStagePan({ x: 0, y: 0 });
+      }
+      stageLastTap.current = now;
+      if (stagePointers.current.size === 2) stageGesture.current = { distance: distance(), zoom: stageZoomRef.current };
+    };
+    const onPointerMove = (event: PointerEvent) => {
+      if (!stagePointers.current.has(event.pointerId)) return;
+      event.preventDefault();
+      const previous = stagePointers.current.get(event.pointerId);
+      if (!previous) return;
+      stagePointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (stagePointers.current.size === 2 && stageGesture.current) {
+        const nextZoom = clampZoom(stageGesture.current.zoom * (distance() / Math.max(stageGesture.current.distance, 1)));
+        stageZoomRef.current = nextZoom;
+        setStageZoom(nextZoom);
+      } else if (stagePointers.current.size === 1 && stageZoomRef.current > 1) {
+        const current = stagePointers.current.get(event.pointerId);
+        if (!current) return;
+        const nextPan = { x: stagePanRef.current.x + (current.x - previous.x), y: stagePanRef.current.y + (current.y - previous.y) };
+        stagePanRef.current = nextPan;
+        setStagePan(nextPan);
+      }
+    };
+    const onPointerEnd = (event: PointerEvent) => {
+      stagePointers.current.delete(event.pointerId);
+      if (stagePointers.current.size < 2) stageGesture.current = null;
+      if (viewport.hasPointerCapture(event.pointerId)) viewport.releasePointerCapture(event.pointerId);
+    };
+    const onWheel = (event: WheelEvent) => {
+      if (!event.ctrlKey) return;
+      event.preventDefault();
+      const nextZoom = clampZoom(stageZoomRef.current - event.deltaY * 0.01);
+      stageZoomRef.current = nextZoom;
+      if (nextZoom === 1) stagePanRef.current = { x: 0, y: 0 };
+      setStageZoom(nextZoom);
+      setStagePan(stagePanRef.current);
+    };
+    viewport.style.touchAction = "none";
+    viewport.setAttribute("aria-label", "Shared stage. Double-tap to zoom and drag to move around.");
+    viewport.addEventListener("pointerdown", onPointerDown);
+    viewport.addEventListener("pointermove", onPointerMove);
+    viewport.addEventListener("pointerup", onPointerEnd);
+    viewport.addEventListener("pointercancel", onPointerEnd);
+    viewport.addEventListener("wheel", onWheel, { passive: false });
+    stageZoomRef.current = 1;
+    stagePanRef.current = { x: 0, y: 0 };
+    setStageZoom(1);
+    setStagePan({ x: 0, y: 0 });
+    applyTransform();
+    return () => {
+      viewport.style.touchAction = "";
+      viewport.removeAttribute("aria-label");
+      viewport.querySelectorAll<HTMLElement>(":scope > *").forEach((child) => { child.style.transform = ""; child.style.transformOrigin = ""; child.style.transition = ""; });
+      viewport.removeEventListener("pointerdown", onPointerDown);
+      viewport.removeEventListener("pointermove", onPointerMove);
+      viewport.removeEventListener("pointerup", onPointerEnd);
+      viewport.removeEventListener("pointercancel", onPointerEnd);
+      viewport.removeEventListener("wheel", onWheel);
+      stagePointers.current.clear();
+      stageGesture.current = null;
+    };
+  }, [role, stage]);
+  useEffect(() => {
+    if (role !== "LEARNER") return;
+    const viewport = document.querySelector<HTMLElement>('[data-role="LEARNER"] > div.grid > section > div > div.relative');
+    if (!viewport) return;
+    const transform = `translate(${stagePan.x}px, ${stagePan.y}px) scale(${stageZoom})`;
+    viewport.querySelectorAll<HTMLElement>(":scope > *").forEach((child) => { child.style.transform = transform; child.style.transformOrigin = "center center"; child.style.transition = "transform 120ms ease-out"; });
+  }, [role, stagePan, stageZoom]);
   useEffect(() => {
     const boardCanvas = canvas.current; if (!boardCanvas) return;
     const ctx = boardCanvas.getContext("2d"); if (!ctx) return;
