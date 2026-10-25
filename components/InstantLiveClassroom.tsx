@@ -8,7 +8,9 @@ type Role = "CREATOR" | "LEARNER";
 type Person = { userId: string; name: string; role: Role };
 type ChatMessage = { id: string; userId: string; name: string; body: string };
 type WhiteboardTool = "select" | "pen" | "highlighter" | "eraser" | "pointer" | "laser" | "text" | "shape";
-type BoardLine = { id: string; points: Array<[number, number]>; color: string; width: number; tool?: Exclude<WhiteboardTool, "select" | "eraser">; text?: string };
+type ShapeKind = "rectangle" | "circle" | "line" | "arrow";
+type BoardLine = { id: string; points: Array<[number, number]>; color: string; width: number; tool?: Exclude<WhiteboardTool, "select" | "eraser">; text?: string; shape?: ShapeKind };
+type ImageAsset = { id: string; src: string; name: string };
 type Signal = { from: string; to: string; kind: "offer" | "answer" | "candidate"; description?: RTCSessionDescriptionInit; candidate?: RTCIceCandidateInit };
 
 const iceServers: RTCIceServer[] = [{ urls: "stun:stun.cloudflare.com:3478" }];
@@ -30,6 +32,8 @@ export function InstantLiveClassroom({ roomId, title, code, startedAt, userId, u
   const [whiteboardTool, setWhiteboardTool] = useState<WhiteboardTool>("pen");
   const [stage, setStage] = useState<"whiteboard" | "screen" | "image">("whiteboard");
   const [image, setImage] = useState<string | null>(null);
+  const [images, setImages] = useState<ImageAsset[]>([]);
+  const [shapeKind, setShapeKind] = useState<ShapeKind>("rectangle");
   const [micOn, setMicOn] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [drawer, setDrawer] = useState<"chat" | "people">("chat");
@@ -53,6 +57,9 @@ export function InstantLiveClassroom({ roomId, title, code, startedAt, userId, u
   const [railPosition, setRailPosition] = useState({ x: 16, y: 112 });
   const railPositionRef = useRef(railPosition);
   const railDrag = useRef<{ offsetX: number; offsetY: number } | null>(null);
+  const boardRef = useRef<BoardLine[]>([]);
+  const undoStack = useRef<BoardLine[][]>([]);
+  const redoStack = useRef<BoardLine[][]>([]);
 
   useEffect(() => {
     const updateElapsed = () => setElapsedSeconds(Math.max(0, Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000)));
@@ -62,6 +69,26 @@ export function InstantLiveClassroom({ roomId, title, code, startedAt, userId, u
   }, [startedAt]);
 
   const elapsedLabel = `${String(Math.floor(elapsedSeconds / 60)).padStart(2, "0")}:${String(elapsedSeconds % 60).padStart(2, "0")}`;
+  useEffect(() => { boardRef.current = board; }, [board]);
+
+  function recordBoardHistory() {
+    undoStack.current.push(boardRef.current.map((line) => ({ ...line, points: line.points.map(([x, y]) => [x, y] as [number, number]) })));
+    if (undoStack.current.length > 50) undoStack.current.shift();
+    redoStack.current = [];
+  }
+  function replaceBoard(next: BoardLine[]) { boardRef.current = next; setBoard(next); }
+  function syncBoardSnapshot(next: BoardLine[]) {
+    broadcast("board-clear", {});
+    next.forEach((line) => broadcast("board", line));
+  }
+  function undoBoard() {
+    const previous = undoStack.current.pop(); if (!previous) return;
+    redoStack.current.push(boardRef.current); replaceBoard(previous); syncBoardSnapshot(previous); setSelectedBoardId(null);
+  }
+  function redoBoard() {
+    const next = redoStack.current.pop(); if (!next) return;
+    undoStack.current.push(boardRef.current); replaceBoard(next); syncBoardSnapshot(next); setSelectedBoardId(null);
+  }
 
   useEffect(() => {
     const updateFullscreen = () => setIsFullscreen(document.fullscreenElement === classroom.current);
@@ -212,6 +239,34 @@ export function InstantLiveClassroom({ roomId, title, code, startedAt, userId, u
     };
   }, [role, stage]);
   useEffect(() => {
+    const content = classroom.current?.querySelector<HTMLElement>("div.grid > section > div");
+    if (!content) return;
+    content.querySelector('[data-live-image-gallery="true"]')?.remove();
+    if (!images.length) return;
+    const bottomRail = content.lastElementChild;
+    if (!bottomRail) return;
+    const gallery = document.createElement("div");
+    gallery.dataset.liveImageGallery = "true";
+    gallery.className = "my-2 flex min-h-14 max-w-full items-center gap-2 overflow-x-auto rounded-xl bg-[#0d1421] px-2 py-1.5";
+    images.forEach((asset) => {
+      const button = document.createElement("button");
+      button.type = "button"; button.title = asset.name; button.setAttribute("aria-label", `Show ${asset.name}`);
+      button.className = "size-11 shrink-0 overflow-hidden rounded-lg border-2 border-white/15 bg-white/10 p-0.5 hover:border-indigo-400";
+      if (asset.src === image) button.className += " border-indigo-400";
+      const thumbnail = document.createElement("img"); thumbnail.src = asset.src; thumbnail.alt = asset.name; thumbnail.className = "size-full rounded-md object-cover";
+      button.appendChild(thumbnail);
+      button.addEventListener("click", () => { setImage(asset.src); setStage("image"); if (role === "CREATOR") { broadcast("stage", { stage: "image" }); broadcast("image", asset); } });
+      gallery.appendChild(button);
+    });
+    content.insertBefore(gallery, bottomRail);
+  }, [broadcast, image, images, role]);
+  useEffect(() => {
+    classroom.current?.querySelectorAll<HTMLElement>('[aria-label="Upload image"]').forEach((label) => {
+      label.setAttribute("aria-label", "Image");
+      label.childNodes.forEach((node) => { if (node.nodeType === Node.TEXT_NODE && node.textContent?.trim() === "Upload image") node.textContent = "Image"; });
+    });
+  }, [role, stage]);
+  useEffect(() => {
     if (role !== "LEARNER" || !window.matchMedia("(pointer: coarse)").matches) return;
     const viewport = document.querySelector<HTMLElement>('[data-role="LEARNER"] > div.grid > section > div > div.relative');
     if (!viewport) return;
@@ -249,15 +304,29 @@ export function InstantLiveClassroom({ roomId, title, code, startedAt, userId, u
     rail.style.cursor = "move";
     rail.style.touchAction = "none";
     const addedTools: HTMLButtonElement[] = [];
-    ([["text", "T", "Text"], ["shape", "□", "Shape"]] as const).forEach(([tool, label, name]) => {
+    const toolButtons: Array<[string, string, string, (() => void)?]> = [
+      ["text", "T", "Text", () => setWhiteboardTool("text")],
+      ["rectangle", "□", "Rectangle", () => { setShapeKind("rectangle"); setWhiteboardTool("shape"); }],
+      ["circle", "○", "Circle", () => { setShapeKind("circle"); setWhiteboardTool("shape"); }],
+      ["line", "╱", "Line", () => { setShapeKind("line"); setWhiteboardTool("shape"); }],
+      ["arrow", "➜", "Arrow", () => { setShapeKind("arrow"); setWhiteboardTool("shape"); }],
+    ];
+    toolButtons.forEach(([, label, name, action]) => {
       const button = document.createElement("button");
       button.type = "button";
       button.textContent = label;
       button.setAttribute("aria-label", name);
       button.className = "grid size-10 place-items-center rounded-lg text-sm font-extrabold text-white/70 hover:bg-white/10";
-      button.addEventListener("click", () => setWhiteboardTool(tool));
+      button.addEventListener("click", () => action?.());
       rail.appendChild(button);
       addedTools.push(button);
+    });
+    ([ ["Undo", "↶", undoBoard], ["Redo", "↷", redoBoard] ] as const).forEach(([name, label, action]) => {
+      const button = document.createElement("button");
+      button.type = "button"; button.textContent = label; button.setAttribute("aria-label", name);
+      button.className = "grid size-10 place-items-center rounded-lg text-lg font-extrabold text-white/70 hover:bg-white/10";
+      button.addEventListener("click", action);
+      rail.appendChild(button); addedTools.push(button);
     });
     rail.addEventListener("pointerdown", onPointerDown);
     rail.addEventListener("pointermove", onPointerMove);
@@ -292,7 +361,16 @@ export function InstantLiveClassroom({ roomId, title, code, startedAt, userId, u
         ctx.globalAlpha = 1;
         ctx.strokeStyle = line.color;
         ctx.lineWidth = line.width;
-        ctx.strokeRect(start[0] * boardCanvas.width, start[1] * boardCanvas.height, (end[0] - start[0]) * boardCanvas.width, (end[1] - start[1]) * boardCanvas.height);
+        const startX = start[0] * boardCanvas.width; const startY = start[1] * boardCanvas.height;
+        const endX = end[0] * boardCanvas.width; const endY = end[1] * boardCanvas.height;
+        if (line.shape === "circle") {
+          ctx.beginPath(); ctx.ellipse((startX + endX) / 2, (startY + endY) / 2, Math.abs(endX - startX) / 2, Math.abs(endY - startY) / 2, 0, 0, Math.PI * 2); ctx.stroke();
+        } else if (line.shape === "line") {
+          ctx.beginPath(); ctx.moveTo(startX, startY); ctx.lineTo(endX, endY); ctx.stroke();
+        } else if (line.shape === "arrow") {
+          const angle = Math.atan2(endY - startY, endX - startX); const head = 18;
+          ctx.beginPath(); ctx.moveTo(startX, startY); ctx.lineTo(endX, endY); ctx.lineTo(endX - head * Math.cos(angle - Math.PI / 6), endY - head * Math.sin(angle - Math.PI / 6)); ctx.moveTo(endX, endY); ctx.lineTo(endX - head * Math.cos(angle + Math.PI / 6), endY - head * Math.sin(angle + Math.PI / 6)); ctx.stroke();
+        } else ctx.strokeRect(startX, startY, endX - startX, endY - startY);
         continue;
       }
       ctx.strokeStyle = line.color;
@@ -347,7 +425,12 @@ export function InstantLiveClassroom({ roomId, title, code, startedAt, userId, u
     room.on("broadcast", { event: "board-update" }, ({ payload }) => setBoard((current) => current.map((line) => line.id === (payload as BoardLine).id ? payload as BoardLine : line)));
     room.on("broadcast", { event: "board-remove" }, ({ payload }) => setBoard((current) => current.filter((line) => line.id !== (payload as { id: string }).id)));
     room.on("broadcast", { event: "board-pointer" }, ({ payload }) => setLivePointer((payload as { point?: [number, number] }).point ?? null));
-    room.on("broadcast", { event: "image" }, ({ payload }) => { setImage(String((payload as { src: string }).src)); setStage("image"); });
+    room.on("broadcast", { event: "image" }, ({ payload }) => {
+      const next = payload as { id?: string; src: string; name?: string };
+      const asset = { id: next.id ?? crypto.randomUUID(), src: String(next.src), name: next.name ?? "Image" };
+      setImages((current) => current.some((item) => item.id === asset.id) ? current : [...current, asset]);
+      setImage(asset.src); setStage("image");
+    });
     room.on("broadcast", { event: "stage" }, ({ payload }) => {
       const next = (payload as { stage?: "whiteboard" | "screen" | "image" }).stage;
       if (next) setStage(next);
@@ -423,9 +506,9 @@ export function InstantLiveClassroom({ roomId, title, code, startedAt, userId, u
     editor.style.left = (x * 100) + "%"; editor.style.top = (y * 100) + "%";
     const finish = (save: boolean) => {
       const text = editor.value.trim(); editor.remove();
-      if (!save || !text) { if (isNew) setBoard((current) => current.filter((line) => line.id !== item.id)); return; }
+      if (!save || !text) { if (isNew) replaceBoard(boardRef.current.filter((line) => line.id !== item.id)); return; }
       const updated = { ...item, text };
-      setBoard((current) => current.map((line) => line.id === item.id ? updated : line));
+      replaceBoard(boardRef.current.map((line) => line.id === item.id ? updated : line));
       broadcast(isNew ? "board" : "board-update", updated);
     };
     editor.addEventListener("blur", () => finish(true), { once: true });
@@ -441,6 +524,7 @@ export function InstantLiveClassroom({ roomId, title, code, startedAt, userId, u
       if (event.type === "pointerdown") {
         const hit = boardHitAt(point); setSelectedBoardId(hit?.id ?? null);
         if (hit) {
+          recordBoardHistory();
           if (event.detail > 1 && hit.tool === "text") beginTextEdit(hit);
           selectionDrag.current = { id: hit.id, start: point, original: { ...hit, points: hit.points.map(([x, y]) => [x, y] as [number, number]) } };
           try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* Pointer capture can fail if the browser ends the pointer before capture. */ }
@@ -448,7 +532,7 @@ export function InstantLiveClassroom({ roomId, title, code, startedAt, userId, u
       } else if (selectionDrag.current) {
         const drag = selectionDrag.current; const dx = point[0] - drag.start[0]; const dy = point[1] - drag.start[1];
         const updated = { ...drag.original, points: drag.original.points.map(([x, y]) => [x + dx, y + dy] as [number, number]) };
-        setBoard((current) => current.map((line) => line.id === drag.id ? updated : line));
+        replaceBoard(boardRef.current.map((line) => line.id === drag.id ? updated : line));
         broadcast("board-update", updated);
       }
       return;
@@ -459,23 +543,25 @@ export function InstantLiveClassroom({ roomId, title, code, startedAt, userId, u
     }
     if (whiteboardTool === "eraser") {
       const hit = board.find((line) => line.points.some(([x, y]) => Math.hypot(x - point[0], y - point[1]) < 0.035));
-      if (hit) { setBoard((current) => current.filter((line) => line.id !== hit.id)); broadcast("board-remove", { id: hit.id }); }
+      if (hit) { recordBoardHistory(); replaceBoard(boardRef.current.filter((line) => line.id !== hit.id)); broadcast("board-remove", { id: hit.id }); }
       return;
     }
     if (whiteboardTool === "text" && event.type === "pointerdown") {
+      recordBoardHistory();
       const item = { id: crypto.randomUUID(), points: [point], color: "#4f46e5", width: 4, tool: "text" as const, text: "" };
-      setBoard((current) => [...current, item]); setSelectedBoardId(item.id); window.requestAnimationFrame(() => beginTextEdit(item, true));
+      replaceBoard([...boardRef.current, item]); setSelectedBoardId(item.id); window.requestAnimationFrame(() => beginTextEdit(item, true));
       return;
     }
     if (event.type === "pointerdown") {
       try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* Pointer capture can fail if the browser ends the pointer before capture. */ }
       const style = whiteboardTool === "highlighter" ? { color: "#f5b942", width: 20 } : whiteboardTool === "laser" ? { color: "#ef4444", width: 5 } : whiteboardTool === "shape" ? { color: "#14b8a6", width: 4 } : { color: "#4f46e5", width: 4 };
-      drawing.current = { id: crypto.randomUUID(), points: [point], ...style, tool: whiteboardTool };
+      if (whiteboardTool !== "text") recordBoardHistory();
+      drawing.current = { id: crypto.randomUUID(), points: [point], ...style, tool: whiteboardTool, ...(whiteboardTool === "shape" ? { shape: shapeKind } : {}) };
     } else {
       const active = drawing.current;
       if (!active) return;
       active.points = active.tool === "shape" ? [active.points[0], point] : [...active.points, point];
-      setBoard((current) => [...current.filter((line) => line.id !== active.id), { ...active, points: [...active.points] }]);
+      replaceBoard([...boardRef.current.filter((line) => line.id !== active.id), { ...active, points: [...active.points] }]);
     }
   }
   function endDraw(event?: React.PointerEvent<HTMLCanvasElement>) {
@@ -491,15 +577,15 @@ export function InstantLiveClassroom({ roomId, title, code, startedAt, userId, u
     const onKeyDown = (event: KeyboardEvent) => {
       if (!selectedBoardId || (event.key !== "Delete" && event.key !== "Backspace") || (event.target as HTMLElement)?.tagName === "TEXTAREA") return;
       event.preventDefault();
-      setBoard((current) => current.filter((line) => line.id !== selectedBoardId));
+      recordBoardHistory(); replaceBoard(boardRef.current.filter((line) => line.id !== selectedBoardId));
       broadcast("board-remove", { id: selectedBoardId });
       setSelectedBoardId(null);
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [broadcast, role, selectedBoardId]);
-  async function uploadImage(event: React.ChangeEvent<HTMLInputElement>) { if (role !== "CREATOR") return; const file = event.target.files?.[0]; if (!file || file.size > 180_000 || !file.type.startsWith("image/")) { setNotice("Choose an image under 180 KB for the live stage."); return; } const reader = new FileReader(); reader.onload = () => { const src = String(reader.result); setImage(src); setSharedStage("image"); broadcast("image", { src }); }; reader.readAsDataURL(file); event.target.value = ""; }
-  function clearBoard() { if (role !== "CREATOR") return; setBoard([]); broadcast("board-clear", {}); }
+  async function uploadImage(event: React.ChangeEvent<HTMLInputElement>) { if (role !== "CREATOR") return; const file = event.target.files?.[0]; if (!file || file.size > 180_000 || !file.type.startsWith("image/")) { setNotice("Choose an image under 180 KB for the live stage."); return; } const reader = new FileReader(); reader.onload = () => { const src = String(reader.result); const asset = { id: crypto.randomUUID(), src, name: file.name }; setImages((current) => [...current, asset]); setImage(src); setSharedStage("image"); broadcast("image", asset); }; reader.readAsDataURL(file); event.target.value = ""; }
+  function clearBoard() { if (role !== "CREATOR") return; recordBoardHistory(); replaceBoard([]); broadcast("board-clear", {}); setSelectedBoardId(null); }
   async function endClass() { if (role !== "CREATOR" || !window.confirm("End this live class for everyone?")) return; await fetch(`/api/instant-live/rooms/${roomId}/end`, { method: "POST" }); broadcast("room-ended", {}); setEnded(true); }
   async function copyLink() { if (role !== "CREATOR") return; await navigator.clipboard.writeText(`${window.location.origin}/live/join/${code}`); setCopied(true); window.setTimeout(() => setCopied(false), 1800); }
   async function toggleFullscreen() { try { if (document.fullscreenElement) await document.exitFullscreen(); else await classroom.current?.requestFullscreen(); } catch { setNotice("Fullscreen is not available in this browser window."); } }
