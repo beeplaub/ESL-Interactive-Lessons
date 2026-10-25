@@ -116,7 +116,7 @@ export function InstantLiveClassroom({ roomId, title, code, startedAt, userId, u
   useEffect(() => { if (remoteScreenVideo.current) remoteScreenVideo.current.srcObject = remoteScreen; }, [remoteScreen]);
   useEffect(() => { if (localScreenVideo.current) localScreenVideo.current.srcObject = localScreen.current; }, [sharing]);
   useEffect(() => {
-    if (role !== "LEARNER") return;
+    if (role !== "LEARNER" || !window.matchMedia("(pointer: coarse)").matches) return;
     const viewport = document.querySelector<HTMLElement>('[data-role="LEARNER"] > div.grid > section > div > div.relative');
     if (!viewport) return;
     const clampZoom = (value: number) => Math.min(3.5, Math.max(1, value));
@@ -206,7 +206,7 @@ export function InstantLiveClassroom({ roomId, title, code, startedAt, userId, u
     };
   }, [role, stage]);
   useEffect(() => {
-    if (role !== "LEARNER") return;
+    if (role !== "LEARNER" || !window.matchMedia("(pointer: coarse)").matches) return;
     const viewport = document.querySelector<HTMLElement>('[data-role="LEARNER"] > div.grid > section > div > div.relative');
     if (!viewport) return;
     const transform = `translate(${stagePan.x}px, ${stagePan.y}px) scale(${stageZoom})`;
