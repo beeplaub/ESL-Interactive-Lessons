@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AudioLines, ArrowRight, Clapperboard, ImageIcon, Link2, MessageCircle, Sparkles, Subtitles } from "lucide-react";
+import { AudioLines, ArrowRight, Clapperboard, ImageIcon, Link2, MessageCircle, Radio, Sparkles, Subtitles } from "lucide-react";
 import { requireStaff } from "@/lib/auth";
 
 export default async function CreatorToolsPage() {
@@ -18,6 +18,10 @@ export default async function CreatorToolsPage() {
       </section>
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <Link href="/admin/creator-tools/live-class" className="group rounded-2xl border border-[var(--br-border)] bg-surface p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+          <div className="flex items-start justify-between gap-4"><span className="grid size-11 place-items-center rounded-xl bg-[var(--br-action)]/10 text-[var(--br-action)]"><Radio size={22} /></span><span className="rounded-full bg-[var(--br-success)]/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-[var(--br-success)]">Pilot</span></div>
+          <h2 className="mt-5 text-lg font-semibold">Instant Live Class</h2><p className="mt-2 text-sm leading-6 text-[var(--br-text-muted)]">Start a temporary audio classroom, share your screen, and invite signed-in learners with one link.</p><span className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-[var(--br-action)]">Start a class <ArrowRight size={15} className="transition group-hover:translate-x-1" /></span>
+        </Link>
         <Link href="/admin/creator-tools/reels" className="group rounded-2xl border border-[var(--br-border)] bg-surface p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
           <div className="flex items-start justify-between gap-4">
             <span className="grid size-11 place-items-center rounded-xl bg-[var(--br-brand)]/10 text-[var(--br-brand)]"><Clapperboard size={22} /></span>
