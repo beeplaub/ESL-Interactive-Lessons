@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { BookOpen, Check, Copy, Eraser, Highlighter, ImagePlus, Maximize2, MessageCircle, Mic, MicOff, MonitorUp, MoreHorizontal, MousePointer2, PenLine, Pointer, Send, Settings, Square, Type, UsersRound, X } from "lucide-react";
+import { BookOpen, Check, Copy, Eraser, Highlighter, ImagePlus, Maximize2, MessageCircle, Mic, MicOff, MonitorUp, MoreHorizontal, MousePointer2, PenLine, Pointer, Send, Settings, UsersRound, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 type Role = "CREATOR" | "LEARNER";
@@ -41,7 +41,10 @@ export function InstantLiveClassroom({ roomId, title, code, startedAt, userId, u
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [stageZoom, setStageZoom] = useState(1);
   const [stagePan, setStagePan] = useState({ x: 0, y: 0 });
+  const [selectedBoardId, setSelectedBoardId] = useState<string | null>(null);
+  const [livePointer, setLivePointer] = useState<[number, number] | null>(null);
   const drawing = useRef<BoardLine | null>(null);
+  const selectionDrag = useRef<{ id: string; start: [number, number]; original: BoardLine } | null>(null);
   const stagePointers = useRef(new Map<number, { x: number; y: number }>());
   const stageGesture = useRef<{ distance: number; zoom: number } | null>(null);
   const stageZoomRef = useRef(1);
@@ -308,8 +311,30 @@ export function InstantLiveClassroom({ roomId, title, code, startedAt, userId, u
         ctx.fill();
       }
     }
+    const selected = selectedBoardId ? board.find((line) => line.id === selectedBoardId) : null;
+    if (selected) {
+      const xs = selected.points.map(([x]) => x);
+      const ys = selected.points.map(([, y]) => y);
+      const left = Math.min(...xs) * boardCanvas.width - 12;
+      const top = Math.min(...ys) * boardCanvas.height - 12;
+      const width = (Math.max(...xs) - Math.min(...xs)) * boardCanvas.width + 24;
+      const height = (Math.max(...ys) - Math.min(...ys)) * boardCanvas.height + 24;
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = "#6366f1";
+      ctx.lineWidth = 2;
+      ctx.setLineDash([8, 6]);
+      ctx.strokeRect(left, top, Math.max(width, 28), Math.max(height, 28));
+      ctx.setLineDash([]);
+    }
+    if (livePointer) {
+      ctx.globalAlpha = 0.9;
+      ctx.fillStyle = "#ef4444";
+      ctx.beginPath();
+      ctx.arc(livePointer[0] * boardCanvas.width, livePointer[1] * boardCanvas.height, 12, 0, Math.PI * 2);
+      ctx.fill();
+    }
     ctx.globalAlpha = 1;
-  }, [board]);
+  }, [board, livePointer, selectedBoardId]);
   useEffect(() => { if (role === "CREATOR") broadcast("stage", { stage }); }, [broadcast, role, stage]);
   useEffect(() => { if (role === "CREATOR" && board.length === 0) broadcast("board-clear", {}); }, [board.length, broadcast, role]);
 
@@ -319,7 +344,9 @@ export function InstantLiveClassroom({ roomId, title, code, startedAt, userId, u
     room.on("broadcast", { event: "signal" }, ({ payload }) => void handleSignal(payload as Signal));
     room.on("broadcast", { event: "chat" }, ({ payload }) => setChat((current) => [...current, payload as ChatMessage]));
     room.on("broadcast", { event: "board" }, ({ payload }) => setBoard((current) => current.some((line) => line.id === (payload as BoardLine).id) ? current : [...current, payload as BoardLine]));
+    room.on("broadcast", { event: "board-update" }, ({ payload }) => setBoard((current) => current.map((line) => line.id === (payload as BoardLine).id ? payload as BoardLine : line)));
     room.on("broadcast", { event: "board-remove" }, ({ payload }) => setBoard((current) => current.filter((line) => line.id !== (payload as { id: string }).id)));
+    room.on("broadcast", { event: "board-pointer" }, ({ payload }) => setLivePointer((payload as { point?: [number, number] }).point ?? null));
     room.on("broadcast", { event: "image" }, ({ payload }) => { setImage(String((payload as { src: string }).src)); setStage("image"); });
     room.on("broadcast", { event: "stage" }, ({ payload }) => {
       const next = (payload as { stage?: "whiteboard" | "screen" | "image" }).stage;
@@ -372,28 +399,77 @@ export function InstantLiveClassroom({ roomId, title, code, startedAt, userId, u
 
   function sendChat(event: React.FormEvent) { event.preventDefault(); const body = draft.trim(); if (!body) return; const message = { id: crypto.randomUUID(), userId, name: userName, body }; setChat((current) => [...current, message]); broadcast("chat", message); setDraft(""); }
   function setSharedStage(next: "whiteboard" | "screen" | "image") { if (role !== "CREATOR") return; setStage(next); broadcast("stage", { stage: next }); }
+  function boardHitAt(point: [number, number]) {
+    return [...board].reverse().find((item) => {
+      if (item.tool === "text") {
+        const [x, y] = item.points[0];
+        return Math.abs(point[1] - y) < 0.07 && point[0] >= x - 0.02 && point[0] <= x + Math.max(0.08, (item.text?.length ?? 4) * 0.018);
+      }
+      if (item.tool === "shape" && item.points.length > 1) {
+        const xs = item.points.map(([x]) => x); const ys = item.points.map(([, y]) => y);
+        return point[0] >= Math.min(...xs) - 0.04 && point[0] <= Math.max(...xs) + 0.04 && point[1] >= Math.min(...ys) - 0.04 && point[1] <= Math.max(...ys) + 0.04;
+      }
+      return item.points.some(([x, y]) => Math.hypot(x - point[0], y - point[1]) < 0.045);
+    });
+  }
+  function beginTextEdit(item: BoardLine, isNew = false) {
+    const boardCanvas = canvas.current; const host = boardCanvas?.parentElement;
+    if (!boardCanvas || !host || item.tool !== "text") return;
+    const [x, y] = item.points[0];
+    const editor = document.createElement("textarea");
+    editor.value = item.text ?? "";
+    editor.setAttribute("aria-label", "Edit whiteboard text");
+    editor.className = "absolute z-20 min-h-10 min-w-40 resize rounded-lg border-2 border-indigo-500 bg-white p-2 text-base font-bold text-slate-900 shadow-xl outline-none";
+    editor.style.left = (x * 100) + "%"; editor.style.top = (y * 100) + "%";
+    const finish = (save: boolean) => {
+      const text = editor.value.trim(); editor.remove();
+      if (!save || !text) { if (isNew) setBoard((current) => current.filter((line) => line.id !== item.id)); return; }
+      const updated = { ...item, text };
+      setBoard((current) => current.map((line) => line.id === item.id ? updated : line));
+      broadcast(isNew ? "board" : "board-update", updated);
+    };
+    editor.addEventListener("blur", () => finish(true), { once: true });
+    editor.addEventListener("keydown", (event) => { if (event.key === "Escape") { event.preventDefault(); finish(false); } else if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) { event.preventDefault(); finish(true); } });
+    host.appendChild(editor); editor.focus();
+  }
   function draw(event: React.PointerEvent<HTMLCanvasElement>) {
-    if (role !== "CREATOR" || whiteboardTool === "select") return;
+    if (role !== "CREATOR") return;
     const rect = event.currentTarget.getBoundingClientRect();
     if (!rect.width || !rect.height) return;
     const point: [number, number] = [(event.clientX - rect.left) / rect.width, (event.clientY - rect.top) / rect.height];
+    if (whiteboardTool === "select") {
+      if (event.type === "pointerdown") {
+        const hit = boardHitAt(point); setSelectedBoardId(hit?.id ?? null);
+        if (hit) {
+          if (event.detail > 1 && hit.tool === "text") beginTextEdit(hit);
+          selectionDrag.current = { id: hit.id, start: point, original: { ...hit, points: hit.points.map(([x, y]) => [x, y] as [number, number]) } };
+          try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* Pointer capture can fail if the browser ends the pointer before capture. */ }
+        }
+      } else if (selectionDrag.current) {
+        const drag = selectionDrag.current; const dx = point[0] - drag.start[0]; const dy = point[1] - drag.start[1];
+        const updated = { ...drag.original, points: drag.original.points.map(([x, y]) => [x + dx, y + dy] as [number, number]) };
+        setBoard((current) => current.map((line) => line.id === drag.id ? updated : line));
+        broadcast("board-update", updated);
+      }
+      return;
+    }
+    if (whiteboardTool === "pointer") {
+      setLivePointer(point); broadcast("board-pointer", { point });
+      return;
+    }
     if (whiteboardTool === "eraser") {
       const hit = board.find((line) => line.points.some(([x, y]) => Math.hypot(x - point[0], y - point[1]) < 0.035));
       if (hit) { setBoard((current) => current.filter((line) => line.id !== hit.id)); broadcast("board-remove", { id: hit.id }); }
       return;
     }
     if (whiteboardTool === "text" && event.type === "pointerdown") {
-      const text = window.prompt("Enter whiteboard text:");
-      if (text?.trim()) {
-        const item = { id: crypto.randomUUID(), points: [point], color: "#4f46e5", width: 4, tool: "text" as const, text: text.trim() };
-        setBoard((current) => [...current, item]);
-        broadcast("board", item);
-      }
+      const item = { id: crypto.randomUUID(), points: [point], color: "#4f46e5", width: 4, tool: "text" as const, text: "" };
+      setBoard((current) => [...current, item]); setSelectedBoardId(item.id); window.requestAnimationFrame(() => beginTextEdit(item, true));
       return;
     }
     if (event.type === "pointerdown") {
       try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* Pointer capture can fail if the browser ends the pointer before capture. */ }
-      const style = whiteboardTool === "highlighter" ? { color: "#f5b942", width: 20 } : whiteboardTool === "laser" ? { color: "#ef4444", width: 5 } : whiteboardTool === "pointer" ? { color: "#0ea5e9", width: 7 } : whiteboardTool === "shape" ? { color: "#14b8a6", width: 4 } : { color: "#4f46e5", width: 4 };
+      const style = whiteboardTool === "highlighter" ? { color: "#f5b942", width: 20 } : whiteboardTool === "laser" ? { color: "#ef4444", width: 5 } : whiteboardTool === "shape" ? { color: "#14b8a6", width: 4 } : { color: "#4f46e5", width: 4 };
       drawing.current = { id: crypto.randomUUID(), points: [point], ...style, tool: whiteboardTool };
     } else {
       const active = drawing.current;
@@ -402,7 +478,26 @@ export function InstantLiveClassroom({ roomId, title, code, startedAt, userId, u
       setBoard((current) => [...current.filter((line) => line.id !== active.id), { ...active, points: [...active.points] }]);
     }
   }
-  function endDraw(event?: React.PointerEvent<HTMLCanvasElement>) { const active = drawing.current; if (!active) return; if (event && event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); broadcast("board", { ...active, points: [...active.points] }); drawing.current = null; }
+  function endDraw(event?: React.PointerEvent<HTMLCanvasElement>) {
+    if (whiteboardTool === "pointer") { setLivePointer(null); broadcast("board-pointer", { point: null }); return; }
+    if (whiteboardTool === "select") { selectionDrag.current = null; if (event && event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); return; }
+    const active = drawing.current; if (!active) return;
+    if (event && event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    if (active.tool !== "text") broadcast("board", { ...active, points: [...active.points] });
+    drawing.current = null;
+  }
+  useEffect(() => {
+    if (role !== "CREATOR") return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!selectedBoardId || (event.key !== "Delete" && event.key !== "Backspace") || (event.target as HTMLElement)?.tagName === "TEXTAREA") return;
+      event.preventDefault();
+      setBoard((current) => current.filter((line) => line.id !== selectedBoardId));
+      broadcast("board-remove", { id: selectedBoardId });
+      setSelectedBoardId(null);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [broadcast, role, selectedBoardId]);
   async function uploadImage(event: React.ChangeEvent<HTMLInputElement>) { if (role !== "CREATOR") return; const file = event.target.files?.[0]; if (!file || file.size > 180_000 || !file.type.startsWith("image/")) { setNotice("Choose an image under 180 KB for the live stage."); return; } const reader = new FileReader(); reader.onload = () => { const src = String(reader.result); setImage(src); setSharedStage("image"); broadcast("image", { src }); }; reader.readAsDataURL(file); event.target.value = ""; }
   function clearBoard() { if (role !== "CREATOR") return; setBoard([]); broadcast("board-clear", {}); }
   async function endClass() { if (role !== "CREATOR" || !window.confirm("End this live class for everyone?")) return; await fetch(`/api/instant-live/rooms/${roomId}/end`, { method: "POST" }); broadcast("room-ended", {}); setEnded(true); }
