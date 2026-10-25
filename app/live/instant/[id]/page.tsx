@@ -7,7 +7,7 @@ export default async function InstantLiveRoomPage({ params }: { params: Promise<
   const { id } = await params;
   const { user } = await requireUser();
   const admin = createAdminClient();
-  const { data: room } = await admin.from("instant_live_rooms").select("id,title,join_code,status,creator_id,max_learners,expires_at").eq("id", id).maybeSingle();
+  const { data: room } = await admin.from("instant_live_rooms").select("id,title,join_code,status,creator_id,max_learners,expires_at,created_at").eq("id", id).maybeSingle();
   if (!room || room.status !== "LIVE" || new Date(room.expires_at).getTime() <= Date.now()) return <EndedRoom />;
   const role = room.creator_id === user.id ? "CREATOR" : "LEARNER";
   if (role === "LEARNER") {
@@ -18,7 +18,7 @@ export default async function InstantLiveRoomPage({ params }: { params: Promise<
   await admin.from("instant_live_participants").upsert({ room_id: id, user_id: user.id, role, status: "JOINED", joined_at: new Date().toISOString(), left_at: null }, { onConflict: "room_id,user_id" });
   const profile = await getFreshProfile(user.id);
   const name = profile?.full_name || profile?.name || user.email?.split("@")[0] || "Learner";
-  return <InstantLiveClassroom roomId={room.id} title={room.title} code={room.join_code} userId={user.id} userName={name} role={role} />;
+  return <InstantLiveClassroom roomId={room.id} title={room.title} code={room.join_code} startedAt={room.created_at} userId={user.id} userName={name} role={role} />;
 }
 
 function EndedRoom({ title = "This live class has ended", detail = "The room link is no longer active." }: { title?: string; detail?: string }) {
