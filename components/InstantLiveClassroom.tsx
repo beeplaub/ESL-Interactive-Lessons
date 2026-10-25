@@ -419,7 +419,7 @@ export function InstantLiveClassroom({ roomId, title, code, startedAt, userId, u
     const editor = document.createElement("textarea");
     editor.value = item.text ?? "";
     editor.setAttribute("aria-label", "Edit whiteboard text");
-    editor.className = "absolute z-20 min-h-10 min-w-40 resize rounded-lg border-2 border-indigo-500 bg-white p-2 text-base font-bold text-slate-900 shadow-xl outline-none";
+    editor.className = "absolute z-20 min-h-10 min-w-40 resize-none border-0 bg-transparent p-0 text-base font-bold text-slate-900 shadow-none outline-none ring-0 focus:border-0 focus:outline-none focus:ring-0";
     editor.style.left = (x * 100) + "%"; editor.style.top = (y * 100) + "%";
     const finish = (save: boolean) => {
       const text = editor.value.trim(); editor.remove();
