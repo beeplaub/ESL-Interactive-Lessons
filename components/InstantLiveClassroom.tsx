@@ -91,6 +91,8 @@ export function InstantLiveClassroom({ roomId, title, code, userId, userName, ro
     ctx.clearRect(0, 0, boardCanvas.width, boardCanvas.height); ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, boardCanvas.width, boardCanvas.height);
     for (const line of board) { ctx.strokeStyle = line.color; ctx.lineWidth = line.width; ctx.lineCap = "round"; ctx.beginPath(); line.points.forEach(([x, y], index) => index ? ctx.lineTo(x * boardCanvas.width, y * boardCanvas.height) : ctx.moveTo(x * boardCanvas.width, y * boardCanvas.height)); ctx.stroke(); }
   }, [board]);
+  useEffect(() => { if (role === "CREATOR") broadcast("stage", { stage }); }, [broadcast, role, stage]);
+  useEffect(() => { if (role === "CREATOR" && board.length === 0) broadcast("board-clear", {}); }, [board.length, broadcast, role]);
 
   useEffect(() => {
     const room = supabase.channel(`instant-room:${roomId}`, { config: { presence: { key: userId }, broadcast: { ack: true } } });
@@ -99,6 +101,11 @@ export function InstantLiveClassroom({ roomId, title, code, userId, userName, ro
     room.on("broadcast", { event: "chat" }, ({ payload }) => setChat((current) => [...current, payload as ChatMessage]));
     room.on("broadcast", { event: "board" }, ({ payload }) => setBoard((current) => current.some((line) => line.id === (payload as BoardLine).id) ? current : [...current, payload as BoardLine]));
     room.on("broadcast", { event: "image" }, ({ payload }) => { setImage(String((payload as { src: string }).src)); setStage("image"); });
+    room.on("broadcast", { event: "stage" }, ({ payload }) => {
+      const next = (payload as { stage?: "whiteboard" | "screen" | "image" }).stage;
+      if (next) setStage(next);
+    });
+    room.on("broadcast", { event: "board-clear" }, () => setBoard([]));
     room.on("broadcast", { event: "room-ended" }, () => setEnded(true));
     room.on("presence", { event: "sync" }, () => {
       const state = room.presenceState<Person>();
@@ -122,21 +129,25 @@ export function InstantLiveClassroom({ roomId, title, code, userId, userName, ro
   }
 
   async function toggleScreen() {
-    if (sharing) { localScreen.current?.getTracks().forEach((track) => track.stop()); localScreen.current = null; peers.current.forEach((pc) => pc.getSenders().filter((sender) => sender.track?.kind === "video").forEach((sender) => pc.removeTrack(sender))); setSharing(false); setStage("whiteboard"); peers.current.forEach((_pc, peerId) => void renegotiate(peerId, true)); return; }
+    if (role !== "CREATOR") return;
+    if (sharing) { localScreen.current?.getTracks().forEach((track) => track.stop()); localScreen.current = null; peers.current.forEach((pc) => pc.getSenders().filter((sender) => sender.track?.kind === "video").forEach((sender) => pc.removeTrack(sender))); setSharing(false); setStage("whiteboard"); broadcast("stage", { stage: "whiteboard" }); peers.current.forEach((_pc, peerId) => void renegotiate(peerId, true)); return; }
     try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false }); localScreen.current = stream; setSharing(true); setStage("screen"); stream.getVideoTracks()[0].onended = () => { localScreen.current = null; setSharing(false); setStage("whiteboard"); };
+      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false }); localScreen.current = stream; setSharing(true); setStage("screen"); broadcast("stage", { stage: "screen" }); stream.getVideoTracks()[0].onended = () => { localScreen.current = null; setSharing(false); setStage("whiteboard"); broadcast("stage", { stage: "whiteboard" }); };
       peers.current.forEach((pc) => stream.getTracks().forEach((track) => pc.addTrack(track, stream))); peers.current.forEach((_pc, peerId) => void renegotiate(peerId, true));
     } catch { setNotice("Screen sharing was cancelled or blocked by the browser."); }
   }
 
   function sendChat(event: React.FormEvent) { event.preventDefault(); const body = draft.trim(); if (!body) return; const message = { id: crypto.randomUUID(), userId, name: userName, body }; setChat((current) => [...current, message]); broadcast("chat", message); setDraft(""); }
+  function setSharedStage(next: "whiteboard" | "screen" | "image") { if (role !== "CREATOR") return; setStage(next); broadcast("stage", { stage: next }); }
   function draw(event: React.PointerEvent<HTMLCanvasElement>) { if (role !== "CREATOR") return; const rect = event.currentTarget.getBoundingClientRect(); const point: [number, number] = [(event.clientX - rect.left) / rect.width, (event.clientY - rect.top) / rect.height]; if (event.type === "pointerdown") { event.currentTarget.setPointerCapture(event.pointerId); drawing.current = { id: crypto.randomUUID(), points: [point], color: "#4f46e5", width: 4 }; } else if (drawing.current) { drawing.current.points.push(point); setBoard((current) => [...current.filter((line) => line.id !== drawing.current?.id), drawing.current!]); } }
   function endDraw() { if (drawing.current) { broadcast("board", drawing.current); drawing.current = null; } }
-  async function uploadImage(event: React.ChangeEvent<HTMLInputElement>) { const file = event.target.files?.[0]; if (!file || file.size > 180_000 || !file.type.startsWith("image/")) { setNotice("Choose an image under 180 KB for the live stage."); return; } const reader = new FileReader(); reader.onload = () => { const src = String(reader.result); setImage(src); setStage("image"); broadcast("image", { src }); }; reader.readAsDataURL(file); event.target.value = ""; }
+  async function uploadImage(event: React.ChangeEvent<HTMLInputElement>) { if (role !== "CREATOR") return; const file = event.target.files?.[0]; if (!file || file.size > 180_000 || !file.type.startsWith("image/")) { setNotice("Choose an image under 180 KB for the live stage."); return; } const reader = new FileReader(); reader.onload = () => { const src = String(reader.result); setImage(src); setSharedStage("image"); broadcast("image", { src }); }; reader.readAsDataURL(file); event.target.value = ""; }
+  function clearBoard() { if (role !== "CREATOR") return; setBoard([]); broadcast("board-clear", {}); }
   async function endClass() { if (role !== "CREATOR" || !window.confirm("End this live class for everyone?")) return; await fetch(`/api/instant-live/rooms/${roomId}/end`, { method: "POST" }); broadcast("room-ended", {}); setEnded(true); }
-  async function copyLink() { await navigator.clipboard.writeText(`${window.location.origin}/live/join/${code}`); setCopied(true); window.setTimeout(() => setCopied(false), 1800); }
+  async function copyLink() { if (role !== "CREATOR") return; await navigator.clipboard.writeText(`${window.location.origin}/live/join/${code}`); setCopied(true); window.setTimeout(() => setCopied(false), 1800); }
 
-  return <main className="min-h-screen bg-[#0d1421] text-white">
+  return <main className="min-h-screen bg-[#0d1421] text-white" data-role={role}>
+    {role === "LEARNER" ? <style>{`[data-role="LEARNER"] header .ml-auto > :nth-child(1), [data-role="LEARNER"] header .ml-auto > :nth-child(2), [data-role="LEARNER"] section > nav, [data-role="LEARNER"] section > div > div:last-child > :nth-child(2), [data-role="LEARNER"] section > div > div:last-child > :nth-child(3), [data-role="LEARNER"] section > div > div:last-child > :nth-child(4), [data-role="LEARNER"] section > div > div:last-child > :nth-child(5), [data-role="LEARNER"] section > div > div:last-child > :nth-child(6) { display: none !important; } [data-role="LEARNER"] section { grid-template-columns: minmax(0, 1fr) !important; }`}</style> : null}
     <header className="flex min-h-20 items-center gap-4 border-b border-white/10 px-4 py-3 sm:px-7"><div className="flex items-center gap-3 text-lg font-extrabold"><span className="grid size-9 place-items-center rounded-xl bg-[#ff6966] text-[#0d1421]">B</span><span>BrenUp</span></div><span className="hidden h-8 w-px bg-white/20 sm:block" /><h1 className="min-w-0 truncate text-lg font-extrabold sm:text-2xl">{title}</h1><span className="inline-flex shrink-0 items-center gap-2 rounded-full bg-emerald-500/15 px-3 py-1.5 text-xs font-bold text-emerald-300"><i className="size-2 rounded-full bg-emerald-400" />Live</span><span className="hidden items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold sm:inline-flex"><UsersRound size={15} />{people.length}</span><div className="ml-auto flex items-center gap-2"><button onClick={() => void copyLink()} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-indigo-400/60 px-3 text-sm font-bold text-indigo-100">{copied ? <Check size={16} /> : <Copy size={16} />}{copied ? "Copied" : "Copy link"}</button><button aria-label="Settings" className="hidden rounded-lg p-2 text-white/70 hover:bg-white/10 sm:block"><Settings size={19} /></button><button aria-label="Full screen" className="rounded-lg p-2 text-white/70 hover:bg-white/10" onClick={() => void document.documentElement.requestFullscreen?.()}><Maximize2 size={19} /></button></div></header>
     {notice ? <div role="alert" className="mx-4 mt-3 rounded-xl border border-amber-300/30 bg-amber-300/10 px-4 py-3 text-sm text-amber-100 sm:mx-7">{notice}<button className="ml-3 font-bold underline" onClick={() => setNotice("")}>Dismiss</button></div> : null}
     <div className="grid min-h-[calc(100vh-80px)] grid-cols-1 gap-3 p-3 sm:p-5 lg:grid-cols-[minmax(0,1fr)_360px]">
