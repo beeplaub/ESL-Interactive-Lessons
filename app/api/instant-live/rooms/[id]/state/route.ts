@@ -79,8 +79,23 @@ export async function GET(
     .order("created_at");
   if (!creator) query = query.eq("owner_id", user.id);
   const { data: assets } = await query;
+  const { data: participants, error: participantsError } = await admin
+    .from("instant_live_participants")
+    .select("user_id,mic_muted")
+    .eq("room_id", id)
+    .eq("status", "JOINED");
+  if (participantsError)
+    return fail("Could not load participant settings.", 503);
   return NextResponse.json(
-    { state: state ?? emptyState(id), assets: assets ?? [], room },
+    {
+      state: state ?? emptyState(id),
+      assets: assets ?? [],
+      room,
+      moderation: (participants ?? []).map(({ user_id, mic_muted }) => ({
+        userId: user_id,
+        micMuted: mic_muted,
+      })),
+    },
     { headers: { "Cache-Control": "private, no-store" } },
   );
 }

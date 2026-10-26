@@ -17,9 +17,12 @@ import {
   Plus,
   RefreshCw,
   RotateCcw,
+  Smile,
   Send,
+  UserX,
   UsersRound,
   Video,
+  Volume2,
   X,
 } from "lucide-react";
 import { LiveBoard } from "./instant-live/LiveBoard";
@@ -42,6 +45,7 @@ type ChatMessage = {
   body: string;
   createdAt: string;
 };
+type ParticipantModeration = { userId: string; micMuted: boolean };
 type RoomClock = {
   status: string;
   elapsed_seconds: number;
@@ -99,6 +103,11 @@ export function InstantLiveClassroom({
   const [drawer, setDrawer] = useState<"chat" | "people">("chat");
   const [chat, setChat] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
+  const [emojiOpen, setEmojiOpen] = useState(false);
+  const [chatSending, setChatSending] = useState(false);
+  const [moderation, setModeration] = useState<ParticipantModeration[]>([]);
+  const [moderatingUser, setModeratingUser] = useState<string | null>(null);
+  const [roomRevoked, setRoomRevoked] = useState(false);
   const [gallery, setGallery] = useState(false);
   const [boardPicker, setBoardPicker] = useState(false);
   const [pointer, setPointer] = useState<[number, number] | null>(null);
@@ -119,6 +128,9 @@ export function InstantLiveClassroom({
   const transportRef = useRef<ReturnType<typeof useLiveTransport> | null>(null);
   const paused = clock.status !== "LIVE";
   const api = `/api/instant-live/rooms/${roomId}`;
+  const forceMuted = moderation.some(
+    (participant) => participant.userId === userId && participant.micMuted,
+  );
   useEffect(() => {
     setSelf({
       userId,
@@ -157,23 +169,35 @@ export function InstantLiveClassroom({
     setState(merged);
   }, []);
   const refresh = useCallback(async () => {
+    if (roomRevoked) return false;
     try {
       const response = await fetch(`${api}/state`, { cache: "no-store" });
       const result = await response.json();
-      if (!response.ok)
+      if (!response.ok) {
+        if (response.status === 403 || response.status === 404) {
+          setRoomRevoked(true);
+          setLoaded(true);
+        }
         throw new Error(result.error || "Could not load the live stage.");
+      }
+      const chatResponse = await fetch(`${api}/chat`, { cache: "no-store" });
+      const chatResult = chatResponse.ok ? await chatResponse.json() : null;
       applyState(result.state);
       setAssets(result.assets);
+      setModeration(result.moderation ?? []);
+      if (chatResult?.messages) setChat(chatResult.messages);
       setClock(result.room);
       setLoaded(true);
+      return true;
     } catch (error) {
       setNotice(
         error instanceof Error
           ? error.message
           : "Could not load the classroom.",
       );
+      return false;
     }
-  }, [api, applyState]);
+  }, [api, applyState, roomRevoked]);
   const scheduleRefresh = useCallback(() => {
     if (refreshTimer.current) return;
     refreshTimer.current = setTimeout(() => {
@@ -270,7 +294,8 @@ export function InstantLiveClassroom({
     roomId,
     self,
     paused,
-    enabled: loaded,
+    forceMuted,
+    enabled: loaded && !roomRevoked,
     onEvent,
     onNotice: setNotice,
   });
@@ -477,7 +502,9 @@ export function InstantLiveClassroom({
     }
     if (kind === "screen" && !navigator.mediaDevices?.getDisplayMedia) {
       setNotice(
-        "This browser cannot share its screen. You can still view shared screens, use your microphone, and upload images.",
+        /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)
+          ? "This mobile browser or installed app does not provide screen capture. Open BrenUp in a mobile browser with screen sharing support, or use Image to show a picture."
+          : "This browser does not provide screen capture. Try a supported desktop browser or use Image to show a picture.",
       );
       return;
     }
@@ -485,14 +512,19 @@ export function InstantLiveClassroom({
     let stream: MediaStream | null = null;
     try {
       // Capture must be requested directly from this click, before awaiting server work.
+      const isMobile = /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
       stream =
         kind === "screen"
-          ? await navigator.mediaDevices.getDisplayMedia({
-              video: { frameRate: { ideal: 15, max: 30 } },
-              audio: true,
-              systemAudio: "include",
-              surfaceSwitching: "include",
-            } as DisplayMediaStreamOptions)
+          ? await navigator.mediaDevices.getDisplayMedia(
+              isMobile
+                ? { video: { frameRate: { ideal: 15, max: 20 } }, audio: false }
+                : ({
+                    video: { frameRate: { ideal: 15, max: 30 } },
+                    audio: true,
+                    systemAudio: "include",
+                    surfaceSwitching: "include",
+                  } as DisplayMediaStreamOptions),
+            )
           : await navigator.mediaDevices.getUserMedia({
               video: {
                 width: { ideal: 640 },
@@ -624,10 +656,10 @@ export function InstantLiveClassroom({
       setBusy(false);
     }
   }
-  function sendChat(event: React.FormEvent) {
+  async function sendChat(event: React.FormEvent) {
     event.preventDefault();
     const body = draft.trim().slice(0, 2000);
-    if (!body || paused) return;
+    if (!body || paused || chatSending) return;
     const message = {
       id: crypto.randomUUID(),
       userId,
@@ -636,8 +668,77 @@ export function InstantLiveClassroom({
       createdAt: new Date().toISOString(),
     };
     setChat((old) => [...old.slice(-199), message]);
-    void transport.send("chat", message);
     setDraft("");
+    setChatSending(true);
+    try {
+      const response = await fetch(`${api}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ body }),
+      });
+      const result = await response.json();
+      if (!response.ok)
+        throw new Error(result.error || "Could not send chat message.");
+      setChat((old) => {
+        const withoutDuplicate = old.filter(
+          (item) => item.id !== message.id && item.id !== result.message.id,
+        );
+        return [...withoutDuplicate.slice(-199), result.message];
+      });
+      void transport.send("chat", result.message);
+    } catch (error) {
+      setChat((old) => old.filter((item) => item.id !== message.id));
+      setDraft(body);
+      setNotice(error instanceof Error ? error.message : "Could not send chat.");
+    } finally {
+      setChatSending(false);
+    }
+  }
+  async function moderateParticipant(
+    action: "mute" | "unmute" | "remove",
+    targetUserId: string,
+  ) {
+    if (!creator || moderatingUser) return;
+    setModeratingUser(targetUserId);
+    try {
+      const response = await fetch(`${api}/participants`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, userId: targetUserId }),
+      });
+      const result = await response.json();
+      if (!response.ok)
+        throw new Error(result.error || "Could not update this learner.");
+      if (action === "remove") {
+        setModeration((old) => old.filter((item) => item.userId !== targetUserId));
+      } else {
+        setModeration((old) => [
+          ...old.filter((item) => item.userId !== targetUserId),
+          { userId: targetUserId, micMuted: action === "mute" },
+        ]);
+      }
+      setNotice(
+        action === "remove"
+          ? "Learner removed from the class."
+          : action === "mute"
+            ? "Learner muted."
+            : "Learner can use their microphone again.",
+      );
+      void transport.send("state-changed", {});
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Could not manage learner.");
+    } finally {
+      setModeratingUser(null);
+    }
+  }
+  async function syncClassroom() {
+    setNotice("Refreshing classroom and reconnecting media…");
+    const synced = await refresh();
+    if (synced) {
+      transport.reconnect();
+      setNotice("Classroom refreshed. Media reconnect requested.");
+      window.setTimeout(() => setNotice(""), 2400);
+    }
   }
   async function copyLink() {
     try {
@@ -714,12 +815,9 @@ export function InstantLiveClassroom({
             </button>
           ) : null}
           <button
-            title="Reconnect media"
-            aria-label="Reconnect media"
-            onClick={() => {
-              transport.reconnect();
-              void refresh();
-            }}
+            title="Refresh the shared board, chat, and media connection"
+            aria-label="Refresh classroom and reconnect media"
+            onClick={() => void syncClassroom()}
           >
             <RefreshCw size={18} />
           </button>
@@ -744,6 +842,18 @@ export function InstantLiveClassroom({
         <div className="live-notice">
           You opened this class in another tab. Use that tab, or reload here to
           reconnect.
+        </div>
+      ) : null}
+      {roomRevoked ? (
+        <div className="live-access-revoked" role="alertdialog" aria-modal="true">
+          <section>
+            <UserX size={28} />
+            <h2>Class access ended</h2>
+            <p>The teacher removed you from this class.</p>
+            <button type="button" onClick={() => window.location.assign("/account")}>
+              Leave class
+            </button>
+          </section>
         </div>
       ) : null}
       {soundBlocked ? (
@@ -871,11 +981,11 @@ export function InstantLiveClassroom({
           ) : null}
           <div className="live-bottom-rail">
             {button(
-              "Mic",
-              transport.micOn ? Mic : MicOff,
+              forceMuted ? "Muted by teacher" : "Mic",
+              transport.micOn && !forceMuted ? Mic : MicOff,
               () => void transport.toggleMic(),
-              transport.micOn,
-              paused || transport.superseded,
+              transport.micOn && !forceMuted,
+              paused || transport.superseded || forceMuted,
             )}
             {button(
               ownPresentation && state.stage === "camera"
@@ -1012,27 +1122,61 @@ export function InstantLiveClassroom({
                   </p>
                 )}
               </div>
-              <form className="live-message-form" onSubmit={sendChat}>
+              <form className="live-message-form" onSubmit={(event) => void sendChat(event)}>
+                <div className="live-emoji-wrap">
+                  <button
+                    type="button"
+                    aria-label="Add emoji"
+                    title="Add emoji"
+                    disabled={paused || chatSending}
+                    onClick={() => setEmojiOpen((open) => !open)}
+                  >
+                    <Smile size={19} />
+                  </button>
+                  {emojiOpen ? (
+                    <div className="live-emoji-picker" aria-label="Choose an emoji">
+                      {["😊", "😂", "🎉", "👍", "❤️", "🙏", "👏", "🌱"].map((emoji) => (
+                        <button
+                          key={emoji}
+                          type="button"
+                          aria-label={`Insert ${emoji}`}
+                          onClick={() => {
+                            setDraft((value) => `${value}${emoji}`);
+                            setEmojiOpen(false);
+                          }}
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
                 <input
                   aria-label="Chat message"
                   placeholder="Type a message…"
                   value={draft}
                   maxLength={2000}
                   onChange={(event) => setDraft(event.target.value)}
-                  disabled={paused}
+                  disabled={paused || chatSending}
                 />
                 <button
+                  type="submit"
                   aria-label="Send message"
-                  disabled={paused || !draft.trim()}
+                  disabled={paused || chatSending || !draft.trim()}
                 >
-                  <Send size={19} />
+                  {chatSending ? <span className="live-chat-sending">…</span> : <Send size={19} />}
                 </button>
               </form>
             </>
           ) : null}
           {chatOpen && drawer === "people" ? (
             <div className="live-people">
-              {transport.people.map((person) => (
+              {transport.people.map((person) => {
+                const isMuted =
+                  moderation.find((participant) => participant.userId === person.userId)
+                    ?.micMuted ?? false;
+                const isLearner = person.userId !== creatorId;
+                return (
                 <article key={person.userId}>
                   <span
                     className="live-avatar"
@@ -1049,9 +1193,39 @@ export function InstantLiveClassroom({
                       {person.userId === creatorId ? "Teacher" : "Learner"}
                     </small>
                   </div>
-                  {person.mic ? <Mic size={15} /> : <MicOff size={15} />}
+                  <span
+                    className={`live-person-mic ${person.mic && !isMuted ? "is-on" : ""}`}
+                    title={isMuted ? "Muted by teacher" : person.mic ? "Microphone on" : "Microphone off"}
+                  >
+                    {person.mic && !isMuted ? <Mic size={15} /> : <MicOff size={15} />}
+                  </span>
+                  {creator && isLearner ? (
+                    <div className="live-person-actions">
+                      <button
+                        type="button"
+                        title={isMuted ? "Allow microphone" : "Mute learner"}
+                        aria-label={`${isMuted ? "Allow microphone for" : "Mute"} ${person.name}`}
+                        disabled={moderatingUser === person.userId}
+                        onClick={() =>
+                          void moderateParticipant(isMuted ? "unmute" : "mute", person.userId)
+                        }
+                      >
+                        {isMuted ? <Volume2 size={15} /> : <MicOff size={15} />}
+                      </button>
+                      <button
+                        type="button"
+                        className="is-remove"
+                        title="Remove learner from class"
+                        aria-label={`Remove ${person.name} from class`}
+                        disabled={moderatingUser === person.userId}
+                        onClick={() => void moderateParticipant("remove", person.userId)}
+                      >
+                        <UserX size={15} />
+                      </button>
+                    </div>
+                  ) : null}
                 </article>
-              ))}
+              );})}
             </div>
           ) : null}
         </aside>

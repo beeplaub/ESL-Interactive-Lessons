@@ -224,8 +224,10 @@ export function LiveBoard({
       return;
     }
     if (tool === "select") {
-      setEditing(null);
       setSelected(hit?.id ?? null);
+      // Resizing or selecting text should not tear down the editor before the
+      // pointer gesture has finished. Double-click can then reopen it reliably.
+      if (!hit || hit.kind !== "text") setEditing(null);
       if (hit) {
         checkpoint();
         drag.current = {
@@ -562,7 +564,8 @@ export function LiveBoard({
                     <div
                       style={{
                         color: object.color,
-                        pointerEvents: editing === object.id ? "auto" : "none",
+                        pointerEvents:
+                          canEdit && tool === "select" ? "auto" : "none",
                       }}
                     >
                       <BoardText

@@ -696,6 +696,33 @@
   color: #b4a9f2;
   padding: 8px;
 }
+.root :global(.live-emoji-wrap) {
+  position: relative;
+  flex: 0 0 auto;
+}
+.root :global(.live-emoji-picker) {
+  position: absolute;
+  z-index: 12;
+  left: 0;
+  bottom: calc(100% + 12px);
+  display: grid;
+  grid-template-columns: repeat(4, 38px);
+  gap: 4px;
+  padding: 8px;
+  border: 1px solid #ffffff20;
+  border-radius: 14px;
+  background: #242b3d;
+  box-shadow: 0 10px 30px #0006;
+}
+.root :global(.live-emoji-picker button) {
+  border-radius: 9px;
+  padding: 6px;
+  font-size: 19px;
+}
+.root :global(.live-chat-sending) {
+  font-size: 20px;
+  line-height: 10px;
+}
 .root :global(.live-people) {
   padding: 14px;
   overflow-y: auto;
@@ -727,6 +754,77 @@
   color: #a3a5bd;
   font-size: 10px;
   margin-top: 3px;
+}
+.root :global(.live-person-mic) {
+  display: grid;
+  place-items: center;
+  color: #a5a8bd;
+}
+.root :global(.live-person-mic.is-on) {
+  color: #70dec1;
+}
+.root :global(.live-person-actions) {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.root :global(.live-person-actions button) {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #ffffff14;
+  border-radius: 9px;
+  color: #d9d8ee;
+  background: #ffffff0b;
+}
+.root :global(.live-person-actions button:hover) {
+  background: #ffffff18;
+}
+.root :global(.live-person-actions button.is-remove) {
+  color: #ff928b;
+}
+.root :global(.live-person-actions button:disabled) {
+  opacity: 0.45;
+}
+.root :global(.live-access-revoked) {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: #0b111de8;
+  backdrop-filter: blur(12px);
+}
+.root :global(.live-access-revoked section) {
+  width: min(100%, 390px);
+  padding: 30px;
+  border: 1px solid #ffffff1a;
+  border-radius: 22px;
+  text-align: center;
+  color: #f7f5ff;
+  background: #20283a;
+  box-shadow: 0 24px 90px #0008;
+}
+.root :global(.live-access-revoked svg) {
+  color: #ff8279;
+}
+.root :global(.live-access-revoked h2) {
+  margin: 13px 0 6px;
+  font-size: 21px;
+}
+.root :global(.live-access-revoked p) {
+  color: #c0c2d1;
+}
+.root :global(.live-access-revoked button) {
+  margin-top: 16px;
+  padding: 11px 20px;
+  border: 0;
+  border-radius: 12px;
+  color: white;
+  background: #ff705d;
+  font-weight: 700;
 }
 .root :global(.live-drawer.is-collapsed) {
   min-height: 0;
