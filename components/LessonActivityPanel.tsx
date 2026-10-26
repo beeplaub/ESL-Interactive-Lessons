@@ -1664,16 +1664,18 @@ function TextRoleplayPanel({
 /* ─── Main Activity Panel ────────────────────────────────────────── */
 
 export function LessonActivityPanel({
-  activity, onNext, nextLabel = "Next", previewOnly = false, initialAttempt = null, attempts = [], onSavedAttempt, courseItemId = null, lessonId = null, preserveDraft = true,
+  activity, onNext, nextLabel = "Next", previewOnly = false, initialAttempt = null, attempts = [], onSavedAttempt, courseItemId = null, lessonId = null, preserveDraft = true, onPracticeSave, practiceAnswers,
 }: {
   activity: LessonSlideActivity; onNext: () => void; nextLabel?: string;
   previewOnly?: boolean; initialAttempt?: SavedAttempt | null; attempts?: SavedAttempt[]; onSavedAttempt?: (attempt: SavedAttempt) => void; preserveDraft?: boolean;
   courseItemId?: string | null;
   lessonId?: string | null;
+  onPracticeSave?: (answers: Json) => Promise<void>;
+  practiceAnswers?: Json;
 }) {
   const questions = questionsFromData(activity.activity_data, activity.activity_type, activity.id)
     .map((question) => ({ ...question, source_activity_id: activity.id }));
-  const initialAnswers = asRecord(initialAttempt?.answers);
+  const initialAnswers = asRecord(initialAttempt?.answers ?? practiceAnswers);
   const draftKey = `brenup:lesson-activity-draft:${activity.id}`;
   const [answers, setAnswers] = useState<Record<string, unknown>>(() => {
     if (!preserveDraft || previewOnly || initialAttempt || typeof window === "undefined") return initialAnswers;
@@ -1856,7 +1858,7 @@ export function LessonActivityPanel({
       setMessage(`You have used all ${maxAttempts} attempts for this activity.`);
       return;
     }
-    const selectedMode = modeOverride ?? evaluationMode;
+    const selectedMode = onPracticeSave ? "SELF_GRADED" : modeOverride ?? evaluationMode;
     if (hasSubjectiveQuestions && !selectedMode) {
       setShowEvaluationDialog(true);
       return;
@@ -1878,6 +1880,13 @@ export function LessonActivityPanel({
       }
     };
 
+    if (onPracticeSave) {
+      startTransition(async () => {
+        try { await onPracticeSave(answers as Json); beginSubmittedView(); setMessage("Class practice saved."); }
+        catch (error) { setMessage(error instanceof Error ? error.message : "Could not save. Try again."); }
+      });
+      return;
+    }
     if (previewOnly) { beginSubmittedView(); setMessage("Preview only."); return; }
     startTransition(async () => {
       try {

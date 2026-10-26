@@ -26,6 +26,7 @@ export function useLiveTransport({
   paused,
   forceMuted,
   enabled,
+  recordingStartedAt,
   onEvent,
   onNotice,
 }: {
@@ -34,6 +35,7 @@ export function useLiveTransport({
   paused: boolean;
   forceMuted: boolean;
   enabled: boolean;
+  recordingStartedAt: number | null;
   onEvent: (event: string, data: unknown, from: LivePerson | undefined) => void;
   onNotice: (notice: string) => void;
 }) {
@@ -49,12 +51,17 @@ export function useLiveTransport({
   const presentation = useRef<MediaStream | null>(null);
   const callbacks = useRef({ onEvent, onNotice });
   callbacks.current = { onEvent, onNotice };
+  const recordingRef = useRef(recordingStartedAt);
+  recordingRef.current = recordingStartedAt;
   const forceMutedRef = useRef(forceMuted);
   forceMutedRef.current = forceMuted;
   const [ready, setReady] = useState(false);
   const [people, setPeople] = useState<LivePerson[]>([]);
   const [remote, setRemote] = useState<Record<string, MediaStream>>({});
   const [micOn, setMicOn] = useState(false);
+  const [microphone, setMicrophone] = useState<MediaStream | null>(null);
+  const [connections, setConnections] = useState<Record<string, RTCPeerConnectionState>>({});
+  const micBusy = useRef(false);
   const [local, setLocal] = useState<MediaStream | null>(null);
   const [superseded, setSuperseded] = useState(false);
   const send = useCallback(
@@ -104,6 +111,7 @@ export function useLiveTransport({
         peer.pc.close();
       }
       peers.current.delete(id);
+      setConnections(old => { const next = {...old}; delete next[id]; return next; });
       setRemote((old) => {
         const next = { ...old };
         delete next[id];
@@ -151,20 +159,18 @@ export function useLiveTransport({
           peer.makingOffer = false;
         }
       };
+      pc.onconnectionstatechange = () => {
+        if (!disposed) setConnections(old => ({...old, [id]: pc.connectionState}));
+      };
+      const incoming = new MediaStream();
       pc.ontrack = ({ track }) => {
-        const refresh = () =>
-          setRemote((old) => {
-            const stream = new MediaStream(
-              (old[id]?.getTracks() ?? []).filter(
-                (t) =>
-                  t.readyState !== "ended" &&
-                  t.id !== track.id &&
-                  !(track.kind === "video" && t.kind === "video"),
-              ),
-            );
-            if (track.readyState !== "ended") stream.addTrack(track);
-            return { ...old, [id]: stream };
-          });
+        if (track.kind === "video") incoming.getVideoTracks().forEach(t => incoming.removeTrack(t));
+        incoming.addTrack(track);
+        const refresh = () => {
+          if (disposed) return;
+          if (track.readyState === "ended") incoming.removeTrack(track);
+          setRemote(old => ({...old, [id]: incoming}));
+        };
         track.onunmute = refresh;
         track.onended = refresh;
         refresh();
@@ -313,6 +319,7 @@ export function useLiveTransport({
         if (status === "SUBSCRIBED") {
           await room.track({
             ...self,
+            recordingStartedAt: recordingRef.current,
             mic:
               !forceMutedRef.current &&
               (mic.current?.getAudioTracks().some((t) => t.enabled) ?? false),
@@ -350,9 +357,11 @@ export function useLiveTransport({
     if (!self || !ready) return;
     void presenceChannel.current?.track({
       ...self,
+      recordingStartedAt,
       mic: micOn && !paused && !forceMuted,
     });
-  }, [forceMuted, micOn, paused, ready, self]);
+  }, [forceMuted, micOn, paused, ready, self, recordingStartedAt]);
+  useEffect(() => { if (forceMuted || superseded) setMicOn(false); }, [forceMuted, superseded]);
   useEffect(() => {
     mic.current?.getTracks().forEach((t) => {
       t.enabled = micOn && !paused && !superseded && !forceMuted;
@@ -368,31 +377,44 @@ export function useLiveTransport({
     },
     [],
   );
-  const toggleMic = async () => {
-    if (forceMuted) {
-      callbacks.current.onNotice("Your teacher has muted your microphone.");
-      return;
-    }
+  const prepareMicrophone = async (deviceId?: string) => {
+    if (micBusy.current) throw new Error("Microphone setup is already in progress.");
+    if (deviceId === undefined && mic.current?.getAudioTracks().some(t => t.readyState === "live")) return mic.current;
+    micBusy.current = true;
     try {
-      if (!mic.current) {
-        mic.current = await navigator.mediaDevices.getUserMedia({
-          audio: { echoCancellation: true, noiseSuppression: true },
-          video: false,
-        });
-        for (const { pc } of peers.current.values())
-          mic.current.getTracks().forEach((t) => pc.addTrack(t, mic.current!));
-      }
-      const next = !micOn;
-      mic.current.getTracks().forEach((t) => {
-        t.enabled = next;
+      const next = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true,
+          ...(deviceId ? { deviceId: { exact: deviceId } } : {}) }, video: false,
       });
+      const old = mic.current;
+      const track = next.getAudioTracks()[0];
+      track.enabled = micOn && !forceMutedRef.current && !paused && !superseded;
+      try {
+        await Promise.all([...peers.current.values()].map(async ({pc}) => {
+          const sender = pc.getSenders().find(s => old?.getTracks().includes(s.track!));
+          if (sender) await sender.replaceTrack(track);
+          else pc.addTrack(track, next);
+        }));
+      } catch (error) { next.getTracks().forEach(t => t.stop()); throw error; }
+      mic.current = next;
+      setMicrophone(next);
+      old?.getTracks().forEach(t => t.stop());
+      track.onended = () => { setMicOn(false); setMicrophone(null); mic.current = null; };
+      return next;
+    } finally { micBusy.current = false; }
+  };
+  const toggleMic = async () => {
+    if (forceMuted || paused || superseded) return;
+    try {
+      const stream = await prepareMicrophone();
+      const next = !micOn && !forceMutedRef.current;
+      stream.getTracks().forEach(t => { t.enabled = next; });
       setMicOn(next);
-      if (self && ready)
-        await presenceChannel.current?.track({ ...self, mic: next && !paused });
-    } catch {
-      callbacks.current.onNotice(
-        "Allow microphone access in your browser to speak.",
-      );
+      if (self && ready) await presenceChannel.current?.track({ ...self, recordingStartedAt: recordingRef.current, mic: next });
+    } catch (error) {
+      callbacks.current.onNotice(error instanceof DOMException && error.name === "NotAllowedError"
+        ? "Microphone access was denied. Allow it in this site's browser settings, then try again."
+        : "The microphone could not start. Close other apps using it, check your selected device, then try again.");
     }
   };
   const stopPresentation = useCallback(() => {
@@ -432,6 +454,9 @@ export function useLiveTransport({
     remote,
     local,
     micOn,
+    microphone,
+    connections,
+    prepareMicrophone,
     toggleMic,
     present,
     stopPresentation,

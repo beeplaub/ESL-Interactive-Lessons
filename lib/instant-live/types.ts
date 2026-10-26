@@ -33,7 +33,7 @@ export type BoardObject = {
   document?: RichText;
   assetId?: string;
 };
-export type StageKind = "whiteboard" | "screen" | "camera" | "image";
+export type StageKind = "whiteboard" | "screen" | "camera" | "image" | "content";
 export type SharedState = {
   room_id: string;
   board: BoardObject[];
@@ -60,6 +60,7 @@ export type LivePerson = {
   role: "CREATOR" | "LEARNER";
   joinedAt: number;
   mic: boolean;
+  recordingStartedAt?: number | null;
 };
 export const BOARD_WIDTH = 1200;
 export const BOARD_HEIGHT = 700;

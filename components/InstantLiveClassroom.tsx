@@ -3,6 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Check,
+  ChevronUp,
+  Download,
+  BookOpen,
+  Circle,
+  Square,
   Copy,
   ImagePlus,
   Maximize2,
@@ -22,10 +27,15 @@ import {
   UserX,
   UsersRound,
   Video,
-  Volume2,
-  VolumeX,
   X,
 } from "lucide-react";
+import { exportBoard, saveLocalFile } from "./instant-live/exportBoard";
+import dynamic from "next/dynamic";
+import { showContent, type ContentSelection } from "./instant-live/LiveContent";
+const LiveContent = dynamic(() => import("./instant-live/LiveContent").then(m => m.LiveContent));
+const ContentPicker = dynamic(() => import("./instant-live/LiveContent").then(m => m.ContentPicker));
+import { useLocalRecording } from "./instant-live/useLocalRecording";
+import { AudioSetup } from "./instant-live/AudioSetup";
 import { LiveBoard } from "./instant-live/LiveBoard";
 import { useLiveTransport } from "./instant-live/useLiveTransport";
 import {
@@ -119,6 +129,12 @@ export function InstantLiveClassroom({
   const [pointer, setPointer] = useState<[number, number] | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
   const [soundBlocked, setSoundBlocked] = useState(false);
+  const [audioSetup, setAudioSetup] = useState(false);
+  const [recordingAt, setRecordingAt] = useState<number | null>(null);
+  const [recordingOpen, setRecordingOpen] = useState(false);
+  const [contentPicker, setContentPicker] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const upload = useRef<HTMLInputElement>(null);
   const uploadToBoard = useRef(false);
   const dirty = useRef(false);
@@ -302,10 +318,21 @@ export function InstantLiveClassroom({
     paused,
     forceMuted,
     enabled: loaded && !roomRevoked,
+    recordingStartedAt: recordingAt,
     onEvent,
     onNotice: setNotice,
   });
   transportRef.current = transport;
+  const recording = useLocalRecording(roomId, [
+    ...(transport.microphone?.getAudioTracks() ?? []),
+    ...(transport.local?.getAudioTracks() ?? []),
+    ...Object.values(transport.remote).flatMap(stream => stream.getAudioTracks()),
+  ], setNotice);
+  useEffect(() => { setRecordingAt(recording.startedAt); }, [recording.startedAt]);
+  const recordingStop = useRef(recording.stop); recordingStop.current = recording.stop;
+  useEffect(() => { if (paused || roomRevoked || transport.superseded) recordingStop.current(); }, [paused, roomRevoked, transport.superseded]);
+  const visibleRecordingAt = creator ? recording.startedAt : transport.people.find(person => person.userId === creatorId)?.recordingStartedAt;
+
   const ownPresentation = Boolean(
     self &&
     state.presenter_session === self.sessionId &&
@@ -778,6 +805,40 @@ export function InstantLiveClassroom({
       setFullscreen((value) => !value);
     }
   }
+  async function chooseContent(selection: ContentSelection) {
+    if (!self || !creator) return;
+    const next = await showContent(api, selection, self.sessionId, stateRef.current.revision);
+    transport.stopPresentation();
+    applyState(next);
+    void transport.send("state-changed", {});
+  }
+  async function exportWhiteboard(addToGallery: boolean) {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const svg = root.current?.querySelector<SVGSVGElement>(".live-board-svg");
+      if (!svg) throw new Error("Open the whiteboard first.");
+      const blob = await exportBoard(svg);
+      const name = `whiteboard-${new Date().toISOString().replace(/[:.]/g, "-")}.png`;
+      if (addToGallery) {
+        const form = new FormData(); form.append("file", new File([blob], name, {type: "image/png"}));
+        const response = await fetch(`${api}/assets`, {method: "POST", body: form});
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "Could not add the image.");
+        setAssets(old => [...old, result.asset]); setGallery(true);
+        void transport.send("assets-changed", {});
+        setNotice("Whiteboard added to your image gallery.");
+      } else saveLocalFile(blob, name);
+      setExportOpen(false);
+    } catch (error) { setNotice(error instanceof Error ? error.message : "Could not export the whiteboard."); }
+    finally { setExporting(false); }
+  }
+  async function enableSound() {
+    const results = await Promise.allSettled(Array.from(root.current?.querySelectorAll("audio") ?? []).map(audio => audio.play()));
+    const blocked = results.some(result => result.status === "rejected");
+    setSoundBlocked(blocked);
+    if (blocked) throw new Error("Audio playback is still blocked.");
+  }
   const avatar = (name: string) =>
     ["#aab5ff", "#f4b7cf", "#73ddcf", "#c8adf6"][
       name.split("").reduce((sum, c) => sum + c.charCodeAt(0), 0) % 4
@@ -824,6 +885,7 @@ export function InstantLiveClassroom({
           <UsersRound size={15} />
           {transport.people.length || 1}
         </span>
+        {visibleRecordingAt ? <span className="live-recording-badge" role="status"><i/> REC {new Date(Math.max(0, now-visibleRecordingAt)).toISOString().slice(11,19)}</span> : null}
         <div className="live-header-actions">
           {creator ? (
             <button className="live-copy" onClick={() => void copyLink()}>
@@ -876,12 +938,7 @@ export function InstantLiveClassroom({
       {soundBlocked ? (
         <button
           className="live-enable-audio"
-          onClick={() => {
-            root.current
-              ?.querySelectorAll("audio")
-              .forEach((audio) => void audio.play().catch(() => {}));
-            setSoundBlocked(false);
-          }}
+          onClick={() => void enableSound().catch(() => {})}
         >
           Tap to hear the class
         </button>
@@ -908,6 +965,7 @@ export function InstantLiveClassroom({
                 onPointer={broadcastPointer}
               />
             </div>
+            {state.stage === "content" ? <LiveContent api={api} revision={state.revision} creator={creator} paused={paused} onChoose={chooseContent} onNotice={setNotice}/> : null}
             {state.stage === "image" && state.asset_id ? (
               <ZoomStage>
                 <img
@@ -1000,10 +1058,11 @@ export function InstantLiveClassroom({
             {button(
               forceMuted ? "Muted by teacher" : "Mic",
               transport.micOn && !forceMuted ? Mic : MicOff,
-              () => void transport.toggleMic(),
+              () => { void enableSound().catch(() => {}); void transport.toggleMic(); },
               transport.micOn && !forceMuted,
               paused || transport.superseded || forceMuted,
             )}
+            <button className="live-audio-settings" aria-label="Microphone and speaker settings" title="Audio settings and tests" onClick={() => setAudioSetup(true)}><ChevronUp size={16}/></button>
             {button(
               ownPresentation && state.stage === "camera"
                 ? "Stop video"
@@ -1042,6 +1101,8 @@ export function InstantLiveClassroom({
               gallery,
               paused || uploading,
             )}
+            {creator ? button("Lesson / quiz", BookOpen, () => setContentPicker(true), state.stage === "content", paused || busy || locked) : null}
+            {creator && state.stage === "whiteboard" ? button("Export", Download, () => setExportOpen(true), false, exporting) : null}
             {assets.length
               ? button(
                   "Add image",
@@ -1051,6 +1112,7 @@ export function InstantLiveClassroom({
                   paused || uploading,
                 )
               : null}
+            {creator ? button(recording.startedAt ? "Stop recording" : "Record", recording.startedAt ? Square : Circle, () => recording.startedAt ? recording.stop() : setRecordingOpen(true), Boolean(recording.startedAt), recording.busy || paused) : null}
             <span className="live-control-divider" />
             {creator
               ? button(
@@ -1210,26 +1272,26 @@ export function InstantLiveClassroom({
                       {person.userId === creatorId ? "Teacher" : "Learner"}
                     </small>
                   </div>
-                  <span
+                  {!(creator && isLearner) ? <span
                     className={`live-person-mic ${person.mic && !isMuted ? "is-on" : ""}`}
                     title={isMuted ? "Muted by teacher" : person.mic ? "Microphone on" : "Microphone off"}
                     role="img"
                     aria-label={isMuted ? "Muted by teacher" : person.mic ? "Microphone on" : "Microphone off"}
                   >
                     {person.mic && !isMuted ? <Mic size={15} /> : <MicOff size={15} />}
-                  </span>
+                  </span> : null}
                   {creator && isLearner ? (
                     <div className="live-person-actions">
                       <button
                         type="button"
-                        title={isMuted ? "Allow microphone" : "Mute learner"}
+                        title={isMuted ? "Muted by teacher · click to allow microphone (learner must turn it on)" : person.mic ? "Microphone on · click to mute" : "Microphone off · click to prevent unmuting"}
                         aria-label={`${isMuted ? "Allow microphone for" : "Mute"} ${person.name}`}
                         disabled={moderatingUser === person.userId}
                         onClick={() =>
                           void moderateParticipant(isMuted ? "unmute" : "mute", person.userId)
                         }
                       >
-                        {isMuted ? <Volume2 size={15} /> : <VolumeX size={15} />}
+                        {person.mic && !isMuted ? <Mic size={15} /> : <MicOff size={15} />}
                       </button>
                       <button
                         type="button"
@@ -1264,6 +1326,11 @@ export function InstantLiveClassroom({
           onBlocked={() => setSoundBlocked(true)}
         />
       ))}
+      {contentPicker && creator ? <ContentPicker api={api} onClose={() => setContentPicker(false)} onChoose={chooseContent}/> : null}
+      {recordingOpen && creator ? <div className="live-modal-backdrop" onClick={e => {if(e.target === e.currentTarget && !recording.busy) setRecordingOpen(false);}}><section className="live-feature-panel" role="dialog" aria-modal="true" aria-label="Local recording"><header><h2>Local recording</h2><button aria-label="Close recordings" onClick={() => setRecordingOpen(false)}><X size={18}/></button></header><p>Choose this classroom tab in the browser's screen picker. Records its picture and class audio, including your mic when on. Everyone sees a recording indicator. No upload or paid service.</p><p>Keep this tab open. Files are kept in this browser until you save or delete them. Screen capture requires a supported desktop browser. A file stops at 500 MB; start another part if needed.</p><button disabled={recording.busy || paused || Boolean(recording.startedAt)} onClick={() => {setRecordingOpen(false); void recording.start();}}>Start recording</button>{recording.saved.map(file => <div className="live-recording-file" key={file.id}><span>{new Date(file.createdAt).toLocaleString()} · {(file.size/1e6).toFixed(1)} MB{!file.complete ? " · interrupted" : ""}</span><button disabled={recording.busy} onClick={() => void recording.save(file)}>Save file</button><button disabled={recording.busy} onClick={() => {if(window.confirm("Delete this local recording? Save your file first.")) void recording.remove(file).catch(() => setNotice("Could not delete recording."));}}>Delete</button></div>)}</section></div> : null}
+      {creator && recording.saved.length && !recording.startedAt ? <button className="live-recordings-ready" onClick={() => setRecordingOpen(true)}>Local recordings · {recording.saved.length}</button> : null}
+      {exportOpen ? <div className="live-modal-backdrop" onClick={e => {if(e.target === e.currentTarget && !exporting) setExportOpen(false);}}><section className="live-feature-panel" role="dialog" aria-modal="true" aria-label="Export whiteboard"><header><h2>Export whiteboard</h2><button aria-label="Close export" disabled={exporting} onClick={() => setExportOpen(false)}><X size={18}/></button></header><p>The whole board, without toolbars or selection outlines.</p><button disabled={exporting} onClick={() => void exportWhiteboard(false)}>Save PNG to device</button><button disabled={exporting || paused} onClick={() => void exportWhiteboard(true)}>Add to image gallery</button>{exporting ? <p role="status">Preparing image…</p> : null}</section></div> : null}
+      {audioSetup ? <AudioSetup onClose={() => setAudioSetup(false)} onEnableSound={enableSound} onSelectMicrophone={transport.prepareMicrophone} connections={transport.connections}/> : null}
       {boardPicker ? (
         <div
           className="live-modal-backdrop"
@@ -1345,10 +1412,17 @@ function MediaAudio({
     const audio = ref.current;
     if (!audio) return;
     audio.srcObject = stream;
-    if (!paused && stream.getAudioTracks().length)
-      void audio.play().catch(() => callback.current());
-    else audio.pause();
+    const play = () => {
+      if (!paused && stream.getAudioTracks().some(track => track.readyState === "live"))
+        void audio.play().catch(error => { if(error?.name !== "AbortError") callback.current(); });
+      else audio.pause();
+    };
+    stream.addEventListener("addtrack", play);
+    stream.addEventListener("removetrack", play);
+    play();
     return () => {
+      stream.removeEventListener("addtrack", play);
+      stream.removeEventListener("removetrack", play);
       audio.srcObject = null;
     };
   }, [stream, paused]);
@@ -1390,7 +1464,7 @@ function ZoomStage({ children }: { children: React.ReactNode }) {
             Math.min(
               4,
               Math.max(
-                1,
+                0.25,
                 (gesture.current.zoom * Math.hypot(a.x - b.x, a.y - b.y)) /
                   gesture.current.distance,
               ),
@@ -1420,7 +1494,7 @@ function ZoomStage({ children }: { children: React.ReactNode }) {
       <div className="live-board-zoom">
         <button
           aria-label="Zoom out"
-          onClick={() => setZoom(Math.max(1, zoom - 0.25))}
+          onClick={() => setZoom(Math.max(0.25, +(zoom - 0.1).toFixed(2)))}
         >
           −
         </button>
@@ -1434,7 +1508,7 @@ function ZoomStage({ children }: { children: React.ReactNode }) {
         </button>
         <button
           aria-label="Zoom in"
-          onClick={() => setZoom(Math.min(4, zoom + 0.25))}
+          onClick={() => setZoom(Math.min(4, +(zoom + 0.1).toFixed(2)))}
         >
           +
         </button>

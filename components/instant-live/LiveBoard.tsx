@@ -277,7 +277,7 @@ export function LiveBoard({
         Math.min(
           4,
           Math.max(
-            1,
+            0.25,
             (pinch.current.zoom * Math.hypot(a[0] - b[0], a[1] - b[1])) /
               pinch.current.distance,
           ),
@@ -462,7 +462,7 @@ export function LiveBoard({
             </marker>
           </defs>
           <rect width={BOARD_WIDTH} height={BOARD_HEIGHT} fill="white" />
-          <g transform={`translate(${pan.x} ${pan.y}) scale(${zoom})`}>
+          <g data-board-document transform={`translate(${pan.x} ${pan.y}) scale(${zoom})`}>
             {objects.map((object) => (
               <g
                 key={object.id}
@@ -589,6 +589,7 @@ export function LiveBoard({
                 {canEdit && selected === object.id ? (
                   <>
                     <rect
+                      data-export-exclude
                       x={-3}
                       y={-3}
                       width={object.w + 6}
@@ -599,6 +600,7 @@ export function LiveBoard({
                       pointerEvents="none"
                     />
                     <circle
+                      data-export-exclude
                       data-resize
                       cx={object.w + 3}
                       cy={object.h + 3}
@@ -614,6 +616,7 @@ export function LiveBoard({
             ))}
             {pointer ? (
               <circle
+                data-export-exclude
                 cx={pointer[0]}
                 cy={pointer[1]}
                 r={7}
@@ -627,7 +630,7 @@ export function LiveBoard({
         <div className="live-board-zoom">
           <button
             aria-label="Zoom out"
-            onClick={() => setZoom(Math.max(1, zoom - 0.25))}
+            onClick={() => setZoom(Math.max(0.25, +(zoom - 0.1).toFixed(2)))}
           >
             <Minus size={15} />
           </button>
@@ -642,7 +645,7 @@ export function LiveBoard({
           </button>
           <button
             aria-label="Zoom in"
-            onClick={() => setZoom(Math.min(4, zoom + 0.25))}
+            onClick={() => setZoom(Math.min(4, +(zoom + 0.1).toFixed(2)))}
           >
             <Plus size={15} />
           </button>

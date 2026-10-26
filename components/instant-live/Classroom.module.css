@@ -1151,3 +1151,35 @@
     max-height: 42dvh;
   }
 }
+
+.root :global(.live-audio-settings) { align-self: center; border: 1px solid #8583ad55; border-radius: 50%; padding: 6px; color: #c5c0ee; background: #33374a; }
+.root :global(.live-audio-dialog) { padding:0; border:1px solid #77749d66; border-radius:22px; background:#25293c; color:#f4f2ff; width:min(440px,calc(100vw - 32px)); box-shadow:0 24px 80px #0008; }
+.root :global(.live-audio-dialog::backdrop) { background:#080d1a99; backdrop-filter:blur(5px); }
+.root :global(.live-audio-dialog section), .root :global(.live-feature-panel) { padding:24px; }
+.root :global(.live-feature-panel) { width:min(520px,calc(100vw - 32px)); max-height:85dvh; overflow:auto; background:#25293c; color:#f4f2ff; border:1px solid #77749d66; border-radius:22px; }
+.root :global(.live-feature-panel header), .root :global(.live-audio-dialog header) { display:flex; align-items:center; justify-content:space-between; gap:16px; }
+.root :global(.live-feature-panel h2), .root :global(.live-audio-dialog h2) { font-size:19px; font-weight:700; }
+.root :global(.live-feature-panel p), .root :global(.live-audio-dialog p) { font-size:14px; line-height:1.6; color:#c9cad9; margin:12px 0; }
+.root :global(.live-audio-dialog label) { display:grid; gap:8px; font-size:13px; }
+.root :global(.live-audio-dialog select) { width:100%; background:#34384e; color:white; padding:10px; border-radius:10px; border:1px solid #8583ad66; }
+.root :global(.live-audio-meter) { height:8px; border-radius:8px; overflow:hidden; background:#44485d; margin:16px 0; }
+.root :global(.live-audio-meter i) { display:block; height:100%; background:#8ddcc7; transition:width 80ms; }
+.root :global(.live-audio-actions) { display:flex; gap:10px; flex-wrap:wrap; }
+.root :global(.live-audio-actions button), .root :global(.live-feature-panel > button), .root :global(.live-recording-file button) { display:inline-flex; align-items:center; gap:7px; padding:10px 14px; background:#635bdf; border:1px solid #aaa1ef; border-radius:12px; margin:4px; font-size:13px; color:white; }
+.root :global(.live-audio-dialog small) { display:block; color:#b7b4cd; line-height:1.6; }
+.root :global(.live-recording-badge) { display:flex; align-items:center; gap:7px; font-size:12px; font-variant-numeric:tabular-nums; color:#ffb6ab; padding:5px 9px; border-radius:20px; background:#ff725e18; }
+.root :global(.live-recording-badge i) { width:7px; height:7px; border-radius:50%; background:#ff725e; }
+.root :global(.live-recordings-ready) { display:block; margin:10px auto; color:#c5baff; padding:8px 14px; border-radius:12px; background:#33374b; }
+.root :global(.live-recording-file) { padding:12px 0; border-top:1px solid #ffffff18; }
+.root :global(.live-recording-file span) { display:block; font-size:13px; }
+.root :global(.live-media-content) { transition:transform 100ms ease-out; }
+@media (prefers-reduced-motion:reduce) { .root :global(.live-media-content) { transition:none; } }
+.root :global(.live-content-stage) { flex:1; width:100%; min-width:0; height:100%; min-height:400px; max-height:78dvh; overflow:auto; background:var(--br-surface,#fff); color:var(--br-text,#25243d); padding:clamp(12px,2vw,28px); border-radius:16px; touch-action:auto; }
+.root :global(.live-content-heading) { display:flex; gap:14px; align-items:center; flex-wrap:wrap; padding-bottom:18px; border-bottom:1px solid #8c83b033; margin-bottom:20px; }
+.root :global(.live-content-heading h2) { font-size:20px; font-weight:700; flex:1; }
+.root :global(.live-content-heading button), .root :global(.live-content-actions button), .root :global(.live-content-activities button) { background:#635bdf; color:white; padding:8px 12px; border-radius:10px; margin:3px; }
+.root :global(.live-content-actions) { display:flex; align-items:center; flex-wrap:wrap; gap:12px; margin-top:18px; font-size:13px; }
+.root :global(.live-content-help) { font-size:12px; color:#6c6680; margin:10px 0; }
+.root :global(.live-content-option) { display:block; text-align:left; width:100%; padding:12px; margin:6px 0; background:#34384e; border-radius:10px; }
+.root :global(.live-feature-panel input) { background:#34384e; color:white; width:100%; padding:10px; border-radius:10px; margin-bottom:16px; }
+.root :global(.live-feature-panel h3) { font-size:14px; margin-top:14px; color:#c3b9ff; }
