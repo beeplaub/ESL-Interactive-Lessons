@@ -61,6 +61,9 @@ export function InstantLiveClassroom({ roomId, title, code, startedAt, userId, u
   const boardRef = useRef<BoardLine[]>([]);
   const undoStack = useRef<BoardLine[][]>([]);
   const redoStack = useRef<BoardLine[][]>([]);
+  const stageRef = useRef(stage);
+  const imageRef = useRef(image);
+  const imagesRef = useRef(images);
 
   useEffect(() => {
     const updateElapsed = () => setElapsedSeconds(Math.max(0, Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000)));
@@ -86,6 +89,9 @@ export function InstantLiveClassroom({ roomId, title, code, startedAt, userId, u
     { tool: "shape", label: "Arrow", icon: <ArrowUpRight size={17} />, shape: "arrow" },
   ];
   useEffect(() => { boardRef.current = board; }, [board]);
+  useEffect(() => { stageRef.current = stage; }, [stage]);
+  useEffect(() => { imageRef.current = image; }, [image]);
+  useEffect(() => { imagesRef.current = images; }, [images]);
 
   function chooseWhiteboardTool(next: WhiteboardTool, nextShape?: ShapeKind) {
     if (nextShape) setShapeKind(nextShape);
@@ -134,6 +140,14 @@ export function InstantLiveClassroom({ roomId, title, code, startedAt, userId, u
   }, []);
 
   const broadcast = useCallback((event: string, payload: unknown) => { void channel.current?.send({ type: "broadcast", event, payload }); }, []);
+
+  const sendRoomSnapshot = useCallback((target?: string) => {
+    broadcast("state-snapshot", { target, stage: stageRef.current, board: boardRef.current });
+    if (stageRef.current === "image" && imageRef.current) {
+      const asset = imagesRef.current.find((item) => item.src === imageRef.current) ?? { id: crypto.randomUUID(), src: imageRef.current, name: "Image" };
+      broadcast("image", { target, ...asset });
+    }
+  }, [broadcast]);
 
   const renegotiate = useCallback(async (peerId: string, force = false) => {
     const pc = peers.current.get(peerId);
@@ -436,8 +450,26 @@ export function InstantLiveClassroom({ roomId, title, code, startedAt, userId, u
     room.on("broadcast", { event: "board-update" }, ({ payload }) => setBoard((current) => current.map((line) => line.id === (payload as BoardLine).id ? payload as BoardLine : line)));
     room.on("broadcast", { event: "board-remove" }, ({ payload }) => setBoard((current) => current.filter((line) => line.id !== (payload as { id: string }).id)));
     room.on("broadcast", { event: "board-pointer" }, ({ payload }) => setLivePointer((payload as { point?: [number, number] }).point ?? null));
+    room.on("broadcast", { event: "state-request" }, ({ payload }) => {
+      if (role !== "CREATOR") return;
+      const target = (payload as { target?: string }).target;
+      if (target) sendRoomSnapshot(target);
+      if (target && stageRef.current === "screen") {
+        const pc = ensurePeer(target);
+        if (pc.signalingState === "stable") void renegotiate(target, true);
+      }
+    });
+    room.on("broadcast", { event: "state-snapshot" }, ({ payload }) => {
+      const snapshot = payload as { target?: string; stage?: "whiteboard" | "screen" | "image"; board?: BoardLine[] };
+      if (snapshot.target && snapshot.target !== userId) return;
+      const nextBoard = snapshot.board ?? [];
+      boardRef.current = nextBoard;
+      setBoard(nextBoard);
+      if (snapshot.stage) setStage(snapshot.stage);
+    });
     room.on("broadcast", { event: "image" }, ({ payload }) => {
-      const next = payload as { id?: string; src: string; name?: string };
+      const next = payload as { target?: string; id?: string; src: string; name?: string };
+      if (next.target && next.target !== userId) return;
       const asset = { id: next.id ?? crypto.randomUUID(), src: String(next.src), name: next.name ?? "Image" };
       setImages((current) => current.some((item) => item.id === asset.id) ? current : [...current, asset]);
       setImage(asset.src); setStage("image");
@@ -452,11 +484,21 @@ export function InstantLiveClassroom({ roomId, title, code, startedAt, userId, u
       const state = room.presenceState<Person>();
       const next = Object.values(state).flat().filter((person) => person.userId !== userId);
       setPeople([{ userId, name: userName, role }, ...next]);
-      next.forEach((person) => { const pc = ensurePeer(person.userId); if (userId < person.userId && pc.signalingState === "stable") void renegotiate(person.userId); });
+      next.forEach((person) => {
+        const pc = ensurePeer(person.userId);
+        if (role === "CREATOR") {
+          sendRoomSnapshot(person.userId);
+          if (stageRef.current === "screen" && pc.signalingState === "stable") void renegotiate(person.userId, true);
+        } else if (userId < person.userId && pc.signalingState === "stable") void renegotiate(person.userId);
+      });
     });
-    void room.subscribe(async (status) => { if (status === "SUBSCRIBED") await room.track({ userId, name: userName, role }); });
+    void room.subscribe(async (status) => {
+      if (status !== "SUBSCRIBED") return;
+      await room.track({ userId, name: userName, role });
+      if (role === "LEARNER") window.setTimeout(() => broadcast("state-request", { target: userId }), 200);
+    });
     return () => { void room.untrack(); void supabase.removeChannel(room); peers.current.forEach((pc) => pc.close()); remoteAudio.current.forEach((audio) => audio.remove()); localAudio.current?.getTracks().forEach((track) => track.stop()); localScreen.current?.getTracks().forEach((track) => track.stop()); };
-  }, [ensurePeer, handleSignal, renegotiate, role, roomId, supabase, userId, userName]);
+  }, [broadcast, ensurePeer, handleSignal, renegotiate, role, roomId, sendRoomSnapshot, supabase, userId, userName]);
 
   async function toggleMic() {
     try {
