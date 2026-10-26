@@ -1,748 +1,1251 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { ReactNode } from "react";
-import { ArrowUpRight, BookOpen, Check, Circle, Copy, Eraser, Highlighter, ImagePlus, Maximize2, MessageCircle, Mic, MicOff, MonitorUp, MousePointer2, MousePointerClick, PanelRightClose, PanelRightOpen, PenLine, Pointer, Redo2, RotateCcw, Send, Settings, Square, Undo2, UsersRound, X } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import {
+  Check,
+  Copy,
+  ImagePlus,
+  Maximize2,
+  MessageCircle,
+  Mic,
+  MicOff,
+  MonitorUp,
+  PanelRightClose,
+  PanelRightOpen,
+  PenLine,
+  PhoneOff,
+  Plus,
+  RefreshCw,
+  RotateCcw,
+  Send,
+  UsersRound,
+  Video,
+  X,
+} from "lucide-react";
+import { LiveBoard } from "./instant-live/LiveBoard";
+import { useLiveTransport } from "./instant-live/useLiveTransport";
+import {
+  boardSchema,
+  emptyState,
+  type BoardObject,
+  type LiveAsset,
+  type LivePerson,
+  type SharedState,
+  type StageKind,
+} from "@/lib/instant-live/types";
+import styles from "./instant-live/Classroom.module.css";
 
-type Role = "CREATOR" | "LEARNER";
-type Person = { userId: string; name: string; role: Role };
-type ChatMessage = { id: string; userId: string; name: string; body: string; createdAt?: string };
-type WhiteboardTool = "select" | "pen" | "highlighter" | "eraser" | "pointer" | "laser" | "text" | "shape";
-type ShapeKind = "rectangle" | "circle" | "line" | "arrow";
-type BoardLine = { id: string; points: Array<[number, number]>; color: string; width: number; tool?: Exclude<WhiteboardTool, "select" | "eraser">; text?: string; shape?: ShapeKind };
-type ImageAsset = { id: string; src: string; name: string };
-type Signal = { from: string; to: string; kind: "offer" | "answer" | "candidate"; description?: RTCSessionDescriptionInit; candidate?: RTCIceCandidateInit };
-
-const iceServers: RTCIceServer[] = [{ urls: "stun:stun.cloudflare.com:3478" }];
-
-export function InstantLiveClassroom({ roomId, title, code, startedAt, elapsedOffset = 0, initialEnded = false, userId, userName, role }: { roomId: string; title: string; code: string; startedAt: string; elapsedOffset?: number; initialEnded?: boolean; userId: string; userName: string; role: Role }) {
-  const supabase = useRef(createClient()).current;
-  const channel = useRef<ReturnType<typeof supabase.channel> | null>(null);
-  const peers = useRef(new Map<string, RTCPeerConnection>());
-  const makingOffer = useRef(new Map<string, boolean>());
-  const ignoreOffer = useRef(new Map<string, boolean>());
-  const settingRemoteAnswer = useRef(new Map<string, boolean>());
-  const pendingCandidates = useRef(new Map<string, RTCIceCandidateInit[]>());
-  const localAudio = useRef<MediaStream | null>(null);
-  const localScreen = useRef<MediaStream | null>(null);
-  const localScreenVideo = useRef<HTMLVideoElement>(null);
-  const classroom = useRef<HTMLElement>(null);
-  const remoteAudio = useRef(new Map<string, HTMLAudioElement>());
-  const canvas = useRef<HTMLCanvasElement>(null);
-  const [people, setPeople] = useState<Person[]>([{ userId, name: userName, role }]);
+type ChatMessage = {
+  id: string;
+  userId: string;
+  name: string;
+  body: string;
+  createdAt: string;
+};
+type RoomClock = {
+  status: string;
+  elapsed_seconds: number;
+  active_started_at: string;
+  expires_at: string;
+};
+type Props = {
+  roomId: string;
+  title: string;
+  code: string;
+  startedAt: string;
+  elapsedOffset?: number;
+  initialEnded?: boolean;
+  userId: string;
+  userName: string;
+  role: "CREATOR" | "LEARNER";
+  creatorId: string;
+};
+export function InstantLiveClassroom({
+  roomId,
+  title,
+  code,
+  startedAt,
+  elapsedOffset = 0,
+  initialEnded = false,
+  userId,
+  userName,
+  role,
+  creatorId,
+}: Props) {
+  const creator = role === "CREATOR";
+  const root = useRef<HTMLElement>(null);
+  const [self, setSelf] = useState<LivePerson | null>(null);
+  const [state, setState] = useState<SharedState>(() => emptyState(roomId));
+  const stateRef = useRef(state);
+  stateRef.current = state;
+  const [board, setBoard] = useState<BoardObject[]>([]);
+  const boardRef = useRef(board);
+  boardRef.current = board;
+  const [assets, setAssets] = useState<LiveAsset[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [notice, setNotice] = useState("");
+  const [clock, setClock] = useState<RoomClock>({
+    status: initialEnded ? "ENDED" : "LIVE",
+    elapsed_seconds: elapsedOffset,
+    active_started_at: startedAt,
+    expires_at: "",
+  });
+  const [now, setNow] = useState(Date.now());
+  const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [saveStatus, setSaveStatus] = useState("Saved");
+  const [copied, setCopied] = useState(false);
+  const [chatOpen, setChatOpen] = useState(true);
+  const [drawer, setDrawer] = useState<"chat" | "people">("chat");
   const [chat, setChat] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
-  const [board, setBoard] = useState<BoardLine[]>([]);
-  const [whiteboardTool, setWhiteboardTool] = useState<WhiteboardTool>("pen");
-  const [stage, setStage] = useState<"whiteboard" | "screen" | "image">("whiteboard");
-  const [image, setImage] = useState<string | null>(null);
-  const [images, setImages] = useState<ImageAsset[]>([]);
-  const [shapeKind, setShapeKind] = useState<ShapeKind>("rectangle");
-  const [micOn, setMicOn] = useState(false);
-  const [sharing, setSharing] = useState(false);
-  const [drawer, setDrawer] = useState<"chat" | "people">("chat");
-  const [copied, setCopied] = useState(false);
-  const [notice, setNotice] = useState("");
-  const [ended, setEnded] = useState(initialEnded);
-  const [lifecycleBusy, setLifecycleBusy] = useState(false);
-  const [channelReady, setChannelReady] = useState(false);
-  const [channelVersion, setChannelVersion] = useState(0);
-  const [chatOpen, setChatOpen] = useState(true);
-  const [activeStartedAt, setActiveStartedAt] = useState(startedAt);
-  const [savedElapsedSeconds, setSavedElapsedSeconds] = useState(elapsedOffset);
-  const [elapsedSeconds, setElapsedSeconds] = useState(() => elapsedOffset + (initialEnded ? 0 : Math.max(0, Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000))));
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const [stageZoom, setStageZoom] = useState(1);
-  const [stagePan, setStagePan] = useState({ x: 0, y: 0 });
-  const [selectedBoardId, setSelectedBoardId] = useState<string | null>(null);
-  const [livePointer, setLivePointer] = useState<[number, number] | null>(null);
-  const drawing = useRef<BoardLine | null>(null);
-  const selectionDrag = useRef<{ id: string; start: [number, number]; original: BoardLine } | null>(null);
-  const stagePointers = useRef(new Map<number, { x: number; y: number }>());
-  const stageGesture = useRef<{ distance: number; zoom: number } | null>(null);
-  const stageZoomRef = useRef(1);
-  const stagePanRef = useRef({ x: 0, y: 0 });
-  const stageLastTap = useRef(0);
-  const [railPosition, setRailPosition] = useState({ x: 16, y: 112 });
-  const railPositionRef = useRef(railPosition);
-  const railDrag = useRef<{ offsetX: number; offsetY: number } | null>(null);
-  const boardRef = useRef<BoardLine[]>([]);
-  const undoStack = useRef<BoardLine[][]>([]);
-  const redoStack = useRef<BoardLine[][]>([]);
-  const stageRef = useRef(stage);
-  const imageRef = useRef(image);
-  const imagesRef = useRef(images);
-
+  const [gallery, setGallery] = useState(false);
+  const [boardPicker, setBoardPicker] = useState(false);
+  const [pointer, setPointer] = useState<[number, number] | null>(null);
+  const [fullscreen, setFullscreen] = useState(false);
+  const [soundBlocked, setSoundBlocked] = useState(false);
+  const upload = useRef<HTMLInputElement>(null);
+  const uploadToBoard = useRef(false);
+  const dirty = useRef(false);
+  const boardVersion = useRef(0);
+  const saving = useRef<Promise<void> | null>(null);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const previewTime = useRef(0);
+  const previewBoard = useRef<BoardObject[]>([]);
+  const pointerTime = useRef(0);
+  const receivedPreviewAt = useRef(0);
+  const joinedAt = useRef(Date.now());
+  const transportRef = useRef<ReturnType<typeof useLiveTransport> | null>(null);
+  const paused = clock.status !== "LIVE";
+  const api = `/api/instant-live/rooms/${roomId}`;
   useEffect(() => {
-    if (ended) return;
-    const updateElapsed = () => setElapsedSeconds(savedElapsedSeconds + Math.max(0, Math.floor((Date.now() - new Date(activeStartedAt).getTime()) / 1000)));
-    updateElapsed();
-    const timer = window.setInterval(updateElapsed, 1000);
-    return () => window.clearInterval(timer);
-  }, [activeStartedAt, ended, savedElapsedSeconds]);
-
-  const elapsedLabel = `${String(Math.floor(elapsedSeconds / 60)).padStart(2, "0")}:${String(elapsedSeconds % 60).padStart(2, "0")}`;
-  const activeToolClass = "border border-indigo-300/80 bg-indigo-500/25 text-white shadow-[0_0_0_1px_rgba(129,140,248,.35)]";
-  const idleToolClass = "border border-transparent text-white/70 hover:border-indigo-400/60 hover:bg-white/10 hover:text-white";
-  const whiteboardToolOptions: Array<{ tool: WhiteboardTool; label: string; icon: ReactNode; shape?: ShapeKind }> = [
-    { tool: "select", label: "Select", icon: <MousePointer2 size={18} /> },
-    { tool: "pen", label: "Pen", icon: <PenLine size={18} /> },
-    { tool: "highlighter", label: "Highlighter", icon: <Highlighter size={18} /> },
-    { tool: "eraser", label: "Eraser", icon: <Eraser size={18} /> },
-    { tool: "pointer", label: "Pointer", icon: <MousePointerClick size={18} /> },
-    { tool: "laser", label: "Laser", icon: <Pointer size={18} /> },
-    { tool: "text", label: "Text", icon: <span className="text-sm font-black">T</span> },
-    { tool: "shape", label: "Rectangle", icon: <Square size={17} />, shape: "rectangle" },
-    { tool: "shape", label: "Circle", icon: <Circle size={17} />, shape: "circle" },
-    { tool: "shape", label: "Line", icon: <span className="text-lg font-black">╱</span>, shape: "line" },
-    { tool: "shape", label: "Arrow", icon: <ArrowUpRight size={17} />, shape: "arrow" },
-  ];
-  useEffect(() => { boardRef.current = board; }, [board]);
-  useEffect(() => { stageRef.current = stage; }, [stage]);
-  useEffect(() => { imageRef.current = image; }, [image]);
-  useEffect(() => { imagesRef.current = images; }, [images]);
-
-  function chooseWhiteboardTool(next: WhiteboardTool, nextShape?: ShapeKind) {
-    if (nextShape) setShapeKind(nextShape);
-    setWhiteboardTool(next);
-    if (next !== "pointer") {
-      setLivePointer(null);
-      broadcast("board-pointer", { point: null });
+    setSelf({
+      userId,
+      sessionId: crypto.randomUUID(),
+      name: userName,
+      role,
+      joinedAt: joinedAt.current,
+      mic: false,
+    });
+  }, [role, userId, userName]);
+  const applyState = useCallback((next: SharedState) => {
+    const previous = stateRef.current;
+    const merged = { ...previous };
+    if (next.revision >= previous.revision) {
+      merged.stage = next.stage;
+      merged.asset_id = next.asset_id;
+      merged.presenter_id = next.presenter_id;
+      merged.presenter_session = next.presenter_session;
+      merged.lease_until = next.lease_until;
+      merged.revision = next.revision;
     }
-  }
-
-  function renderWhiteboardTools(compact = false) {
-    return <>
-      {whiteboardToolOptions.map((option, index) => {
-        const active = whiteboardTool === option.tool && (option.tool !== "shape" || shapeKind === option.shape);
-        return <button key={`${option.label}-${index}`} type="button" onClick={() => chooseWhiteboardTool(option.tool, option.shape)} aria-label={option.label} aria-pressed={active} title={option.label} className={`${compact ? "grid size-9 shrink-0" : "grid size-10"} place-items-center rounded-lg ${active ? activeToolClass : idleToolClass}`}>{option.icon}</button>;
-      })}
-      <span className="mx-1 h-7 w-px shrink-0 bg-white/15" aria-hidden="true" />
-      <button type="button" onClick={undoBoard} aria-label="Undo" title="Undo" className={`${compact ? "grid size-9 shrink-0" : "grid size-10"} place-items-center rounded-lg border border-transparent text-white/70 hover:border-indigo-400/60 hover:bg-white/10`}><Undo2 size={17} /></button>
-      <button type="button" onClick={redoBoard} aria-label="Redo" title="Redo" className={`${compact ? "grid size-9 shrink-0" : "grid size-10"} place-items-center rounded-lg border border-transparent text-white/70 hover:border-indigo-400/60 hover:bg-white/10`}><Redo2 size={17} /></button>
-    </>;
-  }
-
-  function recordBoardHistory() {
-    undoStack.current.push(boardRef.current.map((line) => ({ ...line, points: line.points.map(([x, y]) => [x, y] as [number, number]) })));
-    if (undoStack.current.length > 50) undoStack.current.shift();
-    redoStack.current = [];
-  }
-  function replaceBoard(next: BoardLine[]) { boardRef.current = next; setBoard(next); }
-  function syncBoardSnapshot(next: BoardLine[]) {
-    broadcast("board-clear", {});
-    next.forEach((line) => broadcast("board", line));
-  }
-  function undoBoard() {
-    const previous = undoStack.current.pop(); if (!previous) return;
-    redoStack.current.push(boardRef.current); replaceBoard(previous); syncBoardSnapshot(previous); setSelectedBoardId(null);
-  }
-  function redoBoard() {
-    const next = redoStack.current.pop(); if (!next) return;
-    undoStack.current.push(boardRef.current); replaceBoard(next); syncBoardSnapshot(next); setSelectedBoardId(null);
-  }
-
-  useEffect(() => {
-    const updateFullscreen = () => setIsFullscreen(document.fullscreenElement === classroom.current);
-    document.addEventListener("fullscreenchange", updateFullscreen);
-    return () => document.removeEventListener("fullscreenchange", updateFullscreen);
-  }, []);
-
-  const broadcast = useCallback((event: string, payload: unknown) => { void channel.current?.send({ type: "broadcast", event, payload }); }, []);
-
-  const sendRoomSnapshot = useCallback((target?: string) => {
-    broadcast("state-snapshot", { target, stage: stageRef.current, board: boardRef.current });
-    if (stageRef.current === "image" && imageRef.current) {
-      const asset = imagesRef.current.find((item) => item.src === imageRef.current) ?? { id: crypto.randomUUID(), src: imageRef.current, name: "Image" };
-      broadcast("image", { target, ...asset });
-    }
-  }, [broadcast]);
-
-  const renegotiate = useCallback(async (peerId: string) => {
-    const pc = peers.current.get(peerId);
-    if (!pc || makingOffer.current.get(peerId)) return;
-    try {
-      makingOffer.current.set(peerId, true);
-      if (pc.signalingState !== "stable") return;
-      await pc.setLocalDescription(await pc.createOffer());
-      if (pc.localDescription) broadcast("signal", { from: userId, to: peerId, kind: "offer", description: pc.localDescription });
-    } catch {
-      setNotice("Screen or audio connection could not be negotiated. Please retry sharing.");
-    } finally {
-      makingOffer.current.set(peerId, false);
-    }
-  }, [broadcast, userId]);
-
-  const ensurePeer = useCallback((peerId: string) => {
-    const existing = peers.current.get(peerId);
-    if (existing) return existing;
-    const pc = new RTCPeerConnection({ iceServers });
-    if (localAudio.current) localAudio.current.getTracks().forEach((track) => pc.addTrack(track, localAudio.current!));
-    if (localScreen.current) localScreen.current.getTracks().forEach((track) => pc.addTrack(track, localScreen.current!));
-    pc.onicecandidate = (event) => { if (event.candidate) broadcast("signal", { from: userId, to: peerId, kind: "candidate", candidate: event.candidate.toJSON() }); };
-    pc.onnegotiationneeded = () => { void renegotiate(peerId); };
-    pc.ontrack = (event) => {
-      if (event.track.kind === "audio") {
-        let audio = remoteAudio.current.get(peerId);
-        if (!audio) { audio = document.createElement("audio"); audio.autoplay = true; audio.setAttribute("aria-label", `Audio from ${peerId}`); document.body.appendChild(audio); remoteAudio.current.set(peerId, audio); }
-        const stream = audio.srcObject instanceof MediaStream ? audio.srcObject : new MediaStream();
-        if (!stream.getAudioTracks().some((track) => track.id === event.track.id)) stream.addTrack(event.track);
-        audio.srcObject = stream;
-        event.track.addEventListener("ended", () => stream.removeTrack(event.track), { once: true });
+    if (next.board_revision >= previous.board_revision) {
+      merged.board = next.board;
+      merged.board_revision = next.board_revision;
+      if (
+        !dirty.current &&
+        (next.board_revision > previous.board_revision ||
+          Date.now() - receivedPreviewAt.current > 1500)
+      ) {
+        boardRef.current = next.board;
+        previewBoard.current = next.board;
+        setBoard(next.board);
       }
-      if (event.track.kind === "video") { setStage("screen"); setRemoteScreen((current) => { const next = new MediaStream(current ? current.getTracks() : []); next.addTrack(event.streams[0]?.getVideoTracks()[0] ?? event.track); return next; }); }
-    };
-    pc.onconnectionstatechange = () => { if (["failed", "closed"].includes(pc.connectionState)) { pc.close(); peers.current.delete(peerId); } };
-    peers.current.set(peerId, pc);
-    return pc;
-  }, [broadcast, renegotiate, userId]);
-
-  const [remoteScreen, setRemoteScreen] = useState<MediaStream | null>(null);
-  const remoteScreenVideo = useRef<HTMLVideoElement>(null);
-
-  const handleSignal = useCallback(async (signal: Signal) => {
-    if (signal.to !== userId) return;
-    const pc = ensurePeer(signal.from);
+    }
+    stateRef.current = merged;
+    setState(merged);
+  }, []);
+  const refresh = useCallback(async () => {
     try {
-      if (signal.kind === "offer" && signal.description) {
-        const collision = makingOffer.current.get(signal.from) || (pc.signalingState !== "stable" && !settingRemoteAnswer.current.get(signal.from));
-        const polite = userId > signal.from;
-        ignoreOffer.current.set(signal.from, !polite && Boolean(collision));
-        if (!polite && collision) {
-          pendingCandidates.current.delete(signal.from);
+      const response = await fetch(`${api}/state`, { cache: "no-store" });
+      const result = await response.json();
+      if (!response.ok)
+        throw new Error(result.error || "Could not load the live stage.");
+      applyState(result.state);
+      setAssets(result.assets);
+      setClock(result.room);
+      setLoaded(true);
+    } catch (error) {
+      setNotice(
+        error instanceof Error
+          ? error.message
+          : "Could not load the classroom.",
+      );
+    }
+  }, [api, applyState]);
+  const scheduleRefresh = useCallback(() => {
+    if (refreshTimer.current) return;
+    refreshTimer.current = setTimeout(() => {
+      refreshTimer.current = null;
+      void refresh();
+    }, 150);
+  }, [refresh]);
+  const onEvent = useCallback(
+    (event: string, data: unknown, from: LivePerson | undefined) => {
+      if (
+        event === "state-changed" ||
+        event === "assets-changed" ||
+        event === "presence"
+      )
+        scheduleRefresh();
+      if (event === "state-request") {
+        if (creator)
+          void transportRef.current?.send("board-preview", {
+            board: boardRef.current,
+            revision: stateRef.current.board_revision,
+          });
+        scheduleRefresh();
+      }
+      if (event === "board-preview" && from?.userId === creatorId && !creator) {
+        const packet = data as { board?: unknown; revision?: number };
+        const parsed = boardSchema.safeParse(packet.board);
+        if (
+          parsed.success &&
+          Number(packet.revision) >= stateRef.current.board_revision
+        ) {
+          receivedPreviewAt.current = Date.now();
+          setBoard(parsed.data);
+          boardRef.current = parsed.data;
+        }
+      }
+      if (event === "board-patch" && from?.userId === creatorId && !creator) {
+        const packet = data as {
+          object?: unknown;
+          removed?: string[];
+          revision?: number;
+        };
+        if (Number(packet.revision) >= stateRef.current.board_revision) {
+          const parsed = boardSchema.safeParse(
+            packet.object ? [packet.object] : [],
+          );
+          if (parsed.success) {
+            const removed = new Set(
+              Array.isArray(packet.removed) ? packet.removed : [],
+            );
+            const object = parsed.data[0];
+            const next = boardRef.current.filter(
+              (item) => !removed.has(item.id),
+            );
+            if (object) {
+              const index = next.findIndex((item) => item.id === object.id);
+              if (index < 0) next.push(object);
+              else next[index] = object;
+            }
+            receivedPreviewAt.current = Date.now();
+            boardRef.current = next;
+            setBoard(next);
+          }
+        }
+      }
+      if (event === "pointer" && from?.userId === creatorId) {
+        const p = data as { point?: [number, number] | null };
+        setPointer(
+          p.point && p.point.length === 2 && p.point.every(Number.isFinite)
+            ? p.point
+            : null,
+        );
+      }
+      if (event === "chat" && from) {
+        const message = data as ChatMessage;
+        if (
+          typeof message.body !== "string" ||
+          !message.body.trim() ||
+          message.body.length > 2000
+        )
           return;
-        }
-        if (collision) await pc.setLocalDescription({ type: "rollback" });
-        await pc.setRemoteDescription(signal.description);
-        const candidates = pendingCandidates.current.get(signal.from) ?? [];
-        pendingCandidates.current.delete(signal.from);
-        for (const candidate of candidates) await pc.addIceCandidate(candidate);
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-        if (pc.localDescription) broadcast("signal", { from: userId, to: signal.from, kind: "answer", description: pc.localDescription });
-      } else if (signal.kind === "answer" && signal.description) {
-        ignoreOffer.current.set(signal.from, false);
-        settingRemoteAnswer.current.set(signal.from, true);
-        try { await pc.setRemoteDescription(signal.description); }
-        finally { settingRemoteAnswer.current.set(signal.from, false); }
-        const candidates = pendingCandidates.current.get(signal.from) ?? [];
-        pendingCandidates.current.delete(signal.from);
-        for (const candidate of candidates) await pc.addIceCandidate(candidate);
-      } else if (signal.kind === "candidate" && signal.candidate) {
-        if (ignoreOffer.current.get(signal.from)) return;
-        if (pc.remoteDescription) await pc.addIceCandidate(signal.candidate);
-        else pendingCandidates.current.set(signal.from, [...(pendingCandidates.current.get(signal.from) ?? []), signal.candidate]);
+        setChat((old) =>
+          old.some((m) => m.id === message.id)
+            ? old
+            : [
+                ...old.slice(-199),
+                { ...message, userId: from.userId, name: from.name },
+              ],
+        );
       }
-    } catch { setNotice("A participant connection needs to reconnect."); }
-  }, [broadcast, ensurePeer, userId]);
-
-  useEffect(() => { if (remoteScreenVideo.current) remoteScreenVideo.current.srcObject = remoteScreen; }, [remoteScreen]);
-  useEffect(() => { if (localScreenVideo.current) localScreenVideo.current.srcObject = localScreen.current; }, [sharing]);
+    },
+    [creator, creatorId, scheduleRefresh],
+  );
+  const transport = useLiveTransport({
+    roomId,
+    self,
+    paused,
+    enabled: loaded,
+    onEvent,
+    onNotice: setNotice,
+  });
+  transportRef.current = transport;
+  const ownPresentation = Boolean(
+    self &&
+    state.presenter_session === self.sessionId &&
+    state.presenter_id === userId,
+  );
+  const locked = Boolean(state.presenter_id && !ownPresentation);
+  const presenter = transport.people.find(
+    (p) => p.sessionId === state.presenter_session,
+  );
+  const activeStream = ownPresentation
+    ? transport.local
+    : state.presenter_session
+      ? transport.remote[state.presenter_session]
+      : null;
+  const elapsed = Math.max(
+    0,
+    clock.elapsed_seconds +
+      (paused
+        ? 0
+        : Math.floor((now - Date.parse(clock.active_started_at)) / 1000)),
+  );
+  const elapsedLabel =
+    elapsed >= 3600
+      ? `${Math.floor(elapsed / 3600)}:${String(Math.floor(elapsed / 60) % 60).padStart(2, "0")}:${String(elapsed % 60).padStart(2, "0")}`
+      : `${String(Math.floor(elapsed / 60)).padStart(2, "0")}:${String(elapsed % 60).padStart(2, "0")}`;
   useEffect(() => {
-    if (role !== "LEARNER" || !window.matchMedia("(pointer: coarse)").matches) return;
-    const viewport = document.querySelector<HTMLElement>('[data-role="LEARNER"] > div.grid > section > div > div.relative');
-    if (!viewport) return;
-    const clampZoom = (value: number) => Math.min(3.5, Math.max(1, value));
-    const applyTransform = () => {
-      const transform = `translate(${stagePanRef.current.x}px, ${stagePanRef.current.y}px) scale(${stageZoomRef.current})`;
-      viewport.querySelectorAll<HTMLElement>(":scope > *").forEach((child) => {
-        child.style.transform = transform;
-        child.style.transformOrigin = "center center";
-        child.style.transition = "transform 120ms ease-out";
-      });
-    };
-    const distance = () => {
-      const points = [...stagePointers.current.values()];
-      if (points.length < 2) return 0;
-      return Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
-    };
-    const onPointerDown = (event: PointerEvent) => {
-      event.preventDefault();
-      viewport.setPointerCapture(event.pointerId);
-      stagePointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
-      const now = Date.now();
-      if (now - stageLastTap.current < 280) {
-        const nextZoom = stageZoomRef.current > 1 ? 1 : 2.5;
-        stageZoomRef.current = nextZoom;
-        stagePanRef.current = { x: 0, y: 0 };
-        setStageZoom(nextZoom);
-        setStagePan({ x: 0, y: 0 });
-      }
-      stageLastTap.current = now;
-      if (stagePointers.current.size === 2) stageGesture.current = { distance: distance(), zoom: stageZoomRef.current };
-    };
-    const onPointerMove = (event: PointerEvent) => {
-      if (!stagePointers.current.has(event.pointerId)) return;
-      event.preventDefault();
-      const previous = stagePointers.current.get(event.pointerId);
-      if (!previous) return;
-      stagePointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
-      if (stagePointers.current.size === 2 && stageGesture.current) {
-        const nextZoom = clampZoom(stageGesture.current.zoom * (distance() / Math.max(stageGesture.current.distance, 1)));
-        stageZoomRef.current = nextZoom;
-        setStageZoom(nextZoom);
-      } else if (stagePointers.current.size === 1 && stageZoomRef.current > 1) {
-        const current = stagePointers.current.get(event.pointerId);
-        if (!current) return;
-        const nextPan = { x: stagePanRef.current.x + (current.x - previous.x), y: stagePanRef.current.y + (current.y - previous.y) };
-        stagePanRef.current = nextPan;
-        setStagePan(nextPan);
-      }
-    };
-    const onPointerEnd = (event: PointerEvent) => {
-      stagePointers.current.delete(event.pointerId);
-      if (stagePointers.current.size < 2) stageGesture.current = null;
-      if (viewport.hasPointerCapture(event.pointerId)) viewport.releasePointerCapture(event.pointerId);
-    };
-    const onWheel = (event: WheelEvent) => {
-      if (!event.ctrlKey) return;
-      event.preventDefault();
-      const nextZoom = clampZoom(stageZoomRef.current - event.deltaY * 0.01);
-      stageZoomRef.current = nextZoom;
-      if (nextZoom === 1) stagePanRef.current = { x: 0, y: 0 };
-      setStageZoom(nextZoom);
-      setStagePan(stagePanRef.current);
-    };
-    viewport.style.touchAction = "none";
-    viewport.setAttribute("aria-label", "Shared stage. Double-tap to zoom and drag to move around.");
-    viewport.addEventListener("pointerdown", onPointerDown);
-    viewport.addEventListener("pointermove", onPointerMove);
-    viewport.addEventListener("pointerup", onPointerEnd);
-    viewport.addEventListener("pointercancel", onPointerEnd);
-    viewport.addEventListener("wheel", onWheel, { passive: false });
-    stageZoomRef.current = 1;
-    stagePanRef.current = { x: 0, y: 0 };
-    setStageZoom(1);
-    setStagePan({ x: 0, y: 0 });
-    applyTransform();
+    void refresh();
+    const interval = setInterval(() => {
+      void refresh();
+    }, 15000);
     return () => {
-      viewport.style.touchAction = "";
-      viewport.removeAttribute("aria-label");
-      viewport.querySelectorAll<HTMLElement>(":scope > *").forEach((child) => { child.style.transform = ""; child.style.transformOrigin = ""; child.style.transition = ""; });
-      viewport.removeEventListener("pointerdown", onPointerDown);
-      viewport.removeEventListener("pointermove", onPointerMove);
-      viewport.removeEventListener("pointerup", onPointerEnd);
-      viewport.removeEventListener("pointercancel", onPointerEnd);
-      viewport.removeEventListener("wheel", onWheel);
-      stagePointers.current.clear();
-      stageGesture.current = null;
+      clearInterval(interval);
+      if (refreshTimer.current) clearTimeout(refreshTimer.current);
     };
-  }, [role, stage]);
+  }, [refresh]);
   useEffect(() => {
-    const content = classroom.current?.querySelector<HTMLElement>("div.grid > section > div");
-    if (!content) return;
-    content.querySelector('[data-live-image-gallery="true"]')?.remove();
-    if (!images.length) return;
-    const bottomRail = content.lastElementChild;
-    if (!bottomRail) return;
-    const gallery = document.createElement("div");
-    gallery.dataset.liveImageGallery = "true";
-    gallery.className = "my-2 flex min-h-14 max-w-full items-center gap-2 overflow-x-auto rounded-xl bg-[#0d1421] px-2 py-1.5";
-    images.forEach((asset) => {
-      const button = document.createElement("button");
-      button.type = "button"; button.title = asset.name; button.setAttribute("aria-label", `Show ${asset.name}`);
-      button.className = "size-11 shrink-0 overflow-hidden rounded-lg border-2 border-white/15 bg-white/10 p-0.5 hover:border-indigo-400";
-      if (asset.src === image) button.className += " border-indigo-400";
-      const thumbnail = document.createElement("img"); thumbnail.src = asset.src; thumbnail.alt = asset.name; thumbnail.className = "size-full rounded-md object-cover";
-      button.appendChild(thumbnail);
-      button.addEventListener("click", () => { setImage(asset.src); setStage("image"); if (role === "CREATOR") { broadcast("stage", { stage: "image" }); broadcast("image", asset); } });
-      gallery.appendChild(button);
-    });
-    content.insertBefore(gallery, bottomRail);
-  }, [broadcast, image, images, role]);
+    if (paused) return;
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [paused]);
   useEffect(() => {
-    classroom.current?.querySelectorAll<HTMLElement>('[aria-label="Upload image"]').forEach((label) => {
-      label.setAttribute("aria-label", "Image");
-      label.childNodes.forEach((node) => { if (node.nodeType === Node.TEXT_NODE && node.textContent?.trim() === "Upload image") node.textContent = "Image"; });
-    });
-  }, [role, stage]);
+    if (!ownPresentation || !self || paused) return;
+    const heartbeat = () =>
+      void fetch(`${api}/state`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "heartbeat", session: self.sessionId }),
+      }).catch(() => {});
+    heartbeat();
+    const timer = setInterval(heartbeat, 20000);
+    return () => clearInterval(timer);
+  }, [api, ownPresentation, paused, self]);
+  const { local: localPresentation, stopPresentation } = transport;
   useEffect(() => {
-    if (role !== "LEARNER" || !window.matchMedia("(pointer: coarse)").matches) return;
-    const viewport = document.querySelector<HTMLElement>('[data-role="LEARNER"] > div.grid > section > div > div.relative');
-    if (!viewport) return;
-    const transform = `translate(${stagePan.x}px, ${stagePan.y}px) scale(${stageZoom})`;
-    viewport.querySelectorAll<HTMLElement>(":scope > *").forEach((child) => { child.style.transform = transform; child.style.transformOrigin = "center center"; child.style.transition = "transform 120ms ease-out"; });
-  }, [role, stagePan, stageZoom]);
+    if (loaded && !ownPresentation && localPresentation) stopPresentation();
+  }, [loaded, ownPresentation, localPresentation, stopPresentation]);
   useEffect(() => {
-    if (role !== "CREATOR" || stage !== "whiteboard") return;
-    const rail = document.querySelector<HTMLElement>('[data-role="CREATOR"] nav[aria-label="Whiteboard tools"]');
-    if (!rail) return;
-    rail.style.left = `${railPositionRef.current.x}px`;
-    rail.style.top = `${railPositionRef.current.y}px`;
-    const onPointerDown = (event: PointerEvent) => {
-      if ((event.target as HTMLElement).closest("button")) return;
-      const rect = rail.getBoundingClientRect();
-      railDrag.current = { offsetX: event.clientX - rect.left, offsetY: event.clientY - rect.top };
-      rail.setPointerCapture(event.pointerId);
-      event.preventDefault();
-    };
-    const onPointerMove = (event: PointerEvent) => {
-      if (!railDrag.current) return;
-      const next = {
-        x: Math.max(8, Math.min(window.innerWidth - rail.offsetWidth - 8, event.clientX - railDrag.current.offsetX)),
-        y: Math.max(80, Math.min(window.innerHeight - rail.offsetHeight - 8, event.clientY - railDrag.current.offsetY)),
-      };
-      railPositionRef.current = next;
-      setRailPosition(next);
-      rail.style.left = `${next.x}px`;
-      rail.style.top = `${next.y}px`;
-    };
-    const onPointerEnd = (event: PointerEvent) => {
-      railDrag.current = null;
-      if (rail.hasPointerCapture(event.pointerId)) rail.releasePointerCapture(event.pointerId);
-    };
-    rail.style.cursor = "move";
-    rail.style.touchAction = "none";
-    rail.addEventListener("pointerdown", onPointerDown);
-    rail.addEventListener("pointermove", onPointerMove);
-    rail.addEventListener("pointerup", onPointerEnd);
-    rail.addEventListener("pointercancel", onPointerEnd);
-    return () => {
-      railDrag.current = null;
-      rail.style.cursor = "";
-      rail.style.touchAction = "";
-      rail.removeEventListener("pointerdown", onPointerDown);
-      rail.removeEventListener("pointermove", onPointerMove);
-      rail.removeEventListener("pointerup", onPointerEnd);
-      rail.removeEventListener("pointercancel", onPointerEnd);
-    };
-  }, [role, stage]);
-  useEffect(() => {
-    const boardCanvas = canvas.current; if (!boardCanvas) return;
-    const ctx = boardCanvas.getContext("2d"); if (!ctx) return;
-    ctx.clearRect(0, 0, boardCanvas.width, boardCanvas.height); ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, boardCanvas.width, boardCanvas.height);
-    for (const line of board) {
-      const [start, end] = [line.points[0], line.points[line.points.length - 1]];
-      if (!start) continue;
-      if (line.tool === "text") {
-        ctx.globalAlpha = 1;
-        ctx.fillStyle = line.color;
-        ctx.font = "700 28px sans-serif";
-        ctx.fillText((line as BoardLine & { text?: string }).text ?? "Text", start[0] * boardCanvas.width, start[1] * boardCanvas.height);
-        continue;
-      }
-      if (line.tool === "shape" && end) {
-        ctx.globalAlpha = 1;
-        ctx.strokeStyle = line.color;
-        ctx.lineWidth = line.width;
-        const startX = start[0] * boardCanvas.width; const startY = start[1] * boardCanvas.height;
-        const endX = end[0] * boardCanvas.width; const endY = end[1] * boardCanvas.height;
-        if (line.shape === "circle") {
-          ctx.beginPath(); ctx.ellipse((startX + endX) / 2, (startY + endY) / 2, Math.abs(endX - startX) / 2, Math.abs(endY - startY) / 2, 0, 0, Math.PI * 2); ctx.stroke();
-        } else if (line.shape === "line") {
-          ctx.beginPath(); ctx.moveTo(startX, startY); ctx.lineTo(endX, endY); ctx.stroke();
-        } else if (line.shape === "arrow") {
-          const angle = Math.atan2(endY - startY, endX - startX); const head = 18;
-          ctx.beginPath(); ctx.moveTo(startX, startY); ctx.lineTo(endX, endY); ctx.lineTo(endX - head * Math.cos(angle - Math.PI / 6), endY - head * Math.sin(angle - Math.PI / 6)); ctx.moveTo(endX, endY); ctx.lineTo(endX - head * Math.cos(angle + Math.PI / 6), endY - head * Math.sin(angle + Math.PI / 6)); ctx.stroke();
-        } else ctx.strokeRect(startX, startY, endX - startX, endY - startY);
-        continue;
-      }
-      ctx.strokeStyle = line.color;
-      ctx.lineWidth = line.width;
-      ctx.globalAlpha = line.tool === "highlighter" ? 0.38 : 1;
-      ctx.lineCap = "round";
-      ctx.beginPath();
-      line.points.forEach(([x, y], index) => index ? ctx.lineTo(x * boardCanvas.width, y * boardCanvas.height) : ctx.moveTo(x * boardCanvas.width, y * boardCanvas.height));
-      ctx.stroke();
-      if (line.tool === "pointer") {
-        const point = end ?? start;
-        ctx.globalAlpha = 1;
-        ctx.fillStyle = line.color;
-        ctx.beginPath();
-        ctx.arc(point[0] * boardCanvas.width, point[1] * boardCanvas.height, 11, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-    const selected = selectedBoardId ? board.find((line) => line.id === selectedBoardId) : null;
-    if (selected) {
-      const xs = selected.points.map(([x]) => x);
-      const ys = selected.points.map(([, y]) => y);
-      const left = Math.min(...xs) * boardCanvas.width - 12;
-      const top = Math.min(...ys) * boardCanvas.height - 12;
-      const width = (Math.max(...xs) - Math.min(...xs)) * boardCanvas.width + 24;
-      const height = (Math.max(...ys) - Math.min(...ys)) * boardCanvas.height + 24;
-      ctx.globalAlpha = 1;
-      ctx.strokeStyle = "#6366f1";
-      ctx.lineWidth = 2;
-      ctx.setLineDash([8, 6]);
-      ctx.strokeRect(left, top, Math.max(width, 28), Math.max(height, 28));
-      ctx.setLineDash([]);
-    }
-    if (livePointer) {
-      ctx.globalAlpha = 0.9;
-      ctx.fillStyle = "#ef4444";
-      ctx.beginPath();
-      ctx.arc(livePointer[0] * boardCanvas.width, livePointer[1] * boardCanvas.height, 12, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.globalAlpha = 1;
-  }, [board, livePointer, selectedBoardId]);
-  useEffect(() => { if (role === "CREATOR") broadcast("stage", { stage }); }, [broadcast, role, stage]);
-  useEffect(() => { if (role === "CREATOR" && board.length === 0) broadcast("board-clear", {}); }, [board.length, broadcast, role]);
-
-  useEffect(() => {
-    const room = supabase.channel(`instant-room:${roomId}`, { config: { presence: { key: userId }, broadcast: { ack: true } } });
-    channel.current = room;
-    room.on("broadcast", { event: "signal" }, ({ payload }) => void handleSignal(payload as Signal));
-    room.on("broadcast", { event: "chat" }, ({ payload }) => setChat((current) => [...current, payload as ChatMessage]));
-    room.on("broadcast", { event: "board" }, ({ payload }) => setBoard((current) => current.some((line) => line.id === (payload as BoardLine).id) ? current : [...current, payload as BoardLine]));
-    room.on("broadcast", { event: "board-update" }, ({ payload }) => setBoard((current) => current.map((line) => line.id === (payload as BoardLine).id ? payload as BoardLine : line)));
-    room.on("broadcast", { event: "board-remove" }, ({ payload }) => setBoard((current) => current.filter((line) => line.id !== (payload as { id: string }).id)));
-    room.on("broadcast", { event: "board-pointer" }, ({ payload }) => setLivePointer((payload as { point?: [number, number] }).point ?? null));
-    room.on("broadcast", { event: "state-request" }, ({ payload }) => {
-      if (role !== "CREATOR") return;
-      const target = (payload as { target?: string }).target;
-      if (target) sendRoomSnapshot(target);
-    });
-    room.on("broadcast", { event: "state-snapshot" }, ({ payload }) => {
-      const snapshot = payload as { target?: string; stage?: "whiteboard" | "screen" | "image"; board?: BoardLine[] };
-      if (snapshot.target && snapshot.target !== userId) return;
-      const nextBoard = snapshot.board ?? [];
-      boardRef.current = nextBoard;
-      setBoard(nextBoard);
-      if (snapshot.stage) setStage(snapshot.stage);
-    });
-    room.on("broadcast", { event: "image" }, ({ payload }) => {
-      const next = payload as { target?: string; id?: string; src: string; name?: string };
-      if (next.target && next.target !== userId) return;
-      const asset = { id: next.id ?? crypto.randomUUID(), src: String(next.src), name: next.name ?? "Image" };
-      setImages((current) => current.some((item) => item.id === asset.id) ? current : [...current, asset]);
-      setImage(asset.src); setStage("image");
-    });
-    room.on("broadcast", { event: "stage" }, ({ payload }) => {
-      const next = (payload as { stage?: "whiteboard" | "screen" | "image" }).stage;
-      if (next) setStage(next);
-    });
-    room.on("broadcast", { event: "board-clear" }, () => setBoard([]));
-    room.on("broadcast", { event: "room-ended" }, ({ payload }) => {
-      const nextElapsed = Number((payload as { elapsedSeconds?: number })?.elapsedSeconds);
-      if (Number.isFinite(nextElapsed)) {
-        setSavedElapsedSeconds(nextElapsed);
-        setElapsedSeconds(nextElapsed);
-      }
-      setEnded(true);
-    });
-    room.on("broadcast", { event: "room-restarted" }, ({ payload }) => {
-      const next = payload as { elapsedSeconds?: number; activeStartedAt?: string };
-      if (Number.isFinite(next.elapsedSeconds)) setSavedElapsedSeconds(next.elapsedSeconds!);
-      if (next.activeStartedAt) setActiveStartedAt(next.activeStartedAt);
-      setEnded(false);
-    });
-    room.on("presence", { event: "sync" }, () => {
-      const state = room.presenceState<Person>();
-      const next = Object.values(state).flat().filter((person) => person.userId !== userId);
-      setPeople([{ userId, name: userName, role }, ...next]);
-      next.forEach((person) => {
-        ensurePeer(person.userId);
-        if (role === "CREATOR") sendRoomSnapshot(person.userId);
-      });
-    });
-    void room.subscribe(async (status) => {
-      setChannelReady(status === "SUBSCRIBED");
-      if (status !== "SUBSCRIBED") return;
-      await room.track({ userId, name: userName, role });
-      if (role === "LEARNER") window.setTimeout(() => broadcast("state-request", { target: userId }), 200);
-    });
-    return () => { void room.untrack(); void supabase.removeChannel(room); };
-  }, [broadcast, channelVersion, ensurePeer, handleSignal, role, roomId, sendRoomSnapshot, supabase, userId, userName]);
-
-  useEffect(() => () => {
-    peers.current.forEach((pc) => pc.close());
-    remoteAudio.current.forEach((audio) => audio.remove());
-    localAudio.current?.getTracks().forEach((track) => track.stop());
-    localScreen.current?.getTracks().forEach((track) => track.stop());
+    const listener = () => setFullscreen(Boolean(document.fullscreenElement));
+    document.addEventListener("fullscreenchange", listener);
+    return () => document.removeEventListener("fullscreenchange", listener);
   }, []);
-
-  async function toggleMic() {
-    try {
-      if (!localAudio.current) {
-        localAudio.current = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-        peers.current.forEach((pc) => localAudio.current?.getTracks().forEach((track) => pc.addTrack(track, localAudio.current!)));
-      }
-      const next = !micOn; localAudio.current.getAudioTracks().forEach((track) => { track.enabled = next; }); setMicOn(next);
-    } catch { setNotice("Microphone permission was not granted. Check your browser settings and try again."); }
-  }
-
-  function stopScreenSharing() {
-    const stream = localScreen.current;
-    if (!stream) return;
-    const sharedTracks = new Set(stream.getTracks());
-    stream.getTracks().forEach((track) => track.stop());
-    localScreen.current = null;
-    peers.current.forEach((pc) => pc.getSenders().filter((sender) => sender.track && sharedTracks.has(sender.track)).forEach((sender) => pc.removeTrack(sender)));
-    setSharing(false);
-    setStage("whiteboard");
-    broadcast("stage", { stage: "whiteboard" });
-  }
-
-  async function toggleScreen() {
-    if (role !== "CREATOR") return;
-    if (sharing) { stopScreenSharing(); return; }
-    try {
-      const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true }); localScreen.current = stream; setSharing(true); setStage("screen"); broadcast("stage", { stage: "screen" }); stream.getVideoTracks()[0].onended = stopScreenSharing;
-      peers.current.forEach((pc) => stream.getTracks().forEach((track) => pc.addTrack(track, stream)));
-    } catch { setNotice("Screen sharing was cancelled or blocked by the browser. If available, enable Share audio in the browser dialog."); }
-  }
-
-  function sendChat(event: React.FormEvent) { event.preventDefault(); const body = draft.trim(); if (!body) return; const message = { id: crypto.randomUUID(), userId, name: userName, body, createdAt: new Date().toISOString() }; setChat((current) => [...current, message]); broadcast("chat", message); setDraft(""); }
-  function setSharedStage(next: "whiteboard" | "screen" | "image") { if (role !== "CREATOR") return; setStage(next); broadcast("stage", { stage: next }); }
-  function boardHitAt(point: [number, number]) {
-    return [...board].reverse().find((item) => {
-      if (item.tool === "text") {
-        const [x, y] = item.points[0];
-        return Math.abs(point[1] - y) < 0.07 && point[0] >= x - 0.02 && point[0] <= x + Math.max(0.08, (item.text?.length ?? 4) * 0.018);
-      }
-      if (item.tool === "shape" && item.points.length > 1) {
-        const xs = item.points.map(([x]) => x); const ys = item.points.map(([, y]) => y);
-        return point[0] >= Math.min(...xs) - 0.04 && point[0] <= Math.max(...xs) + 0.04 && point[1] >= Math.min(...ys) - 0.04 && point[1] <= Math.max(...ys) + 0.04;
-      }
-      return item.points.some(([x, y]) => Math.hypot(x - point[0], y - point[1]) < 0.045);
+  const command = async (body: Record<string, unknown>) => {
+    const response = await fetch(`${api}/state`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
     });
-  }
-  function beginTextEdit(item: BoardLine, isNew = false) {
-    const boardCanvas = canvas.current; const host = boardCanvas?.parentElement;
-    if (!boardCanvas || !host || item.tool !== "text") return;
-    const [x, y] = item.points[0];
-    const editor = document.createElement("textarea");
-    editor.value = item.text ?? "";
-    editor.setAttribute("aria-label", "Edit whiteboard text");
-    editor.className = "absolute z-20 min-h-10 min-w-40 resize-none border-0 bg-transparent p-0 text-base font-bold text-slate-900 shadow-none outline-none ring-0 focus:border-0 focus:outline-none focus:ring-0";
-    editor.style.left = (x * 100) + "%"; editor.style.top = (y * 100) + "%";
-    const finish = (save: boolean) => {
-      const text = editor.value.trim(); editor.remove();
-      if (!save || !text) { if (isNew) replaceBoard(boardRef.current.filter((line) => line.id !== item.id)); return; }
-      const updated = { ...item, text };
-      replaceBoard(boardRef.current.map((line) => line.id === item.id ? updated : line));
-      broadcast(isNew ? "board" : "board-update", updated);
-    };
-    editor.addEventListener("blur", () => finish(true), { once: true });
-    editor.addEventListener("keydown", (event) => { if (event.key === "Escape") { event.preventDefault(); finish(false); } else if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) { event.preventDefault(); finish(true); } });
-    host.appendChild(editor); editor.focus();
-  }
-  function draw(event: React.PointerEvent<HTMLCanvasElement>) {
-    if (role !== "CREATOR") return;
-    const rect = event.currentTarget.getBoundingClientRect();
-    if (!rect.width || !rect.height) return;
-    const point: [number, number] = [(event.clientX - rect.left) / rect.width, (event.clientY - rect.top) / rect.height];
-    if (whiteboardTool === "select") {
-      if (event.type === "pointerdown") {
-        const hit = boardHitAt(point); setSelectedBoardId(hit?.id ?? null);
-        if (hit) {
-          recordBoardHistory();
-          if (event.detail > 1 && hit.tool === "text") beginTextEdit(hit);
-          selectionDrag.current = { id: hit.id, start: point, original: { ...hit, points: hit.points.map(([x, y]) => [x, y] as [number, number]) } };
-          try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* Pointer capture can fail if the browser ends the pointer before capture. */ }
+    const result = await response.json();
+    if (!response.ok)
+      throw new Error(result.error || "Could not update the classroom.");
+    if (result.state) applyState(result.state);
+    void transport.send("state-changed", {});
+    return result.state as SharedState | undefined;
+  };
+  const saveBoard = useCallback(async () => {
+    if (saving.current) return saving.current;
+    if (!dirty.current) return;
+    setSaveStatus("Saving…");
+    const operation = (async () => {
+      try {
+        while (dirty.current) {
+          const version = boardVersion.current,
+            payload = boardRef.current;
+          const response = await fetch(`${api}/state`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "board",
+              board: payload,
+              revision: stateRef.current.board_revision,
+            }),
+          });
+          const result = await response.json();
+          if (!response.ok)
+            throw new Error(result.error || "Could not save the board.");
+          stateRef.current = {
+            ...stateRef.current,
+            board: payload,
+            board_revision: result.state.board_revision,
+          };
+          setState(stateRef.current);
+          if (boardVersion.current === version) {
+            dirty.current = false;
+            setSaveStatus("Saved");
+          }
+          void transportRef.current?.send("state-changed", {});
         }
-      } else if (selectionDrag.current) {
-        const drag = selectionDrag.current; const dx = point[0] - drag.start[0]; const dy = point[1] - drag.start[1];
-        const updated = { ...drag.original, points: drag.original.points.map(([x, y]) => [x + dx, y + dy] as [number, number]) };
-        replaceBoard(boardRef.current.map((line) => line.id === drag.id ? updated : line));
-        broadcast("board-update", updated);
+      } catch (error) {
+        setSaveStatus("Not saved · retry");
+        setNotice(
+          error instanceof Error ? error.message : "Could not save the board.",
+        );
+      } finally {
+        saving.current = null;
       }
-      return;
+    })();
+    saving.current = operation;
+    return operation;
+  }, [api]);
+  useEffect(
+    () => () => {
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    },
+    [],
+  );
+  useEffect(() => {
+    const prevent = (event: BeforeUnloadEvent) => {
+      if (dirty.current) {
+        event.preventDefault();
+      }
+    };
+    window.addEventListener("beforeunload", prevent);
+    return () => window.removeEventListener("beforeunload", prevent);
+  }, []);
+  function changeBoard(next: BoardObject[], committed = false) {
+    if (!creator || paused) return;
+    boardVersion.current++;
+    dirty.current = true;
+    boardRef.current = next;
+    setBoard(next);
+    setSaveStatus("Saving…");
+    if (Date.now() - previewTime.current > 180 || committed) {
+      previewTime.current = Date.now();
+      const previous = new Map(
+        previewBoard.current.map((item) => [item.id, item]),
+      );
+      const ids = new Set(next.map((item) => item.id));
+      const removed = previewBoard.current
+        .filter((item) => !ids.has(item.id))
+        .map((item) => item.id);
+      if (removed.length)
+        void transport.send("board-patch", {
+          removed,
+          revision: stateRef.current.board_revision,
+        });
+      for (const object of next)
+        if (previous.get(object.id) !== object) {
+          void transport.send("board-patch", {
+            object,
+            revision: stateRef.current.board_revision,
+          });
+        }
+      previewBoard.current = next;
     }
-    if (whiteboardTool === "pointer") {
-      setLivePointer(point); broadcast("board-pointer", { point });
-      return;
-    }
-    if (whiteboardTool === "eraser") {
-      const hit = board.find((line) => line.points.some(([x, y]) => Math.hypot(x - point[0], y - point[1]) < 0.035));
-      if (hit) { recordBoardHistory(); replaceBoard(boardRef.current.filter((line) => line.id !== hit.id)); broadcast("board-remove", { id: hit.id }); }
-      return;
-    }
-    if (whiteboardTool === "text" && event.type === "pointerdown") {
-      recordBoardHistory();
-      const item = { id: crypto.randomUUID(), points: [point], color: "#4f46e5", width: 4, tool: "text" as const, text: "" };
-      replaceBoard([...boardRef.current, item]); setSelectedBoardId(item.id); window.requestAnimationFrame(() => beginTextEdit(item, true));
-      return;
-    }
-    if (event.type === "pointerdown") {
-      try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* Pointer capture can fail if the browser ends the pointer before capture. */ }
-      const style = whiteboardTool === "highlighter" ? { color: "#f5b942", width: 20 } : whiteboardTool === "laser" ? { color: "#ef4444", width: 5 } : whiteboardTool === "shape" ? { color: "#14b8a6", width: 4 } : { color: "#4f46e5", width: 4 };
-      if (whiteboardTool !== "text") recordBoardHistory();
-      drawing.current = { id: crypto.randomUUID(), points: [point], ...style, tool: whiteboardTool, ...(whiteboardTool === "shape" ? { shape: shapeKind } : {}) };
-    } else {
-      const active = drawing.current;
-      if (!active) return;
-      active.points = active.tool === "shape" ? [active.points[0], point] : [...active.points, point];
-      replaceBoard([...boardRef.current.filter((line) => line.id !== active.id), { ...active, points: [...active.points] }]);
-    }
-  }
-  function endDraw(event?: React.PointerEvent<HTMLCanvasElement>) {
-    if (whiteboardTool === "pointer") { setLivePointer(null); broadcast("board-pointer", { point: null }); return; }
-    if (whiteboardTool === "select") { selectionDrag.current = null; if (event && event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId); return; }
-    const active = drawing.current; if (!active) return;
-    if (event && event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
-    if (active.tool !== "text") broadcast("board", { ...active, points: [...active.points] });
-    drawing.current = null;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(
+      () => void saveBoard(),
+      committed ? 180 : 650,
+    );
   }
   useEffect(() => {
-    if (role !== "CREATOR") return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (!selectedBoardId || (event.key !== "Delete" && event.key !== "Backspace") || (event.target as HTMLElement)?.tagName === "TEXTAREA") return;
-      event.preventDefault();
-      recordBoardHistory(); replaceBoard(boardRef.current.filter((line) => line.id !== selectedBoardId));
-      broadcast("board-remove", { id: selectedBoardId });
-      setSelectedBoardId(null);
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [broadcast, role, selectedBoardId]);
-  async function uploadImage(event: React.ChangeEvent<HTMLInputElement>) { if (role !== "CREATOR") return; const file = event.target.files?.[0]; if (!file || file.size > 180_000 || !file.type.startsWith("image/")) { setNotice("Choose an image under 180 KB for the live stage."); return; } const reader = new FileReader(); reader.onload = () => { const src = String(reader.result); const asset = { id: crypto.randomUUID(), src, name: file.name }; setImages((current) => [...current, asset]); setImage(src); setSharedStage("image"); broadcast("image", asset); }; reader.readAsDataURL(file); event.target.value = ""; }
-  function messageTime(createdAt?: string) { return new Date(createdAt ?? Date.now()).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); }
-  function avatarTone(name: string) { return ["bg-indigo-300 text-slate-950", "bg-pink-300 text-slate-950", "bg-teal-300 text-slate-950", "bg-violet-300 text-slate-950"][name.split("").reduce((sum, character) => sum + character.charCodeAt(0), 0) % 4]; }
-  function clearBoard() { if (role !== "CREATOR") return; recordBoardHistory(); replaceBoard([]); broadcast("board-clear", {}); setSelectedBoardId(null); }
-  async function toggleClassLifecycle() {
-    if (role !== "CREATOR" || lifecycleBusy) return;
-    if (!ended && !window.confirm("End this live class for everyone?")) return;
-    setLifecycleBusy(true);
+    if (!pointer || creator) return;
+    const timer = setTimeout(() => setPointer(null), 1500);
+    return () => clearTimeout(timer);
+  }, [pointer, creator]);
+  function broadcastPointer(point: [number, number] | null) {
+    setPointer(point);
+    if (!point || Date.now() - pointerTime.current > 100) {
+      pointerTime.current = Date.now();
+      void transport.send("pointer", { point });
+    }
+  }
+  async function stopSharing() {
+    if (!self) return;
     try {
-      if (ended) {
-        const response = await fetch(`/api/instant-live/rooms/${roomId}/end`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "restart" }) });
-        const result = await response.json().catch(() => ({})) as { error?: string; elapsedSeconds?: number; activeStartedAt?: string };
-        if (!response.ok || !result.activeStartedAt) throw new Error(result.error || "Could not restart this class.");
-        const elapsed = Number(result.elapsedSeconds ?? savedElapsedSeconds);
-        setSavedElapsedSeconds(elapsed);
-        setElapsedSeconds(elapsed);
-        setActiveStartedAt(result.activeStartedAt);
-        setEnded(false);
-        broadcast("room-restarted", { elapsedSeconds: elapsed, activeStartedAt: result.activeStartedAt });
-        if (!channelReady) setChannelVersion((version) => version + 1);
-      } else {
-        const sendResult = await channel.current?.send({ type: "broadcast", event: "room-ended", payload: { elapsedSeconds } });
-        if (sendResult && sendResult !== "ok") throw new Error("Could not notify the class before ending it. Please try again.");
-        const response = await fetch(`/api/instant-live/rooms/${roomId}/end`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "end" }) });
-        const result = await response.json().catch(() => ({})) as { error?: string; elapsedSeconds?: number };
-        if (!response.ok) throw new Error(result.error || "Could not end this class.");
-        const elapsed = Number(result.elapsedSeconds ?? elapsedSeconds);
-        setSavedElapsedSeconds(elapsed);
-        setElapsedSeconds(elapsed);
-        setEnded(true);
-      }
+      await command({ action: "release", session: self.sessionId });
+      transport.stopPresentation();
+    } catch (error) {
+      setNotice((error as Error).message);
+    }
+  }
+  async function startSharing(kind: "screen" | "camera") {
+    if (!self || busy || locked || paused) return;
+    if (
+      ownPresentation &&
+      (state.stage === "screen" || state.stage === "camera")
+    ) {
+      await stopSharing();
+      return;
+    }
+    if (kind === "screen" && !navigator.mediaDevices?.getDisplayMedia) {
+      setNotice(
+        "This browser cannot share its screen. You can still view shared screens, use your microphone, and upload images.",
+      );
+      return;
+    }
+    setBusy(true);
+    let stream: MediaStream | null = null;
+    try {
+      // Capture must be requested directly from this click, before awaiting server work.
+      stream =
+        kind === "screen"
+          ? await navigator.mediaDevices.getDisplayMedia({
+              video: { frameRate: { ideal: 15, max: 30 } },
+              audio: true,
+              systemAudio: "include",
+              surfaceSwitching: "include",
+            } as DisplayMediaStreamOptions)
+          : await navigator.mediaDevices.getUserMedia({
+              video: {
+                width: { ideal: 640 },
+                height: { ideal: 360 },
+                frameRate: { ideal: 15, max: 20 },
+              },
+              audio: false,
+            });
+      const next = await command({
+        action: "claim",
+        stage: kind,
+        session: self.sessionId,
+      });
+      if (!next) throw new Error("Could not acquire the stage.");
+      transport.present(stream);
+      stream.getVideoTracks()[0].onended = () => {
+        transport.stopPresentation();
+        void fetch(`${api}/state`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "release", session: self.sessionId }),
+        }).then(() => {
+          scheduleRefresh();
+          void transport.send("state-changed", {});
+        });
+      };
       setNotice("");
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "Could not update the class status. Please try again.");
+      stream?.getTracks().forEach((t) => t.stop());
+      setNotice(
+        error instanceof Error
+          ? error.message
+          : "Sharing could not start. Check browser permissions.",
+      );
     } finally {
-      setLifecycleBusy(false);
+      setBusy(false);
     }
   }
-  async function copyLink() { if (role !== "CREATOR") return; await navigator.clipboard.writeText(`${window.location.origin}/live/join/${code}`); setCopied(true); window.setTimeout(() => setCopied(false), 1800); }
-  async function toggleFullscreen() { try { if (document.fullscreenElement) await document.exitFullscreen(); else await classroom.current?.requestFullscreen(); } catch { setNotice("Fullscreen is not available in this browser window."); } }
-
-  return <main ref={classroom} className="min-h-screen bg-[#0d1421] text-white" data-role={role}>
-    <style>{`@media (max-width: 639px) { [data-role] > header { min-height: 4rem !important; padding: .75rem 1rem !important; gap: .5rem !important; } [data-role] > header h1 { font-size: 1rem; } [data-role] > div.grid { min-height: 0 !important; } [data-role] > div.grid > section { min-height: 0 !important; } [data-role] > div.grid > section > div { min-height: 0 !important; } [data-role] > div.grid > section > div > div:first-child { aspect-ratio: 4 / 3; flex: 0 0 auto !important; } [data-role] > div.grid > aside { min-height: 0 !important; max-height: 48svh; } }`}</style>
-    {role === "CREATOR" && stage === "whiteboard" ? <nav className="fixed left-4 top-28 z-30 hidden w-14 flex-col items-center gap-2 rounded-xl bg-[#0d1421] p-2 shadow-xl lg:flex" aria-label="Whiteboard tools">{renderWhiteboardTools()}</nav> : null}
-    <header className="flex min-h-20 items-center gap-4 border-b border-white/10 px-4 py-3 sm:px-7"><h1 className="min-w-0 truncate text-lg font-extrabold sm:text-2xl">{title}</h1><span className={`inline-flex shrink-0 items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold ${ended ? "bg-white/10 text-white/60" : "bg-emerald-500/15 text-emerald-300"}`}><i className={`size-2 rounded-full ${ended ? "bg-white/40" : "bg-emerald-400"}`} />{ended ? "Ended" : "Live"}</span><span className="inline-flex shrink-0 rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold tabular-nums text-white/75" aria-label={ended ? "Paused class duration" : "Live duration"}>{elapsedLabel}</span><span className="hidden items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold sm:inline-flex"><UsersRound size={15} />{people.length}</span><div className="ml-auto flex items-center gap-2">{!ended ? <button onClick={() => void copyLink()} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-indigo-400/60 px-3 text-sm font-bold text-indigo-100">{copied ? <Check size={16} /> : <Copy size={16} />}{copied ? "Copied" : "Copy link"}</button> : null}<button aria-label="Settings" className="hidden rounded-lg p-2 text-white/70 hover:bg-white/10 sm:block"><Settings size={19} /></button><button aria-label={isFullscreen ? "Exit full screen" : "Full screen"} className="rounded-lg p-2 text-white/70 hover:bg-white/10" onClick={() => void toggleFullscreen()}><Maximize2 size={19} /></button></div></header>
-    {notice ? <div role="alert" className="mx-4 mt-3 rounded-xl border border-amber-300/30 bg-amber-300/10 px-4 py-3 text-sm text-amber-100 sm:mx-7">{notice}<button className="ml-3 font-bold underline" onClick={() => setNotice("")}>Dismiss</button></div> : null}
-    <div className={`grid min-h-[calc(100vh-80px)] grid-cols-1 gap-3 p-3 sm:p-5 ${chatOpen ? "lg:grid-cols-[minmax(0,1fr)_360px]" : "lg:grid-cols-[minmax(0,1fr)_56px]"}`}>
-      <section className={`relative grid min-h-[calc(100dvh-110px)] grid-cols-1 gap-3 rounded-2xl border border-white/10 bg-[#141e2e] p-2 sm:min-h-[620px] sm:p-3 ${role === "CREATOR" && stage === "whiteboard" ? "lg:pl-20" : ""}`}>
-        <div className="flex min-w-0 flex-col rounded-xl bg-[#0d1421] p-2 sm:p-3"><div className="relative min-h-0 flex-1 overflow-hidden rounded-lg bg-white"><canvas ref={canvas} width={1200} height={700} className={`absolute inset-0 size-full ${stage === "whiteboard" && role === "CREATOR" ? "cursor-crosshair" : ""}`} onPointerDown={draw} onPointerMove={draw} onPointerUp={endDraw} onPointerCancel={endDraw} hidden={stage !== "whiteboard"} />{stage === "image" && image ? <img src={image} alt="Shared by the creator" className="size-full object-contain" /> : null}{stage === "screen" ? <><video ref={localScreenVideo} autoPlay muted playsInline className={`size-full object-contain ${sharing ? "" : "hidden"}`} /><video ref={remoteScreenVideo} autoPlay playsInline className={`size-full object-contain ${sharing ? "hidden" : ""}`} /></> : null}{ended ? <div className="absolute inset-0 grid place-items-center bg-slate-100 text-center text-slate-700"><div><h2 className="text-xl font-extrabold">This class has ended</h2><p className="mt-1 text-sm">The live room is no longer available.</p></div></div> : null}</div>
-          <div data-bottom-rail className="mt-2 flex max-w-full snap-x items-end justify-start gap-1 overflow-x-auto rounded-xl bg-[#0d1421] px-1 py-2 text-white sm:justify-center"> <button onClick={toggleMic} disabled={ended} className="inline-flex min-h-14 shrink-0 snap-start flex-col items-center justify-center gap-1 rounded-xl px-2 text-[11px] font-bold text-white/80 hover:bg-white/10 disabled:opacity-50">{micOn ? <Mic size={18} /> : <MicOff size={18} />}{micOn ? "Mic" : "Mic"}</button>{role === "CREATOR" ? <><button onClick={() => setSharedStage("whiteboard")} disabled={ended} className={`inline-flex min-h-14 shrink-0 snap-start flex-col items-center justify-center gap-1 rounded-xl px-2 text-[11px] font-bold ${stage === "whiteboard" ? "bg-indigo-500 text-white" : "text-white/80 hover:bg-white/10"}`}><PenLine size={18} />Whiteboard</button><button onClick={() => void toggleScreen()} disabled={ended} className={`inline-flex min-h-14 shrink-0 snap-start flex-col items-center justify-center gap-1 rounded-xl px-2 text-[11px] font-bold ${sharing ? "bg-indigo-500 text-white" : "text-white/80 hover:bg-white/10"}`}><MonitorUp size={18} />Share</button><label className={`inline-flex min-h-14 shrink-0 snap-start flex-col items-center justify-center gap-1 rounded-xl px-2 text-[11px] font-bold text-white/80 ${ended ? "pointer-events-none opacity-50" : "cursor-pointer hover:bg-white/10"}`}><ImagePlus size={18} />Image<input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(event) => void uploadImage(event)} /></label><button onClick={() => setNotice("Lesson content is not attached to this instant room yet.")} disabled={ended} className="inline-flex min-h-14 shrink-0 snap-start flex-col items-center justify-center gap-1 rounded-xl px-2 text-[11px] font-bold text-white/80 hover:bg-white/10"><BookOpen size={18} />Lesson</button><button onClick={() => void toggleClassLifecycle()} disabled={lifecycleBusy} className="inline-flex min-h-14 shrink-0 snap-start flex-col items-center justify-center gap-1 rounded-xl bg-[#ff6966] px-3 text-[11px] font-extrabold text-white hover:bg-[#ff5c59] disabled:opacity-70">{ended ? <RotateCcw size={18} /> : <X size={18} />}{lifecycleBusy ? (ended ? "Restarting…" : "Ending…") : ended ? "Restart" : "End class"}</button></> : <button onClick={() => window.location.assign("/account")} className="inline-flex min-h-14 shrink-0 snap-start flex-col items-center justify-center gap-1 rounded-xl px-3 text-[11px] font-bold text-white/80 hover:bg-white/10"><X size={18} />Leave</button>}</div>
+  async function showImage(asset: LiveAsset) {
+    if (!creator || !self || locked) return;
+    try {
+      await command({
+        action: "claim",
+        stage: "image",
+        assetId: asset.id,
+        session: self.sessionId,
+      });
+      transport.stopPresentation();
+      setGallery(true);
+    } catch (error) {
+      setNotice((error as Error).message);
+    }
+  }
+  function addBoardImage(asset: LiveAsset) {
+    if (!creator) return;
+    const w = Math.min(480, asset.width);
+    const item: BoardObject = {
+      id: crypto.randomUUID(),
+      kind: "image",
+      x: 180,
+      y: 120,
+      w,
+      h: (w * asset.height) / asset.width,
+      color: "#24203d",
+      stroke: 1,
+      assetId: asset.id,
+    };
+    changeBoard([...boardRef.current, item], true);
+    setBoardPicker(false);
+  }
+  async function uploadImage(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const response = await fetch(`${api}/assets`, {
+        method: "POST",
+        body: form,
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Upload failed.");
+      setAssets((old) => [...old, result.asset]);
+      setGallery(true);
+      void transport.send("assets-changed", {});
+      if (uploadToBoard.current) addBoardImage(result.asset);
+    } catch (error) {
+      setNotice((error as Error).message);
+    } finally {
+      setUploading(false);
+      uploadToBoard.current = false;
+    }
+  }
+  function pickUpload(onBoard = false) {
+    uploadToBoard.current = onBoard;
+    upload.current?.click();
+  }
+  async function lifecycle() {
+    if (!creator || busy) return;
+    setBusy(true);
+    try {
+      if (!paused) {
+        await saveBoard();
+        if (dirty.current)
+          throw new Error("Save the board before ending the class.");
+      }
+      const response = await fetch(`${api}/end`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: paused ? "restart" : "end" }),
+      });
+      const result = await response.json();
+      if (!response.ok)
+        throw new Error(result.error || "Could not update the class.");
+      setClock((old) => ({
+        ...old,
+        status: paused ? "LIVE" : "ENDED",
+        elapsed_seconds: result.elapsedSeconds,
+        active_started_at: result.activeStartedAt ?? old.active_started_at,
+      }));
+      setNow(Date.now());
+      void transport.send("state-changed", {});
+      setNotice("");
+    } catch (error) {
+      setNotice((error as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  function sendChat(event: React.FormEvent) {
+    event.preventDefault();
+    const body = draft.trim().slice(0, 2000);
+    if (!body || paused) return;
+    const message = {
+      id: crypto.randomUUID(),
+      userId,
+      name: userName,
+      body,
+      createdAt: new Date().toISOString(),
+    };
+    setChat((old) => [...old.slice(-199), message]);
+    void transport.send("chat", message);
+    setDraft("");
+  }
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(
+        `${window.location.origin}/live/join/${code}`,
+      );
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch {
+      setNotice("Could not copy the link. Your class code is " + code);
+    }
+  }
+  async function toggleFullscreen() {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else if (root.current?.requestFullscreen)
+        await root.current.requestFullscreen();
+      else setFullscreen((value) => !value);
+    } catch {
+      setFullscreen((value) => !value);
+    }
+  }
+  const avatar = (name: string) =>
+    ["#aab5ff", "#f4b7cf", "#73ddcf", "#c8adf6"][
+      name.split("").reduce((sum, c) => sum + c.charCodeAt(0), 0) % 4
+    ];
+  const button = (
+    label: string,
+    Icon: typeof Mic,
+    onClick: () => void,
+    active = false,
+    disabled = false,
+    cta = false,
+  ) => (
+    <button
+      type="button"
+      className={`live-control ${active ? "is-active" : ""} ${cta ? "is-cta" : ""}`}
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      aria-pressed={active}
+    >
+      <span className="live-control-icon">
+        <Icon size={22} />
+      </span>
+      <span>{label}</span>
+    </button>
+  );
+  return (
+    <main
+      ref={root}
+      className={`${styles.root} ${fullscreen ? styles.fullscreen : ""}`}
+      data-live-classroom
+      data-role={role}
+    >
+      <header className="live-header">
+        <h1>{title}</h1>
+        <span className={`live-badge ${paused ? "is-paused" : ""}`}>
+          <i />
+          {paused ? "Paused" : "Live"}
+        </span>
+        <time className="live-clock" aria-label="Class elapsed time">
+          {elapsedLabel}
+        </time>
+        <span className="live-count">
+          <UsersRound size={15} />
+          {transport.people.length || 1}
+        </span>
+        <div className="live-header-actions">
+          {creator ? (
+            <button className="live-copy" onClick={() => void copyLink()}>
+              {copied ? <Check size={16} /> : <Copy size={16} />}
+              <span>{copied ? "Copied" : "Copy link"}</span>
+            </button>
+          ) : null}
+          <button
+            title="Reconnect media"
+            aria-label="Reconnect media"
+            onClick={() => {
+              transport.reconnect();
+              void refresh();
+            }}
+          >
+            <RefreshCw size={18} />
+          </button>
+          <button
+            title="Full screen"
+            aria-label="Full screen"
+            onClick={() => void toggleFullscreen()}
+          >
+            <Maximize2 size={19} />
+          </button>
         </div>
-      </section>
-      {role === "CREATOR" && stage === "whiteboard" ? <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-xl border border-white/10 bg-[#0d1421] p-2 lg:hidden" aria-label="Whiteboard tools">{renderWhiteboardTools(true)}</div> : null}
-      <aside className={`flex flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#141e2e] ${chatOpen ? "min-h-[620px]" : "min-h-12"}`}><div className="flex items-center border-b border-white/10"><button onClick={() => setDrawer("chat")} className={`flex-1 px-3 py-4 text-sm font-extrabold ${chatOpen && drawer === "chat" ? "border-b-2 border-indigo-400 text-indigo-200" : "text-white/60"}`}><MessageCircle className="mr-2 inline" size={17} />Chat</button><button onClick={() => setDrawer("people")} className={`flex-1 px-3 py-4 text-sm font-extrabold ${chatOpen && drawer === "people" ? "border-b-2 border-indigo-400 text-indigo-200" : "text-white/60"}`}><UsersRound className="mr-2 inline" size={17} />People</button><button onClick={() => setChatOpen((open) => !open)} className="mr-2 rounded-lg p-2 text-white/60 hover:bg-white/10" aria-label={chatOpen ? "Collapse chat and people" : "Expand chat and people"}>{chatOpen ? <PanelRightClose size={17} /> : <PanelRightOpen size={17} />}</button></div>{chatOpen ? drawer === "chat" ? <><div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">{chat.map((message) => <div key={message.id} className="flex gap-3 rounded-xl bg-white/5 p-3"><span className={`grid size-9 shrink-0 place-items-center rounded-full font-bold ${avatarTone(message.name)}`}>{message.name.slice(0, 1).toUpperCase()}</span><div className="min-w-0 flex-1"><div className="flex items-center gap-2"><p className="truncate text-xs font-bold text-white">{message.name}</p><time className="shrink-0 text-[11px] text-white/45">{messageTime(message.createdAt)}</time></div><p className="mt-1 text-sm leading-6 text-white/90">{message.body}</p></div></div>)}{!chat.length ? <p className="py-10 text-center text-sm text-white/45">Your class chat will appear here.</p> : null}</div><form onSubmit={sendChat} className="m-4 flex gap-2 rounded-xl border border-white/15 bg-white/5 p-2 focus-within:border-white/15"><input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Type a message…" className="min-w-0 flex-1 bg-transparent px-2 text-sm text-white outline-none placeholder:text-white/40" aria-label="Chat message" /><button className="grid size-10 shrink-0 place-items-center rounded-lg bg-indigo-500 text-white" aria-label="Send chat message"><Send size={17} /></button></form></> : <div className="space-y-2 overflow-y-auto p-4">{people.map((person) => <div key={person.userId} className="flex items-center gap-3 rounded-xl bg-white/5 p-3"><span className={`grid size-9 shrink-0 place-items-center rounded-full font-bold ${avatarTone(person.name)}`}>{person.name.slice(0, 1).toUpperCase()}</span><span className="min-w-0 flex-1 truncate text-sm font-bold">{person.name}{person.userId === userId ? " (you)" : ""}</span><span className="text-xs text-white/50">{person.role === "CREATOR" ? "Creator" : "Learner"}</span></div>)}</div> : <div className="hidden items-center justify-center p-2 lg:flex"><button onClick={() => setChatOpen(true)} className="rounded-lg p-2 text-white/70 hover:bg-white/10" aria-label="Expand chat and people"><PanelRightOpen size={18} /></button></div>}</aside>
+      </header>
+      {notice ? (
+        <div className="live-notice" role="alert">
+          <span>{notice}</span>
+          <button aria-label="Dismiss notice" onClick={() => setNotice("")}>
+            <X size={17} />
+          </button>
+        </div>
+      ) : null}
+      {transport.superseded ? (
+        <div className="live-notice">
+          You opened this class in another tab. Use that tab, or reload here to
+          reconnect.
+        </div>
+      ) : null}
+      {soundBlocked ? (
+        <button
+          className="live-enable-audio"
+          onClick={() => {
+            root.current
+              ?.querySelectorAll("audio")
+              .forEach((audio) => void audio.play().catch(() => {}));
+            setSoundBlocked(false);
+          }}
+        >
+          Tap to hear the class
+        </button>
+      ) : null}
+      <div className={`live-layout ${chatOpen ? "" : "drawer-closed"}`}>
+        <section className="live-main">
+          <div className="live-stage-shell">
+            {!loaded ? (
+              <div className="live-stage-placeholder">
+                Opening the live classroom…
+              </div>
+            ) : null}
+            <div
+              hidden={state.stage !== "whiteboard"}
+              className="live-board-holder"
+            >
+              <LiveBoard
+                objects={board}
+                onChange={changeBoard}
+                canEdit={creator && !paused && !transport.superseded}
+                roomId={roomId}
+                onAddImage={() => setBoardPicker(true)}
+                pointer={pointer}
+                onPointer={broadcastPointer}
+              />
+            </div>
+            {state.stage === "image" && state.asset_id ? (
+              <ZoomStage>
+                <img
+                  src={`${api}/assets/${state.asset_id}`}
+                  alt="Image shown to the class"
+                />
+              </ZoomStage>
+            ) : null}
+            {state.stage === "screen" || state.stage === "camera" ? (
+              <ZoomStage>
+                <MediaVideo stream={activeStream ?? null} />
+                {!activeStream ? (
+                  <div className="live-stage-placeholder">
+                    Connecting to {presenter?.name ?? "the presenter"}…
+                    <button onClick={() => transport.reconnect()}>
+                      Reconnect media
+                    </button>
+                  </div>
+                ) : null}
+              </ZoomStage>
+            ) : null}
+            {paused ? (
+              <div className="live-paused-overlay">
+                <div>
+                  <h2>Class paused</h2>
+                  <p>
+                    {creator
+                      ? "Restart to continue with this board and elapsed time."
+                      : "Your teacher can restart the class."}
+                  </p>
+                  {creator ? (
+                    <button onClick={() => void lifecycle()} disabled={busy}>
+                      <RotateCcw size={17} />
+                      Restart
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+          </div>
+          <div className="live-stage-caption">
+            <span>
+              <i className={transport.ready ? "connected" : ""} />
+              {!loaded
+                ? "Connecting"
+                : paused
+                  ? "Paused"
+                  : transport.ready
+                    ? "Live connection"
+                    : "Reconnecting"}
+              {presenter ? ` · ${presenter.name} is presenting` : ""}
+            </span>
+            {creator ? (
+              <button onClick={() => void saveBoard()}>{saveStatus}</button>
+            ) : null}
+          </div>
+          {gallery && assets.length ? (
+            <div className="live-gallery" aria-label="Your image gallery">
+              <div className="live-gallery-track">
+                {assets.map((asset) => (
+                  <div
+                    key={asset.id}
+                    className={`live-thumbnail ${state.asset_id === asset.id ? "is-active" : ""}`}
+                  >
+                    <button
+                      type="button"
+                      disabled={!creator || locked || paused}
+                      onClick={() => void showImage(asset)}
+                      title={creator ? `Show ${asset.name}` : asset.name}
+                    >
+                      <img src={`${api}/assets/${asset.id}`} alt={asset.name} />
+                    </button>
+                    <span>{asset.name}</span>
+                    {creator ? (
+                      <button
+                        className="live-add-to-board"
+                        aria-label={`Add ${asset.name} to whiteboard`}
+                        onClick={() => addBoardImage(asset)}
+                        disabled={paused}
+                      >
+                        <Plus size={13} />
+                      </button>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          <div className="live-bottom-rail">
+            {button(
+              "Mic",
+              transport.micOn ? Mic : MicOff,
+              () => void transport.toggleMic(),
+              transport.micOn,
+              paused || transport.superseded,
+            )}
+            {button(
+              ownPresentation && state.stage === "camera"
+                ? "Stop video"
+                : "Camera",
+              Video,
+              () => void startSharing("camera"),
+              ownPresentation && state.stage === "camera",
+              paused || busy || locked || transport.superseded,
+            )}
+            <span className="live-control-divider" />
+            {button(
+              ownPresentation && state.stage === "screen"
+                ? "Stop share"
+                : "Share",
+              MonitorUp,
+              () => void startSharing("screen"),
+              ownPresentation && state.stage === "screen",
+              paused || busy || locked || transport.superseded,
+            )}
+            {creator
+              ? button(
+                  "Whiteboard",
+                  PenLine,
+                  () => void stopSharing(),
+                  state.stage === "whiteboard",
+                  paused || busy,
+                )
+              : null}
+            {button(
+              uploading ? "Uploading…" : "Image",
+              ImagePlus,
+              () => {
+                if (assets.length) setGallery((value) => !value);
+                else pickUpload();
+              },
+              gallery,
+              paused || uploading,
+            )}
+            {assets.length
+              ? button(
+                  "Add image",
+                  Plus,
+                  () => pickUpload(),
+                  false,
+                  paused || uploading,
+                )
+              : null}
+            <span className="live-control-divider" />
+            {creator
+              ? button(
+                  paused ? "Restart" : "End class",
+                  paused ? RotateCcw : PhoneOff,
+                  () => void lifecycle(),
+                  false,
+                  busy,
+                  true,
+                )
+              : button(
+                  "Leave",
+                  PhoneOff,
+                  () => {
+                    transport.stopPresentation();
+                    window.location.assign("/account");
+                  },
+                  false,
+                  false,
+                  true,
+                )}
+          </div>
+        </section>
+        <aside className={`live-drawer ${chatOpen ? "" : "is-collapsed"}`}>
+          <div className="live-drawer-tabs">
+            {chatOpen ? (
+              <>
+                <button
+                  className={drawer === "chat" ? "is-active" : ""}
+                  onClick={() => setDrawer("chat")}
+                >
+                  <MessageCircle size={18} />
+                  Chat
+                </button>
+                <button
+                  className={drawer === "people" ? "is-active" : ""}
+                  onClick={() => setDrawer("people")}
+                >
+                  <UsersRound size={18} />
+                  People
+                </button>
+              </>
+            ) : null}
+            <button
+              aria-label={
+                chatOpen ? "Collapse chat and people" : "Expand chat and people"
+              }
+              onClick={() => setChatOpen((value) => !value)}
+            >
+              {chatOpen ? (
+                <PanelRightClose size={17} />
+              ) : (
+                <PanelRightOpen size={17} />
+              )}
+            </button>
+          </div>
+          {chatOpen && drawer === "chat" ? (
+            <>
+              <div className="live-messages">
+                {chat.length ? (
+                  chat.map((message) => (
+                    <article key={message.id}>
+                      <span
+                        className="live-avatar"
+                        style={{ background: avatar(message.name) }}
+                      >
+                        {message.name[0]?.toUpperCase()}
+                      </span>
+                      <div>
+                        <header>
+                          <strong>{message.name}</strong>
+                          <time>
+                            {new Date(message.createdAt).toLocaleTimeString(
+                              [],
+                              { hour: "numeric", minute: "2-digit" },
+                            )}
+                          </time>
+                        </header>
+                        <p>{message.body}</p>
+                      </div>
+                    </article>
+                  ))
+                ) : (
+                  <p className="live-empty-chat">
+                    Your class chat will appear here.
+                  </p>
+                )}
+              </div>
+              <form className="live-message-form" onSubmit={sendChat}>
+                <input
+                  aria-label="Chat message"
+                  placeholder="Type a message…"
+                  value={draft}
+                  maxLength={2000}
+                  onChange={(event) => setDraft(event.target.value)}
+                  disabled={paused}
+                />
+                <button
+                  aria-label="Send message"
+                  disabled={paused || !draft.trim()}
+                >
+                  <Send size={19} />
+                </button>
+              </form>
+            </>
+          ) : null}
+          {chatOpen && drawer === "people" ? (
+            <div className="live-people">
+              {transport.people.map((person) => (
+                <article key={person.userId}>
+                  <span
+                    className="live-avatar"
+                    style={{ background: avatar(person.name) }}
+                  >
+                    {person.name[0]?.toUpperCase()}
+                  </span>
+                  <div>
+                    <strong>
+                      {person.name}
+                      {person.userId === userId ? " (you)" : ""}
+                    </strong>
+                    <small>
+                      {person.userId === creatorId ? "Teacher" : "Learner"}
+                    </small>
+                  </div>
+                  {person.mic ? <Mic size={15} /> : <MicOff size={15} />}
+                </article>
+              ))}
+            </div>
+          ) : null}
+        </aside>
+      </div>
+      <input
+        ref={upload}
+        type="file"
+        accept="image/png,image/jpeg,image/webp"
+        hidden
+        onChange={(event) => void uploadImage(event)}
+      />
+      {Object.entries(transport.remote).map(([session, stream]) => (
+        <MediaAudio
+          key={session}
+          stream={stream}
+          paused={paused}
+          onBlocked={() => setSoundBlocked(true)}
+        />
+      ))}
+      {boardPicker ? (
+        <div
+          className="live-modal-backdrop"
+          onClick={(event) => {
+            if (event.currentTarget === event.target) setBoardPicker(false);
+          }}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-label="Add image to whiteboard"
+            className="live-image-picker"
+          >
+            <header>
+              <h2>Add image to whiteboard</h2>
+              <button
+                aria-label="Close image picker"
+                onClick={() => setBoardPicker(false)}
+              >
+                <X size={20} />
+              </button>
+            </header>
+            <button
+              className="live-upload-button"
+              disabled={uploading}
+              onClick={() => pickUpload(true)}
+            >
+              <Plus size={18} />
+              {uploading ? "Uploading…" : "Upload image"}
+            </button>
+            <div>
+              {assets.map((asset) => (
+                <button key={asset.id} onClick={() => addBoardImage(asset)}>
+                  <img src={`${api}/assets/${asset.id}`} alt={asset.name} />
+                  <span>{asset.name}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+        </div>
+      ) : null}
+    </main>
+  );
+}
+function MediaVideo({ stream }: { stream: MediaStream | null }) {
+  const ref = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    const video = ref.current;
+    if (!video) return;
+    video.srcObject = stream;
+    if (stream) void video.play().catch(() => {});
+    return () => {
+      video.srcObject = null;
+    };
+  }, [stream]);
+  return (
+    <video
+      ref={ref}
+      autoPlay
+      playsInline
+      muted
+      aria-label="Live shared video"
+    />
+  );
+}
+function MediaAudio({
+  stream,
+  paused,
+  onBlocked,
+}: {
+  stream: MediaStream;
+  paused: boolean;
+  onBlocked: () => void;
+}) {
+  const ref = useRef<HTMLAudioElement>(null);
+  const callback = useRef(onBlocked);
+  callback.current = onBlocked;
+  useEffect(() => {
+    const audio = ref.current;
+    if (!audio) return;
+    audio.srcObject = stream;
+    if (!paused && stream.getAudioTracks().length)
+      void audio.play().catch(() => callback.current());
+    else audio.pause();
+    return () => {
+      audio.srcObject = null;
+    };
+  }, [stream, paused]);
+  return <audio ref={ref} autoPlay hidden />;
+}
+function ZoomStage({ children }: { children: React.ReactNode }) {
+  const [zoom, setZoom] = useState(1),
+    [pan, setPan] = useState({ x: 0, y: 0 });
+  const touches = useRef(new Map<number, { x: number; y: number }>());
+  const gesture = useRef<{ distance: number; zoom: number } | null>(null);
+  return (
+    <div
+      className="live-media-viewport"
+      onPointerDown={(event) => {
+        if ((event.target as HTMLElement).closest("button")) return;
+        event.currentTarget.setPointerCapture(event.pointerId);
+        touches.current.set(event.pointerId, {
+          x: event.clientX,
+          y: event.clientY,
+        });
+        if (touches.current.size === 2) {
+          const [a, b] = [...touches.current.values()];
+          gesture.current = {
+            distance: Math.hypot(a.x - b.x, a.y - b.y),
+            zoom,
+          };
+        }
+      }}
+      onPointerMove={(event) => {
+        const prev = touches.current.get(event.pointerId);
+        if (!prev) return;
+        touches.current.set(event.pointerId, {
+          x: event.clientX,
+          y: event.clientY,
+        });
+        if (touches.current.size === 2 && gesture.current) {
+          const [a, b] = [...touches.current.values()];
+          setZoom(
+            Math.min(
+              4,
+              Math.max(
+                1,
+                (gesture.current.zoom * Math.hypot(a.x - b.x, a.y - b.y)) /
+                  gesture.current.distance,
+              ),
+            ),
+          );
+        } else if (zoom > 1)
+          setPan((old) => ({
+            x: old.x + event.clientX - prev.x,
+            y: old.y + event.clientY - prev.y,
+          }));
+      }}
+      onPointerUp={(event) => {
+        touches.current.delete(event.pointerId);
+        gesture.current = null;
+      }}
+      onPointerCancel={() => {
+        touches.current.clear();
+        gesture.current = null;
+      }}
+    >
+      <div
+        className="live-media-content"
+        style={{ transform: `translate(${pan.x}px,${pan.y}px) scale(${zoom})` }}
+      >
+        {children}
+      </div>
+      <div className="live-board-zoom">
+        <button
+          aria-label="Zoom out"
+          onClick={() => setZoom(Math.max(1, zoom - 0.25))}
+        >
+          −
+        </button>
+        <button
+          onClick={() => {
+            setZoom(1);
+            setPan({ x: 0, y: 0 });
+          }}
+        >
+          {Math.round(zoom * 100)}%
+        </button>
+        <button
+          aria-label="Zoom in"
+          onClick={() => setZoom(Math.min(4, zoom + 0.25))}
+        >
+          +
+        </button>
+      </div>
     </div>
-  </main>;
+  );
 }

@@ -1,0 +1,218 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { roomAccess } from "@/lib/instant-live/server";
+import { boardSchema, emptyState } from "@/lib/instant-live/types";
+import type { SharedState } from "@/lib/instant-live/types";
+
+const commandSchema = z.discriminatedUnion("action", [
+  z.object({
+    action: z.literal("board"),
+    board: boardSchema,
+    revision: z.number().int().min(0),
+  }),
+  z.object({
+    action: z.literal("claim"),
+    stage: z.enum(["screen", "camera", "image"]),
+    session: z.string().uuid(),
+    assetId: z.string().uuid().optional(),
+  }),
+  z.object({ action: z.literal("release"), session: z.string().uuid() }),
+  z.object({ action: z.literal("heartbeat"), session: z.string().uuid() }),
+]);
+const fail = (error: string, status = 400) =>
+  NextResponse.json({ error }, { status });
+export async function GET(
+  _request: Request,
+  context: { params: Promise<{ id: string }> },
+) {
+  const { id } = await context.params;
+  const access = await roomAccess(id);
+  if (access.error) return access.error;
+  const { admin, user, room, creator } = access;
+  const { error: initError } = await admin
+    .from("instant_live_state")
+    .upsert({ room_id: id }, { onConflict: "room_id", ignoreDuplicates: true });
+  if (initError)
+    return fail(
+      "Live classroom update is not ready. Please try again shortly.",
+      503,
+    );
+  const { data, error } = await admin
+    .from("instant_live_state")
+    .select("*")
+    .eq("room_id", id)
+    .single();
+  if (error) return fail("Could not load the live stage.", 503);
+  let state = data as SharedState;
+  if (
+    room.status === "LIVE" &&
+    state.presenter_id &&
+    state.lease_until &&
+    Date.parse(state.lease_until) < Date.now()
+  ) {
+    const { data: cleared } = await admin
+      .from("instant_live_state")
+      .update({
+        stage: "whiteboard",
+        presenter_id: null,
+        presenter_session: null,
+        asset_id: null,
+        lease_until: null,
+        revision: state.revision + 1,
+      })
+      .eq("room_id", id)
+      .eq("revision", state.revision)
+      .select("*")
+      .maybeSingle();
+    if (cleared) state = cleared as SharedState;
+  }
+  await admin
+    .from("instant_live_participants")
+    .update({ last_seen_at: new Date().toISOString() })
+    .eq("room_id", id)
+    .eq("user_id", user.id)
+    .eq("status", "JOINED");
+  let query = admin
+    .from("instant_live_assets")
+    .select("id,owner_id,name,width,height,created_at")
+    .eq("room_id", id)
+    .order("created_at");
+  if (!creator) query = query.eq("owner_id", user.id);
+  const { data: assets } = await query;
+  return NextResponse.json(
+    { state: state ?? emptyState(id), assets: assets ?? [], room },
+    { headers: { "Cache-Control": "private, no-store" } },
+  );
+}
+export async function POST(
+  request: Request,
+  context: { params: Promise<{ id: string }> },
+) {
+  const { id } = await context.params;
+  const access = await roomAccess(id, true);
+  if (access.error) return access.error;
+  const { admin, user, creator } = access;
+  const text = await request.text();
+  if (text.length > 900_000)
+    return fail("The board is too large. Remove unused objects.", 413);
+  let parsed;
+  try {
+    parsed = commandSchema.safeParse(JSON.parse(text));
+  } catch {
+    return fail("Invalid classroom update.");
+  }
+  if (!parsed.success) return fail("Invalid classroom update.");
+  const command = parsed.data;
+  const { data } = await admin
+    .from("instant_live_state")
+    .select("*")
+    .eq("room_id", id)
+    .single();
+  if (!data)
+    return fail("The live stage is not ready. Refresh and try again.", 503);
+  const state = data as SharedState;
+  if (command.action === "board") {
+    if (!creator) return fail("Only the teacher can edit this board.", 403);
+    const ids = command.board.flatMap((item) =>
+      item.assetId ? [item.assetId] : [],
+    );
+    if (ids.length) {
+      const { data: assets } = await admin
+        .from("instant_live_assets")
+        .select("id")
+        .eq("room_id", id)
+        .in("id", ids);
+      const valid = new Set(assets?.map((asset) => asset.id));
+      if (ids.some((asset) => !valid.has(asset)))
+        return fail("An image is not available in this class.");
+    }
+    const { data: updated, error } = await admin
+      .from("instant_live_state")
+      .update({
+        board: command.board,
+        board_revision: state.board_revision + 1,
+      })
+      .eq("room_id", id)
+      .eq("board_revision", command.revision)
+      .select("*")
+      .maybeSingle();
+    if (error) return fail("Could not save the board.", 503);
+    if (!updated)
+      return fail(
+        "The board changed in another window. Refresh before editing again.",
+        409,
+      );
+    return NextResponse.json({ state: updated });
+  }
+  const isOwner =
+    state.presenter_id === user.id &&
+    state.presenter_session === command.session;
+  if (command.action === "heartbeat") {
+    if (isOwner)
+      await admin
+        .from("instant_live_state")
+        .update({ lease_until: new Date(Date.now() + 60000).toISOString() })
+        .eq("room_id", id)
+        .eq("presenter_session", command.session)
+        .eq("presenter_id", user.id);
+    return NextResponse.json({ ok: true });
+  }
+  if (command.action === "release") {
+    if (!creator && !isOwner)
+      return fail("Only the presenter or teacher can stop sharing.", 403);
+    const { data: updated } = await admin
+      .from("instant_live_state")
+      .update({
+        stage: "whiteboard",
+        asset_id: null,
+        presenter_id: null,
+        presenter_session: null,
+        lease_until: null,
+        revision: state.revision + 1,
+      })
+      .eq("room_id", id)
+      .eq("revision", state.revision)
+      .select("*")
+      .maybeSingle();
+    if (!updated) return fail("The presenter changed. Try again.", 409);
+    return NextResponse.json({ state: updated });
+  }
+  // Compare-and-swap below arbitrates simultaneous share requests across devices.
+  const occupied =
+    state.presenter_id &&
+    (!state.lease_until || Date.parse(state.lease_until) > Date.now());
+  if (occupied && !isOwner)
+    return fail("Someone is presenting. Wait until they stop sharing.", 409);
+  if (command.stage === "image") {
+    if (!creator)
+      return fail(
+        "The teacher chooses which gallery image is shown to the class.",
+        403,
+      );
+    const { data: asset } = await admin
+      .from("instant_live_assets")
+      .select("id")
+      .eq("room_id", id)
+      .eq("id", command.assetId ?? "")
+      .maybeSingle();
+    if (!asset) return fail("Choose an image from this class.");
+  }
+  const { data: updated, error } = await admin
+    .from("instant_live_state")
+    .update({
+      stage: command.stage,
+      asset_id: command.stage === "image" ? command.assetId : null,
+      presenter_id: user.id,
+      presenter_session: command.session,
+      lease_until: new Date(Date.now() + 60000).toISOString(),
+      revision: state.revision + 1,
+    })
+    .eq("room_id", id)
+    .eq("revision", state.revision)
+    .select("*")
+    .maybeSingle();
+  if (error) return fail("Could not start sharing.", 503);
+  if (!updated)
+    return fail("Someone else started sharing. Please try later.", 409);
+  return NextResponse.json({ state: updated });
+}
