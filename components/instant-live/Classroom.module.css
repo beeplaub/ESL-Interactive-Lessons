@@ -30,6 +30,8 @@
     background 0.15s,
     border-color 0.15s,
     transform 0.15s;
+}
+.root :global(button:where(:not(.live-content-stage *))) {
   color: inherit;
 }
 .root :global(button:disabled) {

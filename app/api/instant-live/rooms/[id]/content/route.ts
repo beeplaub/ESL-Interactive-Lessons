@@ -4,7 +4,7 @@ import { roomAccess } from "@/lib/instant-live/server";
 import { getFreshProfile, isPlatformAdmin } from "@/lib/auth";
 import { questionScore, questionTotal, type ScoredQuestion } from "@/lib/quizScoring";
 
-const selection = z.object({kind:z.enum(["lesson","quiz"]), id:z.string().uuid(), index:z.number().int().min(0).max(999), reveal:z.boolean().default(false)});
+const selection = z.object({kind:z.enum(["lesson","quiz"]), id:z.string().uuid(), index:z.number().int().min(0).max(999), reveal:z.boolean().default(false), tab:z.enum(["learn","practice"]).optional(), activityId:z.string().uuid().optional()});
 const action = z.discriminatedUnion("action",[
   z.object({action:z.literal("show"), selection, session:z.string().uuid(), revision:z.number().int().nonnegative()}),
   z.object({action:z.literal("practice"), activityId:z.string().uuid(), answers:z.record(z.unknown())}),
@@ -33,11 +33,11 @@ export async function GET(request:Request,{params}:{params:Promise<{id:string}>}
   const {data:source}=await admin.from(current.kind==="lesson"?"lessons":"quizzes").select("id,title,status").eq("id",current.id).eq("status","PUBLISHED").maybeSingle();
   if(!source)return fail("This content is no longer published.",404);
   if(current.kind==="lesson") {
-    const {data:slides,error:slideError}=await admin.from("slides").select("id,title,slide_number").eq("lesson_id",current.id).is("deleted_at",null).order("slide_number");
+    const {data:slides,error:slideError}=await admin.from("slides").select("id,title,slide_number,section_label,content_order").eq("lesson_id",current.id).is("deleted_at",null).order("slide_number");
     const slide=slides?.[current.index]; if(slideError||!slide)return fail("This slide is unavailable.",404);
     const [blocks,activities]=await Promise.all([
       admin.from("lesson_blocks").select("id,position,block_type,content").eq("lesson_id",current.id).eq("slide_id",slide.id).order("position"),
-      admin.from("lesson_slide_activities").select("id,activity_type,activity_data").eq("lesson_id",current.id).eq("slide_id",slide.id).is("deleted_at",null).order("created_at"),
+      admin.from("lesson_slide_activities").select("id,activity_type,activity_data").eq("lesson_id",current.id).eq("slide_id",slide.id).is("deleted_at",null).order("position",{ascending:true,nullsFirst:false}).order("created_at"),
     ]);
     if(blocks.error||activities.error)return fail("Could not load lesson content.",503);
     const {data:responses,error:responseError}=await admin.from("instant_live_activity_responses").select("activity_id,answers").eq("room_id",id).eq("user_id",user.id);
