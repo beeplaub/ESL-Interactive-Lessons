@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { ArrowUpRight, BookOpen, Check, Circle, Copy, Eraser, Highlighter, ImagePlus, Maximize2, MessageCircle, Mic, MicOff, MonitorUp, MousePointer2, MousePointerClick, PanelRightClose, PanelRightOpen, PenLine, Pointer, Redo2, Send, Settings, Square, Undo2, UsersRound, X } from "lucide-react";
+import { ArrowUpRight, BookOpen, Check, Circle, Copy, Eraser, Highlighter, ImagePlus, Maximize2, MessageCircle, Mic, MicOff, MonitorUp, MousePointer2, MousePointerClick, PanelRightClose, PanelRightOpen, PenLine, Pointer, Redo2, RotateCcw, Send, Settings, Square, Undo2, UsersRound, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 type Role = "CREATOR" | "LEARNER";
@@ -16,10 +16,14 @@ type Signal = { from: string; to: string; kind: "offer" | "answer" | "candidate"
 
 const iceServers: RTCIceServer[] = [{ urls: "stun:stun.cloudflare.com:3478" }];
 
-export function InstantLiveClassroom({ roomId, title, code, startedAt, userId, userName, role }: { roomId: string; title: string; code: string; startedAt: string; userId: string; userName: string; role: Role }) {
+export function InstantLiveClassroom({ roomId, title, code, startedAt, elapsedOffset = 0, initialEnded = false, userId, userName, role }: { roomId: string; title: string; code: string; startedAt: string; elapsedOffset?: number; initialEnded?: boolean; userId: string; userName: string; role: Role }) {
   const supabase = useRef(createClient()).current;
   const channel = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const peers = useRef(new Map<string, RTCPeerConnection>());
+  const makingOffer = useRef(new Map<string, boolean>());
+  const ignoreOffer = useRef(new Map<string, boolean>());
+  const settingRemoteAnswer = useRef(new Map<string, boolean>());
+  const pendingCandidates = useRef(new Map<string, RTCIceCandidateInit[]>());
   const localAudio = useRef<MediaStream | null>(null);
   const localScreen = useRef<MediaStream | null>(null);
   const localScreenVideo = useRef<HTMLVideoElement>(null);
@@ -40,9 +44,14 @@ export function InstantLiveClassroom({ roomId, title, code, startedAt, userId, u
   const [drawer, setDrawer] = useState<"chat" | "people">("chat");
   const [copied, setCopied] = useState(false);
   const [notice, setNotice] = useState("");
-  const [ended, setEnded] = useState(false);
+  const [ended, setEnded] = useState(initialEnded);
+  const [lifecycleBusy, setLifecycleBusy] = useState(false);
+  const [channelReady, setChannelReady] = useState(false);
+  const [channelVersion, setChannelVersion] = useState(0);
   const [chatOpen, setChatOpen] = useState(true);
-  const [elapsedSeconds, setElapsedSeconds] = useState(() => Math.max(0, Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000)));
+  const [activeStartedAt, setActiveStartedAt] = useState(startedAt);
+  const [savedElapsedSeconds, setSavedElapsedSeconds] = useState(elapsedOffset);
+  const [elapsedSeconds, setElapsedSeconds] = useState(() => elapsedOffset + (initialEnded ? 0 : Math.max(0, Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000))));
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [stageZoom, setStageZoom] = useState(1);
   const [stagePan, setStagePan] = useState({ x: 0, y: 0 });
@@ -66,11 +75,12 @@ export function InstantLiveClassroom({ roomId, title, code, startedAt, userId, u
   const imagesRef = useRef(images);
 
   useEffect(() => {
-    const updateElapsed = () => setElapsedSeconds(Math.max(0, Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000)));
+    if (ended) return;
+    const updateElapsed = () => setElapsedSeconds(savedElapsedSeconds + Math.max(0, Math.floor((Date.now() - new Date(activeStartedAt).getTime()) / 1000)));
     updateElapsed();
     const timer = window.setInterval(updateElapsed, 1000);
     return () => window.clearInterval(timer);
-  }, [startedAt]);
+  }, [activeStartedAt, ended, savedElapsedSeconds]);
 
   const elapsedLabel = `${String(Math.floor(elapsedSeconds / 60)).padStart(2, "0")}:${String(elapsedSeconds % 60).padStart(2, "0")}`;
   const activeToolClass = "border border-indigo-300/80 bg-indigo-500/25 text-white shadow-[0_0_0_1px_rgba(129,140,248,.35)]";
@@ -149,12 +159,19 @@ export function InstantLiveClassroom({ roomId, title, code, startedAt, userId, u
     }
   }, [broadcast]);
 
-  const renegotiate = useCallback(async (peerId: string, force = false) => {
+  const renegotiate = useCallback(async (peerId: string) => {
     const pc = peers.current.get(peerId);
-    if (!pc || (!force && userId > peerId) || pc.signalingState !== "stable") return;
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-    broadcast("signal", { from: userId, to: peerId, kind: "offer", description: offer });
+    if (!pc || makingOffer.current.get(peerId)) return;
+    try {
+      makingOffer.current.set(peerId, true);
+      if (pc.signalingState !== "stable") return;
+      await pc.setLocalDescription(await pc.createOffer());
+      if (pc.localDescription) broadcast("signal", { from: userId, to: peerId, kind: "offer", description: pc.localDescription });
+    } catch {
+      setNotice("Screen or audio connection could not be negotiated. Please retry sharing.");
+    } finally {
+      makingOffer.current.set(peerId, false);
+    }
   }, [broadcast, userId]);
 
   const ensurePeer = useCallback((peerId: string) => {
@@ -164,6 +181,7 @@ export function InstantLiveClassroom({ roomId, title, code, startedAt, userId, u
     if (localAudio.current) localAudio.current.getTracks().forEach((track) => pc.addTrack(track, localAudio.current!));
     if (localScreen.current) localScreen.current.getTracks().forEach((track) => pc.addTrack(track, localScreen.current!));
     pc.onicecandidate = (event) => { if (event.candidate) broadcast("signal", { from: userId, to: peerId, kind: "candidate", candidate: event.candidate.toJSON() }); };
+    pc.onnegotiationneeded = () => { void renegotiate(peerId); };
     pc.ontrack = (event) => {
       if (event.track.kind === "audio") {
         let audio = remoteAudio.current.get(peerId);
@@ -178,7 +196,7 @@ export function InstantLiveClassroom({ roomId, title, code, startedAt, userId, u
     pc.onconnectionstatechange = () => { if (["failed", "closed"].includes(pc.connectionState)) { pc.close(); peers.current.delete(peerId); } };
     peers.current.set(peerId, pc);
     return pc;
-  }, [broadcast, userId]);
+  }, [broadcast, renegotiate, userId]);
 
   const [remoteScreen, setRemoteScreen] = useState<MediaStream | null>(null);
   const remoteScreenVideo = useRef<HTMLVideoElement>(null);
@@ -188,12 +206,34 @@ export function InstantLiveClassroom({ roomId, title, code, startedAt, userId, u
     const pc = ensurePeer(signal.from);
     try {
       if (signal.kind === "offer" && signal.description) {
+        const collision = makingOffer.current.get(signal.from) || (pc.signalingState !== "stable" && !settingRemoteAnswer.current.get(signal.from));
+        const polite = userId > signal.from;
+        ignoreOffer.current.set(signal.from, !polite && Boolean(collision));
+        if (!polite && collision) {
+          pendingCandidates.current.delete(signal.from);
+          return;
+        }
+        if (collision) await pc.setLocalDescription({ type: "rollback" });
         await pc.setRemoteDescription(signal.description);
+        const candidates = pendingCandidates.current.get(signal.from) ?? [];
+        pendingCandidates.current.delete(signal.from);
+        for (const candidate of candidates) await pc.addIceCandidate(candidate);
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
-        broadcast("signal", { from: userId, to: signal.from, kind: "answer", description: answer });
-      } else if (signal.kind === "answer" && signal.description) await pc.setRemoteDescription(signal.description);
-      else if (signal.kind === "candidate" && signal.candidate) await pc.addIceCandidate(signal.candidate);
+        if (pc.localDescription) broadcast("signal", { from: userId, to: signal.from, kind: "answer", description: pc.localDescription });
+      } else if (signal.kind === "answer" && signal.description) {
+        ignoreOffer.current.set(signal.from, false);
+        settingRemoteAnswer.current.set(signal.from, true);
+        try { await pc.setRemoteDescription(signal.description); }
+        finally { settingRemoteAnswer.current.set(signal.from, false); }
+        const candidates = pendingCandidates.current.get(signal.from) ?? [];
+        pendingCandidates.current.delete(signal.from);
+        for (const candidate of candidates) await pc.addIceCandidate(candidate);
+      } else if (signal.kind === "candidate" && signal.candidate) {
+        if (ignoreOffer.current.get(signal.from)) return;
+        if (pc.remoteDescription) await pc.addIceCandidate(signal.candidate);
+        else pendingCandidates.current.set(signal.from, [...(pendingCandidates.current.get(signal.from) ?? []), signal.candidate]);
+      }
     } catch { setNotice("A participant connection needs to reconnect."); }
   }, [broadcast, ensurePeer, userId]);
 
@@ -454,10 +494,6 @@ export function InstantLiveClassroom({ roomId, title, code, startedAt, userId, u
       if (role !== "CREATOR") return;
       const target = (payload as { target?: string }).target;
       if (target) sendRoomSnapshot(target);
-      if (target && stageRef.current === "screen") {
-        const pc = ensurePeer(target);
-        if (pc.signalingState === "stable") void renegotiate(target, true);
-      }
     });
     room.on("broadcast", { event: "state-snapshot" }, ({ payload }) => {
       const snapshot = payload as { target?: string; stage?: "whiteboard" | "screen" | "image"; board?: BoardLine[] };
@@ -479,26 +515,44 @@ export function InstantLiveClassroom({ roomId, title, code, startedAt, userId, u
       if (next) setStage(next);
     });
     room.on("broadcast", { event: "board-clear" }, () => setBoard([]));
-    room.on("broadcast", { event: "room-ended" }, () => setEnded(true));
+    room.on("broadcast", { event: "room-ended" }, ({ payload }) => {
+      const nextElapsed = Number((payload as { elapsedSeconds?: number })?.elapsedSeconds);
+      if (Number.isFinite(nextElapsed)) {
+        setSavedElapsedSeconds(nextElapsed);
+        setElapsedSeconds(nextElapsed);
+      }
+      setEnded(true);
+    });
+    room.on("broadcast", { event: "room-restarted" }, ({ payload }) => {
+      const next = payload as { elapsedSeconds?: number; activeStartedAt?: string };
+      if (Number.isFinite(next.elapsedSeconds)) setSavedElapsedSeconds(next.elapsedSeconds!);
+      if (next.activeStartedAt) setActiveStartedAt(next.activeStartedAt);
+      setEnded(false);
+    });
     room.on("presence", { event: "sync" }, () => {
       const state = room.presenceState<Person>();
       const next = Object.values(state).flat().filter((person) => person.userId !== userId);
       setPeople([{ userId, name: userName, role }, ...next]);
       next.forEach((person) => {
-        const pc = ensurePeer(person.userId);
-        if (role === "CREATOR") {
-          sendRoomSnapshot(person.userId);
-          if (stageRef.current === "screen" && pc.signalingState === "stable") void renegotiate(person.userId, true);
-        } else if (userId < person.userId && pc.signalingState === "stable") void renegotiate(person.userId);
+        ensurePeer(person.userId);
+        if (role === "CREATOR") sendRoomSnapshot(person.userId);
       });
     });
     void room.subscribe(async (status) => {
+      setChannelReady(status === "SUBSCRIBED");
       if (status !== "SUBSCRIBED") return;
       await room.track({ userId, name: userName, role });
       if (role === "LEARNER") window.setTimeout(() => broadcast("state-request", { target: userId }), 200);
     });
-    return () => { void room.untrack(); void supabase.removeChannel(room); peers.current.forEach((pc) => pc.close()); remoteAudio.current.forEach((audio) => audio.remove()); localAudio.current?.getTracks().forEach((track) => track.stop()); localScreen.current?.getTracks().forEach((track) => track.stop()); };
-  }, [broadcast, ensurePeer, handleSignal, renegotiate, role, roomId, sendRoomSnapshot, supabase, userId, userName]);
+    return () => { void room.untrack(); void supabase.removeChannel(room); };
+  }, [broadcast, channelVersion, ensurePeer, handleSignal, role, roomId, sendRoomSnapshot, supabase, userId, userName]);
+
+  useEffect(() => () => {
+    peers.current.forEach((pc) => pc.close());
+    remoteAudio.current.forEach((audio) => audio.remove());
+    localAudio.current?.getTracks().forEach((track) => track.stop());
+    localScreen.current?.getTracks().forEach((track) => track.stop());
+  }, []);
 
   async function toggleMic() {
     try {
@@ -507,7 +561,6 @@ export function InstantLiveClassroom({ roomId, title, code, startedAt, userId, u
         peers.current.forEach((pc) => localAudio.current?.getTracks().forEach((track) => pc.addTrack(track, localAudio.current!)));
       }
       const next = !micOn; localAudio.current.getAudioTracks().forEach((track) => { track.enabled = next; }); setMicOn(next);
-      if (next) peers.current.forEach((_pc, peerId) => void renegotiate(peerId, true));
     } catch { setNotice("Microphone permission was not granted. Check your browser settings and try again."); }
   }
 
@@ -521,7 +574,6 @@ export function InstantLiveClassroom({ roomId, title, code, startedAt, userId, u
     setSharing(false);
     setStage("whiteboard");
     broadcast("stage", { stage: "whiteboard" });
-    peers.current.forEach((_pc, peerId) => void renegotiate(peerId, true));
   }
 
   async function toggleScreen() {
@@ -529,7 +581,7 @@ export function InstantLiveClassroom({ roomId, title, code, startedAt, userId, u
     if (sharing) { stopScreenSharing(); return; }
     try {
       const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true }); localScreen.current = stream; setSharing(true); setStage("screen"); broadcast("stage", { stage: "screen" }); stream.getVideoTracks()[0].onended = stopScreenSharing;
-      peers.current.forEach((pc) => stream.getTracks().forEach((track) => pc.addTrack(track, stream))); peers.current.forEach((_pc, peerId) => void renegotiate(peerId, true));
+      peers.current.forEach((pc) => stream.getTracks().forEach((track) => pc.addTrack(track, stream)));
     } catch { setNotice("Screen sharing was cancelled or blocked by the browser. If available, enable Share audio in the browser dialog."); }
   }
 
@@ -641,19 +693,52 @@ export function InstantLiveClassroom({ roomId, title, code, startedAt, userId, u
   function messageTime(createdAt?: string) { return new Date(createdAt ?? Date.now()).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); }
   function avatarTone(name: string) { return ["bg-indigo-300 text-slate-950", "bg-pink-300 text-slate-950", "bg-teal-300 text-slate-950", "bg-violet-300 text-slate-950"][name.split("").reduce((sum, character) => sum + character.charCodeAt(0), 0) % 4]; }
   function clearBoard() { if (role !== "CREATOR") return; recordBoardHistory(); replaceBoard([]); broadcast("board-clear", {}); setSelectedBoardId(null); }
-  async function endClass() { if (role !== "CREATOR" || !window.confirm("End this live class for everyone?")) return; await fetch(`/api/instant-live/rooms/${roomId}/end`, { method: "POST" }); broadcast("room-ended", {}); setEnded(true); }
+  async function toggleClassLifecycle() {
+    if (role !== "CREATOR" || lifecycleBusy) return;
+    if (!ended && !window.confirm("End this live class for everyone?")) return;
+    setLifecycleBusy(true);
+    try {
+      if (ended) {
+        const response = await fetch(`/api/instant-live/rooms/${roomId}/end`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "restart" }) });
+        const result = await response.json().catch(() => ({})) as { error?: string; elapsedSeconds?: number; activeStartedAt?: string };
+        if (!response.ok || !result.activeStartedAt) throw new Error(result.error || "Could not restart this class.");
+        const elapsed = Number(result.elapsedSeconds ?? savedElapsedSeconds);
+        setSavedElapsedSeconds(elapsed);
+        setElapsedSeconds(elapsed);
+        setActiveStartedAt(result.activeStartedAt);
+        setEnded(false);
+        broadcast("room-restarted", { elapsedSeconds: elapsed, activeStartedAt: result.activeStartedAt });
+        if (!channelReady) setChannelVersion((version) => version + 1);
+      } else {
+        const sendResult = await channel.current?.send({ type: "broadcast", event: "room-ended", payload: { elapsedSeconds } });
+        if (sendResult && sendResult !== "ok") throw new Error("Could not notify the class before ending it. Please try again.");
+        const response = await fetch(`/api/instant-live/rooms/${roomId}/end`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "end" }) });
+        const result = await response.json().catch(() => ({})) as { error?: string; elapsedSeconds?: number };
+        if (!response.ok) throw new Error(result.error || "Could not end this class.");
+        const elapsed = Number(result.elapsedSeconds ?? elapsedSeconds);
+        setSavedElapsedSeconds(elapsed);
+        setElapsedSeconds(elapsed);
+        setEnded(true);
+      }
+      setNotice("");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Could not update the class status. Please try again.");
+    } finally {
+      setLifecycleBusy(false);
+    }
+  }
   async function copyLink() { if (role !== "CREATOR") return; await navigator.clipboard.writeText(`${window.location.origin}/live/join/${code}`); setCopied(true); window.setTimeout(() => setCopied(false), 1800); }
   async function toggleFullscreen() { try { if (document.fullscreenElement) await document.exitFullscreen(); else await classroom.current?.requestFullscreen(); } catch { setNotice("Fullscreen is not available in this browser window."); } }
 
   return <main ref={classroom} className="min-h-screen bg-[#0d1421] text-white" data-role={role}>
     <style>{`@media (max-width: 639px) { [data-role] > header { min-height: 4rem !important; padding: .75rem 1rem !important; gap: .5rem !important; } [data-role] > header h1 { font-size: 1rem; } [data-role] > div.grid { min-height: 0 !important; } [data-role] > div.grid > section { min-height: 0 !important; } [data-role] > div.grid > section > div { min-height: 0 !important; } [data-role] > div.grid > section > div > div:first-child { aspect-ratio: 4 / 3; flex: 0 0 auto !important; } [data-role] > div.grid > aside { min-height: 0 !important; max-height: 48svh; } }`}</style>
     {role === "CREATOR" && stage === "whiteboard" ? <nav className="fixed left-4 top-28 z-30 hidden w-14 flex-col items-center gap-2 rounded-xl bg-[#0d1421] p-2 shadow-xl lg:flex" aria-label="Whiteboard tools">{renderWhiteboardTools()}</nav> : null}
-    <header className="flex min-h-20 items-center gap-4 border-b border-white/10 px-4 py-3 sm:px-7"><h1 className="min-w-0 truncate text-lg font-extrabold sm:text-2xl">{title}</h1><span className="inline-flex shrink-0 items-center gap-2 rounded-full bg-emerald-500/15 px-3 py-1.5 text-xs font-bold text-emerald-300"><i className="size-2 rounded-full bg-emerald-400" />Live</span><span className="inline-flex shrink-0 rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold tabular-nums text-white/75" aria-label="Live duration">{elapsedLabel}</span><span className="hidden items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold sm:inline-flex"><UsersRound size={15} />{people.length}</span><div className="ml-auto flex items-center gap-2"><button onClick={() => void copyLink()} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-indigo-400/60 px-3 text-sm font-bold text-indigo-100">{copied ? <Check size={16} /> : <Copy size={16} />}{copied ? "Copied" : "Copy link"}</button><button aria-label="Settings" className="hidden rounded-lg p-2 text-white/70 hover:bg-white/10 sm:block"><Settings size={19} /></button><button aria-label={isFullscreen ? "Exit full screen" : "Full screen"} className="rounded-lg p-2 text-white/70 hover:bg-white/10" onClick={() => void toggleFullscreen()}><Maximize2 size={19} /></button></div></header>
+    <header className="flex min-h-20 items-center gap-4 border-b border-white/10 px-4 py-3 sm:px-7"><h1 className="min-w-0 truncate text-lg font-extrabold sm:text-2xl">{title}</h1><span className={`inline-flex shrink-0 items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold ${ended ? "bg-white/10 text-white/60" : "bg-emerald-500/15 text-emerald-300"}`}><i className={`size-2 rounded-full ${ended ? "bg-white/40" : "bg-emerald-400"}`} />{ended ? "Ended" : "Live"}</span><span className="inline-flex shrink-0 rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold tabular-nums text-white/75" aria-label={ended ? "Paused class duration" : "Live duration"}>{elapsedLabel}</span><span className="hidden items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-xs font-bold sm:inline-flex"><UsersRound size={15} />{people.length}</span><div className="ml-auto flex items-center gap-2">{!ended ? <button onClick={() => void copyLink()} className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-indigo-400/60 px-3 text-sm font-bold text-indigo-100">{copied ? <Check size={16} /> : <Copy size={16} />}{copied ? "Copied" : "Copy link"}</button> : null}<button aria-label="Settings" className="hidden rounded-lg p-2 text-white/70 hover:bg-white/10 sm:block"><Settings size={19} /></button><button aria-label={isFullscreen ? "Exit full screen" : "Full screen"} className="rounded-lg p-2 text-white/70 hover:bg-white/10" onClick={() => void toggleFullscreen()}><Maximize2 size={19} /></button></div></header>
     {notice ? <div role="alert" className="mx-4 mt-3 rounded-xl border border-amber-300/30 bg-amber-300/10 px-4 py-3 text-sm text-amber-100 sm:mx-7">{notice}<button className="ml-3 font-bold underline" onClick={() => setNotice("")}>Dismiss</button></div> : null}
     <div className={`grid min-h-[calc(100vh-80px)] grid-cols-1 gap-3 p-3 sm:p-5 ${chatOpen ? "lg:grid-cols-[minmax(0,1fr)_360px]" : "lg:grid-cols-[minmax(0,1fr)_56px]"}`}>
       <section className={`relative grid min-h-[calc(100dvh-110px)] grid-cols-1 gap-3 rounded-2xl border border-white/10 bg-[#141e2e] p-2 sm:min-h-[620px] sm:p-3 ${role === "CREATOR" && stage === "whiteboard" ? "lg:pl-20" : ""}`}>
         <div className="flex min-w-0 flex-col rounded-xl bg-[#0d1421] p-2 sm:p-3"><div className="relative min-h-0 flex-1 overflow-hidden rounded-lg bg-white"><canvas ref={canvas} width={1200} height={700} className={`absolute inset-0 size-full ${stage === "whiteboard" && role === "CREATOR" ? "cursor-crosshair" : ""}`} onPointerDown={draw} onPointerMove={draw} onPointerUp={endDraw} onPointerCancel={endDraw} hidden={stage !== "whiteboard"} />{stage === "image" && image ? <img src={image} alt="Shared by the creator" className="size-full object-contain" /> : null}{stage === "screen" ? <><video ref={localScreenVideo} autoPlay muted playsInline className={`size-full object-contain ${sharing ? "" : "hidden"}`} /><video ref={remoteScreenVideo} autoPlay playsInline className={`size-full object-contain ${sharing ? "hidden" : ""}`} /></> : null}{ended ? <div className="absolute inset-0 grid place-items-center bg-slate-100 text-center text-slate-700"><div><h2 className="text-xl font-extrabold">This class has ended</h2><p className="mt-1 text-sm">The live room is no longer available.</p></div></div> : null}</div>
-          <div data-bottom-rail className="mt-2 flex max-w-full snap-x items-end justify-start gap-1 overflow-x-auto rounded-xl bg-[#0d1421] px-1 py-2 text-white sm:justify-center"> <button onClick={toggleMic} className="inline-flex min-h-14 shrink-0 snap-start flex-col items-center justify-center gap-1 rounded-xl px-2 text-[11px] font-bold text-white/80 hover:bg-white/10">{micOn ? <Mic size={18} /> : <MicOff size={18} />}{micOn ? "Mic" : "Mic"}</button>{role === "CREATOR" ? <><button onClick={() => setSharedStage("whiteboard")} className={`inline-flex min-h-14 shrink-0 snap-start flex-col items-center justify-center gap-1 rounded-xl px-2 text-[11px] font-bold ${stage === "whiteboard" ? "bg-indigo-500 text-white" : "text-white/80 hover:bg-white/10"}`}><PenLine size={18} />Whiteboard</button><button onClick={() => void toggleScreen()} className={`inline-flex min-h-14 shrink-0 snap-start flex-col items-center justify-center gap-1 rounded-xl px-2 text-[11px] font-bold ${sharing ? "bg-indigo-500 text-white" : "text-white/80 hover:bg-white/10"}`}><MonitorUp size={18} />Share</button><label className="inline-flex min-h-14 shrink-0 cursor-pointer snap-start flex-col items-center justify-center gap-1 rounded-xl px-2 text-[11px] font-bold text-white/80 hover:bg-white/10"><ImagePlus size={18} />Image<input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(event) => void uploadImage(event)} /></label><button onClick={() => setNotice("Lesson content is not attached to this instant room yet.")} className="inline-flex min-h-14 shrink-0 snap-start flex-col items-center justify-center gap-1 rounded-xl px-2 text-[11px] font-bold text-white/80 hover:bg-white/10"><BookOpen size={18} />Lesson</button></> : null}{role === "CREATOR" ? <button onClick={() => void endClass()} className="inline-flex min-h-14 shrink-0 snap-start flex-col items-center justify-center gap-1 rounded-xl bg-[#ff6966] px-3 text-[11px] font-extrabold text-white hover:bg-[#ff5c59]"><X size={18} />End class</button> : <button onClick={() => window.location.assign("/account")} className="inline-flex min-h-14 shrink-0 snap-start flex-col items-center justify-center gap-1 rounded-xl px-3 text-[11px] font-bold text-white/80 hover:bg-white/10"><X size={18} />Leave</button>}</div>
+          <div data-bottom-rail className="mt-2 flex max-w-full snap-x items-end justify-start gap-1 overflow-x-auto rounded-xl bg-[#0d1421] px-1 py-2 text-white sm:justify-center"> <button onClick={toggleMic} disabled={ended} className="inline-flex min-h-14 shrink-0 snap-start flex-col items-center justify-center gap-1 rounded-xl px-2 text-[11px] font-bold text-white/80 hover:bg-white/10 disabled:opacity-50">{micOn ? <Mic size={18} /> : <MicOff size={18} />}{micOn ? "Mic" : "Mic"}</button>{role === "CREATOR" ? <><button onClick={() => setSharedStage("whiteboard")} disabled={ended} className={`inline-flex min-h-14 shrink-0 snap-start flex-col items-center justify-center gap-1 rounded-xl px-2 text-[11px] font-bold ${stage === "whiteboard" ? "bg-indigo-500 text-white" : "text-white/80 hover:bg-white/10"}`}><PenLine size={18} />Whiteboard</button><button onClick={() => void toggleScreen()} disabled={ended} className={`inline-flex min-h-14 shrink-0 snap-start flex-col items-center justify-center gap-1 rounded-xl px-2 text-[11px] font-bold ${sharing ? "bg-indigo-500 text-white" : "text-white/80 hover:bg-white/10"}`}><MonitorUp size={18} />Share</button><label className={`inline-flex min-h-14 shrink-0 snap-start flex-col items-center justify-center gap-1 rounded-xl px-2 text-[11px] font-bold text-white/80 ${ended ? "pointer-events-none opacity-50" : "cursor-pointer hover:bg-white/10"}`}><ImagePlus size={18} />Image<input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={(event) => void uploadImage(event)} /></label><button onClick={() => setNotice("Lesson content is not attached to this instant room yet.")} disabled={ended} className="inline-flex min-h-14 shrink-0 snap-start flex-col items-center justify-center gap-1 rounded-xl px-2 text-[11px] font-bold text-white/80 hover:bg-white/10"><BookOpen size={18} />Lesson</button><button onClick={() => void toggleClassLifecycle()} disabled={lifecycleBusy} className="inline-flex min-h-14 shrink-0 snap-start flex-col items-center justify-center gap-1 rounded-xl bg-[#ff6966] px-3 text-[11px] font-extrabold text-white hover:bg-[#ff5c59] disabled:opacity-70">{ended ? <RotateCcw size={18} /> : <X size={18} />}{lifecycleBusy ? (ended ? "Restarting…" : "Ending…") : ended ? "Restart" : "End class"}</button></> : <button onClick={() => window.location.assign("/account")} className="inline-flex min-h-14 shrink-0 snap-start flex-col items-center justify-center gap-1 rounded-xl px-3 text-[11px] font-bold text-white/80 hover:bg-white/10"><X size={18} />Leave</button>}</div>
         </div>
       </section>
       {role === "CREATOR" && stage === "whiteboard" ? <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-xl border border-white/10 bg-[#0d1421] p-2 lg:hidden" aria-label="Whiteboard tools">{renderWhiteboardTools(true)}</div> : null}
