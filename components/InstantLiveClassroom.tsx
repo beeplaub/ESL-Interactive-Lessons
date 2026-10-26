@@ -504,7 +504,7 @@ export function InstantLiveClassroom({
     if (kind === "screen" && !navigator.mediaDevices?.getDisplayMedia) {
       setNotice(
         /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)
-          ? "This device's browser or PWA does not expose full-screen capture. Use a supported screen-sharing app or use Image to show a picture."
+          ? "Full-screen sharing is not available in this browser or PWA. Use Image to show content; sharing your device screen requires a native BrenUp app, which is not available yet."
           : "This browser does not provide screen capture. Try a supported desktop browser or use Image to show a picture.",
       );
       return;
