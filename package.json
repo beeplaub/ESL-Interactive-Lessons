@@ -49,6 +49,9 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/cli": "^8.5.3",
+    "@capacitor/core": "^8.5.3",
     "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^22.9.0",
     "@types/react": "^19.0.0",

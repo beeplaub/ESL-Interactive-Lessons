@@ -38,6 +38,11 @@ import {
   type StageKind,
 } from "@/lib/instant-live/types";
 import styles from "./instant-live/Classroom.module.css";
+import {
+  isBrenUpNativeApp,
+  requestNativeScreenCapture,
+  stopNativeScreenCapture,
+} from "@/lib/nativeBridge";
 
 type ChatMessage = {
   id: string;
@@ -486,6 +491,9 @@ export function InstantLiveClassroom({
   async function stopSharing() {
     if (!self) return;
     try {
+      if (isBrenUpNativeApp()) {
+        await stopNativeScreenCapture();
+      }
       await command({ action: "release", session: self.sessionId });
       transport.stopPresentation();
     } catch (error) {
@@ -501,10 +509,10 @@ export function InstantLiveClassroom({
       await stopSharing();
       return;
     }
-    if (kind === "screen" && !navigator.mediaDevices?.getDisplayMedia) {
+    if (kind === "screen" && !navigator.mediaDevices?.getDisplayMedia && !isBrenUpNativeApp()) {
       setNotice(
         /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)
-          ? "Full-screen sharing is not available in this browser or PWA. Use Image to show content; sharing your device screen requires a native BrenUp app, which is not available yet."
+          ? "Full-screen sharing is not available in mobile web browsers. Please use the official BrenUp Android app or use Image to share content."
           : "This browser does not provide screen capture. Try a supported desktop browser or use Image to show a picture.",
       );
       return;
@@ -512,6 +520,14 @@ export function InstantLiveClassroom({
     setBusy(true);
     let stream: MediaStream | null = null;
     try {
+      if (kind === "screen" && isBrenUpNativeApp()) {
+        const nativeConsent = await requestNativeScreenCapture();
+        if (!nativeConsent.granted) {
+          setNotice(nativeConsent.message || "Screen capture permission was declined.");
+          setBusy(false);
+          return;
+        }
+      }
       // Capture must be requested directly from this click, before awaiting server work.
       const isMobile = /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
       stream =
