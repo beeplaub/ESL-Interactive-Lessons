@@ -23,6 +23,7 @@ import {
   UsersRound,
   Video,
   Volume2,
+  VolumeX,
   X,
 } from "lucide-react";
 import { LiveBoard } from "./instant-live/LiveBoard";
@@ -503,7 +504,7 @@ export function InstantLiveClassroom({
     if (kind === "screen" && !navigator.mediaDevices?.getDisplayMedia) {
       setNotice(
         /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)
-          ? "This mobile browser or installed app does not provide screen capture. Open BrenUp in a mobile browser with screen sharing support, or use Image to show a picture."
+          ? "This device's browser or PWA does not expose full-screen capture. Use a supported screen-sharing app or use Image to show a picture."
           : "This browser does not provide screen capture. Try a supported desktop browser or use Image to show a picture.",
       );
       return;
@@ -1196,6 +1197,8 @@ export function InstantLiveClassroom({
                   <span
                     className={`live-person-mic ${person.mic && !isMuted ? "is-on" : ""}`}
                     title={isMuted ? "Muted by teacher" : person.mic ? "Microphone on" : "Microphone off"}
+                    role="img"
+                    aria-label={isMuted ? "Muted by teacher" : person.mic ? "Microphone on" : "Microphone off"}
                   >
                     {person.mic && !isMuted ? <Mic size={15} /> : <MicOff size={15} />}
                   </span>
@@ -1210,7 +1213,7 @@ export function InstantLiveClassroom({
                           void moderateParticipant(isMuted ? "unmute" : "mute", person.userId)
                         }
                       >
-                        {isMuted ? <Volume2 size={15} /> : <MicOff size={15} />}
+                        {isMuted ? <Volume2 size={15} /> : <VolumeX size={15} />}
                       </button>
                       <button
                         type="button"

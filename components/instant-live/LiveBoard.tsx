@@ -225,9 +225,9 @@ export function LiveBoard({
     }
     if (tool === "select") {
       setSelected(hit?.id ?? null);
-      // Resizing or selecting text should not tear down the editor before the
-      // pointer gesture has finished. Double-click can then reopen it reliably.
-      if (!hit || hit.kind !== "text") setEditing(null);
+      // A single click on saved text should reopen its editor and toolbar.
+      // Pointer movement still moves/resizes the selected object.
+      setEditing(hit?.kind === "text" ? hit.id : null);
       if (hit) {
         checkpoint();
         drag.current = {
