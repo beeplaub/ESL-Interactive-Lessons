@@ -2,12 +2,13 @@
 import { useEffect, useRef, useState } from "react";
 import { Mic, Volume2, X } from "lucide-react";
 
-export function AudioSetup({ onClose, onEnableSound, onSelectMicrophone, onMicTested, onMicTestReset, connections }: {
+export function AudioSetup({ embedded = false, onClose, onEnableSound, onSelectMicrophone, onMicTested, onMicTestReset, connections }: {
+  embedded?: boolean;
   onClose: () => void;
   onEnableSound: () => Promise<void>;
   onSelectMicrophone: (id: string) => Promise<unknown>;
-  onMicTested: () => void;
-  onMicTestReset: () => void;
+  onMicTested?: () => void;
+  onMicTestReset?: () => void;
   connections: Record<string, RTCPeerConnectionState>;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
@@ -24,10 +25,10 @@ export function AudioSetup({ onClose, onEnableSound, onSelectMicrophone, onMicTe
   const mounted = useRef(true);
   useEffect(() => {
     mounted.current = true;
-    dialog.current?.showModal();
+    if (!embedded) dialog.current?.showModal();
     void navigator.mediaDevices?.enumerateDevices().then(setDevices).catch(() => {});
     return () => { mounted.current = false; cleanup.current(); };
-  }, []);
+  }, [embedded]);
   async function testMic() {
     if (testing) { cleanup.current(); setTesting(false); setLevel(0); return; }
     setBusy(true);
@@ -54,7 +55,7 @@ export function AudioSetup({ onClose, onEnableSound, onSelectMicrophone, onMicTe
         if (voiceFrames.current >= 9 && !voiceDetectedRef.current) {
           voiceDetectedRef.current = true;
           setVoiceDetected(true);
-          onMicTested();
+          onMicTested?.();
           setMessage("Your microphone is working. We detected your voice; you can close this check.");
         }
         frame = requestAnimationFrame(measure);
@@ -84,13 +85,12 @@ export function AudioSetup({ onClose, onEnableSound, onSelectMicrophone, onMicTe
     } catch { void context.close(); setMessage("Playback is blocked. Tap the speaker test again and check device volume."); }
   }
   const states = Object.values(connections);
-  return <dialog ref={dialog} className="live-audio-dialog" onCancel={onClose} onClick={e => { if(e.target === e.currentTarget) onClose(); }}>
-    <section>
-      <header><h2>Set up your microphone</h2><button aria-label="Close audio settings" onClick={onClose}><X size={19}/></button></header>
-      <p>Allow microphone access, then speak to confirm people in the class can hear you.</p>
+  const content = <section>
+      <header><h2>Microphone and speaker</h2>{!embedded ? <button aria-label="Close audio settings" onClick={onClose}><X size={19}/></button> : null}</header>
+      <p>Your microphone works when you turn it on. Use these checks only if you cannot be heard or hear the class.</p>
       <label>Microphone<select value={device} disabled={testing || busy} onChange={async e => {
         const id = e.target.value; setDevice(id); setBusy(true);
-        try { await onSelectMicrophone(id); setVoiceDetected(false); voiceDetectedRef.current = false; voiceFrames.current = 0; onMicTestReset(); setMessage("Microphone selected. Test it to confirm it is working."); }
+        try { await onSelectMicrophone(id); setVoiceDetected(false); voiceDetectedRef.current = false; voiceFrames.current = 0; onMicTestReset?.(); setMessage("Microphone selected. Test it to confirm it is working."); }
         catch { setMessage("Could not select that microphone. Try the default device."); }
         finally { setBusy(false); }
       }}><option value="">Device default</option>{devices.filter(d => d.kind === "audioinput" && d.deviceId && d.deviceId !== "default").map((d,i) => <option key={d.deviceId} value={d.deviceId}>{d.label || `Microphone ${i+1}`}</option>)}</select></label>
@@ -99,6 +99,12 @@ export function AudioSetup({ onClose, onEnableSound, onSelectMicrophone, onMicTe
       {voiceDetected ? <p className="live-audio-success"><span aria-hidden="true">✓</span> Microphone ready</p> : null}
       <p role="status">{message}</p>
       <small>{states.length ? `${states.filter(s => s === "connected").length} of ${states.length} media connections connected.` : "Waiting for another participant to test the live connection."} {states.some(s => s === "failed" || s === "disconnected") ? "Your network may block direct audio. Try another network and reconnect." : "Microphone permission and media connection are separate checks."}</small>
-    </section>
-  </dialog>;
+    </section>;
+  return embedded ? (
+    <div className="live-audio-dialog live-audio-embedded">{content}</div>
+  ) : (
+    <dialog ref={dialog} className="live-audio-dialog" onCancel={onClose} onClick={e => { if(e.target === e.currentTarget) onClose(); }}>
+      {content}
+    </dialog>
+  );
 }

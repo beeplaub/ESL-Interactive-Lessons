@@ -1218,9 +1218,9 @@
   }
 }
 
-.root :global(.live-audio-settings) { align-self: center; border: 1px solid #aaa0ff99; border-radius: 50%; padding: 6px; color: #f0edff; background: #635bdf; box-shadow: 0 0 12px #8177ff66; animation: live-audio-nudge 1.7s ease-in-out infinite; }
-@keyframes live-audio-nudge { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
 .root :global(.live-audio-dialog) { padding:0; border:1px solid #77749d66; border-radius:22px; background:#25293c; color:#f4f2ff; width:min(440px,calc(100vw - 32px)); box-shadow:0 24px 80px #0008; }
+.root :global(.live-audio-embedded) { width:auto; max-width:none; border:0; border-radius:0; background:transparent; box-shadow:none; }
+.root :global(.live-audio-embedded section) { padding:18px 20px 22px; }
 .root :global(.live-audio-dialog::backdrop) { background:#080d1a99; backdrop-filter:blur(5px); }
 .root :global(.live-audio-dialog section), .root :global(.live-feature-panel) { padding:24px; }
 .root :global(.live-feature-panel) { width:min(520px,calc(100vw - 32px)); max-height:85dvh; overflow:auto; background:#25293c; color:#f4f2ff; border:1px solid #77749d66; border-radius:22px; }
@@ -1340,15 +1340,14 @@
 .root :global(.live-setting-row > span) { display:grid; gap:4px; }
 .root :global(.live-setting-row strong) { font-size:13px; font-weight:650; }
 .root :global(.live-setting-row small) { color:#9ea6b9; font-size:11px; line-height:1.4; }
-.root :global(.live-setting-row > i) { position:relative; display:block; flex:none; width:40px; height:23px; padding:3px; border:1px solid #ffffff1b; border-radius:999px; background:#ffffff18; transition:background .18s,border-color .18s; }
-.root :global(.live-setting-row > i b) { display:block; width:15px; height:15px; border-radius:50%; background:#d6d8e4; box-shadow:0 1px 4px #0005; transition:transform .18s,background .18s; }
+.root :global(.live-setting-row > i) { position:relative; display:block; flex:none; width:40px; height:23px; padding:3px; border:1px solid #ffffff1b; border-radius:999px; background:#ffffff18; transition:background 160ms cubic-bezier(.2,.8,.2,1),border-color 160ms cubic-bezier(.2,.8,.2,1); }
+.root :global(.live-setting-row > i b) { display:block; width:15px; height:15px; border-radius:50%; background:#d6d8e4; box-shadow:0 1px 4px #0005; transition:transform 160ms cubic-bezier(.2,.8,.2,1),background 160ms cubic-bezier(.2,.8,.2,1); will-change:transform; }
 .root :global(.live-setting-row > i.is-on) { border-color:#8d83ff9c; background:linear-gradient(110deg,#6259db,#8a7bff); }
 .root :global(.live-setting-row > i.is-on b) { transform:translateX(16px); background:white; }
 .root :global(.live-setting-row:disabled) { opacity:.55; }
 .root :global(.live-settings-divider) { height:1px; margin:7px 0 18px; background:#ffffff12; }
 .root :global(.live-settings-note) { display:flex; align-items:center; gap:8px; margin-top:14px; padding:10px 12px; border:1px solid #ffffff12; border-radius:12px; color:#abb1c2; background:#ffffff06; font-size:11px; }
 .root :global(.live-settings-note svg) { color:#a9a0ff; }
-.root :global(.live-settings-saving) { display:block; margin-top:9px; color:#bcb5ff; font-size:11px; }
 .root :global(.live-recording-destination) { display:flex; align-items:center; gap:12px; margin:12px 0; padding:13px; border:1px solid #ffffff15; border-radius:14px; background:#ffffff08; color:#c5bdff; }
 .root :global(.live-recording-destination > span) { display:grid; gap:4px; min-width:0; }
 .root :global(.live-recording-destination strong) { overflow:hidden; color:#f3f2f8; font-size:13px; text-overflow:ellipsis; white-space:nowrap; }

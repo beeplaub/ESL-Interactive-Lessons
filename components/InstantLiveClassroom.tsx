@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Check,
-  ChevronUp,
   Download,
   BookOpen,
   Circle,
@@ -37,7 +36,6 @@ import { showContent, type ContentSelection } from "./instant-live/LiveContent";
 const LiveContent = dynamic(() => import("./instant-live/LiveContent").then(m => m.LiveContent));
 const ContentPicker = dynamic(() => import("./instant-live/LiveContent").then(m => m.ContentPicker));
 import { useLocalRecording } from "./instant-live/useLocalRecording";
-import { AudioSetup } from "./instant-live/AudioSetup";
 import { SettingsPanel, type RoomSettings } from "./instant-live/SettingsPanel";
 import type { RecordingDirectoryHandle } from "./instant-live/exportBoard";
 import { LiveBoard } from "./instant-live/LiveBoard";
@@ -148,22 +146,19 @@ export function InstantLiveClassroom({
   const [pointer, setPointer] = useState<[number, number] | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
   const [soundBlocked, setSoundBlocked] = useState(false);
-  const [audioSetup, setAudioSetup] = useState(false);
-  const [micCheckPassed, setMicCheckPassed] = useState(false);
   const [endClassOpen, setEndClassOpen] = useState(false);
   const [quitPrompt, setQuitPrompt] = useState(false);
   const [savingMaterials, setSavingMaterials] = useState(false);
   const [recordingAt, setRecordingAt] = useState<number | null>(null);
   const [recordingOpen, setRecordingOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [settingsSaving, setSettingsSaving] = useState<string | null>(null);
   const [waitingParticipants, setWaitingParticipants] = useState<WaitingParticipant[]>([]);
   const [roomSettings, setRoomSettings] = useState<RoomSettings>({ room_locked: false, learner_mic_enabled: true, learner_chat_enabled: true, learner_screen_share_enabled: true });
-  const [startMic, setStartMic] = useState(false);
-  const [micPreferenceLoaded, setMicPreferenceLoaded] = useState(false);
+  const roomSettingsRef = useRef(roomSettings);
+  const settingVersions = useRef<Partial<Record<keyof RoomSettings, number>>>({});
+  const settingQueues = useRef(new Map<keyof RoomSettings, Promise<void>>());
   const [recordingDirectory, setRecordingDirectory] = useState<RecordingDirectoryHandle | null>(null);
   const [recordingDirectoryName, setRecordingDirectoryName] = useState("Browser downloads");
-  const autoMicAttempted = useRef(false);
   const [contentPicker, setContentPicker] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
@@ -246,12 +241,14 @@ export function InstantLiveClassroom({
       if (Array.isArray(result.participants)) setServerParticipants(result.participants);
       if (chatResult?.messages) setChat(chatResult.messages);
       setClock(result.room);
-      setRoomSettings({
+      const nextRoomSettings = {
         room_locked: Boolean(result.room?.room_locked),
         learner_mic_enabled: result.room?.learner_mic_enabled !== false,
         learner_chat_enabled: result.room?.learner_chat_enabled !== false,
         learner_screen_share_enabled: result.room?.learner_screen_share_enabled !== false,
-      });
+      };
+      roomSettingsRef.current = nextRoomSettings;
+      setRoomSettings(nextRoomSettings);
       if (creator && Array.isArray(result.waitingParticipants)) setWaitingParticipants(result.waitingParticipants);
       setLoaded(true);
       return true;
@@ -264,11 +261,6 @@ export function InstantLiveClassroom({
       return false;
     }
   }, [api, applyState, creator, roomRevoked]);
-  useEffect(() => {
-    if (creator) { setMicPreferenceLoaded(true); return; }
-    try { setStartMic(localStorage.getItem("brenup:instant-live:start-mic") === "on"); }
-    finally { setMicPreferenceLoaded(true); }
-  }, [creator]);
   const scheduleRefresh = useCallback(() => {
     if (refreshTimer.current) return;
     refreshTimer.current = setTimeout(() => {
@@ -371,12 +363,6 @@ export function InstantLiveClassroom({
     onEvent,
     onNotice: setNotice,
   });
-  useEffect(() => {
-    if (!creator && micPreferenceLoaded && loaded && transport.ready && !autoMicAttempted.current) {
-      autoMicAttempted.current = true;
-      if (startMic && !paused && !forceMuted) void transportRef.current?.toggleMic();
-    }
-  }, [creator, forceMuted, loaded, micPreferenceLoaded, paused, startMic, transport.ready]);
   transportRef.current = transport;
   const peopleByUser = new Map<string, LivePerson>();
   for (const participant of serverParticipants) {
@@ -408,17 +394,34 @@ export function InstantLiveClassroom({
     }
   }
   async function updateRoomSetting(key: keyof RoomSettings, value: boolean) {
-    setSettingsSaving(key);
-    try {
-      const response = await fetch(`${api}/settings`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ [key]: value }) });
+    const previousValue = roomSettingsRef.current[key];
+    const nextSettings = { ...roomSettingsRef.current, [key]: value };
+    roomSettingsRef.current = nextSettings;
+    setRoomSettings(nextSettings);
+    const version = (settingVersions.current[key] ?? 0) + 1;
+    settingVersions.current[key] = version;
+    const previousRequest = settingQueues.current.get(key) ?? Promise.resolve();
+    const request = previousRequest.catch(() => {}).then(async () => {
+      const response = await fetch(`${api}/settings`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [key]: value }),
+      });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Could not save setting.");
-      setRoomSettings(result.settings);
-      setNotice("Room setting saved.");
-      void transportRef.current?.send("state-changed", {});
-      void refresh();
-    } catch (error) { setNotice(error instanceof Error ? error.message : "Could not save room setting."); }
-    finally { setSettingsSaving(null); }
+      if (settingVersions.current[key] === version) {
+        void transportRef.current?.send("state-changed", {});
+        void refresh();
+      }
+    }).catch((error: unknown) => {
+      if (settingVersions.current[key] === version) {
+        const rolledBack = { ...roomSettingsRef.current, [key]: previousValue };
+        roomSettingsRef.current = rolledBack;
+        setRoomSettings(rolledBack);
+        setNotice(error instanceof Error ? error.message : "Could not save room setting.");
+      }
+    });
+    settingQueues.current.set(key, request);
   }
   useEffect(() => { setRecordingAt(recording.startedAt); }, [recording.startedAt]);
   const recordingStop = useRef(recording.stop); recordingStop.current = recording.stop;
@@ -1294,7 +1297,6 @@ export function InstantLiveClassroom({
               transport.micOn && !forceMuted && !paused,
               paused || transport.superseded || forceMuted,
             )}
-            {!micCheckPassed ? <button className="live-audio-settings" aria-label="Check microphone and speaker" title="Check microphone and speaker" onClick={() => setAudioSetup(true)}><ChevronUp size={16}/></button> : null}
             {button(
               ownPresentation && state.stage === "camera"
                 ? "Stop video"
@@ -1564,7 +1566,7 @@ export function InstantLiveClassroom({
           onBlocked={() => setSoundBlocked(true)}
         />
       ))}
-      {settingsOpen ? <SettingsPanel creator={creator} settings={roomSettings} startMic={startMic} saving={settingsSaving} recordingLocation={isBrenUpNativeApp() ? "Choose on save" : recordingDirectoryName} canChooseFolder={canChooseRecordingFolder} onClose={() => setSettingsOpen(false)} onRoomChange={(key,value) => void updateRoomSetting(key,value)} onStartMic={value => { setStartMic(value); autoMicAttempted.current = false; try { localStorage.setItem("brenup:instant-live:start-mic", value ? "on" : "off"); } catch {} }} onChooseFolder={() => void chooseRecordingFolder()} onResetFolder={() => { setRecordingDirectory(null); setRecordingDirectoryName("Browser downloads"); }}/>: null}
+      {settingsOpen ? <SettingsPanel creator={creator} settings={roomSettings} recordingLocation={isBrenUpNativeApp() ? "Choose on save" : recordingDirectoryName} canChooseFolder={canChooseRecordingFolder} onClose={() => setSettingsOpen(false)} onRoomChange={(key,value) => void updateRoomSetting(key,value)} onChooseFolder={() => void chooseRecordingFolder()} onResetFolder={() => { setRecordingDirectory(null); setRecordingDirectoryName("Browser downloads"); }} onEnableSound={enableSound} onSelectMicrophone={transport.prepareMicrophone} connections={transport.connections}/>: null}
       {contentPicker && creator ? <ContentPicker api={api} onClose={() => setContentPicker(false)} onChoose={chooseContent}/> : null}
       {endClassOpen && creator ? (
         <div className="live-modal-backdrop" onClick={(event) => { if (event.target === event.currentTarget && !busy) setEndClassOpen(false); }}>
@@ -1595,7 +1597,6 @@ export function InstantLiveClassroom({
       {recordingOpen && creator ? <div className="live-modal-backdrop" onClick={e => {if(e.target === e.currentTarget && !recording.busy) setRecordingOpen(false);}}><section className="live-feature-panel" role="dialog" aria-modal="true" aria-label="Local recording"><header><h2 id="live-recording-title">Local recording</h2><button aria-label="Close recordings" onClick={() => setRecordingOpen(false)}><X size={18}/></button></header><p>{isBrenUpNativeApp() ? "Android will ask you to choose what to capture. The recording includes the selected screen and class audio, including your mic when on. Everyone sees a recording indicator. No upload or paid service." : "Choose this classroom tab in the browser's screen picker. Records its picture and class audio, including your mic when on. Everyone sees a recording indicator. No upload or paid service."}</p><p>{isBrenUpNativeApp() ? "Keep BrenUp open. Files are kept in this app's browser storage until you save or delete them. Android indicates active capture; stop the recording in BrenUp or from the Android notification when it is shown. A file stops at 500 MB; start another part if needed." : "Keep this tab open. Files are kept in this browser until you save or delete them. Screen capture requires a supported desktop browser. A file stops at 500 MB; start another part if needed."}</p>{isBrenUpNativeApp() && ownPresentation && state.stage === "screen" ? <p role="status">Stop your current screen share before starting a local recording.</p> : null}<button disabled={recording.busy || paused || Boolean(recording.startedAt) || (isBrenUpNativeApp() && ownPresentation && state.stage === "screen")} onClick={() => {setRecordingOpen(false); void recording.start();}}>Start recording</button>{recording.saved.map(file => <div className="live-recording-file" key={file.id}><span>{new Date(file.createdAt).toLocaleString()} · {(file.size/1e6).toFixed(1)} MB{!file.complete ? " · interrupted" : ""}</span><button disabled={recording.busy} onClick={() => void recording.save(file, recordingDirectory)}>Save to {recordingDirectoryName}</button><button disabled={recording.busy} onClick={() => {if(window.confirm("Delete this local recording? Save your file first.")) void recording.remove(file).catch(() => setNotice("Could not delete recording."));}}>Delete</button></div>)}</section></div> : null}
       {creator && recording.saved.length && !recording.startedAt ? <button className="live-recordings-ready" onClick={() => setRecordingOpen(true)}>Local recordings · {recording.saved.length}</button> : null}
       {exportOpen ? <div className="live-modal-backdrop" onClick={e => {if(e.target === e.currentTarget && !exporting) setExportOpen(false);}}><section className="live-feature-panel" role="dialog" aria-modal="true" aria-label="Export whiteboard"><header><h2>Export whiteboard</h2><button aria-label="Close export" disabled={exporting} onClick={() => setExportOpen(false)}><X size={18}/></button></header><p>The whole board, without toolbars or selection outlines.</p><button disabled={exporting} onClick={() => void exportWhiteboard(false)}>Save PNG to device</button><button disabled={exporting || paused} onClick={() => void exportWhiteboard(true)}>Add to image gallery</button>{exporting ? <p role="status">Preparing image…</p> : null}</section></div> : null}
-      {audioSetup ? <AudioSetup onClose={() => setAudioSetup(false)} onEnableSound={enableSound} onSelectMicrophone={transport.prepareMicrophone} onMicTested={() => setMicCheckPassed(true)} onMicTestReset={() => setMicCheckPassed(false)} connections={transport.connections}/> : null}
       {boardPicker ? (
         <div
           className="live-modal-backdrop"
