@@ -2,13 +2,13 @@
 import { useCallback, useEffect, useState, type ComponentProps } from "react";
 import { X } from "lucide-react";
 import { BuilderLessonPlayer } from "@/components/BuilderLessonPlayer";
-import { QuestionCard, type QuizQuestion } from "@/components/QuizPlayer";
+import { QuizPlayer, type QuizQuestion } from "@/components/QuizPlayer";
 import type { Json } from "@/types/database.types";
 import type { SharedState } from "@/lib/instant-live/types";
 
 export type ContentSelection = {kind:"lesson"|"quiz";id:string;index:number;reveal:boolean;tab?:"learn"|"practice";activityId?:string};
 type LessonPlayerData = Pick<ComponentProps<typeof BuilderLessonPlayer>, "lesson" | "slides" | "blocks" | "activities" | "narrationMap" | "narrationConfigMap">;
-type ContentData = {selection:ContentSelection|null;title:string;total:number;revision:number;viewerKey?:string;lessonPlayer?:LessonPlayerData;question?:QuizQuestion;response?:{answer:unknown;score:number|null;total:number};responses?:Array<{activity_id:string;answers:Json}>;answeredCount?:number};
+type ContentData = {selection:ContentSelection|null;title:string;total:number;revision:number;viewerKey?:string;lessonPlayer?:LessonPlayerData;quiz?:{id:string;title:string;level:string|null;topic:string|null;timer_minutes:number|null;questions:QuizQuestion[];pastAttempts:Array<{id:string;score:number;total:number;completedAt:string;answers:Json|null;status:string|null;gradingSource:string|null}>};responses?:Array<{activity_id:string;answers:Json}>};
 export function ContentPicker({api,onClose,onChoose}:{api:string;onClose:()=>void;onChoose:(selection:ContentSelection)=>Promise<void>}) {
   const [catalog,setCatalog]=useState<{lessons:Array<{id:string;title:string}>;quizzes:Array<{id:string;title:string}>}>({lessons:[],quizzes:[]});
   const [search,setSearch]=useState("");const [error,setError]=useState("");const [busy,setBusy]=useState(true);
@@ -17,21 +17,24 @@ export function ContentPicker({api,onClose,onChoose}:{api:string;onClose:()=>voi
 }
 export function LiveContent({api,revision,creator,paused,onChoose,onNotice}:{api:string;revision:number;creator:boolean;paused:boolean;onChoose:(selection:ContentSelection)=>Promise<void>;onNotice:(message:string)=>void}) {
   const [data,setData]=useState<ContentData|null>(null),[error,setError]=useState("");
-  const [answer,setAnswer]=useState<unknown>(null),[sent,setSent]=useState(false),[busy,setBusy]=useState(false);
   const load=useCallback(async(signal?:AbortSignal)=>{
     const response=await fetch(`${api}/content`,{signal,cache:"no-store"});const result=await response.json();if(!response.ok)throw new Error(result.error);setData(result);return result as ContentData;
   },[api]);
-  useEffect(()=>{const controller=new AbortController();setError("");void load(controller.signal).then(result=>{setAnswer(result.response?.answer??null);setSent(Boolean(result.response));}).catch(e=>{if(!controller.signal.aborted)setError(e.message);});return()=>controller.abort();},[load,revision]);
-  // Only the small response count is refreshed during teacher-led practice.
-  useEffect(()=>{if(!creator || data?.selection?.kind !== "quiz")return;const timer=setInterval(()=>{void load().catch(()=>{});},10000);return()=>clearInterval(timer);},[creator,load,data?.selection?.kind]);
-  async function navigate(selection:ContentSelection) {setBusy(true);try{await onChoose(selection);}catch(e){onNotice(e instanceof Error?e.message:"Could not change page.");}finally{setBusy(false);}}
-  async function submit() {if(!data?.question)return;setBusy(true);try{const response=await fetch(`${api}/content`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({action:"answer",questionId:data.question.id,answer})});const result=await response.json();if(!response.ok)throw new Error(result.error);setSent(true);}catch(e){onNotice(e instanceof Error?e.message:"Could not save answer.");}finally{setBusy(false);}}
+  useEffect(()=>{const controller=new AbortController();setError("");void load(controller.signal).catch(e=>{if(!controller.signal.aborted)setError(e.message);});return()=>controller.abort();},[load,revision]);
+  async function navigate(selection:ContentSelection) {try{await onChoose(selection);}catch(e){onNotice(e instanceof Error?e.message:"Could not change page.");}}
   if(error)return <div className="live-content-stage"><p role="alert">{error}</p><button onClick={()=>void load().then(()=>setError("")).catch(e=>setError(e.message))}>Retry</button></div>;
   if(!data?.selection)return <div className="live-content-stage">Loading shared content…</div>;
   const selection=data.selection;
-  return <div className="live-content-stage">{selection.kind === "quiz" ? <header className="live-content-heading"><h2>{data.title}</h2><span>{selection.index+1} / {data.total}</span>{creator?<nav><button disabled={paused||busy||selection.index===0} onClick={()=>void navigate({...selection,index:selection.index-1,reveal:false,tab:undefined,activityId:undefined})}>Previous</button><button disabled={paused||busy||selection.index>=data.total-1} onClick={()=>void navigate({...selection,index:selection.index+1,reveal:false,tab:undefined,activityId:undefined})}>Next</button></nav>:<small>Following your teacher</small>}</header> : null}
-    {selection.kind === "lesson" && data.lessonPlayer ? <BuilderLessonPlayer key={selection.id} {...data.lessonPlayer} initialProgress={null} initialSlideNumber={selection.index + 1} initialTab={selection.tab} instantClass={{api,notesKey:data.viewerKey ?? api,creator,paused:paused || busy,selection,onSelect:navigate,responses:data.responses ?? []}} /> : null}
-    {data.question?<><QuestionCard key={data.question.id} question={data.question} quizId={selection.kind === "quiz" ? selection.id : null} value={answer} submitted={selection.reveal} onChange={value=>{setAnswer(value);setSent(false);}}/>{creator?<div className="live-content-actions"><span>{data.answeredCount??0} responses saved</span><button disabled={busy||paused} onClick={()=>void navigate({...selection,reveal:!selection.reveal})}>{selection.reveal?"Reopen question":"Reveal answers"}</button></div>:<div className="live-content-actions"><button disabled={paused||busy||selection.reveal||sent||answer==null} onClick={()=>void submit()}>{busy?"Saving…":sent?"Answer saved":"Send answer"}</button><span>{selection.reveal?"Your teacher has revealed the answer.":"Your answer is private. Your teacher sees the response count."}</span></div>}</>:null}
+  return <div className="live-content-stage">{selection.kind === "quiz" && data.quiz ? <>
+    <header className="live-content-heading"><h2>{data.quiz.title}</h2><small>{data.quiz.level ?? "Quiz"}{data.quiz.topic ? ` · ${data.quiz.topic}` : ""}</small></header>
+    <div className="relative">
+      <div className={paused ? "pointer-events-none select-none opacity-60" : undefined} aria-hidden={paused || undefined}>
+        <QuizPlayer key={selection.id} quizId={data.quiz.id} questions={data.quiz.questions} pastAttempts={data.quiz.pastAttempts} isGuest={false} timerMinutes={data.quiz.timer_minutes} courseItemId={null} />
+      </div>
+      {paused ? <div className="absolute inset-0 z-20 grid place-items-center rounded-2xl bg-slate-950/55 p-4 text-center text-white backdrop-blur-sm"><div><strong className="text-lg">Class paused</strong><p className="mt-1 text-sm text-white/80">Quiz controls will be available when your teacher resumes.</p></div></div> : null}
+    </div>
+  </> : null}
+    {selection.kind === "lesson" && data.lessonPlayer ? <BuilderLessonPlayer key={selection.id} {...data.lessonPlayer} initialProgress={null} initialSlideNumber={selection.index + 1} initialTab={selection.tab} instantClass={{api,notesKey:data.viewerKey ?? api,creator,paused,selection,onSelect:navigate,responses:data.responses ?? []}} /> : null}
   </div>;
 }
 export async function showContent(api:string,selection:ContentSelection,session:string,revision:number):Promise<SharedState> {

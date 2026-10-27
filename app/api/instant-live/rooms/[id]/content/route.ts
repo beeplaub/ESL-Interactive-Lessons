@@ -76,16 +76,22 @@ export async function GET(request:Request,{params}:{params:Promise<{id:string}>}
     return json({selection:current,title:source.title,total:slides.length,revision:state.revision,viewerKey:`${id}:${user.id}`,responses:responses.data,lessonPlayer:{lesson:lessonResult.data,slides,blocks:blocks.data,activities:learnerActivities,narrationMap,narrationConfigMap}});
   }
 
-  const {data:questions,error:questionError}=await admin.from("quiz_questions").select("id,question_number,question_type,question_text,description,options,correct_answer,max_points").eq("quiz_id",current.id).order("question_number");
-  const question=questions?.[current.index]; if(questionError||!question)return fail("This question is unavailable.",404);
-  const {data:response}=await admin.from("instant_live_responses").select("answer,score,total").eq("room_id",id).eq("user_id",user.id).eq("question_id",question.id).maybeSingle();
-  const {count}=creator?await admin.from("instant_live_responses").select("question_id",{count:"exact",head:true}).eq("room_id",id).eq("question_id",question.id):{count:null};
-  // The shared renderer needs answer structure for gap-fill/matching. As in the
-  // existing practice player this is formative practice, not a secure examination.
-  const learnerQuestion = !creator && !current.reveal
-    ? { ...question, correct_answer: null }
-    : question;
-  return json({selection:current,title:source.title,total:questions!.length,question:learnerQuestion,response,answeredCount:count,revision:state.revision});
+  const [{data:quiz,error:quizError},{data:questions,error:questionError}] = await Promise.all([
+    admin.from("quizzes").select("id,title,level,topic,timer_minutes").eq("id",current.id).single(),
+    admin.from("quiz_questions").select("*").eq("quiz_id",current.id).order("question_number"),
+  ]);
+  if(quizError||questionError||!quiz||!questions?.length)return fail("This quiz is unavailable.",404);
+  const questionIds=questions.map(question=>question.id);
+  const [{data:assessmentItems},{data:attempts}] = await Promise.all([
+    admin.from("assessment_items").select("quiz_question_id,max_points").in("quiz_question_id",questionIds),
+    admin.from("quiz_attempts").select("id,score,total,answers,completed_at,status,grading_source").eq("quiz_id",current.id).eq("user_id",user.id).order("completed_at",{ascending:true}),
+  ]);
+  const pointsByQuestion=new Map((assessmentItems??[]).map(item=>[item.quiz_question_id,Number(item.max_points)]));
+  const scoredQuestions=questions.map(question=>({...question,max_points:pointsByQuestion.get(question.id)??null}));
+  const pastAttempts=(attempts??[]).map(attempt=>({id:attempt.id,score:Number(attempt.score??0),total:Number(attempt.total??0),answers:attempt.answers,completedAt:attempt.completed_at,status:attempt.status,gradingSource:attempt.grading_source}));
+  // Return the same complete question set used by /quizzes/[id]. QuizPlayer owns
+  // navigation, answer state, evaluation, scoring, review, and retake behavior.
+  return json({selection:current,title:source.title,total:questions.length,revision:state.revision,quiz:{...quiz,questions:scoredQuestions,pastAttempts}});
 }
 export async function POST(request:Request,{params}:{params:Promise<{id:string}>}) {
   const {id}=await params,access=await roomAccess(id,true);
