@@ -54,7 +54,9 @@ import {
 } from "@/lib/instant-live/types";
 import styles from "./instant-live/Classroom.module.css";
 import {
+  isBrenUpAndroidShell,
   isBrenUpNativeApp,
+  getNativeScreenCaptureStream,
   requestNativeScreenCapture,
   stopNativeScreenCapture,
 } from "@/lib/nativeBridge";
@@ -658,15 +660,21 @@ export function InstantLiveClassroom({
   }
   async function stopSharing() {
     if (!self) return;
+    const errors: string[] = [];
     try {
       if (isBrenUpNativeApp()) {
         await stopNativeScreenCapture();
       }
-      await command({ action: "release", session: self.sessionId });
-      transport.stopPresentation();
     } catch (error) {
-      setNotice((error as Error).message);
+      errors.push((error as Error).message);
     }
+    transport.stopPresentation();
+    try {
+      await command({ action: "release", session: self.sessionId });
+    } catch (error) {
+      errors.push((error as Error).message);
+    }
+    setNotice(errors.join(" "));
   }
   async function startSharing(kind: "screen" | "camera") {
     if (!creator && kind === "screen" && !roomSettings.learner_screen_share_enabled) {
@@ -674,6 +682,10 @@ export function InstantLiveClassroom({
       return;
     }
     if (!self || busy || locked || paused) return;
+    if (kind === "screen" && isBrenUpNativeApp() && (recording.startedAt || recording.busy)) {
+      setNotice("Stop or finish the local recording before starting a separate screen share.");
+      return;
+    }
     if (
       ownPresentation &&
       (state.stage === "screen" || state.stage === "camera")
@@ -683,7 +695,9 @@ export function InstantLiveClassroom({
     }
     if (kind === "screen" && !navigator.mediaDevices?.getDisplayMedia && !isBrenUpNativeApp()) {
       setNotice(
-        /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)
+        isBrenUpAndroidShell()
+          ? "BrenUp's Android screen-sharing connection is unavailable. Close and reopen the app. If this continues, contact support with your Android System WebView version."
+          : /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent)
           ? "Full-screen sharing is not available in mobile web browsers. Please use the official BrenUp Android app or use Image to share content."
           : "This browser does not provide screen capture. Try a supported desktop browser or use Image to show a picture.",
       );
@@ -691,18 +705,22 @@ export function InstantLiveClassroom({
     }
     setBusy(true);
     let stream: MediaStream | null = null;
+    let nativeCaptureStarted = false;
     try {
       if (kind === "screen" && isBrenUpNativeApp()) {
-        const nativeConsent = await requestNativeScreenCapture();
+        const nativeConsent = await requestNativeScreenCapture("share");
         if (!nativeConsent.granted) {
           setNotice(nativeConsent.message || "Screen capture permission was declined.");
           setBusy(false);
           return;
         }
+        if (!nativeConsent.streamUrl) throw new Error("Android did not provide a screen capture source.");
+        nativeCaptureStarted = true;
+        stream = await getNativeScreenCaptureStream(nativeConsent.streamUrl);
       }
       // Capture must be requested directly from this click, before awaiting server work.
       const isMobile = /Android|iPhone|iPad|Mobile/i.test(navigator.userAgent);
-      stream =
+      if (!stream) stream =
         kind === "screen"
           ? await navigator.mediaDevices.getDisplayMedia(
               isMobile
@@ -743,6 +761,7 @@ export function InstantLiveClassroom({
       setNotice("");
     } catch (error) {
       stream?.getTracks().forEach((t) => t.stop());
+      if (nativeCaptureStarted) await stopNativeScreenCapture().catch(() => undefined);
       setNotice(
         error instanceof Error
           ? error.message
@@ -931,7 +950,8 @@ export function InstantLiveClassroom({
       }
       const archive = createZip(entries);
       const stamp = new Date().toISOString().slice(0, 10);
-      saveLocalFile(archive, `${folder}-${stamp}.zip`);
+      const saved = await saveLocalFile(archive, `${folder}-${stamp}.zip`);
+      if (!saved) return;
       setQuitPrompt(false);
       await lifecycle("quit");
     } catch (error) {
@@ -990,7 +1010,7 @@ export function InstantLiveClassroom({
       const response = await fetch(`${api}/participants`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, userId: targetUserId }),
+        body: JSON.stringify({ action, ...(targetId ? { userId: targetId } : {}) }),
       });
       const result = await response.json();
       if (!response.ok)
@@ -1073,7 +1093,11 @@ export function InstantLiveClassroom({
         setAssets(old => [...old, result.asset]); setGallery(true);
         void transport.send("assets-changed", {});
         setNotice("Whiteboard added to your image gallery.");
-      } else saveLocalFile(blob, name);
+      } else {
+        const saved = await saveLocalFile(blob, name);
+        if (!saved) return;
+        if (isBrenUpNativeApp()) setNotice("Whiteboard saved to your device.");
+      }
       setExportOpen(false);
     } catch (error) { setNotice(error instanceof Error ? error.message : "Could not export the whiteboard."); }
     finally { setExporting(false); }

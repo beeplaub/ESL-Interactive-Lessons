@@ -200,6 +200,26 @@ export default async function ProfilePage() {
                 </div>
               )}
             </section>
+
+            <section className="br-learner-card p-5 sm:p-6">
+              <div className="flex items-start gap-3">
+                <span className="grid size-11 shrink-0 place-items-center rounded-[14px] bg-[var(--br-canvas-elevated)] text-[var(--br-chart-primary)]">
+                  <ShieldCheck className="size-5" />
+                </span>
+                <div>
+                  <h2 className="text-xl font-extrabold">Privacy and account data</h2>
+                  <p className="mt-1 text-sm leading-6 text-[var(--br-text-muted)]">
+                    You can request deletion of your BrenUp account and associated data through our Privacy Policy.
+                  </p>
+                  <Link
+                    href="/privacy#account-deletion"
+                    className="mt-3 inline-flex rounded-lg font-bold text-[var(--br-brand)] underline underline-offset-2 hover:text-[var(--br-brand-strong)]"
+                  >
+                    Request account deletion
+                  </Link>
+                </div>
+              </div>
+            </section>
           </div>
         </section>
       </section>

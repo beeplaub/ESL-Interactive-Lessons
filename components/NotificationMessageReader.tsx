@@ -5,6 +5,7 @@ import { ArrowLeft, ExternalLink, Mail, RotateCcw, Share2, Trash2 } from "lucide
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { deleteNotification, markNotificationUnread, restoreNotification } from "@/app/notifications/actions";
+import { isBrenUpNativeApp, shareNativeContent } from "@/lib/nativeBridge";
 
 type Notice = { id: string; title: string; detail: string | null; href: string | null; action_label: string | null; category: string; tone: string; created_at: string; archived_at: string | null };
 
@@ -15,7 +16,8 @@ export function NotificationMessageReader({ notice }: { notice: Notice }) {
   const share = async () => {
     const url = window.location.href;
     try {
-      if (navigator.share) await navigator.share({ title: notice.title, text: notice.detail || notice.title, url });
+      if (isBrenUpNativeApp()) await shareNativeContent({ title: notice.title, text: notice.detail || notice.title, url });
+      else if (navigator.share) await navigator.share({ title: notice.title, text: notice.detail || notice.title, url });
       else { await navigator.clipboard.writeText(url); setStatus("Link copied."); }
     } catch { /* User cancelled sharing or the browser refused it. */ }
   };

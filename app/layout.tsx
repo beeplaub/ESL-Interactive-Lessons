@@ -43,6 +43,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <link rel="icon" type="image/png" sizes="48x48" href="/brand/favicon-48.png" />
         <link rel="apple-touch-icon" sizes="180x180" href="/brand/apple-touch-icon.png" />
         <script dangerouslySetInnerHTML={{ __html: `
+          (function () {
+            var theme = localStorage.getItem('brenup-theme');
+            if (theme === 'dark') {
+              document.documentElement.dataset.theme = 'dark';
+              document.documentElement.style.colorScheme = 'dark';
+            }
+          })();
           if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
               navigator.serviceWorker.register('/api/push/worker', { scope: '/' });

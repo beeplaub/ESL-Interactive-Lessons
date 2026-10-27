@@ -66,7 +66,7 @@ const sections = [
   },
   {
     title: "9. Retention and deletion",
-    body: <p>We retain account and learning records while your account or an educational relationship requires them, including records needed for progress, reporting, safety, and legal obligations. You may request account deletion or correction by contacting us. Some records may remain in backups, audit logs, or legally required records for a limited period before secure deletion.</p>,
+    body: <p>We retain account and learning records while your account or an educational relationship requires them, including records needed for progress, reporting, safety, and legal obligations. To request deletion of your BrenUp account and associated data, email <a className="font-bold text-[var(--br-brand)] underline" href="mailto:support@brenup.com?subject=BrenUp%20account%20deletion%20request">support@brenup.com</a>. You may also contact us to request correction. Some records may remain in backups, audit logs, or legally required records for a limited period before secure deletion.</p>,
   },
   {
     title: "10. Security",
@@ -90,11 +90,11 @@ export default function PrivacyPage() {
         <header className="mt-8 border-b border-[var(--br-border)] pb-7">
           <p className="text-xs font-black uppercase tracking-[0.16em] text-[var(--br-brand)]">BrenUp legal</p>
           <h1 className="mt-2 text-3xl font-black tracking-tight text-[var(--br-text)] sm:text-4xl">Privacy Policy</h1>
-          <p className="mt-3 text-sm leading-6 text-[var(--br-text-muted)]">Last updated: August 7, 2026</p>
+          <p className="mt-3 text-sm leading-6 text-[var(--br-text-muted)]">Last updated: October 27, 2026</p>
           <p className="mt-4 max-w-3xl text-sm leading-7 text-[var(--br-text-muted)]">This policy explains what information BrenUp collects, why we use it, how it is shared, and the choices available to learners, teachers, schools, guardians, and administrators.</p>
         </header>
         <div className="mt-8 space-y-8 text-sm leading-7 text-[var(--br-text-muted)]">
-          {sections.map((section) => <section key={section.title}><h2 className="text-lg font-black text-[var(--br-text)]">{section.title}</h2><div className="mt-3">{section.body}</div></section>)}
+          {sections.map((section) => <section key={section.title} id={section.title.startsWith("9.") ? "account-deletion" : undefined}><h2 className="text-lg font-black text-[var(--br-text)]">{section.title}</h2><div className="mt-3">{section.body}</div></section>)}
         </div>
         <p className="mt-10 border-t border-[var(--br-border)] pt-6 text-xs leading-6 text-[var(--br-text-muted)]">This page is BrenUp’s public privacy notice. It should be reviewed by the platform operator and qualified legal counsel for the jurisdictions where BrenUp operates.</p>
       </article>

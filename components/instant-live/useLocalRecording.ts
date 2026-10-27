@@ -1,5 +1,11 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import {
+  getNativeScreenCaptureStream,
+  isBrenUpNativeApp,
+  requestNativeScreenCapture,
+  stopNativeScreenCapture,
+} from "@/lib/nativeBridge";
 import { saveRecordingFile, type RecordingDirectoryHandle } from "./exportBoard";
 
 type SavedRecording = { id: string; roomId: string; mime: string; createdAt: number; complete: boolean; size: number };
@@ -43,15 +49,32 @@ export function useLocalRecording(roomId: string, tracks: MediaStreamTrack[], on
   },[tracks,startedAt]);
   async function start() {
     if(starting.current || recorder.current?.state === "recording") return;
-    if(!navigator.mediaDevices?.getDisplayMedia || typeof MediaRecorder === "undefined") { notice.current("Local class recording needs a desktop browser with screen capture. Mobile recording is not available in this browser."); return; }
+    const nativeApp = isBrenUpNativeApp();
+    if((!nativeApp && !navigator.mediaDevices?.getDisplayMedia) || typeof MediaRecorder === "undefined" || typeof MediaStream === "undefined") {
+      notice.current(nativeApp
+        ? "Local class recording is not available in this Android WebView."
+        : "Local class recording needs a desktop browser with screen capture. Mobile recording is not available in this browser.");
+      return;
+    }
     starting.current=true; setBusy(true);
     let capture: MediaStream | undefined;
     let context: AudioContext | undefined;
+    let nativeCaptureStarted = false;
     try {
-      // Invoke capture directly from the teacher's click; no awaited server request.
-      const capturePromise = navigator.mediaDevices.getDisplayMedia({video:{frameRate:{ideal:15,max:20},width:{ideal:1280},height:{ideal:720}},audio:false});
+      if(nativeApp) {
+        const consent = await requestNativeScreenCapture("record");
+        if(!consent.granted) {
+          notice.current(consent.message || "Screen capture permission was declined.");
+          return;
+        }
+        if(!consent.streamUrl) throw new Error("Android did not provide a screen capture source.");
+        nativeCaptureStarted = true;
+        capture = await getNativeScreenCaptureStream(consent.streamUrl);
+      } else {
+        // Invoke browser capture directly from the teacher's click.
+        capture = await navigator.mediaDevices.getDisplayMedia({video:{frameRate:{ideal:15,max:20},width:{ideal:1280},height:{ideal:720}},audio:false});
+      }
       context=new AudioContext(); await context.resume();
-      capture=await capturePromise;
       if(!mounted.current) throw new Error("Classroom closed.");
       const destination=context.createMediaStreamDestination();
       mixer.current={context,destination,sources:new Map()};
@@ -64,7 +87,17 @@ export function useLocalRecording(roomId: string, tracks: MediaStreamTrack[], on
       const entry: SavedRecording={id:crypto.randomUUID(),roomId,mime:media.mimeType,createdAt:Date.now(),complete:false,size:0};
       await transaction(["recordings"],"readwrite",tx=>{tx.objectStore("recordings").put(entry);});
       let index=0, queue=Promise.resolve(), failed=false;
-      dispose.current=()=>{capture?.getTracks().forEach(t=>t.stop()); mixer.current?.sources.forEach(s=>s.disconnect()); destination.stream.getTracks().forEach(t=>t.stop()); void context?.close(); mixer.current=null;};
+      dispose.current=()=>{
+        capture?.getTracks().forEach(t=>t.stop());
+        mixer.current?.sources.forEach(s=>s.disconnect());
+        destination.stream.getTracks().forEach(t=>t.stop());
+        void context?.close();
+        mixer.current=null;
+        if(nativeCaptureStarted) {
+          nativeCaptureStarted=false;
+          void stopNativeScreenCapture().catch(()=>{});
+        }
+      };
       media.ondataavailable=e=>{
         if(!e.data.size) return;
         const chunkIndex=index++; entry.size+=e.data.size;
@@ -82,8 +115,16 @@ export function useLocalRecording(roomId: string, tracks: MediaStreamTrack[], on
       media.onerror=()=>{notice.current("Recording was interrupted. Save the available file and try again."); if(media.state!=="inactive") media.stop();};
       capture.getVideoTracks()[0].onended=()=>{if(media.state!=="inactive")media.stop();};
       recorder.current=media; media.start(2000); setStartedAt(entry.createdAt);
-      notice.current("Recording locally. Keep this tab open. Class audio is included; nothing is uploaded.");
-    } catch(error) {capture?.getTracks().forEach(t=>t.stop()); void context?.close(); mixer.current=null; notice.current(error instanceof DOMException && error.name==="NotAllowedError" ? "Recording cancelled. Choose this classroom tab to record." : error instanceof Error ? error.message : "Could not start recording.");}
+      notice.current(nativeApp
+        ? "Recording locally. Keep BrenUp open. Android indicates active capture; stop in BrenUp or from the Android notification when it is shown. Class audio is included, and nothing is uploaded."
+        : "Recording locally. Keep this tab open. Class audio is included; nothing is uploaded.");
+    } catch(error) {
+      capture?.getTracks().forEach(t=>t.stop());
+      if(nativeCaptureStarted) await stopNativeScreenCapture().catch(()=>undefined);
+      void context?.close();
+      mixer.current=null;
+      notice.current(error instanceof DOMException && error.name==="NotAllowedError" ? (nativeApp ? "Recording cancelled in Android's screen-capture prompt." : "Recording cancelled. Choose this classroom tab to record.") : error instanceof Error ? error.message : "Could not start recording.");
+    }
     finally {starting.current=false;if(mounted.current)setBusy(false);}
   }
   function stop() {if(recorder.current?.state === "recording") {setBusy(true);recorder.current.stop();}}
@@ -94,7 +135,8 @@ export function useLocalRecording(roomId: string, tracks: MediaStreamTrack[], on
       const chunks=await new Promise<Array<{blob:Blob}>>((resolve,reject)=>{const request=db.transaction("chunks").objectStore("chunks").getAll(IDBKeyRange.bound([entry.id,0],[entry.id,Number.MAX_SAFE_INTEGER]));request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);}).finally(()=>db.close());
       if(!chunks.length) throw new Error("No recording data is available.");
       await saveRecordingFile(new Blob(chunks.map(c=>c.blob),{type:entry.mime}),`BrenUp-class-${new Date(entry.createdAt).toISOString().replace(/[:.]/g,"-")}.${entry.mime.includes("mp4")?"mp4":"webm"}`, directory);
-    } catch {notice.current("Could not save this recording. Keep the browser data and retry.");}
+      if (isBrenUpNativeApp()) notice.current("Recording saved to the location you selected.");
+    } catch {notice.current(isBrenUpNativeApp() ? "Could not save this recording. Keep the app data and retry." : "Could not save this recording. Keep the browser data and retry.");}
     finally {setBusy(false);}
   }
   async function remove(entry:SavedRecording) {

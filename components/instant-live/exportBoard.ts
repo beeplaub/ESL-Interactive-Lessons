@@ -1,4 +1,5 @@
 import { BOARD_HEIGHT, BOARD_WIDTH } from "@/lib/instant-live/types";
+import { isBrenUpNativeApp, saveNativeFile } from "@/lib/nativeBridge";
 
 /** Export the document, independent of each viewer's pan/zoom and selection. */
 export async function exportBoard(element: SVGSVGElement): Promise<Blob> {
@@ -40,10 +41,12 @@ export async function exportBoard(element: SVGSVGElement): Promise<Blob> {
   context.drawImage(image,0,0,canvas.width,canvas.height);
   return new Promise((resolve,reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error("Could not export the whiteboard.")), "image/png"));
 }
-export function saveLocalFile(blob: Blob, name: string) {
+export async function saveLocalFile(blob: Blob, name: string): Promise<boolean> {
+  if (isBrenUpNativeApp()) return saveNativeFile(blob, name);
   const url = URL.createObjectURL(blob), link = document.createElement("a");
   link.href = url; link.download = name; link.click();
   setTimeout(() => URL.revokeObjectURL(url), 60000);
+  return true;
 }
 
 /** Android WebView cannot reliably download a blob URL; save local recordings with SAF instead. */

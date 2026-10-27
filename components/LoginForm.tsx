@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { isBrenUpAndroidShell } from "@/lib/nativeBridge";
 
 export function LoginForm() {
   const supabase = createClient();
@@ -19,6 +20,13 @@ export function LoginForm() {
   const [message, setMessage] = useState<string | null>(null);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
   const [isPending, startTransition] = useTransition();
+
+  function authCallbackUrl() {
+    const base = isBrenUpAndroidShell()
+      ? "com.brenup.app://auth/callback"
+      : `${window.location.origin}/auth/callback`;
+    return `${base}?next=${encodeURIComponent(nextPath)}`;
+  }
 
   async function redirectForRole() {
     const response = await fetch(`/auth/role?next=${encodeURIComponent(nextPath)}`, {
@@ -87,7 +95,7 @@ export function LoginForm() {
         return;
       }
 
-      const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`;
+      const redirectTo = authCallbackUrl();
       const { error } = await supabase.auth.signInWithOtp({
         email: trimmedEmail,
         options: {
@@ -108,7 +116,7 @@ export function LoginForm() {
   function signInWithGoogle() {
     startTransition(async () => {
       setMessage(null);
-      const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`;
+      const redirectTo = authCallbackUrl();
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: { redirectTo },

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { isBrenUpAndroidShell } from "@/lib/nativeBridge";
 
 export function ForgotPasswordForm() {
   const supabase = createClient();
@@ -14,8 +15,11 @@ export function ForgotPasswordForm() {
     if (!email.trim()) return;
     startTransition(async () => {
       setMessage(null);
+      const redirectTo = isBrenUpAndroidShell()
+        ? "com.brenup.app://auth/reset-password"
+        : `${window.location.origin}/auth/reset-password`;
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: `${window.location.origin}/auth/reset-password`,
+        redirectTo,
       });
       if (error) {
         setMessage(error.message);

@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, Eye, EyeOff, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { isBrenUpAndroidShell } from "@/lib/nativeBridge";
 import { recordQuizAttempt } from "@/app/quizzes/actions";
 
 export type PendingAttempt = {
@@ -154,7 +155,11 @@ export function GuestScorePopup({
     startTransition(async () => {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo: `${window.location.origin}/auth/callback?next=/account` },
+        options: {
+          redirectTo: isBrenUpAndroidShell()
+            ? "com.brenup.app://auth/callback?next=%2Faccount"
+            : `${window.location.origin}/auth/callback?next=/account`,
+        },
       });
       if (error) setMessage(error.message);
     });
