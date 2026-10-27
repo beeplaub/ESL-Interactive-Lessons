@@ -960,8 +960,8 @@ export function InstantLiveClassroom({
         setModeration((old) => old.filter((item) => item.userId !== targetId));
       } else {
         setModeration((old) => [
-          ...old.filter((item) => item.userId !== targetUserId),
-          { userId: targetUserId, micMuted: action === "mute" },
+          ...old.filter((item) => item.userId !== targetId),
+          { userId: targetId, micMuted: action === "mute" },
         ]);
       }
       setNotice(
