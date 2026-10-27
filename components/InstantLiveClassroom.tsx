@@ -1103,6 +1103,7 @@ export function InstantLiveClassroom({
               <span>{copied ? "Copied" : "Copy link"}</span>
             </button>
           ) : null}
+          <button title="Class settings" aria-label="Class settings" onClick={() => setSettingsOpen(true)}><Settings size={18}/></button>
           <button
             title="Refresh the shared board, chat, and media connection"
             aria-label="Refresh classroom and reconnect media"
