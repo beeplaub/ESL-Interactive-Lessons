@@ -490,6 +490,38 @@
   border-color: #c0b4ff99;
   color: white;
 }
+.root :global(.live-control.is-mic-on .live-control-icon) {
+  position: relative;
+  background: linear-gradient(145deg, #3c8c7d, #28685e);
+  border-color: #86f0d2;
+  box-shadow: 0 0 0 2px #66dfbd25, 0 0 20px #66dfbd70, inset 0 1px 1px #ffffff24;
+}
+.root :global(.live-control.is-mic-on .live-control-icon::after) {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  border: 1px solid #79e8c5aa;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: live-mic-ring 1.45s ease-out infinite;
+}
+.root :global(.live-control.is-mic-on .live-control-icon svg),
+.root :global(.live-person-mic.is-on svg),
+.root :global(.live-person-actions button.is-mic-on svg) {
+  transform-origin: 50% 72%;
+  animation: live-mic-wobble 0.78s ease-in-out infinite;
+}
+@keyframes live-mic-wobble {
+  0%, 100% { transform: rotate(0) scale(1); }
+  18% { transform: rotate(-12deg) scale(1.08); }
+  38% { transform: rotate(10deg) scale(1.08); }
+  58% { transform: rotate(-8deg) scale(1.04); }
+  78% { transform: rotate(6deg) scale(1.03); }
+}
+@keyframes live-mic-ring {
+  0% { opacity: .72; transform: scale(.86); }
+  100% { opacity: 0; transform: scale(1.48); }
+}
 .root :global(.live-control.is-cta .live-control-icon) {
   width: 78px;
   border-radius: 25px;
@@ -785,6 +817,7 @@
 }
 .root :global(.live-person-mic.is-on) {
   color: #70dec1;
+  filter: drop-shadow(0 0 5px #70dec188);
 }
 .root :global(.live-person-actions) {
   display: flex;
@@ -800,6 +833,12 @@
   border-radius: 9px;
   color: #d9d8ee;
   background: #ffffff0b;
+}
+.root :global(.live-person-actions button.is-mic-on) {
+  color: #87f0d1;
+  border-color: #75dfbd88;
+  background: #28685e66;
+  box-shadow: 0 0 12px #70dec133;
 }
 .root :global(.live-person-actions button:hover) {
   background: #ffffff18;
@@ -1184,7 +1223,8 @@
   }
 }
 
-.root :global(.live-audio-settings) { align-self: center; border: 1px solid #8583ad55; border-radius: 50%; padding: 6px; color: #c5c0ee; background: #33374a; }
+.root :global(.live-audio-settings) { align-self: center; border: 1px solid #aaa0ff99; border-radius: 50%; padding: 6px; color: #f0edff; background: #635bdf; box-shadow: 0 0 12px #8177ff66; animation: live-audio-nudge 1.7s ease-in-out infinite; }
+@keyframes live-audio-nudge { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
 .root :global(.live-audio-dialog) { padding:0; border:1px solid #77749d66; border-radius:22px; background:#25293c; color:#f4f2ff; width:min(440px,calc(100vw - 32px)); box-shadow:0 24px 80px #0008; }
 .root :global(.live-audio-dialog::backdrop) { background:#080d1a99; backdrop-filter:blur(5px); }
 .root :global(.live-audio-dialog section), .root :global(.live-feature-panel) { padding:24px; }
@@ -1198,6 +1238,16 @@
 .root :global(.live-audio-meter i) { display:block; height:100%; min-width:0; border-radius:inherit; background:linear-gradient(90deg,#69d8bd 0%,#a3e86d 72%,#ffb45c 100%); box-shadow:0 0 12px #69d8bd88; transition:width 65ms linear; }
 .root :global(.live-audio-meter.is-testing) { border-color:#a89eff; box-shadow:0 0 0 3px #7568ff22,inset 0 1px 3px #0008; }
 .root :global(.live-audio-actions) { display:flex; gap:10px; flex-wrap:wrap; }
+.root :global(.live-audio-actions .live-audio-primary) { background:linear-gradient(120deg,#ff8664,#ff674f); border-color:#ff9c7655; color:white; }
+.root :global(.live-audio-success) { display:flex; align-items:center; gap:8px; color:#83e7c6!important; font-weight:700; }
+.root :global(.live-audio-success span) { display:grid; place-items:center; width:20px; height:20px; border-radius:50%; color:#14231e; background:#83e7c6; }
+@media (prefers-reduced-motion: reduce) {
+  .root :global(.live-audio-settings),
+  .root :global(.live-control.is-mic-on .live-control-icon::after),
+  .root :global(.live-control.is-mic-on .live-control-icon svg),
+  .root :global(.live-person-mic.is-on svg),
+  .root :global(.live-person-actions button.is-mic-on svg) { animation: none; }
+}
 .root :global(.live-audio-actions button), .root :global(.live-feature-panel > button), .root :global(.live-recording-file button) { display:inline-flex; align-items:center; gap:7px; padding:10px 14px; background:#635bdf; border:1px solid #aaa1ef; border-radius:12px; margin:4px; font-size:13px; color:white; }
 .root :global(.live-audio-dialog small) { display:block; color:#b7b4cd; line-height:1.6; }
 .root :global(.live-recording-badge) { display:flex; align-items:center; gap:7px; font-size:12px; font-variant-numeric:tabular-nums; color:#ffb6ab; padding:5px 9px; border-radius:20px; background:#ff725e18; }

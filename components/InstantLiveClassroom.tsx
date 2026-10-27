@@ -137,6 +137,7 @@ export function InstantLiveClassroom({
   const [fullscreen, setFullscreen] = useState(false);
   const [soundBlocked, setSoundBlocked] = useState(false);
   const [audioSetup, setAudioSetup] = useState(false);
+  const [micCheckPassed, setMicCheckPassed] = useState(false);
   const [recordingAt, setRecordingAt] = useState<number | null>(null);
   const [recordingOpen, setRecordingOpen] = useState(false);
   const [contentPicker, setContentPicker] = useState(false);
@@ -910,7 +911,7 @@ export function InstantLiveClassroom({
   ) => (
     <button
       type="button"
-      className={`live-control ${active ? "is-active" : ""} ${cta ? "is-cta" : ""}`}
+      className={`live-control ${active ? "is-active" : ""} ${cta ? "is-cta" : ""} ${label === "Mic" && active ? "is-mic-on" : ""}`}
       onClick={onClick}
       disabled={disabled}
       aria-label={label}
@@ -1122,12 +1123,12 @@ export function InstantLiveClassroom({
           <div className="live-bottom-rail">
             {button(
               forceMuted ? "Muted by teacher" : "Mic",
-              transport.micOn && !forceMuted ? Mic : MicOff,
+              transport.micOn && !forceMuted && !paused ? Mic : MicOff,
               () => { void enableSound().catch(() => {}); void transport.toggleMic(); },
-              transport.micOn && !forceMuted,
+              transport.micOn && !forceMuted && !paused,
               paused || transport.superseded || forceMuted,
             )}
-            <button className="live-audio-settings" aria-label="Microphone and speaker settings" title="Audio settings and tests" onClick={() => setAudioSetup(true)}><ChevronUp size={16}/></button>
+            {!micCheckPassed ? <button className="live-audio-settings" aria-label="Check microphone and speaker" title="Check microphone and speaker" onClick={() => setAudioSetup(true)}><ChevronUp size={16}/></button> : null}
             {button(
               ownPresentation && state.stage === "camera"
                 ? "Stop video"
@@ -1345,6 +1346,7 @@ export function InstantLiveClassroom({
                   {creator && isLearner ? (
                     <div className="live-person-actions">
                       <button
+                        className={person.mic && !isMuted ? "is-mic-on" : ""}
                         type="button"
                         title={isMuted ? "Muted by teacher · click to allow microphone (learner must turn it on)" : person.mic ? "Microphone on · click to mute" : "Microphone off · click to prevent unmuting"}
                         aria-label={`${isMuted ? "Allow microphone for" : "Mute"} ${person.name}`}
@@ -1392,7 +1394,7 @@ export function InstantLiveClassroom({
       {recordingOpen && creator ? <div className="live-modal-backdrop" onClick={e => {if(e.target === e.currentTarget && !recording.busy) setRecordingOpen(false);}}><section className="live-feature-panel" role="dialog" aria-modal="true" aria-label="Local recording"><header><h2>Local recording</h2><button aria-label="Close recordings" onClick={() => setRecordingOpen(false)}><X size={18}/></button></header><p>Choose this classroom tab in the browser's screen picker. Records its picture and class audio, including your mic when on. Everyone sees a recording indicator. No upload or paid service.</p><p>Keep this tab open. Files are kept in this browser until you save or delete them. Screen capture requires a supported desktop browser. A file stops at 500 MB; start another part if needed.</p><button disabled={recording.busy || paused || Boolean(recording.startedAt)} onClick={() => {setRecordingOpen(false); void recording.start();}}>Start recording</button>{recording.saved.map(file => <div className="live-recording-file" key={file.id}><span>{new Date(file.createdAt).toLocaleString()} · {(file.size/1e6).toFixed(1)} MB{!file.complete ? " · interrupted" : ""}</span><button disabled={recording.busy} onClick={() => void recording.save(file)}>Save file</button><button disabled={recording.busy} onClick={() => {if(window.confirm("Delete this local recording? Save your file first.")) void recording.remove(file).catch(() => setNotice("Could not delete recording."));}}>Delete</button></div>)}</section></div> : null}
       {creator && recording.saved.length && !recording.startedAt ? <button className="live-recordings-ready" onClick={() => setRecordingOpen(true)}>Local recordings · {recording.saved.length}</button> : null}
       {exportOpen ? <div className="live-modal-backdrop" onClick={e => {if(e.target === e.currentTarget && !exporting) setExportOpen(false);}}><section className="live-feature-panel" role="dialog" aria-modal="true" aria-label="Export whiteboard"><header><h2>Export whiteboard</h2><button aria-label="Close export" disabled={exporting} onClick={() => setExportOpen(false)}><X size={18}/></button></header><p>The whole board, without toolbars or selection outlines.</p><button disabled={exporting} onClick={() => void exportWhiteboard(false)}>Save PNG to device</button><button disabled={exporting || paused} onClick={() => void exportWhiteboard(true)}>Add to image gallery</button>{exporting ? <p role="status">Preparing image…</p> : null}</section></div> : null}
-      {audioSetup ? <AudioSetup onClose={() => setAudioSetup(false)} onEnableSound={enableSound} onSelectMicrophone={transport.prepareMicrophone} connections={transport.connections}/> : null}
+      {audioSetup ? <AudioSetup onClose={() => setAudioSetup(false)} onEnableSound={enableSound} onSelectMicrophone={transport.prepareMicrophone} onMicTested={() => setMicCheckPassed(true)} onMicTestReset={() => setMicCheckPassed(false)} connections={transport.connections}/> : null}
       {boardPicker ? (
         <div
           className="live-modal-backdrop"
