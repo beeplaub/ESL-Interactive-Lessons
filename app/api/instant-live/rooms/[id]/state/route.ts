@@ -102,6 +102,17 @@ export async function GET(
         "Learner",
     ]),
   );
+  let waitingParticipants: { userId: string; name: string; joinedAt: number }[] = [];
+  if (creator) {
+    const { data: waiting } = await admin.from("instant_live_participants")
+      .select("user_id,joined_at").eq("room_id", id).eq("role", "LEARNER").eq("status", "WAITING").order("joined_at");
+    const waitingIds = [...new Set((waiting ?? []).map(person => person.user_id))];
+    const { data: waitingProfiles } = waitingIds.length
+      ? await admin.from("profiles").select("id,full_name,first_name,last_name").in("id", waitingIds)
+      : { data: [] };
+    const waitingNames = new Map((waitingProfiles ?? []).map(profile => [profile.id, profile.full_name?.trim() || [profile.first_name, profile.last_name].filter(Boolean).join(" ") || "Learner"]));
+    waitingParticipants = (waiting ?? []).map(person => ({ userId: person.user_id, name: waitingNames.get(person.user_id) ?? "Learner", joinedAt: Date.parse(person.joined_at) }));
+  }
   return NextResponse.json(
     {
       state: state ?? emptyState(id),
@@ -114,6 +125,7 @@ export async function GET(
         joinedAt: Date.parse(person.joined_at),
         micMuted: person.mic_muted,
       })),
+      waitingParticipants,
       moderation: (participants ?? []).map(({ user_id, mic_muted }) => ({
         userId: user_id,
         micMuted: mic_muted,
@@ -141,6 +153,8 @@ export async function POST(
   }
   if (!parsed.success) return fail("Invalid classroom update.");
   const command = parsed.data;
+  if (command.action === "claim" && !creator && command.stage === "screen" && !access.room.learner_screen_share_enabled)
+    return fail("The teacher has disabled learner screen sharing.", 403);
   const { data } = await admin
     .from("instant_live_state")
     .select("*")

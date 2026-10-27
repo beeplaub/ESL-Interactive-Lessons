@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireUser, getFreshProfile } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { InstantLiveClassroom } from "@/components/InstantLiveClassroom";
+import { WaitingRoom } from "@/components/instant-live/WaitingRoom";
 
 export default async function InstantLiveRoomPage({
   params,
@@ -14,7 +15,7 @@ export default async function InstantLiveRoomPage({
   const { data: room } = await admin
     .from("instant_live_rooms")
     .select(
-      "id,title,join_code,status,creator_id,max_learners,expires_at,created_at,active_started_at,elapsed_seconds,pause_until",
+      "id,title,join_code,status,creator_id,max_learners,expires_at,created_at,active_started_at,elapsed_seconds,pause_until,room_locked,learner_mic_enabled,learner_chat_enabled,learner_screen_share_enabled",
     )
     .eq("id", id)
     .maybeSingle();
@@ -39,7 +40,7 @@ export default async function InstantLiveRoomPage({
       .gte("last_seen_at", new Date(Date.now() - 90000).toISOString());
     const { data: existing } = await admin
       .from("instant_live_participants")
-      .select("id,status")
+      .select("id,status,joined_at")
       .eq("room_id", id)
       .eq("user_id", user.id)
       .maybeSingle();
@@ -52,13 +53,20 @@ export default async function InstantLiveRoomPage({
       );
     if (status === "PAUSED" && existing?.status !== "JOINED")
       return <EndedRoom title="Class is paused" detail="Only learners who joined before the pause can return during the 15-minute resume window." />;
-    if ((count ?? 0) >= room.max_learners)
+    if (!room.room_locked && existing?.status !== "JOINED" && existing?.status !== "WAITING" && (count ?? 0) >= room.max_learners)
       return (
         <EndedRoom
           title="This class is full"
           detail="The creator can host up to ten learners in this pilot."
         />
       );
+    if (status === "LIVE" && room.room_locked && existing?.status !== "JOINED") {
+      await admin.from("instant_live_participants").upsert(
+        { room_id: id, user_id: user.id, role, status: "WAITING", joined_at: existing?.joined_at ?? new Date().toISOString(), left_at: null, last_seen_at: new Date().toISOString() },
+        { onConflict: "room_id,user_id" },
+      );
+      return <WaitingRoom roomId={id} title={room.title} />;
+    }
   }
   if (status === "LIVE")
     await admin.from("instant_live_participants").upsert(

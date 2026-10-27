@@ -61,6 +61,8 @@ export async function POST(
   const { id } = await context.params;
   const access = await roomAccess(id, true);
   if (access.error) return access.error;
+  if (!access.creator && !access.room.learner_chat_enabled)
+    return NextResponse.json({ error: "The teacher has disabled learner chat." }, { status: 403 });
 
   const text = await request.text();
   if (text.length > 10000)

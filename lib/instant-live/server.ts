@@ -15,7 +15,7 @@ export async function roomAccess(id: string, requireLive = false) {
   const admin = createAdminClient();
   const { data: foundRoom, error } = await admin
     .from("instant_live_rooms")
-    .select("id,creator_id,status,expires_at,elapsed_seconds,active_started_at,pause_until,creator_last_seen_at")
+    .select("id,creator_id,status,expires_at,elapsed_seconds,active_started_at,pause_until,creator_last_seen_at,max_learners,room_locked,learner_mic_enabled,learner_chat_enabled,learner_screen_share_enabled")
     .eq("id", id)
     .maybeSingle();
   if (error || !foundRoom)
@@ -40,7 +40,7 @@ export async function roomAccess(id: string, requireLive = false) {
       .eq("id", id)
       .eq("status", "LIVE")
       .eq("creator_last_seen_at", room.creator_last_seen_at)
-      .select("id,creator_id,status,expires_at,elapsed_seconds,active_started_at,pause_until,creator_last_seen_at")
+      .select("id,creator_id,status,expires_at,elapsed_seconds,active_started_at,pause_until,creator_last_seen_at,max_learners,room_locked,learner_mic_enabled,learner_chat_enabled,learner_screen_share_enabled")
       .maybeSingle();
     if (pausedRoom) room = pausedRoom;
   }
@@ -52,7 +52,7 @@ export async function roomAccess(id: string, requireLive = false) {
       .eq("id", id)
       .eq("status", "PAUSED")
       .lte("pause_until", endedAt)
-      .select("id,creator_id,status,expires_at,elapsed_seconds,active_started_at,pause_until,creator_last_seen_at")
+      .select("id,creator_id,status,expires_at,elapsed_seconds,active_started_at,pause_until,creator_last_seen_at,max_learners,room_locked,learner_mic_enabled,learner_chat_enabled,learner_screen_share_enabled")
       .maybeSingle();
     if (endedRoom) room = endedRoom;
   }

@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { saveLocalFile } from "./exportBoard";
+import { saveRecordingFile, type RecordingDirectoryHandle } from "./exportBoard";
 
 type SavedRecording = { id: string; roomId: string; mime: string; createdAt: number; complete: boolean; size: number };
 function database(): Promise<IDBDatabase> {
@@ -87,13 +87,13 @@ export function useLocalRecording(roomId: string, tracks: MediaStreamTrack[], on
     finally {starting.current=false;if(mounted.current)setBusy(false);}
   }
   function stop() {if(recorder.current?.state === "recording") {setBusy(true);recorder.current.stop();}}
-  async function save(entry:SavedRecording) {
+  async function save(entry:SavedRecording, directory?: RecordingDirectoryHandle | null) {
     setBusy(true);
     try {
       const db=await database();
       const chunks=await new Promise<Array<{blob:Blob}>>((resolve,reject)=>{const request=db.transaction("chunks").objectStore("chunks").getAll(IDBKeyRange.bound([entry.id,0],[entry.id,Number.MAX_SAFE_INTEGER]));request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error);}).finally(()=>db.close());
       if(!chunks.length) throw new Error("No recording data is available.");
-      saveLocalFile(new Blob(chunks.map(c=>c.blob),{type:entry.mime}),`BrenUp-class-${new Date(entry.createdAt).toISOString().replace(/[:.]/g,"-")}.${entry.mime.includes("mp4")?"mp4":"webm"}`);
+      await saveRecordingFile(new Blob(chunks.map(c=>c.blob),{type:entry.mime}),`BrenUp-class-${new Date(entry.createdAt).toISOString().replace(/[:.]/g,"-")}.${entry.mime.includes("mp4")?"mp4":"webm"}`, directory);
     } catch {notice.current("Could not save this recording. Keep the browser data and retry.");}
     finally {setBusy(false);}
   }

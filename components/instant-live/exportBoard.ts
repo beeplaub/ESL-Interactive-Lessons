@@ -45,3 +45,19 @@ export function saveLocalFile(blob: Blob, name: string) {
   link.href = url; link.download = name; link.click();
   setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
+
+/** Android WebView cannot reliably download a blob URL; save local recordings with SAF instead. */
+export type RecordingDirectoryHandle = {
+  name: string;
+  getFileHandle(name: string, options: { create: boolean }): Promise<{ createWritable(): Promise<{ write(blob: Blob): Promise<void>; close(): Promise<void> }> }>;
+};
+export async function saveRecordingFile(blob: Blob, name: string, directory?: RecordingDirectoryHandle | null): Promise<boolean> {
+  if (directory) {
+    const file = await directory.getFileHandle(name, { create: true });
+    const writer = await file.createWritable();
+    await writer.write(blob);
+    await writer.close();
+    return true;
+  }
+  await Promise.resolve(saveLocalFile(blob, name));
+  return true;

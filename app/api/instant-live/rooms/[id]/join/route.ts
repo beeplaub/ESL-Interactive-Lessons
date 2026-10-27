@@ -2,6 +2,24 @@ import { NextResponse } from "next/server";
 import { requireUser, getFreshProfile } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+export async function GET(
+  _request: Request,
+  context: { params: Promise<{ id: string }> },
+) {
+  const { id } = await context.params;
+  const { user } = await requireUser();
+  const admin = createAdminClient();
+  const [{ data: room }, { data: participant }] = await Promise.all([
+    admin.from("instant_live_rooms").select("status,pause_until,expires_at").eq("id", id).maybeSingle(),
+    admin.from("instant_live_participants").select("status").eq("room_id", id).eq("user_id", user.id).maybeSingle(),
+  ]);
+  if (!room || room.status === "ENDED" || (room.status === "PAUSED" && Date.parse(room.pause_until ?? room.expires_at) <= Date.now()))
+    return NextResponse.json({ status: "ENDED" });
+  if (participant?.status === "WAITING")
+    await admin.from("instant_live_participants").update({ last_seen_at: new Date().toISOString() }).eq("room_id", id).eq("user_id", user.id).eq("status", "WAITING");
+  return NextResponse.json({ status: participant?.status ?? "WAITING" }, { headers: { "Cache-Control": "private, no-store" } });
+}
+
 export async function POST(
   _request: Request,
   context: { params: Promise<{ id: string }> },
@@ -11,7 +29,7 @@ export async function POST(
   const admin = createAdminClient();
   const { data: room } = await admin
     .from("instant_live_rooms")
-    .select("id,title,join_code,status,creator_id,max_learners,expires_at")
+    .select("id,title,join_code,status,creator_id,max_learners,expires_at,room_locked")
     .eq("id", id)
     .maybeSingle();
   if (!room)
@@ -32,7 +50,7 @@ export async function POST(
   if (role === "LEARNER") {
     const { data: existing } = await admin
       .from("instant_live_participants")
-      .select("status")
+      .select("status,joined_at")
       .eq("room_id", id)
       .eq("user_id", user.id)
       .maybeSingle();
@@ -41,6 +59,19 @@ export async function POST(
         { error: "You cannot rejoin this class." },
         { status: 403 },
       );
+    if (room.room_locked && existing?.status !== "JOINED") {
+      const { error } = await admin.from("instant_live_participants").upsert({
+        room_id: id,
+        user_id: user.id,
+        role,
+        status: "WAITING",
+        joined_at: existing?.joined_at ?? new Date().toISOString(),
+        left_at: null,
+        last_seen_at: new Date().toISOString(),
+      }, { onConflict: "room_id,user_id" });
+      if (error) return NextResponse.json({ error: "Could not enter the waiting room." }, { status: 503 });
+      return NextResponse.json({ status: "WAITING" }, { status: 202 });
+    }
     const { count } = await admin
       .from("instant_live_participants")
       .select("id", { count: "exact", head: true })
@@ -49,7 +80,7 @@ export async function POST(
       .neq("user_id", user.id)
       .eq("status", "JOINED")
       .gte("last_seen_at", new Date(Date.now() - 90000).toISOString());
-    if ((count ?? 0) >= room.max_learners)
+    if (existing?.status !== "JOINED" && (count ?? 0) >= room.max_learners)
       return NextResponse.json(
         { error: "This live class is full." },
         { status: 409 },
