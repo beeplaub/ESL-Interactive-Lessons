@@ -1,14 +1,14 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ComponentProps } from "react";
 import { X } from "lucide-react";
-import { type PreviewLessonBlock } from "@/components/LessonBlockPreview";
-import { LiveLessonSlide } from "./LiveLessonSlide";
+import { BuilderLessonPlayer } from "@/components/BuilderLessonPlayer";
 import { QuestionCard, type QuizQuestion } from "@/components/QuizPlayer";
 import type { Json } from "@/types/database.types";
 import type { SharedState } from "@/lib/instant-live/types";
 
 export type ContentSelection = {kind:"lesson"|"quiz";id:string;index:number;reveal:boolean;tab?:"learn"|"practice";activityId?:string};
-type ContentData = {selection:ContentSelection|null;title:string;total:number;revision:number;slide?:{id:string;title:string;section_label?:string|null;content_order?:string|null};blocks?:PreviewLessonBlock[];activities?:Array<{id:string;activity_type:string;activity_data:Json}>;question?:QuizQuestion;response?:{answer:unknown;score:number|null;total:number};responses?:Array<{activity_id:string;answers:Json}>;answeredCount?:number};
+type LessonPlayerData = Pick<ComponentProps<typeof BuilderLessonPlayer>, "lesson" | "slides" | "blocks" | "activities" | "narrationMap" | "narrationConfigMap">;
+type ContentData = {selection:ContentSelection|null;title:string;total:number;revision:number;viewerKey?:string;lessonPlayer?:LessonPlayerData;question?:QuizQuestion;response?:{answer:unknown;score:number|null;total:number};responses?:Array<{activity_id:string;answers:Json}>;answeredCount?:number};
 export function ContentPicker({api,onClose,onChoose}:{api:string;onClose:()=>void;onChoose:(selection:ContentSelection)=>Promise<void>}) {
   const [catalog,setCatalog]=useState<{lessons:Array<{id:string;title:string}>;quizzes:Array<{id:string;title:string}>}>({lessons:[],quizzes:[]});
   const [search,setSearch]=useState("");const [error,setError]=useState("");const [busy,setBusy]=useState(true);
@@ -23,14 +23,14 @@ export function LiveContent({api,revision,creator,paused,onChoose,onNotice}:{api
   },[api]);
   useEffect(()=>{const controller=new AbortController();setError("");void load(controller.signal).then(result=>{setAnswer(result.response?.answer??null);setSent(Boolean(result.response));}).catch(e=>{if(!controller.signal.aborted)setError(e.message);});return()=>controller.abort();},[load,revision]);
   // Only the small response count is refreshed during teacher-led practice.
-  useEffect(()=>{if(!creator)return;const timer=setInterval(()=>{void load().catch(()=>{});},10000);return()=>clearInterval(timer);},[creator,load]);
+  useEffect(()=>{if(!creator || data?.selection?.kind !== "quiz")return;const timer=setInterval(()=>{void load().catch(()=>{});},10000);return()=>clearInterval(timer);},[creator,load,data?.selection?.kind]);
   async function navigate(selection:ContentSelection) {setBusy(true);try{await onChoose(selection);}catch(e){onNotice(e instanceof Error?e.message:"Could not change page.");}finally{setBusy(false);}}
   async function submit() {if(!data?.question)return;setBusy(true);try{const response=await fetch(`${api}/content`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({action:"answer",questionId:data.question.id,answer})});const result=await response.json();if(!response.ok)throw new Error(result.error);setSent(true);}catch(e){onNotice(e instanceof Error?e.message:"Could not save answer.");}finally{setBusy(false);}}
   if(error)return <div className="live-content-stage"><p role="alert">{error}</p><button onClick={()=>void load().then(()=>setError("")).catch(e=>setError(e.message))}>Retry</button></div>;
   if(!data?.selection)return <div className="live-content-stage">Loading shared content…</div>;
   const selection=data.selection;
-  return <div className="live-content-stage"><header className="live-content-heading"><h2>{data.title}</h2><span>{selection.index+1} / {data.total}</span>{creator?<nav><button disabled={paused||busy||selection.index===0} onClick={()=>void navigate({...selection,index:selection.index-1,reveal:false,tab:undefined,activityId:undefined})}>Previous</button><button disabled={paused||busy||selection.index>=data.total-1} onClick={()=>void navigate({...selection,index:selection.index+1,reveal:false,tab:undefined,activityId:undefined})}>Next</button></nav>:<small>Following your teacher</small>}</header>
-    {selection.kind === "lesson" ? <LiveLessonSlide key={`${selection.id}:${selection.index}`} api={api} title={data.slide?.title ?? data.title} sectionLabel={data.slide?.section_label} practiceFirst={data.slide?.content_order === "PRACTICE_FIRST"} selection={selection} total={data.total} blocks={data.blocks ?? []} activities={data.activities ?? []} responses={data.responses ?? []} creator={creator} paused={paused} busy={busy} onChoose={navigate} /> : null}
+  return <div className="live-content-stage">{selection.kind === "quiz" ? <header className="live-content-heading"><h2>{data.title}</h2><span>{selection.index+1} / {data.total}</span>{creator?<nav><button disabled={paused||busy||selection.index===0} onClick={()=>void navigate({...selection,index:selection.index-1,reveal:false,tab:undefined,activityId:undefined})}>Previous</button><button disabled={paused||busy||selection.index>=data.total-1} onClick={()=>void navigate({...selection,index:selection.index+1,reveal:false,tab:undefined,activityId:undefined})}>Next</button></nav>:<small>Following your teacher</small>}</header> : null}
+    {selection.kind === "lesson" && data.lessonPlayer ? <BuilderLessonPlayer key={selection.id} {...data.lessonPlayer} initialProgress={null} initialSlideNumber={selection.index + 1} initialTab={selection.tab} instantClass={{api,notesKey:data.viewerKey ?? api,creator,paused:paused || busy,selection,onSelect:navigate,responses:data.responses ?? []}} /> : null}
     {data.question?<><QuestionCard key={data.question.id} question={data.question} value={answer} submitted={selection.reveal} onChange={value=>{setAnswer(value);setSent(false);}}/>{creator?<div className="live-content-actions"><span>{data.answeredCount??0} responses saved</span><button disabled={busy||paused} onClick={()=>void navigate({...selection,reveal:!selection.reveal})}>{selection.reveal?"Reopen question":"Reveal answers"}</button></div>:<div className="live-content-actions"><button disabled={paused||busy||selection.reveal||sent||answer==null} onClick={()=>void submit()}>{busy?"Saving…":sent?"Answer saved":"Send answer"}</button><span>{selection.reveal?"Your teacher has revealed the answer.":"Your answer is private. Your teacher sees the response count."}</span></div>}</>:null}
   </div>;
 }

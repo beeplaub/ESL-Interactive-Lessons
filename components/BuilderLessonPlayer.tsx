@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import type { TouchEvent } from "react";
 import { ArrowLeft, ArrowRight, Award, BookOpenText, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Languages, List, Music2, NotebookPen, Pause, Play, RotateCcw, Sparkles, X } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useTransition } from "react";
-import { LessonActivityPanel, lessonActivityTotalPoints } from "@/components/LessonActivityPanel";
+import { LessonActivityPanel, lessonActivityTotalPoints, lessonActivityScore } from "@/components/LessonActivityPanel";
 import { LessonContentTabs } from "@/components/LessonContentTabs";
 import { LessonBlockPreview } from "@/components/LessonBlockPreview";
 import { liveJson, notifyLiveRoom, useLiveRefresh } from "@/lib/liveSync";
@@ -25,6 +25,15 @@ type Block = { id: string; slide_id: string; position: number; block_type: strin
 type Activity = { id: string; slide_id: string | null; slide_number: number; activity_type: string; activity_data: Json | null };
 type Progress = { current_slide_number: number; completed: boolean } | null;
 type ActivityAttempt = { id?: string; lesson_slide_activity_id: string | null; score: number; total: number; answers: Json | null; completed_at: string; status?: string | null; grading_source?: string | null };
+type InstantClassMode = {
+  api: string;
+  notesKey: string;
+  creator: boolean;
+  paused: boolean;
+  selection: { kind: "lesson" | "quiz"; id: string; index: number; reveal: boolean; tab?: "learn" | "practice"; activityId?: string };
+  onSelect: (selection: InstantClassMode["selection"]) => Promise<void>;
+  responses: Array<{ activity_id: string; answers: Json }>;
+};
 type LiveSessionMode = { sessionId: string; role: "TEACHER" | "STUDENT"; initialSlideNumber: number; navigationLocked: boolean };
 
 function activityQuestionCount(activity: Activity) {
@@ -82,6 +91,7 @@ function NarrationPill({ src, lessonId, slideId, sourceType = "RECORDED", transl
   const [expanded, setExpanded] = useState(false);
   const [speed, setSpeed] = useState(1);
   const [autoplayBlocked, setAutoplayBlocked] = useState(false);
+  const [audioError, setAudioError] = useState<string | null>(null);
   const [originalFinished, setOriginalFinished] = useState(false);
   const [translationState, setTranslationState] = useState<"idle" | "loading" | "playing" | "done" | "error">("idle");
   const [translationError, setTranslationError] = useState<string | null>(null);
@@ -90,6 +100,7 @@ function NarrationPill({ src, lessonId, slideId, sourceType = "RECORDED", transl
 
   // Autoplay on mount
   useEffect(() => {
+    setAudioError(null);
     if (isYouTubeAudio) {
       setPlaying(false);
       setCurrentTime(0);
@@ -129,7 +140,11 @@ function NarrationPill({ src, lessonId, slideId, sourceType = "RECORDED", transl
     }
     const a = audioRef.current;
     if (!a) return;
-    if (a.paused) { void a.play(); } else { a.pause(); }
+    if (a.paused) {
+      if (a.error) a.load();
+      setAudioError(null);
+      void a.play().then(() => setAutoplayBlocked(false)).catch(() => setAutoplayBlocked(true));
+    } else { a.pause(); }
   }
 
   function skip(secs: number) {
@@ -170,7 +185,8 @@ function NarrationPill({ src, lessonId, slideId, sourceType = "RECORDED", transl
         ref={audioRef}
         src={src}
         preload="auto"
-        onPlay={() => setPlaying(true)}
+        onPlay={() => { setPlaying(true); setAudioError(null); setAutoplayBlocked(false); }}
+        onError={() => { setPlaying(false); setAudioError("Narration could not load. Tap play to retry."); }}
         onPause={() => setPlaying(false)}
         onEnded={() => { setPlaying(false); setCurrentTime(duration); setOriginalFinished(true); }}
         onTimeUpdate={() => setCurrentTime(audioRef.current?.currentTime ?? 0)}
@@ -181,7 +197,7 @@ function NarrationPill({ src, lessonId, slideId, sourceType = "RECORDED", transl
       {autoplayBlocked && !playing && (
         <button
           type="button"
-          onClick={() => { void audioRef.current?.play(); setAutoplayBlocked(false); }}
+          onClick={toggle}
           className="flex items-center gap-1.5 text-[10px] font-semibold text-amber-300 hover:text-on-dark"
         >
           <Play size={10} /> Tap to play narration
@@ -275,13 +291,14 @@ function NarrationPill({ src, lessonId, slideId, sourceType = "RECORDED", transl
           </button>
         </div>
       )}
+      {audioError ? <p role="alert" className="max-w-48 text-[10px] text-amber-200">{audioError}</p> : null}
       {translationError ? <p className="max-w-48 text-[10px] text-amber-200">{translationError}</p> : null}
     </div>
   );
 }
 
 export function BuilderLessonPlayer({
-  lesson, slides, blocks, activities, initialProgress, activityAttempts = [], initialNotes = {}, narrationMap = {}, narrationConfigMap = {}, courseItemId = null, backHref = "/courses", liveSession = null, startInReviewMode = false, initialSlideNumber, initialTab, focusActivityId = null, classroomId, practiceModuleMode = false,
+  lesson, slides, blocks, activities, initialProgress, activityAttempts = [], initialNotes = {}, narrationMap = {}, narrationConfigMap = {}, courseItemId = null, backHref = "/courses", liveSession = null, startInReviewMode = false, initialSlideNumber, initialTab, focusActivityId = null, classroomId, practiceModuleMode = false, instantClass,
 }: {
   lesson: Lesson; slides: Slide[]; blocks: Block[]; activities: Activity[];
   initialProgress: Progress; activityAttempts?: ActivityAttempt[];
@@ -297,7 +314,12 @@ export function BuilderLessonPlayer({
   focusActivityId?: string | null;
   classroomId?: string;
   practiceModuleMode?: boolean;
+  instantClass?: InstantClassMode;
 }) {
+  const inInstantClass = Boolean(instantClass);
+  const instantIndex = instantClass?.selection.index;
+  const instantTab = instantClass?.selection.tab;
+  const instantActivityId = instantClass?.selection.activityId;
   const resolvedInitialSlideNumber = startInReviewMode ? 1 : initialSlideNumber ?? liveSession?.initialSlideNumber ?? initialProgress?.current_slide_number ?? 1;
   const initialIndex = Math.max(0, Math.min(slides.length - 1, resolvedInitialSlideNumber - 1));
   const [index, setIndex] = useState(initialIndex);
@@ -312,7 +334,10 @@ export function BuilderLessonPlayer({
   const [remainingSeconds, setRemainingSeconds] = useState(() => lesson.timer_minutes ? lesson.timer_minutes * 60 : null);
   const [message, setMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const [savedActivityAttempts, setSavedActivityAttempts] = useState<ActivityAttempt[]>(activityAttempts);
+  const [savedActivityAttempts, setSavedActivityAttempts] = useState<ActivityAttempt[]>(() => instantClass ? instantClass.responses.flatMap(response => {
+    const activity = activities.find(item => item.id === response.activity_id);
+    return activity ? [{lesson_slide_activity_id:activity.id,answers:response.answers,score:lessonActivityScore(activity,response.answers),total:lessonActivityTotalPoints(activity),completed_at:new Date().toISOString()}] : [];
+  }) : activityAttempts);
   const [jumpOpen, setJumpOpen] = useState(false);
   const [jumpMenuPosition, setJumpMenuPosition] = useState<{ left: number; bottom: number } | null>(null);
   const jumpButtonRef = useRef<HTMLButtonElement>(null);
@@ -332,12 +357,12 @@ export function BuilderLessonPlayer({
   const [isDragging, setIsDragging] = useState(false);
   const [liveActivityStates, setLiveActivityStates] = useState<Record<string, { state: string; closesAt: string | null }>>({});
   const [liveTimerEndsAt, setLiveTimerEndsAt] = useState<string | null>(null);
-  const [liveNavigationLocked, setLiveNavigationLocked] = useState(Boolean(liveSession?.navigationLocked));
+  const [liveNavigationLocked, setLiveNavigationLocked] = useState(Boolean(liveSession?.navigationLocked || instantClass));
   const [, setLiveClock] = useState(0);
   const lastTeacherSlide = useRef<number | null>(liveSession?.initialSlideNumber ?? null);
   const lessonViewportRef = useRef<HTMLElement | null>(null);
-  const isLiveStudent = liveSession?.role === "STUDENT";
-  const isLiveTeacher = liveSession?.role === "TEACHER";
+  const isLiveStudent = liveSession?.role === "STUDENT" || Boolean(instantClass && !instantClass.creator);
+  const isLiveTeacher = liveSession?.role === "TEACHER" || Boolean(instantClass?.creator);
   const classroomSessionId = classroomId ?? liveSession?.sessionId;
   useEffect(() => {
     if (classroomSessionId) window.dispatchEvent(new CustomEvent("brenup-classroom-position", { detail: { sessionId: classroomSessionId, slide: slides[index]?.slide_number ?? index + 1 } }));
@@ -352,6 +377,9 @@ export function BuilderLessonPlayer({
     return () => window.removeEventListener("brenup-classroom-slide", navigate);
   }, [classroomSessionId, slides.length]);
 
+  useEffect(() => {
+    if (instantIndex !== undefined) setIndex(Math.max(0, Math.min(slides.length - 1, instantIndex)));
+  }, [instantIndex, slides.length]);
   const slide = slides[index] ?? null;
 
   useLayoutEffect(() => {
@@ -430,6 +458,13 @@ export function BuilderLessonPlayer({
     target?.scrollIntoView({ behavior: "smooth", block: "center" });
   }, [activeTab, focusActivityId, slide?.id]);
 
+  const instantActivityIndex = slideActivities.findIndex(activity => activity.id === instantActivityId);
+  useEffect(() => {
+    if (instantIndex === undefined) return;
+    setActiveTab(instantTab ?? defaultTab);
+    setPracticeActivityIndex(instantActivityIndex >= 0 ? instantActivityIndex : 0);
+  }, [instantIndex, instantTab, instantActivityIndex, defaultTab]);
+
   const progressPercent = slides.length ? Math.round(((index + 1) / slides.length) * 100) : 0;
   const timerUrgent = remainingSeconds !== null && remainingSeconds <= 60;
   const liveTimerSeconds = liveSession && liveTimerEndsAt ? Math.max(0, Math.ceil((new Date(liveTimerEndsAt).getTime() - Date.now()) / 1000)) : null;
@@ -459,8 +494,8 @@ export function BuilderLessonPlayer({
   const slideActivityIds = slideActivities.map((activity) => activity.id).join(",");
   useEffect(() => {
     const firstIncomplete = slideActivities.findIndex((activity) => !latestAttemptByActivity.has(activity.id));
-    setPracticeActivityIndex(firstIncomplete >= 0 ? firstIncomplete : 0);
-  }, [latestAttemptByActivity, slide?.id, slideActivityIds]);
+    if (!inInstantClass) setPracticeActivityIndex(firstIncomplete >= 0 ? firstIncomplete : 0);
+  }, [latestAttemptByActivity, slide?.id, slideActivityIds, slideActivities, inInstantClass]);
   const totalLessonMarks = useMemo(
     () => activities.reduce((sum, activity) => sum + lessonActivityTotalPoints({
       id: activity.id,
@@ -493,21 +528,29 @@ export function BuilderLessonPlayer({
   // Creator-controlled gate: only meaningful when Practice is set first on this slide,
   // and only while the learner hasn't yet submitted every activity on it.
   const practiceSubmitted = slideActivities.length > 0 && slideActivities.every((a) => latestAttemptByActivity.has(a.id));
-  const learnLocked = practiceFirst && Boolean(slide?.require_practice_before_learn) && practiceAvailable && !practiceSubmitted;
+  const learnLocked = practiceFirst && Boolean(slide?.require_practice_before_learn) && practiceAvailable && !practiceSubmitted && !instantClass?.creator;
   const activePracticeActivity = slideActivities[practiceActivityIndex] ?? slideActivities[0] ?? null;
 
   function handleActivityNext() {
     if (practiceActivityIndex < slideActivities.length - 1) {
-      setPracticeActivityIndex((current) => current + 1);
+      selectPracticeActivity(practiceActivityIndex + 1);
       return;
     }
     if (!practiceModuleMode) move(1);
   }
 
+  function selectPracticeActivity(next: number) {
+    if (instantClass?.paused) return;
+    setPracticeActivityIndex(next);
+    if (instantClass?.creator) void instantClass.onSelect({...instantClass.selection, tab:"practice", activityId:slideActivities[next]?.id});
+  }
+
   function selectTab(tab: "learn" | "practice") {
     if (tab === "learn" && (!learnAvailable || learnLocked)) return;
     if (tab === "practice" && !practiceAvailable) return;
+    if (instantClass?.paused) return;
     setActiveTab(tab);
+    if (instantClass?.creator) void instantClass.onSelect({...instantClass.selection,tab,activityId:activePracticeActivity?.id});
   }
 
   // Narration for current slide
@@ -518,13 +561,24 @@ export function BuilderLessonPlayer({
 
   useEffect(() => { setNarrationProgress({ currentTime: 0, duration: 0 }); setStudyPanel(null); setFullScriptOpen(false); setPinnedReadingGuide(false); setSelectedGlossaryEntry(null); }, [slide?.id]);
 
+  const instantNotesKey = instantClass ? `brenup:instant-notes:${instantClass.notesKey}:${lesson.id}` : null;
+  useEffect(() => {
+    if (!instantNotesKey) return;
+    try { const saved = JSON.parse(localStorage.getItem(instantNotesKey) || "{}"); if (saved && typeof saved === "object" && !Array.isArray(saved)) setNotesMap(Object.fromEntries(Object.entries(saved).filter(([,value]) => typeof value === "string")) as Record<string,string>); } catch { /* Local notes are optional. */ }
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [instantNotesKey]);
   const saveNotes = useCallback((map: Record<string, string>) => {
+    if (instantNotesKey) {
+      try { localStorage.setItem(instantNotesKey, JSON.stringify(map)); setNotesSaved(true); }
+      catch { setMessage("Your browser could not save these notes. Copy them before leaving."); }
+      return;
+    }
     fetch(`/api/lessons/${lesson.id}/progress`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ notes: map }),
     }).then((r) => { if (r.ok) setNotesSaved(true); });
-  }, [lesson.id]);
+  }, [lesson.id, instantNotesKey]);
 
   function handleNotesChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
     if (!slide) return;
@@ -543,6 +597,7 @@ export function BuilderLessonPlayer({
   }, [notesSaved]);
 
   const saveProgress = useCallback((nextIndex: number, nextCompleted = completed) => {
+    if (inInstantClass) return;
     fetch(`/api/lessons/${lesson.id}/progress`, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -550,7 +605,7 @@ export function BuilderLessonPlayer({
     }).then((r) => {
       if (!r.ok) setMessage("Could not save progress.");
     }).catch(() => setMessage("Could not save progress."));
-  }, [completed, lesson.id]);
+  }, [completed, lesson.id, inInstantClass]);
 
   function scheduleProgressSave(nextIndex: number, nextCompleted = completed) {
     if (progressSaveRef.current) clearTimeout(progressSaveRef.current);
@@ -568,6 +623,10 @@ export function BuilderLessonPlayer({
     if (isLiveStudent && liveNavigationLocked) return;
     const normalized = Math.max(0, Math.min(slides.length - 1, next));
     setJumpOpen(false);
+    if (instantClass) {
+      if (instantClass.creator && !instantClass.paused && normalized !== index) void instantClass.onSelect({...instantClass.selection,index:normalized,tab:undefined,activityId:undefined});
+      return;
+    }
     if (normalized === index) return;
     setIndex(normalized);
     setMessage(null);
@@ -644,12 +703,14 @@ export function BuilderLessonPlayer({
   }, [index, reviewChecklistBlocked, saveProgress]);
 
   function reviewLesson() {
+    if (instantClass) { jumpTo(0); return; }
     setIndex(0);
     setMessage("Reviewing from slide 1.");
     scheduleProgressSave(0, true);
   }
 
   function retakeLesson() {
+    if (instantClass) { jumpTo(0); setCompleted(false); setShowCompletion(false); return; }
     setCompleted(false);
     setShowCompletion(false);
     setReviewChecklistState({});
@@ -709,9 +770,9 @@ export function BuilderLessonPlayer({
       {/* ── Header ── */}
       <div className="mb-3 rounded-[22px] border border-[var(--br-surface-strong)] bg-surface px-3 py-2 shadow-[var(--br-shadow)]">
         <div className="flex flex-wrap items-center gap-3">
-          <Link href={backHref} className="inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-[var(--br-surface-strong)] text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)] hover:text-[var(--br-chart-primary)]" aria-label="Back to courses">
+          {!instantClass ? <Link href={backHref} className="inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-[var(--br-surface-strong)] text-[var(--br-text-muted)] hover:bg-[var(--br-canvas-elevated)] hover:text-[var(--br-chart-primary)]" aria-label="Back to courses">
             <ArrowLeft size={15} />
-          </Link>
+          </Link> : null}
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="min-w-0 truncate text-base font-extrabold tracking-tight sm:text-lg">{lesson.title}</h1>
@@ -862,7 +923,7 @@ export function BuilderLessonPlayer({
             ) : slideActivities.length ? (
               <div className="space-y-4">
                 {activePracticeActivity ? <>
-                  {slideActivities.length > 1 ? <div className="flex items-center gap-2" role="tablist" aria-label="Activities on this slide">{slideActivities.map((activity, activityIndex) => <button key={activity.id} type="button" role="tab" aria-selected={activityIndex === practiceActivityIndex} onClick={() => setPracticeActivityIndex(activityIndex)} className={`min-w-0 flex-1 rounded-xl border px-2.5 py-1.5 text-[11px] font-extrabold transition sm:px-3 ${activityIndex === practiceActivityIndex ? "border-[var(--br-chart-secondary)] bg-[var(--br-chart-secondary)] text-on-dark shadow-sm" : "border-[var(--br-surface-strong)] bg-surface text-[var(--br-text-muted)] hover:border-[var(--br-chart-secondary)]/40 hover:bg-[var(--br-success-soft)] hover:text-[var(--br-chart-secondary)]"}`}>Activity {activityIndex + 1}</button>)}</div> : null}
+                  {slideActivities.length > 1 ? <div className="flex items-center gap-2" role="tablist" aria-label="Activities on this slide">{slideActivities.map((activity, activityIndex) => <button key={activity.id} type="button" role="tab" aria-selected={activityIndex === practiceActivityIndex} onClick={() => selectPracticeActivity(activityIndex)} className={`min-w-0 flex-1 rounded-xl border px-2.5 py-1.5 text-[11px] font-extrabold transition sm:px-3 ${activityIndex === practiceActivityIndex ? "border-[var(--br-chart-secondary)] bg-[var(--br-chart-secondary)] text-on-dark shadow-sm" : "border-[var(--br-surface-strong)] bg-surface text-[var(--br-text-muted)] hover:border-[var(--br-chart-secondary)]/40 hover:bg-[var(--br-success-soft)] hover:text-[var(--br-chart-secondary)]"}`}>Activity {activityIndex + 1}</button>)}</div> : null}
                   {liveSession && !isLiveTeacher && (activityState(activePracticeActivity.id).state === "CLOSED" || liveActivitySeconds(activePracticeActivity.id) === 0) ? <div className="rounded-lg border border-dashed border-[var(--br-chart-primary)]/25 bg-[var(--br-surface-muted)] p-5 text-center text-sm font-semibold text-[var(--br-text-muted)]">{liveActivitySeconds(activePracticeActivity.id) === 0 ? "Time is up. Your teacher may extend or reveal this activity." : "Your teacher will open this activity when the class is ready."}</div> :
                     <div id={`lesson-activity-${activePracticeActivity.id}`}>
                       {liveSession && liveActivitySeconds(activePracticeActivity.id) !== null ? <p className="mb-2 text-xs font-extrabold text-[var(--br-chart-primary)]">Activity time: {formatTime(liveActivitySeconds(activePracticeActivity.id) ?? 0)}</p> : null}
@@ -876,6 +937,11 @@ export function BuilderLessonPlayer({
                     nextLabel={practiceActivityIndex < slideActivities.length - 1 ? "Next activity" : practiceModuleMode ? "Finish activity" : "Next slide"}
                       lessonId={lesson.id}
                       courseItemId={courseItemId}
+                      previewOnly={Boolean(instantClass)}
+                      onPracticeSave={instantClass ? async answers => {
+                        const response = await fetch(`${instantClass.api}/content`, {method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({action:"practice",activityId:activePracticeActivity.id,answers})});
+                        if (!response.ok) { const result = await response.json(); throw new Error(result.error || "Could not save class practice."); }
+                      } : undefined}
                       initialAttempt={latestAttemptByActivity.get(activePracticeActivity.id) ?? null}
                       preserveDraft={!lesson.timer_minutes}
                       attempts={savedActivityAttempts.filter((attempt) => attempt.lesson_slide_activity_id === activePracticeActivity.id)}
@@ -926,7 +992,7 @@ export function BuilderLessonPlayer({
             {fullScriptOpen ? <NarrationFullScript transcript={narrationConfig?.transcript} glossary={narrationConfig?.glossary} currentTime={narrationProgress.currentTime} duration={narrationProgress.duration} onClose={() => { setFullScriptOpen(false); setStudyPanel("read"); }} onSelectTerm={(entry) => { setFullScriptOpen(false); setStudyPanel(null); setSelectedGlossaryEntry(entry); }} /> : null}
             {studyPanel === "read" && !pinnedReadingGuide ? <NarrationReadPreview transcript={narrationConfig?.transcript} glossary={narrationConfig?.glossary} currentTime={narrationProgress.currentTime} duration={narrationProgress.duration} pinned={false} onTogglePin={() => { setPinnedReadingGuide(true); setStudyPanel(null); }} onOpenScript={() => { setStudyPanel(null); setFullScriptOpen(true); }} onSelectTerm={(entry) => { setStudyPanel(null); setSelectedGlossaryEntry(entry); }} /> : null}
             {studyPanel === "glossary" ? <NarrationGlossaryPanel glossary={narrationConfig?.glossary} /> : null}
-            {studyPanel === "notes" ? <section className="w-full rounded-2xl border-2 border-[var(--br-action)] bg-white p-3 shadow-[var(--br-shadow)]"><div className="flex items-center justify-between gap-3"><div className="flex items-center gap-2"><NotebookPen size={15} className="text-[var(--br-action)]" /><p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--br-action)]">Notes</p></div><span className={`text-[11px] font-bold transition-opacity duration-300 ${notesSaved ? "text-[var(--br-chart-secondary)] opacity-100" : "opacity-0"}`}>Saved</span></div><textarea key={slide.id} value={notesMap[slide.id] ?? ""} onChange={handleNotesChange} placeholder="Type your notes here… they save automatically." rows={5} className="mt-3 w-full resize-none rounded-xl border border-[var(--br-border)] bg-surface px-3 py-2.5 text-base font-semibold leading-relaxed text-[var(--br-text)] placeholder:text-[var(--br-text-muted)] focus:border-[var(--br-action)] focus:outline-none focus:ring-2 focus:ring-[var(--br-action)]/15" /><p className="mt-1.5 text-[11px] font-semibold text-[var(--br-text-muted)]">Saved per slide.</p></section> : null}
+            {studyPanel === "notes" ? <section className="w-full rounded-2xl border-2 border-[var(--br-action)] bg-white p-3 shadow-[var(--br-shadow)]"><div className="flex items-center justify-between gap-3"><div className="flex items-center gap-2"><NotebookPen size={15} className="text-[var(--br-action)]" /><p className="text-xs font-black uppercase tracking-[0.12em] text-[var(--br-action)]">Notes</p></div><span className={`text-[11px] font-bold transition-opacity duration-300 ${notesSaved ? "text-[var(--br-chart-secondary)] opacity-100" : "opacity-0"}`}>Saved</span></div><textarea key={slide.id} value={notesMap[slide.id] ?? ""} onChange={handleNotesChange} placeholder="Type your notes here… they save automatically." rows={5} className="mt-3 w-full resize-none rounded-xl border border-[var(--br-border)] bg-surface px-3 py-2.5 text-base font-semibold leading-relaxed text-[var(--br-text)] placeholder:text-[var(--br-text-muted)] focus:border-[var(--br-action)] focus:outline-none focus:ring-2 focus:ring-[var(--br-action)]/15" /><p className="mt-1.5 text-[11px] font-semibold text-[var(--br-text-muted)]">{instantClass ? "Saved per slide on this device." : "Saved per slide."}</p></section> : null}
             {selectedGlossaryEntry ? <NarrationGlossaryWord entry={selectedGlossaryEntry} onClose={() => { setSelectedGlossaryEntry(null); setStudyPanel("read"); }} /> : null}
           </div> : null}
       {/* ── Bottom navigation bar ── */}

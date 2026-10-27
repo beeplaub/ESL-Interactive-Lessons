@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { resolveMediaUrl } from "@/lib/storage/mediaStorage";
 import { roomAccess } from "@/lib/instant-live/server";
 import { getFreshProfile, isPlatformAdmin } from "@/lib/auth";
 import { questionScore, questionTotal, type ScoredQuestion } from "@/lib/quizScoring";
@@ -33,17 +34,48 @@ export async function GET(request:Request,{params}:{params:Promise<{id:string}>}
   const {data:source}=await admin.from(current.kind==="lesson"?"lessons":"quizzes").select("id,title,status").eq("id",current.id).eq("status","PUBLISHED").maybeSingle();
   if(!source)return fail("This content is no longer published.",404);
   if(current.kind==="lesson") {
-    const {data:slides,error:slideError}=await admin.from("slides").select("id,title,slide_number,section_label,content_order").eq("lesson_id",current.id).is("deleted_at",null).order("slide_number");
-    const slide=slides?.[current.index]; if(slideError||!slide)return fail("This slide is unavailable.",404);
-    const [blocks,activities]=await Promise.all([
-      admin.from("lesson_blocks").select("id,position,block_type,content").eq("lesson_id",current.id).eq("slide_id",slide.id).order("position"),
-      admin.from("lesson_slide_activities").select("id,activity_type,activity_data").eq("lesson_id",current.id).eq("slide_id",slide.id).is("deleted_at",null).order("position",{ascending:true,nullsFirst:false}).order("created_at"),
+    const audioId = new URL(request.url).searchParams.get("audio");
+    if (audioId) {
+      if (!z.string().uuid().safeParse(audioId).success) return fail("Invalid narration.");
+      const {data:audio} = await admin.from("lesson_audio_files").select("storage_path,storage_provider,storage_bucket,public_url,external_url").eq("id",audioId).eq("lesson_id",current.id).eq("label","narration").maybeSingle();
+      if (!audio) return fail("Narration is unavailable.",404);
+      try {
+        const url = audio.external_url || await resolveMediaUrl(admin,{provider:audio.storage_provider,bucket:audio.storage_bucket ?? "lesson-audio",path:audio.storage_path,publicUrl:audio.public_url});
+        if (!url) return fail("Narration is unavailable.",404);
+        const response = NextResponse.redirect(new URL(url, request.url),307);
+        response.headers.set("Cache-Control","private, no-store");
+        return response;
+      } catch { return fail("Could not load narration.",503); }
+    }
+    const [lessonResult, slideResult, blocks, activities, audioFiles, responses] = await Promise.all([
+      admin.from("lessons").select("id,title,topic,level,timer_minutes").eq("id",current.id).single(),
+      admin.from("slides").select("id,title,slide_number,section_label,content_order,require_practice_before_learn").eq("lesson_id",current.id).is("deleted_at",null).order("slide_number"),
+      admin.from("lesson_blocks").select("id,slide_id,position,block_type,content").eq("lesson_id",current.id).order("position"),
+      admin.from("lesson_slide_activities").select("id,slide_id,slide_number,activity_type,activity_data").eq("lesson_id",current.id).is("deleted_at",null).order("slide_number").order("position",{ascending:true,nullsFirst:false}).order("created_at"),
+      admin.from("lesson_audio_files").select("id,slide_id,linked_slide_number,storage_path,storage_provider,storage_bucket,public_url,external_url,source_type,translation_enabled,narration_language,transcript,glossary").eq("lesson_id",current.id).eq("label","narration"),
+      admin.from("instant_live_activity_responses").select("activity_id,answers").eq("room_id",id).eq("user_id",user.id),
     ]);
-    if(blocks.error||activities.error)return fail("Could not load lesson content.",503);
-    const {data:responses,error:responseError}=await admin.from("instant_live_activity_responses").select("activity_id,answers").eq("room_id",id).eq("user_id",user.id);
-    if(responseError)return fail("Class practice needs the new SQL migration.",503);
-    return json({selection:current,title:source.title,total:slides!.length,slide,blocks:blocks.data,activities:activities.data,responses,revision:state.revision});
+    if ([lessonResult, slideResult, blocks, activities, audioFiles, responses].some(result => result.error)) return fail("Could not load the complete lesson player. Please try again.",503);
+    const slides = slideResult.data ?? [];
+    if (!slides[current.index]) return fail("This slide is unavailable.",404);
+    const narrationMap: Record<string,string> = {};
+    const narrationConfigMap: Record<string,unknown> = {};
+    for (const audio of audioFiles.data ?? []) {
+      const slideId = audio.slide_id ?? slides.find(slide => slide.slide_number === audio.linked_slide_number)?.id;
+      if (!slideId) continue;
+      // Stable per-file URL: tab changes must not reload/restart the audio. The
+      // authenticated redirect resolves fresh signed media URLs when played.
+      narrationMap[slideId] = audio.external_url || `/api/instant-live/rooms/${id}/content?audio=${audio.id}`;
+      narrationConfigMap[slideId] = {translationEnabled:Boolean(audio.translation_enabled),narrationLanguage:audio.narration_language === "bn" ? "bn" : "en",sourceType:audio.source_type === "LINK" ? "LINK" : audio.source_type === "UPLOADED" ? "UPLOADED" : "RECORDED",transcript:audio.transcript || "",glossary:Array.isArray(audio.glossary) ? audio.glossary : []};
+    }
+    const learnerActivities = (activities.data ?? []).map(activity => {
+      if (!activity.activity_data || typeof activity.activity_data !== "object" || Array.isArray(activity.activity_data)) return activity;
+      const {ai_instruction: _privateInstruction, ...learnerData} = activity.activity_data;
+      return {...activity,activity_data:learnerData};
+    });
+    return json({selection:current,title:source.title,total:slides.length,revision:state.revision,viewerKey:`${id}:${user.id}`,responses:responses.data,lessonPlayer:{lesson:lessonResult.data,slides,blocks:blocks.data,activities:learnerActivities,narrationMap,narrationConfigMap}});
   }
+
   const {data:questions,error:questionError}=await admin.from("quiz_questions").select("id,question_number,question_type,question_text,description,options,correct_answer,max_points").eq("quiz_id",current.id).order("question_number");
   const question=questions?.[current.index]; if(questionError||!question)return fail("This question is unavailable.",404);
   const {data:response}=await admin.from("instant_live_responses").select("answer,score,total").eq("room_id",id).eq("user_id",user.id).eq("question_id",question.id).maybeSingle();

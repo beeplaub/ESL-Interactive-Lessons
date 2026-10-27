@@ -663,6 +663,11 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
   });
 }
 
+export function lessonActivityScore(activity: { id: string; activity_type: string; activity_data: Json | null }, answers: Json) {
+  const values = asRecord(answers);
+  return questionsFromData(activity.activity_data, activity.activity_type, activity.id).reduce((sum, question) => sum + questionScore(question, values[question.id]), 0);
+}
+
 export function lessonActivityTotalPoints(activity: LessonSlideActivity): number {
   return questionsFromData(activity.activity_data, activity.activity_type, activity.id)
     .reduce((sum, question) => sum + questionTotal(question), 0);
@@ -1882,7 +1887,7 @@ export function LessonActivityPanel({
 
     if (onPracticeSave) {
       startTransition(async () => {
-        try { await onPracticeSave(answers as Json); beginSubmittedView(); setMessage("Class practice saved."); }
+        try { await onPracticeSave(answers as Json); beginSubmittedView(); onSavedAttempt?.({score:finalScore,total,answers:answers as Json,completed_at:new Date().toISOString()}); setMessage("Class practice saved."); }
         catch (error) { setMessage(error instanceof Error ? error.message : "Could not save. Try again."); }
       });
       return;
