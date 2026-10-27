@@ -496,31 +496,16 @@
   border-color: #86f0d2;
   box-shadow: 0 0 0 2px #66dfbd25, 0 0 20px #66dfbd70, inset 0 1px 1px #ffffff24;
 }
-.root :global(.live-control.is-mic-on .live-control-icon::after) {
-  content: "";
-  position: absolute;
-  inset: -5px;
-  border: 1px solid #79e8c5aa;
-  border-radius: 50%;
-  pointer-events: none;
-  animation: live-mic-ring 1.45s ease-out infinite;
-}
 .root :global(.live-control.is-mic-on .live-control-icon svg),
-.root :global(.live-person-mic.is-on svg),
-.root :global(.live-person-actions button.is-mic-on svg) {
+.root :global(.live-person-mic svg),
+.root :global(.live-person-actions button svg) {
   transform-origin: 50% 72%;
-  animation: live-mic-wobble 0.78s ease-in-out infinite;
+  transition: transform 55ms linear;
 }
-@keyframes live-mic-wobble {
-  0%, 100% { transform: rotate(0) scale(1); }
-  18% { transform: rotate(-12deg) scale(1.08); }
-  38% { transform: rotate(10deg) scale(1.08); }
-  58% { transform: rotate(-8deg) scale(1.04); }
-  78% { transform: rotate(6deg) scale(1.03); }
-}
-@keyframes live-mic-ring {
-  0% { opacity: .72; transform: scale(.86); }
-  100% { opacity: 0; transform: scale(1.48); }
+.root :global(.live-control.is-speaking .live-control-icon),
+.root :global(.live-person-mic.is-speaking),
+.root :global(.live-person-actions button.is-speaking) {
+  filter: drop-shadow(0 0 7px #70dec1bb);
 }
 .root :global(.live-control.is-cta .live-control-icon) {
   width: 78px;
@@ -958,6 +943,16 @@
   padding: 9px 17px;
   font-size: 13px;
 }
+.root :global(.live-paused-actions),
+.root :global(.live-end-actions) { display:flex; justify-content:center; align-items:center; flex-wrap:wrap; gap:9px; }
+.root :global(.live-paused-actions .is-quit),
+.root :global(.live-end-actions .is-quit) { background:#3a4054; border:1px solid #ff816b88; color:#ffd1c8; }
+.root :global(.live-end-actions .is-cancel) { background:transparent; border:1px solid #ffffff2b; color:#d6d6e4; }
+.root :global(.live-quit-actions) { margin:16px 0 12px; }
+.root :global(.live-quit-actions button) { justify-content:center; }
+.root :global(.live-class-end-dialog small) { display:block; color:#b7b4cd; line-height:1.55; }
+.root :global(.live-ended-overlay > div) { border-color:#ff816b55; }
+.root :global(.live-ended-overlay button) { background:#ff725e; }
 .root :global(.live-modal-backdrop) {
   position: fixed;
   inset: 0;
@@ -1243,10 +1238,9 @@
 .root :global(.live-audio-success span) { display:grid; place-items:center; width:20px; height:20px; border-radius:50%; color:#14231e; background:#83e7c6; }
 @media (prefers-reduced-motion: reduce) {
   .root :global(.live-audio-settings),
-  .root :global(.live-control.is-mic-on .live-control-icon::after),
   .root :global(.live-control.is-mic-on .live-control-icon svg),
-  .root :global(.live-person-mic.is-on svg),
-  .root :global(.live-person-actions button.is-mic-on svg) { animation: none; }
+  .root :global(.live-person-mic svg),
+  .root :global(.live-person-actions button svg) { transition: none; }
 }
 .root :global(.live-audio-actions button), .root :global(.live-feature-panel > button), .root :global(.live-recording-file button) { display:inline-flex; align-items:center; gap:7px; padding:10px 14px; background:#635bdf; border:1px solid #aaa1ef; border-radius:12px; margin:4px; font-size:13px; color:white; }
 .root :global(.live-audio-dialog small) { display:block; color:#b7b4cd; line-height:1.6; }

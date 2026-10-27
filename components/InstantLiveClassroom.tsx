@@ -39,6 +39,7 @@ import { useLocalRecording } from "./instant-live/useLocalRecording";
 import { AudioSetup } from "./instant-live/AudioSetup";
 import { LiveBoard } from "./instant-live/LiveBoard";
 import { useLiveTransport } from "./instant-live/useLiveTransport";
+import { createZip } from "@/lib/instant-live/createZip";
 import {
   boardSchema,
   emptyState,
@@ -69,6 +70,7 @@ type RoomClock = {
   elapsed_seconds: number;
   active_started_at: string;
   expires_at: string;
+  pause_until?: string | null;
 };
 type Props = {
   roomId: string;
@@ -107,12 +109,14 @@ export function InstantLiveClassroom({
   const [loaded, setLoaded] = useState(false);
   const [notice, setNotice] = useState("");
   const [clock, setClock] = useState<RoomClock>({
-    status: initialEnded ? "ENDED" : "LIVE",
+    status: initialEnded ? "PAUSED" : "LIVE",
     elapsed_seconds: elapsedOffset,
     active_started_at: startedAt,
     expires_at: "",
   });
   const [now, setNow] = useState(Date.now());
+  const statusRef = useRef(clock.status);
+  statusRef.current = clock.status;
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [saveStatus, setSaveStatus] = useState("Saved");
@@ -138,6 +142,9 @@ export function InstantLiveClassroom({
   const [soundBlocked, setSoundBlocked] = useState(false);
   const [audioSetup, setAudioSetup] = useState(false);
   const [micCheckPassed, setMicCheckPassed] = useState(false);
+  const [endClassOpen, setEndClassOpen] = useState(false);
+  const [quitPrompt, setQuitPrompt] = useState(false);
+  const [savingMaterials, setSavingMaterials] = useState(false);
   const [recordingAt, setRecordingAt] = useState<number | null>(null);
   const [recordingOpen, setRecordingOpen] = useState(false);
   const [contentPicker, setContentPicker] = useState(false);
@@ -157,6 +164,10 @@ export function InstantLiveClassroom({
   const joinedAt = useRef(Date.now());
   const transportRef = useRef<ReturnType<typeof useLiveTransport> | null>(null);
   const paused = clock.status !== "LIVE";
+  const ended = clock.status === "ENDED";
+  const pauseRemaining = clock.pause_until
+    ? Math.max(0, Math.floor((Date.parse(clock.pause_until) - now) / 1000))
+    : 15 * 60;
   const api = `/api/instant-live/rooms/${roomId}`;
   const forceMuted = moderation.some(
     (participant) => participant.userId === userId && participant.micMuted,
@@ -390,10 +401,41 @@ export function InstantLiveClassroom({
     };
   }, [refresh]);
   useEffect(() => {
-    if (paused) return;
+    if (ended) return;
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
-  }, [paused]);
+  }, [ended]);
+  useEffect(() => {
+    if (!creator || clock.status !== "LIVE") return;
+    const heartbeat = () => {
+      void fetch(`${api}/end`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "heartbeat" }),
+      }).catch(() => {});
+    };
+    heartbeat();
+    const timer = setInterval(heartbeat, 20_000);
+    return () => clearInterval(timer);
+  }, [api, clock.status, creator]);
+  useEffect(() => {
+    if (!creator || clock.status !== "LIVE") return;
+    const pauseOnExit = () => {
+      if (statusRef.current !== "LIVE") return;
+      const board = dirty.current ? boardRef.current : undefined;
+      const body = new Blob([JSON.stringify({ action: "pause", board })], { type: "application/json" });
+      if (!navigator.sendBeacon(`${api}/end`, body)) {
+        void fetch(`${api}/end`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "pause", board }), keepalive: true }).catch(() => {});
+      }
+    };
+    window.addEventListener("pagehide", pauseOnExit);
+    return () => window.removeEventListener("pagehide", pauseOnExit);
+  }, [api, clock.status, creator]);
+  useEffect(() => {
+    if (!ended) return;
+    const timer = window.setTimeout(() => window.location.assign("/account"), 2500);
+    return () => window.clearTimeout(timer);
+  }, [ended]);
   useEffect(() => {
     if (!ownPresentation || !self || paused) return;
     const heartbeat = () =>
@@ -726,36 +768,71 @@ export function InstantLiveClassroom({
     setImageLinkTarget(target);
     setImageLinkOpen(true);
   }
-  async function lifecycle() {
+  async function lifecycle(action: "pause" | "restart" | "quit") {
     if (!creator || busy) return;
     setBusy(true);
     try {
-      if (!paused) {
+      if (action !== "restart") {
         await saveBoard();
-        if (dirty.current)
-          throw new Error("Save the board before ending the class.");
+        if (dirty.current) throw new Error("Save the board before continuing.");
       }
       const response = await fetch(`${api}/end`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: paused ? "restart" : "end" }),
+        body: JSON.stringify({ action }),
       });
       const result = await response.json();
       if (!response.ok)
         throw new Error(result.error || "Could not update the class.");
       setClock((old) => ({
         ...old,
-        status: paused ? "LIVE" : "ENDED",
+        status: result.status,
         elapsed_seconds: result.elapsedSeconds,
         active_started_at: result.activeStartedAt ?? old.active_started_at,
+        expires_at: result.pauseUntil ?? old.expires_at,
+        pause_until: result.pauseUntil ?? null,
       }));
       setNow(Date.now());
       void transport.send("state-changed", {});
+      setEndClassOpen(false);
+      if (action === "quit") setQuitPrompt(false);
       setNotice("");
     } catch (error) {
       setNotice((error as Error).message);
     } finally {
       setBusy(false);
+    }
+  }
+  async function saveMaterialsAndQuit() {
+    if (savingMaterials || busy) return;
+    setSavingMaterials(true);
+    try {
+      await saveBoard();
+      if (dirty.current) throw new Error("Wait for the whiteboard to finish saving, then try again.");
+      const svg = root.current?.querySelector<SVGSVGElement>(".live-board-svg");
+      if (!svg) throw new Error("The whiteboard is not ready to export yet.");
+      const boardImage = await exportBoard(svg);
+      const folder = `${title.trim().replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").slice(0, 60) || "BrenUp-Class"}-Materials`;
+      const entries: Array<{ name: string; data: Uint8Array }> = [
+        { name: `${folder}/whiteboard.png`, data: new Uint8Array(await boardImage.arrayBuffer()) },
+      ];
+      for (const [index, asset] of assets.entries()) {
+        const response = await fetch(`${api}/assets/${asset.id}`, { cache: "no-store" });
+        if (!response.ok) throw new Error(`Could not export image “${asset.name}”. Retry or remove unavailable images before quitting.`);
+        const contentType = response.headers.get("content-type") ?? "image/webp";
+        const extension = contentType.includes("png") ? "png" : contentType.includes("jpeg") ? "jpg" : contentType.includes("gif") ? "gif" : contentType.includes("svg") ? "svg" : "webp";
+        const base = asset.name.replace(/\.[^.]+$/, "").replace(/[^a-z0-9_-]+/gi, "-").replace(/^-|-$/g, "").slice(0, 80) || `image-${index + 1}`;
+        entries.push({ name: `${folder}/images/${String(index + 1).padStart(2, "0")}-${base}.${extension}`, data: new Uint8Array(await (await response.blob()).arrayBuffer()) });
+      }
+      const archive = createZip(entries);
+      const stamp = new Date().toISOString().slice(0, 10);
+      saveLocalFile(archive, `${folder}-${stamp}.zip`);
+      setQuitPrompt(false);
+      await lifecycle("quit");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Could not prepare the class materials.");
+    } finally {
+      setSavingMaterials(false);
     }
   }
   async function sendChat(event: React.FormEvent) {
@@ -911,14 +988,20 @@ export function InstantLiveClassroom({
   ) => (
     <button
       type="button"
-      className={`live-control ${active ? "is-active" : ""} ${cta ? "is-cta" : ""} ${label === "Mic" && active ? "is-mic-on" : ""}`}
+      className={`live-control ${active ? "is-active" : ""} ${cta ? "is-cta" : ""} ${label === "Mic" && active ? "is-mic-on" : ""} ${label === "Mic" && transport.audioActivity[self?.sessionId ?? ""]?.speaking ? "is-speaking" : ""}`}
       onClick={onClick}
       disabled={disabled}
       aria-label={label}
       aria-pressed={active}
+      title={label === "Mic" ? active ? (transport.audioActivity[self?.sessionId ?? ""]?.speaking ? "Microphone on · speaking" : "Microphone on · not speaking") : "Microphone off" : undefined}
     >
       <span className="live-control-icon">
-        <Icon size={22} />
+        <Icon
+          size={22}
+          style={label === "Mic" && active ? {
+            transform: `rotate(${transport.audioActivity[self?.sessionId ?? ""]?.tilt ?? 0}deg) scale(${1 + (transport.audioActivity[self?.sessionId ?? ""]?.level ?? 0) * 0.12})`,
+          } : undefined}
+        />
       </span>
       <span>{label}</span>
     </button>
@@ -1046,21 +1129,32 @@ export function InstantLiveClassroom({
                 ) : null}
               </ZoomStage>
             ) : null}
-            {paused ? (
+            {clock.status === "PAUSED" ? (
               <div className="live-paused-overlay">
                 <div>
                   <h2>Class paused</h2>
                   <p>
-                    {creator
-                      ? "Restart to continue with this board and elapsed time."
-                      : "Your teacher can restart the class."}
+                    {`The class will close automatically in ${Math.floor(pauseRemaining / 60)}:${String(pauseRemaining % 60).padStart(2, "0")}.`}
                   </p>
                   {creator ? (
-                    <button onClick={() => void lifecycle()} disabled={busy}>
-                      <RotateCcw size={17} />
-                      Restart
-                    </button>
+                    <div className="live-paused-actions">
+                      <button onClick={() => void lifecycle("restart")} disabled={busy}>
+                        <RotateCcw size={17} /> Restart
+                      </button>
+                      <button className="is-quit" onClick={() => setQuitPrompt(true)} disabled={busy}>
+                        <PhoneOff size={17} /> Quit
+                      </button>
+                    </div>
                   ) : null}
+                </div>
+              </div>
+            ) : null}
+            {ended ? (
+              <div className="live-paused-overlay live-ended-overlay">
+                <div>
+                  <h2>Class has ended</h2>
+                  <p>You’re leaving this classroom.</p>
+                  <button onClick={() => window.location.assign("/account")}>Return to BrenUp</button>
                 </div>
               </div>
             ) : null}
@@ -1070,8 +1164,10 @@ export function InstantLiveClassroom({
               <i className={transport.ready ? "connected" : ""} />
               {!loaded
                 ? "Connecting"
-                : paused
+                : clock.status === "PAUSED"
                   ? "Paused"
+                  : ended
+                    ? "Ended"
                   : transport.ready
                     ? "Live connection"
                     : "Reconnecting"}
@@ -1177,11 +1273,11 @@ export function InstantLiveClassroom({
               : null}
             {creator ? button(recording.startedAt ? "Stop recording" : "Record", recording.startedAt ? Square : Circle, () => recording.startedAt ? recording.stop() : setRecordingOpen(true), Boolean(recording.startedAt), recording.busy || paused) : null}
             <span className="live-control-divider" />
-            {creator
+            {creator && !ended
               ? button(
-                  paused ? "Restart" : "End class",
-                  paused ? RotateCcw : PhoneOff,
-                  () => void lifecycle(),
+                  clock.status === "PAUSED" ? "Restart" : "End class",
+                  clock.status === "PAUSED" ? RotateCcw : PhoneOff,
+                  () => clock.status === "PAUSED" ? void lifecycle("restart") : setEndClassOpen(true),
                   false,
                   busy,
                   true,
@@ -1336,17 +1432,17 @@ export function InstantLiveClassroom({
                     </small>
                   </div>
                   {!(creator && isLearner) ? <span
-                    className={`live-person-mic ${person.mic && !isMuted ? "is-on" : ""}`}
-                    title={isMuted ? "Muted by teacher" : person.mic ? "Microphone on" : "Microphone off"}
+                    className={`live-person-mic ${person.mic && !isMuted ? "is-on" : ""} ${transport.audioActivity[person.sessionId]?.speaking ? "is-speaking" : ""}`}
+                    title={isMuted ? "Muted by teacher" : person.mic ? (transport.audioActivity[person.sessionId]?.speaking ? "Microphone on · speaking" : "Microphone on · not speaking") : "Microphone off"}
                     role="img"
                     aria-label={isMuted ? "Muted by teacher" : person.mic ? "Microphone on" : "Microphone off"}
                   >
-                    {person.mic && !isMuted ? <Mic size={15} /> : <MicOff size={15} />}
+                    {person.mic && !isMuted ? <Mic size={15} style={{ transform: `rotate(${transport.audioActivity[person.sessionId]?.tilt ?? 0}deg) scale(${1 + (transport.audioActivity[person.sessionId]?.level ?? 0) * 0.12})` }} /> : <MicOff size={15} />}
                   </span> : null}
                   {creator && isLearner ? (
                     <div className="live-person-actions">
                       <button
-                        className={person.mic && !isMuted ? "is-mic-on" : ""}
+                        className={`${person.mic && !isMuted ? "is-mic-on" : ""} ${transport.audioActivity[person.sessionId]?.speaking ? "is-speaking" : ""}`}
                         type="button"
                         title={isMuted ? "Muted by teacher · click to allow microphone (learner must turn it on)" : person.mic ? "Microphone on · click to mute" : "Microphone off · click to prevent unmuting"}
                         aria-label={`${isMuted ? "Allow microphone for" : "Mute"} ${person.name}`}
@@ -1355,7 +1451,7 @@ export function InstantLiveClassroom({
                           void moderateParticipant(isMuted ? "unmute" : "mute", person.userId)
                         }
                       >
-                        {person.mic && !isMuted ? <Mic size={15} /> : <MicOff size={15} />}
+                        {person.mic && !isMuted ? <Mic size={15} style={{ transform: `rotate(${transport.audioActivity[person.sessionId]?.tilt ?? 0}deg) scale(${1 + (transport.audioActivity[person.sessionId]?.level ?? 0) * 0.12})` }} /> : <MicOff size={15} />}
                       </button>
                       <button
                         type="button"
@@ -1391,7 +1487,33 @@ export function InstantLiveClassroom({
         />
       ))}
       {contentPicker && creator ? <ContentPicker api={api} onClose={() => setContentPicker(false)} onChoose={chooseContent}/> : null}
-      {recordingOpen && creator ? <div className="live-modal-backdrop" onClick={e => {if(e.target === e.currentTarget && !recording.busy) setRecordingOpen(false);}}><section className="live-feature-panel" role="dialog" aria-modal="true" aria-label="Local recording"><header><h2>Local recording</h2><button aria-label="Close recordings" onClick={() => setRecordingOpen(false)}><X size={18}/></button></header><p>Choose this classroom tab in the browser's screen picker. Records its picture and class audio, including your mic when on. Everyone sees a recording indicator. No upload or paid service.</p><p>Keep this tab open. Files are kept in this browser until you save or delete them. Screen capture requires a supported desktop browser. A file stops at 500 MB; start another part if needed.</p><button disabled={recording.busy || paused || Boolean(recording.startedAt)} onClick={() => {setRecordingOpen(false); void recording.start();}}>Start recording</button>{recording.saved.map(file => <div className="live-recording-file" key={file.id}><span>{new Date(file.createdAt).toLocaleString()} · {(file.size/1e6).toFixed(1)} MB{!file.complete ? " · interrupted" : ""}</span><button disabled={recording.busy} onClick={() => void recording.save(file)}>Save file</button><button disabled={recording.busy} onClick={() => {if(window.confirm("Delete this local recording? Save your file first.")) void recording.remove(file).catch(() => setNotice("Could not delete recording."));}}>Delete</button></div>)}</section></div> : null}
+      {endClassOpen && creator ? (
+        <div className="live-modal-backdrop" onClick={(event) => { if (event.target === event.currentTarget && !busy) setEndClassOpen(false); }}>
+          <section className="live-feature-panel live-class-end-dialog" role="dialog" aria-modal="true" aria-labelledby="live-end-title">
+            <header><h2 id="live-end-title">End this class?</h2><button aria-label="Close" disabled={busy} onClick={() => setEndClassOpen(false)}><X size={18}/></button></header>
+            <p>Pause the class to let everyone resume from this exact board and elapsed time. A paused class closes automatically after 15 minutes.</p>
+            <div className="live-end-actions">
+              <button disabled={busy} onClick={() => void lifecycle("pause")}><RotateCcw size={16}/> Pause class</button>
+              <button className="is-quit" disabled={busy} onClick={() => { setEndClassOpen(false); setQuitPrompt(true); }}><PhoneOff size={16}/> Quit class</button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+      {quitPrompt && creator ? (
+        <div className="live-modal-backdrop" onClick={(event) => { if (event.target === event.currentTarget && !busy && !savingMaterials) setQuitPrompt(false); }}>
+          <section className="live-feature-panel live-class-end-dialog" role="dialog" aria-modal="true" aria-labelledby="live-quit-title">
+            <header><h2 id="live-quit-title">Quit this class?</h2><button aria-label="Close" disabled={busy || savingMaterials} onClick={() => setQuitPrompt(false)}><X size={18}/></button></header>
+            <p>Quitting permanently ends this room and its link. Save the whiteboard and image gallery to your device first, or quit without an export.</p>
+            <div className="live-end-actions live-quit-actions">
+              <button disabled={busy || savingMaterials} onClick={() => void saveMaterialsAndQuit()}><Download size={16}/>{savingMaterials ? "Preparing class folder…" : "Save materials & quit"}</button>
+              <button className="is-quit" disabled={busy || savingMaterials} onClick={() => void lifecycle("quit")}><PhoneOff size={16}/> Quit without saving</button>
+              <button className="is-cancel" disabled={busy || savingMaterials} onClick={() => setQuitPrompt(false)}>Cancel</button>
+            </div>
+            <small>The saved ZIP contains a folder with the whiteboard image and every image in the class gallery. It works on desktop and mobile.</small>
+          </section>
+        </div>
+      ) : null}
+      {recordingOpen && creator ? <div className="live-modal-backdrop" onClick={e => {if(e.target === e.currentTarget && !recording.busy) setRecordingOpen(false);}}><section className="live-feature-panel" role="dialog" aria-modal="true" aria-label="Local recording"><header><h2>Local recording</h2><button aria-label="Close recordings" onClick={() => setRecordingOpen(false)}><X size={18}/></button></header><p>{isBrenUpNativeApp() ? "Android will ask you to choose what to capture. The recording includes the selected screen and class audio, including your mic when on. Everyone sees a recording indicator. No upload or paid service." : "Choose this classroom tab in the browser's screen picker. Records its picture and class audio, including your mic when on. Everyone sees a recording indicator. No upload or paid service."}</p><p>{isBrenUpNativeApp() ? "Keep BrenUp open. Files are kept in this app's browser storage until you save or delete them. Android indicates active capture; stop the recording in BrenUp or from the Android notification when it is shown. A file stops at 500 MB; start another part if needed." : "Keep this tab open. Files are kept in this browser until you save or delete them. Screen capture requires a supported desktop browser. A file stops at 500 MB; start another part if needed."}</p>{isBrenUpNativeApp() && ownPresentation && state.stage === "screen" ? <p role="status">Stop your current screen share before starting a local recording.</p> : null}<button disabled={recording.busy || paused || Boolean(recording.startedAt) || (isBrenUpNativeApp() && ownPresentation && state.stage === "screen")} onClick={() => {setRecordingOpen(false); void recording.start();}}>Start recording</button>{recording.saved.map(file => <div className="live-recording-file" key={file.id}><span>{new Date(file.createdAt).toLocaleString()} · {(file.size/1e6).toFixed(1)} MB{!file.complete ? " · interrupted" : ""}</span><button disabled={recording.busy} onClick={() => void recording.save(file)}>Save file</button><button disabled={recording.busy} onClick={() => {if(window.confirm("Delete this local recording? Save your file first.")) void recording.remove(file).catch(() => setNotice("Could not delete recording."));}}>Delete</button></div>)}</section></div> : null}
       {creator && recording.saved.length && !recording.startedAt ? <button className="live-recordings-ready" onClick={() => setRecordingOpen(true)}>Local recordings · {recording.saved.length}</button> : null}
       {exportOpen ? <div className="live-modal-backdrop" onClick={e => {if(e.target === e.currentTarget && !exporting) setExportOpen(false);}}><section className="live-feature-panel" role="dialog" aria-modal="true" aria-label="Export whiteboard"><header><h2>Export whiteboard</h2><button aria-label="Close export" disabled={exporting} onClick={() => setExportOpen(false)}><X size={18}/></button></header><p>The whole board, without toolbars or selection outlines.</p><button disabled={exporting} onClick={() => void exportWhiteboard(false)}>Save PNG to device</button><button disabled={exporting || paused} onClick={() => void exportWhiteboard(true)}>Add to image gallery</button>{exporting ? <p role="status">Preparing image…</p> : null}</section></div> : null}
       {audioSetup ? <AudioSetup onClose={() => setAudioSetup(false)} onEnableSound={enableSound} onSelectMicrophone={transport.prepareMicrophone} onMicTested={() => setMicCheckPassed(true)} onMicTestReset={() => setMicCheckPassed(false)} connections={transport.connections}/> : null}

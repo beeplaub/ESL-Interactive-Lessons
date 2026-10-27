@@ -63,6 +63,7 @@ export function useLiveTransport({
   const [ready, setReady] = useState(false);
   const [people, setPeople] = useState<LivePerson[]>([]);
   const [remote, setRemote] = useState<Record<string, MediaStream>>({});
+  const [audioActivity, setAudioActivity] = useState<Record<string, { level: number; speaking: boolean; tilt: number }>>({});
   const [micOn, setMicOn] = useState(false);
   const [microphone, setMicrophone] = useState<MediaStream | null>(null);
   const [connections, setConnections] = useState<Record<string, RTCPeerConnectionState>>({});
@@ -75,6 +76,90 @@ export function useLiveTransport({
   const [superseded, setSuperseded] = useState(false);
   supersededRef.current = superseded;
   const selfSessionId = self?.sessionId;
+
+  // Measure the actual microphone signal locally and each incoming WebRTC
+  // audio stream. Presence only tells us whether a mic is enabled; this level
+  // drives the separate "someone is speaking" visual state.
+  useEffect(() => {
+    if (typeof window === "undefined" || !enabled) {
+      setAudioActivity({});
+      return;
+    }
+    const AudioContextConstructor = window.AudioContext;
+    if (!AudioContextConstructor) return;
+    const context = new AudioContextConstructor();
+    const previous = new Map<string, { level: number; speaking: boolean; quietFrames: number; tilt: number }>();
+    const analysers = new Map<string, AnalyserNode>();
+    let timer = 0;
+    let disposed = false;
+
+    const syncSources = () => {
+      const sources: Array<[string, MediaStream | null | undefined]> = [
+        ...(selfSessionId ? [[selfSessionId, microphone] as [string, MediaStream | null | undefined]] : []),
+        ...Object.entries(remote),
+      ];
+      const activeKeys = new Set(sources.map(([key]) => key));
+      for (const key of analysers.keys()) {
+        if (activeKeys.has(key)) continue;
+        analysers.delete(key);
+        previous.delete(key);
+      }
+      for (const [key, stream] of sources) {
+        if (!stream || analysers.has(key) || !stream.getAudioTracks().some(track => track.readyState === "live")) continue;
+        try {
+          const analyser = context.createAnalyser();
+          analyser.fftSize = 512;
+          analyser.smoothingTimeConstant = 0.35;
+          context.createMediaStreamSource(stream).connect(analyser);
+          analysers.set(key, analyser);
+        } catch {
+          // A browser may refuse analysis for a stream; mic controls still work.
+        }
+      }
+    };
+    const sample = () => {
+      if (disposed) return;
+      syncSources();
+      const next: Record<string, { level: number; speaking: boolean; tilt: number }> = {};
+      for (const [key, analyser] of analysers) {
+        const samples = new Uint8Array(analyser.fftSize);
+        analyser.getByteTimeDomainData(samples);
+        let sumSquares = 0;
+        for (const sample of samples) {
+          const amplitude = (sample - 128) / 128;
+          sumSquares += amplitude * amplitude;
+        }
+        const rawLevel = Math.min(1, Math.sqrt(sumSquares / samples.length) * 8);
+        const prior = previous.get(key) ?? { level: 0, speaking: false, quietFrames: 0, tilt: 0 };
+        const level = prior.level * 0.35 + rawLevel * 0.65;
+        const aboveThreshold = level > 0.035;
+        const quietFrames = aboveThreshold ? 0 : prior.quietFrames + 1;
+        const speaking = aboveThreshold || (prior.speaking && quietFrames < 5);
+        const direction = level >= prior.level ? 1 : -1;
+        const tilt = speaking ? direction * Math.min(13, 2 + level * 15) : 0;
+        previous.set(key, { level, speaking, quietFrames, tilt });
+        next[key] = { level, speaking, tilt };
+      }
+      setAudioActivity(current => {
+        const keys = Object.keys(next);
+        if (keys.length === Object.keys(current).length && keys.every(key => {
+          const a = current[key]; const b = next[key];
+          return a && a.speaking === b.speaking && Math.abs(a.level - b.level) < 0.035 && Math.abs(a.tilt - b.tilt) < 2;
+        })) return current;
+        return next;
+      });
+      timer = window.setTimeout(sample, 55);
+    };
+    void context.resume().catch(() => undefined);
+    sample();
+    return () => {
+      disposed = true;
+      window.clearTimeout(timer);
+      analysers.clear();
+      previous.clear();
+      void context.close().catch(() => undefined);
+    };
+  }, [enabled, microphone, remote, selfSessionId]);
   const isMicPublishing = () =>
     !pausedRef.current &&
     !supersededRef.current &&
@@ -503,6 +588,7 @@ export function useLiveTransport({
     ready,
     people,
     remote,
+    audioActivity,
     local,
     micOn,
     microphone,

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { roomAccess } from "@/lib/instant-live/server";
+import { boardSchema } from "@/lib/instant-live/types";
 
 export async function POST(
   request: Request,
@@ -16,17 +17,47 @@ export async function POST(
     );
   const body = await request.json().catch(() => ({}));
   const action = body?.action;
-  if (action !== "restart" && action !== "end")
+  if ((action === "pause" || action === "quit") && body?.board !== undefined) {
+    const parsedBoard = boardSchema.safeParse(body.board);
+    if (!parsedBoard.success)
+      return NextResponse.json({ error: "The whiteboard data could not be saved." }, { status: 400 });
+    const { data: savedState, error: boardError } = await admin
+      .from("instant_live_state")
+      .select("board_revision")
+      .eq("room_id", id)
+      .maybeSingle();
+    if (boardError) return NextResponse.json({ error: "Could not save the whiteboard before pausing." }, { status: 503 });
+    if (savedState) {
+      const { error } = await admin
+        .from("instant_live_state")
+        .update({ board: parsedBoard.data, board_revision: savedState.board_revision + 1 })
+        .eq("room_id", id)
+        .eq("board_revision", savedState.board_revision);
+      if (error) return NextResponse.json({ error: "Could not save the whiteboard before pausing." }, { status: 503 });
+    }
+  }
+  if (action === "heartbeat") {
+    if (room.status === "LIVE") {
+      const { error } = await admin
+        .from("instant_live_rooms")
+        .update({ creator_last_seen_at: new Date().toISOString() })
+        .eq("id", id)
+        .eq("status", "LIVE");
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    return NextResponse.json({ ok: true, status: room.status });
+  }
+  if (action !== "pause" && action !== "restart" && action !== "quit")
     return NextResponse.json(
-      { error: "Choose end or restart." },
+      { error: "Choose pause, restart, or quit." },
       { status: 400 },
     );
 
   if (action === "restart") {
-    if (room.status !== "ENDED")
+    if (room.status !== "PAUSED" || Date.parse(room.pause_until ?? "") <= Date.now())
       return NextResponse.json(
-        { error: "This class is already live." },
-        { status: 409 },
+        { error: "This class can no longer be restarted." },
+        { status: 410 },
       );
     const activeStartedAt = new Date().toISOString();
     const expiresAt = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
@@ -35,11 +66,14 @@ export async function POST(
       .update({
         status: "LIVE",
         ended_at: null,
+        pause_until: null,
         active_started_at: activeStartedAt,
         expires_at: expiresAt,
+        creator_last_seen_at: activeStartedAt,
       })
       .eq("id", id)
-      .eq("status", "ENDED")
+      .eq("status", "PAUSED")
+      .gt("pause_until", new Date().toISOString())
       .select("id")
       .maybeSingle();
     if (error)
@@ -56,33 +90,34 @@ export async function POST(
       .not("presenter_id", "is", null);
     return NextResponse.json({
       ok: true,
+      status: "LIVE",
       elapsedSeconds: room.elapsed_seconds ?? 0,
       activeStartedAt,
+      pauseUntil: null,
     });
   }
 
-  if (room.status !== "LIVE")
-    return NextResponse.json({
-      ok: true,
-      elapsedSeconds: room.elapsed_seconds ?? 0,
-    });
-  const elapsedSeconds =
-    (room.elapsed_seconds ?? 0) +
-    Math.max(
-      0,
-      Math.floor(
-        (Date.now() - new Date(room.active_started_at).getTime()) / 1000,
-      ),
-    );
+  if (action === "pause" && room.status !== "LIVE")
+    return NextResponse.json({ ok: true, status: room.status, elapsedSeconds: room.elapsed_seconds ?? 0, pauseUntil: room.pause_until ?? null });
+  if (action === "quit" && room.status === "ENDED")
+    return NextResponse.json({ ok: true, status: "ENDED", elapsedSeconds: room.elapsed_seconds ?? 0 });
+  const now = Date.now();
+  const elapsedSeconds = (room.elapsed_seconds ?? 0) + (room.status === "LIVE"
+    ? Math.max(0, Math.floor((now - new Date(room.active_started_at).getTime()) / 1000))
+    : 0);
+  const changedAt = new Date(now).toISOString();
+  const pauseUntil = action === "pause" ? new Date(now + 15 * 60_000).toISOString() : null;
   const { data, error } = await admin
     .from("instant_live_rooms")
     .update({
-      status: "ENDED",
-      ended_at: new Date().toISOString(),
+      status: action === "pause" ? "PAUSED" : "ENDED",
+      ended_at: changedAt,
+      pause_until: pauseUntil,
+      expires_at: pauseUntil ?? room.expires_at,
       elapsed_seconds: elapsedSeconds,
     })
     .eq("id", id)
-    .eq("status", "LIVE")
+    .eq("status", room.status)
     .select("id")
     .maybeSingle();
   if (error)
@@ -92,5 +127,5 @@ export async function POST(
       { error: "This class changed state. Refresh and try again." },
       { status: 409 },
     );
-  return NextResponse.json({ ok: true, elapsedSeconds });
+  return NextResponse.json({ ok: true, status: action === "pause" ? "PAUSED" : "ENDED", elapsedSeconds, pauseUntil });
 }

@@ -14,16 +14,20 @@ export default async function InstantLiveRoomPage({
   const { data: room } = await admin
     .from("instant_live_rooms")
     .select(
-      "id,title,join_code,status,creator_id,max_learners,expires_at,created_at,active_started_at,elapsed_seconds",
+      "id,title,join_code,status,creator_id,max_learners,expires_at,created_at,active_started_at,elapsed_seconds,pause_until",
     )
     .eq("id", id)
     .maybeSingle();
   if (!room) return <EndedRoom />;
   const role = room.creator_id === user.id ? "CREATOR" : "LEARNER";
+  let status = room.status;
+  if (status === "PAUSED" && new Date(room.pause_until ?? room.expires_at).getTime() <= Date.now()) {
+    const endedAt = new Date().toISOString();
+    await admin.from("instant_live_rooms").update({ status: "ENDED", ended_at: endedAt, pause_until: null }).eq("id", id).eq("status", "PAUSED");
+    status = "ENDED";
+  }
   const isExpired = new Date(room.expires_at).getTime() <= Date.now();
-  const isEnded = room.status !== "LIVE" || isExpired;
-  if (isEnded && role !== "CREATOR") return <EndedRoom />;
-  if (isExpired && room.status === "LIVE") return <EndedRoom />;
+  if ((status === "ENDED" || (status === "LIVE" && isExpired))) return <EndedRoom />;
   if (role === "LEARNER") {
     const { count } = await admin
       .from("instant_live_participants")
@@ -46,6 +50,8 @@ export default async function InstantLiveRoomPage({
           detail="You cannot rejoin this class."
         />
       );
+    if (status === "PAUSED" && existing?.status !== "JOINED")
+      return <EndedRoom title="Class is paused" detail="Only learners who joined before the pause can return during the 15-minute resume window." />;
     if ((count ?? 0) >= room.max_learners)
       return (
         <EndedRoom
@@ -54,7 +60,7 @@ export default async function InstantLiveRoomPage({
         />
       );
   }
-  if (!isEnded)
+  if (status === "LIVE")
     await admin.from("instant_live_participants").upsert(
       {
         room_id: id,
@@ -80,7 +86,7 @@ export default async function InstantLiveRoomPage({
       code={room.join_code}
       startedAt={room.active_started_at ?? room.created_at}
       elapsedOffset={room.elapsed_seconds ?? 0}
-      initialEnded={isEnded}
+      initialEnded={status === "PAUSED"}
       userId={user.id}
       userName={name}
       role={role}
