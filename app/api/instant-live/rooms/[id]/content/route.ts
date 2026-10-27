@@ -20,7 +20,7 @@ export async function GET(request:Request,{params}:{params:Promise<{id:string}>}
   if(new URL(request.url).searchParams.has("catalog")) {
     if(!creator)return fail("Only the teacher can choose content.",403);
     const isAdmin=isPlatformAdmin((await getFreshProfile(user.id))?.role);
-    const query=(table:string)=>{let q=admin.from(table).select("id,title,level").eq("status","PUBLISHED").order("title").limit(200); if(!isAdmin)q=q.eq("created_by",user.id);return q;};
+    const query=(table:string)=>{let q=admin.from(table).select("id,title,level,topic").eq("status","PUBLISHED").order("title").limit(200); if(!isAdmin)q=q.eq("created_by",user.id);return q;};
     const [lessons,quizzes]=await Promise.all([query("lessons"),query("quizzes")]);
     if(lessons.error||quizzes.error)return fail("Could not load published content.",503);
     return json({lessons:lessons.data,quizzes:quizzes.data});

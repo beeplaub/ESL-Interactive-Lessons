@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState, type ComponentProps } from "react";
-import { X } from "lucide-react";
+import { BookOpen, Check, ChevronRight, ClipboardList, LoaderCircle, Search, SlidersHorizontal, X } from "lucide-react";
 import { BuilderLessonPlayer } from "@/components/BuilderLessonPlayer";
 import { QuizPlayer, type QuizQuestion } from "@/components/QuizPlayer";
 import type { Json } from "@/types/database.types";
@@ -9,11 +9,45 @@ import type { SharedState } from "@/lib/instant-live/types";
 export type ContentSelection = {kind:"lesson"|"quiz";id:string;index:number;reveal:boolean;tab?:"learn"|"practice";activityId?:string};
 type LessonPlayerData = Pick<ComponentProps<typeof BuilderLessonPlayer>, "lesson" | "slides" | "blocks" | "activities" | "narrationMap" | "narrationConfigMap">;
 type ContentData = {selection:ContentSelection|null;title:string;total:number;revision:number;viewerKey?:string;lessonPlayer?:LessonPlayerData;quiz?:{id:string;title:string;level:string|null;topic:string|null;timer_minutes:number|null;questions:QuizQuestion[];pastAttempts:Array<{id:string;score:number;total:number;completedAt:string;answers:Json|null;status:string|null;gradingSource:string|null}>};responses?:Array<{activity_id:string;answers:Json}>};
+type ContentCatalogItem = {id:string;title:string;level:string|null;topic:string|null};
 export function ContentPicker({api,onClose,onChoose}:{api:string;onClose:()=>void;onChoose:(selection:ContentSelection)=>Promise<void>}) {
-  const [catalog,setCatalog]=useState<{lessons:Array<{id:string;title:string}>;quizzes:Array<{id:string;title:string}>}>({lessons:[],quizzes:[]});
-  const [search,setSearch]=useState("");const [error,setError]=useState("");const [busy,setBusy]=useState(true);
-  useEffect(()=>{const controller=new AbortController();void fetch(`${api}/content?catalog=1`,{signal:controller.signal}).then(async response=>{const data=await response.json();if(!response.ok)throw new Error(data.error);setCatalog(data);}).catch(e=>{if(!controller.signal.aborted)setError(e.message);}).finally(()=>{if(!controller.signal.aborted)setBusy(false);});return()=>controller.abort();},[api]);
-  return <div className="live-modal-backdrop"><section className="live-feature-panel" role="dialog" aria-modal="true" aria-label="Choose lesson or quiz"><header><h2>Lesson & quiz</h2><button aria-label="Close content picker" onClick={onClose}><X size={18}/></button></header><p>Share your published content. Everyone follows the page you choose.</p><input aria-label="Search lessons and quizzes" placeholder="Search your content…" value={search} onChange={e=>setSearch(e.target.value)}/>{error?<p role="alert">{error}</p>:null}{busy?<p>Loading…</p>:null}{(["lesson","quiz"] as const).map(kind=><div key={kind}><h3>{kind==="lesson"?"Lessons":"Quizzes"}</h3>{catalog[kind==="lesson"?"lessons":"quizzes"].filter(item=>item.title.toLowerCase().includes(search.toLowerCase())).map(item=><button className="live-content-option" disabled={busy} key={item.id} onClick={async()=>{setBusy(true);try{await onChoose({kind,id:item.id,index:0,reveal:false});onClose();}catch(e){setError(e instanceof Error?e.message:"Could not share content.");}finally{setBusy(false);}}}>{item.title}</button>)}</div>)}</section></div>;
+  const [catalog,setCatalog]=useState<{lessons:ContentCatalogItem[];quizzes:ContentCatalogItem[]}>({lessons:[],quizzes:[]});
+  const [kind,setKind]=useState<"lesson"|"quiz">("lesson");
+  const [search,setSearch]=useState("");
+  const [level,setLevel]=useState("all");
+  const [topic,setTopic]=useState("all");
+  const [error,setError]=useState("");
+  const [loading,setLoading]=useState(true);
+  const [busyId,setBusyId]=useState<string|null>(null);
+  useEffect(()=>{const controller=new AbortController();void fetch(`${api}/content?catalog=1`,{signal:controller.signal}).then(async response=>{const data=await response.json();if(!response.ok)throw new Error(data.error);setCatalog(data);}).catch(e=>{if(!controller.signal.aborted)setError(e.message);}).finally(()=>{if(!controller.signal.aborted)setLoading(false);});return()=>controller.abort();},[api]);
+  const items=catalog[kind==="lesson"?"lessons":"quizzes"];
+  const levels=[...new Set(items.map(item=>item.level).filter((value):value is string=>Boolean(value)))].sort((a,b)=>a.localeCompare(b));
+  const topics=[...new Set(items.map(item=>item.topic).filter((value):value is string=>Boolean(value)))].sort((a,b)=>a.localeCompare(b));
+  const normalizedSearch=search.trim().toLocaleLowerCase();
+  const filtered=items.filter(item=>{
+    const matchesSearch=!normalizedSearch||`${item.title} ${item.topic??""} ${item.level??""}`.toLocaleLowerCase().includes(normalizedSearch);
+    return matchesSearch&&(level==="all"||item.level===level)&&(topic==="all"||item.topic===topic);
+  });
+  async function share(item:ContentCatalogItem) {
+    setBusyId(item.id);setError("");
+    try{await onChoose({kind,id:item.id,index:0,reveal:false});onClose();}
+    catch(e){setError(e instanceof Error?e.message:"Could not share this item.");setBusyId(null);}
+  }
+  return <div className="live-modal-backdrop live-content-picker-backdrop" onClick={event=>{if(event.target===event.currentTarget&&!busyId)onClose();}}>
+    <section className="live-feature-panel live-content-picker" role="dialog" aria-modal="true" aria-labelledby="live-content-picker-title">
+      <header className="live-content-picker-header"><div><span className="live-content-picker-eyebrow">CLASSROOM LIBRARY</span><h2 id="live-content-picker-title">Share lesson or quiz</h2><p>Choose content for everyone in your live class.</p></div><button className="live-picker-close" aria-label="Close content picker" onClick={onClose} disabled={Boolean(busyId)}><X size={19}/></button></header>
+      <div className="live-content-kind-tabs" role="tablist" aria-label="Content type">
+        {(["lesson","quiz"] as const).map(value=>{const selected=kind===value;const Icon=value==="lesson"?BookOpen:ClipboardList;const count=catalog[value==="lesson"?"lessons":"quizzes"].length;return <button type="button" role="tab" aria-selected={selected} className={selected?"is-active":""} key={value} onClick={()=>{setKind(value);setLevel("all");setTopic("all");setSearch("");setError("");}}><span className="live-content-kind-icon"><Icon size={19}/></span><span className="live-content-kind-copy"><strong>{value==="lesson"?"Lessons":"Quizzes"}</strong><small>{count} published</small></span><ChevronRight className="live-content-kind-arrow" size={17}/></button>;})}
+      </div>
+      <div className="live-content-filter-heading"><div><h3>Find content</h3><p>Filter by title, learning level, or topic.</p></div><span><SlidersHorizontal size={15}/>{filtered.length} results</span></div>
+      <div className="live-content-search"><Search size={18}/><input aria-label={`Search ${kind==="lesson"?"lessons":"quizzes"}`} placeholder={`Search ${kind} title, topic, or level…`} value={search} onChange={event=>setSearch(event.target.value)}/>{search?<button aria-label="Clear search" onClick={()=>setSearch("")}><X size={15}/></button>:null}</div>
+      <div className="live-content-filter-row"><label>Level<select aria-label="Filter by level" value={level} onChange={event=>setLevel(event.target.value)}><option value="all">All levels</option>{levels.map(value=><option key={value} value={value}>{value}</option>)}</select></label><label>Topic<select aria-label="Filter by topic" value={topic} onChange={event=>setTopic(event.target.value)}><option value="all">All topics</option>{topics.map(value=><option key={value} value={value}>{value}</option>)}</select></label><button type="button" className="live-content-reset" onClick={()=>{setSearch("");setLevel("all");setTopic("all");}}>Reset</button></div>
+      {error?<p className="live-content-picker-error" role="alert">{error}</p>:null}
+      <div className="live-content-results" aria-live="polite">
+        {loading?<div className="live-content-picker-empty"><LoaderCircle className="animate-spin" size={20}/>Loading your published content…</div>:filtered.length===0?<div className="live-content-picker-empty"><span className="live-content-empty-icon"><Search size={19}/></span><strong>{items.length?"No matching content":"Nothing published here yet"}</strong><span>{items.length?"Try a different title or clear one of the filters.":`Published ${kind}s will appear here for quick sharing.`}</span></div>:filtered.map(item=><button type="button" className="live-content-result" key={item.id} onClick={()=>void share(item)} disabled={Boolean(busyId)}><span className="live-content-result-icon">{kind==="lesson"?<BookOpen size={18}/>:<ClipboardList size={18}/>}</span><span className="live-content-result-copy"><strong>{item.title}</strong><span>{item.topic||"General practice"}</span></span><span className="live-content-result-meta">{item.level||"All levels"}</span><span className="live-content-result-action">{busyId===item.id?<LoaderCircle className="animate-spin" size={18}/>:<Check size={17}/>}</span></button>)}
+      </div>
+    </section>
+  </div>;
 }
 export function LiveContent({api,revision,creator,paused,onChoose,onNotice}:{api:string;revision:number;creator:boolean;paused:boolean;onChoose:(selection:ContentSelection)=>Promise<void>;onNotice:(message:string)=>void}) {
   const [data,setData]=useState<ContentData|null>(null),[error,setError]=useState("");
