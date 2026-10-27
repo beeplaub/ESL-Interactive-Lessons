@@ -155,6 +155,8 @@ export function InstantLiveClassroom({
   const [waitingParticipants, setWaitingParticipants] = useState<WaitingParticipant[]>([]);
   const [roomSettings, setRoomSettings] = useState<RoomSettings>({ room_locked: false, learner_mic_enabled: true, learner_chat_enabled: true, learner_screen_share_enabled: true });
   const roomSettingsRef = useRef(roomSettings);
+  const roomSettingsVersion = useRef(0);
+  const roomSettingsRefreshId = useRef(0);
   const settingVersions = useRef<Partial<Record<keyof RoomSettings, number>>>({});
   const settingQueues = useRef(new Map<keyof RoomSettings, Promise<void>>());
   const [recordingDirectory, setRecordingDirectory] = useState<RecordingDirectoryHandle | null>(null);
@@ -223,6 +225,8 @@ export function InstantLiveClassroom({
   }, []);
   const refresh = useCallback(async () => {
     if (roomRevoked) return false;
+    const settingsVersionAtRequest = roomSettingsVersion.current;
+    const settingsRefreshId = ++roomSettingsRefreshId.current;
     try {
       const response = await fetch(`${api}/state`, { cache: "no-store" });
       const result = await response.json();
@@ -241,14 +245,19 @@ export function InstantLiveClassroom({
       if (Array.isArray(result.participants)) setServerParticipants(result.participants);
       if (chatResult?.messages) setChat(chatResult.messages);
       setClock(result.room);
-      const nextRoomSettings = {
-        room_locked: Boolean(result.room?.room_locked),
-        learner_mic_enabled: result.room?.learner_mic_enabled !== false,
-        learner_chat_enabled: result.room?.learner_chat_enabled !== false,
-        learner_screen_share_enabled: result.room?.learner_screen_share_enabled !== false,
-      };
-      roomSettingsRef.current = nextRoomSettings;
-      setRoomSettings(nextRoomSettings);
+      if (
+        settingsVersionAtRequest === roomSettingsVersion.current &&
+        settingsRefreshId === roomSettingsRefreshId.current
+      ) {
+        const nextRoomSettings = {
+          room_locked: Boolean(result.room?.room_locked),
+          learner_mic_enabled: result.room?.learner_mic_enabled !== false,
+          learner_chat_enabled: result.room?.learner_chat_enabled !== false,
+          learner_screen_share_enabled: result.room?.learner_screen_share_enabled !== false,
+        };
+        roomSettingsRef.current = nextRoomSettings;
+        setRoomSettings(nextRoomSettings);
+      }
       if (creator && Array.isArray(result.waitingParticipants)) setWaitingParticipants(result.waitingParticipants);
       setLoaded(true);
       return true;
@@ -393,11 +402,12 @@ export function InstantLiveClassroom({
       if (!(error instanceof DOMException && error.name === "AbortError")) setNotice("Could not select that folder.");
     }
   }
-  async function updateRoomSetting(key: keyof RoomSettings, value: boolean) {
+  function updateRoomSetting(key: keyof RoomSettings, value: boolean) {
     const previousValue = roomSettingsRef.current[key];
     const nextSettings = { ...roomSettingsRef.current, [key]: value };
     roomSettingsRef.current = nextSettings;
     setRoomSettings(nextSettings);
+    roomSettingsVersion.current += 1;
     const version = (settingVersions.current[key] ?? 0) + 1;
     settingVersions.current[key] = version;
     const previousRequest = settingQueues.current.get(key) ?? Promise.resolve();
@@ -411,14 +421,15 @@ export function InstantLiveClassroom({
       if (!response.ok) throw new Error(result.error || "Could not save setting.");
       if (settingVersions.current[key] === version) {
         void transportRef.current?.send("state-changed", {});
-        void refresh();
       }
     }).catch((error: unknown) => {
       if (settingVersions.current[key] === version) {
+        roomSettingsVersion.current += 1;
         const rolledBack = { ...roomSettingsRef.current, [key]: previousValue };
         roomSettingsRef.current = rolledBack;
         setRoomSettings(rolledBack);
         setNotice(error instanceof Error ? error.message : "Could not save room setting.");
+        void refresh();
       }
     });
     settingQueues.current.set(key, request);
