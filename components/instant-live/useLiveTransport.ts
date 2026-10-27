@@ -19,7 +19,9 @@ type Peer = {
   restarts: number;
 };
 type Envelope = { from: string; userId: string; event: string; data: unknown };
-const iceServers: RTCIceServer[] = [{ urls: "stun:stun.cloudflare.com:3478" }];
+const fallbackIceServers: RTCIceServer[] = [
+  { urls: "stun:stun.cloudflare.com:3478" },
+];
 export function useLiveTransport({
   roomId,
   self,
@@ -61,9 +63,47 @@ export function useLiveTransport({
   const [micOn, setMicOn] = useState(false);
   const [microphone, setMicrophone] = useState<MediaStream | null>(null);
   const [connections, setConnections] = useState<Record<string, RTCPeerConnectionState>>({});
+  const [iceConfig, setIceConfig] = useState<{
+    servers: RTCIceServer[];
+    ready: boolean;
+  }>({ servers: fallbackIceServers, ready: false });
   const micBusy = useRef(false);
   const [local, setLocal] = useState<MediaStream | null>(null);
   const [superseded, setSuperseded] = useState(false);
+  const selfSessionId = self?.sessionId;
+
+  useEffect(() => {
+    if (!selfSessionId || !enabled) {
+      setIceConfig({ servers: fallbackIceServers, ready: false });
+      return;
+    }
+    let cancelled = false;
+    setIceConfig({ servers: fallbackIceServers, ready: false });
+    void fetch(`/api/instant-live/rooms/${roomId}/ice-servers`, {
+      cache: "no-store",
+    })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("TURN credentials unavailable");
+        const body = (await response.json()) as {
+          iceServers?: RTCIceServer[];
+        };
+        if (!Array.isArray(body.iceServers) || body.iceServers.length === 0)
+          throw new Error("No ICE servers returned");
+        if (!cancelled)
+          setIceConfig({ servers: body.iceServers, ready: true });
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setIceConfig({ servers: fallbackIceServers, ready: true });
+        callbacks.current.onNotice(
+          "The relay is unavailable right now. Trying a direct media connection.",
+        );
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [enabled, roomId, selfSessionId]);
+
   const send = useCallback(
     async (event: string, data: unknown) => {
       if (!channel.current || !readyRef.current || !self) return;
@@ -87,7 +127,7 @@ export function useLiveTransport({
     [self],
   );
   useEffect(() => {
-    if (!self || !enabled) return;
+    if (!self || !enabled || !iceConfig.ready) return;
     let disposed = false;
     const connectionMap = peers.current;
     const room = client.channel(`instant-room:${roomId}`, {
@@ -121,7 +161,7 @@ export function useLiveTransport({
     const ensure = (id: string): Peer => {
       const existing = peers.current.get(id);
       if (existing) return existing;
-      const pc = new RTCPeerConnection({ iceServers });
+      const pc = new RTCPeerConnection({ iceServers: iceConfig.servers });
       const peer: Peer = {
         pc,
         makingOffer: false,
@@ -181,7 +221,7 @@ export function useLiveTransport({
           pc.restartIce();
         } else if (pc.iceConnectionState === "failed")
           callbacks.current.onNotice(
-            "A network is blocking the media connection. Rejoin or try another network; this free direct connection has no relay.",
+            "Could not establish the media connection. Check the network and try reconnecting.",
           );
       };
       for (const stream of [mic.current, presentation.current])
@@ -352,7 +392,7 @@ export function useLiveTransport({
       connectionMap.clear();
       channel.current = null;
     };
-  }, [client, enabled, roomId, self, send]);
+  }, [client, enabled, iceConfig, roomId, self, send]);
   useEffect(() => {
     if (!self || !ready) return;
     void presenceChannel.current?.track({
