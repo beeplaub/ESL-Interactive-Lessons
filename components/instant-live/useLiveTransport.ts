@@ -57,6 +57,9 @@ export function useLiveTransport({
   recordingRef.current = recordingStartedAt;
   const forceMutedRef = useRef(forceMuted);
   forceMutedRef.current = forceMuted;
+  const pausedRef = useRef(paused);
+  pausedRef.current = paused;
+  const supersededRef = useRef(false);
   const [ready, setReady] = useState(false);
   const [people, setPeople] = useState<LivePerson[]>([]);
   const [remote, setRemote] = useState<Record<string, MediaStream>>({});
@@ -70,7 +73,17 @@ export function useLiveTransport({
   const micBusy = useRef(false);
   const [local, setLocal] = useState<MediaStream | null>(null);
   const [superseded, setSuperseded] = useState(false);
+  supersededRef.current = superseded;
   const selfSessionId = self?.sessionId;
+  const isMicPublishing = () =>
+    !pausedRef.current &&
+    !supersededRef.current &&
+    !forceMutedRef.current &&
+    Boolean(
+      mic.current?.getAudioTracks().some(
+        (track) => track.readyState === "live" && track.enabled,
+      ),
+    );
 
   useEffect(() => {
     if (!selfSessionId || !enabled) {
@@ -360,9 +373,7 @@ export function useLiveTransport({
           await room.track({
             ...self,
             recordingStartedAt: recordingRef.current,
-            mic:
-              !forceMutedRef.current &&
-              (mic.current?.getAudioTracks().some((t) => t.enabled) ?? false),
+            mic: isMicPublishing(),
           });
           await send("state-request", {});
         } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT")
@@ -398,9 +409,9 @@ export function useLiveTransport({
     void presenceChannel.current?.track({
       ...self,
       recordingStartedAt,
-      mic: micOn && !paused && !forceMuted,
+      mic: isMicPublishing(),
     });
-  }, [forceMuted, micOn, paused, ready, self, recordingStartedAt]);
+  }, [forceMuted, micOn, microphone, paused, ready, self, recordingStartedAt, superseded]);
   useEffect(() => { if (forceMuted || superseded) setMicOn(false); }, [forceMuted, superseded]);
   useEffect(() => {
     mic.current?.getTracks().forEach((t) => {
@@ -450,7 +461,7 @@ export function useLiveTransport({
       const next = !micOn && !forceMutedRef.current;
       stream.getTracks().forEach(t => { t.enabled = next; });
       setMicOn(next);
-      if (self && ready) await presenceChannel.current?.track({ ...self, recordingStartedAt: recordingRef.current, mic: next });
+      if (self && ready) await presenceChannel.current?.track({ ...self, recordingStartedAt: recordingRef.current, mic: isMicPublishing() });
     } catch (error) {
       callbacks.current.onNotice(error instanceof DOMException && error.name === "NotAllowedError"
         ? "Microphone access was denied. Allow it in this site's browser settings, then try again."
