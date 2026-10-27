@@ -519,6 +519,27 @@
   min-width: max-content;
   margin: 0 auto;
 }
+.root :global(.live-gallery-actions) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 9px;
+  font-size: 12px;
+  color: #d4d6e3;
+}
+.root :global(.live-gallery-actions > span) { margin-right: auto; }
+.root :global(.live-gallery-actions button) {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #ffffff24;
+  border-radius: 9px;
+  background: #ffffff0b;
+  color: #f5f5fb;
+  padding: 7px 9px;
+  font-size: 11px;
+}
+.root :global(.live-gallery-empty) { margin: 5px 0 2px; color: #aeb2c5; font-size: 12px; }
 .root :global(.live-thumbnail) {
   position: relative;
   width: 112px;
@@ -943,6 +964,15 @@
   padding: 10px 14px;
   font-size: 13px;
 }
+.root :global(.live-link-button) { margin-left: 8px; background: #ffffff0b; }
+.root :global(.live-image-link-dialog > p) { color: #c6c8d6; font-size: 13px; line-height: 1.55; margin: 0 0 14px; }
+.root :global(.live-image-link-dialog form) { display: grid; gap: 9px; }
+.root :global(.live-image-link-dialog label) { color: #e2e3ed; font-size: 12px; font-weight: 650; }
+.root :global(.live-image-link-dialog input) {
+  width: 100%; min-width: 0; border: 1px solid #ffffff24; border-radius: 10px;
+  background: #171c2a; color: white; padding: 11px 12px; outline: none;
+}
+.root :global(.live-image-link-dialog input:focus) { border-color: #8d83ff; box-shadow: 0 0 0 3px #7568ed33; }
 .root :global(.live-image-picker > div) {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));

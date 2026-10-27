@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { roomAccess } from "@/lib/instant-live/server";
 import { readR2Object } from "@/lib/storage/mediaStorage";
 import type { BoardObject } from "@/lib/instant-live/types";
+import { normalizeLiveImageUrl } from "@/lib/instant-live/imageUrl";
 
 export async function GET(
   _request: Request,
@@ -13,7 +14,7 @@ export async function GET(
   const { admin, user, creator } = access;
   const { data: asset } = await admin
     .from("instant_live_assets")
-    .select("owner_id,path")
+    .select("owner_id,bucket,path")
     .eq("room_id", id)
     .eq("id", assetId)
     .maybeSingle();
@@ -29,6 +30,14 @@ export async function GET(
     );
     if (!(state?.stage === "image" && state.asset_id === assetId) && !onBoard)
       return new NextResponse(null, { status: 403 });
+  }
+  if (asset.bucket === "external") {
+    const url = normalizeLiveImageUrl(asset.path);
+    if (!url) return new NextResponse(null, { status: 404 });
+    return NextResponse.redirect(url, {
+      status: 302,
+      headers: { "Cache-Control": "private, no-store", "Referrer-Policy": "no-referrer" },
+    });
   }
   try {
     const object = await readR2Object({ path: asset.path });

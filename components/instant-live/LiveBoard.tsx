@@ -186,6 +186,44 @@ export function LiveBoard({
     );
     return [(p.x - pan.x) / zoom, (p.y - pan.y) / zoom];
   }
+  function nearestObject(p: [number, number], tolerance: number): BoardObject | undefined {
+    const distanceToSegment = (
+      point: [number, number],
+      a: [number, number],
+      b: [number, number],
+    ) => {
+      const dx = b[0] - a[0], dy = b[1] - a[1];
+      const lengthSquared = dx * dx + dy * dy;
+      const t = lengthSquared
+        ? Math.max(0, Math.min(1, ((point[0] - a[0]) * dx + (point[1] - a[1]) * dy) / lengthSquared))
+        : 0;
+      return Math.hypot(point[0] - (a[0] + t * dx), point[1] - (a[1] + t * dy));
+    };
+    let best: { object: BoardObject; distance: number; order: number } | undefined;
+    current.current.forEach((object, order) => {
+      let distance: number;
+      if (object.kind === "pen" || object.kind === "highlighter" || object.kind === "line" || object.kind === "arrow") {
+        const points = (object.points ?? []).map(([x, y]) => [object.x + x, object.y + y] as [number, number]);
+        if (points.length < 2) points.push([object.x + object.w, object.y + object.h]);
+        distance = points.slice(1).reduce(
+          (minimum, next, index) => Math.min(minimum, distanceToSegment(p, points[index], next)),
+          Number.POSITIVE_INFINITY,
+        );
+        distance = Math.max(0, distance - object.stroke / 2);
+      } else {
+        const left = Math.min(object.x, object.x + object.w);
+        const right = Math.max(object.x, object.x + object.w);
+        const top = Math.min(object.y, object.y + object.h);
+        const bottom = Math.max(object.y, object.y + object.h);
+        const dx = Math.max(left - p[0], 0, p[0] - right);
+        const dy = Math.max(top - p[1], 0, p[1] - bottom);
+        distance = Math.hypot(dx, dy);
+      }
+      if (distance <= tolerance && (!best || distance < best.distance || (distance === best.distance && order > best.order)))
+        best = { object, distance, order };
+    });
+    return best?.object;
+  }
   function start(event: React.PointerEvent<SVGSVGElement>) {
     if ((event.target as Element).closest("[data-text-editing=true]")) return;
     pointers.current.set(event.pointerId, [event.clientX, event.clientY]);
@@ -214,10 +252,13 @@ export function LiveBoard({
       return;
     }
     if (tool === "eraser") {
-      if (hit) {
+      const rect = svg.current?.getBoundingClientRect();
+      const targetTolerance = rect ? (24 * BOARD_WIDTH * zoom) / rect.width : 24;
+      const erased = hit ?? nearestObject(p, targetTolerance);
+      if (erased) {
         checkpoint();
         onChange(
-          current.current.filter((item) => item.id !== hit.id),
+          current.current.filter((item) => item.id !== erased.id),
           true,
         );
       }

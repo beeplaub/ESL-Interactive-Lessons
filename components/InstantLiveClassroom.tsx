@@ -10,6 +10,7 @@ import {
   Square,
   Copy,
   ImagePlus,
+  Link2,
   Maximize2,
   MessageCircle,
   Mic,
@@ -128,6 +129,10 @@ export function InstantLiveClassroom({
   const [roomRevoked, setRoomRevoked] = useState(false);
   const [gallery, setGallery] = useState(false);
   const [boardPicker, setBoardPicker] = useState(false);
+  const [imageLinkOpen, setImageLinkOpen] = useState(false);
+  const [imageLink, setImageLink] = useState("");
+  const [imageLinkBusy, setImageLinkBusy] = useState(false);
+  const [imageLinkTarget, setImageLinkTarget] = useState<"gallery" | "board">("gallery");
   const [pointer, setPointer] = useState<[number, number] | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
   const [soundBlocked, setSoundBlocked] = useState(false);
@@ -683,6 +688,43 @@ export function InstantLiveClassroom({
     uploadToBoard.current = onBoard;
     upload.current?.click();
   }
+  async function addImageLink(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const url = imageLink.trim();
+    if (!url || imageLinkBusy) return;
+    setImageLinkBusy(true);
+    try {
+      const probe = new window.Image();
+      probe.referrerPolicy = "no-referrer";
+      const dimensions = await new Promise<{ width: number; height: number }>((resolve, reject) => {
+        const timeout = window.setTimeout(() => reject(new Error("The image took too long to load.")), 15000);
+        probe.onload = () => { window.clearTimeout(timeout); resolve({ width: probe.naturalWidth, height: probe.naturalHeight }); };
+        probe.onerror = () => { window.clearTimeout(timeout); reject(new Error("That link did not load an image. Use a direct public image link.")); };
+        probe.src = url;
+      });
+      const response = await fetch(`${api}/assets`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url, width: dimensions.width, height: dimensions.height }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Could not add this image link.");
+      setAssets((old) => [...old, result.asset]);
+      setGallery(true);
+      void transport.send("assets-changed", {});
+      if (imageLinkTarget === "board") addBoardImage(result.asset);
+      setImageLink("");
+      setImageLinkOpen(false);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Could not add this image link.");
+    } finally {
+      setImageLinkBusy(false);
+    }
+  }
+  function openImageLink(target: "gallery" | "board") {
+    setImageLinkTarget(target);
+    setImageLinkOpen(true);
+  }
   async function lifecycle() {
     if (!creator || busy) return;
     setBusy(true);
@@ -986,6 +1028,7 @@ export function InstantLiveClassroom({
                 <img
                   src={`${api}/assets/${state.asset_id}`}
                   alt="Image shown to the class"
+                  referrerPolicy="no-referrer"
                 />
               </ZoomStage>
             ) : null}
@@ -1037,8 +1080,14 @@ export function InstantLiveClassroom({
               <button onClick={() => void saveBoard()}>{saveStatus}</button>
             ) : null}
           </div>
-          {gallery && assets.length ? (
+          {gallery ? (
             <div className="live-gallery" aria-label="Your image gallery">
+              <div className="live-gallery-actions">
+                <span>{assets.length ? "Image gallery" : "Add an image to your gallery"}</span>
+                <button type="button" disabled={uploading || paused} onClick={() => pickUpload()}><Plus size={15}/>{uploading ? "Uploading…" : "Upload image"}</button>
+                <button type="button" disabled={paused} onClick={() => openImageLink("gallery")}><Link2 size={15}/>Add image link</button>
+              </div>
+              {assets.length ? (
               <div className="live-gallery-track">
                 {assets.map((asset) => (
                   <div
@@ -1051,7 +1100,7 @@ export function InstantLiveClassroom({
                       onClick={() => void showImage(asset)}
                       title={creator ? `Show ${asset.name}` : asset.name}
                     >
-                      <img src={`${api}/assets/${asset.id}`} alt={asset.name} />
+                      <img src={`${api}/assets/${asset.id}`} alt={asset.name} referrerPolicy="no-referrer" />
                     </button>
                     <span>{asset.name}</span>
                     {creator ? (
@@ -1067,6 +1116,7 @@ export function InstantLiveClassroom({
                   </div>
                 ))}
               </div>
+              ) : <p className="live-gallery-empty">Images you add here will appear in this gallery.</p>}
             </div>
           ) : null}
           <div className="live-bottom-rail">
@@ -1109,10 +1159,7 @@ export function InstantLiveClassroom({
             {button(
               uploading ? "Uploading…" : "Image",
               ImagePlus,
-              () => {
-                if (assets.length) setGallery((value) => !value);
-                else pickUpload();
-              },
+              () => setGallery((value) => !value),
               gallery,
               paused || uploading,
             )}
@@ -1376,14 +1423,30 @@ export function InstantLiveClassroom({
               <Plus size={18} />
               {uploading ? "Uploading…" : "Upload image"}
             </button>
+            <button className="live-upload-button live-link-button" onClick={() => openImageLink("board")}>
+              <Link2 size={18} /> Add image link
+            </button>
             <div>
               {assets.map((asset) => (
                 <button key={asset.id} onClick={() => addBoardImage(asset)}>
-                  <img src={`${api}/assets/${asset.id}`} alt={asset.name} />
+                  <img src={`${api}/assets/${asset.id}`} alt={asset.name} referrerPolicy="no-referrer" />
                   <span>{asset.name}</span>
                 </button>
               ))}
             </div>
+          </section>
+        </div>
+      ) : null}
+      {imageLinkOpen ? (
+        <div className="live-modal-backdrop" onClick={(event) => { if (event.target === event.currentTarget && !imageLinkBusy) setImageLinkOpen(false); }}>
+          <section role="dialog" aria-modal="true" aria-label="Add image link" className="live-image-picker live-image-link-dialog">
+            <header><h2>Add image from a link</h2><button type="button" aria-label="Close" disabled={imageLinkBusy} onClick={() => setImageLinkOpen(false)}><X size={20}/></button></header>
+            <p>Paste a public HTTPS link to an image. It will appear like any other gallery image.</p>
+            <form onSubmit={(event) => void addImageLink(event)}>
+              <label htmlFor="live-image-url">Image URL</label>
+              <input id="live-image-url" type="url" inputMode="url" placeholder="https://example.com/image.jpg" value={imageLink} onChange={(event) => setImageLink(event.target.value)} required />
+              <button className="live-upload-button" type="submit" disabled={imageLinkBusy}>{imageLinkBusy ? "Checking image…" : imageLinkTarget === "board" ? "Add to whiteboard" : "Add to gallery"}</button>
+            </form>
           </section>
         </div>
       ) : null}
