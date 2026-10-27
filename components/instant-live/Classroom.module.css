@@ -608,6 +608,64 @@
   border-radius: 50%;
   padding: 3px;
 }
+.root :global(.live-remove-from-gallery) {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  display: grid;
+  place-items: center;
+  width: 23px;
+  height: 23px;
+  padding: 0;
+  border: 1px solid #ffffff32;
+  border-radius: 50%;
+  color: #fff;
+  background: #171c2acc;
+  backdrop-filter: blur(8px);
+}
+.root :global(.live-remove-from-gallery:hover:not(:disabled)) { background: #e75f70; }
+.root :global(.live-remove-from-gallery:disabled) { opacity: .42; cursor: not-allowed; }
+.root :global(.live-pdf-thumbnail) {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 3px;
+  width: 100%;
+  height: 75px;
+  border-radius: 7px;
+  color: #d9d4ff;
+  background: linear-gradient(145deg, #6e62d52e, #ffffff08);
+}
+.root :global(.live-pdf-thumbnail b) { color: #ff9b88; font-size: 9px; letter-spacing: .12em; }
+.root :global(.live-projected-media) { position: absolute; inset: 12px; display: flex; min-width: 0; min-height: 0; }
+.root :global(.live-projected-media .live-media-viewport) { min-height: 0; }
+.root :global(.live-stage-dismiss) {
+  position: absolute;
+  z-index: 8;
+  top: 12px;
+  right: 12px;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid #ffffff45;
+  border-radius: 50%;
+  color: #fff;
+  background: #171c2acc;
+  box-shadow: 0 5px 18px #0005;
+  backdrop-filter: blur(12px);
+}
+.root :global(.live-stage-dismiss:hover) { background: #e75f70; }
+.root :global(.live-pdf-stage) { position: relative; display: grid; width: 100%; height: 100%; min-height: 0; place-items: center; }
+.root :global(.live-pdf-viewport) { position: relative; display: grid; width: 100%; height: 100%; min-height: 0; place-items: center; overflow: hidden; }
+.root :global(.live-pdf-viewport canvas) { display: block; max-width: 100%; max-height: 100%; background: white; box-shadow: 0 12px 34px #0003; }
+.root :global(.live-pdf-message) { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 9px; color: #d9d6ec; background: #141a2780; font-size: 13px; }
+.root :global(.live-pdf-message.is-error) { color: #ffd4d6; }
+.root :global(.live-pdf-controls) { position: absolute; z-index: 2; left: 50%; bottom: 14px; display: flex; align-items: center; gap: 10px; padding: 5px 8px; border: 1px solid #ffffff25; border-radius: 999px; color: #f5f3ff; background: #171c2bd9; box-shadow: 0 5px 22px #0004; backdrop-filter: blur(12px); transform: translateX(-50%); }
+.root :global(.live-pdf-controls button) { display: grid; place-items: center; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 50%; color: #f4f2ff; background: #ffffff12; }
+.root :global(.live-pdf-controls button:disabled) { opacity: .38; }
+.root :global(.live-pdf-controls span) { min-width: 48px; text-align: center; font-size: 11px; font-variant-numeric: tabular-nums; }
+.root :global(.live-pdf-controls i) { padding: 0 3px; color: #a5a4b8; font-style: normal; }
 .root :global(.live-drawer) {
   display: flex;
   flex-direction: column;
@@ -1001,6 +1059,7 @@
 .root :global(.live-link-button) { margin-left: 8px; background: #ffffff0b; }
 .root :global(.live-image-link-dialog > p) { color: #c6c8d6; font-size: 13px; line-height: 1.55; margin: 0 0 14px; }
 .root :global(.live-image-link-dialog form) { display: grid; gap: 9px; }
+.root :global(.live-image-link-error) { margin: 0; padding: 9px 10px; border: 1px solid #ff8a8a40; border-radius: 9px; color: #ffc4c4; background: #d9484817; font-size: 11px; line-height: 1.45; }
 .root :global(.live-image-link-dialog label) { color: #e2e3ed; font-size: 12px; font-weight: 650; }
 .root :global(.live-image-link-dialog input) {
   width: 100%; min-width: 0; border: 1px solid #ffffff24; border-radius: 10px;
@@ -1189,6 +1248,7 @@
   .root :global(.live-thumbnail > button:first-child) {
     height: 65px;
   }
+  .root :global(.live-pdf-thumbnail) { height: 65px; }
   .root :global(.live-gallery) {
     padding: 8px;
   }

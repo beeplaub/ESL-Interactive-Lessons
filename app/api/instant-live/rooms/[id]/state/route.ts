@@ -17,6 +17,7 @@ const commandSchema = z.discriminatedUnion("action", [
     assetId: z.string().uuid().optional(),
   }),
   z.object({ action: z.literal("release"), session: z.string().uuid() }),
+  z.object({ action: z.literal("media-page"), assetId: z.string().uuid(), page: z.number().int().min(1).max(10000) }),
   z.object({ action: z.literal("heartbeat"), session: z.string().uuid() }),
 ]);
 const fail = (error: string, status = 400) =>
@@ -57,6 +58,7 @@ export async function GET(
         presenter_id: null,
         presenter_session: null,
         asset_id: null,
+        media_page: 1,
         lease_until: null,
         revision: state.revision + 1,
       })
@@ -78,7 +80,14 @@ export async function GET(
     .eq("room_id", id)
     .order("created_at");
   if (!creator) query = query.eq("owner_id", user.id);
-  const { data: assets } = await query;
+  const { data: listedAssets } = await query;
+  const assets = [...(listedAssets ?? [])];
+  if (!creator && state.stage === "image" && state.asset_id && !assets.some(asset => asset.id === state.asset_id)) {
+    const { data: projectedAsset } = await admin.from("instant_live_assets")
+      .select("id,owner_id,name,width,height,created_at")
+      .eq("room_id", id).eq("id", state.asset_id).maybeSingle();
+    if (projectedAsset) assets.push(projectedAsset);
+  }
   const { data: participants, error: participantsError } = await admin
     .from("instant_live_participants")
     .select("user_id,role,mic_muted,joined_at,last_seen_at")
@@ -116,7 +125,7 @@ export async function GET(
   return NextResponse.json(
     {
       state: state ?? emptyState(id),
-      assets: assets ?? [],
+      assets,
       room,
       participants: (participants ?? []).map((person) => ({
         userId: person.user_id,
@@ -196,6 +205,21 @@ export async function POST(
       );
     return NextResponse.json({ state: updated });
   }
+  if (command.action === "media-page") {
+    if (!creator) return fail("Only the teacher can change the shared media page.", 403);
+    if (state.stage !== "image" || state.asset_id !== command.assetId)
+      return fail("That media is no longer on the class stage.", 409);
+    const { data: asset } = await admin.from("instant_live_assets")
+      .select("name,path").eq("room_id", id).eq("id", command.assetId).maybeSingle();
+    if (!asset || !(asset.name.toLowerCase().endsWith(".pdf") || asset.path.toLowerCase().endsWith(".pdf")))
+      return fail("Choose a PDF that is currently shared.");
+    const { data: updated, error } = await admin.from("instant_live_state")
+      .update({ media_page: command.page, revision: state.revision + 1 })
+      .eq("room_id", id).eq("revision", state.revision).select("*").maybeSingle();
+    if (error) return fail("Could not change the shared PDF page.", 503);
+    if (!updated) return fail("The class stage changed. Try again.", 409);
+    return NextResponse.json({ state: updated });
+  }
   const isOwner =
     state.presenter_id === user.id &&
     state.presenter_session === command.session;
@@ -217,6 +241,7 @@ export async function POST(
       .update({
         stage: "whiteboard",
         asset_id: null,
+        media_page: 1,
         presenter_id: null,
         presenter_session: null,
         lease_until: null,
@@ -254,6 +279,7 @@ export async function POST(
     .update({
       stage: command.stage,
       asset_id: command.stage === "image" ? command.assetId : null,
+      media_page: 1,
       presenter_id: user.id,
       presenter_session: command.session,
       lease_until: new Date(Date.now() + 60000).toISOString(),

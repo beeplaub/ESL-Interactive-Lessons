@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Check,
   Download,
+  FileText,
   BookOpen,
   Circle,
   Square,
@@ -39,6 +40,7 @@ import { useLocalRecording } from "./instant-live/useLocalRecording";
 import { SettingsPanel, type RoomSettings } from "./instant-live/SettingsPanel";
 import type { RecordingDirectoryHandle } from "./instant-live/exportBoard";
 import { LiveBoard } from "./instant-live/LiveBoard";
+import { LivePdfStage } from "./instant-live/LivePdfStage";
 import { useLiveTransport } from "./instant-live/useLiveTransport";
 import { createZip } from "@/lib/instant-live/createZip";
 import {
@@ -78,6 +80,7 @@ type RoomClock = {
   learner_chat_enabled?: boolean;
   learner_screen_share_enabled?: boolean;
 };
+const isPdfAsset = (asset: LiveAsset) => asset.name.toLowerCase().endsWith(".pdf");
 type Props = {
   roomId: string;
   title: string;
@@ -142,6 +145,7 @@ export function InstantLiveClassroom({
   const [imageLinkOpen, setImageLinkOpen] = useState(false);
   const [imageLink, setImageLink] = useState("");
   const [imageLinkBusy, setImageLinkBusy] = useState(false);
+  const [imageLinkError, setImageLinkError] = useState("");
   const [imageLinkTarget, setImageLinkTarget] = useState<"gallery" | "board">("gallery");
   const [pointer, setPointer] = useState<[number, number] | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
@@ -784,6 +788,11 @@ export function InstantLiveClassroom({
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
+    if (uploadToBoard.current && file.type === "application/pdf") {
+      setNotice("PDFs can be shown from Media, but cannot be placed on the whiteboard.");
+      uploadToBoard.current = false;
+      return;
+    }
     setUploading(true);
     try {
       const form = new FormData();
@@ -814,13 +823,15 @@ export function InstantLiveClassroom({
     const url = imageLink.trim();
     if (!url || imageLinkBusy) return;
     setImageLinkBusy(true);
+    setImageLinkError("");
     try {
+      if (new URL(url).protocol !== "https:") throw new Error("Use a public HTTPS link that opens the image directly.");
       const probe = new window.Image();
       probe.referrerPolicy = "no-referrer";
       const dimensions = await new Promise<{ width: number; height: number }>((resolve, reject) => {
         const timeout = window.setTimeout(() => reject(new Error("The image took too long to load.")), 15000);
         probe.onload = () => { window.clearTimeout(timeout); resolve({ width: probe.naturalWidth, height: probe.naturalHeight }); };
-        probe.onerror = () => { window.clearTimeout(timeout); reject(new Error("That link did not load an image. Use a direct public image link.")); };
+        probe.onerror = () => { window.clearTimeout(timeout); reject(new Error("This link did not return a directly viewable image. Use the image file URL itself (not a webpage or share link), or upload the file.")); };
         probe.src = url;
       });
       const response = await fetch(`${api}/assets`, {
@@ -837,14 +848,30 @@ export function InstantLiveClassroom({
       setImageLink("");
       setImageLinkOpen(false);
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "Could not add this image link.");
+      setImageLinkError(error instanceof Error ? error.message : "Could not add this image link.");
     } finally {
       setImageLinkBusy(false);
     }
   }
   function openImageLink(target: "gallery" | "board") {
     setImageLinkTarget(target);
+    setImageLinkError("");
     setImageLinkOpen(true);
+  }
+  async function removeGalleryAsset(asset: LiveAsset) {
+    try {
+      const response = await fetch(`${api}/assets`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assetId: asset.id }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Could not remove this media item.");
+      setAssets(old => old.filter(item => item.id !== asset.id));
+      void transport.send("assets-changed", {});
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Could not remove this media item.");
+    }
   }
   async function lifecycle(action: "pause" | "restart" | "quit") {
     if (!creator || busy) return;
@@ -1191,15 +1218,25 @@ export function InstantLiveClassroom({
               />
             </div>
             {state.stage === "content" ? <LiveContent api={api} revision={state.revision} creator={creator} paused={paused} onChoose={chooseContent} onNotice={setNotice}/> : null}
-            {state.stage === "image" && state.asset_id ? (
-              <ZoomStage>
-                <img
-                  src={`${api}/assets/${state.asset_id}`}
-                  alt="Image shown to the class"
-                  referrerPolicy="no-referrer"
-                />
-              </ZoomStage>
-            ) : null}
+            {state.stage === "image" && state.asset_id ? (() => {
+              const sharedAsset = assets.find(asset => asset.id === state.asset_id);
+              return <div className="live-projected-media">
+                <ZoomStage>
+                  {sharedAsset && isPdfAsset(sharedAsset) ? (
+                    <LivePdfStage
+                      api={api}
+                      assetId={sharedAsset.id}
+                      page={state.media_page || 1}
+                      creator={creator && !paused}
+                      onPageChange={page => void command({ action: "media-page", assetId: sharedAsset.id, page }).catch(error => setNotice((error as Error).message))}
+                    />
+                  ) : (
+                    <img src={`${api}/assets/${state.asset_id}`} alt="Media shown to the class" referrerPolicy="no-referrer" />
+                  )}
+                </ZoomStage>
+                {creator ? <button className="live-stage-dismiss" type="button" aria-label="Remove media from stage" title="Remove from stage" onClick={() => void stopSharing()}><X size={18}/></button> : null}
+              </div>;
+            })() : null}
             {state.stage === "screen" || state.stage === "camera" ? (
               <ZoomStage>
                 <MediaVideo stream={activeStream ?? null} />
@@ -1262,10 +1299,10 @@ export function InstantLiveClassroom({
             ) : null}
           </div>
           {gallery ? (
-            <div className="live-gallery" aria-label="Your image gallery">
+            <div className="live-gallery" aria-label="Media gallery">
               <div className="live-gallery-actions">
-                <span>{assets.length ? "Image gallery" : "Add an image to your gallery"}</span>
-                <button type="button" disabled={uploading || paused} onClick={() => pickUpload()}><Plus size={15}/>{uploading ? "Uploading…" : "Upload image"}</button>
+                <span>{assets.length ? "Media gallery" : "Add media to your gallery"}</span>
+                <button type="button" disabled={uploading || paused} onClick={() => pickUpload()}><Plus size={15}/>{uploading ? "Uploading…" : "Upload media"}</button>
                 <button type="button" disabled={paused} onClick={() => openImageLink("gallery")}><Link2 size={15}/>Add image link</button>
               </div>
               {assets.length ? (
@@ -1281,23 +1318,33 @@ export function InstantLiveClassroom({
                       onClick={() => void showImage(asset)}
                       title={creator ? `Show ${asset.name}` : asset.name}
                     >
-                      <img src={`${api}/assets/${asset.id}`} alt={asset.name} referrerPolicy="no-referrer" />
+                      {isPdfAsset(asset)
+                        ? <span className="live-pdf-thumbnail"><FileText size={25}/><b>PDF</b></span>
+                        : <img src={`${api}/assets/${asset.id}`} alt={asset.name} referrerPolicy="no-referrer" />}
                     </button>
                     <span>{asset.name}</span>
                     {creator ? (
-                      <button
-                        className="live-add-to-board"
-                        aria-label={`Add ${asset.name} to whiteboard`}
-                        onClick={() => addBoardImage(asset)}
-                        disabled={paused}
-                      >
-                        <Plus size={13} />
-                      </button>
+                      <>
+                        {!isPdfAsset(asset) ? <button
+                          className="live-add-to-board"
+                          aria-label={`Add ${asset.name} to whiteboard`}
+                          title="Add to whiteboard"
+                          onClick={() => addBoardImage(asset)}
+                          disabled={paused}
+                        ><Plus size={13} /></button> : null}
+                      </>
                     ) : null}
+                    {(creator || asset.owner_id === userId) ? <button
+                      className="live-remove-from-gallery"
+                      aria-label={`Remove ${asset.name} from gallery`}
+                      title={state.asset_id === asset.id ? "Remove it from the stage first" : board.some(item => item.kind === "image" && item.assetId === asset.id) ? "Remove it from the whiteboard first" : "Remove from gallery"}
+                      onClick={() => void removeGalleryAsset(asset)}
+                      disabled={state.asset_id === asset.id || board.some(item => item.kind === "image" && item.assetId === asset.id)}
+                    ><X size={13} /></button> : null}
                   </div>
                 ))}
               </div>
-              ) : <p className="live-gallery-empty">Images you add here will appear in this gallery.</p>}
+              ) : <p className="live-gallery-empty">Media you add here will appear in this gallery.</p>}
             </div>
           ) : null}
           <div className="live-bottom-rail">
@@ -1337,7 +1384,7 @@ export function InstantLiveClassroom({
                 )
               : null}
             {button(
-              uploading ? "Uploading…" : "Image",
+              uploading ? "Uploading…" : "Media",
               ImagePlus,
               () => setGallery((value) => !value),
               gallery,
@@ -1345,16 +1392,7 @@ export function InstantLiveClassroom({
             )}
             {creator ? button("Lesson / quiz", BookOpen, () => setContentPicker(true), state.stage === "content", paused || busy || locked) : null}
             {creator && state.stage === "whiteboard" ? button("Export", Download, () => setExportOpen(true), false, exporting) : null}
-            {assets.length
-              ? button(
-                  "Add image",
-                  Plus,
-                  () => pickUpload(),
-                  false,
-                  paused || uploading,
-                )
-              : null}
-            {creator ? button(recording.startedAt ? "Stop recording" : "Record", recording.startedAt ? Square : Circle, () => recording.startedAt ? recording.stop() : setRecordingOpen(true), Boolean(recording.startedAt), recording.busy || paused) : null}
+            {creator ? button(recording.startedAt ? "Stop recording" : "Record", recording.startedAt ? Square : Circle, () => recording.startedAt ? recording.stop() : setRecordingOpen(true), Boolean(recording.startedAt), recording.busy || paused || (isBrenUpNativeApp() && ownPresentation && state.stage === "screen")) : null}
             <span className="live-control-divider" />
             {creator && !ended
               ? button(
@@ -1565,7 +1603,7 @@ export function InstantLiveClassroom({
       <input
         ref={upload}
         type="file"
-        accept="image/png,image/jpeg,image/webp"
+        accept="image/png,image/jpeg,image/webp,application/pdf,.pdf"
         hidden
         onChange={(event) => void uploadImage(event)}
       />
@@ -1642,7 +1680,7 @@ export function InstantLiveClassroom({
               <Link2 size={18} /> Add image link
             </button>
             <div>
-              {assets.map((asset) => (
+              {assets.filter(asset => !isPdfAsset(asset)).map((asset) => (
                 <button key={asset.id} onClick={() => addBoardImage(asset)}>
                   <img src={`${api}/assets/${asset.id}`} alt={asset.name} referrerPolicy="no-referrer" />
                   <span>{asset.name}</span>
@@ -1659,7 +1697,8 @@ export function InstantLiveClassroom({
             <p>Paste a public HTTPS link to an image. It will appear like any other gallery image.</p>
             <form onSubmit={(event) => void addImageLink(event)}>
               <label htmlFor="live-image-url">Image URL</label>
-              <input id="live-image-url" type="url" inputMode="url" placeholder="https://example.com/image.jpg" value={imageLink} onChange={(event) => setImageLink(event.target.value)} required />
+              <input id="live-image-url" type="url" inputMode="url" placeholder="https://example.com/image.jpg" value={imageLink} onChange={(event) => { setImageLink(event.target.value); setImageLinkError(""); }} required />
+              {imageLinkError ? <p className="live-image-link-error" role="alert">{imageLinkError}</p> : null}
               <button className="live-upload-button" type="submit" disabled={imageLinkBusy}>{imageLinkBusy ? "Checking image…" : imageLinkTarget === "board" ? "Add to whiteboard" : "Add to gallery"}</button>
             </form>
           </section>

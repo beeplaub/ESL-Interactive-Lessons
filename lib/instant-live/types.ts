@@ -40,6 +40,7 @@ export type SharedState = {
   board_revision: number;
   stage: StageKind;
   asset_id: string | null;
+  media_page: number;
   presenter_id: string | null;
   presenter_session: string | null;
   lease_until: string | null;
@@ -74,6 +75,7 @@ export const emptyState = (roomId: string): SharedState => ({
   board_revision: 0,
   stage: "whiteboard",
   asset_id: null,
+  media_page: 1,
   presenter_id: null,
   presenter_session: null,
   lease_until: null,

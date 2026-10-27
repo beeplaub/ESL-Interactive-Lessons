@@ -14,7 +14,7 @@ export async function GET(
   const { admin, user, creator } = access;
   const { data: asset } = await admin
     .from("instant_live_assets")
-    .select("owner_id,bucket,path")
+    .select("owner_id,name,bucket,path")
     .eq("room_id", id)
     .eq("id", assetId)
     .maybeSingle();
@@ -44,6 +44,7 @@ export async function GET(
     return new NextResponse(new Uint8Array(object.body), {
       headers: {
         "Content-Type": object.contentType,
+        "Content-Disposition": `inline; filename="${asset.name.replace(/[\r\n"\\]/g, "_")}"`,
         "Cache-Control": "private, no-store",
         "X-Content-Type-Options": "nosniff",
       },

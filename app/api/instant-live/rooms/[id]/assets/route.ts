@@ -6,6 +6,48 @@ import {
   uploadMediaObject,
   deleteMediaObject,
 } from "@/lib/storage/mediaStorage";
+import type { BoardObject } from "@/lib/instant-live/types";
+
+export async function DELETE(
+  request: Request,
+  context: { params: Promise<{ id: string }> },
+) {
+  const { id } = await context.params;
+  const access = await roomAccess(id);
+  if (access.error) return access.error;
+  const { admin, user, creator } = access;
+  let body: unknown;
+  try { body = await request.json(); } catch { return NextResponse.json({ error: "Choose a media item first." }, { status: 400 }); }
+  const assetId = (body as { assetId?: unknown })?.assetId;
+  if (typeof assetId !== "string") return NextResponse.json({ error: "Choose a media item first." }, { status: 400 });
+  const { data: asset } = await admin.from("instant_live_assets")
+    .select("id,owner_id,bucket,path")
+    .eq("room_id", id).eq("id", assetId).maybeSingle();
+  if (!asset) return NextResponse.json({ error: "This media item is no longer in the gallery." }, { status: 404 });
+  if (!creator && asset.owner_id !== user.id)
+    return NextResponse.json({ error: "You can remove only media you uploaded." }, { status: 403 });
+  const { data: state } = await admin.from("instant_live_state")
+    .select("stage,asset_id,board").eq("room_id", id).maybeSingle();
+  if (state?.stage === "image" && state.asset_id === assetId)
+    return NextResponse.json({ error: "Remove this media from the stage before deleting it." }, { status: 409 });
+  if ((state?.board as BoardObject[] | undefined)?.some(item => item.kind === "image" && item.assetId === assetId))
+    return NextResponse.json({ error: "Remove this image from the whiteboard before deleting it." }, { status: 409 });
+  const { error } = await admin.from("instant_live_assets")
+    .delete().eq("room_id", id).eq("id", assetId);
+  if (error) return NextResponse.json({ error: "Could not update the media gallery." }, { status: 503 });
+  try {
+    if (asset.bucket !== "external") {
+      await deleteMediaObject(admin, {
+        provider: asset.bucket === "lessons" ? "supabase" : "r2",
+        bucket: asset.bucket,
+        path: asset.path,
+      });
+    }
+  } catch {
+    console.error("Instant live media cleanup failed after the gallery item was removed.");
+  }
+  return NextResponse.json({ ok: true, assetId });
+}
 
 export async function POST(
   request: Request,
@@ -27,7 +69,7 @@ export async function POST(
     if (!url || width < 1 || width > 10000 || height < 1 || height > 10000)
       return NextResponse.json({ error: "Use a working public HTTPS image link." }, { status: 400 });
     const { count } = await admin.from("instant_live_assets").select("id", { count: "exact", head: true }).eq("room_id", id).eq("owner_id", user.id);
-    if ((count ?? 0) >= 40) return NextResponse.json({ error: "You can add up to 40 images per class." }, { status: 409 });
+    if ((count ?? 0) >= 40) return NextResponse.json({ error: "You can add up to 40 media items per class." }, { status: 409 });
     const name = typeof input.name === "string" && input.name.trim()
       ? input.name.trim().slice(0, 160)
       : new URL(url).hostname;
@@ -39,14 +81,15 @@ export async function POST(
   }
   const form = await request.formData();
   const file = form.get("file");
+  const isPdf = file instanceof File && (file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf"));
   if (
     !(file instanceof File) ||
     !file.size ||
     file.size > 4_000_000 ||
-    !["image/jpeg", "image/png", "image/webp"].includes(file.type)
+    (!isPdf && !["image/jpeg", "image/png", "image/webp"].includes(file.type))
   )
     return NextResponse.json(
-      { error: "Choose a JPG, PNG, or WebP image under 4 MB." },
+      { error: "Choose a JPG, PNG, WebP, or PDF file under 4 MB." },
       { status: 400 },
     );
   const { count } = await admin
@@ -56,10 +99,37 @@ export async function POST(
     .eq("owner_id", user.id);
   if ((count ?? 0) >= 40)
     return NextResponse.json(
-      { error: "You can upload up to 40 images per class." },
+      { error: "You can upload up to 40 media items per class." },
       { status: 409 },
     );
   try {
+    if (isPdf) {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      if (new TextDecoder().decode(bytes.slice(0, 5)) !== "%PDF-")
+        return NextResponse.json({ error: "This file is not a valid PDF." }, { status: 400 });
+      const stored = await uploadMediaObject({
+        supabase: admin,
+        supabaseBucket: "lessons",
+        path: `instant/${id}/${user.id}/${crypto.randomUUID()}.pdf`,
+        body: bytes,
+        contentType: "application/pdf",
+        upsert: false,
+      });
+      const { data, error } = await admin.from("instant_live_assets").insert({
+        room_id: id,
+        owner_id: user.id,
+        name: file.name.slice(0, 156).replace(/\.[^.]*$/, "") + ".pdf",
+        bucket: stored.bucket,
+        path: stored.path,
+        width: 1,
+        height: 1,
+      }).select("id,owner_id,name,width,height,created_at").single();
+      if (error) {
+        await deleteMediaObject(admin, stored);
+        throw error;
+      }
+      return NextResponse.json({ asset: data });
+    }
     const { data: bytes, info } = await sharp(
       Buffer.from(await file.arrayBuffer()),
       { limitInputPixels: 40_000_000 },
