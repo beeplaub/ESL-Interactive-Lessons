@@ -39,7 +39,11 @@ export function AudioSetup({ onClose, onEnableSound, onSelectMicrophone, connect
       let frame = 0;
       const measure = () => {
         analyser.getByteTimeDomainData(samples);
-        setLevel(Math.min(100, Math.sqrt(samples.reduce((sum, v) => sum + ((v-128)/128)**2, 0)/samples.length)*350));
+        const rms = Math.sqrt(samples.reduce((sum, v) => sum + ((v - 128) / 128) ** 2, 0) / samples.length);
+        // Speech RMS is usually far below full scale. Expand the useful range
+        // so ordinary speaking produces a clearly visible meter response.
+        const normalized = Math.max(0, Math.min(1, (rms - 0.008) / 0.12));
+        setLevel(Math.round(Math.sqrt(normalized) * 100));
         frame = requestAnimationFrame(measure);
       };
       cleanup.current = () => { cancelAnimationFrame(frame); stream?.getTracks().forEach(t => t.stop()); source.disconnect(); void context.close(); };
@@ -74,7 +78,7 @@ export function AudioSetup({ onClose, onEnableSound, onSelectMicrophone, connect
         catch { setMessage("Could not select that microphone. Try the default device."); }
         finally { setBusy(false); }
       }}><option value="">Device default</option>{devices.filter(d => d.kind === "audioinput" && d.deviceId && d.deviceId !== "default").map((d,i) => <option key={d.deviceId} value={d.deviceId}>{d.label || `Microphone ${i+1}`}</option>)}</select></label>
-      <div className="live-audio-meter" role="meter" aria-label="Microphone input level" aria-valuenow={Math.round(level)} aria-valuemin={0} aria-valuemax={100}><i style={{width: `${level}%`}}/></div>
+      <div className={`live-audio-meter${testing ? " is-testing" : ""}`} role="meter" aria-label="Microphone input level" aria-valuenow={level} aria-valuemin={0} aria-valuemax={100}><i style={{width: `${level}%`}}/></div>
       <div className="live-audio-actions"><button disabled={busy} onClick={() => void testMic()}><Mic size={17}/>{testing ? "Stop test" : "Test microphone"}</button><button onClick={() => void testSpeaker()}><Volume2 size={17}/>Test speaker</button></div>
       <p role="status">{message}</p>
       <small>{states.length ? `${states.filter(s => s === "connected").length} of ${states.length} media connections connected.` : "Waiting for another participant to test the live connection."} {states.some(s => s === "failed" || s === "disconnected") ? "Your network may block direct audio. Try another network and reconnect." : "Microphone permission and media connection are separate checks."}</small>

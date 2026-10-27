@@ -62,6 +62,7 @@ type ChatMessage = {
   createdAt: string;
 };
 type ParticipantModeration = { userId: string; micMuted: boolean };
+type ServerParticipant = Pick<LivePerson, "userId" | "name" | "role" | "joinedAt"> & { micMuted: boolean };
 type RoomClock = {
   status: string;
   elapsed_seconds: number;
@@ -122,6 +123,7 @@ export function InstantLiveClassroom({
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [chatSending, setChatSending] = useState(false);
   const [moderation, setModeration] = useState<ParticipantModeration[]>([]);
+  const [serverParticipants, setServerParticipants] = useState<ServerParticipant[]>([]);
   const [moderatingUser, setModeratingUser] = useState<string | null>(null);
   const [roomRevoked, setRoomRevoked] = useState(false);
   const [gallery, setGallery] = useState(false);
@@ -207,6 +209,7 @@ export function InstantLiveClassroom({
       applyState(result.state);
       setAssets(result.assets);
       setModeration(result.moderation ?? []);
+      if (Array.isArray(result.participants)) setServerParticipants(result.participants);
       if (chatResult?.messages) setChat(chatResult.messages);
       setClock(result.room);
       setLoaded(true);
@@ -323,6 +326,18 @@ export function InstantLiveClassroom({
     onNotice: setNotice,
   });
   transportRef.current = transport;
+  const peopleByUser = new Map<string, LivePerson>();
+  for (const participant of serverParticipants) {
+    peopleByUser.set(participant.userId, {
+      ...participant,
+      sessionId: "",
+      mic: false,
+    });
+  }
+  for (const person of transport.people) peopleByUser.set(person.userId, person);
+  const visiblePeople = [...peopleByUser.values()].sort(
+    (a, b) => Number(b.role === "CREATOR") - Number(a.role === "CREATOR") || a.name.localeCompare(b.name),
+  );
   const recording = useLocalRecording(roomId, [
     ...(transport.microphone?.getAudioTracks() ?? []),
     ...(transport.local?.getAudioTracks() ?? []),
@@ -883,7 +898,7 @@ export function InstantLiveClassroom({
         </time>
         <span className="live-count">
           <UsersRound size={15} />
-          {transport.people.length || 1}
+          {visiblePeople.length || 1}
         </span>
         {visibleRecordingAt ? <span className="live-recording-badge" role="status"><i/> REC {new Date(Math.max(0, now-visibleRecordingAt)).toISOString().slice(11,19)}</span> : null}
         <div className="live-header-actions">
@@ -1250,7 +1265,7 @@ export function InstantLiveClassroom({
           ) : null}
           {chatOpen && drawer === "people" ? (
             <div className="live-people">
-              {transport.people.map((person) => {
+              {visiblePeople.map((person) => {
                 const isMuted =
                   moderation.find((participant) => participant.userId === person.userId)
                     ?.micMuted ?? false;

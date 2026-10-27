@@ -1164,8 +1164,9 @@
 .root :global(.live-feature-panel p), .root :global(.live-audio-dialog p) { font-size:14px; line-height:1.6; color:#c9cad9; margin:12px 0; }
 .root :global(.live-audio-dialog label) { display:grid; gap:8px; font-size:13px; }
 .root :global(.live-audio-dialog select) { width:100%; background:#34384e; color:white; padding:10px; border-radius:10px; border:1px solid #8583ad66; }
-.root :global(.live-audio-meter) { height:8px; border-radius:8px; overflow:hidden; background:#44485d; margin:16px 0; }
-.root :global(.live-audio-meter i) { display:block; height:100%; background:#8ddcc7; transition:width 80ms; }
+.root :global(.live-audio-meter) { height:14px; border:1px solid #8583ad66; border-radius:999px; overflow:hidden; background:#171b2b; margin:18px 0; box-shadow:inset 0 1px 3px #0008; }
+.root :global(.live-audio-meter i) { display:block; height:100%; min-width:0; border-radius:inherit; background:linear-gradient(90deg,#69d8bd 0%,#a3e86d 72%,#ffb45c 100%); box-shadow:0 0 12px #69d8bd88; transition:width 65ms linear; }
+.root :global(.live-audio-meter.is-testing) { border-color:#a89eff; box-shadow:0 0 0 3px #7568ff22,inset 0 1px 3px #0008; }
 .root :global(.live-audio-actions) { display:flex; gap:10px; flex-wrap:wrap; }
 .root :global(.live-audio-actions button), .root :global(.live-feature-panel > button), .root :global(.live-recording-file button) { display:inline-flex; align-items:center; gap:7px; padding:10px 14px; background:#635bdf; border:1px solid #aaa1ef; border-radius:12px; margin:4px; font-size:13px; color:white; }
 .root :global(.live-audio-dialog small) { display:block; color:#b7b4cd; line-height:1.6; }

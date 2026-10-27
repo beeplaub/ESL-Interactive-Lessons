@@ -81,16 +81,39 @@ export async function GET(
   const { data: assets } = await query;
   const { data: participants, error: participantsError } = await admin
     .from("instant_live_participants")
-    .select("user_id,mic_muted")
+    .select("user_id,role,mic_muted,joined_at,last_seen_at")
     .eq("room_id", id)
-    .eq("status", "JOINED");
+    .eq("status", "JOINED")
+    .gte("last_seen_at", new Date(Date.now() - 90_000).toISOString());
   if (participantsError)
     return fail("Could not load participant settings.", 503);
+  const participantIds = [...new Set((participants ?? []).map(({ user_id }) => user_id))];
+  const { data: profiles } = participantIds.length
+    ? await admin
+        .from("profiles")
+        .select("id,full_name,first_name,last_name")
+        .in("id", participantIds)
+    : { data: [] };
+  const names = new Map(
+    (profiles ?? []).map((profile) => [
+      profile.id,
+      profile.full_name?.trim() ||
+        [profile.first_name, profile.last_name].filter(Boolean).join(" ") ||
+        "Learner",
+    ]),
+  );
   return NextResponse.json(
     {
       state: state ?? emptyState(id),
       assets: assets ?? [],
       room,
+      participants: (participants ?? []).map((person) => ({
+        userId: person.user_id,
+        name: names.get(person.user_id) ?? "Learner",
+        role: person.role,
+        joinedAt: Date.parse(person.joined_at),
+        micMuted: person.mic_muted,
+      })),
       moderation: (participants ?? []).map(({ user_id, mic_muted }) => ({
         userId: user_id,
         micMuted: mic_muted,
