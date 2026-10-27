@@ -61,3 +61,4 @@ export async function saveRecordingFile(blob: Blob, name: string, directory?: Re
   }
   await Promise.resolve(saveLocalFile(blob, name));
   return true;
+}
