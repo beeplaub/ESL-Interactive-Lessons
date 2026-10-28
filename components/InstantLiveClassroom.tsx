@@ -1245,8 +1245,7 @@ export function InstantLiveClassroom({
             {state.stage === "image" && state.asset_id ? (() => {
               const sharedAsset = assets.find(asset => asset.id === state.asset_id);
               return <div className="live-projected-media">
-                <ZoomStage>
-                  {sharedAsset && isPdfAsset(sharedAsset) ? (
+                {sharedAsset && isPdfAsset(sharedAsset) ? (
                     <LivePdfStage
                       api={api}
                       assetId={sharedAsset.id}
@@ -1254,10 +1253,11 @@ export function InstantLiveClassroom({
                       creator={creator && !paused}
                       onPageChange={page => void command({ action: "media-page", assetId: sharedAsset.id, page }).catch(error => setNotice((error as Error).message))}
                     />
-                  ) : (
+                ) : (
+                  <ZoomStage>
                     <img src={`${api}/assets/${state.asset_id}`} alt="Media shown to the class" referrerPolicy="no-referrer" />
-                  )}
-                </ZoomStage>
+                  </ZoomStage>
+                )}
                 {creator ? <button className="live-stage-dismiss" type="button" aria-label="Remove media from stage" title="Remove from stage" onClick={() => void stopSharing()}><X size={18}/></button> : null}
               </div>;
             })() : null}

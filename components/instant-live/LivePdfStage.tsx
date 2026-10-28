@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, FileText } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileText, Minus, Plus, ScanLine } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 type Viewport = { width: number; height: number };
@@ -41,17 +41,22 @@ export function LivePdfStage({ api, assetId, page, creator, onPageChange }: {
   creator: boolean;
   onPageChange: (page: number) => void;
 }) {
-  const host = useRef<HTMLDivElement>(null);
+  const pageArea = useRef<HTMLDivElement>(null);
   const [documentInfo, setDocumentInfo] = useState<{ pdf: PdfDocument; pageCount: number } | null>(null);
-  const [width, setWidth] = useState(0);
+  const [area, setArea] = useState({ width: 0, height: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [pageInput, setPageInput] = useState(String(page));
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const renderId = useRef(0);
 
   useEffect(() => {
-    const element = host.current;
+    const element = pageArea.current;
     if (!element) return;
-    const observer = new ResizeObserver(entries => setWidth(entries[0]?.contentRect.width ?? 0));
+    const observer = new ResizeObserver(entries => {
+      const rect = entries[0]?.contentRect;
+      if (rect) setArea({ width: rect.width, height: rect.height });
+    });
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
@@ -61,6 +66,7 @@ export function LivePdfStage({ api, assetId, page, creator, onPageChange }: {
     setLoading(true);
     setError("");
     setDocumentInfo(null);
+    setZoom(1);
     void Promise.all([
       loadPdfJs(),
       fetch(`${api}/assets/${assetId}`, { credentials: "same-origin" }).then(async response => {
@@ -78,22 +84,32 @@ export function LivePdfStage({ api, assetId, page, creator, onPageChange }: {
   }, [api, assetId]);
 
   useEffect(() => {
+    setPageInput(String(page));
+    setError("");
+  }, [page]);
+
+  const pageCount = documentInfo?.pageCount ?? 0;
+  const currentPage = pageCount ? Math.min(Math.max(1, page), pageCount) : Math.max(1, page);
+
+  useEffect(() => {
     const current = ++renderId.current;
-    if (!documentInfo || !host.current || width < 20) return;
+    if (!documentInfo || !pageArea.current || area.width < 20 || area.height < 20) return;
     let task: { cancel?: () => void } | undefined;
     let cancelled = false;
-    void documentInfo.pdf.getPage(Math.min(page, documentInfo.pageCount)).then(pdfPage => {
+    void documentInfo.pdf.getPage(currentPage).then(pdfPage => {
       if (cancelled || current !== renderId.current) return;
-      const ratio = Math.min(window.devicePixelRatio || 1, 2);
       const base = pdfPage.getViewport(1);
-      const viewport = pdfPage.getViewport((width / base.width) * ratio);
-      const canvas = host.current?.querySelector("canvas");
+      const fitScale = Math.min(area.width / base.width, area.height / base.height);
+      const cssScale = fitScale * zoom;
+      const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
+      const viewport = pdfPage.getViewport(cssScale * pixelRatio);
+      const canvas = pageArea.current?.querySelector("canvas");
       const context = canvas?.getContext("2d");
       if (!canvas || !context) throw new Error("PDF canvas is unavailable.");
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      canvas.style.width = `${viewport.width / ratio}px`;
-      canvas.style.height = `${viewport.height / ratio}px`;
+      canvas.width = Math.ceil(viewport.width);
+      canvas.height = Math.ceil(viewport.height);
+      canvas.style.width = `${viewport.width / pixelRatio}px`;
+      canvas.style.height = `${viewport.height / pixelRatio}px`;
       task = pdfPage.render({ canvasContext: context, viewport });
       return (task as ReturnType<PdfPage["render"]>).promise;
     }).catch(reason => {
@@ -101,19 +117,62 @@ export function LivePdfStage({ api, assetId, page, creator, onPageChange }: {
         setError("This PDF page could not be rendered.");
     });
     return () => { cancelled = true; task?.cancel?.(); };
-  }, [documentInfo, page, width]);
+  }, [area, currentPage, documentInfo, zoom]);
 
-  const pageCount = documentInfo?.pageCount ?? 0;
+  function commitPage() {
+    const parsed = Number.parseInt(pageInput, 10);
+    if (!Number.isFinite(parsed) || !pageCount) {
+      setPageInput(String(currentPage));
+      return;
+    }
+    onPageChange(Math.min(pageCount, Math.max(1, parsed)));
+  }
+
+  function stepPage(delta: number) {
+    if (creator && pageCount) onPageChange(Math.min(pageCount, Math.max(1, currentPage + delta)));
+  }
+
   return <div className="live-pdf-stage">
-    <div className="live-pdf-viewport" ref={host}>
-      <canvas aria-label={`PDF page ${page} of ${pageCount || "…"}`} />
+    <div
+      className="live-pdf-page-area"
+      ref={pageArea}
+      aria-label={`PDF page ${currentPage} of ${pageCount || "…"}`}
+      onKeyDown={event => {
+        if (creator && event.target === event.currentTarget && event.key === "ArrowLeft") stepPage(-1);
+        if (creator && event.target === event.currentTarget && event.key === "ArrowRight") stepPage(1);
+      }}
+      tabIndex={0}
+    >
+      <canvas />
       {loading ? <div className="live-pdf-message"><FileText size={23}/>Opening PDF…</div> : null}
       {error ? <div className="live-pdf-message is-error"><FileText size={23}/>{error}</div> : null}
     </div>
-    {creator && pageCount > 0 ? <div className="live-pdf-controls" aria-label="PDF page controls">
-      <button type="button" aria-label="Previous PDF page" disabled={page <= 1} onClick={() => onPageChange(page - 1)}><ChevronLeft size={18}/></button>
-      <span>{Math.min(page, pageCount)} <i>/</i> {pageCount}</span>
-      <button type="button" aria-label="Next PDF page" disabled={page >= pageCount} onClick={() => onPageChange(page + 1)}><ChevronRight size={18}/></button>
-    </div> : null}
+    <div className="live-pdf-controls" aria-label="PDF controls">
+      {creator ? <>
+        <button type="button" aria-label="Previous PDF page" title="Previous page" disabled={currentPage <= 1 || !pageCount} onClick={() => stepPage(-1)}><ChevronLeft size={17}/></button>
+        <label className="live-pdf-page-number">
+          <span className="sr-only">Page number</span>
+          <input
+            type="number"
+            inputMode="numeric"
+            min={1}
+            max={pageCount || undefined}
+            value={pageInput}
+            disabled={!pageCount}
+            onChange={event => setPageInput(event.target.value)}
+            onBlur={commitPage}
+            onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); } }}
+            aria-label="Go to PDF page"
+          />
+          <span>/ {pageCount || "…"}</span>
+        </label>
+        <button type="button" aria-label="Next PDF page" title="Next page" disabled={currentPage >= pageCount || !pageCount} onClick={() => stepPage(1)}><ChevronRight size={17}/></button>
+      </> : <span className="live-pdf-page-readonly">Page {currentPage} <i>/</i> {pageCount || "…"}</span>}
+      <span className="live-pdf-control-divider" aria-hidden="true" />
+      <button type="button" aria-label="Zoom out" title="Zoom out" disabled={zoom <= 0.5} onClick={() => setZoom(value => Math.max(0.5, +(value - 0.1).toFixed(2)))}><Minus size={16}/></button>
+      <span className="live-pdf-zoom-value">{Math.round(zoom * 100)}%</span>
+      <button type="button" aria-label="Zoom in" title="Zoom in" disabled={zoom >= 3} onClick={() => setZoom(value => Math.min(3, +(value + 0.1).toFixed(2)))}><Plus size={16}/></button>
+      <button className="live-pdf-fit" type="button" title="Fit page" aria-label="Fit page" disabled={zoom === 1} onClick={() => setZoom(1)}><ScanLine size={16}/><span>Fit</span></button>
+    </div>
   </div>;
 }
