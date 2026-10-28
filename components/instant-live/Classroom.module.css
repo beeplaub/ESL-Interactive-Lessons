@@ -1106,16 +1106,37 @@
   margin-top: 5px;
 }
 @media (min-width: 1024px) {
+  .root {
+    height: 100dvh;
+    min-height: 0;
+    overflow: hidden;
+  }
   .root :global(.live-layout) {
-    height: calc(100dvh - 76px);
+    height: auto;
+    flex: 1 1 0;
+    min-height: 0;
+  }
+  .root :global(.live-main) {
+    height: 100%;
+    min-height: 0;
   }
   .root :global(.live-board-svg) {
     min-height: 0;
   }
   .root :global(.live-stage-shell) {
     min-height: 0;
+    flex: 1 1 0;
   }
+  .root :global(.live-board-holder),
+  .root :global(.live-board-layout),
   .root :global(.live-board-surface) {
+    height: 100%;
+    min-height: 0;
+  }
+  .root :global(.live-media-viewport),
+  .root :global(.live-media-content),
+  .root :global(.live-media-content > img),
+  .root :global(.live-media-content > video) {
     min-height: 0;
   }
 }
