@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, FileText, Minus, Plus, ScanLine } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileText, Minus, Plus, ScanLine, Target } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 type Viewport = { width: number; height: number };
@@ -34,12 +34,16 @@ function loadPdfJs() {
   return pdfJsLoad;
 }
 
-export function LivePdfStage({ api, assetId, page, creator, onPageChange }: {
+export function LivePdfStage({ api, assetId, page, creator, onPageChange, pointer, pointerEnabled, onPointerToggle, onStagePointer }: {
   api: string;
   assetId: string;
   page: number;
   creator: boolean;
   onPageChange: (page: number) => void;
+  pointer: [number, number] | null;
+  pointerEnabled: boolean;
+  onPointerToggle: () => void;
+  onStagePointer: (point: [number, number] | null) => void;
 }) {
   const pageArea = useRef<HTMLDivElement>(null);
   const [documentInfo, setDocumentInfo] = useState<{ pdf: PdfDocument; pageCount: number } | null>(null);
@@ -159,11 +163,17 @@ export function LivePdfStage({ api, assetId, page, creator, onPageChange }: {
 
   return <div className="live-pdf-stage">
     <div
-      className="live-pdf-page-area"
+      className={`live-pdf-page-area ${pointerEnabled && creator ? "is-pointer" : ""}`}
       ref={pageArea}
       aria-label={`PDF page ${currentPage} of ${pageCount || "…"}`}
-      onPointerMove={() => { if (!controlsVisible) revealControls(); }}
       onPointerDown={revealControls}
+      onPointerMove={event => {
+        if (!controlsVisible) revealControls();
+        if (!creator || !pointerEnabled) return;
+        const rect = event.currentTarget.getBoundingClientRect();
+        onStagePointer([(event.clientX - rect.left) / rect.width, (event.clientY - rect.top) / rect.height]);
+      }}
+      onPointerLeave={() => { if (creator && pointerEnabled) onStagePointer(null); }}
       onTouchStart={revealControls}
       onKeyDown={event => {
         if (creator && event.target === event.currentTarget && event.key === "ArrowLeft") stepPage(-1);
@@ -172,6 +182,7 @@ export function LivePdfStage({ api, assetId, page, creator, onPageChange }: {
       tabIndex={0}
     >
       <canvas />
+      {pointer ? <span className="live-stage-pointer" style={{ left: `${pointer[0] * 100}%`, top: `${pointer[1] * 100}%` }} aria-hidden="true"/> : null}
       {loading ? <div className="live-pdf-message"><FileText size={23}/>Opening PDF…</div> : null}
       {error ? <div className="live-pdf-message is-error"><FileText size={23}/>{error}</div> : null}
     </div>
@@ -209,6 +220,7 @@ export function LivePdfStage({ api, assetId, page, creator, onPageChange }: {
       <span className="live-pdf-zoom-value">{Math.round(zoom * 100)}%</span>
       <button type="button" aria-label="Zoom in" title="Zoom in" disabled={zoom >= 3} onClick={() => setZoom(value => Math.min(3, +(value + 0.1).toFixed(2)))}><Plus size={16}/></button>
       <button className="live-pdf-fit" type="button" title="Fit page" aria-label="Fit page" disabled={zoom === 1} onClick={() => setZoom(1)}><ScanLine size={16}/><span>Fit</span></button>
+      {creator ? <button className={pointerEnabled ? "is-active" : ""} type="button" aria-label={pointerEnabled ? "Turn pointer off" : "Turn pointer on"} title={pointerEnabled ? "Pointer on" : "Pointer"} onClick={onPointerToggle}><Target size={16}/></button> : null}
     </div>
   </div>;
 }

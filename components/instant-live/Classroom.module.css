@@ -137,6 +137,7 @@
   grid-template-columns: minmax(0, 1fr) 48px;
 }
 .root :global(.live-main) {
+  position: relative;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -577,41 +578,68 @@
   flex-shrink: 0;
 }
 .root :global(.live-gallery) {
-  border: 1px solid #ffffff13;
-  background: rgba(64, 69, 86, 0.38);
-  border-radius: 17px;
-  padding: 11px;
-  backdrop-filter: blur(20px);
+  position: absolute;
+  z-index: 24;
+  left: 50%;
+  bottom: 126px;
+  width: min(100%, calc(100vw - 36px));
+  max-width: 100%;
+  height: 108px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 112px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 0 8px;
+  transform: translateX(-50%);
+}
+.root :global(.live-gallery-side) {
+  min-width: 0;
+  height: 102px;
   overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
 }
-.root :global(.live-gallery-track) {
+.root :global(.live-gallery-side::-webkit-scrollbar) { display: none; }
+.root :global(.live-gallery-side-track) {
   display: flex;
-  gap: 12px;
-  justify-content: center;
-  min-width: max-content;
-  margin: 0 auto;
-}
-.root :global(.live-gallery-actions) {
-  display: flex;
+  width: max-content;
   align-items: center;
   gap: 8px;
-  margin-bottom: 9px;
-  font-size: 12px;
-  color: #d4d6e3;
+  min-height: 102px;
 }
-.root :global(.live-gallery-actions > span) { margin-right: auto; }
-.root :global(.live-gallery-actions button) {
+.root :global(.live-gallery-side.is-left .live-gallery-side-track) { margin-left: auto; }
+.root :global(.live-gallery-add-tile) {
+  width: 112px;
+  height: 102px;
+  flex: 0 0 112px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  padding: 6px;
+  border: 1px solid #ffffff27;
+  border-radius: 12px;
+  background: #202637c9;
+  box-shadow: 0 6px 22px #0004, inset 0 1px 0 #ffffff12;
+  backdrop-filter: blur(18px) saturate(140%);
+}
+.root :global(.live-gallery-add-tile button) {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
   display: inline-flex;
+  flex-direction: column;
   align-items: center;
-  gap: 6px;
-  border: 1px solid #ffffff24;
-  border-radius: 9px;
-  background: #ffffff0b;
+  justify-content: center;
+  gap: 2px;
+  border: 0;
+  border-radius: 8px;
+  background: #ffffff08;
   color: #f5f5fb;
-  padding: 7px 9px;
-  font-size: 11px;
+  padding: 2px;
+  font-size: 9px;
 }
-.root :global(.live-gallery-empty) { margin: 5px 0 2px; color: #aeb2c5; font-size: 12px; }
+.root :global(.live-gallery-add-tile button:hover:not(:disabled)) { background: #9188ff35; }
 .root :global(.live-thumbnail) {
   position: relative;
   width: 112px;
@@ -715,6 +743,7 @@
 .root :global(.live-pdf-stage) { position: relative; display: block; flex: 1; width: 100%; height: 100%; min-width: 0; min-height: 0; padding: 0; border-radius: 12px; background: transparent; }
 .root :global(.live-pdf-page-area) { position: absolute; inset: 0; display: flex; align-items: center; align-items: safe center; justify-content: center; justify-content: safe center; width: 100%; height: 100%; min-width: 0; min-height: 0; overflow: auto; border: 1px solid #ffffff14; border-radius: 10px; background: #171d29; touch-action: pan-x pan-y; }
 .root :global(.live-pdf-page-area:focus-visible) { outline: 2px solid #8c82ff; outline-offset: 2px; }
+.root :global(.live-pdf-page-area.is-pointer) { cursor: crosshair; touch-action: none; }
 .root :global(.live-pdf-page-area canvas) { display: block; flex: none; background: white; box-shadow: 0 10px 32px #0005; }
 .root :global(.live-pdf-message) { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 9px; color: #d9d6ec; background: #141a2780; font-size: 13px; }
 .root :global(.live-pdf-message.is-error) { color: #ffd4d6; }
@@ -723,6 +752,7 @@
 .root :global(.live-pdf-controls.is-visible) { opacity: 1; }
 .root :global(.live-pdf-controls button) { display: inline-flex; align-items: center; justify-content: center; gap: 4px; width: 30px; height: 30px; min-width: 30px; min-height: 30px; padding: 0; border: 0; border-radius: 50%; color: #f4f2ff; background: #ffffff12; }
 .root :global(.live-pdf-controls button:hover:not(:disabled)) { background: #ffffff24; }
+.root :global(.live-pdf-controls button.is-active) { color: #fff; background: #7568e8; box-shadow: 0 0 0 1px #c3bcff70, 0 0 14px #796cff5c; }
 .root :global(.live-pdf-controls button:disabled) { opacity: .38; cursor: default; }
 .root :global(.live-pdf-controls span) { text-align: center; font-size: 11px; font-variant-numeric: tabular-nums; }
 .root :global(.live-pdf-page-number) { display: flex; align-items: center; gap: 5px; padding: 0 3px; color: #d9d6ec; font-size: 11px; font-variant-numeric: tabular-nums; }
@@ -737,6 +767,13 @@
 .root :global(.live-pdf-control-divider) { width: 1px; height: 20px; margin: 0 2px; background: #ffffff2b; }
 .root :global(.live-pdf-zoom-value) { min-width: 38px; }
 .root :global(.live-pdf-controls .live-pdf-fit) { width: auto; min-width: 42px; padding: 0 8px; border-radius: 999px; }
+.root :global(.live-main.has-gallery .live-pdf-controls) { bottom: 112px; }
+.root :global(.live-stage-pointer) { position: absolute; z-index: 9; width: 17px; height: 17px; border: 2px solid #fff; border-radius: 50%; background: #ff4e65; box-shadow: 0 0 0 5px #ff4e6545, 0 2px 12px #0008; pointer-events: none; transform: translate(-50%, -50%); }
+.root :global(.live-image-stage) { position: relative; display: block; flex: 1; width: 100%; height: 100%; min-width: 0; min-height: 0; overflow: hidden; border-radius: 12px; }
+.root :global(.live-image-page-area) { position: absolute; inset: 0; display: grid; place-items: center; overflow: hidden; border: 1px solid #ffffff14; border-radius: 10px; background: #171d29; touch-action: none; cursor: grab; }
+.root :global(.live-image-page-area:active) { cursor: grabbing; }
+.root :global(.live-image-page-area.is-pointer) { cursor: crosshair; }
+.root :global(.live-image-page-area > img) { display: block; max-width: 100%; max-height: 100%; object-fit: contain; user-select: none; transform-origin: center; pointer-events: none; }
 .root :global(.live-drawer) {
   display: flex;
   flex-direction: column;
@@ -1433,6 +1470,18 @@
     height: 65px;
   }
   .root :global(.live-pdf-thumbnail) { height: 65px; }
+  .root :global(.live-pdf-controls) { gap: 2px; padding: 4px 6px; }
+  .root :global(.live-pdf-controls button) { width: 26px; height: 26px; min-width: 26px; min-height: 26px; }
+  .root :global(.live-pdf-controls .live-pdf-fit) { min-width: 30px; padding: 0 5px; }
+  .root :global(.live-pdf-page-number) { gap: 3px; }
+  .root :global(.live-pdf-page-number input) { width: 30px; }
+  .root :global(.live-pdf-page-readonly) { min-width: auto; }
+  .root :global(.live-pdf-zoom-value) { min-width: 31px; }
+  .root :global(.live-gallery) { bottom: 112px; width: calc(100vw - 18px); height: 98px; grid-template-columns: minmax(0, 1fr) 96px minmax(0, 1fr); gap: 5px; padding: 0 4px; }
+  .root :global(.live-gallery-side) { height: 94px; }
+  .root :global(.live-gallery-side-track) { min-height: 94px; gap: 6px; }
+  .root :global(.live-main.has-gallery .live-pdf-controls) { bottom: 102px; }
+  .root :global(.live-gallery-add-tile) { width: 96px; height: 94px; flex-basis: 96px; }
   .root :global(.live-gallery) {
     padding: 8px;
   }

@@ -41,6 +41,7 @@ import { SettingsPanel, type RoomSettings } from "./instant-live/SettingsPanel";
 import type { RecordingDirectoryHandle } from "./instant-live/exportBoard";
 import { LiveBoard } from "./instant-live/LiveBoard";
 import { LivePdfStage } from "./instant-live/LivePdfStage";
+import { LiveImageStage } from "./instant-live/LiveImageStage";
 import { useLiveTransport } from "./instant-live/useLiveTransport";
 import { createZip } from "@/lib/instant-live/createZip";
 import {
@@ -143,6 +144,7 @@ export function InstantLiveClassroom({
   const [moderatingUser, setModeratingUser] = useState<string | null>(null);
   const [roomRevoked, setRoomRevoked] = useState(false);
   const [gallery, setGallery] = useState(false);
+  const galleryLeftRef = useRef<HTMLDivElement>(null);
   const [boardPicker, setBoardPicker] = useState(false);
   const [imageLinkOpen, setImageLinkOpen] = useState(false);
   const [imageLink, setImageLink] = useState("");
@@ -150,6 +152,8 @@ export function InstantLiveClassroom({
   const [imageLinkError, setImageLinkError] = useState("");
   const [imageLinkTarget, setImageLinkTarget] = useState<"gallery" | "board">("gallery");
   const [pointer, setPointer] = useState<[number, number] | null>(null);
+  const [stagePointer, setStagePointer] = useState<[number, number] | null>(null);
+  const [stagePointerEnabled, setStagePointerEnabled] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [stageFocus, setStageFocus] = useState(false);
   const [soundBlocked, setSoundBlocked] = useState(false);
@@ -185,6 +189,7 @@ export function InstantLiveClassroom({
   const previewTime = useRef(0);
   const previewBoard = useRef<BoardObject[]>([]);
   const pointerTime = useRef(0);
+  const stagePointerTime = useRef(0);
   const receivedPreviewAt = useRef(0);
   const joinedAt = useRef(Date.now());
   const transportRef = useRef<ReturnType<typeof useLiveTransport> | null>(null);
@@ -347,12 +352,10 @@ export function InstantLiveClassroom({
         }
       }
       if (event === "pointer" && from?.userId === creatorId) {
-        const p = data as { point?: [number, number] | null };
-        setPointer(
-          p.point && p.point.length === 2 && p.point.every(Number.isFinite)
-            ? p.point
-            : null,
-        );
+        const p = data as { surface?: string; point?: [number, number] | null };
+        const point = p.point && p.point.length === 2 && p.point.every(Number.isFinite) ? p.point : null;
+        if (p.surface === "stage") setStagePointer(point);
+        else setPointer(point);
       }
       if (event === "chat" && from) {
         const message = data as ChatMessage;
@@ -703,12 +706,28 @@ export function InstantLiveClassroom({
     const timer = setTimeout(() => setPointer(null), 1500);
     return () => clearTimeout(timer);
   }, [pointer, creator]);
+  useEffect(() => {
+    if (!stagePointer || creator) return;
+    const timer = setTimeout(() => setStagePointer(null), 1500);
+    return () => clearTimeout(timer);
+  }, [stagePointer, creator]);
   function broadcastPointer(point: [number, number] | null) {
     setPointer(point);
     if (!point || Date.now() - pointerTime.current > 100) {
       pointerTime.current = Date.now();
-      void transport.send("pointer", { point });
+      void transport.send("pointer", { surface: "board", point });
     }
+  }
+  function broadcastStagePointer(point: [number, number] | null) {
+    setStagePointer(point);
+    if (!point || Date.now() - stagePointerTime.current > 100) {
+      stagePointerTime.current = Date.now();
+      void transport.send("pointer", { surface: "stage", point });
+    }
+  }
+  function toggleStagePointer() {
+    if (stagePointerEnabled) broadcastStagePointer(null);
+    setStagePointerEnabled(value => !value);
   }
   async function stopSharing() {
     if (!self) return;
@@ -730,6 +749,10 @@ export function InstantLiveClassroom({
   }
   async function switchToWhiteboard() {
     if (!self || !creator || paused || state.stage === "whiteboard") return;
+    if (stagePointerEnabled) {
+      broadcastStagePointer(null);
+      setStagePointerEnabled(false);
+    }
     if (state.stage !== "image" || !state.asset_id) {
       await stopSharing();
       return;
@@ -885,7 +908,7 @@ export function InstantLiveClassroom({
         session: self.sessionId,
       });
       transport.stopPresentation();
-      setGallery(true);
+      setGallery(false);
     } catch (error) {
       setNotice((error as Error).message);
     }
@@ -1244,6 +1267,22 @@ export function InstantLiveClassroom({
       <span>{label}</span>
     </button>
   );
+  const galleryLeft = assets.filter((_, index) => index % 2 === 1).reverse();
+  const galleryRight = assets.filter((_, index) => index % 2 === 0);
+  useEffect(() => {
+    if (gallery && galleryLeftRef.current) galleryLeftRef.current.scrollLeft = galleryLeftRef.current.scrollWidth;
+  }, [gallery, galleryLeft.length]);
+  function renderGalleryAsset(asset: LiveAsset) {
+    const usedOnBoard = board.some(item => item.kind === "image" && item.assetId === asset.id);
+    return <div key={asset.id} className={`live-thumbnail ${state.asset_id === asset.id ? "is-active" : ""}`}>
+      <button type="button" disabled={!creator || locked || paused} onClick={() => void showImage(asset)} title={creator ? `Show ${asset.name}` : asset.name}>
+        {isPdfAsset(asset) ? <span className="live-pdf-thumbnail"><FileText size={25}/><b>PDF</b></span> : <img src={`${api}/assets/${asset.id}`} alt={asset.name} referrerPolicy="no-referrer"/>}
+      </button>
+      <span>{asset.name}</span>
+      {creator && !isPdfAsset(asset) ? <button className="live-add-to-board" aria-label={`Add ${asset.name} to whiteboard`} title="Add to whiteboard" onClick={() => addBoardImage(asset)} disabled={paused}><Plus size={13}/></button> : null}
+      {(creator || asset.owner_id === userId) ? <button className="live-remove-from-gallery" aria-label={`Remove ${asset.name} from gallery`} title={state.asset_id === asset.id ? "Remove it from the stage first" : usedOnBoard ? "Remove it from the whiteboard first" : "Remove from gallery"} onClick={() => void removeGalleryAsset(asset)} disabled={state.asset_id === asset.id || usedOnBoard}><X size={13}/></button> : null}
+    </div>;
+  }
   return (
     <main
       ref={root}
@@ -1324,7 +1363,7 @@ export function InstantLiveClassroom({
         </button>
       ) : null}
       <div className={`live-layout ${chatOpen ? "" : "drawer-closed"}`}>
-        <section className="live-main">
+        <section className={`live-main ${gallery ? "has-gallery" : ""}`}>
           <div className={`live-stage-shell ${stageFocus ? "is-focused" : ""}`}>
             <button className="live-stage-focus" type="button" title={stageFocus ? "Exit focused view" : "Focus on shared screen"} aria-label={stageFocus ? "Exit focused view" : "Focus on shared screen"} onClick={() => setStageFocus(value => !value)}>
               {stageFocus ? <X size={18}/> : <Maximize2 size={17}/>}
@@ -1365,11 +1404,27 @@ export function InstantLiveClassroom({
                       page={state.media_page || 1}
                       creator={creator && !paused}
                       onPageChange={page => changeSharedPdfPage(sharedAsset.id, page)}
+                      pointer={stagePointer}
+                      pointerEnabled={stagePointerEnabled}
+                      onPointerToggle={toggleStagePointer}
+                      onStagePointer={broadcastStagePointer}
                     />
                 ) : (
-                  <ZoomStage>
-                    <img src={`${api}/assets/${state.asset_id}`} alt="Media shown to the class" referrerPolicy="no-referrer" />
-                  </ZoomStage>
+                  <LiveImageStage
+                    key={sharedAsset.id}
+                    api={api}
+                    assetId={sharedAsset.id}
+                    images={assets.filter(asset => !isPdfAsset(asset))}
+                    creator={creator && !paused}
+                    onSelectAsset={id => {
+                      const image = assets.find(asset => asset.id === id && !isPdfAsset(asset));
+                      if (image) void showImage(image);
+                    }}
+                    pointer={stagePointer}
+                    pointerEnabled={stagePointerEnabled}
+                    onPointerToggle={toggleStagePointer}
+                    onStagePointer={broadcastStagePointer}
+                  />
                 )}
                 {creator ? <button className="live-stage-dismiss" type="button" aria-label="Remove media from stage" title="Remove from stage" onClick={() => void stopSharing()}><X size={18}/></button> : null}
               </div>;
@@ -1437,51 +1492,18 @@ export function InstantLiveClassroom({
           </div>
           {gallery ? (
             <div className="live-gallery" aria-label="Media gallery">
-              <div className="live-gallery-actions">
-                <span>{assets.length ? "Media gallery" : "Add media to your gallery"}</span>
-                <button type="button" disabled={uploading || paused} onClick={() => pickUpload()}><Plus size={15}/>{uploading ? "Uploading…" : "Upload media"}</button>
-                <button type="button" disabled={paused} onClick={() => openImageLink("gallery")}><Link2 size={15}/>Add image link</button>
+              <div className="live-gallery-side is-left" ref={galleryLeftRef}>
+                <div className="live-gallery-side-track">{galleryLeft.map(renderGalleryAsset)}</div>
               </div>
-              {assets.length ? (
-              <div className="live-gallery-track">
-                {assets.map((asset) => (
-                  <div
-                    key={asset.id}
-                    className={`live-thumbnail ${state.asset_id === asset.id ? "is-active" : ""}`}
-                  >
-                    <button
-                      type="button"
-                      disabled={!creator || locked || paused}
-                      onClick={() => void showImage(asset)}
-                      title={creator ? `Show ${asset.name}` : asset.name}
-                    >
-                      {isPdfAsset(asset)
-                        ? <span className="live-pdf-thumbnail"><FileText size={25}/><b>PDF</b></span>
-                        : <img src={`${api}/assets/${asset.id}`} alt={asset.name} referrerPolicy="no-referrer" />}
-                    </button>
-                    <span>{asset.name}</span>
-                    {creator ? (
-                      <>
-                        {!isPdfAsset(asset) ? <button
-                          className="live-add-to-board"
-                          aria-label={`Add ${asset.name} to whiteboard`}
-                          title="Add to whiteboard"
-                          onClick={() => addBoardImage(asset)}
-                          disabled={paused}
-                        ><Plus size={13} /></button> : null}
-                      </>
-                    ) : null}
-                    {(creator || asset.owner_id === userId) ? <button
-                      className="live-remove-from-gallery"
-                      aria-label={`Remove ${asset.name} from gallery`}
-                      title={state.asset_id === asset.id ? "Remove it from the stage first" : board.some(item => item.kind === "image" && item.assetId === asset.id) ? "Remove it from the whiteboard first" : "Remove from gallery"}
-                      onClick={() => void removeGalleryAsset(asset)}
-                      disabled={state.asset_id === asset.id || board.some(item => item.kind === "image" && item.assetId === asset.id)}
-                    ><X size={13} /></button> : null}
-                  </div>
-                ))}
+              <div className="live-gallery-add-tile">
+                <button type="button" disabled={uploading || paused} onClick={() => pickUpload()} title="Upload media">
+                  <Plus size={18}/><span>{uploading ? "Uploading…" : "Upload"}</span>
+                </button>
+                <button type="button" disabled={paused} onClick={() => openImageLink("gallery")} title="Add image link">
+                  <Link2 size={17}/><span>Add Link</span>
+                </button>
               </div>
-              ) : <p className="live-gallery-empty">Media you add here will appear in this gallery.</p>}
+              <div className="live-gallery-side is-right"><div className="live-gallery-side-track">{galleryRight.map(renderGalleryAsset)}</div></div>
             </div>
           ) : null}
           <div className="live-bottom-rail">
