@@ -40,6 +40,25 @@ export async function GET(
     });
   }
   try {
+    // Older room media may still live in Supabase Storage. New uploads use
+    // R2, so use the bucket recorded on the asset instead of assuming that
+    // every managed object is in the currently configured R2 bucket.
+    if (asset.bucket === "lessons") {
+      const { data, error } = await admin.storage
+        .from(asset.bucket)
+        .download(asset.path);
+      if (error || !data) return new NextResponse(null, { status: 502 });
+      const extension = asset.name.toLowerCase().split(".").pop();
+      const contentType = data.type || (extension === "pdf" ? "application/pdf" : "image/webp");
+      return new NextResponse(new Uint8Array(await data.arrayBuffer()), {
+        headers: {
+          "Content-Type": contentType,
+          "Content-Disposition": `inline; filename="${asset.name.replace(/[\r\n"\\]/g, "_")}"`,
+          "Cache-Control": "private, no-store",
+          "X-Content-Type-Options": "nosniff",
+        },
+      });
+    }
     const object = await readR2Object({ path: asset.path });
     return new NextResponse(new Uint8Array(object.body), {
       headers: {

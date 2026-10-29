@@ -741,6 +741,22 @@ export function InstantLiveClassroom({
       setNotice(error instanceof Error ? error.message : "Could not switch to the whiteboard.");
     }
   }
+  async function resumeParkedMedia() {
+    const assetId = state.asset_id;
+    if (!self || !creator || paused || !assetId) return;
+    try {
+      await command({
+        action: "claim",
+        stage: "image",
+        assetId,
+        session: self.sessionId,
+      });
+      setGallery(false);
+      setNotice("");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Could not restore the presentation.");
+    }
+  }
   function startDrawerDrag(event: React.PointerEvent<HTMLButtonElement>) {
     if (window.matchMedia("(min-width: 1024px)").matches) return;
     drawerDragStart.current = event.clientY;
@@ -1313,6 +1329,11 @@ export function InstantLiveClassroom({
             <button className="live-stage-focus" type="button" title={stageFocus ? "Exit focused view" : "Focus on shared screen"} aria-label={stageFocus ? "Exit focused view" : "Focus on shared screen"} onClick={() => setStageFocus(value => !value)}>
               {stageFocus ? <X size={18}/> : <Maximize2 size={17}/>}
             </button>
+            {creator && state.stage === "whiteboard" && state.asset_id ? (
+              <button className="live-stage-resume-media" type="button" onClick={() => void resumeParkedMedia()} disabled={paused || busy}>
+                Return to presentation
+              </button>
+            ) : null}
             {!loaded ? (
               <div className="live-stage-placeholder">
                 Opening the live classroom…

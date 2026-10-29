@@ -171,7 +171,7 @@
   position: absolute;
   z-index: 20;
   top: 12px;
-  left: 12px;
+  left: 78px;
   width: 36px;
   height: 36px;
   display: grid;
@@ -183,6 +183,22 @@
   backdrop-filter: blur(14px);
 }
 .root :global(.live-stage-focus:hover) { border-color: #a99fff; background: #403b69e8; }
+.root :global(.live-stage-resume-media) {
+  position: absolute;
+  z-index: 20;
+  top: 12px;
+  right: 12px;
+  min-height: 36px;
+  padding: 0 13px;
+  border: 1px solid #ffffff35;
+  border-radius: 999px;
+  color: #fff;
+  background: #171c2bd9;
+  backdrop-filter: blur(14px);
+  font-size: 12px;
+  font-weight: 650;
+}
+.root :global(.live-stage-resume-media:hover) { border-color: #a99fff; background: #403b69e8; }
 .root :global(.live-drawer-handle) { display: none; }
 .root :global(.live-board-holder) {
   width: 100%;
@@ -1205,6 +1221,16 @@
   .root :global(.live-stage-shell) {
     flex: 1 1 0;
     min-height: 0;
+  }
+  .root :global(.live-stage-focus) {
+    left: 12px;
+  }
+  .root :global(.live-stage-resume-media) {
+    top: 10px;
+    right: 10px;
+    min-height: 34px;
+    padding: 0 10px;
+    font-size: 11px;
   }
   .root :global(.live-drawer-handle) {
     display: flex;
