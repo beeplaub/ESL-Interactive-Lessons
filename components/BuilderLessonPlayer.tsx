@@ -765,7 +765,7 @@ export function BuilderLessonPlayer({
   }
 
   return (
-    <main ref={lessonViewportRef} className="mx-auto max-w-7xl overflow-x-hidden px-3 sm:px-4 min-[1180px]:px-0">
+    <main ref={lessonViewportRef} className="mx-auto max-w-7xl overflow-x-hidden px-1 sm:px-4 min-[1180px]:px-0">
       {showCompletion ? <LessonCompletionModal lessonTitle={lesson.title} score={earnedLessonMarks} total={totalLessonMarks} activitiesAttempted={attemptedActivities} totalQuestions={totalLessonQuestions} grade={lessonGrade} onClose={() => setShowCompletion(false)} onRetake={retakeLesson} /> : null}
       {/* ── Header ── */}
       <div className="mb-3 rounded-[22px] border border-[var(--br-surface-strong)] bg-surface px-3 py-2 shadow-[var(--br-shadow)]">

@@ -272,7 +272,7 @@ export default async function LessonPage({
   return (
     <LearnerAppShell
       active="courses"
-      contentClassName="block"
+      contentClassName="block -mx-3 min-[1180px]:mx-0"
       showRightSidebar={false}
       showFooter={false}
       breadcrumbs={
