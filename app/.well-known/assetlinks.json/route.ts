@@ -6,7 +6,7 @@ function getSigningFingerprints(): string[] | null {
   const configured = process.env.ANDROID_APP_SIGNING_CERT_SHA256;
   if (!configured?.trim()) return null;
 
-  const entries = configured.split(/[\\s,]+/).filter(Boolean);
+  const entries = configured.split(/[\s,]+/).filter(Boolean);
   if (entries.length === 0 || entries.some((entry) => !CERTIFICATE_FINGERPRINT_PATTERN.test(entry))) {
     return null;
   }
