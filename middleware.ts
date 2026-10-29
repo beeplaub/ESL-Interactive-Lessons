@@ -3,6 +3,19 @@ import { createServerClient } from "@supabase/ssr";
 import type { CookieOptions } from "@supabase/ssr";
 
 export async function middleware(request: NextRequest) {
+  // Keep www as the canonical site host while allowing the apex host to
+  // serve its own Digital Asset Links association document. Vercel's
+  // domain-level redirect cannot exempt /.well-known/assetlinks.json.
+  if (
+    request.nextUrl.hostname.toLowerCase() === "brenup.com" &&
+    request.nextUrl.pathname !== "/.well-known/assetlinks.json"
+  ) {
+    const canonicalUrl = request.nextUrl.clone();
+    canonicalUrl.hostname = "www.brenup.com";
+    canonicalUrl.port = "";
+    return NextResponse.redirect(canonicalUrl, 308);
+  }
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
