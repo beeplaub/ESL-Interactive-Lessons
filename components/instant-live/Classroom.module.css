@@ -584,20 +584,51 @@
   bottom: 126px;
   width: min(100%, calc(100vw - 36px));
   max-width: 100%;
-  height: 108px;
+  height: 92px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 112px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) 88px minmax(0, 1fr);
   align-items: center;
   gap: 10px;
-  padding: 0 8px;
+  padding: 6px 36px;
+  border: 1px solid #ffffff24;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #ffffff1c, #bfc9e20d 55%, #ffffff18);
+  box-shadow: 0 12px 36px #080b1690, inset 0 1px 0 #ffffff20;
+  -webkit-backdrop-filter: blur(22px) saturate(155%);
+  backdrop-filter: blur(22px) saturate(155%);
+  overflow: hidden;
+  isolation: isolate;
   transform: translateX(-50%);
 }
+.root :global(.live-gallery-nav) {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid #ffffff2b;
+  border-radius: 11px;
+  color: #f7f6ff;
+  background: #ffffff18;
+  box-shadow: 0 4px 12px #080b1640, inset 0 1px 0 #ffffff20;
+  backdrop-filter: blur(12px);
+  transform: translateY(-50%);
+  transition: background 150ms ease, border-color 150ms ease, transform 150ms ease;
+}
+.root :global(.live-gallery-nav:hover) { background: #8176ef55; border-color: #b9b2ff80; }
+.root :global(.live-gallery-nav:active) { transform: translateY(-50%) scale(.94); }
+.root :global(.live-gallery-nav.is-prev) { left: 6px; }
+.root :global(.live-gallery-nav.is-next) { right: 6px; }
 .root :global(.live-gallery-side) {
   min-width: 0;
-  height: 102px;
+  height: 78px;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none;
+  scroll-behavior: smooth;
 }
 .root :global(.live-gallery-side::-webkit-scrollbar) { display: none; }
 .root :global(.live-gallery-side-track) {
@@ -605,23 +636,23 @@
   width: max-content;
   align-items: center;
   gap: 8px;
-  min-height: 102px;
+  min-height: 78px;
 }
 .root :global(.live-gallery-side.is-left .live-gallery-side-track) { margin-left: auto; }
 .root :global(.live-gallery-add-tile) {
-  width: 112px;
-  height: 102px;
-  flex: 0 0 112px;
+  width: 88px;
+  height: 78px;
+  flex: 0 0 88px;
   display: flex;
   flex-direction: column;
   justify-content: center;
   gap: 2px;
   padding: 6px;
   border: 1px solid #ffffff27;
-  border-radius: 12px;
-  background: #202637c9;
-  box-shadow: 0 6px 22px #0004, inset 0 1px 0 #ffffff12;
-  backdrop-filter: blur(18px) saturate(140%);
+  border-radius: 14px;
+  background: #222a3dc9;
+  box-shadow: 0 6px 20px #0004, inset 0 1px 0 #ffffff20;
+  backdrop-filter: blur(14px) saturate(145%);
 }
 .root :global(.live-gallery-add-tile button) {
   flex: 1;
@@ -642,15 +673,17 @@
 .root :global(.live-gallery-add-tile button:hover:not(:disabled)) { background: #9188ff35; }
 .root :global(.live-thumbnail) {
   position: relative;
-  width: 112px;
+  width: 88px;
   flex-shrink: 0;
-  padding: 5px;
-  border: 1px solid #ffffff13;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.04);
+  padding: 4px;
+  border: 1px solid #ffffff24;
+  border-radius: 11px;
+  background: #ffffff12;
+  box-shadow: 0 5px 14px #080b1640, inset 0 1px 0 #ffffff15;
+  backdrop-filter: blur(10px);
 }
 .root :global(.live-thumbnail > button:first-child) {
-  height: 75px;
+  height: 58px;
   width: 100%;
   padding: 0;
   border: 0;
@@ -664,7 +697,7 @@
 }
 .root :global(.live-thumbnail img) {
   width: 100%;
-  height: 75px;
+  height: 58px;
   object-fit: contain;
   border-radius: 7px;
 }
@@ -1477,11 +1510,21 @@
   .root :global(.live-pdf-page-number input) { width: 30px; }
   .root :global(.live-pdf-page-readonly) { min-width: auto; }
   .root :global(.live-pdf-zoom-value) { min-width: 31px; }
-  .root :global(.live-gallery) { bottom: 112px; width: calc(100vw - 18px); height: 98px; grid-template-columns: minmax(0, 1fr) 96px minmax(0, 1fr); gap: 5px; padding: 0 4px; }
-  .root :global(.live-gallery-side) { height: 94px; }
-  .root :global(.live-gallery-side-track) { min-height: 94px; gap: 6px; }
+  .root :global(.live-gallery) { bottom: 112px; width: calc(100vw - 18px); height: 76px; grid-template-columns: minmax(0, 1fr) 72px minmax(0, 1fr); gap: 4px; padding: 4px 31px; border-radius: 15px; }
+  .root :global(.live-gallery-side) { height: 64px; }
+  .root :global(.live-gallery-side-track) { min-height: 64px; gap: 5px; }
+  .root :global(.live-gallery-nav) { width: 24px; height: 30px; border-radius: 9px; }
+  .root :global(.live-gallery-nav.is-prev) { left: 4px; }
+  .root :global(.live-gallery-nav.is-next) { right: 4px; }
   .root :global(.live-main.has-gallery .live-pdf-controls) { bottom: 102px; }
-  .root :global(.live-gallery-add-tile) { width: 96px; height: 94px; flex-basis: 96px; }
+  .root :global(.live-gallery-add-tile) { width: 72px; height: 64px; flex-basis: 72px; gap: 1px; padding: 4px; border-radius: 11px; }
+  .root :global(.live-gallery-add-tile button) { gap: 0; font-size: 8px; }
+  .root :global(.live-gallery-add-tile button svg) { width: 14px; height: 14px; }
+  .root :global(.live-thumbnail) { width: 72px; padding: 3px; border-radius: 9px; }
+  .root :global(.live-thumbnail img),
+  .root :global(.live-thumbnail > button:first-child),
+  .root :global(.live-pdf-thumbnail) { height: 43px; }
+  .root :global(.live-thumbnail > span) { padding-top: 3px; font-size: 8px; }
   .root :global(.live-gallery) {
     padding: 8px;
   }

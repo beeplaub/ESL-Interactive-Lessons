@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Check,
+  ChevronLeft,
+  ChevronRight,
   Download,
   FileText,
   BookOpen,
@@ -145,6 +147,7 @@ export function InstantLiveClassroom({
   const [roomRevoked, setRoomRevoked] = useState(false);
   const [gallery, setGallery] = useState(false);
   const galleryLeftRef = useRef<HTMLDivElement>(null);
+  const galleryRightRef = useRef<HTMLDivElement>(null);
   const [boardPicker, setBoardPicker] = useState(false);
   const [imageLinkOpen, setImageLinkOpen] = useState(false);
   const [imageLink, setImageLink] = useState("");
@@ -1283,6 +1286,12 @@ export function InstantLiveClassroom({
       {(creator || asset.owner_id === userId) ? <button className="live-remove-from-gallery" aria-label={`Remove ${asset.name} from gallery`} title={state.asset_id === asset.id ? "Remove it from the stage first" : usedOnBoard ? "Remove it from the whiteboard first" : "Remove from gallery"} onClick={() => void removeGalleryAsset(asset)} disabled={state.asset_id === asset.id || usedOnBoard}><X size={13}/></button> : null}
     </div>;
   }
+  function scrollGallery(direction: -1 | 1) {
+    const distance = Math.max(180, Math.round((galleryRightRef.current?.clientWidth ?? 320) * 0.72));
+    for (const rail of [galleryLeftRef.current, galleryRightRef.current]) {
+      rail?.scrollBy({ left: direction * distance, behavior: "smooth" });
+    }
+  }
   return (
     <main
       ref={root}
@@ -1492,6 +1501,7 @@ export function InstantLiveClassroom({
           </div>
           {gallery ? (
             <div className="live-gallery" aria-label="Media gallery">
+              <button className="live-gallery-nav is-prev" type="button" aria-label="Scroll media left" onClick={() => scrollGallery(-1)}><ChevronLeft size={17}/></button>
               <div className="live-gallery-side is-left" ref={galleryLeftRef}>
                 <div className="live-gallery-side-track">{galleryLeft.map(renderGalleryAsset)}</div>
               </div>
@@ -1503,7 +1513,8 @@ export function InstantLiveClassroom({
                   <Link2 size={17}/><span>Add Link</span>
                 </button>
               </div>
-              <div className="live-gallery-side is-right"><div className="live-gallery-side-track">{galleryRight.map(renderGalleryAsset)}</div></div>
+              <div className="live-gallery-side is-right" ref={galleryRightRef}><div className="live-gallery-side-track">{galleryRight.map(renderGalleryAsset)}</div></div>
+              <button className="live-gallery-nav is-next" type="button" aria-label="Scroll media right" onClick={() => scrollGallery(1)}><ChevronRight size={17}/></button>
             </div>
           ) : null}
           <div className="live-bottom-rail">
