@@ -17,6 +17,15 @@
   flex-direction: column;
   isolation: isolate;
 }
+.root.stageFocused {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  width: 100vw;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
 .fullscreen {
   position: fixed;
   inset: 0;
@@ -146,14 +155,17 @@
   overflow: hidden;
 }
 .root :global(.live-stage-shell.is-focused) {
-  position: fixed;
-  inset: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right))
-    max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
-  z-index: 1200;
-  width: auto;
-  height: auto;
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
   min-height: 0;
-  box-shadow: 0 0 0 100vmax #0b1020ed;
+  border: 0;
+  border-radius: 0;
+  padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right))
+    max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+  box-shadow: none;
 }
 .root :global(.live-stage-focus) {
   position: absolute;
@@ -171,6 +183,7 @@
   backdrop-filter: blur(14px);
 }
 .root :global(.live-stage-focus:hover) { border-color: #a99fff; background: #403b69e8; }
+.root :global(.live-drawer-handle) { display: none; }
 .root :global(.live-board-holder) {
   width: 100%;
   min-width: 0;
@@ -664,6 +677,7 @@
 }
 .root :global(.live-pdf-thumbnail b) { color: #ff9b88; font-size: 9px; letter-spacing: .12em; }
 .root :global(.live-projected-media) { position: absolute; inset: 12px; display: flex; min-width: 0; min-height: 0; }
+.root :global(.live-projected-media[hidden]) { display: none !important; }
 .root :global(.live-projected-media .live-media-viewport) { min-height: 0; }
 .root :global(.live-stage-dismiss) {
   position: absolute;
@@ -1169,13 +1183,93 @@
   }
 }
 @media (max-width: 1023px) {
+  .root {
+    height: var(--live-available-height, 100dvh);
+    min-height: 0;
+    overflow: hidden;
+  }
   .root :global(.live-layout),
   .root :global(.live-layout.drawer-closed) {
     grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+    height: auto;
+    flex: 1 1 0;
+    min-height: 0;
+    align-content: stretch;
+    padding-bottom: 0;
+  }
+  .root :global(.live-main) {
+    height: 100%;
+    min-height: 0;
+  }
+  .root :global(.live-stage-shell) {
+    flex: 1 1 0;
+    min-height: 0;
+  }
+  .root :global(.live-drawer-handle) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 24px;
+    width: 100%;
+    height: 24px;
+    min-height: 24px;
+    padding: 0;
+    border: 0;
+    border-radius: 18px 18px 0 0;
+    background: transparent;
+    touch-action: none;
+  }
+  .root :global(.live-drawer-handle span) {
+    display: block;
+    width: 38px;
+    height: 3px;
+    border-radius: 3px;
+    background: #a9adbb;
+  }
+  .root :global(.live-board-layout.with-tools) {
+    grid-template-rows: minmax(0, 1fr) auto;
+    height: 100%;
+    min-height: 0;
+  }
+  .root :global(.live-board-holder),
+  .root :global(.live-board-surface) {
+    height: 100%;
+    min-height: 0;
+  }
+  .root :global(.live-board-rail) {
+    height: auto;
+    max-height: none;
+    min-height: 0;
+    align-self: stretch;
+    justify-content: flex-start;
+    padding: 4px;
+    gap: 3px;
+  }
+  .root :global(.live-drawer.is-collapsed) {
+    display: block;
+    height: 12px;
+    max-height: 12px;
+    min-height: 12px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+  }
+  .root :global(.live-drawer.is-collapsed .live-drawer-handle) {
+    height: 12px;
+    min-height: 12px;
+    border-radius: 0;
+  }
+  .root :global(.live-drawer.is-collapsed .live-drawer-tabs) {
+    display: none;
   }
   .root :global(.live-drawer) {
-    max-height: 380px;
-    min-height: 260px;
+    max-height: min(38dvh, 340px);
+    min-height: 0;
+    overflow: hidden;
+  }
+  .root :global(.live-drawer:not(.is-collapsed)) {
+    min-height: min(180px, 24dvh);
   }
   .root :global(.live-board-layout.with-tools) {
     grid-template-columns: minmax(0, 1fr);
@@ -1192,6 +1286,7 @@
     overflow-y: hidden;
     align-self: auto;
     scrollbar-width: none;
+    border-radius: 12px;
   }
   .root :global(.live-tool-divider) {
     height: 22px;
@@ -1220,10 +1315,6 @@
   .root :global(.live-media-content > video) {
     min-height: 0;
     max-height: 65dvh;
-  }
-  .root :global(.live-drawer.is-collapsed) {
-    max-height: 50px;
-    min-height: 0;
   }
 }
 @media (max-width: 600px) {
@@ -1265,10 +1356,15 @@
   .root :global(.live-layout) {
     padding: 9px;
     gap: 11px;
+    padding-bottom: 0;
   }
   .root :global(.live-stage-shell) {
     padding: 7px;
     border-radius: 15px;
+  }
+  .root :global(.live-stage-shell.is-focused) {
+    padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right))
+      max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
   }
   .root :global(.live-board-layout) {
     gap: 7px;
@@ -1337,6 +1433,9 @@
   .root :global(.live-drawer) {
     min-height: 260px;
     max-height: 42dvh;
+  }
+  .root :global(.live-drawer:not(.is-collapsed)) {
+    max-height: min(34dvh, 300px);
   }
 }
 

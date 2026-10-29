@@ -17,6 +17,7 @@ const commandSchema = z.discriminatedUnion("action", [
     assetId: z.string().uuid().optional(),
   }),
   z.object({ action: z.literal("release"), session: z.string().uuid() }),
+  z.object({ action: z.literal("show-whiteboard"), session: z.string().uuid() }),
   z.object({ action: z.literal("media-page"), assetId: z.string().uuid(), page: z.number().int().min(1).max(10000) }),
   z.object({ action: z.literal("heartbeat"), session: z.string().uuid() }),
 ]);
@@ -82,7 +83,7 @@ export async function GET(
   if (!creator) query = query.eq("owner_id", user.id);
   const { data: listedAssets } = await query;
   const assets = [...(listedAssets ?? [])];
-  if (!creator && state.stage === "image" && state.asset_id && !assets.some(asset => asset.id === state.asset_id)) {
+  if (!creator && state.asset_id && (state.stage === "image" || state.stage === "whiteboard") && !assets.some(asset => asset.id === state.asset_id)) {
     const { data: projectedAsset } = await admin.from("instant_live_assets")
       .select("id,owner_id,name,width,height,created_at")
       .eq("room_id", id).eq("id", state.asset_id).maybeSingle();
@@ -205,6 +206,16 @@ export async function POST(
       );
     return NextResponse.json({ state: updated });
   }
+  if (command.action === "show-whiteboard") {
+    if (!creator) return fail("Only the teacher can switch to the whiteboard.", 403);
+    if (state.stage !== "image" || !state.asset_id || state.presenter_id !== user.id || state.presenter_session !== command.session)
+      return fail("The projected media changed. Refresh and try again.", 409);
+    const { data: updated } = await admin.from("instant_live_state")
+      .update({ stage: "whiteboard", revision: state.revision + 1 })
+      .eq("room_id", id).eq("revision", state.revision).select("*").maybeSingle();
+    if (!updated) return fail("The classroom stage changed. Try again.", 409);
+    return NextResponse.json({ state: updated });
+  }
   if (command.action === "media-page") {
     if (!creator) return fail("Only the teacher can change the shared media page.", 403);
     if (state.stage !== "image" || state.asset_id !== command.assetId)
@@ -279,7 +290,7 @@ export async function POST(
     .update({
       stage: command.stage,
       asset_id: command.stage === "image" ? command.assetId : null,
-      media_page: 1,
+      media_page: command.stage === "image" && state.asset_id === command.assetId ? state.media_page : 1,
       presenter_id: user.id,
       presenter_session: command.session,
       lease_until: new Date(Date.now() + 60000).toISOString(),

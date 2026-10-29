@@ -178,6 +178,8 @@ export function InstantLiveClassroom({
   const saving = useRef<Promise<void> | null>(null);
   const mediaPageQueue = useRef<Promise<void>>(Promise.resolve());
   const mediaPagePending = useRef<number | null>(null);
+  const drawerDragStart = useRef<number | null>(null);
+  const drawerDragMoved = useRef(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const previewTime = useRef(0);
@@ -551,6 +553,25 @@ export function InstantLiveClassroom({
   useEffect(() => {
     setChatOpen(window.matchMedia("(min-width: 1024px)").matches);
   }, []);
+  useEffect(() => {
+    const updateRoomHeight = () => {
+      const node = root.current;
+      if (!node || window.matchMedia("(min-width: 1024px)").matches) {
+        node?.style.removeProperty("--live-available-height");
+        return;
+      }
+      const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+      const top = Math.max(0, node.getBoundingClientRect().top);
+      node.style.setProperty("--live-available-height", `${Math.max(320, viewportHeight - top)}px`);
+    };
+    updateRoomHeight();
+    window.addEventListener("resize", updateRoomHeight);
+    window.visualViewport?.addEventListener("resize", updateRoomHeight);
+    return () => {
+      window.removeEventListener("resize", updateRoomHeight);
+      window.visualViewport?.removeEventListener("resize", updateRoomHeight);
+    };
+  }, []);
   const command = async (body: Record<string, unknown>) => {
     const response = await fetch(`${api}/state`, {
       method: "POST",
@@ -706,6 +727,42 @@ export function InstantLiveClassroom({
       errors.push((error as Error).message);
     }
     setNotice(errors.join(" "));
+  }
+  async function switchToWhiteboard() {
+    if (!self || !creator || paused || state.stage === "whiteboard") return;
+    if (state.stage !== "image" || !state.asset_id) {
+      await stopSharing();
+      return;
+    }
+    try {
+      await command({ action: "show-whiteboard", session: self.sessionId });
+      setNotice("");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Could not switch to the whiteboard.");
+    }
+  }
+  function startDrawerDrag(event: React.PointerEvent<HTMLButtonElement>) {
+    if (window.matchMedia("(min-width: 1024px)").matches) return;
+    drawerDragStart.current = event.clientY;
+    drawerDragMoved.current = false;
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+  function finishDrawerDrag(event: React.PointerEvent<HTMLButtonElement>) {
+    const start = drawerDragStart.current;
+    if (start === null) return;
+    const distance = event.clientY - start;
+    if (Math.abs(distance) > 34) {
+      drawerDragMoved.current = true;
+      setChatOpen(distance < 0);
+    }
+    drawerDragStart.current = null;
+  }
+  function toggleDrawerFromHandle() {
+    if (drawerDragMoved.current) {
+      drawerDragMoved.current = false;
+      return;
+    }
+    setChatOpen(open => !open);
   }
   async function startSharing(kind: "screen" | "camera") {
     if (!creator && kind === "screen" && !roomSettings.learner_screen_share_enabled) {
@@ -1174,7 +1231,7 @@ export function InstantLiveClassroom({
   return (
     <main
       ref={root}
-      className={`${styles.root} ${fullscreen ? styles.fullscreen : ""}`}
+      className={`${styles.root} ${fullscreen ? styles.fullscreen : ""} ${stageFocus ? styles.stageFocused : ""}`}
       data-live-classroom
       data-role={role}
     >
@@ -1253,13 +1310,7 @@ export function InstantLiveClassroom({
       <div className={`live-layout ${chatOpen ? "" : "drawer-closed"}`}>
         <section className="live-main">
           <div className={`live-stage-shell ${stageFocus ? "is-focused" : ""}`}>
-            <button
-              className="live-stage-focus"
-              type="button"
-              title={stageFocus ? "Exit focused view" : "Focus on shared screen"}
-              aria-label={stageFocus ? "Exit focused view" : "Focus on shared screen"}
-              onClick={() => setStageFocus(value => !value)}
-            >
+            <button className="live-stage-focus" type="button" title={stageFocus ? "Exit focused view" : "Focus on shared screen"} aria-label={stageFocus ? "Exit focused view" : "Focus on shared screen"} onClick={() => setStageFocus(value => !value)}>
               {stageFocus ? <X size={18}/> : <Maximize2 size={17}/>}
             </button>
             {!loaded ? (
@@ -1282,9 +1333,10 @@ export function InstantLiveClassroom({
               />
             </div>
             {state.stage === "content" ? <LiveContent api={api} revision={state.revision} creator={creator} paused={paused} onChoose={chooseContent} onNotice={setNotice}/> : null}
-            {state.stage === "image" && state.asset_id ? (() => {
+            {(state.stage === "image" || (state.stage === "whiteboard" && state.asset_id)) && state.asset_id ? (() => {
               const sharedAsset = assets.find(asset => asset.id === state.asset_id);
-              return <div className="live-projected-media">
+              if (!sharedAsset) return null;
+              return <div className="live-projected-media" hidden={state.stage !== "image"}>
                 {sharedAsset && isPdfAsset(sharedAsset) ? (
                     <LivePdfStage
                       api={api}
@@ -1311,7 +1363,7 @@ export function InstantLiveClassroom({
                       Reconnect media
                     </button>
                   </div>
-                ) : null}
+              ) : null}
               </ZoomStage>
             ) : null}
             {clock.status === "PAUSED" ? (
@@ -1442,7 +1494,7 @@ export function InstantLiveClassroom({
               ? button(
                   "Whiteboard",
                   PenLine,
-                  () => void stopSharing(),
+                  () => void switchToWhiteboard(),
                   state.stage === "whiteboard",
                   paused || busy,
                 )
@@ -1481,6 +1533,9 @@ export function InstantLiveClassroom({
           </div>
         </section>
         <aside className={`live-drawer ${chatOpen ? "" : "is-collapsed"}`}>
+          <button className="live-drawer-handle" type="button" aria-label={chatOpen ? "Collapse chat and people" : "Expand chat and people"} onPointerDown={startDrawerDrag} onPointerUp={finishDrawerDrag} onPointerCancel={() => { drawerDragStart.current = null; }} onClick={toggleDrawerFromHandle}>
+            <span aria-hidden="true" />
+          </button>
           <div className="live-drawer-tabs">
             {chatOpen ? (
               <>
