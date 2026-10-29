@@ -22,10 +22,24 @@ export function NativeAuthCallback({ code, nextPath }: { code: string; nextPath:
         return;
       }
 
-      const callbackUrl = new URL("/auth/callback", window.location.origin);
-      callbackUrl.searchParams.set("native_complete", "1");
-      callbackUrl.searchParams.set("next", nextPath);
-      window.location.replace(callbackUrl.toString());
+      const response = await fetch("/api/auth/native-complete", {
+        method: "POST",
+        credentials: "same-origin",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          accessToken: data.session.access_token,
+          refreshToken: data.session.refresh_token,
+          nextPath,
+        }),
+      });
+      const result = await response.json().catch(() => null) as { redirectTo?: string } | null;
+      const redirectTo = result?.redirectTo;
+      if (!response.ok || !redirectTo || !redirectTo.startsWith("/") || redirectTo.startsWith("//")) {
+        setFailed(true);
+        return;
+      }
+      window.location.replace(redirectTo);
     }
 
     void completeSignIn().catch(() => setFailed(true));
