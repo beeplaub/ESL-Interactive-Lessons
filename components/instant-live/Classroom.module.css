@@ -145,6 +145,32 @@
   padding: 12px;
   overflow: hidden;
 }
+.root :global(.live-stage-shell.is-focused) {
+  position: fixed;
+  inset: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right))
+    max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+  z-index: 1200;
+  width: auto;
+  height: auto;
+  min-height: 0;
+  box-shadow: 0 0 0 100vmax #0b1020ed;
+}
+.root :global(.live-stage-focus) {
+  position: absolute;
+  z-index: 20;
+  top: 12px;
+  left: 12px;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #ffffff35;
+  border-radius: 50%;
+  color: #fff;
+  background: #171c2bd9;
+  backdrop-filter: blur(14px);
+}
+.root :global(.live-stage-focus:hover) { border-color: #a99fff; background: #403b69e8; }
 .root :global(.live-board-holder) {
   width: 100%;
   min-width: 0;
@@ -656,13 +682,15 @@
   backdrop-filter: blur(12px);
 }
 .root :global(.live-stage-dismiss:hover) { background: #e75f70; }
-.root :global(.live-pdf-stage) { position: relative; display: grid; flex: 1; grid-template-rows: minmax(0, 1fr) auto; gap: 8px; width: 100%; height: 100%; min-width: 0; min-height: 0; padding: 10px; border-radius: 12px; background: #202635; }
-.root :global(.live-pdf-page-area) { position: relative; display: flex; align-items: center; align-items: safe center; justify-content: center; justify-content: safe center; width: 100%; height: 100%; min-width: 0; min-height: 0; overflow: auto; border: 1px solid #ffffff14; border-radius: 9px; background: #171d29; touch-action: pan-x pan-y; }
+.root :global(.live-pdf-stage) { position: relative; display: block; flex: 1; width: 100%; height: 100%; min-width: 0; min-height: 0; padding: 0; border-radius: 12px; background: transparent; }
+.root :global(.live-pdf-page-area) { position: absolute; inset: 0; display: flex; align-items: center; align-items: safe center; justify-content: center; justify-content: safe center; width: 100%; height: 100%; min-width: 0; min-height: 0; overflow: auto; border: 1px solid #ffffff14; border-radius: 10px; background: #171d29; touch-action: pan-x pan-y; }
 .root :global(.live-pdf-page-area:focus-visible) { outline: 2px solid #8c82ff; outline-offset: 2px; }
 .root :global(.live-pdf-page-area canvas) { display: block; flex: none; background: white; box-shadow: 0 10px 32px #0005; }
 .root :global(.live-pdf-message) { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 9px; color: #d9d6ec; background: #141a2780; font-size: 13px; }
 .root :global(.live-pdf-message.is-error) { color: #ffd4d6; }
-.root :global(.live-pdf-controls) { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 5px; width: max-content; max-width: 100%; margin: 0 auto; padding: 5px 8px; border: 1px solid #ffffff25; border-radius: 999px; color: #f5f3ff; background: #171c2bd9; box-shadow: 0 5px 22px #0004; backdrop-filter: blur(12px); }
+.root :global(.live-pdf-controls) { position: absolute; z-index: 10; left: 50%; bottom: max(12px, env(safe-area-inset-bottom)); transform: translate(-50%, 0); display: flex; align-items: center; justify-content: center; flex-wrap: nowrap; gap: 5px; width: max-content; max-width: calc(100% - 20px); padding: 6px 9px; border: 1px solid #ffffff38; border-radius: 999px; color: #f5f3ff; background: #252b3bcc; box-shadow: 0 8px 28px #0005, inset 0 1px 0 #ffffff20; backdrop-filter: blur(22px) saturate(145%); transition: opacity 180ms ease, transform 180ms ease; }
+.root :global(.live-pdf-controls.is-hidden) { opacity: 0; transform: translate(-50%, 8px); pointer-events: none; }
+.root :global(.live-pdf-controls.is-visible) { opacity: 1; }
 .root :global(.live-pdf-controls button) { display: inline-flex; align-items: center; justify-content: center; gap: 4px; width: 30px; height: 30px; min-width: 30px; min-height: 30px; padding: 0; border: 0; border-radius: 50%; color: #f4f2ff; background: #ffffff12; }
 .root :global(.live-pdf-controls button:hover:not(:disabled)) { background: #ffffff24; }
 .root :global(.live-pdf-controls button:disabled) { opacity: .38; cursor: default; }

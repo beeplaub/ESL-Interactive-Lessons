@@ -151,6 +151,7 @@ export function InstantLiveClassroom({
   const [imageLinkTarget, setImageLinkTarget] = useState<"gallery" | "board">("gallery");
   const [pointer, setPointer] = useState<[number, number] | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
+  const [stageFocus, setStageFocus] = useState(false);
   const [soundBlocked, setSoundBlocked] = useState(false);
   const [endClassOpen, setEndClassOpen] = useState(false);
   const [quitPrompt, setQuitPrompt] = useState(false);
@@ -175,6 +176,8 @@ export function InstantLiveClassroom({
   const dirty = useRef(false);
   const boardVersion = useRef(0);
   const saving = useRef<Promise<void> | null>(null);
+  const mediaPageQueue = useRef<Promise<void>>(Promise.resolve());
+  const mediaPagePending = useRef<number | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const previewTime = useRef(0);
@@ -208,6 +211,7 @@ export function InstantLiveClassroom({
     if (next.revision >= previous.revision) {
       merged.stage = next.stage;
       merged.asset_id = next.asset_id;
+      merged.media_page = mediaPagePending.current ?? next.media_page;
       merged.presenter_id = next.presenter_id;
       merged.presenter_session = next.presenter_session;
       merged.lease_until = next.lease_until;
@@ -535,7 +539,17 @@ export function InstantLiveClassroom({
   useEffect(() => {
     const listener = () => setFullscreen(Boolean(document.fullscreenElement));
     document.addEventListener("fullscreenchange", listener);
-    return () => document.removeEventListener("fullscreenchange", listener);
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setStageFocus(false);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("fullscreenchange", listener);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, []);
+  useEffect(() => {
+    setChatOpen(window.matchMedia("(min-width: 1024px)").matches);
   }, []);
   const command = async (body: Record<string, unknown>) => {
     const response = await fetch(`${api}/state`, {
@@ -549,6 +563,23 @@ export function InstantLiveClassroom({
     if (result.state) applyState(result.state);
     void transport.send("state-changed", {});
     return result.state as SharedState | undefined;
+  };
+  const changeSharedPdfPage = (assetId: string, page: number) => {
+    mediaPagePending.current = page;
+    stateRef.current = { ...stateRef.current, media_page: page };
+    setState(stateRef.current);
+    const request = mediaPageQueue.current.then(async () => {
+      const result = await command({ action: "media-page", assetId, page });
+      if (mediaPagePending.current === page) {
+        mediaPagePending.current = null;
+        if (result) applyState(result);
+      }
+    }).catch(async (error: unknown) => {
+      if (mediaPagePending.current === page) mediaPagePending.current = null;
+      setNotice(error instanceof Error ? error.message : "Could not change the shared PDF page.");
+      await refresh();
+    });
+    mediaPageQueue.current = request;
   };
   const saveBoard = useCallback(async () => {
     if (saving.current) return saving.current;
@@ -1221,7 +1252,16 @@ export function InstantLiveClassroom({
       ) : null}
       <div className={`live-layout ${chatOpen ? "" : "drawer-closed"}`}>
         <section className="live-main">
-          <div className="live-stage-shell">
+          <div className={`live-stage-shell ${stageFocus ? "is-focused" : ""}`}>
+            <button
+              className="live-stage-focus"
+              type="button"
+              title={stageFocus ? "Exit focused view" : "Focus on shared screen"}
+              aria-label={stageFocus ? "Exit focused view" : "Focus on shared screen"}
+              onClick={() => setStageFocus(value => !value)}
+            >
+              {stageFocus ? <X size={18}/> : <Maximize2 size={17}/>}
+            </button>
             {!loaded ? (
               <div className="live-stage-placeholder">
                 Opening the live classroom…
@@ -1251,7 +1291,7 @@ export function InstantLiveClassroom({
                       assetId={sharedAsset.id}
                       page={state.media_page || 1}
                       creator={creator && !paused}
-                      onPageChange={page => void command({ action: "media-page", assetId: sharedAsset.id, page }).catch(error => setNotice((error as Error).message))}
+                      onPageChange={page => changeSharedPdfPage(sharedAsset.id, page)}
                     />
                 ) : (
                   <ZoomStage>

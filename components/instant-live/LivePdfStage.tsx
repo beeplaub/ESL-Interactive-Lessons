@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronLeft, ChevronRight, FileText, Minus, Plus, ScanLine } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type Viewport = { width: number; height: number };
 type PdfPage = {
@@ -48,7 +48,32 @@ export function LivePdfStage({ api, assetId, page, creator, onPageChange }: {
   const [pageInput, setPageInput] = useState(String(page));
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [controlsVisible, setControlsVisible] = useState(true);
   const renderId = useRef(0);
+  const hideControlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const revealControls = useCallback(() => {
+    setControlsVisible(true);
+    if (hideControlsTimer.current) clearTimeout(hideControlsTimer.current);
+    hideControlsTimer.current = setTimeout(() => setControlsVisible(false), 3200);
+  }, []);
+
+  const keepControlsVisible = useCallback(() => {
+    if (hideControlsTimer.current) clearTimeout(hideControlsTimer.current);
+    setControlsVisible(true);
+  }, []);
+
+  const scheduleControlsHide = useCallback(() => {
+    if (hideControlsTimer.current) clearTimeout(hideControlsTimer.current);
+    hideControlsTimer.current = setTimeout(() => setControlsVisible(false), 1400);
+  }, []);
+
+  useEffect(() => {
+    revealControls();
+    return () => {
+      if (hideControlsTimer.current) clearTimeout(hideControlsTimer.current);
+    };
+  }, [revealControls]);
 
   useEffect(() => {
     const element = pageArea.current;
@@ -137,6 +162,9 @@ export function LivePdfStage({ api, assetId, page, creator, onPageChange }: {
       className="live-pdf-page-area"
       ref={pageArea}
       aria-label={`PDF page ${currentPage} of ${pageCount || "…"}`}
+      onPointerMove={() => { if (!controlsVisible) revealControls(); }}
+      onPointerDown={revealControls}
+      onTouchStart={revealControls}
       onKeyDown={event => {
         if (creator && event.target === event.currentTarget && event.key === "ArrowLeft") stepPage(-1);
         if (creator && event.target === event.currentTarget && event.key === "ArrowRight") stepPage(1);
@@ -147,7 +175,15 @@ export function LivePdfStage({ api, assetId, page, creator, onPageChange }: {
       {loading ? <div className="live-pdf-message"><FileText size={23}/>Opening PDF…</div> : null}
       {error ? <div className="live-pdf-message is-error"><FileText size={23}/>{error}</div> : null}
     </div>
-    <div className="live-pdf-controls" aria-label="PDF controls">
+    <div
+      className={`live-pdf-controls ${controlsVisible ? "is-visible" : "is-hidden"}`}
+      aria-label="PDF controls"
+      onMouseEnter={keepControlsVisible}
+      onMouseLeave={scheduleControlsHide}
+      onFocusCapture={keepControlsVisible}
+      onBlurCapture={scheduleControlsHide}
+      onPointerDown={keepControlsVisible}
+    >
       {creator ? <>
         <button type="button" aria-label="Previous PDF page" title="Previous page" disabled={currentPage <= 1 || !pageCount} onClick={() => stepPage(-1)}><ChevronLeft size={17}/></button>
         <label className="live-pdf-page-number">
