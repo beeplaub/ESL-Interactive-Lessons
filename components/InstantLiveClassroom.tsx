@@ -1074,7 +1074,7 @@ export function InstantLiveClassroom({
         const response = await fetch(`${api}/assets/${asset.id}`, { cache: "no-store" });
         if (!response.ok) throw new Error(`Could not export image “${asset.name}”. Retry or remove unavailable images before quitting.`);
         const contentType = response.headers.get("content-type") ?? "image/webp";
-        const extension = contentType.includes("png") ? "png" : contentType.includes("jpeg") ? "jpg" : contentType.includes("gif") ? "gif" : contentType.includes("svg") ? "svg" : "webp";
+        const extension = contentType.includes("pdf") ? "pdf" : contentType.includes("png") ? "png" : contentType.includes("jpeg") ? "jpg" : contentType.includes("gif") ? "gif" : contentType.includes("svg") ? "svg" : "webp";
         const base = asset.name.replace(/\.[^.]+$/, "").replace(/[^a-z0-9_-]+/gi, "-").replace(/^-|-$/g, "").slice(0, 80) || `image-${index + 1}`;
         entries.push({ name: `${folder}/images/${String(index + 1).padStart(2, "0")}-${base}.${extension}`, data: new Uint8Array(await (await response.blob()).arrayBuffer()) });
       }
@@ -1793,11 +1793,11 @@ export function InstantLiveClassroom({
       {endClassOpen && creator ? (
         <div className="live-modal-backdrop" onClick={(event) => { if (event.target === event.currentTarget && !busy) setEndClassOpen(false); }}>
           <section className="live-feature-panel live-class-end-dialog" role="dialog" aria-modal="true" aria-labelledby="live-end-title">
-            <header><h2 id="live-end-title">End this class?</h2><button aria-label="Close" disabled={busy} onClick={() => setEndClassOpen(false)}><X size={18}/></button></header>
-            <p>Pause the class to let everyone resume from this exact board and elapsed time. A paused class closes automatically after 15 minutes.</p>
+            <header><h2 id="live-end-title">End class</h2><button aria-label="Close" disabled={busy} onClick={() => setEndClassOpen(false)}><X size={18}/></button></header>
+            <p>Pause to resume within 15 minutes, or quit permanently.</p>
             <div className="live-end-actions">
-              <button disabled={busy} onClick={() => void lifecycle("pause")}><RotateCcw size={16}/> Pause class</button>
-              <button className="is-quit" disabled={busy} onClick={() => { setEndClassOpen(false); setQuitPrompt(true); }}><PhoneOff size={16}/> Quit class</button>
+              <button disabled={busy} onClick={() => void lifecycle("pause")}><RotateCcw size={16}/> Pause · 15 min</button>
+              <button className="is-quit" disabled={busy} onClick={() => { setEndClassOpen(false); setQuitPrompt(true); }}><PhoneOff size={16}/> Continue to quit</button>
             </div>
           </section>
         </div>
@@ -1805,14 +1805,13 @@ export function InstantLiveClassroom({
       {quitPrompt && creator ? (
         <div className="live-modal-backdrop" onClick={(event) => { if (event.target === event.currentTarget && !busy && !savingMaterials) setQuitPrompt(false); }}>
           <section className="live-feature-panel live-class-end-dialog" role="dialog" aria-modal="true" aria-labelledby="live-quit-title">
-            <header><h2 id="live-quit-title">Quit this class?</h2><button aria-label="Close" disabled={busy || savingMaterials} onClick={() => setQuitPrompt(false)}><X size={18}/></button></header>
-            <p>Quitting permanently ends this room and its link. Save the whiteboard and image gallery to your device first, or quit without an export.</p>
+            <header><h2 id="live-quit-title">Quit class?</h2><button aria-label="Close" disabled={busy || savingMaterials} onClick={() => setQuitPrompt(false)}><X size={18}/></button></header>
+            <p>Uploaded media and the whiteboard are deleted from BrenUp after you quit.</p>
             <div className="live-end-actions live-quit-actions">
-              <button disabled={busy || savingMaterials} onClick={() => void saveMaterialsAndQuit()}><Download size={16}/>{savingMaterials ? "Preparing class folder…" : "Save materials & quit"}</button>
+              <button disabled={busy || savingMaterials} onClick={() => void saveMaterialsAndQuit()}><Download size={16}/>{savingMaterials ? "Preparing…" : "Save copy & quit"}</button>
               <button className="is-quit" disabled={busy || savingMaterials} onClick={() => void lifecycle("quit")}><PhoneOff size={16}/> Quit without saving</button>
-              <button className="is-cancel" disabled={busy || savingMaterials} onClick={() => setQuitPrompt(false)}>Cancel</button>
+              <button className="is-cancel" disabled={busy || savingMaterials} onClick={() => setQuitPrompt(false)}>Back</button>
             </div>
-            <small>The saved ZIP contains a folder with the whiteboard image and every image in the class gallery. It works on desktop and mobile.</small>
           </section>
         </div>
       ) : null}

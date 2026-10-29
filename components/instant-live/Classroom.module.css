@@ -1147,9 +1147,42 @@
 .root :global(.live-paused-actions .is-quit),
 .root :global(.live-end-actions .is-quit) { background:#3a4054; border:1px solid #ff816b88; color:#ffd1c8; }
 .root :global(.live-end-actions .is-cancel) { background:transparent; border:1px solid #ffffff2b; color:#d6d6e4; }
-.root :global(.live-quit-actions) { margin:16px 0 12px; }
-.root :global(.live-quit-actions button) { justify-content:center; }
-.root :global(.live-class-end-dialog small) { display:block; color:#b7b4cd; line-height:1.55; }
+.root :global(.live-class-end-dialog) {
+  width: min(456px, calc(100vw - 32px));
+  padding: 22px;
+  border-color: #a7a2dc55;
+  background: radial-gradient(ellipse at 10% 0%, #8176ef20, transparent 58%), linear-gradient(145deg, #292e43f5, #1d2333f5);
+  box-shadow: 0 28px 90px #050712a8, inset 0 1px 0 #ffffff16;
+  backdrop-filter: blur(24px) saturate(145%);
+}
+.root :global(.live-class-end-dialog header) { margin-bottom: 8px; }
+.root :global(.live-class-end-dialog header h2) { margin: 0; letter-spacing: -.02em; }
+.root :global(.live-class-end-dialog header > button) { display:grid; place-items:center; width:32px; height:32px; border:1px solid #ffffff1c; border-radius:10px; color:#d8d7e6; background:#ffffff0a; }
+.root :global(.live-class-end-dialog p) { margin: 5px 0 18px; color:#bfc2d2; font-size:13px; line-height:1.45; }
+.root :global(.live-class-end-dialog .live-end-actions) { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.root :global(.live-class-end-dialog .live-end-actions button) {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  min-height:44px;
+  margin:0;
+  padding:9px 12px;
+  border:1px solid #9d94ff65;
+  border-radius:13px;
+  color:#f8f7ff;
+  background:linear-gradient(135deg,#7669e7,#5e54c5);
+  box-shadow:0 7px 18px #070a1a55,inset 0 1px 0 #ffffff26;
+  font-size:12px;
+  font-weight:650;
+  transition:transform 150ms ease, filter 150ms ease, border-color 150ms ease;
+}
+.root :global(.live-class-end-dialog .live-end-actions button:hover:not(:disabled)) { transform:translateY(-1px); filter:brightness(1.1); border-color:#c2bbff9c; }
+.root :global(.live-class-end-dialog .live-end-actions button:disabled) { opacity:.58; cursor:wait; }
+.root :global(.live-class-end-dialog .live-end-actions .is-quit) { border-color:#ff907366; color:#fff2ef; background:linear-gradient(135deg,#f27668,#d95858); }
+.root :global(.live-class-end-dialog .live-end-actions .is-cancel) { color:#d5d4e3; border-color:#ffffff20; background:#ffffff0a; box-shadow:none; }
+.root :global(.live-quit-actions) { margin: 0; }
+.root :global(.live-quit-actions .is-cancel) { grid-column:1 / -1; min-height:38px!important; }
 .root :global(.live-ended-overlay > div) { border-color:#ff816b55; }
 .root :global(.live-ended-overlay button) { background:#ff725e; }
 .root :global(.live-modal-backdrop) {

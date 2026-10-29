@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { roomAccess } from "@/lib/instant-live/server";
 import { boardSchema } from "@/lib/instant-live/types";
+import { cleanupAndMarkInstantLiveRoom } from "@/lib/instant-live/cleanupMedia";
 
 export async function POST(
   request: Request,
@@ -99,8 +100,10 @@ export async function POST(
 
   if (action === "pause" && room.status !== "LIVE")
     return NextResponse.json({ ok: true, status: room.status, elapsedSeconds: room.elapsed_seconds ?? 0, pauseUntil: room.pause_until ?? null });
-  if (action === "quit" && room.status === "ENDED")
-    return NextResponse.json({ ok: true, status: "ENDED", elapsedSeconds: room.elapsed_seconds ?? 0 });
+  if (action === "quit" && room.status === "ENDED") {
+    const cleanup = await cleanupAndMarkInstantLiveRoom(admin, id);
+    return NextResponse.json({ ok: true, status: "ENDED", elapsedSeconds: room.elapsed_seconds ?? 0, mediaCleanupPending: !cleanup.complete });
+  }
   const now = Date.now();
   const elapsedSeconds = (room.elapsed_seconds ?? 0) + (room.status === "LIVE"
     ? Math.max(0, Math.floor((now - new Date(room.active_started_at).getTime()) / 1000))
@@ -127,5 +130,10 @@ export async function POST(
       { error: "This class changed state. Refresh and try again." },
       { status: 409 },
     );
-  return NextResponse.json({ ok: true, status: action === "pause" ? "PAUSED" : "ENDED", elapsedSeconds, pauseUntil });
+  let mediaCleanupPending = false;
+  if (action === "quit") {
+    const cleanup = await cleanupAndMarkInstantLiveRoom(admin, id);
+    mediaCleanupPending = !cleanup.complete;
+  }
+  return NextResponse.json({ ok: true, status: action === "pause" ? "PAUSED" : "ENDED", elapsedSeconds, pauseUntil, mediaCleanupPending });
 }

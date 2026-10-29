@@ -5,6 +5,10 @@
       "schedule": "0 3 * * *"
     },
     {
+      "path": "/api/cron/cleanup-instant-live-media",
+      "schedule": "0 5 * * *"
+    },
+    {
       "path": "/api/creator-tools/voiceover/cleanup",
       "schedule": "0 4 * * *"
     },

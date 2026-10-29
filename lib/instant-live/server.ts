@@ -2,6 +2,7 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
+import { cleanupAndMarkInstantLiveRoom } from "@/lib/instant-live/cleanupMedia";
 
 export async function roomAccess(id: string, requireLive = false) {
   const auth = await createClient();
@@ -54,7 +55,11 @@ export async function roomAccess(id: string, requireLive = false) {
       .lte("pause_until", endedAt)
       .select("id,creator_id,status,expires_at,elapsed_seconds,active_started_at,pause_until,creator_last_seen_at,max_learners,room_locked,learner_mic_enabled,learner_chat_enabled,learner_screen_share_enabled")
       .maybeSingle();
-    if (endedRoom) room = endedRoom;
+    if (endedRoom) {
+      room = endedRoom;
+      const cleanup = await cleanupAndMarkInstantLiveRoom(admin, id);
+      if (!cleanup.complete) console.error("Expired instant live room media cleanup is pending", id);
+    }
   }
   if (!creator) {
     const { data: member } = await admin
