@@ -36,6 +36,13 @@ export function LoginForm() {
     return `${base}?next=${encodeURIComponent(nextPath)}`;
   }
 
+  function googleAuthCallbackUrl() {
+    // Android OAuth returns through a verified HTTPS App Link. Keep ordinary
+    // browser sign-in on the browser callback instead of opening the app.
+    const path = isBrenUpAndroidShell() ? "/auth/android-callback" : "/auth/callback";
+    return `${window.location.origin}${path}?next=${encodeURIComponent(nextPath)}`;
+  }
+
   async function redirectForRole() {
     const response = await fetch(`/auth/role?next=${encodeURIComponent(nextPath)}`, {
       cache: "no-store",
@@ -124,7 +131,7 @@ export function LoginForm() {
   function signInWithGoogle() {
     startTransition(async () => {
       setMessage(null);
-      const redirectTo = authCallbackUrl();
+      const redirectTo = googleAuthCallbackUrl();
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: { redirectTo },
