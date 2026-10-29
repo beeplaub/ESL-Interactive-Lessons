@@ -487,13 +487,13 @@ export default async function CourseLandingPage({ params }: { params: Promise<{ 
               {headerCard}
               <aside className="grid min-w-0 gap-4">
                 {progressPanel}
-                {assessmentPanel}
                 {outcomesPanel}
               </aside>
             </section>
             <section className="grid min-w-0 gap-5">
               {curriculumCard}
               <aside className="grid min-w-0 content-start gap-4">
+                {assessmentPanel}
                 {supportPanel}
               </aside>
             </section>
