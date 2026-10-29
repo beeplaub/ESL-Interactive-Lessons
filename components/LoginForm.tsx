@@ -11,13 +11,21 @@ export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextPath = searchParams.get("next") || "/account";
+  const authStatus = searchParams.get("auth");
+  const callbackMessage = authStatus === "oauth_failed"
+    ? "Sign-in was cancelled or could not complete. Please try again."
+    : authStatus === "exchange_failed"
+      ? "BrenUp couldn’t finish signing you in. Please try again."
+      : authStatus === "missing_code" || authStatus === "session_missing"
+        ? "The sign-in link was incomplete. Please start again."
+        : null;
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [mode, setMode] = useState<"signin" | "signup">("signin");
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(callbackMessage);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
   const [isPending, startTransition] = useTransition();
 
