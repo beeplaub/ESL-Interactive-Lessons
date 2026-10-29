@@ -3,7 +3,7 @@ import { BrandLogo } from "@/components/BrandLogo";
 
 export function SiteFooter() {
   return (
-    <footer className="mt-16 bg-[var(--br-dark-card)] py-16 text-[color-mix(in_srgb,var(--br-text-on-dark)_65%,transparent)]">
+    <footer className="site-footer mt-16 bg-[var(--br-dark-card)] py-16 text-[color-mix(in_srgb,var(--br-text-on-dark)_65%,transparent)]">
       <div className="mx-auto max-w-[1200px] px-6 flex flex-col md:flex-row justify-between gap-12 mb-12">
         <div className="flex flex-col gap-4">
           <Link href="/" className="flex items-center">

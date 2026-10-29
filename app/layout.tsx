@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { JetBrains_Mono, Plus_Jakarta_Sans, Source_Serif_4 } from "next/font/google";
 import { HeaderGate } from "@/components/HeaderGate";
 import { SiteHeader } from "@/components/SiteHeader";
-import { SiteFooter } from "@/components/SiteFooter";
+import { AppAwareSiteFooter } from "@/components/AppAwareSiteFooter";
 import { DeleteConfirmProvider } from "@/components/DeleteConfirmModal";
 import { RouteScrollReset } from "@/components/RouteScrollReset";
 import { BuilderTextToolbar } from "@/components/BuilderTextToolbar";
@@ -37,6 +37,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="en" data-learner-density={settings.learnerDensity} data-admin-density={settings.adminDensity} className={`${plusJakartaSans.variable} ${sourceSerif.variable} ${jetBrainsMono.variable}`} style={platformStyleVariables(settings)}>
       <head>
+        <style>{`html[data-brenup-hide-site-footer="true"] .site-footer{display:none!important}`}</style>
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content={settings.canvas} />
         <link rel="icon" type="image/png" sizes="32x32" href="/brand/favicon-32.png" />
@@ -44,6 +45,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <link rel="apple-touch-icon" sizes="180x180" href="/brand/apple-touch-icon.png" />
         <script dangerouslySetInnerHTML={{ __html: `
           (function () {
+            var isAndroidShell = /(?:^|\\s)BrenUpAndroid(?:\\s|$)/.test(navigator.userAgent);
+            var isDashboardHome = window.location.pathname === '/account' || window.location.pathname === '/admin';
+            if (isAndroidShell && !isDashboardHome) document.documentElement.dataset.brenupHideSiteFooter = 'true';
             var theme = localStorage.getItem('brenup-theme');
             if (theme === 'dark') {
               document.documentElement.dataset.theme = 'dark';
@@ -69,7 +73,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <SiteHeader />
           </HeaderGate>
           {children}
-          <SiteFooter />
+          <AppAwareSiteFooter />
         </DeleteConfirmProvider>
       </body>
     </html>
