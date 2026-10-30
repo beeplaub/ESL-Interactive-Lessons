@@ -24,11 +24,11 @@ const commandSchema = z.discriminatedUnion("action", [
 const fail = (error: string, status = 400) =>
   NextResponse.json({ error }, { status });
 export async function GET(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
   const { id } = await context.params;
-  const access = await roomAccess(id);
+  const access = await roomAccess(id, false, new URL(request.url).searchParams.get("adminSupport") === "1");
   if (access.error) return access.error;
   const { admin, user, room, creator } = access;
   const { error: initError } = await admin

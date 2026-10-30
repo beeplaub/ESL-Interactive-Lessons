@@ -5,11 +5,11 @@ import type { BoardObject } from "@/lib/instant-live/types";
 import { normalizeLiveImageUrl } from "@/lib/instant-live/imageUrl";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ id: string; assetId: string }> },
 ) {
   const { id, assetId } = await context.params;
-  const access = await roomAccess(id);
+  const access = await roomAccess(id, false, new URL(request.url).searchParams.get("adminSupport") === "1");
   if (access.error) return access.error;
   const { admin, user, creator } = access;
   const { data: asset } = await admin
@@ -19,7 +19,18 @@ export async function GET(
     .eq("id", assetId)
     .maybeSingle();
   if (!asset) return new NextResponse(null, { status: 404 });
-  if (!creator && asset.owner_id !== user.id) {
+  if (access.support) {
+    const { data: state } = await admin
+      .from("instant_live_state")
+      .select("stage,asset_id,board")
+      .eq("room_id", id)
+      .maybeSingle();
+    const onBoard = (state?.board as BoardObject[] | undefined)?.some(
+      (item) => item.kind === "image" && item.assetId === assetId,
+    );
+    if (!(state?.stage === "image" && state.asset_id === assetId) && !onBoard)
+      return new NextResponse(null, { status: 403 });
+  } else if (!creator && asset.owner_id !== user.id) {
     const { data: state } = await admin
       .from("instant_live_state")
       .select("stage,asset_id,board")

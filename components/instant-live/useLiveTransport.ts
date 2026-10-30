@@ -19,6 +19,16 @@ type Peer = {
   restarts: number;
 };
 type Envelope = { from: string; userId: string; event: string; data: unknown };
+function isReceiveOnlySupportDescription(description: RTCSessionDescriptionInit) {
+  if (!description.sdp) return false;
+  const sections = description.sdp.split(/(?=^m=)/m).filter(section => section.startsWith("m="));
+  if (!sections.length) return false;
+  return sections.every(section => {
+    const kind = section.slice(2).split(/[\s\r\n]/, 1)[0];
+    const direction = section.match(/^a=(sendrecv|sendonly|recvonly|inactive)$/m)?.[1];
+    return (kind === "video" && direction === "recvonly") || direction === "inactive";
+  });
+}
 const fallbackIceServers: RTCIceServer[] = [
   { urls: "stun:stun.cloudflare.com:3478" },
 ];
@@ -29,6 +39,8 @@ export function useLiveTransport({
   forceMuted,
   enabled,
   recordingStartedAt,
+  receiveOnly = false,
+  receiveOnlyFromUserId,
   onEvent,
   onNotice,
 }: {
@@ -38,6 +50,8 @@ export function useLiveTransport({
   forceMuted: boolean;
   enabled: boolean;
   recordingStartedAt: number | null;
+  receiveOnly?: boolean;
+  receiveOnlyFromUserId?: string | null;
   onEvent: (event: string, data: unknown, from: LivePerson | undefined) => void;
   onNotice: (notice: string) => void;
 }) {
@@ -177,7 +191,7 @@ export function useLiveTransport({
     }
     let cancelled = false;
     setIceConfig({ servers: fallbackIceServers, ready: false });
-    void fetch(`/api/instant-live/rooms/${roomId}/ice-servers`, {
+    void fetch(`/api/instant-live/rooms/${roomId}/ice-servers${receiveOnly ? "?adminSupport=1" : ""}`, {
       cache: "no-store",
     })
       .then(async (response) => {
@@ -200,11 +214,12 @@ export function useLiveTransport({
     return () => {
       cancelled = true;
     };
-  }, [enabled, roomId, selfSessionId]);
+  }, [enabled, receiveOnly, roomId, selfSessionId]);
 
   const send = useCallback(
     async (event: string, data: unknown) => {
       if (!channel.current || !readyRef.current || !self) return;
+      if (self.role === "SUPPORT" && !["hello", "state-request", "signal", "media-reconnect"].includes(event)) return;
       // Large boards recover from their saved snapshot; never exceed the
       // realtime payload limit or resend the entire document per pen move.
       if (
@@ -302,6 +317,7 @@ export function useLiveTransport({
       };
       const incoming = new MediaStream();
       pc.ontrack = ({ track }) => {
+        if (self.role === "SUPPORT" && track.kind !== "video") return;
         if (track.kind === "video") incoming.getVideoTracks().forEach(t => incoming.removeTrack(t));
         incoming.addTrack(track);
         const refresh = () => {
@@ -324,6 +340,7 @@ export function useLiveTransport({
       };
       for (const stream of [mic.current, presentation.current])
         stream?.getTracks().forEach((track) => pc.addTrack(track, stream));
+      if (self.role === "SUPPORT") pc.addTransceiver("video", { direction: "recvonly" });
       return peer;
     };
     const receive = (actorId: string, payload: unknown) => {
@@ -339,12 +356,15 @@ export function useLiveTransport({
         (p) => p.sessionId === envelope.from && p.userId === envelope.userId,
       );
       if (!sender) return;
+      if (sender.role === "SUPPORT" && !["hello", "state-request", "signal", "media-reconnect"].includes(envelope.event)) return;
       if (envelope.event === "hello") {
         ensure(envelope.from);
         callbacks.current.onEvent("state-request", {}, sender);
       } else if (envelope.event === "signal") {
         const signal = envelope.data as Signal;
         if (signal.to !== self.sessionId || signal.from !== envelope.from)
+          return;
+        if (sender.role === "SUPPORT" && signal.description && !isReceiveOnlySupportDescription(signal.description))
           return;
         const peer = ensure(signal.from);
         peer.chain = peer.chain
@@ -371,6 +391,10 @@ export function useLiveTransport({
               for (const candidate of peer.candidates.splice(0))
                 await pc.addIceCandidate(candidate);
               if (offer) {
+                if (self.role === "SUPPORT") {
+                  for (const transceiver of pc.getTransceivers())
+                    transceiver.direction = transceiver.receiver.track.kind === "video" ? "recvonly" : "inactive";
+                }
                 await pc.setLocalDescription();
                 if (pc.localDescription)
                   await send("signal", {
@@ -402,8 +426,11 @@ export function useLiveTransport({
     room.on("presence", { event: "sync" }, () => {
       const entries = Object.values(room.presenceState<LivePerson>()).flat();
       const list = uniquePeople(entries);
-      roster.current = list;
-      setPeople(list);
+      const peerList = self.role === "SUPPORT"
+        ? list.filter(person => person.userId === receiveOnlyFromUserId)
+        : list;
+      roster.current = peerList;
+      setPeople(peerList);
       const activeSelf = list.find((p) => p.userId === self.userId);
       const replaced = Boolean(
         activeSelf && activeSelf.sessionId !== self.sessionId,
@@ -416,19 +443,19 @@ export function useLiveTransport({
         presentation.current?.getTracks().forEach((t) => t.stop());
       }
       const active = new Set(
-        list.filter((p) => p.userId !== self.userId).map((p) => p.sessionId),
+        peerList.filter((p) => p.userId !== self.userId).map((p) => p.sessionId),
       );
       peers.current.forEach((_, id) => {
         if (!active.has(id)) removePeer(id);
       });
       for (const [actor, receiver] of receivers) {
-        if (!list.some((p) => p.userId === actor)) {
+        if (!peerList.some((p) => p.userId === actor)) {
           void client.removeChannel(receiver);
           receivers.delete(actor);
         }
       }
       if (!replaced)
-        for (const person of list) {
+        for (const person of peerList) {
           if (person.userId === self.userId) continue;
           if (receivers.has(person.userId)) {
             void send("hello", { target: person.sessionId });
@@ -488,7 +515,7 @@ export function useLiveTransport({
       connectionMap.clear();
       channel.current = null;
     };
-  }, [client, enabled, iceConfig, roomId, self, send]);
+  }, [client, enabled, iceConfig, receiveOnlyFromUserId, roomId, self, send]);
   useEffect(() => {
     if (!self || !ready) return;
     void presenceChannel.current?.track({

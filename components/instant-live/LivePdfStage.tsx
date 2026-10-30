@@ -34,7 +34,7 @@ function loadPdfJs() {
   return pdfJsLoad;
 }
 
-export function LivePdfStage({ api, assetId, page, creator, onPageChange, pointer, pointerEnabled, onPointerToggle, onStagePointer }: {
+export function LivePdfStage({ api, assetId, page, creator, onPageChange, pointer, pointerEnabled, onPointerToggle, onStagePointer, adminSupport = false }: {
   api: string;
   assetId: string;
   page: number;
@@ -44,6 +44,7 @@ export function LivePdfStage({ api, assetId, page, creator, onPageChange, pointe
   pointerEnabled: boolean;
   onPointerToggle: () => void;
   onStagePointer: (point: [number, number] | null) => void;
+  adminSupport?: boolean;
 }) {
   const pageArea = useRef<HTMLDivElement>(null);
   const [documentInfo, setDocumentInfo] = useState<{ pdf: PdfDocument; pageCount: number } | null>(null);
@@ -98,7 +99,7 @@ export function LivePdfStage({ api, assetId, page, creator, onPageChange, pointe
     setZoom(1);
     void Promise.all([
       loadPdfJs(),
-      fetch(`${api}/assets/${assetId}`, { credentials: "same-origin" }).then(async response => {
+      fetch(`${api}/assets/${assetId}${adminSupport ? "?adminSupport=1" : ""}`, { credentials: "same-origin" }).then(async response => {
         if (!response.ok) throw new Error("This PDF could not be opened. Try uploading it again.");
         return new Uint8Array(await response.arrayBuffer());
       }),
@@ -110,7 +111,7 @@ export function LivePdfStage({ api, assetId, page, creator, onPageChange, pointe
       if (active) setError(reason instanceof Error ? reason.message : "PDF could not be opened.");
     }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [api, assetId]);
+  }, [api, assetId, adminSupport]);
 
   useEffect(() => {
     setPageInput(String(page));

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireUser, getFreshProfile } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isEligibleBookingInvitee } from "@/lib/instant-live/booking-auth";
 
 export async function GET(
   _request: Request,
@@ -48,6 +49,13 @@ export async function POST(
 
   const role = room.creator_id === user.id ? "CREATOR" : "LEARNER";
   if (role === "LEARNER") {
+    const { data: booking, error: bookingError } = await admin.from("instant_live_bookings")
+      .select("id,access_mode,status").eq("started_room_id", id).maybeSingle();
+    if (bookingError) return NextResponse.json({ error: "Class access could not be verified. Please try again." }, { status: 503 });
+    if (booking?.status !== undefined && booking.status !== "LIVE")
+      return NextResponse.json({ error: "This scheduled class is no longer available." }, { status: 410 });
+    if (booking?.access_mode === "INVITED" && !await isEligibleBookingInvitee(booking.id, user.id))
+      return NextResponse.json({ error: "You are not invited to this class." }, { status: 403 });
     const { data: existing } = await admin
       .from("instant_live_participants")
       .select("status,joined_at")

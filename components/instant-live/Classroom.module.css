@@ -1746,3 +1746,23 @@
 .root :global(.live-waiting-pulse) { display:inline-flex; align-items:center; gap:8px; margin-top:19px; padding:8px 12px; border:1px solid #ffffff12; border-radius:999px; color:#c9c5df; background:#ffffff07; font-size:11px; }
 .root :global(.live-waiting-pulse i) { width:7px; height:7px; border-radius:50%; background:#a89bff; box-shadow:0 0 10px #a89bff; animation:live-wait-pulse 1.4s ease-in-out infinite; }
 @keyframes live-wait-pulse { 50% { opacity:.38; transform:scale(.75); } }
+
+.root[data-admin-support="true"] :global(.live-layout) {
+  grid-template-columns: minmax(0, 1fr);
+}
+.root[data-admin-support="true"] :global(.live-main) {
+  width: 100%;
+}
+.root :global(.live-admin-support-banner) {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  padding: 8px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(101, 82, 210, 0.94);
+  color: #fff;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}

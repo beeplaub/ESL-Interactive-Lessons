@@ -4,7 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
 import { cleanupAndMarkInstantLiveRoom } from "@/lib/instant-live/cleanupMedia";
 
-export async function roomAccess(id: string, requireLive = false) {
+export async function roomAccess(id: string, requireLive = false, allowAdminSupport = false) {
   const auth = await createClient();
   const {
     data: { user },
@@ -14,6 +14,9 @@ export async function roomAccess(id: string, requireLive = false) {
       error: NextResponse.json({ error: "Please sign in." }, { status: 401 }),
     };
   const admin = createAdminClient();
+  const { data: profile } = allowAdminSupport
+    ? await admin.from("profiles").select("role").eq("id", user.id).maybeSingle()
+    : { data: null };
   const { data: foundRoom, error } = await admin
     .from("instant_live_rooms")
     .select("id,creator_id,status,expires_at,elapsed_seconds,active_started_at,pause_until,creator_last_seen_at,max_learners,room_locked,learner_mic_enabled,learner_chat_enabled,learner_screen_share_enabled")
@@ -26,6 +29,17 @@ export async function roomAccess(id: string, requireLive = false) {
   let room = foundRoom;
   const now = Date.now();
   const creator = room.creator_id === user.id;
+  let support = false;
+  if (allowAdminSupport && profile?.role === "ADMIN" && !creator) {
+    const { data: supportMember } = await admin
+      .from("instant_live_participants")
+      .select("role,status,last_seen_at")
+      .eq("room_id", id)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    support = supportMember?.role === "SUPPORT" && supportMember.status === "JOINED"
+      && Date.parse(supportMember.last_seen_at ?? "") > Date.now() - 90_000;
+  }
   const heartbeatAt = Date.parse(room.creator_last_seen_at ?? "");
   if (
     room.status === "LIVE" &&
@@ -61,13 +75,17 @@ export async function roomAccess(id: string, requireLive = false) {
       if (!cleanup.complete) console.error("Expired instant live room media cleanup is pending", id);
     }
   }
-  if (!creator) {
+  if (!creator && !support) {
     const { data: member } = await admin
       .from("instant_live_participants")
-      .select("status")
+      .select("status,role")
       .eq("room_id", id)
       .eq("user_id", user.id)
       .maybeSingle();
+    if (member?.role === "SUPPORT" && !support)
+      return {
+        error: NextResponse.json({ error: "Support access is read-only." }, { status: 403 }),
+      };
     if (member?.status !== "JOINED")
       return {
         error: NextResponse.json(
@@ -87,5 +105,5 @@ export async function roomAccess(id: string, requireLive = false) {
         { status: 409 },
       ),
     };
-  return { admin, user, room, creator };
+  return { admin, user, room, creator, support };
 }

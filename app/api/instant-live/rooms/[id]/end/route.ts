@@ -89,6 +89,9 @@ export async function POST(
       .update({ lease_until: new Date(Date.now() + 60000).toISOString() })
       .eq("room_id", id)
       .not("presenter_id", "is", null);
+    const restartChannel = admin.channel(`instant-room:${id}`, { config: { private: true, broadcast: { ack: true } } });
+    try { await restartChannel.send({ type: "broadcast", event: "message", payload: { event: "state-changed", data: { status: "LIVE" } } }).catch(() => undefined); }
+    finally { await admin.removeChannel(restartChannel); }
     return NextResponse.json({
       ok: true,
       status: "LIVE",
@@ -132,8 +135,15 @@ export async function POST(
     );
   let mediaCleanupPending = false;
   if (action === "quit") {
+    await admin.from("instant_live_bookings")
+      .update({ status: "COMPLETED", updated_at: changedAt })
+      .eq("started_room_id", id)
+      .eq("status", "LIVE");
     const cleanup = await cleanupAndMarkInstantLiveRoom(admin, id);
     mediaCleanupPending = !cleanup.complete;
   }
+  const statusChannel = admin.channel(`instant-room:${id}`, { config: { private: true, broadcast: { ack: true } } });
+  try { await statusChannel.send({ type: "broadcast", event: "message", payload: { event: "state-changed", data: { status: action === "pause" ? "PAUSED" : "ENDED" } } }).catch(() => undefined); }
+  finally { await admin.removeChannel(statusChannel); }
   return NextResponse.json({ ok: true, status: action === "pause" ? "PAUSED" : "ENDED", elapsedSeconds, pauseUntil, mediaCleanupPending });
 }

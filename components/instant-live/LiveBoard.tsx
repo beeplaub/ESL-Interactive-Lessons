@@ -53,6 +53,7 @@ export function LiveBoard({
   onAddImage,
   pointer,
   onPointer,
+  adminSupport = false,
 }: {
   objects: BoardObject[];
   onChange: (objects: BoardObject[], committed?: boolean) => void;
@@ -61,6 +62,7 @@ export function LiveBoard({
   onAddImage: () => void;
   pointer: [number, number] | null;
   onPointer: (point: [number, number] | null) => void;
+  adminSupport?: boolean;
 }) {
   const [tool, setTool] = useState<Tool>("select");
   const [color, setColor] = useState("#635bdf");
@@ -589,7 +591,7 @@ export function LiveBoard({
                 ) : null}
                 {object.kind === "image" ? (
                   <image
-                    href={`/api/instant-live/rooms/${roomId}/assets/${object.assetId}`}
+                    href={`/api/instant-live/rooms/${roomId}/assets/${object.assetId}${adminSupport ? "?adminSupport=1" : ""}`}
                     width={object.w}
                     height={object.h}
                     preserveAspectRatio="xMidYMid meet"

@@ -97,6 +97,7 @@ type Props = {
   userName: string;
   role: "CREATOR" | "LEARNER";
   creatorId: string;
+  adminSupport?: boolean;
 };
 export function InstantLiveClassroom({
   roomId,
@@ -109,6 +110,7 @@ export function InstantLiveClassroom({
   userName,
   role,
   creatorId,
+  adminSupport = false,
 }: Props) {
   const creator = role === "CREATOR";
   const root = useRef<HTMLElement>(null);
@@ -210,11 +212,23 @@ export function InstantLiveClassroom({
       userId,
       sessionId: crypto.randomUUID(),
       name: userName,
-      role,
+      role: adminSupport ? "SUPPORT" : role,
       joinedAt: joinedAt.current,
       mic: false,
     });
-  }, [role, userId, userName]);
+  }, [adminSupport, role, userId, userName]);
+  useEffect(() => {
+    if (!adminSupport) return;
+    const leaveSupport = () => {
+      void fetch(`/api/admin/instant-live/rooms/${roomId}/support`, {
+        method: "DELETE",
+        credentials: "same-origin",
+        keepalive: true,
+      }).catch(() => undefined);
+    };
+    window.addEventListener("pagehide", leaveSupport);
+    return () => window.removeEventListener("pagehide", leaveSupport);
+  }, [adminSupport, roomId]);
   const applyState = useCallback((next: SharedState) => {
     const previous = stateRef.current;
     const merged = { ...previous };
@@ -248,7 +262,7 @@ export function InstantLiveClassroom({
     const settingsVersionAtRequest = roomSettingsVersion.current;
     const settingsRefreshId = ++roomSettingsRefreshId.current;
     try {
-      const response = await fetch(`${api}/state`, { cache: "no-store" });
+      const response = await fetch(`${api}/state${adminSupport ? "?adminSupport=1" : ""}`, { cache: "no-store" });
       const result = await response.json();
       if (!response.ok) {
         if (response.status === 403 || response.status === 404) {
@@ -257,8 +271,8 @@ export function InstantLiveClassroom({
         }
         throw new Error(result.error || "Could not load the live stage.");
       }
-      const chatResponse = await fetch(`${api}/chat`, { cache: "no-store" });
-      const chatResult = chatResponse.ok ? await chatResponse.json() : null;
+      const chatResponse = adminSupport ? null : await fetch(`${api}/chat`, { cache: "no-store" });
+      const chatResult = chatResponse?.ok ? await chatResponse.json() : null;
       applyState(result.state);
       setAssets(result.assets);
       setModeration(result.moderation ?? []);
@@ -289,7 +303,7 @@ export function InstantLiveClassroom({
       );
       return false;
     }
-  }, [api, applyState, creator, roomRevoked]);
+  }, [api, applyState, creator, roomRevoked, adminSupport]);
   const scheduleRefresh = useCallback(() => {
     if (refreshTimer.current) return;
     refreshTimer.current = setTimeout(() => {
@@ -385,8 +399,12 @@ export function InstantLiveClassroom({
     self,
     paused,
     forceMuted,
-    enabled: loaded && !roomRevoked,
+    enabled: loaded && !roomRevoked && (!adminSupport || clock.status === "LIVE"),
     recordingStartedAt: recordingAt,
+    receiveOnly: adminSupport,
+    receiveOnlyFromUserId: adminSupport && (state.stage === "screen" || state.stage === "camera")
+      ? state.presenter_id
+      : null,
     onEvent,
     onNotice: setNotice,
   });
@@ -486,12 +504,12 @@ export function InstantLiveClassroom({
     void refresh();
     const interval = setInterval(() => {
       void refresh();
-    }, 15000);
+    }, adminSupport ? 2500 : 15000);
     return () => {
       clearInterval(interval);
       if (refreshTimer.current) clearTimeout(refreshTimer.current);
     };
-  }, [refresh]);
+  }, [refresh, adminSupport]);
   useEffect(() => {
     if (ended) return;
     const timer = setInterval(() => setNow(Date.now()), 1000);
@@ -1298,7 +1316,9 @@ export function InstantLiveClassroom({
       className={`${styles.root} ${fullscreen ? styles.fullscreen : ""} ${stageFocus ? styles.stageFocused : ""}`}
       data-live-classroom
       data-role={role}
+      data-admin-support={adminSupport ? "true" : undefined}
     >
+      {adminSupport ? <div className="live-admin-support-banner" role="status">Admin support · read-only view</div> : null}
       <header className="live-header">
         <h1>{title}</h1>
         <span className={`live-badge ${paused ? "is-paused" : ""}`}>
@@ -1320,14 +1340,14 @@ export function InstantLiveClassroom({
               <span>{copied ? "Copied" : "Copy link"}</span>
             </button>
           ) : null}
-          <button title="Class settings" aria-label="Class settings" onClick={() => setSettingsOpen(true)}><Settings size={18}/></button>
-          <button
+          {!adminSupport ? <button title="Class settings" aria-label="Class settings" onClick={() => setSettingsOpen(true)}><Settings size={18}/></button> : null}
+          {!adminSupport ? <button
             title="Refresh the shared board, chat, and media connection"
             aria-label="Refresh classroom and reconnect media"
             onClick={() => void syncClassroom()}
           >
             <RefreshCw size={18} />
-          </button>
+          </button> : null}
           <button
             title="Full screen"
             aria-label="Full screen"
@@ -1397,11 +1417,12 @@ export function InstantLiveClassroom({
                 canEdit={creator && !paused && !transport.superseded}
                 roomId={roomId}
                 onAddImage={() => setBoardPicker(true)}
+                adminSupport={adminSupport}
                 pointer={pointer}
                 onPointer={broadcastPointer}
               />
             </div>
-            {state.stage === "content" ? <LiveContent api={api} revision={state.revision} creator={creator} paused={paused} onChoose={chooseContent} onNotice={setNotice}/> : null}
+            {state.stage === "content" ? adminSupport ? <div className="live-stage-placeholder">Lesson and quiz interactions are hidden in read-only support mode.</div> : <LiveContent api={api} revision={state.revision} creator={creator} paused={paused} onChoose={chooseContent} onNotice={setNotice}/> : null}
             {(state.stage === "image" || (state.stage === "whiteboard" && state.asset_id)) && state.asset_id ? (() => {
               const sharedAsset = assets.find(asset => asset.id === state.asset_id);
               if (!sharedAsset) return null;
@@ -1409,6 +1430,7 @@ export function InstantLiveClassroom({
                 {sharedAsset && isPdfAsset(sharedAsset) ? (
                     <LivePdfStage
                       api={api}
+                      adminSupport={adminSupport}
                       assetId={sharedAsset.id}
                       page={state.media_page || 1}
                       creator={creator && !paused}
@@ -1422,6 +1444,7 @@ export function InstantLiveClassroom({
                   <LiveImageStage
                     key={sharedAsset.id}
                     api={api}
+                    adminSupport={adminSupport}
                     assetId={sharedAsset.id}
                     images={assets.filter(asset => !isPdfAsset(asset))}
                     creator={creator && !paused}
@@ -1517,7 +1540,7 @@ export function InstantLiveClassroom({
               <button className="live-gallery-nav is-next" type="button" aria-label="Scroll media right" onClick={() => scrollGallery(1)}><ChevronRight size={17}/></button>
             </div>
           ) : null}
-          <div className="live-bottom-rail">
+          {!adminSupport ? <div className="live-bottom-rail">
             {button(
               forceMuted ? "Muted by teacher" : "Mic",
               transport.micOn && !forceMuted && !paused ? Mic : MicOff,
@@ -1584,9 +1607,9 @@ export function InstantLiveClassroom({
                   false,
                   true,
                 )}
-          </div>
+          </div> : null}
         </section>
-        <aside className={`live-drawer ${chatOpen ? "" : "is-collapsed"}`}>
+        {!adminSupport ? <aside className={`live-drawer ${chatOpen ? "" : "is-collapsed"}`}>
           <button className="live-drawer-handle" type="button" aria-label={chatOpen ? "Collapse chat and people" : "Expand chat and people"} onPointerDown={startDrawerDrag} onPointerUp={finishDrawerDrag} onPointerCancel={() => { drawerDragStart.current = null; }} onClick={toggleDrawerFromHandle}>
             <span aria-hidden="true" />
           </button>
@@ -1707,7 +1730,7 @@ export function InstantLiveClassroom({
                 const isMuted =
                   moderation.find((participant) => participant.userId === person.userId)
                     ?.micMuted ?? false;
-                const isLearner = person.userId !== creatorId;
+                const isLearner = person.userId !== creatorId && person.role === "LEARNER";
                 return (
                 <article key={person.userId}>
                   <span
@@ -1722,10 +1745,10 @@ export function InstantLiveClassroom({
                       {person.userId === userId ? " (you)" : ""}
                     </strong>
                     <small>
-                      {person.userId === creatorId ? "Teacher" : "Learner"}
+                      {person.role === "SUPPORT" ? "Admin support" : person.userId === creatorId ? "Teacher" : "Learner"}
                     </small>
                   </div>
-                  {!(creator && isLearner) ? <span
+                  {person.role !== "SUPPORT" && !(creator && isLearner) ? <span
                     className={`live-person-mic ${person.mic && !isMuted ? "is-on" : ""} ${transport.audioActivity[person.sessionId]?.speaking ? "is-speaking" : ""}`}
                     title={isMuted ? "Muted by teacher" : person.mic ? (transport.audioActivity[person.sessionId]?.speaking ? "Microphone on · speaking" : "Microphone on · not speaking") : "Microphone off"}
                     role="img"
@@ -1771,7 +1794,7 @@ export function InstantLiveClassroom({
               </section> : null}
             </div>
           ) : null}
-        </aside>
+        </aside> : null}
       </div>
       <input
         ref={upload}

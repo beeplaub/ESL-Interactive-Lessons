@@ -14,11 +14,12 @@ const cloudflareResponseSchema = z.object({
 });
 
 export async function GET(
-  _request: Request,
+  request: Request,
   context: { params: Promise<{ id: string }> },
 ) {
   const { id } = await context.params;
-  const access = await roomAccess(id, true);
+  const supportRequested = new URL(request.url).searchParams.get("adminSupport") === "1";
+  const access = await roomAccess(id, true, supportRequested);
   if (access.error) return access.error;
 
   const keyId = process.env.CLOUDFLARE_TURN_KEY_ID;

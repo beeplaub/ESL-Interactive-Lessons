@@ -58,7 +58,7 @@ export type LivePerson = {
   userId: string;
   sessionId: string;
   name: string;
-  role: "CREATOR" | "LEARNER";
+  role: "CREATOR" | "LEARNER" | "SUPPORT";
   joinedAt: number;
   mic: boolean;
   recordingStartedAt?: number | null;

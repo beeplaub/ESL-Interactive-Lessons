@@ -1,16 +1,20 @@
 import Link from "next/link";
-import { requireUser, getFreshProfile } from "@/lib/auth";
+import { requireUser, requireAdmin, getFreshProfile } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isEligibleBookingInvitee } from "@/lib/instant-live/booking-auth";
 import { InstantLiveClassroom } from "@/components/InstantLiveClassroom";
 import { WaitingRoom } from "@/components/instant-live/WaitingRoom";
 
 export default async function InstantLiveRoomPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams?: Promise<{ support?: string }>;
 }) {
   const { id } = await params;
-  const { user } = await requireUser();
+  const supportRequested = (await searchParams)?.support === "admin";
+  const { user } = supportRequested ? await requireAdmin() : await requireUser();
   const admin = createAdminClient();
   const { data: room } = await admin
     .from("instant_live_rooms")
@@ -20,6 +24,23 @@ export default async function InstantLiveRoomPage({
     .eq("id", id)
     .maybeSingle();
   if (!room) return <EndedRoom />;
+  const adminSupport = supportRequested && room.creator_id !== user.id;
+  if (supportRequested && !adminSupport) return <EndedRoom title="Support view unavailable" detail="Open this room from the admin monitor to enter support mode." />;
+  if (adminSupport && (room.status === "LIVE" || room.status === "PAUSED")) {
+    const { error } = await admin.from("instant_live_admin_audit").insert({ admin_id: user.id, room_id: id, action: "ENTER_SUPPORT" });
+    if (error) return <EndedRoom title="Support view unavailable" detail="This entry could not be recorded. Please return to the admin monitor and retry." />;
+    const now = new Date().toISOString();
+    const { error: presenceError } = await admin.from("instant_live_participants").upsert({
+      room_id: id,
+      user_id: user.id,
+      role: "SUPPORT",
+      status: "JOINED",
+      joined_at: now,
+      left_at: null,
+      last_seen_at: now,
+    }, { onConflict: "room_id,user_id" });
+    if (presenceError) return <EndedRoom title="Support view unavailable" detail="The secure media connection could not be opened. Apply the live-class support migration and retry." />;
+  }
   const role = room.creator_id === user.id ? "CREATOR" : "LEARNER";
   let status = room.status;
   if (status === "PAUSED" && new Date(room.pause_until ?? room.expires_at).getTime() <= Date.now()) {
@@ -29,7 +50,15 @@ export default async function InstantLiveRoomPage({
   }
   const isExpired = new Date(room.expires_at).getTime() <= Date.now();
   if ((status === "ENDED" || (status === "LIVE" && isExpired))) return <EndedRoom />;
-  if (role === "LEARNER") {
+  if (role === "LEARNER" && !adminSupport) {
+    const { data: booking, error: bookingError } = await admin.from("instant_live_bookings")
+      .select("id,access_mode,status").eq("started_room_id", id).maybeSingle();
+    if (bookingError)
+      return <EndedRoom title="Class access unavailable" detail="Access could not be verified. Please try again shortly." />;
+    if (booking?.status !== undefined && booking.status !== "LIVE")
+      return <EndedRoom title="Class access unavailable" detail="This scheduled class is no longer available." />;
+    if (booking?.access_mode === "INVITED" && !await isEligibleBookingInvitee(booking.id, user.id))
+      return <EndedRoom title="Invitation required" detail="You are not on the learner list for this class." />;
     const { count } = await admin
       .from("instant_live_participants")
       .select("id", { count: "exact", head: true })
@@ -68,7 +97,7 @@ export default async function InstantLiveRoomPage({
       return <WaitingRoom roomId={id} title={room.title} />;
     }
   }
-  if (status === "LIVE")
+  if (status === "LIVE" && !adminSupport)
     await admin.from("instant_live_participants").upsert(
       {
         room_id: id,
@@ -99,6 +128,7 @@ export default async function InstantLiveRoomPage({
       userName={name}
       role={role}
       creatorId={room.creator_id}
+      adminSupport={adminSupport}
     />
   );
 }

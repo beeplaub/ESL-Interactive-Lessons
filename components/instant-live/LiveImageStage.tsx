@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, Minus, Plus, ScanLine, Target } from "lucide
 import { useCallback, useEffect, useRef, useState, type PointerEvent } from "react";
 import type { LiveAsset } from "@/lib/instant-live/types";
 
-export function LiveImageStage({ api, assetId, images, creator, onSelectAsset, pointer, pointerEnabled, onPointerToggle, onStagePointer }: {
+export function LiveImageStage({ api, assetId, images, creator, onSelectAsset, pointer, pointerEnabled, onPointerToggle, onStagePointer, adminSupport = false }: {
   api: string;
   assetId: string;
   images: LiveAsset[];
@@ -14,6 +14,7 @@ export function LiveImageStage({ api, assetId, images, creator, onSelectAsset, p
   pointerEnabled: boolean;
   onPointerToggle: () => void;
   onStagePointer: (point: [number, number] | null) => void;
+  adminSupport?: boolean;
 }) {
   const area = useRef<HTMLDivElement>(null);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -80,7 +81,7 @@ export function LiveImageStage({ api, assetId, images, creator, onSelectAsset, p
       }}
       onTouchStart={revealControls}
     >
-      <img src={`${api}/assets/${assetId}`} alt="Image shown to the class" referrerPolicy="no-referrer" draggable={false} style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}/>
+      <img src={`${api}/assets/${assetId}${adminSupport ? "?adminSupport=1" : ""}`} alt="Image shown to the class" referrerPolicy="no-referrer" draggable={false} style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}/>
       {pointer ? <span className="live-stage-pointer" style={{ left: `${pointer[0] * 100}%`, top: `${pointer[1] * 100}%` }} aria-hidden="true"/> : null}
     </div>
     <div className={`live-pdf-controls ${controlsVisible ? "is-visible" : "is-hidden"}`} aria-label="Image presentation controls" onMouseEnter={keepControls} onMouseLeave={hideControlsSoon} onFocusCapture={keepControls} onBlurCapture={hideControlsSoon} onPointerDown={keepControls}>
