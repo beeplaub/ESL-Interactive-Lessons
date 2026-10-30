@@ -1,8 +1,10 @@
 "use client";
 
 import { ChevronLeft, ChevronRight, Minus, Plus, ScanLine, Target } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, type PointerEvent } from "react";
-import type { LiveAsset } from "@/lib/instant-live/types";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent } from "react";
+import type { LiveAsset, LiveMediaPointer } from "@/lib/instant-live/types";
+
+type MediaBounds = { left: number; top: number; width: number; height: number };
 
 export function LiveImageStage({ api, assetId, images, creator, onSelectAsset, pointer, pointerEnabled, onPointerToggle, onStagePointer, adminSupport = false }: {
   api: string;
@@ -10,19 +12,44 @@ export function LiveImageStage({ api, assetId, images, creator, onSelectAsset, p
   images: LiveAsset[];
   creator: boolean;
   onSelectAsset: (assetId: string) => void;
-  pointer: [number, number] | null;
+  pointer: LiveMediaPointer | null;
   pointerEnabled: boolean;
   onPointerToggle: () => void;
-  onStagePointer: (point: [number, number] | null) => void;
+  onStagePointer: (pointer: LiveMediaPointer | null) => void;
   adminSupport?: boolean;
 }) {
   const area = useRef<HTMLDivElement>(null);
+  const image = useRef<HTMLImageElement>(null);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const drag = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [mediaBounds, setMediaBounds] = useState<MediaBounds | null>(null);
   const [controlsVisible, setControlsVisible] = useState(true);
-  const imageIndex = images.findIndex(image => image.id === assetId);
+  const imageIndex = images.findIndex(item => item.id === assetId);
+  const visiblePointer = pointer?.assetId === assetId && pointer.page === null ? pointer.point : null;
+
+  const measureMedia = useCallback(() => {
+    const container = area.current;
+    const viewport = container?.getBoundingClientRect();
+    const content = image.current?.getBoundingClientRect();
+    if (!container || !viewport || !content || content.width < 1 || content.height < 1) {
+      setMediaBounds(null);
+      return;
+    }
+    setMediaBounds({ left: content.left - viewport.left - container.clientLeft, top: content.top - viewport.top - container.clientTop, width: content.width, height: content.height });
+  }, []);
+
+  useLayoutEffect(() => {
+    measureMedia();
+    const viewport = area.current;
+    const content = image.current;
+    if (!viewport || !content || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measureMedia);
+    observer.observe(viewport);
+    observer.observe(content);
+    return () => observer.disconnect();
+  }, [measureMedia, pan, zoom, assetId]);
 
   const revealControls = useCallback(() => {
     setControlsVisible(true);
@@ -52,37 +79,52 @@ export function LiveImageStage({ api, assetId, images, creator, onSelectAsset, p
   function handlePointerMove(event: PointerEvent<HTMLDivElement>) {
     revealControls();
     if (creator && pointerEnabled) {
-      const rect = event.currentTarget.getBoundingClientRect();
-      onStagePointer([(event.clientX - rect.left) / rect.width, (event.clientY - rect.top) / rect.height]);
+      const rect = image.current?.getBoundingClientRect();
+      if (!rect || event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) {
+        onStagePointer(null);
+        return;
+      }
+      onStagePointer({ assetId, page: null, point: [(event.clientX - rect.left) / rect.width, (event.clientY - rect.top) / rect.height] });
       return;
     }
-    if (!creator || !drag.current) return;
+    if (!drag.current) return;
     setPan({ x: drag.current.panX + event.clientX - drag.current.x, y: drag.current.panY + event.clientY - drag.current.y });
+  }
+
+  function startDrag(event: PointerEvent<HTMLDivElement>) {
+    revealControls();
+    if (creator && pointerEnabled) return;
+    if (zoom <= 1 || event.button !== 0) return;
+    drag.current = { x: event.clientX, y: event.clientY, panX: pan.x, panY: pan.y };
+    event.currentTarget.setPointerCapture(event.pointerId);
   }
 
   return <div className="live-image-stage">
     <div
       ref={area}
-      className={`live-image-page-area ${pointerEnabled && creator ? "is-pointer" : ""}`}
+      className={`live-image-page-area ${creator && pointerEnabled ? "is-pointer" : zoom > 1 ? "is-pannable" : ""}`}
       onPointerMove={handlePointerMove}
       onPointerLeave={() => { if (creator && pointerEnabled) onStagePointer(null); hideControlsSoon(); drag.current = null; }}
-      onPointerDown={event => {
-        revealControls();
-        if (creator && !pointerEnabled && event.button === 0) {
-          drag.current = { x: event.clientX, y: event.clientY, panX: pan.x, panY: pan.y };
-          event.currentTarget.setPointerCapture(event.pointerId);
-        }
-      }}
+      onPointerDown={startDrag}
       onPointerUp={() => { drag.current = null; }}
+      onPointerCancel={() => { drag.current = null; }}
       onWheel={event => {
-        if (!creator || pointerEnabled) return;
+        if (creator && pointerEnabled) return;
         event.preventDefault();
         setZoom(value => Math.max(0.25, Math.min(4, +(value + (event.deltaY < 0 ? 0.08 : -0.08)).toFixed(2))));
       }}
       onTouchStart={revealControls}
     >
-      <img src={`${api}/assets/${assetId}${adminSupport ? "?adminSupport=1" : ""}`} alt="Image shown to the class" referrerPolicy="no-referrer" draggable={false} style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}/>
-      {pointer ? <span className="live-stage-pointer" style={{ left: `${pointer[0] * 100}%`, top: `${pointer[1] * 100}%` }} aria-hidden="true"/> : null}
+      <img
+        ref={image}
+        src={`${api}/assets/${assetId}${adminSupport ? "?adminSupport=1" : ""}`}
+        alt="Image shown to the class"
+        referrerPolicy="no-referrer"
+        draggable={false}
+        onLoad={measureMedia}
+        style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}
+      />
+      {visiblePointer && mediaBounds ? <span className="live-stage-pointer" style={{ left: `${mediaBounds.left + visiblePointer[0] * mediaBounds.width}px`, top: `${mediaBounds.top + visiblePointer[1] * mediaBounds.height}px` }} aria-hidden="true"/> : null}
     </div>
     <div className={`live-pdf-controls ${controlsVisible ? "is-visible" : "is-hidden"}`} aria-label="Image presentation controls" onMouseEnter={keepControls} onMouseLeave={hideControlsSoon} onFocusCapture={keepControls} onBlurCapture={hideControlsSoon} onPointerDown={keepControls}>
       {creator ? <>

@@ -25,9 +25,11 @@ import {
   Plus,
   RefreshCw,
   RotateCcw,
+  Search,
   Settings,
   Smile,
   Send,
+  UserPlus,
   UserX,
   UsersRound,
   Video,
@@ -51,6 +53,7 @@ import {
   emptyState,
   type BoardObject,
   type LiveAsset,
+  type LiveMediaPointer,
   type LivePerson,
   type SharedState,
   type StageKind,
@@ -74,6 +77,8 @@ type ChatMessage = {
 type ParticipantModeration = { userId: string; micMuted: boolean };
 type ServerParticipant = Pick<LivePerson, "userId" | "name" | "role" | "joinedAt"> & { micMuted: boolean };
 type WaitingParticipant = { userId: string; name: string; joinedAt: number };
+type InviteScopeOption = { scopeType: "CLASS" | "COURSE"; scopeId: string; title: string; context?: string };
+type InviteLearner = { id: string; name: string };
 type RoomClock = {
   status: string;
   elapsed_seconds: number;
@@ -139,6 +144,7 @@ export function InstantLiveClassroom({
   const [copied, setCopied] = useState(false);
   const [chatOpen, setChatOpen] = useState(true);
   const [drawer, setDrawer] = useState<"chat" | "people">("chat");
+  const [chatFocused, setChatFocused] = useState(false);
   const [chat, setChat] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [emojiOpen, setEmojiOpen] = useState(false);
@@ -157,7 +163,7 @@ export function InstantLiveClassroom({
   const [imageLinkError, setImageLinkError] = useState("");
   const [imageLinkTarget, setImageLinkTarget] = useState<"gallery" | "board">("gallery");
   const [pointer, setPointer] = useState<[number, number] | null>(null);
-  const [stagePointer, setStagePointer] = useState<[number, number] | null>(null);
+  const [stagePointer, setStagePointer] = useState<LiveMediaPointer | null>(null);
   const [stagePointerEnabled, setStagePointerEnabled] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const [stageFocus, setStageFocus] = useState(false);
@@ -169,6 +175,16 @@ export function InstantLiveClassroom({
   const [recordingOpen, setRecordingOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [waitingParticipants, setWaitingParticipants] = useState<WaitingParticipant[]>([]);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteOptions, setInviteOptions] = useState<InviteScopeOption[]>([]);
+  const [inviteScopeKeys, setInviteScopeKeys] = useState<string[]>([]);
+  const [inviteLearners, setInviteLearners] = useState<InviteLearner[]>([]);
+  const [inviteeIds, setInviteeIds] = useState<string[]>([]);
+  const [inviteSearch, setInviteSearch] = useState("");
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteSending, setInviteSending] = useState(false);
+  const [inviteError, setInviteError] = useState("");
+  const inviteRequestId = useRef(0);
   const [roomSettings, setRoomSettings] = useState<RoomSettings>({ room_locked: false, learner_mic_enabled: true, learner_chat_enabled: true, learner_screen_share_enabled: true });
   const roomSettingsRef = useRef(roomSettings);
   const roomSettingsVersion = useRef(0);
@@ -369,10 +385,14 @@ export function InstantLiveClassroom({
         }
       }
       if (event === "pointer" && from?.userId === creatorId) {
-        const p = data as { surface?: string; point?: [number, number] | null };
-        const point = p.point && p.point.length === 2 && p.point.every(Number.isFinite) ? p.point : null;
-        if (p.surface === "stage") setStagePointer(point);
-        else setPointer(point);
+        const p = data as { surface?: string; point?: [number, number] | null; assetId?: string; page?: number | null };
+        const validPoint = p.point && p.point.length === 2 && p.point.every(Number.isFinite)
+          && p.point.every(value => value >= 0 && value <= 1);
+        const stagePoint = validPoint && typeof p.assetId === "string"
+          ? { assetId: p.assetId, page: Number.isInteger(p.page) ? p.page! : null, point: p.point! }
+          : null;
+        if (p.surface === "stage") setStagePointer(stagePoint);
+        else setPointer(validPoint ? p.point! : null);
       }
       if (event === "chat" && from) {
         const message = data as ChatMessage;
@@ -595,7 +615,7 @@ export function InstantLiveClassroom({
       window.removeEventListener("resize", updateRoomHeight);
       window.visualViewport?.removeEventListener("resize", updateRoomHeight);
     };
-  }, []);
+  }, [chatFocused]);
   const command = async (body: Record<string, unknown>) => {
     const response = await fetch(`${api}/state`, {
       method: "POST",
@@ -739,11 +759,11 @@ export function InstantLiveClassroom({
       void transport.send("pointer", { surface: "board", point });
     }
   }
-  function broadcastStagePointer(point: [number, number] | null) {
-    setStagePointer(point);
-    if (!point || Date.now() - stagePointerTime.current > 100) {
+  function broadcastStagePointer(pointer: LiveMediaPointer | null) {
+    setStagePointer(pointer);
+    if (!pointer || Date.now() - stagePointerTime.current > 100) {
       stagePointerTime.current = Date.now();
-      void transport.send("pointer", { surface: "stage", point });
+      void transport.send("pointer", { surface: "stage", ...pointer, point: pointer?.point ?? null });
     }
   }
   function toggleStagePointer() {
@@ -823,6 +843,85 @@ export function InstantLiveClassroom({
       return;
     }
     setChatOpen(open => !open);
+  }
+  async function openInviteDialog() {
+    inviteRequestId.current += 1;
+    setInviteOpen(true);
+    setInviteScopeKeys([]);
+    setInviteLearners([]);
+    setInviteeIds([]);
+    setInviteSearch("");
+    setInviteError("");
+    setInviteLoading(true);
+    try {
+      const response = await fetch("/api/instant-live/audience/scopes", { cache: "no-store" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Could not load your classes and courses.");
+      setInviteOptions(Array.isArray(data.options) ? data.options : []);
+    } catch (error) {
+      setInviteError(error instanceof Error ? error.message : "Could not load your classes and courses.");
+    } finally {
+      setInviteLoading(false);
+    }
+  }
+  async function setInviteScopes(nextKeys: string[]) {
+    setInviteScopeKeys(nextKeys);
+    setInviteLearners([]);
+    setInviteeIds([]);
+    setInviteError("");
+    const requestId = ++inviteRequestId.current;
+    if (!nextKeys.length) { setInviteLoading(false); return; }
+    setInviteLoading(true);
+    try {
+      const scopes = nextKeys.map(key => {
+        const [scopeType, scopeId] = key.split(":");
+        return { scopeType, scopeId };
+      });
+      const response = await fetch("/api/instant-live/audience", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ scopes }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Could not load learners for this selection.");
+      if (requestId !== inviteRequestId.current) return;
+      const nextLearners = Array.isArray(data.learners) ? data.learners as InviteLearner[] : [];
+      setInviteLearners(nextLearners);
+      setInviteeIds(nextLearners.map(learner => learner.id));
+    } catch (error) {
+      if (requestId === inviteRequestId.current) setInviteError(error instanceof Error ? error.message : "Could not load learners for this selection.");
+    } finally {
+      if (requestId === inviteRequestId.current) setInviteLoading(false);
+    }
+  }
+  async function sendRoomInvites() {
+    if (!inviteScopeKeys.length || !inviteeIds.length || inviteSending) return;
+    setInviteSending(true);
+    setInviteError("");
+    try {
+      const scopes = inviteScopeKeys.map(key => {
+        const [scopeType, scopeId] = key.split(":");
+        return { scopeType, scopeId };
+      });
+      const response = await fetch(`${api}/invite`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ scopes, inviteeIds }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Could not send these invitations.");
+      closeInviteDialog();
+      setNotice(`Invitation sent to ${data.sentCount} learner${data.sentCount === 1 ? "" : "s"}.`);
+    } catch (error) {
+      setInviteError(error instanceof Error ? error.message : "Could not send these invitations.");
+    } finally {
+      setInviteSending(false);
+    }
+  }
+  function closeInviteDialog() {
+    inviteRequestId.current += 1;
+    setInviteLoading(false);
+    setInviteOpen(false);
   }
   async function startSharing(kind: "screen" | "camera") {
     if (!creator && kind === "screen" && !roomSettings.learner_screen_share_enabled) {
@@ -1313,7 +1412,7 @@ export function InstantLiveClassroom({
   return (
     <main
       ref={root}
-      className={`${styles.root} ${fullscreen ? styles.fullscreen : ""} ${stageFocus ? styles.stageFocused : ""}`}
+      className={`${styles.root} ${fullscreen ? styles.fullscreen : ""} ${stageFocus ? styles.stageFocused : ""} ${chatFocused ? "chat-focused" : ""}`}
       data-live-classroom
       data-role={role}
       data-admin-support={adminSupport ? "true" : undefined}
@@ -1633,12 +1732,14 @@ export function InstantLiveClassroom({
               </>
             ) : null}
             <button
-              aria-label={
-                chatOpen ? "Collapse chat and people" : "Expand chat and people"
-              }
-              onClick={() => setChatOpen((value) => !value)}
+              aria-label={chatFocused ? "Return to class" : chatOpen ? "Collapse chat and people" : "Expand chat and people"}
+              title={chatFocused ? "Return to class" : chatOpen ? "Collapse chat and people" : "Expand chat and people"}
+              onClick={() => {
+                if (chatFocused) { setChatFocused(false); setChatOpen(true); }
+                else setChatOpen(value => !value);
+              }}
             >
-              {chatOpen ? (
+              {chatFocused || chatOpen ? (
                 <PanelRightClose size={17} />
               ) : (
                 <PanelRightOpen size={17} />
@@ -1712,6 +1813,12 @@ export function InstantLiveClassroom({
                   value={draft}
                   maxLength={2000}
                   onChange={(event) => setDraft(event.target.value)}
+                  onFocus={() => {
+                    setChatOpen(true);
+                    setDrawer("chat");
+                    setChatFocused(!window.matchMedia("(min-width: 1024px)").matches);
+                  }}
+                  onKeyDown={event => { if (event.key === "Escape") { event.currentTarget.blur(); setChatFocused(false); } }}
                   disabled={paused || chatSending || (!creator && !roomSettings.learner_chat_enabled)}
                 />
                 <button
@@ -1726,6 +1833,7 @@ export function InstantLiveClassroom({
           ) : null}
           {chatOpen && drawer === "people" ? (
             <div className="live-people">
+              {creator ? <div className="live-people-invite-row"><span>People in class</span><button type="button" onClick={() => void openInviteDialog()} disabled={paused}><UserPlus size={16}/>Invite</button></div> : null}
               {visiblePeople.map((person) => {
                 const isMuted =
                   moderation.find((participant) => participant.userId === person.userId)
@@ -1838,6 +1946,34 @@ export function InstantLiveClassroom({
           </section>
         </div>
       ) : null}
+      {inviteOpen && creator ? <div className="live-modal-backdrop" onClick={event => { if (event.target === event.currentTarget && !inviteSending) closeInviteDialog(); }}>
+        <section className="live-feature-panel live-invite-dialog" role="dialog" aria-modal="true" aria-labelledby="live-invite-title">
+          <header><div><h2 id="live-invite-title">Invite learners</h2><p>Choose learners from classes or courses you manage.</p></div><button type="button" aria-label="Close invitations" disabled={inviteSending} onClick={closeInviteDialog}><X size={18}/></button></header>
+          <div className="live-invite-scopes" aria-label="Choose a class or course">
+            {inviteLoading && !inviteOptions.length ? <p>Loading your classes and courses…</p> : inviteOptions.length ? inviteOptions.map(option => {
+              const key = `${option.scopeType}:${option.scopeId}`;
+              const checked = inviteScopeKeys.includes(key);
+              return <label key={key} className={checked ? "is-selected" : ""}>
+                <input type="checkbox" checked={checked} onChange={() => void setInviteScopes(checked ? inviteScopeKeys.filter(value => value !== key) : [...inviteScopeKeys, key])}/>
+                <span><strong>{option.title}</strong><small>{option.scopeType === "CLASS" ? "Class" : "Course"}{option.context ? ` · ${option.context}` : ""}</small></span>
+              </label>;
+            }) : <p>No eligible classes or courses are available.</p>}
+          </div>
+          {inviteScopeKeys.length ? <>
+            <div className="live-invite-learners-heading"><strong>Learners</strong><span>{inviteeIds.length} selected</span></div>
+            <label className="live-invite-search"><Search size={16}/><input value={inviteSearch} onChange={event => setInviteSearch(event.target.value)} placeholder="Search learners" aria-label="Search learners"/></label>
+            <div className="live-invite-learners">
+              {inviteLoading ? <p>Loading learners…</p> : inviteLearners.filter(learner => learner.name.toLowerCase().includes(inviteSearch.trim().toLowerCase())).map(learner => <label key={learner.id}>
+                <input type="checkbox" checked={inviteeIds.includes(learner.id)} onChange={() => setInviteeIds(current => current.includes(learner.id) ? current.filter(id => id !== learner.id) : [...current, learner.id])}/>
+                <span className="live-avatar" style={{ background: avatar(learner.name) }}>{learner.name[0]?.toUpperCase()}</span><span>{learner.name}</span>
+              </label>)}
+              {!inviteLoading && !inviteLearners.length ? <p>No learners found in the selected rosters.</p> : null}
+            </div>
+          </> : null}
+          {inviteError ? <p className="live-invite-error" role="alert">{inviteError}</p> : null}
+          <footer><button type="button" className="is-cancel" disabled={inviteSending} onClick={closeInviteDialog}>Cancel</button><button type="button" disabled={inviteSending || inviteLoading || !inviteeIds.length} onClick={() => void sendRoomInvites()}><UserPlus size={16}/>{inviteSending ? "Sending…" : `Invite ${inviteeIds.length || "learners"}`}</button></footer>
+        </section>
+      </div> : null}
       {recordingOpen && creator ? <div className="live-modal-backdrop" onClick={e => {if(e.target === e.currentTarget && !recording.busy) setRecordingOpen(false);}}><section className="live-feature-panel" role="dialog" aria-modal="true" aria-label="Local recording"><header><h2 id="live-recording-title">Local recording</h2><button aria-label="Close recordings" onClick={() => setRecordingOpen(false)}><X size={18}/></button></header><p>{isBrenUpNativeApp() ? "Android will ask you to choose what to capture. The recording includes the selected screen and class audio, including your mic when on. Everyone sees a recording indicator. No upload or paid service." : "Choose this classroom tab in the browser's screen picker. Records its picture and class audio, including your mic when on. Everyone sees a recording indicator. No upload or paid service."}</p><p>{isBrenUpNativeApp() ? "Keep BrenUp open. Files are kept in this app's browser storage until you save or delete them. Android indicates active capture; stop the recording in BrenUp or from the Android notification when it is shown. A file stops at 500 MB; start another part if needed." : "Keep this tab open. Files are kept in this browser until you save or delete them. Screen capture requires a supported desktop browser. A file stops at 500 MB; start another part if needed."}</p>{isBrenUpNativeApp() && ownPresentation && state.stage === "screen" ? <p role="status">Stop your current screen share before starting a local recording.</p> : null}<button disabled={recording.busy || paused || Boolean(recording.startedAt) || (isBrenUpNativeApp() && ownPresentation && state.stage === "screen")} onClick={() => {setRecordingOpen(false); void recording.start();}}>Start recording</button>{recording.saved.map(file => <div className="live-recording-file" key={file.id}><span>{new Date(file.createdAt).toLocaleString()} · {(file.size/1e6).toFixed(1)} MB{!file.complete ? " · interrupted" : ""}</span><button disabled={recording.busy} onClick={() => void recording.save(file, recordingDirectory)}>Save to {recordingDirectoryName}</button><button disabled={recording.busy} onClick={() => {if(window.confirm("Delete this local recording? Save your file first.")) void recording.remove(file).catch(() => setNotice("Could not delete recording."));}}>Delete</button></div>)}</section></div> : null}
       {creator && recording.saved.length && !recording.startedAt ? <button className="live-recordings-ready" onClick={() => setRecordingOpen(true)}>Local recordings · {recording.saved.length}</button> : null}
       {exportOpen ? <div className="live-modal-backdrop" onClick={e => {if(e.target === e.currentTarget && !exporting) setExportOpen(false);}}><section className="live-feature-panel" role="dialog" aria-modal="true" aria-label="Export whiteboard"><header><h2>Export whiteboard</h2><button aria-label="Close export" disabled={exporting} onClick={() => setExportOpen(false)}><X size={18}/></button></header><p>The whole board, without toolbars or selection outlines.</p><button disabled={exporting} onClick={() => void exportWhiteboard(false)}>Save PNG to device</button><button disabled={exporting || paused} onClick={() => void exportWhiteboard(true)}>Add to image gallery</button>{exporting ? <p role="status">Preparing image…</p> : null}</section></div> : null}

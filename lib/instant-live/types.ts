@@ -54,6 +54,12 @@ export type LiveAsset = {
   height: number;
   created_at: string;
 };
+/** Pointer position normalized to the displayed media content, not the stage viewport. */
+export type LiveMediaPointer = {
+  assetId: string;
+  page: number | null;
+  point: [number, number];
+};
 export type LivePerson = {
   userId: string;
   sessionId: string;

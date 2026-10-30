@@ -1,7 +1,8 @@
 "use client";
 
 import { ChevronLeft, ChevronRight, FileText, Minus, Plus, ScanLine, Target } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent } from "react";
+import type { LiveMediaPointer } from "@/lib/instant-live/types";
 
 type Viewport = { width: number; height: number };
 type PdfPage = {
@@ -34,22 +35,27 @@ function loadPdfJs() {
   return pdfJsLoad;
 }
 
+type MediaBounds = { left: number; top: number; width: number; height: number };
+
 export function LivePdfStage({ api, assetId, page, creator, onPageChange, pointer, pointerEnabled, onPointerToggle, onStagePointer, adminSupport = false }: {
   api: string;
   assetId: string;
   page: number;
   creator: boolean;
   onPageChange: (page: number) => void;
-  pointer: [number, number] | null;
+  pointer: LiveMediaPointer | null;
   pointerEnabled: boolean;
   onPointerToggle: () => void;
-  onStagePointer: (point: [number, number] | null) => void;
+  onStagePointer: (pointer: LiveMediaPointer | null) => void;
   adminSupport?: boolean;
 }) {
   const pageArea = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
   const [documentInfo, setDocumentInfo] = useState<{ pdf: PdfDocument; pageCount: number } | null>(null);
   const [area, setArea] = useState({ width: 0, height: 0 });
   const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [mediaBounds, setMediaBounds] = useState<MediaBounds | null>(null);
   const [pageInput, setPageInput] = useState(String(page));
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -120,6 +126,31 @@ export function LivePdfStage({ api, assetId, page, creator, onPageChange, pointe
 
   const pageCount = documentInfo?.pageCount ?? 0;
   const currentPage = pageCount ? Math.min(Math.max(1, page), pageCount) : Math.max(1, page);
+  const visiblePointer = pointer?.assetId === assetId && pointer.page === currentPage ? pointer.point : null;
+
+  const measureMedia = useCallback(() => {
+    const container = pageArea.current;
+    const viewport = container?.getBoundingClientRect();
+    const canvas = container?.querySelector("canvas")?.getBoundingClientRect();
+    if (!container || !viewport || !canvas || canvas.width < 1 || canvas.height < 1) {
+      setMediaBounds(null);
+      return;
+    }
+    setMediaBounds({ left: canvas.left - viewport.left - container.clientLeft, top: canvas.top - viewport.top - container.clientTop, width: canvas.width, height: canvas.height });
+  }, []);
+
+  useLayoutEffect(() => {
+    measureMedia();
+    const element = pageArea.current;
+    if (!element || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measureMedia);
+    observer.observe(element);
+    const canvas = element.querySelector("canvas");
+    if (canvas) observer.observe(canvas);
+    return () => observer.disconnect();
+  }, [measureMedia, zoom, pan, currentPage]);
+
+  useEffect(() => { setPan({ x: 0, y: 0 }); }, [currentPage, assetId]);
 
   useEffect(() => {
     const current = ++renderId.current;
@@ -141,13 +172,13 @@ export function LivePdfStage({ api, assetId, page, creator, onPageChange, pointe
       canvas.style.width = `${viewport.width / pixelRatio}px`;
       canvas.style.height = `${viewport.height / pixelRatio}px`;
       task = pdfPage.render({ canvasContext: context, viewport });
-      return (task as ReturnType<PdfPage["render"]>).promise;
+      return (task as ReturnType<PdfPage["render"]>).promise.then(() => requestAnimationFrame(measureMedia));
     }).catch(reason => {
       if (!cancelled && current === renderId.current && reason?.name !== "RenderingCancelledException")
         setError("This PDF page could not be rendered.");
     });
     return () => { cancelled = true; task?.cancel?.(); };
-  }, [area, currentPage, documentInfo, zoom]);
+  }, [area, currentPage, documentInfo, measureMedia, zoom]);
 
   function commitPage() {
     const parsed = Number.parseInt(pageInput, 10);
@@ -162,18 +193,36 @@ export function LivePdfStage({ api, assetId, page, creator, onPageChange, pointe
     if (creator && pageCount) onPageChange(Math.min(pageCount, Math.max(1, currentPage + delta)));
   }
 
+  function handlePointerMove(event: PointerEvent<HTMLDivElement>) {
+    if (!controlsVisible) revealControls();
+    if (creator && pointerEnabled) {
+      const rect = pageArea.current?.querySelector("canvas")?.getBoundingClientRect();
+      if (!rect || event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) {
+        onStagePointer(null);
+        return;
+      }
+      onStagePointer({ assetId, page: currentPage, point: [(event.clientX - rect.left) / rect.width, (event.clientY - rect.top) / rect.height] });
+      return;
+    }
+    if (drag.current) setPan({ x: drag.current.panX + event.clientX - drag.current.x, y: drag.current.panY + event.clientY - drag.current.y });
+  }
+
+  function startPan(event: PointerEvent<HTMLDivElement>) {
+    revealControls();
+    if ((creator && pointerEnabled) || zoom <= 1 || event.button !== 0) return;
+    drag.current = { x: event.clientX, y: event.clientY, panX: pan.x, panY: pan.y };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
   return <div className="live-pdf-stage">
     <div
-      className={`live-pdf-page-area ${pointerEnabled && creator ? "is-pointer" : ""}`}
+      className={`live-pdf-page-area ${pointerEnabled && creator ? "is-pointer" : zoom > 1 ? "is-pannable" : ""}`}
       ref={pageArea}
       aria-label={`PDF page ${currentPage} of ${pageCount || "…"}`}
-      onPointerDown={revealControls}
-      onPointerMove={event => {
-        if (!controlsVisible) revealControls();
-        if (!creator || !pointerEnabled) return;
-        const rect = event.currentTarget.getBoundingClientRect();
-        onStagePointer([(event.clientX - rect.left) / rect.width, (event.clientY - rect.top) / rect.height]);
-      }}
+      onPointerDown={startPan}
+      onPointerMove={handlePointerMove}
+      onPointerUp={() => { drag.current = null; }}
+      onPointerCancel={() => { drag.current = null; }}
       onPointerLeave={() => { if (creator && pointerEnabled) onStagePointer(null); }}
       onTouchStart={revealControls}
       onKeyDown={event => {
@@ -182,8 +231,8 @@ export function LivePdfStage({ api, assetId, page, creator, onPageChange, pointe
       }}
       tabIndex={0}
     >
-      <canvas />
-      {pointer ? <span className="live-stage-pointer" style={{ left: `${pointer[0] * 100}%`, top: `${pointer[1] * 100}%` }} aria-hidden="true"/> : null}
+      <canvas style={{ transform: `translate(${pan.x}px, ${pan.y}px)`, transformOrigin: "center center" }} />
+      {visiblePointer && mediaBounds ? <span className="live-stage-pointer" style={{ left: `${mediaBounds.left + visiblePointer[0] * mediaBounds.width}px`, top: `${mediaBounds.top + visiblePointer[1] * mediaBounds.height}px` }} aria-hidden="true"/> : null}
       {loading ? <div className="live-pdf-message"><FileText size={23}/>Opening PDF…</div> : null}
       {error ? <div className="live-pdf-message is-error"><FileText size={23}/>{error}</div> : null}
     </div>
@@ -220,7 +269,7 @@ export function LivePdfStage({ api, assetId, page, creator, onPageChange, pointe
       <button type="button" aria-label="Zoom out" title="Zoom out" disabled={zoom <= 0.5} onClick={() => setZoom(value => Math.max(0.5, +(value - 0.1).toFixed(2)))}><Minus size={16}/></button>
       <span className="live-pdf-zoom-value">{Math.round(zoom * 100)}%</span>
       <button type="button" aria-label="Zoom in" title="Zoom in" disabled={zoom >= 3} onClick={() => setZoom(value => Math.min(3, +(value + 0.1).toFixed(2)))}><Plus size={16}/></button>
-      <button className="live-pdf-fit" type="button" title="Fit page" aria-label="Fit page" disabled={zoom === 1} onClick={() => setZoom(1)}><ScanLine size={16}/><span>Fit</span></button>
+      <button className="live-pdf-fit" type="button" title="Fit page" aria-label="Fit page" disabled={zoom === 1 && pan.x === 0 && pan.y === 0} onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}><ScanLine size={16}/><span>Fit</span></button>
       {creator ? <button className={pointerEnabled ? "is-active" : ""} type="button" aria-label={pointerEnabled ? "Turn pointer off" : "Turn pointer on"} title={pointerEnabled ? "Pointer on" : "Pointer"} onClick={onPointerToggle}><Target size={16}/></button> : null}
     </div>
   </div>;

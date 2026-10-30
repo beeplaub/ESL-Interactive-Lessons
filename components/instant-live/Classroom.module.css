@@ -774,10 +774,12 @@
 }
 .root :global(.live-stage-dismiss:hover) { background: #e75f70; }
 .root :global(.live-pdf-stage) { position: relative; display: block; flex: 1; width: 100%; height: 100%; min-width: 0; min-height: 0; padding: 0; border-radius: 12px; background: transparent; }
-.root :global(.live-pdf-page-area) { position: absolute; inset: 0; display: flex; align-items: center; align-items: safe center; justify-content: center; justify-content: safe center; width: 100%; height: 100%; min-width: 0; min-height: 0; overflow: auto; border: 1px solid #ffffff14; border-radius: 10px; background: #171d29; touch-action: pan-x pan-y; }
-.root :global(.live-pdf-page-area:focus-visible) { outline: 2px solid #8c82ff; outline-offset: 2px; }
+.root :global(.live-pdf-page-area) { position: absolute; inset: 0; display: flex; align-items: center; align-items: safe center; justify-content: center; justify-content: safe center; width: 100%; height: 100%; min-width: 0; min-height: 0; overflow: hidden; border: 1px solid #ffffff14; border-radius: 10px; background: #171d29; touch-action: none; }
 .root :global(.live-pdf-page-area.is-pointer) { cursor: crosshair; touch-action: none; }
-.root :global(.live-pdf-page-area canvas) { display: block; flex: none; background: white; box-shadow: 0 10px 32px #0005; }
+.root :global(.live-pdf-page-area.is-pannable) { cursor: grab; }
+.root :global(.live-pdf-page-area.is-pannable:active) { cursor: grabbing; }
+.root :global(.live-pdf-page-area:focus-visible) { outline: 2px solid #8c82ff; outline-offset: 2px; }
+.root :global(.live-pdf-page-area canvas) { display: block; flex: none; background: white; box-shadow: 0 10px 32px #0005; will-change: transform; }
 .root :global(.live-pdf-message) { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 9px; color: #d9d6ec; background: #141a2780; font-size: 13px; }
 .root :global(.live-pdf-message.is-error) { color: #ffd4d6; }
 .root :global(.live-pdf-controls) { position: absolute; z-index: 10; left: 50%; bottom: max(12px, env(safe-area-inset-bottom)); transform: translate(-50%, 0); display: flex; align-items: center; justify-content: center; flex-wrap: nowrap; gap: 5px; width: max-content; max-width: calc(100% - 20px); padding: 6px 9px; border: 1px solid #ffffff38; border-radius: 999px; color: #f5f3ff; background: #252b3bcc; box-shadow: 0 8px 28px #0005, inset 0 1px 0 #ffffff20; backdrop-filter: blur(22px) saturate(145%); transition: opacity 180ms ease, transform 180ms ease; }
@@ -803,7 +805,9 @@
 .root :global(.live-main.has-gallery .live-pdf-controls) { bottom: 112px; }
 .root :global(.live-stage-pointer) { position: absolute; z-index: 9; width: 17px; height: 17px; border: 2px solid #fff; border-radius: 50%; background: #ff4e65; box-shadow: 0 0 0 5px #ff4e6545, 0 2px 12px #0008; pointer-events: none; transform: translate(-50%, -50%); }
 .root :global(.live-image-stage) { position: relative; display: block; flex: 1; width: 100%; height: 100%; min-width: 0; min-height: 0; overflow: hidden; border-radius: 12px; }
-.root :global(.live-image-page-area) { position: absolute; inset: 0; display: grid; place-items: center; overflow: hidden; border: 1px solid #ffffff14; border-radius: 10px; background: #171d29; touch-action: none; cursor: grab; }
+.root :global(.live-image-page-area) { position: absolute; inset: 0; display: grid; place-items: center; overflow: hidden; border: 1px solid #ffffff14; border-radius: 10px; background: #171d29; touch-action: none; }
+.root :global(.live-image-page-area.is-pannable) { cursor: grab; }
+.root :global(.live-image-page-area.is-pannable:active) { cursor: grabbing; }
 .root :global(.live-image-page-area:active) { cursor: grabbing; }
 .root :global(.live-image-page-area.is-pointer) { cursor: crosshair; }
 .root :global(.live-image-page-area > img) { display: block; max-width: 100%; max-height: 100%; object-fit: contain; user-select: none; transform-origin: center; pointer-events: none; }
@@ -969,6 +973,9 @@
   flex-direction: column;
   gap: 10px;
 }
+.root :global(.live-people-invite-row) { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:2px 1px 5px; color:#c7c9dc; font-size:12px; font-weight:700; }
+.root :global(.live-people-invite-row button) { display:inline-flex; align-items:center; justify-content:center; gap:6px; min-height:34px; padding:0 11px; border:1px solid #9587ff65; border-radius:11px; color:#eeeaff; background:#7568e82b; font-size:12px; font-weight:700; }
+.root :global(.live-people-invite-row button:hover:not(:disabled)) { background:#7568e84a; }
 .root :global(.live-people article) {
   display: flex;
   gap: 10px;
@@ -1590,6 +1597,42 @@
   }
 }
 
+@media (max-width: 1023px) {
+  .root:global(.chat-focused) {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    height: var(--live-available-height, 100dvh);
+    min-height: 0;
+    overflow: hidden;
+  }
+  .root:global(.chat-focused) :global(.live-header) { display: none; }
+  .root:global(.chat-focused) :global(.live-layout) {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+    gap: 0;
+    background: #171c29;
+  }
+  .root:global(.chat-focused) :global(.live-main) { display: none; }
+  .root:global(.chat-focused) :global(.live-drawer) {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    max-height: none;
+    border-radius: 18px;
+  }
+  .root:global(.chat-focused) :global(.live-drawer-handle) { display: none; }
+  .root:global(.chat-focused) :global(.live-drawer-tabs) { min-height: 52px; }
+  .root:global(.chat-focused) :global(.live-message-form) {
+    flex: 0 0 auto;
+    margin-bottom: max(10px, env(safe-area-inset-bottom));
+  }
+}
+
 .root :global(.live-audio-dialog) { padding:0; border:1px solid #77749d66; border-radius:22px; background:#25293c; color:#f4f2ff; width:min(440px,calc(100vw - 32px)); box-shadow:0 24px 80px #0008; }
 .root :global(.live-audio-embedded) { width:auto; max-width:none; border:0; border-radius:0; background:transparent; box-shadow:none; }
 .root :global(.live-audio-embedded section) { padding:18px 20px 22px; }
@@ -1631,6 +1674,31 @@
 .root :global(.live-content-help) { font-size:12px; color:#6c6680; margin:10px 0; }
 .root :global(.live-content-option) { display:block; text-align:left; width:100%; padding:12px; margin:6px 0; background:#34384e; border-radius:10px; }
 .root :global(.live-feature-panel input) { background:#34384e; color:white; width:100%; padding:10px; border-radius:10px; margin-bottom:16px; }
+.root :global(.live-invite-dialog) { display:flex; flex-direction:column; gap:12px; }
+.root :global(.live-invite-dialog header) { align-items:flex-start; }
+.root :global(.live-invite-dialog header h2) { margin:0; }
+.root :global(.live-invite-dialog header p) { margin:4px 0 0; font-size:12px; }
+.root :global(.live-invite-scopes) { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; max-height:150px; overflow:auto; padding:1px; }
+.root :global(.live-invite-scopes > label) { display:flex; align-items:center; gap:9px; min-width:0; padding:9px 10px; border:1px solid #ffffff17; border-radius:12px; background:#ffffff05; cursor:pointer; }
+.root :global(.live-invite-scopes > label.is-selected) { border-color:#9587ff8c; background:#7568e822; }
+.root :global(.live-invite-scopes input), .root :global(.live-invite-learners input) { flex:none; width:16px; height:16px; margin:0; accent-color:#887bff; }
+.root :global(.live-invite-scopes label span) { min-width:0; display:grid; gap:3px; }
+.root :global(.live-invite-scopes label strong) { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12px; }
+.root :global(.live-invite-scopes label small) { color:#aeb1c6; font-size:10px; }
+.root :global(.live-invite-scopes > p), .root :global(.live-invite-learners > p) { grid-column:1/-1; margin:5px; color:#b9bbce; font-size:12px; }
+.root :global(.live-invite-learners-heading) { display:flex; justify-content:space-between; gap:10px; font-size:12px; }
+.root :global(.live-invite-learners-heading span) { color:#b8b9cf; }
+.root :global(.live-invite-search) { display:flex; align-items:center; gap:8px; padding:0 11px; min-height:38px; border:1px solid #ffffff20; border-radius:11px; color:#adafc5; background:#ffffff08; }
+.root :global(.live-invite-search input) { min-width:0; width:100%; margin:0; padding:8px 0; border:0; outline:0; background:transparent; color:#fff; font-size:12px; }
+.root :global(.live-invite-learners) { display:flex; flex-direction:column; max-height:190px; overflow:auto; border:1px solid #ffffff17; border-radius:12px; }
+.root :global(.live-invite-learners label) { display:flex; align-items:center; gap:9px; min-height:42px; padding:5px 10px; border-bottom:1px solid #ffffff0c; font-size:12px; cursor:pointer; }
+.root :global(.live-invite-learners label:last-child) { border-bottom:0; }
+.root :global(.live-invite-learners .live-avatar) { width:28px; height:28px; font-size:12px; }
+.root :global(.live-invite-error) { margin:0!important; color:#ffb8b2!important; font-size:12px!important; }
+.root :global(.live-invite-dialog footer) { display:flex; justify-content:flex-end; gap:8px; padding-top:2px; }
+.root :global(.live-invite-dialog footer button) { display:inline-flex; align-items:center; justify-content:center; gap:7px; min-height:38px; padding:0 13px; border:1px solid #9487ff66; border-radius:11px; color:white; background:#7568e8; font-size:12px; font-weight:750; }
+.root :global(.live-invite-dialog footer button.is-cancel) { border-color:#ffffff22; color:#d8d9e5; background:#ffffff08; }
+.root :global(.live-invite-dialog footer button:disabled) { opacity:.5; }
 .root :global(.live-feature-panel h3) { font-size:14px; margin-top:14px; color:#c3b9ff; }
 .root :global(.live-content-picker-backdrop) { padding:clamp(12px,3vw,32px); }
 .root :global(.live-content-picker) { width:min(760px,calc(100vw - 28px)); max-height:min(88dvh,860px); padding:clamp(18px,3vw,30px); display:flex; flex-direction:column; overflow:hidden; background:radial-gradient(ellipse at 90% 0%,#5145a52e,transparent 38%),#202538; border-color:#9e9aff42; box-shadow:0 32px 100px #030611a8; }
