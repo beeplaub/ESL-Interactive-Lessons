@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireClassAccess } from "@/lib/classAccess";
@@ -18,6 +18,7 @@ export default async function LiveClassDetailPage({ params }: { params: Promise<
   const { data: session } = await admin.from("live_sessions").select("id,class_id,title,description,status,started_at,scheduled_at,duration_minutes,external_meeting_url,session_code,lesson_id,course_id,teacher_id,current_slide_number,navigation_locked,classes(name)").eq("id", id).maybeSingle();
   if (!session) notFound();
   const { user, profile } = await requireClassAccess(session.class_id);
+  if (session.status === "COMPLETED") redirect("/admin/live-classes");
   const teacher = session.teacher_id === user.id || isPlatformAdmin(profile?.role);
   const klass = Array.isArray(session.classes) ? session.classes[0] : session.classes;
   const [player, { data: events }] = await Promise.all([

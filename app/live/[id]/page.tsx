@@ -20,13 +20,15 @@ export default async function LearnerLiveSessionPage({ params }: { params: Promi
     .eq("id", id)
     .maybeSingle();
   if (!session) notFound();
-
   const [{ data: roster }, { data: classMember }, { data: courseEnrollment }] = await Promise.all([
     admin.from("live_session_members").select("id,role").eq("session_id", id).eq("user_id", user.id).maybeSingle(),
     admin.from("class_members").select("id").eq("class_id", session.class_id).eq("user_id", user.id).maybeSingle(),
     session.course_id ? admin.from("course_enrollments").select("id").eq("course_id", session.course_id).eq("user_id", user.id).in("status", ["ACTIVE", "COMPLETED"]).maybeSingle() : Promise.resolve({ data: null }),
   ]);
   if (!roster && !classMember && !courseEnrollment && session.teacher_id !== user.id) redirect("/account");
+  // Completed legacy sessions were migration test rooms; the retired review flow
+  // is intentionally not offered. Learners use the Instant Live engine going forward.
+  if (session.status === "COMPLETED") redirect("/live-classes");
 
   if (session.status === "LIVE") {
     const role = session.teacher_id === user.id ? "TEACHER" : "STUDENT";
@@ -37,19 +39,17 @@ export default async function LearnerLiveSessionPage({ params }: { params: Promi
   }
 
   const klass = Array.isArray(session.classes) ? session.classes[0] : session.classes;
-  // A completed session remains reviewable by every enrolled participant. It uses
-  // the same lesson engine in self-paced review mode, not the private lobby.
-  const player = (session.status === "LIVE" || session.status === "COMPLETED") && session.lesson_id
+  const player = session.status === "LIVE" && session.lesson_id
     ? await getLiveLessonPlayerData(session.lesson_id, user.id)
     : null;
 
-  if (player || session.status === "LIVE" || session.status === "COMPLETED") {
+  if (player || session.status === "LIVE") {
     return (
       <main className="min-h-screen bg-[var(--br-canvas-elevated)] px-2 py-3 text-[var(--br-dark-card)] sm:px-4 sm:py-5">
         <div className="mx-auto max-w-[1440px]">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[var(--br-surface-strong)] bg-surface px-3 py-2 shadow-sm">
             <div className="min-w-0"><p className="truncate text-xs font-bold uppercase tracking-wide text-[var(--br-chart-primary)]">{klass?.name || "Live class"}</p><p className="truncate text-sm font-extrabold">{session.title}</p></div>
-            <span className="inline-flex items-center gap-1 rounded-full bg-[color-mix(in_srgb,var(--br-success)_12%,var(--br-surface))] px-2.5 py-1 text-[11px] font-extrabold text-[var(--br-chart-secondary)]"><Radio size={12} /> {session.status === "LIVE" ? "LIVE" : "CLASS REVIEW"}</span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-[color-mix(in_srgb,var(--br-success)_12%,var(--br-surface))] px-2.5 py-1 text-[11px] font-extrabold text-[var(--br-chart-secondary)]"><Radio size={12} /> LIVE</span>
           </div>
           <LiveRoomLayout slides={player?.slides} title={player?.lesson.title ?? session.title} level={player?.lesson.level} startedAt={session.started_at} sessionId={id} status={session.status} meetingUrl={session.external_meeting_url} callingEnabled={liveCallingEnabled(session.class_id)} lesson={player ? <BuilderLessonPlayer classroomId={id}
             lesson={player.lesson}

@@ -1,12 +1,12 @@
 # Live Classes: Access, Dashboards, Scheduling, and Migration Plan
 
-**Status:** Product and implementation plan only. No application code or database schema has been changed by this document.
+**Status:** Implementation in progress. The owner approved Instant Live as the default for new classes and confirmed completed legacy sessions were test rooms that do not need a learner-facing history/review experience.
 
 ## Goal
 
-Make the newer Instant Live Class engine easy to find and use for learners, teachers, and platform administrators. Add code-based joining, reliable teacher room recovery, a global admin control center, scheduled classes with course invitations, and a safe path to retire the older course live-class experience only after the new experience reaches feature parity.
+Make the newer Instant Live Class engine easy to find and use for learners, teachers, and platform administrators. Add code-based joining, reliable teacher room recovery, a global admin control center, scheduled classes with course invitations, and safely retire the older course live-class experience.
 
-The newer engine remains the destination for audio, screen sharing, whiteboard, media, chat, lessons/quizzes, and room controls. The older `live_sessions` experience must continue working during development and migration.
+The newer engine is the default for all new classes. Existing live and upcoming legacy course sessions remain reachable until they finish; completed legacy test sessions are not surfaced as learner history or review content. No database rows are deleted as part of this UI/default switch.
 
 ## Current-state inspection
 
@@ -28,7 +28,8 @@ The newer engine remains the destination for audio, screen sharing, whiteboard, 
 2. **One teacher live-class workspace.** Upgrade `/admin/live-classes` into the teacher’s management dashboard. Keep its existing calendar and scheduled-session functions, but add Instant rooms and a clear distinction between the newer room engine and any legacy session still in use.
 3. **A separate global admin control center.** Add an admin-only view, such as `/admin/live-classes/monitor`, for all live and paused rooms. Do not make global room data visible to ordinary teachers or school admins.
 4. **Use stable public codes, not internal UUIDs, as the human join credential.** Full links and manually entered codes both resolve server-side. Continue requiring sign-in. A code is active only while the room is eligible for joining; ended or expired rooms cannot be reopened by learners.
-5. **Keep existing live classes operational until parity and migration are proven.** Do not replace `/live/[id]`, existing course session records, or legacy links during the first phases.
+5. **Switch new classes to Instant Live.** New immediate and scheduled classes must create Instant rooms/bookings, never legacy `live_sessions`. Keep `/live/[id]` for already-live or upcoming legacy classes until they finish.
+6. **Completed legacy test sessions are disposable in the product experience.** Do not expose them in learner lists, review routes, or the default teacher dashboard. Preserve the database rows temporarily for rollback/audit safety; any physical purge is a separate, explicit cleanup.
 
 ## Proposed learner experience
 
@@ -144,9 +145,9 @@ This is a controlled migration, not a one-step UI removal.
 1. **Inventory and parity matrix:** map old live-session features, permissions, routes, analytics, notifications, attachments, and historical review behavior to the newer engine. Identify anything not yet supported.
 2. **Unified entry points:** dashboards show both engines with explicit routing. New instant classes use the new engine; existing legacy links keep working.
 3. **Pilot:** enable Instant scheduling and joining for selected staff/classes behind a server-controlled feature flag. Measure join success, reconnection, audio, screen share, moderation, and support issues without collecting media.
-4. **Parity:** complete required teacher, learner, and admin capabilities. Migrate only future sessions that can be safely represented; do not rewrite completed session history or IDs.
-5. **Default switch:** make the new engine the default for newly created classes after owner approval and successful pilot. Keep legacy routes available for existing sessions.
-6. **Retirement:** remove legacy creation/navigation only after active legacy sessions have ended, data and access audits pass, historical links have a documented destination, and rollback has been tested. Preserve or archive legacy data rather than deleting it.
+4. **Parity:** complete the required teacher, learner, and admin capabilities. Do not migrate completed legacy test rooms or rewrite legacy IDs.
+5. **Default switch (approved):** all new instant and scheduled classes use Instant Live. Remove legacy creation actions and hide completed legacy test sessions from learner history/review and the default teacher workspace. Keep legacy routes for existing live and upcoming sessions while they remain relevant.
+6. **Retirement:** after the last active/upcoming legacy class has ended or been cancelled, remove legacy classroom navigation and runtime entry points. The owner has said completed legacy sessions were tests and need not be preserved in the product; physical row deletion remains a separate database cleanup so it cannot accidentally cascade into unrelated records.
 
 ## Delivery phases
 
@@ -185,7 +186,7 @@ This is a controlled migration, not a one-step UI removal.
 
 - Run an invited pilot; track operational metadata only (join outcomes, connection states, room lifecycle, support actions), not media content.
 - Compare both engines against the parity matrix; fix blockers and prepare rollback.
-- Switch new class creation to the new engine only after pilot sign-off.
+- New classes now use the Instant Live engine by owner decision; use the remaining pilot work to monitor reliability and close parity gaps, not to keep creating legacy sessions.
 - Retire old creation flows only after existing sessions/history remain reachable and rollback is proven.
 
 ## Acceptance checklist
@@ -214,7 +215,7 @@ This is a controlled migration, not a one-step UI removal.
 
 ### Reliability and compatibility
 
-- Existing `/live/[id]` legacy sessions, links, permissions, and historical data remain functional through rollout.
+- Existing `/live/[id]` legacy sessions, links, and permissions remain functional only for still-live or upcoming sessions during the transition. Completed test sessions do not need a learner review route.
 - Room codes are unique, unguessable, rate-limited, and invalid after terminal end/expiry.
 - Pause expiry is enforced server-side; stale client state cannot resurrect an ended room.
 - Scheduling and joining are idempotent under reloads/retries.
