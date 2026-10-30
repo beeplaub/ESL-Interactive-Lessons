@@ -11,8 +11,14 @@ import { saveRecordingFile, type RecordingDirectoryHandle } from "./exportBoard"
 type SavedRecording = { id: string; roomId: string; mime: string; createdAt: number; complete: boolean; size: number };
 function database(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open("brenup-class-recordings", 1);
-    request.onupgradeneeded = () => { request.result.createObjectStore("recordings", {keyPath:"id"}); request.result.createObjectStore("chunks", {keyPath:["id", "index"]}); };
+    // Version 1 existed before chunk storage was added. Keep the schema version
+    // forward-moving so existing browsers actually receive the chunks store.
+    const request = indexedDB.open("brenup-class-recordings", 2);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains("recordings")) db.createObjectStore("recordings", { keyPath: "id" });
+      if (!db.objectStoreNames.contains("chunks")) db.createObjectStore("chunks", { keyPath: ["id", "index"] });
+    };
     request.onsuccess = () => resolve(request.result); request.onerror = () => reject(request.error);
   });
 }
@@ -74,6 +80,9 @@ export function useLocalRecording(roomId: string, tracks: MediaStreamTrack[], on
         // Invoke browser capture directly from the teacher's click.
         capture = await navigator.mediaDevices.getDisplayMedia({video:{frameRate:{ideal:15,max:20},width:{ideal:1280},height:{ideal:720}},audio:false});
       }
+      if (!capture.getVideoTracks().some(track => track.readyState === "live")) {
+        throw new Error("Screen capture did not start. Choose the classroom screen or tab and try again.");
+      }
       context=new AudioContext(); await context.resume();
       if(!mounted.current) throw new Error("Classroom closed.");
       const destination=context.createMediaStreamDestination();
@@ -110,7 +119,33 @@ export function useLocalRecording(roomId: string, tracks: MediaStreamTrack[], on
       media.onstop=()=>{
         dispose.current(); recorder.current=null;
         if(mounted.current) {setStartedAt(null);setBusy(true);}
-        void queue.then(async()=>{entry.complete=!failed; await transaction(["recordings"],"readwrite",tx=>{tx.objectStore("recordings").put(entry);}); await refresh();}).catch(()=>notice.current("Could not finalize recording. Previously saved chunks remain on this device.")).finally(()=>{if(mounted.current)setBusy(false);});
+        void queue.then(async()=>{
+          const db = await database();
+          const { count, size } = await new Promise<{ count: number; size: number }>((resolve, reject) => {
+            const tx = db.transaction("chunks", "readonly");
+            const store = tx.objectStore("chunks");
+            const range = IDBKeyRange.bound([entry.id, 0], [entry.id, Number.MAX_SAFE_INTEGER]);
+            const countRequest = store.count(range);
+            const cursorRequest = store.openCursor(range);
+            let totalSize = 0;
+            cursorRequest.onsuccess = () => {
+              const cursor = cursorRequest.result;
+              if (cursor) {
+                const value = cursor.value as { blob?: Blob };
+                totalSize += value.blob?.size ?? 0;
+                cursor.continue();
+              }
+            };
+            tx.oncomplete = () => resolve({ count: countRequest.result, size: totalSize });
+            tx.onerror = () => reject(tx.error);
+            tx.onabort = () => reject(tx.error);
+          }).finally(() => db.close());
+          entry.size = size;
+          entry.complete = !failed && count > 0 && size > 0;
+          await transaction(["recordings"],"readwrite",tx=>{tx.objectStore("recordings").put(entry);});
+          await refresh();
+          if (!entry.complete) notice.current("No video data was captured. Start a new recording and choose the classroom tab in the screen picker.");
+        }).catch(()=>notice.current("Could not finalize recording. Previously saved chunks remain on this device.")).finally(()=>{if(mounted.current)setBusy(false);});
       };
       media.onerror=()=>{notice.current("Recording was interrupted. Save the available file and try again."); if(media.state!=="inactive") media.stop();};
       capture.getVideoTracks()[0].onended=()=>{if(media.state!=="inactive")media.stop();};

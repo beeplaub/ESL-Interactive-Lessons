@@ -48,7 +48,13 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     detail: `${room.title} is live now. Open the invitation to check the class status and join.`,
     href: `/live/join/${encodeURIComponent(room.join_code)}`,
     tone: "green",
-    channels: ["IN_APP", "PUSH"],
+    category: "LIVE_CLASSES",
+    // Keep the class invitation available in BrenUp itself; an optional push
+    // provider outage must not turn an in-app invite into a failed request.
+    channels: ["IN_APP"],
+    // A live invitation is a direct request to join a class. Deliver the
+    // in-app invitation even when optional live-class notifications are off.
+    essential: true,
   });
   const sentCount = results.filter(Boolean).length;
   if (!sentCount) return NextResponse.json({ error: "Invitations could not be delivered. Please try again." }, { status: 503 });

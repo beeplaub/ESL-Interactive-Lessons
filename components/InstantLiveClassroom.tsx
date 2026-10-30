@@ -1974,7 +1974,33 @@ export function InstantLiveClassroom({
           <footer><button type="button" className="is-cancel" disabled={inviteSending} onClick={closeInviteDialog}>Cancel</button><button type="button" disabled={inviteSending || inviteLoading || !inviteeIds.length} onClick={() => void sendRoomInvites()}><UserPlus size={16}/>{inviteSending ? "Sending…" : `Invite ${inviteeIds.length || "learners"}`}</button></footer>
         </section>
       </div> : null}
-      {recordingOpen && creator ? <div className="live-modal-backdrop" onClick={e => {if(e.target === e.currentTarget && !recording.busy) setRecordingOpen(false);}}><section className="live-feature-panel" role="dialog" aria-modal="true" aria-label="Local recording"><header><h2 id="live-recording-title">Local recording</h2><button aria-label="Close recordings" onClick={() => setRecordingOpen(false)}><X size={18}/></button></header><p>{isBrenUpNativeApp() ? "Android will ask you to choose what to capture. The recording includes the selected screen and class audio, including your mic when on. Everyone sees a recording indicator. No upload or paid service." : "Choose this classroom tab in the browser's screen picker. Records its picture and class audio, including your mic when on. Everyone sees a recording indicator. No upload or paid service."}</p><p>{isBrenUpNativeApp() ? "Keep BrenUp open. Files are kept in this app's browser storage until you save or delete them. Android indicates active capture; stop the recording in BrenUp or from the Android notification when it is shown. A file stops at 500 MB; start another part if needed." : "Keep this tab open. Files are kept in this browser until you save or delete them. Screen capture requires a supported desktop browser. A file stops at 500 MB; start another part if needed."}</p>{isBrenUpNativeApp() && ownPresentation && state.stage === "screen" ? <p role="status">Stop your current screen share before starting a local recording.</p> : null}<button disabled={recording.busy || paused || Boolean(recording.startedAt) || (isBrenUpNativeApp() && ownPresentation && state.stage === "screen")} onClick={() => {setRecordingOpen(false); void recording.start();}}>Start recording</button>{recording.saved.map(file => <div className="live-recording-file" key={file.id}><span>{new Date(file.createdAt).toLocaleString()} · {(file.size/1e6).toFixed(1)} MB{!file.complete ? " · interrupted" : ""}</span><button disabled={recording.busy} onClick={() => void recording.save(file, recordingDirectory)}>Save to {recordingDirectoryName}</button><button disabled={recording.busy} onClick={() => {if(window.confirm("Delete this local recording? Save your file first.")) void recording.remove(file).catch(() => setNotice("Could not delete recording."));}}>Delete</button></div>)}</section></div> : null}
+      {recordingOpen && creator ? (
+        <div className="live-modal-backdrop" onClick={event => { if (event.target === event.currentTarget && !recording.busy) setRecordingOpen(false); }}>
+          <section className="live-feature-panel live-recording-dialog" role="dialog" aria-modal="true" aria-labelledby="live-recording-title">
+            <header>
+              <div><h2 id="live-recording-title">Class recording</h2><p>Saved on this device only</p></div>
+              <button type="button" aria-label="Close recordings" onClick={() => setRecordingOpen(false)}><X size={18}/></button>
+            </header>
+            <div className="live-recording-summary">
+              {recording.startedAt ? <span className="live-recording-badge"><i/>Recording in progress</span> : <span className="live-recording-local"><Check size={15}/>Private local recording</span>}
+              <p>{isBrenUpNativeApp() ? "Capture this class screen and audio. Android will ask what to capture." : "Capture this classroom tab and class audio. Choose this tab in the browser picker."}</p>
+              <small>No upload. Keep BrenUp open until you stop and save the recording.</small>
+            </div>
+            {isBrenUpNativeApp() && ownPresentation && state.stage === "screen" ? <p className="live-recording-warning" role="status">Stop screen sharing before recording.</p> : null}
+            <button className="live-recording-primary" type="button" disabled={recording.busy || paused || Boolean(recording.startedAt) || (isBrenUpNativeApp() && ownPresentation && state.stage === "screen")} onClick={() => { setRecordingOpen(false); void recording.start(); }}>
+              <Circle size={15}/>{recording.busy ? "Preparing…" : "Start recording"}
+            </button>
+            {recording.saved.length ? <div className="live-recording-list">
+              <h3>Saved recordings <span>{recording.saved.length}</span></h3>
+              {recording.saved.map(file => <article className="live-recording-file" key={file.id}>
+                <div className="live-recording-file-meta"><strong>{new Date(file.createdAt).toLocaleString()}</strong><span>{(file.size / 1e6).toFixed(1)} MB{!file.complete ? " · incomplete" : ""}</span></div>
+                <button type="button" disabled={recording.busy || !file.size} onClick={() => void recording.save(file, recordingDirectory)}><Download size={14}/>Save</button>
+                <button type="button" className="is-delete" disabled={recording.busy} onClick={() => { if (window.confirm("Delete this local recording? Save it first if you want to keep it.")) void recording.remove(file).catch(() => setNotice("Could not delete recording.")); }} aria-label="Delete recording"><X size={15}/></button>
+              </article>)}
+            </div> : null}
+          </section>
+        </div>
+      ) : null}
       {creator && recording.saved.length && !recording.startedAt ? <button className="live-recordings-ready" onClick={() => setRecordingOpen(true)}>Local recordings · {recording.saved.length}</button> : null}
       {exportOpen ? <div className="live-modal-backdrop" onClick={e => {if(e.target === e.currentTarget && !exporting) setExportOpen(false);}}><section className="live-feature-panel" role="dialog" aria-modal="true" aria-label="Export whiteboard"><header><h2>Export whiteboard</h2><button aria-label="Close export" disabled={exporting} onClick={() => setExportOpen(false)}><X size={18}/></button></header><p>The whole board, without toolbars or selection outlines.</p><button disabled={exporting} onClick={() => void exportWhiteboard(false)}>Save PNG to device</button><button disabled={exporting || paused} onClick={() => void exportWhiteboard(true)}>Add to image gallery</button>{exporting ? <p role="status">Preparing image…</p> : null}</section></div> : null}
       {boardPicker ? (

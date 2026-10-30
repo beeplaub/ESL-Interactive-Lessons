@@ -209,20 +209,21 @@ export function LivePdfStage({ api, assetId, page, creator, onPageChange, pointe
 
   function startPan(event: PointerEvent<HTMLDivElement>) {
     revealControls();
-    if ((creator && pointerEnabled) || zoom <= 1 || event.button !== 0) return;
+    if ((creator && pointerEnabled) || event.button !== 0) return;
     drag.current = { x: event.clientX, y: event.clientY, panX: pan.x, panY: pan.y };
     event.currentTarget.setPointerCapture(event.pointerId);
   }
 
   return <div className="live-pdf-stage">
     <div
-      className={`live-pdf-page-area ${pointerEnabled && creator ? "is-pointer" : zoom > 1 ? "is-pannable" : ""}`}
+      className={`live-pdf-page-area ${pointerEnabled && creator ? "is-pointer" : "is-pannable"}`}
       ref={pageArea}
       aria-label={`PDF page ${currentPage} of ${pageCount || "…"}`}
       onPointerDown={startPan}
       onPointerMove={handlePointerMove}
       onPointerUp={() => { drag.current = null; }}
       onPointerCancel={() => { drag.current = null; }}
+      onLostPointerCapture={() => { drag.current = null; }}
       onPointerLeave={() => { if (creator && pointerEnabled) onStagePointer(null); }}
       onTouchStart={revealControls}
       onKeyDown={event => {

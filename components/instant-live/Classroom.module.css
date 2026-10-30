@@ -1664,6 +1664,27 @@
 .root :global(.live-recordings-ready) { display:block; margin:10px auto; color:#c5baff; padding:8px 14px; border-radius:12px; background:#33374b; }
 .root :global(.live-recording-file) { padding:12px 0; border-top:1px solid #ffffff18; }
 .root :global(.live-recording-file span) { display:block; font-size:13px; }
+.root :global(.live-recording-dialog) { width:min(480px,calc(100vw - 28px)); padding:20px; }
+.root :global(.live-recording-dialog header) { align-items:flex-start; }
+.root :global(.live-recording-dialog header p) { margin:3px 0 0; color:#aaaec3; font-size:12px; }
+.root :global(.live-recording-summary) { display:grid; gap:7px; margin:16px 0; padding:13px 14px; border:1px solid #ffffff14; border-radius:15px; background:linear-gradient(135deg,#7568e81b,#ffffff06); }
+.root :global(.live-recording-summary p) { margin:0; color:#e4e4ef; font-size:13px; line-height:1.5; }
+.root :global(.live-recording-summary small) { color:#aeb2c6; font-size:11px; }
+.root :global(.live-recording-local) { display:inline-flex; align-items:center; gap:6px; color:#bdb5ff; font-size:12px; font-weight:750; }
+.root :global(.live-recording-primary) { display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:42px; padding:0 16px; border:1px solid #a99eff80; border-radius:12px; color:#fff; background:linear-gradient(135deg,#7869ed,#5d4fe0); box-shadow:0 6px 20px #5848d333; font-size:13px; font-weight:750; transition:filter .16s,transform .16s; }
+.root :global(.live-recording-primary:hover:not(:disabled)) { filter:brightness(1.1); transform:translateY(-1px); }
+.root :global(.live-recording-primary:disabled) { cursor:not-allowed; opacity:.5; }
+.root :global(.live-recording-warning) { padding:9px 11px; border:1px solid #ffb86b35; border-radius:10px; color:#ffd39d!important; background:#ffb86b12; font-size:12px!important; }
+.root :global(.live-recording-list) { margin-top:16px; }
+.root :global(.live-recording-list h3) { display:flex; align-items:center; gap:8px; margin:0 0 5px; color:#e9e8f3; font-size:12px; font-weight:750; }
+.root :global(.live-recording-list h3 span) { display:grid; min-width:20px; height:20px; place-items:center; padding:0 5px; border-radius:999px; background:#ffffff12; color:#c9c5e5; font-size:10px; }
+.root :global(.live-recording-file) { display:flex; align-items:center; gap:8px; padding:11px 0; border-top:1px solid #ffffff14; }
+.root :global(.live-recording-file-meta) { display:grid; flex:1; min-width:0; gap:4px; }
+.root :global(.live-recording-file-meta strong) { overflow:hidden; color:#e8e7f1; font-size:11px; font-weight:650; text-overflow:ellipsis; white-space:nowrap; }
+.root :global(.live-recording-file-meta span) { color:#aeb2c6; font-size:11px; }
+.root :global(.live-recording-dialog .live-recording-file button) { display:inline-flex; align-items:center; justify-content:center; gap:5px; min-height:34px; margin:0; padding:0 10px; border:1px solid #9a8eff55; border-radius:10px; color:#f4f2ff; background:#7568e82b; font-size:11px; font-weight:700; }
+.root :global(.live-recording-dialog .live-recording-file button.is-delete) { width:34px; padding:0; border-color:#ffffff1c; color:#d3d3df; background:#ffffff08; }
+.root :global(.live-recording-dialog .live-recording-file button:disabled) { cursor:not-allowed; opacity:.45; }
 .root :global(.live-media-content) { transition:transform 100ms ease-out; }
 @media (prefers-reduced-motion:reduce) { .root :global(.live-media-content) { transition:none; } }
 .root :global(.live-content-stage) { flex:1; width:100%; min-width:0; height:100%; min-height:400px; max-height:78dvh; overflow:auto; background:var(--br-surface,#fff); color:var(--br-text,#25243d); padding:clamp(12px,2vw,28px); border-radius:16px; touch-action:auto; }

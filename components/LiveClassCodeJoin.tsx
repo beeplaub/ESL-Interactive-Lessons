@@ -42,7 +42,7 @@ export function LiveClassCodeJoin({ initialCode = "", compact = false }: { initi
 
   function onSubmit(event: FormEvent<HTMLFormElement>) { event.preventDefault(); setPreview(null); void request("preview"); }
 
-  return <section className={`rounded-2xl border border-[var(--br-border)] bg-[var(--br-surface)] ${compact ? "p-4" : "p-5 sm:p-6"}`}>
+  return <section className={`rounded-2xl border border-[var(--br-border)] bg-[var(--br-surface)] text-[var(--br-text)] ${compact ? "p-4" : "p-5 sm:p-6"}`}>
     <div className="flex items-start gap-3">
       <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[var(--br-surface-muted)] text-[var(--br-chart-primary)]"><Radio size={19} /></span>
       <div className="min-w-0 flex-1"><h2 className="font-extrabold">{initialCode ? "Class invitation" : "Join with a class code"}</h2><p className="mt-1 text-sm text-[var(--br-text-muted)]">{initialCode ? preview ? "Class status" : error ? "This link needs attention." : "Checking your class link…" : "Enter the 12-character code shared by your teacher."}</p>
