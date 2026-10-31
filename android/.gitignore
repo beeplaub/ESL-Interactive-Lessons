@@ -39,6 +39,7 @@ proguard/
 captures/
 
 # IntelliJ
+.idea/
 *.iml
 .idea/workspace.xml
 .idea/tasks.xml
@@ -52,10 +53,14 @@ captures/
 # Comment next line if keeping position of elements in Navigation Editor is relevant for you
 .idea/navEditor.xml
 
-# Keystore files
-# Uncomment the following lines if you do not want to check your keystore files in.
-#*.jks
-#*.keystore
+# Owner-managed signing material and Firebase configuration. Keep these local or
+# in the organization's secure CI secret store; never commit them to this repo.
+*.jks
+*.keystore
+*.p12
+*.pfx
+key.properties
+google-services.json
 
 # External native build folder generated in Android Studio 2.2 and later
 .externalNativeBuild

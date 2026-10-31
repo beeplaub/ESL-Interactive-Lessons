@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { JetBrains_Mono, Plus_Jakarta_Sans, Source_Serif_4 } from "next/font/google";
+import localFont from "next/font/local";
 import { HeaderGate } from "@/components/HeaderGate";
 import { SiteHeader } from "@/components/SiteHeader";
 import { AppAwareSiteFooter } from "@/components/AppAwareSiteFooter";
@@ -12,13 +12,24 @@ import { GoogleAnalytics } from "@/components/GoogleAnalytics";
 import { getPlatformStyle, platformStyleVariables } from "@/lib/design-system";
 import "./globals.css";
 
-const plusJakartaSans = Plus_Jakarta_Sans({
-  subsets: ["latin"],
+const plusJakartaSans = localFont({
+  src: "../public/fonts/plus-jakarta-sans-latin.woff2",
+  weight: "200 800",
   variable: "--font-plus-jakarta",
   display: "swap",
 });
-const sourceSerif = Source_Serif_4({ subsets: ["latin"], variable: "--font-source-serif", display: "swap" });
-const jetBrainsMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains-mono", display: "swap" });
+const sourceSerif = localFont({
+  src: "../public/fonts/source-serif-4-latin.woff2",
+  weight: "200 900",
+  variable: "--font-source-serif",
+  display: "swap",
+});
+const jetBrainsMono = localFont({
+  src: "../public/fonts/jetbrains-mono-latin.woff2",
+  weight: "100 800",
+  variable: "--font-jetbrains-mono",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "BrenUp",

@@ -1,7 +1,14 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
     <string name="app_name">BrenUp</string>
+    <string name="notification_channel_updates">brenup_updates</string>
     <string name="title_activity_main">BrenUp</string>
-    <string name="package_name">com.brenup.app</string>
-    <string name="custom_url_scheme">com.brenup.app</string>
+    <string name="permission_rationale_title">BrenUp needs access</string>
+    <string name="permission_rationale_microphone">Microphone access lets you speak in live classes and record spoken answers in BrenUp learning activities.</string>
+    <string name="permission_rationale_camera">Camera access lets you share your video during BrenUp live classes.</string>
+    <string name="permission_rationale_continue">Continue</string>
+    <string name="permission_rationale_cancel">Not now</string>
+    <string name="screen_capture_rationale_title">Allow screen capture?</string>
+    <string name="screen_capture_rationale_sharing">BrenUp will share the screen or app you choose with participants in your live class. A system capture indicator remains visible. Stop sharing in BrenUp or, when shown, from the Android capture notification.</string>
+    <string name="screen_capture_rationale_recording">BrenUp will record the screen or app you choose with live-class audio, including your mic when it is on. The recording stays in this app on this device. A system capture indicator remains visible; stop in BrenUp or, when shown, from the Android capture notification.</string>
 </resources>
