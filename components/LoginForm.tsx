@@ -12,7 +12,6 @@ export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextPath = searchParams.get("next") || "/account";
-  const androidShell = isBrenUpAndroidShell();
   const authStatus = searchParams.get("auth");
   const callbackMessage = authStatus === "oauth_failed"
     ? "Sign-in was cancelled or could not complete. Please try again."
@@ -151,17 +150,15 @@ export function LoginForm() {
   }
 
   return (
-    <div className={androidShell ? "space-y-4" : "space-y-3"}>
-      {!androidShell ? (
-        <header className="text-center">
+    <div className="space-y-3">
+      <header className="text-center">
           <h1 id="login-title" className="text-2xl font-extrabold text-ink">
             {mode === "signin" ? "Welcome back" : "Create your account"}
           </h1>
           <p className="mt-1 text-sm text-[var(--br-text-muted)]">
             {mode === "signin" ? "Log in to continue learning." : "Join BrenUp and start learning today."}
           </p>
-        </header>
-      ) : null}
+      </header>
 
       {/* Google OAuth */}
       <button
@@ -185,30 +182,8 @@ export function LoginForm() {
         <span className="h-px flex-1 bg-black/10" />
       </div>
 
-      {androidShell ? (
-        <div className="grid grid-cols-2 rounded-md border border-[var(--br-border)] bg-black/[0.03] p-1 text-sm">
-          <button
-            type="button"
-            onClick={() => { setMode("signin"); setMessage(null); }}
-            className={`rounded px-3 py-2 font-medium transition-colors ${
-              mode === "signin" ? "bg-surface shadow-sm" : "text-[var(--br-text-muted)] hover:text-[var(--br-text-muted)]"
-            }`}
-          >
-            Sign in
-          </button>
-          <button
-            type="button"
-            onClick={() => { setMode("signup"); setMessage(null); }}
-            className={`rounded px-3 py-2 font-medium transition-colors ${
-              mode === "signup" ? "bg-surface shadow-sm" : "text-[var(--br-text-muted)] hover:text-[var(--br-text-muted)]"
-            }`}
-          >
-            Register
-          </button>
-        </div>
-      ) : null}
 
-      <form className={androidShell ? "space-y-4" : "space-y-3"} onSubmit={(event) => { event.preventDefault(); submit(); }}>
+      <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); submit(); }}>
       {/* Name fields — register only */}
       {mode === "signup" ? (
         <div className="grid grid-cols-2 gap-3">
@@ -236,12 +211,12 @@ export function LoginForm() {
       ) : null}
 
       <label className="block text-sm font-medium">
-        Email{!androidShell ? <span className="ml-1 text-rose-500" aria-hidden="true">*</span> : null}
+        Email<span className="ml-1 text-rose-500" aria-hidden="true">*</span>
         <input
           type="email"
           required
           aria-required="true"
-          className={`mt-1.5 w-full rounded-xl border border-[var(--br-surface-strong)] px-3.5 text-sm font-semibold placeholder-[var(--br-text-muted)] focus:border-violetglow focus:outline-none focus:ring-4 focus:ring-violetglow/10 transition ${androidShell ? "py-2.5" : "bg-[var(--br-surface-muted)] py-3"}`}
+          className="mt-1.5 w-full rounded-xl border border-[var(--br-surface-strong)] bg-[var(--br-surface-muted)] px-3.5 py-3 text-sm font-semibold placeholder-[var(--br-text-muted)] transition focus:border-violetglow focus:outline-none focus:ring-4 focus:ring-violetglow/10"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="you@email.com"
@@ -250,13 +225,13 @@ export function LoginForm() {
       </label>
 
       <label className="block text-sm font-medium">
-        Password{!androidShell ? <span className="ml-1 text-rose-500" aria-hidden="true">*</span> : null}
+        Password<span className="ml-1 text-rose-500" aria-hidden="true">*</span>
         <span className="relative mt-1.5 block">
           <input
             type={showPassword ? "text" : "password"}
             required
             aria-required="true"
-            className={`w-full rounded-xl border border-[var(--br-surface-strong)] px-3.5 py-3 pr-12 text-sm font-semibold placeholder-[var(--br-text-muted)] focus:border-violetglow focus:outline-none focus:ring-4 focus:ring-violetglow/10 transition ${androidShell ? "" : "bg-[var(--br-surface-muted)]"}`}
+            className="w-full rounded-xl border border-[var(--br-surface-strong)] bg-[var(--br-surface-muted)] px-3.5 py-3 pr-12 text-sm font-semibold placeholder-[var(--br-text-muted)] transition focus:border-violetglow focus:outline-none focus:ring-4 focus:ring-violetglow/10"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="••••••••"
@@ -275,11 +250,11 @@ export function LoginForm() {
             type="button"
             disabled={isPending || !email.trim()}
             onClick={sendMagicLink}
-            className={`text-left text-xs font-semibold hover:underline disabled:opacity-50 ${androidShell ? "text-violetglow" : "text-[var(--br-action-strong)]"}`}
+            className="text-left text-xs font-semibold text-[var(--br-action-strong)] hover:underline disabled:opacity-50"
           >
             Email me a sign-in link
           </button>
-          <Link href="/forgot-password" className={`text-xs hover:underline ${androidShell ? "text-violetglow" : "text-[var(--br-action-strong)]"}`}>
+          <Link href="/forgot-password" className="text-xs text-[var(--br-action-strong)] hover:underline">
             Forgot password?
           </Link>
         </div>
@@ -288,9 +263,9 @@ export function LoginForm() {
       <button
         type="submit"
         disabled={isPending}
-        className={`w-full px-4 text-sm font-bold text-on-dark shadow-[var(--br-shadow)] disabled:opacity-60 transition ${androidShell ? "rounded-xl bg-violetglow py-2.5 hover:bg-[var(--br-brand-strong)]" : "rounded-full bg-[var(--br-action)] py-3 hover:bg-[var(--br-action-strong)]"}`}
+        className="w-full rounded-full bg-[var(--br-action)] px-4 py-3 text-sm font-bold text-on-dark shadow-[var(--br-shadow)] transition hover:bg-[var(--br-action-strong)] disabled:opacity-60"
       >
-        {isPending ? "Working..." : mode === "signin" ? (androidShell ? "Sign in" : "Log in") : "Create account"}
+        {isPending ? "Working..." : mode === "signin" ? "Log in" : "Create account"}
       </button>
 
       {message ? (
@@ -304,18 +279,16 @@ export function LoginForm() {
       ) : null}
       </form>
 
-      {!androidShell ? (
-        <p className="pt-1 text-center text-sm text-[var(--br-text-muted)]">
+      <p className="pt-1 text-center text-sm text-[var(--br-text-muted)]">
           {mode === "signin" ? "New to BrenUp? " : "Already have an account? "}
           <button
             type="button"
             onClick={() => { setMode(mode === "signin" ? "signup" : "signin"); setMessage(null); }}
-            className={`font-bold hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${androidShell ? "text-violetglow focus-visible:ring-violetglow" : "text-[var(--br-action-strong)] focus-visible:ring-[var(--br-action)]"}`}
+            className="font-bold text-[var(--br-action-strong)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--br-action)] focus-visible:ring-offset-2"
           >
             {mode === "signin" ? "Create an account" : "Log in"}
           </button>
-        </p>
-      ) : null}
+      </p>
     </div>
   );
 }
