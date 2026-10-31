@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Eye, EyeOff } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { isBrenUpAndroidShell } from "@/lib/nativeBridge";
 
@@ -11,6 +12,7 @@ export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextPath = searchParams.get("next") || "/account";
+  const androidShell = isBrenUpAndroidShell();
   const authStatus = searchParams.get("auth");
   const callbackMessage = authStatus === "oauth_failed"
     ? "Sign-in was cancelled or could not complete. Please try again."
@@ -22,9 +24,12 @@ export function LoginForm() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [mode, setMode] = useState<"signin" | "signup">(
+    searchParams.get("mode") === "signup" ? "signup" : "signin"
+  );
   const [message, setMessage] = useState<string | null>(callbackMessage);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -58,6 +63,11 @@ export function LoginForm() {
     startTransition(async () => {
       setMessage(null);
       setMagicLinkSent(false);
+
+      if (!email.trim() || !password) {
+        setMessage("Enter your email address and password to continue.");
+        return;
+      }
 
       if (mode === "signup") {
         const trimmedFirst = firstName.trim();
@@ -141,13 +151,24 @@ export function LoginForm() {
   }
 
   return (
-    <div className="mt-6 space-y-4">
+    <div className={androidShell ? "space-y-4" : "space-y-3"}>
+      {!androidShell ? (
+        <header className="text-center">
+          <h1 id="login-title" className="text-2xl font-extrabold text-ink">
+            {mode === "signin" ? "Welcome back" : "Create your account"}
+          </h1>
+          <p className="mt-1 text-sm text-[var(--br-text-muted)]">
+            {mode === "signin" ? "Log in to continue learning." : "Join BrenUp and start learning today."}
+          </p>
+        </header>
+      ) : null}
+
       {/* Google OAuth */}
       <button
         type="button"
         disabled={isPending}
         onClick={signInWithGoogle}
-        className="flex w-full items-center justify-center gap-3 rounded-md border border-[var(--br-border)] bg-surface px-4 py-2.5 text-sm font-medium text-ink hover:bg-black/[0.03] disabled:opacity-60"
+        className="flex min-h-12 w-full items-center justify-center gap-3 rounded-xl border border-[var(--br-border)] bg-surface px-4 py-3 text-sm font-semibold text-ink transition hover:bg-black/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violetglow focus-visible:ring-offset-2 disabled:opacity-60"
       >
         <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
           <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.615Z"/>
@@ -158,34 +179,36 @@ export function LoginForm() {
         Continue with Google
       </button>
 
-      <div className="flex items-center gap-3 text-xs uppercase tracking-wide text-[var(--br-text-muted)]">
+      <div className="flex items-center gap-3 text-xs text-[var(--br-text-muted)]">
         <span className="h-px flex-1 bg-black/10" />
         or
         <span className="h-px flex-1 bg-black/10" />
       </div>
 
-      {/* Sign in / Register tabs */}
-      <div className="grid grid-cols-2 rounded-md border border-[var(--br-border)] bg-black/[0.03] p-1 text-sm">
-        <button
-          type="button"
-          onClick={() => { setMode("signin"); setMessage(null); }}
-          className={`rounded px-3 py-2 font-medium transition-colors ${
-            mode === "signin" ? "bg-surface shadow-sm" : "text-[var(--br-text-muted)] hover:text-[var(--br-text-muted)]"
-          }`}
-        >
-          Sign in
-        </button>
-        <button
-          type="button"
-          onClick={() => { setMode("signup"); setMessage(null); }}
-          className={`rounded px-3 py-2 font-medium transition-colors ${
-            mode === "signup" ? "bg-surface shadow-sm" : "text-[var(--br-text-muted)] hover:text-[var(--br-text-muted)]"
-          }`}
-        >
-          Register
-        </button>
-      </div>
+      {androidShell ? (
+        <div className="grid grid-cols-2 rounded-md border border-[var(--br-border)] bg-black/[0.03] p-1 text-sm">
+          <button
+            type="button"
+            onClick={() => { setMode("signin"); setMessage(null); }}
+            className={`rounded px-3 py-2 font-medium transition-colors ${
+              mode === "signin" ? "bg-surface shadow-sm" : "text-[var(--br-text-muted)] hover:text-[var(--br-text-muted)]"
+            }`}
+          >
+            Sign in
+          </button>
+          <button
+            type="button"
+            onClick={() => { setMode("signup"); setMessage(null); }}
+            className={`rounded px-3 py-2 font-medium transition-colors ${
+              mode === "signup" ? "bg-surface shadow-sm" : "text-[var(--br-text-muted)] hover:text-[var(--br-text-muted)]"
+            }`}
+          >
+            Register
+          </button>
+        </div>
+      ) : null}
 
+      <form className={androidShell ? "space-y-4" : "space-y-3"} onSubmit={(event) => { event.preventDefault(); submit(); }}>
       {/* Name fields — register only */}
       {mode === "signup" ? (
         <div className="grid grid-cols-2 gap-3">
@@ -213,25 +236,36 @@ export function LoginForm() {
       ) : null}
 
       <label className="block text-sm font-medium">
-        Email
+        Email{!androidShell ? <span className="ml-1 text-rose-500" aria-hidden="true">*</span> : null}
         <input
           type="email"
-          className="mt-1.5 w-full rounded-xl border border-[var(--br-surface-strong)] px-3.5 py-2.5 text-sm font-semibold placeholder-[var(--br-text-muted)] focus:border-violetglow focus:outline-none focus:ring-4 focus:ring-violetglow/10 transition"
+          required
+          aria-required="true"
+          className={`mt-1.5 w-full rounded-xl border border-[var(--br-surface-strong)] px-3.5 text-sm font-semibold placeholder-[var(--br-text-muted)] focus:border-violetglow focus:outline-none focus:ring-4 focus:ring-violetglow/10 transition ${androidShell ? "py-2.5" : "bg-[var(--br-surface-muted)] py-3"}`}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          placeholder="you@email.com"
           autoComplete="email"
         />
       </label>
 
       <label className="block text-sm font-medium">
-        Password
-        <input
-          type="password"
-          className="mt-1.5 w-full rounded-xl border border-[var(--br-surface-strong)] px-3.5 py-2.5 text-sm font-semibold placeholder-[var(--br-text-muted)] focus:border-violetglow focus:outline-none focus:ring-4 focus:ring-violetglow/10 transition"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          autoComplete={mode === "signup" ? "new-password" : "current-password"}
-        />
+        Password{!androidShell ? <span className="ml-1 text-rose-500" aria-hidden="true">*</span> : null}
+        <span className="relative mt-1.5 block">
+          <input
+            type={showPassword ? "text" : "password"}
+            required
+            aria-required="true"
+            className={`w-full rounded-xl border border-[var(--br-surface-strong)] px-3.5 py-3 pr-12 text-sm font-semibold placeholder-[var(--br-text-muted)] focus:border-violetglow focus:outline-none focus:ring-4 focus:ring-violetglow/10 transition ${androidShell ? "" : "bg-[var(--br-surface-muted)]"}`}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="••••••••"
+            autoComplete={mode === "signup" ? "new-password" : "current-password"}
+          />
+          <button type="button" onClick={() => setShowPassword((visible) => !visible)} aria-label={showPassword ? "Hide password" : "Show password"} aria-pressed={showPassword} className="absolute inset-y-0 right-2 grid w-9 place-items-center rounded-lg text-[var(--br-text-muted)] hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violetglow">
+            {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
+          </button>
+        </span>
       </label>
 
       {/* Forgot password link — sign in only */}
@@ -241,23 +275,22 @@ export function LoginForm() {
             type="button"
             disabled={isPending || !email.trim()}
             onClick={sendMagicLink}
-            className="text-left text-xs font-semibold text-violetglow hover:underline disabled:opacity-50"
+            className={`text-left text-xs font-semibold hover:underline disabled:opacity-50 ${androidShell ? "text-violetglow" : "text-[var(--br-action-strong)]"}`}
           >
             Email me a sign-in link
           </button>
-          <Link href="/forgot-password" className="text-xs text-violetglow hover:underline">
+          <Link href="/forgot-password" className={`text-xs hover:underline ${androidShell ? "text-violetglow" : "text-[var(--br-action-strong)]"}`}>
             Forgot password?
           </Link>
         </div>
       ) : null}
 
       <button
-        type="button"
+        type="submit"
         disabled={isPending}
-        onClick={submit}
-        className="w-full rounded-xl bg-violetglow px-4 py-2.5 text-sm font-bold text-on-dark shadow-[var(--br-shadow)] hover:bg-[var(--br-brand-strong)] disabled:opacity-60 transition"
+        className={`w-full px-4 text-sm font-bold text-on-dark shadow-[var(--br-shadow)] disabled:opacity-60 transition ${androidShell ? "rounded-xl bg-violetglow py-2.5 hover:bg-[var(--br-brand-strong)]" : "rounded-full bg-[var(--br-action)] py-3 hover:bg-[var(--br-action-strong)]"}`}
       >
-        {isPending ? "Working..." : mode === "signin" ? "Sign in" : "Create account"}
+        {isPending ? "Working..." : mode === "signin" ? (androidShell ? "Sign in" : "Log in") : "Create account"}
       </button>
 
       {message ? (
@@ -267,6 +300,20 @@ export function LoginForm() {
       {magicLinkSent ? (
         <p className="rounded-md bg-moss/10 p-3 text-sm text-moss">
           Check your inbox for a secure BrenUp sign-in link. It may take a moment to arrive.
+        </p>
+      ) : null}
+      </form>
+
+      {!androidShell ? (
+        <p className="pt-1 text-center text-sm text-[var(--br-text-muted)]">
+          {mode === "signin" ? "New to BrenUp? " : "Already have an account? "}
+          <button
+            type="button"
+            onClick={() => { setMode(mode === "signin" ? "signup" : "signin"); setMessage(null); }}
+            className={`font-bold hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${androidShell ? "text-violetglow focus-visible:ring-violetglow" : "text-[var(--br-action-strong)] focus-visible:ring-[var(--br-action)]"}`}
+          >
+            {mode === "signin" ? "Create an account" : "Log in"}
+          </button>
         </p>
       ) : null}
     </div>
