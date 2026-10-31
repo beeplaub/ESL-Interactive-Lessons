@@ -5,11 +5,9 @@ import { createClient } from "@/lib/supabase/server";
 import { LoginForm } from "@/components/LoginForm";
 import Link from "next/link";
 import { X } from "lucide-react";
-import { headers } from "next/headers";
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
   const { next } = await searchParams;
-  const isAndroidShell = (await headers()).get("user-agent")?.includes("BrenUpAndroid") ?? false;
   const supabase = await createClient();
   const {
     data: { user }
@@ -18,19 +16,6 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   if (user) {
     const profile = await getFreshProfile(user.id);
     redirect(resolvePostLoginPath(profile?.role, next));
-  }
-
-  if (isAndroidShell) {
-    return (
-      <main className="relative flex min-h-[calc(100vh-57px)] items-center justify-center overflow-hidden bg-[radial-gradient(ellipse_at_18%_15%,color-mix(in_srgb,var(--br-brand)_14%,transparent),transparent_42%),linear-gradient(145deg,var(--br-canvas),var(--br-canvas-elevated))] px-4 py-8">
-        <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-gradient-to-br from-violetglow/5 via-transparent to-fuchsia-400/10" />
-        <div className="relative w-full max-w-[400px] br-card rounded-[26px] border border-[var(--br-border)] p-5 shadow-2xl sm:p-6">
-          <h1 className="text-2xl font-extrabold text-ink">Welcome back</h1>
-          <p className="mt-2 text-sm font-semibold text-[var(--br-text-muted)]">Sign in or create a learner account to continue.</p>
-          <Suspense fallback={null}><LoginForm /></Suspense>
-        </div>
-      </main>
-    );
   }
 
   return (
