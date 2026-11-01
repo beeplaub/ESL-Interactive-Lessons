@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Loader2, WandSparkles } from "lucide-react";
 import { MediaRecorderInput } from "@/components/MediaRecorderInput";
+import { FlashcardAudioGenerator, type FlashcardVoiceSettings } from "@/components/FlashcardAudioGenerator";
 import type { ShadowingChunk } from "@/lib/shadowing";
 
 type Props = {
@@ -12,9 +13,10 @@ type Props = {
   onChunksChange: (chunks: ShadowingChunk[]) => void;
   lessonId?: string;
   quizId?: string;
+  voiceSettings: FlashcardVoiceSettings;
 };
 
-export function ShadowingChunkEditor({ audioUrl, chunks, onAudioUrlChange, onChunksChange, lessonId, quizId }: Props) {
+export function ShadowingChunkEditor({ audioUrl, chunks, onAudioUrlChange, onChunksChange, lessonId, quizId, voiceSettings }: Props) {
   const [matching, setMatching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const requestControllerRef = useRef<AbortController | null>(null);
@@ -28,6 +30,7 @@ export function ShadowingChunkEditor({ audioUrl, chunks, onAudioUrlChange, onChu
     controller?.abort();
   }, []);
   const textIsReady = chunks.length > 0 && chunks.every((chunk) => chunk.text.trim());
+  const modelSentence = chunks.map((chunk) => chunk.text.trim()).filter(Boolean).join(" ");
   const audioIsReady = Boolean(audioUrl.trim());
   const timingsAreReady = chunks.length > 0 && chunks.every((chunk) => chunk.endMs > chunk.startMs);
 
@@ -84,7 +87,17 @@ export function ShadowingChunkEditor({ audioUrl, chunks, onAudioUrlChange, onChu
         <h3 className="text-sm font-black text-[var(--br-dark-card)]">Model sentence and chunks</h3>
         <p className="mt-1 text-xs leading-5 text-[var(--br-text-muted)]">Add the complete model audio, then divide its sentence into text chunks. BrenUp matches each chunk to the recording automatically.</p>
       </div>
-      <MediaRecorderInput label="Full model sentence audio" value={audioUrl} onChange={(url) => {
+      <MediaRecorderInput label="Full model sentence audio" value={audioUrl} headerAction={<FlashcardAudioGenerator
+        lessonId={lessonId}
+        word={modelSentence}
+        settings={voiceSettings}
+        entityLabel="Shadowing model sentence"
+        buttonLabel="Generate audio"
+        onSaved={(url) => {
+          onAudioUrlChange(url);
+          invalidateMatch(chunks);
+        }}
+      />} onChange={(url) => {
         onAudioUrlChange(url);
         invalidateMatch(chunks);
       }} lessonId={lessonId} />

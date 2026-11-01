@@ -2593,6 +2593,7 @@ function ListenSelectEditor({ activity, onSave }: { activity: Activity; onSave: 
 
 function ShadowingEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
   const data = asRecord(activity.activity_data);
+  const voiceSettings = useVoiceGenerationPreferences({ provider: "auto", languageCode: "en-US", voiceName: "Aoede", style: "Natural", pace: "Natural", locked: false });
   const [prompt, setPrompt] = useState(String(data.prompt ?? "Listen to the native speaker and repeat the phrase into your microphone."));
   const [mode, setMode] = useState(data.shadowing_mode === "CHUNK_AB" ? "CHUNK_AB" : "LEGACY_PHASES");
   const [audioUrl, setAudioUrl] = useState(String(data.audio_url ?? ""));
@@ -2614,7 +2615,7 @@ function ShadowingEditor({ activity, onSave }: { activity: Activity; onSave: (da
           Instruction Prompt
           <input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" />
         </label>
-        <ShadowingChunkEditor audioUrl={audioUrl} chunks={chunks} lessonId={activity.lesson_id} onAudioUrlChange={setAudioUrl} onChunksChange={setChunks} />
+        <ShadowingChunkEditor audioUrl={audioUrl} chunks={chunks} lessonId={activity.lesson_id} voiceSettings={voiceSettings} onAudioUrlChange={setAudioUrl} onChunksChange={setChunks} />
         <p className="text-xs text-[var(--br-text-muted)]">Groq transcript words are used only to locate the learner's chunks. The transcript and a pronunciation score are not shown or saved.</p>
         <div className="flex flex-wrap gap-3">
           <SaveButton onClick={() => {

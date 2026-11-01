@@ -1692,6 +1692,7 @@ function QuestionFields({ question, onChange, quizId }: { question: BuilderQuest
             audioUrl={audioUrl}
             chunks={chunks}
             quizId={quizId}
+            voiceSettings={voiceSettings}
             onAudioUrlChange={(url) => onChange({ options: { ...options, shadowing_mode: "CHUNK_AB", audio_url: url } as Json })}
             onChunksChange={(next) => onChange({ options: { ...options, shadowing_mode: "CHUNK_AB", chunks: shadowingChunkData(next) } as Json, correctAnswer: next.map((chunk) => chunk.text.trim()).filter(Boolean).join(" ") })}
           />
