@@ -325,7 +325,7 @@ export function LessonPlayer({ lesson, slides, audioFiles, lessonSlideActivities
   const isLastSlide = index === total - 1;
 
   return (
-    <main className="mx-auto flex min-h-[calc(100vh-57px)] max-w-7xl flex-col px-3 py-4 sm:px-4 sm:py-6">
+    <main className="mx-auto flex min-h-[calc(100vh-57px)] w-full min-w-0 max-w-7xl flex-col px-3 py-4 sm:px-4 sm:py-6">
       <div className="rounded-lg border border-[var(--br-border)] bg-surface px-4 py-3 shadow-sm">
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
           <h1 className="min-w-0 truncate text-base font-semibold sm:text-lg">{lesson.title}</h1>
@@ -340,15 +340,15 @@ export function LessonPlayer({ lesson, slides, audioFiles, lessonSlideActivities
       </div>
 
       {currentActivity ? (
-        <section className="my-4 grid flex-1 gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(360px,2fr)] sm:my-5">
-          <div className="overflow-hidden rounded-lg border border-[var(--br-border)] bg-surface shadow-sm">
+        <section className="my-4 grid w-full min-w-0 flex-1 grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-[minmax(0,3fr)_minmax(360px,2fr)] sm:my-5">
+          <div className="w-full min-w-0 overflow-hidden rounded-lg border border-[var(--br-border)] bg-surface shadow-sm">
             <SlideStage
               slide={slide}
               audio={audioFiles.find((file) => file.linked_slide_number === slide.slide_number)}
               pdfUrl={pdfUrl}
             />
           </div>
-          <aside className="space-y-4 lg:max-h-[calc(100vh-190px)] lg:overflow-y-auto">
+          <aside className="w-full min-w-0 space-y-4 lg:max-h-[calc(100vh-190px)] lg:overflow-y-auto">
             <LessonActivityPanel activity={currentActivity} onNext={() => move(1)} />
             <NotesBar
               isOpen={isNotesOpen}

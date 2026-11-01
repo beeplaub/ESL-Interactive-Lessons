@@ -1980,7 +1980,7 @@ export function LessonActivityPanel({
   }
 
   return (
-    <section className="rounded-lg border border-[var(--br-border)] bg-surface p-4 shadow-sm">
+    <section className="w-full min-w-0 rounded-lg border border-[var(--br-border)] bg-surface p-4 shadow-sm">
       {/* Header */}
       <div className="mb-4 flex items-center justify-between gap-3">
         <div>
