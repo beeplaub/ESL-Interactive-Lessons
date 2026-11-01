@@ -69,15 +69,11 @@ function TrackAudioPlayer({ src, label, sequenceLabel, autoPlayDelay, onEnded, o
   function seek(seconds: number) { const audio = audioRef.current; if (!audio) return; audio.currentTime = Math.max(0, Math.min(audio.duration || Infinity, audio.currentTime + seconds)); }
   function formatTime(seconds: number) { if (!Number.isFinite(seconds)) return "0:00"; return `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`; }
   if (variant === "compact") {
-    return <div className={`inline-flex min-w-0 items-center gap-2 ${className}`}>
+    return <div className={`inline-flex min-w-0 items-center ${className}`}>
       <audio ref={audioRef} src={src} preload="metadata" onLoadedMetadata={(event) => { setDuration(event.currentTarget.duration); setPlaybackError(false); }} onTimeUpdate={(event) => setCurrentTime(event.currentTarget.currentTime)} onPlay={() => { setPlaying(true); setPlaybackError(false); }} onPause={() => setPlaying(false)} onEnded={() => { setPlaying(false); setCurrentTime(0); onEnded?.(); }} onError={() => { setPlaying(false); setPlaybackError(true); }} />
-      <button type="button" onClick={() => void toggle()} aria-label={playing ? "Pause reference audio" : "Play reference audio"} aria-pressed={playing} className={`grid size-12 shrink-0 place-items-center rounded-full shadow-sm transition hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-600 ${playing ? "bg-orange-600 text-white" : "bg-orange-100 text-orange-700 hover:bg-orange-200"}`}>
+      <button type="button" onClick={() => void toggle()} aria-label={playbackError ? "Reference audio unavailable" : playing ? "Pause reference audio" : "Play or replay reference audio"} title={playbackError ? "Reference audio unavailable. Check the source link." : playing ? "Pause example audio" : "Play example audio"} aria-pressed={playing} className={`grid size-12 shrink-0 place-items-center rounded-full shadow-sm transition hover:scale-105 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-600 ${playbackError ? "bg-rose-100 text-rose-700" : playing ? "bg-orange-600 text-white" : "bg-orange-100 text-orange-700 hover:bg-orange-200"}`}>
         {playing ? <Pause size={21} fill="currentColor" /> : <Volume2 size={21} />}
       </button>
-      <div className="min-w-0">
-        <p className="text-xs font-extrabold text-slate-800">{playing ? "Playing example" : label || "Listen to example"}</p>
-        <p className={`text-[11px] font-medium ${playbackError ? "text-rose-700" : "text-slate-500"}`} role={playbackError ? "alert" : undefined}>{playbackError ? "Audio unavailable. Check the source link." : playing ? formatTime(currentTime) : duration ? formatTime(duration) : "Tap to listen"}</p>
-      </div>
     </div>;
   }
   return <div className={`overflow-hidden rounded-2xl bg-dark p-3 text-on-dark shadow-lg sm:p-4 ${className}`}>
