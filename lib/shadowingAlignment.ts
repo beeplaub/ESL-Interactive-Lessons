@@ -3,8 +3,8 @@ import type { ShadowingChunk } from "@/lib/shadowing";
 
 export type LearnerChunkTimestamp = {
   chunkId: string;
-  startSeconds: number;
-  endSeconds: number;
+  startMs: number;
+  endMs: number;
   matchedWords: number;
   totalWords: number;
   available: boolean;
@@ -75,15 +75,15 @@ export function alignShadowingChunks(
     const enoughMatches = totalWords > 0 && matches.length >= Math.ceil(totalWords * 0.5);
     const first = matches[0];
     const last = matches[matches.length - 1];
-    const startSeconds = first ? Math.max(0, first.start - 0.08) : 0;
-    const endSeconds = last ? Math.max(startSeconds, last.end + 0.12) : 0;
+    const startMs = first ? Math.max(0, Math.round(first.start * 1_000)) : 0;
+    const endMs = last ? Math.max(startMs, Math.round(last.end * 1_000)) : 0;
     return {
       chunkId: chunks[chunkIndex].id,
-      startSeconds,
-      endSeconds,
+      startMs,
+      endMs,
       matchedWords: matches.length,
       totalWords,
-      available: enoughMatches && endSeconds > startSeconds,
+      available: enoughMatches && endMs > startMs,
     };
   });
 

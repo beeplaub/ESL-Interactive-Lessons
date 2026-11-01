@@ -190,7 +190,7 @@ function defaultQuestion(type: BuilderQuestion["questionType"]): BuilderQuestion
   if (type === "PARAPHRASE_ID") return { id, questionType: type, questionText: "Which option best paraphrases the text?", description: "", options: { passage: "Enter the source text here.", choices: { A: "Paraphrase A", B: "Paraphrase B", C: "Paraphrase C", D: "Paraphrase D" } }, correctAnswer: "A", assessment };
   if (type === "DICTATION") return { id, questionType: type, questionText: "Listen to the audio and type what you hear.", description: "", options: { audio_url: "", hint: "", ignore_punctuation: true }, correctAnswer: "The quick brown fox jumps over the lazy dog.", assessment };
   if (type === "LISTEN_AND_SELECT") return { id, questionType: type, questionText: "Listen to the audio clip and select the matching option.", description: "", options: { audio_url: "", choices: [{ id: "0", text: "Option A", image_url: "" }, { id: "1", text: "Option B", image_url: "" }] }, correctAnswer: "0", assessment };
-  if (type === "SHADOWING") return { id, questionType: type, questionText: "Listen to the model sentence, record it once, then compare the chunks.", description: "", options: { shadowing_mode: "CHUNK_AB", audio_url: "", chunks: [{ id: "chunk-1", text: "", start_seconds: 0, end_seconds: 0 }] }, correctAnswer: "", assessment };
+  if (type === "SHADOWING") return { id, questionType: type, questionText: "Listen to the model sentence, record it once, then compare the chunks.", description: "", options: { shadowing_mode: "CHUNK_AB", audio_url: "", chunks: [{ id: "chunk-1", text: "", start_ms: 0, end_ms: 0 }] }, correctAnswer: "", assessment };
   if (type === "NOTE_TAKING_CHALLENGE") return { id, questionType: type, questionText: "Listen to the clip, take notes in the scratchpad, and answer the questions.", description: "", options: { media_url: "", audio_url: "", questions: [{ id: "1", text: "What was the main topic?", options: { A: "Topic A", B: "Topic B", C: "Topic C", D: "Topic D" } }] }, correctAnswer: { "1": "A" }, assessment };
   if (type === "SOUND_DISCRIMINATION") return { id, questionType: type, questionText: "Listen to the sound and identify the correct minimal pair word.", description: "", options: { audio_url: "", pairs: [{ id: "0", word: "ship", phonetic: "/ʃɪp/", audio_url: "" }, { id: "1", word: "sheep", phonetic: "/ʃiːp/", audio_url: "" }] }, correctAnswer: "0", assessment };
   if (type === "LISTEN_AND_GAP_FILL") return { id, questionType: type, questionText: "Listen to the audio and fill in the missing blanks in the transcript.", description: "", options: { audio_url: "", transcript: "I have been working at this ___ for two years." }, correctAnswer: ["company"], assessment };
@@ -450,6 +450,13 @@ export function QuizVisualBuilder({
     if (!questions.length) return "Add at least one question before saving.";
     const incomplete = questions.findIndex((question) => !question.questionText.trim());
     if (incomplete >= 0) return `Question ${incomplete + 1} needs question text.`;
+    const unpreparedShadowing = questions.findIndex((question) => {
+      if (question.questionType !== "SHADOWING" || asRecord(question.options).shadowing_mode !== "CHUNK_AB") return false;
+      const options = asRecord(question.options);
+      const chunks = shadowingChunks(options);
+      return !String(options.audio_url ?? "").trim() || !chunks.length || chunks.some((chunk) => !chunk.text.trim() || chunk.endMs <= chunk.startMs);
+    });
+    if (unpreparedShadowing >= 0) return `Question ${unpreparedShadowing + 1}: add the model audio and match its chunks automatically before saving.`;
     return null;
   }
 
@@ -614,6 +621,7 @@ export function QuizVisualBuilder({
         <QuestionEditorModal
           question={selected}
           questionNumber={selectedIndex + 1}
+          quizId={quiz.id}
           onChange={updateSelected}
           onClose={() => setEditorOpen(false)}
           onDelete={() => {
@@ -730,6 +738,7 @@ export function QuizVisualBuilder({
 function QuestionEditorModal({
   question,
   questionNumber,
+  quizId,
   onChange,
   onClose,
   onDelete,
@@ -738,6 +747,7 @@ function QuestionEditorModal({
 }: {
   question: BuilderQuestion;
   questionNumber: number;
+  quizId?: string;
   onChange: (patch: Partial<BuilderQuestion>) => void;
   onClose: () => void;
   onDelete: () => void;
@@ -780,7 +790,7 @@ function QuestionEditorModal({
             {question.questionType === "ORAL_RESPONSE" ? <span className="mt-1 block text-xs font-normal text-[var(--br-text-muted)]">Learners will see this directly below the main question.</span> : null}
           </label>
 
-          <QuestionFields question={question} onChange={onChange} />
+          <QuestionFields question={question} onChange={onChange} quizId={quizId} />
 
           <section className="rounded-xl border border-[var(--br-chart-primary)]/20 bg-[var(--br-surface-muted)] p-3">
             <p className="text-xs font-extrabold uppercase tracking-wide text-[var(--br-chart-primary)]">Measurement</p>
@@ -1062,7 +1072,7 @@ function questionToPreviewActivity(question: BuilderQuestion) {
   };
 }
 
-function QuestionFields({ question, onChange }: { question: BuilderQuestion; onChange: (patch: Partial<BuilderQuestion>) => void }) {
+function QuestionFields({ question, onChange, quizId }: { question: BuilderQuestion; onChange: (patch: Partial<BuilderQuestion>) => void; quizId?: string }) {
   const options = asRecord(question.options);
   const voiceSettings = useVoiceGenerationPreferences({ provider: "auto", languageCode: "en-US", voiceName: "Aoede", style: "Natural", pace: "Natural", locked: false });
 
@@ -1681,6 +1691,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
           <ShadowingChunkEditor
             audioUrl={audioUrl}
             chunks={chunks}
+            quizId={quizId}
             onAudioUrlChange={(url) => onChange({ options: { ...options, shadowing_mode: "CHUNK_AB", audio_url: url } as Json })}
             onChunksChange={(next) => onChange({ options: { ...options, shadowing_mode: "CHUNK_AB", chunks: shadowingChunkData(next) } as Json, correctAnswer: next.map((chunk) => chunk.text.trim()).filter(Boolean).join(" ") })}
           />
@@ -1699,7 +1710,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
         <div className="flex items-center justify-between gap-3"><div><p className="text-sm font-bold">Target phases</p><p className="text-xs text-[var(--br-text-muted)]">Each phase has its own phrase and audio.</p></div><button type="button" onClick={() => { const next = [...phases, { id: `phase-${phases.length + 1}-${Date.now()}`, targetText: "", audioUrl: "" }]; onChange({ options: { ...options, phases: shadowingPhaseData(next) } as Json }); }} className="rounded-lg bg-[var(--br-brand)] px-3 py-1.5 text-xs font-bold text-on-dark">+ Add phase</button></div>
         {phases.map((phase, index) => <div key={phase.id} className="grid gap-3 rounded-2xl border border-violet-200 bg-violet-50/40 p-3 sm:p-4"><div className="flex items-center justify-between gap-3"><p className="text-xs font-black uppercase tracking-wide text-[var(--br-chart-primary)]">Phase {index + 1}</p>{phases.length > 1 ? <button type="button" onClick={() => { const next = phases.filter((_, phaseIndex) => phaseIndex !== index); onChange({ options: { ...options, phases: shadowingPhaseData(next), audio_url: next[0]?.audioUrl ?? "", target_text: next[0]?.targetText ?? "" } as Json, correctAnswer: next[0]?.targetText ?? "" }); }} className="text-xs font-semibold text-coral">Remove</button> : null}</div><MediaRecorderInput label="Target audio" value={phase.audioUrl} onChange={(url) => updatePhase(index, { audioUrl: url })} /><label className="text-sm font-medium">Target phrase<textarea rows={3} value={phase.targetText} onChange={(event) => updatePhase(index, { targetText: event.target.value })} placeholder="e.g. Excuse me, could you tell me how to get to the station?" className="mt-1 w-full rounded-md border border-[var(--br-border)] bg-surface px-3 py-2 text-sm" /></label></div>)}
         <button type="button" onClick={() => {
-          const nextChunks = phases.map((phase, index) => ({ id: phase.id || `chunk-${index + 1}`, text: phase.targetText, startSeconds: 0, endSeconds: 0 }));
+          const nextChunks = phases.map((phase, index) => ({ id: phase.id || `chunk-${index + 1}`, text: phase.targetText, startMs: 0, endMs: 0 }));
           onChange({ options: { ...options, shadowing_mode: "CHUNK_AB", audio_url: phases.length === 1 ? phases[0].audioUrl : "", chunks: shadowingChunkData(nextChunks) } as Json, correctAnswer: phases.map((phase) => phase.targetText.trim()).filter(Boolean).join(" ") });
         }} className="justify-self-start rounded-lg border border-violet-200 px-3 py-2 text-xs font-bold text-[var(--br-chart-primary)]">Upgrade to sentence chunk A→B</button>
         <div className="grid gap-3 rounded-2xl border border-violet-200 bg-violet-50/60 p-4 sm:grid-cols-2">

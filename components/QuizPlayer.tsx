@@ -3264,7 +3264,7 @@ function ChunkedShadowingPlayer({ question, value, disabled, onChange }: Shadowi
   const activeAudioRef = useRef<HTMLAudioElement | null>(null);
   const modelPreviewRef = useRef<HTMLAudioElement | null>(null);
   const learnerPreviewRef = useRef<HTMLAudioElement | null>(null);
-  const readyToRecord = Boolean(audioUrl && chunks.length > 0 && chunks.every((chunk) => chunk.text.trim() && chunk.endSeconds > chunk.startSeconds));
+  const readyToRecord = Boolean(audioUrl && chunks.length > 0 && chunks.every((chunk) => chunk.text.trim() && chunk.endMs > chunk.startMs));
 
   const stopLoop = useCallback(() => {
     loopTokenRef.current += 1;
@@ -3442,7 +3442,7 @@ function ChunkedShadowingPlayer({ question, value, disabled, onChange }: Shadowi
             return (
               <div key={chunk.id} className="flex flex-col gap-3 rounded-xl border border-[var(--br-border)] bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
                 <div><p className="text-[10px] font-black uppercase tracking-wider text-[var(--br-chart-primary)]">Chunk {index + 1}</p><p className="mt-1 font-semibold text-[var(--br-dark-card)]">{chunk.text}</p></div>
-                <button type="button" disabled={!learnerChunk?.available || disabled} onClick={() => void loopPair(chunk.id, chunk.startSeconds, chunk.endSeconds, learnerChunk?.startSeconds ?? 0, learnerChunk?.endSeconds ?? 0)} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-[var(--br-chart-primary)] px-4 py-2.5 text-sm font-bold text-on-dark disabled:opacity-50">
+            <button type="button" disabled={!learnerChunk?.available || disabled} onClick={() => void loopPair(chunk.id, chunk.startMs / 1_000, chunk.endMs / 1_000, (learnerChunk?.startMs ?? 0) / 1_000, (learnerChunk?.endMs ?? 0) / 1_000)} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-[var(--br-chart-primary)] px-4 py-2.5 text-sm font-bold text-on-dark disabled:opacity-50">
                   {isLooping ? <Pause size={16} /> : <Play size={16} />}{isLooping ? "Stop A → B loop" : "Loop model → you"}
                 </button>
                 {!learnerChunk?.available ? <p className="text-xs text-amber-700">This chunk could not be isolated reliably.</p> : null}

@@ -2607,7 +2607,7 @@ function ShadowingEditor({ activity, onSave }: { activity: Activity; onSave: (da
 
   if (mode === "CHUNK_AB") {
     const needsChunkReview = !audioUrl || chunks.length === 0
-      || chunks.some((chunk, index) => !chunk.text.trim() || chunk.endSeconds <= chunk.startSeconds || (index > 0 && chunk.startSeconds < chunks[index - 1].endSeconds));
+      || chunks.some((chunk, index) => !chunk.text.trim() || chunk.endMs <= chunk.startMs || (index > 0 && chunk.startMs < chunks[index - 1].endMs));
     return (
       <div className="grid gap-4">
         <label className="text-sm font-medium">
@@ -2645,7 +2645,7 @@ function ShadowingEditor({ activity, onSave }: { activity: Activity; onSave: (da
       </div>
 
       <button type="button" onClick={() => {
-        const nextChunks = phases.map((phase, index) => ({ id: phase.id || `chunk-${index + 1}`, text: phase.targetText, startSeconds: 0, endSeconds: 0 }));
+        const nextChunks = phases.map((phase, index) => ({ id: phase.id || `chunk-${index + 1}`, text: phase.targetText, startMs: 0, endMs: 0 }));
         setChunks(nextChunks);
         setAudioUrl(phases.length === 1 ? phases[0].audioUrl : "");
         setMode("CHUNK_AB");

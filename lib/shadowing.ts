@@ -7,8 +7,8 @@ export type ShadowingPhase = {
 export type ShadowingChunk = {
   id: string;
   text: string;
-  startSeconds: number;
-  endSeconds: number;
+  startMs: number;
+  endMs: number;
 };
 
 export function shadowingChunks(data: Record<string, unknown>): ShadowingChunk[] {
@@ -17,13 +17,15 @@ export function shadowingChunks(data: Record<string, unknown>): ShadowingChunk[]
     if (!item || typeof item !== "object" || Array.isArray(item)) return [];
     const row = item as Record<string, unknown>;
     const text = String(row.text ?? row.target_text ?? "").trim();
+    const startMsValue = Number(row.start_ms ?? row.startMs);
+    const endMsValue = Number(row.end_ms ?? row.endMs);
     const startSeconds = Number(row.start_seconds ?? row.startSeconds);
     const endSeconds = Number(row.end_seconds ?? row.endSeconds);
     return [{
       id: String(row.id ?? `chunk-${index + 1}`),
       text,
-      startSeconds: Number.isFinite(startSeconds) ? Math.max(0, startSeconds) : 0,
-      endSeconds: Number.isFinite(endSeconds) ? Math.max(0, endSeconds) : 0,
+      startMs: Number.isFinite(startMsValue) ? Math.max(0, Math.round(startMsValue)) : Number.isFinite(startSeconds) ? Math.max(0, Math.round(startSeconds * 1_000)) : 0,
+      endMs: Number.isFinite(endMsValue) ? Math.max(0, Math.round(endMsValue)) : Number.isFinite(endSeconds) ? Math.max(0, Math.round(endSeconds * 1_000)) : 0,
     }];
   });
 }
@@ -32,8 +34,8 @@ export function shadowingChunkData(chunks: ShadowingChunk[]) {
   return chunks.map((chunk) => ({
     id: chunk.id,
     text: chunk.text,
-    start_seconds: chunk.startSeconds,
-    end_seconds: chunk.endSeconds,
+    start_ms: chunk.startMs,
+    end_ms: chunk.endMs,
   }));
 }
 
