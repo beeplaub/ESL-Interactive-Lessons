@@ -8,7 +8,7 @@ import { recordQuizAttempt } from "@/app/quizzes/actions";
 import { GuestScorePopup, type PendingAttempt } from "@/components/GuestScorePopup";
 import type { Json } from "@/types/database.types";
 import { getSpeechRecognitionConstructor, transcriptContainsTarget } from "@/lib/speechRecognition";
-import { asRecord, isCorrect, partialCreditStats, questionScore, questionTotal } from "@/lib/quizScoring";
+import { asRecord, isCorrect, partialCreditStats, pronunciationTargetPoints, questionScore, questionTotal } from "@/lib/quizScoring";
 import { SoundToggle } from "@/components/gamification/SoundToggle";
 import { CELEBRATION_SCORE_THRESHOLD, fireCompletionConfetti } from "@/lib/gamification/confetti";
 import { playCelebration, playCorrect, playPartial, playRecordingEnd, playRecordingStart, playWrong } from "@/lib/gamification/sounds";
@@ -2660,6 +2660,10 @@ function Pronunciation({
   const assessments = value?.assessments ?? {};
   const [micState, setMicState] = useState<"idle" | "listening" | "transcribing" | "error">("idle");
   const [activeKey, setActiveKey] = useState<string | null>(null);
+  const [activeTargetIndex, setActiveTargetIndex] = useState(() => {
+    const firstIncomplete = targets.findIndex((target) => value?.results?.[target.id] !== true);
+    return firstIncomplete < 0 ? 0 : firstIncomplete;
+  });
   const [error, setError] = useState<string | null>(null);
   const [seconds, setSeconds] = useState(0);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -2691,7 +2695,9 @@ function Pronunciation({
   }
 
   async function recordFor(key: string, checkTargets: PronunciationTarget[]) {
-    if (disabled || micState !== "idle") return;
+    if (disabled || (micState !== "idle" && micState !== "error")) return;
+    setError(null);
+    setMicState("idle");
     const usedSoFar = attemptsUsed[key] ?? 0;
     if (usedSoFar >= maxAttempts) return;
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
@@ -2770,6 +2776,8 @@ function Pronunciation({
         } catch (transcriptionError) {
           setError(transcriptionError instanceof Error ? transcriptionError.message : "Transcription is temporarily unavailable. Please try again.");
           setMicState("error");
+          setActiveKey(null);
+          activeKeyRef.current = null;
         }
       };
       recorder.start(500);
@@ -2786,15 +2794,9 @@ function Pronunciation({
 
   const passageKey = "__passage__";
   const passageTargets = targets;
-  const passageTranscript = transcripts[passageKey] ?? "";
   const segments = targets.length > 0
     ? passage.split(new RegExp(`(${targets.map((t) => t.text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})`, "i")).filter(Boolean)
     : [passage];
-  const renderStatus = (target: PronunciationTarget) => results[target.id] === true ? `Clear match · ${Math.round(assessments[target.id]?.overallScore ?? 0)}/100` : transcripts[target.id] ? `Needs another try · ${Math.round(assessments[target.id]?.overallScore ?? 0)}/100` : "Not attempted";
-  const renderTargetChip = (target: PronunciationTarget) => {
-    const recognized = results[target.id] === true;
-    return <span key={target.id} className={`rounded-full px-3 py-1.5 text-sm font-semibold ${recognized ? "bg-emerald-100 text-emerald-800" : transcripts[target.id] ? "bg-orange-100 text-orange-800" : "bg-slate-100 text-slate-700"}`}>{target.text}</span>;
-  };
 
   const overallScores = Object.values(assessments).map((assessment) => assessment.overallScore).filter((score) => Number.isFinite(score));
   const averageScore = overallScores.length ? Math.round(overallScores.reduce((sum, score) => sum + score, 0) / overallScores.length) : null;
@@ -2804,6 +2806,161 @@ function Pronunciation({
   const scoreCopy = averageScore == null ? "Listen once, then record your voice for precise word and sound feedback." : averageScore >= 85 ? "Clear and natural overall. Focus on the highlighted sounds to sound even more fluent." : "You’re building a good foundation. A focused retry will help the highlighted sounds land more clearly.";
   const scoreBadge = averageScore == null ? "Not attempted" : averageScore >= 85 ? "Great clarity" : averageScore >= 70 ? "Keep building" : "Focus next";
 
+  if (level === "word") {
+    if (!targets.length) {
+      return <div className="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-600">No practice words are configured for this activity.</div>;
+    }
+
+    const currentIndex = Math.max(0, Math.min(activeTargetIndex, targets.length - 1));
+    const currentTarget = targets[currentIndex];
+    const currentAssessment = assessments[currentTarget.id];
+    const currentWord = currentAssessment?.words?.find((word) => normalizePronunciationToken(word.text) === normalizePronunciationToken(currentTarget.text));
+    const currentScoreValue = targetScores[currentTarget.id];
+    const currentScore = Number.isFinite(currentScoreValue) ? Math.max(0, Math.min(100, currentScoreValue)) : null;
+    const currentPoints = pronunciationTargetPoints(value, currentTarget.id);
+    const currentAttempts = attemptsUsed[currentTarget.id] ?? 0;
+    const attemptedWords = targets.filter((target) => (attemptsUsed[target.id] ?? 0) > 0).length;
+    const earnedPoints = targets.reduce((sum, target) => sum + pronunciationTargetPoints(value, target.id), 0);
+    const currentTranscript = transcripts[currentTarget.id]?.trim();
+    const isCurrentListening = activeKey === currentTarget.id && micState === "listening";
+    const isCurrentSuccessful = results[currentTarget.id] === true;
+    const hasAttemptsLeft = currentAttempts < maxAttempts;
+    const canNavigate = micState !== "listening" && micState !== "transcribing";
+    const progressPercent = Math.round((attemptedWords / targets.length) * 100);
+    const pointLabel = (points: number) => `${points} ${points === 1 ? "point" : "points"}`;
+    const phonemeTone = (score: number) => score >= 85
+      ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+      : score >= 60
+        ? "border-amber-200 bg-amber-50 text-amber-900"
+        : "border-rose-200 bg-rose-50 text-rose-800";
+
+    return (
+      <div className="grid gap-5 rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm sm:gap-6 sm:p-6">
+        <div className="grid gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+            <p className="font-bold text-slate-900">Word {currentIndex + 1} of {targets.length}</p>
+            <p className="text-xs font-semibold text-slate-500">{attemptedWords} of {targets.length} practiced</p>
+          </div>
+          <div className="h-2 overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-label="Words practiced" aria-valuemin={0} aria-valuemax={targets.length} aria-valuenow={attemptedWords}>
+            <div className="h-full rounded-full bg-blue-600 transition-[width]" style={{ width: `${progressPercent}%` }} />
+          </div>
+          <p className="text-right text-xs font-semibold text-slate-500">{Number(earnedPoints.toFixed(1))} of {targets.length} points earned</p>
+        </div>
+
+        <section className="grid justify-items-center gap-5 rounded-[22px] border border-slate-200 bg-slate-50/70 px-4 py-7 text-center sm:py-9" aria-label={`${currentTarget.text} pronunciation practice`}>
+          <div className="space-y-2">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Say this word</p>
+            <h3 className="break-words text-4xl font-black tracking-tight sm:text-5xl" style={{ color: currentTarget.color }}>{currentTarget.text}</h3>
+          </div>
+
+          <div className="relative grid place-items-center">
+            {isCurrentListening ? (
+              <>
+                <span className="absolute size-24 animate-ping rounded-full bg-orange-400/20 [animation-duration:1.6s]" />
+                <span className="absolute size-28 animate-pulse rounded-full border border-orange-400/30" />
+              </>
+            ) : isCurrentSuccessful ? (
+              <span className="absolute size-24 rounded-full bg-emerald-500/15" />
+            ) : (
+              <span className="absolute size-24 rounded-full bg-orange-500/15" />
+            )}
+            <motion.button
+              type="button"
+              disabled={disabled || micState === "transcribing" || (isCurrentSuccessful || !hasAttemptsLeft) && !isCurrentListening}
+              onClick={() => (isCurrentListening ? void finishRecording() : void recordFor(currentTarget.id, [currentTarget]))}
+              aria-label={isCurrentListening ? `Finish recording ${currentTarget.text}` : isCurrentSuccessful ? `${currentTarget.text} completed` : `Record ${currentTarget.text}`}
+              whileHover={disabled || isCurrentSuccessful || !hasAttemptsLeft ? undefined : { scale: 1.06 }}
+              whileTap={disabled || isCurrentSuccessful || !hasAttemptsLeft ? undefined : { scale: 0.94 }}
+              className={`relative z-10 grid size-20 place-items-center rounded-full text-white shadow-lg transition-colors disabled:cursor-not-allowed disabled:opacity-70 ${isCurrentListening ? "bg-gradient-to-br from-orange-500 to-rose-500" : isCurrentSuccessful ? "bg-emerald-600" : "bg-gradient-to-br from-orange-400 to-rose-500"}`}
+            >
+              {micState === "transcribing" && activeKey === currentTarget.id
+                ? <Loader2 size={30} className="animate-spin" />
+                : isCurrentListening
+                  ? <MicOff size={30} />
+                  : isCurrentSuccessful
+                    ? <CheckCircle2 size={31} />
+                    : <Mic size={30} />}
+            </motion.button>
+          </div>
+
+          {isCurrentListening ? (
+            <div className="space-y-2" role="status" aria-live="polite">
+              <div className="flex h-5 items-center justify-center gap-1" aria-hidden="true">
+                {[0, 1, 2, 3, 4].map((bar) => <span key={bar} className="w-1 animate-pulse rounded-full bg-orange-500" style={{ height: `${10 + (bar % 3) * 5}px`, animationDelay: `${bar * 100}ms` }} />)}
+              </div>
+              <p className="text-sm font-bold text-slate-700">Listening · Tap to finish · {Math.max(0, 12 - seconds)}s</p>
+            </div>
+          ) : micState === "transcribing" && activeKey === currentTarget.id ? (
+            <p className="flex items-center gap-2 text-sm font-bold text-slate-700" role="status"><Loader2 size={16} className="animate-spin" /> Preparing your feedback…</p>
+          ) : isCurrentSuccessful ? (
+            <p className="text-sm font-bold text-emerald-700">Word complete · {pointLabel(currentPoints)} earned</p>
+          ) : !hasAttemptsLeft ? (
+            <p className="text-sm font-semibold text-slate-600">No attempts left for this word.</p>
+          ) : (
+            <div className="space-y-1">
+              <p className="text-sm font-bold text-slate-800">Tap the microphone and say “{currentTarget.text}”</p>
+              <p className="text-xs font-medium text-slate-500">{maxAttempts - currentAttempts} {maxAttempts - currentAttempts === 1 ? "try" : "tries"} left</p>
+            </div>
+          )}
+
+          {error ? <div className="flex w-full items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-left text-sm font-medium text-amber-900" role="alert"><AlertCircle size={18} className="mt-0.5 shrink-0" />{error}</div> : null}
+        </section>
+
+        {currentScore !== null ? (
+          <section className="grid gap-4 rounded-[20px] border border-slate-200 bg-white p-4 sm:p-5" aria-live="polite" aria-label={`${currentTarget.text} pronunciation feedback`}>
+            <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 pb-3">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Your word score</p>
+                <p className="mt-1 text-2xl font-black text-slate-900">{Math.round(currentScore)}<span className="ml-1 text-sm font-bold text-slate-500">/100</span></p>
+              </div>
+              <span className={`rounded-full px-3 py-1.5 text-sm font-bold ${currentPoints === 1 ? "bg-emerald-100 text-emerald-800" : currentPoints === 0.5 ? "bg-amber-100 text-amber-900" : "bg-slate-100 text-slate-700"}`}>
+                {pointLabel(currentPoints)}
+              </span>
+            </div>
+
+            {currentTranscript ? <p className="text-sm text-slate-600">Heard: <span className="font-bold text-slate-900">{currentTranscript}</span></p> : null}
+
+            {currentWord?.phonemes.length ? (
+              <div className="grid gap-3">
+                <h4 className="text-sm font-bold text-slate-900">Sound feedback</h4>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+                  {currentWord.phonemes.map((phoneme, index) => (
+                    <div key={`${phoneme.expected}-${index}`} className={`rounded-xl border p-3 ${phonemeTone(phoneme.score)}`}>
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="font-mono text-lg font-black">/{phoneme.expected}/</span>
+                        <span className="rounded-full bg-white/80 px-2 py-0.5 text-xs font-bold">{Math.round(phoneme.score)}</span>
+                      </div>
+                      {phoneme.spoken && phoneme.spoken !== phoneme.expected ? <p className="mt-1 text-xs font-semibold">Heard as /{phoneme.spoken}/</p> : <p className="mt-1 text-xs font-medium opacity-80">Expected sound</p>}
+                      <p className="mt-2 text-xs font-bold">{phoneme.score >= 85 ? "Clear" : phoneme.score >= 60 ? "Almost there" : "Needs practice"}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <p className="rounded-xl bg-slate-50 p-3 text-sm text-slate-600">We couldn’t get sound details from this recording. Try saying just this word clearly.</p>
+            )}
+
+            <p className="text-xs text-slate-500">Word points: 90–100 = 1 · 50–89 = 0.5 · Below 50 = 0</p>
+          </section>
+        ) : null}
+
+        {targets.length > 1 ? (
+          <nav className="flex items-center justify-between gap-3" aria-label="Pronunciation word navigation">
+            <button type="button" disabled={currentIndex === 0 || !canNavigate} onClick={() => { setActiveTargetIndex(currentIndex - 1); setError(null); }} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-slate-200 px-4 text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">
+              <ChevronLeft size={17} /> Previous
+            </button>
+            <span className="text-xs font-semibold text-slate-500" aria-live="polite">{currentIndex + 1} / {targets.length}</span>
+            {currentIndex < targets.length - 1 ? (
+              <button type="button" disabled={!canNavigate} onClick={() => { setActiveTargetIndex(currentIndex + 1); setError(null); }} className="inline-flex min-h-11 items-center gap-2 rounded-full bg-slate-900 px-4 text-sm font-bold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40">
+                {currentAttempts === 0 ? "Skip for now" : "Next word"} <ChevronRight size={17} />
+              </button>
+            ) : <span className="px-2 text-xs font-semibold text-slate-500">Last word</span>}
+          </nav>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <div className="relative grid gap-5 overflow-hidden rounded-[28px] border border-slate-200/80 bg-gradient-to-br from-[#f8f7ff] via-white to-[#fff8f0] p-5 shadow-[0_24px_80px_rgba(34,41,88,0.12)] sm:p-7">
       <div className="pointer-events-none absolute -left-16 -top-16 size-52 rounded-full bg-indigo-400/10 blur-3xl" />
@@ -2811,19 +2968,17 @@ function Pronunciation({
       <div className="relative z-10 rounded-[20px] border border-slate-200/80 bg-white p-4 text-left shadow-sm sm:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
           {referenceAudioUrl ? <AudioTrackPlayer value={[{ id: "reference", url: referenceAudioUrl, label: "Native reference" }]} className="w-full shrink-0 sm:w-52" /> : <div className="grid size-14 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-400" aria-label="Reference audio is not available"><Volume2 size={24} /></div>}
-          <p className="min-w-0 break-words text-lg font-black leading-tight tracking-tight text-slate-900 sm:text-3xl">{level === "word" ? targets.map((target) => target.text).join(" ") : segments.map((segment, index) => { const target = targets.find((item) => item.text.toLowerCase() === segment.toLowerCase()); return target ? <span key={index} className="mx-0.5 inline rounded-md border-b-4 px-1" style={{ color: target.color, borderColor: target.color, backgroundColor: "color-mix(in srgb, currentColor 10%, white)" }}>{segment}</span> : <span key={index}>{segment}</span>; })}</p>
+          <p className="min-w-0 break-words text-lg font-black leading-tight tracking-tight text-slate-900 sm:text-3xl">{segments.map((segment, index) => { const target = targets.find((item) => item.text.toLowerCase() === segment.toLowerCase()); return target ? <span key={index} className="mx-0.5 inline rounded-md border-b-4 px-1" style={{ color: target.color, borderColor: target.color, backgroundColor: "color-mix(in srgb, currentColor 10%, white)" }}>{segment}</span> : <span key={index}>{segment}</span>; })}</p>
           <button type="button" className="self-end text-slate-400 hover:text-slate-700 sm:ml-auto sm:self-start" aria-label="Save activity">♡</button>
         </div>
       </div>
-      {level !== "word" ? <div className="relative z-10 grid justify-items-center gap-3 rounded-[20px] border border-slate-200/80 bg-white p-4 shadow-sm sm:p-6">
+      <div className="relative z-10 grid justify-items-center gap-3 rounded-[20px] border border-slate-200/80 bg-white p-4 shadow-sm sm:p-6">
         <div className={`relative grid size-24 place-items-center rounded-full text-white shadow-xl transition ${micState === "listening" ? "bg-rose-500 ring-8 ring-rose-100" : "bg-gradient-to-br from-orange-400 to-rose-500"}`}><span className="absolute inset-2 rounded-full border border-white/30" /><button type="button" disabled={disabled || micState === "transcribing"} onClick={() => (micState === "listening" ? void finishRecording() : void recordFor(passageKey, passageTargets))} className="relative grid size-20 place-items-center rounded-full" aria-label={micState === "listening" ? "Finish recording" : "Start recording"}>{micState === "transcribing" ? <Loader2 size={30} className="animate-spin" /> : micState === "listening" ? <MicOff size={30} /> : <Mic size={30} />}</button></div>
         <div className="flex w-full max-w-xl flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:gap-3"><div className="flex h-10 min-w-0 flex-1 items-center justify-center gap-1 overflow-hidden rounded-full bg-slate-50 px-3 sm:px-5">{Array.from({ length: 44 }, (_, index) => <span key={index} className={`w-1 shrink-0 rounded-full ${index % 5 === 0 ? "h-7 bg-orange-300" : index % 3 === 0 ? "h-4 bg-blue-200" : "h-2 bg-slate-200"}`} />)}</div><span className="self-end text-xs font-bold text-slate-500 sm:self-auto">{micState === "listening" ? `00:${String(seconds).padStart(2, "0")} / 01:00` : "00:00 / 01:00"}</span></div>
         <p className="text-sm font-black text-slate-800">{micState === "listening" ? "I’m listening · Tap to finish" : micState === "transcribing" ? "Preparing your feedback…" : "Tap the microphone and start speaking"}</p>
-      </div> : null}
+      </div>
       {error ? <div className="relative z-10 flex items-start gap-3 rounded-[16px] border border-amber-200 bg-amber-50 p-4 text-left text-sm font-semibold text-amber-900"><AlertCircle size={18} className="mt-0.5 shrink-0" />{error}</div> : null}
-      {level === "word" ? <div className="relative z-10 grid gap-3">{targets.map((target) => { const isActive = activeKey === target.id && micState === "listening"; const anotherIsActive = micState === "listening" && !isActive; const isUnavailable = (attemptsUsed[target.id] ?? 0) >= maxAttempts || results[target.id] === true; const assessment = assessments[target.id]; return <div key={target.id} className={`grid gap-3 rounded-[20px] border p-4 text-left transition sm:grid-cols-[1fr_auto] sm:items-center ${isActive ? "border-orange-300 bg-orange-50 ring-4 ring-orange-100" : "border-slate-200/80 bg-white shadow-sm"}`}><div><div className="flex items-center gap-2"><span className="grid size-8 place-items-center rounded-full bg-orange-100 text-orange-700"><Mic size={15} /></span><p className="text-base font-black text-slate-900">{target.text}</p></div><p className="mt-1 pl-10 text-xs font-medium text-slate-500">{isActive ? `Listening · ${Math.max(0, 12 - seconds)}s remaining` : renderStatus(target)}{attemptsUsed[target.id] ? ` · ${attemptsUsed[target.id]} attempt${attemptsUsed[target.id] === 1 ? "" : "s"}` : ""}</p></div><button type="button" disabled={disabled || micState === "transcribing" || anotherIsActive || isUnavailable} onClick={() => (isActive ? void finishRecording() : void recordFor(target.id, [target]))} className={`inline-flex items-center justify-center gap-2 rounded-full px-4 py-2.5 text-xs font-black text-white shadow-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${isActive ? "animate-pulse bg-rose-500" : results[target.id] ? "bg-emerald-600" : "bg-blue-600 hover:bg-blue-700"}`} aria-label={isActive ? `Stop recording ${target.text}` : `Record ${target.text}`}>{isActive ? <MicOff size={14} /> : results[target.id] ? <CheckCircle2 size={14} /> : <Mic size={14} />} {isActive ? "Stop recording" : results[target.id] ? "Recognized" : `Record · ${Math.max(0, maxAttempts - (attemptsUsed[target.id] ?? 0))} left`}</button>{transcripts[target.id] ? <p className="border-t border-slate-100 pt-2 text-xs text-slate-500 sm:col-span-2">Recognized: <span className="font-bold text-slate-800">{transcripts[target.id]}</span></p> : null}{assessment?.words?.[0]?.phonemes?.length ? <div className="flex flex-wrap gap-1.5 sm:col-span-2"><span className="mr-1 text-xs font-black text-slate-500">Sounds</span>{assessment.words[0].phonemes.map((phoneme, index) => <span key={`${phoneme.expected}-${index}`} className={`rounded-lg px-2 py-1 text-xs font-black ${phoneme.score >= 85 ? "bg-emerald-100 text-emerald-800" : phoneme.score >= 60 ? "bg-amber-100 text-amber-800" : "bg-rose-100 text-rose-800"}`} title={phoneme.spoken && phoneme.spoken !== phoneme.expected ? `Heard ${phoneme.spoken}` : undefined}>{phoneme.expected} · {Math.round(phoneme.score)}</span>)}</div> : null}</div>; })}</div> : null}
-      {averageScore != null ? <div className="relative z-10 grid items-start gap-5 rounded-[24px] border border-slate-200/80 bg-white p-4 text-left shadow-sm sm:grid-cols-[auto_1fr] sm:p-6"><div className="mx-auto grid size-28 place-items-center rounded-full p-2 sm:mx-0 sm:size-32" style={{ background: `conic-gradient(#10b981 0 ${averageScore}%, #e2e8f0 ${averageScore}% 100%)` }}><div className="grid size-full place-items-center rounded-full bg-white"><span className="text-center"><strong className="block text-3xl font-black text-slate-900 sm:text-4xl">{averageScore}</strong><small className="text-xs font-bold text-slate-500">out of 100</small></span></div></div><div className="min-w-0"><div className="flex flex-wrap items-start justify-between gap-2"><div><h3 className="text-2xl font-black text-slate-900">{scoreMessage}</h3><p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">{scoreCopy}</p></div><span className={`rounded-full px-3 py-1.5 text-xs font-black ${averageScore >= 85 ? "bg-emerald-100 text-emerald-800" : averageScore >= 70 ? "bg-amber-100 text-amber-800" : "bg-rose-100 text-rose-800"}`}>{scoreBadge}</span></div><p className="mt-4 text-xs font-black uppercase tracking-wider text-indigo-600">Recognized sentence</p><div className="mt-2 flex flex-wrap gap-2">{level === "word" ? targets.map((target) => renderTargetChip(target)) : segments.map((segment, index) => <span key={index} className="rounded-lg bg-slate-100 px-2.5 py-1 text-sm font-bold text-slate-700">{segment}</span>)}</div><div className="mt-4 flex flex-wrap gap-4 text-xs font-bold"><span className="text-emerald-700">● Good</span><span className="text-amber-700">● Needs practice</span><span className="text-rose-700">● Try again</span></div></div><div className="sm:col-span-2"><div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-5"><p className="flex items-center gap-2 text-base font-black text-slate-900"><Sparkles size={17} className="text-indigo-600" /> Sound breakdown</p><span className="text-xs font-bold text-indigo-600">Target words only</span></div><div className="mt-3 grid gap-4">{targetWordRows.map(({ target, word }) => <section key={`target-${target.id}`} className="rounded-2xl border border-slate-200 bg-slate-50 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><h4 className="text-lg font-black" style={{ color: target.color }}>{target.text}</h4><p className="mt-1 text-xs font-semibold text-slate-500">{word ? `${word.phonemes.length} sounds analyzed` : "Azure could not confidently align this target"}</p></div>{word ? <span className={`rounded-full px-2.5 py-1 text-xs font-black ${word.score >= 85 ? "bg-emerald-100 text-emerald-800" : word.score >= 60 ? "bg-amber-100 text-amber-800" : "bg-rose-100 text-rose-800"}`}>{Math.round(word.score)}/100</span> : <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-black text-amber-800">Try again</span>}</div>{word ? <div className="mt-3 grid gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">{word.phonemes.map((phoneme, index) => <div key={`${phoneme.expected}-${index}`} className="rounded-xl border border-white bg-white p-3 shadow-sm"><div className="flex items-start justify-between gap-2"><p className="font-mono text-lg font-black text-slate-900">/{phoneme.expected}/</p><span className={`rounded-full px-2 py-1 text-[10px] font-black ${phoneme.score >= 85 ? "bg-emerald-100 text-emerald-800" : phoneme.score >= 60 ? "bg-amber-100 text-amber-800" : "bg-rose-100 text-rose-800"}`}>{Math.round(phoneme.score)}</span></div>{phoneme.spoken && phoneme.spoken !== phoneme.expected ? <p className="mt-1 text-[11px] font-semibold text-rose-700">Heard as /{phoneme.spoken}/</p> : <p className="mt-1 text-[11px] font-semibold text-slate-500">Expected sound</p>}<div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-200"><div className={`h-full rounded-full ${phoneme.score >= 85 ? "bg-emerald-500" : phoneme.score >= 60 ? "bg-amber-500" : "bg-rose-500"}`} style={{ width: `${Math.max(6, phoneme.score)}%` }} /></div><p className="mt-1 text-right text-[11px] font-bold text-slate-500">{phoneme.score >= 85 ? "Clear" : phoneme.score >= 60 ? "Almost there" : "Needs practice"}</p></div>)}</div> : <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-semibold text-amber-900">Try saying “{target.text}” clearly in the next recording so we can score each sound.</p>}</section>)}</div></div></div> : null}
-      {level === "word" ? <div className="relative z-10 flex flex-wrap items-center justify-center gap-3">{averageScore == null ? <button type="button" onClick={() => { setError(null); setMicState("idle"); }} className="inline-flex items-center gap-2 rounded-full bg-blue-600 px-6 py-3 text-sm font-black text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-50" disabled={disabled || micState === "listening" || micState === "transcribing"}><RotateCcw size={16} /> Start practice</button> : <button type="button" onClick={() => { setError(null); setMicState("idle"); }} className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-6 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50" disabled={disabled || micState === "listening" || micState === "transcribing"}>Record again</button>}</div> : null}
+      {averageScore != null ? <div className="relative z-10 grid items-start gap-5 rounded-[24px] border border-slate-200/80 bg-white p-4 text-left shadow-sm sm:grid-cols-[auto_1fr] sm:p-6"><div className="mx-auto grid size-28 place-items-center rounded-full p-2 sm:mx-0 sm:size-32" style={{ background: `conic-gradient(#10b981 0 ${averageScore}%, #e2e8f0 ${averageScore}% 100%)` }}><div className="grid size-full place-items-center rounded-full bg-white"><span className="text-center"><strong className="block text-3xl font-black text-slate-900 sm:text-4xl">{averageScore}</strong><small className="text-xs font-bold text-slate-500">out of 100</small></span></div></div><div className="min-w-0"><div className="flex flex-wrap items-start justify-between gap-2"><div><h3 className="text-2xl font-black text-slate-900">{scoreMessage}</h3><p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">{scoreCopy}</p></div><span className={`rounded-full px-3 py-1.5 text-xs font-black ${averageScore >= 85 ? "bg-emerald-100 text-emerald-800" : averageScore >= 70 ? "bg-amber-100 text-amber-800" : "bg-rose-100 text-rose-800"}`}>{scoreBadge}</span></div><p className="mt-4 text-xs font-black uppercase tracking-wider text-indigo-600">Recognized sentence</p><div className="mt-2 flex flex-wrap gap-2">{segments.map((segment, index) => <span key={index} className="rounded-lg bg-slate-100 px-2.5 py-1 text-sm font-bold text-slate-700">{segment}</span>)}</div><div className="mt-4 flex flex-wrap gap-4 text-xs font-bold"><span className="text-emerald-700">● Good</span><span className="text-amber-700">● Needs practice</span><span className="text-rose-700">● Try again</span></div></div><div className="sm:col-span-2"><div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-5"><p className="flex items-center gap-2 text-base font-black text-slate-900"><Sparkles size={17} className="text-indigo-600" /> Sound breakdown</p><span className="text-xs font-bold text-indigo-600">Target words only</span></div><div className="mt-3 grid gap-4">{targetWordRows.map(({ target, word }) => <section key={`target-${target.id}`} className="rounded-2xl border border-slate-200 bg-slate-50 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><h4 className="text-lg font-black" style={{ color: target.color }}>{target.text}</h4><p className="mt-1 text-xs font-semibold text-slate-500">{word ? `${word.phonemes.length} sounds analyzed` : "Azure could not confidently align this target"}</p></div>{word ? <span className={`rounded-full px-2.5 py-1 text-xs font-black ${word.score >= 85 ? "bg-emerald-100 text-emerald-800" : word.score >= 60 ? "bg-amber-100 text-amber-800" : "bg-rose-100 text-rose-800"}`}>{Math.round(word.score)}/100</span> : <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-black text-amber-800">Try again</span>}</div>{word ? <div className="mt-3 grid gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">{word.phonemes.map((phoneme, index) => <div key={`${phoneme.expected}-${index}`} className="rounded-xl border border-white bg-white p-3 shadow-sm"><div className="flex items-start justify-between gap-2"><p className="font-mono text-lg font-black text-slate-900">/{phoneme.expected}/</p><span className={`rounded-full px-2 py-1 text-[10px] font-black ${phoneme.score >= 85 ? "bg-emerald-100 text-emerald-800" : phoneme.score >= 60 ? "bg-amber-100 text-amber-800" : "bg-rose-100 text-rose-800"}`}>{Math.round(phoneme.score)}</span></div>{phoneme.spoken && phoneme.spoken !== phoneme.expected ? <p className="mt-1 text-[11px] font-semibold text-rose-700">Heard as /{phoneme.spoken}/</p> : <p className="mt-1 text-[11px] font-semibold text-slate-500">Expected sound</p>}<div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-200"><div className={`h-full rounded-full ${phoneme.score >= 85 ? "bg-emerald-500" : phoneme.score >= 60 ? "bg-amber-500" : "bg-rose-500"}`} style={{ width: `${Math.max(6, phoneme.score)}%` }} /></div><p className="mt-1 text-right text-[11px] font-bold text-slate-500">{phoneme.score >= 85 ? "Clear" : phoneme.score >= 60 ? "Almost there" : "Needs practice"}</p></div>)}</div> : <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-semibold text-amber-900">Try saying “{target.text}” clearly in the next recording so we can score each sound.</p>}</section>)}</div></div></div> : null}
       <p className="relative z-10 text-center text-xs text-slate-400">Your recording is used to generate pronunciation feedback.</p>
     </div>
   );
