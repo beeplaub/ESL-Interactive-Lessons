@@ -102,7 +102,8 @@ export async function assessPronunciation(audio: ArrayBuffer, referenceText: str
     Granularity: "Phoneme",
     Dimension: "Comprehensive",
     EnableMiscue: "True",
-    EnableProsodyAssessment: locale.toLowerCase() === "en-us" ? "True" : "False",
+    // Prosody is a paid add-on; keep it disabled while phoneme feedback remains enabled.
+    EnableProsodyAssessment: "False",
     PhonemeAlphabet: "IPA",
     NBestPhonemeCount: 3,
   };
