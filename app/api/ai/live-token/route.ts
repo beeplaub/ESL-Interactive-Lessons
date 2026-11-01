@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { providerFailed, providerSucceeded } from "@/lib/ai/providerHealth";
 import { userCanOpenLesson } from "@/lib/practiceAccess";
+import { claimGeminiTutorSession } from "@/lib/aiTutorAccess";
 
 // Preserve the currently deployed translation model unless the platform admin
 // explicitly sets GEMINI_LIVE_MODEL after verifying a newer Live model.
@@ -24,7 +25,7 @@ export async function POST(request: Request) {
   const apiKey = process.env.GEMINI_LIVE_API_KEY;
   if (!apiKey) return NextResponse.json({ error: "Live translation is not configured yet." }, { status: 503 });
 
-  const body = await request.json().catch(() => null) as { mode?: Mode; lessonId?: string; slideId?: string; activityId?: string; topic?: string; durationMinutes?: number; explanationLanguage?: "bn" | "en" } | null;
+  const body = await request.json().catch(() => null) as { mode?: Mode; lessonId?: string; slideId?: string; activityId?: string; topic?: string; durationMinutes?: number; explanationLanguage?: "bn" | "en"; sessionId?: string } | null;
   if (!body?.mode || (body.mode !== "TUTOR" && !body.lessonId)) return NextResponse.json({ error: "Invalid live session request." }, { status: 400 });
 
   const admin = createAdminClient();
@@ -39,12 +40,20 @@ export async function POST(request: Request) {
 
   let liveInstruction: string | null = null;
   let voiceName = "Charon";
+  let tutorSessionId: string | null = null;
+  let tutorDurationMinutes: number | null = null;
 
   if (body.mode === "TUTOR") {
-    const durationMinutes = Math.max(1, Math.min(5, Math.round(Number(body.durationMinutes) || 1)));
+    if (!body.sessionId) return NextResponse.json({ error: "Reserve an AI Tutor session before connecting." }, { status: 400 });
+    const reservedSession = await claimGeminiTutorSession(user.id, body.sessionId);
+    if (!reservedSession) return NextResponse.json({ error: "Your reserved Gemini tutor session has expired. Start again." }, { status: 403 });
+    tutorSessionId = reservedSession.id;
+    tutorDurationMinutes = reservedSession.allocated_minutes;
+    const durationMinutes = tutorDurationMinutes;
     const explanationLanguage = body.explanationLanguage === "en" ? "en" : "bn";
     const topic = typeof body.topic === "string" ? body.topic.trim().slice(0, 180) : "";
-    maxSeconds = durationMinutes * 60;
+    maxSeconds = Math.max(0, Math.floor((new Date(reservedSession.expires_at).getTime() - Date.now()) / 1000));
+    if (!maxSeconds) return NextResponse.json({ error: "Your reserved tutor session has expired. Start again." }, { status: 403 });
     const { data: profile } = await admin.from("profiles").select("cefr_level,full_name,first_name,last_name").eq("id", user.id).maybeSingle();
     const learnerName = (profile?.full_name?.trim() || [profile?.first_name, profile?.last_name].filter(Boolean).join(" ").trim()).replace(/[\r\n\u0000-\u001f]/g, " ").slice(0, 100);
     liveInstruction = [
@@ -185,7 +194,7 @@ export async function POST(request: Request) {
       // Telemetry must never prevent a learner from entering an already-authorized live session.
       console.error("Gemini Live telemetry save failed", telemetryError);
     }
-    return NextResponse.json({ token: token.name, model: modelUsed, targetLanguageCode, maxSeconds, voiceName });
+    return NextResponse.json({ token: token.name, model: modelUsed, targetLanguageCode, maxSeconds, voiceName, sessionId: tutorSessionId, durationMinutes: tutorDurationMinutes });
   } catch (error) {
     providerFailed("google");
     console.error("Gemini Live token creation failed", error);

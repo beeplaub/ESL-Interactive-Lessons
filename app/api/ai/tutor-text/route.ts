@@ -3,6 +3,7 @@ import { callGemini } from "@/lib/ai/gemini";
 import { generateVoiceoverAudio } from "@/lib/ai/voiceover";
 import { transcribeWithGroq } from "@/lib/ai/speechToText";
 import { createClient } from "@/lib/supabase/server";
+import { assertActiveTutorSession } from "@/lib/aiTutorAccess";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -21,11 +22,13 @@ export async function POST(request: Request) {
   let topic: string;
   let historyInput: unknown;
   let transcript = "";
+  let sessionId = "";
   const isAudioTurn = request.headers.get("content-type")?.includes("multipart/form-data") ?? false;
 
   if (isAudioTurn) {
     const form = await request.formData();
     topic = String(form.get("topic") || "").trim().slice(0, 180);
+    sessionId = String(form.get("sessionId") || "");
     const durationSeconds = Number(form.get("durationSeconds") || 0);
     const file = form.get("file");
     try {
@@ -39,11 +42,20 @@ export async function POST(request: Request) {
     }
     historyInput = JSON.parse(String(form.get("history") || "[]"));
   } else {
-    const body = await request.json().catch(() => null) as { opening?: boolean; topic?: unknown } | null;
+    const body = await request.json().catch(() => null) as { opening?: boolean; topic?: unknown; sessionId?: string } | null;
     if (body?.opening !== true) return NextResponse.json({ error: "Please answer by voice in this lesson." }, { status: 400 });
     topic = typeof body.topic === "string" ? body.topic.trim().slice(0, 180) : "";
+    sessionId = typeof body.sessionId === "string" ? body.sessionId : "";
     historyInput = [];
     transcript = "";
+  }
+
+  if (!sessionId) return NextResponse.json({ error: "Start a reserved AI Tutor lesson first." }, { status: 400 });
+  try {
+    const session = await assertActiveTutorSession(user.id, sessionId, "KOKORO");
+    if (!session) return NextResponse.json({ error: "Your reserved tutor session has ended. Start another lesson." }, { status: 403 });
+  } catch {
+    return NextResponse.json({ error: "AI Tutor access could not be verified." }, { status: 503 });
   }
 
   const history = Array.isArray(historyInput)

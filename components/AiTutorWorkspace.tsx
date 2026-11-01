@@ -5,6 +5,7 @@ import { ArrowLeft, ArrowRight, AudioLines, Check, Mic, MicOff, Volume2 } from "
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { startLiveTutor } from "@/components/GeminiLiveTranslation";
+import type { AiTutorAccess, AiTutorEngine } from "@/lib/aiTutorAccess";
 
 type Message = { sender: "LEARNER" | "TUTOR"; text: string; audioBase64?: string; mimeType?: string };
 type Mode = "ready" | "connecting" | "live" | "text" | "ended";
@@ -23,7 +24,7 @@ function AvatarStage({ speaking, showLabel = true }: { speaking: boolean; showLa
 
 export function AiTutorWorkspace({ cefrLevel = "B1" }: { cefrLevel?: string }) {
   const [topic, setTopic] = useState("");
-  const [duration, setDuration] = useState<1 | 2 | 3 | 4 | 5>(1);
+  const [duration, setDuration] = useState(1);
   const [explanationLanguage, setExplanationLanguage] = useState<"bn" | "en">("bn");
   const [mode, setMode] = useState<Mode>("ready");
   const [messages, setMessages] = useState<Message[]>([]);
@@ -32,8 +33,11 @@ export function AiTutorWorkspace({ cefrLevel = "B1" }: { cefrLevel?: string }) {
   const [micEnabled, setMicEnabled] = useState(true);
   const [error, setError] = useState("");
   const [recording, setRecording] = useState(false);
-  const [liveUnavailable, setLiveUnavailable] = useState(false);
+  const [access, setAccess] = useState<AiTutorAccess | null>(null);
+  const [accessError, setAccessError] = useState("");
+  const startingRef = useRef(false);
   const stopRef = useRef<(() => Promise<void>) | null>(null);
+  const sessionIdRef = useRef<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const setMicEnabledRef = useRef<((enabled: boolean) => void) | null>(null);
   const conversationRef = useRef<HTMLDivElement>(null);
@@ -44,10 +48,30 @@ export function AiTutorWorkspace({ cefrLevel = "B1" }: { cefrLevel?: string }) {
   const recordingTimeoutRef = useRef<number | null>(null);
   const inSession = mode === "live" || mode === "text";
 
+  useEffect(() => {
+    let mounted = true;
+    fetch("/api/ai/tutor-access").then(async (response) => {
+      const result = await response.json() as AiTutorAccess & { error?: string };
+      if (!response.ok) throw new Error(result.error || "AI Tutor access could not be checked.");
+      if (mounted) {
+        setAccess(result);
+        setDuration(Math.min(1, result.max_session_minutes || 1));
+      }
+    }).catch((error) => { if (mounted) setAccessError(error instanceof Error ? error.message : "AI Tutor access could not be checked."); });
+    return () => { mounted = false; };
+  }, []);
+
   const stopSession = useCallback(async (ended = false) => {
     const stop = stopRef.current;
     stopRef.current = null;
     await stop?.();
+    const sessionId = sessionIdRef.current;
+    sessionIdRef.current = null;
+    if (sessionId) await fetch("/api/ai/tutor-access", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "finish", sessionId }), keepalive: true }).catch(() => undefined);
+    if (sessionId) {
+      const refreshed = await fetch("/api/ai/tutor-access").then((response) => response.ok ? response.json() as Promise<AiTutorAccess> : null).catch(() => null);
+      if (refreshed) setAccess(refreshed);
+    }
     setSpeaking(false);
     setMode(ended ? "ended" : "ready");
   }, []);
@@ -66,6 +90,8 @@ export function AiTutorWorkspace({ cefrLevel = "B1" }: { cefrLevel?: string }) {
   }, [inSession, secondsLeft, stopSession]);
   useEffect(() => () => {
     void stopRef.current?.(); audioRef.current?.pause();
+    const sessionId = sessionIdRef.current;
+    if (sessionId) void fetch("/api/ai/tutor-access", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "finish", sessionId }), keepalive: true }).catch(() => undefined);
     if (recordingTimeoutRef.current) window.clearTimeout(recordingTimeoutRef.current);
     recorderRef.current?.stop(); recordingStreamRef.current?.getTracks().forEach((track) => track.stop());
   }, []);
@@ -92,25 +118,55 @@ export function AiTutorWorkspace({ cefrLevel = "B1" }: { cefrLevel?: string }) {
   }, []);
 
   async function startVoice() {
+    if (startingRef.current) return;
+    startingRef.current = true;
     const cleanTopic = topic.trim();
-    setError(""); setLiveUnavailable(false); setMessages([]); setMode("connecting");
-    await startLiveTutor({
-      topic: cleanTopic, durationMinutes: duration, explanationLanguage, onAudio: setSpeaking, onTranscript: addTranscript,
-      onReady: (stop, maxSeconds, setMic) => { stopRef.current = stop; setMicEnabledRef.current = setMic; setMicEnabled(true); setSecondsLeft(Math.min(duration * 60, maxSeconds)); setMode("live"); },
-      onError: () => { setError("Voice lesson couldn’t connect. You can retry or continue with a voice backup."); setLiveUnavailable(true); setMode("ready"); },
-    });
+    setError(""); setMessages([]); setMode("connecting");
+    try {
+      const reserveResponse = await fetch("/api/ai/tutor-access", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ requestedMinutes: duration }) });
+      const reservation = await reserveResponse.json() as { ok?: boolean; session_id?: string; engine?: AiTutorEngine; duration_minutes?: number; error?: string };
+      if (!reserveResponse.ok || !reservation.ok || !reservation.session_id || !reservation.engine || !reservation.duration_minutes) throw new Error(reservation.error || "Your lesson could not be reserved.");
+      sessionIdRef.current = reservation.session_id;
+      setDuration(reservation.duration_minutes);
+      if (reservation.engine === "KOKORO") {
+        setExplanationLanguage("en");
+        startingRef.current = false;
+        await beginTextFallback(reservation.session_id, reservation.duration_minutes);
+        return;
+      }
+      await startLiveTutor({
+        topic: cleanTopic, durationMinutes: reservation.duration_minutes, explanationLanguage, sessionId: reservation.session_id, onAudio: setSpeaking, onTranscript: addTranscript,
+        onReady: (stop, maxSeconds, setMic, sessionId) => { startingRef.current = false; stopRef.current = stop; sessionIdRef.current = sessionId; setMicEnabledRef.current = setMic; setMicEnabled(true); setSecondsLeft(Math.min(reservation.duration_minutes! * 60, maxSeconds)); setMode("live"); },
+        onError: (message) => {
+          startingRef.current = false;
+          const sessionId = sessionIdRef.current; sessionIdRef.current = null;
+          if (sessionId) void fetch("/api/ai/tutor-access", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "finish", sessionId, cancel: true }), keepalive: true });
+          setError(message); setMode("ready");
+        },
+      });
+    } catch (caught) {
+      startingRef.current = false;
+      sessionIdRef.current = null;
+      setError(caught instanceof Error ? caught.message : "Your lesson could not start.");
+      setMode("ready");
+    }
   }
 
-  async function beginTextFallback() {
-    setError(""); setLiveUnavailable(false); setMessages([]); setSecondsLeft(duration * 60); setMode("text"); setSpeaking(true);
+  async function beginTextFallback(sessionId: string, reservedMinutes: number) {
+    setError(""); setMessages([]); setSecondsLeft(reservedMinutes * 60); setMode("text"); setSpeaking(true);
     try {
-      const response = await fetch("/api/ai/tutor-text", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ opening: true, topic: topic.trim() }) });
+      const response = await fetch("/api/ai/tutor-text", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ opening: true, topic: topic.trim(), sessionId }) });
       const result = await response.json() as { reply?: string; audio?: string | null; mimeType?: string | null; error?: string };
       if (!response.ok || !result.reply) throw new Error(result.error || "Your tutor couldn’t start the lesson.");
       setMessages([{ sender: "TUTOR", text: result.reply, audioBase64: result.audio || undefined, mimeType: result.mimeType || undefined }]);
       if (result.audio) playKokoroAudio(result.audio, result.mimeType || "audio/ogg");
       else setSpeaking(false);
-    } catch (caught) { setError(caught instanceof Error ? caught.message : "Your tutor couldn’t start the lesson."); setSpeaking(false); }
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Your tutor couldn’t start the lesson."); setSpeaking(false);
+      sessionIdRef.current = null;
+      void fetch("/api/ai/tutor-access", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "finish", sessionId, cancel: true }), keepalive: true });
+      setMode("ready");
+    }
   }
 
   async function sendVoiceMessage(blob: Blob, durationSeconds: number) {
@@ -119,6 +175,7 @@ export function AiTutorWorkspace({ cefrLevel = "B1" }: { cefrLevel?: string }) {
     try {
       const form = new FormData();
       form.append("topic", topic.trim()); form.append("durationSeconds", String(durationSeconds));
+      if (sessionIdRef.current) form.append("sessionId", sessionIdRef.current);
       form.append("history", JSON.stringify(messages.map(({ sender, text }) => ({ sender, text }))));
       form.append("file", blob, "learner-answer.webm");
       const response = await fetch("/api/ai/tutor-text", { method: "POST", body: form });
@@ -216,22 +273,24 @@ export function AiTutorWorkspace({ cefrLevel = "B1" }: { cefrLevel?: string }) {
             <div className="mt-1.5 text-xs text-[var(--br-text-muted)]">Leave blank and your tutor will ask what you’d like to learn.</div>
             <div className="mt-4 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-xl bg-[var(--br-canvas)] px-3 py-2">
               <label className="whitespace-nowrap text-xs font-bold" htmlFor="tutor-duration">Lesson length</label>
-              <input id="tutor-duration" type="range" min={1} max={5} step={1} value={duration} onChange={(event) => setDuration(Number(event.target.value) as 1 | 2 | 3 | 4 | 5)} aria-label="Lesson length in minutes" className="h-2 w-full cursor-pointer accent-[var(--br-brand)]"/>
+              <input id="tutor-duration" type="range" min={1} max={access?.max_session_minutes || 1} step={1} value={Math.min(duration, access?.max_session_minutes || 1)} onChange={(event) => setDuration(Number(event.target.value))} aria-label="Lesson length in minutes" className="h-2 w-full cursor-pointer accent-[var(--br-brand)]" disabled={!access?.has_access}/>
               <span className="min-w-[42px] text-right text-xs font-extrabold text-[var(--br-brand)]">{duration} min</span>
             </div>
+            {access?.has_access ? <p className="mt-1.5 text-right text-[11px] text-[var(--br-text-muted)]">{access.engine === "GEMINI" ? "Gemini live voice" : "Kokoro voice"}{access.daily_minutes_limit !== null && access.daily_minutes_limit !== undefined ? ` · ${Math.max(0, access.daily_minutes_limit - (access.daily_minutes_used || 0))} min left today` : ""}{access.total_minutes_limit !== null && access.total_minutes_limit !== undefined ? ` · ${Math.max(0, access.total_minutes_limit - (access.total_minutes_used || 0))} min total left` : ""}</p> : null}
             <fieldset className="mt-5">
               <legend className="text-sm font-bold">Tutor Speaks:</legend>
               <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <button type="button" aria-pressed={explanationLanguage === "bn"} onClick={() => setExplanationLanguage("bn")} className={`rounded-xl border px-3 py-2.5 text-left text-sm transition ${explanationLanguage === "bn" ? "border-[var(--br-brand)] bg-[var(--br-brand-soft)] text-[var(--br-brand)] ring-2 ring-violet-100" : "border-[var(--br-border)] bg-[var(--br-canvas)] text-[var(--br-text-muted)]"}`}><span className="font-extrabold">বাংলা + English</span></button>
+                <button type="button" disabled={access?.engine === "KOKORO"} aria-pressed={explanationLanguage === "bn"} onClick={() => setExplanationLanguage("bn")} className={`rounded-xl border px-3 py-2.5 text-left text-sm transition ${explanationLanguage === "bn" ? "border-[var(--br-brand)] bg-[var(--br-brand-soft)] text-[var(--br-brand)] ring-2 ring-violet-100" : "border-[var(--br-border)] bg-[var(--br-canvas)] text-[var(--br-text-muted)]"} disabled:cursor-not-allowed disabled:opacity-45`}><span className="font-extrabold">বাংলা + English</span></button>
                 <button type="button" aria-pressed={explanationLanguage === "en"} onClick={() => setExplanationLanguage("en")} className={`rounded-xl border px-3 py-2.5 text-left text-sm transition ${explanationLanguage === "en" ? "border-[var(--br-brand)] bg-[var(--br-brand-soft)] text-[var(--br-brand)] ring-2 ring-violet-100" : "border-[var(--br-border)] bg-[var(--br-canvas)] text-[var(--br-text-muted)]"}`}><span className="font-extrabold">English only</span></button>
               </div>
-              {liveUnavailable && explanationLanguage === "bn" ? <p className="mt-2 text-xs text-[var(--br-text-muted)]">The voice backup speaks English only. Select English to continue with it.</p> : null}
+              {access?.engine === "KOKORO" ? <p className="mt-2 text-xs text-[var(--br-text-muted)]">Bangla is unavailable for this assigned voice.</p> : null}
             </fieldset>
             <div className="mt-5">
-              <button type="button" onClick={() => void startVoice()} className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[var(--br-brand)] px-4 text-sm font-extrabold text-white shadow-md transition hover:brightness-110">Start voice lesson <ArrowRight size={16}/></button>
-              {liveUnavailable ? <button type="button" disabled={explanationLanguage !== "en"} onClick={() => void beginTextFallback()} className="mt-2 flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-[var(--br-brand)] bg-[var(--br-brand-soft)] px-4 text-sm font-bold text-[var(--br-brand)] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"><Mic size={16}/>Continue with voice backup</button> : null}
+              <button type="button" disabled={!access?.has_access} onClick={() => void startVoice()} className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[var(--br-brand)] px-4 text-sm font-extrabold text-white shadow-md transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50">Start voice lesson <ArrowRight size={16}/></button>
             </div>
-            {error ? <p role="alert" className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-medium text-amber-900">{error}{liveUnavailable ? " Retry the lesson or choose English to continue with the voice backup." : ""}</p> : null}
+            {accessError ? <p role="alert" className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-medium text-amber-900">{accessError}</p> : null}
+            {access && !access.has_access ? <p role="status" className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-medium text-amber-900">AI Tutor access has not been assigned to your account.</p> : null}
+            {error ? <p role="alert" className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-medium text-amber-900">{error}</p> : null}
           </div>
         </div>
       </section>

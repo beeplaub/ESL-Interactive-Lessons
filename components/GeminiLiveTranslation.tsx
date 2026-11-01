@@ -2,7 +2,7 @@
 
 import { GoogleGenAI, Modality } from "@google/genai";
 
-type TokenRequest = { mode: "NARRATION" | "SPEAK_TRANSLATE" | "CONVERSATION"; lessonId: string; slideId?: string; activityId?: string } | { mode: "TUTOR"; topic: string; durationMinutes: 1 | 2 | 3 | 4 | 5; explanationLanguage: "bn" | "en" };
+type TokenRequest = { mode: "NARRATION" | "SPEAK_TRANSLATE" | "CONVERSATION"; lessonId: string; slideId?: string; activityId?: string } | { mode: "TUTOR"; topic: string; durationMinutes: number; explanationLanguage: "bn" | "en"; sessionId: string };
 type LiveConnection = Awaited<ReturnType<GoogleGenAI["live"]["connect"]>>;
 
 function base64FromBytes(bytes: Uint8Array) {
@@ -96,9 +96,9 @@ class PcmPlayer {
 
 async function requestToken(request: TokenRequest) {
   const response = await fetch("/api/ai/live-token", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(request) });
-  const data = await response.json() as { token?: string; model?: string; targetLanguageCode?: string; maxSeconds?: number | null; voiceName?: string; error?: string };
+  const data = await response.json() as { token?: string; model?: string; targetLanguageCode?: string; maxSeconds?: number | null; voiceName?: string; sessionId?: string | null; durationMinutes?: number | null; error?: string };
   if (!response.ok || !data.token || !data.model) throw new Error(data.error || "Live translation is unavailable.");
-  return data as Required<Pick<typeof data, "token" | "model" | "targetLanguageCode">> & { maxSeconds?: number | null; voiceName?: string };
+  return data as Required<Pick<typeof data, "token" | "model" | "targetLanguageCode">> & { maxSeconds?: number | null; voiceName?: string; sessionId?: string | null; durationMinutes?: number | null };
 }
 
 function extractAudio(message: unknown) {
@@ -317,13 +317,14 @@ export async function startLiveConversation({ lessonId, activityId, onAudio, onT
 }
 
 /** Starts a standalone tutor session. It streams audio directly to Gemini Live and never records or uploads the learner's microphone. */
-export async function startLiveTutor({ topic, durationMinutes, explanationLanguage, onAudio, onTranscript, onReady, onError }: {
+export async function startLiveTutor({ topic, durationMinutes, explanationLanguage, sessionId, onAudio, onTranscript, onReady, onError }: {
   topic: string;
-  durationMinutes: 1 | 2 | 3 | 4 | 5;
+  durationMinutes: number;
   explanationLanguage: "bn" | "en";
+  sessionId: string;
   onAudio: (speaking: boolean) => void;
   onTranscript?: (sender: "LEARNER" | "AI", text: string) => void;
-  onReady: (stop: () => Promise<void>, maxSeconds: number, setMicEnabled: (enabled: boolean) => void) => void;
+  onReady: (stop: () => Promise<void>, maxSeconds: number, setMicEnabled: (enabled: boolean) => void, sessionId: string) => void;
   onError: (message: string) => void;
 }) {
   const context = new AudioContext();
@@ -353,7 +354,7 @@ export async function startLiveTutor({ topic, durationMinutes, explanationLangua
   };
   try {
     await player.resume();
-    const connection = await requestToken({ mode: "TUTOR", topic: topic.trim().slice(0, 180), durationMinutes, explanationLanguage });
+    const connection = await requestToken({ mode: "TUTOR", topic: topic.trim().slice(0, 180), durationMinutes, explanationLanguage, sessionId });
     const ai = new GoogleGenAI({ apiKey: connection.token, httpOptions: { apiVersion: "v1alpha" } });
     session = await ai.live.connect({
       model: connection.model,
@@ -389,7 +390,7 @@ export async function startLiveTutor({ topic, durationMinutes, explanationLangua
     };
     source.connect(processor); processor.connect(silentGain); silentGain.connect(context.destination);
     session.sendClientContent({ turns: [{ role: "user", parts: [{ text: "Begin the mini lesson now and greet me using the full profile name provided in your instructions." }] }], turnComplete: true });
-    onReady(finish, connection.maxSeconds ?? durationMinutes * 60, setMicEnabled);
+    onReady(finish, connection.maxSeconds ?? durationMinutes * 60, setMicEnabled, connection.sessionId || sessionId);
   } catch (error) {
     stream?.getTracks().forEach((track) => track.stop());
     processor?.disconnect(); silentGain?.disconnect(); session?.close(); void player.close();
