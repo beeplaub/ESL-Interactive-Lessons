@@ -1,13 +1,19 @@
 import { providerAvailable, providerFailed, providerSucceeded } from "@/lib/ai/providerHealth";
 
-export async function transcribeWithGroq(file: File) {
+export type GroqWordTimestamp = { word: string; start: number; end: number };
+export type GroqTimestampTranscription = { transcript: string; words: GroqWordTimestamp[] };
+
+export function transcribeWithGroq(file: File): Promise<string>;
+export function transcribeWithGroq(file: File, options: { wordTimestamps: true }): Promise<GroqTimestampTranscription>;
+export async function transcribeWithGroq(file: File, options?: { wordTimestamps?: boolean }): Promise<string | GroqTimestampTranscription> {
   if (process.env.GROQ_STT_ENABLED !== "true" || !process.env.GROQ_API_KEY) throw new Error("Speech transcription is not configured.");
   if (!providerAvailable("groq")) throw new Error("Speech transcription is temporarily busy. Please try again shortly.");
   const groqForm = new FormData();
   groqForm.append("file", file, file.name || "roleplay-turn.webm");
   groqForm.append("model", process.env.GROQ_STT_MODEL || "whisper-large-v3-turbo");
   groqForm.append("language", "en");
-  groqForm.append("response_format", "json");
+  groqForm.append("response_format", options?.wordTimestamps ? "verbose_json" : "json");
+  if (options?.wordTimestamps) groqForm.append("timestamp_granularities[]", "word");
   groqForm.append("temperature", "0");
   try {
     const response = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
@@ -18,10 +24,23 @@ export async function transcribeWithGroq(file: File) {
       cache: "no-store",
     });
     if (!response.ok) throw new Error(`Groq transcription failed with status ${response.status}`);
-    const result = await response.json() as { text?: unknown };
+    const result = await response.json() as { text?: unknown; words?: unknown };
     const transcript = typeof result.text === "string" ? result.text.trim().slice(0, 2_000) : "";
     if (!transcript) throw new Error("No speech was detected. Please try again.");
     providerSucceeded("groq");
+    if (options?.wordTimestamps) {
+      const words = Array.isArray(result.words)
+        ? result.words.flatMap((item) => {
+            if (!item || typeof item !== "object") return [];
+            const row = item as Record<string, unknown>;
+            const word = typeof row.word === "string" ? row.word.trim() : "";
+            const start = Number(row.start);
+            const end = Number(row.end);
+            return word && Number.isFinite(start) && Number.isFinite(end) && end >= start ? [{ word, start, end }] : [];
+          })
+        : [];
+      return { transcript, words };
+    }
     return transcript;
   } catch (error) {
     providerFailed("groq");

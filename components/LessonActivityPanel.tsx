@@ -276,6 +276,8 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
       options: {
         audio_url: audioUrl,
         target_text: targetText,
+        shadowing_mode: data.shadowing_mode === "CHUNK_AB" ? "CHUNK_AB" : "LEGACY_PHASES",
+        chunks: Array.isArray(data.chunks) ? data.chunks : [],
         phases: shadowingPhases(data).map((phase) => ({ id: phase.id, target_text: phase.targetText, audio_url: phase.audioUrl })),
         repeat_count: Math.max(1, Math.min(20, Number(data.repeat_count ?? 1) || 1)),
         require_all_green: data.require_all_green !== false,
@@ -506,7 +508,7 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
         audio_url: String(row.audio_url ?? row.audioUrl ?? ""),
       };
     });
-    const level = data.level === "sentence" || data.level === "paragraph" ? data.level : "word";
+    const level = data.level === "sentence" || data.level === "paragraph" ? "sentence" : "word";
     const maxAttempts = Math.max(1, Number(data.max_attempts ?? 3));
     return [{
       id: "1",
@@ -518,6 +520,7 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
         passage: String(data.passage ?? ""),
         targets,
         max_attempts: maxAttempts,
+        max_recording_seconds: Math.max(5, Math.min(30, Math.round(Number(data.max_recording_seconds ?? 30) || 30))),
         audio_url: String(data.audio_url ?? ""),
       } as Json,
       correct_answer: targets.map((t) => t.id) as Json,

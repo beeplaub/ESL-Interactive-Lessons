@@ -14,7 +14,8 @@ import { MediaRecorderInput } from "@/components/MediaRecorderInput";
 import { AudioTrackPlayer } from "@/components/AudioTrackPlayer";
 import { FlashcardAudioGenerator } from "@/components/FlashcardAudioGenerator";
 import { useVoiceGenerationPreferences } from "@/components/voiceGenerationPreferences";
-import { shadowingPhaseData, shadowingPhases, type ShadowingPhase } from "@/lib/shadowing";
+import { shadowingChunkData, shadowingChunks, shadowingPhaseData, shadowingPhases, type ShadowingPhase } from "@/lib/shadowing";
+import { ShadowingChunkEditor } from "@/components/ShadowingChunkEditor";
 
 type BuilderQuestion = {
   id: string;
@@ -189,7 +190,7 @@ function defaultQuestion(type: BuilderQuestion["questionType"]): BuilderQuestion
   if (type === "PARAPHRASE_ID") return { id, questionType: type, questionText: "Which option best paraphrases the text?", description: "", options: { passage: "Enter the source text here.", choices: { A: "Paraphrase A", B: "Paraphrase B", C: "Paraphrase C", D: "Paraphrase D" } }, correctAnswer: "A", assessment };
   if (type === "DICTATION") return { id, questionType: type, questionText: "Listen to the audio and type what you hear.", description: "", options: { audio_url: "", hint: "", ignore_punctuation: true }, correctAnswer: "The quick brown fox jumps over the lazy dog.", assessment };
   if (type === "LISTEN_AND_SELECT") return { id, questionType: type, questionText: "Listen to the audio clip and select the matching option.", description: "", options: { audio_url: "", choices: [{ id: "0", text: "Option A", image_url: "" }, { id: "1", text: "Option B", image_url: "" }] }, correctAnswer: "0", assessment };
-  if (type === "SHADOWING") return { id, questionType: type, questionText: "Listen to the native speaker and repeat the phrase into your microphone.", description: "", options: { audio_url: "", target_text: "Repeat after me.", repeat_count: 3, show_live_match: true, require_all_green: true }, correctAnswer: "Repeat after me.", assessment };
+  if (type === "SHADOWING") return { id, questionType: type, questionText: "Listen to the model sentence, record it once, then compare the chunks.", description: "", options: { shadowing_mode: "CHUNK_AB", audio_url: "", chunks: [{ id: "chunk-1", text: "", start_seconds: 0, end_seconds: 0 }] }, correctAnswer: "", assessment };
   if (type === "NOTE_TAKING_CHALLENGE") return { id, questionType: type, questionText: "Listen to the clip, take notes in the scratchpad, and answer the questions.", description: "", options: { media_url: "", audio_url: "", questions: [{ id: "1", text: "What was the main topic?", options: { A: "Topic A", B: "Topic B", C: "Topic C", D: "Topic D" } }] }, correctAnswer: { "1": "A" }, assessment };
   if (type === "SOUND_DISCRIMINATION") return { id, questionType: type, questionText: "Listen to the sound and identify the correct minimal pair word.", description: "", options: { audio_url: "", pairs: [{ id: "0", word: "ship", phonetic: "/ʃɪp/", audio_url: "" }, { id: "1", word: "sheep", phonetic: "/ʃiːp/", audio_url: "" }] }, correctAnswer: "0", assessment };
   if (type === "LISTEN_AND_GAP_FILL") return { id, questionType: type, questionText: "Listen to the audio and fill in the missing blanks in the transcript.", description: "", options: { audio_url: "", transcript: "I have been working at this ___ for two years." }, correctAnswer: ["company"], assessment };
@@ -1670,6 +1671,23 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
   }
 
   if (question.questionType === "SHADOWING") {
+    if (options.shadowing_mode === "CHUNK_AB") {
+      const chunks = shadowingChunks(options);
+      const audioUrl = String(options.audio_url ?? "");
+      const chunkText = chunks.map((chunk) => chunk.text.trim()).filter(Boolean).join(" ");
+      return (
+        <div className="grid gap-3">
+          <ShadowingChunkEditor
+            audioUrl={audioUrl}
+            chunks={chunks}
+            onAudioUrlChange={(url) => onChange({ options: { ...options, shadowing_mode: "CHUNK_AB", audio_url: url } as Json })}
+            onChunksChange={(next) => onChange({ options: { ...options, shadowing_mode: "CHUNK_AB", chunks: shadowingChunkData(next) } as Json, correctAnswer: next.map((chunk) => chunk.text.trim()).filter(Boolean).join(" ") })}
+          />
+          <p className="text-xs text-[var(--br-text-muted)]">No pronunciation score is generated. Groq transcript words are used only to align the learner recording to these chunks.</p>
+          <button type="button" onClick={() => onChange({ options: { ...options, shadowing_mode: "LEGACY_PHASES", target_text: chunkText, phases: [{ id: "phase-1", target_text: chunkText, audio_url: audioUrl }] } as Json, correctAnswer: chunkText })} className="justify-self-start text-xs font-semibold text-[var(--br-text-muted)] underline">Return to legacy phrase practice</button>
+        </div>
+      );
+    }
     const phases = shadowingPhases(options);
     const updatePhase = (index: number, patch: Partial<ShadowingPhase>) => {
       const next = phases.map((phase, phaseIndex) => phaseIndex === index ? { ...phase, ...patch } : phase);
@@ -1679,6 +1697,10 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
       <div className="grid gap-3">
         <div className="flex items-center justify-between gap-3"><div><p className="text-sm font-bold">Target phases</p><p className="text-xs text-[var(--br-text-muted)]">Each phase has its own phrase and audio.</p></div><button type="button" onClick={() => { const next = [...phases, { id: `phase-${phases.length + 1}-${Date.now()}`, targetText: "", audioUrl: "" }]; onChange({ options: { ...options, phases: shadowingPhaseData(next) } as Json }); }} className="rounded-lg bg-[var(--br-brand)] px-3 py-1.5 text-xs font-bold text-on-dark">+ Add phase</button></div>
         {phases.map((phase, index) => <div key={phase.id} className="grid gap-3 rounded-2xl border border-violet-200 bg-violet-50/40 p-3 sm:p-4"><div className="flex items-center justify-between gap-3"><p className="text-xs font-black uppercase tracking-wide text-[var(--br-chart-primary)]">Phase {index + 1}</p>{phases.length > 1 ? <button type="button" onClick={() => { const next = phases.filter((_, phaseIndex) => phaseIndex !== index); onChange({ options: { ...options, phases: shadowingPhaseData(next), audio_url: next[0]?.audioUrl ?? "", target_text: next[0]?.targetText ?? "" } as Json, correctAnswer: next[0]?.targetText ?? "" }); }} className="text-xs font-semibold text-coral">Remove</button> : null}</div><MediaRecorderInput label="Target audio" value={phase.audioUrl} onChange={(url) => updatePhase(index, { audioUrl: url })} /><label className="text-sm font-medium">Target phrase<textarea rows={3} value={phase.targetText} onChange={(event) => updatePhase(index, { targetText: event.target.value })} placeholder="e.g. Excuse me, could you tell me how to get to the station?" className="mt-1 w-full rounded-md border border-[var(--br-border)] bg-surface px-3 py-2 text-sm" /></label></div>)}
+        <button type="button" onClick={() => {
+          const nextChunks = phases.map((phase, index) => ({ id: phase.id || `chunk-${index + 1}`, text: phase.targetText, startSeconds: 0, endSeconds: 0 }));
+          onChange({ options: { ...options, shadowing_mode: "CHUNK_AB", audio_url: phases.length === 1 ? phases[0].audioUrl : "", chunks: shadowingChunkData(nextChunks) } as Json, correctAnswer: phases.map((phase) => phase.targetText.trim()).filter(Boolean).join(" ") });
+        }} className="justify-self-start rounded-lg border border-violet-200 px-3 py-2 text-xs font-bold text-[var(--br-chart-primary)]">Upgrade to sentence chunk A→B</button>
         <div className="grid gap-3 rounded-2xl border border-violet-200 bg-violet-50/60 p-4 sm:grid-cols-2">
           <label className="text-sm font-semibold">Repeat count<select value={Number(options.repeat_count ?? 3)} onChange={(e) => onChange({ options: { ...options, repeat_count: Math.max(1, Math.min(20, Number(e.target.value) || 1)) } as Json })} className="mt-1 w-full rounded-xl border border-[var(--br-border)] bg-surface px-3 py-2"><option value={1}>1 repetition</option><option value={2}>2 repetitions</option><option value={3}>3 repetitions</option><option value={5}>5 repetitions</option><option value={10}>10 repetitions</option></select></label>
           <div className="grid gap-2 text-sm font-semibold"><label className="flex items-center gap-2"><input type="checkbox" checked={options.show_live_match !== false} onChange={(e) => onChange({ options: { ...options, show_live_match: e.target.checked } as Json })} /> Show live phrase match</label><label className="flex items-center gap-2"><input type="checkbox" checked={options.require_all_green !== false} onChange={(e) => onChange({ options: { ...options, require_all_green: e.target.checked } as Json })} /> Require all words green</label></div>
@@ -2462,11 +2484,12 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
   }
 
   const targets = Array.isArray(options.targets) ? options.targets.map((target) => asRecord(target as Json)) : [];
-  const pronunciationLevel = options.level === "sentence" || options.level === "paragraph" ? options.level : "word";
+  const pronunciationLevel = options.level === "sentence" || options.level === "paragraph" ? "sentence" : "word";
   const hasPassage = pronunciationLevel === "word" || String(options.passage ?? "").trim().length > 0;
   const hasTargets = targets.some((target) => String(target.text ?? "").trim().length > 0);
   const passage = String(options.passage ?? "");
   const referenceAudioUrl = String(options.audio_url ?? "").trim();
+  const maxRecordingSeconds = Math.max(5, Math.min(30, Math.round(Number(options.max_recording_seconds ?? 30) || 30)));
   const passageSegments = targets.length > 0 && passage
     ? passage.split(new RegExp(`(${targets.map((target) => String(target.text ?? "").replace(/[.*+?^${}()|[\\]\\]/g, "\\\\$&")).filter(Boolean).join("|")})`, "i")).filter(Boolean)
     : [passage];
@@ -2490,17 +2513,16 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
       </div>
       <div className="rounded-[20px] border border-[var(--br-border)] bg-white p-4 shadow-sm sm:p-5">
         <div className="mb-3 flex items-start justify-between gap-3"><div><h3 className="font-black text-[var(--br-dark-card)]">1. Content</h3><p className="mt-1 text-xs text-[var(--br-text-muted)]">Add the sentence learners will practise.</p></div><AudioLines className="text-indigo-500" size={20} /></div>
-        {pronunciationLevel === "word" ? <div className="rounded-xl border border-[var(--br-border)] bg-surface-muted p-3 text-sm font-bold text-[var(--br-dark-card)]">Your target words will appear as a guided word list.</div> : <textarea value={passage} onChange={(event) => onChange({ options: { ...options, passage: event.target.value } as Json })} rows={pronunciationLevel === "paragraph" ? 4 : 2} className="w-full rounded-xl border border-[var(--br-border)] px-3 py-3 text-sm font-semibold" placeholder="Could you recommend a comfortable option?" />}
+        {pronunciationLevel === "word" ? <div className="rounded-xl border border-[var(--br-border)] bg-surface-muted p-3 text-sm font-bold text-[var(--br-dark-card)]">Your target words will appear as a guided word list.</div> : <><label htmlFor="pronunciation-sentence-text" className="mb-1 block text-xs font-black text-[var(--br-dark-card)]">Sentence text (one or more sentences)</label><textarea id="pronunciation-sentence-text" value={passage} onChange={(event) => onChange({ options: { ...options, passage: event.target.value } as Json })} rows={3} className="w-full rounded-xl border border-[var(--br-border)] px-3 py-3 text-sm font-semibold" placeholder="Could you recommend a comfortable option?" /></>}
         {pronunciationLevel !== "word" && passage.trim() ? <div className="mt-3 rounded-xl border border-indigo-100 bg-indigo-50/60 p-3"><p className="text-[10px] font-black uppercase tracking-wider text-indigo-700">Target color preview</p><p className="mt-2 text-base font-black leading-8 text-[var(--br-dark-card)]">{passageSegments.map((segment, index) => { const target = targets.find((item) => String(item.text ?? "").toLowerCase() === segment.toLowerCase()); return target ? <span key={index} className="mx-0.5 rounded-md border-b-4 px-1" style={{ color: String(target.color ?? "var(--br-achievement)"), borderColor: String(target.color ?? "var(--br-achievement)"), backgroundColor: "color-mix(in srgb, currentColor 10%, white)" }}>{segment}</span> : <span key={index}>{segment}</span>; })}</p></div> : null}
-        {pronunciationLevel !== "word" ? <div className="mt-4 grid gap-2"><p className="text-xs font-black text-[var(--br-dark-card)]">Sentence reference audio (optional)</p><div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_auto]"><input type="url" value={referenceAudioUrl} onChange={(event) => onChange({ options: { ...options, audio_url: event.target.value } as Json })} placeholder="Paste an audio URL" className="w-full min-w-0 rounded-xl border border-[var(--br-border)] px-3 py-2.5 text-sm font-semibold" /><FlashcardAudioGenerator word={passage} entityLabel="Sentence reference" buttonLabel="Generate audio" settings={voiceSettings} onSaved={(url) => onChange({ options: { ...options, audio_url: url } as Json })} /></div><span className="text-[11px] font-medium text-[var(--br-text-muted)]">Generate and save a spoken example, or paste an existing audio link. Learners can play it before recording.</span></div> : null}
+        {pronunciationLevel === "sentence" ? <div className="mt-4 grid gap-2"><p className="text-xs font-black text-[var(--br-dark-card)]">Sentence reference audio (optional)</p><div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_auto]"><input type="url" value={referenceAudioUrl} onChange={(event) => onChange({ options: { ...options, audio_url: event.target.value } as Json })} placeholder="Paste an audio URL" className="w-full min-w-0 rounded-xl border border-[var(--br-border)] px-3 py-2.5 text-sm font-semibold" /><FlashcardAudioGenerator word={passage} entityLabel="Sentence reference" buttonLabel="Generate audio" settings={voiceSettings} onSaved={(url) => onChange({ options: { ...options, audio_url: url } as Json })} /></div><span className="text-[11px] font-medium text-[var(--br-text-muted)]">Generate audio for the complete sentence text, or paste an existing link. Learners can play it before recording.</span></div> : null}
         <div className="mt-3">{referenceAudioUrl ? <AudioTrackPlayer value={[{ id: "reference", url: referenceAudioUrl, label: "Native reference" }]} /> : <p className="rounded-xl border border-dashed border-[var(--br-border)] bg-slate-50 p-3 text-xs font-semibold text-[var(--br-text-muted)]">No reference audio added yet.</p>}</div>
       </div>
       <label className="rounded-[20px] border border-[var(--br-border)] bg-white p-4 text-sm font-medium shadow-sm sm:p-5">
         <span className="font-black text-[var(--br-dark-card)]">Practice level</span>
         <select value={String(pronunciationLevel)} onChange={(event) => onChange({ options: { ...options, level: event.target.value } as Json })} className="mt-2 w-full rounded-xl border border-[var(--br-border)] px-3 py-2.5">
           <option value="word">Word list (each word recorded and scored separately)</option>
-          <option value="sentence">Sentence (one recording, certain words highlighted and checked)</option>
-          <option value="paragraph">Paragraph (one recording, certain words highlighted and checked)</option>
+          <option value="sentence">Sentence text (one or more sentences in one recording)</option>
         </select>
       </label>
       <label className="rounded-[20px] border border-[var(--br-border)] bg-white p-4 text-sm font-medium shadow-sm sm:p-5">
@@ -2513,6 +2535,13 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
         className="mt-2 w-32 rounded-xl border border-[var(--br-border)] px-3 py-2.5"
         />
       </label>
+      {pronunciationLevel === "word" ? <p className="rounded-xl border border-indigo-100 bg-indigo-50/70 px-4 py-3 text-sm font-semibold text-indigo-900">Each word recording stops automatically after 5 seconds.</p> : (
+        <label className="rounded-[20px] border border-[var(--br-border)] bg-white p-4 text-sm font-medium shadow-sm sm:p-5">
+          <span className="flex items-center justify-between gap-3 font-black text-[var(--br-dark-card)]"><span>Recording time limit</span><span>{maxRecordingSeconds} seconds</span></span>
+          <input type="range" min={5} max={30} step={1} value={maxRecordingSeconds} onChange={(event) => onChange({ options: { ...options, max_recording_seconds: Number(event.target.value) } as Json })} aria-label="Maximum recording time in seconds" className="mt-3 w-full accent-[var(--br-brand)]" />
+          <span className="mt-1 block text-xs text-[var(--br-text-muted)]">The microphone stops at this limit. Maximum 30 seconds.</span>
+        </label>
+      )}
       <div className="rounded-[20px] border border-[var(--br-border)] bg-white p-4 shadow-sm sm:p-5">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3"><div><h3 className="font-black text-[var(--br-dark-card)]">2. Targets</h3><p className="mt-1 text-xs text-[var(--br-text-muted)]">Choose the words learners should focus on and generate a separate example for each.</p></div><div className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-indigo-50 px-3 py-1.5 text-xs font-black text-indigo-700">{targets.length} selected</span>{pronunciationLevel === "word" ? <FlashcardAudioGenerator word="" items={targets.map((target, index) => ({ id: String(target.id ?? index), text: String(target.text ?? ""), audioUrl: String(target.audio_url ?? target.audioUrl ?? "") }))} entityLabel="Target words" buttonLabel="Generate audio for all words" settings={voiceSettings} onBatchSaved={saveBatchTargetAudio} /> : null}</div></div>
         <div className="hidden grid-cols-[minmax(0,1fr)_auto] gap-2 border-b border-[var(--br-border)] px-2 pb-2 text-[10px] font-black uppercase tracking-wider text-[var(--br-text-muted)] sm:grid"><span>Target word and example audio</span><span>Target color</span></div>

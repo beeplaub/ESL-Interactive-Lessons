@@ -202,6 +202,7 @@ export function isCorrect(question: ScoredQuestion, value: unknown): boolean {
   if (question.question_type === "SHADOWING") {
     const rec = asRecord(value as Json);
     const options = asRecord(question.options);
+    if (options.shadowing_mode === "CHUNK_AB") return rec.completed === true;
     const requiredRepeats = Math.max(1, Math.min(20, Number(options.repeat_count ?? 1) || 1));
     const phases = shadowingPhases(options);
     const repetitions = Array.isArray(rec.repetitions) ? rec.repetitions.map((item) => asRecord(item as Json)) : [];

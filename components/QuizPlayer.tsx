@@ -20,7 +20,8 @@ import { asWritingValue, evaluationQuota, isAwaitingResolution, isWritingQuestio
 import { normalizeDisplayScore } from "@/lib/assessmentContract";
 import { AudioTrackPlayer } from "@/components/AudioTrackPlayer";
 import { matchShadowingPhrase, type ShadowingMatchResult } from "@/lib/shadowingMatching";
-import { shadowingPhases } from "@/lib/shadowing";
+import { alignShadowingChunks, type LearnerChunkTimestamp } from "@/lib/shadowingAlignment";
+import { shadowingChunks, shadowingPhases } from "@/lib/shadowing";
 
 export type QuizQuestion = {
   id: string;
@@ -99,6 +100,36 @@ async function recordingToWav(recording: Blob): Promise<Blob> {
   }
 }
 
+async function hasSpeechLikeActivity(wav: Blob): Promise<boolean> {
+  const bytes = await wav.arrayBuffer();
+  if (bytes.byteLength <= 44) return false;
+  const view = new DataView(bytes);
+  const sampleCount = Math.floor((bytes.byteLength - 44) / 2);
+  const frameSize = 320; // 20 ms at the 16 kHz assessment rate.
+  let activeFrames = 0;
+  for (let start = 0; start + frameSize <= sampleCount; start += frameSize) {
+    let energy = 0;
+    let crossings = 0;
+    let previous = view.getInt16(44 + start * 2, true);
+    for (let index = 0; index < frameSize; index += 1) {
+      const sample = view.getInt16(44 + (start + index) * 2, true) / 32768;
+      energy += sample * sample;
+      if ((sample >= 0) !== (previous >= 0)) crossings += 1;
+      previous = sample;
+    }
+    const rms = Math.sqrt(energy / frameSize);
+    const zeroCrossingRate = crossings / frameSize;
+    if (rms >= 0.009 && zeroCrossingRate >= 0.005 && zeroCrossingRate <= 0.45) activeFrames += 1;
+  }
+  return activeFrames >= 5; // Require at least 100 ms of voice-like signal; silence never reaches Azure.
+}
+
+function formatPronunciationTime(totalSeconds: number): string {
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
 export type OralResponseValue = {
   transcript: string;
   duration_seconds?: number;
@@ -117,6 +148,8 @@ type ShadowingValue = {
   accuracy?: number;
   passed?: boolean;
   repetitions?: Array<{ phaseId?: string; transcript: string; match: ShadowingMatchResult }>;
+  completed?: boolean;
+  chunkAvailability?: Array<{ chunkId: string; available: boolean }>;
 };
 
 function allowedEvaluationModes(questions: QuizQuestion[]): EvaluationMode[] {
@@ -197,6 +230,7 @@ export function hasAnswer(question: QuizQuestion, value: unknown): boolean {
   if (question.question_type === "SHADOWING") {
     const rec = asRecord(value as Json);
     const options = asRecord(question.options);
+    if (options.shadowing_mode === "CHUNK_AB") return rec.completed === true;
     const requiredRepeats = Math.max(1, Math.min(20, Number(options.repeat_count ?? 1) || 1));
     const phases = shadowingPhases(options);
     const repetitions = Array.isArray(rec.repetitions) ? rec.repetitions.map((item) => asRecord(item as Json)) : [];
@@ -2643,8 +2677,9 @@ function Pronunciation({
   disabled: boolean;
   onChange: (value: PronunciationValue) => void;
 }) {
-  const opts = asRecord(question.options) as { level?: string; passage?: string; targets?: unknown[]; max_attempts?: number; audio_url?: string };
+  const opts = asRecord(question.options) as { level?: string; passage?: string; targets?: unknown[]; max_attempts?: number; max_recording_seconds?: number; audio_url?: string };
   const level = opts.level === "sentence" || opts.level === "paragraph" ? opts.level : "word";
+  const recordingLimitSeconds = level === "word" ? 5 : Math.max(5, Math.min(30, Math.round(Number(opts.max_recording_seconds ?? 30) || 30)));
   const targets: PronunciationTarget[] = Array.isArray(opts.targets)
     ? opts.targets.map((t) => {
         const row = asRecord(t as Json);
@@ -2674,9 +2709,11 @@ function Pronunciation({
   const activeTargetsRef = useRef<PronunciationTarget[]>([]);
   const startedAtRef = useRef(0);
   const recordingRef = useRef(false);
+  const recordingTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => () => {
     recordingRef.current = false;
+    if (recordingTimeoutRef.current !== null) window.clearTimeout(recordingTimeoutRef.current);
     recorderRef.current?.stop();
     streamRef.current?.getTracks().forEach((track) => track.stop());
   }, []);
@@ -2690,6 +2727,8 @@ function Pronunciation({
   async function finishRecording() {
     const key = activeKeyRef.current;
     if (!key || !recorderRef.current || recorderRef.current.state !== "recording") return;
+    if (recordingTimeoutRef.current !== null) window.clearTimeout(recordingTimeoutRef.current);
+    recordingTimeoutRef.current = null;
     recordingRef.current = false;
     setMicState("transcribing");
     recorderRef.current.stop();
@@ -2708,7 +2747,7 @@ function Pronunciation({
     }
     setError(null);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
       const mimeType = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"]
         .find((candidate) => MediaRecorder.isTypeSupported(candidate));
       const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
@@ -2729,6 +2768,8 @@ function Pronunciation({
         recordingRef.current = false;
       };
       recorder.onstop = async () => {
+        if (recordingTimeoutRef.current !== null) window.clearTimeout(recordingTimeoutRef.current);
+        recordingTimeoutRef.current = null;
         const audio = new Blob(chunksRef.current, { type: recorder.mimeType || "audio/webm" });
         const durationSeconds = Math.floor((Date.now() - startedAtRef.current) / 1000);
         const currentKey = activeKeyRef.current;
@@ -2744,6 +2785,13 @@ function Pronunciation({
         }
         try {
           const wav = await recordingToWav(audio);
+          if (!await hasSpeechLikeActivity(wav)) {
+            setError("We didn’t detect speech. Please try again and speak clearly near the microphone.");
+            setMicState("error");
+            setActiveKey(null);
+            activeKeyRef.current = null;
+            return;
+          }
           const form = new FormData();
           form.append("file", wav, "pronunciation.wav");
           form.append("durationSeconds", String(durationSeconds));
@@ -2783,8 +2831,11 @@ function Pronunciation({
       };
       recorder.start(500);
       playRecordingStart();
-      // Short-audio pronunciation assessment is limited to 30 seconds by Azure.
-      window.setTimeout(() => { if (recordingRef.current && activeKeyRef.current === key) void finishRecording(); }, (level === "word" ? 12 : 30) * 1000);
+      // The Azure short-audio endpoint accepts at most 30 seconds.
+      recordingTimeoutRef.current = window.setTimeout(() => {
+        recordingTimeoutRef.current = null;
+        if (recordingRef.current && activeKeyRef.current === key) void finishRecording();
+      }, recordingLimitSeconds * 1000);
     } catch {
       setError("Microphone access was blocked. Please allow microphone access and try again.");
       setMicState("error");
@@ -2889,7 +2940,7 @@ function Pronunciation({
               <div className="flex h-5 items-center justify-center gap-1" aria-hidden="true">
                 {[0, 1, 2, 3, 4].map((bar) => <span key={bar} className="w-1 animate-pulse rounded-full bg-orange-500" style={{ height: `${10 + (bar % 3) * 5}px`, animationDelay: `${bar * 100}ms` }} />)}
               </div>
-              <p className="text-sm font-bold text-slate-700">Listening · Tap to finish · {Math.max(0, 12 - seconds)}s</p>
+              <p className="text-sm font-bold text-slate-700">Listening · Tap to finish · {Math.max(0, recordingLimitSeconds - seconds)}s left</p>
             </div>
           ) : micState === "transcribing" && activeKey === currentTarget.id ? (
             <p className="flex items-center gap-2 text-sm font-bold text-slate-700" role="status"><Loader2 size={16} className="animate-spin" /> Preparing your feedback…</p>
@@ -2900,7 +2951,7 @@ function Pronunciation({
           ) : (
             <div className="space-y-1">
               <p className="text-sm font-bold text-slate-800">Tap the microphone and say “{currentTarget.text}”</p>
-              <p className="text-xs font-medium text-slate-500">{maxAttempts - currentAttempts} {maxAttempts - currentAttempts === 1 ? "try" : "tries"} left</p>
+              <p className="text-xs font-medium text-slate-500">{maxAttempts - currentAttempts} {maxAttempts - currentAttempts === 1 ? "try" : "tries"} left · 5-second recording limit</p>
             </div>
           )}
 
@@ -2971,7 +3022,7 @@ function Pronunciation({
       </div>
       <div className="relative z-10 grid w-full min-w-0 justify-items-center gap-3 py-1">
         <div className={`relative grid size-24 place-items-center rounded-full text-white shadow-xl transition ${micState === "listening" ? "bg-rose-500 ring-8 ring-rose-100" : "bg-gradient-to-br from-orange-400 to-rose-500"}`}><span className="absolute inset-2 rounded-full border border-white/30" /><button type="button" disabled={disabled || micState === "transcribing"} onClick={() => (micState === "listening" ? void finishRecording() : void recordFor(passageKey, passageTargets))} className="relative grid size-20 place-items-center rounded-full" aria-label={micState === "listening" ? "Finish recording" : "Start recording"}>{micState === "transcribing" ? <Loader2 size={30} className="animate-spin" /> : micState === "listening" ? <MicOff size={30} /> : <Mic size={30} />}</button></div>
-        <div className="flex w-full min-w-0 max-w-xl flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:gap-3"><div className="flex h-10 min-w-0 flex-1 items-center justify-center gap-1 overflow-hidden rounded-full bg-slate-50 px-3 sm:px-5">{Array.from({ length: 44 }, (_, index) => <span key={index} className={`w-1 shrink-0 rounded-full ${index % 5 === 0 ? "h-7 bg-orange-300" : index % 3 === 0 ? "h-4 bg-blue-200" : "h-2 bg-slate-200"}`} />)}</div><span className="self-end text-xs font-bold text-slate-500 sm:self-auto">{micState === "listening" ? `00:${String(seconds).padStart(2, "0")} / 01:00` : "00:00 / 01:00"}</span></div>
+        <div className="flex w-full min-w-0 max-w-xl flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:gap-3"><div className="flex h-10 min-w-0 flex-1 items-center justify-center gap-1 overflow-hidden rounded-full bg-slate-50 px-3 sm:px-5">{Array.from({ length: 44 }, (_, index) => <span key={index} className={`w-1 shrink-0 rounded-full ${index % 5 === 0 ? "h-7 bg-orange-300" : index % 3 === 0 ? "h-4 bg-blue-200" : "h-2 bg-slate-200"}`} />)}</div><span className="self-end text-xs font-bold text-slate-500 sm:self-auto">{formatPronunciationTime(micState === "listening" ? seconds : 0)} / {formatPronunciationTime(recordingLimitSeconds)}</span></div>
         <p className="w-full min-w-0 break-words text-center text-sm font-black text-slate-800">{micState === "listening" ? "I’m listening · Tap to finish" : micState === "transcribing" ? "Preparing your feedback…" : "Tap the microphone and start speaking"}</p>
       </div>
       {error ? <div className="relative z-10 flex items-start gap-3 rounded-[16px] border border-amber-200 bg-amber-50 p-4 text-left text-sm font-semibold text-amber-900"><AlertCircle size={18} className="mt-0.5 shrink-0" />{error}</div> : null}
@@ -3130,7 +3181,288 @@ function ListenSelectPlayer({
   );
 }
 
-function ShadowingPlayer({
+type ShadowingPlayerProps = {
+  question: QuizQuestion;
+  value?: ShadowingValue;
+  disabled: boolean;
+  onChange: (val: ShadowingValue) => void;
+};
+
+function ShadowingPlayer(props: ShadowingPlayerProps) {
+  return asRecord(props.question.options).shadowing_mode === "CHUNK_AB"
+    ? <ChunkedShadowingPlayer {...props} />
+    : <LegacyShadowingPlayer {...props} />;
+}
+
+function playShadowingWindow(
+  url: string,
+  startSeconds: number,
+  endSeconds: number,
+  token: number,
+  tokenRef: { current: number },
+  audioRef: { current: HTMLAudioElement | null },
+) {
+  return new Promise<void>((resolve) => {
+    const audio = new Audio(url);
+    audio.preload = "auto";
+    audioRef.current = audio;
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      audio.pause();
+      audio.removeEventListener("loadedmetadata", onReady);
+      audio.removeEventListener("timeupdate", onTimeUpdate);
+      audio.removeEventListener("ended", finish);
+      audio.removeEventListener("error", finish);
+      audio.removeEventListener("pause", onPause);
+      if (audioRef.current === audio) audioRef.current = null;
+      resolve();
+    };
+    const onTimeUpdate = () => {
+      if (Number.isFinite(endSeconds) && audio.currentTime >= endSeconds) finish();
+      if (tokenRef.current !== token) finish();
+    };
+    const onPause = () => { if (tokenRef.current !== token) finish(); };
+    const onReady = () => {
+      if (tokenRef.current !== token) return finish();
+      const duration = Number.isFinite(audio.duration) ? audio.duration : endSeconds;
+      const start = Math.min(Math.max(0, startSeconds), duration);
+      const end = Number.isFinite(endSeconds) ? Math.min(Math.max(start, endSeconds), duration) : duration;
+      if (!(end > start)) return finish();
+      audio.currentTime = start;
+      audio.addEventListener("timeupdate", onTimeUpdate);
+      audio.addEventListener("ended", finish);
+      void audio.play().catch(finish);
+    };
+    audio.addEventListener("loadedmetadata", onReady, { once: true });
+    audio.addEventListener("ended", finish, { once: true });
+    audio.addEventListener("error", finish, { once: true });
+    audio.addEventListener("pause", onPause);
+    if (audio.readyState >= 1) onReady();
+    else audio.load();
+  });
+}
+
+function ChunkedShadowingPlayer({ question, value, disabled, onChange }: ShadowingPlayerProps) {
+  const options = asRecord(question.options);
+  const chunks = shadowingChunks(options);
+  const audioUrl = String(options.audio_url ?? "");
+  const [recording, setRecording] = useState(false);
+  const [processing, setProcessing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [learnerAudioUrl, setLearnerAudioUrl] = useState<string | null>(null);
+  const [alignedChunks, setAlignedChunks] = useState<LearnerChunkTimestamp[]>([]);
+  const [loopingChunkId, setLoopingChunkId] = useState<string | null>(null);
+  const [loopStage, setLoopStage] = useState<"MODEL" | "YOU" | null>(null);
+  const [recordingDuration, setRecordingDuration] = useState(0);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const startedAtRef = useRef(0);
+  const loopTokenRef = useRef(0);
+  const activeAudioRef = useRef<HTMLAudioElement | null>(null);
+  const modelPreviewRef = useRef<HTMLAudioElement | null>(null);
+  const learnerPreviewRef = useRef<HTMLAudioElement | null>(null);
+  const readyToRecord = Boolean(audioUrl && chunks.length > 0 && chunks.every((chunk) => chunk.text.trim() && chunk.endSeconds > chunk.startSeconds));
+
+  const stopLoop = useCallback(() => {
+    loopTokenRef.current += 1;
+    activeAudioRef.current?.pause();
+    activeAudioRef.current = null;
+    setLoopingChunkId(null);
+    setLoopStage(null);
+  }, []);
+
+  useEffect(() => {
+    const modelPreview = modelPreviewRef.current;
+    const learnerPreview = learnerPreviewRef.current;
+    return () => {
+      loopTokenRef.current += 1;
+      activeAudioRef.current?.pause();
+      const recorder = mediaRecorderRef.current;
+      if (recorder && recorder.state !== "inactive") {
+        recorder.onstop = null;
+        try { recorder.stop(); } catch { /* The browser may already have stopped it. */ }
+      }
+      mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+      modelPreview?.pause();
+      learnerPreview?.pause();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!learnerAudioUrl) return;
+    return () => URL.revokeObjectURL(learnerAudioUrl);
+  }, [learnerAudioUrl]);
+
+  async function loopPair(chunkId: string, modelStart: number, modelEnd: number, learnerStart: number, learnerEnd: number) {
+    if (!learnerAudioUrl || !audioUrl) return;
+    if (loopingChunkId === chunkId) { stopLoop(); return; }
+    stopLoop();
+    modelPreviewRef.current?.pause();
+    learnerPreviewRef.current?.pause();
+    const token = loopTokenRef.current + 1;
+    loopTokenRef.current = token;
+    setLoopingChunkId(chunkId);
+    while (loopTokenRef.current === token) {
+      setLoopStage("MODEL");
+      await playShadowingWindow(audioUrl, modelStart, modelEnd, token, loopTokenRef, activeAudioRef);
+      if (loopTokenRef.current !== token) break;
+      setLoopStage(null);
+      await new Promise((resolve) => window.setTimeout(resolve, 260));
+      if (loopTokenRef.current !== token) break;
+      setLoopStage("YOU");
+      await playShadowingWindow(learnerAudioUrl, learnerStart, learnerEnd, token, loopTokenRef, activeAudioRef);
+      if (loopTokenRef.current !== token) break;
+      setLoopStage(null);
+      await new Promise((resolve) => window.setTimeout(resolve, 450));
+    }
+    if (loopTokenRef.current === token) { setLoopingChunkId(null); setLoopStage(null); }
+  }
+
+  async function processRecording(blob: Blob, durationSeconds: number) {
+    setProcessing(true);
+    setError(null);
+    setRecordingDuration(durationSeconds);
+    setAlignedChunks([]);
+    stopLoop();
+    setLearnerAudioUrl(URL.createObjectURL(blob));
+    const form = new FormData();
+    form.append("file", blob, `shadowing.${blob.type.includes("mp4") ? "mp4" : "webm"}`);
+    form.append("durationSeconds", String(durationSeconds));
+    form.append("wordTimestamps", "true");
+    try {
+      const response = await fetch("/api/speech/transcribe", { method: "POST", body: form });
+      const result = await response.json().catch(() => ({})) as {
+        transcript?: string;
+        words?: Array<{ word: string; start: number; end: number }>;
+        error?: string;
+      };
+      if (!response.ok || !result.transcript || !Array.isArray(result.words)) throw new Error(result.error || "Timestamped transcription is temporarily unavailable.");
+      const alignment = alignShadowingChunks(chunks, result.words);
+      setAlignedChunks(alignment.chunks);
+      onChange({ completed: true, chunkAvailability: alignment.chunks.map(({ chunkId, available }) => ({ chunkId, available })) });
+      if (!alignment.reliable) setError("We could not locate every chunk reliably. You can still compare the complete sentence below.");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Transcription is temporarily unavailable. Please try again.");
+    } finally {
+      setProcessing(false);
+    }
+  }
+
+  async function startRecording() {
+    if (disabled || processing || recording || !navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") return;
+    setError(null);
+    onChange({ completed: false, chunkAvailability: [] });
+    stopLoop();
+    modelPreviewRef.current?.pause();
+    learnerPreviewRef.current?.pause();
+    chunksRef.current = [];
+    startedAtRef.current = Date.now();
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStreamRef.current = stream;
+      const mimeType = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg;codecs=opus"].find((candidate) => MediaRecorder.isTypeSupported(candidate));
+      const recorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+      mediaRecorderRef.current = recorder;
+      recorder.ondataavailable = (event) => { if (event.data.size > 0) chunksRef.current.push(event.data); };
+      recorder.onerror = () => {
+        recorder.onstop = null;
+        try { if (recorder.state !== "inactive") recorder.stop(); } catch { /* Recorder may already have stopped. */ }
+        mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+        mediaStreamRef.current = null;
+        mediaRecorderRef.current = null;
+        setRecording(false);
+        setProcessing(false);
+        setError("The microphone stopped unexpectedly. Please try again.");
+      };
+      recorder.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || "audio/webm" });
+        chunksRef.current = [];
+        mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+        mediaStreamRef.current = null;
+        mediaRecorderRef.current = null;
+        if (!blob.size) {
+          setRecording(false);
+          setProcessing(false);
+          setError("No audio was recorded. Please try again.");
+          return;
+        }
+        const duration = Math.max(1, Math.ceil((Date.now() - startedAtRef.current) / 1000));
+        setRecording(false);
+        void processRecording(blob, duration);
+      };
+      recorder.start(500);
+      setRecording(true);
+      playRecordingStart();
+    } catch {
+      setRecording(false);
+      mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+      mediaStreamRef.current = null;
+      setError("Microphone access was blocked. Please allow microphone access and try again.");
+    }
+  }
+
+  function stopRecording() {
+    if (mediaRecorderRef.current?.state !== "recording") return;
+    setRecording(false);
+    setProcessing(true);
+    playRecordingEnd();
+    mediaRecorderRef.current.stop();
+  }
+
+  const fullLearnerEnd = recordingDuration || Number.POSITIVE_INFINITY;
+
+  return (
+    <div className="space-y-4">
+      <section className="space-y-3 rounded-2xl border border-violet-200 bg-violet-50/60 p-4">
+        <div>
+          <p className="text-xs font-black uppercase tracking-wider text-[var(--br-chart-primary)]">Listen to the complete sentence</p>
+          <p className="mt-1 text-sm leading-6 text-[var(--br-text-muted)]">Record the whole sentence once. You can then compare each creator-marked chunk.</p>
+        </div>
+        {audioUrl ? <audio ref={modelPreviewRef} controls={loopingChunkId === null} preload="metadata" src={audioUrl} className="w-full" /> : <p className="text-sm text-amber-700">The model sentence audio is not available.</p>}
+        {recording ? (
+          <button type="button" onClick={stopRecording} className="inline-flex items-center gap-2 rounded-full bg-[var(--br-action-strong)] px-5 py-3 text-sm font-semibold text-on-dark"><MicOff size={17} /> Stop recording</button>
+        ) : (
+          <button type="button" disabled={disabled || processing || !readyToRecord} onClick={() => void startRecording()} className="inline-flex items-center gap-2 rounded-full bg-[var(--br-action)] px-5 py-3 text-sm font-semibold text-on-dark disabled:opacity-50"><Mic size={17} /> {learnerAudioUrl ? "Record again" : "Record the sentence"}</button>
+        )}
+        {recording ? <p className="text-xs font-semibold text-[var(--br-action-strong)]">Recording the full sentence…</p> : null}
+        {processing ? <p className="flex items-center gap-2 text-sm font-semibold text-[var(--br-chart-primary)]"><Loader2 size={16} className="animate-spin" /> Preparing your chunk comparisons…</p> : null}
+        {loopStage ? <p role="status" aria-live="polite" className="rounded-lg bg-white px-3 py-2 text-sm font-bold text-[var(--br-chart-primary)]">Now playing: {loopStage === "MODEL" ? "Model recording" : "Your recording"}</p> : null}
+        {recordingDuration > 0 && !processing ? <p className="text-xs text-[var(--br-text-muted)]">Your recording: {recordingDuration}s</p> : null}
+      </section>
+
+      {learnerAudioUrl ? <audio ref={learnerPreviewRef} controls={loopingChunkId === null} preload="metadata" src={learnerAudioUrl} className="w-full" aria-label="Your complete sentence recording" /> : null}
+      {alignedChunks.length > 0 ? (
+        <section className="space-y-3" aria-label="Sentence chunks">
+          {chunks.map((chunk, index) => {
+            const learnerChunk = alignedChunks.find((item) => item.chunkId === chunk.id);
+            const isLooping = loopingChunkId === chunk.id;
+            return (
+              <div key={chunk.id} className="flex flex-col gap-3 rounded-xl border border-[var(--br-border)] bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
+                <div><p className="text-[10px] font-black uppercase tracking-wider text-[var(--br-chart-primary)]">Chunk {index + 1}</p><p className="mt-1 font-semibold text-[var(--br-dark-card)]">{chunk.text}</p></div>
+                <button type="button" disabled={!learnerChunk?.available || disabled} onClick={() => void loopPair(chunk.id, chunk.startSeconds, chunk.endSeconds, learnerChunk?.startSeconds ?? 0, learnerChunk?.endSeconds ?? 0)} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-[var(--br-chart-primary)] px-4 py-2.5 text-sm font-bold text-on-dark disabled:opacity-50">
+                  {isLooping ? <Pause size={16} /> : <Play size={16} />}{isLooping ? "Stop A → B loop" : "Loop model → you"}
+                </button>
+                {!learnerChunk?.available ? <p className="text-xs text-amber-700">This chunk could not be isolated reliably.</p> : null}
+              </div>
+            );
+          })}
+        </section>
+      ) : null}
+      {learnerAudioUrl && (!alignedChunks.length || alignedChunks.some((chunk) => !chunk.available)) ? (
+        <button type="button" disabled={disabled} onClick={() => void loopPair("full-sentence", 0, Number.POSITIVE_INFINITY, 0, fullLearnerEnd)} className="inline-flex items-center gap-2 rounded-full border border-[var(--br-border)] bg-white px-4 py-2.5 text-sm font-bold text-[var(--br-dark-card)] disabled:opacity-50">
+          {loopingChunkId === "full-sentence" ? <Pause size={16} /> : <Play size={16} />}{loopingChunkId === "full-sentence" ? "Stop full sentence loop" : "Loop full sentence A → B"}
+        </button>
+      ) : null}
+      {error ? <p role="status" className="rounded-lg bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800">{error}</p> : null}
+      <p className="text-center text-xs text-[var(--br-text-muted)]">Compare the sound for yourself. This activity does not assign a pronunciation score.</p>
+    </div>
+  );
+}
+
+function LegacyShadowingPlayer({
   question,
   value,
   disabled,

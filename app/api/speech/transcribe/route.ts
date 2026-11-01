@@ -27,6 +27,10 @@ export async function POST(request: Request) {
   }
 
   try {
+    if (form.get("wordTimestamps") === "true") {
+      const result = await transcribeWithGroq(file, { wordTimestamps: true });
+      return NextResponse.json(result);
+    }
     const transcript = await transcribeWithGroq(file);
     return NextResponse.json({ transcript });
   } catch (error) {

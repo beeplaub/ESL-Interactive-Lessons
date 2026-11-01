@@ -2294,7 +2294,7 @@ function defaultActivityData(activityType: string, prompt: string): Json {
     };
   }
   if (activityType === "SHADOWING") {
-    return { prompt, audio_url: "", target_text: "Repeat after me.", correct_answer: "Repeat after me." };
+    return { prompt, shadowing_mode: "CHUNK_AB", audio_url: "", chunks: [{ id: "chunk-1", text: "", start_seconds: 0, end_seconds: 0 }], target_text: "", correct_answer: "" };
   }
   if (activityType === "NOTE_TAKING_CHALLENGE") {
     return {
