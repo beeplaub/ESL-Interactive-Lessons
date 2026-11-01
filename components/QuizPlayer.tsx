@@ -241,7 +241,7 @@ export function hasAnswer(question: QuizQuestion, value: unknown): boolean {
   }
   if (question.question_type === "PRONUNCIATION") {
     const opts = asRecord(question.options) as { level?: string; targets?: unknown[]; max_attempts?: number };
-    const level = opts.level === "sentence" || opts.level === "paragraph" ? opts.level : "word";
+    const level = opts.level === "sentence" || opts.level === "paragraph" ? "sentence" : "word";
     const targets = Array.isArray(opts.targets) ? opts.targets.map((t) => asRecord(t as Json)) : [];
     const valRecord = asRecord(value as Json);
     const results = asRecord(valRecord.results as Json);
@@ -2678,7 +2678,7 @@ function Pronunciation({
   onChange: (value: PronunciationValue) => void;
 }) {
   const opts = asRecord(question.options) as { level?: string; passage?: string; targets?: unknown[]; max_attempts?: number; max_recording_seconds?: number; audio_url?: string };
-  const level = opts.level === "sentence" || opts.level === "paragraph" ? opts.level : "word";
+  const level = opts.level === "sentence" || opts.level === "paragraph" ? "sentence" : "word";
   const recordingLimitSeconds = level === "word" ? 5 : Math.max(5, Math.min(30, Math.round(Number(opts.max_recording_seconds ?? 30) || 30)));
   const targets: PronunciationTarget[] = Array.isArray(opts.targets)
     ? opts.targets.map((t) => {
