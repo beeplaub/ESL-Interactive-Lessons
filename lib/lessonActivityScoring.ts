@@ -207,6 +207,7 @@ export function lessonScoredQuestions(activityType: string, value: Json | null):
       target_text: targetText,
       shadowing_mode: data.shadowing_mode === "CHUNK_AB" ? "CHUNK_AB" : "LEGACY_PHASES",
       chunks: Array.isArray(data.chunks) ? data.chunks : [],
+      max_attempts: Math.max(1, Math.min(100, Number(data.max_attempts ?? 3) || 3)),
       phases: Array.isArray(data.phases) ? data.phases : Array.isArray(data.targets) ? data.targets : [{ id: "phase-1", target_text: targetText, audio_url: audioUrl }],
       repeat_count: Math.max(1, Math.min(20, Number(data.repeat_count ?? 1) || 1)),
       require_all_green: data.require_all_green !== false,

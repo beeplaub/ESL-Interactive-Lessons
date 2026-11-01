@@ -149,6 +149,7 @@ type ShadowingValue = {
   passed?: boolean;
   repetitions?: Array<{ phaseId?: string; transcript: string; match: ShadowingMatchResult }>;
   completed?: boolean;
+  attempts_used?: number;
   chunkAvailability?: Array<{ chunkId: string; available: boolean }>;
 };
 
@@ -3248,6 +3249,9 @@ function ChunkedShadowingPlayer({ question, value, disabled, onChange }: Shadowi
   const options = asRecord(question.options);
   const chunks = shadowingChunks(options);
   const audioUrl = String(options.audio_url ?? "");
+  const maxAttempts = Math.max(1, Math.min(100, Number(options.max_attempts ?? 3) || 3));
+  const [attemptsUsed, setAttemptsUsed] = useState(() => Math.max(0, Number(asRecord(value as Json).attempts_used ?? 0) || 0));
+  const [modelListened, setModelListened] = useState(false);
   const [recording, setRecording] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -3328,6 +3332,9 @@ function ChunkedShadowingPlayer({ question, value, disabled, onChange }: Shadowi
     setAlignedChunks([]);
     stopLoop();
     setLearnerAudioUrl(URL.createObjectURL(blob));
+    const nextAttemptsUsed = attemptsUsed + 1;
+    setAttemptsUsed(nextAttemptsUsed);
+    onChange({ completed: false, attempts_used: nextAttemptsUsed, chunkAvailability: [] });
     const form = new FormData();
     form.append("file", blob, `shadowing.${blob.type.includes("mp4") ? "mp4" : "webm"}`);
     form.append("durationSeconds", String(durationSeconds));
@@ -3342,9 +3349,10 @@ function ChunkedShadowingPlayer({ question, value, disabled, onChange }: Shadowi
       if (!response.ok || !result.transcript || !Array.isArray(result.words)) throw new Error(result.error || "Timestamped transcription is temporarily unavailable.");
       const alignment = alignShadowingChunks(chunks, result.words);
       setAlignedChunks(alignment.chunks);
-      onChange({ completed: true, chunkAvailability: alignment.chunks.map(({ chunkId, available }) => ({ chunkId, available })) });
+      onChange({ completed: true, attempts_used: nextAttemptsUsed, chunkAvailability: alignment.chunks.map(({ chunkId, available }) => ({ chunkId, available })) });
       if (!alignment.reliable) setError("We could not locate every chunk reliably. You can still compare the complete sentence below.");
     } catch (caught) {
+      onChange({ completed: false, attempts_used: nextAttemptsUsed, chunkAvailability: [] });
       setError(caught instanceof Error ? caught.message : "Transcription is temporarily unavailable. Please try again.");
     } finally {
       setProcessing(false);
@@ -3352,9 +3360,9 @@ function ChunkedShadowingPlayer({ question, value, disabled, onChange }: Shadowi
   }
 
   async function startRecording() {
-    if (disabled || processing || recording || !navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") return;
+    if (disabled || processing || recording || attemptsUsed >= maxAttempts || !navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") return;
     setError(null);
-    onChange({ completed: false, chunkAvailability: [] });
+    onChange({ completed: false, attempts_used: attemptsUsed, chunkAvailability: [] });
     stopLoop();
     modelPreviewRef.current?.pause();
     learnerPreviewRef.current?.pause();
@@ -3417,16 +3425,24 @@ function ChunkedShadowingPlayer({ question, value, disabled, onChange }: Shadowi
   return (
     <div className="space-y-4">
       <section className="space-y-3 rounded-2xl border border-violet-200 bg-violet-50/60 p-4">
-        <div>
-          <p className="text-xs font-black uppercase tracking-wider text-[var(--br-chart-primary)]">Listen to the complete sentence</p>
-          <p className="mt-1 text-sm leading-6 text-[var(--br-text-muted)]">Record the whole sentence once. You can then compare each creator-marked chunk.</p>
+        <div className="grid grid-cols-3 gap-2" aria-label="Shadowing steps">
+          {[
+            { label: "Listen", icon: <Headphones size={16} />, done: modelListened, active: !modelListened },
+            { label: "Say it", icon: <Mic size={16} />, done: attemptsUsed > 0, active: modelListened && !learnerAudioUrl },
+            { label: "Compare", icon: <RotateCcw size={16} />, done: alignedChunks.length > 0, active: Boolean(learnerAudioUrl && !processing) },
+          ].map((step, index) => <div key={step.label} className={`flex min-w-0 items-center gap-2 rounded-xl border px-2.5 py-2.5 sm:px-3 ${step.done ? "border-emerald-200 bg-emerald-50 text-emerald-800" : step.active ? "border-violet-300 bg-white text-[var(--br-chart-primary)] shadow-sm" : "border-white/70 bg-white/60 text-[var(--br-text-muted)]"}`}>
+            <span className="grid size-7 shrink-0 place-items-center rounded-full bg-current/10">{step.done ? <CheckCircle2 size={16} /> : step.icon}</span>
+            <span className="truncate text-xs font-extrabold sm:text-sm">{index + 1}. {step.label}</span>
+          </div>)}
         </div>
-        {audioUrl ? <audio ref={modelPreviewRef} controls={loopingChunkId === null} preload="metadata" src={audioUrl} className="w-full" /> : <p className="text-sm text-amber-700">The model sentence audio is not available.</p>}
-        {recording ? (
-          <button type="button" onClick={stopRecording} className="inline-flex items-center gap-2 rounded-full bg-[var(--br-action-strong)] px-5 py-3 text-sm font-semibold text-on-dark"><MicOff size={17} /> Stop recording</button>
-        ) : (
-          <button type="button" disabled={disabled || processing || !readyToRecord} onClick={() => void startRecording()} className="inline-flex items-center gap-2 rounded-full bg-[var(--br-action)] px-5 py-3 text-sm font-semibold text-on-dark disabled:opacity-50"><Mic size={17} /> {learnerAudioUrl ? "Record again" : "Record the sentence"}</button>
-        )}
+        {audioUrl ? <audio ref={modelPreviewRef} controls={loopingChunkId === null} preload="metadata" src={audioUrl} onEnded={() => setModelListened(true)} className="w-full" aria-label="Listen to the model sentence" /> : <p className="text-sm text-amber-700">The model sentence audio is not available.</p>}
+        <div className="flex flex-col items-center gap-2 py-1">
+          <button type="button" onClick={recording ? stopRecording : () => void startRecording()} disabled={!recording && (disabled || processing || !readyToRecord || attemptsUsed >= maxAttempts)} className={`grid size-20 place-items-center rounded-full text-white shadow-lg transition focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-[var(--br-chart-primary)] disabled:cursor-not-allowed disabled:opacity-45 ${recording ? "bg-rose-500 ring-8 ring-rose-100" : "bg-gradient-to-br from-orange-400 to-rose-500 hover:scale-105"}`} aria-label={recording ? "Stop recording" : "Record the sentence"}>
+            {processing ? <Loader2 size={28} className="animate-spin" /> : recording ? <MicOff size={28} /> : <Mic size={28} />}
+          </button>
+          <span className="text-sm font-bold text-[var(--br-dark-card)]">{recording ? "Stop recording" : processing ? "Preparing comparison…" : attemptsUsed >= maxAttempts ? "No attempts remaining" : learnerAudioUrl ? "Record again" : "Record the sentence"}</span>
+          <span className="text-xs font-semibold text-[var(--br-text-muted)]">{Math.min(attemptsUsed + (recording ? 1 : 0), maxAttempts)} of {maxAttempts} attempts used</span>
+        </div>
         {recording ? <p className="text-xs font-semibold text-[var(--br-action-strong)]">Recording the full sentence…</p> : null}
         {processing ? <p className="flex items-center gap-2 text-sm font-semibold text-[var(--br-chart-primary)]"><Loader2 size={16} className="animate-spin" /> Preparing your chunk comparisons…</p> : null}
         {loopStage ? <p role="status" aria-live="polite" className="rounded-lg bg-white px-3 py-2 text-sm font-bold text-[var(--br-chart-primary)]">Now playing: {loopStage === "MODEL" ? "Model recording" : "Your recording"}</p> : null}
@@ -3457,7 +3473,7 @@ function ChunkedShadowingPlayer({ question, value, disabled, onChange }: Shadowi
         </button>
       ) : null}
       {error ? <p role="status" className="rounded-lg bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800">{error}</p> : null}
-      <p className="text-center text-xs text-[var(--br-text-muted)]">Compare the sound for yourself. This activity does not assign a pronunciation score.</p>
+      <p className="text-center text-xs font-medium text-[var(--br-text-muted)]">Listen to the model, say it your way, then compare.</p>
     </div>
   );
 }

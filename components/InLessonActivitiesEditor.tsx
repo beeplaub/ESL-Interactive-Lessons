@@ -893,7 +893,9 @@ function ActivityPanel({
             <div className="mt-4 grid gap-4">
               {activity.needs_review ? (
                 <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-                  This activity has missing answers. Please fill them in before publishing.
+                  {activity.activity_type === "SHADOWING"
+                    ? "This Shadowing activity needs model audio, text for every chunk, and successful automatic matching before it can be published."
+                    : "This activity has missing answers. Please fill them in before publishing."}
                 </p>
               ) : null}
               {isWritingQuestionType(activity.activity_type) ? <GradingLimitsEditor maxAttempts={maxAttempts} quotas={evaluationQuotas} onMaxAttemptsChange={setMaxAttempts} onQuotaChange={(mode, value) => setEvaluationQuotas((current) => ({ ...current, [mode]: value }))} /> : null}
@@ -2598,6 +2600,7 @@ function ShadowingEditor({ activity, onSave }: { activity: Activity; onSave: (da
   const [mode, setMode] = useState(data.shadowing_mode === "CHUNK_AB" ? "CHUNK_AB" : "LEGACY_PHASES");
   const [audioUrl, setAudioUrl] = useState(String(data.audio_url ?? ""));
   const [chunks, setChunks] = useState<ShadowingChunk[]>(() => shadowingChunks(data));
+  const [maxAttempts, setMaxAttempts] = useState(Math.max(1, Math.min(100, Number(data.max_attempts ?? 3) || 3)));
   const [phases, setPhases] = useState<ShadowingPhase[]>(() => shadowingPhases(data));
   const [repeatCount, setRepeatCount] = useState(Math.max(1, Math.min(20, Number(data.repeat_count ?? 3) || 3)));
   const [showLiveMatch, setShowLiveMatch] = useState(data.show_live_match !== false);
@@ -2615,12 +2618,17 @@ function ShadowingEditor({ activity, onSave }: { activity: Activity; onSave: (da
           Instruction Prompt
           <input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" />
         </label>
+        <label className="text-sm font-medium">
+          Recording attempts allowed per learner
+          <input type="number" min={1} max={100} value={maxAttempts} onChange={(event) => setMaxAttempts(Math.max(1, Math.min(100, Number(event.target.value) || 1)))} className="mt-1 w-32 rounded-md border border-[var(--br-border)] px-3 py-2" />
+          <span className="mt-1 block text-xs text-[var(--br-text-muted)]">Each completed recording sent for transcription uses one attempt. Default: 3.</span>
+        </label>
         <ShadowingChunkEditor audioUrl={audioUrl} chunks={chunks} lessonId={activity.lesson_id} voiceSettings={voiceSettings} onAudioUrlChange={setAudioUrl} onChunksChange={setChunks} />
         <p className="text-xs text-[var(--br-text-muted)]">Groq transcript words are used only to locate the learner's chunks. The transcript and a pronunciation score are not shown or saved.</p>
         <div className="flex flex-wrap gap-3">
           <SaveButton onClick={() => {
             const targetText = chunks.map((chunk) => chunk.text.trim()).filter(Boolean).join(" ");
-            onSave({ prompt, shadowing_mode: "CHUNK_AB", audio_url: audioUrl, chunks: shadowingChunkData(chunks), target_text: targetText, correct_answer: targetText } as Json, needsChunkReview);
+            onSave({ prompt, shadowing_mode: "CHUNK_AB", max_attempts: maxAttempts, audio_url: audioUrl, chunks: shadowingChunkData(chunks), target_text: targetText, correct_answer: targetText } as Json, needsChunkReview);
           }} />
         </div>
       </div>

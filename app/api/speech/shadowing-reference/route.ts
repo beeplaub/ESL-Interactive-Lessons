@@ -36,7 +36,12 @@ async function getManagedAudio(urlText: string) {
   if (r2BaseText) {
     const base = new URL(r2BaseText);
     const path = pathFromR2PublicUrl(`${url.origin}${url.pathname}`);
-    if (url.origin === base.origin && path && /^(lesson-audio|lessons)\//.test(path) && !path.split("/").includes("..")) {
+    const isLessonMedia = Boolean(path && /^(lesson-audio|lessons)\//.test(path));
+    // Generated model clips are saved in R2 under ai-recordings/voiceovers/{creator}/saved/.
+    // Allow only saved voiceover assets here; transient previews and unrelated recordings
+    // remain unavailable to this server-side transcription endpoint.
+    const isSavedVoiceover = Boolean(path && /^ai-recordings\/voiceovers\/[^/]+\/saved\//.test(path));
+    if (url.origin === base.origin && path && (isLessonMedia || isSavedVoiceover) && !path.split("/").includes("..")) {
       const object = await readR2Object({ path });
       if (object.body.byteLength > MAX_BYTES) throw new Error("The reference audio is too large.");
       const body = new ArrayBuffer(object.body.byteLength);
