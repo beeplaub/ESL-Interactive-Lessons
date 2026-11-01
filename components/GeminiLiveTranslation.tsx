@@ -68,6 +68,10 @@ class PcmPlayer {
     this.cursor = at + buffer.duration;
   }
 
+  remainingPlaybackMs() {
+    return Math.max(0, this.cursor - this.context.currentTime) * 1000;
+  }
+
   async close() { await this.context.close(); }
 
   async waitForDrain(maxWaitMs = 3000) {
@@ -361,7 +365,10 @@ export async function startLiveTutor({ topic, durationMinutes, onAudio, onTransc
         onmessage: (message) => {
           extractAudio(message).forEach((data) => {
             player.play(data); onAudio(true); window.clearTimeout(speakingTimer);
-            speakingTimer = window.setTimeout(() => onAudio(false), 450);
+            // Live speech arrives in several chunks. Keep the tutor's mouth
+            // moving through the scheduled audio instead of stopping between
+            // chunks or shortly after the first one.
+            speakingTimer = window.setTimeout(() => onAudio(false), Math.max(450, player.remainingPlaybackMs() + 180));
           });
           const record = message as { serverContent?: { inputTranscription?: { text?: string }; outputTranscription?: { text?: string } } };
           if (record.serverContent?.inputTranscription?.text) onTranscript?.("LEARNER", record.serverContent.inputTranscription.text);

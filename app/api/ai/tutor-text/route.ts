@@ -41,7 +41,7 @@ export async function POST(request: Request) {
     let audio: string | null = null;
     let mimeType: string | null = null;
     try {
-      const voice = await generateVoiceoverAudio({ script: result.reply, voiceName: "Heart", languageCode: "en-US", style: "Natural", pace: "Natural", provider: "kokoro", outputFormat: "opus" });
+      const voice = await generateVoiceoverAudio({ script: result.reply, voiceName: "Michael", languageCode: "en-US", style: "Natural", pace: "Slow", provider: "kokoro", outputFormat: "opus" });
       audio = Buffer.from(voice.audio).toString("base64");
       mimeType = voice.mimeType;
     } catch (voiceError) {

@@ -15,7 +15,7 @@ const AiTutorAvatar = dynamic(() => import("@/components/AiTutorAvatar").then((m
 
 function AvatarStage({ speaking }: { speaking: boolean }) {
   return (
-    <div className="relative h-[260px] overflow-hidden rounded-[26px] bg-[radial-gradient(ellipse_at_50%_30%,#f8d5c5_0%,#ede6ff_47%,#e7ecff_100%)] sm:h-[320px]">
+    <div className="relative h-[min(25dvh,190px)] overflow-hidden rounded-[26px] bg-[radial-gradient(ellipse_at_50%_30%,#f8d5c5_0%,#ede6ff_47%,#e7ecff_100%)] sm:h-[min(34dvh,320px)]">
       <div className="absolute left-5 top-5 z-10 flex items-center gap-2 rounded-full border border-white/70 bg-white/75 px-3 py-1.5 text-xs font-bold text-[#3b3276] shadow-sm backdrop-blur"><span className={`size-2 rounded-full ${speaking ? "animate-pulse bg-emerald-500" : "bg-indigo-400"}`} />{speaking ? "Tutor speaking" : "Your tutor"}</div>
       <div className="absolute -bottom-20 left-1/2 size-[290px] -translate-x-1/2 rounded-full bg-white/40 blur-2xl" />
       <AiTutorAvatar speaking={speaking}/>
@@ -37,7 +37,7 @@ export function AiTutorWorkspace({ cefrLevel = "B1" }: { cefrLevel?: string }) {
   const stopRef = useRef<(() => Promise<void>) | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const setMicEnabledRef = useRef<((enabled: boolean) => void) | null>(null);
-  const messageEndRef = useRef<HTMLDivElement>(null);
+  const conversationRef = useRef<HTMLDivElement>(null);
   const inSession = mode === "live" || mode === "text";
 
   const stopSession = useCallback(async (ended = false) => {
@@ -48,7 +48,10 @@ export function AiTutorWorkspace({ cefrLevel = "B1" }: { cefrLevel?: string }) {
     setMode(ended ? "ended" : "ready");
   }, []);
 
-  useEffect(() => { messageEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" }); }, [messages]);
+  useEffect(() => {
+    const conversation = conversationRef.current;
+    if (conversation) conversation.scrollTo({ top: conversation.scrollHeight, behavior: "smooth" });
+  }, [messages]);
   useEffect(() => {
     if (!inSession || secondsLeft <= 0) return;
     const timer = window.setInterval(() => setSecondsLeft((remaining) => Math.max(0, remaining - 1)), 1000);
@@ -117,18 +120,18 @@ export function AiTutorWorkspace({ cefrLevel = "B1" }: { cefrLevel?: string }) {
 
   if (mode === "connecting" || mode === "live" || mode === "text") {
     return (
-      <main className="fixed inset-0 z-[60] overflow-y-auto bg-[var(--br-canvas)] px-3 pb-[max(20px,env(safe-area-inset-bottom))] pt-3 sm:px-6 sm:pt-5">
-        <div className="mx-auto flex min-h-full w-full max-w-[960px] flex-col">
-          <header className="mb-3 flex items-center justify-between gap-3 sm:mb-5">
+      <main className="fixed inset-0 z-[60] h-[100dvh] overflow-hidden bg-[var(--br-canvas)] px-3 pb-[max(10px,env(safe-area-inset-bottom))] pt-3 sm:px-6 sm:pt-5">
+        <div className="mx-auto flex h-full min-h-0 w-full max-w-[960px] flex-col">
+          <header className="mb-3 flex shrink-0 items-center justify-between gap-3 sm:mb-5">
             <div className="min-w-0"><p className="text-[10px] font-black uppercase tracking-[.16em] text-[var(--br-brand)]">{mode === "text" ? "Text mini-lesson" : mode === "connecting" ? "Meeting your tutor" : "Live mini-lesson"} · {duration} min</p><h1 className="truncate text-lg font-extrabold sm:text-2xl">{topic}</h1></div>
             <div className="flex shrink-0 items-center gap-2">{mode !== "connecting" ? <span className="rounded-full bg-violet-100 px-3 py-1.5 font-mono text-sm font-black text-violet-800">{formattedTime}</span> : null}<button type="button" disabled={mode === "connecting"} onClick={() => void stopSession(true)} className="rounded-full border border-[var(--br-border)] bg-white px-3 py-2 text-xs font-bold text-[var(--br-text-muted)] hover:bg-rose-50 hover:text-rose-700 disabled:opacity-60">{mode === "connecting" ? "Connecting…" : "End lesson"}</button></div>
           </header>
 
-          <div className="grid flex-1 gap-4 lg:grid-cols-[1.05fr_.95fr] lg:items-stretch">
-            <section className="min-w-0 overflow-hidden rounded-[26px] border border-[var(--br-border)] bg-[var(--br-surface)] shadow-[var(--br-shadow)]"><AvatarStage speaking={speaking}/><div className="p-4 text-center sm:p-5"><span className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold ${speaking ? "bg-rose-50 text-rose-700" : "bg-emerald-50 text-emerald-700"}`}><span className={`size-2 rounded-full ${speaking ? "animate-pulse bg-rose-500" : "bg-emerald-500"}`}/>{mode === "connecting" ? "Connecting your microphone" : speaking ? "Tutor speaking" : micEnabled ? "Listening to you" : "Microphone paused"}</span><p className="mt-3 text-xs leading-5 text-[var(--br-text-muted)]">{mode === "live" ? "Your voice is streamed for this lesson and isn’t saved by BrenUp." : mode === "connecting" ? "Your lesson is getting ready." : "Type naturally; your tutor will respond aloud."}</p></div></section>
+          <div className="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] gap-3 lg:grid-cols-[1.05fr_.95fr] lg:grid-rows-1 lg:gap-4">
+            <section className="min-h-0 min-w-0 overflow-hidden rounded-[26px] border border-[var(--br-border)] bg-[var(--br-surface)] shadow-[var(--br-shadow)]"><AvatarStage speaking={speaking}/><div className="px-3 py-2 text-center sm:p-4"><span className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold ${speaking ? "bg-rose-50 text-rose-700" : "bg-emerald-50 text-emerald-700"}`}><span className={`size-2 rounded-full ${speaking ? "animate-pulse bg-rose-500" : "bg-emerald-500"}`}/>{mode === "connecting" ? "Connecting your microphone" : speaking ? "Tutor speaking" : micEnabled ? "Listening to you" : "Microphone paused"}</span><p className="mt-2 text-xs leading-5 text-[var(--br-text-muted)]">{mode === "live" ? "Your voice is streamed for this lesson and isn’t saved by BrenUp." : mode === "connecting" ? "Your lesson is getting ready." : "Type naturally; your tutor will respond aloud."}</p></div></section>
 
-            <section className="flex min-h-[300px] min-w-0 flex-col rounded-[26px] border border-[var(--br-border)] bg-[var(--br-surface)] p-4 shadow-[var(--br-shadow)] sm:p-5"><div className="mb-3 flex items-center justify-between"><div><p className="text-[10px] font-black uppercase tracking-[.14em] text-[var(--br-text-muted)]">Your conversation</p><p className="mt-1 text-sm font-extrabold">{mode === "text" ? "BrenUp AI · Kokoro voice" : "Talk with your tutor"}</p></div><AudioLines size={18} className="text-[var(--br-brand)]"/></div>
-              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1" aria-live="polite">{messages.length ? messages.map((message, index) => <div key={`${message.sender}-${index}`} className={`max-w-[94%] rounded-2xl px-3.5 py-3 text-sm leading-6 ${message.sender === "TUTOR" ? "bg-violet-50 text-[var(--br-text)]" : "ml-auto bg-[var(--br-brand)] text-white"}`}><p className="mb-1 text-[10px] font-black uppercase tracking-wider opacity-60">{message.sender === "TUTOR" ? "Tutor" : "You"}</p>{message.text}{message.sender === "TUTOR" && message.audioBase64 ? <button type="button" aria-label="Play tutor reply" onClick={() => playKokoroAudio(message.audioBase64!, message.mimeType)} className="ml-2 inline-grid size-7 place-items-center rounded-full bg-white text-violet-700" title="Play tutor voice"><Volume2 size={14}/></button> : null}</div>) : <p className="rounded-2xl bg-violet-50 px-4 py-4 text-sm leading-6 text-[var(--br-text-muted)]">Your tutor is joining the conversation…</p>}<div ref={messageEndRef}/></div>
+            <section className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-[26px] border border-[var(--br-border)] bg-[var(--br-surface)] p-3 shadow-[var(--br-shadow)] sm:p-5"><div className="mb-3 flex shrink-0 items-center justify-between"><div><p className="text-[10px] font-black uppercase tracking-[.14em] text-[var(--br-text-muted)]">Your conversation</p><p className="mt-1 text-sm font-extrabold">{mode === "text" ? "BrenUp AI · Kokoro voice" : "Talk with your tutor"}</p></div><AudioLines size={18} className="text-[var(--br-brand)]"/></div>
+              <div ref={conversationRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain pr-1" aria-live="polite">{messages.length ? messages.map((message, index) => <div key={`${message.sender}-${index}`} className={`max-w-[94%] rounded-2xl px-3.5 py-3 text-sm leading-6 ${message.sender === "TUTOR" ? "bg-violet-50 text-[var(--br-text)]" : "ml-auto bg-[var(--br-brand)] text-white"}`}><p className="mb-1 text-[10px] font-black uppercase tracking-wider opacity-60">{message.sender === "TUTOR" ? "Tutor" : "You"}</p>{message.text}{message.sender === "TUTOR" && message.audioBase64 ? <button type="button" aria-label="Play tutor reply" onClick={() => playKokoroAudio(message.audioBase64!, message.mimeType)} className="ml-2 inline-grid size-7 place-items-center rounded-full bg-white text-violet-700" title="Play tutor voice"><Volume2 size={14}/></button> : null}</div>) : <p className="rounded-2xl bg-violet-50 px-4 py-4 text-sm leading-6 text-[var(--br-text-muted)]">Your tutor is joining the conversation…</p>}</div>
               {error ? <p role="alert" className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{error}</p> : null}
               {mode === "text" ? <form onSubmit={(event) => { event.preventDefault(); void sendTextMessage(); }} className="mt-4 flex gap-2"><input value={learnerMessage} onChange={(event) => setLearnerMessage(event.target.value)} maxLength={1200} placeholder="Type your answer…" className="h-11 min-w-0 flex-1 rounded-xl border border-[var(--br-border)] bg-[var(--br-canvas)] px-3 text-sm outline-none focus:border-violet-400"/><button type="submit" disabled={!learnerMessage.trim() || speaking} aria-label="Send answer" className="grid size-11 shrink-0 place-items-center rounded-xl bg-[var(--br-brand)] text-white disabled:opacity-50"><Send size={17}/></button></form> : <div className="mt-4 flex flex-col items-center gap-2"><button type="button" disabled={mode === "connecting"} aria-pressed={micEnabled} aria-label={micEnabled ? "Pause microphone" : "Resume microphone"} onClick={() => { const next = !micEnabled; setMicEnabledRef.current?.(next); setMicEnabled(next); }} className={`grid size-[76px] place-items-center rounded-full transition disabled:opacity-60 ${micEnabled ? "bg-gradient-to-br from-orange-400 via-[#ff665e] to-rose-500 text-white shadow-[0_10px_25px_rgba(247,91,86,.32)] ring-4 ring-orange-100" : "border-2 border-[var(--br-border)] bg-white text-[var(--br-text-muted)]"}`}><span className="grid size-[60px] place-items-center rounded-full border border-white/50">{micEnabled ? <Mic size={25}/> : <MicOff size={25}/>}</span></button><p className="text-xs font-semibold text-[var(--br-text-muted)]">{mode === "connecting" ? "Getting your microphone ready…" : micEnabled ? "Microphone on · tap to pause" : "Microphone paused · tap to speak"}</p></div>}
             </section>
