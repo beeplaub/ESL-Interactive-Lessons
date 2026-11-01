@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { Mic, MicOff, Play, Pause, Square, Upload, Link as LinkIcon, Loader2, X, Volume2, Image as ImageIcon } from "lucide-react";
 import { parseAudioTracks, serializeAudioTracks } from "@/lib/audioTracks";
 
@@ -10,9 +11,13 @@ type Props = {
   type?: "audio" | "image" | "video";
   label?: string;
   lessonId?: string;
+  /** Render a related action alongside the audio controls. */
+  headerAction?: ReactNode;
+  /** Keep one audio source instead of showing the multi-clip composer. */
+  multiple?: boolean;
 };
 
-export function SingleMediaRecorderInput({ value, onChange, type = "audio", label, lessonId = "quiz" }: Props) {
+export function SingleMediaRecorderInput({ value, onChange, type = "audio", label, lessonId = "quiz", headerAction }: Props) {
   const [activeTab, setActiveTab] = useState<"url" | "upload" | "record">(value ? "url" : "url");
   const [recordingState, setRecordingState] = useState<"idle" | "recording" | "recorded" | "uploading">("idle");
   const [recordingTime, setRecordingTime] = useState(0);
@@ -115,7 +120,7 @@ export function SingleMediaRecorderInput({ value, onChange, type = "audio", labe
 
   return (
     <div className="space-y-2 rounded-xl border border-[var(--br-border)] bg-surface p-3 shadow-xs">
-      {label && <label className="block text-xs font-semibold text-[var(--br-text-muted)]">{label}</label>}
+      {label || headerAction ? <div className="flex flex-wrap items-center justify-between gap-2"><label className="text-xs font-semibold text-[var(--br-text-muted)]">{label}</label>{headerAction}</div> : null}
 
       {/* Tabs */}
       <div className="flex items-center gap-1 border-b border-[var(--br-border)] pb-1 text-xs">
@@ -285,11 +290,11 @@ export function SingleMediaRecorderInput({ value, onChange, type = "audio", labe
 }
 
 export function MediaRecorderInput(props: Props) {
-  if (props.type !== "audio") return <SingleMediaRecorderInput {...props} />;
+  if (props.type !== "audio" || props.multiple === false) return <SingleMediaRecorderInput {...props} />;
   return <MultiAudioRecorderInput {...props} />;
 }
 
-function MultiAudioRecorderInput({ value, onChange, label, lessonId = "quiz" }: Props) {
+function MultiAudioRecorderInput({ value, onChange, label, lessonId = "quiz", headerAction }: Props) {
   const initial = parseAudioTracks(value);
   const [config, setConfig] = useState(() => initial.tracks.length ? initial : { ...initial, tracks: [{ id: "track-1", url: "", label: "Audio 1" }] });
 
@@ -316,7 +321,7 @@ function MultiAudioRecorderInput({ value, onChange, label, lessonId = "quiz" }: 
     <div className="rounded-xl border border-[var(--br-border)] bg-[var(--br-canvas-elevated)] p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div><p className="text-sm font-bold text-ink">Audio clips</p><p className="text-xs text-[var(--br-text-muted)]">Add clips by link, upload, or recording.</p></div>
-        <button type="button" onClick={addTrack} className="rounded-lg bg-moss px-3 py-1.5 text-xs font-bold text-on-dark">+ Add audio</button>
+        <div className="flex items-center gap-2">{headerAction}<button type="button" onClick={addTrack} className="rounded-lg bg-moss px-3 py-1.5 text-xs font-bold text-on-dark">+ Add audio</button></div>
       </div>
       <div className="mt-3 grid gap-3">
         {config.tracks.map((track, index) => <div key={track.id} className="rounded-xl border border-[var(--br-border)] bg-surface p-2">

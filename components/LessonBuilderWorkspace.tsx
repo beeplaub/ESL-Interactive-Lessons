@@ -47,6 +47,8 @@ import { LESSON_ACTIVITY_CATALOG, LESSON_ACTIVITY_SKILLS, type LessonActivitySki
 import { BuilderModalLayer } from "@/components/BuilderModalLayer";
 import { BuilderDevicePreviewFrame, type BuilderPreviewDevice } from "@/components/BuilderDevicePreviewFrame";
 import { DialogueVoiceoverEditor } from "@/components/DialogueVoiceoverEditor";
+import { FlashcardAudioGenerator } from "@/components/FlashcardAudioGenerator";
+import { useVoiceGenerationPreferences } from "@/components/voiceGenerationPreferences";
 
 const blockTypes = [
   "HEADING", "TEXT", "BULLETS", "INSTRUCTION", "REVIEW_CHECKLIST", "QUOTE", "CALLOUT", "STICKY_NOTE", "CLUES",
@@ -1581,6 +1583,55 @@ function AlignmentGroup({ label, name, value, options }: {
   );
 }
 
+type FlashcardDraft = { imagePath: string; word: string; phonetic: string; audioPath: string; meaning: string; examples: string };
+
+function FlashcardEditor({ data, lessonId }: { data: Record<string, unknown>; lessonId: string }) {
+  const initialCards = Array.isArray(data.cards) && data.cards.length ? data.cards as Record<string, unknown>[] : [data];
+  const [flashcards, setFlashcards] = useState<FlashcardDraft[]>(() => initialCards.map((card) => ({
+    imagePath: asString(card.image_path), word: asString(card.word), phonetic: asString(card.phonetic),
+    audioPath: asString(card.audio_path), meaning: asString(card.meaning),
+    examples: Array.isArray(card.examples) ? card.examples.map(String).join("\n") : ""
+  })));
+  const voiceSettings = useVoiceGenerationPreferences({ provider: "auto", languageCode: "en-US", voiceName: "Aoede", style: "Natural", pace: "Natural", locked: false });
+  const updateCard = (index: number, patch: Partial<FlashcardDraft>) => setFlashcards((cards) => cards.map((card, cardIndex) => cardIndex === index ? { ...card, ...patch } : card));
+
+  return (
+    <div className="grid gap-4">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="text-sm">Flashcard type<select name="card_type" defaultValue={asString(data.card_type) || "IMAGE"} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2"><option value="IMAGE">Image cards</option><option value="CARD">Text cards</option></select></label>
+        <label className="text-sm">Front side<select name="front_side" defaultValue={asString(data.front_side) || "IMAGE"} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2"><option value="IMAGE">Image front</option><option value="DETAIL">Detail front</option><option value="WORD">Word front</option></select></label>
+      </div>
+      <div className="grid gap-3">
+        {flashcards.map((card, index) => (
+          <div key={index} className="rounded-lg border border-[var(--br-border)] bg-surface-muted p-3">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <p className="text-sm font-semibold">Card {index + 1}</p>
+              {flashcards.length > 1 ? <button type="button" onClick={() => setFlashcards((current) => current.filter((_, i) => i !== index))} className="text-xs font-semibold text-coral">Remove</button> : null}
+            </div>
+            <div className="grid gap-3">
+              <label className="text-sm">Image URL<input name="flashcard_image_path" value={card.imagePath} onChange={(event) => updateCard(index, { imagePath: event.target.value })} placeholder="https://..." className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <BlockMediaUploader type="image" lessonId={lessonId} currentSrc={card.imagePath} onUploaded={(url) => updateCard(index, { imagePath: url })} />
+                <div className="min-w-0">
+                  <MediaRecorderInput type="audio" multiple={false} lessonId={lessonId} value={card.audioPath} onChange={(url) => updateCard(index, { audioPath: url })} label="Audio" headerAction={<FlashcardAudioGenerator lessonId={lessonId} word={card.word} settings={voiceSettings} onSaved={(url) => updateCard(index, { audioPath: url })} />} />
+                  <input type="hidden" name="flashcard_audio_path" value={card.audioPath} />
+                </div>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="text-sm">Word or phrase<input name="flashcard_word" value={card.word} onChange={(event) => updateCard(index, { word: event.target.value })} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+                <label className="text-sm">Phonetic <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><input name="flashcard_phonetic" value={card.phonetic} onChange={(event) => updateCard(index, { phonetic: event.target.value })} placeholder="/fəˈnetɪk/" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+              </div>
+              <label className="text-sm">Meaning<textarea name="flashcard_meaning" rows={2} value={card.meaning} onChange={(event) => updateCard(index, { meaning: event.target.value })} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+              <label className="text-sm">Examples <span className="font-normal text-[var(--br-text-muted)]">(one per line)</span><textarea name="flashcard_examples" rows={3} value={card.examples} onChange={(event) => updateCard(index, { examples: event.target.value })} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
+            </div>
+          </div>
+        ))}
+        <button type="button" onClick={() => setFlashcards((cards) => [...cards, { imagePath: "", word: "", phonetic: "", audioPath: "", meaning: "", examples: "" }])} className="w-fit rounded-md border border-[var(--br-border)] px-4 py-2 text-sm font-semibold hover:bg-black/5">Add card</button>
+      </div>
+    </div>
+  );
+}
+
 // ── BlockFields ────────────────────────────────────────────────────────────────
 function BlockFields({ blockType, content, lessonId, blockId }: { blockType: string; content: Json; lessonId: string; blockId: string }) {
   const data = asRecord(content);
@@ -1614,13 +1665,6 @@ function BlockFields({ blockType, content, lessonId, blockId }: { blockType: str
     example: asString(marker.example),
     audioUrl: asString(marker.audio_url)
   })) : []);
-  const initialFlashcards = Array.isArray(data.cards) && data.cards.length
-    ? (data.cards as Record<string, unknown>[]) : [data];
-  const [flashcards, setFlashcards] = useState(() => initialFlashcards.map((card) => ({
-    imagePath: asString(card.image_path), word: asString(card.word), phonetic: asString(card.phonetic),
-    audioPath: asString(card.audio_path), meaning: asString(card.meaning),
-    examples: Array.isArray(card.examples) ? card.examples.map(String).join("\n") : ""
-  })));
   const [tableHeaders, setTableHeaders] = useState<string[]>(() =>
     Array.isArray(data.headers) && data.headers.length ? data.headers.map(String) : ["Column 1", "Column 2"]
   );
@@ -1976,41 +2020,7 @@ function BlockFields({ blockType, content, lessonId, blockId }: { blockType: str
     );
   }
   if (blockType === "DIALOGUE") return <DialogueVoiceoverEditor data={data} lessonId={lessonId} blockId={blockId} />;
-  if (blockType === "FLASHCARD") {
-    return (
-      <div className="grid gap-4">
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="text-sm">Flashcard type<select name="card_type" defaultValue={asString(data.card_type) || "IMAGE"} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2"><option value="IMAGE">Image cards</option><option value="CARD">Text cards</option></select></label>
-          <label className="text-sm">Front side<select name="front_side" defaultValue={asString(data.front_side) || "IMAGE"} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2"><option value="IMAGE">Image front</option><option value="DETAIL">Detail front</option><option value="WORD">Word front</option></select></label>
-        </div>
-        <div className="grid gap-3">
-          {flashcards.map((card, index) => (
-            <div key={index} className="rounded-lg border border-[var(--br-border)] bg-surface-muted p-3">
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <p className="text-sm font-semibold">Card {index + 1}</p>
-                {flashcards.length > 1 ? <button type="button" onClick={() => setFlashcards((current) => current.filter((_, i) => i !== index))} className="text-xs font-semibold text-coral">Remove</button> : null}
-              </div>
-              <div className="grid gap-3">
-                <label className="text-sm">Image URL<input name="flashcard_image_path" value={card.imagePath} onChange={(e) => setFlashcards((c) => c.map((item, i) => i === index ? { ...item, imagePath: e.target.value } : item))} placeholder="https://..." className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <BlockMediaUploader type="image" lessonId={lessonId} currentSrc={card.imagePath} onUploaded={(url) => setFlashcards((c) => c.map((item, i) => i === index ? { ...item, imagePath: url } : item))} />
-                  <MediaRecorderInput type="audio" lessonId={lessonId} value={card.audioPath} onChange={(url) => setFlashcards((c) => c.map((item, i) => i === index ? { ...item, audioPath: url } : item))} label="Audio clips" />
-                </div>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <label className="text-sm">Word or phrase<input name="flashcard_word" value={card.word} onChange={(e) => setFlashcards((c) => c.map((item, i) => i === index ? { ...item, word: e.target.value } : item))} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
-                  <label className="text-sm">Phonetic <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><input name="flashcard_phonetic" value={card.phonetic} onChange={(e) => setFlashcards((c) => c.map((item, i) => i === index ? { ...item, phonetic: e.target.value } : item))} placeholder="/f\u0259\u02c8net\u026ak/" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
-                </div>
-                <label className="text-sm">Audio URL <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><input name="flashcard_audio_path" value={card.audioPath} onChange={(e) => setFlashcards((c) => c.map((item, i) => i === index ? { ...item, audioPath: e.target.value } : item))} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
-                <label className="text-sm">Meaning<textarea name="flashcard_meaning" rows={2} value={card.meaning} onChange={(e) => setFlashcards((c) => c.map((item, i) => i === index ? { ...item, meaning: e.target.value } : item))} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
-                <label className="text-sm">Examples <span className="font-normal text-[var(--br-text-muted)]">(one per line)</span><textarea name="flashcard_examples" rows={3} value={card.examples} onChange={(e) => setFlashcards((c) => c.map((item, i) => i === index ? { ...item, examples: e.target.value } : item))} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
-              </div>
-            </div>
-          ))}
-          <button type="button" onClick={() => setFlashcards((c) => [...c, { imagePath: "", word: "", phonetic: "", audioPath: "", meaning: "", examples: "" }])} className="w-fit rounded-md border border-[var(--br-border)] px-4 py-2 text-sm font-semibold hover:bg-black/5">Add card</button>
-        </div>
-      </div>
-    );
-  }
+  if (blockType === "FLASHCARD") return <FlashcardEditor data={data} lessonId={lessonId} />;
   if (blockType === "TABLE") {
     const addColumn = () => {
       setTableHeaders((headers) => [...headers, `Column ${headers.length + 1}`]);
