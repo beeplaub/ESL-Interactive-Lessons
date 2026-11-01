@@ -6,6 +6,8 @@ import { deleteSlideActivity, reorderLessonSlideActivities, updateSlideActivity 
 import type { Json } from "@/types/database.types";
 import { useDeleteConfirm } from "@/components/DeleteConfirmModal";
 import { MediaRecorderInput } from "@/components/MediaRecorderInput";
+import { FlashcardAudioGenerator } from "@/components/FlashcardAudioGenerator";
+import { useVoiceGenerationPreferences } from "@/components/voiceGenerationPreferences";
 import { shadowingPhaseData, shadowingPhases, type ShadowingPhase } from "@/lib/shadowing";
 import { lessonActivityDefinition } from "@/lib/lessonActivityCatalog";
 import { BuilderModalLayer } from "@/components/BuilderModalLayer";
@@ -65,6 +67,7 @@ type PronunciationTargetItem = {
   id: string;
   text: string;
   color: string;
+  audio_url?: string;
 };
 
 type GapItem = {
@@ -407,7 +410,8 @@ function normalizePronunciation(data: Json | null): { prompt: string; level: "wo
     return {
       id: String(row.id ?? index + 1),
       text: String(row.text ?? ""),
-      color: String(row.color ?? "var(--br-achievement)")
+      color: String(row.color ?? "var(--br-achievement)"),
+      audio_url: String(row.audio_url ?? row.audioUrl ?? "")
     };
   });
   return {
@@ -2205,6 +2209,7 @@ const PRONUNCIATION_COLORS = ["var(--br-achievement)", "var(--br-success)", "var
 
 function PronunciationEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
   const initial = useMemo(() => normalizePronunciation(activity.activity_data), [activity.activity_data]);
+  const voiceSettings = useVoiceGenerationPreferences({ provider: "auto", languageCode: "en-US", voiceName: "Aoede", style: "Natural", pace: "Natural", locked: false });
   const [prompt, setPrompt] = useState(initial.prompt);
   const [level, setLevel] = useState<"word" | "sentence" | "paragraph">(initial.level);
   const [maxAttempts, setMaxAttempts] = useState(initial.maxAttempts);
@@ -2265,12 +2270,19 @@ function PronunciationEditor({ activity, onSave }: { activity: Activity; onSave:
             The target words below must appear exactly as spelled here — they&apos;ll be highlighted automatically.
           </span>
           <div className="mt-3 rounded-xl border border-indigo-100 bg-indigo-50/60 p-3"><p className="text-[10px] font-black uppercase tracking-wider text-indigo-700">Target color preview</p><p className="mt-2 text-base font-black leading-8 text-[var(--br-dark-card)]">{passageSegments.map((segment, index) => { const target = targets.find((item) => item.text.toLowerCase() === segment.toLowerCase()); return target ? <span key={index} className="mx-0.5 rounded-md border-b-4 px-1" style={{ color: target.color, borderColor: target.color, backgroundColor: "color-mix(in srgb, currentColor 10%, white)" }}>{segment}</span> : <span key={index}>{segment}</span>; })}</p></div>
-          <label className="mt-4 block text-xs font-black text-[var(--br-dark-card)]">Reference audio URL (optional)<input type="url" value={audioUrl} onChange={(event) => setAudioUrl(event.target.value)} placeholder="https://.../reference.mp3" className="mt-2 w-full rounded-xl border border-[var(--br-border)] px-3 py-2.5 text-sm font-semibold" /><span className="mt-1 block text-[11px] font-medium text-[var(--br-text-muted)]">This is the audio learners will hear before recording.</span></label>
+          <div className="mt-4 grid gap-2">
+            <p className="text-xs font-black text-[var(--br-dark-card)]">Reference audio (optional)</p>
+            <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+              <input type="url" value={audioUrl} onChange={(event) => setAudioUrl(event.target.value)} placeholder="Paste an audio URL" className="w-full min-w-0 rounded-xl border border-[var(--br-border)] px-3 py-2.5 text-sm font-semibold" />
+              <FlashcardAudioGenerator lessonId={activity.lesson_id} word={passage} entityLabel={level === "paragraph" ? "Passage reference" : "Sentence reference"} buttonLabel="Generate audio" settings={voiceSettings} onSaved={setAudioUrl} />
+            </div>
+            <span className="text-[11px] font-medium text-[var(--br-text-muted)]">Generate the complete {level === "paragraph" ? "passage" : "sentence"}, or paste an existing audio link. Learners can play it before recording.</span>
+          </div>
           {audioUrl.trim() ? <audio controls preload="metadata" src={audioUrl.trim()} className="mt-3 w-full" /> : <p className="mt-3 rounded-xl border border-dashed border-[var(--br-border)] bg-slate-50 p-3 text-xs font-semibold text-[var(--br-text-muted)]">No reference audio added yet.</p>}
           </div>
       ) : null}
       <div className="rounded-[20px] border border-[var(--br-border)] bg-white p-4 shadow-sm sm:p-5">
-        <div className="mb-3 flex items-start justify-between gap-3"><div><h3 className="font-black text-[var(--br-dark-card)]">2. Targets</h3><p className="mt-1 text-xs text-[var(--br-text-muted)]">Choose the words that learners should focus on.</p></div><span className="rounded-full bg-indigo-50 px-3 py-1.5 text-xs font-black text-indigo-700">{targets.length} selected</span></div>
+        <div className="mb-3 flex flex-wrap items-start justify-between gap-3"><div><h3 className="font-black text-[var(--br-dark-card)]">2. Targets</h3><p className="mt-1 text-xs text-[var(--br-text-muted)]">Choose the words that learners should focus on.</p></div><div className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-indigo-50 px-3 py-1.5 text-xs font-black text-indigo-700">{targets.length} selected</span>{level === "word" ? <FlashcardAudioGenerator lessonId={activity.lesson_id} word="" items={targets.map((target) => ({ id: target.id, text: target.text, audioUrl: target.audio_url }))} entityLabel="Target words" buttonLabel="Generate audio for all words" settings={voiceSettings} onBatchSaved={(saved) => setTargets((current) => current.map((target) => saved[target.id] ? { ...target, audio_url: saved[target.id] } : target))} /> : null}</div></div>
         <p className="mb-3 text-xs font-black uppercase tracking-wider text-[var(--br-text-muted)]">
           {level === "word" ? "Words to pronounce" : "Words to check (highlighted in the text above)"}
         </p>
@@ -2324,7 +2336,7 @@ function PronunciationEditor({ activity, onSave }: { activity: Activity; onSave:
           max_attempts: maxAttempts,
           passage,
           audio_url: audioUrl.trim() || null,
-          targets: targets.map((target) => ({ id: target.id, text: target.text, color: target.color }))
+          targets: targets.map((target) => ({ id: target.id, text: target.text, color: target.color, audio_url: target.audio_url ?? "" }))
         } as Json, needsReview)} />
       </div>
     </div>
