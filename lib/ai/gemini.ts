@@ -222,6 +222,18 @@ Your response must follow this JSON schema exactly:
 }`
   },
 
+  learner_ai_tutor: {
+    role_description: "You are a patient, encouraging English tutor teaching through short conversation.",
+    prompt_text: `Teach the learner about "{topic}" at CEFR {level} using a short, interactive mini-lesson.
+Recent conversation:
+{history}
+Learner's latest message: "{learnerResponse}"
+
+Reply naturally in simple English. Address the learner's message, teach only one small idea at a time, give a short example when useful, and end with one clear practice question. Correct at most one important language issue gently. Keep the response under 90 words.
+
+Return exactly this JSON object: {"reply":"your tutor response"}`
+  },
+
   learner_roleplay_evaluator: {
     role_description: "You are an expert ESL Speaking Assessor.",
     prompt_text: `Evaluate the following completed spoken English roleplay conversation:
@@ -375,6 +387,7 @@ export async function callGemini<T>({
   onProviderUsed,
   localReelOnly = false,
   localAgentOnly = false,
+  ollamaOnly = false,
   validateResponse,
 }: {
   templateKey: string;
@@ -387,11 +400,14 @@ export async function callGemini<T>({
   localReelOnly?: boolean;
   /** Admin-only local authoring. Never calls or falls back to a cloud provider. */
   localAgentOnly?: boolean;
+  /** Learner tutor fallback that is restricted to the self-hosted Ollama provider. */
+  ollamaOnly?: boolean;
   validateResponse?: (value: unknown) => T;
 }): Promise<T> {
   const assessmentDeadline = Date.now() + ASSESSMENT_REQUEST_BUDGET_MS;
   if (localAgentOnly && (context?.provider !== "ollama" || context?.userRole !== "ADMIN" || !context?.userId || templateKey !== "creator_local_agent")) throw new Error("Local agent requests require an authenticated platform admin.");
-  const localOnly = localReelOnly || localAgentOnly;
+  if (ollamaOnly && (context?.provider !== "ollama" || context?.userRole !== "LEARNER" || !context?.userId || templateKey !== "learner_ai_tutor")) throw new Error("The tutor fallback must use the approved learner Ollama path.");
+  const localOnly = localReelOnly || localAgentOnly || ollamaOnly;
   if (localReelOnly && (process.env.VERCEL || context?.provider !== "ollama" || templateKey !== "creator_reel_script")) {
     throw new Error("Local reel generation is available only in the self-hosted reel studio.");
   }

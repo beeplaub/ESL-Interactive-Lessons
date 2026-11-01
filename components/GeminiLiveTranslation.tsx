@@ -2,7 +2,7 @@
 
 import { GoogleGenAI, Modality } from "@google/genai";
 
-type TokenRequest = { mode: "NARRATION" | "SPEAK_TRANSLATE" | "CONVERSATION"; lessonId: string; slideId?: string; activityId?: string };
+type TokenRequest = { mode: "NARRATION" | "SPEAK_TRANSLATE" | "CONVERSATION"; lessonId: string; slideId?: string; activityId?: string } | { mode: "TUTOR"; topic: string; durationMinutes: 1 | 5 };
 type LiveConnection = Awaited<ReturnType<GoogleGenAI["live"]["connect"]>>;
 
 function base64FromBytes(bytes: Uint8Array) {
@@ -309,5 +309,82 @@ export async function startLiveConversation({ lessonId, activityId, onAudio, onT
       stream?.getTracks().forEach((track) => track.stop());
     processor?.disconnect(); silentGain?.disconnect(); session?.close(); void player.close();
     onError(error instanceof Error ? error.message : "Voice conversation could not start.");
+  }
+}
+
+/** Starts a standalone tutor session. It streams audio directly to Gemini Live and never records or uploads the learner's microphone. */
+export async function startLiveTutor({ topic, durationMinutes, onAudio, onTranscript, onReady, onError }: {
+  topic: string;
+  durationMinutes: 1 | 5;
+  onAudio: (speaking: boolean) => void;
+  onTranscript?: (sender: "LEARNER" | "AI", text: string) => void;
+  onReady: (stop: () => Promise<void>, maxSeconds: number, setMicEnabled: (enabled: boolean) => void) => void;
+  onError: (message: string) => void;
+}) {
+  const context = new AudioContext();
+  const player = new PcmPlayer(context);
+  let stream: MediaStream | null = null;
+  let source: MediaStreamAudioSourceNode | null = null;
+  let processor: ScriptProcessorNode | null = null;
+  let silentGain: GainNode | null = null;
+  let session: LiveConnection | null = null;
+  let stopped = false;
+  let micEnabled = true;
+  let speakingTimer: number | undefined;
+  const setMicEnabled = (enabled: boolean) => {
+    micEnabled = enabled;
+    stream?.getAudioTracks().forEach((track) => { track.enabled = enabled; });
+  };
+  const finish = async () => {
+    if (stopped) return;
+    stopped = true;
+    window.clearTimeout(speakingTimer);
+    onAudio(false);
+    processor?.disconnect(); silentGain?.disconnect(); source?.disconnect();
+    stream?.getTracks().forEach((track) => track.stop());
+    session?.sendRealtimeInput({ audioStreamEnd: true }); session?.close();
+    await player.waitForDrain();
+    await player.close();
+  };
+  try {
+    await player.resume();
+    const connection = await requestToken({ mode: "TUTOR", topic: topic.trim().slice(0, 180), durationMinutes });
+    const ai = new GoogleGenAI({ apiKey: connection.token, httpOptions: { apiVersion: "v1alpha" } });
+    session = await ai.live.connect({
+      model: connection.model,
+      config: {
+        responseModalities: [Modality.AUDIO], inputAudioTranscription: {}, outputAudioTranscription: {},
+        speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: connection.voiceName || "Achird" } } },
+        realtimeInputConfig: { automaticActivityDetection: { silenceDurationMs: 3000 } },
+      },
+      callbacks: {
+        onmessage: (message) => {
+          extractAudio(message).forEach((data) => {
+            player.play(data); onAudio(true); window.clearTimeout(speakingTimer);
+            speakingTimer = window.setTimeout(() => onAudio(false), 450);
+          });
+          const record = message as { serverContent?: { inputTranscription?: { text?: string }; outputTranscription?: { text?: string } } };
+          if (record.serverContent?.inputTranscription?.text) onTranscript?.("LEARNER", record.serverContent.inputTranscription.text);
+          if (record.serverContent?.outputTranscription?.text) onTranscript?.("AI", record.serverContent.outputTranscription.text);
+        },
+        onerror: () => { onAudio(false); onError("The tutor connection was interrupted. Start another session when you’re ready."); void finish(); },
+      },
+    });
+    stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+    source = context.createMediaStreamSource(stream);
+    processor = context.createScriptProcessor(4096, 1, 1);
+    silentGain = context.createGain(); silentGain.gain.value = 0;
+    processor.onaudioprocess = (event) => {
+      if (stopped || !micEnabled) return;
+      const pcm = downsample(event.inputBuffer.getChannelData(0), context.sampleRate);
+      session?.sendRealtimeInput({ audio: { data: pcm16Base64(pcm), mimeType: "audio/pcm;rate=16000" } });
+    };
+    source.connect(processor); processor.connect(silentGain); silentGain.connect(context.destination);
+    session.sendClientContent({ turns: [{ role: "user", parts: [{ text: "Begin the mini lesson now. Speak your opening turn to the learner." }] }], turnComplete: true });
+    onReady(finish, connection.maxSeconds ?? durationMinutes * 60, setMicEnabled);
+  } catch (error) {
+    stream?.getTracks().forEach((track) => track.stop());
+    processor?.disconnect(); silentGain?.disconnect(); session?.close(); void player.close();
+    onError(error instanceof Error ? error.message : "The tutor could not start. Please try again.");
   }
 }
