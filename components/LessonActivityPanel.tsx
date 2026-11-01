@@ -517,6 +517,7 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
         passage: String(data.passage ?? ""),
         targets,
         max_attempts: maxAttempts,
+        audio_url: String(data.audio_url ?? ""),
       } as Json,
       correct_answer: targets.map((t) => t.id) as Json,
     }];

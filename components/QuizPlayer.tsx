@@ -2966,9 +2966,9 @@ function Pronunciation({
       <div className="pointer-events-none absolute -left-16 -top-16 size-52 rounded-full bg-indigo-400/10 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-24 -right-14 size-64 rounded-full bg-orange-300/15 blur-3xl" />
       <div className="relative z-10 rounded-[20px] border border-slate-200/80 bg-white p-4 text-left shadow-sm sm:p-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-          {referenceAudioUrl ? <AudioTrackPlayer value={[{ id: "reference", url: referenceAudioUrl, label: "Native reference" }]} className="w-full shrink-0 sm:w-52" /> : <div className="grid size-14 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-400" aria-label="Reference audio is not available"><Volume2 size={24} /></div>}
-          <p className="min-w-0 break-words text-lg font-black leading-tight tracking-tight text-slate-900 sm:text-3xl">{segments.map((segment, index) => { const target = targets.find((item) => item.text.toLowerCase() === segment.toLowerCase()); return target ? <span key={index} className="mx-0.5 inline rounded-md border-b-4 px-1" style={{ color: target.color, borderColor: target.color, backgroundColor: "color-mix(in srgb, currentColor 10%, white)" }}>{segment}</span> : <span key={index}>{segment}</span>; })}</p>
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-5">
+          {referenceAudioUrl ? <AudioTrackPlayer variant="compact" value={[{ id: "reference", url: referenceAudioUrl, label: "Listen to example" }]} className="shrink-0" /> : null}
+          <p className="min-w-0 flex-1 break-words text-[2rem] font-black leading-[1.55] tracking-tight text-slate-900 sm:text-3xl sm:leading-[1.55]">{segments.map((segment, index) => { const target = targets.find((item) => item.text.toLowerCase() === segment.toLowerCase()); return target ? <span key={index} className="mx-0.5 inline-block align-baseline rounded-md border-b-[3px] px-1 py-0.5" style={{ color: target.color, borderColor: target.color, backgroundColor: "color-mix(in srgb, currentColor 10%, white)" }}>{segment}</span> : <span key={index}>{segment}</span>; })}</p>
           <button type="button" className="self-end text-slate-400 hover:text-slate-700 sm:ml-auto sm:self-start" aria-label="Save activity">♡</button>
         </div>
       </div>

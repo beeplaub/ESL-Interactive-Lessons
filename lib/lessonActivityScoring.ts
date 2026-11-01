@@ -172,9 +172,14 @@ export function lessonScoredQuestions(activityType: string, value: Json | null):
   if (activityType === "PRONUNCIATION") {
     const targets = Array.isArray(data.targets) ? data.targets.map((item, index) => {
       const row = asRecord(item as Json);
-      return { id: text(row.id || index + 1), text: text(row.text) };
+      return { id: text(row.id || index + 1), text: text(row.text), color: text(row.color) };
     }) : [];
-    return [common(data, 0, "PRONUNCIATION", targets.map((target) => target.id), { targets, level: data.level ?? "word" } as unknown as Json)];
+    return [common(data, 0, "PRONUNCIATION", targets.map((target) => target.id), {
+      targets,
+      level: data.level ?? "word",
+      passage: text(data.passage),
+      audio_url: text(data.audio_url),
+    } as unknown as Json)];
   }
 
   if (activityType === "ORAL_RESPONSE") {
