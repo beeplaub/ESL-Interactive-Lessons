@@ -977,7 +977,9 @@ function SingleFlashcard({ content, cardType, frontSide }: { content: Record<str
           {showImageFront && imageSrc && isImageUrl(imageSrc) && <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 rounded-b-2xl bg-gradient-to-t from-black/50 to-transparent" />}
           <button type="button" onClick={(e) => { e.stopPropagation(); setFlipped(true); }} className="absolute bottom-3 right-3 flex items-center gap-1.5 rounded-full bg-black/40 px-3 py-1.5 text-xs font-semibold text-on-dark backdrop-blur-sm transition hover:bg-black/60" aria-label="Flip card"><FlipHorizontal2 size={12} /> Flip</button>
         </div>
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 overflow-y-auto rounded-2xl border border-[var(--br-border)] bg-surface p-6 text-center shadow-sm" style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)", minHeight: "300px" }}>
+        <div className="absolute inset-0 flex flex-col items-center justify-center overflow-y-auto rounded-2xl border border-[var(--br-brand)]/20 p-4 text-center shadow-[var(--br-shadow)] sm:p-6" style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)", minHeight: "300px", background: "linear-gradient(145deg, color-mix(in srgb, var(--br-brand) 7%, var(--br-surface)), color-mix(in srgb, var(--br-action) 5%, var(--br-surface)) 62%, color-mix(in srgb, var(--br-info) 5%, var(--br-surface)))" }}>
+          <span aria-hidden="true" className="pointer-events-none absolute -right-7 -top-8 size-28 rounded-full border-[18px] border-[var(--br-action)]/10" />
+          <span aria-hidden="true" className="pointer-events-none absolute -bottom-10 -left-8 size-32 rounded-full bg-[var(--br-info)]/5 blur-sm" />
           {showImageFront || showWordFront ? (
             <FlashcardDetails word={word} phonetic={phonetic} audioSrc={audioSrc} bengaliTranslation={bengaliTranslation} meaning={meaning} examples={examples} audioRef={audioRef} />
           ) : imageSrc && isImageUrl(imageSrc) ? (
@@ -986,7 +988,7 @@ function SingleFlashcard({ content, cardType, frontSide }: { content: Record<str
           ) : (
             <p className="text-sm text-[var(--br-text-muted)]">Add an image or card details.</p>
           )}
-          <button type="button" onClick={() => setFlipped(false)} className="absolute bottom-3 right-3 flex items-center gap-1.5 rounded-full border border-[var(--br-border)] bg-surface px-3 py-1.5 text-xs font-medium text-[var(--br-text-muted)] shadow-sm transition hover:bg-black/5 hover:text-[var(--br-text-muted)]" aria-label="Flip back"><FlipHorizontal2 size={12} /> Flip back</button>
+          <button type="button" onClick={() => setFlipped(false)} className="absolute bottom-3 right-3 z-20 flex items-center gap-1.5 rounded-full border border-[var(--br-brand)]/20 bg-surface/90 px-3 py-1.5 text-xs font-semibold text-[var(--br-brand)] shadow-sm backdrop-blur transition hover:border-[var(--br-action)]/45 hover:text-[var(--br-action-strong)]" aria-label="Flip back"><FlipHorizontal2 size={12} /> Flip back</button>
         </div>
       </div>
     </div>
@@ -995,24 +997,24 @@ function SingleFlashcard({ content, cardType, frontSide }: { content: Record<str
 
 function FlashcardDetails({ word, phonetic, audioSrc, bengaliTranslation, meaning, examples, audioRef }: { word: string; phonetic: string; audioSrc: string; bengaliTranslation: string; meaning: string; examples: string[]; audioRef: RefObject<HTMLAudioElement | null> }) {
   return (
-    <>
+    <div className="relative z-10 flex w-full max-w-sm flex-col items-center gap-3 py-2 pb-8">
       {audioSrc && <audio ref={audioRef} src={audioSrc} preload="none" />}
-      <p className="text-3xl font-bold leading-tight tracking-tight text-ink">{word || "Word"}</p>
-      {(phonetic || audioSrc) && (
-        <div className="flex items-center justify-center gap-2">
-          {phonetic && <span className="font-mono text-sm text-[var(--br-text-muted)]">{phonetic}</span>}
+      <div className="flex flex-col items-center gap-2">
+        <p className="text-3xl font-black leading-tight tracking-tight text-[var(--br-brand-strong)] sm:text-4xl">{word || "Word"}</p>
+        {(phonetic || audioSrc) && (
+          <div className="flex items-center justify-center gap-2">
+            {phonetic && <span className="font-mono text-sm font-medium text-[var(--br-text-muted)]">{phonetic}</span>}
           {audioSrc && (
-            <button type="button" onClick={(e) => { e.stopPropagation(); if (audioRef.current) { audioRef.current.currentTime = 0; void audioRef.current.play(); } }} title="Play pronunciation" className="flex items-center justify-center rounded-full bg-moss/10 p-1.5 text-moss transition hover:bg-moss/20 active:scale-95"><Volume2 size={15} /></button>
+              <button type="button" onClick={(e) => { e.stopPropagation(); if (audioRef.current) { audioRef.current.currentTime = 0; void audioRef.current.play(); } }} title="Play pronunciation" className="flex size-8 items-center justify-center rounded-full bg-[var(--br-action)] text-white shadow-sm transition hover:bg-[var(--br-action-strong)] active:scale-95"><Volume2 size={15} /></button>
           )}
-        </div>
-      )}
-      {bengaliTranslation ? <p lang="bn" className="max-w-xs text-base font-semibold text-[var(--br-brand)]">বাংলা: {bengaliTranslation}</p> : null}
-      <div className="w-12 border-t border-[var(--br-border)]" />
-      <p className="max-w-xs text-base leading-relaxed text-[var(--br-text-muted)]">{meaning || "Meaning"}</p>
-      {examples.length > 0 && (
-        <div className="max-w-xs space-y-1">{examples.map((ex, i) => <p key={i} className="text-sm italic leading-relaxed text-[var(--br-text-muted)]">&ldquo;{ex}&rdquo;</p>)}</div>
-      )}
-    </>
+          </div>
+        )}
+      </div>
+      <span aria-hidden="true" className="h-1 w-12 rounded-full bg-[var(--br-action)]" />
+      {bengaliTranslation ? <div lang="bn" className="w-full rounded-xl border border-[var(--br-success)]/20 bg-[var(--br-success-soft)] px-4 py-2.5"><span className="text-[10px] font-black uppercase tracking-[0.16em] text-[var(--br-success)]">বাংলা</span><p className="mt-0.5 text-base font-bold leading-relaxed text-[var(--br-brand)]">{bengaliTranslation}</p></div> : null}
+      <div className="w-full px-1 py-1 text-left"><span className="text-[10px] font-black uppercase tracking-[0.16em] text-[var(--br-brand)]">Meaning</span><p className="mt-1 text-sm leading-relaxed text-[var(--br-text)] sm:text-base">{meaning || "Meaning"}</p></div>
+      {examples.length > 0 ? <div className="w-full space-y-2">{examples.map((ex, i) => <div key={i} className="flex items-start gap-2.5 rounded-xl border border-[var(--br-action)]/15 bg-surface/80 px-3 py-2.5 text-left shadow-sm"><MessageSquareQuote size={16} className="mt-0.5 shrink-0 text-[var(--br-action)]" /><p className="text-sm italic leading-relaxed text-[var(--br-text-muted)]">{ex}</p></div>)}</div> : null}
+    </div>
   );
 }
 
