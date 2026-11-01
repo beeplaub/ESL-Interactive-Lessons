@@ -20,9 +20,12 @@ async function readJson(response: Response) {
 
 export type FlashcardVoiceSettings = ReturnType<typeof useVoiceGenerationPreferences>;
 
-export function FlashcardAudioGenerator({ lessonId, word, onSaved, settings, entityLabel = "Flashcard", buttonLabel = "Generate audio" }: { lessonId?: string; word: string; onSaved: (url: string) => void; settings: FlashcardVoiceSettings; entityLabel?: string; buttonLabel?: string }) {
+export type AudioGenerationItem = { id: string; text: string; audioUrl?: string };
+
+export function FlashcardAudioGenerator({ lessonId, word, onSaved, settings, entityLabel = "Flashcard", buttonLabel = "Generate audio", items, onBatchSaved }: { lessonId?: string; word: string; onSaved?: (url: string) => void; settings: FlashcardVoiceSettings; entityLabel?: string; buttonLabel?: string; items?: AudioGenerationItem[]; onBatchSaved?: (saved: Record<string, string>) => void }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const preferences = settings.preferences;
@@ -51,31 +54,66 @@ export function FlashcardAudioGenerator({ lessonId, word, onSaved, settings, ent
     await settings.save({ ...preferences, locked: !preferences.locked });
   }
 
+  async function generateOne(script: string) {
+    const title = `${entityLabel}: ${script}`.slice(0, 120);
+    const generated = await readJson(await fetch("/api/creator-tools/voiceover", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ title, script, ...(lessonId ? { lessonId } : {}), ...preferences }),
+    }));
+    let url = typeof generated.url === "string" ? generated.url : "";
+    if (generated.saved !== true) {
+      const saved = await readJson(await fetch("/api/creator-tools/voiceover/save", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ generationId: generated.generationId, title }),
+      }));
+      url = typeof saved.url === "string" ? saved.url : url;
+    }
+    if (!url) throw new Error("Audio was saved, but its media link was not returned. Try again.");
+    return { url, reused: generated.saved === true || generated.reused === true };
+  }
+
   async function generateAndSave() {
+    const pendingItems = items?.filter((item) => item.text.trim() && !item.audioUrl) ?? [];
+    if (items) {
+      if (!pendingItems.length) { setMessage("All target words already have audio."); setOpen(false); return; }
+      setBusy(true);
+      setProgress(0);
+      setError(null);
+      setMessage(null);
+      const saved: Record<string, string> = {};
+      const failures: string[] = [];
+      for (const [index, item] of pendingItems.entries()) {
+        try {
+          const result = await generateOne(item.text.trim());
+          saved[item.id] = result.url;
+        } catch (cause) {
+          failures.push(item.text.trim());
+        } finally {
+          setProgress(index + 1);
+        }
+      }
+      if (Object.keys(saved).length) onBatchSaved?.(saved);
+      if (failures.length) {
+        setMessage(Object.keys(saved).length ? `Saved audio for ${Object.keys(saved).length} of ${pendingItems.length} words.` : null);
+        setError(`Could not generate audio for: ${failures.join(", ")}. You can try again.`);
+      } else {
+        setMessage(`Saved audio for all ${pendingItems.length} words to the Media Library.`);
+        setOpen(false);
+      }
+      setBusy(false);
+      return;
+    }
     const script = word.trim();
     if (!script) { setError("Add the flashcard word before generating audio."); return; }
     setBusy(true);
     setError(null);
     setMessage(null);
     try {
-      const title = `${entityLabel}: ${script}`.slice(0, 120);
-      const generated = await readJson(await fetch("/api/creator-tools/voiceover", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ title, script, ...(lessonId ? { lessonId } : {}), ...preferences }),
-      }));
-      let url = typeof generated.url === "string" ? generated.url : "";
-      if (generated.saved !== true) {
-        const saved = await readJson(await fetch("/api/creator-tools/voiceover/save", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ generationId: generated.generationId, title }),
-        }));
-        url = typeof saved.url === "string" ? saved.url : url;
-      }
-      if (!url) throw new Error("Audio was saved, but its media link was not returned. Try again.");
-      onSaved(url);
-      setMessage(generated.saved === true ? "Matching saved audio reused." : generated.reused === true ? "Saved audio reused." : "Generated and saved to Media Library.");
+      const result = await generateOne(script);
+      onSaved?.(result.url);
+      setMessage(result.reused ? "Saved audio reused." : "Generated and saved to Media Library.");
       setOpen(false);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not generate and save flashcard audio.");
@@ -85,11 +123,13 @@ export function FlashcardAudioGenerator({ lessonId, word, onSaved, settings, ent
   }
 
   const ready = settingsReady;
+  const itemCount = items?.filter((item) => item.text.trim() && !item.audioUrl).length ?? 0;
+  const generateDisabled = items ? pendingItemsDisabled(items) : !word.trim();
   return <>
     <div className="flex min-w-0 items-start gap-2">
-      <button type="button" disabled={!ready || busy || !word.trim()} onClick={() => preferences.locked ? void generateAndSave() : openSettings()} className="inline-flex min-h-10 min-w-0 flex-1 items-center justify-center gap-2 rounded-lg border border-[var(--br-brand)]/20 bg-[var(--br-brand)]/5 px-3 py-2 text-xs font-bold text-[var(--br-brand)] transition hover:bg-[var(--br-brand)]/10 disabled:cursor-not-allowed disabled:opacity-50" title={preferences.locked ? "Generate and save with locked voice settings" : "Choose voice settings and generate audio"}>
+      <button type="button" disabled={!ready || busy || generateDisabled} onClick={() => preferences.locked ? void generateAndSave() : openSettings()} className="inline-flex min-h-10 min-w-0 flex-1 items-center justify-center gap-2 rounded-lg border border-[var(--br-brand)]/20 bg-[var(--br-brand)]/5 px-3 py-2 text-xs font-bold text-[var(--br-brand)] transition hover:bg-[var(--br-brand)]/10 disabled:cursor-not-allowed disabled:opacity-50" title={preferences.locked ? "Generate and save with locked voice settings" : "Choose voice settings and generate audio"}>
         {busy ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />}
-        <span className="truncate">{busy ? "Generating & saving…" : buttonLabel}</span>
+        <span className="truncate">{busy && items ? `Saving ${progress}/${itemCount}…` : busy ? "Generating & saving…" : buttonLabel}</span>
       </button>
       <button type="button" disabled={!ready || busy} onClick={openSettings} className="grid size-10 shrink-0 place-items-center rounded-lg border border-[var(--br-border)] bg-surface text-[var(--br-text-muted)] transition hover:border-[var(--br-brand)]/30 hover:text-[var(--br-brand)] disabled:opacity-50" aria-label="Voice generation settings" title={preferences.locked ? "Voice settings locked" : "Choose voice settings"}>
         {preferences.locked ? <Lock size={15} /> : <Settings2 size={15} />}
@@ -100,7 +140,7 @@ export function FlashcardAudioGenerator({ lessonId, word, onSaved, settings, ent
     {open ? <div className="fixed inset-0 z-[130] grid place-items-center bg-slate-950/45 p-3 backdrop-blur-sm sm:p-5" role="presentation" onClick={() => { if (!busy) setOpen(false); }}>
       <section role="dialog" aria-modal="true" aria-labelledby="flashcard-audio-title" className="max-h-[min(42rem,calc(100dvh-1.5rem))] w-full max-w-lg overflow-y-auto rounded-2xl border border-[var(--br-border)] bg-surface p-4 shadow-2xl sm:p-5" onClick={(event) => event.stopPropagation()}>
         <div className="flex items-start justify-between gap-3">
-          <div><p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--br-brand)]">{entityLabel} audio</p><h3 id="flashcard-audio-title" className="mt-1 text-lg font-extrabold text-[var(--br-dark-card)]">Generate for “{word.trim() || "your text"}”</h3><p className="mt-1 text-xs text-[var(--br-text-muted)]">It will be generated and saved directly to this activity and your Media Library.</p></div>
+          <div><p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--br-brand)]">{entityLabel} audio</p><h3 id="flashcard-audio-title" className="mt-1 text-lg font-extrabold text-[var(--br-dark-card)]">{items ? `Generate audio for ${pendingItemsDisabled(items) ? "all target words" : itemCount === 1 ? "1 target word" : `${itemCount} target words`}` : `Generate for “${word.trim() || "your text"}”`}</h3><p className="mt-1 text-xs text-[var(--br-text-muted)]">{items ? "Each word gets its own clip. Words with existing audio are skipped; all clips are saved to the Media Library." : "It will be generated and saved directly to this activity and your Media Library."}</p></div>
           <button type="button" disabled={busy} onClick={() => setOpen(false)} className="grid size-9 shrink-0 place-items-center rounded-full border border-[var(--br-border)] text-[var(--br-text-muted)] hover:bg-black/5 disabled:opacity-50" aria-label="Close voice settings"><X size={16} /></button>
         </div>
         <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-[var(--br-border)] bg-[var(--br-surface-muted)] px-3 py-2.5">
@@ -118,9 +158,13 @@ export function FlashcardAudioGenerator({ lessonId, word, onSaved, settings, ent
         {error ? <p role="alert" className="mt-3 rounded-lg bg-coral/10 px-3 py-2 text-xs font-semibold text-coral">{error}</p> : null}
         <div className="mt-4 flex flex-wrap justify-end gap-2 border-t border-[var(--br-border)] pt-3">
           <button type="button" disabled={busy} onClick={() => setOpen(false)} className="min-h-10 rounded-lg border border-[var(--br-border)] px-3 py-2 text-xs font-bold text-[var(--br-text-muted)] disabled:opacity-50">Cancel</button>
-          <button type="button" disabled={busy || !ready || !word.trim() || settings.saving} onClick={() => void generateAndSave()} className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-[var(--br-brand)] px-4 py-2 text-xs font-bold text-on-dark disabled:cursor-not-allowed disabled:opacity-50">{busy ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}{busy ? "Generating & saving…" : "Generate & save"}</button>
+          <button type="button" disabled={busy || !ready || generateDisabled || settings.saving} onClick={() => void generateAndSave()} className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-[var(--br-brand)] px-4 py-2 text-xs font-bold text-on-dark disabled:cursor-not-allowed disabled:opacity-50">{busy ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}{busy && items ? `Generating ${progress}/${itemCount}…` : busy ? "Generating & saving…" : items ? "Generate & save all" : "Generate & save"}</button>
         </div>
       </section>
     </div> : null}
   </>;
+}
+
+function pendingItemsDisabled(items: AudioGenerationItem[]) {
+  return !items.some((item) => item.text.trim() && !item.audioUrl);
 }

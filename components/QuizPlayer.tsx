@@ -2849,9 +2849,8 @@ function Pronunciation({
         </div>
 
         <section className="grid min-w-0 justify-items-center gap-4 px-1 py-2 text-center sm:gap-5" aria-label={`${currentTarget.text} pronunciation practice`}>
-          {currentTarget.audioUrl ? <AudioTrackPlayer key={`${currentTarget.id}-${currentTarget.audioUrl}`} variant="compact" value={[{ id: currentTarget.id, url: currentTarget.audioUrl, label: `Listen to ${currentTarget.text}` }]} /> : null}
           <div className="space-y-2">
-            <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Say this word</p>
+            {currentTarget.audioUrl ? <AudioTrackPlayer key={`${currentTarget.id}-${currentTarget.audioUrl}`} variant="compact" value={[{ id: currentTarget.id, url: currentTarget.audioUrl, label: `Listen to ${currentTarget.text}` }]} className="justify-center" /> : <button type="button" disabled title="Example audio has not been added yet" aria-label={`Example audio for ${currentTarget.text} is not available yet`} className="mx-auto grid size-12 place-items-center rounded-full bg-orange-100 text-orange-700 opacity-60"><Volume2 size={21} /></button>}
             <h3 className="break-words text-4xl font-black tracking-tight sm:text-5xl" style={{ color: currentTarget.color }}>{currentTarget.text}</h3>
           </div>
 

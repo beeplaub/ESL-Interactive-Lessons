@@ -2475,6 +2475,10 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
     const nextTargets = targets.map((target, targetIndex) => targetIndex === index ? { ...target, ...patch } : target);
     onChange({ options: { ...options, targets: nextTargets } as Json, correctAnswer: nextTargets.map((target) => String(target.id ?? "")) as Json });
   }
+  function saveBatchTargetAudio(saved: Record<string, string>) {
+    const nextTargets: Record<string, unknown>[] = targets.map((target) => ({ ...target, ...(saved[String(target.id ?? "")] ? { audio_url: saved[String(target.id ?? "")] } : {}) }));
+    onChange({ options: { ...options, targets: nextTargets } as Json, correctAnswer: nextTargets.map((target) => String(target.id ?? "")) as Json });
+  }
   return (
     <div className="grid gap-4">
       <div className="rounded-[20px] border border-indigo-200/80 bg-gradient-to-br from-indigo-50 via-white to-orange-50 p-5 shadow-sm">
@@ -2510,7 +2514,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
         />
       </label>
       <div className="rounded-[20px] border border-[var(--br-border)] bg-white p-4 shadow-sm sm:p-5">
-        <div className="mb-3 flex items-start justify-between gap-3"><div><h3 className="font-black text-[var(--br-dark-card)]">2. Targets</h3><p className="mt-1 text-xs text-[var(--br-text-muted)]">Choose the words that learners should focus on.</p></div><span className="rounded-full bg-indigo-50 px-3 py-1.5 text-xs font-black text-indigo-700">{targets.length} selected</span></div>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3"><div><h3 className="font-black text-[var(--br-dark-card)]">2. Targets</h3><p className="mt-1 text-xs text-[var(--br-text-muted)]">Choose the words learners should focus on and generate a separate example for each.</p></div><div className="flex flex-wrap items-center gap-2"><span className="rounded-full bg-indigo-50 px-3 py-1.5 text-xs font-black text-indigo-700">{targets.length} selected</span>{pronunciationLevel === "word" ? <FlashcardAudioGenerator word="" items={targets.map((target, index) => ({ id: String(target.id ?? index), text: String(target.text ?? ""), audioUrl: String(target.audio_url ?? target.audioUrl ?? "") }))} entityLabel="Target words" buttonLabel="Generate audio for all words" settings={voiceSettings} onBatchSaved={saveBatchTargetAudio} /> : null}</div></div>
         <div className="hidden grid-cols-[minmax(0,1fr)_auto] gap-2 border-b border-[var(--br-border)] px-2 pb-2 text-[10px] font-black uppercase tracking-wider text-[var(--br-text-muted)] sm:grid"><span>Target word and example audio</span><span>Target color</span></div>
         <div className="grid gap-2">
           {targets.map((target, index) => (
@@ -2522,7 +2526,6 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
                   placeholder={pronunciationLevel === "word" ? "pronunciation" : "word or phrase from the text above"}
                   className="w-full min-w-0 rounded-xl border border-[var(--br-border)] bg-white px-3 py-2 text-sm font-semibold"
                 />
-                {pronunciationLevel === "word" ? <FlashcardAudioGenerator word={String(target.text ?? "")} entityLabel="Target word" buttonLabel="Generate audio" settings={voiceSettings} onSaved={(url) => updatePronunciationTarget(index, { audio_url: url })} /> : null}
               </div>
               <div className="flex min-w-0 flex-wrap items-center gap-2 sm:justify-end"><span className="text-xs font-bold text-[var(--br-text-muted)]">Analyzed after recording</span><span className="w-fit rounded-full bg-slate-100 px-2 py-1 text-[10px] font-black text-slate-600">Word target</span>
               <div className="flex items-center gap-1">
