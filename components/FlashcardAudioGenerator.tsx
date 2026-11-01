@@ -20,7 +20,7 @@ async function readJson(response: Response) {
 
 export type FlashcardVoiceSettings = ReturnType<typeof useVoiceGenerationPreferences>;
 
-export function FlashcardAudioGenerator({ lessonId, word, onSaved, settings }: { lessonId: string; word: string; onSaved: (url: string) => void; settings: FlashcardVoiceSettings }) {
+export function FlashcardAudioGenerator({ lessonId, word, onSaved, settings, entityLabel = "Flashcard", buttonLabel = "Generate audio" }: { lessonId?: string; word: string; onSaved: (url: string) => void; settings: FlashcardVoiceSettings; entityLabel?: string; buttonLabel?: string }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -58,11 +58,11 @@ export function FlashcardAudioGenerator({ lessonId, word, onSaved, settings }: {
     setError(null);
     setMessage(null);
     try {
-      const title = `Flashcard: ${script}`.slice(0, 120);
+      const title = `${entityLabel}: ${script}`.slice(0, 120);
       const generated = await readJson(await fetch("/api/creator-tools/voiceover", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ title, script, lessonId, ...preferences }),
+        body: JSON.stringify({ title, script, ...(lessonId ? { lessonId } : {}), ...preferences }),
       }));
       let url = typeof generated.url === "string" ? generated.url : "";
       if (generated.saved !== true) {
@@ -89,7 +89,7 @@ export function FlashcardAudioGenerator({ lessonId, word, onSaved, settings }: {
     <div className="flex min-w-0 items-start gap-2">
       <button type="button" disabled={!ready || busy || !word.trim()} onClick={() => preferences.locked ? void generateAndSave() : openSettings()} className="inline-flex min-h-10 min-w-0 flex-1 items-center justify-center gap-2 rounded-lg border border-[var(--br-brand)]/20 bg-[var(--br-brand)]/5 px-3 py-2 text-xs font-bold text-[var(--br-brand)] transition hover:bg-[var(--br-brand)]/10 disabled:cursor-not-allowed disabled:opacity-50" title={preferences.locked ? "Generate and save with locked voice settings" : "Choose voice settings and generate audio"}>
         {busy ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />}
-        <span className="truncate">{busy ? "Generating & saving…" : "Generate audio"}</span>
+        <span className="truncate">{busy ? "Generating & saving…" : buttonLabel}</span>
       </button>
       <button type="button" disabled={!ready || busy} onClick={openSettings} className="grid size-10 shrink-0 place-items-center rounded-lg border border-[var(--br-border)] bg-surface text-[var(--br-text-muted)] transition hover:border-[var(--br-brand)]/30 hover:text-[var(--br-brand)] disabled:opacity-50" aria-label="Voice generation settings" title={preferences.locked ? "Voice settings locked" : "Choose voice settings"}>
         {preferences.locked ? <Lock size={15} /> : <Settings2 size={15} />}
@@ -100,7 +100,7 @@ export function FlashcardAudioGenerator({ lessonId, word, onSaved, settings }: {
     {open ? <div className="fixed inset-0 z-[130] grid place-items-center bg-slate-950/45 p-3 backdrop-blur-sm sm:p-5" role="presentation" onClick={() => { if (!busy) setOpen(false); }}>
       <section role="dialog" aria-modal="true" aria-labelledby="flashcard-audio-title" className="max-h-[min(42rem,calc(100dvh-1.5rem))] w-full max-w-lg overflow-y-auto rounded-2xl border border-[var(--br-border)] bg-surface p-4 shadow-2xl sm:p-5" onClick={(event) => event.stopPropagation()}>
         <div className="flex items-start justify-between gap-3">
-          <div><p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--br-brand)]">Flashcard audio</p><h3 id="flashcard-audio-title" className="mt-1 text-lg font-extrabold text-[var(--br-dark-card)]">Generate for “{word.trim() || "your word"}”</h3><p className="mt-1 text-xs text-[var(--br-text-muted)]">It will be generated and saved directly to this card and your Media Library.</p></div>
+          <div><p className="text-xs font-black uppercase tracking-[0.14em] text-[var(--br-brand)]">{entityLabel} audio</p><h3 id="flashcard-audio-title" className="mt-1 text-lg font-extrabold text-[var(--br-dark-card)]">Generate for “{word.trim() || "your text"}”</h3><p className="mt-1 text-xs text-[var(--br-text-muted)]">It will be generated and saved directly to this activity and your Media Library.</p></div>
           <button type="button" disabled={busy} onClick={() => setOpen(false)} className="grid size-9 shrink-0 place-items-center rounded-full border border-[var(--br-border)] text-[var(--br-text-muted)] hover:bg-black/5 disabled:opacity-50" aria-label="Close voice settings"><X size={16} /></button>
         </div>
         <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-[var(--br-border)] bg-[var(--br-surface-muted)] px-3 py-2.5">

@@ -2391,7 +2391,7 @@ function DragDrop({
   );
 }
 
-type PronunciationTarget = { id: string; text: string; color: string };
+type PronunciationTarget = { id: string; text: string; color: string; audioUrl?: string };
 
 function OralResponse({
   question,
@@ -2648,7 +2648,7 @@ function Pronunciation({
   const targets: PronunciationTarget[] = Array.isArray(opts.targets)
     ? opts.targets.map((t) => {
         const row = asRecord(t as Json);
-        return { id: String(row.id ?? ""), text: String(row.text ?? ""), color: String(row.color ?? "var(--br-achievement)") };
+        return { id: String(row.id ?? ""), text: String(row.text ?? ""), color: String(row.color ?? "var(--br-achievement)"), audioUrl: String(row.audio_url ?? row.audioUrl ?? "") };
       }).filter((target) => target.text.trim())
     : [];
   const maxAttempts = Math.max(1, Number(opts.max_attempts ?? 3));
@@ -2849,6 +2849,7 @@ function Pronunciation({
         </div>
 
         <section className="grid min-w-0 justify-items-center gap-4 px-1 py-2 text-center sm:gap-5" aria-label={`${currentTarget.text} pronunciation practice`}>
+          {currentTarget.audioUrl ? <AudioTrackPlayer key={`${currentTarget.id}-${currentTarget.audioUrl}`} variant="compact" value={[{ id: currentTarget.id, url: currentTarget.audioUrl, label: `Listen to ${currentTarget.text}` }]} /> : null}
           <div className="space-y-2">
             <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Say this word</p>
             <h3 className="break-words text-4xl font-black tracking-tight sm:text-5xl" style={{ color: currentTarget.color }}>{currentTarget.text}</h3>

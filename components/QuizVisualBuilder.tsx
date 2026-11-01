@@ -12,6 +12,8 @@ import type { Json } from "@/types/database.types";
 import { useDeleteConfirm } from "@/components/DeleteConfirmModal";
 import { MediaRecorderInput } from "@/components/MediaRecorderInput";
 import { AudioTrackPlayer } from "@/components/AudioTrackPlayer";
+import { FlashcardAudioGenerator } from "@/components/FlashcardAudioGenerator";
+import { useVoiceGenerationPreferences } from "@/components/voiceGenerationPreferences";
 import { shadowingPhaseData, shadowingPhases, type ShadowingPhase } from "@/lib/shadowing";
 
 type BuilderQuestion = {
@@ -907,6 +909,7 @@ function questionToPreviewActivity(question: BuilderQuestion) {
         prompt: question.questionText,
         level: options.level === "sentence" || options.level === "paragraph" ? options.level : "word",
         passage: String(options.passage ?? ""),
+        audio_url: String(options.audio_url ?? ""),
         targets: Array.isArray(options.targets) ? options.targets : [],
         max_attempts: Number(options.max_attempts ?? 3)
       } as Json
@@ -1059,6 +1062,7 @@ function questionToPreviewActivity(question: BuilderQuestion) {
 
 function QuestionFields({ question, onChange }: { question: BuilderQuestion; onChange: (patch: Partial<BuilderQuestion>) => void }) {
   const options = asRecord(question.options);
+  const voiceSettings = useVoiceGenerationPreferences({ provider: "auto", languageCode: "en-US", voiceName: "Aoede", style: "Natural", pace: "Natural", locked: false });
 
   if (question.questionType === "ORAL_RESPONSE") {
     return (
@@ -2484,7 +2488,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
         <div className="mb-3 flex items-start justify-between gap-3"><div><h3 className="font-black text-[var(--br-dark-card)]">1. Content</h3><p className="mt-1 text-xs text-[var(--br-text-muted)]">Add the sentence learners will practise.</p></div><AudioLines className="text-indigo-500" size={20} /></div>
         {pronunciationLevel === "word" ? <div className="rounded-xl border border-[var(--br-border)] bg-surface-muted p-3 text-sm font-bold text-[var(--br-dark-card)]">Your target words will appear as a guided word list.</div> : <textarea value={passage} onChange={(event) => onChange({ options: { ...options, passage: event.target.value } as Json })} rows={pronunciationLevel === "paragraph" ? 4 : 2} className="w-full rounded-xl border border-[var(--br-border)] px-3 py-3 text-sm font-semibold" placeholder="Could you recommend a comfortable option?" />}
         {pronunciationLevel !== "word" && passage.trim() ? <div className="mt-3 rounded-xl border border-indigo-100 bg-indigo-50/60 p-3"><p className="text-[10px] font-black uppercase tracking-wider text-indigo-700">Target color preview</p><p className="mt-2 text-base font-black leading-8 text-[var(--br-dark-card)]">{passageSegments.map((segment, index) => { const target = targets.find((item) => String(item.text ?? "").toLowerCase() === segment.toLowerCase()); return target ? <span key={index} className="mx-0.5 rounded-md border-b-4 px-1" style={{ color: String(target.color ?? "var(--br-achievement)"), borderColor: String(target.color ?? "var(--br-achievement)"), backgroundColor: "color-mix(in srgb, currentColor 10%, white)" }}>{segment}</span> : <span key={index}>{segment}</span>; })}</p></div> : null}
-        <label className="mt-4 block text-xs font-black text-[var(--br-dark-card)]">Reference audio URL (optional)<input type="url" value={referenceAudioUrl} onChange={(event) => onChange({ options: { ...options, audio_url: event.target.value } as Json })} placeholder="https://.../reference.mp3" className="mt-2 w-full rounded-xl border border-[var(--br-border)] px-3 py-2.5 text-sm font-semibold" /><span className="mt-1 block text-[11px] font-medium text-[var(--br-text-muted)]">This is the audio learners will hear before recording.</span></label>
+        {pronunciationLevel !== "word" ? <div className="mt-4 grid gap-2"><p className="text-xs font-black text-[var(--br-dark-card)]">Sentence reference audio (optional)</p><div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_auto]"><input type="url" value={referenceAudioUrl} onChange={(event) => onChange({ options: { ...options, audio_url: event.target.value } as Json })} placeholder="Paste an audio URL" className="w-full min-w-0 rounded-xl border border-[var(--br-border)] px-3 py-2.5 text-sm font-semibold" /><FlashcardAudioGenerator word={passage} entityLabel="Sentence reference" buttonLabel="Generate audio" settings={voiceSettings} onSaved={(url) => onChange({ options: { ...options, audio_url: url } as Json })} /></div><span className="text-[11px] font-medium text-[var(--br-text-muted)]">Generate and save a spoken example, or paste an existing audio link. Learners can play it before recording.</span></div> : null}
         <div className="mt-3">{referenceAudioUrl ? <AudioTrackPlayer value={[{ id: "reference", url: referenceAudioUrl, label: "Native reference" }]} /> : <p className="rounded-xl border border-dashed border-[var(--br-border)] bg-slate-50 p-3 text-xs font-semibold text-[var(--br-text-muted)]">No reference audio added yet.</p>}</div>
       </div>
       <label className="rounded-[20px] border border-[var(--br-border)] bg-white p-4 text-sm font-medium shadow-sm sm:p-5">
@@ -2507,17 +2511,20 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
       </label>
       <div className="rounded-[20px] border border-[var(--br-border)] bg-white p-4 shadow-sm sm:p-5">
         <div className="mb-3 flex items-start justify-between gap-3"><div><h3 className="font-black text-[var(--br-dark-card)]">2. Targets</h3><p className="mt-1 text-xs text-[var(--br-text-muted)]">Choose the words that learners should focus on.</p></div><span className="rounded-full bg-indigo-50 px-3 py-1.5 text-xs font-black text-indigo-700">{targets.length} selected</span></div>
-        <div className="hidden grid-cols-[1fr_88px_96px_auto] gap-2 border-b border-[var(--br-border)] px-2 pb-2 text-[10px] font-black uppercase tracking-wider text-[var(--br-text-muted)] sm:grid"><span>Word</span><span>Sounds</span><span>Difficulty</span><span /></div>
+        <div className="hidden grid-cols-[minmax(0,1fr)_auto] gap-2 border-b border-[var(--br-border)] px-2 pb-2 text-[10px] font-black uppercase tracking-wider text-[var(--br-text-muted)] sm:grid"><span>Target word and example audio</span><span>Target color</span></div>
         <div className="grid gap-2">
           {targets.map((target, index) => (
-            <div key={String(target.id ?? index)} className="grid gap-2 rounded-xl border border-[var(--br-border)] bg-slate-50/70 p-2 sm:grid-cols-[1fr_88px_96px_auto] sm:items-center sm:border-0 sm:bg-transparent">
-              <input
-                value={String(target.text ?? "")}
-                onChange={(event) => updatePronunciationTarget(index, { text: event.target.value })}
-                placeholder={pronunciationLevel === "word" ? "pronunciation" : "word or phrase from the text above"}
-                className="w-full min-w-0 rounded-xl border border-[var(--br-border)] bg-white px-3 py-2 text-sm font-semibold sm:min-w-48"
-              />
-              <span className="text-xs font-bold text-[var(--br-text-muted)]">Analyzed after recording</span><span className="w-fit rounded-full bg-slate-100 px-2 py-1 text-[10px] font-black text-slate-600">Word target</span>
+            <div key={String(target.id ?? index)} className="grid min-w-0 gap-2 rounded-xl border border-[var(--br-border)] bg-slate-50/70 p-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:border-0 sm:bg-transparent">
+              <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+                <input
+                  value={String(target.text ?? "")}
+                  onChange={(event) => updatePronunciationTarget(index, { text: event.target.value })}
+                  placeholder={pronunciationLevel === "word" ? "pronunciation" : "word or phrase from the text above"}
+                  className="w-full min-w-0 rounded-xl border border-[var(--br-border)] bg-white px-3 py-2 text-sm font-semibold"
+                />
+                {pronunciationLevel === "word" ? <FlashcardAudioGenerator word={String(target.text ?? "")} entityLabel="Target word" buttonLabel="Generate audio" settings={voiceSettings} onSaved={(url) => updatePronunciationTarget(index, { audio_url: url })} /> : null}
+              </div>
+              <div className="flex min-w-0 flex-wrap items-center gap-2 sm:justify-end"><span className="text-xs font-bold text-[var(--br-text-muted)]">Analyzed after recording</span><span className="w-fit rounded-full bg-slate-100 px-2 py-1 text-[10px] font-black text-slate-600">Word target</span>
               <div className="flex items-center gap-1">
                 {PRONUNCIATION_COLORS.map((color) => (
                   <button
@@ -2542,6 +2549,7 @@ function QuestionFields({ question, onChange }: { question: BuilderQuestion; onC
                   Remove
                 </button>
               ) : null}
+              </div>
             </div>
           ))}
         </div>
