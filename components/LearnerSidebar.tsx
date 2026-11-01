@@ -55,10 +55,10 @@ export function LearnerSidebar({
       { href: "/quizzes", label: "Quizzes", icon: HelpCircle, key: "quizzes" },
       { href: "/courses", label: "Courses", icon: GraduationCap, key: "courses" },
       { href: "/blog", label: "Journal", icon: Newspaper, key: "journal" },
-      { href: "/wordverse", label: "Wordverse", icon: Orbit, key: "wordverse" },
+      { href: "/live-classes", label: "Live Classes", icon: Radio, key: "live-classes" },
     ]},
     { label: "Practice", items: [
-      { href: "/live-classes", label: "Live Classes", icon: Radio, key: "live-classes" },
+      { href: "/wordverse", label: "Wordverse", icon: Orbit, key: "wordverse" },
       { href: "/community", label: "Community", icon: MessagesSquare, key: "community" },
       { href: "/assignments", label: "Assignments", icon: ClipboardList, key: "assignments" },
       { href: "/tasks", label: "Tasks", icon: ClipboardList, key: "tasks" },
