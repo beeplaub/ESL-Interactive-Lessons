@@ -996,7 +996,7 @@ export function QuestionCard({
   quizId?: string | null;
   lessonId?: string | null;
 }) {
-  const isSentencePronunciation = question.question_type === "PRONUNCIATION" && asRecord(question.options).level === "sentence";
+  const isPronunciationQuestion = question.question_type === "PRONUNCIATION";
   const isSelfChecked =
     question.question_type === "SHORT_ANSWER" ||
     question.question_type === "SENTENCE_COMPLETION" ||
@@ -1049,7 +1049,7 @@ export function QuestionCard({
           : { scale: 1, x: 0 }
       }
       transition={{ duration: 0.4, ease: "easeOut" }}
-      className={`relative w-full min-w-0 max-w-full ${isSentencePronunciation ? "overflow-visible border-0 bg-transparent p-0 shadow-none" : `overflow-hidden rounded-[20px] border bg-surface p-5 shadow-[var(--br-shadow)] sm:p-6 ${borderClass}`}`}
+      className={`relative w-full min-w-0 max-w-full ${isPronunciationQuestion ? "overflow-visible border-0 bg-transparent p-0 shadow-none" : `overflow-hidden rounded-[20px] border bg-surface p-5 shadow-[var(--br-shadow)] sm:p-6 ${borderClass}`}`}
     >
       {isResolved ? (
         <motion.div
@@ -2836,7 +2836,7 @@ function Pronunciation({
         : "border-rose-200 bg-rose-50 text-rose-800";
 
     return (
-      <div className="grid gap-5 rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm sm:gap-6 sm:p-6">
+      <div className="grid w-full min-w-0 max-w-full gap-4 rounded-[24px] border border-slate-200 bg-white p-3 shadow-sm sm:gap-6 sm:p-5">
         <div className="grid gap-2">
           <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
             <p className="font-bold text-slate-900">Word {currentIndex + 1} of {targets.length}</p>
@@ -2848,7 +2848,7 @@ function Pronunciation({
           <p className="text-right text-xs font-semibold text-slate-500">{Number(earnedPoints.toFixed(1))} of {targets.length} points earned</p>
         </div>
 
-        <section className="grid justify-items-center gap-5 rounded-[22px] border border-slate-200 bg-slate-50/70 px-4 py-7 text-center sm:py-9" aria-label={`${currentTarget.text} pronunciation practice`}>
+        <section className="grid min-w-0 justify-items-center gap-4 px-1 py-2 text-center sm:gap-5" aria-label={`${currentTarget.text} pronunciation practice`}>
           <div className="space-y-2">
             <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Say this word</p>
             <h3 className="break-words text-4xl font-black tracking-tight sm:text-5xl" style={{ color: currentTarget.color }}>{currentTarget.text}</h3>
@@ -2908,7 +2908,7 @@ function Pronunciation({
         </section>
 
         {currentScore !== null ? (
-          <section className="grid gap-4 rounded-[20px] border border-slate-200 bg-white p-4 sm:p-5" aria-live="polite" aria-label={`${currentTarget.text} pronunciation feedback`}>
+          <section className="grid min-w-0 gap-4 border-t border-slate-200 px-1 pt-4" aria-live="polite" aria-label={`${currentTarget.text} pronunciation feedback`}>
             <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 pb-3">
               <div>
                 <p className="text-xs font-bold uppercase tracking-wide text-slate-500">Your word score</p>
@@ -2946,16 +2946,15 @@ function Pronunciation({
         ) : null}
 
         {targets.length > 1 ? (
-          <nav className="flex items-center justify-between gap-3" aria-label="Pronunciation word navigation">
-            <button type="button" disabled={currentIndex === 0 || !canNavigate} onClick={() => { setActiveTargetIndex(currentIndex - 1); setError(null); }} className="inline-flex min-h-11 items-center gap-2 rounded-full border border-slate-200 px-4 text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">
+          <nav className="grid w-full min-w-0 grid-cols-2 gap-3 border-t border-slate-100 pt-4 sm:flex sm:items-center sm:justify-between" aria-label="Pronunciation word navigation">
+            <button type="button" disabled={currentIndex === 0 || !canNavigate} onClick={() => { setActiveTargetIndex(currentIndex - 1); setError(null); }} className="inline-flex min-h-11 w-full min-w-0 items-center justify-center gap-2 rounded-full border border-slate-200 px-2 text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto sm:px-4">
               <ChevronLeft size={17} /> Previous
             </button>
-            <span className="text-xs font-semibold text-slate-500" aria-live="polite">{currentIndex + 1} / {targets.length}</span>
             {currentIndex < targets.length - 1 ? (
-              <button type="button" disabled={!canNavigate} onClick={() => { setActiveTargetIndex(currentIndex + 1); setError(null); }} className="inline-flex min-h-11 items-center gap-2 rounded-full bg-slate-900 px-4 text-sm font-bold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40">
+              <button type="button" disabled={!canNavigate} onClick={() => { setActiveTargetIndex(currentIndex + 1); setError(null); }} className="inline-flex min-h-11 w-full min-w-0 items-center justify-center gap-2 rounded-full bg-slate-900 px-2 text-sm font-bold text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto sm:px-4">
                 {currentAttempts === 0 ? "Skip for now" : "Next word"} <ChevronRight size={17} />
               </button>
-            ) : <span className="px-2 text-xs font-semibold text-slate-500">Last word</span>}
+            ) : <span className="col-span-2 text-center text-xs font-semibold text-slate-500 sm:col-span-1 sm:text-right">Last word</span>}
           </nav>
         ) : null}
       </div>
