@@ -44,47 +44,19 @@ export default async function AccountPage() {
   const adminSupabase = createAdminClient();
 
   const [
-    { data: legacyQuizAttempts },
-    { data: assessmentQuizAttempts },
-    { data: wishlistItems },
     { data: lessonProgress },
-    { data: savedLessons },
     { data: courseEnrollments },
     { data: courseProgress },
     { data: certificates },
-    levelTestSummary
   ] = await Promise.all([
-    adminSupabase.from("quiz_attempts").select("*, quizzes(title, level)").eq("user_id", user.id).not("quiz_id", "is", null).order("completed_at", { ascending: false }),
-    adminSupabase.from("assessment_attempts").select("id,quiz_id,legacy_quiz_attempt_id,score,maximum_score,completed_at,submitted_at,created_at").eq("user_id", user.id).eq("source_type", "QUIZ").not("quiz_id", "is", null).order("completed_at", { ascending: false }),
-    adminSupabase.from("wishlist_items").select("*, quizzes(title, topic, level)").eq("user_id", user.id).not("quiz_id", "is", null).order("created_at", { ascending: false }),
     adminSupabase.from("lesson_progress").select("*, lessons(title, topic, level)").eq("user_id", user.id).order("updated_at", { ascending: false }),
-    adminSupabase.from("wishlist_items").select("*, lessons(title, topic, level)").eq("user_id", user.id).not("lesson_id", "is", null).order("created_at", { ascending: false }),
     adminSupabase.from("course_enrollments").select("*, courses(id,title,level,topic,status,deleted_at,thumbnail_path,cover_image_path,duration_minutes,estimated_completion_minutes)").eq("user_id", user.id).order("enrolled_at", { ascending: false }),
     adminSupabase.from("course_progress").select("*").eq("user_id", user.id),
     adminSupabase.from("course_certificates").select("*, courses(title, level)").eq("user_id", user.id).order("issued_at", { ascending: false }),
-    getLatestLevelTestSummary(adminSupabase, user.id)
   ]);
-
-  // Prefer canonical quiz attempts while retaining legacy-only history. The
-  // linked legacy row supplies display metadata until quiz relations move fully
-  // to the assessment read model.
-  const linkedLegacyQuizIds = new Set((assessmentQuizAttempts ?? []).map((attempt) => attempt.legacy_quiz_attempt_id).filter((id): id is string => Boolean(id)));
-  const legacyQuizById = new Map((legacyQuizAttempts ?? []).map((attempt) => [attempt.id, attempt]));
-  const quizAttempts = [
-    ...(legacyQuizAttempts ?? []).filter((attempt) => !linkedLegacyQuizIds.has(attempt.id)),
-    ...(assessmentQuizAttempts ?? []).map((attempt) => ({
-      ...legacyQuizById.get(attempt.legacy_quiz_attempt_id ?? ""),
-      id: attempt.legacy_quiz_attempt_id ?? attempt.id,
-      score: Number(attempt.score ?? 0),
-      total: Number(attempt.maximum_score ?? 0),
-      completed_at: attempt.completed_at ?? attempt.submitted_at ?? attempt.created_at,
-    })),
-  ].sort((a, b) => new Date(b.completed_at).getTime() - new Date(a.completed_at).getTime());
 
   const firstName = profile?.first_name?.trim() || profile?.full_name?.split(" ")?.[0]?.trim() || "there";
   const currentLevel = profile?.cefr_level ?? "B1";
-  const levelSteps = ["A1", "A2", "B1", "B2", "C1", "C2"];
-  const activeLevelIndex = Math.max(0, levelSteps.indexOf(currentLevel));
   const completedLessons = (lessonProgress ?? []).filter((item) => item.completed);
   const activeLessons = (lessonProgress ?? []).filter((item) => !item.completed);
   const activeCourseEnrollments = (courseEnrollments ?? []).filter((item) => {
@@ -118,7 +90,6 @@ export default async function AccountPage() {
   const courseItemByLessonId = new Map((matchingCourseItems ?? []).map((item) => [item.lesson_id, item]));
   const currentCourseItemById = new Map((currentCourseItems ?? []).map((item) => [item.id, item]));
   const courseProgressByCourse = new Map((courseProgress ?? []).map((item) => [item.course_id, item]));
-  const savedCount = (wishlistItems ?? []).length + (savedLessons ?? []).length;
   const learningItems = [
     ...activeLessons.map((item, index) => {
       const params = new URLSearchParams({
@@ -204,41 +175,48 @@ export default async function AccountPage() {
 
           <DashboardCard className="overflow-hidden"><div className="grid lg:grid-cols-[.9fr_1.1fr]"><div className="border-b border-[var(--br-surface-strong)] p-5 lg:border-b-0 lg:border-r md:p-6"><SectionHeader title="Your Schedule" href="/calendar" small /><ScheduleGrid assignments={assignments ?? []} liveClasses={liveClasses ?? []} tasks={practiceTasks ?? []} /></div><div className="p-5 md:p-6"><SectionHeader title="Today’s Agenda" href="/calendar" small /><AgendaList assignments={assignments ?? []} liveClasses={liveClasses ?? []} tasks={practiceTasks ?? []} /></div></div></DashboardCard>
 
-          <div className="grid gap-4 min-[1100px]:grid-cols-3">
-            <DashboardCard className="p-5">
-              <SectionHeader title="Recent Quiz Attempts" href="/quiz-attempts" small />
+          <section>
+            <SectionHeader title="Enrolled Courses" href="/courses" />
+            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+              {activeCourseEnrollments.map((enrollment, index) => {
+                const course = Array.isArray(enrollment.courses) ? enrollment.courses[0] : enrollment.courses;
+                return course ? <MarketingCourseCard key={enrollment.id} course={course} lessonCount={enrolledLessonCountByCourse.get(enrollment.course_id) ?? 0} tone={index} instructors={instructorMap.get(enrollment.course_id)} /> : null;
+              })}
+              {!activeCourseEnrollments.length ? <EmptyMini text="Your enrolled courses will appear here." href="/courses" label="Browse courses" /> : null}
+            </div>
+          </section>
+
+          <section className="grid gap-5 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
+            <DashboardCard className="flex flex-col justify-between gap-5 p-5 md:p-6">
               <div>
-                {(quizAttempts ?? []).slice(0, 3).map((attempt, index) => {
-                  const percent = attempt.total ? Math.round((attempt.score / attempt.total) * 100) : 0;
-                  return <QuizAttemptRow key={attempt.id} title={attempt.quizzes?.title ?? "Quiz"} meta={`${attempt.total} questions · ${new Date(attempt.completed_at).toLocaleDateString()}`} score={`${percent}%`} points={`+${Math.max(10, attempt.score * 10)} pts`} tone={index} />;
-                })}
-                {(quizAttempts ?? []).length === 0 ? <EmptyMini text="No quiz attempts yet." href="/quizzes" label="Play a quiz" /> : null}
+                <p className="text-xs font-bold uppercase tracking-[.14em] text-[var(--br-chart-primary)]">Keep learning</p>
+                <h2 className="mt-2 text-xl font-extrabold text-[var(--br-dark-card)]">Explore new courses</h2>
+                <p className="mt-2 text-sm leading-6 text-[var(--br-text-muted)]">Find a course that fits your level and choose what you want to learn next.</p>
               </div>
+              <Link href="/courses" className="inline-flex min-h-11 w-fit items-center justify-center rounded-xl bg-[var(--br-chart-primary)] px-4 py-2.5 text-sm font-bold text-on-dark transition hover:opacity-90">
+                Browse courses <ChevronRight className="ml-1 size-4" />
+              </Link>
             </DashboardCard>
 
-            <DashboardCard className="p-5">
-              <SectionHeader title="Your Progress Overview" href="/leaderboard" small />
-              <div className="mb-4 grid grid-cols-4 gap-3">
-                <MiniStat dot="var(--br-danger)" label="Quizzes" value={(quizAttempts ?? []).length} />
-                <MiniStat dot="var(--br-info)" label="Lessons" value={completedLessons.length} />
-                <MiniStat dot="var(--br-success)" label="Courses" value={(courseEnrollments ?? []).length} />
-                <MiniStat dot="var(--br-achievement)" label="Certificates" value={(certificates ?? []).length} />
-              </div>
-              <MiniChart />
+            <DashboardCard className="p-5 md:p-6">
+              <SectionHeader title="My Certificates" href="/certificates" small />
+              {certificates?.length ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {certificates.map((certificate) => (
+                    <Link key={certificate.id} href={`/certificates/${certificate.certificate_code}`} className="flex min-w-0 items-start gap-3 rounded-xl border border-[var(--br-border)] p-4 transition hover:border-[var(--br-action)] hover:bg-[var(--br-surface-muted)]">
+                      <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[var(--br-achievement)]/10"><Award className="size-5 text-[var(--br-achievement)]" /></span>
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-bold text-[var(--br-dark-card)]">{certificate.courses?.title || "Course certificate"}</span>
+                        <span className="mt-1 block text-xs text-[var(--br-text-muted)]">Earned {new Date(certificate.issued_at).toLocaleDateString()}</span>
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <EmptyMini text="Complete an enrolled course to earn your first certificate." href="/courses" label="Explore courses" />
+              )}
             </DashboardCard>
-
-            <DashboardCard className="p-5">
-              <SectionHeader title="Wishlist" href="/wishlist" small />
-              <div>
-                {(savedLessons ?? []).slice(0, 2).map((item, index) => item.lessons ? <WishlistRow key={item.id} title={item.lessons.title} type="Lesson" tone={index} /> : null)}
-                {(wishlistItems ?? []).slice(0, 3).map((item, index) => item.quizzes ? <WishlistRow key={item.id} title={item.quizzes.title} type="Quiz" tone={index + 2} /> : null)}
-                {savedCount === 0 ? <EmptyMini text="Saved items will appear here." href="/courses" label="Browse" /> : null}
-              </div>
-            </DashboardCard>
-          </div>
-          <div className="grid gap-4 md:grid-cols-3"><DashboardCard className="p-5"><SectionHeader title="Language Profile" href="/language-profile" small /><p className="text-sm text-[var(--br-text-muted)]">Current level <b className="text-[var(--br-dark-card)]">{currentLevel}</b></p><div className="mt-4 h-3 overflow-hidden rounded-full bg-[var(--br-surface-strong)]"><div className="h-full rounded-full bg-[var(--br-action)]" style={{width:`${Math.max(12, activeLevelIndex * 16 + 20)}%`}}/></div><Link href="/language-profile" className="mt-4 block rounded-lg bg-[var(--br-surface-muted)] py-2 text-center text-xs font-bold text-[var(--br-brand)]">Full skill map</Link></DashboardCard><DashboardCard className="p-5"><SectionHeader title="Last Quiz" href="/quizzes" small />{quizAttempts?.[0] ? <><p className="text-3xl font-bold text-[var(--br-success)]">{quizAttempts[0].total ? Math.round(quizAttempts[0].score/quizAttempts[0].total*100) : 0}%</p><p className="mt-2 text-sm font-bold">{quizAttempts[0].quizzes?.title || "Quiz"}</p><p className="text-xs text-[var(--br-text-muted)]">{new Date(quizAttempts[0].completed_at).toLocaleDateString()}</p></> : <EmptyMini text="Your recent quiz will appear here." href="/quizzes" label="Take a quiz" />}</DashboardCard><DashboardCard className="p-5"><SectionHeader title="My Rank" href="/leaderboard" small /><p className="text-3xl font-bold text-[var(--br-achievement)]">Keep climbing</p><p className="mt-2 text-sm text-[var(--br-text-muted)]">Earn points through quizzes and completed learning.</p><Link href="/leaderboard" className="mt-4 inline-flex text-xs font-bold text-[var(--br-brand)]">View leaderboard <ChevronRight className="size-3"/></Link></DashboardCard></div>
-          <section><SectionHeader title="Enrolled Courses" href="/courses" /><div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">{activeCourseEnrollments.map((enrollment, index) => { const course = Array.isArray(enrollment.courses) ? enrollment.courses[0] : enrollment.courses; return course ? <MarketingCourseCard key={enrollment.id} course={course} lessonCount={enrolledLessonCountByCourse.get(enrollment.course_id) ?? 0} tone={index} instructors={instructorMap.get(enrollment.course_id)} /> : null; })}{!activeCourseEnrollments.length ? <EmptyMini text="Your enrolled courses will appear here." href="/courses" label="Browse courses" /> : null}<Link href="/courses" className="grid min-h-48 place-items-center rounded-[20px] border-2 border-dashed border-[var(--br-border)] p-6 text-center text-sm font-bold text-[var(--br-text-muted)] transition hover:border-[var(--br-action)] hover:text-[var(--br-action)]">Explore new courses</Link></div></section>
-          <section><SectionHeader title="My Certificates" href="/certificates" /><div className="flex gap-4 overflow-x-auto pb-1">{certificates?.length ? certificates.map((certificate) => <Link key={certificate.id} href={`/certificates/${certificate.certificate_code}`} className="w-64 shrink-0 rounded-[20px] border border-[var(--br-border)] bg-surface p-5 shadow-sm"><Award className="size-8 text-[var(--br-achievement)]"/><p className="mt-4 font-bold">{certificate.courses?.title || "Course certificate"}</p><p className="mt-1 text-xs text-[var(--br-text-muted)]">Earned {new Date(certificate.issued_at).toLocaleDateString()}</p></Link>) : <EmptyMini text="Complete an enrolled course to earn a certificate." href="/courses" label="Browse courses" />}</div></section>
+          </section>
         </section>
 
       </div>
