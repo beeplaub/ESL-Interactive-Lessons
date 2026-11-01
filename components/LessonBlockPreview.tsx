@@ -977,7 +977,7 @@ function SingleFlashcard({ content, cardType, frontSide }: { content: Record<str
           {showImageFront && imageSrc && isImageUrl(imageSrc) && <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 rounded-b-2xl bg-gradient-to-t from-black/50 to-transparent" />}
           <button type="button" onClick={(e) => { e.stopPropagation(); setFlipped(true); }} className="absolute bottom-3 right-3 flex items-center gap-1.5 rounded-full bg-black/40 px-3 py-1.5 text-xs font-semibold text-on-dark backdrop-blur-sm transition hover:bg-black/60" aria-label="Flip card"><FlipHorizontal2 size={12} /> Flip</button>
         </div>
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 overflow-y-auto rounded-2xl border border-[var(--br-brand)]/20 p-6 text-center shadow-sm" style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)", minHeight: "300px", background: "linear-gradient(145deg, color-mix(in srgb, var(--br-brand) 5%, var(--br-surface)), color-mix(in srgb, var(--br-action) 4%, var(--br-surface)))" }}>
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 overflow-y-auto rounded-2xl border border-[var(--br-brand)]/20 p-6 text-center shadow-sm" style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)", minHeight: "300px", background: "linear-gradient(135deg, color-mix(in srgb, var(--br-brand) 13%, var(--br-surface)), color-mix(in srgb, var(--br-action) 10%, var(--br-surface)))" }}>
           {showImageFront || showWordFront ? (
             <FlashcardDetails word={word} phonetic={phonetic} audioSrc={audioSrc} bengaliTranslation={bengaliTranslation} meaning={meaning} examples={examples} audioRef={audioRef} />
           ) : imageSrc && isImageUrl(imageSrc) ? (
@@ -1000,17 +1000,17 @@ function FlashcardDetails({ word, phonetic, audioSrc, bengaliTranslation, meanin
       <p className="text-3xl font-bold leading-tight tracking-tight text-ink">{word || "Word"}</p>
       {(phonetic || audioSrc) && (
         <div className="flex items-center justify-center gap-2">
-          {phonetic && <span className="font-mono text-sm text-[var(--br-text-muted)]">{phonetic}</span>}
+          {phonetic && <span className="font-mono text-sm text-[var(--br-chart-primary)]">{phonetic}</span>}
           {audioSrc && (
-            <button type="button" onClick={(e) => { e.stopPropagation(); if (audioRef.current) { audioRef.current.currentTime = 0; void audioRef.current.play(); } }} title="Play pronunciation" className="flex items-center justify-center rounded-full bg-moss/10 p-1.5 text-moss transition hover:bg-moss/20 active:scale-95"><Volume2 size={15} /></button>
+            <button type="button" onClick={(e) => { e.stopPropagation(); if (audioRef.current) { audioRef.current.currentTime = 0; void audioRef.current.play(); } }} title="Play pronunciation" className="flex items-center justify-center rounded-full bg-coral/10 p-1.5 text-[var(--br-action-strong)] transition hover:bg-coral/20 active:scale-95"><Volume2 size={15} /></button>
           )}
         </div>
       )}
-      {bengaliTranslation ? <p lang="bn" className="max-w-xs text-base font-semibold text-[var(--br-brand)]">বাংলা: {bengaliTranslation}</p> : null}
-      <div className="w-12 border-t border-[var(--br-border)]" />
+      {bengaliTranslation ? <p lang="bn" className="max-w-xs text-base font-semibold" style={{ color: "color-mix(in srgb, var(--br-success) 72%, var(--br-text))" }}>বাংলা: {bengaliTranslation}</p> : null}
+      <div className="w-12 border-t border-[var(--br-chart-primary)]/30" />
       <p className="max-w-xs text-base leading-relaxed text-[var(--br-text-muted)]">{meaning || "Meaning"}</p>
       {examples.length > 0 && (
-        <div className="max-w-xs space-y-1">{examples.map((ex, i) => <p key={i} className="text-sm italic leading-relaxed text-[var(--br-text-muted)]">&ldquo;{ex}&rdquo;</p>)}</div>
+        <div className="max-w-xs space-y-1">{examples.map((ex, i) => <p key={i} className="text-sm italic leading-relaxed text-[var(--br-action-strong)]">&ldquo;{ex}&rdquo;</p>)}</div>
       )}
     </>
   );
