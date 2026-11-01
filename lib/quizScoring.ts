@@ -87,6 +87,7 @@ function baseQuestionTotal(question: ScoredQuestion): number {
 }
 
 export function questionTotal(question: ScoredQuestion): number {
+  if (question.question_type === "PRONUNCIATION") return baseQuestionTotal(question);
   const configured = Number(question.max_points);
   return Number.isFinite(configured) && configured > 0 ? configured : baseQuestionTotal(question);
 }
@@ -118,8 +119,7 @@ function baseQuestionScore(question: ScoredQuestion, answer: unknown): number {
 
   if (question.question_type === "PRONUNCIATION") {
     const targetIds = Array.isArray(question.correct_answer) ? question.correct_answer.map(String) : [];
-    const results = asRecord(asRecord(answer as Json).results as Json);
-    return targetIds.filter((id) => results[id] === true).length;
+    return targetIds.reduce((sum, id) => sum + pronunciationTargetPoints(answer, id), 0);
   }
 
   if (question.question_type === "MATCHING") {
@@ -137,6 +137,20 @@ function baseQuestionScore(question: ScoredQuestion, answer: unknown): number {
   }
 
   return isCorrect(question, answer) ? 1 : 0;
+}
+
+/** Convert an Azure target-word score into the activity's simple point bands. */
+export function pronunciationTargetPoints(answer: unknown, targetId: string): number {
+  const value = asRecord(answer as Json);
+  const targetScores = asRecord(value.targetScores as Json);
+  const configuredScore = Number(targetScores[targetId]);
+  if (Number.isFinite(configuredScore)) {
+    return configuredScore >= 90 ? 1 : configuredScore >= 50 ? 0.5 : 0;
+  }
+
+  // Preserve older saved attempts that only stored pass/fail results.
+  const results = asRecord(value.results as Json);
+  return results[targetId] === true ? 1 : 0;
 }
 
 export function questionScore(question: ScoredQuestion, answer: unknown): number {
@@ -299,8 +313,7 @@ export function isCorrect(question: ScoredQuestion, value: unknown): boolean {
   if (question.question_type === "PRONUNCIATION") {
     const targetIds = Array.isArray(question.correct_answer) ? question.correct_answer.map(String) : [];
     if (targetIds.length === 0) return false;
-    const results = asRecord(asRecord(value as Json).results as Json);
-    return targetIds.every((id) => results[id] === true);
+    return targetIds.every((id) => pronunciationTargetPoints(value, id) === 1);
   }
 
   return false;

@@ -1700,6 +1700,7 @@ export function LessonActivityPanel({
   });
   const [isPending, startTransition] = useTransition();
   const submissionKeyRef = useRef<string | null>(null);
+  const pronunciationAutoSubmitRef = useRef(false);
   const currentAttemptIdRef = useRef<string | null>(initialAttempt?.id ?? null);
   const currentAttemptDateRef = useRef<string | null>(initialAttempt?.completed_at ?? null);
   const finalizedAttemptListedRef = useRef(Boolean(initialAttempt));
@@ -1734,6 +1735,8 @@ export function LessonActivityPanel({
 
   const subjectiveQuestions = questions.filter((question) => isWritingQuestionType(question.question_type));
   const hasSubjectiveQuestions = subjectiveQuestions.length > 0;
+  const isPronunciationActivity = questions.length > 0 && questions.every((question) => question.question_type === "PRONUNCIATION");
+  const allAnswered = questions.length > 0 && questions.every((question) => hasAnswer(question, answers[question.id]));
   const score = questions.reduce((sum, q) => sum + questionScore(q, answers[q.id]), 0);
   const total = questions.reduce((sum, q) => sum + questionTotal(q), 0);
   const gradingCompletedCount = subjectiveQuestions.filter((question) => resolveWritingOutcome(answers[question.id]).hasChosenMode).length;
@@ -1790,6 +1793,12 @@ export function LessonActivityPanel({
     setMessage("Activity saved.");
   }, [answers, autoGradingActive, hasPendingWritingGrading, hasSubjectiveQuestions, onSavedAttempt, previewOnly, score, submitted, total]);
 
+  useEffect(() => {
+    if (!isPronunciationActivity || !allAnswered || submitted || pronunciationAutoSubmitRef.current) return;
+    pronunciationAutoSubmitRef.current = true;
+    submit();
+  }, [allAnswered, isPronunciationActivity, submit, submitted]);
+
   // ── AI Roleplay: full chat UI instead of quiz carousel ──
   if (activity.activity_type === "AI_ROLEPLAY" || activity.activity_type === "AI_INTERVIEW") {
     return (
@@ -1812,7 +1821,6 @@ export function LessonActivityPanel({
   }
 
   const currentQuestion = questions[qIndex] ?? null;
-  const allAnswered = questions.length > 0 && questions.every((q) => hasAnswer(q, answers[q.id]));
   const answeredCount = questions.filter((question) => hasAnswer(question, answers[question.id])).length;
   const progressPercent = questions.length ? Math.round(answeredCount / questions.length * 100) : 0;
   const configuredEvaluationModes = ([
@@ -1925,6 +1933,7 @@ export function LessonActivityPanel({
           setMessage("Responses saved. Your final result will appear when grading is complete.");
         }
       } catch (error) {
+        pronunciationAutoSubmitRef.current = false;
         setEvaluationMode(null);
         setAutoGradingActive(false);
         setMessage(error instanceof Error ? error.message : "Could not save.");
@@ -1943,6 +1952,7 @@ export function LessonActivityPanel({
     setAutoGradingActive(false);
     setAiTemporarilyUnavailable(false);
     setShowAiUnavailableDialog(false);
+    pronunciationAutoSubmitRef.current = false;
     setStreakPopupDismissed(false);
     celebratedRef.current = false;
     submissionKeyRef.current = null;
@@ -2113,6 +2123,8 @@ export function LessonActivityPanel({
             ? hasPendingWritingGrading
               ? "Saved. Choose how each response should be evaluated below — your result isn't final until grading is complete."
               : message ?? "Review your feedback, then continue."
+            : isPronunciationActivity
+            ? "Your pronunciation is graded automatically."
             : allAnswered
             ? "All answered — ready to check!"
             : `${Object.keys(answers).length} of ${questions.length} answered`}
@@ -2127,7 +2139,7 @@ export function LessonActivityPanel({
                 {nextLabel} <ChevronRight size={15} />
               </button>
             </>
-          ) : (
+          ) : !isPronunciationActivity ? (
             <button
               type="button"
               onClick={() => submit()}
@@ -2136,7 +2148,7 @@ export function LessonActivityPanel({
             >
               {isPending ? "Saving…" : hasSubjectiveQuestions ? "Continue to grading" : "Check answers"}
             </button>
-          )}
+          ) : null}
         </div>
       </div> : null}
       {localAttempts.length ? (

@@ -399,7 +399,7 @@ function normalizeDragDrop(data: Json | null, activityType: string): { prompt: s
   };
 }
 
-function normalizePronunciation(data: Json | null): { prompt: string; level: "word" | "sentence" | "paragraph"; maxAttempts: number; passage: string; targets: PronunciationTargetItem[] } {
+function normalizePronunciation(data: Json | null): { prompt: string; level: "word" | "sentence" | "paragraph"; maxAttempts: number; passage: string; audioUrl: string; targets: PronunciationTargetItem[] } {
   const record = asRecord(data);
   const rawTargets: unknown[] = Array.isArray(record.targets) ? record.targets : [];
   const targets = rawTargets.map((item, index) => {
@@ -415,6 +415,7 @@ function normalizePronunciation(data: Json | null): { prompt: string; level: "wo
     level: record.level === "sentence" || record.level === "paragraph" ? record.level : "word",
     maxAttempts: Math.max(1, Number(record.max_attempts ?? 3)),
     passage: String(record.passage ?? ""),
+    audioUrl: String(record.audio_url ?? ""),
     targets: targets.length ? targets : [{ id: "1", text: "", color: "var(--br-achievement)" }]
   };
 }
@@ -2200,7 +2201,7 @@ function DragDropEditor({ activity, onSave }: { activity: Activity; onSave: (dat
   );
 }
 
-const PRONUNCIATION_COLORS = ["var(--br-achievement)", "var(--br-success)", "var(--br-info)", "#f472b6", "#a78bfa", "var(--br-achievement)"];
+const PRONUNCIATION_COLORS = ["var(--br-achievement)", "var(--br-success)", "var(--br-info)", "#f472b6", "#a78bfa", "#fb7185"];
 
 function PronunciationEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
   const initial = useMemo(() => normalizePronunciation(activity.activity_data), [activity.activity_data]);
@@ -2208,9 +2209,13 @@ function PronunciationEditor({ activity, onSave }: { activity: Activity; onSave:
   const [level, setLevel] = useState<"word" | "sentence" | "paragraph">(initial.level);
   const [maxAttempts, setMaxAttempts] = useState(initial.maxAttempts);
   const [passage, setPassage] = useState(initial.passage);
+  const [audioUrl, setAudioUrl] = useState(initial.audioUrl);
   const [targets, setTargets] = useState<PronunciationTargetItem[]>(initial.targets);
   const needsReview = targets.some((target) => !target.text.trim()) || (level !== "word" && !passage.trim());
   const passageMissingTargets = level !== "word" && targets.some((target) => target.text && !passage.toLowerCase().includes(target.text.toLowerCase()));
+  const passageSegments = targets.length > 0 && passage
+    ? passage.split(new RegExp(`(${targets.map((target) => target.text.replace(/[.*+?^${}()|[\\]\\]/g, "\\\\$&")).filter(Boolean).join("|")})`, "i")).filter(Boolean)
+    : [passage];
 
   function updateTarget(index: number, patch: Partial<PronunciationTargetItem>) {
     setTargets((current) => current.map((target, i) => (i === index ? { ...target, ...patch } : target)));
@@ -2218,59 +2223,65 @@ function PronunciationEditor({ activity, onSave }: { activity: Activity; onSave:
 
   return (
     <div className="grid gap-4">
-      <label className="text-sm font-medium">
-        Instruction
-        <input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" />
+      <div className="rounded-[20px] border border-indigo-200/80 bg-gradient-to-br from-indigo-50 via-white to-orange-50 p-5 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-[0.16em] text-indigo-600">Pronunciation activity</p><p className="mt-1 text-sm text-[var(--br-text-muted)]">Create targeted pronunciation practice with instant word and sound feedback.</p></div><span className="rounded-full bg-indigo-100 px-3 py-1.5 text-xs font-black text-indigo-800">Azure Speech feedback</span></div>
+        <div className="mt-5 grid grid-cols-2 gap-2 text-center text-[11px] font-black text-[var(--br-text-muted)] sm:grid-cols-4"><span className="rounded-xl bg-indigo-600 px-2 py-2 text-white">1&nbsp; Content</span><span className="rounded-xl border border-[var(--br-border)] bg-white px-2 py-2">2&nbsp; Targets</span><span className="rounded-xl border border-[var(--br-border)] bg-white px-2 py-2">3&nbsp; Feedback</span><span className="rounded-xl border border-[var(--br-border)] bg-white px-2 py-2">4&nbsp; Preview</span></div>
+      </div>
+      <label className="rounded-[20px] border border-[var(--br-border)] bg-white p-4 text-sm font-medium shadow-sm sm:p-5">
+        <span className="font-black text-[var(--br-dark-card)]">1. Content · Instruction</span>
+        <input value={prompt} onChange={(event) => setPrompt(event.target.value)} className="mt-2 w-full rounded-xl border border-[var(--br-border)] px-3 py-2.5" />
       </label>
-      <label className="text-sm font-medium">
-        Level
+      <label className="rounded-[20px] border border-[var(--br-border)] bg-white p-4 text-sm font-medium shadow-sm sm:p-5">
+        <span className="font-black text-[var(--br-dark-card)]">Practice level</span>
         <select
           value={level}
           onChange={(event) => setLevel(event.target.value === "sentence" || event.target.value === "paragraph" ? event.target.value : "word")}
-          className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2"
+          className="mt-2 w-full rounded-xl border border-[var(--br-border)] px-3 py-2.5"
         >
           <option value="word">Word list (each word recorded and scored separately)</option>
           <option value="sentence">Sentence (one recording, certain words highlighted and checked)</option>
           <option value="paragraph">Paragraph (one recording, certain words highlighted and checked)</option>
         </select>
       </label>
-      <label className="text-sm font-medium">
-        Attempts allowed per {level === "word" ? "word" : "recording"}
+      <label className="rounded-[20px] border border-[var(--br-border)] bg-white p-4 text-sm font-medium shadow-sm sm:p-5">
+        <span className="font-black text-[var(--br-dark-card)]">Attempts allowed per {level === "word" ? "word" : "recording"}</span>
         <input
           type="number"
           min={1}
           value={maxAttempts}
           onChange={(event) => setMaxAttempts(Math.max(1, Number(event.target.value) || 1))}
-          className="mt-1 w-32 rounded-md border border-[var(--br-border)] px-3 py-2"
+          className="mt-2 w-32 rounded-xl border border-[var(--br-border)] px-3 py-2.5"
         />
       </label>
       {level !== "word" ? (
-        <label className="text-sm">
-          {level === "paragraph" ? "Paragraph" : "Sentence"}
-          <textarea
+        <div className="rounded-[20px] border border-[var(--br-border)] bg-white p-4 text-sm shadow-sm sm:p-5"><span className="font-black text-[var(--br-dark-card)]">1. Content · {level === "paragraph" ? "Paragraph" : "Sentence"}</span><textarea
             rows={level === "paragraph" ? 5 : 2}
             value={passage}
             onChange={(event) => setPassage(event.target.value)}
-            className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2"
+            className="mt-2 w-full rounded-xl border border-[var(--br-border)] px-3 py-2.5"
             placeholder="Her pronunciation improved a lot after she practiced every day."
           />
           <span className="mt-1 block text-xs text-[var(--br-text-muted)]">
             The target words below must appear exactly as spelled here — they&apos;ll be highlighted automatically.
           </span>
-        </label>
+          <div className="mt-3 rounded-xl border border-indigo-100 bg-indigo-50/60 p-3"><p className="text-[10px] font-black uppercase tracking-wider text-indigo-700">Target color preview</p><p className="mt-2 text-base font-black leading-8 text-[var(--br-dark-card)]">{passageSegments.map((segment, index) => { const target = targets.find((item) => item.text.toLowerCase() === segment.toLowerCase()); return target ? <span key={index} className="mx-0.5 rounded-md border-b-4 px-1" style={{ color: target.color, borderColor: target.color, backgroundColor: "color-mix(in srgb, currentColor 10%, white)" }}>{segment}</span> : <span key={index}>{segment}</span>; })}</p></div>
+          <label className="mt-4 block text-xs font-black text-[var(--br-dark-card)]">Reference audio URL (optional)<input type="url" value={audioUrl} onChange={(event) => setAudioUrl(event.target.value)} placeholder="https://.../reference.mp3" className="mt-2 w-full rounded-xl border border-[var(--br-border)] px-3 py-2.5 text-sm font-semibold" /><span className="mt-1 block text-[11px] font-medium text-[var(--br-text-muted)]">This is the audio learners will hear before recording.</span></label>
+          {audioUrl.trim() ? <audio controls preload="metadata" src={audioUrl.trim()} className="mt-3 w-full" /> : <p className="mt-3 rounded-xl border border-dashed border-[var(--br-border)] bg-slate-50 p-3 text-xs font-semibold text-[var(--br-text-muted)]">No reference audio added yet.</p>}
+          </div>
       ) : null}
-      <div className="rounded-md border border-[var(--br-border)] p-4">
-        <p className="mb-3 font-medium">
+      <div className="rounded-[20px] border border-[var(--br-border)] bg-white p-4 shadow-sm sm:p-5">
+        <div className="mb-3 flex items-start justify-between gap-3"><div><h3 className="font-black text-[var(--br-dark-card)]">2. Targets</h3><p className="mt-1 text-xs text-[var(--br-text-muted)]">Choose the words that learners should focus on.</p></div><span className="rounded-full bg-indigo-50 px-3 py-1.5 text-xs font-black text-indigo-700">{targets.length} selected</span></div>
+        <p className="mb-3 text-xs font-black uppercase tracking-wider text-[var(--br-text-muted)]">
           {level === "word" ? "Words to pronounce" : "Words to check (highlighted in the text above)"}
         </p>
         <div className="grid gap-2">
           {targets.map((target, index) => (
-            <div key={target.id} className="flex flex-wrap items-center gap-2">
+            <div key={target.id} className="flex flex-wrap items-center gap-2 rounded-xl border border-[var(--br-border)] bg-slate-50/70 p-2">
               <input
                 value={target.text}
                 onChange={(event) => updateTarget(index, { text: event.target.value })}
                 placeholder={level === "word" ? "pronunciation" : "word or phrase from the text above"}
-                className="flex-1 rounded-md border border-[var(--br-border)] px-3 py-2 text-sm"
+                className="w-full min-w-0 flex-1 rounded-xl border border-[var(--br-border)] bg-white px-3 py-2 text-sm font-semibold sm:min-w-48"
               />
               <div className="flex items-center gap-1">
                 {PRONUNCIATION_COLORS.map((color) => (
@@ -2293,7 +2304,7 @@ function PronunciationEditor({ activity, onSave }: { activity: Activity; onSave:
         <button
           type="button"
           onClick={() => setTargets((current) => [...current, { id: String(Date.now()), text: "", color: PRONUNCIATION_COLORS[current.length % PRONUNCIATION_COLORS.length] }])}
-          className="mt-3 rounded-md border border-[var(--br-border)] px-3 py-1.5 text-sm"
+          className="mt-3 rounded-full border border-[var(--br-border)] bg-white px-3 py-2 text-sm font-black"
         >
           Add word
         </button>
@@ -2303,15 +2314,16 @@ function PronunciationEditor({ activity, onSave }: { activity: Activity; onSave:
           One or more target words don&apos;t appear in the text above exactly as spelled — they won&apos;t be highlighted or checked until the spelling matches.
         </p>
       ) : null}
-      <p className="rounded-md border border-[var(--br-border)] bg-surface-muted p-3 text-xs text-[var(--br-text-muted)]">
-        Learners record their voice and receive Azure Speech feedback at word, syllable, and phoneme level. Keep targets exactly as they appear in the passage so Azure can align the assessment correctly. Microphone access and a deployed Azure Speech configuration are required.
-      </p>
+      <div className="rounded-[20px] border border-[var(--br-border)] bg-white p-4 shadow-sm sm:p-5"><div className="mb-2 flex items-center justify-between gap-3"><div><h3 className="font-black text-[var(--br-dark-card)]">3. Automatic feedback</h3><p className="mt-1 text-xs text-[var(--br-text-muted)]">Azure assesses target words after each recording.</p></div><span className="text-xl text-emerald-600">✓</span></div><p className="rounded-xl bg-slate-50 p-3 text-xs leading-5 text-[var(--br-text-muted)]">Learners see each target word’s score and phoneme details when Azure returns them. Each target word earns 1, 0.5, or 0 points based on its score.</p></div>
+      <div className="grid gap-4 rounded-[20px] border border-indigo-200/80 bg-indigo-50/60 p-4 shadow-sm sm:grid-cols-[1fr_220px] sm:p-5"><div><h3 className="font-black text-[var(--br-dark-card)]">4. Preview</h3><p className="mt-1 text-xs leading-5 text-[var(--br-text-muted)]">Learners will see a guided recording flow, score summary, word states, and sound breakdown.</p><div className="mt-4 flex flex-wrap gap-2"><span className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-indigo-700">Practice mode</span><span className="rounded-full bg-indigo-100 px-3 py-1.5 text-xs font-black text-indigo-800">Feedback preview</span></div></div><div className="rounded-2xl border border-white bg-white p-4 shadow-sm"><p className="text-sm font-black leading-7 text-[var(--br-dark-card)]">{level === "word" ? targets.map((target) => target.text).filter(Boolean).join(" · ") : passageSegments.map((segment, index) => { const target = targets.find((item) => item.text.toLowerCase() === segment.toLowerCase()); return target ? <span key={index} className="mx-0.5 rounded-md border-b-2 px-0.5" style={{ color: target.color, borderColor: target.color }}>{segment}</span> : <span key={index}>{segment}</span>; })}</p>{(level === "word" ? targets.some((target) => target.text.trim()) : passage.trim()) ? <p className="mt-3 text-[11px] font-bold text-indigo-600">Learner feedback appears after recording.</p> : <p className="mt-3 text-xs font-semibold text-[var(--br-text-muted)]">Add content and a target before previewing.</p>}</div></div>
+      <p className="rounded-[16px] border border-[var(--br-border)] bg-surface-muted p-3 text-xs leading-5 text-[var(--br-text-muted)]">Learners record their voice and receive Azure Speech feedback at word, syllable, and phoneme level. Keep targets exactly as they appear in the passage so Azure can align the assessment correctly.</p>
       <div className="flex flex-wrap gap-3">
         <SaveButton onClick={() => onSave({
           prompt,
           level,
           max_attempts: maxAttempts,
           passage,
+          audio_url: audioUrl.trim() || null,
           targets: targets.map((target) => ({ id: target.id, text: target.text, color: target.color }))
         } as Json, needsReview)} />
       </div>

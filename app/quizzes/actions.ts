@@ -292,7 +292,12 @@ async function recordDetailedAssessmentEvidence({
             analytical_weight: 1,
           }).select("id,max_points").single();
       if (itemError || !item) throw itemError ?? new Error("Could not register lesson question evidence.");
-      const configuredMaximum = Number(item.max_points);
+      // Pronunciation is intentionally scored as one point per assigned target
+      // word. Ignore any legacy assessment-item maximum that may have been
+      // created before the target-word scoring rule was introduced.
+      const configuredMaximum = serverQuestion?.question_type === "PRONUNCIATION"
+        ? questionTotal(serverQuestion)
+        : Number(item.max_points);
       const earnedPoints = serverQuestion ? questionScore(serverQuestion, response.answer) : response.earnedPoints;
       const serverCorrect = serverQuestion ? isCorrect(serverQuestion, response.answer) : response.isCorrect;
       const writingOutcome = serverQuestion && isWritingQuestionType(serverQuestion.question_type) ? resolveWritingOutcome(response.answer) : null;

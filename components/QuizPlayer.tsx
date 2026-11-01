@@ -47,6 +47,7 @@ type PastAttempt = {
 
 type PronunciationValue = {
   results: Record<string, boolean>;
+  targetScores?: Record<string, number>;
   attemptsUsed: Record<string, number>;
   transcripts?: Record<string, string>;
   assessments?: Record<string, PronunciationAssessmentSummary>;
@@ -60,6 +61,15 @@ type PronunciationAssessmentSummary = {
   prosodyScore?: number;
   words?: Array<{ text: string; score: number; errorType?: string; phonemes: Array<{ expected: string; spoken?: string; score: number }> }>;
 };
+
+function normalizePronunciationToken(value: string): string {
+  return value.toLowerCase().replace(/^[^a-zɑ-ʒθðŋɹʃʒ]+|[^a-zɑ-ʒθðŋɹʃʒ]+$/gi, "").trim();
+}
+
+function targetAssessmentWords(words: NonNullable<PronunciationAssessmentSummary["words"]>, targets: PronunciationTarget[]): NonNullable<PronunciationAssessmentSummary["words"]> {
+  const targetTokens = new Set(targets.flatMap((target) => target.text.split(/\s+/).map(normalizePronunciationToken)).filter(Boolean));
+  return words.filter((word) => targetTokens.has(normalizePronunciationToken(word.text)));
+}
 
 async function recordingToWav(recording: Blob): Promise<Blob> {
   const AudioContextConstructor = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
@@ -198,11 +208,11 @@ export function hasAnswer(question: QuizQuestion, value: unknown): boolean {
   if (question.question_type === "PRONUNCIATION") {
     const opts = asRecord(question.options) as { level?: string; targets?: unknown[]; max_attempts?: number };
     const level = opts.level === "sentence" || opts.level === "paragraph" ? opts.level : "word";
-    const maxAttempts = Math.max(1, Number(opts.max_attempts ?? 3));
     const targets = Array.isArray(opts.targets) ? opts.targets.map((t) => asRecord(t as Json)) : [];
     const valRecord = asRecord(value as Json);
     const results = asRecord(valRecord.results as Json);
     const attemptsUsed = asRecord(valRecord.attemptsUsed as Json);
+    const assessments = asRecord(valRecord.assessments as Json);
 
     if (valRecord.passed === true || Number(valRecord.accuracy ?? 0) > 0) return true;
 
@@ -213,14 +223,12 @@ export function hasAnswer(question: QuizQuestion, value: unknown): boolean {
     if (level === "word") {
       return targets.every((t) => {
         const id = String(t.id ?? "");
-        const isRecognized = results[id] === true;
         const used = Number(attemptsUsed[id] ?? 0);
-        return isRecognized || used >= maxAttempts;
+        return used > 0 || assessments[id] !== undefined;
       });
     } else {
-      const allRecognized = targets.every((t) => results[String(t.id ?? "")] === true);
       const usedPassage = Number(attemptsUsed["__passage__"] ?? 0);
-      return allRecognized || usedPassage >= maxAttempts;
+      return usedPassage > 0 || assessments["__passage__"] !== undefined;
     }
   }
   if (isWritingQuestionType(question.question_type)) {
@@ -451,6 +459,7 @@ export function QuizPlayer({
   const [remainingSeconds, setRemainingSeconds] = useState(() => timerMinutes ? timerMinutes * 60 : null);
   const attemptStartRef = useRef(Date.now());
   const submissionKeyRef = useRef<string | null>(null);
+  const pronunciationAutoSubmitRef = useRef(false);
   const currentAttemptIdRef = useRef<string | null>(null);
   const currentAttemptDateRef = useRef<string | null>(null);
   const finalizedAttemptListedRef = useRef(false);
@@ -469,6 +478,7 @@ export function QuizPlayer({
     setShowAiUnavailableDialog(true);
   }, []);
   const answered = questions.every((question) => hasAnswer(question, answers[question.id]));
+  const isPronunciationOnly = questions.length > 0 && questions.every((question) => question.question_type === "PRONUNCIATION");
   const hasSubjectiveQuestions = questions.some((question) => isWritingQuestionType(question.question_type));
   const configuredEvaluationModes = allowedEvaluationModes(questions);
   const availableEvaluationModes = aiTemporarilyUnavailable
@@ -551,6 +561,7 @@ export function QuizPlayer({
     setAutoGradingActive(false);
     setAiTemporarilyUnavailable(false);
     setShowAiUnavailableDialog(false);
+    pronunciationAutoSubmitRef.current = false;
     setRemainingSeconds(timerMinutes ? timerMinutes * 60 : null);
     attemptStartRef.current = Date.now();
     submissionKeyRef.current = null;
@@ -709,12 +720,19 @@ export function QuizPlayer({
           setMessage("Responses saved. Your final result will appear when grading is complete.");
         }
       } catch (error) {
+        pronunciationAutoSubmitRef.current = false;
         setEvaluationMode(null);
         setAutoGradingActive(false);
         setMessage(error instanceof Error ? error.message : "Could not save quiz attempt.");
       }
     });
   }, [allAttempts.length, answers, courseItemId, evaluationMode, hasSubjectiveQuestions, isGuest, maxAttempts, questions, quizId, submitted]);
+
+  useEffect(() => {
+    if (!isPronunciationOnly || !answered || submitted || pronunciationAutoSubmitRef.current) return;
+    pronunciationAutoSubmitRef.current = true;
+    submit();
+  }, [answered, isPronunciationOnly, submitted, submit]);
 
   useEffect(() => {
     if (!submitted || !autoGradingActive || !evaluationMode || evaluationMode === "SELF_GRADED") return;
@@ -922,7 +940,7 @@ export function QuizPlayer({
           return (
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-[20px] border border-[var(--br-surface-strong)] bg-surface p-4 shadow-[var(--br-shadow)]">
               <p className="text-sm font-semibold text-[var(--br-text-muted)]">
-                {submitted ? isGuest ? "Create a free account to save your score and track progress." : "Review each question, or head back to the overview." : currentAnswered ? "Answered. Move on when ready." : "Answer this question, then continue."}
+                {submitted ? isGuest ? "Create a free account to save your score and track progress." : "Review each question, or head back to the overview." : isPronunciationOnly ? "Your pronunciation is graded automatically." : currentAnswered ? "Answered. Move on when ready." : "Answer this question, then continue."}
               </p>
               <div className="flex gap-2">
                 {submitted ? (
@@ -934,7 +952,7 @@ export function QuizPlayer({
                     <RotateCcw size={16} /> Retake
                   </button>
                 ) : null}
-                {!submitted && (
+                {!submitted && !isPronunciationOnly && (
                   <button
                     type="button"
                     disabled={!answered || submitted || (maxAttempts > 0 && allAttempts.length >= maxAttempts)}
@@ -2624,7 +2642,7 @@ function Pronunciation({
   disabled: boolean;
   onChange: (value: PronunciationValue) => void;
 }) {
-  const opts = asRecord(question.options) as { level?: string; passage?: string; targets?: unknown[]; max_attempts?: number };
+  const opts = asRecord(question.options) as { level?: string; passage?: string; targets?: unknown[]; max_attempts?: number; audio_url?: string };
   const level = opts.level === "sentence" || opts.level === "paragraph" ? opts.level : "word";
   const targets: PronunciationTarget[] = Array.isArray(opts.targets)
     ? opts.targets.map((t) => {
@@ -2634,7 +2652,9 @@ function Pronunciation({
     : [];
   const maxAttempts = Math.max(1, Number(opts.max_attempts ?? 3));
   const passage = String(opts.passage ?? "");
+  const referenceAudioUrl = String(opts.audio_url ?? "").trim();
   const results = value?.results ?? {};
+  const targetScores = value?.targetScores ?? {};
   const attemptsUsed = value?.attemptsUsed ?? {};
   const transcripts = value?.transcripts ?? {};
   const assessments = value?.assessments ?? {};
@@ -2728,11 +2748,19 @@ function Pronunciation({
           const transcript = String(body.transcript ?? "").trim();
           const overallScore = body.overallScore ?? 0;
           const nextResults = { ...results };
+          const nextTargetScores = { ...targetScores };
           const words = body.words ?? [];
-          const assessment: PronunciationAssessmentSummary = { overallScore, accuracyScore: body.accuracyScore ?? overallScore, fluencyScore: body.fluencyScore, completenessScore: body.completenessScore, prosodyScore: body.prosodyScore, words };
-          currentTargets.forEach((target) => { const word = words.find((item) => item.text.toLowerCase() === target.text.toLowerCase()); if ((word?.score ?? overallScore) >= 70 && (level !== "word" || transcriptContainsTarget(transcript, target.text))) nextResults[target.id] = true; });
+          const detailedWords = targetAssessmentWords(words, currentTargets);
+          const assessment: PronunciationAssessmentSummary = { overallScore, accuracyScore: body.accuracyScore ?? overallScore, fluencyScore: body.fluencyScore, completenessScore: body.completenessScore, prosodyScore: body.prosodyScore, words: detailedWords };
+          currentTargets.forEach((target) => {
+            const word = detailedWords.find((item) => normalizePronunciationToken(item.text) === normalizePronunciationToken(target.text));
+            const score = word && Number.isFinite(word.score) ? Math.max(0, Math.min(100, word.score)) : 0;
+            nextTargetScores[target.id] = score;
+            if (score >= 90 && (level !== "word" || transcriptContainsTarget(transcript, target.text))) nextResults[target.id] = true;
+          });
           onChange({
             results: nextResults,
+            targetScores: nextTargetScores,
             attemptsUsed: { ...attemptsUsed, [currentKey]: usedSoFar + 1 },
             transcripts: { ...transcripts, [currentKey]: transcript },
             assessments: { ...assessments, [currentKey]: assessment },
@@ -2767,51 +2795,35 @@ function Pronunciation({
     return <span key={target.id} className={`rounded-full px-3 py-1.5 text-sm font-semibold ${recognized ? "bg-emerald-100 text-emerald-800" : transcripts[target.id] ? "bg-orange-100 text-orange-800" : "bg-slate-100 text-slate-700"}`}>{target.text}</span>;
   };
 
+  const overallScores = Object.values(assessments).map((assessment) => assessment.overallScore).filter((score) => Number.isFinite(score));
+  const averageScore = overallScores.length ? Math.round(overallScores.reduce((sum, score) => sum + score, 0) / overallScores.length) : null;
+  const assessmentWords = Object.values(assessments).flatMap((assessment) => assessment.words ?? []);
+  const targetWordRows = targets.map((target) => ({ target, word: assessmentWords.find((word) => normalizePronunciationToken(word.text) === normalizePronunciationToken(target.text)) }));
+  const scoreMessage = averageScore == null ? "Ready when you are" : averageScore >= 85 ? "Strong start" : averageScore >= 70 ? "Good progress" : "Let’s focus on one sound";
+  const scoreCopy = averageScore == null ? "Listen once, then record your voice for precise word and sound feedback." : averageScore >= 85 ? "Clear and natural overall. Focus on the highlighted sounds to sound even more fluent." : "You’re building a good foundation. A focused retry will help the highlighted sounds land more clearly.";
+  const scoreBadge = averageScore == null ? "Not attempted" : averageScore >= 85 ? "Great clarity" : averageScore >= 70 ? "Keep building" : "Focus next";
+
   return (
-    <div className="relative grid gap-4 overflow-hidden rounded-[24px] border border-violet-200/80 bg-gradient-to-br from-violet-50 via-white to-orange-50 p-5 text-center shadow-sm sm:p-6">
-      <div className="pointer-events-none absolute -left-12 -top-14 size-36 rounded-full bg-[var(--br-chart-primary)]/10 blur-2xl" />
-      <div className="pointer-events-none absolute -bottom-16 -right-10 size-40 rounded-full bg-[var(--br-action)]/15 blur-2xl" />
-      <div className="relative z-10 text-left">
-        <p className="text-xs font-black uppercase tracking-wider text-[var(--br-chart-primary)]">{level === "word" ? "Practice each target" : "Read this aloud"}</p>
-        {level === "word" ? (
-          <p className="mt-1 text-sm font-medium text-[var(--br-text-muted)]">Record each word or phrase below, one at a time.</p>
-        ) : (
-          <p className="mt-1 text-2xl font-black text-ink sm:text-3xl">{passage}</p>
-        )}
+    <div className="relative grid gap-5 overflow-hidden rounded-[28px] border border-slate-200/80 bg-gradient-to-br from-[#f8f7ff] via-white to-[#fff8f0] p-5 shadow-[0_24px_80px_rgba(34,41,88,0.12)] sm:p-7">
+      <div className="pointer-events-none absolute -left-16 -top-16 size-52 rounded-full bg-indigo-400/10 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-24 -right-14 size-64 rounded-full bg-orange-300/15 blur-3xl" />
+      <div className="relative z-10 rounded-[20px] border border-slate-200/80 bg-white p-4 text-left shadow-sm sm:p-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+          {referenceAudioUrl ? <AudioTrackPlayer value={[{ id: "reference", url: referenceAudioUrl, label: "Native reference" }]} className="w-full shrink-0 sm:w-52" /> : <div className="grid size-14 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-400" aria-label="Reference audio is not available"><Volume2 size={24} /></div>}
+          <p className="min-w-0 break-words text-lg font-black leading-tight tracking-tight text-slate-900 sm:text-3xl">{level === "word" ? targets.map((target) => target.text).join(" ") : segments.map((segment, index) => { const target = targets.find((item) => item.text.toLowerCase() === segment.toLowerCase()); return target ? <span key={index} className="mx-0.5 inline rounded-md border-b-4 px-1" style={{ color: target.color, borderColor: target.color, backgroundColor: "color-mix(in srgb, currentColor 10%, white)" }}>{segment}</span> : <span key={index}>{segment}</span>; })}</p>
+          <button type="button" className="self-end text-slate-400 hover:text-slate-700 sm:ml-auto sm:self-start" aria-label="Save activity">♡</button>
+        </div>
       </div>
-      {level !== "word" && passage ? (
-        <p className="relative z-10 rounded-[16px] bg-white/75 p-4 text-left text-base leading-8 text-ink">
-          {segments.map((segment, index) => {
-            const target = targets.find((item) => item.text.toLowerCase() === segment.toLowerCase());
-            return target ? <span key={index} className={`rounded px-1 font-bold ${results[target.id] ? "bg-emerald-100 text-emerald-800" : "bg-violet-100 text-violet-900"}`}>{segment}</span> : <span key={index}>{segment}</span>;
-          })}
-        </p>
-      ) : null}
-      {level !== "word" && targets.length > 0 ? <div className="relative z-10 rounded-[16px] border border-white/80 bg-white/70 p-4 text-left"><p className="mb-2 text-xs font-black uppercase tracking-wider text-[var(--br-chart-primary)]">Target phrases</p><div className="flex flex-wrap gap-2">{targets.map(renderTargetChip)}</div></div> : null}
-      {level !== "word" ? <div className="relative z-10 grid justify-items-center gap-3">
-        <button type="button" disabled={disabled || micState === "transcribing" || (micState === "listening" && !activeKey)} onClick={() => (micState === "listening" ? void finishRecording() : void recordFor(passageKey, passageTargets))} className={`grid size-20 place-items-center rounded-full text-white shadow-lg transition ${micState === "listening" ? "bg-coral" : "bg-gradient-to-br from-[var(--br-action)] to-[var(--br-action-strong)]"} disabled:opacity-50`} aria-label={micState === "listening" ? "Finish recording" : "Start recording"}>
-          {micState === "transcribing" ? <Loader2 size={28} className="animate-spin" /> : micState === "listening" ? <MicOff size={28} /> : <Mic size={28} />}
-        </button>
-        <p className="text-sm font-bold text-[var(--br-action-strong)]">{micState === "listening" ? `I'm listening · Tap to finish · ${Math.max(0, 60 - seconds)}s` : micState === "transcribing" ? "Preparing your feedback…" : "Tap the microphone and start speaking"}</p>
+      {level !== "word" ? <div className="relative z-10 grid justify-items-center gap-3 rounded-[20px] border border-slate-200/80 bg-white p-4 shadow-sm sm:p-6">
+        <div className={`relative grid size-24 place-items-center rounded-full text-white shadow-xl transition ${micState === "listening" ? "bg-rose-500 ring-8 ring-rose-100" : "bg-gradient-to-br from-orange-400 to-rose-500"}`}><span className="absolute inset-2 rounded-full border border-white/30" /><button type="button" disabled={disabled || micState === "transcribing"} onClick={() => (micState === "listening" ? void finishRecording() : void recordFor(passageKey, passageTargets))} className="relative grid size-20 place-items-center rounded-full" aria-label={micState === "listening" ? "Finish recording" : "Start recording"}>{micState === "transcribing" ? <Loader2 size={30} className="animate-spin" /> : micState === "listening" ? <MicOff size={30} /> : <Mic size={30} />}</button></div>
+        <div className="flex w-full max-w-xl flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:gap-3"><div className="flex h-10 min-w-0 flex-1 items-center justify-center gap-1 overflow-hidden rounded-full bg-slate-50 px-3 sm:px-5">{Array.from({ length: 44 }, (_, index) => <span key={index} className={`w-1 shrink-0 rounded-full ${index % 5 === 0 ? "h-7 bg-orange-300" : index % 3 === 0 ? "h-4 bg-blue-200" : "h-2 bg-slate-200"}`} />)}</div><span className="self-end text-xs font-bold text-slate-500 sm:self-auto">{micState === "listening" ? `00:${String(seconds).padStart(2, "0")} / 01:00` : "00:00 / 01:00"}</span></div>
+        <p className="text-sm font-black text-slate-800">{micState === "listening" ? "I’m listening · Tap to finish" : micState === "transcribing" ? "Preparing your feedback…" : "Tap the microphone and start speaking"}</p>
       </div> : null}
-      {error ? <div className="relative z-10 flex items-start gap-2 rounded-[14px] border border-amber-200 bg-amber-50 p-3 text-left text-sm font-semibold text-amber-900"><AlertCircle size={16} className="mt-0.5 shrink-0" />{error}</div> : null}
-      {level === "word" ? <div className="relative z-10 grid gap-2 text-left">{targets.map((target) => {
-        const isActive = activeKey === target.id && micState === "listening";
-        const anotherIsActive = micState === "listening" && !isActive;
-        const isUnavailable = (attemptsUsed[target.id] ?? 0) >= maxAttempts || results[target.id] === true;
-        return <div key={target.id} className={`flex flex-wrap items-center justify-between gap-3 rounded-[14px] border p-3 transition ${isActive ? "border-[var(--br-action)] bg-[var(--br-action)]/10 shadow-md ring-2 ring-[var(--br-action)]/20" : "border-white/80 bg-white/75"}`}>
-          <div><p className="font-bold" style={{ color: target.color }}>{target.text}</p><p className="text-xs text-[var(--br-text-muted)]">{isActive ? `Listening · ${Math.max(0, 12 - seconds)}s remaining` : renderStatus(target)}{attemptsUsed[target.id] ? ` · ${attemptsUsed[target.id]} attempt${attemptsUsed[target.id] === 1 ? "" : "s"}` : ""}</p></div>
-          <button type="button" disabled={disabled || micState === "transcribing" || anotherIsActive || isUnavailable} onClick={() => (isActive ? void finishRecording() : void recordFor(target.id, [target]))} className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-black text-white shadow-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${isActive ? "bg-coral ring-2 ring-coral/30 animate-pulse" : results[target.id] ? "bg-emerald-600" : "bg-[var(--br-action)] hover:bg-[var(--br-action-strong)]"}`} aria-label={isActive ? `Stop recording ${target.text}` : `Record ${target.text}`}>
-            {isActive ? <MicOff size={14} /> : results[target.id] ? <CheckCircle2 size={14} /> : <Mic size={14} />} {isActive ? "Stop recording" : results[target.id] ? "Recognized" : `Record (${Math.max(0, maxAttempts - (attemptsUsed[target.id] ?? 0))} left)`}
-          </button>
-          {transcripts[target.id] ? <p className="w-full border-t border-slate-100 pt-2 text-xs text-[var(--br-text-muted)]">Exact transcript: <span className="font-semibold text-ink">{transcripts[target.id]}</span></p> : null}
-          {assessments[target.id]?.words?.[0]?.phonemes?.length ? <p className="w-full text-left text-xs text-[var(--br-text-muted)]">Sounds: {assessments[target.id]?.words?.[0]?.phonemes.map((phoneme, index) => <span key={`${phoneme.expected}-${index}`} className={`mr-1 inline-flex rounded px-1.5 py-0.5 font-bold ${phoneme.score >= 85 ? "bg-emerald-100 text-emerald-800" : phoneme.score >= 60 ? "bg-amber-100 text-amber-800" : "bg-rose-100 text-rose-800"}`} title={phoneme.spoken && phoneme.spoken !== phoneme.expected ? `Heard ${phoneme.spoken}` : undefined}>{phoneme.expected} · {Math.round(phoneme.score)}</span>)}</p> : null}
-        </div>;
-      })}</div> : null}
-      {level !== "word" && passageTranscript ? <div className="relative z-10 rounded-[16px] border border-white/80 bg-white/75 p-4 text-left"><p className="mb-1 text-xs font-black uppercase tracking-wider text-[var(--br-chart-primary)]">Exact transcript</p><p className="text-base font-semibold leading-7 text-ink">{passageTranscript}</p></div> : null}
-      {level !== "word" && passageTranscript ? <div className="relative z-10 rounded-[16px] border border-white/80 bg-white/75 p-4 text-left"><div className="mb-3 flex flex-wrap items-center justify-between gap-2"><p className="text-base font-black text-ink">Sound-by-sound feedback</p><div className="flex gap-2 text-[11px] font-bold"><span className="text-emerald-700">● Clear match</span><span className="text-orange-700">● Needs another try</span></div></div><div className="flex flex-wrap gap-2">{targets.map(renderTargetChip)}</div><p className="mt-3 text-xs leading-5 text-[var(--br-text-muted)]">Scores are based on Azure phoneme-level pronunciation assessment.</p></div> : null}
-      <button type="button" onClick={() => { setError(null); setMicState("idle"); }} className="relative z-10 mx-auto inline-flex items-center gap-2 rounded-full bg-[var(--br-action)] px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-[var(--br-action-strong)] disabled:opacity-50" disabled={disabled || micState === "listening" || micState === "transcribing"}><RotateCcw size={16} /> Try again</button>
-      <p className="relative z-10 text-xs text-[var(--br-text-muted)]">Your recording is used to generate feedback.</p>
+      {error ? <div className="relative z-10 flex items-start gap-3 rounded-[16px] border border-amber-200 bg-amber-50 p-4 text-left text-sm font-semibold text-amber-900"><AlertCircle size={18} className="mt-0.5 shrink-0" />{error}</div> : null}
+      {level === "word" ? <div className="relative z-10 grid gap-3">{targets.map((target) => { const isActive = activeKey === target.id && micState === "listening"; const anotherIsActive = micState === "listening" && !isActive; const isUnavailable = (attemptsUsed[target.id] ?? 0) >= maxAttempts || results[target.id] === true; const assessment = assessments[target.id]; return <div key={target.id} className={`grid gap-3 rounded-[20px] border p-4 text-left transition sm:grid-cols-[1fr_auto] sm:items-center ${isActive ? "border-orange-300 bg-orange-50 ring-4 ring-orange-100" : "border-slate-200/80 bg-white shadow-sm"}`}><div><div className="flex items-center gap-2"><span className="grid size-8 place-items-center rounded-full bg-orange-100 text-orange-700"><Mic size={15} /></span><p className="text-base font-black text-slate-900">{target.text}</p></div><p className="mt-1 pl-10 text-xs font-medium text-slate-500">{isActive ? `Listening · ${Math.max(0, 12 - seconds)}s remaining` : renderStatus(target)}{attemptsUsed[target.id] ? ` · ${attemptsUsed[target.id]} attempt${attemptsUsed[target.id] === 1 ? "" : "s"}` : ""}</p></div><button type="button" disabled={disabled || micState === "transcribing" || anotherIsActive || isUnavailable} onClick={() => (isActive ? void finishRecording() : void recordFor(target.id, [target]))} className={`inline-flex items-center justify-center gap-2 rounded-full px-4 py-2.5 text-xs font-black text-white shadow-sm transition disabled:cursor-not-allowed disabled:opacity-50 ${isActive ? "animate-pulse bg-rose-500" : results[target.id] ? "bg-emerald-600" : "bg-blue-600 hover:bg-blue-700"}`} aria-label={isActive ? `Stop recording ${target.text}` : `Record ${target.text}`}>{isActive ? <MicOff size={14} /> : results[target.id] ? <CheckCircle2 size={14} /> : <Mic size={14} />} {isActive ? "Stop recording" : results[target.id] ? "Recognized" : `Record · ${Math.max(0, maxAttempts - (attemptsUsed[target.id] ?? 0))} left`}</button>{transcripts[target.id] ? <p className="border-t border-slate-100 pt-2 text-xs text-slate-500 sm:col-span-2">Recognized: <span className="font-bold text-slate-800">{transcripts[target.id]}</span></p> : null}{assessment?.words?.[0]?.phonemes?.length ? <div className="flex flex-wrap gap-1.5 sm:col-span-2"><span className="mr-1 text-xs font-black text-slate-500">Sounds</span>{assessment.words[0].phonemes.map((phoneme, index) => <span key={`${phoneme.expected}-${index}`} className={`rounded-lg px-2 py-1 text-xs font-black ${phoneme.score >= 85 ? "bg-emerald-100 text-emerald-800" : phoneme.score >= 60 ? "bg-amber-100 text-amber-800" : "bg-rose-100 text-rose-800"}`} title={phoneme.spoken && phoneme.spoken !== phoneme.expected ? `Heard ${phoneme.spoken}` : undefined}>{phoneme.expected} · {Math.round(phoneme.score)}</span>)}</div> : null}</div>; })}</div> : null}
+      {averageScore != null ? <div className="relative z-10 grid items-start gap-5 rounded-[24px] border border-slate-200/80 bg-white p-4 text-left shadow-sm sm:grid-cols-[auto_1fr] sm:p-6"><div className="mx-auto grid size-28 place-items-center rounded-full p-2 sm:mx-0 sm:size-32" style={{ background: `conic-gradient(#10b981 0 ${averageScore}%, #e2e8f0 ${averageScore}% 100%)` }}><div className="grid size-full place-items-center rounded-full bg-white"><span className="text-center"><strong className="block text-3xl font-black text-slate-900 sm:text-4xl">{averageScore}</strong><small className="text-xs font-bold text-slate-500">out of 100</small></span></div></div><div className="min-w-0"><div className="flex flex-wrap items-start justify-between gap-2"><div><h3 className="text-2xl font-black text-slate-900">{scoreMessage}</h3><p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">{scoreCopy}</p></div><span className={`rounded-full px-3 py-1.5 text-xs font-black ${averageScore >= 85 ? "bg-emerald-100 text-emerald-800" : averageScore >= 70 ? "bg-amber-100 text-amber-800" : "bg-rose-100 text-rose-800"}`}>{scoreBadge}</span></div><p className="mt-4 text-xs font-black uppercase tracking-wider text-indigo-600">Recognized sentence</p><div className="mt-2 flex flex-wrap gap-2">{level === "word" ? targets.map((target) => renderTargetChip(target)) : segments.map((segment, index) => <span key={index} className="rounded-lg bg-slate-100 px-2.5 py-1 text-sm font-bold text-slate-700">{segment}</span>)}</div><div className="mt-4 flex flex-wrap gap-4 text-xs font-bold"><span className="text-emerald-700">● Good</span><span className="text-amber-700">● Needs practice</span><span className="text-rose-700">● Try again</span></div></div><div className="sm:col-span-2"><div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-5"><p className="flex items-center gap-2 text-base font-black text-slate-900"><Sparkles size={17} className="text-indigo-600" /> Sound breakdown</p><span className="text-xs font-bold text-indigo-600">Target words only</span></div><div className="mt-3 grid gap-4">{targetWordRows.map(({ target, word }) => <section key={`target-${target.id}`} className="rounded-2xl border border-slate-200 bg-slate-50 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><h4 className="text-lg font-black" style={{ color: target.color }}>{target.text}</h4><p className="mt-1 text-xs font-semibold text-slate-500">{word ? `${word.phonemes.length} sounds analyzed` : "Azure could not confidently align this target"}</p></div>{word ? <span className={`rounded-full px-2.5 py-1 text-xs font-black ${word.score >= 85 ? "bg-emerald-100 text-emerald-800" : word.score >= 60 ? "bg-amber-100 text-amber-800" : "bg-rose-100 text-rose-800"}`}>{Math.round(word.score)}/100</span> : <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-black text-amber-800">Try again</span>}</div>{word ? <div className="mt-3 grid gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">{word.phonemes.map((phoneme, index) => <div key={`${phoneme.expected}-${index}`} className="rounded-xl border border-white bg-white p-3 shadow-sm"><div className="flex items-start justify-between gap-2"><p className="font-mono text-lg font-black text-slate-900">/{phoneme.expected}/</p><span className={`rounded-full px-2 py-1 text-[10px] font-black ${phoneme.score >= 85 ? "bg-emerald-100 text-emerald-800" : phoneme.score >= 60 ? "bg-amber-100 text-amber-800" : "bg-rose-100 text-rose-800"}`}>{Math.round(phoneme.score)}</span></div>{phoneme.spoken && phoneme.spoken !== phoneme.expected ? <p className="mt-1 text-[11px] font-semibold text-rose-700">Heard as /{phoneme.spoken}/</p> : <p className="mt-1 text-[11px] font-semibold text-slate-500">Expected sound</p>}<div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-200"><div className={`h-full rounded-full ${phoneme.score >= 85 ? "bg-emerald-500" : phoneme.score >= 60 ? "bg-amber-500" : "bg-rose-500"}`} style={{ width: `${Math.max(6, phoneme.score)}%` }} /></div><p className="mt-1 text-right text-[11px] font-bold text-slate-500">{phoneme.score >= 85 ? "Clear" : phoneme.score >= 60 ? "Almost there" : "Needs practice"}</p></div>)}</div> : <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-semibold text-amber-900">Try saying “{target.text}” clearly in the next recording so we can score each sound.</p>}</section>)}</div></div></div> : null}
+      {level === "word" ? <div className="relative z-10 flex flex-wrap items-center justify-center gap-3">{averageScore == null ? <button type="button" onClick={() => { setError(null); setMicState("idle"); }} className="inline-flex items-center gap-2 rounded-full bg-blue-600 px-6 py-3 text-sm font-black text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-50" disabled={disabled || micState === "listening" || micState === "transcribing"}><RotateCcw size={16} /> Start practice</button> : <button type="button" onClick={() => { setError(null); setMicState("idle"); }} className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-6 py-3 text-sm font-black text-slate-700 transition hover:bg-slate-50" disabled={disabled || micState === "listening" || micState === "transcribing"}>Record again</button>}</div> : null}
+      <p className="relative z-10 text-center text-xs text-slate-400">Your recording is used to generate pronunciation feedback.</p>
     </div>
   );
 }
