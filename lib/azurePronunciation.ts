@@ -90,8 +90,49 @@ export async function assessPronunciation(audio: ArrayBuffer, referenceText: str
   const result = await new Promise<AzureResult>((resolve, reject) => {
     recognizer.recognizeOnceAsync((recognitionResult) => {
       try {
+        const recognitionStatus = recognitionResult.reason === sdk.ResultReason.RecognizedSpeech
+          ? "Success"
+          : recognitionResult.reason === sdk.ResultReason.NoMatch
+            ? "NoMatch"
+            : recognitionResult.reason === sdk.ResultReason.Canceled
+              ? "Canceled"
+              : "Unknown";
+
+        // NoMatch and Canceled results do not necessarily include the detailed
+        // JSON payload. Classify those outcomes before asking the SDK to parse it.
+        if (recognitionResult.reason === sdk.ResultReason.NoMatch) {
+          console.warn("Azure pronunciation returned no recognized speech", {
+            recognitionStatus,
+            displayTextLength: String(recognitionResult.text ?? "").length,
+          });
+          throw new AzurePronunciationError("no_match", "Azure did not detect clear speech in this recording.", recognitionStatus);
+        }
+
+        if (recognitionResult.reason === sdk.ResultReason.Canceled) {
+          const cancellation = sdk.CancellationDetails.fromResult(recognitionResult);
+          console.error("Azure pronunciation recognition was canceled", {
+            recognitionStatus,
+            cancellationReason: cancellation.reason,
+            errorCode: cancellation.ErrorCode,
+          });
+          throw new Error("Azure pronunciation recognition was canceled.");
+        }
+
+        const jsonResult = recognitionResult.properties.getProperty(sdk.PropertyId.SpeechServiceResponse_JsonResult);
+        if (!jsonResult) {
+          console.error("Azure pronunciation returned no detailed result", {
+            recognitionStatus,
+            hasRecognizedText: Boolean(recognitionResult.text?.trim()),
+            availablePropertyKeys: recognitionResult.properties.keys,
+          });
+          throw new AzurePronunciationError(
+            "missing_assessment",
+            "Azure recognized speech but did not return pronunciation assessment data.",
+            recognitionStatus,
+          );
+        }
+
         const detailResult = sdk.PronunciationAssessmentResult.fromResult(recognitionResult).detailResult;
-        const recognitionStatus = recognitionResult.reason === sdk.ResultReason.RecognizedSpeech ? "Success" : "NoMatch";
         resolve({ RecognitionStatus: recognitionStatus, DisplayText: recognitionResult.text, NBest: [{ ...detailResult }] });
       } catch (error) {
         reject(error);
