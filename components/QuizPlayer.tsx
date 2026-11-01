@@ -3202,26 +3202,30 @@ function playShadowingWindow(
   token: number,
   tokenRef: { current: number },
   audioRef: { current: HTMLAudioElement | null },
+  reusableAudio?: HTMLAudioElement | null,
 ) {
-  return new Promise<void>((resolve) => {
-    const audio = new Audio(url);
+  return new Promise<boolean>((resolve) => {
+    const audio = reusableAudio ?? new Audio(url);
+    if (reusableAudio && audio.src !== new URL(url, window.location.href).href) audio.src = url;
     audio.preload = "auto";
     audioRef.current = audio;
     let finished = false;
-    const finish = () => {
+    const finish = (played = false) => {
       if (finished) return;
       finished = true;
       audio.pause();
       audio.removeEventListener("loadedmetadata", onReady);
       audio.removeEventListener("timeupdate", onTimeUpdate);
-      audio.removeEventListener("ended", finish);
-      audio.removeEventListener("error", finish);
+      audio.removeEventListener("ended", onEnded);
+      audio.removeEventListener("error", onError);
       audio.removeEventListener("pause", onPause);
       if (audioRef.current === audio) audioRef.current = null;
-      resolve();
+      resolve(played);
     };
+    const onEnded = () => finish(true);
+    const onError = () => finish();
     const onTimeUpdate = () => {
-      if (Number.isFinite(endSeconds) && audio.currentTime >= endSeconds) finish();
+      if (Number.isFinite(endSeconds) && audio.currentTime >= endSeconds) finish(true);
       if (tokenRef.current !== token) finish();
     };
     const onPause = () => { if (tokenRef.current !== token) finish(); };
@@ -3233,12 +3237,11 @@ function playShadowingWindow(
       if (!(end > start)) return finish();
       audio.currentTime = start;
       audio.addEventListener("timeupdate", onTimeUpdate);
-      audio.addEventListener("ended", finish);
-      void audio.play().catch(finish);
+      audio.addEventListener("ended", onEnded, { once: true });
+      void audio.play().catch(() => finish());
     };
     audio.addEventListener("loadedmetadata", onReady, { once: true });
-    audio.addEventListener("ended", finish, { once: true });
-    audio.addEventListener("error", finish, { once: true });
+    audio.addEventListener("error", onError, { once: true });
     audio.addEventListener("pause", onPause);
     if (audio.readyState >= 1) onReady();
     else audio.load();
@@ -3252,19 +3255,22 @@ function ChunkedShadowingPlayer({ question, value, disabled, onChange }: Shadowi
   const maxAttempts = Math.max(1, Math.min(100, Number(options.max_attempts ?? 3) || 3));
   const [attemptsUsed, setAttemptsUsed] = useState(() => Math.max(0, Number(asRecord(value as Json).attempts_used ?? 0) || 0));
   const [modelListened, setModelListened] = useState(false);
+  const [comparisonMode, setComparisonMode] = useState<"SENTENCE" | "CHUNK">("SENTENCE");
+  const [comparisonHeard, setComparisonHeard] = useState(false);
+  const [autoplayBlocked, setAutoplayBlocked] = useState(false);
   const [recording, setRecording] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [learnerAudioUrl, setLearnerAudioUrl] = useState<string | null>(null);
   const [alignedChunks, setAlignedChunks] = useState<LearnerChunkTimestamp[]>([]);
   const [loopingChunkId, setLoopingChunkId] = useState<string | null>(null);
-  const [loopStage, setLoopStage] = useState<"MODEL" | "YOU" | null>(null);
   const [recordingDuration, setRecordingDuration] = useState(0);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const startedAtRef = useRef(0);
   const loopTokenRef = useRef(0);
+  const loopingChunkIdRef = useRef<string | null>(null);
   const activeAudioRef = useRef<HTMLAudioElement | null>(null);
   const modelPreviewRef = useRef<HTMLAudioElement | null>(null);
   const learnerPreviewRef = useRef<HTMLAudioElement | null>(null);
@@ -3274,8 +3280,8 @@ function ChunkedShadowingPlayer({ question, value, disabled, onChange }: Shadowi
     loopTokenRef.current += 1;
     activeAudioRef.current?.pause();
     activeAudioRef.current = null;
+    loopingChunkIdRef.current = null;
     setLoopingChunkId(null);
-    setLoopStage(null);
   }, []);
 
   useEffect(() => {
@@ -3300,29 +3306,41 @@ function ChunkedShadowingPlayer({ question, value, disabled, onChange }: Shadowi
     return () => URL.revokeObjectURL(learnerAudioUrl);
   }, [learnerAudioUrl]);
 
-  async function loopPair(chunkId: string, modelStart: number, modelEnd: number, learnerStart: number, learnerEnd: number) {
-    if (!learnerAudioUrl || !audioUrl) return;
-    if (loopingChunkId === chunkId) { stopLoop(); return; }
+  async function loopPair(chunkId: string, modelStart: number, modelEnd: number, learnerStart: number, learnerEnd: number, learnerUrl = learnerAudioUrl) {
+    if (!learnerUrl || !audioUrl) return;
+    if (loopingChunkIdRef.current === chunkId) { stopLoop(); return; }
     stopLoop();
     modelPreviewRef.current?.pause();
     learnerPreviewRef.current?.pause();
     const token = loopTokenRef.current + 1;
     loopTokenRef.current = token;
+    loopingChunkIdRef.current = chunkId;
     setLoopingChunkId(chunkId);
+    setAutoplayBlocked(false);
     while (loopTokenRef.current === token) {
-      setLoopStage("MODEL");
-      await playShadowingWindow(audioUrl, modelStart, modelEnd, token, loopTokenRef, activeAudioRef);
+      const modelPlayed = await playShadowingWindow(audioUrl, modelStart, modelEnd, token, loopTokenRef, activeAudioRef, modelPreviewRef.current);
       if (loopTokenRef.current !== token) break;
-      setLoopStage(null);
+      if (!modelPlayed) {
+        setAutoplayBlocked(true);
+        stopLoop();
+        break;
+      }
       await new Promise((resolve) => window.setTimeout(resolve, 260));
       if (loopTokenRef.current !== token) break;
-      setLoopStage("YOU");
-      await playShadowingWindow(learnerAudioUrl, learnerStart, learnerEnd, token, loopTokenRef, activeAudioRef);
+      const learnerPlayed = await playShadowingWindow(learnerUrl, learnerStart, learnerEnd, token, loopTokenRef, activeAudioRef, learnerPreviewRef.current);
       if (loopTokenRef.current !== token) break;
-      setLoopStage(null);
+      if (!learnerPlayed) {
+        setAutoplayBlocked(true);
+        stopLoop();
+        break;
+      }
+      if (chunkId === "full-sentence") setComparisonHeard(true);
       await new Promise((resolve) => window.setTimeout(resolve, 450));
     }
-    if (loopTokenRef.current === token) { setLoopingChunkId(null); setLoopStage(null); }
+    if (loopTokenRef.current === token) {
+      loopingChunkIdRef.current = null;
+      setLoopingChunkId(null);
+    }
   }
 
   async function processRecording(blob: Blob, durationSeconds: number) {
@@ -3330,8 +3348,12 @@ function ChunkedShadowingPlayer({ question, value, disabled, onChange }: Shadowi
     setError(null);
     setRecordingDuration(durationSeconds);
     setAlignedChunks([]);
+    setComparisonMode("SENTENCE");
+    setComparisonHeard(false);
+    setAutoplayBlocked(false);
     stopLoop();
-    setLearnerAudioUrl(URL.createObjectURL(blob));
+    const learnerUrl = URL.createObjectURL(blob);
+    setLearnerAudioUrl(learnerUrl);
     const nextAttemptsUsed = attemptsUsed + 1;
     setAttemptsUsed(nextAttemptsUsed);
     onChange({ completed: false, attempts_used: nextAttemptsUsed, chunkAvailability: [] });
@@ -3356,6 +3378,9 @@ function ChunkedShadowingPlayer({ question, value, disabled, onChange }: Shadowi
       setError(caught instanceof Error ? caught.message : "Transcription is temporarily unavailable. Please try again.");
     } finally {
       setProcessing(false);
+      // Try to start the default sentence comparison after transcription. Some
+      // browsers and Android WebViews require a fresh tap after an async request.
+      void loopPair("full-sentence", 0, Number.POSITIVE_INFINITY, 0, durationSeconds, learnerUrl);
     }
   }
 
@@ -3425,32 +3450,42 @@ function ChunkedShadowingPlayer({ question, value, disabled, onChange }: Shadowi
   return (
     <div className="space-y-4">
       <section className="space-y-3 rounded-2xl border border-violet-200 bg-violet-50/60 p-4">
-        <div className="grid grid-cols-3 gap-2" aria-label="Shadowing steps">
+        <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-3" aria-label="Shadowing steps">
           {[
             { label: "Listen", icon: <Headphones size={16} />, done: modelListened, active: !modelListened },
             { label: "Say it", icon: <Mic size={16} />, done: attemptsUsed > 0, active: modelListened && !learnerAudioUrl },
-            { label: "Compare", icon: <RotateCcw size={16} />, done: alignedChunks.length > 0, active: Boolean(learnerAudioUrl && !processing) },
-          ].map((step, index) => <div key={step.label} className={`flex min-w-0 items-center gap-2 rounded-xl border px-2.5 py-2.5 sm:px-3 ${step.done ? "border-emerald-200 bg-emerald-50 text-emerald-800" : step.active ? "border-violet-300 bg-white text-[var(--br-chart-primary)] shadow-sm" : "border-white/70 bg-white/60 text-[var(--br-text-muted)]"}`}>
+            { label: "Compare", icon: <RotateCcw size={16} />, done: Boolean(learnerAudioUrl && !processing), active: Boolean(learnerAudioUrl && !processing) },
+          ].map((step, index) => <div key={step.label} className={`flex w-full min-w-0 items-center gap-3 rounded-xl border px-3 py-3 sm:px-3 ${step.done ? "border-emerald-200 bg-emerald-50 text-emerald-800" : step.active ? "border-violet-300 bg-white text-[var(--br-chart-primary)] shadow-sm" : "border-white/70 bg-white/60 text-[var(--br-text-muted)]"}`}>
             <span className="grid size-7 shrink-0 place-items-center rounded-full bg-current/10">{step.done ? <CheckCircle2 size={16} /> : step.icon}</span>
-            <span className="truncate text-xs font-extrabold sm:text-sm">{index + 1}. {step.label}</span>
+            <span className="min-w-0 text-sm font-extrabold">{index + 1}. {step.label}</span>
           </div>)}
         </div>
         {audioUrl ? <audio ref={modelPreviewRef} controls={loopingChunkId === null} preload="metadata" src={audioUrl} onEnded={() => setModelListened(true)} className="w-full" aria-label="Listen to the model sentence" /> : <p className="text-sm text-amber-700">The model sentence audio is not available.</p>}
         <div className="flex flex-col items-center gap-2 py-1">
-          <button type="button" onClick={recording ? stopRecording : () => void startRecording()} disabled={!recording && (disabled || processing || !readyToRecord || attemptsUsed >= maxAttempts)} className={`grid size-20 place-items-center rounded-full text-white shadow-lg transition focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-[var(--br-chart-primary)] disabled:cursor-not-allowed disabled:opacity-45 ${recording ? "bg-rose-500 ring-8 ring-rose-100" : "bg-gradient-to-br from-orange-400 to-rose-500 hover:scale-105"}`} aria-label={recording ? "Stop recording" : "Record the sentence"}>
-            {processing ? <Loader2 size={28} className="animate-spin" /> : recording ? <MicOff size={28} /> : <Mic size={28} />}
+          <button type="button" onClick={recording ? stopRecording : () => void startRecording()} disabled={!recording && (disabled || processing || !readyToRecord || !modelListened || (Boolean(learnerAudioUrl) && !comparisonHeard) || attemptsUsed >= maxAttempts)} className={`grid size-20 place-items-center rounded-full text-white shadow-lg transition focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-[var(--br-chart-primary)] disabled:cursor-not-allowed disabled:opacity-45 ${recording ? "bg-rose-500 ring-8 ring-rose-100" : "bg-gradient-to-br from-orange-400 to-rose-500 hover:scale-105"}`} aria-label={recording ? "Stop recording" : learnerAudioUrl ? "Record again" : "Record the sentence"}>
+            {processing ? <Loader2 size={28} className="animate-spin" /> : recording ? <MicOff size={28} /> : learnerAudioUrl ? <RotateCcw size={28} /> : <Mic size={28} />}
           </button>
-          <span className="text-sm font-bold text-[var(--br-dark-card)]">{recording ? "Stop recording" : processing ? "Preparing comparison…" : attemptsUsed >= maxAttempts ? "No attempts remaining" : learnerAudioUrl ? "Record again" : "Record the sentence"}</span>
+          <span className="text-sm font-bold text-[var(--br-dark-card)]">{recording ? "Stop recording" : processing ? "Preparing comparison…" : attemptsUsed >= maxAttempts ? "No attempts remaining" : learnerAudioUrl ? comparisonHeard ? "Record again" : "Listen to both first" : modelListened ? "Record the sentence" : "Listen to the model first"}</span>
           <span className="text-xs font-semibold text-[var(--br-text-muted)]">{Math.min(attemptsUsed + (recording ? 1 : 0), maxAttempts)} of {maxAttempts} attempts used</span>
         </div>
         {recording ? <p className="text-xs font-semibold text-[var(--br-action-strong)]">Recording the full sentence…</p> : null}
         {processing ? <p className="flex items-center gap-2 text-sm font-semibold text-[var(--br-chart-primary)]"><Loader2 size={16} className="animate-spin" /> Preparing your chunk comparisons…</p> : null}
-        {loopStage ? <p role="status" aria-live="polite" className="rounded-lg bg-white px-3 py-2 text-sm font-bold text-[var(--br-chart-primary)]">Now playing: {loopStage === "MODEL" ? "Model recording" : "Your recording"}</p> : null}
         {recordingDuration > 0 && !processing ? <p className="text-xs text-[var(--br-text-muted)]">Your recording: {recordingDuration}s</p> : null}
       </section>
 
       {learnerAudioUrl ? <audio ref={learnerPreviewRef} controls={loopingChunkId === null} preload="metadata" src={learnerAudioUrl} className="w-full" aria-label="Your complete sentence recording" /> : null}
-      {alignedChunks.length > 0 ? (
+      {learnerAudioUrl ? <div className="grid w-full grid-cols-1 gap-2 rounded-2xl border border-[var(--br-border)] bg-white p-2 sm:grid-cols-2" role="group" aria-label="Comparison mode">
+        <button type="button" aria-pressed={comparisonMode === "SENTENCE"} onClick={() => { stopLoop(); setComparisonMode("SENTENCE"); }} className={`min-h-11 w-full rounded-xl px-3 py-2.5 text-sm font-bold transition ${comparisonMode === "SENTENCE" ? "bg-[var(--br-chart-primary)] text-on-dark shadow-sm" : "text-[var(--br-text-muted)] hover:bg-slate-50"}`}>Full sentence A/B</button>
+        <button type="button" aria-pressed={comparisonMode === "CHUNK"} disabled={!alignedChunks.length || processing} onClick={() => { stopLoop(); setComparisonMode("CHUNK"); }} className={`min-h-11 w-full rounded-xl px-3 py-2.5 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-45 ${comparisonMode === "CHUNK" ? "bg-[var(--br-chart-primary)] text-on-dark shadow-sm" : "text-[var(--br-text-muted)] hover:bg-slate-50"}`}>Chunk A/B</button>
+      </div> : null}
+      {learnerAudioUrl && comparisonMode === "SENTENCE" ? <section className="grid justify-items-center gap-3 rounded-2xl border border-[var(--br-border)] bg-white p-4">
+        <p className="text-center text-sm font-semibold text-[var(--br-dark-card)]">Hear the complete model sentence, then your recording.</p>
+        <button type="button" disabled={disabled} onClick={() => void loopPair("full-sentence", 0, Number.POSITIVE_INFINITY, 0, fullLearnerEnd)} className="inline-flex min-h-11 min-w-56 items-center justify-center gap-2 rounded-full border border-[var(--br-border)] bg-white px-4 py-2.5 text-sm font-bold text-[var(--br-dark-card)] transition hover:bg-slate-50 disabled:opacity-50">
+          {loopingChunkId === "full-sentence" ? <Pause size={16} /> : <Play size={16} />}{loopingChunkId === "full-sentence" ? "Stop sentence loop" : autoplayBlocked ? "Play comparison" : "Play sentence A/B loop"}
+        </button>
+        {autoplayBlocked && !comparisonHeard ? <p role="status" className="text-center text-xs font-medium text-[var(--br-text-muted)]">Tap play to hear the model and your recording. “Record again” unlocks after both finish once.</p> : null}
+      </section> : null}
+      {learnerAudioUrl && comparisonMode === "CHUNK" && alignedChunks.length > 0 ? (
         <section className="space-y-3" aria-label="Sentence chunks">
           {chunks.map((chunk, index) => {
             const learnerChunk = alignedChunks.find((item) => item.chunkId === chunk.id);
@@ -3458,7 +3493,7 @@ function ChunkedShadowingPlayer({ question, value, disabled, onChange }: Shadowi
             return (
               <div key={chunk.id} className="flex flex-col gap-3 rounded-xl border border-[var(--br-border)] bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
                 <div><p className="text-[10px] font-black uppercase tracking-wider text-[var(--br-chart-primary)]">Chunk {index + 1}</p><p className="mt-1 font-semibold text-[var(--br-dark-card)]">{chunk.text}</p></div>
-            <button type="button" disabled={!learnerChunk?.available || disabled} onClick={() => void loopPair(chunk.id, chunk.startMs / 1_000, chunk.endMs / 1_000, (learnerChunk?.startMs ?? 0) / 1_000, (learnerChunk?.endMs ?? 0) / 1_000)} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-full bg-[var(--br-chart-primary)] px-4 py-2.5 text-sm font-bold text-on-dark disabled:opacity-50">
+            <button type="button" disabled={!learnerChunk?.available || disabled} onClick={() => void loopPair(chunk.id, chunk.startMs / 1_000, chunk.endMs / 1_000, (learnerChunk?.startMs ?? 0) / 1_000, (learnerChunk?.endMs ?? 0) / 1_000)} className="inline-flex min-h-11 min-w-44 shrink-0 items-center justify-center gap-2 rounded-full bg-[var(--br-chart-primary)] px-4 py-2.5 text-sm font-bold text-on-dark disabled:opacity-50">
                   {isLooping ? <Pause size={16} /> : <Play size={16} />}{isLooping ? "Stop A → B loop" : "Loop model → you"}
                 </button>
                 {!learnerChunk?.available ? <p className="text-xs text-amber-700">This chunk could not be isolated reliably.</p> : null}
@@ -3466,11 +3501,6 @@ function ChunkedShadowingPlayer({ question, value, disabled, onChange }: Shadowi
             );
           })}
         </section>
-      ) : null}
-      {learnerAudioUrl && (!alignedChunks.length || alignedChunks.some((chunk) => !chunk.available)) ? (
-        <button type="button" disabled={disabled} onClick={() => void loopPair("full-sentence", 0, Number.POSITIVE_INFINITY, 0, fullLearnerEnd)} className="inline-flex items-center gap-2 rounded-full border border-[var(--br-border)] bg-white px-4 py-2.5 text-sm font-bold text-[var(--br-dark-card)] disabled:opacity-50">
-          {loopingChunkId === "full-sentence" ? <Pause size={16} /> : <Play size={16} />}{loopingChunkId === "full-sentence" ? "Stop full sentence loop" : "Loop full sentence A → B"}
-        </button>
       ) : null}
       {error ? <p role="status" className="rounded-lg bg-amber-50 px-3 py-2 text-sm font-medium text-amber-800">{error}</p> : null}
       <p className="text-center text-xs font-medium text-[var(--br-text-muted)]">Listen to the model, say it your way, then compare.</p>

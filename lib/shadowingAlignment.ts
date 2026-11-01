@@ -23,8 +23,9 @@ function tokens(text: string) {
 /**
  * Maps creator-authored text chunks onto Groq's word timestamps using an exact,
  * order-preserving LCS alignment. Inserted/omitted words do not shift every later
- * chunk as positional matching would. This only aligns transcript text; it is
- * not a pronunciation score.
+ * chunk as positional matching would. Adjacent chunks share a midpoint boundary
+ * so overlapping ASR word times cannot carry a complete neighboring word into a
+ * clip. This only aligns transcript text; it is not a pronunciation score.
  */
 export function alignShadowingChunks(
   chunks: ShadowingChunk[],
@@ -65,7 +66,7 @@ export function alignShadowingChunks(
     }
   }
 
-  const chunkResults = ranges.map((range, chunkIndex) => {
+  const rawChunkResults = ranges.map((range, chunkIndex) => {
     const matches: GroqWordTimestamp[] = [];
     for (let index = range.start; index < range.end; index += 1) {
       const spokenWordIndex = aligned.get(index);
@@ -83,9 +84,29 @@ export function alignShadowingChunks(
       endMs,
       matchedWords: matches.length,
       totalWords,
-      available: enoughMatches && endMs > startMs,
+      enoughMatches,
+      firstWord: first,
+      lastWord: last,
     };
   });
+
+  for (let index = 0; index < rawChunkResults.length - 1; index += 1) {
+    const current = rawChunkResults[index];
+    const next = rawChunkResults[index + 1];
+    if (!current.lastWord || !next.firstWord) continue;
+    const sharedBoundaryMs = Math.max(0, Math.round((current.lastWord.end + next.firstWord.start) * 500));
+    current.endMs = sharedBoundaryMs;
+    next.startMs = sharedBoundaryMs;
+  }
+
+  const chunkResults = rawChunkResults.map((chunk) => ({
+    chunkId: chunk.chunkId,
+    startMs: chunk.startMs,
+    endMs: chunk.endMs,
+    matchedWords: chunk.matchedWords,
+    totalWords: chunk.totalWords,
+    available: chunk.enoughMatches && chunk.endMs > chunk.startMs,
+  }));
 
   const totalWords = targets.length;
   const matchedRatio = totalWords ? aligned.size / totalWords : 0;
