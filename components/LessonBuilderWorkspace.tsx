@@ -1583,13 +1583,13 @@ function AlignmentGroup({ label, name, value, options }: {
   );
 }
 
-type FlashcardDraft = { imagePath: string; word: string; phonetic: string; audioPath: string; meaning: string; examples: string };
+type FlashcardDraft = { imagePath: string; word: string; phonetic: string; audioPath: string; bengaliTranslation: string; meaning: string; examples: string };
 
 function FlashcardEditor({ data, lessonId }: { data: Record<string, unknown>; lessonId: string }) {
   const initialCards = Array.isArray(data.cards) && data.cards.length ? data.cards as Record<string, unknown>[] : [data];
   const [flashcards, setFlashcards] = useState<FlashcardDraft[]>(() => initialCards.map((card) => ({
     imagePath: asString(card.image_path), word: asString(card.word), phonetic: asString(card.phonetic),
-    audioPath: asString(card.audio_path), meaning: asString(card.meaning),
+    audioPath: asString(card.audio_path), bengaliTranslation: asString(card.bengali_translation ?? card.bengaliTranslation), meaning: asString(card.meaning),
     examples: Array.isArray(card.examples) ? card.examples.map(String).join("\n") : ""
   })));
   const voiceSettings = useVoiceGenerationPreferences({ provider: "auto", languageCode: "en-US", voiceName: "Aoede", style: "Natural", pace: "Natural", locked: false });
@@ -1621,12 +1621,13 @@ function FlashcardEditor({ data, lessonId }: { data: Record<string, unknown>; le
                 <label className="text-sm">Word or phrase<input name="flashcard_word" value={card.word} onChange={(event) => updateCard(index, { word: event.target.value })} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
                 <label className="text-sm">Phonetic <span className="font-normal text-[var(--br-text-muted)]">(optional)</span><input name="flashcard_phonetic" value={card.phonetic} onChange={(event) => updateCard(index, { phonetic: event.target.value })} placeholder="/fəˈnetɪk/" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
               </div>
+              <label className="text-sm">Bengali translation <span className="font-normal text-[var(--br-text-muted)]">(optional; not used for audio)</span><input name="flashcard_bengali_translation" value={card.bengaliTranslation} onChange={(event) => updateCard(index, { bengaliTranslation: event.target.value })} placeholder="বাংলা অনুবাদ" lang="bn" className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
               <label className="text-sm">Meaning<textarea name="flashcard_meaning" rows={2} value={card.meaning} onChange={(event) => updateCard(index, { meaning: event.target.value })} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
               <label className="text-sm">Examples <span className="font-normal text-[var(--br-text-muted)]">(one per line)</span><textarea name="flashcard_examples" rows={3} value={card.examples} onChange={(event) => updateCard(index, { examples: event.target.value })} className="mt-1 w-full rounded-md border border-[var(--br-border)] px-3 py-2" /></label>
             </div>
           </div>
         ))}
-        <button type="button" onClick={() => setFlashcards((cards) => [...cards, { imagePath: "", word: "", phonetic: "", audioPath: "", meaning: "", examples: "" }])} className="w-fit rounded-md border border-[var(--br-border)] px-4 py-2 text-sm font-semibold hover:bg-black/5">Add card</button>
+        <button type="button" onClick={() => setFlashcards((cards) => [...cards, { imagePath: "", word: "", phonetic: "", audioPath: "", bengaliTranslation: "", meaning: "", examples: "" }])} className="w-fit rounded-md border border-[var(--br-border)] px-4 py-2 text-sm font-semibold hover:bg-black/5">Add card</button>
       </div>
     </div>
   );

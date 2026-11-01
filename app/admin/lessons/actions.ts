@@ -437,22 +437,25 @@ function blockContentFromForm(blockType: string, formData: FormData): Json {
     const words = formData.getAll("flashcard_word").map((value) => String(value || "").trim());
     const phonetics = formData.getAll("flashcard_phonetic").map((value) => String(value || "").trim());
     const audioPaths = formData.getAll("flashcard_audio_path").map((value) => String(value || "").trim());
+    const bengaliTranslations = formData.getAll("flashcard_bengali_translation").map((value) => String(value || "").trim());
     const meanings = formData.getAll("flashcard_meaning").map((value) => String(value || "").trim());
     const examplesList = formData.getAll("flashcard_examples").map((value) => splitLines(value));
-    const rowCount = Math.max(imagePaths.length, words.length, meanings.length, 1);
+    const rowCount = Math.max(imagePaths.length, words.length, bengaliTranslations.length, meanings.length, 1);
     const cards = Array.from({ length: rowCount }, (_, index) => ({
       image_path: imagePaths[index] ?? "",
       word: words[index] ?? "",
       phonetic: phonetics[index] || null,
       audio_path: audioPaths[index] || null,
+      bengali_translation: bengaliTranslations[index] ?? "",
       meaning: meanings[index] ?? "",
       examples: examplesList[index] ?? []
-    })).filter((card, index) => index === 0 || card.image_path || card.word || card.meaning || card.examples.length);
+    })).filter((card, index) => index === 0 || card.image_path || card.word || card.bengali_translation || card.meaning || card.examples.length);
     const legacyCard = {
       image_path: cards[0]?.image_path ?? "",
       word: cards[0]?.word ?? "",
       phonetic: cards[0]?.phonetic ?? null,
       audio_path: cards[0]?.audio_path ?? null,
+      bengali_translation: cards[0]?.bengali_translation ?? "",
       meaning: cards[0]?.meaning ?? "",
       examples: cards[0]?.examples ?? []
     };
@@ -546,6 +549,7 @@ function defaultBlockContent(blockType: string): Json {
     word: "resilience",
     phonetic: "/r\u026a\u02c8z\u026al\u026a\u0259ns/",
     audio_path: null,
+    bengali_translation: "সহনশীলতা",
     meaning: "the ability to recover quickly from difficulties",
     examples: ["She showed great resilience during the crisis."],
     cards: [{
@@ -553,6 +557,7 @@ function defaultBlockContent(blockType: string): Json {
       word: "resilience",
       phonetic: "/r\u026a\u02c8z\u026al\u026a\u0259ns/",
       audio_path: null,
+      bengali_translation: "সহনশীলতা",
       meaning: "the ability to recover quickly from difficulties",
       examples: ["She showed great resilience during the crisis."]
     }]

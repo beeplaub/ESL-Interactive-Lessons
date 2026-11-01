@@ -952,6 +952,7 @@ function SingleFlashcard({ content, cardType, frontSide }: { content: Record<str
   const word = asString(content.word);
   const phonetic = asString(content.phonetic);
   const audioPath = asString(content.audio_path);
+  const bengaliTranslation = asString(content.bengali_translation ?? content.bengaliTranslation);
   const meaning = asString(content.meaning);
   const examples = asArray(content.examples).map(String).filter(Boolean);
   const imageSrc = imagePath ? mediaUrl(imagePath, "image") : "";
@@ -969,7 +970,7 @@ function SingleFlashcard({ content, cardType, frontSide }: { content: Record<str
           ) : showWordFront ? (
             <div className="grid min-h-[300px] place-items-center bg-surface-muted p-6 text-center"><div><p className="text-4xl font-bold tracking-tight text-ink">{word || "Word"}</p>{phonetic ? <p className="mt-3 font-mono text-sm text-[var(--br-text-muted)]">{phonetic}</p> : null}</div></div>
           ) : showDetailFront ? (
-            <FlashcardDetails word={word} phonetic={phonetic} audioSrc={audioSrc} meaning={meaning} examples={examples} audioRef={audioRef} />
+            <FlashcardDetails word={word} phonetic={phonetic} audioSrc={audioSrc} bengaliTranslation={bengaliTranslation} meaning={meaning} examples={examples} audioRef={audioRef} />
           ) : (
             <div className="grid min-h-[300px] place-items-center rounded-2xl bg-surface-strong text-[var(--br-text-muted)]"><div className="flex flex-col items-center gap-2 text-center"><ImageIcon size={40} /><p className="text-sm">Add an image to display here</p></div></div>
           )}
@@ -978,7 +979,7 @@ function SingleFlashcard({ content, cardType, frontSide }: { content: Record<str
         </div>
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 overflow-y-auto rounded-2xl border border-[var(--br-border)] bg-surface p-6 text-center shadow-sm" style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)", minHeight: "300px" }}>
           {showImageFront || showWordFront ? (
-            <FlashcardDetails word={word} phonetic={phonetic} audioSrc={audioSrc} meaning={meaning} examples={examples} audioRef={audioRef} />
+            <FlashcardDetails word={word} phonetic={phonetic} audioSrc={audioSrc} bengaliTranslation={bengaliTranslation} meaning={meaning} examples={examples} audioRef={audioRef} />
           ) : imageSrc && isImageUrl(imageSrc) ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={imageSrc} alt={word || "Flashcard image"} className="max-h-[280px] w-full object-contain" />
@@ -992,7 +993,7 @@ function SingleFlashcard({ content, cardType, frontSide }: { content: Record<str
   );
 }
 
-function FlashcardDetails({ word, phonetic, audioSrc, meaning, examples, audioRef }: { word: string; phonetic: string; audioSrc: string; meaning: string; examples: string[]; audioRef: RefObject<HTMLAudioElement | null> }) {
+function FlashcardDetails({ word, phonetic, audioSrc, bengaliTranslation, meaning, examples, audioRef }: { word: string; phonetic: string; audioSrc: string; bengaliTranslation: string; meaning: string; examples: string[]; audioRef: RefObject<HTMLAudioElement | null> }) {
   return (
     <>
       {audioSrc && <audio ref={audioRef} src={audioSrc} preload="none" />}
@@ -1005,6 +1006,7 @@ function FlashcardDetails({ word, phonetic, audioSrc, meaning, examples, audioRe
           )}
         </div>
       )}
+      {bengaliTranslation ? <p lang="bn" className="max-w-xs text-base font-semibold text-[var(--br-brand)]">বাংলা: {bengaliTranslation}</p> : null}
       <div className="w-12 border-t border-[var(--br-border)]" />
       <p className="max-w-xs text-base leading-relaxed text-[var(--br-text-muted)]">{meaning || "Meaning"}</p>
       {examples.length > 0 && (
