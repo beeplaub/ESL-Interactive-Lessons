@@ -11,7 +11,6 @@ export const metadata: Metadata = {
 
 export default async function AiTutorPage() {
   const { user } = await requireUser();
-  const { data: profile } = await createAdminClient().from("profiles").select("cefr_level,full_name,first_name,last_name").eq("id", user.id).maybeSingle();
-  const fullName = profile?.full_name?.trim() || [profile?.first_name, profile?.last_name].filter(Boolean).join(" ").trim() || "Learner";
-  return <LearnerAppShell active="ai-tutor" showRightSidebar={false}><AiTutorWorkspace cefrLevel={profile?.cefr_level || "B1"} learnerName={fullName}/></LearnerAppShell>;
+  const { data: profile } = await createAdminClient().from("profiles").select("cefr_level").eq("id", user.id).maybeSingle();
+  return <LearnerAppShell active="ai-tutor" showRightSidebar={false}><AiTutorWorkspace cefrLevel={profile?.cefr_level || "B1"}/></LearnerAppShell>;
 }

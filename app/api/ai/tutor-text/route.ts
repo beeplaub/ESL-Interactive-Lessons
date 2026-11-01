@@ -46,7 +46,6 @@ export async function POST(request: Request) {
     transcript = "";
   }
 
-  if (!topic) return NextResponse.json({ error: "Choose a lesson topic first." }, { status: 400 });
   const history = Array.isArray(historyInput)
     ? historyInput.slice(-8).flatMap((item) => {
         if (!item || typeof item !== "object") return [];
@@ -59,7 +58,9 @@ export async function POST(request: Request) {
   try {
     const opening = !isAudioTurn;
     const reply = opening
-      ? `Hello, ${learnerName}! Welcome to your lesson. Today we’ll practise ${topic}. I’ll explain clearly, then you can answer by speaking. Ready?`
+      ? topic
+        ? `Hello, ${learnerName}! Welcome to your lesson. Today we’ll practise ${topic}. I’ll explain clearly, then you can answer by speaking. Ready?`
+        : `Hello, ${learnerName}! Welcome to your lesson. What would you like to learn today? Tell me by speaking, and we’ll get started.`
       : (await callGemini<{ reply: string }>({
           templateKey: "learner_ai_tutor",
           variables: { topic, level, history, learnerResponse: transcript, learnerName },

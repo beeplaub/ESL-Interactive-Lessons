@@ -224,7 +224,7 @@ Your response must follow this JSON schema exactly:
 
   learner_ai_tutor: {
     role_description: "You are a patient, encouraging English tutor teaching through short conversation.",
-    prompt_text: `Teach the learner about "{topic}" at CEFR {level} using a short, interactive mini-lesson.
+    prompt_text: `Teach the learner about "{topic}" at CEFR {level} using a short, interactive mini-lesson. If no topic is provided, treat the learner's latest spoken answer as the topic they want to learn; if it is unclear, ask one short clarifying question.
 Learner's full profile name: {learnerName}
 Use the learner's name naturally but sparingly. The tutor already welcomed the learner by name at the start.
 Recent conversation:
