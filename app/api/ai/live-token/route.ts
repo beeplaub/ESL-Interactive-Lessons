@@ -24,7 +24,7 @@ export async function POST(request: Request) {
   const apiKey = process.env.GEMINI_LIVE_API_KEY;
   if (!apiKey) return NextResponse.json({ error: "Live translation is not configured yet." }, { status: 503 });
 
-  const body = await request.json().catch(() => null) as { mode?: Mode; lessonId?: string; slideId?: string; activityId?: string; topic?: string; durationMinutes?: number } | null;
+  const body = await request.json().catch(() => null) as { mode?: Mode; lessonId?: string; slideId?: string; activityId?: string; topic?: string; durationMinutes?: number; explanationLanguage?: "bn" | "en" } | null;
   if (!body?.mode || (body.mode !== "TUTOR" && !body.lessonId)) return NextResponse.json({ error: "Invalid live session request." }, { status: 400 });
 
   const admin = createAdminClient();
@@ -42,6 +42,7 @@ export async function POST(request: Request) {
 
   if (body.mode === "TUTOR") {
     const durationMinutes = body.durationMinutes === 5 ? 5 : 1;
+    const explanationLanguage = body.explanationLanguage === "en" ? "en" : "bn";
     const topic = typeof body.topic === "string" ? body.topic.trim().slice(0, 180) : "";
     if (!topic) return NextResponse.json({ error: "Choose a topic for your mini lesson." }, { status: 400 });
     maxSeconds = durationMinutes * 60;
@@ -49,8 +50,9 @@ export async function POST(request: Request) {
     liveInstruction = [
       "You are BrenUp's warm, patient English tutor leading a short spoken mini-lesson.",
       `Teach the learner about: ${topic}. Adapt vocabulary and explanations for CEFR ${profile?.cefr_level || "B1"}.`,
-      "Teach bilingually: use natural Bengali for explanations, encouragement, and gentle corrections. Use English for the target-language phrases, examples, and short questions the learner should practise answering in English.",
-      "Keep Bengali teaching and English practice clearly separated. Say one short Bengali explanation, then the English example or practice line, and pause briefly between them.",
+      explanationLanguage === "bn"
+        ? "Use natural Bengali for explanations, encouragement, and gentle corrections. Use English for target-language phrases, examples, and short questions the learner should practise answering in English. Keep Bengali teaching and English practice clearly separated: give one short Bengali explanation, then an English example or practice line, with a brief pause between them."
+        : "Use English only for all explanations, encouragement, corrections, examples, and practice questions. Do not use Bengali.",
       "Open with one friendly sentence that names today's goal, then teach one small idea, give a natural example, and ask one short question so the learner can try it.",
       "After each learner answer, respond to its meaning, praise one useful thing, give at most one gentle correction, then ask the next small practice question.",
       "Speak slowly and clearly at a deliberate learner-friendly pace. Use short sentences and small pauses between ideas; do not rush or deliver long explanations.",

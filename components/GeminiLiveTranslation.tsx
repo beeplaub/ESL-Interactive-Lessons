@@ -2,7 +2,7 @@
 
 import { GoogleGenAI, Modality } from "@google/genai";
 
-type TokenRequest = { mode: "NARRATION" | "SPEAK_TRANSLATE" | "CONVERSATION"; lessonId: string; slideId?: string; activityId?: string } | { mode: "TUTOR"; topic: string; durationMinutes: 1 | 5 };
+type TokenRequest = { mode: "NARRATION" | "SPEAK_TRANSLATE" | "CONVERSATION"; lessonId: string; slideId?: string; activityId?: string } | { mode: "TUTOR"; topic: string; durationMinutes: 1 | 5; explanationLanguage: "bn" | "en" };
 type LiveConnection = Awaited<ReturnType<GoogleGenAI["live"]["connect"]>>;
 
 function base64FromBytes(bytes: Uint8Array) {
@@ -317,9 +317,10 @@ export async function startLiveConversation({ lessonId, activityId, onAudio, onT
 }
 
 /** Starts a standalone tutor session. It streams audio directly to Gemini Live and never records or uploads the learner's microphone. */
-export async function startLiveTutor({ topic, durationMinutes, onAudio, onTranscript, onReady, onError }: {
+export async function startLiveTutor({ topic, durationMinutes, explanationLanguage, onAudio, onTranscript, onReady, onError }: {
   topic: string;
   durationMinutes: 1 | 5;
+  explanationLanguage: "bn" | "en";
   onAudio: (speaking: boolean) => void;
   onTranscript?: (sender: "LEARNER" | "AI", text: string) => void;
   onReady: (stop: () => Promise<void>, maxSeconds: number, setMicEnabled: (enabled: boolean) => void) => void;
@@ -352,7 +353,7 @@ export async function startLiveTutor({ topic, durationMinutes, onAudio, onTransc
   };
   try {
     await player.resume();
-    const connection = await requestToken({ mode: "TUTOR", topic: topic.trim().slice(0, 180), durationMinutes });
+    const connection = await requestToken({ mode: "TUTOR", topic: topic.trim().slice(0, 180), durationMinutes, explanationLanguage });
     const ai = new GoogleGenAI({ apiKey: connection.token, httpOptions: { apiVersion: "v1alpha" } });
     session = await ai.live.connect({
       model: connection.model,
