@@ -2774,7 +2774,8 @@ function Pronunciation({
       };
       recorder.start(500);
       playRecordingStart();
-      window.setTimeout(() => { if (recordingRef.current && activeKeyRef.current === key) void finishRecording(); }, (level === "word" ? 12 : 60) * 1000);
+      // Short-audio pronunciation assessment is limited to 30 seconds by Azure.
+      window.setTimeout(() => { if (recordingRef.current && activeKeyRef.current === key) void finishRecording(); }, (level === "word" ? 12 : 30) * 1000);
     } catch {
       setError("Microphone access was blocked. Please allow microphone access and try again.");
       setMicState("error");

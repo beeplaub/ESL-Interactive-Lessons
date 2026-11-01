@@ -1,17 +1,24 @@
-import * as sdk from "microsoft-cognitiveservices-speech-sdk";
-
 type AzurePhoneme = {
   Phoneme?: string;
+  AccuracyScore?: number;
   PronunciationAssessment?: {
     AccuracyScore?: number;
     NBestPhonemes?: Array<{ Phoneme?: string; Score?: number }>;
   };
 };
 
+type AzureSyllable = {
+  Syllable?: string;
+  AccuracyScore?: number;
+  PronunciationAssessment?: { AccuracyScore?: number };
+};
+
 type AzureWord = {
   Word?: string;
+  AccuracyScore?: number;
+  ErrorType?: string;
   PronunciationAssessment?: { AccuracyScore?: number; ErrorType?: string };
-  Syllables?: Array<{ Syllable?: string; PronunciationAssessment?: { AccuracyScore?: number } }>;
+  Syllables?: AzureSyllable[];
   Phonemes?: AzurePhoneme[];
 };
 
@@ -19,7 +26,12 @@ type AzureResult = {
   RecognitionStatus?: string;
   DisplayText?: string;
   NBest?: Array<{
-    Words?: AzureWord[];
+    Display?: string;
+    AccuracyScore?: number;
+    FluencyScore?: number;
+    CompletenessScore?: number;
+    PronScore?: number;
+    ProsodyScore?: number;
     PronunciationAssessment?: {
       AccuracyScore?: number;
       FluencyScore?: number;
@@ -27,6 +39,7 @@ type AzureResult = {
       PronScore?: number;
       ProsodyScore?: number;
     };
+    Words?: AzureWord[];
   }>;
 };
 
@@ -67,119 +80,93 @@ function score(value: unknown): number {
   return typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : 0;
 }
 
+function optionalScore(...values: unknown[]): number | undefined {
+  const value = values.find((candidate) => typeof candidate === "number" && Number.isFinite(candidate));
+  return value === undefined ? undefined : score(value);
+}
+
 export async function assessPronunciation(audio: ArrayBuffer, referenceText: string, locale = "en-US"): Promise<PronunciationAssessment> {
   const key = process.env.AZURE_SPEECH_KEY;
   const region = process.env.AZURE_SPEECH_REGION;
   if (!key || !region) throw new Error("Azure pronunciation assessment is not configured.");
 
-  const speechConfig = sdk.SpeechConfig.fromSubscription(key, region);
-  speechConfig.speechRecognitionLanguage = locale;
-  speechConfig.outputFormat = sdk.OutputFormat.Detailed;
-  const audioConfig = sdk.AudioConfig.fromWavFileInput(Buffer.from(audio), "pronunciation.wav");
-  const recognizer = new sdk.SpeechRecognizer(speechConfig, audioConfig);
-  const assessmentConfig = new sdk.PronunciationAssessmentConfig(
-    referenceText,
-    sdk.PronunciationAssessmentGradingSystem.HundredMark,
-    sdk.PronunciationAssessmentGranularity.Phoneme,
-    true,
-  );
-  assessmentConfig.phonemeAlphabet = "IPA";
-  assessmentConfig.nbestPhonemeCount = 3;
-  assessmentConfig.applyTo(recognizer);
+  // Use Azure's short-audio HTTPS endpoint to avoid WebSocket connection failures
+  // in serverless runtimes. The caller converts recordings to 16 kHz mono PCM WAV.
+  const endpoint = new URL(`https://${region}.stt.speech.microsoft.com/speech/recognition/conversation/cognitiveservices/v1`);
+  endpoint.searchParams.set("language", locale);
+  endpoint.searchParams.set("format", "detailed");
 
-  const result = await new Promise<AzureResult>((resolve, reject) => {
-    recognizer.recognizeOnceAsync((recognitionResult) => {
-      try {
-        const recognitionStatus = recognitionResult.reason === sdk.ResultReason.RecognizedSpeech
-          ? "Success"
-          : recognitionResult.reason === sdk.ResultReason.NoMatch
-            ? "NoMatch"
-            : recognitionResult.reason === sdk.ResultReason.Canceled
-              ? "Canceled"
-              : "Unknown";
+  const assessmentOptions = {
+    ReferenceText: referenceText,
+    GradingSystem: "HundredMark",
+    Granularity: "Phoneme",
+    Dimension: "Comprehensive",
+    EnableMiscue: "True",
+    EnableProsodyAssessment: locale.toLowerCase() === "en-us" ? "True" : "False",
+    PhonemeAlphabet: "IPA",
+    NBestPhonemeCount: 3,
+  };
 
-        // NoMatch and Canceled results do not necessarily include the detailed
-        // JSON payload. Classify those outcomes before asking the SDK to parse it.
-        if (recognitionResult.reason === sdk.ResultReason.NoMatch) {
-          console.warn("Azure pronunciation returned no recognized speech", {
-            recognitionStatus,
-            displayTextLength: String(recognitionResult.text ?? "").length,
-          });
-          throw new AzurePronunciationError("no_match", "Azure did not detect clear speech in this recording.", recognitionStatus);
-        }
-
-        if (recognitionResult.reason === sdk.ResultReason.Canceled) {
-          const cancellation = sdk.CancellationDetails.fromResult(recognitionResult);
-          console.error("Azure pronunciation recognition was canceled", {
-            recognitionStatus,
-            cancellationReason: cancellation.reason,
-            errorCode: cancellation.ErrorCode,
-          });
-          throw new Error("Azure pronunciation recognition was canceled.");
-        }
-
-        const jsonResult = recognitionResult.properties.getProperty(sdk.PropertyId.SpeechServiceResponse_JsonResult);
-        if (!jsonResult) {
-          console.error("Azure pronunciation returned no detailed result", {
-            recognitionStatus,
-            hasRecognizedText: Boolean(recognitionResult.text?.trim()),
-            availablePropertyKeys: recognitionResult.properties.keys,
-          });
-          throw new AzurePronunciationError(
-            "missing_assessment",
-            "Azure recognized speech but did not return pronunciation assessment data.",
-            recognitionStatus,
-          );
-        }
-
-        const detailResult = sdk.PronunciationAssessmentResult.fromResult(recognitionResult).detailResult;
-        resolve({ RecognitionStatus: recognitionStatus, DisplayText: recognitionResult.text, NBest: [{ ...detailResult }] });
-      } catch (error) {
-        reject(error);
-      } finally {
-        recognizer.close();
-        audioConfig.close();
-      }
-    }, (error) => {
-      recognizer.close();
-      audioConfig.close();
-      reject(error);
-    });
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "audio/wav; codecs=audio/pcm; samplerate=16000",
+      "Ocp-Apim-Subscription-Key": key,
+      "Pronunciation-Assessment": Buffer.from(JSON.stringify(assessmentOptions)).toString("base64"),
+    },
+    body: Buffer.from(audio),
+    signal: AbortSignal.timeout(25_000),
   });
+
+  if (!response.ok) {
+    // Azure error bodies can contain request details. Log status only, never audio,
+    // credentials, reference text, transcripts, or the response body.
+    console.error("Azure pronunciation REST request failed", { status: response.status, region });
+    throw new Error(`Azure pronunciation request failed with HTTP ${response.status}.`);
+  }
+
+  const result = await response.json() as AzureResult;
   const best = result.NBest?.[0];
-  const assessment = best?.PronunciationAssessment;
-  if (result.RecognitionStatus !== "Success" || !best) {
+  const assessment = best?.PronunciationAssessment ?? best;
+  const recognitionStatus = String(result.RecognitionStatus ?? "Unknown");
+  const transcript = String(result.DisplayText ?? best?.Display ?? "").trim();
+
+  if (recognitionStatus !== "Success" || !best || !transcript) {
     console.warn("Azure pronunciation returned no recognized speech", {
-      recognitionStatus: result.RecognitionStatus ?? "missing",
-      displayTextLength: String(result.DisplayText ?? "").length,
+      recognitionStatus,
+      transcriptLength: transcript.length,
       nBestCount: result.NBest?.length ?? 0,
     });
-    throw new AzurePronunciationError("no_match", "Azure did not detect clear speech in this recording.", result.RecognitionStatus);
+    throw new AzurePronunciationError("no_match", "Azure did not detect clear speech in this recording.", recognitionStatus);
   }
-  if (!assessment) {
+  if (optionalScore(assessment?.PronScore, assessment?.AccuracyScore) === undefined) {
     console.error("Azure pronunciation returned speech without assessment", {
-      recognitionStatus: result.RecognitionStatus,
-      displayTextLength: String(result.DisplayText ?? "").length,
+      recognitionStatus,
+      transcriptLength: transcript.length,
       wordCount: best.Words?.length ?? 0,
     });
-    throw new AzurePronunciationError("missing_assessment", "Azure recognized speech but did not return pronunciation assessment data.", result.RecognitionStatus);
+    throw new AzurePronunciationError("missing_assessment", "Azure recognized speech but did not return pronunciation assessment data.", recognitionStatus);
   }
 
   return {
-    transcript: String(result.DisplayText ?? "").trim().slice(0, 2_000),
-    overallScore: score(assessment.PronScore),
-    accuracyScore: score(assessment.AccuracyScore),
-    fluencyScore: assessment.FluencyScore == null ? undefined : score(assessment.FluencyScore),
-    completenessScore: assessment.CompletenessScore == null ? undefined : score(assessment.CompletenessScore),
-    prosodyScore: assessment.ProsodyScore == null ? undefined : score(assessment.ProsodyScore),
+    transcript: transcript.slice(0, 2_000),
+    overallScore: score(assessment?.PronScore ?? assessment?.AccuracyScore),
+    accuracyScore: score(assessment?.AccuracyScore),
+    fluencyScore: optionalScore(assessment?.FluencyScore),
+    completenessScore: optionalScore(assessment?.CompletenessScore),
+    prosodyScore: optionalScore(assessment?.ProsodyScore),
     words: (best.Words ?? []).map((word) => ({
       text: String(word.Word ?? ""),
-      score: score(word.PronunciationAssessment?.AccuracyScore),
-      errorType: word.PronunciationAssessment?.ErrorType,
-      syllables: (word.Syllables ?? []).map((syllable) => ({ text: String(syllable.Syllable ?? ""), score: syllable.PronunciationAssessment?.AccuracyScore == null ? undefined : score(syllable.PronunciationAssessment.AccuracyScore) })),
+      score: score(word.PronunciationAssessment?.AccuracyScore ?? word.AccuracyScore),
+      errorType: word.PronunciationAssessment?.ErrorType ?? word.ErrorType,
+      syllables: (word.Syllables ?? []).map((syllable) => ({
+        text: String(syllable.Syllable ?? ""),
+        score: optionalScore(syllable.PronunciationAssessment?.AccuracyScore, syllable.AccuracyScore),
+      })),
       phonemes: (word.Phonemes ?? []).map((phoneme) => ({
         expected: String(phoneme.Phoneme ?? ""),
-        score: score(phoneme.PronunciationAssessment?.AccuracyScore),
+        score: score(phoneme.PronunciationAssessment?.AccuracyScore ?? phoneme.AccuracyScore),
         spoken: phoneme.PronunciationAssessment?.NBestPhonemes?.[0]?.Phoneme,
         alternatives: phoneme.PronunciationAssessment?.NBestPhonemes?.map((candidate) => ({ phoneme: String(candidate.Phoneme ?? ""), score: score(candidate.Score) })),
       })),

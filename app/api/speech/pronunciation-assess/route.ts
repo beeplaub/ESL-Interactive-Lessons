@@ -5,7 +5,8 @@ import { assessPronunciation, AzurePronunciationError } from "@/lib/azurePronunc
 export const runtime = "nodejs";
 
 const MAX_BYTES = 8 * 1024 * 1024;
-const MAX_DURATION_SECONDS = 60;
+// Azure's short-audio pronunciation endpoint supports assessment up to 30s.
+const MAX_DURATION_SECONDS = 30;
 const MAX_REFERENCE_LENGTH = 500;
 
 export async function POST(request: Request) {
@@ -22,7 +23,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ code: "invalid_request", error: "A recording and pronunciation target are required." }, { status: 400 });
   }
   if (file.size > MAX_BYTES || (Number.isFinite(durationSeconds) && durationSeconds > MAX_DURATION_SECONDS) || referenceText.length > MAX_REFERENCE_LENGTH) {
-    return NextResponse.json({ code: "audio_too_large", error: "That pronunciation recording is too long." }, { status: 413 });
+    return NextResponse.json({ code: "audio_too_large", error: "Pronunciation recordings must be 30 seconds or shorter. Please record again." }, { status: 413 });
   }
   if (!/^en-(US|GB)$/i.test(locale)) return NextResponse.json({ code: "unsupported_locale", error: "This pronunciation activity currently supports US or UK English." }, { status: 400 });
 
