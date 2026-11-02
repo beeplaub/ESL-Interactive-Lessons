@@ -19,6 +19,7 @@ import { startSpeakTranslation, startLiveConversation } from "@/components/Gemin
 import { lessonActivityDefinition } from "@/lib/lessonActivityCatalog";
 import { normalizeDisplayScore } from "@/lib/assessmentContract";
 import { shadowingPhases, shadowingSentenceText } from "@/lib/shadowing";
+import { makeIpaPracticeConfig } from "@/components/ipa/IpaPracticeSettings";
 
 type LessonSlideActivity = {
   id: string; activity_type: string; activity_data: Json | null;
@@ -101,7 +102,7 @@ function writingQuestionsFromData(
   });
 }
 
-function questionsFromData(value: Json | null, activityType: string, seed: string): QuizQuestion[] {
+function questionsFromData(value: Json | null, activityType: string, seed: string, ipaSeed?: string): QuizQuestion[] {
   const data = asRecord(value);
   if (activityType === "MCQ") {
     const questions = Array.isArray(data.questions) ? data.questions : [];
@@ -313,8 +314,11 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
     }];
   }
   if (activityType === "IPA_PRACTICE") {
-    const items = Array.isArray(data.items) ? data.items : [];
-    const correctAnswer = data.correct_answer ?? Object.fromEntries(items.map((item, index) => {
+    const ipaConfig = data.refresh_each_attempt === true
+      ? makeIpaPracticeConfig(data, ipaSeed ?? String(data.seed ?? seed))
+      : null;
+    const items = ipaConfig?.items ?? (Array.isArray(data.items) ? data.items : []);
+    const correctAnswer = ipaConfig?.correct_answer ?? data.correct_answer ?? Object.fromEntries(items.map((item, index) => {
       const row = asRecord(item as Json);
       return [String(row.id ?? `item-${index + 1}`), String(row.expected ?? "")];
     }));
@@ -1698,7 +1702,11 @@ export function LessonActivityPanel({
   onPracticeSave?: (answers: Json) => Promise<void>;
   practiceAnswers?: Json;
 }) {
-  const questions = questionsFromData(activity.activity_data, activity.activity_type, activity.id)
+  const [ipaAttemptSeed, setIpaAttemptSeed] = useState(() => {
+    const data = asRecord(activity.activity_data);
+    return String(data.seed ?? activity.id);
+  });
+  const questions = questionsFromData(activity.activity_data, activity.activity_type, activity.id, ipaAttemptSeed)
     .map((question) => ({ ...question, source_activity_id: activity.id }));
   const initialAnswers = asRecord(initialAttempt?.answers ?? practiceAnswers);
   const draftKey = `brenup:lesson-activity-draft:${activity.id}`;
@@ -1964,6 +1972,10 @@ export function LessonActivityPanel({
   }
 
   function retake() {
+    const ipaData = asRecord(activity.activity_data);
+    if (activity.activity_type === "IPA_PRACTICE" && ipaData.refresh_each_attempt === true) {
+      setIpaAttemptSeed(`${activity.id}:${crypto.randomUUID()}`);
+    }
     setAnswers({});
     setSubmitted(false);
     setMessage(null);

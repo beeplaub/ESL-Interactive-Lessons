@@ -35,6 +35,10 @@ export type IpaPracticeItem = {
 
 const STRESS_MARKS = new Set(["ˈ", "ˌ"]);
 
+export function ipaPairKey(pair: IpaMinimalPair): string {
+  return [pair.left.word, pair.right.word].sort().join("|");
+}
+
 export function getIpaPracticeExamples(accent: IpaAccent): IpaPracticeExample[] {
   const examples: IpaPracticeExample[] = [];
   const seen = new Set<string>();
@@ -152,12 +156,17 @@ export function generateIpaPracticeItems(config: {
   direction?: IpaConversionDirection;
   sortMode?: IpaSortMode;
   selectedWords?: string[];
+  selectedPairs?: string[];
+  selectedSounds?: string[];
+  targetSoundIds?: string[];
   customExamples?: IpaCustomExample[];
   count?: number;
   seed?: string;
 }): IpaPracticeItem[] {
   const count = Math.max(1, Math.min(12, Math.trunc(config.count ?? 6)));
   const seed = `${config.seed ?? "ipa-practice"}:${config.accent}:${config.mode}:${config.direction ?? "both"}:${config.sortMode ?? "kind"}`;
+  const targetSounds = IPA_CHARTS[config.accent].filter(sound => config.targetSoundIds?.includes(sound.id));
+  const targetSymbols = new Set(targetSounds.map(sound => sound.symbol));
 
   if (config.mode === "conversion") {
     const chartExamples = getIpaPracticeExamples(config.accent);
@@ -173,13 +182,25 @@ export function generateIpaPracticeItems(config: {
         voiced: true,
       }))
       .filter(example => example.word && example.ipa);
-    const availableExamples = [...chartExamples, ...customExamples];
-    const examples = config.selectedWords
+    const availableExamples = [...chartExamples, ...customExamples].filter(example => !targetSymbols.size || tokenizeIpa(example.ipa, config.accent).some(symbol => targetSymbols.has(symbol)));
+    const examples = config.selectedWords?.length
       ? config.selectedWords.flatMap(word => {
         const example = availableExamples.find(item => item.word === word);
         return example ? [example] : [];
       }).slice(0, 12)
-      : seededShuffle(chartExamples, seed).slice(0, count);
+      : targetSounds.length
+        ? (() => {
+          const required: typeof availableExamples = [];
+          const usedWords = new Set<string>();
+          for (const sound of targetSounds) {
+            const candidates = seededShuffle(availableExamples.filter(example => tokenizeIpa(example.ipa, config.accent).includes(sound.symbol) && !usedWords.has(example.word)), `${seed}:target:${sound.id}`);
+            const chosen = candidates[0];
+            if (chosen) { required.push(chosen); usedWords.add(chosen.word); }
+          }
+          const remaining = seededShuffle(availableExamples.filter(example => !usedWords.has(example.word)), seed);
+          return [...required, ...remaining].slice(0, Math.max(count, targetSounds.length));
+        })()
+        : seededShuffle(availableExamples, seed).slice(0, count);
     return examples.map((example, index) => {
       const direction = config.direction === "both"
         ? (index % 2 === 0 ? "ipa-to-word" : "word-to-ipa")
@@ -194,9 +215,11 @@ export function generateIpaPracticeItems(config: {
   }
 
   if (config.mode === "compare") {
-    return seededShuffle(getIpaMinimalPairs(config.accent), seed).slice(0, count).map((pair, index) => {
-      const useLeft = (index + (seed.length % 2)) % 2 === 0;
-      const target = useLeft ? pair.leftSymbol : pair.rightSymbol;
+    const availablePairs = getIpaMinimalPairs(config.accent).filter(pair => !targetSymbols.size || targetSymbols.has(pair.leftSymbol) || targetSymbols.has(pair.rightSymbol));
+    const seedParity = seed.split("").reduce((value, character) => (value * 31 + character.charCodeAt(0)) >>> 0, 0) % 2;
+    const makeItem = (pair: IpaMinimalPair, index: number, forcedTarget?: string): IpaPracticeItem => {
+      const useLeft = forcedTarget ? pair.leftSymbol === forcedTarget : (index + seedParity) % 2 === 0;
+      const target = forcedTarget ?? (useLeft ? pair.leftSymbol : pair.rightSymbol);
       return {
         id: `item-${index + 1}`,
         prompt: `Which word contains /${target}/?`,
@@ -205,14 +228,37 @@ export function generateIpaPracticeItems(config: {
         options: [pair.left.word, pair.right.word],
         pair,
       };
-    });
+    };
+    const selectedPairs = config.selectedPairs?.length
+      ? config.selectedPairs.flatMap(key => {
+        const pair = availablePairs.find(item => ipaPairKey(item) === key);
+        return pair ? [pair] : [];
+      }).slice(0, 12)
+      : seededShuffle(availablePairs, seed).slice(0, count);
+    if (!config.selectedPairs?.length && targetSounds.length) {
+      const required = targetSounds.flatMap((sound, index) => {
+        const pair = seededShuffle(availablePairs.filter(item => item.leftSymbol === sound.symbol || item.rightSymbol === sound.symbol), `${seed}:target:${sound.id}`)[0];
+        return pair ? [makeItem(pair, index, sound.symbol)] : [];
+      });
+      const total = Math.max(count, targetSounds.length);
+      const remaining = seededShuffle(availablePairs, seed).map(pair => makeItem(pair, 0, pair.leftSymbol && targetSymbols.has(pair.leftSymbol) ? pair.leftSymbol : pair.rightSymbol));
+      return [...required, ...remaining].slice(0, total).map((item, index) => ({ ...item, id: `item-${index + 1}` }));
+    }
+    return seededShuffle(selectedPairs, seed).map((pair, index) => makeItem(pair, index));
   }
 
   const mode = config.sortMode ?? "kind";
   const buckets = mode === "kind" ? ["Vowel", "Consonant"] : mode === "voicing" ? ["Voiced", "Voiceless"] : ["Monophthong", "Diphthong", "R-colored vowel", "Consonant"];
   const sounds = IPA_CHARTS[config.accent];
-  const selected = buckets.flatMap(bucket => seededShuffle(sounds.filter(sound => sortBucket(sound, mode) === bucket), `${seed}:${bucket}`).slice(0, Math.ceil(count / buckets.length)));
-  return seededShuffle(selected, seed).slice(0, count).map((sound, index) => ({
+  const selected = config.selectedSounds?.length
+    ? config.selectedSounds.flatMap(id => {
+      const sound = sounds.find(item => item.id === id);
+      return sound && buckets.includes(sortBucket(sound, mode)) ? [sound] : [];
+    }).slice(0, 12)
+    : targetSounds.length
+      ? targetSounds.filter(sound => buckets.includes(sortBucket(sound, mode))).slice(0, 12)
+    : buckets.flatMap(bucket => seededShuffle(sounds.filter(sound => sortBucket(sound, mode) === bucket), `${seed}:${bucket}`).slice(0, Math.ceil(count / buckets.length)));
+  return seededShuffle(selected, seed).slice(0, config.selectedSounds?.length ? selected.length : count).map((sound, index) => ({
     id: `item-${index + 1}`,
     prompt: `Place /${sound.symbol}/ in its group.`,
     expected: sortBucket(sound, mode),

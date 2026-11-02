@@ -24,6 +24,7 @@ import { shadowingSentenceText, shadowingPhases } from "@/lib/shadowing";
 import { shadowingWordCoverage } from "@/lib/shadowingScoring";
 import { IpaPracticePlayer } from "@/components/ipa/IpaPracticePlayer";
 import { normalizeIpaAnswer, normalizeWordAnswer } from "@/lib/ipa/practice";
+import { makeIpaPracticeConfig } from "@/components/ipa/IpaPracticeSettings";
 
 export type QuizQuestion = {
   id: string;
@@ -37,6 +38,18 @@ export type QuizQuestion = {
   correct_answer: Json;
   max_points?: number | null;
 };
+
+function refreshIpaQuestionForAttempt(question: QuizQuestion, seed: string): QuizQuestion {
+  if (question.question_type !== "IPA_PRACTICE") return question;
+  const options = asRecord(question.options);
+  if (options.refresh_each_attempt !== true) return question;
+  const config = makeIpaPracticeConfig(options, seed);
+  return {
+    ...question,
+    options: { ...options, ...config } as unknown as Json,
+    correct_answer: config.correct_answer as unknown as Json,
+  };
+}
 
 type PastAttempt = {
   id?: string;
@@ -492,7 +505,7 @@ function ScoreHistory({ attempts, total, onSelectAttempt, selectedAttemptId }: {
 
 export function QuizPlayer({
   quizId,
-  questions,
+  questions: sourceQuestions,
   pastAttempts = [],
   isGuest = false,
   timerMinutes = null
@@ -505,6 +518,10 @@ export function QuizPlayer({
   timerMinutes?: number | null;
   courseItemId?: string | null;
 }) {
+  const [attemptSeed, setAttemptSeed] = useState("");
+  const questions = useMemo(() => attemptSeed
+    ? sourceQuestions.map(question => refreshIpaQuestionForAttempt(question, `${attemptSeed}:${question.id}`))
+    : sourceQuestions, [sourceQuestions, attemptSeed]);
   const draftKey = `brenup:quiz-draft:${quizId}`;
   const [answers, setAnswers] = useState<Record<string, unknown>>(() => {
     if (timerMinutes || typeof window === "undefined") return {};
@@ -619,6 +636,7 @@ export function QuizPlayer({
   function reset() {
     try { window.sessionStorage.removeItem(draftKey); } catch { /* no-op */ }
     setAnswers({});
+    setAttemptSeed(crypto.randomUUID());
     setSubmitted(false);
     setShowPopup(false);
     setGuestAttempt(null);

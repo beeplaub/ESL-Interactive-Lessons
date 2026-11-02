@@ -17,7 +17,6 @@ import { useVoiceGenerationPreferences } from "@/components/voiceGenerationPrefe
 import { shadowingSentenceText } from "@/lib/shadowing";
 import { ShadowingSentenceEditor } from "@/components/ShadowingSentenceEditor";
 import { IpaPracticeSettings, makeIpaPracticeConfig, type IpaPracticeConfig } from "@/components/ipa/IpaPracticeSettings";
-import { getIpaPracticeExamples } from "@/lib/ipa/practice";
 
 type BuilderQuestion = {
   id: string;
@@ -197,7 +196,7 @@ function defaultQuestion(type: BuilderQuestion["questionType"]): BuilderQuestion
   if (type === "NOTE_TAKING_CHALLENGE") return { id, questionType: type, questionText: "Listen to the clip, take notes in the scratchpad, and answer the questions.", description: "", options: { media_url: "", audio_url: "", questions: [{ id: "1", text: "What was the main topic?", options: { A: "Topic A", B: "Topic B", C: "Topic C", D: "Topic D" } }] }, correctAnswer: { "1": "A" }, assessment };
   if (type === "SOUND_DISCRIMINATION") return { id, questionType: type, questionText: "Listen to the sound and identify the correct minimal pair word.", description: "", options: { audio_url: "", pairs: [{ id: "0", word: "ship", phonetic: "/ʃɪp/", audio_url: "" }, { id: "1", word: "sheep", phonetic: "/ʃiːp/", audio_url: "" }] }, correctAnswer: "0", assessment };
   if (type === "IPA_PRACTICE") {
-    const config = makeIpaPracticeConfig({ selectedWords: getIpaPracticeExamples("uk").slice(0, 6).map(example => example.word) }, id);
+    const config = makeIpaPracticeConfig({}, id);
     return { id, questionType: type, questionText: "Use the chart sounds to complete this IPA practice round.", description: "", options: config as unknown as Json, correctAnswer: config.correct_answer as unknown as Json, assessment };
   }
   if (type === "LISTEN_AND_GAP_FILL") return { id, questionType: type, questionText: "Listen to the audio and fill in the missing blanks in the transcript.", description: "", options: { audio_url: "", transcript: "I have been working at this ___ for two years." }, correctAnswer: ["company"], assessment };
