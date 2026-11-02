@@ -63,3 +63,59 @@
 @media(max-width:700px){.hero{flex-wrap:wrap;padding:8px 2px 13px}.pageTitle{font-size:20px}.toolbarTop{gap:6px}.categories{gap:2px;padding:3px}.categories button{flex:0 1 auto;padding:7px 8px;min-height:36px;font-size:10px}.accentToggle{width:fit-content;padding:3px;gap:2px}.accentToggle button{gap:4px;min-height:36px;padding:6px 7px;font-size:10px}.accentToggle button svg{width:12px;height:12px}.accentCode{display:none}.search{position:static;flex:0 0 36px;min-width:36px;width:36px;height:36px;padding:0;gap:0;justify-content:center}.search input{width:0;min-width:0;padding:0}.search:focus-within{position:absolute;right:0;z-index:4;width:min(210px,calc(100vw - 36px));min-width:0;height:40px;padding:0 10px;gap:8px;justify-content:flex-start}.search:focus-within input{width:100%;min-width:0}.chart{padding:15px 11px;border-radius:17px}.chartHeading h2 span{display:block;font-size:11px}.chartHeading h2{font-size:14px}.chartHeading p{max-width:210px}.count{font-size:9px}.legend{gap:10px;font-size:9px}.voicingRow{flex-wrap:wrap;gap:8px}.chartHint{font-size:9px}.groups{gap:20px 10px}.groupTitle h3{font-size:11px}.groupTitle span{font-size:8px;line-height:1.4;min-height:22px}.tiles{gap:5px}.tile{border-radius:9px}.symbol{font-size:27px}.symbolButton{height:52px}.wordButton{font-size:10px;min-height:31px;padding:1px 1px 5px;gap:0}.tileSpeaker{display:none!important}.consonant .tiles{grid-template-columns:repeat(4,minmax(0,1fr))}.consonant .symbol{font-size:30px}.consonant .wordButton{font-size:12px}.learningNotes{grid-template-columns:1fr;gap:18px;padding:22px 4px 15px}.chartFooter{font-size:8px;gap:8px}.voiceBadge{font-size:7px}.mobileDialog .bigSymbol{font-size:64px}.mobileDialog .detailSection p{font-size:13px}.mobileDialog .detailSection .caption{font-size:11px}.mobileDialog .note p{font-size:12px}}
 @media(max-width:430px){.toolbarTop{gap:4px}.categories{gap:1px;padding:2px}.categories button{padding:5px 4px;font-size:9px}.accentToggle{gap:1px;padding:2px}.accentToggle button{gap:2px;padding:5px 4px;font-size:9px}.accentToggle button svg{display:none}.groups{grid-template-columns:1fr}.diphthong .tiles{grid-template-columns:repeat(4,minmax(0,1fr))}.symbol{font-size:31px}.symbolButton{height:57px}.wordButton{font-size:12px}.groupTitle span{min-height:0}.voiceBadge{font-size:8px}}
 @media(prefers-reduced-motion:reduce){.tile{transition:none}}
+
+/* Keep supporting labels comfortable to read without changing the IPA glyph scale. */
+.workspace .pageTitle{font-size:26px}
+.workspace .accentToggle button{font-size:13px;font-weight:800}
+.workspace .categories button{min-height:42px;padding:9px 14px;font-size:13px;font-weight:800;color:var(--br-text)}
+.workspace .categories button:hover:not(.activeCategory){background:color-mix(in srgb,var(--br-action) 14%,var(--br-surface));color:var(--br-brand-strong)}
+.workspace .categories .activeCategory{background:var(--br-action);color:var(--br-text-on-dark);box-shadow:inset 0 0 0 1px var(--br-action-strong),0 2px 5px #00000010}
+.workspace .search input{font-size:13px}
+.workspace .chartHeading h2{font-size:17px}
+.workspace .chartHeading h2 span{display:inline;font-size:inherit;font-weight:650}
+.workspace .chartHeading p{font-size:12px;line-height:1.6}
+.workspace .count{font-size:11px}
+.workspace .legend{font-size:12px}
+.workspace .legend i{width:11px;height:11px}
+.workspace .chartHint{font-size:12px}
+.workspace .voicingRow label,.workspace .voicingRow select{font-size:12px}
+.workspace .groupTitle h3{font-size:14px}
+.workspace .groupTitle span{font-size:11px;line-height:1.5}
+.workspace .wordButton{font-size:12px}
+.workspace .chartFooter{font-size:11px}
+.workspace .voiceKey{font-size:9px}
+.workspace .soundName{font-size:17px}
+.workspace .badges span{font-size:10px}
+.workspace .primaryButton{font-size:13px}
+.workspace .detailSection h3{font-size:13px}
+.workspace .detailSection p{font-size:13px}
+.workspace .detailSection .articulation,.workspace .detailSection .caption{font-size:11px}
+.workspace .exampleWord{font-size:17px}
+.workspace .transcription{font-size:12px}
+.workspace .note p,.workspace .pairNote{font-size:12px}
+.workspace .learningNotes h3{font-size:14px}
+.workspace .learningNotes p{font-size:13px;line-height:1.7}
+.workspace .about{font-size:13px;line-height:1.75}
+.workspace .about summary{font-size:13px;font-weight:750}
+.workspace .empty p{font-size:13px}
+
+@media(max-width:700px){
+  .workspace .pageTitle{font-size:23px}
+  .workspace .categories button{min-height:38px;padding:7px 8px;font-size:11px}
+  .workspace .accentToggle button{min-height:38px;padding:6px 7px;font-size:11px}
+  .workspace .chartHeading h2{font-size:16px}
+  .workspace .chartHeading h2 span{font-size:inherit}
+  .workspace .chartHeading p{font-size:12px}
+  .workspace .legend{font-size:11px}
+  .workspace .chartHint,.workspace .voicingRow label,.workspace .voicingRow select{font-size:11px}
+  .workspace .groupTitle h3{font-size:13px}
+  .workspace .groupTitle span{font-size:10px}
+  .workspace .wordButton{font-size:11px}
+  .workspace .learningNotes p{font-size:12px}
+  .workspace .about{font-size:12px}
+}
+@media(max-width:430px){
+  .workspace .categories button{padding:6px 4px;font-size:10px}
+  .workspace .accentToggle button{padding:5px 4px;font-size:10px}
+  .workspace .groupTitle span{font-size:10px}
+}

@@ -157,7 +157,7 @@ export function IpaChart({ audio, view = "A" }: { audio: IpaAudioManifest; view?
     </div>
     <div className={styles.mainLayout}>
       <section className={styles.chart} aria-label={`${IPA_ACCENTS[accent].label} IPA chart`}>
-        <div className={styles.chartHeading}><div><h2>{IPA_ACCENTS[accent].label} <span>phonemic chart</span></h2><p>{IPA_ACCENTS[accent].description}</p></div><span className={styles.count}>{filtered ? `${visible.length} of ` : ""}{sounds.length} sounds</span></div>
+        <div className={styles.chartHeading}><div><h2>{IPA_ACCENTS[accent].label} <span>Phonemic Chart</span></h2><p>{IPA_ACCENTS[accent].description}</p></div><span className={styles.count}>{filtered ? `${visible.length} of ` : ""}{sounds.length} sounds</span></div>
         <div className={styles.legend}><span><i className={styles.monoSwatch} />Monophthongs</span><span><i className={styles.diphSwatch} />Diphthongs</span><span><i className={styles.consonantSwatch} />Consonants</span></div>
         <div className={styles.voicingRow}><span className={styles.chartHint}>Tap a symbol to explore · tap a word to listen</span><label>Voice <select value={voicing} aria-label="Filter by voicing" onChange={event => setVoicing(event.target.value as Voicing)}><option value="all">All sounds</option><option value="voiced">Voiced</option><option value="voiceless">Voiceless</option></select></label></div>
         {view === "B" ? <ReferenceGrid accent={accent} category={category} sounds={sounds} selectedId={selected.id} matches={matches} choose={choose} audio={audio} playback={playback} moveSelection={moveSelection} /> : <div className={styles.groups} onKeyDown={moveSelection}>
