@@ -1,7 +1,7 @@
 "use client";
 
 import type { TouchEvent } from "react";
-import { AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Mic, MicOff, RotateCcw, Sparkles, TrendingUp, Loader2, XCircle, Volume2, Play, Pause, FileText, Headphones } from "lucide-react";
+import { AlertCircle, CheckCircle2, ChevronLeft, ChevronRight, Mic, MicOff, RotateCcw, Repeat2, Sparkles, TrendingUp, Loader2, XCircle, Volume2, Play, Pause, FileText, Headphones } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { motion, Reorder } from "framer-motion";
 import { recordQuizAttempt } from "@/app/quizzes/actions";
@@ -3256,6 +3256,7 @@ function SentenceShadowingPlayer({ question, value, disabled, onChange }: Shadow
   const maxAttempts = Math.max(1, Math.min(100, Number(options.max_attempts ?? 3) || 3));
   const [attemptsUsed, setAttemptsUsed] = useState(() => Math.max(0, Number(asRecord(value as Json).attempts_used ?? 0) || 0));
   const [modelListened, setModelListened] = useState(false);
+  const [modelLoopEnabled, setModelLoopEnabled] = useState(false);
   const [comparisonHeard, setComparisonHeard] = useState(false);
   const [autoplayBlocked, setAutoplayBlocked] = useState(false);
   const [wordCoverage, setWordCoverage] = useState<number | null>(null);
@@ -3401,6 +3402,8 @@ function SentenceShadowingPlayer({ question, value, disabled, onChange }: Shadow
   async function startRecording() {
     if (disabled || processing || recording || attemptsUsed >= maxAttempts || !navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") return;
     setError(null);
+    setModelLoopEnabled(false);
+    if (modelPreviewRef.current) modelPreviewRef.current.loop = false;
     onChange({ completed: false, comparison_heard: false, word_coverage: null, attempts_used: attemptsUsedRef.current });
     stopLoop();
     modelPreviewRef.current?.pause();
@@ -3459,6 +3462,18 @@ function SentenceShadowingPlayer({ question, value, disabled, onChange }: Shadow
     mediaRecorderRef.current.stop();
   }
 
+  function toggleModelLoop() {
+    const audio = modelPreviewRef.current;
+    if (!audio || disabled || processing || recording) return;
+    const shouldLoop = !modelLoopEnabled;
+    setModelLoopEnabled(shouldLoop);
+    audio.loop = shouldLoop;
+    if (shouldLoop) {
+      if (audio.ended || (Number.isFinite(audio.duration) && audio.currentTime >= audio.duration)) audio.currentTime = 0;
+      void audio.play().catch(() => setError("Could not play the model audio. Please use the player controls to start it."));
+    }
+  }
+
   return (
     <div className="space-y-4">
       <section className="space-y-3 rounded-2xl border border-violet-200 bg-violet-50/60 p-4">
@@ -3472,7 +3487,34 @@ function SentenceShadowingPlayer({ question, value, disabled, onChange }: Shadow
             <span className="min-w-0 text-sm font-extrabold">{index + 1}. {step.label}</span>
           </div>)}
         </div>
-        {audioUrl ? <audio ref={modelPreviewRef} controls={!sentenceLooping} preload="metadata" src={audioUrl} onEnded={() => setModelListened(true)} className="w-full" aria-label="Listen to the model sentence" /> : <p className="text-sm text-amber-700">The model sentence audio is not available.</p>}
+        {audioUrl ? <div className="flex min-w-0 items-center gap-2">
+          <audio
+            ref={modelPreviewRef}
+            controls={!sentenceLooping}
+            loop={modelLoopEnabled}
+            preload="metadata"
+            src={audioUrl}
+            onEnded={() => setModelListened(true)}
+            onTimeUpdate={(event) => {
+              const audio = event.currentTarget;
+              if (modelLoopEnabled && Number.isFinite(audio.duration) && audio.currentTime >= audio.duration - Math.max(0.08, audio.duration * 0.02)) setModelListened(true);
+            }}
+            className="w-full min-w-0 flex-1"
+            aria-label="Listen to the model sentence"
+          />
+          <button
+            type="button"
+            onClick={toggleModelLoop}
+            disabled={disabled || processing || recording}
+            aria-pressed={modelLoopEnabled}
+            aria-label={modelLoopEnabled ? "Stop looping model audio" : "Loop model audio"}
+            title={modelLoopEnabled ? "Stop looping model audio" : "Loop model audio"}
+            className={`inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl border px-3 text-sm font-bold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--br-chart-primary)] disabled:cursor-not-allowed disabled:opacity-45 ${modelLoopEnabled ? "border-[var(--br-chart-primary)] bg-[var(--br-chart-primary)] text-on-dark shadow-sm" : "border-violet-200 bg-white text-[var(--br-chart-primary)] hover:bg-violet-50"}`}
+          >
+            <Repeat2 size={17} aria-hidden="true" />
+            <span className="hidden sm:inline">{modelLoopEnabled ? "Looping" : "Loop"}</span>
+          </button>
+        </div> : <p className="text-sm text-amber-700">The model sentence audio is not available.</p>}
         <div className="flex flex-col items-center gap-2 py-1">
           <button type="button" onClick={recording ? stopRecording : () => void startRecording()} disabled={!recording && (disabled || processing || !readyToRecord || !modelListened || (Boolean(learnerAudioUrl) && !comparisonHeard) || attemptsUsed >= maxAttempts)} className={`grid size-20 place-items-center rounded-full text-white shadow-lg transition focus-visible:outline focus-visible:outline-4 focus-visible:outline-offset-2 focus-visible:outline-[var(--br-chart-primary)] disabled:cursor-not-allowed disabled:opacity-45 ${recording ? "bg-rose-500 ring-8 ring-rose-100" : "bg-gradient-to-br from-orange-400 to-rose-500 hover:scale-105"}`} aria-label={recording ? "Stop recording" : learnerAudioUrl ? "Record again" : "Record the sentence"}>
             {processing ? <Loader2 size={28} className="animate-spin" /> : recording ? <MicOff size={28} /> : learnerAudioUrl ? <RotateCcw size={28} /> : <Mic size={28} />}
