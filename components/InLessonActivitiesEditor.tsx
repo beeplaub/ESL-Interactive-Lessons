@@ -13,6 +13,7 @@ import { ShadowingSentenceEditor } from "@/components/ShadowingSentenceEditor";
 import { lessonActivityDefinition } from "@/lib/lessonActivityCatalog";
 import { BuilderModalLayer } from "@/components/BuilderModalLayer";
 import { isWritingQuestionType, type EvaluationMode } from "@/lib/writingGrading";
+import { IpaPracticeSettings, makeIpaPracticeConfig, type IpaPracticeConfig } from "@/components/ipa/IpaPracticeSettings";
 
 type Activity = {
   id: string;
@@ -688,6 +689,17 @@ function AiRoleplayEditor({ activity, lessonId, onSave }: { activity: Activity; 
   );
 }
 
+function IpaPracticeEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
+  const data = asRecord(activity.activity_data);
+  const [prompt, setPrompt] = useState(String(data.prompt ?? "Use the chart sounds to complete this IPA practice round."));
+  const [config, setConfig] = useState<IpaPracticeConfig>(() => makeIpaPracticeConfig(data as Partial<IpaPracticeConfig>, activity.id));
+  return <div className="grid gap-3">
+    <label className="text-sm font-bold">Instructions<textarea value={prompt} onChange={event => setPrompt(event.target.value)} rows={2} className="mt-1 w-full rounded-lg border border-[var(--br-border)] px-3 py-2 font-normal" /></label>
+    <IpaPracticeSettings value={config} seed={activity.id} onChange={setConfig} />
+    <SaveButton disabled={config.items.length === 0} onClick={() => onSave({ prompt, ...config } as unknown as Json, false)} />
+  </div>;
+}
+
 function AiInterviewEditor({ activity, onSave }: { activity: Activity; onSave: (data: Json, needsReview?: boolean) => void }) {
   const current = asRecord(activity.activity_data);
   const [context, setContext] = useState(String(current.interview_context ?? ""));
@@ -921,6 +933,7 @@ function ActivityPanel({
               {activity.activity_type === "SHADOWING" ? <ShadowingEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "NOTE_TAKING_CHALLENGE" ? <NoteTakingChallengeEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "SOUND_DISCRIMINATION" ? <SoundDiscriminationEditor activity={activity} onSave={save} /> : null}
+              {activity.activity_type === "IPA_PRACTICE" ? <IpaPracticeEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "LISTEN_AND_GAP_FILL" ? <ListenGapFillEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "SENTENCE_COMPLETION" ? <SentenceCompletionEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "ESSAY_WRITING" ? <EssayWritingEditor activity={activity} onSave={save} /> : null}
@@ -934,7 +947,7 @@ function ActivityPanel({
               {activity.activity_type === "AI_ROLEPLAY" ? <AiRoleplayEditor activity={activity} lessonId={lessonId} onSave={save} /> : null}
               {activity.activity_type === "AI_INTERVIEW" ? <AiInterviewEditor activity={activity} onSave={save} /> : null}
               {activity.activity_type === "LIVE_SPEAK_TRANSLATE" ? <LiveSpeakTranslateEditor activity={activity} onSave={save} /> : null}
-              {!["MCQ", "GAP_FILL", "TABLE_COMPLETION", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "ORAL_RESPONSE", "SUMMARIZATION", "INFERENCE_DETECTION", "HEADINGS_MATCHING", "SKIM_CHALLENGE", "PARAPHRASE_ID", "DICTATION", "LISTEN_AND_SELECT", "SHADOWING", "NOTE_TAKING_CHALLENGE", "SOUND_DISCRIMINATION", "LISTEN_AND_GAP_FILL", "SENTENCE_COMPLETION", "ESSAY_WRITING", "EMAIL_LETTER_WRITING", "TRANSLATION", "PARAPHRASE_PRACTICE", "SENTENCE_COMBINING", "CREATIVE_WRITING", "PEER_REVIEW_EDITING", "DIALOGUE_WRITING", "AI_ROLEPLAY", "AI_INTERVIEW"].includes(activity.activity_type) ? (
+              {!["MCQ", "GAP_FILL", "TABLE_COMPLETION", "TRUE_FALSE", "MATCHING", "ERROR_CORRECTION", "REORDERING", "MULTIPLE_SELECT", "SHORT_ANSWER", "DRAG_DROP", "CATEGORIZATION", "PRONUNCIATION", "ORAL_RESPONSE", "SUMMARIZATION", "INFERENCE_DETECTION", "HEADINGS_MATCHING", "SKIM_CHALLENGE", "PARAPHRASE_ID", "DICTATION", "LISTEN_AND_SELECT", "SHADOWING", "NOTE_TAKING_CHALLENGE", "SOUND_DISCRIMINATION", "IPA_PRACTICE", "LISTEN_AND_GAP_FILL", "SENTENCE_COMPLETION", "ESSAY_WRITING", "EMAIL_LETTER_WRITING", "TRANSLATION", "PARAPHRASE_PRACTICE", "SENTENCE_COMBINING", "CREATIVE_WRITING", "PEER_REVIEW_EDITING", "DIALOGUE_WRITING", "AI_ROLEPLAY", "AI_INTERVIEW"].includes(activity.activity_type) ? (
                 <p className="rounded-md bg-surface-muted p-3 text-sm text-[var(--br-text-muted)]">
                   This activity type has starter data and preview support. A detailed visual editor for it will be added in the next activity-builder pass.
                 </p>
@@ -969,9 +982,9 @@ function StatusText({ status, error }: { status: string; error: string | null })
   return null;
 }
 
-function SaveButton({ onClick }: { onClick: () => void }) {
+function SaveButton({ onClick, disabled = false }: { onClick: () => void; disabled?: boolean }) {
   return (
-    <button type="button" onClick={onClick} className="rounded-md bg-dark px-4 py-2 text-sm font-medium text-on-dark">
+    <button type="button" onClick={onClick} disabled={disabled} className="rounded-md bg-dark px-4 py-2 text-sm font-medium text-on-dark disabled:cursor-not-allowed disabled:opacity-50">
       Save activity
     </button>
   );

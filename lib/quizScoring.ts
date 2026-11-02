@@ -1,6 +1,7 @@
 import type { Json } from "@/types/database.types";
 import { isWritingQuestionType, resolveWritingOutcome } from "@/lib/writingGrading";
 import { shadowingPhases } from "@/lib/shadowing";
+import { normalizeIpaAnswer, normalizeWordAnswer } from "@/lib/ipa/practice";
 
 export type ScoredQuestion = {
   id?: string;
@@ -29,6 +30,7 @@ export type ScoredQuestion = {
     | "SHADOWING"
     | "NOTE_TAKING_CHALLENGE"
     | "SOUND_DISCRIMINATION"
+    | "IPA_PRACTICE"
     | "LISTEN_AND_GAP_FILL"
     | "SENTENCE_COMPLETION"
     | "ESSAY_WRITING"
@@ -62,7 +64,8 @@ function tableAcceptedAnswers(question: ScoredQuestion, cellId: string, fallback
 }
 
 function baseQuestionTotal(question: ScoredQuestion): number {
-  if (question.question_type === "DRAG_DROP" || question.question_type === "CATEGORIZATION" || question.question_type === "TABLE_COMPLETION" || question.question_type === "HEADINGS_MATCHING" || question.question_type === "SKIM_CHALLENGE") {
+  if (question.question_type === "DRAG_DROP" || question.question_type === "CATEGORIZATION" || question.question_type === "TABLE_COMPLETION" || question.question_type === "HEADINGS_MATCHING" || question.question_type === "SKIM_CHALLENGE" || question.question_type === "IPA_PRACTICE") {
+    if (question.question_type === "IPA_PRACTICE") return Object.keys(asRecord(question.correct_answer)).length || 1;
     return Object.keys(asRecord(question.correct_answer)).length || 1;
   }
 
@@ -98,6 +101,20 @@ function baseQuestionScore(question: ScoredQuestion, answer: unknown): number {
     return outcome.isTerminal && outcome.scorePercent !== null
       ? Math.max(0, Math.min(1, outcome.scorePercent / 100))
       : 0;
+  }
+  if (question.question_type === "IPA_PRACTICE") {
+    const correct = asRecord(question.correct_answer);
+    const given = asRecord(answer as Json);
+    const options = asRecord(question.options);
+    const mode = String(options.mode ?? "conversion");
+    return Object.entries(correct).filter(([itemId, expected]) => {
+      const raw = String(given[itemId] ?? "").trim();
+      if (mode === "conversion") {
+        const item = Array.isArray(options.items) ? asRecord(options.items.find(item => String(asRecord(item as Json).id) === itemId) as Json) : {};
+        return normalizeIpaAnswer(raw) === normalizeIpaAnswer(String(expected)) || normalizeWordAnswer(raw) === normalizeWordAnswer(String(expected)) || String(item.direction) === "ipa-to-word" && normalizeWordAnswer(raw) === normalizeWordAnswer(String(expected));
+      }
+      return normalizeAnswer(raw) === normalizeAnswer(expected);
+    }).length;
   }
   if (question.question_type === "DRAG_DROP" || question.question_type === "CATEGORIZATION" || question.question_type === "HEADINGS_MATCHING" || question.question_type === "SKIM_CHALLENGE") {
     const correct = asRecord(question.correct_answer);
@@ -195,6 +212,8 @@ export function isCorrect(question: ScoredQuestion, value: unknown): boolean {
   ) {
     return normalizeAnswer(value) === normalizeAnswer(question.correct_answer);
   }
+
+  if (question.question_type === "IPA_PRACTICE") return questionScore(question, value) === questionTotal(question);
 
   if (question.question_type === "DICTATION") {
     const opts = asRecord(question.options);
@@ -335,7 +354,7 @@ export function isCorrect(question: ScoredQuestion, value: unknown): boolean {
 }
 
 export function partialCreditStats(question: ScoredQuestion, value: unknown): { correctCount: number; total: number } | null {
-  if (!["DRAG_DROP", "CATEGORIZATION", "FILL", "TABLE_COMPLETION", "PRONUNCIATION", "HEADINGS_MATCHING", "SKIM_CHALLENGE"].includes(question.question_type)) return null;
+  if (!["DRAG_DROP", "CATEGORIZATION", "FILL", "TABLE_COMPLETION", "PRONUNCIATION", "HEADINGS_MATCHING", "SKIM_CHALLENGE", "IPA_PRACTICE"].includes(question.question_type)) return null;
   return {
     correctCount: questionScore(question, value),
     total: questionTotal(question),

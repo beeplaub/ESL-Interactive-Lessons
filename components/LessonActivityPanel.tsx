@@ -312,6 +312,21 @@ function questionsFromData(value: Json | null, activityType: string, seed: strin
       correct_answer: correctAnswer as Json,
     }];
   }
+  if (activityType === "IPA_PRACTICE") {
+    const items = Array.isArray(data.items) ? data.items : [];
+    const correctAnswer = data.correct_answer ?? Object.fromEntries(items.map((item, index) => {
+      const row = asRecord(item as Json);
+      return [String(row.id ?? `item-${index + 1}`), String(row.expected ?? "")];
+    }));
+    return [{
+      id: "1",
+      question_number: 1,
+      question_type: "IPA_PRACTICE",
+      question_text: String(data.prompt ?? "Complete this IPA practice round."),
+      options: { mode: data.mode ?? "conversion", accent: data.accent ?? "uk", direction: data.direction ?? "both", sortMode: data.sortMode ?? "kind", items } as unknown as Json,
+      correct_answer: correctAnswer as Json,
+    }];
+  }
   if (activityType === "LISTEN_AND_GAP_FILL") {
     const audioUrl = String(data.audio_url ?? data.media_url ?? "");
     const transcript = String(data.transcript ?? data.sentence ?? "");

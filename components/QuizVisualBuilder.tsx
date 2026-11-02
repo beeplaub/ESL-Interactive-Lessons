@@ -16,6 +16,8 @@ import { FlashcardAudioGenerator } from "@/components/FlashcardAudioGenerator";
 import { useVoiceGenerationPreferences } from "@/components/voiceGenerationPreferences";
 import { shadowingSentenceText } from "@/lib/shadowing";
 import { ShadowingSentenceEditor } from "@/components/ShadowingSentenceEditor";
+import { IpaPracticeSettings, makeIpaPracticeConfig, type IpaPracticeConfig } from "@/components/ipa/IpaPracticeSettings";
+import { getIpaPracticeExamples } from "@/lib/ipa/practice";
 
 type BuilderQuestion = {
   id: string;
@@ -57,7 +59,7 @@ const questionTypes: BuilderQuestion["questionType"][] = [
   "MCQ", "TRUE_FALSE", "FILL", "MATCHING", "MULTIPLE_SELECT",
   "SHORT_ANSWER", "ERROR_CORRECTION", "REORDERING", "CATEGORIZATION", "PRONUNCIATION", "ORAL_RESPONSE", "SUMMARIZATION", "INFERENCE_DETECTION",
   "HEADINGS_MATCHING", "SKIM_CHALLENGE", "PARAPHRASE_ID",
-  "DICTATION", "LISTEN_AND_SELECT", "SHADOWING", "NOTE_TAKING_CHALLENGE", "SOUND_DISCRIMINATION", "LISTEN_AND_GAP_FILL",
+  "DICTATION", "LISTEN_AND_SELECT", "SHADOWING", "NOTE_TAKING_CHALLENGE", "SOUND_DISCRIMINATION", "IPA_PRACTICE", "LISTEN_AND_GAP_FILL",
   "SENTENCE_COMPLETION", "ESSAY_WRITING", "EMAIL_LETTER_WRITING", "TRANSLATION", "PARAPHRASE_PRACTICE", "SENTENCE_COMBINING", "CREATIVE_WRITING", "PEER_REVIEW_EDITING", "DIALOGUE_WRITING"
 ];
 
@@ -84,6 +86,7 @@ const typeLabels: Record<string, string> = {
   SHADOWING: "Shadowing / Repeat After Me",
   NOTE_TAKING_CHALLENGE: "Note-Taking Challenge",
   SOUND_DISCRIMINATION: "Sound Discrimination",
+  IPA_PRACTICE: "IPA Practice Lab",
   LISTEN_AND_GAP_FILL: "Gap Fill while Listening",
   SENTENCE_COMPLETION: "Sentence Completion / Expansion",
   ESSAY_WRITING: "Essay Writing with Rubric",
@@ -193,6 +196,10 @@ function defaultQuestion(type: BuilderQuestion["questionType"]): BuilderQuestion
   if (type === "SHADOWING") return { id, questionType: type, questionText: "Listen to the model sentence, record it once, then compare.", description: "", options: { shadowing_mode: "SENTENCE_AB", max_attempts: 3, audio_url: "", target_text: "" }, correctAnswer: "", assessment };
   if (type === "NOTE_TAKING_CHALLENGE") return { id, questionType: type, questionText: "Listen to the clip, take notes in the scratchpad, and answer the questions.", description: "", options: { media_url: "", audio_url: "", questions: [{ id: "1", text: "What was the main topic?", options: { A: "Topic A", B: "Topic B", C: "Topic C", D: "Topic D" } }] }, correctAnswer: { "1": "A" }, assessment };
   if (type === "SOUND_DISCRIMINATION") return { id, questionType: type, questionText: "Listen to the sound and identify the correct minimal pair word.", description: "", options: { audio_url: "", pairs: [{ id: "0", word: "ship", phonetic: "/ʃɪp/", audio_url: "" }, { id: "1", word: "sheep", phonetic: "/ʃiːp/", audio_url: "" }] }, correctAnswer: "0", assessment };
+  if (type === "IPA_PRACTICE") {
+    const config = makeIpaPracticeConfig({ selectedWords: getIpaPracticeExamples("uk").slice(0, 6).map(example => example.word) }, id);
+    return { id, questionType: type, questionText: "Use the chart sounds to complete this IPA practice round.", description: "", options: config as unknown as Json, correctAnswer: config.correct_answer as unknown as Json, assessment };
+  }
   if (type === "LISTEN_AND_GAP_FILL") return { id, questionType: type, questionText: "Listen to the audio and fill in the missing blanks in the transcript.", description: "", options: { audio_url: "", transcript: "I have been working at this ___ for two years." }, correctAnswer: ["company"], assessment };
   if (type === "SENTENCE_COMPLETION") return { id, questionType: type, questionText: "Complete the sentence stem.", description: "", options: { sentence_stem: "Although it was raining,", model_answer: "Although it was raining, we decided to go for a hike in the national park.", model_description: "Completes the clause with logical contrast and correct punctuation." }, correctAnswer: "we decided to go for a hike.", assessment };
   if (type === "ESSAY_WRITING") return { id, questionType: type, questionText: "Write an essay response on the prompt below.", description: "", options: { min_words: 100, max_words: 250, sample_essay: "Modern technology has significantly changed how we communicate...", rubric_guidelines: "Check grammar, structure, tone, and word count." }, correctAnswer: "Sample Essay Response", assessment };
@@ -261,6 +268,7 @@ function normalizeInitialQuestion(question: {
 function questionPointSuggestion(type: string, correctAnswer: Json) {
   if (["FILL", "PRONUNCIATION"].includes(type) && Array.isArray(correctAnswer)) return Math.max(1, correctAnswer.length);
   if (["DRAG_DROP", "CATEGORIZATION", "HEADINGS_MATCHING", "SKIM_CHALLENGE"].includes(type)) return Math.max(1, Object.keys(asRecord(correctAnswer)).length);
+  if (type === "IPA_PRACTICE") return Math.max(1, Object.keys(asRecord(correctAnswer)).length);
   return 1;
 }
 
@@ -456,6 +464,12 @@ export function QuizVisualBuilder({
       return !String(options.audio_url ?? "").trim() || !shadowingSentenceText(options).trim();
     });
     if (incompleteShadowing >= 0) return `Question ${incompleteShadowing + 1}: add one complete sentence and its model audio.`;
+    const incompleteIpaPractice = questions.findIndex((question) => {
+      if (question.questionType !== "IPA_PRACTICE") return false;
+      const items = asRecord(question.options).items;
+      return !Array.isArray(items) || items.length === 0;
+    });
+    if (incompleteIpaPractice >= 0) return `Question ${incompleteIpaPractice + 1}: choose at least one IPA practice item.`;
     return null;
   }
 
@@ -879,6 +893,13 @@ function questionToPreviewActivity(question: BuilderQuestion) {
       } as Json
     };
   }
+  if (question.questionType === "IPA_PRACTICE") {
+    return {
+      id: question.id,
+      activity_type: "IPA_PRACTICE",
+      activity_data: { prompt: question.questionText, ...options, correct_answer: question.correctAnswer } as Json
+    };
+  }
   if (question.questionType === "REORDERING") {
     return {
       id: question.id,
@@ -1074,6 +1095,11 @@ function questionToPreviewActivity(question: BuilderQuestion) {
 function QuestionFields({ question, onChange, quizId }: { question: BuilderQuestion; onChange: (patch: Partial<BuilderQuestion>) => void; quizId?: string }) {
   const options = asRecord(question.options);
   const voiceSettings = useVoiceGenerationPreferences({ provider: "auto", languageCode: "en-US", voiceName: "Aoede", style: "Natural", pace: "Natural", locked: false });
+
+  if (question.questionType === "IPA_PRACTICE") {
+    const config = makeIpaPracticeConfig(options as Partial<IpaPracticeConfig>, question.id);
+    return <IpaPracticeSettings value={config} seed={question.id} onChange={next => onChange({ options: next as unknown as Json, correctAnswer: next.correct_answer as unknown as Json })} />;
+  }
 
   if (question.questionType === "ORAL_RESPONSE") {
     return (

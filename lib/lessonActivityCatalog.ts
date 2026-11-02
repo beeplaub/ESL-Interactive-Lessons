@@ -48,6 +48,7 @@ export const LESSON_ACTIVITY_CATALOG: LessonActivityDefinition[] = [
   { type: "SHADOWING", label: "Shadowing", description: "Listen, repeat, and build fluency.", skills: ["LISTENING", "SPEAKING"] },
   { type: "NOTE_TAKING_CHALLENGE", label: "Note-Taking Challenge", description: "Capture useful details while listening.", skills: ["LISTENING", "WRITING"] },
   { type: "SOUND_DISCRIMINATION", label: "Sound Discrimination", description: "Identify differences between sounds.", skills: ["LISTENING", "SPEAKING"] },
+  { type: "IPA_PRACTICE", label: "IPA Practice Lab", description: "Build transcription, sound comparison, and phoneme sorting rounds from the IPA chart.", skills: ["CORE", "LISTENING", "SPEAKING"] },
   { type: "LISTEN_AND_GAP_FILL", label: "Listening Gap Fill", description: "Complete gaps while listening.", skills: ["LISTENING", "WRITING"] },
   { type: "PRONUNCIATION", label: "Pronunciation Practice", description: "Record and compare spoken language.", skills: ["SPEAKING", "LISTENING"] },
   { type: "ORAL_RESPONSE", label: "Oral Response", description: "Answer a prompt by speaking.", skills: ["SPEAKING"] },

@@ -14,6 +14,8 @@ import { classifyAndExtractLesson } from "@/lib/slideClassifier";
 import { CONTENT_LEVELS } from "@/lib/levels";
 import type { Json, SlideType } from "@/types/database.types";
 import { ALL_ACTIVITIES_REFERENCE, ALL_CONTENT_BLOCK_REFERENCE } from "@/lib/allActivitiesReference";
+import { generateIpaPracticeItems, type IpaPracticeMode, type IpaConversionDirection, type IpaSortMode } from "@/lib/ipa/practice";
+import type { IpaAccent } from "@/lib/ipa/chart";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 
@@ -2194,6 +2196,7 @@ function revalidateLessonBuilder(lessonId: string) {
 }
 
 function defaultActivityPrompt(activityType: string) {
+  if (activityType === "IPA_PRACTICE") return "Use the chart sounds to complete this IPA practice round.";
   if (activityType === "MULTIPLE_SELECT") return "Choose all correct answers.";
   if (activityType === "GAP_FILL") return "Complete the sentences.";
   if (activityType === "TABLE_COMPLETION") return "Complete the missing information in the table.";
@@ -2226,6 +2229,11 @@ function defaultActivityPrompt(activityType: string) {
 }
 
 function defaultActivityData(activityType: string, prompt: string): Json {
+  if (activityType === "IPA_PRACTICE") {
+    const config = { accent: "uk" as IpaAccent, mode: "conversion" as IpaPracticeMode, direction: "both" as IpaConversionDirection, sortMode: "kind" as IpaSortMode, count: 1, seed: crypto.randomUUID(), selectedWords: [] as string[] };
+    const items = generateIpaPracticeItems(config);
+    return { prompt, ...config, items, correct_answer: Object.fromEntries(items.map(item => [item.id, item.expected])) } as unknown as Json;
+  }
   if (activityType === "MULTIPLE_SELECT") {
     return {
       prompt,

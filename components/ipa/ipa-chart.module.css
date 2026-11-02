@@ -1,5 +1,7 @@
 .workspace{--vowel:var(--br-chart-primary);--consonant:var(--br-action-strong);color:var(--br-text);min-width:0}
 .hero{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:8px 2px 14px}
+.questLink{display:inline-flex;min-height:38px;align-items:center;justify-content:center;gap:8px;border:1px solid var(--br-brand);border-radius:11px;background:var(--br-brand);padding:0 12px;color:var(--br-text-on-dark);font-size:12px;font-weight:800;text-decoration:none;white-space:nowrap;transition:background .15s,border-color .15s,transform .15s}.questLink:hover{border-color:var(--br-brand-strong);background:var(--br-brand-strong);transform:translateY(-1px)}.questLink:focus-visible{outline:3px solid var(--br-chart-primary);outline-offset:3px}
+.questLink svg:first-child{color:var(--br-action)}
 .eyebrow{display:flex;align-items:center;gap:8px;color:var(--br-chart-primary);font-size:10px;font-weight:800;letter-spacing:1.65px}
 .pageTitle{font-size:22px;line-height:1.2;letter-spacing:-.5px;font-weight:800;margin:0}.accentControl{flex-shrink:0}
 .accentToggle{display:flex;border:1px solid var(--br-border);background:var(--br-surface);padding:5px;border-radius:15px;gap:3px}

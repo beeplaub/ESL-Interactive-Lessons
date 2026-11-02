@@ -200,6 +200,18 @@ export function lessonScoredQuestions(activityType: string, value: Json | null):
 
   if (activityType === "DICTATION") return [common(data, 0, "DICTATION", text(data.correct_answer), { ignore_punctuation: data.ignore_punctuation !== false } as Json)];
   if (activityType === "LISTEN_AND_SELECT" || activityType === "SOUND_DISCRIMINATION") return [common(data, 0, activityType, text(data.correct_answer ?? "0"), { choices: data.choices ?? data.pairs ?? [] } as unknown as Json)];
+  if (activityType === "IPA_PRACTICE") {
+    const items = Array.isArray(data.items) ? data.items : [];
+    const answer = data.correct_answer ?? Object.fromEntries(items.map((item, index) => {
+      const row = asRecord(item as Json);
+      return [text(row.id || `item-${index + 1}`), text(row.expected)];
+    }));
+    return [common(data, 0, "IPA_PRACTICE", answer, {
+      mode: data.mode ?? "conversion",
+      accent: data.accent ?? "uk",
+      items,
+    } as unknown as Json)];
+  }
   if (activityType === "SHADOWING") {
     const targetText = shadowingSentenceText(data);
     const audioUrl = text(data.audio_url);

@@ -22,13 +22,15 @@ import { AudioTrackPlayer } from "@/components/AudioTrackPlayer";
 import { matchShadowingPhrase, type ShadowingMatchResult } from "@/lib/shadowingMatching";
 import { shadowingSentenceText, shadowingPhases } from "@/lib/shadowing";
 import { shadowingWordCoverage } from "@/lib/shadowingScoring";
+import { IpaPracticePlayer } from "@/components/ipa/IpaPracticePlayer";
+import { normalizeIpaAnswer, normalizeWordAnswer } from "@/lib/ipa/practice";
 
 export type QuizQuestion = {
   id: string;
   /** Parent lesson activity UUID. Quiz questions leave this unset and use their own id. */
   source_activity_id?: string;
   question_number: number;
-  question_type: "MCQ" | "TRUE_FALSE" | "FILL" | "TABLE_COMPLETION" | "MATCHING" | "ERROR_CORRECTION" | "REORDERING" | "MULTIPLE_SELECT" | "SHORT_ANSWER" | "DRAG_DROP" | "CATEGORIZATION" | "PRONUNCIATION" | "ORAL_RESPONSE" | "SUMMARIZATION" | "INFERENCE_DETECTION" | "HEADINGS_MATCHING" | "SKIM_CHALLENGE" | "PARAPHRASE_ID" | "DICTATION" | "LISTEN_AND_SELECT" | "SHADOWING" | "NOTE_TAKING_CHALLENGE" | "SOUND_DISCRIMINATION" | "LISTEN_AND_GAP_FILL" | "SENTENCE_COMPLETION" | "ESSAY_WRITING" | "EMAIL_LETTER_WRITING" | "TRANSLATION" | "PARAPHRASE_PRACTICE" | "SENTENCE_COMBINING" | "CREATIVE_WRITING" | "PEER_REVIEW_EDITING" | "DIALOGUE_WRITING";
+  question_type: "MCQ" | "TRUE_FALSE" | "FILL" | "TABLE_COMPLETION" | "MATCHING" | "ERROR_CORRECTION" | "REORDERING" | "MULTIPLE_SELECT" | "SHORT_ANSWER" | "DRAG_DROP" | "CATEGORIZATION" | "PRONUNCIATION" | "ORAL_RESPONSE" | "SUMMARIZATION" | "INFERENCE_DETECTION" | "HEADINGS_MATCHING" | "SKIM_CHALLENGE" | "PARAPHRASE_ID" | "DICTATION" | "LISTEN_AND_SELECT" | "SHADOWING" | "NOTE_TAKING_CHALLENGE" | "SOUND_DISCRIMINATION" | "IPA_PRACTICE" | "LISTEN_AND_GAP_FILL" | "SENTENCE_COMPLETION" | "ESSAY_WRITING" | "EMAIL_LETTER_WRITING" | "TRANSLATION" | "PARAPHRASE_PRACTICE" | "SENTENCE_COMBINING" | "CREATIVE_WRITING" | "PEER_REVIEW_EDITING" | "DIALOGUE_WRITING";
   question_text: string;
   description?: string | null;
   options: Json | null;
@@ -167,6 +169,11 @@ function allowedEvaluationModes(questions: QuizQuestion[]): EvaluationMode[] {
 export function hasAnswer(question: QuizQuestion, value: unknown): boolean {
   if (value === undefined || value === null) return false;
   if (question.question_type === "FILL") return Array.isArray(value) && value.some((v) => String(v).trim() !== "");
+  if (question.question_type === "IPA_PRACTICE") {
+    const items = Array.isArray(asRecord(question.options).items) ? asRecord(question.options).items as Json[] : [];
+    const given = asRecord(value as Json);
+    return items.length > 0 && items.every(item => String(given[String(asRecord(item).id)] ?? "").trim() !== "");
+  }
   if (question.question_type === "TABLE_COMPLETION") {
     const correct = asRecord(question.correct_answer);
     const given = asRecord(value as Json);
@@ -283,6 +290,12 @@ export function hasAnswer(question: QuizQuestion, value: unknown): boolean {
 }
 
 function answerText(question: QuizQuestion): string {
+  if (question.question_type === "IPA_PRACTICE") {
+    const correct = asRecord(question.correct_answer);
+    const options = asRecord(question.options);
+    const items = Array.isArray(options.items) ? options.items.map(item => asRecord(item as Json)) : [];
+    return items.map((item, index) => `${index + 1}. ${String(item.expected ?? correct[String(item.id)] ?? "")}`).join(" · ");
+  }
   if (question.question_type === "MCQ") {
     const opts = asRecord(question.options);
     const key = String(question.correct_answer);
@@ -372,6 +385,25 @@ function answerText(question: QuizQuestion): string {
     }).join(" | ");
   }
   return "";
+}
+
+function ipaPracticeResultItems(question: QuizQuestion, value: unknown) {
+  const options = asRecord(question.options);
+  const answers = asRecord(value as Json);
+  const expected = asRecord(question.correct_answer);
+  const items = Array.isArray(options.items) ? options.items.map((item) => asRecord(item as Json)) : [];
+  const mode = String(options.mode ?? "conversion");
+  return items.map((item, index) => {
+    const id = String(item.id ?? `item-${index + 1}`);
+    const given = String(answers[id] ?? "").trim();
+    const target = String(item.expected ?? expected[id] ?? "").trim();
+    const correct = mode === "conversion" && item.direction === "word-to-ipa"
+      ? normalizeIpaAnswer(given) === normalizeIpaAnswer(target)
+      : mode === "conversion" || mode === "compare"
+        ? normalizeWordAnswer(given) === normalizeWordAnswer(target)
+        : given.toLowerCase() === target.toLowerCase();
+    return { id, index: index + 1, correct };
+  });
 }
 
 // ── Score history chart ──
@@ -1045,7 +1077,7 @@ export function QuestionCard({
     question.question_type === "PEER_REVIEW_EDITING" ||
     question.question_type === "DIALOGUE_WRITING" ||
     question.question_type === "ORAL_RESPONSE";
-  const isPartialCredit = question.question_type === "DRAG_DROP" || question.question_type === "CATEGORIZATION" || question.question_type === "FILL" || question.question_type === "TABLE_COMPLETION" || question.question_type === "PRONUNCIATION" || question.question_type === "LISTEN_AND_GAP_FILL";
+  const isPartialCredit = question.question_type === "DRAG_DROP" || question.question_type === "CATEGORIZATION" || question.question_type === "FILL" || question.question_type === "TABLE_COMPLETION" || question.question_type === "PRONUNCIATION" || question.question_type === "LISTEN_AND_GAP_FILL" || question.question_type === "IPA_PRACTICE";
   const stats = isPartialCredit && submitted ? partialCreditStats(question, value) : null;
   const correct = submitted && !isSelfChecked && !isPartialCredit ? isCorrect(question, value) : false;
   const wrong = submitted && !isSelfChecked && !isPartialCredit && !correct;
@@ -1132,6 +1164,7 @@ export function QuestionCard({
         {question.question_type === "SHADOWING" ? <ShadowingPlayer question={question} value={value as ShadowingValue | undefined} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "NOTE_TAKING_CHALLENGE" ? <NoteTakingChallengePlayer question={question} value={(value as Record<string, string>) ?? {}} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "SOUND_DISCRIMINATION" ? <SoundDiscriminationPlayer question={question} value={value as string | undefined} disabled={submitted} onChange={onChange} /> : null}
+        {question.question_type === "IPA_PRACTICE" ? <IpaPracticePlayer question={question} value={(value as Record<string, string>) ?? {}} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "LISTEN_AND_GAP_FILL" ? <ListenGapFillPlayer question={question} value={value as string[] | undefined} disabled={submitted} onChange={onChange} /> : null}
         {question.question_type === "SENTENCE_COMPLETION" ? <SentenceCompletionPlayer question={question} value={value as WritingAnswerValue | undefined} submitted={submitted} onChange={onChange} quizId={quizId} lessonId={lessonId} /> : null}
         {question.question_type === "ESSAY_WRITING" ? <EssayWritingPlayer question={question} value={value as WritingAnswerValue | undefined} submitted={submitted} onChange={onChange} quizId={quizId} lessonId={lessonId} /> : null}
@@ -1143,10 +1176,16 @@ export function QuestionCard({
         {question.question_type === "PEER_REVIEW_EDITING" ? <PeerReviewEditingPlayer question={question} value={value as WritingAnswerValue | undefined} submitted={submitted} onChange={onChange} quizId={quizId} lessonId={lessonId} /> : null}
         {question.question_type === "DIALOGUE_WRITING" ? <DialogueWritingPlayer question={question} value={value as WritingAnswerValue | undefined} submitted={submitted} onChange={onChange} quizId={quizId} lessonId={lessonId} /> : null}
       </div>
+      {question.question_type === "IPA_PRACTICE" && submitted && stats ? (
+        <div className="mt-4 flex flex-wrap items-center gap-3 rounded-[14px] bg-[var(--br-surface-muted)] px-3 py-2.5" aria-label={`IPA result: ${stats.correctCount} of ${stats.total} correct`}>
+          <span className="text-sm font-extrabold">{stats.correctCount} of {stats.total} correct</span>
+          <div className="flex flex-wrap gap-1.5">{ipaPracticeResultItems(question, value).map(item => <span key={item.id} aria-label={`Item ${item.index}: ${item.correct ? "correct" : "incorrect"}`} className={`inline-flex min-h-7 min-w-8 items-center justify-center rounded-full px-2 text-xs font-extrabold ${item.correct ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"}`}>{item.index} {item.correct ? "✓" : "×"}</span>)}</div>
+        </div>
+      ) : null}
       {stats && stats.correctCount < stats.total ? (
-        <p className={`mt-4 rounded-[14px] p-3 text-sm font-semibold ${allWrong ? "bg-[var(--br-danger)]/10 text-[var(--br-danger)]" : "bg-[var(--br-achievement)]/10 text-amber-900"}`}>
+        question.question_type !== "IPA_PRACTICE" ? <p className={`mt-4 rounded-[14px] p-3 text-sm font-semibold ${allWrong ? "bg-[var(--br-danger)]/10 text-[var(--br-danger)]" : "bg-[var(--br-achievement)]/10 text-amber-900"}`}>
           {stats.correctCount} of {stats.total} correct. Correct answer: {answerText(question)}
-        </p>
+        </p> : null
       ) : null}
       {submitted && wrong ? (
         <p className="mt-4 rounded-[14px] bg-[var(--br-danger)]/10 p-3 text-sm font-semibold text-[var(--br-danger)]">

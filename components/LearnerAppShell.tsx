@@ -20,6 +20,7 @@ import {
   Orbit,
   Sparkles,
   AudioLines,
+  Gamepad2,
 } from "lucide-react";
 import { signOut, switchToAdminView } from "@/app/auth/actions";
 import { isStaff } from "@/lib/auth";
@@ -34,7 +35,7 @@ import { NotificationSoundWatcher } from "@/components/NotificationSoundWatcher"
 import { getLearnerAchievements, type LearnerAchievements } from "@/lib/achievements";
 import { BrandLogo } from "@/components/BrandLogo";
 
-export type ActiveItem = "home" | "quizzes" | "courses" | "journal" | "wordverse" | "ai-tutor" | "ipa-chart" | "live-classes" | "community" | "assignments" | "tasks" | "calendar" | "achievements" | "certificates" | "level-test" | "leaderboard" | "language-profile" | "profile" | "notifications";
+export type ActiveItem = "home" | "quizzes" | "courses" | "journal" | "wordverse" | "ai-tutor" | "ipa-chart" | "ipa-quest" | "live-classes" | "community" | "assignments" | "tasks" | "calendar" | "achievements" | "certificates" | "level-test" | "leaderboard" | "language-profile" | "profile" | "notifications";
 
 type BreadcrumbItem = { label: string; href?: string };
 export type NotificationItem = { key: string; title: string; detail: string; href: string; targetHref?: string | null; actionLabel?: string | null; tone: "purple" | "orange" | "green" | "blue"; notificationId?: string; isRead?: boolean };
@@ -47,6 +48,7 @@ const defaultBreadcrumbs: Record<ActiveItem, BreadcrumbItem[]> = {
   wordverse: [{ label: "Home", href: "/account" }, { label: "Wordverse" }],
   "ai-tutor": [{ label: "Home", href: "/account" }, { label: "AI Tutor" }],
   "ipa-chart": [{ label: "Home", href: "/account" }, { label: "IPA Chart" }],
+  "ipa-quest": [{ label: "Home", href: "/account" }, { label: "IPA Sound Quest" }],
   "live-classes": [{ label: "Home", href: "/account" }, { label: "Live Classes" }],
   community: [{ label: "Home", href: "/account" }, { label: "Community" }],
   assignments: [{ label: "Home", href: "/account" }, { label: "Assignments" }],
@@ -547,6 +549,7 @@ function MobileTopbar({
               <MobileDrawerLink href="/wordverse" label="Wordverse" icon={Orbit} active={active === "wordverse"} />
               <MobileDrawerLink href="/ai-tutor" label="AI Tutor" icon={Sparkles} active={active === "ai-tutor"} />
               <MobileDrawerLink href="/ipa-chart" label="IPA Chart" icon={AudioLines} active={active === "ipa-chart"} />
+              <MobileDrawerLink href="/ipa-quest" label="IPA Sound Quest" icon={Gamepad2} active={active === "ipa-quest"} />
               <MobileDrawerLink href="/live-classes" label="Live Classes" icon={Radio} active={active === "live-classes"} />
               <MobileDrawerLink href="/assignments" label="Assignments" icon={ClipboardList} active={active === "assignments"} />
               <MobileDrawerLink href="/certificates" label="Certificates" icon={Award} active={active === "certificates"} />
