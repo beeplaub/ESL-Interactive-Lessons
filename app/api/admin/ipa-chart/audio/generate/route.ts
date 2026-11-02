@@ -11,6 +11,16 @@ import { uploadMediaObject } from "@/lib/storage/mediaStorage";
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
+const MAX_IPA_SOUND_SECONDS = 2;
+const MAX_IPA_WORD_SECONDS = 3;
+
+class IpaAudioTooLongError extends Error {
+  constructor(readonly durationSeconds: number, readonly maxSeconds: number) {
+    super(`Generated audio was ${Math.ceil(durationSeconds)} seconds; the limit is ${maxSeconds} seconds.`);
+    this.name = "IpaAudioTooLongError";
+  }
+}
+
 const schema = z.object({
   accent: z.enum(["uk", "us"]),
   soundId: z.string().trim().min(1).max(40),
@@ -51,7 +61,7 @@ export async function POST(request: Request) {
   }
 
   const instruction = input.assetType === "sound"
-    ? `Speak only the English phoneme /${sound.symbol}/ used in ${IPA_ACCENTS[input.accent].label}. Produce a single isolated speech sound, not the name of its IPA symbol, its letter name, or an explanation. Do not add a vowel before or after a consonant. For a vowel, produce only the target vowel. Pause briefly before and after.`
+    ? `Produce the English phoneme /${sound.symbol}/ used in ${IPA_ACCENTS[input.accent].label} exactly once as a short, isolated sound. Do not repeat, prolong, name, or explain it. Do not add a vowel before or after a consonant. For a vowel or diphthong, use one natural-length pronunciation.`
     : `Say the English word ${word} exactly once in ${IPA_ACCENTS[input.accent].label}. Use speech only; do not add an introduction, translation, sentence, or explanation.`;
   const voiceRequest = {
     script: input.assetType === "word" ? word : `/${sound.symbol}/`,
@@ -71,6 +81,10 @@ export async function POST(request: Request) {
   let failureStage: "gemini" | "storage" | "database" = "gemini";
   try {
     const generated = await generateVoiceoverAudio(voiceRequest);
+    const maxDuration = input.assetType === "sound" ? MAX_IPA_SOUND_SECONDS : MAX_IPA_WORD_SECONDS;
+    if (!Number.isFinite(generated.durationSeconds) || generated.durationSeconds <= 0 || generated.durationSeconds > maxDuration) {
+      throw new IpaAudioTooLongError(generated.durationSeconds, maxDuration);
+    }
     const generationId = crypto.randomUUID();
     const safeWord = (word || "phoneme").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "phoneme";
     const storagePath = `voiceovers/ipa-chart/${input.accent}/${sound.id}/${input.assetType}-${safeWord}-${generationId}.${generated.extension}`;
@@ -99,9 +113,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, id: savedAsset.id, status: "READY_FOR_REVIEW", url: stored.url, mimeType: generated.mimeType, soundId: sound.id, assetType: input.assetType, word });
   } catch (error) {
     const quota = isVoiceoverQuotaError(error);
+    const tooLong = error instanceof IpaAudioTooLongError;
     const status = error && typeof error === "object" && "status" in error && typeof error.status === "number" ? error.status : null;
     const failureMessage = quota
       ? "Gemini audio quota or rate limit reached. Completed recordings are saved; retry remaining items after quota resets."
+      : tooLong
+        ? `Gemini returned an audio clip that is too long (${Math.ceil(error.durationSeconds)} seconds; maximum ${error.maxSeconds}). It was not saved. Regenerate this item with a shorter result.`
       : failureStage === "storage"
         ? "Gemini audio was created but could not be uploaded for review. Existing learner audio is unchanged."
         : failureStage === "database"
