@@ -3,6 +3,7 @@ import { GoogleGenAI, Modality } from "@google/genai";
 import { VOICEOVER_PACES, VOICEOVER_STYLES, VOICEOVER_VOICES } from "@/lib/ai/voiceoverCatalog";
 import { audioExtension, audioMimeType, optimizeAudioForStorage } from "@/lib/media/audioStorage";
 import { providerFailed, providerSucceeded } from "@/lib/ai/providerHealth";
+import { IPA_GEMINI_VOICES } from "@/lib/ipa/audio-options";
 
 export { VOICEOVER_PACES, VOICEOVER_STYLES, VOICEOVER_VOICES } from "@/lib/ai/voiceoverCatalog";
 
@@ -35,7 +36,10 @@ function geminiClient() {
 
 export function isVoiceoverQuotaError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error ?? "");
-  return /RESOURCE_EXHAUSTED|quota exceeded|rate limit|\b429\b/i.test(message);
+  const status = error && typeof error === "object" && "status" in error && typeof error.status === "number"
+    ? error.status
+    : null;
+  return status === 429 || /RESOURCE_EXHAUSTED|quota exceeded|rate limit|\b429\b/i.test(message);
 }
 
 export function voiceoverRequestHash(request: VoiceoverRequest, provider = voiceoverProviderForRequest(request)) {
@@ -154,7 +158,7 @@ async function generateGeminiVoiceover(request: VoiceoverRequest) {
   };
 }
 
-const GEMINI_VOICE_NAMES = new Set(["Aoede", "Kore", "Leda", "Gacrux", "Sulafat", "Puck", "Charon", "Fenrir"]);
+const GEMINI_VOICE_NAMES = new Set<string>(IPA_GEMINI_VOICES);
 
 function geminiVoiceName(requestedVoice: string) {
   if (GEMINI_VOICE_NAMES.has(requestedVoice)) return requestedVoice;

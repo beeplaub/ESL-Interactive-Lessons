@@ -52,7 +52,7 @@ export async function POST(request: Request) {
 
   const instruction = input.assetType === "sound"
     ? `Speak only the English phoneme /${sound.symbol}/ used in ${IPA_ACCENTS[input.accent].label}. Produce a single isolated speech sound, not the name of its IPA symbol, its letter name, or an explanation. Do not add a vowel before or after a consonant. For a vowel, produce only the target vowel. Pause briefly before and after.`
-    : `Read only the single English word “${word}” in ${IPA_ACCENTS[input.accent].label}. Do not add an introduction, translation, sentence, or explanation.`;
+    : `Say the English word ${word} exactly once in ${IPA_ACCENTS[input.accent].label}. Use speech only; do not add an introduction, translation, sentence, or explanation.`;
   const voiceRequest = {
     script: input.assetType === "word" ? word : `/${sound.symbol}/`,
     instruction,
@@ -68,13 +68,16 @@ export async function POST(request: Request) {
   if (!lock.claimed) return errorResponse("This same audio is already generating. Wait for it to finish before retrying.", 409);
 
   const startedAt = Date.now();
+  let failureStage: "gemini" | "storage" | "database" = "gemini";
   try {
     const generated = await generateVoiceoverAudio(voiceRequest);
     const generationId = crypto.randomUUID();
     const safeWord = (word || "phoneme").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "phoneme";
     const storagePath = `voiceovers/ipa-chart/${input.accent}/${sound.id}/${input.assetType}-${safeWord}-${generationId}.${generated.extension}`;
+    failureStage = "storage";
     const stored = await uploadMediaObject({ supabase: admin, supabaseBucket: "ai-recordings", path: storagePath, body: generated.audio, contentType: generated.mimeType, upsert: false });
     const now = new Date().toISOString();
+    failureStage = "database";
     const { data: savedAsset, error: saveError } = await admin.from("ipa_chart_audio_assets").upsert({
       accent: input.accent, sound_id: sound.id, asset_type: input.assetType, word,
       status: "READY_FOR_REVIEW", pending_public_url: stored.url,
@@ -96,13 +99,27 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, id: savedAsset.id, status: "READY_FOR_REVIEW", url: stored.url, mimeType: generated.mimeType, soundId: sound.id, assetType: input.assetType, word });
   } catch (error) {
     const quota = isVoiceoverQuotaError(error);
+    const status = error && typeof error === "object" && "status" in error && typeof error.status === "number" ? error.status : null;
+    const failureMessage = quota
+      ? "Gemini audio quota or rate limit reached. Completed recordings are saved; retry remaining items after quota resets."
+      : failureStage === "storage"
+        ? "Gemini audio was created but could not be uploaded for review. Existing learner audio is unchanged."
+        : failureStage === "database"
+          ? "Audio generation finished, but the review record could not be saved. Existing learner audio is unchanged."
+          : status && status >= 500
+            ? "Gemini is temporarily unavailable. Completed recordings are saved; retry the remaining items later."
+            : "Gemini could not generate this audio. Completed recordings are saved; retry this item later.";
+    const safeDetail = error instanceof Error
+      ? error.message.replace(/AIza[0-9A-Za-z_-]{20,}/g, "[redacted]").replace(/Bearer\s+\S+/gi, "Bearer [redacted]").replace(/\s+/g, " ").slice(0, 240)
+      : "";
+    console.error("IPA chart audio generation failed", { stage: failureStage, status, errorName: error instanceof Error ? error.name : "UnknownError", quota, detail: safeDetail });
     const { data: current } = await admin.from("ipa_chart_audio_assets").select("live_public_url,status,pending_public_url")
       .eq("accent", input.accent).eq("sound_id", sound.id).eq("asset_type", input.assetType).eq("word", word).maybeSingle();
     if (!current?.live_public_url && !current?.pending_public_url) {
-      await admin.from("ipa_chart_audio_assets").upsert({ accent: input.accent, sound_id: sound.id, asset_type: input.assetType, word, status: "FAILED", generated_by: session.user.id, error_message: quota ? "Gemini voice quota reached. Retry this item after quota resets." : "Audio generation failed. Retry this item.", updated_at: new Date().toISOString() }, { onConflict: "accent,sound_id,asset_type,word" });
+      await admin.from("ipa_chart_audio_assets").upsert({ accent: input.accent, sound_id: sound.id, asset_type: input.assetType, word, status: "FAILED", generated_by: session.user.id, error_message: failureMessage, updated_at: new Date().toISOString() }, { onConflict: "accent,sound_id,asset_type,word" });
     }
-    await admin.from("ai_generations").insert({ user_id: session.user.id, user_role: session.profile?.role ?? "ADMIN", feature_key: "ipa_chart_audio", model_used: "Gemini TTS", prompt_raw: `${instruction}\n\n${voiceRequest.script}`.slice(0, 2_000), error_message: quota ? "Gemini voice quota reached." : "IPA audio generation failed.", provider: "google", status: "FAILED", latency_ms: Date.now() - startedAt, cache_key: requestHash, prompt_version: "ipa-chart-audio-v1", completed_at: new Date().toISOString() });
-    return errorResponse(quota ? "Gemini audio quota is exhausted. Completed recordings are saved; retry only the remaining items after quota resets." : "Audio generation failed. Previously approved recordings remain unchanged; retry this item when ready.", quota ? 429 : 503);
+    await admin.from("ai_generations").insert({ user_id: session.user.id, user_role: session.profile?.role ?? "ADMIN", feature_key: "ipa_chart_audio", model_used: "Gemini TTS", prompt_raw: `${instruction}\n\n${voiceRequest.script}`.slice(0, 2_000), error_message: failureMessage, provider: "google", status: "FAILED", latency_ms: Date.now() - startedAt, cache_key: requestHash, prompt_version: "ipa-chart-audio-v1", completed_at: new Date().toISOString() });
+    return errorResponse(failureMessage, quota ? 429 : 503);
   } finally {
     await releaseAiGeneration(lockKey, lock.ownerToken);
   }
