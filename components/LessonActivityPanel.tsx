@@ -1742,7 +1742,9 @@ export function LessonActivityPanel({
   const subjectiveQuestions = questions.filter((question) => isWritingQuestionType(question.question_type));
   const hasSubjectiveQuestions = subjectiveQuestions.length > 0;
   const isPronunciationActivity = questions.length > 0 && questions.every((question) => question.question_type === "PRONUNCIATION");
+  const isShadowingActivity = questions.length > 0 && questions.every((question) => question.question_type === "SHADOWING");
   const allAnswered = questions.length > 0 && questions.every((question) => hasAnswer(question, answers[question.id]));
+  const shadowingComparisonHeard = isShadowingActivity && questions.every((question) => asRecord(answers[question.id] as Json).comparison_heard === true);
   const score = questions.reduce((sum, q) => sum + questionScore(q, answers[q.id]), 0);
   const total = questions.reduce((sum, q) => sum + questionTotal(q), 0);
   const gradingCompletedCount = subjectiveQuestions.filter((question) => resolveWritingOutcome(answers[question.id]).hasChosenMode).length;
@@ -2131,6 +2133,8 @@ export function LessonActivityPanel({
               : message ?? "Review your feedback, then continue."
             : isPronunciationActivity
             ? "Your pronunciation is graded automatically."
+            : isShadowingActivity
+            ? isPending ? "Saving your Shadowing practice…" : shadowingComparisonHeard ? "Comparison complete — finish when you’re ready." : "Listen to the model and your recording once to finish."
             : allAnswered
             ? "All answered — ready to check!"
             : `${Object.keys(answers).length} of ${questions.length} answered`}
@@ -2145,6 +2149,17 @@ export function LessonActivityPanel({
                 {nextLabel} <ChevronRight size={15} />
               </button>
             </>
+          ) : isShadowingActivity ? (
+            shadowingComparisonHeard ? (
+              <button
+                type="button"
+                onClick={() => submit()}
+                disabled={isPending || (maxAttempts > 0 && localAttempts.length >= maxAttempts)}
+                className="inline-flex items-center gap-1.5 rounded-md border border-[var(--br-border)] bg-white px-4 py-2 text-sm font-semibold text-[var(--br-dark-card)] hover:bg-black/[0.03] disabled:opacity-40"
+              >
+                <ChevronRight size={14} /> Finish practice
+              </button>
+            ) : null
           ) : !isPronunciationActivity ? (
             <button
               type="button"

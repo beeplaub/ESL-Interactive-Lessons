@@ -122,6 +122,15 @@ function baseQuestionScore(question: ScoredQuestion, answer: unknown): number {
     return targetIds.reduce((sum, id) => sum + pronunciationTargetPoints(answer, id), 0);
   }
 
+  if (question.question_type === "SHADOWING" && asRecord(question.options).shadowing_mode === "CHUNK_AB") {
+    const value = asRecord(answer as Json);
+    if (value.completed !== true) return 0;
+    const coverage = typeof value.word_coverage === "number" ? value.word_coverage : Number.NaN;
+    // Older attempts and attempts where transcription was unavailable remain
+    // completion-scored; an available transcript receives proportional credit.
+    return Number.isFinite(coverage) ? Math.max(0, Math.min(1, coverage)) : 1;
+  }
+
   if (question.question_type === "MATCHING") {
     const given = asRecord(answer as Json);
     if (Array.isArray(question.correct_answer)) {
@@ -202,7 +211,12 @@ export function isCorrect(question: ScoredQuestion, value: unknown): boolean {
   if (question.question_type === "SHADOWING") {
     const rec = asRecord(value as Json);
     const options = asRecord(question.options);
-    if (options.shadowing_mode === "CHUNK_AB") return rec.completed === true;
+    if (options.shadowing_mode === "CHUNK_AB") {
+      if (rec.completed !== true) return false;
+      const coverage = typeof rec.word_coverage === "number" ? rec.word_coverage : Number.NaN;
+      // Keep historical and transcription-unavailable completions passing.
+      return !Number.isFinite(coverage) || coverage >= 0.999;
+    }
     const requiredRepeats = Math.max(1, Math.min(20, Number(options.repeat_count ?? 1) || 1));
     const phases = shadowingPhases(options);
     const repetitions = Array.isArray(rec.repetitions) ? rec.repetitions.map((item) => asRecord(item as Json)) : [];
